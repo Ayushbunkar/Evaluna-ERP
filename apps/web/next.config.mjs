@@ -12,6 +12,9 @@ const nextConfig = {
     NEXT_PUBLIC_BASE_PATH: process.env.BASE_PATH || "",
   },
   serverExternalPackages: ["@electric-sql/pglite"],
+  serverActions: {
+    allowedOrigins: ["*.app.github.dev", "localhost:3000", "localhost:3001"],
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
