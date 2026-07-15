@@ -8,7 +8,7 @@ export interface SyncQueueItem {
   timestamp: number;
 }
 
-export class Evaluna ERPDatabase extends Dexie {
+export class EvalunaERPDatabase extends Dexie {
   products!: Table<any, string>;
   customers!: Table<any, string>;
   inventory!: Table<any, string>;
@@ -25,4 +25,4 @@ export class Evaluna ERPDatabase extends Dexie {
   }
 }
 
-export const db = new Evaluna ERPDatabase();
+export const db = new EvalunaERPDatabase();

@@ -446,6 +446,6 @@ export default function POSPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageTransition>
   );
 }

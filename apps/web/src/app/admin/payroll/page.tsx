@@ -296,7 +296,6 @@ export default function PayrollPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
     </motion.div>
   );
 }

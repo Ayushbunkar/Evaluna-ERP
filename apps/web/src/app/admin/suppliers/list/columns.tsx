@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { Supplier } from "@/types";
 
+export const columns: ColumnDef<Supplier>[] = [
   {
     accessorKey: "supplier_code",
     header: "Code",
