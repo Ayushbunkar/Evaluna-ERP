@@ -11,6 +11,13 @@ import { ROUTE_ROLE_MAP, isAtLeastRole, type Role } from "@/lib/permissions";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Clone headers to strip proxy headers that break Next.js CSRF in Codespaces
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete("x-forwarded-host");
+  requestHeaders.delete("x-forwarded-proto");
+  requestHeaders.delete("x-forwarded-port");
+  requestHeaders.delete("x-forwarded-for");
+
   // 1. Let public assets and auth APIs pass through
   if (
     pathname.startsWith("/api/auth") ||
@@ -18,7 +25,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/favicon.ico") ||
     pathname.startsWith("/public")
   ) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // 2. Public auth pages — redirect to admin if already logged in
@@ -32,7 +39,7 @@ export async function proxy(request: NextRequest) {
   const sessionToken = request.cookies.get("evaluna.session_token")?.value;
 
   if (!sessionToken && isAuthPage) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
   if (!sessionToken && !pathname.startsWith("/api/trpc")) {
     const url = request.nextUrl.clone();
@@ -119,7 +126,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // 6. Attach context headers for downstream consumption
-  const response = NextResponse.next();
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("X-User-Id", sessionData.user.id);
   response.headers.set("X-User-Role", sessionData.user.role || "sales_person");
   if (sessionData.session.branchId) {
