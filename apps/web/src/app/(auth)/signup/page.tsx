@@ -27,7 +27,7 @@ export default function SignupPage() {
           </p>
         </div>
         <Card>
-          <form>
+          <form action={signup}>
             <CardContent className="space-y-4 mt-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">{t("name")}</Label>

@@ -28,7 +28,7 @@ function LoginForm() {
   }
 
   return (
-    <form>
+    <form action={login}>
       <CardContent className="space-y-4 mt-4">
         {error && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-500 text-sm">
