@@ -24,6 +24,7 @@ export const user = pgTable("user", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
+  twoFactorEnabled: boolean("twoFactorEnabled").default(false),
 
   // ── Evaluna ERP extensions ─────────────────────────────────────────────────
   /** ERP role: admin | manager | auditor | putter | picker | biller | sales_person */
