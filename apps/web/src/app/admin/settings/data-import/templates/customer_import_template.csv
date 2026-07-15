@@ -1,0 +1,4 @@
+name,email,phone,address,gst_number,credit_limit,customer_type
+Raj Enterprises,raj@example.com,9876543210,"123 MG Road, Bangalore",29AAAAA0000A1Z5,50000,wholesale
+Priya Stores,priya@example.com,9876543211,"45 Ring Road, Mumbai",27BBBBB0000B1Z5,25000,retail
+Metro Mart,metro@example.com,9876543212,"67 Anna Salai, Chennai",33CCCCC0000C1Z5,100000,wholesale

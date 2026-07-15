@@ -1,0 +1,27 @@
+{
+  "name": "@evaluna/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "db:push": "drizzle-kit push --force"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.15",
+    "@evaluna/config": "workspace:*",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5"
+  }
+}

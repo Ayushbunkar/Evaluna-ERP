@@ -1,0 +1,3 @@
+{
+  "extends": "@evaluna/config/tsconfig.base.json"
+}
