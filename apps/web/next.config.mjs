@@ -13,7 +13,13 @@ const nextConfig = {
   },
   serverExternalPackages: ["@electric-sql/pglite"],
   serverActions: {
-    allowedOrigins: ["*.app.github.dev", "localhost:3000", "localhost:3001"],
+    allowedOrigins: [
+      "*.app.github.dev",
+      "*.github.dev",
+      "ubiquitous-space-succotash-695gwgg7vjxj2465j-3001.app.github.dev",
+      "localhost:3000", 
+      "localhost:3001"
+    ],
   },
   typescript: {
     ignoreBuildErrors: true,
