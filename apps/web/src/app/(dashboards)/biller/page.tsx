@@ -1,7 +1,7 @@
 "use client";
 
 import { trpc } from "@/lib/trpc/client";
-import { KPICard } from "@/components/shared/cards/kpi-card";
+import { KpiCard } from "@/components/shared/cards/kpi-card";
 import { ActivityCard } from "@/components/shared/cards/activity-card";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { DollarSign, ShoppingCart, TrendingUp, Users } from "lucide-react";
@@ -43,25 +43,25 @@ export default function BillerDashboard() {
       <h1 className="text-2xl font-bold tracking-tight">Today's Sales Overview</h1>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard 
+        <KpiCard 
           title="Total Sales" 
           value={`$${metrics.totalSales.toFixed(2)}`} 
           icon={<DollarSign className="w-4 h-4 text-muted-foreground" />} 
           description="+12.5% from yesterday"
         />
-        <KPICard 
+        <KpiCard 
           title="Total Bills" 
           value={metrics.totalBills} 
           icon={<ShoppingCart className="w-4 h-4 text-muted-foreground" />} 
           description="+5 from yesterday"
         />
-        <KPICard 
+        <KpiCard 
           title="Avg Bill Value" 
           value={`$${metrics.avgBillValue.toFixed(2)}`} 
           icon={<TrendingUp className="w-4 h-4 text-muted-foreground" />} 
           description="Steady"
         />
-        <KPICard 
+        <KpiCard 
           title="Active Cashiers" 
           value={metrics.activeCashiers} 
           icon={<Users className="w-4 h-4 text-muted-foreground" />} 

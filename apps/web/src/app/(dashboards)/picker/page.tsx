@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc/client";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
 import { Button } from "@evaluna/ui/components/button";
-import { KPICard } from "@/components/shared/cards/kpi-card";
+import { KpiCard } from "@/components/shared/cards/kpi-card";
 import { ActivityCard } from "@/components/shared/cards/activity-card";
 import { ClipboardList, PackageOpen, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -68,7 +68,7 @@ export default function PickerDashboardPage() {
           className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
         >
           <motion.div variants={item}>
-            <KPICard 
+            <KpiCard 
               title="Pending Orders" 
               value={dashboardData.pendingOrders.toString()} 
               icon={<ClipboardList className="h-4 w-4 text-muted-foreground" />} 
@@ -76,7 +76,7 @@ export default function PickerDashboardPage() {
             />
           </motion.div>
           <motion.div variants={item}>
-            <KPICard 
+            <KpiCard 
               title="Active Pick Lists" 
               value={dashboardData.activePickLists.toString()} 
               icon={<PackageOpen className="h-4 w-4 text-muted-foreground" />} 
@@ -84,7 +84,7 @@ export default function PickerDashboardPage() {
             />
           </motion.div>
           <motion.div variants={item}>
-            <KPICard 
+            <KpiCard 
               title="Items Picked" 
               value={dashboardData.itemsPickedToday.toString()} 
               icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} 
@@ -92,7 +92,7 @@ export default function PickerDashboardPage() {
             />
           </motion.div>
           <motion.div variants={item}>
-            <KPICard 
+            <KpiCard 
               title="Exceptions" 
               value={dashboardData.exceptions.toString()} 
               icon={<AlertTriangle className="h-4 w-4 text-destructive" />} 
