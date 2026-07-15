@@ -1,10 +1,12 @@
 import { defineConfig } from "drizzle-kit";
+import * as dotenv from "dotenv";
+
+dotenv.config({ path: "../../.env" });
 
 export default defineConfig({
   dialect: "postgresql",
-  driver: "pglite",
   schema: "./src/schema.ts",
   dbCredentials: {
-    url: "../../apps/web/data/pglite",
+    url: process.env.DATABASE_URL!,
   },
 });

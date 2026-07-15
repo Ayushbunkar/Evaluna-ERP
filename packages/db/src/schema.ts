@@ -50,6 +50,9 @@ export const products = pgTable("products", {
   units_per_pack: integer("units_per_pack"),
   is_weighted: boolean("is_weighted").default(false), // true for scale items
   created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()),
+  deleted_at: timestamp("deleted_at"),
+  is_deleted: boolean("is_deleted").default(false),
 }, (table) => ({
   barcodeIdx: index("idx_products_barcode").on(table.barcode),
   categoryIdx: index("idx_products_category").on(table.category),
@@ -78,6 +81,9 @@ export const customers = pgTable("customers", {
   total_spent: decimal("total_spent", { precision: 12, scale: 2 }).default("0"),
   marketing_opt_in: boolean("marketing_opt_in").default(true),
   created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()),
+  deleted_at: timestamp("deleted_at"),
+  is_deleted: boolean("is_deleted").default(false),
 });
 
 // ── Orders ──────────────────────────────────────────────────────────────────
@@ -264,6 +270,9 @@ export const staff = pgTable("staff", {
   ifsc: varchar("ifsc", { length: 11 }),
   status: varchar("status", { length: 20 }).default("active"),
   created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()),
+  deleted_at: timestamp("deleted_at"),
+  is_deleted: boolean("is_deleted").default(false),
 });
 
 export const staffRelations = relations(staff, ({ many }) => ({
@@ -1581,3 +1590,24 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   used_at: timestamp("used_at"),
   created_at: timestamp("created_at").defaultNow(),
 });
+
+// ── Audit Logs ─────────────────────────────────────────────────────────────
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  user_id: integer("user_id").references(() => staff.id),
+  action: varchar("action", { length: 100 }).notNull(),
+  entity_type: varchar("entity_type", { length: 100 }).notNull(),
+  entity_id: integer("entity_id"),
+  old_values: jsonb("old_values"),
+  new_values: jsonb("new_values"),
+  ip_address: varchar("ip_address", { length: 45 }),
+  user_agent: text("user_agent"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(staff, {
+    fields: [auditLogs.user_id],
+    references: [staff.id],
+  }),
+}));
