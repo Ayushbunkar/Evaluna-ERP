@@ -17,7 +17,7 @@
   "dependencies": {
     "@trpc/server": "catalog:",
     "superjson": "^2.2.6",
-    "trpc-to-openapi": "^3.1.0",
+    "trpc-to-openapi": "^3.3.0",
     "zod": "catalog:",
     "@evaluna/db": "workspace:*"
   },
