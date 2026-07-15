@@ -27,6 +27,7 @@ export async function login(formData: FormData) {
       redirect("/branch-select");
     }
   } catch (err: any) {
+    console.error("Login Server Action Error:", err);
     // Determine error type
     const msg = err.body?.message || "invalid-credentials";
     if (msg.includes("suspended")) {

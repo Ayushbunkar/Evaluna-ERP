@@ -92,7 +92,13 @@ function detectMarkerStyle(content: string): keyof typeof MARKERS | null {
   return null;
 }
 
+import { existsSync } from "node:fs";
+
 function injectIntoFile(filePath: string, mermaid: string) {
+  if (!existsSync(filePath)) {
+    console.warn(`File not found: ${filePath}, skipping`);
+    return;
+  }
   const content = readFileSync(filePath, "utf-8");
   const style = detectMarkerStyle(content);
 
