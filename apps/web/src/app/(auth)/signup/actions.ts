@@ -10,16 +10,25 @@ export async function signup(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
+  let user: any = null;
+
   try {
-    await auth.api.signUpEmail({
+    const res = await auth.api.signUpEmail({
       body: { email, password, name },
       headers: await headers(),
     });
-  } catch (error) {
+    user = res.user;
+  } catch (error: any) {
     console.error("Signup Server Action Error:", error);
     redirect("/signup?error=signup-failed");
   }
 
-  revalidatePath("/admin", "layout");
-  redirect("/admin");
+  if (user?.is_superadmin || !user?.branch_id) {
+    redirect("/branch-select");
+  }
+  
+  // Redirect based on role
+  const role = user?.role || "sales_person";
+  revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");
+  redirect(`/${role === "sales_person" ? "sales" : role}`);
 }

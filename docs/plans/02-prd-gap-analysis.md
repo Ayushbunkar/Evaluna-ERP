@@ -21,7 +21,6 @@
 
 #### 2. Customers Module
 **Status:** ✅ Implemented
-**Brazil-Specific Fields to Remove:**
 - `khata` (Brazilian credit ledger system) - should become `credit_limit` for India
 
 **India-Specific Fields to Add:**

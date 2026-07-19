@@ -10,6 +10,8 @@ export async function login(formData: FormData) {
   const password = formData.get("password") as string;
   const rememberMe = formData.get("rememberMe") === "on";
 
+  let user: any = null;
+
   try {
     const res = await auth.api.signInEmail({
       body: { 
@@ -20,12 +22,7 @@ export async function login(formData: FormData) {
       headers: await headers(),
     });
     
-    // We can't access user.is_superadmin directly from res.user here easily if it's not typed,
-    // but the session and user are returned.
-    const user = res.user as any;
-    if (user.is_superadmin || !user.branch_id) {
-      redirect("/branch-select");
-    }
+    user = res.user;
   } catch (err: any) {
     console.error("Login Server Action Error:", err);
     // Determine error type
@@ -38,8 +35,14 @@ export async function login(formData: FormData) {
     redirect("/login?error=invalid-credentials");
   }
 
-  revalidatePath("/admin", "layout");
-  redirect("/admin");
+  if (user?.is_superadmin || !user?.branch_id) {
+    redirect("/branch-select");
+  }
+  
+  // Redirect based on role
+  const role = user?.role || "sales_person";
+  revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");
+  redirect(`/${role === "sales_person" ? "sales" : role}`);
 }
 
 export async function logout() {
