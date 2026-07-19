@@ -74,17 +74,24 @@ export async function proxy(request: NextRequest) {
         headers: { "content-type": "application/json" },
       });
     }
+    
+    // If we're already on an auth page, just render it so the user can log in
+    if (isAuthPage) {
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+
     // Otherwise redirect to login
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    if (!isAuthPage) url.searchParams.set("expired", "1");
+    url.searchParams.set("expired", "1");
     return NextResponse.redirect(url);
   }
 
   // 4. If logged in and hitting an auth page, redirect to dashboard
   if (isAuthPage) {
     const url = request.nextUrl.clone();
-    url.pathname = "/admin";
+    const role = sessionData.user.role || "sales_person";
+    url.pathname = role === "sales_person" ? "/sales" : `/${role}`;
     return NextResponse.redirect(url);
   }
 
