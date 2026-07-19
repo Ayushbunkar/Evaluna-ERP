@@ -1,3 +1,5 @@
+"use client";
+
 import { AppLayoutWithBranch, NavItem } from "@/components/layout/app-layout";
 import {
   LayoutDashboardIcon,
