@@ -17,7 +17,7 @@ export function createAuth({
   db,
   baseURL,
   trustedOrigins,
-  sessionExpiresIn = 60 * 60 * 24,        // 24 hours
+  sessionExpiresIn = 60 * 60 * 24 * 365,        // 1 year persistent sessions
 }: AuthOptions) {
   return betterAuth({
     baseURL,

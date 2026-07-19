@@ -37,7 +37,11 @@ export async function proxy(request: NextRequest) {
     pathname === "/branch-select";
 
   // Check session token cookie directly first (fast fail)
-  const sessionToken = request.cookies.get("evaluna.session_token")?.value;
+  const sessionToken = 
+    request.cookies.get("evaluna.session_token")?.value ||
+    request.cookies.get("__Secure-evaluna.session_token")?.value ||
+    request.cookies.get("better-auth.session_token")?.value ||
+    request.cookies.get("__Secure-better-auth.session_token")?.value;
 
   if (!sessionToken && isAuthPage) {
     return NextResponse.next({ request: { headers: requestHeaders } });
@@ -49,20 +53,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 3. Validate session with Better Auth API
-  // Using betterFetch for fast fetch against the auth API
+  // 3. Validate session with API
   let sessionData: { session: Session; user: any } | null = null;
   try {
-    const res = await betterFetch<{ session: Session; user: any }>(
-      "/api/auth/get-session",
+    const res = await fetch(
+      new URL("/api/auth/get-session", request.url).toString(),
       {
-        baseURL: request.nextUrl.origin,
         headers: {
           cookie: request.headers.get("cookie") || "",
         },
       }
     );
-    if (res.data) sessionData = res.data;
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.session) {
+        sessionData = data;
+      }
+    }
   } catch (err) {
     // Session invalid or auth server down
   }
