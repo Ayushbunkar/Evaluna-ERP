@@ -30,10 +30,11 @@ export async function signup(formData: FormData) {
     redirect("/signup?error=signup-failed");
   }
 
-  if (user?.is_superadmin || !user?.branch_id) {
+  // Only true superadmins get the branch-select screen
+  if (user?.is_superadmin) {
     redirect("/branch-select");
   }
-  
+
   // Redirect based on role
   const role = user?.role || "sales_person";
   revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");

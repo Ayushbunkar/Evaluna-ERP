@@ -41,7 +41,8 @@ export async function login(formData: FormData) {
     redirect("/login?error=invalid-credentials");
   }
 
-  if (user?.is_superadmin || !user?.branch_id) {
+  // Only true superadmins with no branch get the branch-select screen
+  if (user?.is_superadmin) {
     redirect("/branch-select");
   }
 

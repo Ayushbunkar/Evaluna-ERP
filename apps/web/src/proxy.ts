@@ -28,12 +28,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // 2. Public auth pages — redirect to admin if already logged in
+  // 2. Public auth pages — redirect to role dashboard if already logged in
   const isAuthPage =
     pathname === "/login" ||
     pathname === "/signup" ||
     pathname === "/forgot-password" ||
-    pathname === "/reset-password";
+    pathname === "/reset-password" ||
+    pathname === "/branch-select";
 
   // Check session token cookie directly first (fast fail)
   const sessionToken = request.cookies.get("evaluna.session_token")?.value;

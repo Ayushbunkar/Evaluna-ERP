@@ -14,9 +14,10 @@ export default function BranchSelectPage() {
   const router = useRouter();
   const [selecting, setSelecting] = useState<number | null>(null);
 
-  // If user is not superadmin and has a branch, redirect to admin immediately
+  // If user is not superadmin and has a branch, redirect to their role dashboard immediately
   if (!sessionLoading && session?.user && !session.user.isSuperadmin && session.user.branchId) {
-    router.push("/admin");
+    const role = (session.user as any).role || "sales_person";
+    router.push(role === "sales_person" ? "/sales" : `/${role}`);
     return null;
   }
 
@@ -27,9 +28,9 @@ export default function BranchSelectPage() {
     // to set the branch_id in the DB/cookie for this session context.
     // For this boilerplate, we'll set it in localStorage/cookie and redirect.
     document.cookie = `evaluna.branch_context=${branchId}; path=/`;
-    
     setTimeout(() => {
-      router.push("/admin");
+      const role = (session?.user as any)?.role || "admin";
+      router.push(role === "sales_person" ? "/sales" : `/${role}`);
     }, 500);
   };
 
