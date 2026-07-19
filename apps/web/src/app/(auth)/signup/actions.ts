@@ -13,6 +13,13 @@ export async function signup(formData: FormData) {
   let user: any = null;
 
   try {
+    // Sign out any existing session first
+    try {
+      await auth.api.signOut({ headers: await headers() });
+    } catch {
+      // Ignore - no active session to sign out
+    }
+
     const res = await auth.api.signUpEmail({
       body: { email, password, name },
       headers: await headers(),

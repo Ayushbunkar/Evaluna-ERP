@@ -13,19 +13,25 @@ export async function login(formData: FormData) {
   let user: any = null;
 
   try {
+    // Sign out any existing session first to avoid stale session redirect loops
+    try {
+      await auth.api.signOut({ headers: await headers() });
+    } catch {
+      // Ignore - no active session to sign out
+    }
+
     const res = await auth.api.signInEmail({
-      body: { 
-        email, 
+      body: {
+        email,
         password,
         rememberMe,
       },
       headers: await headers(),
     });
-    
+
     user = res.user;
   } catch (err: any) {
     console.error("Login Server Action Error:", err);
-    // Determine error type
     const msg = err.body?.message || "invalid-credentials";
     if (msg.includes("suspended")) {
       redirect("/login?error=suspended");
@@ -38,7 +44,7 @@ export async function login(formData: FormData) {
   if (user?.is_superadmin || !user?.branch_id) {
     redirect("/branch-select");
   }
-  
+
   // Redirect based on role
   const role = user?.role || "sales_person";
   revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");
