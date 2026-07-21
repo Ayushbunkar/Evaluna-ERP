@@ -21,7 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@evaluna/ui/components/table";
 import { PageTransition, AnimatedCard } from "@/lib/animations";
 import { Rocket, Plus, Users } from "lucide-react";
 import { toast } from "sonner";

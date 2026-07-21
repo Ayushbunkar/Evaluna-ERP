@@ -14,10 +14,7 @@ export default function AuditsPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.audits.list.queryOptions ? trpc.audits.list.queryOptions() : { queryKey: ['audits', 'list'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.audits.list.useQuery();
 
   return (
     <Card className="w-full">

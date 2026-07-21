@@ -26,7 +26,7 @@ type Customer = RouterOutputs["customers"]["list"][number];
 
 export default function CustomersPage() {
   const trpc = useTRPC();
-  const { data: customers = [], isLoading, error } = useQuery(trpc.customers.list.queryOptions());
+  const { data: customers = [], isLoading, error } = trpc.customers.list.useQuery();
   const t = useTranslations("customers");
   const tc = useTranslations("common");
 
@@ -94,7 +94,8 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const isEditing = editingId !== null;
-  const invalidateKeys = trpc.customers.list.queryOptions().queryKey;
+  const trpcUtils = trpc.useUtils();
+  const invalidateKeys = trpcUtils.customers.list.getQueryKey();
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.customers.create.mutationOptions(),

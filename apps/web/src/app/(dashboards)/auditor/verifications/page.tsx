@@ -14,10 +14,7 @@ export default function VerificationsPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.verifications.list.queryOptions ? trpc.verifications.list.queryOptions() : { queryKey: ['verifications', 'list'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.verifications.list.useQuery();
 
   return (
     <Card className="w-full">

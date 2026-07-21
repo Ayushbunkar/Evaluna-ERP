@@ -39,7 +39,7 @@ type Product = RouterOutputs["products"]["list"][number];
 
 export default function Products() {
   const trpc = useTRPC();
-  const { data: products = [], isLoading } = useQuery(trpc.products.list.queryOptions());
+  const { data: products = [], isLoading } = trpc.products.list.useQuery();
   const t = useTranslations("products");
   const tc = useTranslations("common");
   const locale = useLocale();
@@ -106,7 +106,8 @@ export default function Products() {
   const [stockFilter, setStockFilter] = useState("all");
 
   const isEditing = editingId !== null;
-  const invalidateKeys = trpc.products.list.queryOptions().queryKey;
+  const trpcUtils = trpc.useUtils();
+  const invalidateKeys = trpcUtils.products.list.getQueryKey();
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.products.create.mutationOptions(),

@@ -27,7 +27,7 @@ type OrderStatus = "completed" | "pending" | "cancelled";
 
 export default function OrdersPage() {
   const trpc = useTRPC();
-  const { data: orders = [], isLoading, error } = useQuery(trpc.orders.list.queryOptions());
+  const { data: orders = [], isLoading, error } = trpc.orders.list.useQuery();
   const t = useTranslations("orders");
   const tc = useTranslations("common");
   const locale = useLocale();
@@ -97,7 +97,8 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editCustomerName, setEditCustomerName] = useState("");
 
-  const invalidateKeys = trpc.orders.list.queryOptions().queryKey;
+  const trpcUtils = trpc.useUtils();
+  const invalidateKeys = trpcUtils.orders.list.getQueryKey();
 
   const updateMutation = useCrudMutation({
     mutationOptions: trpc.orders.update.mutationOptions(),

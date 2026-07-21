@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
-import { 
-  Card, CardContent, CardHeader, CardTitle,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-  Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch
-} from "@evaluna/ui/components";
+import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@evaluna/ui/components/table";
+import { Button } from "@evaluna/ui/components/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@evaluna/ui/components/select";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Ticket } from "lucide-react";
 import { PageTransition } from "@/lib/animations";
 

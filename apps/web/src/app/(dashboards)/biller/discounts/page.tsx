@@ -14,10 +14,7 @@ export default function DiscountsPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.discounts.list.queryOptions ? trpc.discounts.list.queryOptions() : { queryKey: ['discounts', 'list'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.discounts.list.useQuery();
 
   return (
     <Card className="w-full">

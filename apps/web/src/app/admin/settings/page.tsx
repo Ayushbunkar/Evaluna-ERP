@@ -4,7 +4,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useBranch } from "@/lib/branch-context";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@evaluna/ui/components/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";

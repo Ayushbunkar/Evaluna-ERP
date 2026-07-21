@@ -14,10 +14,7 @@ export default function CustomersPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.customers.list.queryOptions ? trpc.customers.list.queryOptions() : { queryKey: ['customers', 'list'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.customers.list.useQuery();
 
   return (
     <Card className="w-full">

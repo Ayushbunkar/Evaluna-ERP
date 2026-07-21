@@ -30,7 +30,7 @@ type TransactionStatus = "completed" | "pending";
 
 export default function Cashier() {
   const trpc = useTRPC();
-  const { data: transactions = [], isLoading } = useQuery(trpc.transactions.list.queryOptions());
+  const { data: transactions = [], isLoading } = trpc.transactions.list.useQuery();
   const t = useTranslations("cashier");
   const tc = useTranslations("common");
   const locale = useLocale();
@@ -90,7 +90,8 @@ export default function Cashier() {
     status: "completed" as TransactionStatus,
   });
 
-  const invalidateKeys = trpc.transactions.list.queryOptions().queryKey;
+  const trpcUtils = trpc.useUtils();
+  const invalidateKeys = trpcUtils.transactions.list.getQueryKey();
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.transactions.create.mutationOptions(),

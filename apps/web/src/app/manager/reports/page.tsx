@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/ui/card";
-import { Button } from "@evaluna/ui/components/ui/button";
-import { Input } from "@evaluna/ui/components/ui/input";
-import { Label } from "@evaluna/ui/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@evaluna/ui/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@evaluna/ui/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
+import { Button } from "@evaluna/ui/components/button";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@evaluna/ui/components/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@evaluna/ui/components/table";
 import { format, subDays } from "date-fns";
 import { Download, TrendingUp, AlertTriangle, FileText, Loader2, Table as TableIcon, LayoutDashboard, ShoppingCart, Users, Briefcase, IndianRupee, Store, Ticket, Star, ShieldAlert, Timer } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";

@@ -18,11 +18,11 @@ import { toast } from "sonner";
 import { PackageOpenIcon } from "lucide-react";
 import { PageTransition } from "@/lib/animations";
 // Try to import useBranch, fallback to mock if not found
-import { useBranch } from "@/hooks/use-branch";
+import { useBranch } from "@/lib/branch-context";
 
 export default function ConversionsPage() {
   const trpc = useTRPC();
-  const { data: products = [], isLoading: productsLoading } = useQuery(trpc.products.list.queryOptions());
+  const { data: products = [], isLoading: productsLoading } = trpc.products.list.useQuery();
   
   let branchId = 1;
   try {

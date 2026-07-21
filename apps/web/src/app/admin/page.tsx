@@ -67,7 +67,7 @@ const CHART_COLORS = [
 
 export default function Page() {
   const trpcHooks = useTRPC();
-  const { data, isLoading } = useQuery(trpcHooks.dashboard.stats.queryOptions());
+  const { data, isLoading } = trpcHooks.dashboard.stats.useQuery();
   const t = useTranslations("dashboard");
   const locale = useLocale();
   const { activeBranchId } = useBranch();
@@ -77,9 +77,7 @@ export default function Page() {
   );
 
   function SuppliersCard() {
-    const { data: suppliersCount, isLoading: isLoadingSuppliers } = useQuery(
-      trpcHooks.suppliers.count.queryOptions()
-    );
+    const { data: suppliersCount, isLoading: isLoadingSuppliers } = trpcHooks.suppliers.count.useQuery();
     const t = useTranslations("nav");
 
     return (
@@ -105,9 +103,7 @@ export default function Page() {
   }
 
   function PurchasesCard() {
-    const { data: purchasesCount, isLoading: isLoadingPurchases } = useQuery(
-      trpcHooks.purchases.count.queryOptions()
-    );
+    const { data: purchasesCount, isLoading: isLoadingPurchases } = trpcHooks.purchases.count.useQuery();
     const t = useTranslations("nav");
 
     return (

@@ -14,10 +14,7 @@ export default function NotificationsPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.notifications.list.queryOptions ? trpc.notifications.list.queryOptions() : { queryKey: ['notifications', 'list'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.notifications.list.useQuery();
 
   return (
     <Card className="w-full">

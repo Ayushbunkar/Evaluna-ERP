@@ -14,10 +14,7 @@ export default function PaymentsPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.payments.list.queryOptions ? trpc.payments.list.queryOptions() : { queryKey: ['payments', 'list'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.payments.list.useQuery();
 
   return (
     <Card className="w-full">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/trpc/react";
+import { trpc } from "@/lib/trpc/client";
 import { DataTable } from "@evaluna/ui/components/data-table";
 import { Button } from "@evaluna/ui/components/button";
 import { Input } from "@evaluna/ui/components/input";

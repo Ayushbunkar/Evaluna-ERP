@@ -14,10 +14,7 @@ export default function BillingCheckoutPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.pos.checkout.queryOptions ? trpc.pos.checkout.queryOptions() : { queryKey: ['pos', 'checkout'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.pos.checkout.useQuery();
 
   return (
     <Card className="w-full">

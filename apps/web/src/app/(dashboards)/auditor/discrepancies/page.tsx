@@ -14,10 +14,7 @@ export default function DiscrepanciesPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.discrepancies.list.queryOptions ? trpc.discrepancies.list.queryOptions() : { queryKey: ['discrepancies', 'list'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.discrepancies.list.useQuery();
 
   return (
     <Card className="w-full">

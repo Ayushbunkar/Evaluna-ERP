@@ -3,8 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components";
-import { Button } from "@evaluna/ui/components";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
+import { Button } from "@evaluna/ui/components/button";
 import { Megaphone, Ticket, Activity, Plus } from "lucide-react";
 import { PageTransition, StaggerList } from "@/lib/animations";
 

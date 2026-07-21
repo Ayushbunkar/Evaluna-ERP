@@ -22,7 +22,7 @@ type PaymentMethod = RouterOutputs["paymentMethods"]["list"][number];
 
 export default function PaymentMethodsPage() {
   const trpc = useTRPC();
-  const { data: methods = [], isLoading, error } = useQuery(trpc.paymentMethods.list.queryOptions());
+  const { data: methods = [], isLoading, error } = trpc.paymentMethods.list.useQuery();
   const t = useTranslations("paymentMethods");
   const tc = useTranslations("common");
 
@@ -40,7 +40,8 @@ export default function PaymentMethodsPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const isEditing = editingId !== null;
-  const invalidateKeys = trpc.paymentMethods.list.queryOptions().queryKey;
+  const trpcUtils = trpc.useUtils();
+  const invalidateKeys = trpcUtils.paymentMethods.list.getQueryKey();
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.paymentMethods.create.mutationOptions(),
