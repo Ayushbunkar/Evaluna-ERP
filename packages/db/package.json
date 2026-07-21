@@ -21,6 +21,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@evaluna/config": "workspace:*",
+    "@types/pg": "^8.11.6",
     "drizzle-kit": "^0.31.10",
     "typescript": "^5"
   }
