@@ -1,154 +1,57 @@
 "use client";
 
-import React, { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
-import { Badge } from "@evaluna/ui/components/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@evaluna/ui/components/table";
-import { Input } from "@evaluna/ui/components/input";
-import { Package, Search, ArrowRight, Clock } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { format } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-export default function PendingOrdersPage() {
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const { data: orders, isLoading } = trpc.warehouse.getPendingOrders.useQuery(undefined, {
-    retry: false,
-  });
-
-  const mockOrders = [
-    { id: "ORD-4093", date: new Date().toISOString(), items: 5, priority: "High", status: "pending" },
-    { id: "ORD-4094", date: new Date(Date.now() - 3600000).toISOString(), items: 12, priority: "Medium", status: "pending" },
-    { id: "ORD-4095", date: new Date(Date.now() - 7200000).toISOString(), items: 2, priority: "Low", status: "pending" },
-  ];
-
-  const displayOrders = orders || mockOrders;
-  const filteredOrders = displayOrders.filter((o: any) => 
-    o.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, x: -20 },
-    show: { opacity: 1, x: 0 }
-  };
+export default function PickerOrdersPage() {
+  const { data: orders, isLoading, error } = trpc.orders.list.useQuery();
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-8 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pending Orders</h1>
-          <p className="text-muted-foreground">Orders awaiting to be picked and packed.</p>
-        </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            type="search" 
-            placeholder="Search orders..." 
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Orders to Pick</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Orders Queue</CardTitle>
-          <CardDescription>Select an order to generate a pick list.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <motion.tbody
-                  variants={container}
-                  initial="hidden"
-                  animate="show"
-                >
-                  {filteredOrders.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No pending orders found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredOrders.map((order: any) => (
-                      <motion.tr variants={item} key={order.id} className="group">
-                        <TableCell className="font-medium">{order.id}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span>{format(new Date(order.date), "MMM d, h:mm a")}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <span>{order.items}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            order.priority === "High" ? "destructive" : 
-                            order.priority === "Medium" ? "default" : "secondary"
-                          }>
-                            {order.priority}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-amber-600 border-amber-600">
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="default" 
-                            size="sm"
-                            className="w-full sm:w-auto"
-                            onClick={() => router.push(`/picker/pick-lists?order=${order.id}`)}
-                          >
-                            Create Pick List
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </motion.tr>
-                    ))
-                  )}
-                </motion.tbody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <div className="text-muted-foreground animate-pulse">Loading orders...</div>
+      ) : error ? (
+        <div className="text-red-500">Failed to load orders: {error.message}</div>
+      ) : orders && orders.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {orders.map((order) => (
+            <Card key={order.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg">Order #{order.id}</CardTitle>
+                  <Badge variant={order.status === "completed" ? "default" : "secondary"}>
+                    {order.status || "Pending"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground mb-4">
+                  Customer: {order.customer?.name || "Walk-in"}
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-semibold text-primary">
+                    Total: ${Number(order.total_amount).toFixed(2)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {order.created_at ? new Date(order.created_at).toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+            <p>No orders need picking right now.</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
