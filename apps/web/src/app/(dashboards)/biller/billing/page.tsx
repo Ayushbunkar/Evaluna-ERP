@@ -1,7 +1,7 @@
 "use client";
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@finopenpos/ui/components/card";
-import { Skeleton } from "@finopenpos/ui/components/skeleton";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@evaluna/ui/components/card";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useTRPC } from "@/lib/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
