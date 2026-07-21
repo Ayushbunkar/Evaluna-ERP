@@ -49,7 +49,6 @@ export function createAuth({
 
     // ── Plugins ──────────────────────────────────────────────────────────────
     plugins: [
-      nextCookies(), // Auto-set cookies from server actions
       twoFactor({
         issuer: "Evaluna ERP",
         otpOptions: {
@@ -57,6 +56,7 @@ export function createAuth({
           digits: 6,
         },
       }),
+      nextCookies(), // ← MUST be last so Set-Cookie headers are forwarded correctly
     ],
 
     // ── Advanced ─────────────────────────────────────────────────────────────
