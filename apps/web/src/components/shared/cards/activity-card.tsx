@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
-import { ScrollArea } from "@evaluna/ui/components/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 
 export interface ActivityItem {
