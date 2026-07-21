@@ -54,14 +54,17 @@ export async function proxy(request: NextRequest) {
   }
 
   // 3. Validate session with API
+  // Only forward the cookie header — passing all headers (esp. x-forwarded-*)
+  // causes better-auth to reject the request in Codespaces environments.
   let sessionData: { session: Session; user: any } | null = null;
   try {
-    const headers = new Headers(request.headers);
-    
+    const cookieHeader = request.headers.get("cookie") || "";
     const res = await fetch(
       new URL("/api/auth/get-session", request.url).toString(),
       {
-        headers,
+        headers: {
+          cookie: cookieHeader,
+        },
       }
     );
     if (res.ok) {
