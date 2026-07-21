@@ -1,22 +1,24 @@
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { auth } from "./auth";
 import { db } from "./db";
 import { user as userTable, rolePermissions } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { getCachedSession, setCachedSession, CachedSession } from "./session-cache";
 import type { Role, Permission } from "./permissions";
-import { parse } from "cookie"; // You may need to npm install cookie
 
 /**
  * Parses the Better Auth session token from headers.
  * Better Auth uses "evaluna.session_token" due to our cookiePrefix.
  */
 async function getSessionToken(): Promise<string | null> {
-  const reqHeaders = await headers();
-  const cookieStr = reqHeaders.get("cookie") || "";
-  if (!cookieStr) return null;
-  const cookies = parse(cookieStr);
-  return cookies["evaluna.session_token"] || null;
+  const cookieStore = await cookies();
+  const token = 
+    cookieStore.get("evaluna.session_token")?.value ||
+    cookieStore.get("__Secure-evaluna.session_token")?.value ||
+    cookieStore.get("better-auth.session_token")?.value ||
+    cookieStore.get("__Secure-better-auth.session_token")?.value;
+    
+  return token || null;
 }
 
 /**
