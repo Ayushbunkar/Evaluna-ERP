@@ -98,19 +98,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 4. If logged in and hitting an auth page, redirect to dashboard
-  // BUT: if there's an error/expired param, let them stay on the login page
-  // (they were explicitly sent back here after a failed login)
+  // 4. If logged in and hitting an auth page, always redirect to their dashboard.
+  // The user is authenticated — send them home regardless of error/expired params.
   if (isAuthPage) {
-    const hasErrorParam =
-      request.nextUrl.searchParams.has("error") ||
-      request.nextUrl.searchParams.has("expired");
-
-    if (hasErrorParam) {
-      // Let the login page render so the user can see the error message
-      return NextResponse.next({ request: { headers: requestHeaders } });
-    }
-
     const url = request.nextUrl.clone();
     const role = sessionData.user.role || "sales_person";
     url.pathname = role === "sales_person" ? "/sales" : `/${role}`;
