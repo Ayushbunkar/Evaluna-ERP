@@ -14,10 +14,7 @@ export default function POSCatalogPage() {
   const tc = useTranslations("common");
 
   // Type safe tRPC query
-  const { data = [], isLoading, error } = useQuery(
-    // @ts-ignore - Assuming this route exists on the router
-    trpc.pos.catalog.queryOptions ? trpc.pos.catalog.queryOptions() : { queryKey: ['pos', 'catalog'], queryFn: () => [] }
-  );
+  const { data = [], isLoading, error } = trpc.pos.catalog.useQuery();
 
   return (
     <Card className="w-full">
