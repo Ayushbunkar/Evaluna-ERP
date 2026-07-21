@@ -1,26 +1,35 @@
+/**
+ * Database client for the web app.
+ * Uses Neon/Postgres when DATABASE_URL is set (Codespaces / production),
+ * otherwise falls back to local PGlite for purely-local development.
+ *
+ * IMPORTANT: This file must export `db` synchronously so that better-auth
+ * can use it at module-initialisation time.
+ */
 import * as schema from "./schema";
 
-// Use Neon/Postgres if DATABASE_URL is set, otherwise fall back to local PGlite
 const DATABASE_URL = process.env.DATABASE_URL;
 
-let db: any;
+function createDb() {
+  if (DATABASE_URL) {
+    // Cloud / production path – use standard pg Pool (connects lazily)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { drizzle } = require("drizzle-orm/node-postgres");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Pool } = require("pg");
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    return drizzle(pool, { schema });
+  }
 
-if (DATABASE_URL) {
-  // Cloud / production: connect to Neon (or any Postgres)
-  const { drizzle } = await import("drizzle-orm/node-postgres");
-  const { Pool } = await import("pg");
-  const pool = new Pool({ connectionString: DATABASE_URL });
-  db = drizzle(pool, { schema });
-} else {
-  // Local dev fallback: PGlite (embedded SQLite-like Postgres)
-  const { PGlite } = await import("@electric-sql/pglite");
-  const { drizzle } = await import("drizzle-orm/pglite");
+  // Local dev fallback – PGlite (embedded Postgres)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { PGlite } = require("@electric-sql/pglite");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { drizzle } = require("drizzle-orm/pglite");
 
-  const globalForPGlite = globalThis as unknown as {
-    pglite: InstanceType<typeof PGlite> | undefined;
-  };
-  globalForPGlite.pglite ??= new PGlite("./data/pglite");
-  db = drizzle({ client: globalForPGlite.pglite, schema });
+  const g = globalThis as unknown as { _pglite?: InstanceType<typeof PGlite> };
+  g._pglite ??= new PGlite("./data/pglite");
+  return drizzle({ client: g._pglite, schema });
 }
 
-export { db };
+export const db = createDb();
