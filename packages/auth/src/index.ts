@@ -62,9 +62,7 @@ export function createAuth({
     // ── Advanced ─────────────────────────────────────────────────────────────
     advanced: {
       cookiePrefix: "evaluna",
-      // Always use secure cookies — app runs on HTTPS in Codespaces and production.
-      // Non-secure cookies on HTTPS cause domain mismatch / cookie not sent bugs.
-      useSecureCookies: true,
+      useSecureCookies: process.env.NODE_ENV === "production",
       generateId: () => crypto.randomUUID(),
     },
   });
