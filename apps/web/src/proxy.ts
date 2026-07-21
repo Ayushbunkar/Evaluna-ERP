@@ -56,12 +56,12 @@ export async function proxy(request: NextRequest) {
   // 3. Validate session with API
   let sessionData: { session: Session; user: any } | null = null;
   try {
+    const headers = new Headers(request.headers);
+    
     const res = await fetch(
       new URL("/api/auth/get-session", request.url).toString(),
       {
-        headers: {
-          cookie: request.headers.get("cookie") || "",
-        },
+        headers,
       }
     );
     if (res.ok) {
