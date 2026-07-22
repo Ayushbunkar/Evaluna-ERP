@@ -14,8 +14,8 @@ import Link from "next/link";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useTRPC } from "@/lib/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { useCrudMutation } from "@/hooks/use-crud-mutation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { DataTable, TableActions, TableActionButton, type Column, type ExportColumn } from "@evaluna/ui/components/data-table";
 import { SearchFilter, type FilterOption } from "@evaluna/ui/components/search-filter";
 import type { RouterOutputs } from "@/lib/trpc/router";
@@ -27,6 +27,7 @@ type OrderStatus = "completed" | "pending" | "cancelled";
 
 export default function OrdersPage() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { data: orders = [], isLoading, error } = trpc.orders.list.useQuery();
   const t = useTranslations("orders");
   const tc = useTranslations("common");
@@ -99,19 +100,21 @@ export default function OrdersPage() {
 
   const invalidateKeys = [['orders', 'list']];
 
-  const updateMutation = useCrudMutation({
-    mutationOptions: trpc.orders.update.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("updated"),
-    errorMessage: t("updateError"),
-    onSuccess: () => setIsDialogOpen(false),
+  const updateMutation = trpc.orders.update.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("updated"));
+      setIsDialogOpen(false);
+    },
+    onError: () => { toast.error(t("updateError")); },
   });
 
-  const deleteMutation = useCrudMutation({
-    mutationOptions: trpc.orders.delete.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("deleted"),
-    errorMessage: t("deleteError"),
+  const deleteMutation = trpc.orders.delete.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("deleted"));
+    },
+    onError: () => { toast.error(t("deleteError")); },
   });
 
   const form = useForm({

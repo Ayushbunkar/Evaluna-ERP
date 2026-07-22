@@ -16,8 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useTRPC } from "@/lib/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { useCrudMutation } from "@/hooks/use-crud-mutation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { DataTable, TableActions, type Column } from "@evaluna/ui/components/data-table";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@evaluna/ui/components/dropdown-menu";
 import { EllipsisVerticalIcon } from "lucide-react";
@@ -30,6 +30,7 @@ type TransactionStatus = "completed" | "pending";
 
 export default function Cashier() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { data: transactions = [], isLoading } = trpc.transactions.list.useQuery();
   const t = useTranslations("cashier");
   const tc = useTranslations("common");
@@ -92,27 +93,30 @@ export default function Cashier() {
 
   const invalidateKeys = [['transactions', 'list']];
 
-  const createMutation = useCrudMutation({
-    mutationOptions: trpc.transactions.create.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("created"),
-    errorMessage: t("createError"),
-    onSuccess: () => setInlineForm({ description: "", category: "", type: "income", amount: 0, status: "completed" }),
+  const createMutation = trpc.transactions.create.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("created"));
+      setInlineForm({ description: "", category: "", type: "income", amount: 0, status: "completed" });
+    },
+    onError: () => { toast.error(t("createError")); },
   });
 
-  const updateMutation = useCrudMutation({
-    mutationOptions: trpc.transactions.update.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("updated"),
-    errorMessage: t("updateError"),
-    onSuccess: () => setIsEditOpen(false),
+  const updateMutation = trpc.transactions.update.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("updated"));
+      setIsEditOpen(false);
+    },
+    onError: () => { toast.error(t("updateError")); },
   });
 
-  const deleteMutation = useCrudMutation({
-    mutationOptions: trpc.transactions.delete.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("deleted"),
-    errorMessage: t("deleteError"),
+  const deleteMutation = trpc.transactions.delete.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("deleted"));
+    },
+    onError: () => { toast.error(t("deleteError")); },
   });
 
   const editForm = useForm({

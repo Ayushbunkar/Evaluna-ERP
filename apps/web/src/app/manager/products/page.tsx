@@ -26,8 +26,8 @@ import { Label } from "@evaluna/ui/components/label";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useTRPC } from "@/lib/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { useCrudMutation } from "@/hooks/use-crud-mutation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { DataTable, TableActions, TableActionButton, type Column, type ExportColumn } from "@evaluna/ui/components/data-table";
 import { SearchFilter, type FilterOption } from "@evaluna/ui/components/search-filter";
 import type { RouterOutputs } from "@/lib/trpc/router";
@@ -39,6 +39,7 @@ type Product = RouterOutputs["products"]["list"][number];
 
 export default function Products() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { data: products = [], isLoading } = trpc.products.list.useQuery();
   const t = useTranslations("products");
   const tc = useTranslations("common");
@@ -108,27 +109,30 @@ export default function Products() {
   const isEditing = editingId !== null;
   const invalidateKeys = [['products', 'list']];
 
-  const createMutation = useCrudMutation({
-    mutationOptions: trpc.products.create.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("created"),
-    errorMessage: t("createError"),
-    onSuccess: () => setIsDialogOpen(false),
+  const createMutation = trpc.products.create.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("created"));
+      setIsDialogOpen(false);
+    },
+    onError: () => { toast.error(t("createError")); },
   });
 
-  const updateMutation = useCrudMutation({
-    mutationOptions: trpc.products.update.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("updated"),
-    errorMessage: t("updateError"),
-    onSuccess: () => setIsDialogOpen(false),
+  const updateMutation = trpc.products.update.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("updated"));
+      setIsDialogOpen(false);
+    },
+    onError: () => { toast.error(t("updateError")); },
   });
 
-  const deleteMutation = useCrudMutation({
-    mutationOptions: trpc.products.delete.mutationOptions(),
-    invalidateKeys,
-    successMessage: t("deleted"),
-    errorMessage: t("deleteError"),
+  const deleteMutation = trpc.products.delete.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+      toast.success(t("deleted"));
+    },
+    onError: () => { toast.error(t("deleteError")); },
   });
 
   const form = useForm({
