@@ -43,6 +43,7 @@
     "drizzle-orm": "^0.45.2",
     "pg": "^8.22.0",
     "playwright": "^1.61.1",
+    "react-to-print": "^3.3.0",
     "zod": "catalog:"
   },
   "devDependencies": {

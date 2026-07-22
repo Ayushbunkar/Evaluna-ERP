@@ -50,6 +50,16 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
+const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  admin: { label: "Admin", color: "text-purple-700 dark:text-purple-300", bg: "bg-purple-100 dark:bg-purple-900/40" },
+  manager: { label: "Manager", color: "text-blue-700 dark:text-blue-300", bg: "bg-blue-100 dark:bg-blue-900/40" },
+  sales: { label: "Salesperson", color: "text-green-700 dark:text-green-300", bg: "bg-green-100 dark:bg-green-900/40" },
+  biller: { label: "Biller", color: "text-orange-700 dark:text-orange-300", bg: "bg-orange-100 dark:bg-orange-900/40" },
+  auditor: { label: "Auditor", color: "text-rose-700 dark:text-rose-300", bg: "bg-rose-100 dark:bg-rose-900/40" },
+  picker: { label: "Picker", color: "text-cyan-700 dark:text-cyan-300", bg: "bg-cyan-100 dark:bg-cyan-900/40" },
+  putter: { label: "Putter", color: "text-teal-700 dark:text-teal-300", bg: "bg-teal-100 dark:bg-teal-900/40" },
+};
+
 function BranchSwitcher() {
   const { activeBranchId, setActiveBranchId } = useBranch();
   const { data: branchesList } = trpc.branches.list.useQuery();
@@ -115,7 +125,7 @@ function NotificationBell() {
   );
 }
 
-export function AppLayout({ children, navItems, namespace = "nav" }: { children: React.ReactNode; navItems: NavItem[]; namespace?: string; }) {
+export function AppLayout({ children, navItems, namespace = "nav", role }: { children: React.ReactNode; navItems: NavItem[]; namespace?: string; role?: string; }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -181,6 +191,11 @@ export function AppLayout({ children, navItems, namespace = "nav" }: { children:
           <span className="hidden md:inline-block font-bold tracking-tight text-lg bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Evaluna ERP
           </span>
+          {role && ROLE_CONFIG[role] && (
+            <span className={`hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${ROLE_CONFIG[role].bg} ${ROLE_CONFIG[role].color} ml-1`}>
+              {ROLE_CONFIG[role].label}
+            </span>
+          )}
         </div>
 
         <div className="hidden md:flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -425,10 +440,10 @@ export function AppLayout({ children, navItems, namespace = "nav" }: { children:
   );
 }
 
-export function AppLayoutWithBranch({ children, navItems, namespace }: { children: React.ReactNode; navItems: NavItem[]; namespace?: string }) {
+export function AppLayoutWithBranch({ children, navItems, namespace, role }: { children: React.ReactNode; navItems: NavItem[]; namespace?: string; role?: string }) {
   return (
     <BranchProvider>
-      <AppLayout navItems={navItems} namespace={namespace}>{children}</AppLayout>
+      <AppLayout navItems={navItems} namespace={namespace} role={role}>{children}</AppLayout>
     </BranchProvider>
   );
 }

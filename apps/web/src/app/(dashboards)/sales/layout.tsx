@@ -25,7 +25,7 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <AppLayoutWithBranch navItems={salesNavItems} namespace="nav">
+    <AppLayoutWithBranch navItems={salesNavItems} namespace="nav" role="sales">
       {children}
     </AppLayoutWithBranch>
   );

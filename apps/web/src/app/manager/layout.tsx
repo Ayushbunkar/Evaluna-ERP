@@ -30,7 +30,7 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <AppLayoutWithBranch navItems={managerNavItems} namespace="nav">
+    <AppLayoutWithBranch navItems={managerNavItems} namespace="nav" role="manager">
       {children}
     </AppLayoutWithBranch>
   );
