@@ -97,8 +97,7 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editCustomerName, setEditCustomerName] = useState("");
 
-  const trpcUtils = trpc.useUtils();
-  const invalidateKeys = trpcUtils.orders.list.getQueryKey();
+  const invalidateKeys = [['orders', 'list']];
 
   const updateMutation = useCrudMutation({
     mutationOptions: trpc.orders.update.mutationOptions(),

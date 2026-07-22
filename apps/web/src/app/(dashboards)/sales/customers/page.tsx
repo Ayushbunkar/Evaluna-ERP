@@ -94,8 +94,7 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const isEditing = editingId !== null;
-  const trpcUtils = trpc.useUtils();
-  const invalidateKeys = trpcUtils.customers.list.getQueryKey();
+  const invalidateKeys = [['customers', 'list']];
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.customers.create.mutationOptions(),

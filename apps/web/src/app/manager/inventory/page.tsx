@@ -106,8 +106,7 @@ export default function Products() {
   const [stockFilter, setStockFilter] = useState("all");
 
   const isEditing = editingId !== null;
-  const trpcUtils = trpc.useUtils();
-  const invalidateKeys = trpcUtils.products.list.getQueryKey();
+  const invalidateKeys = [['products', 'list']];
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.products.create.mutationOptions(),

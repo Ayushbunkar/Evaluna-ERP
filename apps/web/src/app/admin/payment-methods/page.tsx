@@ -40,8 +40,7 @@ export default function PaymentMethodsPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const isEditing = editingId !== null;
-  const trpcUtils = trpc.useUtils();
-  const invalidateKeys = trpcUtils.paymentMethods.list.getQueryKey();
+  const invalidateKeys = [['paymentMethods', 'list']];
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.paymentMethods.create.mutationOptions(),

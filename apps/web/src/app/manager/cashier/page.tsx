@@ -90,8 +90,7 @@ export default function Cashier() {
     status: "completed" as TransactionStatus,
   });
 
-  const trpcUtils = trpc.useUtils();
-  const invalidateKeys = trpcUtils.transactions.list.getQueryKey();
+  const invalidateKeys = [['transactions', 'list']];
 
   const createMutation = useCrudMutation({
     mutationOptions: trpc.transactions.create.mutationOptions(),
