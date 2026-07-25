@@ -10,9 +10,12 @@ import * as schema from "./schema";
 const _require = createRequire(import.meta.url);
 
 function createDb() {
-  const DATABASE_URL = process.env.DATABASE_URL;
+  _require("dotenv").config({ path: ".env.local" });
+  _require("dotenv").config({ path: ".env" });
+  
+  let DATABASE_URL = process.env.DATABASE_URL;
   if (!DATABASE_URL) {
-    throw new Error("DATABASE_URL is not set!");
+    throw new Error("DATABASE_URL is not set! Checked .env and .env.local");
   }
   
   if (DATABASE_URL.startsWith('"') && DATABASE_URL.endsWith('"')) {
