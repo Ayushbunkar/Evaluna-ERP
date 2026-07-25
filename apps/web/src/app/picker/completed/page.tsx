@@ -1,43 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
-import { DataTable, type Column } from "@evaluna/ui/components/data-table";
-import { SearchFilter } from "@evaluna/ui/components/search-filter";
-import { PageTransition } from "@/lib/animations";
+import { useTRPC } from "@/lib/trpc/client";
+import { Card, CardContent } from "@evaluna/ui/components/card";
 
 export default function CompletedPicksPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const columns: Column<any>[] = [
-    { key: "id", header: "ID", sortable: true },
-    { key: "date", header: "Date" },
-    { key: "status", header: "Status" },
-  ];
+  const { data, isLoading } = useTRPC().picker.getCompleted.useQuery({});
 
   return (
-    <PageTransition className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-1">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Completed Picks</h1>
-        <p className="text-muted-foreground text-sm">Manage and view details for completed picks.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Completed Picks</h1>
+        <p className="text-muted-foreground text-sm">History of all completed picking tasks</p>
       </div>
-      
-      <Card className="border-border/50 shadow-sm bg-card/50">
-        <CardHeader className="p-4">
-          <SearchFilter
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Search records..."
-          />
-        </CardHeader>
+      <Card className="border-border/50 bg-card/50">
         <CardContent className="p-0">
-          <DataTable
-            data={[]}
-            columns={columns}
-            emptyMessage="No records found in this module yet."
-          />
+          {isLoading ? <div className="p-8 text-center text-muted-foreground">Loading...</div> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-border/50">
+                  <tr className="text-left text-muted-foreground">
+                    {["Pick ID", "Order ID", "Items", "Time Taken", "Completed By", "Date", "Accuracy"].map(h => (
+                      <th key={h} className="px-4 py-3 font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data ?? []).map((row: any, i: number) => (
+                    <tr key={i} className="border-b border-border/30 hover:bg-muted/30">
+                      <td className="px-4 py-3 font-mono font-bold text-blue-400">{row.id}</td>
+                      <td className="px-4 py-3 font-mono text-muted-foreground">{row.order_id}</td>
+                      <td className="px-4 py-3 font-bold">{row.items}</td>
+                      <td className="px-4 py-3">{row.time_taken}</td>
+                      <td className="px-4 py-3">{row.completed_by}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.date}</td>
+                      <td className="px-4 py-3">
+                        <span className={`font-bold ${row.accuracy === 100 ? "text-green-400" : row.accuracy >= 95 ? "text-yellow-400" : "text-red-400"}`}>{row.accuracy}%</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
-    </PageTransition>
+    </div>
   );
 }
