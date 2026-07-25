@@ -288,6 +288,7 @@ export const roles = pgTable("roles", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 50 }).notNull().unique(),
   description: text("description"),
+  // permissions JSON structure follows the Role Permissions Matrix (e.g. { "Billing": "POS Only", "Inventory": "Read", "Warehouse": false })
   permissions: jsonb("permissions").notNull().default({}),
   created_at: timestamp("created_at").defaultNow(),
 });

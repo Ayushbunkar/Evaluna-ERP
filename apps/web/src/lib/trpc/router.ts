@@ -37,6 +37,11 @@ import { financeRouter } from "./routers/finance";
 import { billingRouter } from "./routers/billing";
 import { driverRouter } from "./routers/driver";
 import { auditorRouter } from "./routers/auditor";
+import { pickerRouter } from "./routers/picker";
+import { putterRouter } from "./routers/putter";
+import { hrRouter } from "./routers/hr";
+import { customerRouter } from "./routers/customer";
+import { supplierRouter } from "./routers/supplier";
 
 export const appRouter = router({
   chatbot: chatbotRouter,
@@ -76,6 +81,11 @@ export const appRouter = router({
   billing: billingRouter,
   driver: driverRouter,
   auditor: auditorRouter,
+  picker: pickerRouter,
+  putter: putterRouter,
+  hr: hrRouter,
+  customer: customerRouter,
+  supplier: supplierRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -1,0 +1,36 @@
+"use client";
+
+import { AppLayoutWithBranch, NavItem } from "@/components/layout/app-layout";
+import {
+  LayoutDashboardIcon,
+  DownloadIcon,
+  PackagePlusIcon,
+  AlertTriangleIcon,
+  RotateCcwIcon,
+  XCircleIcon,
+  CheckCircleIcon,
+  FileTextIcon
+} from "lucide-react";
+
+const putterNavItems: NavItem[] = [
+  { href: "/putter", labelKey: "dashboard", icon: LayoutDashboardIcon },
+  { href: "/putter/receiving", labelKey: "receiving", icon: DownloadIcon },
+  { href: "/putter/put-away", labelKey: "putAway", icon: PackagePlusIcon },
+  { href: "/putter/missing", labelKey: "missingStock", icon: AlertTriangleIcon },
+  { href: "/putter/returns", labelKey: "saleReturn", icon: RotateCcwIcon },
+  { href: "/putter/damage", labelKey: "damageRaise", icon: XCircleIcon },
+  { href: "/putter/completed", labelKey: "completed", icon: CheckCircleIcon },
+  { href: "/putter/reports", labelKey: "reports", icon: FileTextIcon }
+];
+
+export default function Layout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <AppLayoutWithBranch navItems={putterNavItems} namespace="nav" role="putter">
+      {children}
+    </AppLayoutWithBranch>
+  );
+}
