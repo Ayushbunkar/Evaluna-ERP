@@ -223,6 +223,7 @@ export const branchInventoryRelations = relations(branchInventory, ({ one }) => 
 
 export const productsRelations = relations(products, ({ many }) => ({
   orderItems: many(orderItems),
+  productBatches: many(productBatches),
 }));
 
 export const paymentMethodsRelations = relations(paymentMethods, ({ many }) => ({
