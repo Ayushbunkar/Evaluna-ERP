@@ -29,6 +29,8 @@ import { importsRouter } from "./routers/imports";
 import { monitoringRouter } from "./routers/monitoring";
 import { inventoryRouter } from "./routers/inventory";
 import { categoriesRouter } from "./routers/categories";
+import { purchasesRouter } from "./routers/purchases";
+import { purchaseReturnsRouter } from "./routers/purchase-returns";
 
 export const appRouter = router({
   chatbot: chatbotRouter,
@@ -60,6 +62,8 @@ export const appRouter = router({
   monitoring: monitoringRouter,
   inventory: inventoryRouter,
   categories: categoriesRouter,
+  purchases: purchasesRouter,
+  purchaseReturns: purchaseReturnsRouter,
 });
 
 export type AppRouter = typeof appRouter;
