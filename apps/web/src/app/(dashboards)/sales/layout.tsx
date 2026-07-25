@@ -7,7 +7,8 @@ import {
   UsersIcon,
   ShoppingBagIcon,
   ReceiptTextIcon,
-  DollarSignIcon
+  DollarSignIcon,
+  SettingsIcon
 } from "lucide-react";
 
 const salesNavItems: NavItem[] = [
@@ -15,8 +16,9 @@ const salesNavItems: NavItem[] = [
   { href: "/sales/pos", labelKey: "pos", icon: ShoppingCartIcon },
   { href: "/sales/orders", labelKey: "orders", icon: ShoppingBagIcon },
   { href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
-  { href: "/sales/returns", labelKey: "purchase-returns", icon: ReceiptTextIcon },
+  { href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },
   { href: "/sales/cashbook", labelKey: "cashbook", icon: DollarSignIcon },
+  { href: "/sales/settings", labelKey: "settings", icon: SettingsIcon },
 ];
 
 export default function Layout({

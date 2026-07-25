@@ -1,27 +1,35 @@
+"use client";
+
 import { AppLayoutWithBranch, NavItem } from "@/components/layout/app-layout";
 import {
   LayoutDashboardIcon,
-  DollarSignIcon,
   PackageIcon,
+  WarehouseIcon,
+  CreditCardIcon,
   UsersIcon,
   ShoppingBagIcon,
+  TruckIcon,
+  BanknoteIcon,
   ClockIcon,
   FileTextIcon,
-  ReceiptTextIcon
+  WalletIcon,
+  ReceiptIcon
 } from "lucide-react";
 
 const managerNavItems: NavItem[] = [
   { href: "/manager", labelKey: "dashboard", icon: LayoutDashboardIcon },
-  { href: "/manager/cashier", labelKey: "cashier", icon: DollarSignIcon },
-  { href: "/manager/products", labelKey: "products", icon: PackageIcon },
-  { href: "/manager/customers", labelKey: "customers", icon: UsersIcon },
   { href: "/manager/orders", labelKey: "orders", icon: ShoppingBagIcon },
-  { href: "/manager/purchases", labelKey: "purchases", icon: ShoppingBagIcon },
-  { href: "/manager/purchase-returns", labelKey: "purchase-returns", icon: ReceiptTextIcon },
-  { href: "/manager/cash-book", labelKey: "cashbook", icon: DollarSignIcon },
-  { href: "/manager/reports", labelKey: "reports", icon: FileTextIcon },
+  { href: "/manager/purchase-returns", labelKey: "purchaseReturns", icon: ReceiptIcon },
+  { href: "/manager/warehouse", labelKey: "warehouse", icon: WarehouseIcon },
+  { href: "/manager/inventory", labelKey: "inventory", icon: PackageIcon },
+  { href: "/manager/billing", labelKey: "billing", icon: CreditCardIcon },
+  { href: "/manager/delivery", labelKey: "delivery", icon: TruckIcon },
+  { href: "/manager/customers", labelKey: "customers", icon: UsersIcon },
   { href: "/manager/staff", labelKey: "staff", icon: UsersIcon },
   { href: "/manager/attendance", labelKey: "attendance", icon: ClockIcon },
+  { href: "/manager/expenses", labelKey: "expenses", icon: ReceiptIcon },
+  { href: "/manager/cash-book", labelKey: "cashbook", icon: WalletIcon },
+  { href: "/manager/reports", labelKey: "reports", icon: FileTextIcon },
 ];
 
 export default function Layout({

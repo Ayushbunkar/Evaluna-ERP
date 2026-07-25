@@ -1612,3 +1612,70 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
     references: [staff.id],
   }),
 }));
+
+// ── Plans (Super Admin) ──────────────────────────────────────────────────────
+export const plans = pgTable("plans", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("USD"),
+  billing_cycle: varchar("billing_cycle", { length: 20 }).default("monthly"), // monthly, yearly
+  max_users: integer("max_users").default(10),
+  max_branches: integer("max_branches").default(1),
+  features: jsonb("features").default({}),
+  status: varchar("status", { length: 20 }).default("active"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const plansRelations = relations(plans, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}));
+
+// ── Subscriptions (Super Admin) ──────────────────────────────────────────────
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  company_id: integer("company_id").references(() => companies.id).notNull(),
+  plan_id: integer("plan_id").references(() => plans.id).notNull(),
+  status: varchar("status", { length: 20 }).default("active"), // active, past_due, canceled
+  current_period_start: timestamp("current_period_start"),
+  current_period_end: timestamp("current_period_end"),
+  cancel_at_period_end: boolean("cancel_at_period_end").default(false),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  company: one(companies, {
+    fields: [subscriptions.company_id],
+    references: [companies.id],
+  }),
+  plan: one(plans, {
+    fields: [subscriptions.plan_id],
+    references: [plans.id],
+  }),
+}));
+
+// ── Billing Invoices (Super Admin) ───────────────────────────────────────────
+export const billingInvoices = pgTable("billing_invoices", {
+  id: serial("id").primaryKey(),
+  company_id: integer("company_id").references(() => companies.id).notNull(),
+  subscription_id: integer("subscription_id").references(() => subscriptions.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("USD"),
+  status: varchar("status", { length: 20 }).default("open"), // open, paid, void, uncollectible
+  invoice_url: text("invoice_url"),
+  invoice_pdf: text("invoice_pdf"),
+  paid_at: timestamp("paid_at"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const billingInvoicesRelations = relations(billingInvoices, ({ one }) => ({
+  company: one(companies, {
+    fields: [billingInvoices.company_id],
+    references: [companies.id],
+  }),
+  subscription: one(subscriptions, {
+    fields: [billingInvoices.subscription_id],
+    references: [subscriptions.id],
+  }),
+}));

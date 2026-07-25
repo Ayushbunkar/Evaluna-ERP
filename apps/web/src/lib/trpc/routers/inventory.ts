@@ -166,4 +166,56 @@ export const inventoryRouter = router({
     // TODO: Implement delete inventory entry
     return { success: true };
   }),
+
+  getDashboardStats: protectedProcedure
+    .input(z.object({ branch_id: z.number().optional() }))
+    .query(async ({ ctx, input }) => {
+      // Mock data for Inventory Dashboard
+      return {
+        // KPIs
+        inventoryValue: 1245000.50,
+        totalProducts: 4560,
+        lowStockItems: 145,
+        expiringSoon: 32,
+        deadStock: 85,
+        stockAccuracy: 98.4,
+        averageStockDays: 45,
+
+        // Widgets
+        inventoryTrend: [
+          { month: "Jan", value: 950000 },
+          { month: "Feb", value: 1020000 },
+          { month: "Mar", value: 1100000 },
+          { month: "Apr", value: 1080000 },
+          { month: "May", value: 1150000 },
+          { month: "Jun", value: 1245000 },
+        ],
+        categoryDistribution: [
+          { name: "Electronics", value: 45 },
+          { name: "Furniture", value: 25 },
+          { name: "Clothing", value: 20 },
+          { name: "Accessories", value: 10 },
+        ],
+        abcAnalysis: [
+          { class: "A Class", percentage: 20, value: 70 },
+          { class: "B Class", percentage: 30, value: 20 },
+          { class: "C Class", percentage: 50, value: 10 },
+        ],
+        warehouseDistribution: [
+          { name: "Main Hub", stock: 15000 },
+          { name: "East Zone", stock: 8400 },
+          { name: "West Zone", stock: 12500 },
+        ],
+        topMovingItems: [
+          { name: "Wireless Earbuds", category: "Electronics", turns: 12.5 },
+          { name: "Ergonomic Chair", category: "Furniture", turns: 8.2 },
+          { name: "Cotton T-Shirt", category: "Clothing", turns: 15.4 },
+        ],
+        recentMovements: [
+          { id: 1, type: "in", product: "Wireless Earbuds", qty: 500, time: "2 hours ago" },
+          { id: 2, type: "out", product: "Ergonomic Chair", qty: -12, time: "4 hours ago" },
+          { id: 3, type: "transfer", product: "Cotton T-Shirt", qty: 150, time: "5 hours ago" },
+        ]
+      };
+    }),
 });

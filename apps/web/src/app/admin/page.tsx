@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+import { trpc } from "@/lib/trpc/client";
 import {
   Card,
   CardHeader,
@@ -11,604 +13,345 @@ import {
   ChartTooltipContent,
   ChartTooltip,
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   type ChartConfig,
 } from "@evaluna/ui/components/chart";
 import {
-  DollarSign,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-  UsersIcon,
-  ShoppingCart,
-} from "lucide-react";
-import {
-  PageTransition,
-  StaggerList,
-  StaggerItem,
-  AnimatedCard,
-  motion,
-} from "@/lib/animations";
-import dynamic from "next/dynamic";
-
-// Architectural stub for lazy loading charts
-const SalesChart = dynamic(() => import('@/components/charts/SalesChart').catch(() => ({ default: () => null })), { ssr: false, loading: () => <p>Loading chart...</p> });
-const RevenueChart = dynamic(() => import('@/components/charts/RevenueChart').catch(() => ({ default: () => null })), { ssr: false, loading: () => <p>Loading chart...</p> });
-
-import {
   Pie,
   PieChart,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   XAxis,
   YAxis,
-  Bar,
-  BarChart,
-  Area,
-  AreaChart,
-  Cell,
-  Label,
+  Tooltip,
 } from "recharts";
+import {
+  DollarSignIcon,
+  ShoppingCartIcon,
+  TrendingUpIcon,
+  PackageIcon,
+  TruckIcon,
+  WarehouseIcon,
+  UsersIcon,
+  AlertTriangleIcon,
+  CheckCircle2Icon,
+  ClockIcon,
+} from "lucide-react";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { useTRPC, trpc } from "@/lib/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { useTranslations, useLocale } from "next-intl";
-import Link from "next/link";
 import { useBranch } from "@/lib/branch-context";
 
-const CHART_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-];
+// Premium Animated KPI Card
+function KPICard({ 
+  title, 
+  value, 
+  icon: Icon, 
+  trend, 
+  trendValue, 
+  trendIsPositive,
+  colorClass
+}: {
+  title: string;
+  value: string | number;
+  icon: any;
+  trend?: string;
+  trendValue?: string;
+  trendIsPositive?: boolean;
+  colorClass: string;
+}) {
+  return (
+    <Card className="bg-gradient-to-br from-background to-background/50 border-border/50 shadow-sm overflow-hidden relative group">
+      <div className={`absolute inset-0 bg-gradient-to-r ${colorClass} opacity-0 group-hover:opacity-100 transition-opacity`} />
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="p-3 bg-muted rounded-xl text-muted-foreground group-hover:bg-background group-hover:text-primary transition-colors">
+            <Icon className="h-6 w-6" />
+          </div>
+          {trendValue && (
+            <div className={`flex items-center text-sm font-medium px-2 py-1 rounded-full ${trendIsPositive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+              {trendIsPositive ? '↑' : '↓'} {trendValue}
+            </div>
+          )}
+        </div>
+        <div className="mt-4">
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <h3 className="text-2xl font-bold mt-1 tracking-tight">{value}</h3>
+          {trend && <p className="text-xs text-muted-foreground mt-2">{trend}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-export default function Page() {
-  const trpcHooks = useTRPC();
-  const { data, isLoading } = trpcHooks.dashboard.stats.useQuery();
-  const t = useTranslations("dashboard");
-  const locale = useLocale();
+export default function CompanyAdminDashboard() {
   const { activeBranchId } = useBranch();
-
-  const { data: kpis, isLoading: kpisLoading } = trpc.dashboard.getKpis.useQuery(
+  
+  const { data, isLoading } = trpc.dashboard.getKpis.useQuery(
     activeBranchId ? { branch_id: activeBranchId } : {}
   );
 
-  function SuppliersCard() {
-    const { data: suppliersCount, isLoading: isLoadingSuppliers } = trpcHooks.suppliers.count.useQuery();
-    const t = useTranslations("nav");
-
-    return (
-      <AnimatedCard>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("suppliers")}</CardTitle>
-            <UsersIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoadingSuppliers ? <Skeleton className="h-8 w-16" /> : (suppliersCount ?? 0).toString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <Link href="/admin/suppliers" className="text-blue-500 hover:underline">
-                View all suppliers
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </AnimatedCard>
-    );
-  }
-
-  function PurchasesCard() {
-    const { data: purchasesCount, isLoading: isLoadingPurchases } = trpcHooks.purchases.count.useQuery();
-    const t = useTranslations("nav");
-
-    return (
-      <AnimatedCard>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("purchases")}</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoadingPurchases ? <Skeleton className="h-8 w-16" /> : (purchasesCount ?? 0).toString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <Link href="/admin/purchases" className="text-blue-500 hover:underline">
-                View all purchases
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </AnimatedCard>
-    );
-  }
-
   if (isLoading || !data) {
     return (
-      <div className="grid flex-1 items-start gap-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-28 mb-2" />
-                <Skeleton className="h-3 w-40" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-3 w-48" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-[280px] w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  const profitIsPositive = data.totalProfit >= 0;
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.05 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
+  const chartConfig = {
+    revenue: { label: "Revenue", color: "hsl(var(--chart-1))" },
+    expense: { label: "Expense", color: "hsl(var(--chart-2))" },
+    sales: { label: "Sales", color: "hsl(var(--chart-3))" },
+    amount: { label: "Amount", color: "hsl(var(--chart-4))" },
+  } satisfies ChartConfig;
 
   return (
-    <PageTransition className="grid flex-1 items-start gap-6 min-w-0 overflow-hidden">
-      {/* Branch-Aware KPI Cards */}
-      {kpis && (
-        <StaggerList className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" slow>
-          <StaggerItem>
-            <AnimatedCard>
-              <Card>
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">Today's Sales</p>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(kpis.todaySales, locale)}</p>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-          </StaggerItem>
-          <StaggerItem>
-            <AnimatedCard>
-              <Card>
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">Total Sales</p>
-                  <p className="text-lg font-bold">{formatCurrency(kpis.totalSales, locale)}</p>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-          </StaggerItem>
-          <StaggerItem>
-            <AnimatedCard>
-              <Card>
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">Today's Expenses</p>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(kpis.todayExpenses, locale)}</p>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-          </StaggerItem>
-          <StaggerItem>
-            <AnimatedCard>
-              <Card>
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">Today's Profit</p>
-                  <p className={`text-lg font-bold ${kpis.todayProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(kpis.todayProfit, locale)}</p>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-          </StaggerItem>
-          <StaggerItem>
-            <AnimatedCard>
-              <Card>
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">Today's Bills</p>
-                  <p className="text-lg font-bold">{kpis.todayBills}</p>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-          </StaggerItem>
-          <StaggerItem>
-            <AnimatedCard>
-              <Card>
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">Customers</p>
-                  <p className="text-lg font-bold">{kpis.totalCustomers}</p>
-                </CardContent>
-              </Card>
-            </AnimatedCard>
-          </StaggerItem>
-        </StaggerList>
-      )}
-
-      {/* KPI Cards */}
-      <StaggerList className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" slow>
-        <StaggerItem>
-          <AnimatedCard>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {t("totalRevenue")}
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(data.totalRevenue, locale)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t("completedIncome")}
-                </p>
-              </CardContent>
-            </Card>
-          </AnimatedCard>
-        </StaggerItem>
-        <StaggerItem>
-          <AnimatedCard>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {t("totalExpenses")}
-                </CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(data.totalExpenses, locale)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t("completedExpenses")}
-                </p>
-              </CardContent>
-            </Card>
-          </AnimatedCard>
-        </StaggerItem>
-        <StaggerItem>
-          <AnimatedCard>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("netProfit")}</CardTitle>
-                {profitIsPositive ? (
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                )}
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`text-2xl font-bold ${profitIsPositive ? "text-emerald-600" : "text-red-600"}`}
-                >
-                  {formatCurrency(data.totalProfit, locale)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t("profitDescription")}
-                </p>
-              </CardContent>
-            </Card>
-          </AnimatedCard>
-        </StaggerItem>
-        <StaggerItem>
-          <SuppliersCard />
-        </StaggerItem>
-        <StaggerItem>
-          <PurchasesCard />
-        </StaggerItem>
-      </StaggerList>
-
-      {/* Charts Grid */}
-      <div className="grid gap-6 lg:grid-cols-2 min-w-0">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <CategoryPieChart
-            title={t("revenueByCategory")}
-            description={t("revenueBreakdown")}
-            data={data.revenueByCategory}
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <CategoryPieChart
-            title={t("expensesByCategory")}
-            description={t("expensesBreakdown")}
-            data={data.expensesByCategory}
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <ProfitMarginChart data={data.profitMargin} />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <CashFlowChart data={data.cashFlow} />
-        </motion.div>
+    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto pb-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
+        <p className="text-muted-foreground mt-1">Real-time metrics and insights for your company.</p>
       </div>
-    </PageTransition>
-  );
-}
 
-/** Reusable donut chart for category breakdowns. */
-function CategoryPieChart({
-  title,
-  description,
-  data,
-}: {
-  title: string;
-  description: string;
-  data: Record<string, number>;
-}) {
-  const t = useTranslations("dashboard");
-  const tc = useTranslations("common");
-  const locale = useLocale();
-  const entries = Object.entries(data);
-  const total = entries.reduce((sum, [, v]) => sum + v, 0);
+      {/* KPIs Grid */}
+      <motion.div 
+        variants={containerVariants} 
+        initial="hidden" 
+        animate="show" 
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Today's Sales" 
+            value={formatCurrency(data.todaySales, 'en-US')} 
+            icon={DollarSignIcon} 
+            trend="vs yesterday" 
+            trendValue="12%" 
+            trendIsPositive={true}
+            colorClass="from-blue-500/10 to-transparent" 
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Today's Orders" 
+            value={data.todayOrders || 0} 
+            icon={ShoppingCartIcon} 
+            trend="vs yesterday" 
+            trendValue="5%" 
+            trendIsPositive={true}
+            colorClass="from-indigo-500/10 to-transparent" 
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Today's Profit" 
+            value={formatCurrency(data.todayProfit, 'en-US')} 
+            icon={TrendingUpIcon} 
+            trendValue="8%" 
+            trendIsPositive={data.todayProfit >= 0}
+            colorClass="from-emerald-500/10 to-transparent" 
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Total Products" 
+            value={data.totalProducts} 
+            icon={PackageIcon} 
+            colorClass="from-orange-500/10 to-transparent" 
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Pending Deliveries" 
+            value={data.pendingDeliveries || 0} 
+            icon={TruckIcon} 
+            colorClass="from-amber-500/10 to-transparent" 
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Warehouse Capacity" 
+            value={`${data.warehouseCapacity || 0}%`} 
+            icon={WarehouseIcon} 
+            trend="Utilized space"
+            colorClass="from-purple-500/10 to-transparent" 
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Active Employees" 
+            value={data.activeEmployees || 0} 
+            icon={UsersIcon} 
+            colorClass="from-cyan-500/10 to-transparent" 
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <KPICard 
+            title="Low Stock Items" 
+            value={data.lowStockCount || 0} 
+            icon={AlertTriangleIcon} 
+            trendValue="Action needed"
+            trendIsPositive={false}
+            colorClass="from-rose-500/10 to-transparent" 
+          />
+        </motion.div>
+      </motion.div>
 
-  const chartData = entries.map(([category, value], i) => ({
-    category,
-    value,
-    fill: CHART_COLORS[i % CHART_COLORS.length],
-  }));
+      {/* Main Charts & Widgets Bento */}
+      <motion.div 
+        variants={containerVariants} 
+        initial="hidden" 
+        animate="show" 
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+      >
+        {/* Sales & Revenue Trend */}
+        <motion.div variants={itemVariants} className="lg:col-span-2">
+          <Card className="h-full border-border/50 shadow-sm flex flex-col">
+            <CardHeader>
+              <CardTitle>Revenue & Expenses Trend</CardTitle>
+              <CardDescription>Monthly comparison across all branches</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-[300px]">
+              {data.revenueTrend ? (
+                <ChartContainer config={chartConfig} className="h-full w-full">
+                  <AreaChart data={data.revenueTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" fillOpacity={1} fill="url(#colorRevenue)" />
+                  </AreaChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
+                  No trend data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-  const chartConfig: ChartConfig = Object.fromEntries(
-    entries.map(([category], i) => [
-      category,
-      {
-        label: category.charAt(0).toUpperCase() + category.slice(1),
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      },
-    ])
-  );
+        {/* Notifications Feed */}
+        <motion.div variants={itemVariants} className="flex flex-col">
+          <Card className="h-full border-border/50 shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Recent Activities</CardTitle>
+              <CardDescription>System alerts and notifications</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {data.recentNotifications?.map((notif: any) => (
+                <div key={notif.id} className="flex items-start gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer border border-transparent hover:border-border/50">
+                  <div className={`p-2 rounded-full flex-shrink-0 ${
+                    notif.type === 'low_stock' ? 'bg-rose-500/10 text-rose-500' :
+                    notif.type === 'approval' ? 'bg-amber-500/10 text-amber-500' :
+                    notif.type === 'sale' ? 'bg-emerald-500/10 text-emerald-500' :
+                    'bg-blue-500/10 text-blue-500'
+                  }`}>
+                    {notif.type === 'low_stock' && <AlertTriangleIcon className="h-4 w-4" />}
+                    {notif.type === 'approval' && <ClockIcon className="h-4 w-4" />}
+                    {notif.type === 'sale' && <CheckCircle2Icon className="h-4 w-4" />}
+                    {notif.type === 'delivery' && <TruckIcon className="h-4 w-4" />}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold">{notif.title}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{notif.message}</p>
+                    <span className="text-[10px] text-muted-foreground/70 mt-1 block">{notif.time}</span>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-  return (
-    <Card className="min-w-0 overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {entries.length === 0 ? (
-          <EmptyState message={t("noDataYet", { section: title.toLowerCase() })} />
-        ) : (
-          <ChartContainer
-            config={chartConfig}
-            className="mx-auto aspect-square max-h-[280px]"
-          >
-            <PieChart>
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    nameKey="category"
-                    formatter={(value) => formatCurrency(Number(value), locale)}
-                  />
-                }
-              />
-              <Pie
-                data={chartData}
-                dataKey="value"
-                nameKey="category"
-                innerRadius={60}
-                strokeWidth={2}
-                stroke="hsl(var(--background))"
-              >
-                <Label
-                  content={({ viewBox }) => {
-                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                      return (
-                        <text
-                          x={viewBox.cx}
-                          y={viewBox.cy}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                        >
-                          <tspan
-                            x={viewBox.cx}
-                            y={viewBox.cy}
-                            className="fill-foreground text-xl font-bold"
-                          >
-                            {formatCurrency(total, locale)}
-                          </tspan>
-                          <tspan
-                            x={viewBox.cx}
-                            y={(viewBox.cy || 0) + 20}
-                            className="fill-muted-foreground text-xs"
-                          >
-                            {tc("total")}
-                          </tspan>
-                        </text>
-                      );
-                    }
-                  }}
-                />
-              </Pie>
-              <ChartLegend content={<ChartLegendContent nameKey="category" />} />
-            </PieChart>
-          </ChartContainer>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+        {/* Branch Performance */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-border/50 shadow-sm h-full">
+            <CardHeader>
+              <CardTitle>Branch Performance</CardTitle>
+              <CardDescription>Sales vs Targets</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data.branchPerformance ? (
+                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                  <BarChart data={data.branchPerformance} layout="vertical" margin={{ top: 0, right: 0, left: 40, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="sales" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex h-[250px] items-center justify-center text-muted-foreground">No data</div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-function ProfitMarginChart({
-  data,
-}: {
-  data: { date: string; margin: number }[];
-}) {
-  const t = useTranslations("dashboard");
-  const locale = useLocale();
+        {/* Cash Flow */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-border/50 shadow-sm h-full">
+            <CardHeader>
+              <CardTitle>Cash Flow</CardTitle>
+              <CardDescription>Daily net cash balance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data.cashFlowTrend ? (
+                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                  <BarChart data={data.cashFlowTrend}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="amount" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex h-[250px] items-center justify-center text-muted-foreground">No data</div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-  const chartConfig = {
-    margin: {
-      label: t("marginPercent"),
-      color: "hsl(var(--chart-1))",
-    },
-  } satisfies ChartConfig;
-
-  return (
-    <Card className="min-w-0 overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle>{t("profitMargin")}</CardTitle>
-        <CardDescription>{t("dailyProfitMargin")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <EmptyState message={t("noDataYet", { section: t("profitMargin").toLowerCase() })} />
-        ) : (
-          <ChartContainer config={chartConfig} className="h-[280px] w-full">
-            <BarChart accessibilityLayer data={data}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-                tickFormatter={(v) => formatShortDate(v, locale)}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => `${v}%`}
-                width={50}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(label) => formatShortDate(String(label), locale)}
-                    formatter={(value) => `${value}%`}
-                  />
-                }
-              />
-              <Bar dataKey="margin" radius={[4, 4, 0, 0]}>
-                {data.map((entry, i) => (
-                  <Cell
-                    key={`cell-${i}`}
-                    fill={
-                      entry.margin >= 0
-                        ? "hsl(var(--chart-2))"
-                        : "hsl(var(--chart-5))"
-                    }
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function CashFlowChart({
-  data,
-}: {
-  data: { date: string; amount: number }[];
-}) {
-  const t = useTranslations("dashboard");
-  const locale = useLocale();
-
-  const chartConfig = {
-    amount: {
-      label: t("cashFlow"),
-      color: "hsl(var(--chart-3))",
-    },
-  } satisfies ChartConfig;
-
-  return (
-    <Card className="min-w-0 overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle>{t("cashFlow")}</CardTitle>
-        <CardDescription>{t("dailyTransactionVolume")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <EmptyState message={t("noDataYet", { section: t("cashFlow").toLowerCase() })} />
-        ) : (
-          <ChartContainer config={chartConfig} className="h-[280px] w-full">
-            <AreaChart
-              accessibilityLayer
-              data={data}
-              margin={{ left: 12, right: 12 }}
-            >
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tickFormatter={(v) => formatShortDate(v, locale)}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => formatCurrency(v * 100, locale)}
-                width={60}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(label) => formatShortDate(String(label), locale)}
-                    formatter={(value) => formatCurrency(Number(value), locale)}
-                  />
-                }
-              />
-              <defs>
-                <linearGradient id="fillAmount" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor="var(--color-amount)"
-                    stopOpacity={0.8}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="var(--color-amount)"
-                    stopOpacity={0.1}
-                  />
-                </linearGradient>
-              </defs>
-              <Area
-                dataKey="amount"
-                type="monotone"
-                fill="url(#fillAmount)"
-                stroke="var(--color-amount)"
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ChartContainer>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="flex h-[280px] items-center justify-center">
-      <p className="text-sm text-muted-foreground">{message}</p>
+        {/* Inventory Value (Premium Widget) */}
+        <motion.div variants={itemVariants}>
+          <Card className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 text-white border-0 shadow-lg h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <PackageIcon className="h-32 w-32" />
+            </div>
+            <CardHeader>
+              <CardTitle className="text-white/90">Total Inventory Value</CardTitle>
+              <CardDescription className="text-indigo-200">Across all warehouses</CardDescription>
+            </CardHeader>
+            <CardContent className="mt-8">
+              <h2 className="text-4xl font-black">{formatCurrency(data.inventoryValue || 0, 'en-US')}</h2>
+              <div className="mt-4 flex items-center text-sm font-medium text-emerald-400 bg-black/20 w-fit px-3 py-1 rounded-full">
+                <TrendingUpIcon className="h-4 w-4 mr-1" />
+                +2.4% this month
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

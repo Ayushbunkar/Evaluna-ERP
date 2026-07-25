@@ -42,5 +42,15 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
+export const superadminProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+  }
+  if (!ctx.user.isSuperadmin) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Super admin access required" });
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+
 export const middleware = t.middleware;
 export type { OpenApiMeta };

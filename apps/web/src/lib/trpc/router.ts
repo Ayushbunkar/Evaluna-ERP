@@ -31,6 +31,12 @@ import { inventoryRouter } from "./routers/inventory";
 import { categoriesRouter } from "./routers/categories";
 import { purchasesRouter } from "./routers/purchases";
 import { purchaseReturnsRouter } from "./routers/purchase-returns";
+import { superadminRouter } from "./routers/superadmin";
+import { deliveryRouter } from "./routers/delivery";
+import { financeRouter } from "./routers/finance";
+import { billingRouter } from "./routers/billing";
+import { driverRouter } from "./routers/driver";
+import { auditorRouter } from "./routers/auditor";
 
 export const appRouter = router({
   chatbot: chatbotRouter,
@@ -64,6 +70,12 @@ export const appRouter = router({
   categories: categoriesRouter,
   purchases: purchasesRouter,
   purchaseReturns: purchaseReturnsRouter,
+  superadmin: superadminRouter,
+  delivery: deliveryRouter,
+  finance: financeRouter,
+  billing: billingRouter,
+  driver: driverRouter,
+  auditor: auditorRouter,
 });
 
 export type AppRouter = typeof appRouter;

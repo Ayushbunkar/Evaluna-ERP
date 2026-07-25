@@ -9,7 +9,7 @@ import {
 import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 
-export { router, createCallerFactory, publicProcedure, protectedProcedure, middleware };
+export { router, createCallerFactory, publicProcedure, protectedProcedure, superadminProcedure, middleware };
 export type { TRPCContext };
 
 export const createTRPCContext = async (): Promise<TRPCContext> => {
