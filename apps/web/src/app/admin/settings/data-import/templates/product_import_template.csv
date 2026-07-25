@@ -1,0 +1,6 @@
+name,price,barcode,category,description,unit,sku,hsn,taxable
+Rice Basmati 5kg,450,8901234567890,Grains,Premium basmati rice,kg,RICE001,1006,true
+Sunflower Oil 1L,180,8901234567891,Oils,Refined sunflower oil,L,OIL001,1512,true
+Sugar 1kg,55,8901234567892,Sugar,Refined white sugar,kg,SUGAR001,1701,true
+Wheat Flour 5kg,220,8901234567893,Flour,Whole wheat flour,kg,FLOUR001,1101,true
+Salt 1kg,20,8901234567894,Spices,Iodised table salt,kg,SALT001,2501,false

@@ -1,0 +1,21 @@
+{
+  "name": "Evaluna ERP Workspace",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "nodeGypDependencies": true,
+      "version": "lts"
+    }
+  },
+  "postCreateCommand": "npm install -g bun && bun install && bun --cwd apps/web run db:push",
+  "forwardPorts": [3000, 3001, 3002],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}

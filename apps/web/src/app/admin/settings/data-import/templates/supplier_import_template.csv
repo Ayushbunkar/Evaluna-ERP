@@ -1,0 +1,4 @@
+name,email,phone,address,gst_number,pan_number,supplier_category
+Metro Distributors,metro@dist.com,9876543211,"45 Industrial Area, Delhi",07BBBBB0000B1Z5,BBBBB0000B,local
+Sunrise Foods Pvt Ltd,sunrise@foods.com,9876543212,"23 Export Zone, Mumbai",27CCCCC0000C1Z5,CCCCC0000C,national
+Global Imports Inc,global@imports.com,9876543213,"12 SEZ, Chennai",33DDDDD0000D1Z5,DDDDD0000D,international
