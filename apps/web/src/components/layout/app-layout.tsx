@@ -260,7 +260,7 @@ export function AppLayout({ children, navItems, namespace = "nav", role }: { chi
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="rounded-md cursor-pointer focus:bg-accent/50">
-                <Link href="/admin/settings">Settings</Link>
+                <Link href={role === "admin" ? "/admin/settings" : "/settings"}>Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuItem className="rounded-md cursor-pointer focus:bg-accent/50">Support</DropdownMenuItem>
               <DropdownMenuSeparator />
