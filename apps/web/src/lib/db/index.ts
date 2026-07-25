@@ -10,8 +10,13 @@ import * as schema from "./schema";
 const _require = createRequire(import.meta.url);
 
 function createDb() {
-  _require("dotenv").config({ path: ".env.local" });
-  _require("dotenv").config({ path: ".env" });
+  const { fileURLToPath } = _require("url");
+  const { dirname, join } = _require("path");
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+
+  _require("dotenv").config({ path: join(__dirname, "../../../.env.local") });
+  _require("dotenv").config({ path: join(__dirname, "../../../../.env") });
+  _require("dotenv").config({ path: join(__dirname, "../../../.env") });
   
   let DATABASE_URL = process.env.DATABASE_URL;
   if (!DATABASE_URL) {
