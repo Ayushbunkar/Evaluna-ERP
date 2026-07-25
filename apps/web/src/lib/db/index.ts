@@ -10,15 +10,28 @@ import * as schema from "./schema";
 const _require = createRequire(import.meta.url);
 
 function createDb() {
-  const { fileURLToPath } = _require("url");
-  const { dirname, join } = _require("path");
-  const __dirname = dirname(fileURLToPath(import.meta.url));
-
-  _require("dotenv").config({ path: join(__dirname, "../../../.env.local") });
-  _require("dotenv").config({ path: join(__dirname, "../../../../.env") });
-  _require("dotenv").config({ path: join(__dirname, "../../../.env") });
+  const fs = _require("fs");
+  const path = _require("path");
   
   let DATABASE_URL = process.env.DATABASE_URL;
+  if (!DATABASE_URL) {
+    const envPaths = [
+      path.join(process.cwd(), ".env.local"),
+      path.join(process.cwd(), "../../.env"),
+      path.join(process.cwd(), ".env")
+    ];
+    for (const file of envPaths) {
+      if (fs.existsSync(file)) {
+        const content = fs.readFileSync(file, "utf8");
+        const match = content.match(/^DATABASE_URL\s*=\s*"?([^"\n]+)"?/m);
+        if (match) {
+          DATABASE_URL = match[1];
+          break;
+        }
+      }
+    }
+  }
+
   if (!DATABASE_URL) {
     throw new Error("DATABASE_URL is not set! Checked .env and .env.local");
   }
