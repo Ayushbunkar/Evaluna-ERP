@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { db } from "@evaluna/db";
+import { db } from "@/lib/db";
 import { user } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 
