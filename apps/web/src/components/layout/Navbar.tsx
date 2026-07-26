@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@evaluna/ui/components/dropdown-menu";
+import { authClient } from "@/lib/auth-client";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -20,6 +21,7 @@ interface NavbarProps {
 
 export function Navbar({ onMenuClick }: NavbarProps) {
   const [isOffline, setIsOffline] = React.useState(false);
+  const { data: session } = authClient.useSession();
 
   React.useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -84,15 +86,20 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Admin User</p>
+                  <p className="text-sm font-medium leading-none">{session?.user?.name || "User"}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    admin@evaluna.com
+                    {session?.user?.email || ""}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {session?.user?.isSuperadmin && (
+                <>
+                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Log out</DropdownMenuItem>
             </DropdownMenuContent>

@@ -51,6 +51,7 @@ const messages: Messages = {
     suppliers: "आपूर्तिकर्ता",
     purchases: "खरीद (Purchases)",
     "purchase-returns": "खरीद वापसी",
+    salesReturns: "बिक्री वापसी",
     cashbook: "कैश बुक",
     reports: "रिपोर्ट्स",
     branches: "शाखाएं",

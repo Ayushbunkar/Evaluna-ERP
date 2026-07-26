@@ -49,6 +49,7 @@ const messages = {
     suppliers: "Suppliers",
     purchases: "Purchases",
     "purchase-returns": "Purchase Returns",
+    salesReturns: "Sales Returns",
     cashbook: "Cash Book",
     reports: "Reports",
     branches: "Branches",

@@ -41,6 +41,7 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { logout } from "@/app/(auth)/login/actions";
+import { authClient } from "@/lib/auth-client";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 
@@ -131,6 +132,7 @@ export function AppLayout({ children, navItems, namespace = "nav", role }: { chi
   const [isOffline, setIsOffline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const { data: session } = authClient.useSession();
   const t = useTranslations(namespace);
 
   const handleSync = async () => {
@@ -254,21 +256,25 @@ export function AppLayout({ children, navItems, namespace = "nav", role }: { chi
             <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-xl border-border/50">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">My Account</p>
-                  <p className="text-xs leading-none text-muted-foreground">Admin User</p>
+                  <p className="text-sm font-medium leading-none">{session?.user?.name || "My Account"}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{session?.user?.email || ""}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild className="rounded-md cursor-pointer focus:bg-accent/50">
-                <Link href={role === "admin" ? "/admin/settings" : "/settings"}>Settings</Link>
-              </DropdownMenuItem>
+              {session?.user?.isSuperadmin || role === "admin" ? (
+                <>
+                  <DropdownMenuItem asChild className="rounded-md cursor-pointer focus:bg-accent/50">
+                    <Link href={role === "admin" ? "/admin/settings" : "/settings"}>Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md cursor-pointer focus:bg-accent/50">
+                    <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/backup`} download>
+                      Download Local Backup
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
               <DropdownMenuItem className="rounded-md cursor-pointer focus:bg-accent/50">Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild className="rounded-md cursor-pointer focus:bg-accent/50">
-                <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/backup`} download>
-                  Download Local Backup
-                </a>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => logout()} className="rounded-md cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">Logout</DropdownMenuItem>
             </DropdownMenuContent>
