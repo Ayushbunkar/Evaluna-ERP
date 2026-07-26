@@ -20,6 +20,7 @@ import {
   TagIcon,
   UserIcon
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@evaluna/ui/components/dialog";
 import { formatCurrency } from "@/lib/utils";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -51,6 +52,9 @@ export default function POSCatalogPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [customerName, setCustomerName] = useState("");
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+  const [customerInput, setCustomerInput] = useState("");
 
   // Derived state
   const categories = useMemo(() => {
@@ -142,9 +146,28 @@ export default function POSCatalogPage() {
                 className="pl-9 h-11 rounded-xl bg-background shadow-sm border-border/50"
               />
             </div>
-            <Button variant="outline" className="h-11 rounded-xl gap-2 shadow-sm bg-background border-border/50">
-              <UserIcon className="h-4 w-4" /> Add Customer
-            </Button>
+            <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="h-11 rounded-xl gap-2 shadow-sm bg-background border-border/50">
+                  <UserIcon className="h-4 w-4" /> {customerName || "Add Customer"}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Select or Add Customer</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-4 py-4">
+                  <Input 
+                    placeholder="Enter customer name..." 
+                    value={customerInput}
+                    onChange={(e) => setCustomerInput(e.target.value)}
+                  />
+                  <Button onClick={() => { setCustomerName(customerInput); setIsCustomerDialogOpen(false); }}>
+                    Save Customer
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">

@@ -5,15 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 const localeCurrencyMap: Record<string, string> = {
-  en: "USD",
+  en: "INR",
 };
 
 function resolveLocale(locale?: string) {
-  return locale ?? "en";
+  return locale ?? "en-IN";
 }
 
 function resolveCurrency(locale: string) {
-  return localeCurrencyMap[locale] ?? "USD";
+  return "INR";
 }
 
 export function formatDate(date: Date | string, locale?: string) {
@@ -23,14 +23,15 @@ export function formatDate(date: Date | string, locale?: string) {
   return new Intl.DateTimeFormat(resolveLocale(locale)).format(date)
 }
 
-/** Format an integer amount in cents as a currency string. */
-export function formatCurrency(cents: number, locale?: string) {
+/** Format an amount as a currency string. */
+export function formatCurrency(amount: number | string, locale?: string) {
   const loc = resolveLocale(locale);
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   return new Intl.NumberFormat(loc, {
     style: "currency",
     currency: resolveCurrency(loc),
     minimumFractionDigits: 2,
-  }).format(cents / 100);
+  }).format(numericAmount);
 }
 
 /** Format an ISO date string to a short label like "Jan 5". */

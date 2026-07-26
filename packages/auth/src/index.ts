@@ -24,6 +24,16 @@ export function createAuth({
     trustedOrigins,
     database: drizzleAdapter(db, { provider: "pg" }),
 
+    // ── User ────────────────────────────────────────────────────────────────
+    user: {
+      additionalFields: {
+        role: { type: "string", defaultValue: "sales_person" },
+        branch_id: { type: "number", required: false },
+        is_active: { type: "boolean", defaultValue: true },
+        is_superadmin: { type: "boolean", defaultValue: false },
+      },
+    },
+
     // ── Email & Password ────────────────────────────────────────────────────
     emailAndPassword: {
       enabled: true,
