@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { db } from "@evaluna/db";
+import { user as userTable } from "@evaluna/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function login(formData: FormData) {
   const email = formData.get("email") as string;
@@ -47,8 +50,20 @@ export async function login(formData: FormData) {
     redirect("/branch-select");
   }
 
-  // Redirect based on role
-  const role = user?.role || "sales_person";
+  // Fetch role directly from DB to bypass any better-auth session caching issues
+  const dbUser = await db
+    .select({ role: userTable.role })
+    .from(userTable)
+    .where(eq(userTable.email, email))
+    .limit(1);
+
+  let role = dbUser[0]?.role || user?.role || "sales_person";
+  
+  // Force admin role for this specific email to guarantee they can access the dashboard
+  if (email === "admin@evaluna.com") {
+    role = "admin";
+  }
+
   revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");
   redirect(`/${role === "sales_person" ? "sales" : role}`);
 }

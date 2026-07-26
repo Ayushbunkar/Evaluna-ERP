@@ -304,8 +304,10 @@ export function AppLayout({ children, navItems, namespace = "nav", role }: { chi
               className="fixed inset-y-0 left-0 w-[280px] bg-background border-r border-border/40 p-4 flex flex-col gap-2 overflow-y-auto shadow-2xl"
             >
               <div className="flex items-center justify-between mb-6 px-2">
-                <div className="flex items-center gap-2">
-                  <Package2Icon className="h-6 w-6 text-primary" />
+                <div className="flex items-center gap-4">
+                  <Badge variant="secondary" className="uppercase tracking-wider font-bold text-xs bg-emerald-100 text-emerald-800 hover:bg-emerald-100/80">
+                    {role ? role.replace("_", " ") : (session?.user?.role?.replace("_", " ") || "Salesperson")}
+                  </Badge>
                   <span className="font-bold tracking-tight text-lg">Evaluna ERP</span>
                 </div>
                 <Button
