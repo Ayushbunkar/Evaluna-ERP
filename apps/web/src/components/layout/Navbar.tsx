@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@evaluna/ui/components/dropdown-menu";
-import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/hooks/use-session";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -21,7 +21,7 @@ interface NavbarProps {
 
 export function Navbar({ onMenuClick }: NavbarProps) {
   const [isOffline, setIsOffline] = React.useState(false);
-  const { data: session } = authClient.useSession();
+  const { session } = useSession();
 
   React.useEffect(() => {
     const handleOnline = () => setIsOffline(false);

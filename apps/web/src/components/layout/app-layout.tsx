@@ -42,6 +42,7 @@ import { BranchProvider, useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { logout } from "@/app/(auth)/login/actions";
 import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/hooks/use-session";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 
@@ -132,7 +133,7 @@ export function AppLayout({ children, navItems, namespace = "nav", role }: { chi
   const [isOffline, setIsOffline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const { data: session } = authClient.useSession();
+  const { session } = useSession();
   const t = useTranslations(namespace);
 
   const handleSync = async () => {
