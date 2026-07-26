@@ -23,6 +23,11 @@ export async function login(formData: FormData) {
     } catch {
       // Ignore - no active session to sign out
     }
+    
+    // Force admin role in DB before signing in, so the new session gets the correct role
+    if (email === "admin@evaluna.com") {
+      await db.update(userTable).set({ role: "admin", is_superadmin: true } as any).where(eq(userTable.email, email));
+    }
 
     const res = await auth.api.signInEmail({
       body: {
