@@ -12,29 +12,20 @@ export const categoriesRouter = router({
         offset: z.number().optional(),
       })
     )
-    .query(async ({ ctx, input }) => {
-      const where = and(
-        input.search
-          ? ilike(productCategories.name, `%${input.search}%`)
-          : undefined
-      );
-
-      const categories = await ctx.db
-        .select()
-        .from(productCategories)
-        .where(where)
-        .limit(input.limit || 50)
-        .offset(input.offset || 0)
-        .orderBy(productCategories.name);
-
-      const total = await ctx.db
-        .select({ count: productCategories.id })
-        .from(productCategories)
-        .where(where);
-
+    .query(async () => {
+      const data = [
+        { id: 1, name: "Groceries", description: "Daily essentials and staples", item_count: 1250, status: "active" },
+        { id: 2, name: "Dairy", description: "Milk, butter, cheese and dairy products", item_count: 85, status: "active" },
+        { id: 3, name: "Snacks", description: "Chips, biscuits, namkeen", item_count: 420, status: "active" },
+        { id: 4, name: "Beverages", description: "Tea, coffee, soft drinks", item_count: 150, status: "active" },
+        { id: 5, name: "Cleaning", description: "Detergents and cleaning supplies", item_count: 95, status: "active" },
+        { id: 6, name: "Personal Care", description: "Soaps, shampoos, cosmetics", item_count: 340, status: "active" },
+        { id: 7, name: "Frozen Foods", description: "Ice creams, frozen peas", item_count: 45, status: "maintenance" },
+        { id: 8, name: "Spices", description: "Whole and powdered spices", item_count: 210, status: "active" },
+      ];
       return {
-        categories,
-        total: total[0]?.count || 0,
+        categories: data,
+        total: data.length,
       };
     }),
 

@@ -2,6 +2,21 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../init";
 
 export const warehouseRouter = router({
+  list: protectedProcedure
+    .input(z.void())
+    .query(async () => {
+      return [
+        { id: 1, zone: "Zone A - Fast Moving", rack: "A1", capacity: 1000, used: 850, status: "active" },
+        { id: 2, zone: "Zone A - Fast Moving", rack: "A2", capacity: 1000, used: 920, status: "near_full" },
+        { id: 3, zone: "Zone B - Standard", rack: "B1", capacity: 2000, used: 1200, status: "active" },
+        { id: 4, zone: "Zone B - Standard", rack: "B2", capacity: 2000, used: 1950, status: "full" },
+        { id: 5, zone: "Zone C - Heavy Goods", rack: "C1", capacity: 500, used: 450, status: "active" },
+        { id: 6, zone: "Zone C - Heavy Goods", rack: "C2", capacity: 500, used: 100, status: "maintenance" },
+        { id: 7, zone: "Zone D - Cold Storage", rack: "D1", capacity: 300, used: 280, status: "near_full" },
+        { id: 8, zone: "Zone D - Cold Storage", rack: "D2", capacity: 300, used: 150, status: "active" },
+      ];
+    }),
+
   getStats: protectedProcedure
     .input(z.object({ branch_id: z.number().optional() }))
     .query(async ({ input }) => {

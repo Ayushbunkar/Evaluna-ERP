@@ -1,183 +1,201 @@
 "use client";
 
-import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
+import { Badge } from "@evaluna/ui/components/badge";
+import { Button } from "@evaluna/ui/components/button";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { trpc } from "@/lib/trpc/client";
-import { PlusIcon, MapPinIcon, Loader2Icon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
-import Link from "next/link";
+import { Map, Grid3X3, Layers, Settings, Maximize, Plus, Search, Filter } from "lucide-react";
+import { motion } from "framer-motion";
 
-export default function WarehouseDashboard() {
-  const [search, setSearch] = useState("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newLocation, setNewLocation] = useState({ name: "", location_type: "storage", capacity: 0 });
+export default function WarehousePage() {
+  const { data: zones, isLoading } = trpc.warehouse.list.useQuery();
 
-  const utils = trpc.useUtils();
-  const { data: locations, isLoading } = trpc.warehouse.listLocations.useQuery({ search });
-  const createLocation = trpc.warehouse.createLocation.useMutation({
-    onSuccess: () => {
-      toast.success("Location created successfully");
-      setIsCreateOpen(false);
-      utils.warehouse.listLocations.invalidate();
-      setNewLocation({ name: "", location_type: "storage", capacity: 0 });
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    }
-  });
-
-  const handleCreate = () => {
-    if (!newLocation.name) return toast.error("Name is required");
-    createLocation.mutate({
-      warehouse_id: 1, // Defaulting to main warehouse
-      name: newLocation.name,
-      location_type: newLocation.location_type,
-      capacity: Number(newLocation.capacity)
-    });
-  };
-
+  const totalCapacity = zones?.reduce((sum, zone) => sum + zone.capacity, 0) || 0;
+  const totalUsed = zones?.reduce((sum, zone) => sum + zone.used, 0) || 0;
+  const utilization = totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0;
+  
   return (
-    <div className="container mx-auto p-6 space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-blue-900 to-indigo-900 p-8 rounded-2xl shadow-2xl text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
-        <div className="relative z-10">
-          <h1 className="text-4xl font-black tracking-tight flex items-center gap-3">
-            <MapPinIcon className="h-10 w-10 text-blue-300" />
-            Warehouse Locations
-          </h1>
-          <p className="text-blue-200 mt-2 text-lg font-medium">
-            Manage your physical storage bins and quarantine zones.
-          </p>
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Warehouse Mapping</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage zones, racks, and bin locations visually</p>
         </div>
-        <div className="relative z-10 flex gap-3">
-          <Link href="/admin/warehouse/scanner">
-            <Button variant="secondary" className="font-semibold shadow-lg hover:scale-105 transition-transform">
-              Open Scanner
-            </Button>
-          </Link>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-500 hover:bg-blue-400 text-white font-semibold shadow-lg hover:scale-105 transition-transform border-0">
-                <PlusIcon className="h-5 w-5 mr-2" />
-                New Location
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Add New Location</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Location Name / Code</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g. A-01-B"
-                    value={newLocation.name}
-                    onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="type">Location Type</Label>
-                  <Select
-                    value={newLocation.location_type}
-                    onValueChange={(val) => setNewLocation({ ...newLocation, location_type: val })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="storage">Standard Storage</SelectItem>
-                      <SelectItem value="picking">Picking Bin</SelectItem>
-                      <SelectItem value="quarantine">Quarantine / Damage</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="capacity">Capacity (Units)</Label>
-                  <Input
-                    id="capacity"
-                    type="number"
-                    min="0"
-                    value={newLocation.capacity}
-                    onChange={(e) => setNewLocation({ ...newLocation, capacity: Number(e.target.value) })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreate} disabled={createLocation.isPending}>
-                  {createLocation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Location
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        <div className="flex gap-3">
+          <Button variant="outline" className="shadow-sm">
+            <Maximize className="mr-2 h-4 w-4" /> Layout View
+          </Button>
+          <Button className="bg-primary hover:bg-primary/90 text-white shadow-sm">
+            <Plus className="mr-2 h-4 w-4" /> Add Zone
+          </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Input
-          placeholder="Search locations..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-md shadow-sm border-gray-200"
-        />
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center p-12">
-          <Loader2Icon className="h-8 w-8 animate-spin text-blue-500" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {locations?.map((loc) => (
-            <Card key={loc.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-t-4 border-t-blue-500 group">
-              <CardHeader className="bg-gray-50/50 pb-4">
-                <CardTitle className="flex justify-between items-center text-xl">
-                  {loc.name}
-                  <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wider
-                    ${loc.location_type === 'storage' ? 'bg-green-100 text-green-700' : 
-                      loc.location_type === 'quarantine' ? 'bg-red-100 text-red-700' : 
-                      'bg-blue-100 text-blue-700'}`}>
-                    {loc.location_type}
-                  </span>
-                </CardTitle>
-                <CardDescription>
-                  Barcode ID: {loc.barcode || "N/A"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="flex flex-col gap-2 text-sm text-gray-600">
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
-                    <span className="font-medium">Capacity</span>
-                    <span className="font-bold text-gray-900">{loc.capacity > 0 ? loc.capacity : "Unlimited"}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
-                    <span className="font-medium">Current Stock</span>
-                    <span className="font-bold text-gray-900">--</span>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Print Barcode
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {locations?.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center p-12 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-              <MapPinIcon className="h-12 w-12 mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No locations found</p>
-              <p className="text-sm">Try adjusting your search or create a new location.</p>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Zones</CardTitle>
+            <Map className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : new Set(zones?.map(z => z.zone)).size || 0}
             </div>
-          )}
-        </div>
-      )}
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Racks</CardTitle>
+            <Grid3X3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : zones?.length || 0}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Overall Capacity</CardTitle>
+            <Layers className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white flex items-baseline gap-2">
+              {isLoading ? <Skeleton className="h-8 w-24" /> : 
+                <>{totalUsed.toLocaleString()} <span className="text-sm font-normal text-gray-500">/ {totalCapacity.toLocaleString()}</span></>
+              }
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Space Utilization</CardTitle>
+            <span className="text-sm font-bold text-green-600 dark:text-green-400">{utilization}%</span>
+          </CardHeader>
+          <CardContent>
+            <div className="mt-2 h-4 w-full bg-green-200 dark:bg-green-900/30 rounded-full overflow-hidden">
+              <motion.div 
+                className="h-full bg-green-500 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${utilization}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Data Table */}
+      <Card className="shadow-sm border-gray-200 dark:border-gray-800">
+        <CardHeader className="border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle className="text-lg">Zones & Racks</CardTitle>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search zone or rack..." 
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-gray-900"
+                />
+              </div>
+              <Button variant="outline" size="icon">
+                <Filter className="h-4 w-4 text-gray-500" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-800">
+                <tr>
+                  <th className="px-6 py-4">Zone</th>
+                  <th className="px-6 py-4">Rack ID</th>
+                  <th className="px-6 py-4 text-right">Capacity (Bins)</th>
+                  <th className="px-6 py-4 text-right">Used Space</th>
+                  <th className="px-6 py-4">Utilization</th>
+                  <th className="px-6 py-4 text-center">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {isLoading ? (
+                  Array(5).fill(0).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-32" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-16" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-16 ml-auto" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-16 ml-auto" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-2 w-full mt-2" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-20 mx-auto" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-8 ml-auto" /></td>
+                    </tr>
+                  ))
+                ) : (
+                  zones?.map((zone, i) => {
+                    const pct = Math.round((zone.used / zone.capacity) * 100);
+                    return (
+                      <motion.tr 
+                        key={zone.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                      >
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
+                          {zone.zone}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300 font-mono font-medium">
+                          {zone.rack}
+                        </td>
+                        <td className="px-6 py-4 text-right text-gray-500">
+                          {zone.capacity.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-right font-medium text-gray-900 dark:text-gray-100">
+                          {zone.used.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${pct > 90 ? 'bg-red-500' : pct > 75 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 w-8">{pct}%</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <Badge variant="outline" className={
+                            zone.status === "active" ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400" :
+                            zone.status === "near_full" ? "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400" :
+                            zone.status === "full" ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400" :
+                            "bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
+                          }>
+                            {zone.status.replace("_", " ").toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </motion.tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

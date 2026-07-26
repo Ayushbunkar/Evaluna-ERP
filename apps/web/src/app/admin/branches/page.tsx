@@ -1,144 +1,164 @@
 "use client";
 
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
+import { Badge } from "@evaluna/ui/components/badge";
+import { Button } from "@evaluna/ui/components/button";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { trpc } from "@/lib/trpc/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
-import { Building2, MapPin, Phone, Mail, Plus, Crown } from "lucide-react";
+import { MapPin, Users, Building, Plus, Search, MoreVertical, Edit, Trash } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function BranchesPage() {
   const { data: branches, isLoading } = trpc.branches.list.useQuery();
-  const utils = trpc.useUtils();
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    code: "",
-    address: "",
-    phone: "",
-    email: "",
-    is_headquarters: false,
-  });
-
-  const createBranch = trpc.branches.create.useMutation({
-    onSuccess: () => {
-      toast.success("Branch created successfully");
-      setCreateOpen(false);
-      setForm({ name: "", code: "", address: "", phone: "", email: "", is_headquarters: false });
-      utils.branches.list.invalidate();
-    },
-  });
-
-  const deleteBranch = trpc.branches.delete.useMutation({
-    onSuccess: () => {
-      toast.success("Branch deleted");
-      utils.branches.list.invalidate();
-    },
-  });
-
-  if (isLoading) return <div className="p-8">Loading branches...</div>;
 
   return (
-    <div className="flex flex-col gap-6 p-4 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Branch Management</h1>
-          <p className="text-muted-foreground">Manage your store branches and locations</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Branches</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your distribution centers and retail hubs</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" /> Add Branch</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Branch</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div>
-                <Label>Branch Name *</Label>
-                <Input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="Downtown Store" />
-              </div>
-              <div>
-                <Label>Branch Code</Label>
-                <Input value={form.code} onChange={e => setForm(f => ({...f, code: e.target.value}))} placeholder="BR-0001 (auto-generated)" />
-              </div>
-              <div>
-                <Label>Address</Label>
-                <Input value={form.address} onChange={e => setForm(f => ({...f, address: e.target.value}))} placeholder="123 Main Street" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label>Phone</Label>
-                  <Input value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} placeholder="+91 98765..." />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="branch@store.com" />
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch checked={form.is_headquarters} onCheckedChange={checked => setForm(f => ({...f, is_headquarters: checked}))} />
-                <Label>This is the Headquarters</Label>
-              </div>
-              <Button
-                onClick={() => createBranch.mutate(form)}
-                disabled={!form.name || createBranch.isPending}
-              >
-                Create Branch
-              </Button>
+        <Button className="bg-primary hover:bg-primary/90 text-white shadow-sm">
+          <Plus className="mr-2 h-4 w-4" /> Add Branch
+        </Button>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Branches</CardTitle>
+            <Building className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : branches?.length || 0}
             </div>
-          </DialogContent>
-        </Dialog>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Active Branches</CardTitle>
+            <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : branches?.filter(b => b.status === "active").length || 0}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Managers</CardTitle>
+            <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : new Set(branches?.map(b => b.manager)).size || 0}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {branches?.map((branch: any) => (
-          <Card key={branch.id} className={`relative ${branch.is_headquarters ? "border-yellow-400 border-2" : ""}`}>
-            {branch.is_headquarters && (
-              <div className="absolute -top-3 left-4 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Crown className="w-3 h-3" /> HQ
-              </div>
-            )}
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                {branch.name}
-              </CardTitle>
-              <CardDescription>{branch.code || "No code"}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5" /> {branch.address || "No address"}
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5" /> {branch.phone || "No phone"}
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5" /> {branch.email || "No email"}
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => toast.info("Edit coming soon")}>Edit</Button>
-                <Button variant="destructive" size="sm" onClick={() => {
-                  if (confirm("Delete this branch?")) deleteBranch.mutate({ id: branch.id });
-                }}>Delete</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        {(!branches || branches.length === 0) && (
-          <Card className="col-span-full p-8 text-center text-muted-foreground">
-            <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p className="text-lg font-medium">No branches yet</p>
-            <p>Create your first branch to get started with multi-location management.</p>
-          </Card>
-        )}
-      </div>
+      {/* Data Table */}
+      <Card className="shadow-sm border-gray-200 dark:border-gray-800">
+        <CardHeader className="border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg">Branch Directory</CardTitle>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search branches..." 
+                className="pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-gray-900"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-800">
+                <tr>
+                  <th className="px-6 py-4">Branch Code & Name</th>
+                  <th className="px-6 py-4">Location</th>
+                  <th className="px-6 py-4">Manager</th>
+                  <th className="px-6 py-4">Contact Info</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {isLoading ? (
+                  Array(5).fill(0).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4"><Skeleton className="h-10 w-48" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-32" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-24" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-32" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-16" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-8 ml-auto" /></td>
+                    </tr>
+                  ))
+                ) : (
+                  branches?.map((branch, i) => (
+                    <motion.tr 
+                      key={branch.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{branch.name}</div>
+                        <div className="text-gray-500 text-xs mt-1">{branch.code} {branch.is_headquarters && <Badge variant="outline" className="ml-2 text-[10px] bg-blue-50 text-blue-700 border-blue-200">HQ</Badge>}</div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                        {branch.address}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium">
+                            {branch.manager.charAt(0)}
+                          </div>
+                          {branch.manager}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-gray-900 dark:text-gray-300">{branch.contact}</div>
+                        <div className="text-gray-500 text-xs mt-1">{branch.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant="outline" className={
+                          branch.status === "active" ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400" :
+                          branch.status === "maintenance" ? "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400" :
+                          "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400"
+                        }>
+                          {branch.status.charAt(0).toUpperCase() + branch.status.slice(1).replace("_", " ")}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

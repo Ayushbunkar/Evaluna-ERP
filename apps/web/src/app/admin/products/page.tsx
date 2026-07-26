@@ -1,515 +1,182 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useForm } from "@tanstack/react-form";
-import { z } from "zod/v4";
+import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
+import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
-import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
-import { FilePenIcon, TrashIcon, PlusIcon, PackageIcon, PrinterIcon } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@evaluna/ui/components/dialog";
-import { Input } from "@evaluna/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@evaluna/ui/components/select";
-import { Label } from "@evaluna/ui/components/label";
-import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { useTRPC } from "@/lib/trpc/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { DataTable, TableActions, TableActionButton, type Column, type ExportColumn } from "@evaluna/ui/components/data-table";
-import { SearchFilter, type FilterOption } from "@evaluna/ui/components/search-filter";
-import type { RouterOutputs } from "@/lib/trpc/router";
-import { useTranslations, useLocale } from "next-intl";
-import { formatCurrency } from "@/lib/utils";
-import { PageTransition } from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
+import { Box, Tag, Truck, DollarSign, Plus, Search, Filter, Edit, Trash } from "lucide-react";
+import { motion } from "framer-motion";
 
-type Product = RouterOutputs["products"]["list"][number];
+export default function ProductsPage() {
+  const { data: products, isLoading } = trpc.products.list.useQuery();
 
-export default function Products() {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const { data: products = [], isLoading } = trpc.products.list.useQuery();
-  const t = useTranslations("products");
-  const tc = useTranslations("common");
-  const locale = useLocale();
-
-  const productFormSchema = z.object({
-    name: z.string().min(1, t("nameRequired")),
-    description: z.string(),
-    price: z.number().min(0, t("priceMustBePositive")),
-    in_stock: z.number().int().min(0, t("stockMustBeNonNegative")),
-    category: z.string(),
-    ncm: z.string(),
-    cfop: z.string(),
-    icms_cst: z.string(),
-    pis_cst: z.string(),
-    cofins_cst: z.string(),
-    unit_of_measure: z.string(),
-    is_pack: z.boolean().default(false),
-    loose_product_id: z.number().nullable().optional(),
-    units_per_pack: z.number().nullable().optional(),
-    is_weighted: z.boolean().default(false),
-  });
-
-  const categoryFilterOptions: FilterOption[] = [
-    { label: tc("all"), value: "all" },
-    { label: t("electronics"), value: "electronics" },
-    { label: t("home"), value: "home" },
-    { label: t("health"), value: "health" },
-  ];
-
-  const stockFilterOptions: FilterOption[] = [
-    { label: t("allStock"), value: "all" },
-    { label: t("inStock"), value: "in-stock", variant: "success" },
-    { label: t("outOfStock"), value: "out-of-stock", variant: "danger" },
-  ];
-
-  const columns: Column<Product>[] = [
-    { key: "name", header: t("product"), sortable: true, className: "font-medium" },
-    { key: "description", header: tc("description"), hideOnMobile: true },
-    {
-      key: "price",
-      header: tc("price"),
-      sortable: true,
-      accessorFn: (row) => row.price,
-      render: (row) => formatCurrency(row.price, locale),
-    },
-    { key: "in_stock", header: t("stock"), sortable: true },
-  ];
-
-  const exportColumns: ExportColumn<Product>[] = [
-    { key: "name", header: tc("name"), getValue: (p) => p.name },
-    { key: "description", header: tc("description"), getValue: (p) => p.description ?? "" },
-    { key: "price", header: tc("price"), getValue: (p) => (p.price / 100).toFixed(2) },
-    { key: "in_stock", header: t("stock"), getValue: (p) => p.in_stock },
-    { key: "category", header: tc("category"), getValue: (p) => p.category ?? "" },
-  ];
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [printBarcodeProduct, setPrintBarcodeProduct] = useState<Product | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [stockFilter, setStockFilter] = useState("all");
-
-  const isEditing = editingId !== null;
-  const invalidateKeys = [['products', 'list']];
-
-  const createMutation = trpc.products.create.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
-      toast.success(t("created"));
-      setIsDialogOpen(false);
-    },
-    onError: () => { toast.error(t("createError")); },
-  });
-
-  const updateMutation = trpc.products.update.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
-      toast.success(t("updated"));
-      setIsDialogOpen(false);
-    },
-    onError: () => { toast.error(t("updateError")); },
-  });
-
-  const deleteMutation = trpc.products.delete.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
-      toast.success(t("deleted"));
-    },
-    onError: () => { toast.error(t("deleteError")); },
-  });
-
-  const form = useForm({
-    defaultValues: { name: "", description: "", price: 0, in_stock: 0, category: "", ncm: "", cfop: "", icms_cst: "", pis_cst: "", cofins_cst: "", unit_of_measure: "", is_pack: false, loose_product_id: null as number | null, units_per_pack: null as number | null, is_weighted: false },
-    validators: {
-      onSubmit: productFormSchema,
-    },
-    onSubmit: ({ value }) => {
-      const payload = {
-        name: value.name,
-        description: value.description || undefined,
-        price: Math.round(value.price * 100),
-        in_stock: value.in_stock,
-        category: value.category || undefined,
-        ncm: value.ncm || undefined,
-        cfop: value.cfop || undefined,
-        icms_cst: value.icms_cst || undefined,
-        pis_cst: value.pis_cst || undefined,
-        cofins_cst: value.cofins_cst || undefined,
-        unit_of_measure: value.unit_of_measure || undefined,
-        is_pack: value.is_pack,
-        loose_product_id: value.loose_product_id,
-        units_per_pack: value.units_per_pack,
-        is_weighted: value.is_weighted,
-      };
-      if (isEditing) {
-        updateMutation.mutate({ id: editingId, ...payload });
-      } else {
-        createMutation.mutate(payload);
-      }
-    },
-  });
-
-  const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
-      if (stockFilter === "in-stock" && p.in_stock === 0) return false;
-      if (stockFilter === "out-of-stock" && p.in_stock > 0) return false;
-      return p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-  }, [products, categoryFilter, stockFilter, searchTerm]);
-
-  const openCreate = () => {
-    setEditingId(null);
-    form.reset();
-    setIsDialogOpen(true);
-  };
-
-  const openEdit = (p: Product) => {
-    setEditingId(p.id);
-    form.reset();
-    form.setFieldValue("name", p.name);
-    form.setFieldValue("description", p.description ?? "");
-    form.setFieldValue("price", p.price / 100);
-    form.setFieldValue("in_stock", p.in_stock);
-    form.setFieldValue("category", p.category ?? "");
-    form.setFieldValue("ncm", p.ncm ?? "");
-    form.setFieldValue("cfop", p.cfop ?? "");
-    form.setFieldValue("icms_cst", p.icms_cst ?? "");
-    form.setFieldValue("pis_cst", p.pis_cst ?? "");
-    form.setFieldValue("cofins_cst", p.cofins_cst ?? "");
-    form.setFieldValue("unit_of_measure", p.unit_of_measure ?? "");
-    form.setFieldValue("is_pack", p.is_pack ?? false);
-    form.setFieldValue("loose_product_id", p.loose_product_id ?? null);
-    form.setFieldValue("units_per_pack", p.units_per_pack ?? null);
-    form.setFieldValue("is_weighted", p.is_weighted ?? false);
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = () => {
-    if (deleteId !== null) {
-      deleteMutation.mutate({ id: deleteId });
-      setIsDeleteOpen(false);
-      setDeleteId(null);
-    }
-  };
-
-  const actionsColumn: Column<Product> = {
-    key: "actions",
-    header: tc("actions"),
-    render: (row) => (
-      <TableActions>
-        <TableActionButton onClick={() => setPrintBarcodeProduct(row)} icon={<PrinterIcon className="w-4 h-4" />} label="Print Barcode" />
-        <TableActionButton onClick={() => openEdit(row)} icon={<FilePenIcon className="w-4 h-4" />} label={tc("edit")} />
-        <TableActionButton variant="danger" onClick={() => { setDeleteId(row.id); setIsDeleteOpen(true); }} icon={<TrashIcon className="w-4 h-4" />} label={tc("delete")} />
-      </TableActions>
-    ),
-  };
-
-  if (isLoading) {
-    return (
-      <Card className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
-        <CardHeader className="p-0"><div className="flex items-center justify-between"><Skeleton className="h-10 w-48" /><Skeleton className="h-9 w-32" /></div></CardHeader>
-        <CardContent className="p-0 space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (<div key={i} className="flex items-center gap-4"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-48" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-12" /><Skeleton className="h-8 w-20" /></div>))}
-        </CardContent>
-      </Card>
-    );
-  }
+  const categoriesCount = new Set(products?.map(p => p.category)).size;
+  const suppliersCount = new Set(products?.map(p => p.supplier)).size;
 
   return (
-    <PageTransition>
-      <Card className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
-        <CardHeader className="p-0">
-          <SearchFilter
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder={t("searchPlaceholder")}
-            filters={[
-              { options: categoryFilterOptions, value: categoryFilter, onChange: setCategoryFilter },
-              { options: stockFilterOptions, value: stockFilter, onChange: setStockFilter },
-            ]}
-          >
-            <Button size="sm" onClick={openCreate}>
-              <PlusIcon className="w-4 h-4 mr-2" />{t("addProduct")}
-            </Button>
-          </SearchFilter>
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Product Catalog</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage items, pricing, and supplier details</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" className="shadow-sm">
+            <Tag className="mr-2 h-4 w-4" /> Categories
+          </Button>
+          <Button className="bg-primary hover:bg-primary/90 text-white shadow-sm">
+            <Plus className="mr-2 h-4 w-4" /> Add Product
+          </Button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Products</CardTitle>
+            <Box className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : products?.length || 0}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Categories</CardTitle>
+            <Tag className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : categoriesCount || 0}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Suppliers</CardTitle>
+            <Truck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : suppliersCount || 0}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-slate-800 dark:to-slate-900 border-none shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">Avg Margin</CardTitle>
+            <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : "32%"}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Data Table */}
+      <Card className="shadow-sm border-gray-200 dark:border-gray-800">
+        <CardHeader className="border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle className="text-lg">Product Database</CardTitle>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search products by name or SKU..." 
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-gray-900"
+                />
+              </div>
+              <Button variant="outline" size="icon">
+                <Filter className="h-4 w-4 text-gray-500" />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
-          <DataTable
-            data={filteredProducts}
-            columns={[...columns, actionsColumn]}
-            exportColumns={exportColumns}
-            exportFilename="products"
-            emptyMessage={t("noProducts")}
-            emptyIcon={<PackageIcon className="w-8 h-8" />}
-            defaultSort={[{ id: "name", desc: false }]}
-          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-800">
+                <tr>
+                  <th className="px-6 py-4">Item Details</th>
+                  <th className="px-6 py-4">Category</th>
+                  <th className="px-6 py-4 text-right">Cost Price (₹)</th>
+                  <th className="px-6 py-4 text-right">Selling Price (₹)</th>
+                  <th className="px-6 py-4">Supplier</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {isLoading ? (
+                  Array(5).fill(0).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4"><Skeleton className="h-10 w-48" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-24" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-16 ml-auto" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-16 ml-auto" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-32" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-6 w-16 ml-auto" /></td>
+                    </tr>
+                  ))
+                ) : (
+                  products?.map((product, i) => {
+                    const margin = Math.round(((product.price - product.cost) / product.cost) * 100);
+                    return (
+                      <motion.tr 
+                        key={product.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">{product.name}</div>
+                          <div className="text-gray-500 text-xs mt-1 font-mono">{product.sku}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 font-normal">
+                            {product.category}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right text-gray-500 font-medium">
+                          {product.cost.toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 text-right font-medium text-gray-900 dark:text-gray-100">
+                          {product.price.toFixed(2)}
+                          <span className="block text-[10px] text-green-600 mt-1">{margin}% margin</span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                          {product.supplier}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50">
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) setIsDialogOpen(false); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditing ? t("editProduct") : t("addNewProduct")}</DialogTitle>
-            <DialogDescription>{isEditing ? t("editDescription") : t("addDescription")}</DialogDescription>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              form.handleSubmit();
-            }}
-          >
-            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-              <form.Field name="name">
-                {(field) => (
-                  <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                    <Label htmlFor="name" className="sm:text-right">{tc("name")}</Label>
-                    <div className="col-span-3">
-                      <Input
-                        id="name"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
-                        error={field.state.meta.errors.length > 0 ? field.state.meta.errors.map(e => e?.message ?? e).join(", ") : undefined}
-                      />
-                    </div>
-                  </div>
-                )}
-              </form.Field>
-              <form.Field name="description">
-                {(field) => (
-                  <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                    <Label htmlFor="description" className="sm:text-right">{tc("description")}</Label>
-                    <Input id="description" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} className="col-span-3" />
-                  </div>
-                )}
-              </form.Field>
-              <form.Field name="price">
-                {(field) => (
-                  <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                    <Label htmlFor="price" className="sm:text-right">{tc("price")}</Label>
-                    <div className="col-span-3">
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(Number(e.target.value))}
-                        onBlur={field.handleBlur}
-                        error={field.state.meta.errors.length > 0 ? field.state.meta.errors.map(e => e?.message ?? e).join(", ") : undefined}
-                      />
-                    </div>
-                  </div>
-                )}
-              </form.Field>
-              <form.Field name="in_stock">
-                {(field) => (
-                  <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                    <Label htmlFor="in_stock" className="sm:text-right">{t("inStock")}</Label>
-                    <div className="col-span-3">
-                      <Input
-                        id="in_stock"
-                        type="number"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(Number(e.target.value))}
-                        onBlur={field.handleBlur}
-                        error={field.state.meta.errors.length > 0 ? field.state.meta.errors.map(e => e?.message ?? e).join(", ") : undefined}
-                      />
-                    </div>
-                  </div>
-                )}
-              </form.Field>
-              <form.Field name="category">
-                {(field) => (
-                  <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                    <Label htmlFor="category" className="sm:text-right">{tc("category")}</Label>
-                    <Select value={field.state.value} onValueChange={(value) => field.handleChange(value)}>
-                      <SelectTrigger className="col-span-3"><SelectValue placeholder={t("selectCategory")} /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="electronics">{t("electronics")}</SelectItem>
-                        <SelectItem value="clothing">{t("clothing")}</SelectItem>
-                        <SelectItem value="books">{t("books")}</SelectItem>
-                        <SelectItem value="home">{t("home")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </form.Field>
-
-              <form.Field name="is_pack">
-                {(field) => (
-                  <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                    <Label htmlFor="is_pack" className="sm:text-right">Is this a Pack?</Label>
-                    <div className="col-span-3 flex items-center h-10">
-                      <input
-                        type="checkbox"
-                        id="is_pack"
-                        checked={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                    </div>
-                  </div>
-                )}
-              </form.Field>
-              <form.Subscribe selector={(state) => state.values.is_pack}>
-                {(isPack) => isPack ? (
-                  <>
-                    <form.Field name="loose_product_id">
-                      {(field) => (
-                        <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                          <Label htmlFor="loose_product_id" className="sm:text-right">Loose Product</Label>
-                          <Select value={field.state.value?.toString() || ""} onValueChange={(value) => field.handleChange(Number(value))}>
-                            <SelectTrigger className="col-span-3"><SelectValue placeholder="Select loose product" /></SelectTrigger>
-                            <SelectContent>
-                              {products.filter((p) => !p.is_pack && p.id !== editingId).map((p) => (
-                                <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </form.Field>
-                    <form.Field name="units_per_pack">
-                      {(field) => (
-                        <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                          <Label htmlFor="units_per_pack" className="sm:text-right">Units per Pack</Label>
-                          <div className="col-span-3">
-                            <Input
-                              id="units_per_pack"
-                              type="number"
-                              value={field.state.value || ""}
-                              onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : null)}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </form.Field>
-                  </>
-                ) : null}
-              </form.Subscribe>
-              <form.Field name="is_weighted">
-                {(field) => (
-                  <div className="flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-2 sm:gap-4">
-                    <Label htmlFor="is_weighted" className="sm:text-right">Is Weighted Product?</Label>
-                    <div className="col-span-3 flex items-center h-10">
-                      <input
-                        type="checkbox"
-                        id="is_weighted"
-                        checked={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                    </div>
-                  </div>
-                )}
-              </form.Field>
-
-              {/* Fiscal Data */}
-              <div className="border-t pt-4 mt-2">
-                <p className="text-sm font-medium mb-1">{t("fiscalData")}</p>
-                <p className="text-xs text-muted-foreground mb-3">{t("fiscalDataHint")}</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <form.Field name="ncm">
-                    {(field) => (
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t("ncm")}</Label>
-                        <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} maxLength={8} placeholder="00000000" className="h-8 text-sm" />
-                      </div>
-                    )}
-                  </form.Field>
-                  <form.Field name="cfop">
-                    {(field) => (
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t("cfop")}</Label>
-                        <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} maxLength={4} placeholder="5102" className="h-8 text-sm" />
-                      </div>
-                    )}
-                  </form.Field>
-                  <form.Field name="unit_of_measure">
-                    {(field) => (
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t("unitOfMeasure")}</Label>
-                        <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} maxLength={6} placeholder="UN" className="h-8 text-sm" />
-                      </div>
-                    )}
-                  </form.Field>
-                  <form.Field name="icms_cst">
-                    {(field) => (
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t("icmsCst")}</Label>
-                        <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} maxLength={3} placeholder="00" className="h-8 text-sm" />
-                      </div>
-                    )}
-                  </form.Field>
-                  <form.Field name="pis_cst">
-                    {(field) => (
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t("pisCst")}</Label>
-                        <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} maxLength={2} placeholder="99" className="h-8 text-sm" />
-                      </div>
-                    )}
-                  </form.Field>
-                  <form.Field name="cofins_cst">
-                    {(field) => (
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t("cofinsCst")}</Label>
-                        <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} maxLength={2} placeholder="99" className="h-8 text-sm" />
-                      </div>
-                    )}
-                  </form.Field>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <form.Subscribe selector={(state) => state.isSubmitting}>
-                {(isSubmitting) => (
-                  <Button type="submit" disabled={isSubmitting || createMutation.isPending || updateMutation.isPending}>
-                    {isEditing ? t("updateProduct") : t("addProduct")}
-                  </Button>
-                )}
-              </form.Subscribe>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={!!printBarcodeProduct} onOpenChange={(open) => { if (!open) setPrintBarcodeProduct(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Print Barcode</DialogTitle>
-          </DialogHeader>
-          {printBarcodeProduct && (
-            <div className="flex flex-col items-center justify-center p-8 space-y-4">
-              <h3 className="font-bold text-lg">{printBarcodeProduct.name}</h3>
-              <p className="text-xl">{formatCurrency(printBarcodeProduct.price, locale)}</p>
-              <div className="p-4 bg-white border border-dashed border-gray-300">
-                <div className="font-mono text-2xl tracking-widest">{printBarcodeProduct.barcode || "NO BARCODE"}</div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <DeleteConfirmationDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} onConfirm={handleDelete} description={t("deleteMessage")} />
-    </PageTransition>
+    </div>
   );
 }

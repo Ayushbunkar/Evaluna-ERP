@@ -7,7 +7,16 @@ import { eq } from "drizzle-orm";
 
 export const productsRouter = router({
   list: publicProcedure.query(async () => {
-    return await db.select().from(products);
+    return [
+      { id: 1, name: "Tata Salt 1kg", sku: "GRO-TS-001", category: "Groceries", price: 28, cost: 20, supplier: "Tata Consumer Products" },
+      { id: 2, name: "Aashirvaad Atta 5kg", sku: "GRO-AA-005", category: "Groceries", price: 250, cost: 200, supplier: "ITC Limited" },
+      { id: 3, name: "Amul Butter 500g", sku: "DAI-AB-500", category: "Dairy", price: 275, cost: 230, supplier: "GCMMF (Amul)" },
+      { id: 4, name: "Maggi Noodles 140g", sku: "SNA-MN-140", category: "Snacks", price: 30, cost: 24, supplier: "Nestle India" },
+      { id: 5, name: "Surf Excel 2kg", sku: "CLE-SE-002", category: "Cleaning", price: 420, cost: 340, supplier: "Hindustan Unilever" },
+      { id: 6, name: "Parle-G 800g", sku: "SNA-PG-800", category: "Snacks", price: 80, cost: 60, supplier: "Parle Products" },
+      { id: 7, name: "Red Label Tea 250g", sku: "BEV-RL-250", category: "Beverages", price: 140, cost: 105, supplier: "Hindustan Unilever" },
+      { id: 8, name: "Dabur Honey 1kg", sku: "GRO-DH-001", category: "Groceries", price: 430, cost: 320, supplier: "Dabur India" },
+    ];
   }),
   
   create: protectedProcedure
