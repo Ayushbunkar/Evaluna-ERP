@@ -67,6 +67,7 @@ const messages = {
     staff: "Staff",
     attendance: "Attendance",
     payroll: "Payroll",
+    salary: "Salary Structure",
     permissions: "Access Control",
     loyalty: "Loyalty",
     expenses: "Expenses",

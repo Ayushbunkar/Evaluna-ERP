@@ -7,7 +7,7 @@ const Tabs = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { defaultValue?: string }
 >(({ className, defaultValue, ...props }, ref) => {
-  const [activeTab, setActiveTab] = React.useState(defaultValue);
+  const [activeTab] = React.useState(defaultValue);
 
   return (
     <div

@@ -69,6 +69,7 @@ const messages: Messages = {
     staff: "स्टाफ",
     attendance: "उपस्थिति",
     payroll: "पेरोल",
+    salary: "वेतन संरचना",
     permissions: "पहुंच नियंत्रण (Access Control)",
     loyalty: "लॉयल्टी",
     expenses: "खर्च",
