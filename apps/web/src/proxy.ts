@@ -20,6 +20,7 @@ export async function proxy(request: NextRequest) {
 	// 1. Let public assets and auth APIs pass through
 	if (
 		pathname.startsWith("/api/auth") ||
+		pathname.startsWith("/api/seed-users") ||
 		pathname.startsWith("/_next") ||
 		pathname.startsWith("/favicon.ico") ||
 		pathname.startsWith("/public")
