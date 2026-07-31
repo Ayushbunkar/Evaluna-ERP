@@ -9,7 +9,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Checkbox } from "@evaluna/ui/components/checkbox";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import {
@@ -21,8 +20,8 @@ import {
 } from "@evaluna/ui/components/select";
 import { Separator } from "@evaluna/ui/components/separator";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { Switch } from "@evaluna/ui/components/switch";
-import { Textarea } from "@evaluna/ui/components/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
 	FileText,
 	LogsIcon,
@@ -249,11 +248,13 @@ function RolesManagement() {
 						</div>
 					</div>
 					<div className="flex items-center space-x-2">
-						<Checkbox
+						<input
+							type="checkbox"
+							className="h-4 w-4 rounded border-gray-300"
 							id="can-edit-permissions"
 							checked={newRole.can_edit_permissions}
-							onCheckedChange={(checked) =>
-								setNewRole({ ...newRole, can_edit_permissions: !!checked })
+							onChange={(e) =>
+								setNewRole({ ...newRole, can_edit_permissions: e.target.checked })
 							}
 						/>
 						<Label htmlFor="can-edit-permissions" className="text-sm">
@@ -381,13 +382,15 @@ function RolesManagement() {
 									/>
 								</div>
 								<div className="flex items-center space-x-2">
-									<Checkbox
+									<input
+										type="checkbox"
+										className="h-4 w-4 rounded border-gray-300"
 										id="edit-can-edit-permissions"
 										checked={editingRole.can_edit_permissions}
-										onCheckedChange={(checked) =>
+										onChange={(e) =>
 											setEditingRole({
 												...editingRole,
-												can_edit_permissions: !!checked,
+												can_edit_permissions: e.target.checked,
 											})
 										}
 									/>

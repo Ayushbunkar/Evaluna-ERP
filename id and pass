@@ -1,0 +1,27 @@
+Universal Password for all accounts: Password@123
+
+🔑 Super Admin Dashboard
+ID (Email): admin@evaluna.com
+Role: Super Admin
+📈 Sales Manager Dashboard
+ID (Email): sales@evaluna.com
+Role: Sales Person
+📋 Auditor Dashboard
+ID (Email): auditor@evaluna.com
+Role: Auditor
+👥 HR Dashboard
+ID (Email): hr@evaluna.com
+Role: HR Manager
+📦 Warehouse Picker Dashboard
+ID (Email): picker@evaluna.com
+Role: Picker
+🗄️ Warehouse Putter Dashboard
+ID (Email): putter@evaluna.com
+Role: Putter
+🚚 Driver / Delivery Dashboard
+ID (Email): driver@evaluna.com
+Role: Driver
+📱 Marketing Dashboard
+ID (Email): marketing@evaluna.com
+Role: Marketing
+You can use these credentials to log in and fully test each of the Role-based Views and access controls we just built!
