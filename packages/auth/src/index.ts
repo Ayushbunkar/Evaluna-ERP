@@ -20,6 +20,7 @@ export function createAuth({
 	sessionExpiresIn = 60 * 60 * 24 * 365, // 1 year persistent sessions
 }: AuthOptions) {
 	return betterAuth({
+		secret: process.env.BETTER_AUTH_SECRET || "evaluna_super_secret_fallback_key_1234567890",
 		baseURL,
 		trustedOrigins,
 		database: drizzleAdapter(db, { provider: "pg" }),
