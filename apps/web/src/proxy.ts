@@ -113,8 +113,11 @@ export async function proxy(request: NextRequest) {
 		pathname.startsWith("/admin") ||
 		pathname.startsWith("/manager") ||
 		pathname.startsWith("/auditor") ||
+		pathname.startsWith("/hr") ||
+		pathname.startsWith("/marketing") ||
 		pathname.startsWith("/putter") ||
 		pathname.startsWith("/picker") ||
+		pathname.startsWith("/driver") ||
 		pathname.startsWith("/biller") ||
 		pathname.startsWith("/sales");
 

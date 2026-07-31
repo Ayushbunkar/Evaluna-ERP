@@ -15,8 +15,11 @@ export const ROLES = [
 	"admin",
 	"manager",
 	"auditor",
+	"hr",
+	"marketing",
 	"putter",
 	"picker",
+	"driver",
 	"biller",
 	"sales_person",
 ] as const;
@@ -31,10 +34,13 @@ export const ROLE_LEVEL: Record<Role, number> = {
 	admin: 0,
 	manager: 1,
 	auditor: 2,
-	putter: 3,
-	picker: 4,
-	biller: 5,
-	sales_person: 6,
+	hr: 3,
+	marketing: 4,
+	putter: 5,
+	picker: 6,
+	driver: 7,
+	biller: 8,
+	sales_person: 9,
 };
 
 // ── Permission Domains ────────────────────────────────────────────────────────
@@ -278,8 +284,11 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/admin", minRole: "admin" },
 	{ path: "/manager", minRole: "manager" },
 	{ path: "/auditor", minRole: "auditor" },
+	{ path: "/hr", minRole: "hr" },
+	{ path: "/marketing", minRole: "marketing" },
 	{ path: "/putter", minRole: "putter" },
 	{ path: "/picker", minRole: "picker" },
+	{ path: "/driver", minRole: "driver" },
 	{ path: "/biller", minRole: "biller" },
 	{ path: "/sales", minRole: "sales_person" },
 ];
