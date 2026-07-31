@@ -69,7 +69,9 @@ export default function BranchSelectPage() {
 				</div>
 
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-					{session?.user?.isSuperadmin && (
+					{(session?.user?.isSuperadmin ||
+						(session?.user as any)?.role === "superadmin" ||
+						(session?.user as any)?.role === "admin") && (
 						<Card
 							className={`cursor-pointer transition-colors hover:border-primary ${selecting === -1 ? "border-primary ring-1 ring-primary" : ""}`}
 							onClick={handleSelectAll}
@@ -113,6 +115,27 @@ export default function BranchSelectPage() {
 							</CardContent>
 						</Card>
 					))}
+
+					{(session?.user?.isSuperadmin ||
+						(session?.user as any)?.role === "superadmin" ||
+						(session?.user as any)?.role === "admin") && (
+						<Card
+							className="cursor-pointer border-dashed transition-colors hover:border-primary"
+							onClick={() => router.push("/admin")}
+						>
+							<CardContent className="flex items-center justify-between p-6">
+								<div>
+									<h3 className="font-semibold text-lg text-primary">
+										+ Create New Branch
+									</h3>
+									<p className="mt-1 text-muted-foreground text-sm">
+										Go to dashboard to set up a new location.
+									</p>
+								</div>
+								<ArrowRight className="h-5 w-5 text-muted-foreground" />
+							</CardContent>
+						</Card>
+					)}
 				</div>
 			</div>
 		</div>
