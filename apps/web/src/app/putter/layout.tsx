@@ -1,36 +1,43 @@
 "use client";
 
-import { AppLayoutWithBranch, NavItem } from "@/components/layout/app-layout";
 import {
-  LayoutDashboardIcon,
-  DownloadIcon,
-  PackagePlusIcon,
-  AlertTriangleIcon,
-  RotateCcwIcon,
-  XCircleIcon,
-  CheckCircleIcon,
-  FileTextIcon
+	AlertTriangleIcon,
+	CheckCircleIcon,
+	DownloadIcon,
+	FileTextIcon,
+	LayoutDashboardIcon,
+	PackagePlusIcon,
+	RotateCcwIcon,
+	XCircleIcon,
 } from "lucide-react";
+import {
+	AppLayoutWithBranch,
+	type NavItem,
+} from "@/components/layout/app-layout";
 
 const putterNavItems: NavItem[] = [
-  { href: "/putter", labelKey: "dashboard", icon: LayoutDashboardIcon },
-  { href: "/putter/receiving", labelKey: "receiving", icon: DownloadIcon },
-  { href: "/putter/put-away", labelKey: "putAway", icon: PackagePlusIcon },
-  { href: "/putter/missing", labelKey: "missingStock", icon: AlertTriangleIcon },
-  { href: "/putter/returns", labelKey: "saleReturn", icon: RotateCcwIcon },
-  { href: "/putter/damage", labelKey: "damageRaise", icon: XCircleIcon },
-  { href: "/putter/completed", labelKey: "completed", icon: CheckCircleIcon },
-  { href: "/putter/reports", labelKey: "reports", icon: FileTextIcon }
+	{ href: "/putter", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	{ href: "/putter/receiving", labelKey: "receiving", icon: DownloadIcon },
+	{ href: "/putter/put-away", labelKey: "putAway", icon: PackagePlusIcon },
+	{
+		href: "/putter/missing",
+		labelKey: "missingStock",
+		icon: AlertTriangleIcon,
+	},
+	{ href: "/putter/returns", labelKey: "saleReturn", icon: RotateCcwIcon },
+	{ href: "/putter/damage", labelKey: "damageRaise", icon: XCircleIcon },
+	{ href: "/putter/completed", labelKey: "completed", icon: CheckCircleIcon },
+	{ href: "/putter/reports", labelKey: "reports", icon: FileTextIcon },
 ];
 
 export default function Layout({
-  children,
+	children,
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  return (
-    <AppLayoutWithBranch navItems={putterNavItems} namespace="nav" role="putter">
-      {children}
-    </AppLayoutWithBranch>
-  );
+	return (
+		<AppLayoutWithBranch navItems={putterNavItems} namespace="nav">
+			{children}
+		</AppLayoutWithBranch>
+	);
 }

@@ -1,89 +1,92 @@
 "use client";
-
-import { trpc } from "@/lib/trpc/client";
-import { format } from "date-fns";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@evaluna/ui/components/table";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
+import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
-import { Building2Icon, PlusIcon, SettingsIcon } from "lucide-react";
+import { Building2, Users, CreditCard, Activity, Plus, MoreHorizontal } from "lucide-react";
+import { useTRPC } from "@/lib/trpc/client";
 
-export default function SuperAdminCompaniesPage() {
+export default function CompaniesPage() {
+  const trpc = useTRPC();
   const { data: companies, isLoading } = trpc.superadmin.getCompanies.useQuery();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
-          <p className="text-muted-foreground mt-1">Manage all tenants and subscriptions.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Companies</h2>
+          <p className="text-muted-foreground">Manage all tenants using the system.</p>
         </div>
-        <Button className="gap-2">
-          <PlusIcon className="h-4 w-4" />
-          Add Company
+        <Button>
+          <Plus className="mr-2 h-4 w-4" /> Add Company
         </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Companies</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{companies?.length || 0}</div>
+            <p className="text-xs text-muted-foreground">+2 from last month</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Building2Icon className="h-5 w-5 text-primary" /> Active Tenants
-          </CardTitle>
+          <CardTitle>All Companies</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {companies?.map((company) => (
-                <TableRow key={company.id}>
-                  <TableCell className="font-medium">#{company.id}</TableCell>
-                  <TableCell>{company.name}</TableCell>
-                  <TableCell>{company.contact || "N/A"}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      {company.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{company.created_at ? format(new Date(company.created_at), "MMM d, yyyy") : "N/A"}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon">
-                      <SettingsIcon className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-12 bg-muted animate-pulse rounded-md"></div>
               ))}
-              {(!companies || companies.length === 0) && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No companies found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            <div className="relative w-full overflow-auto">
+              <table className="w-full caption-bottom text-sm text-left">
+                <thead className="[&_tr]:border-b">
+                  <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Company Name</th>
+                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Plan</th>
+                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Users</th>
+                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
+                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
+                  {companies?.map((company: any) => (
+                    <tr key={company.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <td className="p-4 align-middle font-medium">{company.name}</td>
+                      <td className="p-4 align-middle">{company.plan}</td>
+                      <td className="p-4 align-middle">{company.users}</td>
+                      <td className="p-4 align-middle">
+                        <Badge variant={company.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                          {company.status}
+                        </Badge>
+                      </td>
+                      <td className="p-4 align-middle">
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!companies?.length && (
+                    <tr>
+                      <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                        No companies found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

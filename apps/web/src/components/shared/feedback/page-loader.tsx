@@ -1,1 +1,3 @@
-export function PageLoader() { return <div>PageLoader</div>; }
+export function PageLoader() {
+	return <div>PageLoader</div>;
+}

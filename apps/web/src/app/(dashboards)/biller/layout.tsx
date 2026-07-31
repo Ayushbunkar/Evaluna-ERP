@@ -1,34 +1,37 @@
 "use client";
 
-import { AppLayoutWithBranch, NavItem } from "@/components/layout/app-layout";
 import {
-  LayoutDashboardIcon,
-  ReceiptIcon,
-  UsersIcon,
-  TagIcon,
-  CreditCardIcon,
-  UndoIcon,
-  ShoppingCartIcon
+	CreditCardIcon,
+	LayoutDashboardIcon,
+	ReceiptIcon,
+	ShoppingCartIcon,
+	TagIcon,
+	UndoIcon,
+	UsersIcon,
 } from "lucide-react";
+import {
+	AppLayoutWithBranch,
+	type NavItem,
+} from "@/components/layout/app-layout";
 
 const billerNavItems: NavItem[] = [
-  { href: "/biller", labelKey: "dashboard", icon: LayoutDashboardIcon },
-  { href: "/biller/pos", labelKey: "pos", icon: ShoppingCartIcon },
-  { href: "/biller/billing", labelKey: "billing", icon: ReceiptIcon },
-  { href: "/biller/customers", labelKey: "customers", icon: UsersIcon },
-  { href: "/biller/discounts", labelKey: "discounts", icon: TagIcon },
-  { href: "/biller/payments", labelKey: "payments", icon: CreditCardIcon },
-  { href: "/biller/returns", labelKey: "returns", icon: UndoIcon },
+	{ href: "/biller", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	{ href: "/biller/pos", labelKey: "pos", icon: ShoppingCartIcon },
+	{ href: "/biller/billing", labelKey: "billing", icon: ReceiptIcon },
+	{ href: "/biller/customers", labelKey: "customers", icon: UsersIcon },
+	{ href: "/biller/discounts", labelKey: "discounts", icon: TagIcon },
+	{ href: "/biller/payments", labelKey: "payments", icon: CreditCardIcon },
+	{ href: "/biller/returns", labelKey: "returns", icon: UndoIcon },
 ];
 
 export default function Layout({
-  children,
+	children,
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  return (
-    <AppLayoutWithBranch navItems={billerNavItems} namespace="nav" role="biller">
-      {children}
-    </AppLayoutWithBranch>
-  );
+	return (
+		<AppLayoutWithBranch navItems={billerNavItems} namespace="nav">
+			{children}
+		</AppLayoutWithBranch>
+	);
 }

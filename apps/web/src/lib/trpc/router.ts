@@ -1,91 +1,99 @@
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { router } from "./init";
-import { chatbotRouter } from "./routers/chatbot";
-import { productsRouter } from "./routers/products";
-import { customersRouter } from "./routers/customers";
-import { ordersRouter } from "./routers/orders";
-import { transactionsRouter } from "./routers/transactions";
-import { paymentMethodsRouter } from "./routers/payment-methods";
-import { dashboardRouter } from "./routers/dashboard";
-import { suppliersRouter } from "./routers/suppliers";
-import { warehouseRouter } from "./routers/warehouse";
-import { posRouter } from "./routers/pos";
-import { auditRouter } from "./routers/audit";
-import { cashbookRouter } from "./routers/cashbook";
-import { reportsRouter } from "./routers/reports";
-import { branchesRouter } from "./routers/branches";
-import { transfersRouter } from "./routers/transfers";
-import { settingsRouter } from "./routers/settings";
-import { staffRouter } from "./routers/staff";
+import { accountingRouter } from "./routers/accounting";
+import { approvalsRouter } from "./routers/approvals";
 import { attendanceRouter } from "./routers/attendance";
-import { payrollRouter } from "./routers/payroll";
-import { permissionsRouter } from "./routers/permissions";
+import { auditRouter } from "./routers/audit";
+import { auditorRouter } from "./routers/auditor";
+import { backupsRouter } from "./routers/backups";
+import { billingRouter } from "./routers/billing";
+import { branchesRouter } from "./routers/branches";
+import { cashbookRouter } from "./routers/cashbook";
+import { categoriesRouter } from "./routers/categories";
+import { chatbotRouter } from "./routers/chatbot";
+import { customerRouter } from "./routers/customer";
+import { customersRouter } from "./routers/customers";
+import { dashboardRouter } from "./routers/dashboard";
+import { deliveryRouter } from "./routers/delivery";
+import { driverRouter } from "./routers/driver";
+import { financeRouter } from "./routers/finance";
+import { hrRouter } from "./routers/hr";
+import { importsRouter } from "./routers/imports";
+import { inventoryRouter } from "./routers/inventory";
 import { loyaltyRouter } from "./routers/loyalty";
 import { marketingRouter } from "./routers/marketing";
-import { notificationsRouter } from "./routers/notifications";
-import { backupsRouter } from "./routers/backups";
-import { accountingRouter } from "./routers/accounting";
-import { importsRouter } from "./routers/imports";
 import { monitoringRouter } from "./routers/monitoring";
-import { inventoryRouter } from "./routers/inventory";
-import { categoriesRouter } from "./routers/categories";
-import { purchasesRouter } from "./routers/purchases";
-import { purchaseReturnsRouter } from "./routers/purchase-returns";
-import { superadminRouter } from "./routers/superadmin";
-import { deliveryRouter } from "./routers/delivery";
-import { financeRouter } from "./routers/finance";
-import { billingRouter } from "./routers/billing";
-import { driverRouter } from "./routers/driver";
-import { auditorRouter } from "./routers/auditor";
+import { notificationsRouter } from "./routers/notifications";
+import { ordersRouter } from "./routers/orders";
+import { paymentMethodsRouter } from "./routers/payment-methods";
+import { payrollRouter } from "./routers/payroll";
+import { permissionsRouter } from "./routers/permissions";
 import { pickerRouter } from "./routers/picker";
+import { pickingRouter } from "./routers/picking";
+import { posRouter } from "./routers/pos";
+import { productsRouter } from "./routers/products";
+import { purchaseReturnsRouter } from "./routers/purchase-returns";
+import { purchasesRouter } from "./routers/purchases";
 import { putterRouter } from "./routers/putter";
-import { hrRouter } from "./routers/hr";
-import { customerRouter } from "./routers/customer";
+import { reportsRouter } from "./routers/reports";
+import { schemesRouter } from "./routers/schemes";
+import { settingsRouter } from "./routers/settings";
+import { staffRouter } from "./routers/staff";
+import { superadminRouter } from "./routers/superadmin";
 import { supplierRouter } from "./routers/supplier";
+import { suppliersRouter } from "./routers/suppliers";
+import { transactionsRouter } from "./routers/transactions";
+import { transfersRouter } from "./routers/transfers";
+import { warehouseRouter } from "./routers/warehouse";
+import { clientSettingsRouter } from "./routers/client-settings";
 
 export const appRouter = router({
-  chatbot: chatbotRouter,
-  notifications: notificationsRouter,
-  products: productsRouter,
-  customers: customersRouter,
-  orders: ordersRouter,
-  transactions: transactionsRouter,
-  paymentMethods: paymentMethodsRouter,
-  dashboard: dashboardRouter,
-  suppliers: suppliersRouter,
-  warehouse: warehouseRouter,
-  audit: auditRouter,
-  pos: posRouter,
-  cashbook: cashbookRouter,
-  reports: reportsRouter,
-  branches: branchesRouter,
-  transfers: transfersRouter,
-  settings: settingsRouter,
-  staff: staffRouter,
-  attendance: attendanceRouter,
-  payroll: payrollRouter,
-  permissions: permissionsRouter,
-  loyalty: loyaltyRouter,
-  marketing: marketingRouter,
-  backups: backupsRouter,
-  accounting: accountingRouter,
-  imports: importsRouter,
-  monitoring: monitoringRouter,
-  inventory: inventoryRouter,
-  categories: categoriesRouter,
-  purchases: purchasesRouter,
-  purchaseReturns: purchaseReturnsRouter,
-  superadmin: superadminRouter,
-  delivery: deliveryRouter,
-  finance: financeRouter,
-  billing: billingRouter,
-  driver: driverRouter,
-  auditor: auditorRouter,
-  picker: pickerRouter,
-  putter: putterRouter,
-  hr: hrRouter,
-  customer: customerRouter,
-  supplier: supplierRouter,
+	chatbot: chatbotRouter,
+	notifications: notificationsRouter,
+	products: productsRouter,
+	customers: customersRouter,
+	orders: ordersRouter,
+	transactions: transactionsRouter,
+	paymentMethods: paymentMethodsRouter,
+	dashboard: dashboardRouter,
+	suppliers: suppliersRouter,
+	warehouse: warehouseRouter,
+	audit: auditRouter,
+	pos: posRouter,
+	cashbook: cashbookRouter,
+	reports: reportsRouter,
+	branches: branchesRouter,
+	transfers: transfersRouter,
+	settings: settingsRouter,
+	staff: staffRouter,
+	attendance: attendanceRouter,
+	payroll: payrollRouter,
+	permissions: permissionsRouter,
+	loyalty: loyaltyRouter,
+	marketing: marketingRouter,
+	backups: backupsRouter,
+	accounting: accountingRouter,
+	imports: importsRouter,
+	monitoring: monitoringRouter,
+	inventory: inventoryRouter,
+	categories: categoriesRouter,
+	purchases: purchasesRouter,
+	purchaseReturns: purchaseReturnsRouter,
+	superadmin: superadminRouter,
+	delivery: deliveryRouter,
+	finance: financeRouter,
+	billing: billingRouter,
+	driver: driverRouter,
+	auditor: auditorRouter,
+	picker: pickerRouter,
+	putter: putterRouter,
+	hr: hrRouter,
+	customer: customerRouter,
+	supplier: supplierRouter,
+	schemes: schemesRouter,
+	approvals: approvalsRouter,
+	picking: pickingRouter,
+	clientSettings: clientSettingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

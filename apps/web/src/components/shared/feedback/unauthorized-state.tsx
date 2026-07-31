@@ -1,1 +1,3 @@
-export function UnauthorizedState() { return <div>UnauthorizedState</div>; }
+export function UnauthorizedState() {
+	return <div>UnauthorizedState</div>;
+}

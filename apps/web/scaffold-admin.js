@@ -1,31 +1,55 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("node:fs");
+const path = require("node:path");
 
-const adminDir = path.join(__dirname, 'src', 'app', '(dashboards)', 'admin');
+const adminDir = path.join(__dirname, "src", "app", "(dashboards)", "admin");
 
 const subRoutes = [
-  'analytics', 'branches', 'users', 'roles', 'products', 'customers',
-  'suppliers', 'inventory', 'warehouse', 'sales', 'purchases', 'returns',
-  'hr', 'accounting', 'gst', 'reports', 'audit-logs', 'notifications',
-  'settings', 'backups', 'sync', 'performance', 'security', 'branch-compare', 'health'
+	"analytics",
+	"branches",
+	"users",
+	"roles",
+	"products",
+	"customers",
+	"suppliers",
+	"inventory",
+	"warehouse",
+	"sales",
+	"purchases",
+	"returns",
+	"hr",
+	"accounting",
+	"gst",
+	"reports",
+	"audit-logs",
+	"notifications",
+	"settings",
+	"backups",
+	"sync",
+	"performance",
+	"security",
+	"branch-compare",
+	"health",
 ];
 
 function ensureDir(dir) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
 }
 
 ensureDir(adminDir);
 
-subRoutes.forEach(route => {
-  const routeDir = path.join(adminDir, route);
-  ensureDir(routeDir);
+subRoutes.forEach((route) => {
+	const routeDir = path.join(adminDir, route);
+	ensureDir(routeDir);
 
-  const Title = route.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const ComponentName = Title.replace(/\s+/g, '');
+	const Title = route
+		.split("-")
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ");
+	const ComponentName = Title.replace(/\s+/g, "");
 
-  const PageContent = `export default function ${ComponentName}Page() {
+	const PageContent = `export default function ${ComponentName}Page() {
   return (
     <div className="space-y-6">
       <div>
@@ -43,7 +67,7 @@ subRoutes.forEach(route => {
     </div>
   );
 }`;
-  fs.writeFileSync(path.join(routeDir, 'page.tsx'), PageContent);
+	fs.writeFileSync(path.join(routeDir, "page.tsx"), PageContent);
 });
 
-console.log('Admin sub-routes scaffolded.');
+console.log("Admin sub-routes scaffolded.");

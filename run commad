@@ -1,0 +1,23 @@
+# Push schema changes to DB
+bun run db:push
+
+# Open Drizzle Studio (DB GUI)
+bun run db:studio
+
+# Generate migrations
+bun run db:generate
+
+# Run migrations
+bun run db:migrate
+
+
+
+🚀 Evaluna ERP — Run Commands
+Start Everything (All Apps)
+powershell
+
+taskkill /F /IM node.exe /T; taskkill /F /IM bun.exe /T; Start-Sleep 3; cd "D:\Evaluna ERP"; bun run dev:web
+
+cd "d:\Evaluna ERP"
+
+bun run dev

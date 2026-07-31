@@ -1,5 +1,5 @@
-const { contextBridge } = require('electron');
+const { contextBridge } = require("electron");
 
-contextBridge.exposeInMainWorld('electron', {
-  isElectron: true
+contextBridge.exposeInMainWorld("electron", {
+	isElectron: true,
 });

@@ -1,6 +1,9 @@
+import type React from "react";
 
-import React from "react";
-
-export default function SuppliersLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default function SuppliersLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	return <>{children}</>;
 }

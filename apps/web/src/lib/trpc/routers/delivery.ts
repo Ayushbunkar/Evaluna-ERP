@@ -1,63 +1,298 @@
+import { and, count, desc, eq, sum } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure, router } from "../init";
+import { db } from "@/lib/db";
+import {
+	deliveryStops,
+	deliveryTrips,
+	deliveryVehicleTracking,
+	orders,
+	staff,
+	transactions,
+} from "@/lib/db/schema";
+import { roleProcedure, router } from "../init";
 
 export const deliveryRouter = router({
-  getDashboard: protectedProcedure
-    .input(z.object({ branch_id: z.number().optional() }))
-    .query(async ({ input }) => {
-      // Mock data for Delivery Dashboard
-      return {
-        // KPIs
-        todaysDeliveries: 482,
-        completedDeliveries: 345,
-        pendingDeliveries: 120,
-        failedDeliveries: 17,
-        codCollection: 45800.50,
-        deliverySuccessRate: 95.3,
-        averageDeliveryTime: "42 mins",
-        vehiclesActive: 24,
-        driversOnline: 28,
-        ordersWaiting: 45,
-        lateDeliveries: 8,
-        distanceTravelled: 1245, // km
+	getTrips: roleProcedure(["admin", "manager", "driver", "auditor"]).query(
+		async () => {
+			const trips = await db.query.deliveryTrips.findMany({
+				orderBy: [desc(deliveryTrips.created_at)],
+				with: {
+					driver: true,
+					stops: {
+						with: {
+							order: {
+								with: {
+									customer: true,
+								},
+							},
+						},
+					},
+				},
+			});
 
-        // Live Map Simulated Data
-        activeDrivers: [
-          { id: "D1", name: "John Smith", lat: 28.6139, lng: 77.2090, status: "driving", battery: 85 },
-          { id: "D2", name: "Alex Kumar", lat: 28.6239, lng: 77.2190, status: "delivering", battery: 42 },
-          { id: "D3", name: "Mike Davis", lat: 28.6039, lng: 77.1990, status: "idle", battery: 98 },
-        ],
-        
-        // Notifications
-        notifications: [
-          { id: 1, type: "traffic", title: "Heavy Traffic", message: "Route 4 delayed by 15 mins", time: "5m ago" },
-          { id: 2, type: "delay", title: "Late Delivery", message: "Order #8892 is running late", time: "12m ago" },
-          { id: 3, type: "emergency", title: "Vehicle Breakdown", message: "Van V-04 reported issue", time: "28m ago" },
-          { id: 4, type: "success", title: "Large COD Collected", message: "$1,200 collected by John", time: "45m ago" },
-        ],
+			return trips.map((t) => ({
+				id: t.id,
+				vehicle: t.vehicle ?? "N/A",
+				driverName: t.driver?.name ?? "Unknown",
+				status: t.status ?? "loading",
+				warehouse: { lat: 12.9716, lng: 77.5946, name: "Main Hub" },
+				stops: t.stops.map((s) => ({
+					id: s.id,
+					customer: s.order?.customer?.name ?? "Unknown",
+					address: s.order?.customer?.address ?? "Unknown",
+					lat: Number(s.lat) || 12.9784,
+					lng: Number(s.lng) || 77.6408,
+					status: s.status ?? "pending",
+				})),
+			}));
+		},
+	),
 
-        // Performance Metrics
-        topDrivers: [
-          { name: "John Smith", deliveries: 42, rating: 4.9 },
-          { name: "Sarah Lee", deliveries: 38, rating: 4.8 },
-          { name: "Alex Kumar", deliveries: 35, rating: 4.7 },
-        ],
-        
-        // Delivery Orders Table
-        deliveryOrders: [
-          { id: "ORD-9921", customer: "Acme Corp", address: "123 Business Rd, Tech Park", status: "out_for_delivery", driver: "John Smith", amount: 145.00 },
-          { id: "ORD-9922", customer: "Sarah Jenkins", address: "45 Residential Blvd, Apt 4B", status: "pending", driver: "Unassigned", amount: 89.50 },
-          { id: "ORD-9923", customer: "Tech Solutions", address: "88 Innovation Ave", status: "delivered", driver: "Alex Kumar", amount: 450.00 },
-          { id: "ORD-9924", customer: "Global Retail", address: "Warehouse 4, Industrial Est", status: "failed", driver: "Mike Davis", amount: 1200.00 },
-        ],
-        
-        // Order Status Breakdown for Chart
-        ordersByStatus: [
-          { name: "Delivered", value: 345 },
-          { name: "Out for Delivery", value: 85 },
-          { name: "Pending", value: 35 },
-          { name: "Failed", value: 17 },
-        ]
-      };
-    }),
+	createTrip: roleProcedure(["admin", "manager", "driver", "auditor"])
+		.input(
+			z.object({
+				vehicle: z.string(),
+				driver_id: z.number(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const [trip] = await db
+				.insert(deliveryTrips)
+				.values({
+					vehicle: input.vehicle,
+					driver_id: input.driver_id,
+					status: "loading",
+				})
+				.returning();
+			return trip;
+		}),
+
+	assignOrders: roleProcedure(["admin", "manager", "driver", "auditor"])
+		.input(
+			z.object({
+				trip_id: z.number(),
+				order_ids: z.array(z.number()),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const values = input.order_ids.map((id, index) => ({
+				trip_id: input.trip_id,
+				order_id: id,
+				sequence_no: index + 1,
+				status: "pending",
+			}));
+			await db.insert(deliveryStops).values(values);
+			return { success: true };
+		}),
+
+	updateStopStatus: roleProcedure(["admin", "manager", "driver", "auditor"])
+		.input(
+			z.object({
+				stop_id: z.number(),
+				status: z.enum([
+					"reached",
+					"delivered",
+					"partial",
+					"returned",
+					"failed",
+				]),
+				reason: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const updateData: any = { status: input.status };
+			if (input.status === "reached") updateData.reach_time = new Date();
+			if (input.status === "delivered") updateData.delivery_time = new Date();
+			if (input.reason) updateData.return_reason = input.reason;
+
+			const [stop] = await db
+				.update(deliveryStops)
+				.set(updateData)
+				.where(eq(deliveryStops.id, input.stop_id))
+				.returning();
+
+			if (input.status === "delivered") {
+				await db
+					.update(orders)
+					.set({ locked: true, status: "completed" })
+					.where(eq(orders.id, stop.order_id));
+			}
+			return stop;
+		}),
+
+	getDashboard: roleProcedure(["admin", "manager", "driver", "auditor"])
+		.input(z.object({}))
+		.query(async () => {
+			const [stopsResult] = await db
+				.select({
+					total: count(deliveryStops.id),
+				})
+				.from(deliveryStops);
+
+			const [completedResult] = await db
+				.select({
+					total: count(deliveryStops.id),
+				})
+				.from(deliveryStops)
+				.where(eq(deliveryStops.status, "delivered"));
+
+			const [pendingResult] = await db
+				.select({
+					total: count(deliveryStops.id),
+				})
+				.from(deliveryStops)
+				.where(eq(deliveryStops.status, "pending"));
+
+			const [failedResult] = await db
+				.select({
+					total: count(deliveryStops.id),
+				})
+				.from(deliveryStops)
+				.where(eq(deliveryStops.status, "failed"));
+
+			const [activeVehiclesResult] = await db
+				.select({
+					total: count(deliveryTrips.id),
+				})
+				.from(deliveryTrips)
+				.where(eq(deliveryTrips.status, "dispatched"));
+
+			const [codResult] = await db
+				.select({
+					total: sum(transactions.amount),
+				})
+				.from(transactions)
+				.where(
+					and(
+						eq(transactions.status, "completed"),
+						eq(transactions.type, "in"),
+					),
+				);
+
+			const codAmount = Number(codResult.total) || 0;
+			const totalDeliveries = stopsResult.total || 0;
+			const completed = completedResult.total || 0;
+			const successRate =
+				totalDeliveries > 0
+					? Math.round((completed / totalDeliveries) * 100)
+					: 0;
+
+			const drivers = await db
+				.select({
+					id: staff.id,
+					name: staff.name,
+				})
+				.from(staff)
+				.where(eq(staff.role, "driver"));
+
+			const activeDrivers = drivers.map((d, index) => {
+				// Mocking coordinates near Mumbai (19.0760, 72.8777)
+				// Hub Location: 19.0760, 72.8777
+				// Offset by index to spread them out
+				const lat = 19.076 + (Math.random() - 0.5) * 0.1;
+				const lng = 72.8777 + (Math.random() - 0.5) * 0.1;
+
+				// Generate a mock route (Polyline) starting from hub to the driver's current location,
+				// and ending at a destination
+				const destination = { lat: lat + 0.05, lng: lng + 0.05 };
+				const route = [
+					{ lat: 19.076, lng: 72.8777 }, // Hub
+					{ lat: lat, lng: lng }, // Current location
+					destination, // Destination
+				];
+
+				return {
+					id: d.id,
+					name: d.name,
+					status: "delivering",
+					battery: 100 - index * 15, // Randomize battery a bit
+					currentLocation: { lat, lng },
+					destination,
+					route,
+				};
+			});
+
+			const recentStops = await db.query.deliveryStops.findMany({
+				orderBy: [desc(deliveryStops.created_at)],
+				limit: 5,
+				with: {
+					order: {
+						with: { customer: true },
+					},
+					trip: {
+						with: { driver: true },
+					},
+				},
+			});
+
+			const deliveryOrders = recentStops.map((s) => ({
+				id: `TRP-${s.trip_id}-${s.order_id}`,
+				customer: s.order?.customer?.name ?? "Unknown",
+				address: s.order?.customer?.address ?? "Unknown",
+				driver: s.trip?.driver?.name ?? "Unknown",
+				amount: Number(s.order?.total_amount) || 0,
+				status: s.status ?? "pending",
+			}));
+
+			return {
+				todaysDeliveries: totalDeliveries,
+				completedDeliveries: completed,
+				pendingDeliveries: pendingResult.total || 0,
+				failedDeliveries: failedResult.total || 0,
+				vehiclesActive: activeVehiclesResult.total || 0,
+				distanceTravelled: 0,
+				deliverySuccessRate: successRate,
+				averageDeliveryTime: "45 mins",
+				codCollection: codAmount,
+				activeDrivers,
+				deliveryOrders,
+			};
+		}),
+
+	getTrackingData: roleProcedure(["admin", "manager", "driver", "auditor"])
+		.input(z.object({ trip_id: z.number() }))
+		.query(async ({ input }) => {
+			const tracking = await db.query.deliveryVehicleTracking.findFirst({
+				where: eq(deliveryVehicleTracking.trip_id, input.trip_id),
+				orderBy: [desc(deliveryVehicleTracking.timestamp)],
+			});
+
+			if (tracking) {
+				return {
+					trip_id: tracking.trip_id,
+					lat: tracking.lat?.toString() ?? "19.0760",
+					lng: tracking.lng?.toString() ?? "72.8777",
+					timestamp: tracking.timestamp ?? new Date(),
+				};
+			}
+
+			return {
+				trip_id: input.trip_id,
+				lat: "19.0760",
+				lng: "72.8777",
+				timestamp: new Date(),
+			};
+		}),
+
+	updateVehicleLocation: roleProcedure([
+		"admin",
+		"manager",
+		"driver",
+		"auditor",
+	])
+		.input(
+			z.object({
+				trip_id: z.number(),
+				lat: z.number(),
+				lng: z.number(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			await db.insert(deliveryVehicleTracking).values({
+				trip_id: input.trip_id,
+				lat: input.lat.toString(),
+				lng: input.lng.toString(),
+			});
+			return { success: true };
+		}),
 });

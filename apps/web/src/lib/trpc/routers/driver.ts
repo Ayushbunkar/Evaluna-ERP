@@ -1,48 +1,130 @@
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { db } from "@/lib/db";
+import { deliveryTrips } from "@/lib/db/schema";
 import { protectedProcedure, router } from "../init";
 
 export const driverRouter = router({
-  getMobileDashboard: protectedProcedure
-    .input(z.object({ branch_id: z.number().optional() }))
-    .query(async ({ input }) => {
-      // Mock data for Delivery Boy Mobile App
-      return {
-        // Driver Details
-        driverName: "Alex Kumar",
-        status: "Online",
-        batteryLevel: 82,
+	getMobileDashboard: protectedProcedure
+		.input(z.object({ branch_id: z.number().optional() }))
+		.query(async ({ input, ctx }) => {
+			let trip = await db.query.deliveryTrips.findFirst({
+				where: eq(deliveryTrips.status, "dispatched"),
+				orderBy: [desc(deliveryTrips.created_at)],
+				with: {
+					driver: true,
+					stops: {
+						orderBy: (deliveryStops, { asc }) => [
+							asc(deliveryStops.sequence_no),
+						],
+						with: {
+							order: {
+								with: {
+									customer: true,
+									paymentMethod: true,
+								},
+							},
+						},
+					},
+				},
+			});
 
-        // KPIs
-        assignedOrders: 24,
-        delivered: 16,
-        pending: 8,
-        codCollected: 12500.00,
-        distanceCovered: "42.5 km",
-        rating: 4.8,
+			if (!trip) {
+				trip = await db.query.deliveryTrips.findFirst({
+					orderBy: [desc(deliveryTrips.created_at)],
+					with: {
+						driver: true,
+						stops: {
+							orderBy: (deliveryStops, { asc }) => [
+								asc(deliveryStops.sequence_no),
+							],
+							with: {
+								order: {
+									with: {
+										customer: true,
+										paymentMethod: true,
+									},
+								},
+							},
+						},
+					},
+				});
+			}
 
-        // Immediate Next Delivery
-        nextDelivery: {
-          id: "ORD-9982",
-          customerName: "Sarah Jenkins",
-          phone: "+91 98765 43210",
-          address: "45 Residential Blvd, Apartment 4B",
-          landmark: "Near Central Park",
-          paymentType: "COD",
-          amountToCollect: 450.00,
-          packages: 2,
-          eta: "14 mins",
-          distance: "2.4 km",
-          isVerified: false
-        },
+			if (!trip) {
+				return {
+					driverName: ctx.user?.name ?? "Driver",
+					status: "Offline",
+					batteryLevel: 100,
+					assignedOrders: 0,
+					delivered: 0,
+					pending: 0,
+					codCollected: 0,
+					distanceCovered: "0 km",
+					rating: 0,
+					nextDelivery: null,
+					routeStops: [],
+				};
+			}
 
-        // Today's Route Stops
-        routeStops: [
-          { id: 1, status: "completed", time: "10:30 AM", address: "12 Business Road" },
-          { id: 2, status: "completed", time: "11:15 AM", address: "88 Innovation Ave" },
-          { id: 3, status: "completed", time: "12:45 PM", address: "Tech Park, Gate 2" },
-          { id: 4, status: "next", time: "ETA 02:15 PM", address: "45 Residential Blvd" },
-          { id: 5, status: "pending", time: "--:--", address: "Warehouse 4, Industrial Est" },
-        ]
-      };
-    }),
+			const assignedOrders = trip.stops.length;
+			const delivered = trip.stops.filter(
+				(s) => s.status === "delivered",
+			).length;
+			const pending = trip.stops.filter((s) => s.status === "pending").length;
+
+			const codCollected = trip.stops
+				.filter(
+					(s) =>
+						s.status === "delivered" &&
+						s.order?.paymentMethod?.payment_type === "cash",
+				)
+				.reduce((sum, s) => sum + Number(s.order?.total_amount || 0), 0);
+
+			const nextStop = trip.stops.find((s) => s.status === "pending");
+
+			let nextDelivery = null;
+			if (nextStop?.order) {
+				nextDelivery = {
+					id: `ORD-${nextStop.order_id}`,
+					stop_id: nextStop.id,
+					customerName: nextStop.order.customer?.name ?? "Unknown",
+					phone: nextStop.order.customer?.phone ?? "N/A",
+					address: nextStop.order.customer?.address ?? "N/A",
+					landmark: "",
+					paymentType: nextStop.order.paymentMethod?.name ?? "N/A",
+					amountToCollect: Number(nextStop.order.total_amount),
+					packages: 1,
+					eta: "14 mins",
+					distance: "2.4 km",
+					isVerified: false,
+				};
+			}
+
+			const routeStops = trip.stops.map((s) => ({
+				id: s.id,
+				status:
+					s.status === "delivered"
+						? "completed"
+						: s.status === "pending" && s.id === nextStop?.id
+							? "next"
+							: "pending",
+				time: s.status === "delivered" ? "Completed" : "--:--",
+				address: s.order?.customer?.address ?? "Unknown",
+			}));
+
+			return {
+				driverName: trip.driver?.name ?? "Driver",
+				status: trip.status === "dispatched" ? "Online" : "Offline",
+				batteryLevel: 82,
+				assignedOrders,
+				delivered,
+				pending,
+				codCollected,
+				distanceCovered: `${trip.total_distance ?? 0} km`,
+				rating: 4.8,
+				nextDelivery,
+				routeStops,
+			};
+		}),
 });

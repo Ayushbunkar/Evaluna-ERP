@@ -1,1 +1,3 @@
-export function DataTable() { return <div>DataTable</div>; }
+export function DataTable() {
+	return <div>DataTable</div>;
+}

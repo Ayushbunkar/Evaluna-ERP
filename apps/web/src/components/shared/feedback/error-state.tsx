@@ -1,1 +1,3 @@
-export function ErrorState() { return <div>ErrorState</div>; }
+export function ErrorState() {
+	return <div>ErrorState</div>;
+}

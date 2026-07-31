@@ -1,1 +1,3 @@
-export function BarChart() { return <div>BarChart</div>; }
+export function BarChart() {
+	return <div>BarChart</div>;
+}

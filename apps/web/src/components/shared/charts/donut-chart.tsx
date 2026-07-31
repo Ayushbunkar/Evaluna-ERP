@@ -1,1 +1,3 @@
-export function DonutChart() { return <div>DonutChart</div>; }
+export function DonutChart() {
+	return <div>DonutChart</div>;
+}

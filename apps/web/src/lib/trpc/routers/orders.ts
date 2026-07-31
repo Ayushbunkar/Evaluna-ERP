@@ -1,173 +1,262 @@
+import { and, eq } from "drizzle-orm";
 import { z } from "zod/v4";
-import { protectedProcedure, router } from "../init";
 import { db } from "@/lib/db";
-import { orders, orderItems, transactions, customers } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import {
+	auditLogs,
+	branchInventory,
+	customers,
+	orderItems,
+	orders,
+	transactions,
+} from "@/lib/db/schema";
+import { roleProcedure, router } from "../init";
 
 const orderWithCustomerSchema = z.object({
-  id: z.number(),
-  customer_id: z.number().nullable(),
-  total_amount: z.string(),
-  status: z.string().nullable(),
-  user_uid: z.string(),
-  created_at: z.date().nullable(),
-  customer: z.object({ name: z.string() }).nullable(),
+	id: z.number(),
+	customer_id: z.number().nullable(),
+	total_amount: z.string(),
+	status: z.string().nullable(),
+	user_uid: z.string(),
+	created_at: z.date().nullable(),
+	customer: z.object({ name: z.string() }).nullable(),
 });
 
 const orderDetailSchema = z.object({
-  id: z.number(),
-  customer_id: z.number().nullable(),
-  total_amount: z.string(),
-  status: z.string().nullable(),
-  user_uid: z.string(),
-  created_at: z.date().nullable(),
-  customer: z.object({ name: z.string() }).nullable(),
-  orderItems: z.array(z.object({
-    id: z.number(),
-    product_id: z.number().nullable(),
-    quantity: z.number(),
-    price: z.string(),
-    product: z.object({ name: z.string(), category: z.string().nullable() }).nullable(),
-  })),
+	id: z.number(),
+	customer_id: z.number().nullable(),
+	total_amount: z.string(),
+	status: z.string().nullable(),
+	user_uid: z.string(),
+	created_at: z.date().nullable(),
+	customer: z.object({ name: z.string() }).nullable(),
+	orderItems: z.array(
+		z.object({
+			id: z.number(),
+			product_id: z.number().nullable(),
+			quantity: z.number(),
+			price: z.string(),
+			product: z
+				.object({ name: z.string(), category: z.string().nullable() })
+				.nullable(),
+		}),
+	),
 });
 
 export const ordersRouter = router({
-  get: protectedProcedure
-    .meta({ openapi: { method: "GET", path: "/orders/{id}", tags: ["Orders"], summary: "Get order details" } })
-    .input(z.object({ id: z.number() }))
-    .output(orderDetailSchema.nullable())
-    .query(async ({ ctx, input }) => {
-      const result = await db.query.orders.findFirst({
-        where: and(eq(orders.id, input.id), eq(orders.user_uid, ctx.user.id)),
-        with: {
-          customer: { columns: { name: true } },
-          orderItems: {
-            with: {
-              product: { columns: { name: true, category: true } },
-            },
-          },
-        },
-      });
-      return result ?? null;
-    }),
+	get: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/orders/{id}",
+				tags: ["Orders"],
+				summary: "Get order details",
+			},
+		})
+		.input(z.object({ id: z.number() }))
+		.output(orderDetailSchema.nullable())
+		.query(async ({ ctx, input }) => {
+			const result = await db.query.orders.findFirst({
+				where: and(eq(orders.id, input.id), eq(orders.user_uid, ctx.user.id)),
+				with: {
+					customer: { columns: { name: true } },
+					orderItems: {
+						with: {
+							product: { columns: { name: true, category: true } },
+						},
+					},
+				},
+			});
+			return result ?? null;
+		}),
 
-  list: protectedProcedure
-    .meta({ openapi: { method: "GET", path: "/orders", tags: ["Orders"], summary: "List all orders" } })
-    .input(z.void())
-    .output(z.array(orderWithCustomerSchema))
-    .query(async ({ ctx }) => {
-      return db.query.orders.findMany({
-        where: eq(orders.user_uid, ctx.user.id),
-        with: {
-          customer: {
-            columns: { name: true },
-          },
-        },
-      });
-    }),
+	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/orders",
+				tags: ["Orders"],
+				summary: "List all orders",
+			},
+		})
+		.input(z.void())
+		.output(z.array(orderWithCustomerSchema))
+		.query(async ({ ctx }) => {
+			return db.query.orders.findMany({
+				where: eq(orders.user_uid, ctx.user.id),
+				with: {
+					customer: {
+						columns: { name: true },
+					},
+				},
+			});
+		}),
 
-  create: protectedProcedure
-    .meta({ openapi: { method: "POST", path: "/orders", tags: ["Orders"], summary: "Create an order with items" } })
-    .input(
-      z.object({
-        customerId: z.number(),
-        paymentMethodId: z.number(),
-        products: z.array(
-          z.object({
-            id: z.number(),
-            quantity: z.number().int().positive(),
-            price: z.number().int(),
-          })
-        ),
-        total: z.number().int(),
-      })
-    )
-    .output(orderWithCustomerSchema)
-    .mutation(async ({ ctx, input }) => {
-      return db.transaction(async (tx) => {
-        const [orderData] = await tx
-          .insert(orders)
-          .values({
-            customer_id: input.customerId,
-            total_amount: input.total.toString(),
-            user_uid: ctx.user.id,
-            status: "completed",
-          })
-          .returning();
+	create: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+		.meta({
+			openapi: {
+				method: "POST",
+				path: "/orders",
+				tags: ["Orders"],
+				summary: "Create an order with items",
+			},
+		})
+		.input(
+			z.object({
+				customerId: z.number(),
+				paymentMethodId: z.number(),
+				products: z.array(
+					z.object({
+						id: z.number(),
+						quantity: z.number().int().positive(),
+						price: z.number().int(),
+					}),
+				),
+				total: z.number().int(),
+			}),
+		)
+		.output(orderWithCustomerSchema)
+		.mutation(async ({ ctx, input }) => {
+			return db.transaction(async (tx) => {
+				const [orderData] = await tx
+					.insert(orders)
+					.values({
+						customer_id: input.customerId,
+						total_amount: input.total.toString(),
+						user_uid: ctx.user.id,
+						status: "completed",
+					})
+					.returning();
 
-        await tx.insert(orderItems).values(
-          input.products.map((product) => ({
-            order_id: orderData.id,
-            product_id: product.id,
-            quantity: product.quantity,
-            price: product.price.toString(),
-          }))
-        );
+				await tx.insert(orderItems).values(
+					input.products.map((product) => ({
+						order_id: orderData.id,
+						product_id: product.id,
+						quantity: product.quantity,
+						price: product.price.toString(),
+					})),
+				);
 
-        await tx.insert(transactions).values({
-          order_id: orderData.id,
-          payment_method_id: input.paymentMethodId,
-          amount: input.total.toString(),
-          user_uid: ctx.user.id,
-          status: "completed",
-          category: "selling",
-          type: "income",
-          description: `Payment for order #${orderData.id}`,
-        });
+				// Validate and Reserve stock in branch inventory (assuming branch_id = ctx.user.branchId or 1)
+				const branchId = ctx.user?.branchId || 1;
+				for (const product of input.products) {
+					const inv = await tx.query.branchInventory.findFirst({
+						where: and(
+							eq(branchInventory.product_id, product.id),
+							eq(branchInventory.branch_id, branchId),
+						),
+					});
 
-        const customer = input.customerId
-          ? await tx.query.customers.findFirst({
-              where: eq(customers.id, input.customerId),
-              columns: { name: true },
-            })
-          : null;
+					if (!inv) {
+						throw new Error(
+							`Product ID ${product.id} not found in inventory for branch ${branchId}`,
+						);
+					}
 
-        return { ...orderData, customer: customer ?? null };
-      });
-    }),
+					const availableStock = inv.quantity - (inv.reserved_stock || 0);
+					if (availableStock < product.quantity) {
+						throw new Error(
+							`Insufficient stock for Product ID ${product.id}. Available: ${availableStock}, Requested: ${product.quantity}`,
+						);
+					}
 
-  update: protectedProcedure
-    .meta({ openapi: { method: "PATCH", path: "/orders/{id}", tags: ["Orders"], summary: "Update an order" } })
-    .input(
-      z.object({
-        id: z.number(),
-        total_amount: z.number().int().optional(),
-        status: z.enum(["completed", "pending", "cancelled"]).optional(),
-      })
-    )
-    .output(orderWithCustomerSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const updateData: any = { ...data, user_uid: ctx.user.id };
-      if (data.total_amount !== undefined) updateData.total_amount = data.total_amount.toString();
-      
-      const [updated] = await db
-        .update(orders)
-        .set(updateData)
-        .where(and(eq(orders.id, id), eq(orders.user_uid, ctx.user.id)))
-        .returning();
+					await tx
+						.update(branchInventory)
+						.set({
+							reserved_stock: (inv.reserved_stock || 0) + product.quantity,
+						})
+						.where(eq(branchInventory.id, inv.id));
+				}
 
-      const customer = updated?.customer_id
-        ? await db.query.customers.findFirst({
-            where: eq(customers.id, updated.customer_id),
-            columns: { name: true },
-          })
-        : null;
+				// Audit Log
+				await tx.insert(auditLogs).values({
+					user_id: 1, // Assuming admin or current user
+					action: "CREATE_ORDER",
+					entity_type: "orders",
+					entity_id: orderData.id,
+					new_values: { orderData, items: input.products },
+				});
 
-      return { ...updated, customer: customer ?? null };
-    }),
+				await tx.insert(transactions).values({
+					order_id: orderData.id,
+					payment_method_id: input.paymentMethodId,
+					amount: input.total.toString(),
+					user_uid: ctx.user.id,
+					status: "completed",
+					category: "selling",
+					type: "income",
+					description: `Payment for order #${orderData.id}`,
+				});
 
-  delete: protectedProcedure
-    .meta({ openapi: { method: "DELETE", path: "/orders/{id}", tags: ["Orders"], summary: "Delete an order and its items" } })
-    .input(z.object({ id: z.number() }))
-    .output(z.object({ success: z.boolean() }))
-    .mutation(async ({ ctx, input }) => {
-      await db.transaction(async (tx) => {
-        await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
-        await tx
-          .delete(orders)
-          .where(and(eq(orders.id, input.id), eq(orders.user_uid, ctx.user.id)));
-      });
-      return { success: true };
-    }),
+				const customer = input.customerId
+					? await tx.query.customers.findFirst({
+							where: eq(customers.id, input.customerId),
+							columns: { name: true },
+						})
+					: null;
+
+				return { ...orderData, customer: customer ?? null };
+			});
+		}),
+
+	update: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+		.meta({
+			openapi: {
+				method: "PATCH",
+				path: "/orders/{id}",
+				tags: ["Orders"],
+				summary: "Update an order",
+			},
+		})
+		.input(
+			z.object({
+				id: z.number(),
+				total_amount: z.number().int().optional(),
+				status: z.enum(["completed", "pending", "cancelled"]).optional(),
+			}),
+		)
+		.output(orderWithCustomerSchema)
+		.mutation(async ({ ctx, input }) => {
+			const { id, ...data } = input;
+			const updateData: any = { ...data, user_uid: ctx.user.id };
+			if (data.total_amount !== undefined)
+				updateData.total_amount = data.total_amount.toString();
+
+			const [updated] = await db
+				.update(orders)
+				.set(updateData)
+				.where(and(eq(orders.id, id), eq(orders.user_uid, ctx.user.id)))
+				.returning();
+
+			const customer = updated?.customer_id
+				? await db.query.customers.findFirst({
+						where: eq(customers.id, updated.customer_id),
+						columns: { name: true },
+					})
+				: null;
+
+			return { ...updated, customer: customer ?? null };
+		}),
+
+	delete: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+		.meta({
+			openapi: {
+				method: "DELETE",
+				path: "/orders/{id}",
+				tags: ["Orders"],
+				summary: "Delete an order and its items",
+			},
+		})
+		.input(z.object({ id: z.number() }))
+		.output(z.object({ success: z.boolean() }))
+		.mutation(async ({ ctx, input }) => {
+			await db.transaction(async (tx) => {
+				await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
+				await tx
+					.delete(orders)
+					.where(
+						and(eq(orders.id, input.id), eq(orders.user_uid, ctx.user.id)),
+					);
+			});
+			return { success: true };
+		}),
 });

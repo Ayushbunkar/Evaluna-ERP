@@ -5,18 +5,18 @@ import { defineConfig } from "drizzle-kit";
 const DATABASE_URL = process.env.DATABASE_URL;
 
 export default DATABASE_URL
-  ? defineConfig({
-      dialect: "postgresql",
-      schema: ["./src/lib/db/schema.ts", "./src/lib/db/auth-schema.ts"],
-      dbCredentials: {
-        url: DATABASE_URL,
-      },
-    })
-  : defineConfig({
-      dialect: "postgresql",
-      driver: "pglite",
-      schema: ["./src/lib/db/schema.ts", "./src/lib/db/auth-schema.ts"],
-      dbCredentials: {
-        url: "./data/pglite",
-      },
-    });
+	? defineConfig({
+			dialect: "postgresql",
+			schema: ["./src/lib/db/schema.ts", "./src/lib/db/auth-schema.ts"],
+			dbCredentials: {
+				url: DATABASE_URL,
+			},
+		})
+	: defineConfig({
+			dialect: "postgresql",
+			driver: "pglite",
+			schema: ["./src/lib/db/schema.ts", "./src/lib/db/auth-schema.ts"],
+			dbCredentials: {
+				url: "./data/pglite",
+			},
+		});

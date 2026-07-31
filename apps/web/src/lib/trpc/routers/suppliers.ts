@@ -1,119 +1,131 @@
-import { protectedProcedure, router } from "../init";
+import { purchases, suppliers, transactions } from "@evaluna/db/schema";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { suppliers, transactions, purchases } from "@evaluna/db/schema";
-import { count, eq, and, desc } from "drizzle-orm";
+import { roleProcedure, router } from "../init";
 
 export const suppliersRouter = router({
-  create: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      address: z.string().optional(),
-      gst_number: z.string().optional(),
-      pan_number: z.string().optional(),
-      supplier_category: z.string().optional()
-    }))
-    .mutation(async ({ input, ctx }) => {
-      const code = `SUPP-${Math.floor(1000 + Math.random() * 9000)}`;
-      const newSupplier = await db.insert(suppliers).values({
-        ...input,
-        supplier_code: code
-      }).returning();
-      return newSupplier[0];
-    }),
-    
-  list: protectedProcedure
-    .input(z.void())
-    .query(async () => {
-      return await db.select().from(suppliers);
-    }),
+	create: roleProcedure(["admin", "manager", "auditor"])
+		.input(
+			z.object({
+				name: z.string().min(1),
+				email: z.string().email().optional(),
+				phone: z.string().optional(),
+				address: z.string().optional(),
+				gst_number: z.string().optional(),
+				pan_number: z.string().optional(),
+				supplier_category: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const code = `SUPP-${Math.floor(1000 + Math.random() * 9000)}`;
+			const newSupplier = await db
+				.insert(suppliers)
+				.values({
+					...input,
+					supplier_code: code,
+				})
+				.returning();
+			return newSupplier[0];
+		}),
 
-  getById: protectedProcedure
-    .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
-      const supplier = await db.query.suppliers.findFirst({
-        where: eq(suppliers.id, input.id),
-      });
+	list: roleProcedure(["admin", "manager", "auditor"])
+		.input(z.void())
+		.query(async () => {
+			return await db.select().from(suppliers);
+		}),
 
-      if (!supplier) throw new Error("Supplier not found");
+	getById: roleProcedure(["admin", "manager", "auditor"])
+		.input(z.object({ id: z.number() }))
+		.query(async ({ input }) => {
+			const supplier = await db.query.suppliers.findFirst({
+				where: eq(suppliers.id, input.id),
+			});
 
-      const ledger = await db.query.transactions.findMany({
-        where: and(
-          eq(transactions.reference_type, 'supplier_payment'),
-          eq(transactions.reference_id, input.id)
-        ),
-        orderBy: [desc(transactions.created_at)]
-      });
+			if (!supplier) throw new Error("Supplier not found");
 
-      const purchaseHistory = await db.query.purchases.findMany({
-        where: eq(purchases.supplier_id, input.id),
-        orderBy: [desc(purchases.created_at)]
-      });
+			const ledger = await db.query.transactions.findMany({
+				where: and(
+					eq(transactions.reference_type, "supplier_payment"),
+					eq(transactions.reference_id, input.id),
+				),
+				orderBy: [desc(transactions.created_at)],
+			});
 
-      return { supplier, ledger, purchaseHistory };
-    }),
+			const purchaseHistory = await db.query.purchases.findMany({
+				where: eq(purchases.supplier_id, input.id),
+				orderBy: [desc(purchases.created_at)],
+			});
 
-  paySupplier: protectedProcedure
-    .input(z.object({
-      supplier_id: z.number(),
-      amount: z.number().positive(),
-      description: z.string()
-    }))
-    .mutation(async ({ input, ctx }) => {
-      const supplier = await db.query.suppliers.findFirst({
-        where: eq(suppliers.id, input.supplier_id)
-      });
+			return { supplier, ledger, purchaseHistory };
+		}),
 
-      if (!supplier) throw new Error("Supplier not found");
+	paySupplier: roleProcedure(["admin", "manager", "auditor"])
+		.input(
+			z.object({
+				supplier_id: z.number(),
+				amount: z.number().positive(),
+				description: z.string(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const supplier = await db.query.suppliers.findFirst({
+				where: eq(suppliers.id, input.supplier_id),
+			});
 
-      // Log transaction
-      await db.insert(transactions).values({
-        type: 'out',
-        amount: input.amount.toString(),
-        category: 'supplier_payment',
-        description: input.description,
-        reference_type: 'supplier_payment',
-        reference_id: input.supplier_id,
-        user_uid: ctx.user.id
-      });
+			if (!supplier) throw new Error("Supplier not found");
 
-      // Decrement outstanding balance
-      const currentBalance = parseFloat(supplier.outstanding_balance || "0");
-      const newBalance = currentBalance - input.amount;
+			// Log transaction
+			await db.insert(transactions).values({
+				type: "out",
+				amount: input.amount.toString(),
+				category: "supplier_payment",
+				description: input.description,
+				reference_type: "supplier_payment",
+				reference_id: input.supplier_id,
+				user_uid: ctx.user.id,
+			});
 
-      await db.update(suppliers)
-        .set({ outstanding_balance: newBalance.toString() })
-        .where(eq(suppliers.id, input.supplier_id));
+			// Decrement outstanding balance
+			const currentBalance = Number.parseFloat(
+				supplier.outstanding_balance || "0",
+			);
+			const newBalance = currentBalance - input.amount;
 
-      return { success: true };
-    }),
+			await db
+				.update(suppliers)
+				.set({ outstanding_balance: newBalance.toString() })
+				.where(eq(suppliers.id, input.supplier_id));
 
-  update: protectedProcedure
-    .input(z.object({
-      id: z.number(),
-      name: z.string().optional(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      address: z.string().optional(),
-      gst_number: z.string().optional(),
-      pan_number: z.string().optional(),
-    }))
-    .mutation(async ({ input }) => {
-      const { id, ...data } = input;
-      const updatedSupplier = await db
-        .update(suppliers)
-        .set(data)
-        .where(eq(suppliers.id, id))
-        .returning();
-      return updatedSupplier[0];
-    }),
+			return { success: true };
+		}),
 
-  delete: protectedProcedure
-    .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
-      await db.delete(suppliers).where(eq(suppliers.id, input.id));
-      return { id: input.id };
-    }),
+	update: roleProcedure(["admin", "manager", "auditor"])
+		.input(
+			z.object({
+				id: z.number(),
+				name: z.string().optional(),
+				email: z.string().email().optional(),
+				phone: z.string().optional(),
+				address: z.string().optional(),
+				gst_number: z.string().optional(),
+				pan_number: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const { id, ...data } = input;
+			const updatedSupplier = await db
+				.update(suppliers)
+				.set(data)
+				.where(eq(suppliers.id, id))
+				.returning();
+			return updatedSupplier[0];
+		}),
+
+	delete: roleProcedure(["admin", "manager", "auditor"])
+		.input(z.object({ id: z.number() }))
+		.mutation(async ({ input }) => {
+			await db.delete(suppliers).where(eq(suppliers.id, input.id));
+			return { id: input.id };
+		}),
 });

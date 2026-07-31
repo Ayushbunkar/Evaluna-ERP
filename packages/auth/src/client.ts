@@ -1,9 +1,9 @@
 import { createAuthClient } from "better-auth/client";
-import type {} from "zod";
 import { twoFactorClient } from "better-auth/client/plugins";
+import type {} from "zod";
 
 export const authClient = createAuthClient({
-  plugins: [twoFactorClient()],
+	plugins: [twoFactorClient()],
 });
 
 export type Session = typeof authClient.$Infer.Session;

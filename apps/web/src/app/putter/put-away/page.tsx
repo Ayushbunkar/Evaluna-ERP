@@ -1,43 +1,45 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
-import { DataTable, type Column } from "@evaluna/ui/components/data-table";
+import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
+import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
+import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
 
 export default function PutAwayTasksPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+	const [searchTerm, setSearchTerm] = useState("");
 
-  const columns: Column<any>[] = [
-    { key: "id", header: "ID", sortable: true },
-    { key: "date", header: "Date" },
-    { key: "status", header: "Status" },
-  ];
+	const columns: Column<any>[] = [
+		{ key: "id", header: "ID", sortable: true },
+		{ key: "date", header: "Date" },
+		{ key: "status", header: "Status" },
+	];
 
-  return (
-    <PageTransition className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Put Away Tasks</h1>
-        <p className="text-muted-foreground text-sm">Manage and view details for put away tasks.</p>
-      </div>
-      
-      <Card className="border-border/50 shadow-sm bg-card/50">
-        <CardHeader className="p-4">
-          <SearchFilter
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Search records..."
-          />
-        </CardHeader>
-        <CardContent className="p-0">
-          <DataTable
-            data={[]}
-            columns={columns}
-            emptyMessage="No records found in this module yet."
-          />
-        </CardContent>
-      </Card>
-    </PageTransition>
-  );
+	return (
+		<PageTransition className="flex flex-col gap-6">
+			<div>
+				<h1 className="font-bold text-3xl tracking-tight">Put Away Tasks</h1>
+				<p className="text-muted-foreground text-sm">
+					Manage and view details for put away tasks.
+				</p>
+			</div>
+
+			<Card className="border-border/50 bg-card/50 shadow-sm">
+				<CardHeader className="p-4">
+					<SearchFilter
+						search={searchTerm}
+						onSearchChange={setSearchTerm}
+						searchPlaceholder="Search records..."
+					/>
+				</CardHeader>
+				<CardContent className="p-0">
+					<DataTable
+						data={[]}
+						columns={columns}
+						emptyMessage="No records found in this module yet."
+					/>
+				</CardContent>
+			</Card>
+		</PageTransition>
+	);
 }

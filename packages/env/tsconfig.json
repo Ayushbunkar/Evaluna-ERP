@@ -1,3 +1,3 @@
 {
-  "extends": "@evaluna/config/tsconfig.base.json"
+	"extends": "@evaluna/config/tsconfig.base.json"
 }

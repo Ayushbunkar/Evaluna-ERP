@@ -1,29 +1,47 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("node:fs");
+const path = require("node:path");
 
-const managerDir = path.join(__dirname, 'src', 'app', '(dashboards)', 'manager');
+const managerDir = path.join(
+	__dirname,
+	"src",
+	"app",
+	"(dashboards)",
+	"manager",
+);
 
 const subRoutes = [
-  'sales', 'billing', 'orders', 'customers', 'inventory', 
-  'warehouse', 'staff', 'cashbook', 'expenses', 'reports', 'notifications'
+	"sales",
+	"billing",
+	"orders",
+	"customers",
+	"inventory",
+	"warehouse",
+	"staff",
+	"cashbook",
+	"expenses",
+	"reports",
+	"notifications",
 ];
 
 function ensureDir(dir) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
 }
 
 ensureDir(managerDir);
 
-subRoutes.forEach(route => {
-  const routeDir = path.join(managerDir, route);
-  ensureDir(routeDir);
+subRoutes.forEach((route) => {
+	const routeDir = path.join(managerDir, route);
+	ensureDir(routeDir);
 
-  const Title = route.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const ComponentName = Title.replace(/\s+/g, '');
+	const Title = route
+		.split("-")
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ");
+	const ComponentName = Title.replace(/\s+/g, "");
 
-  const PageContent = `export default function Manager${ComponentName}Page() {
+	const PageContent = `export default function Manager${ComponentName}Page() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
@@ -41,7 +59,7 @@ subRoutes.forEach(route => {
     </div>
   );
 }`;
-  fs.writeFileSync(path.join(routeDir, 'page.tsx'), PageContent);
+	fs.writeFileSync(path.join(routeDir, "page.tsx"), PageContent);
 });
 
-console.log('Manager sub-routes scaffolded.');
+console.log("Manager sub-routes scaffolded.");

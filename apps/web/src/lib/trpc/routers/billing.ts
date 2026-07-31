@@ -1,60 +1,107 @@
+import { orders, transactions } from "@evaluna/db/schema";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
 
 export const billingRouter = router({
-  getDashboardStats: protectedProcedure
-    .input(z.object({ branch_id: z.number().optional() }))
-    .query(async ({ input }) => {
-      // Mock data for Billing Dashboard
-      return {
-        // KPIs
-        todaysBills: 142,
-        revenue: 84500.50,
-        averageBill: 595.00,
-        refunds: 1250.00,
-        cashCollected: 25000.00,
-        cardCollected: 38000.00,
-        upiCollected: 21500.50,
-        pendingBills: 5,
+	getDashboardStats: protectedProcedure
+		.input(z.object({ branch_id: z.number().optional() }))
+		.query(async ({ ctx, input }) => {
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
 
-        // Charts
-        salesChart: [
-          { day: "8 AM", sales: 2500 },
-          { day: "10 AM", sales: 12000 },
-          { day: "12 PM", sales: 18500 },
-          { day: "2 PM", sales: 14000 },
-          { day: "4 PM", sales: 11000 },
-          { day: "6 PM", sales: 19500 },
-          { day: "8 PM", sales: 7000 },
-        ],
-        paymentDistribution: [
-          { name: "Cash", value: 25000 },
-          { name: "Card", value: 38000 },
-          { name: "UPI", value: 21500 },
-        ],
-        hourlySales: [
-          { hour: "8AM", amount: 2500 },
-          { hour: "10AM", amount: 12000 },
-          { hour: "12PM", amount: 18500 },
-          { hour: "2PM", amount: 14000 },
-          { hour: "4PM", amount: 11000 },
-          { hour: "6PM", amount: 19500 },
-        ],
-        
-        // Summaries
-        topCashiers: [
-          { name: "Alice Smith", bills: 65, revenue: 42000 },
-          { name: "John Doe", bills: 48, revenue: 28500 },
-          { name: "Sarah Lee", bills: 29, revenue: 14000 },
-        ],
+			const todaysBillsRes = await ctx.db
+				.select({ count: sql<number>`COUNT(*)` })
+				.from(orders)
+				.where(gte(orders.created_at, today));
+			const todaysBills = Number(todaysBillsRes[0]?.count || 0);
 
-        // Tables / Lists
-        recentBills: [
-          { id: "INV-9021", customer: "Walk-in Customer", items: 4, amount: 1250.00, status: "paid", payment: "UPI" },
-          { id: "INV-9022", customer: "Acme Corp", items: 12, amount: 8400.00, status: "paid", payment: "Card" },
-          { id: "INV-9023", customer: "Jane Doe", items: 2, amount: 450.50, status: "pending", payment: "Cash" },
-          { id: "INV-9024", customer: "Walk-in Customer", items: 1, amount: 120.00, status: "paid", payment: "Cash" },
-        ]
-      };
-    }),
+			const revenueRes = await ctx.db
+				.select({
+					total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
+				})
+				.from(orders)
+				.where(gte(orders.created_at, today));
+			const revenue = Number(revenueRes[0]?.total || 0);
+
+			const averageBill = todaysBills > 0 ? revenue / todaysBills : 0;
+			const refunds = 0;
+
+			const paymentsRes = await ctx.db
+				.select({
+					method: transactions.payment_method_id,
+					amount: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+				})
+				.from(transactions)
+				.where(
+					and(
+						gte(transactions.created_at, today),
+						eq(transactions.type, "credit"),
+					),
+				)
+				.groupBy(transactions.payment_method_id);
+
+			let cashCollected = 0;
+			let cardCollected = 0;
+			let upiCollected = 0;
+
+			for (const p of paymentsRes) {
+				if (p.method === 1) cashCollected += Number(p.amount);
+				else if (p.method === 2) cardCollected += Number(p.amount);
+				else if (p.method === 3) upiCollected += Number(p.amount);
+				else cashCollected += Number(p.amount);
+			}
+
+			const pendingBillsRes = await ctx.db
+				.select({ count: sql<number>`COUNT(*)` })
+				.from(orders)
+				.where(
+					and(gte(orders.created_at, today), eq(orders.status, "pending")),
+				);
+			const pendingBills = Number(pendingBillsRes[0]?.count || 0);
+
+			const salesChart: any[] = [];
+			const paymentDistribution = [
+				{ name: "Cash", value: cashCollected },
+				{ name: "Card", value: cardCollected },
+				{ name: "UPI", value: upiCollected },
+			];
+			const hourlySales: any[] = [];
+			const topCashiers: any[] = [];
+
+			const recentBillsRes = await ctx.db.query.orders.findMany({
+				orderBy: [desc(orders.created_at)],
+				limit: 10,
+				with: {
+					customer: true,
+					orderItems: true,
+					paymentMethod: true,
+				},
+			});
+
+			const recentBills = recentBillsRes.map((b) => ({
+				id: `INV-${b.id}`,
+				customer: b.customer?.name || "Walk-in Customer",
+				items: b.orderItems?.length || 0,
+				amount: Number(b.total_amount || 0),
+				status: b.status || "pending",
+				payment: b.paymentMethod?.name || "Cash",
+			}));
+
+			return {
+				todaysBills,
+				revenue,
+				averageBill,
+				refunds,
+				cashCollected,
+				cardCollected,
+				upiCollected,
+				pendingBills,
+				salesChart,
+				paymentDistribution,
+				hourlySales,
+				topCashiers,
+				recentBills,
+			};
+		}),
 });

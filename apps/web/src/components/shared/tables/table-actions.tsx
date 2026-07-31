@@ -1,1 +1,3 @@
-export function TableActions() { return <div>TableActions</div>; }
+export function TableActions() {
+	return <div>TableActions</div>;
+}

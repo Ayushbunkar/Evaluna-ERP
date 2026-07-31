@@ -4,16 +4,18 @@ import { PGlite } from "@electric-sql/pglite";
 const DATA_DIR = "./data/pglite";
 
 async function main() {
-  if (!existsSync(DATA_DIR)) return;
+	if (!existsSync(DATA_DIR)) return;
 
-  try {
-    const pg = new PGlite(DATA_DIR);
-    await pg.query("SELECT 1");
-    await pg.close();
-  } catch {
-    console.warn("⚠ PGLite is corrupted — clearing it for automatic recreation...");
-    rmSync(DATA_DIR, { recursive: true, force: true });
-  }
+	try {
+		const pg = new PGlite(DATA_DIR);
+		await pg.query("SELECT 1");
+		await pg.close();
+	} catch {
+		console.warn(
+			"⚠ PGLite is corrupted — clearing it for automatic recreation...",
+		);
+		rmSync(DATA_DIR, { recursive: true, force: true });
+	}
 }
 
 main();
