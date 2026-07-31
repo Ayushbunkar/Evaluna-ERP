@@ -14,7 +14,7 @@ import {
 	roles,
 	staff,
 	systemSettings,
-} from "@/lib/db/schema-client";
+} from "@evaluna/db/schema-client";
 import { protectedProcedure, router } from "../init";
 
 // Module definitions for the ERP
@@ -1766,7 +1766,7 @@ export const clientSettingsRouter = router({
 	createNotificationTemplate: protectedProcedure
 		.input(
 			z.object({
-				name: z.string().min(3).max(100).unique(),
+				name: z.string().min(3).max(100),
 				type: z.enum(["email", "sms", "in_app", "whatsapp", "push"]),
 				subject: z.string().min(3).max(255).optional(),
 				body: z.string().min(10),

@@ -18,7 +18,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@evaluna/ui/components/select";
-import { Separator } from "@evaluna/ui/components/separator";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -846,7 +845,7 @@ function PermissionsManagement() {
 
 				{selectedRole && (
 					<>
-						<Separator />
+						<hr className="my-4 border-gray-200" />
 
 						<div className="space-y-4">
 							<h3 className="font-semibold text-lg">
