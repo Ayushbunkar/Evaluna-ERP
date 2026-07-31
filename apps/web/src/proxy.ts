@@ -59,10 +59,11 @@ export async function proxy(request: NextRequest) {
 	let sessionData: { session: Session; user: any } | null = null;
 	try {
 		const cookieHeader = request.headers.get("cookie") || "";
-		const res = await fetch("http://127.0.0.1:3001/api/auth/get-session", {
+		const baseUrl = request.nextUrl.origin;
+		const res = await fetch(`${baseUrl}/api/auth/get-session`, {
 			headers: {
 				cookie: cookieHeader,
-				host: request.headers.get("host") || "localhost:3001",
+				host: request.headers.get("host") || request.nextUrl.host,
 			},
 		});
 		if (res.ok) {
