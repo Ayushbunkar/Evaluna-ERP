@@ -23,10 +23,7 @@ function LoginForm() {
 	const suspended = searchParams.get("suspended");
 	const [isPending, setIsPending] = useState(false);
 
-	function fillDemo() {
-		if (emailRef.current) emailRef.current.value = "test@example.com";
-		if (passwordRef.current) passwordRef.current.value = "test1234";
-	}
+
 
 	async function handleSubmit(formData: FormData) {
 		setIsPending(true);
@@ -129,14 +126,7 @@ function LoginForm() {
 					{isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
 					{isPending ? "Logging in..." : t("submit")}
 				</Button>
-				<Button
-					type="button"
-					variant="outline"
-					className="w-full bg-transparent transition-colors hover:bg-secondary/50"
-					onClick={fillDemo}
-				>
-					{t("fillDemo")}
-				</Button>
+
 				<p className="mt-2 text-center text-muted-foreground text-sm">
 					{t("noAccount")}{" "}
 					<Link
