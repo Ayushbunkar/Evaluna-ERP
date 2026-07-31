@@ -67,9 +67,5 @@ export async function POST() {
 }
 
 export async function GET() {
-	return NextResponse.json({
-		message: "Make a POST request to this endpoint to create test accounts for all roles.",
-		users_that_will_be_created: USERS_TO_SEED,
-		password_for_all: "Password@123"
-	});
+	return POST();
 }
