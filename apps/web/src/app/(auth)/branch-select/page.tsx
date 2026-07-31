@@ -33,7 +33,8 @@ export default function BranchSelectPage() {
 		// For this boilerplate, we'll set it in localStorage/cookie and redirect.
 		document.cookie = `evaluna.branch_context=${branchId}; path=/`;
 		setTimeout(() => {
-			const role = (session?.user as any)?.role || "admin";
+			let role = (session?.user as any)?.role || "admin";
+			if (role === "superadmin") role = "admin";
 			router.push(role === "sales_person" ? "/sales" : `/${role}`);
 		}, 500);
 	};

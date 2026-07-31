@@ -101,7 +101,8 @@ export async function proxy(request: NextRequest) {
 	// The user is authenticated — send them home regardless of error/expired params.
 	if (isAuthPage) {
 		const url = request.nextUrl.clone();
-		const role = sessionData.user.role || "sales_person";
+		let role = sessionData.user.role || "sales_person";
+		if (role === "superadmin") role = "admin";
 		url.pathname = role === "sales_person" ? "/sales" : `/${role}`;
 		url.search = ""; // clear any leftover query params
 		return NextResponse.redirect(url);
@@ -124,8 +125,10 @@ export async function proxy(request: NextRequest) {
 		pathname.startsWith("/sync");
 
 	if (isDashboardRoute || isSharedRoute) {
-		const userRole = (sessionData.user.role || "sales_person") as Role;
-		const isSuperadmin = sessionData.user.isSuperadmin === true;
+		let userRole = (sessionData.user.role || "sales_person") as Role;
+		if (userRole as string === "superadmin") userRole = "admin" as Role;
+		
+		const isSuperadmin = sessionData.user.isSuperadmin === true || sessionData.user.role === "superadmin";
 
 		if (!isSuperadmin) {
 			// Find the most specific route match
