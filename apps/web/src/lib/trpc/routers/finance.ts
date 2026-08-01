@@ -21,43 +21,78 @@ export const financeRouter = router({
 				1,
 			);
 
-			const todaysCashRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-				})
-				.from(transactions)
-				.where(
-					and(
-						gte(transactions.created_at, today),
-						sql`${transactions.type} IN ('in', 'credit')`,
+			const [
+				todaysCashRes,
+				monthlyRevRes,
+				totalExpRes,
+				receivablesRes,
+				payablesRes,
+				profitChartRes,
+				expenseBreakdownRes,
+				recentTx,
+				outCust
+			] = await Promise.all([
+				ctx.db
+					.select({
+						total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+					})
+					.from(transactions)
+					.where(
+						and(
+							gte(transactions.created_at, today),
+							sql`${transactions.type} IN ('in', 'credit')`,
+						),
 					),
-				);
-
-			const monthlyRevRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
-				})
-				.from(orders)
-				.where(gte(orders.created_at, firstDayOfMonth));
-
-			const totalExpRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
-				})
-				.from(expenses)
-				.where(gte(expenses.created_at, firstDayOfMonth));
-
-			const receivablesRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${customers.credit_used}), 0)`,
-				})
-				.from(customers);
-
-			const payablesRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
-				})
-				.from(suppliers);
+				ctx.db
+					.select({
+						total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
+					})
+					.from(orders)
+					.where(gte(orders.created_at, firstDayOfMonth)),
+				ctx.db
+					.select({
+						total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
+					})
+					.from(expenses)
+					.where(gte(expenses.created_at, firstDayOfMonth)),
+				ctx.db
+					.select({
+						total: sql<number>`COALESCE(SUM(${customers.credit_used}), 0)`,
+					})
+					.from(customers),
+				ctx.db
+					.select({
+						total: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
+					})
+					.from(suppliers),
+				ctx.db
+					.select({
+						month: sql<string>`TO_CHAR(${orders.created_at}, 'Mon')`,
+						revenue: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
+					})
+					.from(orders)
+					.groupBy(sql`TO_CHAR(${orders.created_at}, 'Mon')`),
+				ctx.db
+					.select({
+						category: expenses.expense_category,
+						amount: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
+					})
+					.from(expenses)
+					.groupBy(expenses.expense_category),
+				ctx.db.query.transactions.findMany({
+					orderBy: [desc(transactions.created_at)],
+					limit: 10,
+				}),
+				ctx.db
+					.select({
+						id: customers.id,
+						name: customers.name,
+						amount: customers.credit_used,
+					})
+					.from(customers)
+					.where(sql`${customers.credit_used} > 0`)
+					.limit(5)
+			]);
 
 			const todaysCash = Number(todaysCashRes[0]?.total || 0);
 			const monthlyRevenue = Number(monthlyRevRes[0]?.total || 0);
@@ -68,27 +103,6 @@ export const financeRouter = router({
 			const totalPayables = Number(payablesRes[0]?.total || 0);
 			const cashFlow = todaysCash - totalExpenses;
 
-			const profitChartRes = await ctx.db
-				.select({
-					month: sql<string>`TO_CHAR(${orders.created_at}, 'Mon')`,
-					revenue: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
-				})
-				.from(orders)
-				.groupBy(sql`TO_CHAR(${orders.created_at}, 'Mon')`);
-
-			const expenseBreakdownRes = await ctx.db
-				.select({
-					category: expenses.expense_category,
-					amount: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
-				})
-				.from(expenses)
-				.groupBy(expenses.expense_category);
-
-			const recentTx = await ctx.db.query.transactions.findMany({
-				orderBy: [desc(transactions.created_at)],
-				limit: 10,
-			});
-
 			const recentTransactions = recentTx.map((tx) => ({
 				id: `TX-${tx.id}`,
 				date: tx.created_at?.toLocaleString() || "N/A",
@@ -97,16 +111,6 @@ export const financeRouter = router({
 				amount: Number(tx.amount || 0),
 				status: tx.status || "completed",
 			}));
-
-			const outCust = await ctx.db
-				.select({
-					id: customers.id,
-					name: customers.name,
-					amount: customers.credit_used,
-				})
-				.from(customers)
-				.where(sql`${customers.credit_used} > 0`)
-				.limit(5);
 
 			const outstandingPayments = outCust.map((c) => ({
 				id: `CUST-${c.id}`,

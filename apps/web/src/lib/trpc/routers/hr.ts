@@ -8,15 +8,16 @@ export const hrRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
-			const empCount = await db.select({ count: count() }).from(staff);
-			const activeCount = await db
-				.select({ count: count() })
-				.from(staff)
-				.where(eq(staff.status, "active"));
-
-			const avgSalaryData = await db
-				.select({ avg: sql<number>`AVG(${staff.salary})` })
-				.from(staff);
+			const [empCount, activeCount, avgSalaryData] = await Promise.all([
+				db.select({ count: count() }).from(staff),
+				db
+					.select({ count: count() })
+					.from(staff)
+					.where(eq(staff.status, "active")),
+				db
+					.select({ avg: sql<number>`AVG(${staff.salary})` })
+					.from(staff),
+			]);
 
 			return {
 				totalEmployees: empCount[0]?.count || 0,

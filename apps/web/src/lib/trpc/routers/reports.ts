@@ -35,9 +35,30 @@ export const reportsRouter = router({
 
 			return db.query.orders.findMany({
 				where: and(...conditions),
+				columns: {
+					id: true,
+					total_amount: true,
+					created_at: true,
+					status: true,
+					payment_method_id: true,
+				},
 				with: {
-					orderItems: true,
-					customer: true,
+					orderItems: {
+						columns: {
+							id: true,
+							product_id: true,
+							quantity: true,
+							price: true,
+						}
+					},
+					customer: {
+						columns: {
+							id: true,
+							name: true,
+							email: true,
+							phone: true,
+						}
+					},
 				},
 				orderBy: [desc(orders.created_at)],
 			});
@@ -123,7 +144,26 @@ export const reportsRouter = router({
 
 			return db.query.branchInventory.findMany({
 				where: and(...conditions),
-				with: { product: true },
+				columns: {
+					id: true,
+					branch_id: true,
+					product_id: true,
+					in_stock: true,
+					reorder_level: true,
+					reserved_stock: true,
+					created_at: true,
+				},
+				with: { 
+					product: {
+						columns: {
+							id: true,
+							name: true,
+							sku: true,
+							barcode: true,
+							price: true,
+						}
+					} 
+				},
 			});
 		}),
 
@@ -140,7 +180,21 @@ export const reportsRouter = router({
 
 			const inventory = await db.query.branchInventory.findMany({
 				where: and(...conditions),
-				with: { product: true },
+				columns: {
+					id: true,
+					product_id: true,
+					in_stock: true,
+					reorder_level: true,
+				},
+				with: { 
+					product: {
+						columns: {
+							id: true,
+							name: true,
+							sku: true,
+						}
+					} 
+				},
 			});
 
 			return inventory.filter((item) => item.in_stock <= item.reorder_level);
@@ -155,7 +209,21 @@ export const reportsRouter = router({
 
 			return db.query.branchInventory.findMany({
 				where: and(...conditions),
-				with: { product: true },
+				columns: {
+					id: true,
+					product_id: true,
+					in_stock: true,
+					reorder_level: true,
+				},
+				with: { 
+					product: {
+						columns: {
+							id: true,
+							name: true,
+							sku: true,
+						}
+					} 
+				},
 			});
 		}),
 
@@ -174,7 +242,27 @@ export const reportsRouter = router({
 
 			return db.query.branchDamage.findMany({
 				where: and(...conditions),
-				with: { product: true, batch: true },
+				columns: {
+					id: true,
+					product_id: true,
+					quantity: true,
+					reason: true,
+					created_at: true,
+				},
+				with: { 
+					product: {
+						columns: {
+							id: true,
+							name: true,
+						}
+					}, 
+					batch: {
+						columns: {
+							id: true,
+							batch_number: true,
+						}
+					} 
+				},
 			});
 		}),
 
@@ -212,7 +300,24 @@ export const reportsRouter = router({
 
 			return db.query.customers.findMany({
 				where: and(...conditions),
-				with: { orders: true },
+				columns: {
+					id: true,
+					name: true,
+					email: true,
+					phone: true,
+					loyalty_points: true,
+					total_spent: true,
+					created_at: true,
+				},
+				with: { 
+					orders: {
+						columns: {
+							id: true,
+							total_amount: true,
+							created_at: true,
+						}
+					} 
+				},
 			});
 		}),
 
@@ -227,6 +332,14 @@ export const reportsRouter = router({
 
 			return db.query.suppliers.findMany({
 				where: and(...conditions),
+				columns: {
+					id: true,
+					name: true,
+					email: true,
+					phone: true,
+					outstanding_balance: true,
+					created_at: true,
+				}
 			});
 		}),
 
@@ -245,6 +358,15 @@ export const reportsRouter = router({
 
 			return db.query.transactions.findMany({
 				where: and(...conditions),
+				columns: {
+					id: true,
+					amount: true,
+					type: true,
+					category: true,
+					description: true,
+					created_at: true,
+					status: true,
+				},
 				orderBy: [desc(transactions.created_at)],
 			});
 		}),
@@ -260,6 +382,12 @@ export const reportsRouter = router({
 
 			return db.query.branches.findMany({
 				where: and(...conditions),
+				columns: {
+					id: true,
+					name: true,
+					code: true,
+					created_at: true,
+				}
 			});
 		}),
 

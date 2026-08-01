@@ -10,7 +10,10 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function PutterDashboard() {
 	const { data: stats, isLoading } =
-		useTRPC().putter.getDashboardStats.useQuery({});
+		useTRPC().putter.getDashboardStats.useQuery(
+			{},
+			{ staleTime: 30_000, refetchOnWindowFocus: false },
+		);
 
 	return (
 		<div className="space-y-6 p-4">

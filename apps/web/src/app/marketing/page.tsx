@@ -49,6 +49,7 @@ export default function MarketingDashboard() {
 
 	const { data: metrics, isLoading } = trpc.marketing.getMetrics.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
 	const containerVariants = {

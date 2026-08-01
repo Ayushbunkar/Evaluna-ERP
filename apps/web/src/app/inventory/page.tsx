@@ -96,6 +96,7 @@ export default function InventoryDashboard() {
 
 	const { data, isLoading } = trpc.inventory.getDashboardStats.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
 	if (isLoading || !data) {

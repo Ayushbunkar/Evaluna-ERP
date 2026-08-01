@@ -1,9 +1,9 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { DataTable } from "@evaluna/ui/components/data-table";
 import Link from "next/link";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useTRPC } from "@/lib/trpc/client";
 import { columns } from "./columns";
 
@@ -20,7 +20,11 @@ export default function PurchaseReturnsList() {
 				</Link>
 			</div>
 			{isLoading ? (
-				<p>Loading...</p>
+				<div className="space-y-3">
+					{Array.from({ length: 5 }).map((_, i) => (
+						<Skeleton key={i} className="h-12 w-full" />
+					))}
+				</div>
 			) : (
 				<DataTable columns={columns} data={purchaseReturns ?? []} />
 			)}

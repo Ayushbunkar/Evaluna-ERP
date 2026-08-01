@@ -59,7 +59,10 @@ const statusColor = (s: string) => {
 
 export default function PickerDashboard() {
 	const { data: stats, isLoading } =
-		useTRPC().picker.getDashboardStats.useQuery({});
+		useTRPC().picker.getDashboardStats.useQuery(
+			{},
+			{ staleTime: 30_000, refetchOnWindowFocus: false },
+		);
 
 	return (
 		<div className="flex flex-col gap-6 p-1">

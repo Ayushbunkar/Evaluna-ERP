@@ -16,19 +16,20 @@ export const putterRouter = router({
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
 
-			const receivingCount = await db
-				.select({ count: count() })
-				.from(purchases)
-				.where(eq(purchases.status, "pending"));
-			// Using purchases with "received" status that need putaway (since we don't have a putLists table)
-			const putAwayCount = await db
-				.select({ count: count() })
-				.from(purchases)
-				.where(eq(purchases.status, "received"));
-			const damageCount = await db
-				.select({ count: count() })
-				.from(stockAdjustments)
-				.where(eq(stockAdjustments.adjustment_type, "damage"));
+			const [receivingCount, putAwayCount, damageCount] = await Promise.all([
+				db
+					.select({ count: count() })
+					.from(purchases)
+					.where(eq(purchases.status, "pending")),
+				db
+					.select({ count: count() })
+					.from(purchases)
+					.where(eq(purchases.status, "received")),
+				db
+					.select({ count: count() })
+					.from(stockAdjustments)
+					.where(eq(stockAdjustments.adjustment_type, "damage")),
+			]);
 
 			return {
 				itemsToReceive: receivingCount[0]?.count || 0,

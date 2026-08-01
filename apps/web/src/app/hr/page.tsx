@@ -11,6 +11,7 @@ import { useTRPC } from "@/lib/trpc/client";
 export default function HrDashboard() {
 	const { data: stats, isLoading } = useTRPC().hr.getDashboardStats.useQuery(
 		{},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
 	return (

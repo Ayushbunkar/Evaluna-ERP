@@ -8,7 +8,10 @@ import { KpiCard } from "@/components/shared/cards/kpi-card";
 import { trpc } from "@/lib/trpc/client";
 
 export default function BillerDashboard() {
-	const { data, isLoading } = trpc.biller.dashboardOverview.useQuery();
+	const { data, isLoading } = trpc.biller.dashboardOverview.useQuery(
+		undefined,
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
+	);
 
 	if (isLoading) {
 		return (

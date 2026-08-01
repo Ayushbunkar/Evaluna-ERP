@@ -43,6 +43,14 @@ const WarehouseRackChart = dynamic(
 	},
 );
 
+const WarehouseFifoChart = dynamic(
+	() => import("@/components/charts/warehouse-charts").then((m) => m.WarehouseFifoChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[220px] w-full rounded-lg" />,
+	},
+);
+
 // Premium Animated KPI Card
 function KPICard({
 	title,
@@ -113,25 +121,6 @@ export default function WarehouseDashboard() {
 			transition: { type: "spring", stiffness: 300, damping: 24 },
 		},
 	};
-
-	const rackColors = [
-		"hsl(var(--chart-1))",
-		"hsl(var(--chart-2))",
-		"hsl(var(--chart-3))",
-		"hsl(var(--chart-4))",
-	];
-	const fifoColors = [
-		"hsl(var(--chart-2))",
-		"hsl(var(--chart-4))",
-		"hsl(var(--chart-5))",
-		"hsl(var(--chart-1))",
-	];
-
-	const chartConfig = {
-		activity: { label: "Activity", color: "hsl(var(--chart-1))" },
-		used: { label: "Used Space", color: "hsl(var(--chart-2))" },
-		value: { label: "Units", color: "hsl(var(--chart-3))" },
-	} satisfies ChartConfig;
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
@@ -346,31 +335,7 @@ export default function WarehouseDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.fifoStatus ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[220px] w-full"
-								>
-									<PieChart>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Pie
-											data={data.fifoStatus}
-											dataKey="value"
-											nameKey="age"
-											cx="50%"
-											cy="50%"
-											innerRadius={60}
-											outerRadius={80}
-											paddingAngle={2}
-										>
-											{data.fifoStatus.map((_entry: any, index: number) => (
-												<Cell
-													key={`cell-${index}`}
-													fill={fifoColors[index % fifoColors.length]}
-												/>
-											))}
-										</Pie>
-									</PieChart>
-								</ChartContainer>
+								<WarehouseFifoChart data={data.fifoStatus} />
 							) : (
 								<div className="flex h-[220px] items-center justify-center text-muted-foreground">
 									No data

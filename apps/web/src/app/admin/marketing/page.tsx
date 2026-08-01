@@ -15,9 +15,15 @@ import { trpc } from "@/lib/trpc/client";
 
 export default function MarketingDashboard() {
 	const { data: campaigns, isLoading: campaignsLoading } =
-		trpc.marketing.listCampaigns.useQuery();
+		trpc.marketing.listCampaigns.useQuery(undefined, {
+			staleTime: 30_000,
+			refetchOnWindowFocus: false,
+		});
 	const { data: coupons, isLoading: couponsLoading } =
-		trpc.marketing.listCoupons.useQuery();
+		trpc.marketing.listCoupons.useQuery(undefined, {
+			staleTime: 30_000,
+			refetchOnWindowFocus: false,
+		});
 
 	const activeCampaignsCount =
 		campaigns?.filter((c) => c.status === "active").length || 0;

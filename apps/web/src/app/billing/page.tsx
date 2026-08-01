@@ -98,6 +98,7 @@ export default function BillingDashboard() {
 
 	const { data, isLoading } = trpc.billing.getDashboardStats.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
 	if (isLoading || !data) {

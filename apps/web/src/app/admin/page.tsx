@@ -25,6 +25,8 @@ import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+
 
 const AdminSalesTrendChart = dynamic(
 	() => import("@/components/charts/admin-charts").then((m) => m.AdminSalesTrendChart),
@@ -103,15 +105,9 @@ export default function CompanyAdminDashboard() {
 
 	const { data, isLoading } = trpc.dashboard.getKpis.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
-	if (isLoading || !data) {
-		return (
-			<div className="flex h-full min-h-[400px] items-center justify-center">
-				<div className="h-12 w-12 animate-spin rounded-full border-primary border-b-2" />
-			</div>
-		);
-	}
 
 	const containerVariants = {
 		hidden: { opacity: 0 },
@@ -156,6 +152,9 @@ export default function CompanyAdminDashboard() {
 				className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
 			>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Today's Sales"
 						value={formatCurrency(data.todaySales, "en-US")}
@@ -165,8 +164,12 @@ export default function CompanyAdminDashboard() {
 						trendIsPositive={true}
 						colorClass="from-blue-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Today's Orders"
 						value={data.todayOrders || 0}
@@ -176,8 +179,12 @@ export default function CompanyAdminDashboard() {
 						trendIsPositive={true}
 						colorClass="from-indigo-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Today's Profit"
 						value={formatCurrency(data.todayProfit, "en-US")}
@@ -186,24 +193,36 @@ export default function CompanyAdminDashboard() {
 						trendIsPositive={data.todayProfit >= 0}
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Total Products"
 						value={data.totalProducts}
 						icon={PackageIcon}
 						colorClass="from-orange-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Pending Deliveries"
 						value={data.pendingDeliveries || 0}
 						icon={TruckIcon}
 						colorClass="from-amber-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Warehouse Capacity"
 						value={`${data.warehouseCapacity || 0}%`}
@@ -211,16 +230,24 @@ export default function CompanyAdminDashboard() {
 						trend="Utilized space"
 						colorClass="from-purple-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Active Employees"
 						value={data.activeEmployees || 0}
 						icon={UsersIcon}
 						colorClass="from-cyan-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
+					{isLoading || !data ? (
+						<Skeleton className="h-[140px] w-full rounded-xl" />
+					) : (
 					<KPICard
 						title="Low Stock Items"
 						value={data.lowStockCount || 0}
@@ -229,6 +256,7 @@ export default function CompanyAdminDashboard() {
 						trendIsPositive={false}
 						colorClass="from-rose-500/10 to-transparent"
 					/>
+					)}
 				</motion.div>
 			</motion.div>
 
@@ -241,139 +269,165 @@ export default function CompanyAdminDashboard() {
 			>
 				{/* Sales & Revenue Trend */}
 				<motion.div variants={itemVariants} className="lg:col-span-2">
-					<Card className="flex h-full flex-col border-border/50 shadow-sm">
-						<CardHeader>
-							<CardTitle>Revenue & Expenses Trend</CardTitle>
-							<CardDescription>
-								Monthly comparison across all branches
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="min-h-[300px] flex-1">
-							{data.revenueTrend ? (
-								<AdminSalesTrendChart data={data.revenueTrend} />
-							) : (
-								<div className="flex h-full items-center justify-center rounded-lg border border-dashed bg-muted/20 text-muted-foreground">
-									No trend data available
-								</div>
-							)}
-						</CardContent>
-					</Card>
+					<ErrorBoundary>
+						<Card className="flex h-full flex-col border-border/50 shadow-sm">
+							<CardHeader>
+								<CardTitle>Revenue & Expenses Trend</CardTitle>
+								<CardDescription>
+									Monthly comparison across all branches
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="min-h-[300px] flex-1">
+								{isLoading || !data ? (
+									<Skeleton className="h-[250px] w-full rounded-lg" />
+								) : data.revenueTrend ? (
+									<AdminSalesTrendChart data={data.revenueTrend} />
+								) : (
+									<div className="flex h-[250px] items-center justify-center rounded-lg border border-dashed bg-muted/20 text-muted-foreground">
+										No trend data available
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</ErrorBoundary>
 				</motion.div>
 
 				{/* Notifications Feed */}
 				<motion.div variants={itemVariants} className="flex flex-col">
-					<Card className="h-full border-border/50 shadow-sm">
-						<CardHeader className="pb-4">
-							<CardTitle className="text-lg">Recent Activities</CardTitle>
-							<CardDescription>System alerts and notifications</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{data.recentNotifications?.map((notif: any) => (
-								<div
-									key={notif.id}
-									className="flex cursor-pointer items-start gap-4 rounded-xl border border-transparent p-3 transition-colors hover:border-border/50 hover:bg-muted/50"
-								>
+					<ErrorBoundary>
+						<Card className="h-full border-border/50 shadow-sm">
+							<CardHeader className="pb-4">
+								<CardTitle className="text-lg">Recent Activities</CardTitle>
+								<CardDescription>System alerts and notifications</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								{isLoading || !data ? (
+									Array.from({ length: 4 }).map((_, i) => (
+										<Skeleton key={i} className="h-16 w-full rounded-xl" />
+									))
+								) : data.recentNotifications?.map((notif: any) => (
 									<div
-										className={`flex-shrink-0 rounded-full p-2 ${
-											notif.type === "low_stock"
-												? "bg-rose-500/10 text-rose-500"
-												: notif.type === "approval"
-													? "bg-amber-500/10 text-amber-500"
-													: notif.type === "sale"
-														? "bg-emerald-500/10 text-emerald-500"
-														: "bg-blue-500/10 text-blue-500"
-										}`}
+										key={notif.id}
+										className="flex cursor-pointer items-start gap-4 rounded-xl border border-transparent p-3 transition-colors hover:border-border/50 hover:bg-muted/50"
 									>
-										{notif.type === "low_stock" && (
-											<AlertTriangleIcon className="h-4 w-4" />
-										)}
-										{notif.type === "approval" && (
-											<ClockIcon className="h-4 w-4" />
-										)}
-										{notif.type === "sale" && (
-											<CheckCircle2Icon className="h-4 w-4" />
-										)}
-										{notif.type === "delivery" && (
-											<TruckIcon className="h-4 w-4" />
-										)}
+										<div
+											className={`flex-shrink-0 rounded-full p-2 ${
+												notif.type === "low_stock"
+													? "bg-rose-500/10 text-rose-500"
+													: notif.type === "approval"
+														? "bg-amber-500/10 text-amber-500"
+														: notif.type === "sale"
+															? "bg-emerald-500/10 text-emerald-500"
+															: "bg-blue-500/10 text-blue-500"
+											}`}
+										>
+											{notif.type === "low_stock" && (
+												<AlertTriangleIcon className="h-4 w-4" />
+											)}
+											{notif.type === "approval" && (
+												<ClockIcon className="h-4 w-4" />
+											)}
+											{notif.type === "sale" && (
+												<CheckCircle2Icon className="h-4 w-4" />
+											)}
+											{notif.type === "delivery" && (
+												<TruckIcon className="h-4 w-4" />
+											)}
+										</div>
+										<div>
+											<h4 className="font-semibold text-sm">{notif.title}</h4>
+											<p className="mt-0.5 line-clamp-1 text-muted-foreground text-xs">
+												{notif.message}
+											</p>
+											<span className="mt-1 block text-[10px] text-muted-foreground/70">
+												{notif.time}
+											</span>
+										</div>
 									</div>
-									<div>
-										<h4 className="font-semibold text-sm">{notif.title}</h4>
-										<p className="mt-0.5 line-clamp-1 text-muted-foreground text-xs">
-											{notif.message}
-										</p>
-										<span className="mt-1 block text-[10px] text-muted-foreground/70">
-											{notif.time}
-										</span>
-									</div>
-								</div>
-							))}
-						</CardContent>
-					</Card>
+								))}
+							</CardContent>
+						</Card>
+					</ErrorBoundary>
 				</motion.div>
 
 				{/* Branch Performance */}
 				<motion.div variants={itemVariants}>
-					<Card className="h-full border-border/50 shadow-sm">
-						<CardHeader>
-							<CardTitle>Branch Performance</CardTitle>
-							<CardDescription>Sales vs Targets</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{data.branchPerformance ? (
-								<AdminBranchPerformanceChart data={data.branchPerformance} />
-							) : (
-								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
-									No data
-								</div>
-							)}
-						</CardContent>
-					</Card>
+					<ErrorBoundary>
+						<Card className="h-full border-border/50 shadow-sm">
+							<CardHeader>
+								<CardTitle>Branch Performance</CardTitle>
+								<CardDescription>Sales vs Targets</CardDescription>
+							</CardHeader>
+							<CardContent>
+								{isLoading || !data ? (
+									<Skeleton className="h-[250px] w-full rounded-lg" />
+								) : data.branchPerformance ? (
+									<AdminBranchPerformanceChart data={data.branchPerformance} />
+								) : (
+									<div className="flex h-[250px] items-center justify-center text-muted-foreground">
+										No data
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</ErrorBoundary>
 				</motion.div>
 
 				{/* Cash Flow */}
 				<motion.div variants={itemVariants}>
-					<Card className="h-full border-border/50 shadow-sm">
-						<CardHeader>
-							<CardTitle>Cash Flow</CardTitle>
-							<CardDescription>Daily net cash balance</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{data.cashFlowTrend ? (
-								<AdminCashFlowChart data={data.cashFlowTrend} />
-							) : (
-								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
-									No data
-								</div>
-							)}
-						</CardContent>
-					</Card>
+					<ErrorBoundary>
+						<Card className="h-full border-border/50 shadow-sm">
+							<CardHeader>
+								<CardTitle>Cash Flow</CardTitle>
+								<CardDescription>Daily net cash balance</CardDescription>
+							</CardHeader>
+							<CardContent>
+								{isLoading || !data ? (
+									<Skeleton className="h-[250px] w-full rounded-lg" />
+								) : data.cashFlowTrend ? (
+									<AdminCashFlowChart data={data.cashFlowTrend} />
+								) : (
+									<div className="flex h-[250px] items-center justify-center text-muted-foreground">
+										No data
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</ErrorBoundary>
 				</motion.div>
 
 				{/* Inventory Value (Premium Widget) */}
 				<motion.div variants={itemVariants}>
-					<Card className="relative h-full overflow-hidden border-0 bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 text-white shadow-lg">
-						<div className="absolute top-0 right-0 p-8 opacity-10">
-							<PackageIcon className="h-32 w-32" />
-						</div>
-						<CardHeader>
-							<CardTitle className="text-white/90">
-								Total Inventory Value
-							</CardTitle>
-							<CardDescription className="text-indigo-200">
-								Across all warehouses
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="mt-8">
-							<h2 className="font-black text-4xl">
-								{formatCurrency(data.inventoryValue || 0, "en-US")}
-							</h2>
-							<div className="mt-4 flex w-fit items-center rounded-full bg-black/20 px-3 py-1 font-medium text-emerald-400 text-sm">
-								<TrendingUpIcon className="mr-1 h-4 w-4" />
-								+2.4% this month
+					<ErrorBoundary>
+						<Card className="relative h-full overflow-hidden border-0 bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 text-white shadow-lg">
+							<div className="absolute top-0 right-0 p-8 opacity-10">
+								<PackageIcon className="h-32 w-32" />
 							</div>
-						</CardContent>
-					</Card>
+							<CardHeader>
+								<CardTitle className="text-white/90">
+									Total Inventory Value
+								</CardTitle>
+								<CardDescription className="text-indigo-200">
+									Across all warehouses
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="mt-8">
+								{isLoading || !data ? (
+									<Skeleton className="h-10 w-48 rounded-lg bg-white/20" />
+								) : (
+									<>
+										<h2 className="font-black text-4xl">
+											{formatCurrency(data.inventoryValue || 0, "en-US")}
+										</h2>
+										<div className="mt-4 flex w-fit items-center rounded-full bg-black/20 px-3 py-1 font-medium text-emerald-400 text-sm">
+											<TrendingUpIcon className="mr-1 h-4 w-4" />
+											+2.4% this month
+										</div>
+									</>
+								)}
+							</CardContent>
+						</Card>
+					</ErrorBoundary>
 				</motion.div>
 			</motion.div>
 		</div>

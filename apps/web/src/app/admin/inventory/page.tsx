@@ -20,11 +20,27 @@ import {
 	Search,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import React from "react";
 
 export default function InventoryPage() {
 	const { data: inventoryData, isLoading } = trpc.inventory.list.useQuery({});
 
 	const items = inventoryData?.items || [];
+
+	const parentRef = React.useRef<HTMLDivElement>(null);
+	const rowVirtualizer = useVirtualizer({
+		count: items.length,
+		getScrollElement: () => parentRef.current,
+		estimateSize: () => 73,
+		overscan: 5,
+	});
+	const virtualItems = rowVirtualizer.getVirtualItems();
+
+	const paddingTop = virtualItems.length > 0 ? virtualItems?.[0]?.start || 0 : 0;
+	const paddingBottom = virtualItems.length > 0
+		? rowVirtualizer.getTotalSize() - (virtualItems?.[virtualItems.length - 1]?.end || 0)
+		: 0;
 
 	const lowStockCount = items.filter((i) => i.status === "low_stock").length;
 	const outOfStockCount = items.filter(
@@ -135,9 +151,9 @@ export default function InventoryPage() {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0">
-					<div className="overflow-x-auto">
-						<table className="w-full text-left text-sm">
-							<thead className="border-gray-200 border-b bg-gray-50 font-medium text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+					<div ref={parentRef} className="overflow-x-auto overflow-y-auto max-h-[600px]">
+						<table className="w-full text-left text-sm relative">
+							<thead className="border-gray-200 border-b bg-gray-50 font-medium text-gray-500 sticky top-0 z-10 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
 								<tr>
 									<th className="px-6 py-4">Product Info</th>
 									<th className="px-6 py-4">Branch Location</th>
@@ -173,14 +189,18 @@ export default function InventoryPage() {
 													</td>
 												</tr>
 											))
-									: items.map((item, i) => (
-											<motion.tr
-												key={item.id}
-												initial={{ opacity: 0, y: 10 }}
-												animate={{ opacity: 1, y: 0 }}
-												transition={{ delay: i * 0.05 }}
-												className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50"
-											>
+									: (
+										<>
+											{paddingTop > 0 && <tr><td colSpan={6} style={{ height: `${paddingTop}px` }} /></tr>}
+											{virtualItems.map((virtualRow) => {
+												const item = items[virtualRow.index];
+												return (
+													<motion.tr
+														key={item.id}
+														initial={{ opacity: 0 }}
+														animate={{ opacity: 1 }}
+														className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50"
+													>
 												<td className="px-6 py-4">
 													<div className="font-medium text-gray-900 dark:text-gray-100">
 														{item.product}
@@ -222,7 +242,11 @@ export default function InventoryPage() {
 													</Button>
 												</td>
 											</motion.tr>
-										))}
+										);
+									})}
+									{paddingBottom > 0 && <tr><td colSpan={6} style={{ height: `${paddingBottom}px` }} /></tr>}
+								</>
+							)}
 							</tbody>
 						</table>
 					</div>

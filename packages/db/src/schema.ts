@@ -187,24 +187,38 @@ export const orders = pgTable(
 	},
 	(table) => ({
 		createdAtIdx: index("idx_orders_created_at").on(table.created_at),
+		customerIdIdx: index("idx_orders_customer_id").on(table.customer_id),
+		branchIdIdx: index("idx_orders_branch_id").on(table.branch_id),
+		statusIdx: index("idx_orders_status").on(table.status),
+		paymentMethodIdIdx: index("idx_orders_payment_method_id").on(
+			table.payment_method_id,
+		),
+		userUidIdx: index("idx_orders_user_uid").on(table.user_uid),
 	}),
 );
 
 // ── Order Items ─────────────────────────────────────────────────────────────
-export const orderItems = pgTable("order_items", {
-	id: serial("id").primaryKey(),
-	order_id: integer("order_id").references(() => orders.id),
-	product_id: integer("product_id").references(() => products.id),
-	quantity: integer("quantity").notNull(),
-	price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-	cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
-	sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
-	igst_rate: decimal("igst_rate", { precision: 5, scale: 2 }),
-	cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default("0"),
-	sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
-	igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
-	created_at: timestamp("created_at").defaultNow(),
-});
+export const orderItems = pgTable(
+	"order_items",
+	{
+		id: serial("id").primaryKey(),
+		order_id: integer("order_id").references(() => orders.id),
+		product_id: integer("product_id").references(() => products.id),
+		quantity: integer("quantity").notNull(),
+		price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
+		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
+		igst_rate: decimal("igst_rate", { precision: 5, scale: 2 }),
+		cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default("0"),
+		sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
+		igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
+		created_at: timestamp("created_at").defaultNow(),
+	},
+	(table) => ({
+		orderIdIdx: index("idx_order_items_order_id").on(table.order_id),
+		productIdIdx: index("idx_order_items_product_id").on(table.product_id),
+	}),
+);
 
 // ── Payment Methods ─────────────────────────────────────────────────────────
 export const paymentMethods = pgTable("payment_methods", {
@@ -237,6 +251,11 @@ export const transactions = pgTable(
 	},
 	(table) => ({
 		createdAtIdx: index("idx_transactions_created_at").on(table.created_at),
+		branchIdIdx: index("idx_transactions_branch_id").on(table.branch_id),
+		orderIdIdx: index("idx_transactions_order_id").on(table.order_id),
+		typeIdx: index("idx_transactions_type").on(table.type),
+		categoryIdx: index("idx_transactions_category").on(table.category),
+		statusIdx: index("idx_transactions_status").on(table.status),
 	}),
 );
 
@@ -724,24 +743,33 @@ export const purchasesRelations = relations(purchases, ({ one, many }) => ({
 	purchaseItems: many(purchaseItems),
 }));
 
-export const purchaseItems = pgTable("purchase_items", {
-	id: serial("id").primaryKey(),
-	purchase_id: integer("purchase_id")
-		.references(() => purchases.id)
-		.notNull(),
-	product_id: integer("product_id")
-		.references(() => products.id)
-		.notNull(),
-	quantity: integer("quantity").notNull(),
-	price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-	cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
-	sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
-	igst_rate: decimal("igst_rate", { precision: 5, scale: 2 }),
-	cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default("0"),
-	sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
-	igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
-	created_at: timestamp("created_at").defaultNow(),
-});
+export const purchaseItems = pgTable(
+	"purchase_items",
+	{
+		id: serial("id").primaryKey(),
+		purchase_id: integer("purchase_id")
+			.references(() => purchases.id)
+			.notNull(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		quantity: integer("quantity").notNull(),
+		price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
+		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
+		igst_rate: decimal("igst_rate", { precision: 5, scale: 2 }),
+		cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default("0"),
+		sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
+		igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
+		created_at: timestamp("created_at").defaultNow(),
+	},
+	(table) => ({
+		purchaseIdIdx: index("idx_purchase_items_purchase_id").on(
+			table.purchase_id,
+		),
+		productIdIdx: index("idx_purchase_items_product_id").on(table.product_id),
+	}),
+);
 
 export const purchaseItemsRelations = relations(purchaseItems, ({ one }) => ({
 	purchase: one(purchases, {
@@ -994,17 +1022,25 @@ export const batchStockRelations = relations(batchStock, ({ one }) => ({
 }));
 
 // ── Pick Lists (Phase 9) ───────────────────────────────────────────────────────
-export const pickLists = pgTable("pick_lists", {
-	id: serial("id").primaryKey(),
-	order_id: integer("order_id").references(() => orders.id),
-	reference_type: varchar("reference_type", { length: 50 }).notNull(), // 'sale', 'purchase_return', 'transfer'
-	reference_id: integer("reference_id").notNull(),
-	status: varchar("status", { length: 20 }).default("pending"), // pending, assigned, picking, completed, cancelled
-	assigned_to: integer("assigned_to").references(() => staff.id),
-	priority: varchar("priority", { length: 10 }).default("normal"), // low, normal, high, urgent
-	created_at: timestamp("created_at").defaultNow(),
-	completed_at: timestamp("completed_at"),
-});
+export const pickLists = pgTable(
+	"pick_lists",
+	{
+		id: serial("id").primaryKey(),
+		order_id: integer("order_id").references(() => orders.id),
+		reference_type: varchar("reference_type", { length: 50 }).notNull(), // 'sale', 'purchase_return', 'transfer'
+		reference_id: integer("reference_id").notNull(),
+		status: varchar("status", { length: 20 }).default("pending"), // pending, assigned, picking, completed, cancelled
+		assigned_to: integer("assigned_to").references(() => staff.id),
+		priority: varchar("priority", { length: 10 }).default("normal"), // low, normal, high, urgent
+		created_at: timestamp("created_at").defaultNow(),
+		completed_at: timestamp("completed_at"),
+	},
+	(table) => ({
+		statusIdx: index("idx_pick_lists_status").on(table.status),
+		assignedToIdx: index("idx_pick_lists_assigned_to").on(table.assigned_to),
+		orderIdIdx: index("idx_pick_lists_order_id").on(table.order_id),
+	}),
+);
 
 export const pickListsRelations = relations(pickLists, ({ one, many }) => ({
 	order: one(orders, {

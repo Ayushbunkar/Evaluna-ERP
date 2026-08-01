@@ -9,14 +9,33 @@ export const auditorRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 
-			// Real queries
-			const adjustments = await db
-				.select({
-					type: stockAdjustments.adjustment_type,
-					count: count(stockAdjustments.id),
-				})
-				.from(stockAdjustments)
-				.groupBy(stockAdjustments.adjustment_type);
+			const expDate = new Date();
+			expDate.setDate(expDate.getDate() + 30);
+
+			// Real queries executed in parallel
+			const [adjustments, expiring, recentAudits] = await Promise.all([
+				db
+					.select({
+						type: stockAdjustments.adjustment_type,
+						count: count(stockAdjustments.id),
+					})
+					.from(stockAdjustments)
+					.groupBy(stockAdjustments.adjustment_type),
+				db
+					.select({ count: count() })
+					.from(productBatches)
+					.where(lte(productBatches.expiry_date, expDate)),
+				db
+					.select({
+						id: stockAdjustments.id,
+						reason: stockAdjustments.reason,
+						staff: staff.name,
+					})
+					.from(stockAdjustments)
+					.leftJoin(staff, eq(stockAdjustments.created_by, staff.id))
+					.orderBy(desc(stockAdjustments.created_at))
+					.limit(3),
+			]);
 
 			let mismatchCount = 0;
 			let damageCount = 0;
@@ -26,25 +45,7 @@ export const auditorRouter = router({
 				if (a.type === "damage") damageCount += Number(a.count);
 			});
 
-			const expDate = new Date();
-			expDate.setDate(expDate.getDate() + 30);
-			const expiring = await db
-				.select({ count: count() })
-				.from(productBatches)
-				.where(lte(productBatches.expiry_date, expDate));
-
 			const expiryCount = Number(expiring[0]?.count) || 0;
-
-			const recentAudits = await db
-				.select({
-					id: stockAdjustments.id,
-					reason: stockAdjustments.reason,
-					staff: staff.name,
-				})
-				.from(stockAdjustments)
-				.leftJoin(staff, eq(stockAdjustments.created_by, staff.id))
-				.orderBy(desc(stockAdjustments.created_at))
-				.limit(3);
 
 			return {
 				// KPIs

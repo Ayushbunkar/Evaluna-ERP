@@ -9,33 +9,41 @@ export const pickerRouter = router({
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
 
-			const assignedCount = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(eq(pickLists.status, "assigned"));
-			const completedCount = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(eq(pickLists.status, "completed"));
-			const pendingCount = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(eq(pickLists.status, "pending"));
-
-			const itemsPickedResult = await db
-				.select({ total: sql<number>`SUM(${pickListItems.quantity_picked})` })
-				.from(pickListItems)
-				.where(eq(pickListItems.status, "picked"));
+			const [
+				assignedCount,
+				completedCount,
+				pendingCount,
+				itemsPickedResult,
+				recent,
+			] = await Promise.all([
+				db
+					.select({ count: count() })
+					.from(pickLists)
+					.where(eq(pickLists.status, "assigned")),
+				db
+					.select({ count: count() })
+					.from(pickLists)
+					.where(eq(pickLists.status, "completed")),
+				db
+					.select({ count: count() })
+					.from(pickLists)
+					.where(eq(pickLists.status, "pending")),
+				db
+					.select({
+						total: sql<number>`SUM(${pickListItems.quantity_picked})`,
+					})
+					.from(pickListItems)
+					.where(eq(pickListItems.status, "picked")),
+				db.query.pickLists.findMany({
+					orderBy: [desc(pickLists.created_at)],
+					limit: 5,
+					with: {
+						pickListItems: true,
+					},
+				}),
+			]);
 
 			const totalItemsPicked = Number(itemsPickedResult[0]?.total || 0);
-
-			const recent = await db.query.pickLists.findMany({
-				orderBy: [desc(pickLists.created_at)],
-				limit: 5,
-				with: {
-					pickListItems: true,
-				},
-			});
 
 			return {
 				assignedToday: assignedCount[0]?.count || 0,

@@ -96,6 +96,7 @@ export default function AuditorDashboard() {
 
 	const { data, isLoading } = trpc.auditor.getDashboardStats.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
 	if (isLoading || !data) {

@@ -8,10 +8,10 @@ Role dashboards: Admin, Sales, Auditor, HR, Picker, Putter, Driver, Marketing.
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | 1 | Baseline Investigation | Inspect codebase, identify target components & queries | None | DONE |
-| 2 | Bundle Size & Code Splitting (R1) | Dynamic imports (>=5 components), lazy loading, devDeps cleanup | M1 | IN_PROGRESS |
-| 3 | Data Fetching & Caching (R2) | Query optimization, indexes, caching/parallel fetch (>=3 dashboards) | M1 | PLANNED |
-| 4 | Rendering Performance (R3) | Virtualize >=3 tables, skeleton loaders, memoization | M1 | PLANNED |
-| 5 | E2E Regression & Forensic Audit (R4) | Verify 8 role dashboards, zero business logic regressions | M2, M3, M4 | PLANNED |
+| 2 | Bundle Size & Code Splitting (R1) | Dynamic imports (>=5 components), lazy loading, devDeps cleanup | M1 | DONE |
+| 3 | Data Fetching & Caching (R2) | Query optimization, indexes, caching/parallel fetch (>=3 dashboards) | M1, M2 | IN_PROGRESS |
+| 4 | Rendering Performance (R3) | Virtualize >=3 tables, skeleton loaders, memoization | M1, M2, M3 | PLANNED |
+| 5 | E2E Regression Verification & Forensic Audit (R4) | Verify 8 role dashboards, zero business logic regressions | M2, M3, M4 | PLANNED |
 
 ## Interface Contracts
 - Business logic, TRPC routers, permissions, and auth middleware must remain unchanged.
@@ -27,16 +27,14 @@ Role dashboards: Admin, Sales, Auditor, HR, Picker, Putter, Driver, Marketing.
 - UI Package: `packages/ui`
   - Shared Components: `packages/ui/src/components/data-table.tsx`
 
-## Baseline Findings Summary (Milestone 1)
-1. **R1 Candidates**:
-   - Extract Recharts charts in `admin/page.tsx`, `auditor/page.tsx`, `billing/page.tsx`, `finance/page.tsx`, `inventory/page.tsx`, `warehouse/page.tsx`, `delivery/page.tsx` into dynamic components (`next/dynamic` with `ssr: false`).
-   - Move `@faker-js/faker` and `@electric-sql/pglite` from `dependencies` to `devDependencies` in `apps/web/package.json`.
-2. **R2 Candidates**:
+## Baseline & Implementation Results Summary
+1. **Milestone 1 (Baseline Investigation)**: Completed. Mapped all 8 role dashboards, tech stack, and performance bottlenecks.
+2. **Milestone 2 (Bundle Size & Code Splitting - R1)**: Completed & Clean Audit.
+   - Extracted Recharts chart blocks in `admin`, `auditor`, `billing`, `delivery`, `finance`, `inventory`, and `warehouse` dashboards into dynamic components with `{ ssr: false }` and `<Skeleton>` loading placeholders.
+   - Moved `@faker-js/faker` and `@electric-sql/pglite` to `devDependencies` in `apps/web/package.json`.
+   - Verified 100% build pass across 181 routes. Verified CLEAN by Forensic Auditor M2.
+3. **Milestone 3 (Data Fetching & Caching - R2)**:
    - Add foreign key `index()` definitions in `packages/db/src/schema.ts` (`order_items.order_id`, `orders.customer_id`, `orders.branch_id`, `transactions.order_id`, `purchases.supplier_id`, `pick_lists.assigned_to`).
    - Parallelize sequential queries in TRPC routers (`dashboard.ts`, `auditor.ts`, `hr.ts`, `picker.ts`, `putter.ts`) using `Promise.all`.
    - Batch inventory checks in `orders.create` (`orders.ts`) to avoid N+1 query loop.
-   - Set React Query `staleTime: 30_000` and `refetchOnWindowFocus: false` on dashboard hooks.
-3. **R3 Candidates**:
-   - Virtualize `DataTable` (`packages/ui/src/components/data-table.tsx`), `admin/products/page.tsx`, and `admin/inventory/page.tsx` using `@tanstack/react-virtual`.
-   - Add progressive skeleton loaders to 8 dashboard views (`auditor`, `driver`, `picker`, `putter`, `marketing`, `admin/attendance`, `admin/accounting/coa`, `sales/cashbook`).
-   - Memoize inline column definitions and computed statistics in `admin/orders`, `admin/customers`, and `admin/products`.
+   - Set React Query `staleTime: 30_000` and `refetchOnWindowFocus: false` on client dashboard hooks across 3+ dashboards.

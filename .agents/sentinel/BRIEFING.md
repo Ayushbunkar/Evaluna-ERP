@@ -17,10 +17,10 @@ Monitor project progress, scan modified files via cron, manage Project Orchestra
 ## User Context
 - **Last user request**: Optimize Evaluna ERP Next.js app for performance (bundle size, code splitting, data fetching, caching, rendering, virtualization) without breaking existing logic.
 - **Pending clarifications**: none
-- **Delivered results**: Milestone 1 (Baseline Investigation) completed.
+- **Delivered results**: Milestone 1 (Baseline) & Milestone 2 (Code Splitting R1) completed and verified.
 
 ## Project Status
-- **Phase**: in progress (Milestone 2: Bundle Size & Code Splitting active - Worker M2 refactoring heavy components)
+- **Phase**: in progress (Milestone 3: Data Fetching & Caching Optimization R2 active)
 
 ## Victory Audit Status
 - **Triggered**: no

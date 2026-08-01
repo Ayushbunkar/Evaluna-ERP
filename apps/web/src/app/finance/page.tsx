@@ -100,6 +100,7 @@ export default function FinanceDashboard() {
 
 	const { data, isLoading } = trpc.finance.getDashboardStats.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
 	if (isLoading || !data) {

@@ -43,8 +43,14 @@ function AnimatedCounter({
 
 export default function SuperAdminDashboard() {
 	const { data: stats, isLoading } =
-		trpc.superadmin.getDashboardStats.useQuery();
-	const { data: health } = trpc.superadmin.getSystemHealth.useQuery();
+		trpc.superadmin.getDashboardStats.useQuery(undefined, {
+			staleTime: 30_000,
+			refetchOnWindowFocus: false,
+		});
+	const { data: health } = trpc.superadmin.getSystemHealth.useQuery(
+		undefined,
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
+	);
 
 	if (isLoading) {
 		return (

@@ -11,6 +11,8 @@ import {
 	BarChart,
 	CartesianGrid,
 	Cell,
+	Pie,
+	PieChart,
 	Scatter,
 	ScatterChart,
 	XAxis,
@@ -21,6 +23,7 @@ import {
 const chartConfig = {
 	heatmap: { label: "Activity", color: "hsl(var(--chart-1))" },
 	rack: { label: "Utilization", color: "hsl(var(--chart-2))" },
+	fifo: { label: "Inventory Age", color: "hsl(var(--chart-3))" },
 } satisfies ChartConfig;
 
 const rackColors = [
@@ -29,6 +32,13 @@ const rackColors = [
 	"hsl(var(--chart-3))",
 	"hsl(var(--chart-4))",
 	"hsl(var(--chart-5))",
+];
+
+const fifoColors = [
+	"hsl(var(--chart-2))",
+	"hsl(var(--chart-4))",
+	"hsl(var(--chart-5))",
+	"hsl(var(--chart-1))",
 ];
 
 export function WarehouseHeatmapChart({ data }: { data: any[] }) {
@@ -74,3 +84,31 @@ export function WarehouseRackChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
+
+export function WarehouseFifoChart({ data }: { data: any[] }) {
+	return (
+		<ChartContainer config={chartConfig} className="h-[220px] w-full">
+			<PieChart>
+				<ChartTooltip content={<ChartTooltipContent />} />
+				<Pie
+					data={data}
+					dataKey="value"
+					nameKey="age"
+					cx="50%"
+					cy="50%"
+					innerRadius={60}
+					outerRadius={80}
+					paddingAngle={2}
+				>
+					{data.map((_entry: any, index: number) => (
+						<Cell
+							key={`cell-${index}`}
+							fill={fifoColors[index % fifoColors.length]}
+						/>
+					))}
+				</Pie>
+			</PieChart>
+		</ChartContainer>
+	);
+}
+

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTRPC } from "@/lib/trpc/client";
 
 export interface NavigationItem {
 	name: string;
@@ -35,6 +36,16 @@ export function SidebarBase({
 }: SidebarBaseProps) {
 	const pathname = usePathname();
 	const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+	const trpc = useTRPC();
+	const utils = trpc.useUtils();
+
+	const handlePrefetch = (href?: string) => {
+		if (!href) return;
+		if (href.includes("customers")) utils.customers.list.prefetch();
+		else if (href.includes("orders")) utils.orders.list.prefetch();
+		else if (href.includes("products")) utils.products.list.prefetch();
+		else if (href.includes("suppliers")) utils.suppliers.list.prefetch();
+	};
 
 	const toggleGroup = (name: string) => {
 		setExpandedGroups((prev) =>
@@ -129,6 +140,7 @@ export function SidebarBase({
 																	? "bg-primary/10 font-medium text-primary"
 																	: "text-muted-foreground",
 															)}
+															onMouseEnter={() => handlePrefetch(subItem.href)}
 														>
 															{subItem.name}
 														</Link>
@@ -150,6 +162,7 @@ export function SidebarBase({
 										isCollapsed && "justify-center",
 									)}
 									title={isCollapsed ? item.name : undefined}
+									onMouseEnter={() => handlePrefetch(item.href)}
 								>
 									{item.icon && (
 										<item.icon

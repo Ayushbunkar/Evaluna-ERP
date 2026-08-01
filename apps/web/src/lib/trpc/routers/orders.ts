@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db } from "@/lib/db";
 import {
@@ -138,13 +138,24 @@ export const ordersRouter = router({
 
 				// Validate and Reserve stock in branch inventory (assuming branch_id = ctx.user.branchId or 1)
 				const branchId = ctx.user?.branchId || 1;
-				for (const product of input.products) {
-					const inv = await tx.query.branchInventory.findFirst({
-						where: and(
-							eq(branchInventory.product_id, product.id),
+				const productIds = input.products.map((p) => p.id);
+
+				const inventoryRecords = await tx
+					.select()
+					.from(branchInventory)
+					.where(
+						and(
 							eq(branchInventory.branch_id, branchId),
+							inArray(branchInventory.product_id, productIds),
 						),
-					});
+					);
+
+				const inventoryMap = new Map(
+					inventoryRecords.map((inv) => [inv.product_id, inv]),
+				);
+
+				for (const product of input.products) {
+					const inv = inventoryMap.get(product.id);
 
 					if (!inv) {
 						throw new Error(
@@ -152,7 +163,9 @@ export const ordersRouter = router({
 						);
 					}
 
-					const availableStock = inv.quantity - (inv.reserved_stock || 0);
+					const availableStock =
+						((inv as any).in_stock ?? (inv as any).quantity ?? 0) -
+						(inv.reserved_stock || 0);
 					if (availableStock < product.quantity) {
 						throw new Error(
 							`Insufficient stock for Product ID ${product.id}. Available: ${availableStock}, Requested: ${product.quantity}`,

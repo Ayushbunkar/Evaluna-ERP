@@ -83,6 +83,7 @@ export default function BranchManagerDashboard() {
 
 	const { data, isLoading } = trpc.dashboard.getKpis.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
 	if (isLoading || !data) {
