@@ -20,7 +20,7 @@ Monitor project progress, scan modified files via cron, manage Project Orchestra
 - **Delivered results**: Milestone 1 (Baseline Investigation) completed.
 
 ## Project Status
-- **Phase**: in progress (Milestone 2: Bundle Size & Code Splitting - dynamic imports refactored for Admin & Auditor dashboards)
+- **Phase**: in progress (Milestone 2: Bundle Size & Code Splitting active - Worker M2 refactoring heavy components)
 
 ## Victory Audit Status
 - **Triggered**: no

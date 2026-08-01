@@ -34,12 +34,16 @@ import {
 	TruckIcon,
 	UsersIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { useDebounce } from "@/hooks/use-debounce";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function SuppliersPage() {
 	const [open, setOpen] = useState(false);
+	const [searchInput, setSearchInput] = useState("");
+	const search = useDebounce(searchInput, 300);
 	const [form, setForm] = useState({
 		name: "",
 		email: "",
@@ -75,6 +79,21 @@ export default function SuppliersPage() {
 	});
 
 	const suppliers = Array.isArray(supplierList) ? supplierList : [];
+
+	const filteredSuppliers = useMemo(
+		() =>
+			search
+				? suppliers.filter(
+						(s: any) =>
+							s.name?.toLowerCase().includes(search.toLowerCase()) ||
+							s.email?.toLowerCase().includes(search.toLowerCase()) ||
+							s.phone?.includes(search),
+					)
+				: suppliers,
+		[suppliers, search],
+	);
+
+	const pagination = usePagination(filteredSuppliers, 15);
 
 	const kpis = [
 		{

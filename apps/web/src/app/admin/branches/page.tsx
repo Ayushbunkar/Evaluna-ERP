@@ -19,10 +19,31 @@ import {
 	Trash,
 	Users,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { useDebounce } from "@/hooks/use-debounce";
+import { usePagination } from "@/hooks/use-pagination";
+import { useRouter } from "next/navigation";
 
 export default function BranchesPage() {
 	const { data: branches, isLoading } = trpc.branches.list.useQuery();
+	const router = useRouter();
+	const [searchInput, setSearchInput] = useState("");
+	const search = useDebounce(searchInput, 300);
+
+	const filteredBranches = useMemo(
+		() =>
+			search
+				? (branches ?? []).filter(
+						(b) =>
+							b.name?.toLowerCase().includes(search.toLowerCase()) ||
+							b.address?.toLowerCase().includes(search.toLowerCase()),
+					)
+				: (branches ?? []),
+		[branches, search],
+	);
+
+	const pagination = usePagination(filteredBranches, 10);
 
 	return (
 		<div className="mx-auto max-w-7xl space-y-8 p-8">
@@ -108,6 +129,8 @@ export default function BranchesPage() {
 							<input
 								type="text"
 								placeholder="Search branches..."
+								value={searchInput}
+								onChange={(e) => setSearchInput(e.target.value)}
 								className="rounded-md border border-gray-200 py-2 pr-4 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900"
 							/>
 						</div>
@@ -152,7 +175,7 @@ export default function BranchesPage() {
 													</td>
 												</tr>
 											))
-									: branches?.map((branch, i) => (
+									: pagination.pageItems.map((branch, i) => (
 											<motion.tr
 												key={branch.id}
 												initial={{ opacity: 0, y: 10 }}

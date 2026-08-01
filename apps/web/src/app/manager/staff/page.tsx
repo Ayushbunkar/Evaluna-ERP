@@ -31,10 +31,16 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, PrinterIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
-import Barcode from "react-barcode";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { toast } from "sonner";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
+
+const Barcode = dynamic(() => import("react-barcode"), {
+	ssr: false,
+	loading: () => <Skeleton className="h-[50px] w-full" />,
+});
 
 const ROLES = [
 	"superadmin",

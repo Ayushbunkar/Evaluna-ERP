@@ -1,5 +1,13 @@
+"use client";
+
 import type React from "react";
-import Barcode from "react-barcode";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
+
+const Barcode = dynamic(() => import("react-barcode"), {
+	ssr: false,
+	loading: () => <Skeleton className="h-[40px] w-full" />,
+});
 
 export interface BarcodeLabelProps {
 	value: string;
