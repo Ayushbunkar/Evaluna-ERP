@@ -79,7 +79,7 @@ export const posRouter = router({
 						coupon_id: input.couponId,
 						is_offline_sync: input.isOfflineSync,
 						user_uid: ctx.user.id,
-						branch_id: ctx.user.branch_id,
+						branch_id: ctx.user.branchId,
 						status,
 					})
 					.returning();
@@ -105,17 +105,17 @@ export const posRouter = router({
 							).toString(),
 							reference_id: order.id,
 							reference_type: "sale",
-							branch_id: ctx.user.branch_id,
+							branch_id: ctx.user.branchId,
 						});
 
 						// Update branch inventory
-						if (ctx.user.branch_id) {
+						if (ctx.user.branchId) {
 							const existingStock = await tx
 								.select()
 								.from(branchInventory)
 								.where(
 									and(
-										eq(branchInventory.branch_id, ctx.user.branch_id),
+										eq(branchInventory.branch_id, ctx.user.branchId),
 										eq(branchInventory.product_id, item.productId),
 									),
 								);
@@ -139,7 +139,7 @@ export const posRouter = router({
 						payment_method_id: payment.methodId,
 						amount: payment.amount,
 						user_uid: ctx.user.id,
-						branch_id: ctx.user.branch_id,
+						branch_id: ctx.user.branchId,
 						type: "credit",
 						status: "success",
 					});
@@ -156,7 +156,7 @@ export const posRouter = router({
 				// 5. Queue for Sync
 				await tx.insert(pendingSync).values({
 					id: crypto.randomUUID(),
-					branch_id: ctx.user.branch_id,
+					branch_id: ctx.user.branchId,
 					operation_type: "CREATE_ORDER",
 					entity_type: "order",
 					entity_id: order.id,

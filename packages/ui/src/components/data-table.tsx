@@ -99,9 +99,9 @@ function mapToColumnDef<T>(col: Column<T>): ColumnDef<T> {
 			col.render
 				? col.render(row.original)
 				: String(row.getValue(col.key) ?? ""),
-		sortingFn: col.sortFn
-			? (a, b) => col.sortFn?.(a.original, b.original)
-			: "auto",
+		sortingFn: (col.sortFn
+			? (a: any, b: any) => col.sortFn?.(a.original, b.original) ?? 0
+			: "auto") as any,
 		enableSorting: col.sortable ?? false,
 		meta: { className: col.className, hideOnMobile: col.hideOnMobile },
 	};

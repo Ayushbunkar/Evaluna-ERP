@@ -14,7 +14,7 @@ export const productsRouter = router({
 			.where(eq(products.is_deleted, false));
 
 		// Map to the format the UI expects, ensuring numbers are correctly parsed from decimals
-		return allProducts.map((p) => ({
+		return allProducts.map((p: any) => ({
 			id: p.id,
 			name: p.name,
 			sku: p.sku || "",

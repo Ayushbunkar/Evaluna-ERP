@@ -16,7 +16,7 @@ export const purchaseReturnsRouter = router({
 				purchase: true,
 				supplier: true,
 			},
-			orderBy: (table, { desc }) => [desc(table.created_at)],
+			orderBy: (table: any, { desc }: any) => [desc(table.created_at)],
 		});
 	}),
 	get: protectedProcedure

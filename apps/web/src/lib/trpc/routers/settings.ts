@@ -21,7 +21,7 @@ export const settingsRouter = router({
 			);
 
 			// Then get branch settings and override
-			const targetBranchId = input.branch_id ?? ctx.user.branch_id;
+			const targetBranchId = input.branch_id ?? ctx.user.branchId;
 			if (targetBranchId) {
 				const branchSettings = await ctx.db
 					.select()
@@ -47,7 +47,7 @@ export const settingsRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const targetBranchId = input.branch_id ?? ctx.user.branch_id ?? null;
+			const targetBranchId = input.branch_id ?? ctx.user.branchId ?? null;
 
 			// Note: Superadmins can set global settings (targetBranchId = null)
 			// Branch managers can only set their own branch settings

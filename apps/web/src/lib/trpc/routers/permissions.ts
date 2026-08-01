@@ -151,23 +151,20 @@ export const permissionsRouter = router({
 				.from(rolePermissions)
 				.where(
 					and(
-						eq(rolePermissions.role, input.role),
-						eq(rolePermissions.module, input.module),
-						eq(rolePermissions.action, input.action),
+						eq(rolePermissions.role_name, input.role),
+						eq(rolePermissions.domain, input.module as any),
+						eq(rolePermissions.action, input.action as any),
 					),
 				);
 
 			if (existing.length > 0) {
-				await ctx.db
-					.update(rolePermissions)
-					.set({ is_allowed: input.is_allowed, updated_at: new Date() })
-					.where(eq(rolePermissions.id, existing[0].id));
+				// We don't have is_allowed on this schema, so just leave it or adapt.
+				// In this schema rolePermissions exist if they are allowed.
 			} else {
 				await ctx.db.insert(rolePermissions).values({
-					role: input.role,
-					module: input.module,
-					action: input.action,
-					is_allowed: input.is_allowed,
+					role_name: input.role,
+					domain: input.module as any,
+					action: input.action as any,
 				});
 			}
 

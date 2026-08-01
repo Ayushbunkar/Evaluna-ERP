@@ -12,7 +12,7 @@ export const payrollRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const branchId = input.branch_id ?? ctx.user.branch_id;
+			const branchId = input.branch_id ?? ctx.user.branchId;
 			const currentMonth = input.month ?? new Date().toISOString().slice(0, 7); // YYYY-MM
 
 			const conditions = [eq(payroll.month, currentMonth)];
@@ -38,7 +38,7 @@ export const payrollRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const branchId = input.branch_id ?? ctx.user.branch_id;
+			const branchId = input.branch_id ?? ctx.user.branchId;
 
 			const staffConditions = [];
 			if (branchId) {

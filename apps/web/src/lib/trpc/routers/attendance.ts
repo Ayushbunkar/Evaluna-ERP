@@ -12,7 +12,7 @@ export const attendanceRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const branchId = input.branch_id ?? ctx.user.branch_id;
+			const branchId = input.branch_id ?? ctx.user.branchId;
 			// Get all attendance for today by default, or specified date
 			const queryDate = input.date ?? new Date().toISOString().split("T")[0];
 
@@ -75,7 +75,7 @@ export const attendanceRouter = router({
 				throw new Error("Staff member not found.");
 			}
 
-			const branchId = staffMember[0].branch_id ?? ctx.user.branch_id;
+			const branchId = staffMember[0].branch_id ?? ctx.user.branchId;
 
 			const [created] = await ctx.db
 				.insert(staffAttendance)

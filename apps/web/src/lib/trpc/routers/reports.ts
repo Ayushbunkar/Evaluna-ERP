@@ -25,7 +25,7 @@ export const reportsRouter = router({
 	getSalesReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(orders.branch_id, bId));
 			if (input.startDate)
@@ -67,7 +67,7 @@ export const reportsRouter = router({
 	getGstReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(orders.branch_id, bId));
 			if (input.startDate)
@@ -92,7 +92,7 @@ export const reportsRouter = router({
 	getProfitReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 
 			const ordersConditions = [];
 			if (bId) ordersConditions.push(eq(orders.branch_id, bId));
@@ -130,7 +130,7 @@ export const reportsRouter = router({
 	getStockReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(branchInventory.branch_id, bId));
 			if (input.startDate)
@@ -170,7 +170,7 @@ export const reportsRouter = router({
 	getLowStockReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(branchInventory.branch_id, bId));
 
@@ -203,7 +203,7 @@ export const reportsRouter = router({
 	getDeadStockReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(branchInventory.branch_id, bId));
 
@@ -269,7 +269,7 @@ export const reportsRouter = router({
 	getExpiryReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [isNotNull(productBatches.expiry_date)];
 			if (bId) conditions.push(eq(productBatches.branch_id, bId));
 			if (input.startDate)
@@ -290,7 +290,7 @@ export const reportsRouter = router({
 	getCustomerReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(customers.branch_id, bId));
 			if (input.startDate)
@@ -346,7 +346,7 @@ export const reportsRouter = router({
 	getCashBookReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(transactions.branch_id, bId));
 			if (input.startDate)
@@ -394,7 +394,7 @@ export const reportsRouter = router({
 	getCouponReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [isNotNull(orders.coupon_id)];
 			if (bId) conditions.push(eq(orders.branch_id, bId));
 			if (input.startDate)
@@ -411,7 +411,7 @@ export const reportsRouter = router({
 	getLoyaltyReport: protectedProcedure
 		.input(reportInput)
 		.query(async ({ input, ctx }) => {
-			const bId = input.branch_id ?? ctx.user.branch_id;
+			const bId = input.branch_id ?? ctx.user.branchId;
 			const conditions = [];
 			if (bId) conditions.push(eq(loyaltyHistory.branch_id, bId));
 			if (input.startDate)

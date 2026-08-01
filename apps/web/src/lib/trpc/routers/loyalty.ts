@@ -74,7 +74,7 @@ export const loyaltyRouter = router({
 
 				await tx.insert(loyaltyHistory).values({
 					customer_id: input.customer_id,
-					branch_id: input.branch_id ?? ctx.user.branch_id,
+					branch_id: input.branch_id ?? ctx.user.branchId,
 					points_change: input.points_change,
 					reason: input.reason,
 					reference_id: input.reference_id,
@@ -133,7 +133,7 @@ export const loyaltyRouter = router({
 
 				await tx.insert(loyaltyHistory).values({
 					customer_id: input.customer_id,
-					branch_id: input.branch_id ?? ctx.user.branch_id,
+					branch_id: input.branch_id ?? ctx.user.branchId,
 					points_change: pointsEarned,
 					reason: `Purchase +${pointsEarned} pts (${currentTier} tier)`,
 					reference_id: `order-${input.order_id}`,
@@ -178,7 +178,7 @@ export const loyaltyRouter = router({
 
 				await tx.insert(loyaltyHistory).values({
 					customer_id: input.customer_id,
-					branch_id: input.branch_id ?? ctx.user.branch_id,
+					branch_id: input.branch_id ?? ctx.user.branchId,
 					points_change: -input.points_to_redeem,
 					reason: `Redemption -${input.points_to_redeem} pts (₹${discount} discount)`,
 					reference_id: `order-${input.order_id}`,

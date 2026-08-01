@@ -7,7 +7,7 @@ import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
  * Edge middleware that protects all routes.
  * Runs on every request before hitting the Node server.
  */
-export async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
 	// Clone headers to strip proxy headers that break Next.js CSRF in Codespaces
@@ -154,10 +154,10 @@ export async function proxy(request: NextRequest) {
 	const response = NextResponse.next({ request: { headers: requestHeaders } });
 	response.headers.set("X-User-Id", sessionData.user.id);
 	response.headers.set("X-User-Role", sessionData.user.role || "sales_person");
-	if (sessionData.session.branchId) {
+	if ((sessionData.user as any).branchId) {
 		response.headers.set(
 			"X-Branch-Id",
-			sessionData.session.branchId.toString(),
+			(sessionData.user as any).branchId.toString(),
 		);
 	}
 

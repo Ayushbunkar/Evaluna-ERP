@@ -7,7 +7,7 @@ export const staffRouter = router({
 	list: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
-			const branchId = input?.branch_id ?? ctx.user.branch_id;
+			const branchId = input?.branch_id ?? ctx.user.branchId;
 			if (branchId) {
 				return ctx.db.select().from(staff).where(eq(staff.branch_id, branchId));
 			}
@@ -59,7 +59,7 @@ export const staffRouter = router({
 					staff_code: staffCode,
 					join_date: new Date(input.join_date),
 					salary: input.salary.toString(),
-					branch_id: input.branch_id ?? ctx.user.branch_id,
+					branch_id: input.branch_id ?? ctx.user.branchId,
 					status: "active",
 				})
 				.returning();

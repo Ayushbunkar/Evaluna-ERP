@@ -20,14 +20,14 @@ export const pickingRouter = router({
 				},
 			});
 
-			return lists.map((pl) => ({
+			return lists.map((pl: any) => ({
 				id: `PL-${pl.id}`,
 				orderId: pl.order_id ? `ORD-${pl.order_id}` : "N/A",
 				customerName: pl.order?.customer?.name ?? "Unknown",
 				status: pl.status ?? "pending",
 				priority: pl.priority ?? "normal",
 				totalItems: pl.pickListItems.reduce(
-					(acc, item) => acc + (item.quantity_ordered ?? 0),
+					(acc: number, item: any) => acc + (item.quantity_ordered ?? 0),
 					0,
 				),
 				assignedTo: pl.assignedTo?.name ?? "Not Assigned",
@@ -51,7 +51,7 @@ export const pickingRouter = router({
 				},
 			});
 
-			return items.map((item) => ({
+			return items.map((item: any) => ({
 				id: `ITEM-${item.pick_list_id}-${item.id}`,
 				productCode:
 					item.product?.sku ??
