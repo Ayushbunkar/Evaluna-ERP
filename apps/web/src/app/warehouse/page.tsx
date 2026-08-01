@@ -7,12 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@evaluna/ui/components/chart";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import {
 	ActivityIcon,
@@ -28,21 +23,25 @@ import {
 	UsersIcon,
 	WarehouseIcon,
 } from "lucide-react";
-import {
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	Pie,
-	PieChart,
-	Scatter,
-	ScatterChart,
-	XAxis,
-	YAxis,
-	ZAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
+
+const WarehouseHeatmapChart = dynamic(
+	() => import("@/components/charts/warehouse-charts").then((m) => m.WarehouseHeatmapChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
+	},
+);
+
+const WarehouseRackChart = dynamic(
+	() => import("@/components/charts/warehouse-charts").then((m) => m.WarehouseRackChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[220px] w-full rounded-lg" />,
+	},
+);
 
 // Premium Animated KPI Card
 function KPICard({
@@ -258,43 +257,7 @@ export default function WarehouseDashboard() {
 						</CardHeader>
 						<CardContent className="min-h-[300px] flex-1">
 							{data.heatmapData ? (
-								<ChartContainer config={chartConfig} className="h-full w-full">
-									<ScatterChart
-										margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-									>
-										<CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-										<XAxis
-											type="number"
-											dataKey="x"
-											name="Aisle"
-											tickLine={false}
-											axisLine={false}
-										/>
-										<YAxis
-											type="number"
-											dataKey="y"
-											name="Rack"
-											tickLine={false}
-											axisLine={false}
-										/>
-										<ZAxis
-											type="number"
-											dataKey="activity"
-											range={[50, 400]}
-											name="Activity"
-										/>
-										<ChartTooltip
-											cursor={{ strokeDasharray: "3 3" }}
-											content={<ChartTooltipContent />}
-										/>
-										<Scatter
-											name="Activity"
-											data={data.heatmapData}
-											fill="hsl(var(--chart-1))"
-											opacity={0.6}
-										/>
-									</ScatterChart>
-								</ChartContainer>
+								<WarehouseHeatmapChart data={data.heatmapData} />
 							) : (
 								<div className="flex h-full items-center justify-center rounded-lg border border-dashed bg-muted/20 text-muted-foreground">
 									No heatmap data
@@ -362,42 +325,7 @@ export default function WarehouseDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.rackUtilization ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[220px] w-full"
-								>
-									<BarChart
-										data={data.rackUtilization}
-										layout="vertical"
-										margin={{ top: 0, right: 20, left: 20, bottom: 0 }}
-									>
-										<CartesianGrid
-											strokeDasharray="3 3"
-											horizontal={false}
-											opacity={0.2}
-										/>
-										<XAxis type="number" hide />
-										<YAxis
-											dataKey="name"
-											type="category"
-											axisLine={false}
-											tickLine={false}
-											tick={{ fontSize: 11 }}
-											width={100}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Bar dataKey="used" radius={[0, 4, 4, 0]} barSize={16}>
-											{data.rackUtilization.map(
-												(_entry: any, index: number) => (
-													<Cell
-														key={`cell-${index}`}
-														fill={rackColors[index % rackColors.length]}
-													/>
-												),
-											)}
-										</Bar>
-									</BarChart>
-								</ChartContainer>
+								<WarehouseRackChart data={data.rackUtilization} />
 							) : (
 								<div className="flex h-[220px] items-center justify-center text-muted-foreground">
 									No data

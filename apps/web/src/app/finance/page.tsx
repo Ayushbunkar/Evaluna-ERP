@@ -7,12 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@evaluna/ui/components/chart";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import {
 	ActivityIcon,
@@ -27,21 +22,34 @@ import {
 	TrendingUpIcon,
 	WalletIcon,
 } from "lucide-react";
-import {
-	Area,
-	AreaChart,
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	Pie,
-	PieChart,
-	XAxis,
-	YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+
+const FinanceProfitChart = dynamic(
+	() => import("@/components/charts/finance-charts").then((m) => m.FinanceProfitChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
+	},
+);
+
+const FinanceExpenseChart = dynamic(
+	() => import("@/components/charts/finance-charts").then((m) => m.FinanceExpenseChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
+	},
+);
+
+const FinanceCashFlowChart = dynamic(
+	() => import("@/components/charts/finance-charts").then((m) => m.FinanceCashFlowChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
 
 function KPICard({
 	title,
@@ -244,61 +252,7 @@ export default function FinanceDashboard() {
 						</CardHeader>
 						<CardContent className="min-h-[300px] flex-1">
 							{data.profitChart ? (
-								<ChartContainer config={chartConfig} className="h-full w-full">
-									<AreaChart
-										data={data.profitChart}
-										margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-									>
-										<defs>
-											<linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-												<stop
-													offset="5%"
-													stopColor="hsl(var(--chart-2))"
-													stopOpacity={0.3}
-												/>
-												<stop
-													offset="95%"
-													stopColor="hsl(var(--chart-2))"
-													stopOpacity={0}
-												/>
-											</linearGradient>
-											<linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-												<stop
-													offset="5%"
-													stopColor="hsl(var(--chart-4))"
-													stopOpacity={0.3}
-												/>
-												<stop
-													offset="95%"
-													stopColor="hsl(var(--chart-4))"
-													stopOpacity={0}
-												/>
-											</linearGradient>
-										</defs>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="month" tickLine={false} axisLine={false} />
-										<YAxis
-											tickLine={false}
-											axisLine={false}
-											tickFormatter={(v) => `$${v / 1000}k`}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Area
-											type="monotone"
-											dataKey="revenue"
-											stroke="hsl(var(--chart-2))"
-											fillOpacity={1}
-											fill="url(#colorRev)"
-										/>
-										<Area
-											type="monotone"
-											dataKey="expenses"
-											stroke="hsl(var(--chart-4))"
-											fillOpacity={1}
-											fill="url(#colorExp)"
-										/>
-									</AreaChart>
-								</ChartContainer>
+								<FinanceProfitChart data={data.profitChart} />
 							) : (
 								<div className="flex h-full items-center justify-center text-muted-foreground">
 									No data
@@ -317,33 +271,7 @@ export default function FinanceDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.expenseBreakdown ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[300px] w-full"
-								>
-									<PieChart>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Pie
-											data={data.expenseBreakdown}
-											dataKey="amount"
-											nameKey="category"
-											cx="50%"
-											cy="50%"
-											innerRadius={60}
-											outerRadius={90}
-											paddingAngle={2}
-										>
-											{data.expenseBreakdown.map(
-												(_entry: any, index: number) => (
-													<Cell
-														key={`cell-${index}`}
-														fill={pieColors[index % pieColors.length]}
-													/>
-												),
-											)}
-										</Pie>
-									</PieChart>
-								</ChartContainer>
+								<FinanceExpenseChart data={data.expenseBreakdown} />
 							) : (
 								<div className="flex h-[300px] items-center justify-center text-muted-foreground">
 									No data
@@ -364,40 +292,7 @@ export default function FinanceDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.cashFlowData ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[250px] w-full"
-								>
-									<BarChart
-										data={data.cashFlowData}
-										margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-									>
-										<CartesianGrid
-											strokeDasharray="3 3"
-											vertical={false}
-											opacity={0.3}
-										/>
-										<XAxis dataKey="day" tickLine={false} axisLine={false} />
-										<YAxis
-											tickLine={false}
-											axisLine={false}
-											tickFormatter={(v) => `$${v / 1000}k`}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Bar
-											dataKey="in"
-											name="Cash In"
-											fill="hsl(var(--chart-2))"
-											radius={[4, 4, 0, 0]}
-										/>
-										<Bar
-											dataKey="out"
-											name="Cash Out"
-											fill="hsl(var(--chart-4))"
-											radius={[4, 4, 0, 0]}
-										/>
-									</BarChart>
-								</ChartContainer>
+								<FinanceCashFlowChart data={data.cashFlowData} />
 							) : (
 								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
 									No data

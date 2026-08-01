@@ -7,12 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@evaluna/ui/components/chart";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import {
 	ActivityIcon,
@@ -26,26 +21,42 @@ import {
 	TargetIcon,
 	TimerIcon,
 } from "lucide-react";
-import {
-	Area,
-	AreaChart,
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	Pie,
-	PieChart,
-	PolarAngleAxis,
-	PolarGrid,
-	PolarRadiusAxis,
-	Radar,
-	RadarChart,
-	XAxis,
-	YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+
+const InventoryValueChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryValueChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
+	},
+);
+
+const InventoryCategoryChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryCategoryChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
+
+const InventoryAbcChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryAbcChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
+
+const InventoryWarehouseChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryWarehouseChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
 
 function KPICard({
 	title,
@@ -219,48 +230,7 @@ export default function InventoryDashboard() {
 						</CardHeader>
 						<CardContent className="min-h-[300px] flex-1">
 							{data.inventoryTrend ? (
-								<ChartContainer config={chartConfig} className="h-full w-full">
-									<AreaChart
-										data={data.inventoryTrend}
-										margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-									>
-										<defs>
-											<linearGradient
-												id="colorValue"
-												x1="0"
-												y1="0"
-												x2="0"
-												y2="1"
-											>
-												<stop
-													offset="5%"
-													stopColor="hsl(var(--chart-1))"
-													stopOpacity={0.3}
-												/>
-												<stop
-													offset="95%"
-													stopColor="hsl(var(--chart-1))"
-													stopOpacity={0}
-												/>
-											</linearGradient>
-										</defs>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="month" tickLine={false} axisLine={false} />
-										<YAxis
-											tickLine={false}
-											axisLine={false}
-											tickFormatter={(v) => `$${v / 1000}k`}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Area
-											type="monotone"
-											dataKey="value"
-											stroke="hsl(var(--chart-1))"
-											fillOpacity={1}
-											fill="url(#colorValue)"
-										/>
-									</AreaChart>
-								</ChartContainer>
+								<InventoryValueChart data={data.inventoryTrend} />
 							) : (
 								<div className="flex h-full items-center justify-center text-muted-foreground">
 									No trend data
@@ -279,33 +249,7 @@ export default function InventoryDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.categoryDistribution ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[250px] w-full"
-								>
-									<PieChart>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Pie
-											data={data.categoryDistribution}
-											dataKey="value"
-											nameKey="name"
-											cx="50%"
-											cy="50%"
-											innerRadius={60}
-											outerRadius={80}
-											paddingAngle={2}
-										>
-											{data.categoryDistribution.map(
-												(_entry: any, index: number) => (
-													<Cell
-														key={`cell-${index}`}
-														fill={categoryColors[index % categoryColors.length]}
-													/>
-												),
-											)}
-										</Pie>
-									</PieChart>
-								</ChartContainer>
+								<InventoryCategoryChart data={data.categoryDistribution} />
 							) : (
 								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
 									No data
@@ -324,34 +268,7 @@ export default function InventoryDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.abcAnalysis ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[250px] w-full"
-								>
-									<RadarChart
-										data={data.abcAnalysis}
-										margin={{ top: 20, right: 30, bottom: 20, left: 30 }}
-									>
-										<PolarGrid />
-										<PolarAngleAxis dataKey="class" />
-										<PolarRadiusAxis angle={30} domain={[0, 100]} />
-										<Radar
-											name="Value %"
-											dataKey="value"
-											stroke="hsl(var(--chart-1))"
-											fill="hsl(var(--chart-1))"
-											fillOpacity={0.5}
-										/>
-										<Radar
-											name="Volume %"
-											dataKey="percentage"
-											stroke="hsl(var(--chart-2))"
-											fill="hsl(var(--chart-2))"
-											fillOpacity={0.5}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-									</RadarChart>
-								</ChartContainer>
+								<InventoryAbcChart data={data.abcAnalysis} />
 							) : (
 								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
 									No data
@@ -373,22 +290,7 @@ export default function InventoryDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.warehouseDistribution ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[250px] w-full"
-								>
-									<BarChart data={data.warehouseDistribution}>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="name" tickLine={false} axisLine={false} />
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Bar
-											dataKey="stock"
-											fill="hsl(var(--chart-3))"
-											radius={[4, 4, 0, 0]}
-											barSize={30}
-										/>
-									</BarChart>
-								</ChartContainer>
+								<InventoryWarehouseChart data={data.warehouseDistribution} />
 							) : (
 								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
 									No data

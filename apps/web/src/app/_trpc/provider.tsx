@@ -22,6 +22,11 @@ export default function TRPCProvider({
 			new QueryClient({
 				defaultOptions: {
 					queries: {
+						staleTime: 5 * 60 * 1000, // 5 minutes cache
+						gcTime: 10 * 60 * 1000,
+						refetchOnWindowFocus: false,
+						refetchOnMount: false,
+						retry: 1,
 						networkMode: "always", // Always try to fetch from localhost even if navigator.onLine is false
 					},
 					mutations: {

@@ -8,12 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@evaluna/ui/components/chart";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -41,10 +36,18 @@ import {
 	UserCheckIcon,
 	XCircleIcon,
 } from "lucide-react";
-import { Cell, Pie, PieChart } from "recharts";
+import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+
+const DeliveryStatusChart = dynamic(
+	() => import("@/components/charts/delivery-charts").then((m) => m.DeliveryStatusChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[140px] w-full rounded-lg" />,
+	},
+);
 
 function KPICard({
 	title,
@@ -329,31 +332,7 @@ export default function DeliveryDashboard() {
 						</CardHeader>
 						<CardContent className="pb-2">
 							{data.ordersByStatus ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[140px] w-full"
-								>
-									<PieChart>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Pie
-											data={data.ordersByStatus}
-											dataKey="value"
-											nameKey="name"
-											cx="50%"
-											cy="50%"
-											innerRadius={40}
-											outerRadius={60}
-											paddingAngle={2}
-										>
-											{data.ordersByStatus.map((_entry: any, index: number) => (
-												<Cell
-													key={`cell-${index}`}
-													fill={statusColors[index % statusColors.length]}
-												/>
-											))}
-										</Pie>
-									</PieChart>
-								</ChartContainer>
+								<DeliveryStatusChart data={data.ordersByStatus} />
 							) : null}
 						</CardContent>
 					</Card>

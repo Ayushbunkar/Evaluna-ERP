@@ -7,12 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@evaluna/ui/components/chart";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import {
 	AlertTriangleIcon,
@@ -26,18 +21,34 @@ import {
 	UsersIcon,
 	WarehouseIcon,
 } from "lucide-react";
-import {
-	Area,
-	AreaChart,
-	Bar,
-	BarChart,
-	CartesianGrid,
-	XAxis,
-	YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+
+const AdminSalesTrendChart = dynamic(
+	() => import("@/components/charts/admin-charts").then((m) => m.AdminSalesTrendChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
+
+const AdminBranchPerformanceChart = dynamic(
+	() => import("@/components/charts/admin-charts").then((m) => m.AdminBranchPerformanceChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
+
+const AdminCashFlowChart = dynamic(
+	() => import("@/components/charts/admin-charts").then((m) => m.AdminCashFlowChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
 
 // Premium Animated KPI Card
 function KPICard({
@@ -239,48 +250,7 @@ export default function CompanyAdminDashboard() {
 						</CardHeader>
 						<CardContent className="min-h-[300px] flex-1">
 							{data.revenueTrend ? (
-								<ChartContainer config={chartConfig} className="h-full w-full">
-									<AreaChart
-										data={data.revenueTrend}
-										margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-									>
-										<defs>
-											<linearGradient
-												id="colorRevenue"
-												x1="0"
-												y1="0"
-												x2="0"
-												y2="1"
-											>
-												<stop
-													offset="5%"
-													stopColor="hsl(var(--chart-1))"
-													stopOpacity={0.3}
-												/>
-												<stop
-													offset="95%"
-													stopColor="hsl(var(--chart-1))"
-													stopOpacity={0}
-												/>
-											</linearGradient>
-										</defs>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="month" tickLine={false} axisLine={false} />
-										<YAxis
-											tickLine={false}
-											axisLine={false}
-											tickFormatter={(v) => `$${v}`}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Area
-											type="monotone"
-											dataKey="revenue"
-											stroke="hsl(var(--chart-1))"
-											fillOpacity={1}
-											fill="url(#colorRevenue)"
-										/>
-									</AreaChart>
-								</ChartContainer>
+								<AdminSalesTrendChart data={data.revenueTrend} />
 							) : (
 								<div className="flex h-full items-center justify-center rounded-lg border border-dashed bg-muted/20 text-muted-foreground">
 									No trend data available
@@ -351,33 +321,7 @@ export default function CompanyAdminDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.branchPerformance ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[250px] w-full"
-								>
-									<BarChart
-										data={data.branchPerformance}
-										layout="vertical"
-										margin={{ top: 0, right: 0, left: 40, bottom: 0 }}
-									>
-										<CartesianGrid strokeDasharray="3 3" horizontal={false} />
-										<XAxis type="number" hide />
-										<YAxis
-											dataKey="name"
-											type="category"
-											axisLine={false}
-											tickLine={false}
-											tick={{ fontSize: 12 }}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Bar
-											dataKey="sales"
-											fill="hsl(var(--chart-3))"
-											radius={[0, 4, 4, 0]}
-											barSize={20}
-										/>
-									</BarChart>
-								</ChartContainer>
+								<AdminBranchPerformanceChart data={data.branchPerformance} />
 							) : (
 								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
 									No data
@@ -396,21 +340,7 @@ export default function CompanyAdminDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.cashFlowTrend ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[250px] w-full"
-								>
-									<BarChart data={data.cashFlowTrend}>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="date" tickLine={false} axisLine={false} />
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Bar
-											dataKey="amount"
-											fill="hsl(var(--chart-4))"
-											radius={[4, 4, 0, 0]}
-										/>
-									</BarChart>
-								</ChartContainer>
+								<AdminCashFlowChart data={data.cashFlowTrend} />
 							) : (
 								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
 									No data

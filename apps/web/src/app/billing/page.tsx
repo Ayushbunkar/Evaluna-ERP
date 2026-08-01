@@ -8,12 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@evaluna/ui/components/chart";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -36,21 +31,34 @@ import {
 	Undo2Icon,
 	UserCheckIcon,
 } from "lucide-react";
-import {
-	Area,
-	AreaChart,
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	Pie,
-	PieChart,
-	XAxis,
-	YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+
+const BillingSalesChart = dynamic(
+	() => import("@/components/charts/billing-charts").then((m) => m.BillingSalesChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
+
+const BillingHourlyChart = dynamic(
+	() => import("@/components/charts/billing-charts").then((m) => m.BillingHourlyChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
+	},
+);
+
+const BillingPaymentChart = dynamic(
+	() => import("@/components/charts/billing-charts").then((m) => m.BillingPaymentChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
+	},
+);
 
 function KPICard({
 	title,
@@ -245,48 +253,7 @@ export default function BillingDashboard() {
 						</CardHeader>
 						<CardContent className="min-h-[250px] flex-1">
 							{data.salesChart ? (
-								<ChartContainer config={chartConfig} className="h-full w-full">
-									<AreaChart
-										data={data.salesChart}
-										margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-									>
-										<defs>
-											<linearGradient
-												id="colorSales"
-												x1="0"
-												y1="0"
-												x2="0"
-												y2="1"
-											>
-												<stop
-													offset="5%"
-													stopColor="hsl(var(--chart-1))"
-													stopOpacity={0.3}
-												/>
-												<stop
-													offset="95%"
-													stopColor="hsl(var(--chart-1))"
-													stopOpacity={0}
-												/>
-											</linearGradient>
-										</defs>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="day" tickLine={false} axisLine={false} />
-										<YAxis
-											tickLine={false}
-											axisLine={false}
-											tickFormatter={(v) => `$${v / 1000}k`}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Area
-											type="monotone"
-											dataKey="sales"
-											stroke="hsl(var(--chart-1))"
-											fillOpacity={1}
-											fill="url(#colorSales)"
-										/>
-									</AreaChart>
-								</ChartContainer>
+								<BillingSalesChart data={data.salesChart} />
 							) : (
 								<div className="flex h-full items-center justify-center text-muted-foreground">
 									No data
@@ -369,31 +336,7 @@ export default function BillingDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.hourlySales ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[200px] w-full"
-								>
-									<BarChart data={data.hourlySales}>
-										<CartesianGrid
-											strokeDasharray="3 3"
-											vertical={false}
-											opacity={0.3}
-										/>
-										<XAxis
-											dataKey="hour"
-											tickLine={false}
-											axisLine={false}
-											tick={{ fontSize: 10 }}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Bar
-											dataKey="amount"
-											fill="hsl(var(--chart-2))"
-											radius={[4, 4, 0, 0]}
-											barSize={20}
-										/>
-									</BarChart>
-								</ChartContainer>
+								<BillingHourlyChart data={data.hourlySales} />
 							) : (
 								<div className="flex h-[200px] items-center justify-center text-muted-foreground">
 									No data
@@ -412,33 +355,7 @@ export default function BillingDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.paymentDistribution ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[200px] w-full"
-								>
-									<PieChart>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Pie
-											data={data.paymentDistribution}
-											dataKey="value"
-											nameKey="name"
-											cx="50%"
-											cy="50%"
-											innerRadius={50}
-											outerRadius={70}
-											paddingAngle={2}
-										>
-											{data.paymentDistribution.map(
-												(_entry: any, index: number) => (
-													<Cell
-														key={`cell-${index}`}
-														fill={paymentColors[index % paymentColors.length]}
-													/>
-												),
-											)}
-										</Pie>
-									</PieChart>
-								</ChartContainer>
+								<BillingPaymentChart data={data.paymentDistribution} />
 							) : (
 								<div className="flex h-[200px] items-center justify-center text-muted-foreground">
 									No data

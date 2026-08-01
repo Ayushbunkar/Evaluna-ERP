@@ -8,12 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@evaluna/ui/components/chart";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -35,20 +30,33 @@ import {
 	SearchXIcon,
 	TargetIcon,
 } from "lucide-react";
-import {
-	Area,
-	AreaChart,
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	Pie,
-	PieChart,
-	XAxis,
-	YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
+
+const AuditorExpiryChart = dynamic(
+	() => import("@/components/charts/auditor-charts").then((m) => m.AuditorExpiryChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
+
+const AuditorDamageChart = dynamic(
+	() => import("@/components/charts/auditor-charts").then((m) => m.AuditorDamageChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
+	},
+);
+
+const AuditorIssuesChart = dynamic(
+	() => import("@/components/charts/auditor-charts").then((m) => m.AuditorIssuesChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
+	},
+);
 
 function KPICard({
 	title,
@@ -218,44 +226,7 @@ export default function AuditorDashboard() {
 						</CardHeader>
 						<CardContent className="min-h-[250px] flex-1">
 							{data.expiryTimeline ? (
-								<ChartContainer config={chartConfig} className="h-full w-full">
-									<AreaChart
-										data={data.expiryTimeline}
-										margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-									>
-										<defs>
-											<linearGradient
-												id="colorExpiry"
-												x1="0"
-												y1="0"
-												x2="0"
-												y2="1"
-											>
-												<stop
-													offset="5%"
-													stopColor="hsl(var(--chart-4))"
-													stopOpacity={0.3}
-												/>
-												<stop
-													offset="95%"
-													stopColor="hsl(var(--chart-4))"
-													stopOpacity={0}
-												/>
-											</linearGradient>
-										</defs>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="month" tickLine={false} axisLine={false} />
-										<YAxis tickLine={false} axisLine={false} />
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Area
-											type="monotone"
-											dataKey="count"
-											stroke="hsl(var(--chart-4))"
-											fillOpacity={1}
-											fill="url(#colorExpiry)"
-										/>
-									</AreaChart>
-								</ChartContainer>
+								<AuditorExpiryChart data={data.expiryTimeline} />
 							) : (
 								<div className="flex h-full items-center justify-center text-muted-foreground">
 									No data
@@ -321,31 +292,7 @@ export default function AuditorDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.damageTimeline ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[200px] w-full"
-								>
-									<BarChart data={data.damageTimeline}>
-										<CartesianGrid
-											strokeDasharray="3 3"
-											vertical={false}
-											opacity={0.3}
-										/>
-										<XAxis
-											dataKey="month"
-											tickLine={false}
-											axisLine={false}
-											tick={{ fontSize: 10 }}
-										/>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Bar
-											dataKey="count"
-											fill="hsl(var(--chart-1))"
-											radius={[4, 4, 0, 0]}
-											barSize={24}
-										/>
-									</BarChart>
-								</ChartContainer>
+								<AuditorDamageChart data={data.damageTimeline} />
 							) : (
 								<div className="flex h-[200px] items-center justify-center text-muted-foreground">
 									No data
@@ -364,33 +311,7 @@ export default function AuditorDashboard() {
 						</CardHeader>
 						<CardContent>
 							{data.warehouseIssues ? (
-								<ChartContainer
-									config={chartConfig}
-									className="h-[200px] w-full"
-								>
-									<PieChart>
-										<ChartTooltip content={<ChartTooltipContent />} />
-										<Pie
-											data={data.warehouseIssues}
-											dataKey="value"
-											nameKey="name"
-											cx="50%"
-											cy="50%"
-											innerRadius={50}
-											outerRadius={70}
-											paddingAngle={2}
-										>
-											{data.warehouseIssues.map(
-												(_entry: any, index: number) => (
-													<Cell
-														key={`cell-${index}`}
-														fill={issueColors[index % issueColors.length]}
-													/>
-												),
-											)}
-										</Pie>
-									</PieChart>
-								</ChartContainer>
+								<AuditorIssuesChart data={data.warehouseIssues} />
 							) : (
 								<div className="flex h-[200px] items-center justify-center text-muted-foreground">
 									No data
