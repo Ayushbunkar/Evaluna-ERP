@@ -156,7 +156,17 @@ export default async function BillingDashboard() {
 		],
 	};
 
-	const data = apiData || mockData;
+	// Use mock data if there's an error, no data, or still loading after a short delay
+	// This ensures we always show content instead of skeletons
+	const data = apiData ? {
+		...apiData,
+		// Ensure all arrays are properly initialized with fallbacks
+		topCashiers: apiData.topCashiers || mockData.topCashiers,
+		recentTransactions: apiData.recentTransactions || mockData.recentTransactions,
+		salesChart: apiData.salesChart || mockData.salesChart,
+		paymentDistribution: apiData.paymentDistribution || mockData.paymentDistribution,
+		hourlySales: apiData.hourlySales || mockData.hourlySales
+	} : mockData;
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
