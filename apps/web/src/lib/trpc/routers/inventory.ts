@@ -177,7 +177,7 @@ export const inventoryRouter = router({
 					loose_product_id: looseProductId,
 					packs_converted: input.packsToConvert,
 					loose_yielded: looseYielded,
-					converted_by: parseInt(ctx.user.id) || null,
+					converted_by: Number.parseInt(ctx.user.id) || null,
 				});
 
 				// 5. Ledger entries
@@ -299,7 +299,7 @@ export const inventoryRouter = router({
 					type: m.type,
 					product: m.product || "Unknown",
 					qty: m.qty,
-					time: (new Date(m.time)).toLocaleString() || "N/A",
+					time: new Date(m.time).toLocaleString() || "N/A",
 				})),
 			};
 		}),

@@ -268,10 +268,7 @@ export const monitoringRouter = router({
 			.where(
 				and(
 					eq(notificationQueue.status, "sent"),
-					gte(
-						notificationQueue.processed_at,
-						new Date().setHours(0, 0, 0, 0),
-					),
+					gte(notificationQueue.processed_at, new Date().setHours(0, 0, 0, 0)),
 				),
 			);
 		const [pendingImports] = await db

@@ -23,8 +23,6 @@ function LoginForm() {
 	const suspended = searchParams.get("suspended");
 	const [isPending, setIsPending] = useState(false);
 
-
-
 	async function handleSubmit(formData: FormData) {
 		setIsPending(true);
 		await login(formData);

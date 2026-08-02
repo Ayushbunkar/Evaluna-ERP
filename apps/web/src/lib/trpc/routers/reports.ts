@@ -49,7 +49,7 @@ export const reportsRouter = router({
 							product_id: true,
 							quantity: true,
 							price: true,
-						}
+						},
 					},
 					customer: {
 						columns: {
@@ -57,7 +57,7 @@ export const reportsRouter = router({
 							name: true,
 							email: true,
 							phone: true,
-						}
+						},
 					},
 				},
 				orderBy: [desc(orders.created_at)],
@@ -153,7 +153,7 @@ export const reportsRouter = router({
 					reserved_stock: true,
 					created_at: true,
 				},
-				with: { 
+				with: {
 					product: {
 						columns: {
 							id: true,
@@ -161,8 +161,8 @@ export const reportsRouter = router({
 							sku: true,
 							barcode: true,
 							price: true,
-						}
-					} 
+						},
+					},
 				},
 			});
 		}),
@@ -186,18 +186,20 @@ export const reportsRouter = router({
 					in_stock: true,
 					reorder_level: true,
 				},
-				with: { 
+				with: {
 					product: {
 						columns: {
 							id: true,
 							name: true,
 							sku: true,
-						}
-					} 
+						},
+					},
 				},
 			});
 
-			return inventory.filter((item: any) => item.in_stock <= item.reorder_level);
+			return inventory.filter(
+				(item: any) => item.in_stock <= item.reorder_level,
+			);
 		}),
 
 	getDeadStockReport: protectedProcedure
@@ -215,14 +217,14 @@ export const reportsRouter = router({
 					in_stock: true,
 					reorder_level: true,
 				},
-				with: { 
+				with: {
 					product: {
 						columns: {
 							id: true,
 							name: true,
 							sku: true,
-						}
-					} 
+						},
+					},
 				},
 			});
 		}),
@@ -249,19 +251,19 @@ export const reportsRouter = router({
 					reason: true,
 					created_at: true,
 				},
-				with: { 
+				with: {
 					product: {
 						columns: {
 							id: true,
 							name: true,
-						}
-					}, 
+						},
+					},
 					batch: {
 						columns: {
 							id: true,
 							batch_number: true,
-						}
-					} 
+						},
+					},
 				},
 			});
 		}),
@@ -309,14 +311,14 @@ export const reportsRouter = router({
 					total_spent: true,
 					created_at: true,
 				},
-				with: { 
+				with: {
 					orders: {
 						columns: {
 							id: true,
 							total_amount: true,
 							created_at: true,
-						}
-					} 
+						},
+					},
 				},
 			});
 		}),
@@ -339,7 +341,7 @@ export const reportsRouter = router({
 					phone: true,
 					outstanding_balance: true,
 					created_at: true,
-				}
+				},
 			});
 		}),
 
@@ -387,7 +389,7 @@ export const reportsRouter = router({
 					name: true,
 					code: true,
 					created_at: true,
-				}
+				},
 			});
 		}),
 

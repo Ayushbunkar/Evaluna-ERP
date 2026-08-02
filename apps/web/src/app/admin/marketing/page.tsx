@@ -7,9 +7,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { motion } from "framer-motion";
-import { GiftIcon, MegaphoneIcon, TicketIcon, UsersIcon, ZapIcon } from "lucide-react";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
+import { motion } from "framer-motion";
+import {
+	GiftIcon,
+	MegaphoneIcon,
+	TicketIcon,
+	UsersIcon,
+	ZapIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";

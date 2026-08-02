@@ -1,8 +1,8 @@
 import type { Session } from "@evaluna/auth/client";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
 import { auth } from "@/lib/auth";
+import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
 
 /**
  * Edge middleware that protects all routes.
@@ -119,9 +119,12 @@ export default async function middleware(request: NextRequest) {
 
 	if (isDashboardRoute || isSharedRoute) {
 		let userRole = (sessionData.user.role || "sales_person") as Role;
-		if (userRole as string === "superadmin") userRole = "admin" as Role;
-		
-		const isSuperadmin = sessionData.user.isSuperadmin === true || sessionData.user.is_superadmin === true || sessionData.user.role === "superadmin";
+		if ((userRole as string) === "superadmin") userRole = "admin" as Role;
+
+		const isSuperadmin =
+			sessionData.user.isSuperadmin === true ||
+			sessionData.user.is_superadmin === true ||
+			sessionData.user.role === "superadmin";
 
 		if (!isSuperadmin) {
 			// Find the most specific route match

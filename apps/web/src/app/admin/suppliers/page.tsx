@@ -34,11 +34,11 @@ import {
 	TruckIcon,
 	UsersIcon,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc/client";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePagination } from "@/hooks/use-pagination";
+import { trpc } from "@/lib/trpc/client";
 
 export default function SuppliersPage() {
 	const [open, setOpen] = useState(false);

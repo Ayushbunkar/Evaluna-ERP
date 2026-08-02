@@ -19,8 +19,6 @@ import {
 	SelectValue,
 } from "@evaluna/ui/components/select";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
 	FileText,
 	LogsIcon,
@@ -32,7 +30,9 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc/client";
 
 export default function ClientManagementPage() {
@@ -253,7 +253,10 @@ function RolesManagement() {
 							id="can-edit-permissions"
 							checked={newRole.can_edit_permissions}
 							onChange={(e) =>
-								setNewRole({ ...newRole, can_edit_permissions: e.target.checked })
+								setNewRole({
+									...newRole,
+									can_edit_permissions: e.target.checked,
+								})
 							}
 						/>
 						<Label htmlFor="can-edit-permissions" className="text-sm">

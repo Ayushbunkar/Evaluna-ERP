@@ -14,9 +14,7 @@ export const hrRouter = router({
 					.select({ count: count() })
 					.from(staff)
 					.where(eq(staff.status, "active")),
-				db
-					.select({ avg: sql<number>`AVG(${staff.salary})` })
-					.from(staff),
+				db.select({ avg: sql<number>`AVG(${staff.salary})` }).from(staff),
 			]);
 
 			return {

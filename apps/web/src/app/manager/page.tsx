@@ -7,6 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import {
 	ActivityIcon,
@@ -24,7 +25,6 @@ import {
 	UsersIcon,
 	WalletIcon,
 } from "lucide-react";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";

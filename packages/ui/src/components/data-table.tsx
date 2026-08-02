@@ -205,7 +205,10 @@ export function DataTable<T>({
 				</div>
 			)}
 
-			<div ref={tableContainerRef} className="overflow-x-auto overflow-y-auto max-h-[800px] relative">
+			<div
+				ref={tableContainerRef}
+				className="relative max-h-[800px] overflow-x-auto overflow-y-auto"
+			>
 				<Table>
 					<TableHeader className="sticky top-0 z-10 bg-background">
 						{table.getHeaderGroups().map((headerGroup) => (
@@ -251,7 +254,11 @@ export function DataTable<T>({
 								return (
 									<TableRow
 										key={row.id}
-										className={onRowClick ? "cursor-pointer absolute w-full" : "absolute w-full"}
+										className={
+											onRowClick
+												? "absolute w-full cursor-pointer"
+												: "absolute w-full"
+										}
 										style={{
 											transform: `translateY(${virtualRow.start}px)`,
 										}}
@@ -260,7 +267,9 @@ export function DataTable<T>({
 										{row.getVisibleCells().map((cell) => (
 											<TableCell
 												key={cell.id}
-												className={(cell.column.columnDef.meta as any)?.className}
+												className={
+													(cell.column.columnDef.meta as any)?.className
+												}
 											>
 												{flexRender(
 													cell.column.columnDef.cell,

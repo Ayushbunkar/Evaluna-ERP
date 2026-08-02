@@ -41,10 +41,26 @@ const managerNavItems: NavItem[] = [
 	{ href: "/manager/purchases", labelKey: "purchases", icon: ShoppingBagIcon },
 	{ href: "/manager/cashbook", labelKey: "cashbook", icon: WalletIcon },
 	{ href: "/manager/cashier", labelKey: "cashier", icon: WalletIcon },
-	{ href: "/manager/warehouse/movement", labelKey: "warehouseMovement", icon: WarehouseIcon },
-	{ href: "/manager/warehouse/locations", labelKey: "warehouseLocations", icon: WarehouseIcon },
-	{ href: "/manager/warehouse/conversions", labelKey: "warehouseConversions", icon: WarehouseIcon },
-	{ href: "/manager/warehouse/scanner", labelKey: "warehouseScanner", icon: WarehouseIcon },
+	{
+		href: "/manager/warehouse/movement",
+		labelKey: "warehouseMovement",
+		icon: WarehouseIcon,
+	},
+	{
+		href: "/manager/warehouse/locations",
+		labelKey: "warehouseLocations",
+		icon: WarehouseIcon,
+	},
+	{
+		href: "/manager/warehouse/conversions",
+		labelKey: "warehouseConversions",
+		icon: WarehouseIcon,
+	},
+	{
+		href: "/manager/warehouse/scanner",
+		labelKey: "warehouseScanner",
+		icon: WarehouseIcon,
+	},
 ];
 
 export default function Layout({

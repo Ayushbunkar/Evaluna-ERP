@@ -7,6 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import type { ChartConfig } from "@evaluna/ui/components/chart";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import {
@@ -28,10 +29,12 @@ import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import type { ChartConfig } from "@evaluna/ui/components/chart";
 
 const FinanceProfitChart = dynamic(
-	() => import("@/components/charts/finance-charts").then((m) => m.FinanceProfitChart),
+	() =>
+		import("@/components/charts/finance-charts").then(
+			(m) => m.FinanceProfitChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
@@ -39,7 +42,10 @@ const FinanceProfitChart = dynamic(
 );
 
 const FinanceExpenseChart = dynamic(
-	() => import("@/components/charts/finance-charts").then((m) => m.FinanceExpenseChart),
+	() =>
+		import("@/components/charts/finance-charts").then(
+			(m) => m.FinanceExpenseChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
@@ -47,7 +53,10 @@ const FinanceExpenseChart = dynamic(
 );
 
 const FinanceCashFlowChart = dynamic(
-	() => import("@/components/charts/finance-charts").then((m) => m.FinanceCashFlowChart),
+	() =>
+		import("@/components/charts/finance-charts").then(
+			(m) => m.FinanceCashFlowChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,

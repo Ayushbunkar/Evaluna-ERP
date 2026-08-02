@@ -30,7 +30,7 @@ export const financeRouter = router({
 				profitChartRes,
 				expenseBreakdownRes,
 				recentTx,
-				outCust
+				outCust,
 			] = await Promise.all([
 				ctx.db
 					.select({
@@ -91,7 +91,7 @@ export const financeRouter = router({
 					})
 					.from(customers)
 					.where(sql`${customers.credit_used} > 0`)
-					.limit(5)
+					.limit(5),
 			]);
 
 			const todaysCash = Number(todaysCashRes[0]?.total || 0);
@@ -105,7 +105,7 @@ export const financeRouter = router({
 
 			const recentTransactions = recentTx.map((tx) => ({
 				id: `TX-${tx.id}`,
-				date: (new Date(tx.created_at)).toLocaleString() || "N/A",
+				date: new Date(tx.created_at).toLocaleString() || "N/A",
 				description: tx.description || "Transaction",
 				type: tx.type || "debit",
 				amount: Number(tx.amount || 0),

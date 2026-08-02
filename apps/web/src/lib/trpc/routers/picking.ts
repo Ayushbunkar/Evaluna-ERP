@@ -31,7 +31,9 @@ export const pickingRouter = router({
 					0,
 				),
 				assignedTo: pl.assignedTo?.name ?? "Not Assigned",
-				createdAt: pl.created_at ? new Date(pl.created_at).toISOString() : new Date().toISOString(),
+				createdAt: pl.created_at
+					? new Date(pl.created_at).toISOString()
+					: new Date().toISOString(),
 			}));
 		}),
 

@@ -209,9 +209,15 @@ export const orderItems = pgTable(
 		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
 		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
 		igst_rate: decimal("igst_rate", { precision: 5, scale: 2 }),
-		cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default("0"),
-		sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
-		igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
+		cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default(
+			"0",
+		),
+		sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default(
+			"0",
+		),
+		igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default(
+			"0",
+		),
 		created_at: timestamp("created_at").defaultNow(),
 	},
 	(table) => ({
@@ -758,9 +764,15 @@ export const purchaseItems = pgTable(
 		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
 		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
 		igst_rate: decimal("igst_rate", { precision: 5, scale: 2 }),
-		cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default("0"),
-		sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
-		igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
+		cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default(
+			"0",
+		),
+		sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default(
+			"0",
+		),
+		igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default(
+			"0",
+		),
 		created_at: timestamp("created_at").defaultNow(),
 	},
 	(table) => ({

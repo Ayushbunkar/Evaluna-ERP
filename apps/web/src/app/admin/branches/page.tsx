@@ -19,11 +19,11 @@ import {
 	Trash,
 	Users,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { trpc } from "@/lib/trpc/client";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePagination } from "@/hooks/use-pagination";
-import { useRouter } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
 
 export default function BranchesPage() {
 	const { data: branches, isLoading } = trpc.branches.list.useQuery();

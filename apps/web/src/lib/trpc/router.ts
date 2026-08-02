@@ -11,6 +11,7 @@ import { branchesRouter } from "./routers/branches";
 import { cashbookRouter } from "./routers/cashbook";
 import { categoriesRouter } from "./routers/categories";
 import { chatbotRouter } from "./routers/chatbot";
+import { clientSettingsRouter } from "./routers/client-settings";
 import { customerRouter } from "./routers/customer";
 import { customersRouter } from "./routers/customers";
 import { dashboardRouter } from "./routers/dashboard";
@@ -45,7 +46,6 @@ import { suppliersRouter } from "./routers/suppliers";
 import { transactionsRouter } from "./routers/transactions";
 import { transfersRouter } from "./routers/transfers";
 import { warehouseRouter } from "./routers/warehouse";
-import { clientSettingsRouter } from "./routers/client-settings";
 
 export const appRouter = router({
 	chatbot: chatbotRouter,

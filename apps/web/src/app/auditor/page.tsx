@@ -39,7 +39,10 @@ import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 
 const AuditorExpiryChart = dynamic(
-	() => import("@/components/charts/auditor-charts").then((m) => m.AuditorExpiryChart),
+	() =>
+		import("@/components/charts/auditor-charts").then(
+			(m) => m.AuditorExpiryChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
@@ -47,7 +50,10 @@ const AuditorExpiryChart = dynamic(
 );
 
 const AuditorDamageChart = dynamic(
-	() => import("@/components/charts/auditor-charts").then((m) => m.AuditorDamageChart),
+	() =>
+		import("@/components/charts/auditor-charts").then(
+			(m) => m.AuditorDamageChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
@@ -55,7 +61,10 @@ const AuditorDamageChart = dynamic(
 );
 
 const AuditorIssuesChart = dynamic(
-	() => import("@/components/charts/auditor-charts").then((m) => m.AuditorIssuesChart),
+	() =>
+		import("@/components/charts/auditor-charts").then(
+			(m) => m.AuditorIssuesChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,

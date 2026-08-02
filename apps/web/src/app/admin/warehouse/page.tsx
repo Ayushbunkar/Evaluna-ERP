@@ -23,15 +23,18 @@ import {
 	TrendingUpIcon,
 	TruckIcon,
 	UsersIcon,
-	WarehouseIcon,
 	WalletIcon,
+	WarehouseIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 
 const WarehouseHeatmapChart = dynamic(
-	() => import("@/components/charts/warehouse-charts").then((m) => m.WarehouseHeatmapChart),
+	() =>
+		import("@/components/charts/warehouse-charts").then(
+			(m) => m.WarehouseHeatmapChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
@@ -39,7 +42,10 @@ const WarehouseHeatmapChart = dynamic(
 );
 
 const WarehouseRackChart = dynamic(
-	() => import("@/components/charts/warehouse-charts").then((m) => m.WarehouseRackChart),
+	() =>
+		import("@/components/charts/warehouse-charts").then(
+			(m) => m.WarehouseRackChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[220px] w-full rounded-lg" />,
@@ -47,7 +53,10 @@ const WarehouseRackChart = dynamic(
 );
 
 const WarehouseFifoChart = dynamic(
-	() => import("@/components/charts/warehouse-charts").then((m) => m.WarehouseFifoChart),
+	() =>
+		import("@/components/charts/warehouse-charts").then(
+			(m) => m.WarehouseFifoChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[220px] w-full rounded-lg" />,

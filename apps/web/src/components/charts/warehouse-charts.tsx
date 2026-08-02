@@ -46,11 +46,36 @@ export function WarehouseHeatmapChart({ data }: { data: any[] }) {
 		<ChartContainer config={chartConfig} className="h-full w-full">
 			<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
 				<CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-				<XAxis type="number" dataKey="x" name="Aisle" tickLine={false} axisLine={false} />
-				<YAxis type="number" dataKey="y" name="Rack" tickLine={false} axisLine={false} />
-				<ZAxis type="number" dataKey="activity" range={[50, 400]} name="Activity" />
-				<ChartTooltip cursor={{ strokeDasharray: "3 3" }} content={<ChartTooltipContent />} />
-				<Scatter name="Activity" data={data} fill="hsl(var(--chart-1))" opacity={0.6} />
+				<XAxis
+					type="number"
+					dataKey="x"
+					name="Aisle"
+					tickLine={false}
+					axisLine={false}
+				/>
+				<YAxis
+					type="number"
+					dataKey="y"
+					name="Rack"
+					tickLine={false}
+					axisLine={false}
+				/>
+				<ZAxis
+					type="number"
+					dataKey="activity"
+					range={[50, 400]}
+					name="Activity"
+				/>
+				<ChartTooltip
+					cursor={{ strokeDasharray: "3 3" }}
+					content={<ChartTooltipContent />}
+				/>
+				<Scatter
+					name="Activity"
+					data={data}
+					fill="hsl(var(--chart-1))"
+					opacity={0.6}
+				/>
 			</ScatterChart>
 		</ChartContainer>
 	);
@@ -77,7 +102,10 @@ export function WarehouseRackChart({ data }: { data: any[] }) {
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Bar dataKey="used" radius={[0, 4, 4, 0]} barSize={16}>
 					{data.map((_entry: any, index: number) => (
-						<Cell key={`cell-${index}`} fill={rackColors[index % rackColors.length]} />
+						<Cell
+							key={`cell-${index}`}
+							fill={rackColors[index % rackColors.length]}
+						/>
 					))}
 				</Bar>
 			</BarChart>
@@ -111,4 +139,3 @@ export function WarehouseFifoChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
-

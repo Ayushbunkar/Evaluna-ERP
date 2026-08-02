@@ -36,7 +36,10 @@ export function DeliveryStatusChart({ data }: { data: any[] }) {
 					paddingAngle={2}
 				>
 					{data.map((_entry: any, index: number) => (
-						<Cell key={`cell-${index}`} fill={statusColors[index % statusColors.length]} />
+						<Cell
+							key={`cell-${index}`}
+							fill={statusColors[index % statusColors.length]}
+						/>
 					))}
 				</Pie>
 			</PieChart>

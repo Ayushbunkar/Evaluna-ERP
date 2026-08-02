@@ -11,9 +11,9 @@ const withPWA = withPWAInit({
 		runtimeCaching: [
 			{
 				urlPattern: /^(?!.*\/api\/trpc\/).*/i,
-				handler: 'NetworkFirst',
+				handler: "NetworkFirst",
 				options: {
-					cacheName: 'offlineCache',
+					cacheName: "offlineCache",
 					expiration: {
 						maxEntries: 200,
 					},

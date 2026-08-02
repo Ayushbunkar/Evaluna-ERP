@@ -37,20 +37,43 @@ const pieColors = [
 export function FinanceProfitChart({ data }: { data: any[] }) {
 	return (
 		<ChartContainer config={chartConfig} className="h-full w-full">
-			<AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+			<AreaChart
+				data={data}
+				margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+			>
 				<defs>
 					<linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-						<stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+						<stop
+							offset="5%"
+							stopColor="hsl(var(--chart-2))"
+							stopOpacity={0.3}
+						/>
+						<stop
+							offset="95%"
+							stopColor="hsl(var(--chart-2))"
+							stopOpacity={0}
+						/>
 					</linearGradient>
 					<linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="5%" stopColor="hsl(var(--chart-4))" stopOpacity={0.3} />
-						<stop offset="95%" stopColor="hsl(var(--chart-4))" stopOpacity={0} />
+						<stop
+							offset="5%"
+							stopColor="hsl(var(--chart-4))"
+							stopOpacity={0.3}
+						/>
+						<stop
+							offset="95%"
+							stopColor="hsl(var(--chart-4))"
+							stopOpacity={0}
+						/>
 					</linearGradient>
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
 				<XAxis dataKey="month" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
+				<YAxis
+					tickLine={false}
+					axisLine={false}
+					tickFormatter={(v) => `₹${v / 1000}k`}
+				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
 					type="monotone"
@@ -87,7 +110,10 @@ export function FinanceExpenseChart({ data }: { data: any[] }) {
 					paddingAngle={2}
 				>
 					{data.map((_entry: any, index: number) => (
-						<Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+						<Cell
+							key={`cell-${index}`}
+							fill={pieColors[index % pieColors.length]}
+						/>
 					))}
 				</Pie>
 			</PieChart>
@@ -101,10 +127,24 @@ export function FinanceCashFlowChart({ data }: { data: any[] }) {
 			<BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
 				<XAxis dataKey="day" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
+				<YAxis
+					tickLine={false}
+					axisLine={false}
+					tickFormatter={(v) => `₹${v / 1000}k`}
+				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
-				<Bar dataKey="in" name="Cash In" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-				<Bar dataKey="out" name="Cash Out" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+				<Bar
+					dataKey="in"
+					name="Cash In"
+					fill="hsl(var(--chart-2))"
+					radius={[4, 4, 0, 0]}
+				/>
+				<Bar
+					dataKey="out"
+					name="Cash Out"
+					fill="hsl(var(--chart-4))"
+					radius={[4, 4, 0, 0]}
+				/>
 			</BarChart>
 		</ChartContainer>
 	);

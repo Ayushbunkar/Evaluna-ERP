@@ -42,16 +42,31 @@ const categoryColors = [
 export function InventoryValueChart({ data }: { data: any[] }) {
 	return (
 		<ChartContainer config={chartConfig} className="h-full w-full">
-			<AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+			<AreaChart
+				data={data}
+				margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+			>
 				<defs>
 					<linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-						<stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+						<stop
+							offset="5%"
+							stopColor="hsl(var(--chart-1))"
+							stopOpacity={0.3}
+						/>
+						<stop
+							offset="95%"
+							stopColor="hsl(var(--chart-1))"
+							stopOpacity={0}
+						/>
 					</linearGradient>
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
 				<XAxis dataKey="month" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
+				<YAxis
+					tickLine={false}
+					axisLine={false}
+					tickFormatter={(v) => `₹${v / 1000}k`}
+				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
 					type="monotone"
@@ -81,7 +96,10 @@ export function InventoryCategoryChart({ data }: { data: any[] }) {
 					paddingAngle={2}
 				>
 					{data.map((_entry: any, index: number) => (
-						<Cell key={`cell-${index}`} fill={categoryColors[index % categoryColors.length]} />
+						<Cell
+							key={`cell-${index}`}
+							fill={categoryColors[index % categoryColors.length]}
+						/>
 					))}
 				</Pie>
 			</PieChart>
@@ -92,7 +110,10 @@ export function InventoryCategoryChart({ data }: { data: any[] }) {
 export function InventoryAbcChart({ data }: { data: any[] }) {
 	return (
 		<ChartContainer config={chartConfig} className="h-[250px] w-full">
-			<RadarChart data={data} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+			<RadarChart
+				data={data}
+				margin={{ top: 20, right: 30, bottom: 20, left: 30 }}
+			>
 				<PolarGrid />
 				<PolarAngleAxis dataKey="class" />
 				<PolarRadiusAxis angle={30} domain={[0, 100]} />
@@ -123,7 +144,12 @@ export function InventoryWarehouseChart({ data }: { data: any[] }) {
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
 				<XAxis dataKey="name" tickLine={false} axisLine={false} />
 				<ChartTooltip content={<ChartTooltipContent />} />
-				<Bar dataKey="stock" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} barSize={30} />
+				<Bar
+					dataKey="stock"
+					fill="hsl(var(--chart-3))"
+					radius={[4, 4, 0, 0]}
+					barSize={30}
+				/>
 			</BarChart>
 		</ChartContainer>
 	);

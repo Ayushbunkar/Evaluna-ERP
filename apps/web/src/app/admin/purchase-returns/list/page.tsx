@@ -2,8 +2,8 @@
 
 import { Button } from "@evaluna/ui/components/button";
 import { DataTable } from "@evaluna/ui/components/data-table";
-import Link from "next/link";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
+import Link from "next/link";
 import { useTRPC } from "@/lib/trpc/client";
 import { columns } from "./columns";
 

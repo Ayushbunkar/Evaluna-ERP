@@ -42,8 +42,16 @@ export function AuditorExpiryChart({ data }: { data: any[] }) {
 			>
 				<defs>
 					<linearGradient id="colorExpiry" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="5%" stopColor="hsl(var(--chart-4))" stopOpacity={0.3} />
-						<stop offset="95%" stopColor="hsl(var(--chart-4))" stopOpacity={0} />
+						<stop
+							offset="5%"
+							stopColor="hsl(var(--chart-4))"
+							stopOpacity={0.3}
+						/>
+						<stop
+							offset="95%"
+							stopColor="hsl(var(--chart-4))"
+							stopOpacity={0}
+						/>
 					</linearGradient>
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -67,9 +75,19 @@ export function AuditorDamageChart({ data }: { data: any[] }) {
 		<ChartContainer config={chartConfig} className="h-[200px] w-full">
 			<BarChart data={data}>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-				<XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+				<XAxis
+					dataKey="month"
+					tickLine={false}
+					axisLine={false}
+					tick={{ fontSize: 10 }}
+				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
-				<Bar dataKey="count" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} barSize={24} />
+				<Bar
+					dataKey="count"
+					fill="hsl(var(--chart-1))"
+					radius={[4, 4, 0, 0]}
+					barSize={24}
+				/>
 			</BarChart>
 		</ChartContainer>
 	);
@@ -91,7 +109,10 @@ export function AuditorIssuesChart({ data }: { data: any[] }) {
 					paddingAngle={2}
 				>
 					{data.map((_entry: any, index: number) => (
-						<Cell key={`cell-${index}`} fill={issueColors[index % issueColors.length]} />
+						<Cell
+							key={`cell-${index}`}
+							fill={issueColors[index % issueColors.length]}
+						/>
 					))}
 				</Pie>
 			</PieChart>

@@ -31,7 +31,10 @@ import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
 const InventoryValueChart = dynamic(
-	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryValueChart),
+	() =>
+		import("@/components/charts/inventory-charts").then(
+			(m) => m.InventoryValueChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
@@ -39,7 +42,10 @@ const InventoryValueChart = dynamic(
 );
 
 const InventoryCategoryChart = dynamic(
-	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryCategoryChart),
+	() =>
+		import("@/components/charts/inventory-charts").then(
+			(m) => m.InventoryCategoryChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
@@ -47,7 +53,10 @@ const InventoryCategoryChart = dynamic(
 );
 
 const InventoryAbcChart = dynamic(
-	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryAbcChart),
+	() =>
+		import("@/components/charts/inventory-charts").then(
+			(m) => m.InventoryAbcChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
@@ -55,7 +64,10 @@ const InventoryAbcChart = dynamic(
 );
 
 const InventoryWarehouseChart = dynamic(
-	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryWarehouseChart),
+	() =>
+		import("@/components/charts/inventory-charts").then(
+			(m) => m.InventoryWarehouseChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,

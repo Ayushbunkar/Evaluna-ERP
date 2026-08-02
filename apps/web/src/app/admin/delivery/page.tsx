@@ -44,7 +44,10 @@ import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
 const DeliveryStatusChart = dynamic(
-	() => import("@/components/charts/delivery-charts").then((m) => m.DeliveryStatusChart),
+	() =>
+		import("@/components/charts/delivery-charts").then(
+			(m) => m.DeliveryStatusChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[140px] w-full rounded-lg" />,

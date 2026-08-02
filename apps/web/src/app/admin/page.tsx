@@ -22,14 +22,16 @@ import {
 	WarehouseIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-
 
 const AdminSalesTrendChart = dynamic(
-	() => import("@/components/charts/admin-charts").then((m) => m.AdminSalesTrendChart),
+	() =>
+		import("@/components/charts/admin-charts").then(
+			(m) => m.AdminSalesTrendChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
@@ -37,7 +39,10 @@ const AdminSalesTrendChart = dynamic(
 );
 
 const AdminBranchPerformanceChart = dynamic(
-	() => import("@/components/charts/admin-charts").then((m) => m.AdminBranchPerformanceChart),
+	() =>
+		import("@/components/charts/admin-charts").then(
+			(m) => m.AdminBranchPerformanceChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
@@ -45,7 +50,10 @@ const AdminBranchPerformanceChart = dynamic(
 );
 
 const AdminCashFlowChart = dynamic(
-	() => import("@/components/charts/admin-charts").then((m) => m.AdminCashFlowChart),
+	() =>
+		import("@/components/charts/admin-charts").then(
+			(m) => m.AdminCashFlowChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
@@ -108,7 +116,6 @@ export default function CompanyAdminDashboard() {
 		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
 
-
 	const containerVariants = {
 		hidden: { opacity: 0 },
 		show: {
@@ -155,107 +162,107 @@ export default function CompanyAdminDashboard() {
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Today's Sales"
-						value={formatCurrency(data.todaySales, "en-IN")}
-						icon={DollarSignIcon}
-						trend="vs yesterday"
-						trendValue="12%"
-						trendIsPositive={true}
-						colorClass="from-blue-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Today's Sales"
+							value={formatCurrency(data.todaySales, "en-IN")}
+							icon={DollarSignIcon}
+							trend="vs yesterday"
+							trendValue="12%"
+							trendIsPositive={true}
+							colorClass="from-blue-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Today's Orders"
-						value={data.todayOrders || 0}
-						icon={ShoppingCartIcon}
-						trend="vs yesterday"
-						trendValue="5%"
-						trendIsPositive={true}
-						colorClass="from-indigo-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Today's Orders"
+							value={data.todayOrders || 0}
+							icon={ShoppingCartIcon}
+							trend="vs yesterday"
+							trendValue="5%"
+							trendIsPositive={true}
+							colorClass="from-indigo-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Today's Profit"
-						value={formatCurrency(data.todayProfit, "en-IN")}
-						icon={TrendingUpIcon}
-						trendValue="8%"
-						trendIsPositive={data.todayProfit >= 0}
-						colorClass="from-emerald-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Today's Profit"
+							value={formatCurrency(data.todayProfit, "en-IN")}
+							icon={TrendingUpIcon}
+							trendValue="8%"
+							trendIsPositive={data.todayProfit >= 0}
+							colorClass="from-emerald-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Total Products"
-						value={data.totalProducts}
-						icon={PackageIcon}
-						colorClass="from-orange-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Total Products"
+							value={data.totalProducts}
+							icon={PackageIcon}
+							colorClass="from-orange-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Pending Deliveries"
-						value={data.pendingDeliveries || 0}
-						icon={TruckIcon}
-						colorClass="from-amber-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Pending Deliveries"
+							value={data.pendingDeliveries || 0}
+							icon={TruckIcon}
+							colorClass="from-amber-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Warehouse Capacity"
-						value={`${data.warehouseCapacity || 0}%`}
-						icon={WarehouseIcon}
-						trend="Utilized space"
-						colorClass="from-purple-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Warehouse Capacity"
+							value={`${data.warehouseCapacity || 0}%`}
+							icon={WarehouseIcon}
+							trend="Utilized space"
+							colorClass="from-purple-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Active Employees"
-						value={data.activeEmployees || 0}
-						icon={UsersIcon}
-						colorClass="from-cyan-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Active Employees"
+							value={data.activeEmployees || 0}
+							icon={UsersIcon}
+							colorClass="from-cyan-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 				<motion.div variants={itemVariants}>
 					{isLoading || !data ? (
 						<Skeleton className="h-[140px] w-full rounded-xl" />
 					) : (
-					<KPICard
-						title="Low Stock Items"
-						value={data.lowStockCount || 0}
-						icon={AlertTriangleIcon}
-						trendValue="Action needed"
-						trendIsPositive={false}
-						colorClass="from-rose-500/10 to-transparent"
-					/>
+						<KPICard
+							title="Low Stock Items"
+							value={data.lowStockCount || 0}
+							icon={AlertTriangleIcon}
+							trendValue="Action needed"
+							trendIsPositive={false}
+							colorClass="from-rose-500/10 to-transparent"
+						/>
 					)}
 				</motion.div>
 			</motion.div>
@@ -298,53 +305,57 @@ export default function CompanyAdminDashboard() {
 						<Card className="h-full border-border/50 shadow-sm">
 							<CardHeader className="pb-4">
 								<CardTitle className="text-lg">Recent Activities</CardTitle>
-								<CardDescription>System alerts and notifications</CardDescription>
+								<CardDescription>
+									System alerts and notifications
+								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-4">
-								{isLoading || !data ? (
-									Array.from({ length: 4 }).map((_, i) => (
-										<Skeleton key={i} className="h-16 w-full rounded-xl" />
-									))
-								) : data.recentNotifications?.map((notif: any) => (
-									<div
-										key={notif.id}
-										className="flex cursor-pointer items-start gap-4 rounded-xl border border-transparent p-3 transition-colors hover:border-border/50 hover:bg-muted/50"
-									>
-										<div
-											className={`flex-shrink-0 rounded-full p-2 ${
-												notif.type === "low_stock"
-													? "bg-rose-500/10 text-rose-500"
-													: notif.type === "approval"
-														? "bg-amber-500/10 text-amber-500"
-														: notif.type === "sale"
-															? "bg-emerald-500/10 text-emerald-500"
-															: "bg-blue-500/10 text-blue-500"
-											}`}
-										>
-											{notif.type === "low_stock" && (
-												<AlertTriangleIcon className="h-4 w-4" />
-											)}
-											{notif.type === "approval" && (
-												<ClockIcon className="h-4 w-4" />
-											)}
-											{notif.type === "sale" && (
-												<CheckCircle2Icon className="h-4 w-4" />
-											)}
-											{notif.type === "delivery" && (
-												<TruckIcon className="h-4 w-4" />
-											)}
-										</div>
-										<div>
-											<h4 className="font-semibold text-sm">{notif.title}</h4>
-											<p className="mt-0.5 line-clamp-1 text-muted-foreground text-xs">
-												{notif.message}
-											</p>
-											<span className="mt-1 block text-[10px] text-muted-foreground/70">
-												{notif.time}
-											</span>
-										</div>
-									</div>
-								))}
+								{isLoading || !data
+									? Array.from({ length: 4 }).map((_, i) => (
+											<Skeleton key={i} className="h-16 w-full rounded-xl" />
+										))
+									: data.recentNotifications?.map((notif: any) => (
+											<div
+												key={notif.id}
+												className="flex cursor-pointer items-start gap-4 rounded-xl border border-transparent p-3 transition-colors hover:border-border/50 hover:bg-muted/50"
+											>
+												<div
+													className={`flex-shrink-0 rounded-full p-2 ${
+														notif.type === "low_stock"
+															? "bg-rose-500/10 text-rose-500"
+															: notif.type === "approval"
+																? "bg-amber-500/10 text-amber-500"
+																: notif.type === "sale"
+																	? "bg-emerald-500/10 text-emerald-500"
+																	: "bg-blue-500/10 text-blue-500"
+													}`}
+												>
+													{notif.type === "low_stock" && (
+														<AlertTriangleIcon className="h-4 w-4" />
+													)}
+													{notif.type === "approval" && (
+														<ClockIcon className="h-4 w-4" />
+													)}
+													{notif.type === "sale" && (
+														<CheckCircle2Icon className="h-4 w-4" />
+													)}
+													{notif.type === "delivery" && (
+														<TruckIcon className="h-4 w-4" />
+													)}
+												</div>
+												<div>
+													<h4 className="font-semibold text-sm">
+														{notif.title}
+													</h4>
+													<p className="mt-0.5 line-clamp-1 text-muted-foreground text-xs">
+														{notif.message}
+													</p>
+													<span className="mt-1 block text-[10px] text-muted-foreground/70">
+														{notif.time}
+													</span>
+												</div>
+											</div>
+										))}
 							</CardContent>
 						</Card>
 					</ErrorBoundary>

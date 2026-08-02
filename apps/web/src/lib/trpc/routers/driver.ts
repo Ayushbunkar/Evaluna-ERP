@@ -71,7 +71,9 @@ export const driverRouter = router({
 			const delivered = trip.stops.filter(
 				(s: any) => s.status === "delivered",
 			).length;
-			const pending = trip.stops.filter((s: any) => s.status === "pending").length;
+			const pending = trip.stops.filter(
+				(s: any) => s.status === "pending",
+			).length;
 
 			const codCollected = trip.stops
 				.filter(
@@ -79,7 +81,10 @@ export const driverRouter = router({
 						s.status === "delivered" &&
 						s.order?.paymentMethod?.payment_type === "cash",
 				)
-				.reduce((sum: number, s: any) => sum + Number(s.order?.total_amount || 0), 0);
+				.reduce(
+					(sum: number, s: any) => sum + Number(s.order?.total_amount || 0),
+					0,
+				);
 
 			const nextStop = trip.stops.find((s: any) => s.status === "pending");
 

@@ -17,13 +17,13 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@evaluna/ui/components/select";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import type { ColumnDef } from "@tanstack/react-table";
 import { motion } from "framer-motion";
 import { Edit, Plus, Printer } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import dynamic from "next/dynamic";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 

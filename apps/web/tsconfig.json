@@ -3,7 +3,7 @@
 		"target": "ES2017",
 		"lib": ["dom", "dom.iterable", "esnext"],
 		"allowJs": true,
-		"baseUrl": ".",
+		"ignoreDeprecations": "6.0",
 		"skipLibCheck": true,
 		"strict": true,
 		"noEmit": false,
@@ -19,6 +19,7 @@
 				"name": "next"
 			}
 		],
+		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"],
 			"@evaluna/db": ["../../packages/db/src"],

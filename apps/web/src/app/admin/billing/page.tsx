@@ -40,7 +40,10 @@ import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
 const BillingSalesChart = dynamic(
-	() => import("@/components/charts/billing-charts").then((m) => m.BillingSalesChart),
+	() =>
+		import("@/components/charts/billing-charts").then(
+			(m) => m.BillingSalesChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
@@ -48,7 +51,10 @@ const BillingSalesChart = dynamic(
 );
 
 const BillingHourlyChart = dynamic(
-	() => import("@/components/charts/billing-charts").then((m) => m.BillingHourlyChart),
+	() =>
+		import("@/components/charts/billing-charts").then(
+			(m) => m.BillingHourlyChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
@@ -56,7 +62,10 @@ const BillingHourlyChart = dynamic(
 );
 
 const BillingPaymentChart = dynamic(
-	() => import("@/components/charts/billing-charts").then((m) => m.BillingPaymentChart),
+	() =>
+		import("@/components/charts/billing-charts").then(
+			(m) => m.BillingPaymentChart,
+		),
 	{
 		ssr: false,
 		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
@@ -143,11 +152,46 @@ export default function BillingDashboard() {
 			{ name: "Mike Johnson", bills: 10, revenue: 3750 },
 		],
 		recentBills: [
-			{ id: "INV-1001", customer: "Acme Corp", items: 5, amount: 1875, status: "paid", payment: "Card" },
-			{ id: "INV-1002", customer: "Globex Inc", items: 3, amount: 1125, status: "pending", payment: "Cash" },
-			{ id: "INV-1003", customer: "Wayne Enterprises", items: 8, amount: 3000, status: "paid", payment: "UPI" },
-			{ id: "INV-1004", customer: "Stark Industries", items: 2, amount: 750, status: "paid", payment: "Cash" },
-			{ id: "INV-1005", customer: "Oscorp", items: 6, amount: 2250, status: "pending", payment: "Card" },
+			{
+				id: "INV-1001",
+				customer: "Acme Corp",
+				items: 5,
+				amount: 1875,
+				status: "paid",
+				payment: "Card",
+			},
+			{
+				id: "INV-1002",
+				customer: "Globex Inc",
+				items: 3,
+				amount: 1125,
+				status: "pending",
+				payment: "Cash",
+			},
+			{
+				id: "INV-1003",
+				customer: "Wayne Enterprises",
+				items: 8,
+				amount: 3000,
+				status: "paid",
+				payment: "UPI",
+			},
+			{
+				id: "INV-1004",
+				customer: "Stark Industries",
+				items: 2,
+				amount: 750,
+				status: "paid",
+				payment: "Cash",
+			},
+			{
+				id: "INV-1005",
+				customer: "Oscorp",
+				items: 6,
+				amount: 2250,
+				status: "pending",
+				payment: "Card",
+			},
 		],
 	};
 
@@ -185,7 +229,7 @@ export default function BillingDashboard() {
 		sales: { label: "Sales", color: "hsl(var(--chart-1))" },
 		amount: { label: "Amount", color: "hsl(var(--chart-2))" },
 		value: { label: "Value", color: "hsl(var(--chart-3))" },
-	} satisfies ChartConfig;
+	};
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
@@ -456,7 +500,7 @@ export default function BillingDashboard() {
 												<div className="font-bold text-xs">
 													{formatCurrency(bill.amount, "en-IN")}
 												</div>
-												<div className="mt-0.5 font-bold text-[9px] uppercase tracking-wider text-black">
+												<div className="mt-0.5 font-bold text-[9px] text-black uppercase tracking-wider">
 													{bill.status}
 												</div>
 											</TableCell>

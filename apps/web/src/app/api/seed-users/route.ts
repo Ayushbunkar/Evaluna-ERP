@@ -44,7 +44,7 @@ export async function POST() {
 						.update(user)
 						.set({ role: u.role } as any)
 						.where(eq(user.email, u.email));
-						
+
 					created.push(u.email);
 				}
 			}
@@ -55,7 +55,7 @@ export async function POST() {
 			message: "Test users seeded successfully!",
 			created,
 			password_for_all: password,
-			users: USERS_TO_SEED
+			users: USERS_TO_SEED,
 		});
 	} catch (error: any) {
 		console.error("Seed users error:", error);

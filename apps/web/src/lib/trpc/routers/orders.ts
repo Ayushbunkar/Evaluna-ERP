@@ -1,6 +1,3 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { z } from "zod/v4";
-import { db } from "@/lib/db";
 import {
 	auditLogs,
 	branchInventory,
@@ -9,6 +6,9 @@ import {
 	orders,
 	transactions,
 } from "@evaluna/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import { z } from "zod/v4";
+import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";
 
 const orderWithCustomerSchema = z.object({

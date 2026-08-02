@@ -1,8 +1,8 @@
 "use client";
 
-import type React from "react";
-import dynamic from "next/dynamic";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
+import dynamic from "next/dynamic";
+import type React from "react";
 
 const Barcode = dynamic(() => import("react-barcode"), {
 	ssr: false,

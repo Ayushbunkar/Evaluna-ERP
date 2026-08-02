@@ -48,9 +48,11 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 	});
 
 	if (!authSession?.user || !authSession?.session) {
-        console.error("[auth-guard] auth.api.getSession returned null!", { authSession });
-        return null;
-    }
+		console.error("[auth-guard] auth.api.getSession returned null!", {
+			authSession,
+		});
+		return null;
+	}
 
 	// 3. Resolve user details directly from our extended user table
 	const dbUser = await db.query.user.findFirst({
@@ -58,7 +60,7 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 	});
 
 	if (!dbUser?.is_active) {
-        console.error("[auth-guard] dbUser is inactive or null!", { dbUser });
+		console.error("[auth-guard] dbUser is inactive or null!", { dbUser });
 		return null; // Suspended or missing
 	}
 

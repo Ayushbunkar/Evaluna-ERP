@@ -14,7 +14,7 @@ export default function WarehouseScannerPage() {
 					</p>
 				</div>
 			</div>
-			<div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-card/50">
+			<div className="flex flex-1 items-center justify-center rounded-xl border border-border border-dashed bg-card/50">
 				<div className="flex flex-col items-center gap-2 text-center text-muted-foreground">
 					<BarcodeIcon className="h-8 w-8 opacity-50" />
 					<p>This module is under construction.</p>

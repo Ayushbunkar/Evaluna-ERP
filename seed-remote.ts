@@ -1,7 +1,7 @@
-import { db } from "./apps/web/src/lib/db";
-import { user } from "./packages/db/src/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "./apps/web/src/lib/auth";
+import { db } from "./apps/web/src/lib/db";
+import { user } from "./packages/db/src/schema";
 
 const USERS_TO_SEED = [
 	{ name: "Super Admin", email: "admin@evaluna.com", role: "superadmin" },
@@ -50,7 +50,7 @@ async function main() {
 				.where(eq(user.email, u.email));
 		}
 	}
-	
+
 	console.log("Done seeding remote database!");
 	process.exit(0);
 }
