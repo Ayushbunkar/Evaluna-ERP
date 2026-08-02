@@ -17,14 +17,10 @@ import {
   payroll,
 } from "@evaluna/db/src/schema/hrms";
 import { eq, and, or, sql, desc, asc, count, isNull } from "drizzle-orm";
-<task_progress>
-- [x] Fix import errors in HRMS router
-- [x] Update all table references
-- [x] Test the build
-</task_progress>
 import { TRPCError } from "@trpc/server";
 
 export const hrmsRouter = router({
+
   // Employee Management
   getEmployees: roleProcedure(["admin", "manager", "hr", "auditor"])
     .input(

@@ -71,14 +71,7 @@ export default function CustomersPage() {
 		address: z.string(),
 		status: z.enum(["active", "inactive"]),
 	});
-<task_progress>
-- [x] Fix customer creation issue with manual refetch
-- [x] Fix TypeScript errors in customer form
-- [ ] Check and fix purchase creation page
-- [ ] Check and fix purchase returns page
-- [ ] Check and fix expenses page
-- [ ] Test all fixes
-</task_progress>
+
 
 	const statusFilterOptions: FilterOption[] = [
 		{ label: tc("all"), value: "all" },
@@ -189,13 +182,7 @@ export default function CustomersPage() {
 			toast.error(t("createError"));
 		},
 	});
-<task_progress>
-- [x] Fix customer creation issue with manual refetch
-- [ ] Check and fix purchase creation page
-- [ ] Check and fix purchase returns page
-- [ ] Check and fix expenses page
-- [ ] Test all fixes
-</task_progress>
+
 
 	const updateMutation = trpc.customers.update.useMutation({
 		onSuccess: () => {
