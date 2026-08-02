@@ -57,9 +57,9 @@ export default function ApiKeysPage() {
 
   const getStatusBadge = (status: string) => {
     if (status === 'active') {
-      return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800">Active</span>;
+      return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-black">Active</span>;
     }
-    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-800">Revoked</span>;
+    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-black">Revoked</span>;
   };
 
   return (
