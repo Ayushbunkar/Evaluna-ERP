@@ -55,7 +55,7 @@ export function BillingSalesChart({ data }: { data: any[] }) {
 					</linearGradient>
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
-				<XAxis dataKey="day" tickLine={false} axisLine={false} />
+				<XAxis dataKey="time" tickLine={false} axisLine={false} />
 				<YAxis
 					tickLine={false}
 					axisLine={false}
