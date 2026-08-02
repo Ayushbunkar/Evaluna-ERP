@@ -19,6 +19,7 @@ import { deliveryRouter } from "./routers/delivery";
 import { driverRouter } from "./routers/driver";
 import { financeRouter } from "./routers/finance";
 import { hrRouter } from "./routers/hr";
+import { hrmsRouter } from "./routers/hrms";
 import { importsRouter } from "./routers/imports";
 import { inventoryRouter } from "./routers/inventory";
 import { loyaltyRouter } from "./routers/loyalty";
@@ -88,6 +89,7 @@ export const appRouter = router({
 	picker: pickerRouter,
 	putter: putterRouter,
 	hr: hrRouter,
+	hrms: hrmsRouter,
 	customer: customerRouter,
 	supplier: supplierRouter,
 	schemes: schemesRouter,
