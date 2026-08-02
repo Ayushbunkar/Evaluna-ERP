@@ -1,6 +1,15 @@
-"use client";
+peorply"use client";
 
 import { Button } from "@evaluna/ui/components/button";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
 import { useForm } from "@tanstack/react-form";
 import { zodValidator } from "@tanstack/zod-form-adapter";
 import { useRouter } from "next/navigation";
@@ -45,6 +54,20 @@ export function ExpenseForm({
 		}
 	};
 
+	// Common expense categories
+	const expenseCategories = [
+		"Rent",
+		"Utilities",
+		"Salaries",
+		"Marketing",
+		"Office Supplies",
+		"Travel",
+		"Maintenance",
+		"Insurance",
+		"Taxes",
+		"Other",
+	];
+
 	return (
 		<form
 			onSubmit={(e) => {
@@ -52,63 +75,85 @@ export function ExpenseForm({
 				e.stopPropagation();
 				form.handleSubmit(handleSubmit)();
 			}}
-			className="space-y-4"
+			className="space-y-6 max-w-2xl"
 		>
-			<form.Field
-				name="description"
-				children={(field) => (
-					<div>
-						<label>Description</label>
-						<input
-							value={field.state.value}
-							onChange={(e) => field.handleChange(e.target.value)}
-						/>
-					</div>
-				)}
-			/>
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+				<div className="space-y-2">
+					<Label htmlFor="description">Description</Label>
+					<form.Field
+						name="description"
+						children={(field) => (
+							<Input
+								id="description"
+								value={field.state.value}
+								onChange={(e) => field.handleChange(e.target.value)}
+								placeholder="Expense description"
+							/>
+						)}
+					/>
+				</div>
 
-			<form.Field
-				name="amount"
-				children={(field) => (
-					<div>
-						<label>Amount</label>
-						<input
-							type="number"
-							value={field.state.value}
-							onChange={(e) => field.handleChange(Number(e.target.value))}
-						/>
-					</div>
-				)}
-			/>
+				<div className="space-y-2">
+					<Label htmlFor="amount">Amount</Label>
+					<form.Field
+						name="amount"
+						children={(field) => (
+							<Input
+								id="amount"
+								type="number"
+								value={field.state.value}
+								onChange={(e) => field.handleChange(Number(e.target.value))}
+								placeholder="Amount"
+							/>
+						)}
+					/>
+				</div>
 
-			<form.Field
-				name="date"
-				children={(field) => (
-					<div>
-						<label>Date</label>
-						<input
-							type="date"
-							value={field.state.value.toISOString().split("T")[0]}
-							onChange={(e) => field.handleChange(new Date(e.target.value))}
-						/>
-					</div>
-				)}
-			/>
+				<div className="space-y-2">
+					<Label htmlFor="date">Date</Label>
+					<form.Field
+						name="date"
+						children={(field) => (
+							<Input
+								id="date"
+								type="date"
+								value={field.state.value.toISOString().split("T")[0]}
+								onChange={(e) => field.handleChange(new Date(e.target.value))}
+							/>
+						)}
+					/>
+				</div>
 
-			<form.Field
-				name="category"
-				children={(field) => (
-					<div>
-						<label>Category</label>
-						<input
-							value={field.state.value}
-							onChange={(e) => field.handleChange(e.target.value)}
-						/>
-					</div>
-				)}
-			/>
+				<div className="space-y-2">
+					<Label htmlFor="category">Category</Label>
+					<form.Field
+						name="category"
+						children={(field) => (
+							<Select
+								value={field.state.value}
+								onValueChange={(value) => field.handleChange(value)}
+							>
+								<SelectTrigger id="category">
+									<SelectValue placeholder="Select category" />
+								</SelectTrigger>
+								<SelectContent>
+									{expenseCategories.map((category) => (
+										<SelectItem key={category} value={category}>
+											{category}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+					/>
+				</div>
+			</div>
 
-			<Button type="submit">{expense ? "Update" : "Create"}</Button>
+			<div className="flex justify-end pt-4">
+				<Button type="submit" size="lg">
+					{expense ? "Update Expense" : "Create Expense"}
+				</Button>
+			</div>
 		</form>
 	);
 }

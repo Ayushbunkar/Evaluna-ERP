@@ -67,10 +67,18 @@ export default function CustomersPage() {
 	const customerFormSchema = z.object({
 		name: z.string().min(1, t("nameRequired")),
 		email: z.string().email(t("invalidEmail")),
-		phone: z.string().optional(),
-		address: z.string().optional(),
+		phone: z.string(),
+		address: z.string(),
 		status: z.enum(["active", "inactive"]),
 	});
+<task_progress>
+- [x] Fix customer creation issue with manual refetch
+- [x] Fix TypeScript errors in customer form
+- [ ] Check and fix purchase creation page
+- [ ] Check and fix purchase returns page
+- [ ] Check and fix expenses page
+- [ ] Test all fixes
+</task_progress>
 
 	const statusFilterOptions: FilterOption[] = [
 		{ label: tc("all"), value: "all" },
@@ -172,6 +180,8 @@ export default function CustomersPage() {
 	const createMutation = trpc.customers.create.useMutation({
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+			// Add manual refetch to ensure fresh data
+			trpc.customers.list.refetch();
 			toast.success(t("created"));
 			setIsDialogOpen(false);
 		},
@@ -179,6 +189,13 @@ export default function CustomersPage() {
 			toast.error(t("createError"));
 		},
 	});
+<task_progress>
+- [x] Fix customer creation issue with manual refetch
+- [ ] Check and fix purchase creation page
+- [ ] Check and fix purchase returns page
+- [ ] Check and fix expenses page
+- [ ] Test all fixes
+</task_progress>
 
 	const updateMutation = trpc.customers.update.useMutation({
 		onSuccess: () => {

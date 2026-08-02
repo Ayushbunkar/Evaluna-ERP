@@ -1,6 +1,15 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
 import { useForm } from "@tanstack/react-form";
 import { zodValidator } from "@tanstack/zod-form-adapter";
 import { useRouter } from "next/navigation";
@@ -58,75 +67,104 @@ export function PurchaseReturnForm({
 				e.stopPropagation();
 				form.handleSubmit(handleSubmit)();
 			}}
-			className="space-y-4"
+			className="space-y-6"
 		>
-			<form.Field
-				name="purchaseId"
-				children={(field) => (
-					<div>
-						<label>Purchase</label>
-						<select
+			<div className="space-y-2">
+				<Label htmlFor="purchaseId">Purchase</Label>
+				<form.Field
+					name="purchaseId"
+					children={(field) => (
+						<Select
 							value={field.state.value}
-							onChange={(e) => field.handleChange(e.target.value)}
+							onValueChange={(value) => field.handleChange(value)}
 						>
-							<option value="">Select a purchase</option>
-							{purchases?.map((purchase) => (
-								<option key={purchase.id} value={purchase.id}>
-									{purchase.id}
-								</option>
-							))}
-						</select>
-					</div>
-				)}
-			/>
+							<SelectTrigger id="purchaseId">
+								<SelectValue placeholder="Select a purchase" />
+							</SelectTrigger>
+							<SelectContent>
+								{purchases?.map((purchase) => (
+									<SelectItem key={purchase.id} value={purchase.id}>
+										{purchase.id}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+				/>
+			</div>
 
-			<div>
+			<div className="space-y-4">
 				<h3 className="font-medium text-lg">Purchase Return Items</h3>
+
 				<div className="space-y-4">
 					{fields.map((field, index) => (
-						<div key={field.id} className="flex items-center space-x-4">
-							<form.Field
-								name={`purchaseReturnItems[${index}].productId`}
-								children={(subField) => (
-									<div>
-										<label>Product</label>
-										<select
+						<div
+							key={field.id}
+							className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-3"
+						>
+							<div className="space-y-2">
+								<Label htmlFor={`purchaseReturnItems[${index}].productId`}>
+									Product
+								</Label>
+								<form.Field
+									name={`purchaseReturnItems[${index}].productId`}
+									children={(subField) => (
+										<Select
 											value={subField.state.value}
-											onChange={(e) => subField.handleChange(e.target.value)}
+											onValueChange={(value) => subField.handleChange(value)}
 										>
-											<option value="">Select a product</option>
-											{products?.map((product) => (
-												<option key={product.id} value={product.id}>
-													{product.name}
-												</option>
-											))}
-										</select>
-									</div>
-								)}
-							/>
-							<form.Field
-								name={`purchaseReturnItems[${index}].quantity`}
-								children={(subField) => (
-									<div>
-										<label>Quantity</label>
-										<input
+											<SelectTrigger id={`purchaseReturnItems[${index}].productId`}>
+												<SelectValue placeholder="Select a product" />
+											</SelectTrigger>
+											<SelectContent>
+												{products?.map((product) => (
+													<SelectItem key={product.id} value={product.id}>
+														{product.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									)}
+								/>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor={`purchaseReturnItems[${index}].quantity`}>
+									Quantity
+								</Label>
+								<form.Field
+									name={`purchaseReturnItems[${index}].quantity`}
+									children={(subField) => (
+										<Input
+											id={`purchaseReturnItems[${index}].quantity`}
 											type="number"
 											value={subField.state.value}
 											onChange={(e) =>
 												subField.handleChange(Number(e.target.value))
 											}
+											placeholder="Quantity"
 										/>
-									</div>
-								)}
-							/>
-							<Button type="button" onClick={() => remove(index)}>
-								Remove
-							</Button>
+									)}
+								/>
+							</div>
+
+							<div className="flex items-end">
+								<Button
+									type="button"
+									variant="destructive"
+									onClick={() => remove(index)}
+									className="w-full"
+								>
+									Remove
+								</Button>
+							</div>
 						</div>
 					))}
 				</div>
+
 				<Button
 					type="button"
+					variant="outline"
 					className="mt-4"
 					onClick={() => append({ productId: "", quantity: 1 })}
 				>
@@ -134,7 +172,11 @@ export function PurchaseReturnForm({
 				</Button>
 			</div>
 
-			<Button type="submit">{purchaseReturn ? "Update" : "Create"}</Button>
+			<div className="flex justify-end">
+				<Button type="submit" size="lg">
+					{purchaseReturn ? "Update Return" : "Create Return"}
+				</Button>
+			</div>
 		</form>
 	);
 }

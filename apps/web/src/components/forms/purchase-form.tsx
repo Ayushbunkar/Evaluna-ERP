@@ -1,6 +1,15 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
 import { useForm } from "@tanstack/react-form";
 import { zodValidator } from "@tanstack/zod-form-adapter";
 import { useRouter } from "next/navigation";
@@ -54,80 +63,130 @@ export function PurchaseForm({
 				e.stopPropagation();
 				form.handleSubmit(handleSubmit)();
 			}}
-			className="space-y-4"
+			className="space-y-6"
 		>
-			<form.Field
-				name="supplierId"
-				children={(field) => (
-					<div>
-						<label>Supplier</label>
-						<select
-							value={field.state.value}
-							onChange={(e) => field.handleChange(e.target.value)}
-						>
-							<option value="">Select a supplier</option>
-							{suppliers?.items.map((supplier) => (
-								<option key={supplier.id} value={supplier.id}>
-									{supplier.name}
-								</option>
-							))}
-						</select>
-					</div>
-				)}
-			/>
-
-			<div>
-				<h3 className="font-medium text-lg">Items</h3>
-				{form.state.values.items.map((_, index) => (
-					<div key={index} className="flex items-center space-x-2">
-						<form.Field
-							name={`items[${index}].productId`}
-							children={(field) => (
-								<select
-									value={field.state.value}
-									onChange={(e) => field.handleChange(e.target.value)}
-								>
-									<option value="">Select a product</option>
-									{products?.map((product) => (
-										<option key={product.id} value={product.id}>
-											{product.name}
-										</option>
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+				<div className="space-y-2">
+					<Label htmlFor="supplierId">Supplier</Label>
+					<form.Field
+						name="supplierId"
+						children={(field) => (
+							<Select
+								value={field.state.value}
+								onValueChange={(value) => field.handleChange(value)}
+							>
+								<SelectTrigger id="supplierId">
+									<SelectValue placeholder="Select a supplier" />
+								</SelectTrigger>
+								<SelectContent>
+									{suppliers?.items.map((supplier) => (
+										<SelectItem key={supplier.id} value={supplier.id}>
+											{supplier.name}
+										</SelectItem>
 									))}
-								</select>
-							)}
-						/>
-						<form.Field
-							name={`items[${index}].quantity`}
-							children={(field) => (
-								<input
-									type="number"
-									value={field.state.value}
-									onChange={(e) => field.handleChange(Number(e.target.value))}
-									placeholder="Quantity"
-								/>
-							)}
-						/>
-						<form.Field
-							name={`items[${index}].price`}
-							children={(field) => (
-								<input
-									type="number"
-									value={field.state.value}
-									onChange={(e) => field.handleChange(Number(e.target.value))}
-									placeholder="Price"
-								/>
-							)}
-						/>
-						<Button
-							type="button"
-							onClick={() => form.removeFieldValue("items", index)}
-						>
-							Remove
-						</Button>
+								</SelectContent>
+							</Select>
+						)}
+					/>
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="total">Total Amount</Label>
+					<form.Field
+						name="total"
+						children={(field) => (
+							<Input
+								id="total"
+								type="number"
+								value={field.state.value}
+								onChange={(e) => field.handleChange(Number(e.target.value))}
+								placeholder="Enter total amount"
+							/>
+						)}
+					/>
+				</div>
+			</div>
+
+			<div className="space-y-4">
+				<h3 className="font-medium text-lg">Purchase Items</h3>
+
+				{form.state.values.items.map((_, index) => (
+					<div
+						key={index}
+						className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-4"
+					>
+						<div className="space-y-2">
+							<Label htmlFor={`items[${index}].productId`}>Product</Label>
+							<form.Field
+								name={`items[${index}].productId`}
+								children={(field) => (
+									<Select
+										value={field.state.value}
+										onValueChange={(value) => field.handleChange(value)}
+									>
+										<SelectTrigger id={`items[${index}].productId`}>
+											<SelectValue placeholder="Select product" />
+										</SelectTrigger>
+										<SelectContent>
+											{products?.map((product) => (
+												<SelectItem key={product.id} value={product.id}>
+													{product.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								)}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor={`items[${index}].quantity`}>Quantity</Label>
+							<form.Field
+								name={`items[${index}].quantity`}
+								children={(field) => (
+									<Input
+										id={`items[${index}].quantity`}
+										type="number"
+										value={field.state.value}
+										onChange={(e) => field.handleChange(Number(e.target.value))}
+										placeholder="Quantity"
+									/>
+								)}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor={`items[${index}].price`}>Price</Label>
+							<form.Field
+								name={`items[${index}].price`}
+								children={(field) => (
+									<Input
+										id={`items[${index}].price`}
+										type="number"
+										value={field.state.value}
+										onChange={(e) => field.handleChange(Number(e.target.value))}
+										placeholder="Price"
+									/>
+								)}
+							/>
+						</div>
+
+						<div className="flex items-end">
+							<Button
+								type="button"
+								variant="destructive"
+								onClick={() => form.removeFieldValue("items", index)}
+								className="w-full"
+							>
+								Remove
+							</Button>
+						</div>
 					</div>
 				))}
+
 				<Button
 					type="button"
+					variant="outline"
 					onClick={() =>
 						form.pushFieldValue("items", {
 							productId: "",
@@ -135,26 +194,17 @@ export function PurchaseForm({
 							price: 0,
 						})
 					}
+					className="w-full md:w-auto"
 				>
 					Add Item
 				</Button>
 			</div>
 
-			<form.Field
-				name="total"
-				children={(field) => (
-					<div>
-						<label>Total</label>
-						<input
-							type="number"
-							value={field.state.value}
-							onChange={(e) => field.handleChange(Number(e.target.value))}
-						/>
-					</div>
-				)}
-			/>
-
-			<Button type="submit">{purchase ? "Update" : "Create"}</Button>
+			<div className="flex justify-end">
+				<Button type="submit" size="lg">
+					{purchase ? "Update Purchase" : "Create Purchase"}
+				</Button>
+			</div>
 		</form>
 	);
 }
