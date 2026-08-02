@@ -15,7 +15,7 @@ import {
   weekOffs,
   overtime,
   payroll,
-} from "@evaluna/db/src/schema/hrms";
+} from "@evaluna/db/schema/hrms";
 import { eq, and, or, sql, desc, asc, count, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
