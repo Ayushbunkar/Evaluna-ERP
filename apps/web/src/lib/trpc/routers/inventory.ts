@@ -299,7 +299,7 @@ export const inventoryRouter = router({
 					type: m.type,
 					product: m.product || "Unknown",
 					qty: m.qty,
-					time: m.time?.toLocaleString() || "N/A",
+					time: (new Date(m.time)).toLocaleString() || "N/A",
 				})),
 			};
 		}),

@@ -270,7 +270,7 @@ export const monitoringRouter = router({
 					eq(notificationQueue.status, "sent"),
 					gte(
 						notificationQueue.processed_at,
-						new Date(new Date().setHours(0, 0, 0, 0)),
+						new Date().setHours(0, 0, 0, 0),
 					),
 				),
 			);

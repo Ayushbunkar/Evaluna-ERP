@@ -34,7 +34,7 @@ export const approvalsRouter = router({
 				amount: 0,
 				reason: r.reason || "No reason provided",
 				status: r.status || "pending",
-				date: r.date ? r.date.toISOString() : new Date().toISOString(),
+				date: r.date ? (new Date(r.date)).toISOString() : new Date().toISOString(),
 			}));
 		}),
 

@@ -43,5 +43,9 @@ export const createTRPCContext = async (): Promise<TRPCContext> => {
 			}
 		: null;
 
+    if (!baseUser) {
+        console.error("[TRPC] createTRPCContext user is NULL! getAuthUser returned null");
+    }
+
 	return { user: baseUser, db: db as any };
 };

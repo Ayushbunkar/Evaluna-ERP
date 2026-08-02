@@ -15,6 +15,9 @@ const nextConfig = {
 		NEXT_PUBLIC_BASE_PATH: process.env.BASE_PATH || "",
 	},
 	serverExternalPackages: ["@electric-sql/pglite"],
+	experimental: {
+		optimizePackageImports: ["lucide-react", "@evaluna/ui", "framer-motion"],
+	},
 	typescript: {
 		ignoreBuildErrors: true,
 	},

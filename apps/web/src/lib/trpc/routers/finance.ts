@@ -105,7 +105,7 @@ export const financeRouter = router({
 
 			const recentTransactions = recentTx.map((tx) => ({
 				id: `TX-${tx.id}`,
-				date: tx.created_at?.toLocaleString() || "N/A",
+				date: (new Date(tx.created_at)).toLocaleString() || "N/A",
 				description: tx.description || "Transaction",
 				type: tx.type || "debit",
 				amount: Number(tx.amount || 0),
