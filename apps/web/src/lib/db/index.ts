@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 
 let DATABASE_URL = process.env.DATABASE_URL;
@@ -14,8 +14,8 @@ if (DATABASE_URL.startsWith('"') && DATABASE_URL.endsWith('"')) {
 
 const cleanUrl = DATABASE_URL.replace(/^"|"$/g, "");
 
-const pool = new Pool({ connectionString: cleanUrl });
-export const db = drizzle(pool, { schema });
+const sql = neon(cleanUrl);
+export const db = drizzle({ client: sql, schema });
 
 // re-export pglite instance for any code that needs direct access (null for postgres mode)
 export const pglite = null;
