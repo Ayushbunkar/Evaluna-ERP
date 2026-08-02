@@ -40,7 +40,11 @@ const ENCRYPTION_KEY_HEX = process.env.BACKUP_ENCRYPTION_KEY;
 const ALGORITHM = "aes-256-gcm";
 
 if (!fs.existsSync(BACKUPS_DIR)) {
-	fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+	try {
+		fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+	} catch (e) {
+		console.warn("Failed to create backups directory (expected on Vercel read-only FS).");
+	}
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
