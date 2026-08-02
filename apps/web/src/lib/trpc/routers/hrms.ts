@@ -15,7 +15,12 @@ import {
   weekOffs,
   overtime,
   payroll,
-} from "@evaluna/db/schema";
+} from "@evaluna/db/src/schema/hrms";
+<task_progress>
+- [x] Fix import errors in HRMS router
+- [ ] Update all table references
+- [ ] Test the build
+</task_progress>
 import { eq, and, or, sql, desc, asc, count, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
