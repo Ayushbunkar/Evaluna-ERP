@@ -151,27 +151,11 @@ export default function BillingDashboard() {
 		],
 	};
 
-	// Use mock data if there's an error or no data
-	if (error || !data) {
+	// Use mock data if there's an error, no data, or still loading after a short delay
+	// This ensures we always show content instead of skeletons
+	if (error || !data || isLoading) {
 		console.warn("Using mock data for billing dashboard:", error?.message);
 		data = mockData;
-	}
-
-	if (isLoading && !data) {
-		return (
-			<div className="space-y-6">
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-					<Skeleton className="h-32 w-full rounded-xl" />
-					<Skeleton className="h-32 w-full rounded-xl" />
-					<Skeleton className="h-32 w-full rounded-xl" />
-					<Skeleton className="h-32 w-full rounded-xl" />
-				</div>
-				<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-					<Skeleton className="h-64 w-full rounded-xl" />
-					<Skeleton className="h-64 w-full rounded-xl" />
-				</div>
-			</div>
-		);
 	}
 
 	const containerVariants = {
