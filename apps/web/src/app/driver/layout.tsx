@@ -18,6 +18,9 @@ import {
 
 const driverNavItems: NavItem[] = [
 	{ href: "/driver", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	{ href: "/driver/map", labelKey: "liveTracking", icon: MapIcon },
+	/* 
+	TODO: Pages not built yet
 	{
 		href: "/driver/assigned",
 		labelKey: "assignedOrders",
@@ -30,6 +33,7 @@ const driverNavItems: NavItem[] = [
 	{ href: "/driver/cash", labelKey: "cashCollection", icon: BanknoteIcon },
 	{ href: "/driver/history", labelKey: "deliveryHistory", icon: HistoryIcon },
 	{ href: "/driver/support", labelKey: "support", icon: HeadphonesIcon },
+	*/
 ];
 
 export default function Layout({

@@ -21,7 +21,7 @@ export const importsRouter = router({
 				if (entityType === "product") {
 					const rowBarcodes = rows
 						.map((r) => r.barcode)
-						.filter((b) => typeof b === "string" && b.trim() !== "");
+						.filter((b: any) => typeof b === "string" && b.trim() !== "");
 
 					let existingBarcodes: string[] = [];
 					if (rowBarcodes.length > 0) {
@@ -30,7 +30,7 @@ export const importsRouter = router({
 							.from(products)
 							.where(inArray(products.barcode, rowBarcodes));
 						existingBarcodes = existing
-							.map((e) => e.barcode)
+							.map((e: any) => e.barcode)
 							.filter(Boolean) as string[];
 					}
 

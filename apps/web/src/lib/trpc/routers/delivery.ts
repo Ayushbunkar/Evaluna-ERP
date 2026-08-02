@@ -185,7 +185,7 @@ export const deliveryRouter = router({
 				.from(staff)
 				.where(eq(staff.role, "driver"));
 
-			const activeDrivers = drivers.map((d, index) => {
+			const activeDrivers = drivers.map((d: any, index: number) => {
 				// Mocking coordinates near Mumbai (19.0760, 72.8777)
 				// Hub Location: 19.0760, 72.8777
 				// Offset by index to spread them out

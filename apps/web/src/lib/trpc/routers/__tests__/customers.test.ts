@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
 

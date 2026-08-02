@@ -20,6 +20,9 @@ const salesNavItems: NavItem[] = [
 	{ href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
 	{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },
 	{ href: "/sales/cashbook", labelKey: "cashbook", icon: DollarSignIcon },
+	// Newly Added Missing Pages
+	{ href: "/sales/targets", labelKey: "targets", icon: DollarSignIcon },
+	{ href: "/sales/settings", labelKey: "settings", icon: DollarSignIcon },
 ];
 
 export default function Layout({

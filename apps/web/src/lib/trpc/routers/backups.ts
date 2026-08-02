@@ -37,7 +37,7 @@ async function restoreData(
 ): Promise<void> {
 	if (dryRun) return; // simulation only
 
-	await db.transaction(async (tx) => {
+	await db.transaction(async (tx: any) => {
 		// Disable FK checks during restore
 		await tx.execute(sql`SET session_replication_role = 'replica'`);
 

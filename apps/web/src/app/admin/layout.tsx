@@ -2,6 +2,7 @@
 
 import {
 	BanknoteIcon,
+	BarcodeIcon,
 	BarChart3Icon,
 	Building2Icon,
 	ClockIcon,
@@ -72,6 +73,26 @@ const companyAdminNavItems: NavItem[] = [
 	{ href: "/admin/dashboard-builder", labelKey: "Dashboard Builder", icon: LayoutDashboardIcon },
 	{ href: "/admin/health", labelKey: "systemHealth", icon: DatabaseZapIcon },
 	{ href: "/admin/audit-logs", labelKey: "auditLogs", icon: FileTextIcon },
+	// Newly Added Missing Pages
+	{ href: "/admin/products", labelKey: "products", icon: PackageIcon },
+	{ href: "/admin/orders", labelKey: "orders", icon: ShoppingCartIcon },
+	{ href: "/admin/payment-methods", labelKey: "paymentMethods", icon: CreditCardIcon },
+	{ href: "/admin/cashier", labelKey: "cashier", icon: LandmarkIcon },
+	{ href: "/admin/pos", labelKey: "pos", icon: ShoppingCartIcon },
+	{ href: "/admin/transfers", labelKey: "transfers", icon: TruckIcon },
+	{ href: "/admin/loyalty", labelKey: "loyalty", icon: LifeBuoyIcon },
+	{ href: "/admin/backups", labelKey: "backups", icon: HardDriveIcon },
+	{ href: "/admin/marketing", labelKey: "marketing", icon: BarChart3Icon },
+	{ href: "/admin/warehouse/movement", labelKey: "warehouseMovement", icon: WarehouseIcon },
+	{ href: "/admin/warehouse/locations", labelKey: "warehouseLocations", icon: Building2Icon },
+	{ href: "/admin/audit/scanner", labelKey: "auditScanner", icon: ShieldCheckIcon },
+	{ href: "/admin/accounting", labelKey: "accounting", icon: FileTextIcon },
+	{ href: "/admin/finance/approvals", labelKey: "approvals", icon: ShieldCheckIcon },
+	{ href: "/admin/permissions", labelKey: "permissions", icon: ShieldCheckIcon },
+	{ href: "/admin/warehouse/conversions", labelKey: "warehouseConversions", icon: WarehouseIcon },
+	{ href: "/admin/warehouse/picking", labelKey: "warehousePicking", icon: PackageIcon },
+	{ href: "/admin/warehouse/scanner", labelKey: "warehouseScanner", icon: BarcodeIcon },
+	{ href: "/admin/delivery/tracking", labelKey: "deliveryTracking", icon: MapIcon },
 ];
 
 export default function Layout({

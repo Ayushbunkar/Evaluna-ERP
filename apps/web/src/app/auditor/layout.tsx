@@ -18,6 +18,8 @@ import {
 
 const auditorNavItems: NavItem[] = [
 	{ href: "/auditor", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	/* 
+	TODO: Pages not built yet
 	{
 		href: "/auditor/pending",
 		labelKey: "pendingAudits",
@@ -30,6 +32,7 @@ const auditorNavItems: NavItem[] = [
 	{ href: "/auditor/pna", labelKey: "pna", icon: BanIcon },
 	{ href: "/auditor/history", labelKey: "auditHistory", icon: HistoryIcon },
 	{ href: "/auditor/reports", labelKey: "reports", icon: FileTextIcon },
+	*/
 ];
 
 export default function Layout({

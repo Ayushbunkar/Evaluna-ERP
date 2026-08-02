@@ -12,7 +12,7 @@ export const auditRouter = router({
 	create: publicProcedure
 		.input(
 			z.object({
-				warehouse_id: z.number(),
+				branch_id: z.number(),
 				auditor_id: z.number(),
 			}),
 		)
@@ -20,7 +20,7 @@ export const auditRouter = router({
 			const result = await ctx.db
 				.insert(stockAudits)
 				.values({
-					warehouse_id: input.warehouse_id,
+					branch_id: input.warehouse_id,
 					auditor_id: input.auditor_id,
 					status: "planned",
 				})

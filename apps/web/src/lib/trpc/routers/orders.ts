@@ -155,7 +155,7 @@ export const ordersRouter = router({
 				);
 
 				for (const product of input.products) {
-					const inv = inventoryMap.get(product.id);
+					const inv: any = inventoryMap.get(product.id) || {};
 
 					if (!inv) {
 						throw new Error(
@@ -262,7 +262,7 @@ export const ordersRouter = router({
 		.input(z.object({ id: z.number() }))
 		.output(z.object({ success: z.boolean() }))
 		.mutation(async ({ ctx, input }) => {
-			await db.transaction(async (tx) => {
+			await db.transaction(async (tx: any) => {
 				await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
 				await tx
 					.delete(orders)

@@ -1,257 +1,399 @@
 "use client";
 
-import { Badge } from "@evaluna/ui/components/badge";
-import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
+	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import {
-	AlertCircle,
-	AlertTriangle,
-	ArrowRightLeft,
-	Filter,
-	Package,
-	Plus,
-	Search,
+	ActivityIcon,
+	AlertTriangleIcon,
+	ArrowRightLeftIcon,
+	Building2Icon,
+	CalendarDaysIcon,
+	DollarSignIcon,
+	PackageIcon,
+	SkullIcon,
+	TargetIcon,
+	TimerIcon,
+	TrendingUpIcon,
+	TruckIcon,
+	UsersIcon,
+	WalletIcon,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import React from "react";
+import { formatCurrency } from "@/lib/utils";
 
-export default function InventoryPage() {
-	const { data: inventoryData, isLoading } = trpc.inventory.list.useQuery({});
+const InventoryValueChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryValueChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
+	},
+);
 
-	const items = inventoryData?.items || [];
+const InventoryCategoryChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryCategoryChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
 
-	const parentRef = React.useRef<HTMLDivElement>(null);
-	const rowVirtualizer = useVirtualizer({
-		count: items.length,
-		getScrollElement: () => parentRef.current,
-		estimateSize: () => 73,
-		overscan: 5,
-	});
-	const virtualItems = rowVirtualizer.getVirtualItems();
+const InventoryAbcChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryAbcChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
 
-	const paddingTop = virtualItems.length > 0 ? virtualItems?.[0]?.start || 0 : 0;
-	const paddingBottom = virtualItems.length > 0
-		? rowVirtualizer.getTotalSize() - (virtualItems?.[virtualItems.length - 1]?.end || 0)
-		: 0;
+const InventoryWarehouseChart = dynamic(
+	() => import("@/components/charts/inventory-charts").then((m) => m.InventoryWarehouseChart),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
+	},
+);
 
-	const lowStockCount = items.filter((i) => i.status === "low_stock").length;
-	const outOfStockCount = items.filter(
-		(i) => i.status === "out_of_stock",
-	).length;
+function KPICard({
+	title,
+	value,
+	icon: Icon,
+	colorClass,
+}: {
+	title: string;
+	value: string | number;
+	icon: any;
+	colorClass: string;
+}) {
+	return (
+		<Card className="group relative overflow-hidden border-border/50 bg-gradient-to-br from-background to-background/50 shadow-sm">
+			<div
+				className={`absolute inset-0 bg-gradient-to-r ${colorClass} opacity-0 transition-opacity group-hover:opacity-100`}
+			/>
+			<CardContent className="p-4">
+				<div className="flex items-center justify-between">
+					<div className="rounded-lg bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-background group-hover:text-primary">
+						<Icon className="h-4 w-4" />
+					</div>
+				</div>
+				<div className="mt-3">
+					<p className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
+						{title}
+					</p>
+					<h3 className="mt-1 font-bold text-xl tracking-tight">{value}</h3>
+				</div>
+			</CardContent>
+		</Card>
+	);
+}
+
+export default function InventoryDashboard() {
+	const { activeBranchId } = useBranch();
+
+	const { data, isLoading } = trpc.inventory.getDashboardStats.useQuery(
+		activeBranchId ? { branch_id: activeBranchId } : {},
+		{ staleTime: 30_000, refetchOnWindowFocus: false },
+	);
+
+	if (isLoading || !data) {
+		return (
+			<div className="space-y-6">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+				</div>
+				<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+					<Skeleton className="h-64 w-full rounded-xl" />
+					<Skeleton className="h-64 w-full rounded-xl" />
+				</div>
+			</div>
+		);
+	}
+
+	const containerVariants = {
+		hidden: { opacity: 0 },
+		show: {
+			opacity: 1,
+			transition: { staggerChildren: 0.04 },
+		},
+	};
+
+	const itemVariants = {
+		hidden: { opacity: 0, y: 10 },
+		show: {
+			opacity: 1,
+			y: 0,
+			transition: { type: "spring", stiffness: 300, damping: 24 },
+		},
+	};
+
+	const categoryColors = [
+		"hsl(var(--chart-1))",
+		"hsl(var(--chart-2))",
+		"hsl(var(--chart-3))",
+		"hsl(var(--chart-4))",
+	];
+
+	const chartConfig = {
+		value: { label: "Value", color: "hsl(var(--chart-1))" },
+		stock: { label: "Stock Units", color: "hsl(var(--chart-2))" },
+		percentage: { label: "Percentage %", color: "hsl(var(--chart-3))" },
+	} satisfies ChartConfig;
 
 	return (
-		<div className="mx-auto max-w-7xl space-y-8 p-8">
-			{/* Header */}
-			<div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-				<div>
-					<h1 className="font-bold text-3xl text-gray-900 tracking-tight dark:text-white">
-						Inventory Management
-					</h1>
-					<p className="mt-1 text-gray-500 dark:text-gray-400">
-						Track stock levels across all branches
-					</p>
-				</div>
-				<div className="flex gap-3">
-					<Button variant="outline" className="shadow-sm">
-						<ArrowRightLeft className="mr-2 h-4 w-4" /> Transfer Stock
-					</Button>
-					<Button className="bg-primary text-white shadow-sm hover:bg-primary/90">
-						<Plus className="mr-2 h-4 w-4" /> Receive Items
-					</Button>
-				</div>
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
+			<div>
+				<h1 className="font-bold text-2xl tracking-tight">
+					Inventory Management
+				</h1>
+				<p className="mt-1 text-muted-foreground text-sm">
+					Comprehensive stock tracking and analysis.
+				</p>
 			</div>
 
-			{/* KPI Cards */}
-			<div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-				<Card className="border-none bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm dark:from-slate-800 dark:to-slate-900">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-medium text-gray-600 text-sm dark:text-gray-300">
-							Total Unique SKUs
-						</CardTitle>
-						<Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-					</CardHeader>
-					<CardContent>
-						<div className="font-bold text-3xl text-gray-900 dark:text-white">
-							{isLoading ? <Skeleton className="h-8 w-16" /> : items.length}
-						</div>
-					</CardContent>
-				</Card>
+			{/* KPIs Grid */}
+			<motion.div
+				variants={containerVariants}
+				initial="hidden"
+				animate="show"
+				className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7"
+			>
+				<motion.div variants={itemVariants} className="col-span-1">
+					<KPICard
+						title="Total Value"
+						value={formatCurrency(data.inventoryValue, "en-US")}
+						icon={DollarSignIcon}
+						colorClass="from-emerald-500/10 to-transparent"
+					/>
+				</motion.div>
+				<motion.div variants={itemVariants} className="col-span-1">
+					<KPICard
+						title="Products"
+						value={data.totalProducts}
+						icon={PackageIcon}
+						colorClass="from-blue-500/10 to-transparent"
+					/>
+				</motion.div>
+				<motion.div variants={itemVariants} className="col-span-1">
+					<KPICard
+						title="Low Stock"
+						value={data.lowStockItems}
+						icon={AlertTriangleIcon}
+						colorClass="from-rose-500/10 to-transparent"
+					/>
+				</motion.div>
+				<motion.div variants={itemVariants} className="col-span-1">
+					<KPICard
+						title="Expiring Soon"
+						value={data.expiringSoon}
+						icon={TimerIcon}
+						colorClass="from-orange-500/10 to-transparent"
+					/>
+				</motion.div>
+				<motion.div variants={itemVariants} className="col-span-1">
+					<KPICard
+						title="Dead Stock"
+						value={data.deadStock}
+						icon={SkullIcon}
+						colorClass="from-zinc-500/10 to-transparent"
+					/>
+				</motion.div>
+				<motion.div variants={itemVariants} className="col-span-1">
+					<KPICard
+						title="Accuracy"
+						value={`${data.stockAccuracy}%`}
+						icon={TargetIcon}
+						colorClass="from-indigo-500/10 to-transparent"
+					/>
+				</motion.div>
+				<motion.div variants={itemVariants} className="col-span-1">
+					<KPICard
+						title="Avg Stock Days"
+						value={data.averageStockDays}
+						icon={CalendarDaysIcon}
+						colorClass="from-purple-500/10 to-transparent"
+					/>
+				</motion.div>
+			</motion.div>
 
-				<Card className="border-none bg-gradient-to-br from-yellow-50 to-amber-50 shadow-sm dark:from-slate-800 dark:to-slate-900">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-medium text-gray-600 text-sm dark:text-gray-300">
-							Low Stock Alerts
-						</CardTitle>
-						<AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-					</CardHeader>
-					<CardContent>
-						<div className="font-bold text-3xl text-gray-900 dark:text-white">
-							{isLoading ? <Skeleton className="h-8 w-16" /> : lowStockCount}
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card className="border-none bg-gradient-to-br from-red-50 to-rose-50 shadow-sm dark:from-slate-800 dark:to-slate-900">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-medium text-gray-600 text-sm dark:text-gray-300">
-							Out of Stock
-						</CardTitle>
-						<AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-					</CardHeader>
-					<CardContent>
-						<div className="font-bold text-3xl text-gray-900 dark:text-white">
-							{isLoading ? <Skeleton className="h-8 w-16" /> : outOfStockCount}
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card className="border-none bg-gradient-to-br from-green-50 to-emerald-50 shadow-sm dark:from-slate-800 dark:to-slate-900">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-medium text-gray-600 text-sm dark:text-gray-300">
-							Total Stock Value
-						</CardTitle>
-						<span className="flex h-5 w-5 items-center justify-center font-bold text-green-600 text-lg dark:text-green-400">
-							₹
-						</span>
-					</CardHeader>
-					<CardContent>
-						<div className="font-bold text-3xl text-gray-900 dark:text-white">
-							{isLoading ? <Skeleton className="h-8 w-16" /> : "1.2M"}
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-
-			{/* Data Table */}
-			<Card className="border-gray-200 shadow-sm dark:border-gray-800">
-				<CardHeader className="border-gray-100 border-b pb-4 dark:border-gray-800">
-					<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-						<CardTitle className="text-lg">Current Stock Levels</CardTitle>
-						<div className="flex w-full gap-2 sm:w-auto">
-							<div className="relative flex-1 sm:w-64">
-								<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
-								<input
-									type="text"
-									placeholder="Search SKU or product..."
-									className="w-full rounded-md border border-gray-200 py-2 pr-4 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900"
-								/>
-							</div>
-							<Button variant="outline" size="icon">
-								<Filter className="h-4 w-4 text-gray-500" />
-							</Button>
-						</div>
-					</div>
-				</CardHeader>
-				<CardContent className="p-0">
-					<div ref={parentRef} className="overflow-x-auto overflow-y-auto max-h-[600px]">
-						<table className="w-full text-left text-sm relative">
-							<thead className="border-gray-200 border-b bg-gray-50 font-medium text-gray-500 sticky top-0 z-10 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
-								<tr>
-									<th className="px-6 py-4">Product Info</th>
-									<th className="px-6 py-4">Branch Location</th>
-									<th className="px-6 py-4 text-right">Qty on Hand</th>
-									<th className="px-6 py-4 text-right">Reorder Level</th>
-									<th className="px-6 py-4 text-center">Status</th>
-									<th className="px-6 py-4 text-right">Actions</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-								{isLoading
-									? Array(5)
-											.fill(0)
-											.map((_, i) => (
-												<tr key={i}>
-													<td className="px-6 py-4">
-														<Skeleton className="h-10 w-48" />
-													</td>
-													<td className="px-6 py-4">
-														<Skeleton className="h-6 w-32" />
-													</td>
-													<td className="px-6 py-4">
-														<Skeleton className="ml-auto h-6 w-16" />
-													</td>
-													<td className="px-6 py-4">
-														<Skeleton className="ml-auto h-6 w-16" />
-													</td>
-													<td className="px-6 py-4">
-														<Skeleton className="mx-auto h-6 w-20" />
-													</td>
-													<td className="px-6 py-4">
-														<Skeleton className="ml-auto h-6 w-16" />
-													</td>
-												</tr>
-											))
-									: (
-										<>
-											{paddingTop > 0 && <tr><td colSpan={6} style={{ height: `${paddingTop}px` }} /></tr>}
-											{virtualItems.map((virtualRow) => {
-												const item = items[virtualRow.index];
-												return (
-													<motion.tr
-														key={item.id}
-														initial={{ opacity: 0 }}
-														animate={{ opacity: 1 }}
-														className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50"
-													>
-												<td className="px-6 py-4">
-													<div className="font-medium text-gray-900 dark:text-gray-100">
-														{item.product}
-													</div>
-													<div className="mt-1 font-mono text-gray-500 text-xs">
-														{item.sku}
-													</div>
-												</td>
-												<td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-													{item.branch}
-												</td>
-												<td className="px-6 py-4 text-right font-medium text-gray-900 dark:text-gray-100">
-													{item.qty_on_hand}
-												</td>
-												<td className="px-6 py-4 text-right text-gray-500">
-													{item.reorder_level}
-												</td>
-												<td className="px-6 py-4 text-center">
-													<Badge
-														variant="outline"
-														className={
-															item.status === "in_stock"
-																? "border-green-200 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-																: item.status === "low_stock"
-																	? "border-yellow-200 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400"
-																	: "border-red-200 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
-														}
-													>
-														{item.status.replace("_", " ").toUpperCase()}
-													</Badge>
-												</td>
-												<td className="px-6 py-4 text-right">
-													<Button
-														variant="ghost"
-														size="sm"
-														className="h-8 font-medium text-blue-600 text-xs hover:bg-blue-50 hover:text-blue-700"
-													>
-														Update Qty
-													</Button>
-												</td>
-											</motion.tr>
-										);
-									})}
-									{paddingBottom > 0 && <tr><td colSpan={6} style={{ height: `${paddingBottom}px` }} /></tr>}
-								</>
+			{/* Main Widgets Bento Grid */}
+			<motion.div
+				variants={containerVariants}
+				initial="hidden"
+				animate="show"
+				className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+			>
+				{/* Inventory Trend */}
+				<motion.div variants={itemVariants} className="lg:col-span-2">
+					<Card className="flex h-full flex-col border-border/50 shadow-sm">
+						<CardHeader className="pb-2">
+							<CardTitle>Inventory Value Trend</CardTitle>
+							<CardDescription>
+								Historical total stock value over time
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="min-h-[300px] flex-1">
+							{data.inventoryTrend ? (
+								<InventoryValueChart data={data.inventoryTrend} />
+							) : (
+								<div className="flex h-full items-center justify-center text-muted-foreground">
+									No trend data
+								</div>
 							)}
-							</tbody>
-						</table>
-					</div>
-				</CardContent>
-			</Card>
+						</CardContent>
+					</Card>
+				</motion.div>
+
+				{/* Category Distribution */}
+				<motion.div variants={itemVariants}>
+					<Card className="h-full border-border/50 shadow-sm">
+						<CardHeader>
+							<CardTitle>Category Distribution</CardTitle>
+							<CardDescription>Stock allocation by category</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{data.categoryDistribution ? (
+								<InventoryCategoryChart data={data.categoryDistribution} />
+							) : (
+								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
+									No data
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				</motion.div>
+
+				{/* ABC Analysis */}
+				<motion.div variants={itemVariants}>
+					<Card className="h-full border-border/50 shadow-sm">
+						<CardHeader>
+							<CardTitle>ABC Classification</CardTitle>
+							<CardDescription>Value vs Volume ratio</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{data.abcAnalysis ? (
+								<InventoryAbcChart data={data.abcAnalysis} />
+							) : (
+								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
+									No data
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				</motion.div>
+
+				{/* Warehouse Distribution */}
+				<motion.div variants={itemVariants}>
+					<Card className="h-full border-border/50 shadow-sm">
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Building2Icon className="h-5 w-5 text-primary" /> Warehouse
+								Distribution
+							</CardTitle>
+							<CardDescription>Stock units across locations</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{data.warehouseDistribution ? (
+								<InventoryWarehouseChart data={data.warehouseDistribution} />
+							) : (
+								<div className="flex h-[250px] items-center justify-center text-muted-foreground">
+									No data
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				</motion.div>
+
+				{/* Top Moving & Recent Movements */}
+				<motion.div variants={itemVariants} className="flex flex-col gap-6">
+					<Card className="flex-1 border-border/50 shadow-sm">
+						<CardHeader className="pb-3">
+							<CardTitle className="flex items-center gap-2 text-base">
+								<ActivityIcon className="h-4 w-4 text-primary" /> Top Moving
+								Items
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{data.topMovingItems?.map((item: any, idx: number) => (
+								<div
+									key={idx}
+									className="flex items-center justify-between rounded p-2 transition-colors hover:bg-muted/50"
+								>
+									<div>
+										<h4 className="font-medium text-sm">{item.name}</h4>
+										<p className="text-[10px] text-muted-foreground">
+											{item.category}
+										</p>
+									</div>
+									<div className="text-right">
+										<div className="font-bold text-emerald-600 text-sm">
+											{item.turns}x
+										</div>
+										<div className="text-[10px] text-muted-foreground uppercase">
+											Turns/Yr
+										</div>
+									</div>
+								</div>
+							))}
+						</CardContent>
+					</Card>
+
+					<Card className="flex-1 border-border/50 shadow-sm">
+						<CardHeader className="pb-3">
+							<CardTitle className="flex items-center gap-2 text-base">
+								<ArrowRightLeftIcon className="h-4 w-4 text-primary" /> Recent
+								Movements
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-3">
+							{data.recentMovements?.map((move: any) => (
+								<div
+									key={move.id}
+									className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-colors hover:border-primary/30"
+								>
+									<div
+										className={`mt-0.5 flex-shrink-0 rounded px-2 py-0.5 font-bold text-[10px] uppercase tracking-wider ${
+											move.type === "in"
+												? "bg-emerald-500/10 text-emerald-500"
+												: move.type === "out"
+													? "bg-rose-500/10 text-rose-500"
+													: "bg-blue-500/10 text-blue-500"
+										}`}
+									>
+										{move.type}
+									</div>
+									<div className="min-w-0 flex-1">
+										<div className="flex justify-between">
+											<h4 className="truncate pr-2 font-medium text-sm leading-tight">
+												{move.product}
+											</h4>
+											<span
+												className={`font-bold text-sm ${move.qty > 0 ? "text-emerald-500" : "text-rose-500"}`}
+											>
+												{move.qty > 0 ? "+" : ""}
+												{move.qty}
+											</span>
+										</div>
+										<p className="mt-1 text-[10px] text-muted-foreground">
+											{move.time}
+										</p>
+									</div>
+								</div>
+							))}
+						</CardContent>
+					</Card>
+				</motion.div>
+			</motion.div>
 		</div>
 	);
 }

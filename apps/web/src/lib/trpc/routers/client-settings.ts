@@ -1,3 +1,4 @@
+import { userRoles } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -822,7 +823,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: `MODULE_${input.is_active ? "ENABLED" : "DISABLED"}`,
 				entity_type: "modules",
 				entity_id: input.module_id,
@@ -856,7 +857,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "MODULE_CREATED",
 				entity_type: "modules",
 				entity_id: created.id,
@@ -906,7 +907,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "PERMISSION_CREATED",
 				entity_type: "module_permissions",
 				entity_id: created.id,
@@ -933,13 +934,13 @@ export const clientSettingsRouter = router({
 
 			const [updated] = await ctx.db
 				.update(modulePermissions)
-				.set({ ...data, updated_at: new Date() })
+				.set({ ...data })
 				.where(eq(modulePermissions.id, id))
 				.returning();
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "PERMISSION_UPDATED",
 				entity_type: "module_permissions",
 				entity_id: id,
@@ -998,7 +999,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_CREATED",
 				entity_type: "roles",
 				entity_id: created.id,
@@ -1026,13 +1027,13 @@ export const clientSettingsRouter = router({
 
 			const [updated] = await ctx.db
 				.update(roles)
-				.set({ ...data, updated_at: new Date() })
+				.set({ ...data })
 				.where(eq(roles.id, id))
 				.returning();
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_UPDATED",
 				entity_type: "roles",
 				entity_id: id,
@@ -1056,7 +1057,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_DELETED",
 				entity_type: "roles",
 				entity_id: input.id,
@@ -1117,7 +1118,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_CLONED",
 				entity_type: "roles",
 				entity_id: cloned.id,
@@ -1180,7 +1181,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_PERMISSIONS_UPDATED",
 				entity_type: "role_permissions",
 				entity_id: input.role_id,
@@ -1221,7 +1222,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_PERMISSIONS_RESET",
 				entity_type: "role_permissions",
 				entity_id: input.role_id,
@@ -1287,7 +1288,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "STAFF_CREATED",
 				entity_type: "staff",
 				entity_id: created.id,
@@ -1317,13 +1318,13 @@ export const clientSettingsRouter = router({
 
 			const [updated] = await ctx.db
 				.update(staff)
-				.set({ ...data, updated_at: new Date() })
+				.set({ ...data })
 				.where(and(eq(staff.id, id), eq(staff.is_deleted, false)))
 				.returning();
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "STAFF_UPDATED",
 				entity_type: "staff",
 				entity_id: id,
@@ -1348,7 +1349,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "STAFF_DELETED",
 				entity_type: "staff",
 				entity_id: input.id,
@@ -1384,7 +1385,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_ASSIGNED_TO_USER",
 				entity_type: "user_roles",
 				entity_id: assigned.id,
@@ -1417,7 +1418,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_REMOVED_FROM_USER",
 				entity_type: "user_roles",
 				entity_id: removed?.id || 0,
@@ -1499,7 +1500,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "ROLE_MODULE_ACCESS_UPDATED",
 				entity_type: "role_module_access",
 				new_values: {
@@ -1559,7 +1560,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "CLIENT_SETTING_UPDATED",
 				entity_type: "client_settings",
 				entity_id: updated.id,
@@ -1610,7 +1611,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "SYSTEM_SETTING_UPDATED",
 				entity_type: "system_settings",
 				entity_id: updated.id,
@@ -1663,7 +1664,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "APPROVAL_WORKFLOW_CREATED",
 				entity_type: "approval_workflows",
 				entity_id: created.id,
@@ -1693,13 +1694,13 @@ export const clientSettingsRouter = router({
 
 			const [updated] = await ctx.db
 				.update(approvalWorkflows)
-				.set({ ...data, updated_at: new Date() })
+				.set({ ...data })
 				.where(eq(approvalWorkflows.id, id))
 				.returning();
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "APPROVAL_WORKFLOW_UPDATED",
 				entity_type: "approval_workflows",
 				entity_id: id,
@@ -1733,7 +1734,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "APPROVAL_RULE_ADDED",
 				entity_type: "approval_rules",
 				entity_id: created.id,
@@ -1786,7 +1787,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "NOTIFICATION_TEMPLATE_CREATED",
 				entity_type: "notification_templates",
 				entity_id: created.id,
@@ -1814,7 +1815,7 @@ export const clientSettingsRouter = router({
 
 			const [updated] = await ctx.db
 				.update(notificationTemplates)
-				.set({ ...data, updated_at: new Date() })
+				.set({ ...data })
 				.where(eq(notificationTemplates.id, id))
 				.returning();
 
