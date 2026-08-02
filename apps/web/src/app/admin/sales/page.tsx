@@ -1,5 +1,3 @@
-"use client";
-
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -8,7 +6,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -17,7 +14,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { motion } from "framer-motion";
 import {
 	IndianRupeeIcon,
 	PackageIcon,
@@ -26,20 +22,22 @@ import {
 	TrendingUpIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { trpc } from "@/lib/trpc/client";
+import { getServerClient } from "@/lib/trpc/serverClient";
+import { formatCurrency } from "@/lib/utils";
 
 const statusBadge = (status: string | null | undefined) => {
 	if (status === "completed" || status === "delivered")
-		return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+		return <Badge className="bg-gray-100 text-gray-900 border-0">Completed</Badge>;
 	if (status === "cancelled")
-		return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+		return <Badge className="bg-gray-100 text-gray-500 border-0">Cancelled</Badge>;
 	if (status === "processing")
-		return <Badge className="bg-blue-100 text-blue-800">Processing</Badge>;
-	return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+		return <Badge className="bg-gray-100 text-gray-700 border-0">Processing</Badge>;
+	return <Badge className="bg-gray-100 text-gray-500 border-0">Pending</Badge>;
 };
 
-export default function SalesPage() {
-	const { data: orders, isLoading } = trpc.orders.list.useQuery();
+export default async function SalesPage() {
+	const serverClient = await getServerClient();
+	const orders = await serverClient.orders.list().catch(() => []);
 
 	const items = Array.isArray(orders) ? orders : [];
 	const total = items.reduce(
@@ -56,50 +54,37 @@ export default function SalesPage() {
 			label: "Total Orders",
 			value: items.length.toString(),
 			icon: ShoppingCartIcon,
-			color: "text-blue-600",
-			bg: "bg-blue-50",
 		},
 		{
 			label: "Total Revenue",
-			value: `₹${total.toLocaleString("en-IN")}`,
+			value: formatCurrency(total, "en-IN"),
 			icon: IndianRupeeIcon,
-			color: "text-green-600",
-			bg: "bg-green-50",
 		},
 		{
 			label: "Avg. Order Value",
-			value: `₹${avg.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
+			value: formatCurrency(avg, "en-IN"),
 			icon: TrendingUpIcon,
-			color: "text-purple-600",
-			bg: "bg-purple-50",
 		},
 		{
 			label: "Completed",
 			value: completed.length.toString(),
 			icon: PackageIcon,
-			color: "text-teal-600",
-			bg: "bg-teal-50",
 		},
 	];
 
 	return (
-		<motion.div
-			className="space-y-6 p-6"
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.4 }}
-		>
+		<div className="space-y-6 p-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text font-bold text-3xl text-transparent">
+					<h1 className="font-bold text-3xl text-gray-900">
 						Sales
 					</h1>
-					<p className="mt-1 text-muted-foreground text-sm">
+					<p className="mt-1 text-gray-500 text-sm">
 						Track all sales orders and revenue
 					</p>
 				</div>
 				<Link href="/admin/pos">
-					<Button className="gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
+					<Button className="gap-2 bg-gray-900 text-white hover:bg-gray-800">
 						<PlusIcon className="h-4 w-4" />
 						New Sale (POS)
 					</Button>
@@ -107,108 +92,74 @@ export default function SalesPage() {
 			</div>
 
 			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-				{kpis.map((kpi, i) => (
-					<motion.div
-						key={kpi.label}
-						initial={{ opacity: 0, scale: 0.95 }}
-						animate={{ opacity: 1, scale: 1 }}
-						transition={{ delay: i * 0.07 }}
-					>
-						<Card className="border-0 shadow-sm">
-							<CardContent className="pt-6">
-								<div className="flex items-center gap-3">
-									<div className={`${kpi.bg} rounded-lg p-2`}>
-										<kpi.icon className={`h-5 w-5 ${kpi.color}`} />
-									</div>
-									<div>
-										<p className="text-muted-foreground text-sm">{kpi.label}</p>
-										{isLoading ? (
-											<Skeleton className="mt-1 h-6 w-20" />
-										) : (
-											<p className="font-bold text-xl">{kpi.value}</p>
-										)}
-									</div>
+				{kpis.map((kpi) => (
+					<Card key={kpi.label} className="border border-gray-200 shadow-sm">
+						<CardContent className="pt-6">
+							<div className="flex items-center gap-3">
+								<div className="bg-gray-100 rounded-lg p-2">
+									<kpi.icon className="h-5 w-5 text-gray-900" />
 								</div>
-							</CardContent>
-						</Card>
-					</motion.div>
+								<div>
+									<p className="text-gray-500 text-sm">{kpi.label}</p>
+									<p className="font-bold text-xl text-gray-900">{kpi.value}</p>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
 				))}
 			</div>
 
-			<Card className="border-0 shadow-sm">
+			<Card className="border border-gray-200 shadow-sm">
 				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<ShoppingCartIcon className="h-5 w-5 text-teal-600" />
+					<CardTitle className="flex items-center gap-2 text-gray-900">
+						<ShoppingCartIcon className="h-5 w-5 text-gray-900" />
 						Sales Orders
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{isLoading ? (
-						<div className="space-y-3">
-							{[...Array(6)].map((_, i) => (
-								<Skeleton key={i} className="h-12 w-full" />
-							))}
-						</div>
-					) : (
+					<div className="rounded-md border border-gray-200">
 						<Table>
-							<TableHeader>
+							<TableHeader className="bg-gray-50">
 								<TableRow>
-									<TableHead>Order ID</TableHead>
-									<TableHead>Customer</TableHead>
-									<TableHead>Date</TableHead>
-									<TableHead>Total Amount</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Actions</TableHead>
+									<TableHead className="text-gray-900">Order ID</TableHead>
+									<TableHead className="text-gray-900">Customer</TableHead>
+									<TableHead className="text-gray-900">Status</TableHead>
+									<TableHead className="text-right text-gray-900">Amount</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{items.length === 0 ? (
 									<TableRow>
-										<TableCell
-											colSpan={6}
-											className="py-10 text-center text-muted-foreground"
-										>
-											No orders found. Create your first sale from POS.
+										<TableCell colSpan={4} className="h-24 text-center text-gray-500">
+											No orders found.
 										</TableCell>
 									</TableRow>
 								) : (
 									items.map((order) => (
-										<TableRow key={order.id} className="hover:bg-muted/30">
-											<TableCell className="font-medium font-mono">
-												ORD-{order.id}
+										<TableRow key={order.id}>
+											<TableCell className="font-medium text-gray-900">
+												<Link 
+													href={`/admin/orders/${order.id}`}
+													className="hover:underline"
+												>
+													#{order.id.toString().padStart(4, "0")}
+												</Link>
 											</TableCell>
-											<TableCell>
-												{order.customer?.name ?? "Walk-in Customer"}
-											</TableCell>
-											<TableCell>
-												{order.created_at
-													? new Date(order.created_at).toLocaleDateString(
-															"en-IN",
-														)
-													: "—"}
-											</TableCell>
-											<TableCell className="font-semibold">
-												₹
-												{Number.parseFloat(
-													order.total_amount ?? "0",
-												).toLocaleString("en-IN")}
+											<TableCell className="text-gray-900">
+												{order.customers?.name || "Walk-in Customer"}
 											</TableCell>
 											<TableCell>{statusBadge(order.status)}</TableCell>
-											<TableCell>
-												<Link href={`/admin/orders/${order.id}`}>
-													<Button size="sm" variant="outline">
-														View
-													</Button>
-												</Link>
+											<TableCell className="text-right font-medium text-gray-900">
+												{formatCurrency(Number(order.total_amount || 0), "en-IN")}
 											</TableCell>
 										</TableRow>
 									))
 								)}
 							</TableBody>
 						</Table>
-					)}
+					</div>
 				</CardContent>
 			</Card>
-		</motion.div>
+		</div>
 	);
 }

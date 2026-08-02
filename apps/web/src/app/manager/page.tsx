@@ -1,5 +1,3 @@
-"use client";
-
 import {
 	Card,
 	CardContent,
@@ -7,8 +5,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { motion } from "framer-motion";
 import {
 	ActivityIcon,
 	AlertTriangleIcon,
@@ -25,11 +21,10 @@ import {
 	UsersIcon,
 	WalletIcon,
 } from "lucide-react";
-import { useBranch } from "@/lib/branch-context";
-import { trpc } from "@/lib/trpc/client";
+import { cookies } from "next/headers";
+import { getServerClient } from "@/lib/trpc/serverClient";
 import { formatCurrency } from "@/lib/utils";
 
-// Premium Animated KPI Card
 function KPICard({
 	title,
 	value,
@@ -37,7 +32,6 @@ function KPICard({
 	trend,
 	trendValue,
 	trendIsPositive,
-	colorClass,
 }: {
 	title: string;
 	value: string | number;
@@ -45,33 +39,27 @@ function KPICard({
 	trend?: string;
 	trendValue?: string;
 	trendIsPositive?: boolean;
-	colorClass: string;
 }) {
 	return (
-		<Card className="group relative overflow-hidden border-border/50 bg-gradient-to-br from-background to-background/50 shadow-sm">
-			<div
-				className={`absolute inset-0 bg-gradient-to-r ${colorClass} opacity-0 transition-opacity group-hover:opacity-100`}
-			/>
+		<Card className="shadow-sm">
 			<CardContent className="p-5">
 				<div className="flex items-center justify-between">
-					<div className="rounded-lg bg-muted p-2.5 text-muted-foreground transition-colors group-hover:bg-background group-hover:text-primary">
+					<div className="rounded-lg bg-gray-100 p-2.5 text-gray-900">
 						<Icon className="h-5 w-5" />
 					</div>
 					{trendValue && (
-						<div
-							className={`flex items-center rounded-full px-2 py-0.5 font-medium text-xs ${trendIsPositive ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}
-						>
+						<div className="text-gray-900 font-medium text-xs">
 							{trendIsPositive ? "↑" : "↓"} {trendValue}
 						</div>
 					)}
 				</div>
 				<div className="mt-3">
-					<p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+					<p className="font-medium text-gray-500 text-xs uppercase tracking-wider">
 						{title}
 					</p>
-					<h3 className="mt-1 font-bold text-xl tracking-tight">{value}</h3>
+					<h3 className="mt-1 font-bold text-xl text-gray-900 tracking-tight">{value}</h3>
 					{trend && (
-						<p className="mt-1 text-[10px] text-muted-foreground">{trend}</p>
+						<p className="mt-1 text-[10px] text-gray-500">{trend}</p>
 					)}
 				</div>
 			</CardContent>
@@ -79,176 +67,96 @@ function KPICard({
 	);
 }
 
-export default function BranchManagerDashboard() {
-	const { activeBranchId } = useBranch();
+export default async function BranchManagerDashboard() {
+	const branchCookie = cookies().get("evaluna.branch_context")?.value;
+	const activeBranchId = branchCookie ? Number(branchCookie) : undefined;
 
-	const { data, isLoading } = trpc.dashboard.getKpis.useQuery(
-		activeBranchId ? { branch_id: activeBranchId } : {},
-		{ staleTime: 30_000, refetchOnWindowFocus: false },
+	const serverClient = await getServerClient();
+	const data = await serverClient.dashboard.getKpis(
+		activeBranchId ? { branch_id: activeBranchId } : {}
 	);
 
-	if (isLoading || !data) {
-		return (
-			<div className="space-y-6">
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-					<Skeleton className="h-32 w-full rounded-xl" />
-					<Skeleton className="h-32 w-full rounded-xl" />
-					<Skeleton className="h-32 w-full rounded-xl" />
-					<Skeleton className="h-32 w-full rounded-xl" />
-				</div>
-				<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-					<Skeleton className="h-64 w-full rounded-xl" />
-					<Skeleton className="h-64 w-full rounded-xl" />
-				</div>
-			</div>
-		);
-	}
-
-	const containerVariants = {
-		hidden: { opacity: 0 },
-		show: {
-			opacity: 1,
-			transition: { staggerChildren: 0.04 },
-		},
-	};
-
-	const itemVariants = {
-		hidden: { opacity: 0, y: 10 },
-		show: {
-			opacity: 1,
-			y: 0,
-			transition: { type: "spring", stiffness: 300, damping: 24 },
-		},
-	};
+	if (!data) return <div>No data available</div>;
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
 			<div>
-				<h1 className="font-bold text-2xl tracking-tight">Branch Operations</h1>
-				<p className="mt-1 text-muted-foreground text-sm">
+				<h1 className="font-bold text-2xl text-gray-900 tracking-tight">Branch Operations</h1>
+				<p className="mt-1 text-gray-500 text-sm">
 					Real-time metrics for your branch.
 				</p>
 			</div>
 
-			{/* KPIs Grid */}
-			<motion.div
-				variants={containerVariants}
-				initial="hidden"
-				animate="show"
-				className="grid grid-cols-2 gap-4 lg:grid-cols-4"
-			>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Today's Sales"
-						value={formatCurrency(data.todaySales, "en-IN")}
-						icon={DollarSignIcon}
-						trend="vs yesterday"
-						trendValue="12%"
-						trendIsPositive={true}
-						colorClass="from-blue-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Today's Bills"
-						value={data.todayOrders || 0}
-						icon={ShoppingCartIcon}
-						trend="vs yesterday"
-						trendValue="5%"
-						trendIsPositive={true}
-						colorClass="from-indigo-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Net Profit"
-						value={formatCurrency(data.todayProfit, "en-IN")}
-						icon={TrendingUpIcon}
-						trendValue="8%"
-						trendIsPositive={data.todayProfit >= 0}
-						colorClass="from-emerald-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Footfall"
-						value={data.footfall || 0}
-						icon={UsersIcon}
-						colorClass="from-orange-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Pending Orders"
-						value={data.pendingDeliveries || 0}
-						icon={ClockIcon}
-						colorClass="from-amber-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Orders Ready"
-						value={data.ordersReady || 0}
-						icon={CheckCircle2Icon}
-						colorClass="from-emerald-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Delivery Pending"
-						value={data.pendingDeliveries || 0}
-						icon={TruckIcon}
-						colorClass="from-cyan-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div variants={itemVariants}>
-					<KPICard
-						title="Returns"
-						value={data.returnsCount || 0}
-						icon={RotateCcwIcon}
-						trendValue="Action needed"
-						trendIsPositive={false}
-						colorClass="from-rose-500/10 to-transparent"
-					/>
-				</motion.div>
-			</motion.div>
+			<div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+				<KPICard
+					title="Today's Sales"
+					value={formatCurrency(data.todaySales, "en-IN")}
+					icon={DollarSignIcon}
+					trend="vs yesterday"
+					trendValue="12%"
+					trendIsPositive={true}
+				/>
+				<KPICard
+					title="Today's Bills"
+					value={data.todayOrders || 0}
+					icon={ShoppingCartIcon}
+					trend="vs yesterday"
+					trendValue="5%"
+					trendIsPositive={true}
+				/>
+				<KPICard
+					title="Net Profit"
+					value={formatCurrency(data.todayProfit, "en-IN")}
+					icon={TrendingUpIcon}
+					trendValue="8%"
+					trendIsPositive={data.todayProfit >= 0}
+				/>
+				<KPICard
+					title="Footfall"
+					value={data.footfall || 0}
+					icon={UsersIcon}
+				/>
+				<KPICard
+					title="Pending Orders"
+					value={data.pendingDeliveries || 0}
+					icon={ClockIcon}
+				/>
+				<KPICard
+					title="Orders Ready"
+					value={data.ordersReady || 0}
+					icon={CheckCircle2Icon}
+				/>
+				<KPICard
+					title="Delivery Pending"
+					value={data.pendingDeliveries || 0}
+					icon={TruckIcon}
+				/>
+				<KPICard
+					title="Returns"
+					value={data.returnsCount || 0}
+					icon={RotateCcwIcon}
+					trendValue="Action needed"
+					trendIsPositive={false}
+				/>
+			</div>
 
-			{/* Main Widgets Bento Grid */}
-			<motion.div
-				variants={containerVariants}
-				initial="hidden"
-				animate="show"
-				className="grid grid-cols-1 gap-6 lg:grid-cols-3"
-			>
-				{/* Today's Timeline */}
-				<motion.div variants={itemVariants} className="lg:col-span-1">
-					<Card className="flex h-full flex-col border-border/50 shadow-sm">
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				<div className="lg:col-span-1">
+					<Card className="flex h-full flex-col shadow-sm">
 						<CardHeader className="pb-4">
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<ActivityIcon className="h-5 w-5 text-primary" /> Today's
+							<CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+								<ActivityIcon className="h-5 w-5 text-gray-900" /> Today's
 								Timeline
 							</CardTitle>
-							<CardDescription>Live feed of branch operations</CardDescription>
+							<CardDescription className="text-gray-500">Live feed of branch operations</CardDescription>
 						</CardHeader>
 						<CardContent className="flex-1">
-							<div className="relative ml-3 space-y-6 border-muted border-l-2">
-								{data.todayTimeline?.map((item: any, _i: number) => (
+							<div className="relative ml-3 space-y-6 border-l-2 border-gray-200">
+								{data.todayTimeline?.map((item: any) => (
 									<div key={item.id} className="relative pl-6">
-										<div
-											className={`absolute top-1 -left-[9px] h-4 w-4 rounded-full border-2 border-background ${
-												item.type === "system"
-													? "bg-blue-500"
-													: item.type === "delivery"
-														? "bg-amber-500"
-														: item.type === "alert"
-															? "bg-rose-500"
-															: item.type === "finance"
-																? "bg-emerald-500"
-																: "bg-purple-500"
-											}`}
-										/>
-										<h4 className="font-semibold text-sm">{item.title}</h4>
-										<p className="mt-0.5 text-muted-foreground text-xs">
+										<div className="absolute top-1 -left-[9px] h-4 w-4 rounded-full border-2 border-white bg-gray-400" />
+										<h4 className="font-semibold text-sm text-gray-900">{item.title}</h4>
+										<p className="mt-0.5 text-xs text-gray-500">
 											{item.time}
 										</p>
 									</div>
@@ -256,29 +164,25 @@ export default function BranchManagerDashboard() {
 							</div>
 						</CardContent>
 					</Card>
-				</motion.div>
+				</div>
 
-				{/* Top Selling Products & Low Stock */}
-				<motion.div
-					variants={itemVariants}
-					className="flex flex-col gap-6 lg:col-span-1"
-				>
-					<Card className="flex-1 border-border/50 shadow-sm">
+				<div className="flex flex-col gap-6 lg:col-span-1">
+					<Card className="flex-1 shadow-sm">
 						<CardHeader className="pb-3">
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<PackageIcon className="h-5 w-5 text-primary" /> Top Products
+							<CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+								<PackageIcon className="h-5 w-5 text-gray-900" /> Top Products
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							{data.topSellingProducts?.map((product: any, idx: number) => (
 								<div key={idx} className="flex items-center justify-between">
 									<div>
-										<h4 className="font-medium text-sm">{product.name}</h4>
-										<p className="text-muted-foreground text-xs">
+										<h4 className="font-medium text-sm text-gray-900">{product.name}</h4>
+										<p className="text-xs text-gray-500">
 											{product.quantity} sold
 										</p>
 									</div>
-									<div className="font-semibold text-emerald-600 text-sm">
+									<div className="font-semibold text-sm text-gray-900">
 										{formatCurrency(product.revenue, "en-IN")}
 									</div>
 								</div>
@@ -286,54 +190,50 @@ export default function BranchManagerDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-border/50 border-rose-500/20 bg-rose-500/5 shadow-sm">
+					<Card className="shadow-sm border border-gray-200">
 						<CardHeader className="pb-2">
-							<CardTitle className="flex items-center gap-2 text-base text-rose-600">
+							<CardTitle className="flex items-center gap-2 text-base text-gray-900">
 								<AlertTriangleIcon className="h-4 w-4" /> Low Stock Alerts
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="font-bold text-2xl text-rose-700">
+							<div className="font-bold text-2xl text-gray-900">
 								{data.lowStockCount || 0} Items
 							</div>
-							<p className="mt-1 text-rose-600/80 text-xs">
+							<p className="mt-1 text-xs text-gray-500">
 								Requires immediate re-ordering.
 							</p>
 						</CardContent>
 					</Card>
-				</motion.div>
+				</div>
 
-				{/* Staff & Cash */}
-				<motion.div
-					variants={itemVariants}
-					className="flex flex-col gap-6 lg:col-span-1"
-				>
-					<Card className="flex-1 border-border/50 shadow-sm">
+				<div className="flex flex-col gap-6 lg:col-span-1">
+					<Card className="flex-1 shadow-sm">
 						<CardHeader className="pb-3">
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<UsersIcon className="h-5 w-5 text-primary" /> Staff Performance
+							<CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+								<UsersIcon className="h-5 w-5 text-gray-900" /> Staff Performance
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							{data.staffPerformance?.map((staff: any, idx: number) => (
 								<div key={idx} className="flex items-center gap-3">
-									<div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-xs">
+									<div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-bold text-xs text-gray-900">
 										{staff.name.charAt(0)}
 									</div>
 									<div className="min-w-0 flex-1">
-										<h4 className="truncate font-medium text-sm">
+										<h4 className="truncate font-medium text-sm text-gray-900">
 											{staff.name}
 										</h4>
-										<p className="text-[10px] text-muted-foreground">
+										<p className="text-[10px] text-gray-500">
 											{staff.role}
 										</p>
 									</div>
 									<div className="text-right">
-										<div className="font-semibold text-xs">
+										<div className="font-semibold text-xs text-gray-900">
 											{formatCurrency(staff.sales, "en-IN")}
 										</div>
-										<div className="flex items-center justify-end text-[10px] text-amber-500">
-											<StarIcon className="mr-0.5 h-3 w-3 fill-current" />{" "}
+										<div className="flex items-center justify-end text-[10px] text-gray-500">
+											<StarIcon className="mr-0.5 h-3 w-3 fill-current text-gray-400" />{" "}
 											{staff.rating}
 										</div>
 									</div>
@@ -342,52 +242,48 @@ export default function BranchManagerDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-border/50 border-emerald-500/20 bg-emerald-500/5 shadow-sm">
+					<Card className="shadow-sm border border-gray-200">
 						<CardHeader className="pb-2">
-							<CardTitle className="flex items-center gap-2 text-base text-emerald-700">
+							<CardTitle className="flex items-center gap-2 text-base text-gray-900">
 								<WalletIcon className="h-4 w-4" /> Cash Collection
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<div className="grid grid-cols-2 gap-2 text-sm">
 								<div>
-									<p className="text-emerald-600/80 text-xs">Cash</p>
-									<p className="font-bold text-emerald-700">
+									<p className="text-xs text-gray-500">Cash</p>
+									<p className="font-bold text-gray-900">
 										{formatCurrency(data.cashCollection?.cash || 0, "en-IN")}
 									</p>
 								</div>
 								<div>
-									<p className="text-emerald-600/80 text-xs">Card</p>
-									<p className="font-bold text-emerald-700">
+									<p className="text-xs text-gray-500">Card</p>
+									<p className="font-bold text-gray-900">
 										{formatCurrency(data.cashCollection?.card || 0, "en-IN")}
 									</p>
 								</div>
 								<div>
-									<p className="text-emerald-600/80 text-xs">UPI</p>
-									<p className="font-bold text-emerald-700">
+									<p className="text-xs text-gray-500">UPI</p>
+									<p className="font-bold text-gray-900">
 										{formatCurrency(data.cashCollection?.upi || 0, "en-IN")}
 									</p>
 								</div>
 								<div>
-									<p className="text-amber-600/80 text-xs">Pending</p>
-									<p className="font-bold text-amber-700">
+									<p className="text-xs text-gray-500">Pending</p>
+									<p className="font-bold text-gray-900">
 										{formatCurrency(data.cashCollection?.pending || 0, "en-IN")}
 									</p>
 								</div>
 							</div>
 						</CardContent>
 					</Card>
-				</motion.div>
+				</div>
 
-				{/* Manager Tasks & Realtime Alerts */}
-				<motion.div
-					variants={itemVariants}
-					className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:col-span-3"
-				>
-					<Card className="h-full border-border/50 shadow-sm">
+				<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:col-span-3">
+					<Card className="h-full shadow-sm">
 						<CardHeader className="pb-4">
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<CheckSquareIcon className="h-5 w-5 text-primary" /> Manager
+							<CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+								<CheckSquareIcon className="h-5 w-5 text-gray-900" /> Manager
 								Tasks
 							</CardTitle>
 						</CardHeader>
@@ -395,29 +291,19 @@ export default function BranchManagerDashboard() {
 							{data.managerTasks?.map((task: any) => (
 								<div
 									key={task.id}
-									className="flex items-center gap-3 rounded-xl border border-border/50 p-3 transition-colors hover:bg-muted/50"
+									className="flex items-center gap-3 rounded-xl border border-gray-200 p-3"
 								>
-									<div
-										className={`flex h-4 w-4 items-center justify-center rounded border ${task.status === "completed" ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground"}`}
-									>
+									<div className="flex h-4 w-4 items-center justify-center rounded border border-gray-300">
 										{task.status === "completed" && (
-											<CheckCircle2Icon className="h-3 w-3 text-white" />
+											<CheckCircle2Icon className="h-3 w-3 text-gray-900" />
 										)}
 									</div>
 									<h4
-										className={`flex-1 font-medium text-sm ${task.status === "completed" ? "text-muted-foreground line-through" : ""}`}
+										className={`flex-1 font-medium text-sm ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-900"}`}
 									>
 										{task.title}
 									</h4>
-									<div
-										className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
-											task.priority === "high"
-												? "bg-rose-500/10 text-rose-500"
-												: task.priority === "medium"
-													? "bg-amber-500/10 text-amber-500"
-													: "bg-slate-500/10 text-slate-500"
-										}`}
-									>
+									<div className="rounded-full px-2 py-0.5 font-bold text-[10px] uppercase bg-gray-100 text-gray-900">
 										{task.priority}
 									</div>
 								</div>
@@ -425,10 +311,10 @@ export default function BranchManagerDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="h-full border-border/50 shadow-sm">
+					<Card className="h-full shadow-sm">
 						<CardHeader className="pb-4">
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<AlertTriangleIcon className="h-5 w-5 text-primary" /> Realtime
+							<CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+								<AlertTriangleIcon className="h-5 w-5 text-gray-900" /> Realtime
 								Alerts & Activities
 							</CardTitle>
 						</CardHeader>
@@ -436,19 +322,9 @@ export default function BranchManagerDashboard() {
 							{data.recentNotifications?.map((notif: any) => (
 								<div
 									key={notif.id}
-									className="group flex cursor-pointer items-start gap-4 rounded-xl p-2"
+									className="flex items-start gap-4 p-2 border-b border-gray-100 last:border-0"
 								>
-									<div
-										className={`flex-shrink-0 rounded-full p-2 ${
-											notif.type === "low_stock"
-												? "bg-rose-500/10 text-rose-500"
-												: notif.type === "approval"
-													? "bg-amber-500/10 text-amber-500"
-													: notif.type === "sale"
-														? "bg-emerald-500/10 text-emerald-500"
-														: "bg-blue-500/10 text-blue-500"
-										}`}
-									>
+									<div className="flex-shrink-0 rounded-full p-2 bg-gray-100 text-gray-900">
 										{notif.type === "low_stock" && (
 											<AlertTriangleIcon className="h-4 w-4" />
 										)}
@@ -463,13 +339,13 @@ export default function BranchManagerDashboard() {
 										)}
 									</div>
 									<div>
-										<h4 className="font-semibold text-sm transition-colors group-hover:text-primary">
+										<h4 className="font-semibold text-sm text-gray-900">
 											{notif.title}
 										</h4>
-										<p className="mt-0.5 text-muted-foreground text-xs">
+										<p className="mt-0.5 text-xs text-gray-500">
 											{notif.message}
 										</p>
-										<span className="mt-1 block text-[10px] text-muted-foreground/70">
+										<span className="mt-1 block text-[10px] text-gray-400">
 											{notif.time}
 										</span>
 									</div>
@@ -477,8 +353,8 @@ export default function BranchManagerDashboard() {
 							))}
 						</CardContent>
 					</Card>
-				</motion.div>
-			</motion.div>
+				</div>
+			</div>
 		</div>
 	);
 }

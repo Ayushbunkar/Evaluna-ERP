@@ -68,7 +68,7 @@ const companyAdminNavItems: NavItem[] = [
 	{ href: "/admin/companies", labelKey: "companies", icon: Building2Icon },
 	{ href: "/admin/users", labelKey: "users", icon: UsersIcon },
 	{ href: "/admin/roles", labelKey: "roles", icon: ShieldCheckIcon },
-	{ href: "/admin/api-keys", labelKey: "apiKeys", icon: KeyIcon },
+
 	{
 		href: "/admin/master-data",
 		labelKey: "Master Data",

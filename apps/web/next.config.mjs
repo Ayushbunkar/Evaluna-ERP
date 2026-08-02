@@ -32,6 +32,7 @@ const nextConfig = {
 	serverExternalPackages: ["@electric-sql/pglite"],
 	experimental: {
 		optimizePackageImports: ["lucide-react", "@evaluna/ui", "framer-motion"],
+		// Million.js integration will be handled via separate build step
 	},
 	typescript: {
 		ignoreBuildErrors: true,

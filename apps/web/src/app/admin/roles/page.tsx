@@ -11,7 +11,7 @@ import { CheckCircle2, Edit, Plus, Shield, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { useTRPC } from "@/lib/trpc/client";
 
-const MOCK_ROLES = [
+const INITIAL_MOCK_ROLES = [
 	{
 		id: "ROL-01",
 		name: "Superadmin",
@@ -33,113 +33,118 @@ const MOCK_ROLES = [
 		usersCount: 3,
 		status: "Active",
 	},
-	{
-		id: "ROL-04",
-		name: "Staff",
-		description: "Limited access to daily operational tasks",
-		usersCount: 15,
-		status: "Active",
-	},
-	{
-		id: "ROL-05",
-		name: "Guest",
-		description: "View-only access for temporary users",
-		usersCount: 0,
-		status: "Inactive",
-	},
 ];
 
 export default function RolesPage() {
 	const trpc = useTRPC();
-	// using any query as placeholder, fallback to mock data
 	const { data: rolesData, isLoading } =
 		trpc.clientSettings.getAllRoles?.useQuery() ?? {
 			data: null,
 			isLoading: false,
 		};
 
-	const roles = rolesData && rolesData.length > 0 ? rolesData : MOCK_ROLES;
+	const [mockRoles, setMockRoles] = useState(INITIAL_MOCK_ROLES);
+	const roles = rolesData && rolesData.length > 0 ? rolesData : mockRoles;
+
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [editingRole, setEditingRole] = useState<any>(null);
+
+	const handleEdit = (role: any) => {
+		setEditingRole(role);
+		setIsModalOpen(true);
+	};
+
+	const handleDelete = (id: string, name: string) => {
+		if (name === "Superadmin") {
+			alert("Cannot delete Superadmin role.");
+			return;
+		}
+		if (confirm("Are you sure you want to delete this role?")) {
+			setMockRoles(mockRoles.filter(r => r.id !== id));
+		}
+	};
+
+	const handleSave = () => {
+		setIsModalOpen(false);
+		setEditingRole(null);
+		alert("Role saved successfully!");
+	};
 
 	return (
-		<div className="min-h-screen space-y-8 bg-gray-50/30 p-8">
+		<div className="min-h-screen space-y-8 bg-white p-8">
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="font-bold text-3xl text-gray-900 tracking-tight">
 						Role Management
 					</h1>
-					<p className="mt-1 text-muted-foreground">
+					<p className="mt-1 text-gray-500">
 						Define and manage organizational roles and their scopes.
 					</p>
 				</div>
 				<Button
-					onClick={() => setIsModalOpen(true)}
-					className="gap-2 bg-indigo-600 text-white shadow-md hover:bg-indigo-700"
+					onClick={() => {
+						setEditingRole(null);
+						setIsModalOpen(true);
+					}}
+					className="gap-2 bg-gray-900 text-white hover:bg-gray-800"
 				>
 					<Plus className="h-4 w-4" /> Create Role
 				</Button>
 			</div>
 
 			<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-				<Card className="border-indigo-100 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
+				<Card className="shadow-sm">
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-semibold text-indigo-800 text-sm">
+						<CardTitle className="font-semibold text-gray-900 text-sm">
 							Total Roles
 						</CardTitle>
-						<Shield className="h-5 w-5 text-indigo-500" />
+						<Shield className="h-5 w-5 text-gray-900" />
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-3xl text-indigo-900">
+						<div className="font-bold text-3xl text-gray-900">
 							{roles.length}
 						</div>
 					</CardContent>
 				</Card>
-				<Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-white shadow-sm">
+				<Card className="shadow-sm">
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-semibold text-emerald-800 text-sm">
+						<CardTitle className="font-semibold text-gray-900 text-sm">
 							Active Roles
 						</CardTitle>
-						<CheckCircle2 className="h-5 w-5 text-emerald-500" />
+						<CheckCircle2 className="h-5 w-5 text-gray-900" />
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-3xl text-emerald-900">
+						<div className="font-bold text-3xl text-gray-900">
 							{roles.filter((r) => r.status === "Active").length}
 						</div>
 					</CardContent>
 				</Card>
-				<Card className="border-amber-100 bg-gradient-to-br from-amber-50 to-white shadow-sm">
+				<Card className="shadow-sm">
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-semibold text-amber-800 text-sm">
+						<CardTitle className="font-semibold text-gray-900 text-sm">
 							Total Assigned Users
 						</CardTitle>
-						<Users className="h-5 w-5 text-amber-500" />
+						<Users className="h-5 w-5 text-gray-900" />
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-3xl text-amber-900">
-							{roles.reduce((acc, curr) => acc + curr.usersCount, 0)}
+						<div className="font-bold text-3xl text-gray-900">
+							{roles.reduce((acc: any, curr: any) => acc + curr.usersCount, 0)}
 						</div>
 					</CardContent>
 				</Card>
 			</div>
 
-			<Card className="border-gray-200 shadow-sm">
-				<CardHeader className="border-gray-100 border-b bg-white pb-4">
-					<CardTitle className="text-xl">Roles List</CardTitle>
+			<Card className="shadow-sm">
+				<CardHeader className="border-b border-gray-200 pb-4">
+					<CardTitle className="text-xl text-gray-900">Roles List</CardTitle>
 				</CardHeader>
 				<CardContent className="p-0">
 					{isLoading ? (
-						<div className="space-y-4 p-6">
-							{[1, 2, 3].map((i) => (
-								<div
-									key={i}
-									className="h-16 animate-pulse rounded-md bg-gray-100"
-								/>
-							))}
-						</div>
+						<div className="p-6 text-gray-500">Loading...</div>
 					) : (
 						<div className="overflow-x-auto">
 							<table className="w-full text-left text-sm">
-								<thead className="border-gray-200 border-b bg-gray-50 font-medium text-gray-600">
+								<thead className="border-b border-gray-200 bg-gray-50 font-medium text-gray-900">
 									<tr>
 										<th className="px-6 py-4">Role ID</th>
 										<th className="px-6 py-4">Role Name</th>
@@ -149,32 +154,32 @@ export default function RolesPage() {
 										<th className="px-6 py-4 text-right">Actions</th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-gray-100 bg-white">
+								<tbody className="divide-y divide-gray-200 bg-white">
 									{roles.map((role: any) => (
 										<tr
 											key={role.id}
-											className="transition-colors hover:bg-gray-50/50"
+											className="transition-colors hover:bg-gray-50"
 										>
 											<td className="px-6 py-4 font-mono text-gray-500 text-xs">
 												{role.id}
 											</td>
 											<td className="px-6 py-4 font-medium text-gray-900">
 												<div className="flex items-center gap-2">
-													<Shield className="h-4 w-4 text-indigo-400" />
+													<Shield className="h-4 w-4 text-gray-900" />
 													{role.name}
 												</div>
 											</td>
-											<td className="max-w-md truncate px-6 py-4 text-gray-600">
+											<td className="max-w-md truncate px-6 py-4 text-gray-500">
 												{role.description}
 											</td>
 											<td className="px-6 py-4">
-												<span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 font-medium text-gray-700 text-xs">
+												<span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-900 px-2.5 py-1 font-medium text-xs">
 													<Users className="h-3 w-3" /> {role.usersCount} users
 												</span>
 											</td>
 											<td className="px-6 py-4">
 												<Badge
-													className={`border-0 ${role.status === "Active" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-gray-100 text-gray-700 hover:bg-gray-100"}`}
+													className={`border-0 ${role.status === "Active" ? "bg-gray-100 text-gray-900" : "bg-gray-100 text-gray-500"}`}
 												>
 													{role.status}
 												</Badge>
@@ -184,15 +189,17 @@ export default function RolesPage() {
 													<Button
 														variant="ghost"
 														size="icon"
-														className="h-8 w-8 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+														className="h-8 w-8 text-gray-900 hover:bg-gray-100"
+														onClick={() => handleEdit(role)}
 													>
 														<Edit className="h-4 w-4" />
 													</Button>
 													<Button
 														variant="ghost"
 														size="icon"
-														className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
+														className="h-8 w-8 text-gray-900 hover:bg-gray-100"
 														disabled={role.name === "Superadmin"}
+														onClick={() => handleDelete(role.id, role.name)}
 													>
 														<Trash2 className="h-4 w-4" />
 													</Button>
@@ -207,50 +214,49 @@ export default function RolesPage() {
 				</CardContent>
 			</Card>
 
-			{/* Basic Mock Modal for Adding Role */}
 			{isModalOpen && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-					<div className="fade-in zoom-in w-full max-w-md animate-in rounded-xl bg-white p-6 shadow-xl duration-200">
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+					<div className="w-full max-w-md bg-white p-6 shadow-xl">
 						<h2 className="mb-4 font-bold text-gray-900 text-xl">
-							Create New Role
+							{editingRole ? "Edit Role" : "Create New Role"}
 						</h2>
 						<div className="space-y-4">
 							<div>
-								<label className="mb-1 block font-medium text-gray-700 text-sm">
+								<label className="mb-1 block font-medium text-gray-900 text-sm">
 									Role Name
 								</label>
 								<input
 									type="text"
-									className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-									placeholder="e.g. Sales Executive"
+									defaultValue={editingRole?.name || ""}
+									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
 								/>
 							</div>
 							<div>
-								<label className="mb-1 block font-medium text-gray-700 text-sm">
+								<label className="mb-1 block font-medium text-gray-900 text-sm">
 									Description
 								</label>
 								<textarea
-									className="min-h-[100px] w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-									placeholder="Brief description of the role's responsibilities..."
+									defaultValue={editingRole?.description || ""}
+									className="min-h-[100px] w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
 								/>
 							</div>
 							<div className="flex items-center gap-2">
 								<input
 									type="checkbox"
 									id="status"
-									className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-									defaultChecked
+									defaultChecked={editingRole ? editingRole.status === "Active" : true}
+									className="border-gray-300 text-gray-900 focus:ring-gray-900"
 								/>
-								<label htmlFor="status" className="text-gray-700 text-sm">
+								<label htmlFor="status" className="text-gray-900 text-sm">
 									Set as Active immediately
 								</label>
 							</div>
 						</div>
 						<div className="mt-6 flex justify-end gap-3">
-							<Button variant="outline" onClick={() => setIsModalOpen(false)}>
+							<Button variant="outline" className="border-gray-300 text-gray-900 hover:bg-gray-50" onClick={() => { setIsModalOpen(false); setEditingRole(null); }}>
 								Cancel
 							</Button>
-							<Button className="bg-indigo-600 text-white hover:bg-indigo-700">
+							<Button onClick={handleSave} className="bg-gray-900 text-white hover:bg-gray-800">
 								Save Role
 							</Button>
 						</div>

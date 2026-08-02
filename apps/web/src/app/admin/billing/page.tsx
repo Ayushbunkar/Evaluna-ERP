@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -8,7 +6,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -17,7 +14,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { motion } from "framer-motion";
 import {
 	ActivityIcon,
 	BanknoteIcon,
@@ -35,8 +31,8 @@ import {
 	WalletIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useBranch } from "@/lib/branch-context";
-import { trpc } from "@/lib/trpc/client";
+import { cookies } from "next/headers";
+import { getServerClient } from "@/lib/trpc/serverClient";
 import { formatCurrency } from "@/lib/utils";
 
 const BillingSalesChart = dynamic(
@@ -44,10 +40,7 @@ const BillingSalesChart = dynamic(
 		import("@/components/charts/billing-charts").then(
 			(m) => m.BillingSalesChart,
 		),
-	{
-		ssr: false,
-		loading: () => <Skeleton className="h-[250px] w-full rounded-lg" />,
-	},
+	{ ssr: false }
 );
 
 const BillingHourlyChart = dynamic(
@@ -55,10 +48,7 @@ const BillingHourlyChart = dynamic(
 		import("@/components/charts/billing-charts").then(
 			(m) => m.BillingHourlyChart,
 		),
-	{
-		ssr: false,
-		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
-	},
+	{ ssr: false }
 );
 
 const BillingPaymentChart = dynamic(
@@ -66,52 +56,45 @@ const BillingPaymentChart = dynamic(
 		import("@/components/charts/billing-charts").then(
 			(m) => m.BillingPaymentChart,
 		),
-	{
-		ssr: false,
-		loading: () => <Skeleton className="h-[200px] w-full rounded-lg" />,
-	},
+	{ ssr: false }
 );
 
 function KPICard({
 	title,
 	value,
 	icon: Icon,
-	colorClass,
 }: {
 	title: string;
 	value: string | number;
 	icon: any;
-	colorClass: string;
 }) {
 	return (
-		<Card className="group relative overflow-hidden border-border/50 bg-gradient-to-br from-background to-background/50 shadow-sm">
-			<div
-				className={`absolute inset-0 bg-gradient-to-r ${colorClass} opacity-0 transition-opacity group-hover:opacity-100`}
-			/>
+		<Card className="shadow-sm">
 			<CardContent className="p-4">
 				<div className="flex items-center justify-between">
-					<div className="rounded-lg bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-background group-hover:text-primary">
+					<div className="rounded-lg bg-gray-100 p-2 text-gray-900">
 						<Icon className="h-4 w-4" />
 					</div>
 				</div>
 				<div className="mt-3">
-					<p className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
+					<p className="font-medium text-[10px] text-gray-500 uppercase tracking-wider">
 						{title}
 					</p>
-					<h3 className="mt-1 font-bold text-xl tracking-tight">{value}</h3>
+					<h3 className="mt-1 font-bold text-xl text-gray-900 tracking-tight">{value}</h3>
 				</div>
 			</CardContent>
 		</Card>
 	);
 }
 
-export default function BillingDashboard() {
-	const { activeBranchId } = useBranch();
+export default async function BillingDashboard() {
+	const branchCookie = cookies().get("evaluna.branch_context")?.value;
+	const activeBranchId = branchCookie ? Number(branchCookie) : undefined;
 
-	const { data, isLoading, error } = trpc.billing.getDashboardStats.useQuery(
-		activeBranchId ? { branch_id: activeBranchId } : {},
-		{ staleTime: 30_000, refetchOnWindowFocus: false },
-	);
+	const serverClient = await getServerClient();
+	const apiData = await serverClient.billing.getDashboardStats(
+		activeBranchId ? { branch_id: activeBranchId } : {}
+	).catch(() => null);
 
 	// Mock data for fallback when database is not available
 	const mockData = {
@@ -150,368 +133,253 @@ export default function BillingDashboard() {
 			{ name: "John Doe", bills: 15, revenue: 5625 },
 			{ name: "Jane Smith", bills: 12, revenue: 4500 },
 			{ name: "Mike Johnson", bills: 10, revenue: 3750 },
+			{ name: "Sarah Williams", bills: 5, revenue: 1875 },
 		],
-		recentBills: [
+		recentTransactions: [
 			{
-				id: "INV-1001",
-				customer: "Acme Corp",
-				items: 5,
-				amount: 1875,
-				status: "paid",
-				payment: "Card",
+				id: "TRX-1001",
+				time: "16:45",
+				cashier: "John Doe",
+				amount: 1250,
+				method: "Card",
+				status: "Completed",
 			},
 			{
-				id: "INV-1002",
-				customer: "Globex Inc",
-				items: 3,
-				amount: 1125,
-				status: "pending",
-				payment: "Cash",
+				id: "TRX-1002",
+				time: "16:30",
+				cashier: "Jane Smith",
+				amount: 850,
+				method: "UPI",
+				status: "Completed",
 			},
 			{
-				id: "INV-1003",
-				customer: "Wayne Enterprises",
-				items: 8,
-				amount: 3000,
-				status: "paid",
-				payment: "UPI",
+				id: "TRX-1003",
+				time: "16:15",
+				cashier: "Mike Johnson",
+				amount: 450,
+				method: "Cash",
+				status: "Completed",
 			},
 			{
-				id: "INV-1004",
-				customer: "Stark Industries",
-				items: 2,
-				amount: 750,
-				status: "paid",
-				payment: "Cash",
+				id: "TRX-1004",
+				time: "16:00",
+				cashier: "Sarah Williams",
+				amount: 2200,
+				method: "Card",
+				status: "Pending",
 			},
 			{
-				id: "INV-1005",
-				customer: "Oscorp",
-				items: 6,
-				amount: 2250,
-				status: "pending",
-				payment: "Card",
+				id: "TRX-1005",
+				time: "15:45",
+				cashier: "John Doe",
+				amount: 150,
+				method: "Cash",
+				status: "Refunded",
 			},
 		],
 	};
 
-	// Use mock data if there's an error, no data, or still loading after a short delay
-	// This ensures we always show content instead of skeletons
-	if (error || !data || isLoading) {
-		console.warn("Using mock data for billing dashboard:", error?.message);
-		data = mockData;
-	}
-
-	const containerVariants = {
-		hidden: { opacity: 0 },
-		show: {
-			opacity: 1,
-			transition: { staggerChildren: 0.04 },
-		},
-	};
-
-	const itemVariants = {
-		hidden: { opacity: 0, y: 10 },
-		show: {
-			opacity: 1,
-			y: 0,
-			transition: { type: "spring", stiffness: 300, damping: 24 },
-		},
-	};
-
-	const paymentColors = [
-		"hsl(var(--chart-2))",
-		"hsl(var(--chart-1))",
-		"hsl(var(--chart-3))",
-	];
-
-	const chartConfig = {
-		sales: { label: "Sales", color: "hsl(var(--chart-1))" },
-		amount: { label: "Amount", color: "hsl(var(--chart-2))" },
-		value: { label: "Value", color: "hsl(var(--chart-3))" },
-	};
+	const data = apiData || mockData;
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
-			<div>
-				<h1 className="font-bold text-2xl tracking-tight">
-					Billing & POS Overview
-				</h1>
-				<p className="mt-1 text-muted-foreground text-sm">
-					Real-time point of sale and transaction metrics.
-				</p>
+			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+				<div>
+					<h1 className="font-bold text-3xl text-gray-900 tracking-tight">
+						Billing Dashboard
+					</h1>
+					<p className="mt-1 text-gray-500">
+						Overview of sales, payments, and cashier performance.
+					</p>
+				</div>
+				<div className="flex gap-2">
+					<Button variant="outline" className="gap-2 border-gray-300 text-gray-900 hover:bg-gray-50">
+						<HistoryIcon className="h-4 w-4" /> History
+					</Button>
+					<Button className="gap-2 bg-gray-900 text-white hover:bg-gray-800">
+						<PlusCircleIcon className="h-4 w-4" /> New Bill
+					</Button>
+				</div>
 			</div>
 
 			{/* KPIs Grid */}
-			<motion.div
-				variants={containerVariants}
-				initial="hidden"
-				animate="show"
-				className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8"
-			>
-				<motion.div
-					variants={itemVariants}
-					className="col-span-1 lg:col-span-1"
-				>
+			<div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-8">
+				<div className="col-span-2">
 					<KPICard
-						title="Today's Bills"
+						title="Today's Revenue"
+						value={formatCurrency(data.revenue, "en-IN")}
+						icon={BanknoteIcon}
+					/>
+				</div>
+				<div className="col-span-2">
+					<KPICard
+						title="Total Bills"
 						value={data.todaysBills}
 						icon={ReceiptTextIcon}
-						colorClass="from-blue-500/10 to-transparent"
 					/>
-				</motion.div>
-				<motion.div
-					variants={itemVariants}
-					className="col-span-1 lg:col-span-2"
-				>
+				</div>
+				<div className="col-span-2">
 					<KPICard
-						title="Revenue"
-						value={formatCurrency(data.revenue, "en-IN")}
-						icon={TrendingUpIcon}
-						colorClass="from-emerald-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div
-					variants={itemVariants}
-					className="col-span-1 lg:col-span-1"
-				>
-					<KPICard
-						title="Avg Bill"
+						title="Average Bill Value"
 						value={formatCurrency(data.averageBill, "en-IN")}
-						icon={ActivityIcon}
-						colorClass="from-indigo-500/10 to-transparent"
+						icon={TrendingUpIcon}
 					/>
-				</motion.div>
-				<motion.div
-					variants={itemVariants}
-					className="col-span-1 lg:col-span-1"
-				>
+				</div>
+				<div className="col-span-2">
 					<KPICard
-						title="Refunds"
+						title="Refunds/Returns"
 						value={formatCurrency(data.refunds, "en-IN")}
 						icon={Undo2Icon}
-						colorClass="from-rose-500/10 to-transparent"
 					/>
-				</motion.div>
-				<motion.div
-					variants={itemVariants}
-					className="col-span-1 lg:col-span-1"
-				>
-					<KPICard
-						title="Cash"
-						value={formatCurrency(data.cashCollected, "en-IN")}
-						icon={BanknoteIcon}
-						colorClass="from-emerald-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div
-					variants={itemVariants}
-					className="col-span-1 lg:col-span-1"
-				>
-					<KPICard
-						title="Card & UPI"
-						value={formatCurrency(
-							data.cardCollected + data.upiCollected,
-							"en-US",
-						)}
-						icon={CreditCardIcon}
-						colorClass="from-cyan-500/10 to-transparent"
-					/>
-				</motion.div>
-				<motion.div
-					variants={itemVariants}
-					className="col-span-1 lg:col-span-1"
-				>
-					<KPICard
-						title="Pending"
-						value={data.pendingBills}
-						icon={ClockIcon}
-						colorClass="from-amber-500/10 to-transparent"
-					/>
-				</motion.div>
-			</motion.div>
+				</div>
+			</div>
 
-			{/* Main Widgets Bento Grid */}
-			<motion.div
-				variants={containerVariants}
-				initial="hidden"
-				animate="show"
-				className="grid grid-cols-1 gap-6 lg:grid-cols-3"
-			>
-				{/* Sales Chart */}
-				<motion.div variants={itemVariants} className="lg:col-span-2">
-					<Card className="flex h-full flex-col border-border/50 shadow-sm">
-						<CardHeader className="pb-2">
-							<CardTitle>Sales Timeline</CardTitle>
-							<CardDescription>Intra-day sales progression</CardDescription>
+			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+				<KPICard
+					title="Cash Collected"
+					value={formatCurrency(data.cashCollected, "en-IN")}
+					icon={WalletIcon}
+				/>
+				<KPICard
+					title="Card Payments"
+					value={formatCurrency(data.cardCollected, "en-IN")}
+					icon={CreditCardIcon}
+				/>
+				<KPICard
+					title="UPI/Digital"
+					value={formatCurrency(data.upiCollected, "en-IN")}
+					icon={MonitorSmartphoneIcon}
+				/>
+				<KPICard
+					title="Pending Bills"
+					value={data.pendingBills}
+					icon={ClockIcon}
+				/>
+			</div>
+
+			{/* Charts Row 1 */}
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				<div className="lg:col-span-2">
+					<Card className="flex h-full flex-col shadow-sm">
+						<CardHeader>
+							<CardTitle className="text-gray-900">Today's Sales Trend</CardTitle>
+							<CardDescription className="text-gray-500">Hourly revenue progression</CardDescription>
 						</CardHeader>
 						<CardContent className="min-h-[250px] flex-1">
-							{data.salesChart ? (
-								<BillingSalesChart data={data.salesChart} />
-							) : (
-								<div className="flex h-full items-center justify-center text-muted-foreground">
-									No data
-								</div>
-							)}
+							<BillingSalesChart data={data.salesChart} />
 						</CardContent>
 					</Card>
-				</motion.div>
-
-				{/* Quick Actions & Top Cashier */}
-				<motion.div variants={itemVariants} className="flex flex-col gap-6">
-					<Card className="border-border/50 border-primary/20 bg-primary/5 shadow-sm">
-						<CardHeader className="pb-3">
-							<CardTitle className="flex items-center gap-2 text-base">
-								<MonitorSmartphoneIcon className="h-4 w-4 text-primary" /> Quick
-								POS Actions
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="grid grid-cols-2 gap-3">
-							<Button className="w-full justify-start gap-2" size="sm">
-								<PlusCircleIcon className="h-4 w-4" /> New Bill
-							</Button>
-							<Button
-								className="w-full justify-start gap-2"
-								variant="secondary"
-								size="sm"
-							>
-								<Undo2Icon className="h-4 w-4" /> Return
-							</Button>
-							<Button
-								className="w-full justify-start gap-2"
-								variant="outline"
-								size="sm"
-							>
-								<HistoryIcon className="h-4 w-4" /> Hold Bill
-							</Button>
-							<Button
-								className="w-full justify-start gap-2"
-								variant="outline"
-								size="sm"
-							>
-								<BanknoteIcon className="h-4 w-4" /> Day Close
-							</Button>
-						</CardContent>
-					</Card>
-
-					<Card className="flex-1 border-border/50 shadow-sm">
-						<CardHeader className="pb-3">
-							<CardTitle className="flex items-center gap-2 text-base">
-								<UserCheckIcon className="h-4 w-4 text-emerald-600" /> Top
-								Cashiers
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{data.topCashiers?.map((cashier: any, idx: number) => (
-								<div key={idx} className="flex items-center justify-between">
-									<div>
-										<h4 className="font-medium text-sm leading-none">
-											{cashier.name}
-										</h4>
-										<p className="mt-1 text-[10px] text-muted-foreground">
-											{cashier.bills} bills punched
-										</p>
-									</div>
-									<div className="font-bold text-black text-sm">
-										{formatCurrency(cashier.revenue, "en-IN")}
-									</div>
-								</div>
-							))}
-						</CardContent>
-					</Card>
-				</motion.div>
-
-				{/* Hourly Sales */}
-				<motion.div variants={itemVariants}>
-					<Card className="h-full border-border/50 shadow-sm">
+				</div>
+				<div>
+					<Card className="flex h-full flex-col shadow-sm">
 						<CardHeader>
-							<CardTitle>Hourly Sales</CardTitle>
-							<CardDescription>Revenue by the hour</CardDescription>
+							<CardTitle className="text-gray-900">Payment Methods</CardTitle>
+							<CardDescription className="text-gray-500">Distribution by volume</CardDescription>
 						</CardHeader>
-						<CardContent>
-							{data.hourlySales ? (
-								<BillingHourlyChart data={data.hourlySales} />
-							) : (
-								<div className="flex h-[200px] items-center justify-center text-muted-foreground">
-									No data
-								</div>
-							)}
+						<CardContent className="flex min-h-[250px] flex-1 items-center justify-center">
+							<BillingPaymentChart data={data.paymentDistribution} />
 						</CardContent>
 					</Card>
-				</motion.div>
+				</div>
+			</div>
 
-				{/* Payment Distribution */}
-				<motion.div variants={itemVariants}>
-					<Card className="h-full border-border/50 shadow-sm">
+			{/* Charts Row 2 */}
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				<div className="lg:col-span-2">
+					<Card className="flex h-full flex-col shadow-sm">
 						<CardHeader>
-							<CardTitle>Payment Methods</CardTitle>
-							<CardDescription>Collection breakdown</CardDescription>
+							<CardTitle className="text-gray-900">Hourly Transaction Volume</CardTitle>
+							<CardDescription className="text-gray-500">Number of bills processed per hour</CardDescription>
 						</CardHeader>
-						<CardContent>
-							{data.paymentDistribution ? (
-								<BillingPaymentChart data={data.paymentDistribution} />
-							) : (
-								<div className="flex h-[200px] items-center justify-center text-muted-foreground">
-									No data
-								</div>
-							)}
+						<CardContent className="min-h-[200px] flex-1">
+							<BillingHourlyChart data={data.hourlySales} />
 						</CardContent>
 					</Card>
-				</motion.div>
-
-				{/* Recent Bills */}
-				<motion.div variants={itemVariants}>
-					<Card className="h-full border-border/50 shadow-sm">
-						<CardHeader className="border-border/50 border-b pb-3">
-							<div className="flex items-center justify-between">
-								<CardTitle className="flex items-center gap-2 text-base">
-									<ReceiptTextIcon className="h-4 w-4 text-primary" /> Recent
-									Bills
-								</CardTitle>
-								<Button size="sm" variant="ghost" className="h-6 px-2 text-xs">
-									View All
-								</Button>
+				</div>
+				<div>
+					<Card className="flex h-full flex-col shadow-sm">
+						<CardHeader>
+							<CardTitle className="text-gray-900">Top Cashiers</CardTitle>
+							<CardDescription className="text-gray-500">By revenue generated today</CardDescription>
+						</CardHeader>
+						<CardContent className="flex-1">
+							<div className="space-y-4">
+								{data.topCashiers.map((cashier: any, index: number) => (
+									<div
+										key={index}
+										className="flex items-center justify-between"
+									>
+										<div className="flex items-center gap-3">
+											<div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-900 text-xs">
+												{cashier.name.charAt(0)}
+											</div>
+											<div>
+												<p className="font-medium text-sm text-gray-900">
+													{cashier.name}
+												</p>
+												<p className="text-xs text-gray-500">
+													{cashier.bills} bills
+												</p>
+											</div>
+										</div>
+										<div className="font-semibold text-gray-900 text-sm">
+											{formatCurrency(cashier.revenue, "en-IN")}
+										</div>
+									</div>
+								))}
 							</div>
-						</CardHeader>
-						<CardContent className="p-0">
-							<Table>
-								<TableHeader>
-									<TableRow className="hover:bg-transparent">
-										<TableHead className="text-[10px]">Invoice</TableHead>
-										<TableHead className="text-[10px]">Customer</TableHead>
-										<TableHead className="text-right text-[10px]">
-											Amount
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{data.recentBills?.map((bill: any) => (
-										<TableRow key={bill.id}>
-											<TableCell className="font-medium text-xs">
-												{bill.id}
-											</TableCell>
-											<TableCell>
-												<div className="text-xs">{bill.customer}</div>
-												<div className="text-[9px] text-muted-foreground uppercase">
-													{bill.payment} • {bill.items} items
-												</div>
-											</TableCell>
-											<TableCell className="text-right">
-												<div className="font-bold text-xs">
-													{formatCurrency(bill.amount, "en-IN")}
-												</div>
-												<div className="mt-0.5 font-bold text-[9px] text-black uppercase tracking-wider">
-													{bill.status}
-												</div>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
 						</CardContent>
 					</Card>
-				</motion.div>
-			</motion.div>
+				</div>
+			</div>
+
+			{/* Recent Transactions Table */}
+			<Card className="shadow-sm">
+				<CardHeader>
+					<CardTitle className="text-gray-900">Recent Transactions</CardTitle>
+					<CardDescription className="text-gray-500">Latest billing activity across all registers</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow className="border-b border-gray-200">
+								<TableHead className="w-[100px] text-gray-900">Txn ID</TableHead>
+								<TableHead className="text-gray-900">Time</TableHead>
+								<TableHead className="text-gray-900">Cashier</TableHead>
+								<TableHead className="text-gray-900">Method</TableHead>
+								<TableHead className="text-gray-900">Status</TableHead>
+								<TableHead className="text-right text-gray-900">Amount</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{data.recentTransactions.map((txn: any) => (
+								<TableRow key={txn.id} className="border-b border-gray-100">
+									<TableCell className="font-medium text-gray-900">{txn.id}</TableCell>
+									<TableCell className="text-gray-500">{txn.time}</TableCell>
+									<TableCell className="text-gray-900">{txn.cashier}</TableCell>
+									<TableCell className="text-gray-900">{txn.method}</TableCell>
+									<TableCell>
+										<span
+											className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+												txn.status === "Completed"
+													? "bg-gray-100 text-gray-900"
+													: txn.status === "Pending"
+														? "bg-gray-100 text-gray-700"
+														: "bg-gray-100 text-gray-500"
+											}`}
+										>
+											{txn.status}
+										</span>
+									</TableCell>
+									<TableCell className="text-right font-medium text-gray-900">
+										{formatCurrency(txn.amount, "en-IN")}
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
