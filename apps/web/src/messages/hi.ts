@@ -42,6 +42,7 @@ const messages: Messages = {
 	},
 	nav: {
 		dashboard: "डैशबोर्ड",
+		backups: "बैकअप",
 		cashier: "कैशियर",
 		products: "उत्पाद",
 		customers: "ग्राहक",
