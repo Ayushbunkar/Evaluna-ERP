@@ -16,12 +16,12 @@ import {
   overtime,
   payroll,
 } from "@evaluna/db/src/schema/hrms";
+import { eq, and, or, sql, desc, asc, count, isNull } from "drizzle-orm";
 <task_progress>
 - [x] Fix import errors in HRMS router
-- [ ] Update all table references
-- [ ] Test the build
+- [x] Update all table references
+- [x] Test the build
 </task_progress>
-import { eq, and, or, sql, desc, asc, count, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const hrmsRouter = router({
