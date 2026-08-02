@@ -7,7 +7,7 @@ import { protectedProcedure, router } from "../init";
 const paymentMethodSchema = z.object({
 	id: z.number(),
 	name: z.string(),
-	created_at: z.date().nullable(),
+	created_at: z.coerce.date().nullable(),
 });
 
 export const paymentMethodsRouter = router({

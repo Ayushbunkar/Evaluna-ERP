@@ -11,7 +11,7 @@ export const accountingRouter = router({
 	postJournalEntry: protectedProcedure
 		.input(
 			z.object({
-				entryDate: z.union([z.string(), z.date()]).optional(),
+				entryDate: z.union([z.string(), z.coerce.date()]).optional(),
 				narration: z.string().optional(),
 				lines: z
 					.array(

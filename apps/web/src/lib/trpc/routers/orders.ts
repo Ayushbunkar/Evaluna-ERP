@@ -17,7 +17,7 @@ const orderWithCustomerSchema = z.object({
 	total_amount: z.string(),
 	status: z.string().nullable(),
 	user_uid: z.string(),
-	created_at: z.date().nullable(),
+	created_at: z.coerce.date().nullable(),
 	customer: z.object({ name: z.string() }).nullable(),
 });
 
@@ -27,7 +27,7 @@ const orderDetailSchema = z.object({
 	total_amount: z.string(),
 	status: z.string().nullable(),
 	user_uid: z.string(),
-	created_at: z.date().nullable(),
+	created_at: z.coerce.date().nullable(),
 	customer: z.object({ name: z.string() }).nullable(),
 	orderItems: z.array(
 		z.object({

@@ -14,7 +14,7 @@ const transactionSchema = z.object({
 	order_id: z.number().nullable(),
 	payment_method_id: z.number().nullable(),
 	user_uid: z.string(),
-	created_at: z.date().nullable(),
+	created_at: z.coerce.date().nullable(),
 });
 
 export const transactionsRouter = router({

@@ -18,7 +18,7 @@ const customerSchema = z.object({
 	loyalty_points: z.number().nullable(),
 	tier_override: z.boolean().nullable(),
 	marketing_opt_in: z.boolean().nullable(),
-	created_at: z.date().nullable(),
+	created_at: z.coerce.date().nullable(),
 });
 
 export const customersRouter = router({

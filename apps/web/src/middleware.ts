@@ -2,6 +2,7 @@ import type { Session } from "@evaluna/auth/client";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
+import { auth } from "@/lib/auth";
 
 /**
  * Edge middleware that protects all routes.
@@ -52,27 +53,17 @@ export default async function middleware(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
-	// 3. Validate session with API
-	// In Codespaces, fetching `request.url` might loop back out to the internet
-	// and fail if the port is private. Hit the local server directly.
+	// 3. Validate session directly via better-auth
 	let sessionData: { session: Session; user: any } | null = null;
 	try {
-		const cookieHeader = request.headers.get("cookie") || "";
-		const baseUrl = request.nextUrl.origin;
-		const res = await fetch(`${baseUrl}/api/auth/get-session`, {
-			headers: {
-				cookie: cookieHeader,
-				host: request.headers.get("host") || request.nextUrl.host,
-			},
+		const res = await auth.api.getSession({
+			headers: request.headers,
 		});
-		if (res.ok) {
-			const data = await res.json();
-			if (data?.session) {
-				sessionData = data;
-			}
+		if (res?.session) {
+			sessionData = res;
 		}
 	} catch (_err) {
-		// Session invalid or auth server down
+		console.error("Middleware session check failed:", _err);
 	}
 
 	if (!sessionData) {

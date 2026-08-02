@@ -1369,7 +1369,7 @@ export const clientSettingsRouter = router({
 			z.object({
 				user_id: z.number(),
 				role_id: z.number(),
-				expires_at: z.date().optional(),
+				expires_at: z.coerce.date().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -1845,8 +1845,8 @@ export const clientSettingsRouter = router({
 				action: z.string().optional(),
 				entity_type: z.string().optional(),
 				user_id: z.number().optional(),
-				start_date: z.date().optional(),
-				end_date: z.date().optional(),
+				start_date: z.coerce.date().optional(),
+				end_date: z.coerce.date().optional(),
 			}),
 		)
 		.query(async ({ ctx, input }) => {
