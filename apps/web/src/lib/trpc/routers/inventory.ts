@@ -177,7 +177,7 @@ export const inventoryRouter = router({
 					loose_product_id: looseProductId,
 					packs_converted: input.packsToConvert,
 					loose_yielded: looseYielded,
-					converted_by: ctx.user.id,
+					converted_by: parseInt(ctx.user.id) || null,
 				});
 
 				// 5. Ledger entries
@@ -188,6 +188,8 @@ export const inventoryRouter = router({
 						quantity: -input.packsToConvert,
 						reference_type: "conversion",
 						branch_id: input.branchId,
+						unit_cost: "0",
+						total_cost: "0",
 					},
 					{
 						product_id: looseProductId,
@@ -195,6 +197,8 @@ export const inventoryRouter = router({
 						quantity: looseYielded,
 						reference_type: "conversion",
 						branch_id: input.branchId,
+						unit_cost: "0",
+						total_cost: "0",
 					},
 				]);
 

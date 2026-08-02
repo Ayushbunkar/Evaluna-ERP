@@ -156,7 +156,7 @@ export const monitoringRouter = router({
 				category: categoryEnum,
 				event: z.string(),
 				message: z.string().optional(),
-				metadata: z.record(z.unknown()).optional(),
+				metadata: z.record(z.string(), z.unknown()).optional(),
 				durationMs: z.number().optional(),
 			}),
 		)

@@ -43,7 +43,7 @@ export const settingsRouter = router({
 		.input(
 			z.object({
 				branch_id: z.number().nullable().optional(),
-				settings: z.record(z.any()),
+				settings: z.record(z.string(), z.any()),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {

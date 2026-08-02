@@ -1820,7 +1820,7 @@ export const clientSettingsRouter = router({
 
 			// Log the change
 			await ctx.db.insert(auditLogs).values({
-				user_id: ctx.user.id,
+				user_id: parseInt(ctx.user.id) || null,
 				action: "NOTIFICATION_TEMPLATE_UPDATED",
 				entity_type: "notification_templates",
 				entity_id: id,
@@ -1849,28 +1849,22 @@ export const clientSettingsRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			let query = ctx.db
-				.select()
-				.from(auditLogs)
-				.where(sql`1=1`)
-				.orderBy(desc(auditLogs.created_at))
-				.limit(input.limit)
-				.offset(input.offset);
+			const conditions = [];
 
 			if (input.action) {
-				query = query.where(ilike(auditLogs.action, `%${input.action}%`));
+				conditions.push(ilike(auditLogs.action, `%${input.action}%`));
 			}
 
 			if (input.entity_type) {
-				query = query.where(eq(auditLogs.entity_type, input.entity_type));
+				conditions.push(eq(auditLogs.entity_type, input.entity_type));
 			}
 
 			if (input.user_id) {
-				query = query.where(eq(auditLogs.user_id, input.user_id));
+				conditions.push(eq(auditLogs.user_id, input.user_id));
 			}
 
 			if (input.start_date && input.end_date) {
-				query = query.where(
+				conditions.push(
 					and(
 						gte(auditLogs.created_at, input.start_date),
 						lte(auditLogs.created_at, input.end_date),
@@ -1878,12 +1872,18 @@ export const clientSettingsRouter = router({
 				);
 			}
 
-			const result = await query;
+			const result = await ctx.db
+				.select()
+				.from(auditLogs)
+				.where(conditions.length > 0 ? and(...conditions) : undefined)
+				.orderBy(desc(auditLogs.created_at))
+				.limit(input.limit)
+				.offset(input.offset);
 
 			// Get user details for each log
 			const userIds = [
 				...new Set(result.map((log) => log.user_id).filter(Boolean)),
-			];
+			] as number[];
 			const users =
 				userIds.length > 0
 					? await ctx.db

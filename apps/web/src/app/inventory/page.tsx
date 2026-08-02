@@ -20,6 +20,10 @@ import {
 	SkullIcon,
 	TargetIcon,
 	TimerIcon,
+	TrendingUpIcon,
+	TruckIcon,
+	UsersIcon,
+	WalletIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useBranch } from "@/lib/branch-context";
@@ -101,8 +105,17 @@ export default function InventoryDashboard() {
 
 	if (isLoading || !data) {
 		return (
-			<div className="flex h-full min-h-[400px] items-center justify-center">
-				<div className="h-10 w-10 animate-spin rounded-full border-primary border-b-2" />
+			<div className="space-y-6">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+				</div>
+				<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+					<Skeleton className="h-64 w-full rounded-xl" />
+					<Skeleton className="h-64 w-full rounded-xl" />
+				</div>
 			</div>
 		);
 	}

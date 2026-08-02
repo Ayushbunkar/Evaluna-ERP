@@ -179,12 +179,12 @@ export const payrollRouter = router({
 					type: "out",
 					category: "expense",
 					reference_type: "payroll",
-					reference_id: paid.id.toString(),
+					reference_id: paid.id,
 					payment_method_id: input.payment_method_id,
 					branch_id: record.branch_id,
-					user_uid: ctx.user.id, // The user processing the payroll
+					user_uid: ctx.user.id,
 					status: "success",
-					notes: `Salary payment for ${record.staff.name} (${record.month})`,
+					description: `Salary payment for ${record.staff.name} (${record.month})`,
 				});
 
 				return paid;

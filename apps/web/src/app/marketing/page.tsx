@@ -8,7 +8,8 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { motion } from "framer-motion";
-import { GiftIcon, MegaphoneIcon, TicketIcon, UsersIcon } from "lucide-react";
+import { GiftIcon, MegaphoneIcon, TicketIcon, UsersIcon, ZapIcon } from "lucide-react";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import Link from "next/link";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
@@ -51,6 +52,23 @@ export default function MarketingDashboard() {
 		activeBranchId ? { branch_id: activeBranchId } : {},
 		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
+
+	if (isLoading || !metrics) {
+		return (
+			<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 pb-8">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+					<Skeleton className="h-32 w-full rounded-xl" />
+				</div>
+				<div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+					<Skeleton className="h-64 w-full rounded-xl" />
+					<Skeleton className="h-64 w-full rounded-xl" />
+				</div>
+			</div>
+		);
+	}
 
 	const containerVariants = {
 		hidden: { opacity: 0 },
@@ -150,15 +168,9 @@ export default function MarketingDashboard() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{isLoading ? (
-							<div className="flex justify-center p-8">
-								<div className="h-8 w-8 animate-spin rounded-full border-primary border-b-2" />
-							</div>
-						) : (
-							<div className="mt-4 flex h-[200px] items-center justify-center rounded-lg border-2 border-dashed bg-muted/20 text-muted-foreground">
-								Marketing activity chart/list will be rendered here.
-							</div>
-						)}
+						<div className="mt-4 flex h-[200px] items-center justify-center rounded-lg border-2 border-dashed bg-muted/20 text-muted-foreground">
+							Marketing activity chart/list will be rendered here.
+						</div>
 					</CardContent>
 				</Card>
 			</motion.div>

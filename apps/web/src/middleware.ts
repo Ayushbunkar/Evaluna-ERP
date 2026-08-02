@@ -33,8 +33,7 @@ export default async function middleware(request: NextRequest) {
 		pathname === "/login" ||
 		pathname === "/signup" ||
 		pathname === "/forgot-password" ||
-		pathname === "/reset-password" ||
-		pathname === "/branch-select";
+		pathname === "/reset-password";
 
 	// Check session token cookie directly first (fast fail)
 	const sessionToken =
@@ -131,7 +130,7 @@ export default async function middleware(request: NextRequest) {
 		let userRole = (sessionData.user.role || "sales_person") as Role;
 		if (userRole as string === "superadmin") userRole = "admin" as Role;
 		
-		const isSuperadmin = sessionData.user.isSuperadmin === true || sessionData.user.role === "superadmin";
+		const isSuperadmin = sessionData.user.isSuperadmin === true || sessionData.user.is_superadmin === true || sessionData.user.role === "superadmin";
 
 		if (!isSuperadmin) {
 			// Find the most specific route match

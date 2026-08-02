@@ -232,7 +232,7 @@ export const marketingRouter = router({
 			// Seed the audiences table
 			if (eligibleCustomers.length > 0) {
 				await db.insert(campaignAudiences).values(
-					eligibleCustomers.map((c) => ({
+					eligibleCustomers.map((c: { id: number }) => ({
 						campaign_id: campaign.id,
 						customer_id: c.id,
 						status: "pending",

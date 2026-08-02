@@ -114,7 +114,7 @@ export const notificationsRouter = router({
 				branchId: z.number().optional(),
 				channels: z.array(channelEnum).default(["in_app"]),
 				scheduledAt: z.string().optional(), // ISO string
-				metadata: z.record(z.unknown()).optional(),
+				metadata: z.record(z.string(), z.unknown()).optional(),
 			}),
 		)
 		.mutation(async ({ input }) => {

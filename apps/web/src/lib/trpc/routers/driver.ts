@@ -14,7 +14,7 @@ export const driverRouter = router({
 				with: {
 					driver: true,
 					stops: {
-						orderBy: (deliveryStops, { asc }) => [
+						orderBy: (deliveryStops: any, { asc }: any) => [
 							asc(deliveryStops.sequence_no),
 						],
 						with: {
@@ -35,7 +35,7 @@ export const driverRouter = router({
 					with: {
 						driver: true,
 						stops: {
-							orderBy: (deliveryStops, { asc }) => [
+							orderBy: (deliveryStops: any, { asc }: any) => [
 								asc(deliveryStops.sequence_no),
 							],
 							with: {
@@ -69,19 +69,19 @@ export const driverRouter = router({
 
 			const assignedOrders = trip.stops.length;
 			const delivered = trip.stops.filter(
-				(s) => s.status === "delivered",
+				(s: any) => s.status === "delivered",
 			).length;
-			const pending = trip.stops.filter((s) => s.status === "pending").length;
+			const pending = trip.stops.filter((s: any) => s.status === "pending").length;
 
 			const codCollected = trip.stops
 				.filter(
-					(s) =>
+					(s: any) =>
 						s.status === "delivered" &&
 						s.order?.paymentMethod?.payment_type === "cash",
 				)
-				.reduce((sum, s) => sum + Number(s.order?.total_amount || 0), 0);
+				.reduce((sum: number, s: any) => sum + Number(s.order?.total_amount || 0), 0);
 
-			const nextStop = trip.stops.find((s) => s.status === "pending");
+			const nextStop = trip.stops.find((s: any) => s.status === "pending");
 
 			let nextDelivery = null;
 			if (nextStop?.order) {

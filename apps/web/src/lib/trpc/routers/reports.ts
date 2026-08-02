@@ -197,7 +197,7 @@ export const reportsRouter = router({
 				},
 			});
 
-			return inventory.filter((item) => item.in_stock <= item.reorder_level);
+			return inventory.filter((item: any) => item.in_stock <= item.reorder_level);
 		}),
 
 	getDeadStockReport: protectedProcedure

@@ -53,17 +53,60 @@ export const importsRouter = router({
 						errors.push("Barcode already exists in DB");
 					}
 
-					if (errors.length > 0) {
-						errorRows.push({ rowData: row, errorString: errors.join(", ") });
-					} else {
+			try {
+				if (entityType === "product") {
+					const rowBarcodes = rows
+						.map((r) => r.barcode)
+						.filter((b) => typeof b === "string" && b.trim() !== "");
+
+					let existingBarcodes: string[] = [];
+					if (rowBarcodes.length > 0) {
+						const existing = await db
+							.select({ barcode: products.barcode })
+							.from(products)
+							.where(inArray(products.barcode, rowBarcodes));
+						existingBarcodes = existing
+							.map((e) => e.barcode)
+							.filter(Boolean) as string[];
+					}
+
+					for (const row of rows) {
+						const errors: string[] = [];
+						if (
+							!row.name ||
+							typeof row.name !== "string" ||
+							row.name.trim() === ""
+						) {
+							errors.push("Missing or invalid name");
+						}
+						if (
+							row.price === undefined ||
+							row.price === null ||
+							Number.isNaN(Number(row.price))
+						) {
+							errors.push("Missing or invalid price");
+						}
+						if (row.barcode && existingBarcodes.includes(row.barcode)) {
+							errors.push("Barcode already exists in DB");
+						}
+
+						if (errors.length > 0) {
+							errorRows.push({ rowData: row, errorString: errors.join(", ") });
+						} else {
+							validRows.push(row);
+						}
+					}
+				} else {
+					// Fallback for other entities
+					for (const row of rows) {
 						validRows.push(row);
 					}
 				}
-			} else {
-				// Fallback for other entities
-				for (const row of rows) {
-					validRows.push(row);
-				}
+			} catch (e: any) {
+				return {
+					success: false,
+					message: e instanceof Error ? e.message : "Failed to import items",
+				};
 			}
 
 			return { validRows, errorRows };

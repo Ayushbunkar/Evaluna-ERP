@@ -7,6 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc/client";
 
@@ -36,8 +37,17 @@ export default function CouponsPage() {
 					</CardHeader>
 					<CardContent>
 						{isLoading ? (
-							<div className="flex justify-center p-8">
-								<div className="h-8 w-8 animate-spin rounded-full border-primary border-b-2" />
+							<div className="space-y-6">
+								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+									<Skeleton className="h-32 w-full rounded-xl" />
+									<Skeleton className="h-32 w-full rounded-xl" />
+									<Skeleton className="h-32 w-full rounded-xl" />
+									<Skeleton className="h-32 w-full rounded-xl" />
+								</div>
+								<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+									<Skeleton className="h-64 w-full rounded-xl" />
+									<Skeleton className="h-64 w-full rounded-xl" />
+								</div>
 							</div>
 						) : (
 							<div className="text-sm">

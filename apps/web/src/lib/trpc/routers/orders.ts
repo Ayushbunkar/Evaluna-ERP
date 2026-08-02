@@ -8,7 +8,7 @@ import {
 	orderItems,
 	orders,
 	transactions,
-} from "@/lib/db/schema";
+} from "@evaluna/db/schema";
 import { roleProcedure, router } from "../init";
 
 const orderWithCustomerSchema = z.object({
@@ -116,7 +116,7 @@ export const ordersRouter = router({
 		)
 		.output(orderWithCustomerSchema)
 		.mutation(async ({ ctx, input }) => {
-			return db.transaction(async (tx) => {
+			return db.transaction(async (tx: any) => {
 				const [orderData] = await tx
 					.insert(orders)
 					.values({
@@ -151,7 +151,7 @@ export const ordersRouter = router({
 					);
 
 				const inventoryMap = new Map(
-					inventoryRecords.map((inv) => [inv.product_id, inv]),
+					inventoryRecords.map((inv: any) => [inv.product_id, inv]),
 				);
 
 				for (const product of input.products) {

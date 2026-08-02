@@ -108,7 +108,7 @@ export const permissionsRouter = router({
 			const stored = await ctx.db
 				.select()
 				.from(rolePermissions)
-				.where(eq(rolePermissions.role, input.role));
+				.where(eq(rolePermissions.role_name, input.role));
 
 			// Start from defaults, overlay stored values
 			const defaults = DEFAULT_PERMISSIONS[input.role] ?? {};
@@ -118,10 +118,10 @@ export const permissionsRouter = router({
 				matrix[module] = {};
 				for (const action of ACTIONS) {
 					const storedEntry = stored.find(
-						(p) => p.module === module && p.action === action,
+						(p) => p.domain === module && p.action === action,
 					);
 					if (storedEntry) {
-						matrix[module][action] = storedEntry.is_allowed ?? false;
+						matrix[module][action] = true;
 					} else {
 						matrix[module][action] = defaults[module]?.[action] ?? false;
 					}
@@ -158,14 +158,26 @@ export const permissionsRouter = router({
 				);
 
 			if (existing.length > 0) {
-				// We don't have is_allowed on this schema, so just leave it or adapt.
-				// In this schema rolePermissions exist if they are allowed.
+				if (!input.is_allowed) {
+					// Delete if not allowed
+					await ctx.db
+						.delete(rolePermissions)
+						.where(
+							and(
+								eq(rolePermissions.role_name, input.role),
+								eq(rolePermissions.domain, input.module as any),
+								eq(rolePermissions.action, input.action as any),
+							),
+						);
+				}
 			} else {
-				await ctx.db.insert(rolePermissions).values({
-					role_name: input.role,
-					domain: input.module as any,
-					action: input.action as any,
-				});
+				if (input.is_allowed) {
+					await ctx.db.insert(rolePermissions).values({
+						role_name: input.role,
+						domain: input.module as any,
+						action: input.action as any,
+					});
+				}
 			}
 
 			return { success: true };
@@ -179,15 +191,16 @@ export const permissionsRouter = router({
 
 			for (const [module, actions] of Object.entries(defaults)) {
 				for (const [action, is_allowed] of Object.entries(actions)) {
-					await ctx.db
-						.insert(rolePermissions)
-						.values({
-							role: input.role,
-							module,
-							action,
-							is_allowed,
-						})
-						.onConflictDoNothing();
+					if (is_allowed) {
+						await ctx.db
+							.insert(rolePermissions)
+							.values({
+								role_name: input.role,
+								domain: module as any,
+								action: action as any,
+							})
+							.onConflictDoNothing();
+					}
 				}
 			}
 			return { success: true };

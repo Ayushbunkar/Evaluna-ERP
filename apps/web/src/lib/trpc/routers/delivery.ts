@@ -75,7 +75,7 @@ export const deliveryRouter = router({
 			}),
 		)
 		.mutation(async ({ input }) => {
-			const values = input.order_ids.map((id, index) => ({
+			const values = input.order_ids.map((id: number, index: number) => ({
 				trip_id: input.trip_id,
 				order_id: id,
 				sequence_no: index + 1,

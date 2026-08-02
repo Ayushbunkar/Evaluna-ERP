@@ -8,12 +8,14 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown, DownloadIcon } from "lucide-react";
 import {
 	type ReactNode,
 	useCallback,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 import { cn } from "../lib/utils";
@@ -175,6 +177,16 @@ export function DataTable<T>({
 		getSortedRowModel: getSortedRowModel(),
 	});
 
+	const tableContainerRef = useRef<HTMLDivElement>(null);
+	const { rows } = table.getRowModel();
+
+	const rowVirtualizer = useVirtualizer({
+		count: rows.length,
+		getScrollElement: () => tableContainerRef.current,
+		estimateSize: () => 50,
+		overscan: 10,
+	});
+
 	const handleExport = useCallback(() => {
 		if (exportColumns) exportCSV(data, exportColumns, exportFilename);
 	}, [data, exportColumns, exportFilename]);
@@ -193,9 +205,9 @@ export function DataTable<T>({
 				</div>
 			)}
 
-			<div className="overflow-x-auto">
+			<div ref={tableContainerRef} className="overflow-x-auto overflow-y-auto max-h-[800px] relative">
 				<Table>
-					<TableHeader>
+					<TableHeader className="sticky top-0 z-10 bg-background">
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id}>
 								{headerGroup.headers.map((header) => (
@@ -214,8 +226,13 @@ export function DataTable<T>({
 							</TableRow>
 						))}
 					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows.length === 0 ? (
+					<TableBody
+						style={{
+							height: `${rowVirtualizer.getTotalSize()}px`,
+							position: "relative",
+						}}
+					>
+						{rows.length === 0 ? (
 							<TableRow>
 								<TableCell
 									colSpan={visibleColumnDefs.length}
@@ -229,25 +246,31 @@ export function DataTable<T>({
 								</TableCell>
 							</TableRow>
 						) : (
-							table.getRowModel().rows.map((row) => (
-								<TableRow
-									key={row.id}
-									className={onRowClick ? "cursor-pointer" : undefined}
-									onClick={() => onRowClick?.(row.original)}
-								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell
-											key={cell.id}
-											className={(cell.column.columnDef.meta as any)?.className}
-										>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
-									))}
-								</TableRow>
-							))
+							rowVirtualizer.getVirtualItems().map((virtualRow) => {
+								const row = rows[virtualRow.index];
+								return (
+									<TableRow
+										key={row.id}
+										className={onRowClick ? "cursor-pointer absolute w-full" : "absolute w-full"}
+										style={{
+											transform: `translateY(${virtualRow.start}px)`,
+										}}
+										onClick={() => onRowClick?.(row.original)}
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell
+												key={cell.id}
+												className={(cell.column.columnDef.meta as any)?.className}
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								);
+							})
 						)}
 						{afterRows}
 					</TableBody>
