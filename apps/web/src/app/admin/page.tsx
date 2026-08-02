@@ -157,7 +157,7 @@ export default function CompanyAdminDashboard() {
 					) : (
 					<KPICard
 						title="Today's Sales"
-						value={formatCurrency(data.todaySales, "en-US")}
+						value={formatCurrency(data.todaySales, "en-IN")}
 						icon={DollarSignIcon}
 						trend="vs yesterday"
 						trendValue="12%"
@@ -187,7 +187,7 @@ export default function CompanyAdminDashboard() {
 					) : (
 					<KPICard
 						title="Today's Profit"
-						value={formatCurrency(data.todayProfit, "en-US")}
+						value={formatCurrency(data.todayProfit, "en-IN")}
 						icon={TrendingUpIcon}
 						trendValue="8%"
 						trendIsPositive={data.todayProfit >= 0}
@@ -417,7 +417,7 @@ export default function CompanyAdminDashboard() {
 								) : (
 									<>
 										<h2 className="font-black text-4xl">
-											{formatCurrency(data.inventoryValue || 0, "en-US")}
+											{formatCurrency(data.inventoryValue || 0, "en-IN")}
 										</h2>
 										<div className="mt-4 flex w-fit items-center rounded-full bg-black/20 px-3 py-1 font-medium text-emerald-400 text-sm">
 											<TrendingUpIcon className="mr-1 h-4 w-4" />

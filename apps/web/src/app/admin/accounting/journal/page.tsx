@@ -235,7 +235,7 @@ export default function JournalVoucherPage() {
 											isBalanced ? "text-green-600" : "text-destructive"
 										}
 									>
-										${totalDebit.toFixed(2)}
+										₹{totalDebit.toFixed(2)}
 									</div>
 								</div>
 								<div className="pr-[66px] text-right">
@@ -247,7 +247,7 @@ export default function JournalVoucherPage() {
 											isBalanced ? "text-green-600" : "text-destructive"
 										}
 									>
-										${totalCredit.toFixed(2)}
+										₹{totalCredit.toFixed(2)}
 									</div>
 								</div>
 							</div>

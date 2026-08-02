@@ -51,7 +51,7 @@ export function InventoryValueChart({ data }: { data: any[] }) {
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
 				<XAxis dataKey="month" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
+				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
 					type="monotone"

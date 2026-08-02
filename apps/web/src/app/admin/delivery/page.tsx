@@ -212,7 +212,7 @@ export default function DeliveryDashboard() {
 				>
 					<KPICard
 						title="COD Collected"
-						value={formatCurrency(data.codCollection, "en-US")}
+						value={formatCurrency(data.codCollection, "en-IN")}
 						icon={BanknoteIcon}
 						colorClass="from-emerald-500/10 to-transparent"
 					/>

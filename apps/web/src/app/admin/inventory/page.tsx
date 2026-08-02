@@ -171,7 +171,7 @@ export default function InventoryDashboard() {
 				<motion.div variants={itemVariants} className="col-span-1">
 					<KPICard
 						title="Total Value"
-						value={formatCurrency(data.inventoryValue, "en-US")}
+						value={formatCurrency(data.inventoryValue, "en-IN")}
 						icon={DollarSignIcon}
 						colorClass="from-emerald-500/10 to-transparent"
 					/>

@@ -45,7 +45,7 @@ export function BillingSalesChart({ data }: { data: any[] }) {
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
 				<XAxis dataKey="day" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
+				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
 					type="monotone"

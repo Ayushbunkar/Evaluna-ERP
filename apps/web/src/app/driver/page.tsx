@@ -277,7 +277,7 @@ export default function DriverDashboard() {
 						</div>
 						<div className="border-border border-x text-center">
 							<div className="font-black text-amber-600 text-xl">
-								{formatCurrency(data.codCollected, "en-US")}
+								{formatCurrency(data.codCollected, "en-IN")}
 							</div>
 							<div className="mt-0.5 text-[10px] text-muted-foreground">
 								COD Collected

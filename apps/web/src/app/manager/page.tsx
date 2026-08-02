@@ -140,7 +140,7 @@ export default function BranchManagerDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Today's Sales"
-						value={formatCurrency(data.todaySales, "en-US")}
+						value={formatCurrency(data.todaySales, "en-IN")}
 						icon={DollarSignIcon}
 						trend="vs yesterday"
 						trendValue="12%"
@@ -162,7 +162,7 @@ export default function BranchManagerDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Net Profit"
-						value={formatCurrency(data.todayProfit, "en-US")}
+						value={formatCurrency(data.todayProfit, "en-IN")}
 						icon={TrendingUpIcon}
 						trendValue="8%"
 						trendIsPositive={data.todayProfit >= 0}
@@ -279,7 +279,7 @@ export default function BranchManagerDashboard() {
 										</p>
 									</div>
 									<div className="font-semibold text-emerald-600 text-sm">
-										{formatCurrency(product.revenue, "en-US")}
+										{formatCurrency(product.revenue, "en-IN")}
 									</div>
 								</div>
 							))}
@@ -330,7 +330,7 @@ export default function BranchManagerDashboard() {
 									</div>
 									<div className="text-right">
 										<div className="font-semibold text-xs">
-											{formatCurrency(staff.sales, "en-US")}
+											{formatCurrency(staff.sales, "en-IN")}
 										</div>
 										<div className="flex items-center justify-end text-[10px] text-amber-500">
 											<StarIcon className="mr-0.5 h-3 w-3 fill-current" />{" "}
@@ -353,25 +353,25 @@ export default function BranchManagerDashboard() {
 								<div>
 									<p className="text-emerald-600/80 text-xs">Cash</p>
 									<p className="font-bold text-emerald-700">
-										{formatCurrency(data.cashCollection?.cash || 0, "en-US")}
+										{formatCurrency(data.cashCollection?.cash || 0, "en-IN")}
 									</p>
 								</div>
 								<div>
 									<p className="text-emerald-600/80 text-xs">Card</p>
 									<p className="font-bold text-emerald-700">
-										{formatCurrency(data.cashCollection?.card || 0, "en-US")}
+										{formatCurrency(data.cashCollection?.card || 0, "en-IN")}
 									</p>
 								</div>
 								<div>
 									<p className="text-emerald-600/80 text-xs">UPI</p>
 									<p className="font-bold text-emerald-700">
-										{formatCurrency(data.cashCollection?.upi || 0, "en-US")}
+										{formatCurrency(data.cashCollection?.upi || 0, "en-IN")}
 									</p>
 								</div>
 								<div>
 									<p className="text-amber-600/80 text-xs">Pending</p>
 									<p className="font-bold text-amber-700">
-										{formatCurrency(data.cashCollection?.pending || 0, "en-US")}
+										{formatCurrency(data.cashCollection?.pending || 0, "en-IN")}
 									</p>
 								</div>
 							</div>

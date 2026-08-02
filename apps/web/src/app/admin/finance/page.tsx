@@ -178,7 +178,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Today's Cash"
-						value={formatCurrency(data.todaysCash, "en-US")}
+						value={formatCurrency(data.todaysCash, "en-IN")}
 						icon={WalletIcon}
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
@@ -186,7 +186,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Monthly Revenue"
-						value={formatCurrency(data.monthlyRevenue, "en-US")}
+						value={formatCurrency(data.monthlyRevenue, "en-IN")}
 						icon={TrendingUpIcon}
 						trendValue="12%"
 						trendIsPositive={true}
@@ -196,7 +196,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Total Expenses"
-						value={formatCurrency(data.totalExpenses, "en-US")}
+						value={formatCurrency(data.totalExpenses, "en-IN")}
 						icon={TrendingDownIcon}
 						trendValue="4%"
 						trendIsPositive={false}
@@ -206,7 +206,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Net Profit"
-						value={formatCurrency(data.netProfit, "en-US")}
+						value={formatCurrency(data.netProfit, "en-IN")}
 						icon={DollarSignIcon}
 						trendValue="15%"
 						trendIsPositive={true}
@@ -216,7 +216,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="GST Liability"
-						value={formatCurrency(data.gstLiability, "en-US")}
+						value={formatCurrency(data.gstLiability, "en-IN")}
 						icon={CalculatorIcon}
 						colorClass="from-amber-500/10 to-transparent"
 					/>
@@ -224,7 +224,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Receivables (To Collect)"
-						value={formatCurrency(data.totalReceivables, "en-US")}
+						value={formatCurrency(data.totalReceivables, "en-IN")}
 						icon={ArrowRightCircleIcon}
 						colorClass="from-indigo-500/10 to-transparent"
 					/>
@@ -232,7 +232,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Payables (To Pay)"
-						value={formatCurrency(data.totalPayables, "en-US")}
+						value={formatCurrency(data.totalPayables, "en-IN")}
 						icon={ArrowLeftCircleIcon}
 						colorClass="from-purple-500/10 to-transparent"
 					/>
@@ -240,7 +240,7 @@ export default function FinanceDashboard() {
 				<motion.div variants={itemVariants}>
 					<KPICard
 						title="Cash Flow"
-						value={formatCurrency(data.cashFlow, "en-US")}
+						value={formatCurrency(data.cashFlow, "en-IN")}
 						icon={ActivityIcon}
 						colorClass="from-cyan-500/10 to-transparent"
 					/>
@@ -336,7 +336,7 @@ export default function FinanceDashboard() {
 										</p>
 									</div>
 									<div className="font-bold text-sm">
-										{formatCurrency(bank.balance, "en-US")}
+										{formatCurrency(bank.balance, "en-IN")}
 									</div>
 								</div>
 							))}
@@ -356,7 +356,7 @@ export default function FinanceDashboard() {
 										Input Tax (Purchases)
 									</p>
 									<p className="font-semibold text-emerald-600">
-										{formatCurrency(data.gstSummary?.inputTax || 0, "en-US")}
+										{formatCurrency(data.gstSummary?.inputTax || 0, "en-IN")}
 									</p>
 								</div>
 								<div>
@@ -364,14 +364,14 @@ export default function FinanceDashboard() {
 										Output Tax (Sales)
 									</p>
 									<p className="font-semibold text-rose-600">
-										{formatCurrency(data.gstSummary?.outputTax || 0, "en-US")}
+										{formatCurrency(data.gstSummary?.outputTax || 0, "en-IN")}
 									</p>
 								</div>
 							</div>
 							<div className="mt-4 flex items-center justify-between border-amber-500/20 border-t pt-3">
 								<span className="font-medium text-sm">Net Liability</span>
 								<span className="font-bold text-amber-700 text-lg">
-									{formatCurrency(data.gstSummary?.netLiability || 0, "en-US")}
+									{formatCurrency(data.gstSummary?.netLiability || 0, "en-IN")}
 								</span>
 							</div>
 						</CardContent>
@@ -413,7 +413,7 @@ export default function FinanceDashboard() {
 									</div>
 									<div className="ml-2 text-right">
 										<div className="font-bold text-sm">
-											{formatCurrency(payment.amount, "en-US")}
+											{formatCurrency(payment.amount, "en-IN")}
 										</div>
 										<div
 											className={`text-[10px] ${payment.due === "Overdue" ? "font-bold text-rose-500" : "text-muted-foreground"}`}
@@ -461,7 +461,7 @@ export default function FinanceDashboard() {
 											className={`font-bold text-sm ${tx.type === "credit" ? "text-emerald-500" : "text-rose-500"}`}
 										>
 											{tx.type === "credit" ? "+" : "-"}
-											{formatCurrency(tx.amount, "en-US")}
+											{formatCurrency(tx.amount, "en-IN")}
 										</div>
 										<div
 											className={`mt-1 font-bold text-[10px] uppercase tracking-wider ${tx.status === "completed" ? "text-emerald-500" : "text-amber-500"}`}

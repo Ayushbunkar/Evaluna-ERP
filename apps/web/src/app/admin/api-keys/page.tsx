@@ -78,10 +78,10 @@ export default function ApiKeysPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-gradient-to-br from-purple-50 to-white">
+        <Card className="bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Key className="w-4 h-4 text-purple-600" /> Total Active Keys
+              <Key className="w-4 h-4" /> Total Active Keys
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -89,10 +89,10 @@ export default function ApiKeysPage() {
             <p className="text-xs text-muted-foreground mt-1">Across all environments</p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-slate-50 to-white border-dashed">
+        <Card className="bg-card border-dashed">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Server className="w-4 h-4 text-slate-600" /> API Requests (30d)
+              <Server className="w-4 h-4" /> API Requests (30d)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -155,7 +155,7 @@ export default function ApiKeysPage() {
         </CardContent>
       </Card>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3 text-amber-800">
+      <div className="bg-muted border border-border rounded-lg p-4 flex gap-3">
         <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
         <div className="text-sm">
           <p className="font-semibold mb-1">Security Recommendation</p>

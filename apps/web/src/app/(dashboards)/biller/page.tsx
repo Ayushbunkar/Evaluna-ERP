@@ -41,19 +41,19 @@ export default function BillerDashboard() {
 		{
 			id: 1,
 			title: "Bill #1042 Paid",
-			description: "$120.50 via Card",
+			description: "₹120.50 via Card",
 			time: "2 min ago",
 		},
 		{
 			id: 2,
 			title: "Bill #1041 Paid",
-			description: "$45.00 via Cash",
+			description: "₹45.00 via Cash",
 			time: "15 min ago",
 		},
 		{
 			id: 3,
 			title: "Refund #1040",
-			description: "$20.00 returned",
+			description: "₹20.00 returned",
 			time: "1 hour ago",
 		},
 	];
@@ -67,7 +67,7 @@ export default function BillerDashboard() {
 			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 				<KpiCard
 					title="Total Sales"
-					value={`$${metrics.totalSales.toFixed(2)}`}
+					value={`₹${metrics.totalSales.toFixed(2)}`}
 					icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
 					description="+12.5% from yesterday"
 				/>
@@ -79,7 +79,7 @@ export default function BillerDashboard() {
 				/>
 				<KpiCard
 					title="Avg Bill Value"
-					value={`$${metrics.avgBillValue.toFixed(2)}`}
+					value={`₹${metrics.avgBillValue.toFixed(2)}`}
 					icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
 					description="Steady"
 				/>

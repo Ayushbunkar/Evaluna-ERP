@@ -35,7 +35,7 @@ export function AdminSalesTrendChart({ data }: { data: any[] }) {
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
 				<XAxis dataKey="month" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v}`} />
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
 					type="monotone"

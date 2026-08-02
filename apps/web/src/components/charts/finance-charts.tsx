@@ -50,7 +50,7 @@ export function FinanceProfitChart({ data }: { data: any[] }) {
 				</defs>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} />
 				<XAxis dataKey="month" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
+				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
 					type="monotone"
@@ -101,7 +101,7 @@ export function FinanceCashFlowChart({ data }: { data: any[] }) {
 			<BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
 				<XAxis dataKey="day" tickLine={false} axisLine={false} />
-				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
+				<YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Bar dataKey="in" name="Cash In" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
 				<Bar dataKey="out" name="Cash Out" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />

@@ -32,7 +32,7 @@ export default function PutterDashboard() {
 								>
 									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 										<CardTitle className="font-medium text-sm capitalize">
-											{key.replace(/([A-Z])/g, " $1").trim()}
+											{key.replace(/([A-Z])/g, " ₹1").trim()}
 										</CardTitle>
 									</CardHeader>
 									<CardContent>

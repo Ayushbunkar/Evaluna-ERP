@@ -185,7 +185,7 @@ export default function BillingDashboard() {
 				>
 					<KPICard
 						title="Revenue"
-						value={formatCurrency(data.revenue, "en-US")}
+						value={formatCurrency(data.revenue, "en-IN")}
 						icon={TrendingUpIcon}
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
@@ -196,7 +196,7 @@ export default function BillingDashboard() {
 				>
 					<KPICard
 						title="Avg Bill"
-						value={formatCurrency(data.averageBill, "en-US")}
+						value={formatCurrency(data.averageBill, "en-IN")}
 						icon={ActivityIcon}
 						colorClass="from-indigo-500/10 to-transparent"
 					/>
@@ -207,7 +207,7 @@ export default function BillingDashboard() {
 				>
 					<KPICard
 						title="Refunds"
-						value={formatCurrency(data.refunds, "en-US")}
+						value={formatCurrency(data.refunds, "en-IN")}
 						icon={Undo2Icon}
 						colorClass="from-rose-500/10 to-transparent"
 					/>
@@ -218,7 +218,7 @@ export default function BillingDashboard() {
 				>
 					<KPICard
 						title="Cash"
-						value={formatCurrency(data.cashCollected, "en-US")}
+						value={formatCurrency(data.cashCollected, "en-IN")}
 						icon={BanknoteIcon}
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
@@ -332,7 +332,7 @@ export default function BillingDashboard() {
 										</p>
 									</div>
 									<div className="font-bold text-emerald-600 text-sm">
-										{formatCurrency(cashier.revenue, "en-US")}
+										{formatCurrency(cashier.revenue, "en-IN")}
 									</div>
 								</div>
 							))}
@@ -417,7 +417,7 @@ export default function BillingDashboard() {
 											</TableCell>
 											<TableCell className="text-right">
 												<div className="font-bold text-xs">
-													{formatCurrency(bill.amount, "en-US")}
+													{formatCurrency(bill.amount, "en-IN")}
 												</div>
 												<div
 													className={`mt-0.5 font-bold text-[9px] uppercase tracking-wider ${bill.status === "paid" ? "text-emerald-500" : "text-amber-500"}`}

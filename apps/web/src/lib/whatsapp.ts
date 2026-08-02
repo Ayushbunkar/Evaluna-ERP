@@ -12,13 +12,13 @@ export function generateOrderWhatsAppLink(
 		text += `Order ID: ${order.id}\n`;
 	}
 	if (order?.totalAmount !== undefined) {
-		text += `Total: $${Number(order.totalAmount).toFixed(2)}\n`;
+		text += `Total: ₹${Number(order.totalAmount).toFixed(2)}\n`;
 	}
 
 	if (order?.items && Array.isArray(order.items)) {
 		text += "\n*Items:*\n";
 		order.items.forEach((item: any) => {
-			text += `- ${item.quantity}x ${item.name || "Item"} ($${Number(item.price || 0).toFixed(2)})\n`;
+			text += `- ${item.quantity}x ${item.name || "Item"} (₹${Number(item.price || 0).toFixed(2)})\n`;
 		});
 	}
 
