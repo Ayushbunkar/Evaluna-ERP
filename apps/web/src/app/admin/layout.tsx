@@ -14,7 +14,7 @@ import {
 	LandmarkIcon,
 	LayoutDashboardIcon,
 	LifeBuoyIcon,
-	LineChartIcon,
+	MapIcon,
 	PackageIcon,
 	ReceiptTextIcon,
 	RotateCcwIcon,
