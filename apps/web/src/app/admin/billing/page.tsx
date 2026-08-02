@@ -30,34 +30,10 @@ import {
 	UsersIcon,
 	WalletIcon,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 import { cookies } from "next/headers";
 import { getServerClient } from "@/lib/trpc/serverClient";
 import { formatCurrency } from "@/lib/utils";
-
-const BillingSalesChart = dynamic(
-	() =>
-		import("@/components/charts/billing-charts").then(
-			(m) => m.BillingSalesChart,
-		),
-	{ ssr: false }
-);
-
-const BillingHourlyChart = dynamic(
-	() =>
-		import("@/components/charts/billing-charts").then(
-			(m) => m.BillingHourlyChart,
-		),
-	{ ssr: false }
-);
-
-const BillingPaymentChart = dynamic(
-	() =>
-		import("@/components/charts/billing-charts").then(
-			(m) => m.BillingPaymentChart,
-		),
-	{ ssr: false }
-);
+import { BillingSalesChart, BillingHourlyChart, BillingPaymentChart } from "@/components/charts/billing-charts";
 
 function KPICard({
 	title,

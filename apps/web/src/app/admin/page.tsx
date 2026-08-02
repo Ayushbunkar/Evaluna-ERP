@@ -17,35 +17,11 @@ import {
 	UsersIcon,
 	WarehouseIcon,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 import { cookies } from "next/headers";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { getServerClient } from "@/lib/trpc/serverClient";
 import { formatCurrency } from "@/lib/utils";
-
-const AdminSalesTrendChart = dynamic(
-	() =>
-		import("@/components/charts/admin-charts").then(
-			(m) => m.AdminSalesTrendChart,
-		),
-	{ ssr: false }
-);
-
-const AdminBranchPerformanceChart = dynamic(
-	() =>
-		import("@/components/charts/admin-charts").then(
-			(m) => m.AdminBranchPerformanceChart,
-		),
-	{ ssr: false }
-);
-
-const AdminCashFlowChart = dynamic(
-	() =>
-		import("@/components/charts/admin-charts").then(
-			(m) => m.AdminCashFlowChart,
-		),
-	{ ssr: false }
-);
+import { AdminSalesTrendChart, AdminBranchPerformanceChart, AdminCashFlowChart } from "@/components/charts/admin-charts";
 
 function KPICard({
 	title,
