@@ -64,7 +64,8 @@ function KPICard({
 }
 
 export default async function BillingDashboard() {
-	const branchCookie = cookies().get("evaluna.branch_context")?.value;
+	const cookieStore = await cookies();
+	const branchCookie = cookieStore.get("evaluna.branch_context")?.value;
 	const activeBranchId = branchCookie ? Number(branchCookie) : undefined;
 
 	const serverClient = await getServerClient();
