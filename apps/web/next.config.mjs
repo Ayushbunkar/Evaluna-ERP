@@ -6,6 +6,21 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const withPWA = withPWAInit({
 	dest: "public",
 	disable: process.env.NODE_ENV === "development",
+	workboxOptions: {
+		exclude: [/\/api\//], // Exclude API routes from precaching
+		runtimeCaching: [
+			{
+				urlPattern: /^(?!.*\/api\/trpc\/).*/i,
+				handler: 'NetworkFirst',
+				options: {
+					cacheName: 'offlineCache',
+					expiration: {
+						maxEntries: 200,
+					},
+				},
+			},
+		],
+	},
 });
 
 /** @type {import('next').NextConfig} */

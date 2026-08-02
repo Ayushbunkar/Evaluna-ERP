@@ -46,9 +46,7 @@ export const purchaseReturnsRouter = router({
 				.values({
 					purchase_id: input.purchase_id,
 					supplier_id: purchase.supplier_id,
-					return_date: input.return_date,
 					total_amount: input.total_amount.toString(),
-					reason: input.reason,
 					status: input.status || "pending",
 					user_uid: ctx.user.id,
 				})
@@ -73,9 +71,7 @@ export const purchaseReturnsRouter = router({
 			const [updatedReturn] = await db
 				.update(purchaseReturns)
 				.set({
-					return_date: input.return_date,
 					total_amount: input.total_amount.toString(),
-					reason: input.reason,
 					status: input.status,
 				})
 				.where(eq(purchaseReturns.id, id))

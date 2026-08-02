@@ -109,7 +109,7 @@ export const warehouseRouter = router({
 				recentActivity: activityList.map((a) => ({
 					id: a.id,
 					action: `Transaction: ${a.action}`,
-					time: (new Date(a.time)).toLocaleString() || "N/A",
+					time: a.time ? new Date(a.time).toLocaleString() : "N/A",
 					user: "System",
 				})),
 				inventoryAlerts: [],

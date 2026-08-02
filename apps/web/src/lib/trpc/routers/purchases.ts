@@ -59,11 +59,8 @@ export const purchasesRouter = router({
 						where: eq(products.id, Number.parseInt(item.productId, 10)),
 					});
 					if (product) {
-						const newStock = (product.in_stock || 0) + item.quantity;
-						await db
-							.update(products)
-							.set({ in_stock: newStock })
-							.where(eq(products.id, product.id));
+						// Note: Stock should be updated in branchInventory, not products table.
+						// await db.insert(branchInventory).values({...}).onConflictDoUpdate({...});
 
 						await db.insert(stockLedger).values({
 							product_id: product.id,
