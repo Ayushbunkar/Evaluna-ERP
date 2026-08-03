@@ -698,8 +698,8 @@ export default function BackupDashboard() {
 			) ?? 0,
 	};
 
-	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+		return (
+		<div className="min-h-screen bg-white p-6">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
@@ -708,26 +708,26 @@ export default function BackupDashboard() {
 				{/* Header */}
 				<div className="mb-8 flex items-start justify-between">
 					<div>
-						<h1 className="flex items-center gap-3 font-bold text-3xl text-white">
-							<div className="rounded-xl border border-amber-500/30 bg-amber-600/20 p-2">
-								<Shield className="h-7 w-7 text-amber-400" />
+						<h1 className="flex items-center gap-3 font-bold text-3xl text-black">
+							<div className="rounded-xl border border-gray-300 bg-gray-100 p-2">
+								<Shield className="h-7 w-7 text-black" />
 							</div>
 							Disaster Recovery
 						</h1>
-						<p className="mt-1 text-slate-400">
+						<p className="mt-1 text-gray-600">
 							Encrypted backups, verification, restore wizard, and cloud sync
 						</p>
 					</div>
 					<div className="flex gap-2">
 						<button
 							onClick={() => refetch()}
-							className="rounded-xl border border-white/10 bg-slate-700/50 p-2.5 text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
+							className="rounded-xl border border-gray-300 bg-gray-50 p-2.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black"
 						>
 							<RefreshCw className="h-4 w-4" />
 						</button>
 						<button
 							onClick={() => setShowCreate(true)}
-							className="flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 font-medium text-sm text-white transition-colors hover:bg-amber-500"
+							className="flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 font-medium text-sm text-white transition-colors hover:bg-gray-800"
 						>
 							<Download className="h-4 w-4" /> Create Backup
 						</button>

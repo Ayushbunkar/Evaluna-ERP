@@ -23,9 +23,12 @@ import {
 	Trash,
 	TrendingUp,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { ImportModal } from "./components/ImportModal";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 
 export default function ProductsPage() {
 	const utils = trpc.useUtils();
@@ -365,13 +368,19 @@ export default function ProductsPage() {
 													<td className="px-6 py-4 text-right font-medium text-gray-900 dark:text-gray-100">
 														{product.baseSellingPrice.toFixed(2)}
 													</td>
-													<td className="px-6 py-4 text-center">
-														<span
-															className={`\${ product.margin >= 30 ? 'bg-green-50 : product.margin > 15 ? 'bg-blue-50 : 'bg-red-50 } inline-flex items-center rounded px-2 py-1 font-medium text-blue-700 text-green-700 text-red-700 text-xs dark:bg-blue-900/30 dark:bg-green-900/30 dark:bg-red-900/30 dark:text-blue-400' dark:text-green-400' dark:text-red-400'`}
-														>
-															{product.margin}%
-														</span>
-													</td>
+					<td className="px-6 py-4 text-center">
+						<span
+							className={`${
+								product.margin >= 30
+									? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+									: product.margin > 15
+										? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+										: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+							} inline-flex items-center rounded px-2 py-1 font-medium text-xs`}
+						>
+							{product.margin}%
+						</span>
+					</td>
 													<td className="px-6 py-4 text-center">
 														<Badge
 															variant="outline"

@@ -43,9 +43,7 @@ export default function LoyaltyPage() {
 	const [search, setSearch] = useState("");
 	const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
-	const { data: customers, isLoading } = trpc.customers.list.useQuery(
-		activeBranchId ? { branch_id: activeBranchId } : {},
-	);
+	const { data: customers, isLoading } = trpc.customers.list.useQuery(undefined);
 
 	const filtered = customers?.filter(
 		(c: any) =>

@@ -24,7 +24,7 @@ export function PurchaseForm({
 }) {
 	const router = useRouter();
 
-	const [suppliers] = trpc.suppliers.list.useSuspenseQuery({});
+	const [suppliers] = trpc.suppliers.list.useSuspenseQuery();
 	const [products] = trpc.products.list.useSuspenseQuery();
 
 	const form = useForm({
