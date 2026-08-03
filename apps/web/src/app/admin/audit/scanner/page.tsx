@@ -108,43 +108,43 @@ export default function AuditorScanner() {
 	};
 
 	return (
-		<div className="zoom-in-95 container mx-auto flex min-h-screen max-w-md animate-in flex-col items-center justify-center bg-slate-950 p-4 duration-500">
-			<Card className="w-full overflow-hidden border-0 bg-white/5 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
-				<div className="h-2 w-full bg-gradient-to-r from-emerald-400 to-cyan-400" />
+		<div className="zoom-in-95 container mx-auto flex min-h-screen max-w-md animate-in flex-col items-center justify-center bg-white p-4 duration-500">
+			<Card className="w-full overflow-hidden border-0 bg-white shadow-2xl ring-1 ring-black/10">
+				<div className="h-2 w-full bg-black" />
 
 				{step === "scan" && (
 					<>
 						<CardHeader className="pb-2 text-center">
-							<div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 p-4">
-								<ScanBarcodeIcon className="h-10 w-10 text-emerald-400" />
+							<div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-black/10 p-4">
+								<ScanBarcodeIcon className="h-10 w-10 text-black" />
 							</div>
-							<CardTitle className="font-bold text-2xl text-white">
+							<CardTitle className="font-bold text-2xl text-black">
 								Blind Audit
 							</CardTitle>
-							<CardDescription className="text-slate-400">
+							<CardDescription className="text-gray-600">
 								Scan items to verify inventory
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-6 pt-6">
 							<div className="space-y-2">
-								<Label className="font-semibold text-slate-300 text-xs uppercase tracking-wider">
+								<Label className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
 									Location Barcode
 								</Label>
 								<Input
 									placeholder="Scan Bin..."
-									className="h-14 border-slate-700 bg-slate-900 text-lg text-white uppercase placeholder:text-slate-600 focus-visible:ring-emerald-500"
+									className="h-14 border-gray-300 bg-white text-lg text-black uppercase placeholder:text-gray-500 focus-visible:ring-black"
 									value={locationBarcode}
 									onChange={(e) => setLocationBarcode(e.target.value)}
 									autoFocus
 								/>
 							</div>
 							<div className="space-y-2">
-								<Label className="font-semibold text-slate-300 text-xs uppercase tracking-wider">
+								<Label className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
 									Product Barcode
 								</Label>
 								<Input
 									placeholder="Scan Item..."
-									className="h-14 border-slate-700 bg-slate-900 text-lg text-white placeholder:text-slate-600 focus-visible:ring-emerald-500"
+									className="h-14 border-gray-300 bg-white text-lg text-black placeholder:text-gray-500 focus-visible:ring-black"
 									value={productBarcode}
 									onChange={(e) => setProductBarcode(e.target.value)}
 								/>
@@ -152,7 +152,7 @@ export default function AuditorScanner() {
 						</CardContent>
 						<CardFooter className="pt-4 pb-8">
 							<Button
-								className="h-14 w-full bg-emerald-500 font-bold text-lg text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all hover:bg-emerald-400 active:scale-95"
+								className="h-14 w-full bg-black font-bold text-lg text-white shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:bg-gray-800 active:scale-95"
 								onClick={handleNext}
 								disabled={!locationBarcode || !productBarcode}
 							>

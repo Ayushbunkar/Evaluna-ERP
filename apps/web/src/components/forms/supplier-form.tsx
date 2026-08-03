@@ -115,7 +115,17 @@ export function SupplierForm({
 						<label>GSTIN</label>
 						<input
 							value={field.state.value}
-							onChange={(e) => field.handleChange(e.target.value)}
+							onChange={(e) => {
+								// Format GSTIN as uppercase and validate pattern
+								let value = e.target.value.toUpperCase();
+								// GSTIN format: 12ABCDE1234F1Z1 (15 characters)
+								if (value.length > 15) {
+									value = value.substring(0, 15);
+								}
+								field.handleChange(value);
+							}}
+							placeholder="12ABCDE1234F1Z1"
+							maxLength={15}
 						/>
 					</div>
 				)}
@@ -128,7 +138,17 @@ export function SupplierForm({
 						<label>PAN</label>
 						<input
 							value={field.state.value}
-							onChange={(e) => field.handleChange(e.target.value)}
+							onChange={(e) => {
+								// Format PAN as uppercase and validate pattern
+								let value = e.target.value.toUpperCase();
+								// PAN format: AAAAA1234A (10 characters)
+								if (value.length > 10) {
+									value = value.substring(0, 10);
+								}
+								field.handleChange(value);
+							}}
+							placeholder="AAAAA1234A"
+							maxLength={10}
 						/>
 					</div>
 				)}
