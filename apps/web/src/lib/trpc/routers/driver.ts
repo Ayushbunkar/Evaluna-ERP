@@ -75,11 +75,11 @@ export const driverRouter = router({
 					phone: nextStop.customer?.phone ?? "N/A",
 					address: nextStop.customer?.address ?? "N/A",
 					landmark: "",
-					paymentType: "Cash on Delivery", // Default mock
+					paymentType: "Cash on Delivery",
 					amountToCollect: 0,
 					packages: 1,
-					eta: "14 mins",
-					distance: "2.4 km",
+					eta: null,
+					distance: null,
 					isVerified: false,
 				};
 			}
@@ -99,13 +99,13 @@ export const driverRouter = router({
 			return {
 				driverName: ctx.user?.name ?? "Driver",
 				status: trip.status === "active" ? "Online" : "Offline",
-				batteryLevel: 82,
+				batteryLevel: null,
 				assignedOrders,
 				delivered,
 				pending,
 				codCollected,
-				distanceCovered: `${trip.total_distance ?? 0} km`,
-				rating: 4.8,
+				distanceCovered: trip.total_distance ? `${trip.total_distance} km` : null,
+				rating: null,
 				nextDelivery,
 				routeStops,
 			};

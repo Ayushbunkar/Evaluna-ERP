@@ -93,23 +93,22 @@ export default async function BranchManagerDashboard() {
 					title="Today's Sales"
 					value={formatCurrency(data.todaySales, "en-IN")}
 					icon={IndianRupeeIcon}
-					trend="vs yesterday"
-					trendValue="12%"
-					trendIsPositive={true}
+					trend={data.salesTrendPct !== 0 ? "vs yesterday" : undefined}
+					trendValue={data.salesTrendPct !== 0 ? `${Math.abs(data.salesTrendPct)}%` : undefined}
+					trendIsPositive={data.salesTrendIsPositive}
 				/>
 				<KPICard
 					title="Today's Bills"
 					value={data.todayOrders || 0}
 					icon={ShoppingCartIcon}
-					trend="vs yesterday"
-					trendValue="5%"
-					trendIsPositive={true}
+					trend={data.billsTrendPct !== 0 ? "vs yesterday" : undefined}
+					trendValue={data.billsTrendPct !== 0 ? `${Math.abs(data.billsTrendPct)}%` : undefined}
+					trendIsPositive={data.billsTrendIsPositive}
 				/>
 				<KPICard
 					title="Net Profit"
 					value={formatCurrency(data.todayProfit, "en-IN")}
 					icon={TrendingUpIcon}
-					trendValue="8%"
 					trendIsPositive={data.todayProfit >= 0}
 				/>
 				<KPICard

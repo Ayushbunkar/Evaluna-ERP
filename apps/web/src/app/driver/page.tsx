@@ -119,16 +119,12 @@ export default function DriverDashboard() {
 					</div>
 				</div>
 				<div className="flex items-center gap-3 text-muted-foreground">
-					<div className="flex items-center gap-1 font-bold text-[10px]">
-						<WifiOffIcon className="h-3 w-3 text-amber-500" /> Offline Sync
-					</div>
-					<div className="flex items-center gap-1">
-						<SignalIcon className="h-4 w-4" />
-					</div>
-					<div className="flex items-center gap-1">
-						<BatteryIcon className="h-4 w-4" />{" "}
-						<span className="font-bold text-[10px]">{data.batteryLevel}%</span>
-					</div>
+					{data.batteryLevel !== null && (
+						<div className="flex items-center gap-1">
+							<BatteryIcon className="h-4 w-4" />{" "}
+							<span className="font-bold text-[10px]">{data.batteryLevel}%</span>
+						</div>
+					)}
 				</div>
 			</div>
 
@@ -143,7 +139,7 @@ export default function DriverDashboard() {
 							<MiniMapPreview />
 							<CardContent className="relative p-4 pt-5">
 								<div className="absolute top-0 right-4 flex -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-popover px-3 py-1 font-bold text-[10px] text-popover-foreground shadow-md">
-									<ClockIcon className="h-3 w-3" /> ETA {data.nextDelivery.eta}
+									<ClockIcon className="h-3 w-3" /> {data.nextDelivery.eta ? `ETA ${data.nextDelivery.eta}` : "En route"}
 								</div>
 
 								<div className="mb-3 flex items-start justify-between">
@@ -283,15 +279,12 @@ export default function DriverDashboard() {
 								COD Collected
 							</div>
 						</div>
-						<div className="flex flex-col items-center text-center">
-							<div className="flex items-center gap-1 font-black text-xl">
-								{data.rating}{" "}
-								<StarIcon className="h-3 w-3 fill-amber-400 text-amber-400" />
+						{data.distanceCovered && (
+							<div className="flex flex-col items-center text-center">
+								<div className="font-black text-xl">{data.distanceCovered}</div>
+								<div className="mt-0.5 text-[10px] text-muted-foreground">Distance</div>
 							</div>
-							<div className="mt-0.5 text-[10px] text-muted-foreground">
-								Avg Rating
-							</div>
-						</div>
+						)}
 					</div>
 				</div>
 

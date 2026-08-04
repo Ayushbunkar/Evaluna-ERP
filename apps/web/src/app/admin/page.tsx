@@ -91,23 +91,22 @@ export default async function CompanyAdminDashboard() {
 					title="Today's Sales"
 					value={formatCurrency(data.todaySales, "en-IN")}
 					icon={IndianRupeeIcon}
-					trend="vs yesterday"
-					trendValue="12%"
-					trendIsPositive={true}
+					trend={data.salesTrendPct !== 0 ? "vs yesterday" : undefined}
+					trendValue={data.salesTrendPct !== 0 ? `${Math.abs(data.salesTrendPct)}%` : undefined}
+					trendIsPositive={data.salesTrendIsPositive}
 				/>
 				<KPICard
 					title="Today's Orders"
 					value={data.todayOrders || 0}
 					icon={ShoppingCartIcon}
-					trend="vs yesterday"
-					trendValue="5%"
-					trendIsPositive={true}
+					trend={data.billsTrendPct !== 0 ? "vs yesterday" : undefined}
+					trendValue={data.billsTrendPct !== 0 ? `${Math.abs(data.billsTrendPct)}%` : undefined}
+					trendIsPositive={data.billsTrendIsPositive}
 				/>
 				<KPICard
 					title="Today's Profit"
 					value={formatCurrency(data.todayProfit, "en-IN")}
 					icon={TrendingUpIcon}
-					trendValue="8%"
 					trendIsPositive={data.todayProfit >= 0}
 				/>
 				<KPICard
@@ -265,9 +264,9 @@ export default async function CompanyAdminDashboard() {
 								<h2 className="font-black text-4xl text-gray-900">
 									{formatCurrency(data.inventoryValue || 0, "en-IN")}
 								</h2>
-								<div className="mt-4 flex w-fit items-center text-gray-900 font-medium text-sm">
+								<div className="mt-4 flex w-fit items-center text-gray-500 font-medium text-sm">
 									<TrendingUpIcon className="mr-1 h-4 w-4" />
-									+2.4% this month
+									{data.warehouseCapacity}% warehouse utilized
 								</div>
 							</CardContent>
 						</Card>
