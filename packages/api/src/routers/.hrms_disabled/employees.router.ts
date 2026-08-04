@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { router, procedure } from "../../trpc";
+import { router, protectedProcedure } from "../../index";
 import { db } from "@evaluna/db";
 import { employees, departments, designations } from "@evaluna/db/src/schema/hrms";
-import { eq } from "drizzle-orm";
+import { eq, or, ilike, and, count } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const employeesRouter = router({
-  list: procedure.query(async () => {
+  list: protectedProcedure.query(async () => {
     return await db.query.employees.findMany({
       with: {
         department: true,
@@ -17,7 +17,7 @@ export const employeesRouter = router({
     });
   }),
 
-  getById: procedure.input(z.number()).query(async ({ input }) => {
+  getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
     const result = await db.query.employees.findFirst({
       where: eq(employees.id, input),
       with: {
@@ -37,7 +37,7 @@ export const employeesRouter = router({
     return result;
   }),
 
-  create: procedure
+  create: protectedProcedure
     .input(
       z.object({
         employeeCode: z.string().min(1),
@@ -77,7 +77,7 @@ export const employeesRouter = router({
       return employee;
     }),
 
-  update: procedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.number(),
@@ -115,7 +115,7 @@ export const employeesRouter = router({
       return employee;
     }),
 
-  delete: procedure.input(z.number()).mutation(async ({ input }) => {
+  delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
     const [employee] = await db
       .delete(employees)
       .where(eq(employees.id, input))
@@ -131,7 +131,7 @@ export const employeesRouter = router({
     return employee;
   }),
 
-  search: procedure
+  search: protectedProcedure
     .input(
       z.object({
         query: z.string().optional(),
@@ -146,11 +146,11 @@ export const employeesRouter = router({
 
       if (input.query) {
         whereClause.push(
-          db.or(
-            db.ilike(employees.firstName, `%${input.query}%`),
-            db.ilike(employees.lastName, `%${input.query}%`),
-            db.ilike(employees.email, `%${input.query}%`),
-            db.ilike(employees.employeeCode, `%${input.query}%`),
+          or(
+            ilike(employees.firstName, `%${input.query}%`),
+            ilike(employees.lastName, `%${input.query}%`),
+            ilike(employees.email, `%${input.query}%`),
+            ilike(employees.employeeCode, `%${input.query}%`),
           ),
         );
       }
@@ -164,7 +164,7 @@ export const employeesRouter = router({
       }
 
       const result = await db.query.employees.findMany({
-        where: whereClause.length > 0 ? db.and(...whereClause) : undefined,
+        where: whereClause.length > 0 ? and(...whereClause) : undefined,
         with: {
           department: true,
           designation: true,
@@ -175,9 +175,9 @@ export const employeesRouter = router({
       });
 
       const total = await db
-        .select({ count: db.fn.count() })
+        .select({ count: count() })
         .from(employees)
-        .where(whereClause.length > 0 ? db.and(...whereClause) : undefined)
+        .where(whereClause.length > 0 ? and(...whereClause) : undefined)
         .then((res) => res[0]?.count || 0);
 
       return {

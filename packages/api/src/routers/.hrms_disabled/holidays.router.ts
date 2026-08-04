@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { router, procedure } from "../../trpc";
+import { router, protectedProcedure } from "../../index";
 import { db } from "@evaluna/db";
-import { holidays } from "@evaluna/db/src/schema/hrms";
+import { holidays } from "@evaluna/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const holidaysRouter = router({
-  list: procedure
+  list: protectedProcedure
     .input(
       z.object({
         year: z.number().optional(),
@@ -27,7 +27,7 @@ export const holidaysRouter = router({
       });
     }),
 
-  create: procedure
+  create: protectedProcedure
     .input(
       z.object({
         date: z.date(),
@@ -46,7 +46,7 @@ export const holidaysRouter = router({
       return holiday;
     }),
 
-  update: procedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.number(),
@@ -74,7 +74,7 @@ export const holidaysRouter = router({
       return holiday;
     }),
 
-  delete: procedure
+  delete: protectedProcedure
     .input(z.number())
     .mutation(async ({ input }) => {
       const [holiday] = await db
@@ -92,7 +92,7 @@ export const holidaysRouter = router({
       return holiday;
     }),
 
-  checkHoliday: procedure
+  checkHoliday: protectedProcedure
     .input(
       z.object({
         date: z.date(),
