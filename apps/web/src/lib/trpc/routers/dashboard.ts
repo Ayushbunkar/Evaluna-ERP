@@ -200,14 +200,14 @@ export const dashboardRouter = router({
 			const sevenDaysAgo = subDays(now, 7);
 			const cashFlowRaw = await db
 				.select({
-					date: sql<string>`TO_CHAR(DATE(${transactions.created_at}), 'DD Mon')`,
+					date: sql<string>`TO_CHAR(CAST(${transactions.created_at} AS DATE), 'DD Mon')`,
 					inflow: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'in' THEN ${transactions.amount} ELSE 0 END), 0)`,
 					outflow: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'out' THEN ${transactions.amount} ELSE 0 END), 0)`,
 				})
 				.from(transactions)
 				.where(and(gte(transactions.created_at, sevenDaysAgo), txnBranchFilter))
-				.groupBy(sql`DATE(${transactions.created_at})`)
-				.orderBy(sql`DATE(${transactions.created_at})`);
+				.groupBy(sql`CAST(${transactions.created_at} AS DATE)`)
+				.orderBy(sql`CAST(${transactions.created_at} AS DATE)`);
 
 			const cashFlowTrend = cashFlowRaw.map((c) => ({
 				date: c.date,

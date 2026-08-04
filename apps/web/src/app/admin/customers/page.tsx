@@ -105,12 +105,16 @@ export default function CustomersPage() {
 			key: "loyalty_points",
 			header: "Points",
 			sortable: true,
+			headerClassName: "text-right",
+			className: "text-right font-medium",
 			render: (row) => row.loyalty_points?.toString() || "0",
 		},
 		{
 			key: "store_credit",
 			header: "Credit",
 			sortable: true,
+			headerClassName: "text-right",
+			className: "text-right font-medium",
 			render: (row) => `₹${row.store_credit || "0.00"}`,
 		},
 		{

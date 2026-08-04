@@ -37,7 +37,7 @@ export const customersRouter = router({
 			return db
 				.select()
 				.from(customers)
-				.where(eq(customers.user_uid, ctx.user.id));
+				.where(ctx.user.branchId ? eq(customers.branch_id, ctx.user.branchId) : undefined);
 		}),
 
 	getById: roleProcedure(["admin", "manager", "auditor", "sales_person"])
@@ -55,7 +55,7 @@ export const customersRouter = router({
 			const customer = await db.query.customers.findFirst({
 				where: and(
 					eq(customers.id, input.id),
-					eq(customers.user_uid, ctx.user.id),
+					ctx.user.branchId ? eq(customers.branch_id, ctx.user.branchId) : undefined,
 				),
 				with: {
 					orders: {
@@ -104,7 +104,7 @@ export const customersRouter = router({
 			const code = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
 			const [data] = await db
 				.insert(customers)
-				.values({ ...input, customer_code: code, user_uid: ctx.user.id })
+				.values({ ...input, customer_code: code, user_uid: ctx.user.id, branch_id: ctx.user.branchId ?? null })
 				.returning();
 			return data;
 		}),
@@ -137,7 +137,7 @@ export const customersRouter = router({
 			const [updated] = await db
 				.update(customers)
 				.set({ ...data, user_uid: ctx.user.id })
-				.where(and(eq(customers.id, id), eq(customers.user_uid, ctx.user.id)))
+				.where(and(eq(customers.id, id), ctx.user.branchId ? eq(customers.branch_id, ctx.user.branchId) : undefined))
 				.returning();
 			return updated;
 		}),
@@ -164,7 +164,7 @@ export const customersRouter = router({
 			const customer = await db.query.customers.findFirst({
 				where: and(
 					eq(customers.id, input.id),
-					eq(customers.user_uid, ctx.user.id),
+					ctx.user.branchId ? eq(customers.branch_id, ctx.user.branchId) : undefined,
 				),
 			});
 			if (!customer) throw new Error("Customer not found");
@@ -209,7 +209,7 @@ export const customersRouter = router({
 			await db
 				.delete(customers)
 				.where(
-					and(eq(customers.id, input.id), eq(customers.user_uid, ctx.user.id)),
+					and(eq(customers.id, input.id), ctx.user.branchId ? eq(customers.branch_id, ctx.user.branchId) : undefined),
 				);
 			return { success: true };
 		}),

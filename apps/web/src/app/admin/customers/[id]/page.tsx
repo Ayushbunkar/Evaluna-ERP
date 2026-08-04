@@ -129,6 +129,8 @@ export default function CustomerIntelligencePage() {
 		{
 			key: "amount",
 			header: "Amount",
+			headerClassName: "text-right",
+			className: "text-right",
 			render: (row) => {
 				const amt = Number.parseFloat(row.amount);
 				const isPositive = amt > 0;
@@ -174,8 +176,10 @@ export default function CustomerIntelligencePage() {
 		{
 			key: "total",
 			header: "Total Value",
+			headerClassName: "text-right",
+			className: "text-right",
 			render: (row) => (
-				<span className="block w-full text-right font-semibold">
+				<span className="font-semibold">
 					₹
 					{Number.parseFloat(row.total_amount).toLocaleString("en-IN", {
 						minimumFractionDigits: 2,

@@ -106,15 +106,15 @@ export const financeRouter = router({
 				// Cash flow: last 7 days (inflow vs outflow per day)
 				ctx.db
 					.select({
-						date: sql<string>`TO_CHAR(DATE(${transactions.created_at}), 'DD Mon')`,
-						dateSort: sql<string>`DATE(${transactions.created_at})`,
+						date: sql<string>`TO_CHAR(CAST(${transactions.created_at} AS DATE), 'DD Mon')`,
+						dateSort: sql<string>`CAST(${transactions.created_at} AS DATE)`,
 						inflow: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'in' THEN ${transactions.amount} ELSE 0 END), 0)`,
 						outflow: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'out' THEN ${transactions.amount} ELSE 0 END), 0)`,
 					})
 					.from(transactions)
 					.where(gte(transactions.created_at, sevenDaysAgo))
-					.groupBy(sql`DATE(${transactions.created_at})`)
-					.orderBy(sql`DATE(${transactions.created_at})`),
+					.groupBy(sql`CAST(${transactions.created_at} AS DATE)`)
+					.orderBy(sql`CAST(${transactions.created_at} AS DATE)`),
 			]);
 
 			const todaysCash = Number(todaysCashRes[0]?.total || 0);
