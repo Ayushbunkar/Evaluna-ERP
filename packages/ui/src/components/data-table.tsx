@@ -8,7 +8,6 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown, DownloadIcon } from "lucide-react";
 import {
 	type ReactNode,
