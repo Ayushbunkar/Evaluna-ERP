@@ -9,7 +9,7 @@ import {
 	AlertTriangleIcon,
 	CheckCircle2Icon,
 	ClockIcon,
-	DollarSignIcon,
+	IndianRupeeIcon,
 	PackageIcon,
 	ShoppingCartIcon,
 	TrendingUpIcon,
@@ -90,7 +90,7 @@ export default async function CompanyAdminDashboard() {
 				<KPICard
 					title="Today's Sales"
 					value={formatCurrency(data.todaySales, "en-IN")}
-					icon={DollarSignIcon}
+					icon={IndianRupeeIcon}
 					trend="vs yesterday"
 					trendValue="12%"
 					trendIsPositive={true}

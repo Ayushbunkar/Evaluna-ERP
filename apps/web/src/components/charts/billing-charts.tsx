@@ -33,7 +33,36 @@ const paymentColors = [
 	"hsl(var(--chart-5))",
 ];
 
+function EmptyChart({ height = 200, message = "No data available yet" }: { height?: number; message?: string }) {
+	return (
+		<div
+			className="flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50/50 text-center"
+			style={{ height }}
+		>
+			<svg
+				className="mb-2 h-8 w-8 text-gray-300"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+			>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+				/>
+			</svg>
+			<p className="text-gray-400 text-sm font-medium">{message}</p>
+			<p className="mt-1 text-gray-300 text-xs">Data will appear once transactions are recorded</p>
+		</div>
+	);
+}
+
 export function BillingSalesChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart height={300} message="No sales trend data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-full w-full">
 			<AreaChart
@@ -75,6 +104,10 @@ export function BillingSalesChart({ data }: { data: any[] }) {
 }
 
 export function BillingHourlyChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart message="No hourly sales data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[200px] w-full">
 			<BarChart data={data}>
@@ -98,6 +131,10 @@ export function BillingHourlyChart({ data }: { data: any[] }) {
 }
 
 export function BillingPaymentChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart message="No payment distribution data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[200px] w-full">
 			<PieChart>

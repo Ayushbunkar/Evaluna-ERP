@@ -22,6 +22,8 @@ export const ROLES = [
 	"driver",
 	"biller",
 	"sales_person",
+	"delivery_manager",
+	"delivery_boy",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -41,6 +43,8 @@ export const ROLE_LEVEL: Record<Role, number> = {
 	driver: 7,
 	biller: 8,
 	sales_person: 9,
+	delivery_manager: 10,
+	delivery_boy: 11,
 };
 
 // ── Permission Domains ────────────────────────────────────────────────────────

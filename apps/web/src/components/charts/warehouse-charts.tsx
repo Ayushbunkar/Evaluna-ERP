@@ -41,7 +41,36 @@ const fifoColors = [
 	"hsl(var(--chart-1))",
 ];
 
+function EmptyChart({ height = 220, message = "No data available yet" }: { height?: number; message?: string }) {
+	return (
+		<div
+			className="flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50/50 text-center"
+			style={{ height }}
+		>
+			<svg
+				className="mb-2 h-8 w-8 text-gray-300"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+			>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+				/>
+			</svg>
+			<p className="text-gray-400 text-sm font-medium">{message}</p>
+			<p className="mt-1 text-gray-300 text-xs">Configure warehouse locations to see data</p>
+		</div>
+	);
+}
+
 export function WarehouseHeatmapChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart height={300} message="No warehouse location data" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-full w-full">
 			<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
@@ -49,14 +78,14 @@ export function WarehouseHeatmapChart({ data }: { data: any[] }) {
 				<XAxis
 					type="number"
 					dataKey="x"
-					name="Aisle"
+					name="Zone"
 					tickLine={false}
 					axisLine={false}
 				/>
 				<YAxis
 					type="number"
 					dataKey="y"
-					name="Rack"
+					name="Stock"
 					tickLine={false}
 					axisLine={false}
 				/>
@@ -64,14 +93,14 @@ export function WarehouseHeatmapChart({ data }: { data: any[] }) {
 					type="number"
 					dataKey="activity"
 					range={[50, 400]}
-					name="Activity"
+					name="Utilization %"
 				/>
 				<ChartTooltip
 					cursor={{ strokeDasharray: "3 3" }}
 					content={<ChartTooltipContent />}
 				/>
 				<Scatter
-					name="Activity"
+					name="Location Activity"
 					data={data}
 					fill="hsl(var(--chart-1))"
 					opacity={0.6}
@@ -82,6 +111,10 @@ export function WarehouseHeatmapChart({ data }: { data: any[] }) {
 }
 
 export function WarehouseRackChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart message="No rack utilization data" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[220px] w-full">
 			<BarChart
@@ -114,6 +147,10 @@ export function WarehouseRackChart({ data }: { data: any[] }) {
 }
 
 export function WarehouseFifoChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart message="No batch age data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[220px] w-full">
 			<PieChart>

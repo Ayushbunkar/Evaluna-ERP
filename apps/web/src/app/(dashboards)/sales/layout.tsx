@@ -1,7 +1,7 @@
 "use client";
 
 import {
-	DollarSignIcon,
+	IndianRupeeIcon,
 	LayoutDashboardIcon,
 	ReceiptTextIcon,
 	ShoppingBagIcon,
@@ -19,10 +19,10 @@ const salesNavItems: NavItem[] = [
 	{ href: "/sales/orders", labelKey: "orders", icon: ShoppingBagIcon },
 	{ href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
 	{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },
-	{ href: "/sales/cashbook", labelKey: "cashbook", icon: DollarSignIcon },
+	{ href: "/sales/cashbook", labelKey: "cashbook", icon: IndianRupeeIcon },
 	// Newly Added Missing Pages
-	{ href: "/sales/targets", labelKey: "targets", icon: DollarSignIcon },
-	{ href: "/sales/settings", labelKey: "settings", icon: DollarSignIcon },
+	{ href: "/sales/targets", labelKey: "targets", icon: IndianRupeeIcon },
+	{ href: "/sales/settings", labelKey: "settings", icon: IndianRupeeIcon },
 ];
 
 export default function Layout({

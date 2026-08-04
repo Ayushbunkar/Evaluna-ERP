@@ -27,7 +27,7 @@ export const user = pgTable("user", {
 	twoFactorEnabled: boolean("twoFactorEnabled").default(false),
 
 	// ── Evaluna ERP extensions ─────────────────────────────────────────────────
-	/** ERP role: admin | manager | auditor | putter | picker | biller | sales_person */
+	/** ERP role: admin | manager | auditor | putter | picker | biller | sales_person | delivery_manager | delivery_boy */
 	role: text("role").default("sales_person").notNull(),
 	/** Branch this user primarily belongs to. NULL = superadmin (all branches) */
 	branch_id: integer("branch_id"),

@@ -22,7 +22,7 @@ import {
 	Building2Icon,
 	ClockIcon,
 	CreditCardIcon,
-	DollarSignIcon,
+	IndianRupeeIcon,
 	FileTextIcon,
 	HeartIcon,
 	LayoutDashboardIcon,
@@ -87,7 +87,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
 	{ href: "/admin", labelKey: "dashboard", icon: LayoutDashboardIcon },
-	{ href: "/admin/cashier", labelKey: "cashier", icon: DollarSignIcon },
+	{ href: "/admin/cashier", labelKey: "cashier", icon: IndianRupeeIcon },
 	{ href: "/admin/products", labelKey: "products", icon: PackageIcon },
 	{ href: "/admin/customers", labelKey: "customers", icon: UsersIcon },
 	{ href: "/admin/suppliers", labelKey: "suppliers", icon: UsersIcon },
@@ -104,7 +104,7 @@ const navItems: NavItem[] = [
 		labelKey: "purchase-returns",
 		icon: ReceiptTextIcon,
 	},
-	{ href: "/admin/cash-book", labelKey: "cashbook", icon: DollarSignIcon },
+	{ href: "/admin/cash-book", labelKey: "cashbook", icon: IndianRupeeIcon },
 	{ href: "/admin/reports", labelKey: "reports", icon: FileTextIcon },
 	{ href: "/admin/branches", labelKey: "branches", icon: Building2Icon },
 	{ href: "/admin/transfers", labelKey: "transfers", icon: ArrowLeftRightIcon },
@@ -118,7 +118,7 @@ const navItems: NavItem[] = [
 	},
 	{ href: "/admin/loyalty", labelKey: "loyalty", icon: HeartIcon },
 	{ href: "/admin/marketing", labelKey: "marketing", icon: MegaphoneIcon },
-	{ href: "/admin/expenses", labelKey: "expenses", icon: DollarSignIcon },
+	{ href: "/admin/expenses", labelKey: "expenses", icon: IndianRupeeIcon },
 ];
 
 function BranchSwitcher() {

@@ -23,7 +23,33 @@ const chartConfig = {
 	balance: { label: "Balance", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig;
 
+function EmptyChart({ message = "No data available yet" }: { message?: string }) {
+	return (
+		<div className="flex h-[250px] w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50/50 text-center">
+			<svg
+				className="mb-2 h-8 w-8 text-gray-300"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+			>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+				/>
+			</svg>
+			<p className="text-gray-400 text-sm font-medium">{message}</p>
+			<p className="mt-1 text-gray-300 text-xs">Data will appear once transactions are recorded</p>
+		</div>
+	);
+}
+
 export function AdminSalesTrendChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart message="No revenue data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[250px] w-full">
 			<AreaChart
@@ -65,6 +91,10 @@ export function AdminSalesTrendChart({ data }: { data: any[] }) {
 }
 
 export function AdminBranchPerformanceChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart message="No branch performance data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[250px] w-full">
 			<BarChart
@@ -94,6 +124,10 @@ export function AdminBranchPerformanceChart({ data }: { data: any[] }) {
 }
 
 export function AdminCashFlowChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart message="No cash flow data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[250px] w-full">
 			<BarChart data={data}>

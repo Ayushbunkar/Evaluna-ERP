@@ -5,7 +5,7 @@ import {
 	suppliers,
 	transactions,
 } from "@evaluna/db/schema";
-import { and, desc, gte, sql } from "drizzle-orm";
+import { and, desc, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -20,6 +20,8 @@ export const financeRouter = router({
 				today.getMonth(),
 				1,
 			);
+			const sevenDaysAgo = new Date(today);
+			sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
 			const [
 				todaysCashRes,
@@ -31,6 +33,7 @@ export const financeRouter = router({
 				expenseBreakdownRes,
 				recentTx,
 				outCust,
+				cashFlowRes,
 			] = await Promise.all([
 				ctx.db
 					.select({
@@ -67,11 +70,19 @@ export const financeRouter = router({
 					.from(suppliers),
 				ctx.db
 					.select({
-						month: sql<string>`TO_CHAR(${orders.created_at}, 'Mon')`,
+						month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${orders.created_at}), 'Mon YYYY')`,
+						monthSort: sql<string>`DATE_TRUNC('month', ${orders.created_at})`,
 						revenue: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
 					})
 					.from(orders)
-					.groupBy(sql`TO_CHAR(${orders.created_at}, 'Mon')`),
+					.where(
+						gte(
+							orders.created_at,
+							new Date(today.getFullYear(), today.getMonth() - 5, 1),
+						),
+					)
+					.groupBy(sql`DATE_TRUNC('month', ${orders.created_at})`)
+					.orderBy(sql`DATE_TRUNC('month', ${orders.created_at})`),
 				ctx.db
 					.select({
 						category: expenses.expense_category,
@@ -92,6 +103,18 @@ export const financeRouter = router({
 					.from(customers)
 					.where(sql`${customers.credit_used} > 0`)
 					.limit(5),
+				// Cash flow: last 7 days (inflow vs outflow per day)
+				ctx.db
+					.select({
+						date: sql<string>`TO_CHAR(DATE(${transactions.created_at}), 'DD Mon')`,
+						dateSort: sql<string>`DATE(${transactions.created_at})`,
+						inflow: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'in' THEN ${transactions.amount} ELSE 0 END), 0)`,
+						outflow: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'out' THEN ${transactions.amount} ELSE 0 END), 0)`,
+					})
+					.from(transactions)
+					.where(gte(transactions.created_at, sevenDaysAgo))
+					.groupBy(sql`DATE(${transactions.created_at})`)
+					.orderBy(sql`DATE(${transactions.created_at})`),
 			]);
 
 			const todaysCash = Number(todaysCashRes[0]?.total || 0);
@@ -120,6 +143,21 @@ export const financeRouter = router({
 				due: "Now",
 			}));
 
+			// Cash flow data for chart
+			const cashFlowData = cashFlowRes.map((c) => ({
+				date: c.date,
+				inflow: Number(c.inflow),
+				outflow: Number(c.outflow),
+				net: Number(c.inflow) - Number(c.outflow),
+			}));
+
+			// Profit chart with both revenue and expenses per month
+			const profitChart = profitChartRes.map((p) => ({
+				month: p.month,
+				revenue: Number(p.revenue),
+				expenses: 0, // expenses per month query can be added if needed
+			}));
+
 			return {
 				todaysCash,
 				monthlyRevenue,
@@ -129,17 +167,19 @@ export const financeRouter = router({
 				totalReceivables,
 				totalPayables,
 				cashFlow,
-				profitChart: profitChartRes.map((p) => ({
-					month: p.month,
-					revenue: Number(p.revenue),
-					expenses: 0,
-				})),
+				profitChart,
 				expenseBreakdown: expenseBreakdownRes.map((e) => ({
 					category: e.category || "Misc",
 					amount: Number(e.amount),
 				})),
-				cashFlowData: [],
-				bankBalances: [],
+				cashFlowData,
+				bankBalances: [
+					{
+						bank: "Cash in Hand",
+						balance: todaysCash,
+						type: "cash",
+					},
+				],
 				gstSummary: {
 					inputTax: 0,
 					outputTax: gstLiability,

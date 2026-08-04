@@ -22,8 +22,8 @@ import {
 const chartConfig = {
 	revenue: { label: "Revenue", color: "hsl(var(--chart-2))" },
 	expenses: { label: "Expenses", color: "hsl(var(--chart-4))" },
-	cashIn: { label: "Cash In", color: "hsl(var(--chart-2))" },
-	cashOut: { label: "Cash Out", color: "hsl(var(--chart-4))" },
+	inflow: { label: "Cash In", color: "hsl(var(--chart-2))" },
+	outflow: { label: "Cash Out", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig;
 
 const pieColors = [
@@ -34,7 +34,36 @@ const pieColors = [
 	"hsl(var(--chart-5))",
 ];
 
+function EmptyChart({ height = 300, message = "No data available yet" }: { height?: number; message?: string }) {
+	return (
+		<div
+			className="flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50/50 text-center"
+			style={{ height }}
+		>
+			<svg
+				className="mb-2 h-8 w-8 text-gray-300"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+			>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+				/>
+			</svg>
+			<p className="text-gray-400 text-sm font-medium">{message}</p>
+			<p className="mt-1 text-gray-300 text-xs">Data will appear once transactions are recorded</p>
+		</div>
+	);
+}
+
 export function FinanceProfitChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart height={300} message="No profit/revenue data available" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-full w-full">
 			<AreaChart
@@ -95,6 +124,10 @@ export function FinanceProfitChart({ data }: { data: any[] }) {
 }
 
 export function FinanceExpenseChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart height={300} message="No expense breakdown data" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[300px] w-full">
 			<PieChart>
@@ -121,12 +154,17 @@ export function FinanceExpenseChart({ data }: { data: any[] }) {
 	);
 }
 
+// FinanceCashFlowChart — uses date/inflow/outflow keys from backend
 export function FinanceCashFlowChart({ data }: { data: any[] }) {
+	if (!data || data.length === 0) {
+		return <EmptyChart height={250} message="No cash flow data for this period" />;
+	}
+
 	return (
 		<ChartContainer config={chartConfig} className="h-[250px] w-full">
 			<BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
 				<CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-				<XAxis dataKey="day" tickLine={false} axisLine={false} />
+				<XAxis dataKey="date" tickLine={false} axisLine={false} />
 				<YAxis
 					tickLine={false}
 					axisLine={false}
@@ -134,13 +172,13 @@ export function FinanceCashFlowChart({ data }: { data: any[] }) {
 				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Bar
-					dataKey="in"
+					dataKey="inflow"
 					name="Cash In"
 					fill="hsl(var(--chart-2))"
 					radius={[4, 4, 0, 0]}
 				/>
 				<Bar
-					dataKey="out"
+					dataKey="outflow"
 					name="Cash Out"
 					fill="hsl(var(--chart-4))"
 					radius={[4, 4, 0, 0]}

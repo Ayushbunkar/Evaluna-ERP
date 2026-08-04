@@ -1,6 +1,6 @@
 import { pgTable, serial, text, varchar, boolean, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { users } from "@evaluna/db/src/schema/auth";
+import { user } from "../auth-schema";
 
 // Permission Domain Enum
 export const permissionDomainEnum = pgEnum("permission_domain", [
@@ -77,7 +77,7 @@ export const rolePermissions = pgTable("role_permissions", {
 
 // User Roles (Many-to-Many)
 export const userRoles = pgTable("user_roles", {
-  userId: varchar("user_id", { length: 100 }).references(() => users.id),
+  userId: varchar("user_id", { length: 100 }).references(() => user.id),
   roleId: integer("role_id").references(() => roles.id),
   assignedBy: varchar("assigned_by", { length: 100 }),
   assignedAt: timestamp("assigned_at").defaultNow(),
@@ -93,7 +93,7 @@ export const permissionsRelations = relations(permissions, ({ many }) => ({
   roles: many(rolePermissions),
 }));
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(user, ({ many }) => ({
   roles: many(userRoles),
 }));
 

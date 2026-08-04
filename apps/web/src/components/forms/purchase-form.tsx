@@ -25,7 +25,7 @@ export function PurchaseForm({
 	const router = useRouter();
 
 	const [suppliers] = trpc.suppliers.list.useSuspenseQuery();
-	const [products] = trpc.products.list.useSuspenseQuery();
+	const { data: products, error: productsError } = trpc.products.list.useQuery();
 
 	const form = useForm({
 		validator: zodValidator,
@@ -33,6 +33,13 @@ export function PurchaseForm({
 			supplierId: "",
 			total: 0,
 			items: [],
+		},
+		onSubmit: ({ value }) => {
+			if (purchase) {
+				updatePurchase({ ...value, id: purchase.id });
+			} else {
+				createPurchase(value);
+			}
 		},
 	});
 
@@ -61,7 +68,7 @@ export function PurchaseForm({
 			onSubmit={(e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				form.handleSubmit(handleSubmit)();
+				form.handleSubmit();
 			}}
 			className="space-y-6"
 		>
@@ -72,15 +79,15 @@ export function PurchaseForm({
 						name="supplierId"
 						children={(field) => (
 							<Select
-								value={field.state.value}
+								value={field.state.value?.toString()}
 								onValueChange={(value) => field.handleChange(value)}
 							>
 								<SelectTrigger id="supplierId">
 									<SelectValue placeholder="Select a supplier" />
 								</SelectTrigger>
 								<SelectContent>
-									{suppliers?.items.map((supplier) => (
-										<SelectItem key={supplier.id} value={supplier.id}>
+									{suppliers?.map((supplier) => (
+										<SelectItem key={supplier.id} value={supplier.id.toString()}>
 											{supplier.name}
 										</SelectItem>
 									))}
@@ -95,13 +102,13 @@ export function PurchaseForm({
 					<form.Field
 						name="total"
 						children={(field) => (
-							<Input
-								id="total"
-								type="number"
-								value={field.state.value}
-								onChange={(e) => field.handleChange(Number(e.target.value))}
-								placeholder="Enter total amount"
-							/>
+									<Input
+										id="total"
+										type="number"
+										value={field.state.value ?? ""}
+										onChange={(e) => field.handleChange(Number(e.target.value))}
+										placeholder="Enter total amount"
+									/>
 						)}
 					/>
 				</div>
@@ -121,7 +128,7 @@ export function PurchaseForm({
 								name={`items[${index}].productId`}
 								children={(field) => (
 									<Select
-										value={field.state.value}
+										value={field.state.value?.toString()}
 										onValueChange={(value) => field.handleChange(value)}
 									>
 										<SelectTrigger id={`items[${index}].productId`}>
@@ -129,7 +136,7 @@ export function PurchaseForm({
 										</SelectTrigger>
 										<SelectContent>
 											{products?.map((product) => (
-												<SelectItem key={product.id} value={product.id}>
+												<SelectItem key={product.id} value={product.id.toString()}>
 													{product.name}
 												</SelectItem>
 											))}
@@ -147,7 +154,7 @@ export function PurchaseForm({
 									<Input
 										id={`items[${index}].quantity`}
 										type="number"
-										value={field.state.value}
+										value={field.state.value ?? ""}
 										onChange={(e) => field.handleChange(Number(e.target.value))}
 										placeholder="Quantity"
 									/>
@@ -163,7 +170,7 @@ export function PurchaseForm({
 									<Input
 										id={`items[${index}].price`}
 										type="number"
-										value={field.state.value}
+										value={field.state.value ?? ""}
 										onChange={(e) => field.handleChange(Number(e.target.value))}
 										placeholder="Price"
 									/>

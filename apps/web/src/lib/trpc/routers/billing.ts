@@ -2,6 +2,7 @@ import { orders, transactions } from "@evaluna/db/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
+import { subHours, startOfHour, format } from "date-fns";
 
 export const billingRouter = router({
 	getDashboardStats: protectedProcedure
@@ -60,14 +61,35 @@ export const billingRouter = router({
 				);
 			const pendingBills = Number(pendingBillsRes[0]?.count || 0);
 
-			const salesChart: any[] = [];
+			// Real Hourly Sales Data
+			const hourlyRaw = await ctx.db
+				.select({
+					hourRaw: sql<string>`TO_CHAR(DATE_TRUNC('hour', ${orders.created_at}), 'HH24:MI')`,
+					amount: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
+				})
+				.from(orders)
+				.where(gte(orders.created_at, today))
+				.groupBy(sql`DATE_TRUNC('hour', ${orders.created_at})`)
+				.orderBy(sql`DATE_TRUNC('hour', ${orders.created_at})`);
+
+			const hourlySales = hourlyRaw.map((h) => ({
+				hour: h.hourRaw,
+				amount: Number(h.amount)
+			}));
+            
+            // Format for sales chart which uses time/sales keys
+			const salesChart = hourlyRaw.map((h) => ({
+				time: h.hourRaw,
+				sales: Number(h.amount)
+			}));
+
 			const paymentDistribution = [
 				{ name: "Cash", value: cashCollected },
 				{ name: "Card", value: cardCollected },
 				{ name: "UPI", value: upiCollected },
-			];
-			const hourlySales: any[] = [];
-			const topCashiers: any[] = [];
+			].filter(p => p.value > 0);
+
+			const topCashiers: any[] = []; // Would require staff/cashier relationships on orders
 
 			const recentBillsRes = await ctx.db.query.orders.findMany({
 				orderBy: [desc(orders.created_at)],

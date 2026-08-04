@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
-import { DollarSign, ShoppingCart, TrendingUp, Users } from "lucide-react";
+import { IndianRupee, ShoppingCart, TrendingUp, Users } from "lucide-react";
 import { ActivityCard } from "@/components/shared/cards/activity-card";
 import { KpiCard } from "@/components/shared/cards/kpi-card";
 import { trpc } from "@/lib/trpc/client";
@@ -68,7 +68,7 @@ export default function BillerDashboard() {
 				<KpiCard
 					title="Total Sales"
 					value={`₹${metrics.totalSales.toFixed(2)}`}
-					icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+					icon={<IndianRupee className="h-4 w-4 text-muted-foreground" />}
 					description="+12.5% from yesterday"
 				/>
 				<KpiCard

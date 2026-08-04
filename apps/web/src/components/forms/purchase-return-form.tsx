@@ -34,9 +34,7 @@ export function PurchaseReturnForm({
 		},
 	});
 
-	const { fields, append, remove } = form.useFieldArray({
-		name: "purchaseReturnItems",
-	});
+
 
 	const { mutate: createPurchaseReturn } =
 		useTRPC().purchaseReturns.create.useMutation({
@@ -97,9 +95,9 @@ export function PurchaseReturnForm({
 				<h3 className="font-medium text-lg">Purchase Return Items</h3>
 
 				<div className="space-y-4">
-					{fields.map((field, index) => (
+					{form.state.values.purchaseReturnItems.map((_, index) => (
 						<div
-							key={field.id}
+							key={index}
 							className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-3"
 						>
 							<div className="space-y-2">
@@ -152,7 +150,7 @@ export function PurchaseReturnForm({
 								<Button
 									type="button"
 									variant="destructive"
-									onClick={() => remove(index)}
+									onClick={() => form.removeFieldValue("purchaseReturnItems", index)}
 									className="w-full"
 								>
 									Remove
@@ -166,7 +164,7 @@ export function PurchaseReturnForm({
 					type="button"
 					variant="outline"
 					className="mt-4"
-					onClick={() => append({ productId: "", quantity: 1 })}
+					onClick={() => form.pushFieldValue("purchaseReturnItems", { productId: "", quantity: 1 })}
 				>
 					Add Item
 				</Button>

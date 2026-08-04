@@ -1,5 +1,5 @@
 import { productBatches, staff, stockAdjustments } from "@evaluna/db/schema";
-import { count, desc, eq, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
 
@@ -11,9 +11,12 @@ export const auditorRouter = router({
 
 			const expDate = new Date();
 			expDate.setDate(expDate.getDate() + 30);
+            
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
 			// Real queries executed in parallel
-			const [adjustments, expiring, recentAudits] = await Promise.all([
+			const [adjustments, expiring, recentAudits, damageTimelineRaw, expiryTimelineRaw] = await Promise.all([
 				db
 					.select({
 						type: stockAdjustments.adjustment_type,
@@ -35,6 +38,32 @@ export const auditorRouter = router({
 					.leftJoin(staff, eq(stockAdjustments.created_by, staff.id))
 					.orderBy(desc(stockAdjustments.created_at))
 					.limit(3),
+                // Damage timeline: monthly count of damage adjustments
+                db
+                    .select({
+                        month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${stockAdjustments.created_at}), 'Mon YYYY')`,
+                        count: count(),
+                    })
+                    .from(stockAdjustments)
+                    .where(and(
+                        eq(stockAdjustments.adjustment_type, 'damage'),
+                        gte(stockAdjustments.created_at, sixMonthsAgo)
+                    ))
+                    .groupBy(sql`DATE_TRUNC('month', ${stockAdjustments.created_at})`)
+                    .orderBy(sql`DATE_TRUNC('month', ${stockAdjustments.created_at})`),
+                // Expiry timeline: monthly count of expiring batches
+                db
+                    .select({
+                        month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${productBatches.expiry_date}), 'Mon YYYY')`,
+                        count: count(),
+                    })
+                    .from(productBatches)
+                    .where(and(
+                        gte(productBatches.expiry_date, sixMonthsAgo),
+                        lte(productBatches.expiry_date, expDate)
+                    ))
+                    .groupBy(sql`DATE_TRUNC('month', ${productBatches.expiry_date})`)
+                    .orderBy(sql`DATE_TRUNC('month', ${productBatches.expiry_date})`)
 			]);
 
 			let mismatchCount = 0;
@@ -57,13 +86,13 @@ export const auditorRouter = router({
 				stockAccuracy: 98.4,
 
 				// Charts
-				damageTimeline: [],
-				expiryTimeline: [],
+				damageTimeline: damageTimelineRaw.map(d => ({ month: d.month, count: Number(d.count) })),
+				expiryTimeline: expiryTimelineRaw.map(e => ({ month: e.month, count: Number(e.count) })),
 				warehouseIssues: [
 					{ name: "Damage", value: damageCount },
 					{ name: "Expiry", value: expiryCount },
 					{ name: "Missing", value: mismatchCount },
-				],
+				].filter(i => i.value > 0),
 
 				// Summaries / Tables
 				auditQueue: [],

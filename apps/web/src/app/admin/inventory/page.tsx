@@ -15,7 +15,7 @@ import {
 	ArrowRightLeftIcon,
 	Building2Icon,
 	CalendarDaysIcon,
-	DollarSignIcon,
+	IndianRupeeIcon,
 	PackageIcon,
 	SkullIcon,
 	TargetIcon,
@@ -184,7 +184,7 @@ export default function InventoryDashboard() {
 					<KPICard
 						title="Total Value"
 						value={formatCurrency(data.inventoryValue, "en-IN")}
-						icon={DollarSignIcon}
+						icon={IndianRupeeIcon}
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
 				</motion.div>

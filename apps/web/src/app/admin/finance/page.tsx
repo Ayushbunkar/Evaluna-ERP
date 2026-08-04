@@ -16,7 +16,7 @@ import {
 	ArrowRightCircleIcon,
 	CalculatorIcon,
 	ClockIcon,
-	DollarSignIcon,
+	IndianRupeeIcon,
 	LandmarkIcon,
 	ReceiptIcon,
 	TrendingDownIcon,
@@ -216,7 +216,7 @@ export default function FinanceDashboard() {
 					<KPICard
 						title="Net Profit"
 						value={formatCurrency(data.netProfit, "en-IN")}
-						icon={DollarSignIcon}
+						icon={IndianRupeeIcon}
 						trendValue="15%"
 						trendIsPositive={true}
 						colorClass="from-emerald-500/10 to-transparent"
@@ -339,7 +339,7 @@ export default function FinanceDashboard() {
 							{data.bankBalances?.map((bank: any, idx: number) => (
 								<div key={idx} className="flex items-center justify-between">
 									<div>
-										<h4 className="font-medium text-sm">{bank.account}</h4>
+										<h4 className="font-medium text-sm">{bank.bank || bank.account}</h4>
 										<p className="text-[10px] text-muted-foreground uppercase">
 											{bank.type}
 										</p>
