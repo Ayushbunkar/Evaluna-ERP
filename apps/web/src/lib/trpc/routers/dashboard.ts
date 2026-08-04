@@ -280,34 +280,22 @@ export const dashboardRouter = router({
 				.select({
 					name: staff.name,
 					role: staff.role,
-					sales: sql<string>`COALESCE(SUM(${orders.total_amount}), 0)`,
-					bills: sql<string>`COUNT(${orders.id})`,
 				})
 				.from(staff)
-				.leftJoin(
-					orders,
-					and(
-						eq(orders.created_by, staff.user_id),
-						gte(orders.created_at, todayStart),
-						lte(orders.created_at, todayEnd),
-					),
-				)
 				.where(
 					and(
 						eq(staff.status, "active"),
 						branch_id ? eq(staff.branch_id, branch_id) : undefined,
 					),
 				)
-				.groupBy(staff.id, staff.name, staff.role)
-				.orderBy(sql`COALESCE(SUM(${orders.total_amount}), 0) DESC`)
 				.limit(5);
 
 			const staffPerformance = staffPerfRaw.map((s) => ({
 				name: s.name ?? "Staff",
 				role: s.role ?? "—",
-				sales: Number(s.sales),
-				bills: Number(s.bills),
-				rating: null, // no rating table — do not fake this
+				sales: 0,
+				bills: 0,
+				rating: null,
 			}));
 
 			// ── Today's timeline from recent orders ───────────────────────────
