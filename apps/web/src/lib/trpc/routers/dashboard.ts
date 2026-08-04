@@ -159,7 +159,6 @@ export const dashboardRouter = router({
 			const revenueTrendRaw = await db
 				.select({
 					month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${orders.created_at}), 'Mon YYYY')`,
-					monthSort: sql<string>`DATE_TRUNC('month', ${orders.created_at})`,
 					revenue: sql<string>`COALESCE(SUM(${orders.total_amount}), 0)`,
 				})
 				.from(orders)
@@ -201,8 +200,7 @@ export const dashboardRouter = router({
 			const sevenDaysAgo = subDays(now, 7);
 			const cashFlowRaw = await db
 				.select({
-					date: sql<string>`TO_CHAR(${transactions.created_at}, 'DD Mon')`,
-					dateSort: sql<string>`DATE(${transactions.created_at})`,
+					date: sql<string>`TO_CHAR(DATE(${transactions.created_at}), 'DD Mon')`,
 					inflow: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'in' THEN ${transactions.amount} ELSE 0 END), 0)`,
 					outflow: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'out' THEN ${transactions.amount} ELSE 0 END), 0)`,
 				})

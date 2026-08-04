@@ -82,10 +82,10 @@ export default function DriverDashboard() {
 		},
 	});
 
-	const handleUpdateStatus = (status: "reached" | "delivered" | "failed") => {
+	const handleUpdateStatus = (status: "arrived" | "delivered" | "failed") => {
 		if (data?.nextDelivery?.stop_id) {
 			updateStatus.mutate({
-				stop_id: data.nextDelivery.stop_id,
+				stopId: data.nextDelivery.stop_id,
 				status,
 				reason: status === "failed" ? "Customer not available" : undefined,
 			});
@@ -219,7 +219,7 @@ export default function DriverDashboard() {
 				<div className="grid grid-cols-2 gap-3">
 					<Button
 						variant="outline"
-						onClick={() => handleUpdateStatus("reached")}
+						onClick={() => handleUpdateStatus("arrived")}
 						disabled={updateStatus.isPending}
 						className="h-20 flex-col gap-2 rounded-xl border-border/60 bg-background shadow-sm hover:bg-muted"
 					>
