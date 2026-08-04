@@ -1,6 +1,7 @@
 import { pgTable, serial, text, varchar, integer, date, time, boolean, timestamp, decimal, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { employees, branches } from "./hrms";
+import { employees } from "./hrms";
+import { branches } from "..";
 // Attendance Status Enum
 export const attendanceStatusEnum = pgEnum("attendance_status", [
   "present",
@@ -165,7 +166,7 @@ export const attendanceSettings = pgTable("attendance_settings", {
   graceTime: integer("grace_time").default(10), // minutes
   workingHours: integer("working_hours").default(8), // hours
   autoCheckoutTime: varchar("auto_checkout_time", { length: 5 }).default("18:00"),
-  photoCompression: decimal("photo_compression", { precision: 3, scale: 2 }).default(0.8),
+  photoCompression: decimal("photo_compression", { precision: 3, scale: 2 }).default("0.8"),
   photoSizeLimit: integer("photo_size_limit").default(500), // KB
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

@@ -251,6 +251,7 @@ export function DataTable<T>({
 						) : (
 							rowVirtualizer.getVirtualItems().map((virtualRow) => {
 								const row = rows[virtualRow.index];
+								if (!row) return null;
 								return (
 									<TableRow
 										key={row.id}
