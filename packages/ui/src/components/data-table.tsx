@@ -180,13 +180,6 @@ export function DataTable<T>({
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 	const { rows } = table.getRowModel();
 
-	const rowVirtualizer = useVirtualizer({
-		count: rows.length,
-		getScrollElement: () => tableContainerRef.current,
-		estimateSize: () => 50,
-		overscan: 10,
-	});
-
 	const handleExport = useCallback(() => {
 		if (exportColumns) exportCSV(data, exportColumns, exportFilename);
 	}, [data, exportColumns, exportFilename]);
@@ -229,12 +222,7 @@ export function DataTable<T>({
 							</TableRow>
 						))}
 					</TableHeader>
-					<TableBody
-						style={{
-							height: `${rowVirtualizer.getTotalSize()}px`,
-							position: "relative",
-						}}
-					>
+					<TableBody>
 						{rows.length === 0 ? (
 							<TableRow>
 								<TableCell
@@ -249,20 +237,13 @@ export function DataTable<T>({
 								</TableCell>
 							</TableRow>
 						) : (
-							rowVirtualizer.getVirtualItems().map((virtualRow) => {
-								const row = rows[virtualRow.index];
-								if (!row) return null;
+							rows.map((row) => {
 								return (
 									<TableRow
 										key={row.id}
 										className={
-											onRowClick
-												? "absolute w-full cursor-pointer"
-												: "absolute w-full"
+											onRowClick ? "cursor-pointer hover:bg-muted/50" : "hover:bg-muted/50"
 										}
-										style={{
-											transform: `translateY(${virtualRow.start}px)`,
-										}}
 										onClick={() => onRowClick?.(row.original)}
 									>
 										{row.getVisibleCells().map((cell) => (
