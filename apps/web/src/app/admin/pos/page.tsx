@@ -15,8 +15,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PaymentModal } from "@/components/pos/payment-modal";
-import { PrintPreviewDialog } from "@/components/printing/PrintPreviewDialog";
-import { ThermalReceipt } from "@/components/printing/ThermalReceipt";
+import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -47,6 +46,7 @@ export default function POSPage() {
 
 	const [couponCode, setCouponCode] = useState("");
 	const [couponModalOpen, setCouponModalOpen] = useState(false);
+	const [lastPayments, setLastPayments] = useState<any[]>([]);
 	const [appliedCoupon, setAppliedCoupon] = useState<{
 		id: number;
 		code: string;
@@ -67,7 +67,9 @@ export default function POSPage() {
 				items: cart,
 				total: total,
 				subtotal: subtotal,
-				tax: 0,
+				discount: discount,
+				couponCode: appliedCoupon?.code,
+				payments: lastPayments,
 			});
 			setCart([]);
 			setAppliedCoupon(null);
@@ -253,6 +255,7 @@ export default function POSPage() {
 			return;
 		}
 
+		setLastPayments(payments);
 		checkoutMutation.mutate({
 			items: cart.map((c) => ({
 				productId: c.id,
@@ -560,48 +563,12 @@ export default function POSPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Dialog
-				open={!!lastCompletedOrder}
-				onOpenChange={(open) => !open && setLastCompletedOrder(null)}
-			>
-				<DialogContent className="sm:max-w-[400px]">
-					<DialogHeader>
-						<DialogTitle className="text-center text-xl">
-							Order Completed
-						</DialogTitle>
-					</DialogHeader>
-					<div className="flex flex-col items-center p-4">
-						<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
-							<span className="text-3xl">✓</span>
-						</div>
-						<p className="font-semibold text-lg">
-							Order #{lastCompletedOrder?.id}
-						</p>
-						<p className="mb-6 text-muted-foreground">
-							Amount: ₹{lastCompletedOrder?.total?.toFixed(2)}
-						</p>
-						<div className="flex w-full gap-3">
-							<Button
-								className="flex-1"
-								variant="outline"
-								onClick={() => setLastCompletedOrder(null)}
-							>
-								New Order
-							</Button>
-							<PrintPreviewDialog title="Print Receipt">
-								<ThermalReceipt
-									order={lastCompletedOrder}
-									branch={{
-										name: "Evaluna Supermarket",
-										address: "123 Retail Ave, Commerce City",
-										phone: "+1 234 567 8900",
-									}}
-								/>
-							</PrintPreviewDialog>
-						</div>
-					</div>
-				</DialogContent>
-			</Dialog>
+			{lastCompletedOrder && (
+				<SaleCompletionScreen
+					order={lastCompletedOrder}
+					onNewSale={() => setLastCompletedOrder(null)}
+				/>
+			)}
 		</PageTransition>
 	);
 }
