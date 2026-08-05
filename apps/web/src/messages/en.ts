@@ -1,4 +1,20 @@
 const messages = {
+	dashboard: {
+		overview: "Dashboard Overview",
+		overviewSubtitle: "Real-time metrics and insights for your company.",
+		todaysSales: "Today's Sales",
+		todaysOrders: "Today's Orders",
+		todaysProfit: "Today's Profit",
+		totalProducts: "Total Products",
+		pendingDeliveries: "Pending Deliveries",
+		warehouseCapacity: "Warehouse Capacity",
+		utilizedSpace: "Utilized space",
+		activeEmployees: "Active Employees",
+		lowStockItems: "Low Stock Items",
+		actionNeeded: "Action needed",
+		vsYesterday: "vs yesterday",
+		noDataAvailable: "No data available"
+	},
 	common: {
 		cancel: "Cancel",
 		delete: "Delete",

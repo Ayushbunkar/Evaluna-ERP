@@ -1,6 +1,22 @@
 import type { Messages } from "./en";
 
 const messages: Messages = {
+	dashboard: {
+		overview: "डैशबोर्ड अवलोकन",
+		overviewSubtitle: "आपकी कंपनी के लिए रीयल-टाइम मेट्रिक्स और अंतर्दृष्टि।",
+		todaysSales: "आज की बिक्री",
+		todaysOrders: "आज के ऑर्डर",
+		todaysProfit: "आज का लाभ",
+		totalProducts: "कुल उत्पाद",
+		pendingDeliveries: "लंबित डिलीवरी",
+		warehouseCapacity: "गोदाम क्षमता",
+		utilizedSpace: "उपयोग किया गया स्थान",
+		activeEmployees: "सक्रिय कर्मचारी",
+		lowStockItems: "कम स्टॉक वाले आइटम",
+		actionNeeded: "कार्रवाई की आवश्यकता है",
+		vsYesterday: "कल की तुलना में",
+		noDataAvailable: "कोई डेटा उपलब्ध नहीं है"
+	},
 	common: {
 		cancel: "रद्द करें",
 		delete: "हटाएं",

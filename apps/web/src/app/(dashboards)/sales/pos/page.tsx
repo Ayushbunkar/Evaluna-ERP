@@ -1,125 +1,237 @@
-// @ts-nocheck
 "use client";
 
-import { Badge } from "@evaluna/ui/components/badge";
-import { Button } from "@evaluna/ui/components/button";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-	Card,
-	CardContent,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@evaluna/ui/components/card";
+	Minus,
+	Plus,
+	Search,
+	ShoppingCart,
+	Tag,
+	Ticket,
+	Trash2,
+	Wifi,
+	WifiOff,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { PaymentModal } from "@/components/pos/payment-modal";
+import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
-} from "@evaluna/ui/components/dialog";
-import { Input } from "@evaluna/ui/components/input";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-	BanknoteIcon,
-	CreditCardIcon,
-	MinusIcon,
-	PackageIcon,
-	PlusIcon,
-	SearchIcon,
-	ShoppingCartIcon,
-	TagIcon,
-	Trash2Icon,
-	UserIcon,
-} from "lucide-react";
-import Image from "next/image";
-import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { PageTransition } from "@/lib/animations";
-import { useTRPC } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
+	AnimatedButton,
+	AnimatedCard,
+	PageTransition,
+	StaggerItem,
+	StaggerList,
+} from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
 
-type Product = {
-	id: number;
-	name: string;
-	sku: string | null;
-	description: string | null;
-	price: number;
-	category: string | null;
-	stock_quantity: number | null;
-	image_url: string | null;
-};
+export default function POSPage() {
+	const [cart, setCart] = useState<any[]>([]);
+	const [search, setSearch] = useState("");
+	const [isOffline, setIsOffline] = useState(false);
+	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
 
-type CartItem = Product & { cartQuantity: number };
+	const [couponCode, setCouponCode] = useState("");
+	const [couponModalOpen, setCouponModalOpen] = useState(false);
+	const [lastPayments, setLastPayments] = useState<any[]>([]);
+	const [appliedCoupon, setAppliedCoupon] = useState<{
+		id: number;
+		code: string;
+		discount: number;
+	} | null>(null);
 
-export default function POSCatalogPage() {
-	const trpc = useTRPC();
-	const _tc = useTranslations("common");
-	const locale = useLocale();
+	// TRPC Queries
+	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
+		staleTime: 1000 * 60 * 60, // heavily cache for offline use
+	});
 
-	// In a real scenario, this trpc.pos.catalog might return the products.
-	// We map it to our Product type.
-	const { data: rawData = [], isLoading, error } = trpc.pos.catalog.useQuery();
-	const products = rawData as unknown as Product[];
+	const checkoutMutation = trpc.pos.checkout.useMutation({
+		onSuccess: (data) => {
+			toast.success("Order processed successfully!");
+			setLastCompletedOrder({
+				id: data.id,
+				createdAt: new Date().toISOString(),
+				items: cart,
+				total: total,
+				subtotal: subtotal,
+				discount: discount,
+				couponCode: appliedCoupon?.code,
+				payments: lastPayments,
+			});
+			setCart([]);
+			setAppliedCoupon(null);
+		},
+		onError: (err) => {
+			toast.error(`Checkout failed: ${err.message}`);
+		},
+	});
 
-	const [searchTerm, setSearchTerm] = useState("");
-	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-	const [cart, setCart] = useState<CartItem[]>([]);
-	const [customerName, setCustomerName] = useState("");
-	const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
-	const [customerInput, setCustomerInput] = useState("");
+	const suspendMutation = trpc.pos.suspendCart.useMutation({
+		onSuccess: () => {
+			toast.success("Bill put on hold!");
+			setCart([]);
+			setAppliedCoupon(null);
+		},
+		onError: (err) => {
+			toast.error(`Hold bill failed: ${err.message}`);
+		},
+	});
 
-	// Derived state
-	const categories = useMemo(() => {
-		const cats = new Set(
-			products.map((p) => p.category).filter(Boolean) as string[],
-		);
-		return Array.from(cats);
-	}, [products]);
+	// Offline Detection
+	useEffect(() => {
+		const handleOnline = () => setIsOffline(false);
+		const handleOffline = () => setIsOffline(true);
+		window.addEventListener("online", handleOnline);
+		window.addEventListener("offline", handleOffline);
+		setIsOffline(!navigator.onLine);
+		return () => {
+			window.removeEventListener("online", handleOnline);
+			window.removeEventListener("offline", handleOffline);
+		};
+	}, []);
 
-	const filteredProducts = useMemo(() => {
-		return products.filter((p) => {
-			const matchesSearch =
-				p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				p.sku?.toLowerCase().includes(searchTerm.toLowerCase());
-			const matchesCategory = selectedCategory
-				? p.category === selectedCategory
-				: true;
-			return matchesSearch && matchesCategory;
-		});
-	}, [products, searchTerm, selectedCategory]);
+	const subtotal = cart.reduce(
+		(acc, item) => acc + Number.parseFloat(item.price) * item.qty,
+		0,
+	);
+	const discount = appliedCoupon?.discount || 0;
+	const total = Math.max(0, subtotal - discount);
 
-	const cartTotal = useMemo(() => {
-		return cart.reduce(
-			(total, item) => total + item.price * item.cartQuantity,
-			0,
-		);
-	}, [cart]);
+	const validateCouponMutation = trpc.marketing.validateCoupon.useMutation({
+		onSuccess: (data) => {
+			setAppliedCoupon({
+				id: (data as any).id || (data as any).couponId,
+				code: data.code,
+				discount: data.discountAmount,
+			});
+			toast.success("Coupon applied!");
+			setCouponCode("");
+		},
+		onError: (error) => {
+			toast.error(error.message);
+			setAppliedCoupon(null);
+		},
+	});
 
-	const tax = cartTotal * 0.1; // 10% tax example
-	const grandTotal = cartTotal + tax;
+	const handleApplyCoupon = () => {
+		if (!couponCode) return;
+		validateCouponMutation.mutate({ code: couponCode, cartTotal: subtotal } as any);
+	};
 
-	// Actions
-	const addToCart = (product: Product) => {
+	const removeCoupon = () => {
+		setAppliedCoupon(null);
+	};
+
+	// Barcode Scanner Listener
+	const addToCart = (product: any, qty = 1) => {
 		setCart((prev) => {
 			const existing = prev.find((item) => item.id === product.id);
 			if (existing) {
 				return prev.map((item) =>
-					item.id === product.id
-						? { ...item, cartQuantity: item.cartQuantity + 1 }
-						: item,
+					item.id === product.id ? { ...item, qty: item.qty + qty } : item,
 				);
 			}
-			return [...prev, { ...product, cartQuantity: 1 }];
+			return [...prev, { ...product, qty: qty }];
 		});
 	};
 
-	const updateQuantity = (id: number, delta: number) => {
+	useEffect(() => {
+		let barcode = "";
+		let timeout: NodeJS.Timeout;
+
+		const handleKeyDown = (e: KeyboardEvent) => {
+			// Ignore if typing in an input field
+			if (
+				e.target instanceof HTMLInputElement ||
+				e.target instanceof HTMLTextAreaElement
+			) {
+				return;
+			}
+
+			if (e.key === "Enter") {
+				if (barcode && catalog) {
+					if (barcode.length === 13 && barcode.startsWith("21")) {
+						const itemCode = barcode.substring(2, 7);
+						const weightStr = barcode.substring(7, 12);
+						const qty = Number.parseFloat(weightStr) / 1000;
+						const product = catalog.find((p) => p.barcode === itemCode);
+						if (product) {
+							if (product.is_weighted) {
+								addToCart(product, qty);
+								toast.success(`Added ${product.name}`);
+							} else {
+								addToCart(product, 1);
+								toast.warning("Product is not weighted, added 1 unit");
+							}
+						} else {
+							toast.error("Product not found");
+						}
+					} else if (barcode.length === 13 && barcode.startsWith("22")) {
+						const itemCode = barcode.substring(2, 7);
+						const priceStr = barcode.substring(7, 12);
+						const price = Number.parseFloat(priceStr) / 100;
+						const product = catalog.find((p) => p.barcode === itemCode);
+						if (product) {
+							if (product.is_weighted) {
+								const qty = price / Number.parseFloat(product.price);
+								addToCart(product, qty);
+								toast.success(`Added ${product.name}`);
+							} else {
+								addToCart(product, 1);
+								toast.warning("Product is not weighted, added 1 unit");
+							}
+						} else {
+							toast.error("Product not found");
+						}
+					} else {
+						const product = catalog.find(
+							(p) => p.barcode === barcode || p.sku === barcode,
+						);
+						if (product) {
+							addToCart(product, 1);
+							toast.success(`Added ${product.name}`);
+						} else {
+							toast.error("Product not found");
+						}
+					}
+				}
+				barcode = "";
+				return;
+			}
+
+			if (e.key.length === 1) {
+				barcode += e.key;
+				clearTimeout(timeout);
+				timeout = setTimeout(() => {
+					barcode = "";
+				}, 100); // 100ms timeout to distinguish scanner from manual typing
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [catalog, addToCart]);
+
+
+	const updateQty = (id: number, delta: number) => {
 		setCart((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
-					const newQty = Math.max(1, item.cartQuantity + delta);
-					return { ...item, cartQuantity: newQty };
+					const newQty = Math.max(0.001, item.qty + delta);
+					return { ...item, qty: newQty };
 				}
 				return item;
 			}),
@@ -130,289 +242,333 @@ export default function POSCatalogPage() {
 		setCart((prev) => prev.filter((item) => item.id !== id));
 	};
 
-	const clearCart = () => setCart([]);
-
-	const handleCheckout = (method: string) => {
-		if (cart.length === 0) return;
-		toast.success(`Payment successful via ${method}`);
-		clearCart();
+	const handleCheckout = () => {
+		if (cart.length === 0) return toast.error("Cart is empty");
+		setPaymentModalOpen(true);
 	};
 
-	if (isLoading) {
-		return (
-			<div className="flex min-h-0 flex-1 gap-6 p-6 animate-pulse">
-				<div className="flex min-h-0 flex-1 flex-col gap-6">
-					<Skeleton className="h-12 w-full rounded-xl" />
-					<div className="flex gap-2">
-						<Skeleton className="h-8 w-24 rounded-full" />
-						<Skeleton className="h-8 w-24 rounded-full" />
-					</div>
-					<div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-						{Array.from({ length: 8 }).map((_, i) => (
-							<Skeleton key={i} className="aspect-square rounded-2xl" />
-						))}
-					</div>
-				</div>
-				<div className="w-[350px] lg:w-[400px]">
-					<Skeleton className="h-full w-full rounded-2xl" />
-				</div>
-			</div>
-		);
-	}
+	const finalizeOrder = (payments: any[]) => {
+		if (isOffline) {
+			toast.info("Saved offline bill. Will sync when online.");
+			setCart([]);
+			setAppliedCoupon(null);
+			return;
+		}
 
-	if (error) {
-		return (
-			<div className="font-medium text-red-500">
-				Failed to load catalog: {error.message}
-			</div>
-		);
-	}
+		setLastPayments(payments);
+		checkoutMutation.mutate({
+			items: cart.map((c) => ({
+				productId: c.id,
+				quantity: c.qty,
+				price: c.price,
+			})),
+			payments: payments,
+			isOfflineSync: false,
+			couponId: appliedCoupon?.id,
+			discountAmount: appliedCoupon?.discount ? String(appliedCoupon.discount) : undefined,
+		} as any);
+	};
+
+	const filteredCatalog = catalog?.filter(
+		(p) =>
+			p.name.toLowerCase().includes(search.toLowerCase()) ||
+			p.barcode?.includes(search),
+	);
 
 	return (
-		<PageTransition>
-			<div className="flex min-h-0 h-[calc(100vh-7rem)] flex-col gap-6 overflow-hidden lg:flex-row">
-				{/* Left Side: Catalog */}
-				<div className="flex min-h-0 h-full flex-1 flex-col gap-4 overflow-hidden">
-					<div className="flex flex-col gap-3 sm:flex-row">
-						<div className="relative flex-1">
-							<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-							<Input
-								placeholder="Search products by name or SKU..."
-								value={searchTerm}
-								onChange={(e) => setSearchTerm(e.target.value)}
-								className="h-11 rounded-xl border-border/50 bg-background pl-9 shadow-sm"
-							/>
+		<PageTransition className="flex h-[calc(100vh-64px)] overflow-hidden bg-muted/40">
+			{/* Left Pane - Catalog */}
+			<div className="flex min-h-0 flex-1 flex-col border-r p-4">
+				<div className="mb-4 flex shrink-0 items-center justify-between">
+					<h1 className="font-bold text-2xl">Point of Sale</h1>
+					<div className="flex items-center gap-2">
+						{isOffline ? (
+							<span className="flex items-center gap-2 font-semibold text-destructive">
+								<WifiOff className="h-4 w-4" /> Offline
+							</span>
+						) : (
+							<span className="flex items-center gap-2 font-semibold text-primary">
+								<Wifi className="h-4 w-4" /> Online
+							</span>
+						)}
+					</div>
+				</div>
+
+				<div className="relative mb-4 shrink-0">
+					<Search className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
+					<Input
+						placeholder="Search products by name or scan barcode..."
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						className="bg-background pl-9"
+					/>
+				</div>
+
+				<ScrollArea className="flex-1 min-h-0">
+					{isLoading ? (
+						<div className="grid grid-cols-2 gap-4 p-2 md:grid-cols-3 lg:grid-cols-4">
+							{[1, 2, 3, 4, 5, 6].map((n) => (
+								<div
+									key={n}
+									className="h-32 animate-pulse rounded-xl bg-muted"
+								/>
+							))}
 						</div>
-						<Dialog
-							open={isCustomerDialogOpen}
-							onOpenChange={setIsCustomerDialogOpen}
-						>
-							<DialogTrigger asChild>
-								<Button
-									variant="outline"
-									className="h-11 gap-2 rounded-xl border-border/50 bg-background shadow-sm"
-								>
-									<UserIcon className="h-4 w-4" />{" "}
-									{customerName || "Add Customer"}
-								</Button>
-							</DialogTrigger>
-							<DialogContent>
-								<DialogHeader>
-									<DialogTitle>Select or Add Customer</DialogTitle>
-								</DialogHeader>
-								<div className="flex flex-col gap-4 py-4">
-									<Input
-										placeholder="Enter customer name..."
-										value={customerInput}
-										onChange={(e) => setCustomerInput(e.target.value)}
-									/>
-									<Button
-										onClick={() => {
-											setCustomerName(customerInput);
-											setIsCustomerDialogOpen(false);
-										}}
-									>
-										Save Customer
-									</Button>
-								</div>
-							</DialogContent>
-						</Dialog>
-					</div>
-
-					<div className="no-scrollbar flex shrink-0 items-center gap-2 overflow-x-auto pb-2">
-						<Badge
-							variant={selectedCategory === null ? "default" : "outline"}
-							className="cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 font-medium text-sm transition-all"
-							onClick={() => setSelectedCategory(null)}
-						>
-							All Items
-						</Badge>
-						{categories.map((cat) => (
-							<Badge
-								key={cat}
-								variant={selectedCategory === cat ? "default" : "outline"}
-								className="cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 font-medium text-sm transition-all"
-								onClick={() => setSelectedCategory(cat)}
-							>
-								{cat}
-							</Badge>
-						))}
-					</div>
-
-					<div className="-mr-4 flex-1 overflow-y-auto pr-4">
-						<div className="grid grid-cols-2 gap-4 pb-20 md:grid-cols-3 xl:grid-cols-4">
-							{filteredProducts.length === 0 ? (
-								<div className="col-span-full flex flex-col items-center justify-center py-20 text-muted-foreground">
-									<TagIcon className="mb-4 h-12 w-12 opacity-20" />
-									<p>No products found matching your search.</p>
-								</div>
-							) : (
-								filteredProducts.map((product) => (
-									<motion.div
-										key={product.id}
-										whileHover={{ scale: 1.02 }}
-										whileTap={{ scale: 0.98 }}
-										onClick={() => addToCart(product)}
-									>
-										<Card className="group h-full cursor-pointer overflow-hidden rounded-2xl border-border/40 bg-background/50 backdrop-blur-sm transition-all hover:border-primary/30 hover:shadow-md">
-											<div className="relative flex aspect-square items-center justify-center bg-muted/30 p-6 transition-colors group-hover:bg-primary/5">
-												{product.image_url ? (
-													<Image
-														src={product.image_url}
-														alt={product.name}
-														fill
-														className="object-contain p-4"
-													/>
-												) : (
-													<PackageIcon className="h-16 w-16 text-muted-foreground/30" />
-												)}
-												{product.stock_quantity !== null &&
-													product.stock_quantity < 5 && (
-														<span className="absolute top-2 right-2 rounded-full bg-red-100 px-2 py-0.5 font-bold text-[10px] text-red-700">
-															{product.stock_quantity} left
-														</span>
-													)}
-											</div>
-											<CardContent className="space-y-1 p-4 pt-3">
-												<h3 className="line-clamp-2 font-semibold text-sm leading-tight">
+					) : (
+						<StaggerList className="grid grid-cols-2 gap-4 p-2 md:grid-cols-3 lg:grid-cols-4">
+							{filteredCatalog?.map((product) => (
+								<StaggerItem key={product.id}>
+									<AnimatedCard>
+										<Card
+											className="flex h-full cursor-pointer flex-col justify-between border-transparent shadow-sm transition-colors hover:border-primary/50"
+											onClick={() => addToCart(product)}
+										>
+											<CardHeader className="p-4 pb-2">
+												<CardTitle
+													className="truncate font-semibold text-sm"
+													title={product.name}
+												>
 													{product.name}
-												</h3>
-												<p className="text-muted-foreground text-xs">
-													{product.sku}
-												</p>
-												<div className="pt-2 font-bold text-base text-primary">
-													{formatCurrency(product.price, locale)}
+												</CardTitle>
+											</CardHeader>
+											<CardContent className="flex flex-col justify-end p-4 pt-0">
+												<div className="font-bold text-lg text-primary">
+													₹{Number.parseFloat(product.price).toFixed(2)}
+												</div>
+												<div className="mt-1 line-clamp-2 min-h-[32px] text-muted-foreground text-xs">
+													{product.description || ""}
 												</div>
 											</CardContent>
 										</Card>
-									</motion.div>
-								))
-							)}
-						</div>
-					</div>
+									</AnimatedCard>
+								</StaggerItem>
+							))}
+						</StaggerList>
+					)}
+				</ScrollArea>
+			</div>
+
+			{/* Right Pane - Cart */}
+			<div className="z-10 flex min-h-0 w-[350px] lg:w-[400px] shrink-0 flex-col bg-background p-4 shadow-xl">
+				<div className="mb-4 flex shrink-0 items-center justify-between">
+					<h2 className="flex items-center gap-2 font-bold text-xl">
+						<ShoppingCart className="h-5 w-5" /> Current Order
+					</h2>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setCart([])}
+						disabled={cart.length === 0}
+					>
+						Clear
+					</Button>
 				</div>
-
-				{/* Right Side: Cart */}
-				<Card className="flex min-h-0 h-full w-full shrink-0 flex-col overflow-hidden rounded-2xl border-border/50 bg-background/80 shadow-lg backdrop-blur-xl lg:w-[400px]">
-					<CardHeader className="shrink-0 border-border/40 border-b bg-muted/20 pb-4">
-						<div className="flex items-center justify-between">
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<ShoppingCartIcon className="h-5 w-5 text-primary" />
-								Current Order
-							</CardTitle>
-							{cart.length > 0 && (
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={clearCart}
-									className="h-8 px-2 text-destructive text-xs hover:bg-destructive/10 hover:text-destructive"
-								>
-									Clear
-								</Button>
-							)}
-						</div>
-					</CardHeader>
-
-					<div className="flex-1 min-h-0 overflow-y-auto px-4">
+				<ScrollArea className="flex-1 min-h-0 bg-muted/20 p-4">
+					<AnimatePresence>
 						{cart.length === 0 ? (
-							<div className="flex h-[300px] flex-col items-center justify-center text-muted-foreground opacity-60">
-								<ShoppingCartIcon className="mb-4 h-16 w-16 stroke-1" />
+							<motion.div
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								className="flex h-full flex-col items-center justify-center space-y-4 text-muted-foreground"
+							>
+								<ShoppingCart className="h-16 w-16 opacity-20" />
 								<p>Cart is empty</p>
-								<p className="text-sm">Click items to add them</p>
-							</div>
+								<p className="text-xs">Scan a barcode or click a product</p>
+							</motion.div>
 						) : (
-							<div className="flex flex-col gap-3 py-4 pr-4">
+							<div className="space-y-3 pr-4">
 								{cart.map((item) => (
-									<div
+									<motion.div
 										key={item.id}
-										className="flex w-full min-w-0 items-center gap-3 rounded-xl border border-border/40 bg-muted/20 p-2.5 transition-colors hover:bg-muted/40"
+										initial={{ opacity: 0, scale: 0.9, x: 20 }}
+										animate={{ opacity: 1, scale: 1, x: 0 }}
+										exit={{ opacity: 0, scale: 0.9, x: -20 }}
+										className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm"
 									>
-										<div className="min-w-0 flex-1">
-											<h4 className="truncate font-medium text-sm">
+										<div className="flex w-full items-center justify-between">
+											<div className="truncate font-semibold text-sm">
 												{item.name}
-											</h4>
-											<p className="text-muted-foreground text-xs">
-												{formatCurrency(item.price, locale)}
-											</p>
+											</div>
+											<div className="text-muted-foreground text-xs">
+												₹{Number.parseFloat(item.price).toFixed(2)} / unit
+											</div>
 										</div>
-										<div className="flex shrink-0 items-center gap-2 rounded-lg border border-border/50 bg-background p-0.5 shadow-sm">
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-6 w-6 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive"
-												onClick={() => updateQuantity(item.id, -1)}
-											>
-												<MinusIcon className="h-3 w-3" />
-											</Button>
-											<span className="min-w-[1.25rem] w-auto shrink-0 whitespace-nowrap px-1 text-center font-semibold text-sm">
-												{item.cartQuantity}
-											</span>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-6 w-6 shrink-0 rounded-md hover:bg-primary/10 hover:text-primary"
-												onClick={() => updateQuantity(item.id, 1)}
-											>
-												<PlusIcon className="h-3 w-3" />
-											</Button>
+
+										<div className="flex w-full items-center justify-between gap-2">
+											<div className="flex h-8 items-center rounded-md border">
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8 rounded-none rounded-l-md"
+													onClick={() => updateQty(item.id, -1)}
+												>
+													<Minus className="h-3 w-3" />
+												</Button>
+												<span className="w-12 text-center font-semibold text-sm">
+													{Number.isInteger(item.qty)
+														? item.qty
+														: item.qty.toFixed(3)}
+												</span>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8 rounded-none rounded-r-md"
+													onClick={() => updateQty(item.id, 1)}
+												>
+													<Plus className="h-3 w-3" />
+												</Button>
+											</div>
+											<div className="flex items-center gap-3">
+												<span className="font-bold text-sm">
+													₹{(Number.parseFloat(item.price) * item.qty).toFixed(2)}
+												</span>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8 text-destructive hover:bg-destructive/10"
+													onClick={() => removeFromCart(item.id)}
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</div>
 										</div>
-										<div className="min-w-[4rem] shrink-0 whitespace-nowrap text-right font-semibold text-sm">
-											{formatCurrency(item.price * item.cartQuantity, locale)}
-										</div>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-											onClick={() => removeFromCart(item.id)}
-										>
-											<Trash2Icon className="h-4 w-4" />
-										</Button>
-									</div>
+									</motion.div>
 								))}
 							</div>
 						)}
+					</AnimatePresence>
+				</ScrollArea>
+
+				<div className="mt-4 shrink-0 space-y-3 border-t pt-4">
+					{/* Subtotal row */}
+					<div className="flex items-center justify-between text-sm text-muted-foreground">
+						<span>Subtotal</span>
+						<span>₹{subtotal.toFixed(2)}</span>
 					</div>
 
-					<CardFooter className="shrink-0 flex-col gap-4 border-border/40 border-t bg-muted/20 p-5">
-						<div className="w-full space-y-2 text-sm">
-							<div className="flex justify-between text-muted-foreground">
-								<span>Subtotal</span>
-								<span>{formatCurrency(cartTotal, locale)}</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span>Tax (10%)</span>
-								<span>{formatCurrency(tax, locale)}</span>
-							</div>
-							<div className="mt-2 flex justify-between border-border/50 border-t pt-2 font-bold text-lg">
-								<span>Total</span>
-								<span className="text-primary">
-									{formatCurrency(grandTotal, locale)}
+					{/* Coupon row */}
+					<div className="flex items-center justify-between text-sm text-muted-foreground">
+						<div className="flex items-center gap-2">
+							<span>Discount</span>
+							{appliedCoupon ? (
+								<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+									<Ticket className="h-3 w-3" />
+									{appliedCoupon.code}
+									<button
+										type="button"
+										className="ml-1 text-green-500 hover:text-red-500"
+										onClick={removeCoupon}
+										title="Remove coupon"
+									>
+										×
+									</button>
 								</span>
-							</div>
+							) : (
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-6 gap-1 px-2 text-xs"
+									onClick={() => setCouponModalOpen(true)}
+									disabled={cart.length === 0}
+								>
+									<Ticket className="h-3 w-3" /> Add Coupon
+								</Button>
+							)}
 						</div>
+						<span className="text-green-600">− ₹{discount.toFixed(2)}</span>
+					</div>
+					<div className="flex items-center justify-between border-t pt-2 font-bold text-2xl">
+						<span>Total</span>
+						<span>₹{total.toFixed(2)}</span>
+					</div>
 
-						<div className="mt-2 grid w-full grid-cols-2 gap-2">
-							<Button
-								size="lg"
-								className="h-14 rounded-xl bg-emerald-600 text-white shadow-emerald-900/20 shadow-lg hover:bg-emerald-700"
-								onClick={() => handleCheckout("Cash")}
-								disabled={cart.length === 0}
-							>
-								<BanknoteIcon className="mr-2 h-5 w-5" /> Cash
-							</Button>
-							<Button
-								size="lg"
-								className="h-14 rounded-xl shadow-lg shadow-primary/20"
-								onClick={() => handleCheckout("Card")}
-								disabled={cart.length === 0}
-							>
-								<CreditCardIcon className="mr-2 h-5 w-5" /> Card
-							</Button>
-						</div>
-					</CardFooter>
-				</Card>
+					<div className="grid grid-cols-2 gap-2 pt-4">
+						<Button
+							variant="secondary"
+							size="lg"
+							className="w-full"
+							onClick={() => {
+								suspendMutation.mutate({
+									items: cart,
+									total: total.toString(),
+								});
+							}}
+							disabled={cart.length === 0 || suspendMutation.isPending}
+						>
+							{suspendMutation.isPending ? "Holding..." : "Hold Bill"}
+						</Button>
+						<Button
+							size="lg"
+							className="w-full font-bold text-lg"
+							onClick={handleCheckout}
+							disabled={cart.length === 0 || checkoutMutation.isPending}
+						>
+							{checkoutMutation.isPending ? "Processing..." : "Pay Now"}
+						</Button>
+					</div>
+				</div>
 			</div>
+
+			{paymentModalOpen && (
+				<PaymentModal
+					open={paymentModalOpen}
+					onOpenChange={setPaymentModalOpen}
+					totalAmount={total}
+					onConfirm={(payments: any[]) => finalizeOrder(payments)}
+				/>
+			)}
+
+			{/* Coupon Modal */}
+			<Dialog open={couponModalOpen} onOpenChange={setCouponModalOpen}>
+				<DialogContent className="sm:max-w-[380px]">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Ticket className="h-5 w-5 text-primary" />
+							Apply Coupon Code
+						</DialogTitle>
+						<DialogDescription>
+							Enter your coupon code below to get a discount on your order.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="flex flex-col gap-3 py-2">
+						<Input
+							placeholder="Enter coupon code (e.g. SAVE10)"
+							value={couponCode}
+							onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+							className="text-sm"
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && couponCode) {
+									handleApplyCoupon();
+									setCouponModalOpen(false);
+								}
+							}}
+							autoFocus
+						/>
+					</div>
+					<DialogFooter className="gap-2">
+						<Button variant="outline" onClick={() => { setCouponModalOpen(false); setCouponCode(""); }}>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								handleApplyCoupon();
+								setCouponModalOpen(false);
+							}}
+							disabled={!couponCode || validateCouponMutation.isPending}
+						>
+							{validateCouponMutation.isPending ? "Applying..." : "Apply Coupon"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{lastCompletedOrder && (
+				<SaleCompletionScreen
+					order={lastCompletedOrder}
+					onNewSale={() => setLastCompletedOrder(null)}
+				/>
+			)}
 		</PageTransition>
 	);
 }
-

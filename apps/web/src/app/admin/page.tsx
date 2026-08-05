@@ -22,6 +22,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { getServerClient } from "@/lib/trpc/serverClient";
 import { formatCurrency } from "@/lib/utils";
 import { AdminSalesTrendChart, AdminBranchPerformanceChart, AdminCashFlowChart } from "@/components/charts/admin-charts";
+import { getTranslations } from "next-intl/server";
 
 function KPICard({
 	title,
@@ -64,77 +65,78 @@ function KPICard({
 }
 
 export default async function CompanyAdminDashboard() {
+	const t = await getTranslations("dashboard");
+	const caller = await getServerClient();
 	const cookieStore = await cookies();
 	const branchCookie = cookieStore.get("evaluna.branch_context")?.value;
 	const activeBranchId = branchCookie ? Number(branchCookie) : undefined;
-
-	const serverClient = await getServerClient();
-	const data = await serverClient.dashboard.getKpis(
+	
+	const data = await caller.dashboard.getAdminOverview(
 		activeBranchId ? { branch_id: activeBranchId } : {}
 	);
 
-	if (!data) return <div>No data available</div>;
+	if (!data) return <div>{t("noDataAvailable")}</div>;
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
 			<div>
 				<h1 className="font-bold text-3xl text-gray-900 tracking-tight">
-					Dashboard Overview
+					{t("overview")}
 				</h1>
 				<p className="mt-1 text-gray-500">
-					Real-time metrics and insights for your company.
+					{t("overviewSubtitle")}
 				</p>
 			</div>
 
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<KPICard
-					title="Today's Sales"
+					title={t("todaysSales")}
 					value={formatCurrency(data.todaySales, "en-IN")}
 					icon={IndianRupeeIcon}
-					trend={data.salesTrendPct !== 0 ? "vs yesterday" : undefined}
+					trend={data.salesTrendPct !== 0 ? t("vsYesterday") : undefined}
 					trendValue={data.salesTrendPct !== 0 ? `${Math.abs(data.salesTrendPct)}%` : undefined}
 					trendIsPositive={data.salesTrendIsPositive}
 				/>
 				<KPICard
-					title="Today's Orders"
+					title={t("todaysOrders")}
 					value={data.todayOrders || 0}
 					icon={ShoppingCartIcon}
-					trend={data.billsTrendPct !== 0 ? "vs yesterday" : undefined}
+					trend={data.billsTrendPct !== 0 ? t("vsYesterday") : undefined}
 					trendValue={data.billsTrendPct !== 0 ? `${Math.abs(data.billsTrendPct)}%` : undefined}
 					trendIsPositive={data.billsTrendIsPositive}
 				/>
 				<KPICard
-					title="Today's Profit"
+					title={t("todaysProfit")}
 					value={formatCurrency(data.todayProfit, "en-IN")}
 					icon={TrendingUpIcon}
 					trendIsPositive={data.todayProfit >= 0}
 				/>
 				<KPICard
-					title="Total Products"
+					title={t("totalProducts")}
 					value={data.totalProducts}
 					icon={PackageIcon}
 				/>
 				<KPICard
-					title="Pending Deliveries"
+					title={t("pendingDeliveries")}
 					value={data.pendingDeliveries || 0}
 					icon={TruckIcon}
 				/>
 				<KPICard
-					title="Warehouse Capacity"
+					title={t("warehouseCapacity")}
 					value={`${data.warehouseCapacity || 0}%`}
 					icon={WarehouseIcon}
-					trend="Utilized space"
+					trend={t("utilizedSpace")}
 				/>
 				<KPICard
-					title="Active Employees"
+					title={t("activeEmployees")}
 					value={data.activeEmployees || 0}
 					icon={UsersIcon}
 				/>
 				<KPICard
-					title="Low Stock Items"
+					title={t("lowStockItems")}
 					value={data.lowStockCount || 0}
 					icon={AlertTriangleIcon}
-					trendValue="Action needed"
+					trendValue={t("actionNeeded")}
 					trendIsPositive={false}
 				/>
 			</div>
