@@ -320,7 +320,7 @@ export default function POSPage() {
 								<StaggerItem key={product.id}>
 									<AnimatedCard>
 										<Card
-											className="cursor-pointer border-transparent shadow-sm transition-colors hover:border-primary/50"
+											className="flex h-full cursor-pointer flex-col justify-between border-transparent shadow-sm transition-colors hover:border-primary/50"
 											onClick={() => addToCart(product)}
 										>
 											<CardHeader className="p-4 pb-2">
@@ -331,12 +331,12 @@ export default function POSPage() {
 													{product.name}
 												</CardTitle>
 											</CardHeader>
-											<CardContent className="p-4 pt-0">
+											<CardContent className="flex flex-col justify-end p-4 pt-0">
 												<div className="font-bold text-lg text-primary">
 													₹{Number.parseFloat(product.price).toFixed(2)}
 												</div>
-												<div className="mt-1 line-clamp-2 text-muted-foreground text-xs">
-													{product.description || "No description"}
+												<div className="mt-1 line-clamp-2 min-h-[32px] text-muted-foreground text-xs">
+													{product.description || ""}
 												</div>
 											</CardContent>
 										</Card>
