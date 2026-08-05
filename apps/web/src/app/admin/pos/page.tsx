@@ -366,8 +366,7 @@ export default function POSPage() {
 										initial={{ opacity: 0, scale: 0.9, x: 20 }}
 										animate={{ opacity: 1, scale: 1, x: 0 }}
 										exit={{ opacity: 0, scale: 0.9, x: -20 }}
-										layout
-										className="group flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm"
+										className="group flex items-center justify-between gap-2 rounded-lg border bg-card p-3 shadow-sm"
 									>
 										<div className="flex-1 overflow-hidden pr-2">
 											<div className="truncate font-semibold text-sm">
@@ -379,7 +378,7 @@ export default function POSPage() {
 											</div>
 										</div>
 
-										<div className="flex items-center gap-2">
+										<div className="flex shrink-0 items-center gap-2">
 											<div className="flex h-8 items-center rounded-md border">
 												<Button
 													variant="ghost"

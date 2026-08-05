@@ -335,7 +335,7 @@ export default function POSCatalogPage() {
 												{formatCurrency(item.price, locale)}
 											</p>
 										</div>
-										<div className="flex items-center gap-2 rounded-lg border border-border/50 bg-background p-0.5 shadow-sm">
+										<div className="flex shrink-0 items-center gap-2 rounded-lg border border-border/50 bg-background p-0.5 shadow-sm">
 											<Button
 												variant="ghost"
 												size="icon"
