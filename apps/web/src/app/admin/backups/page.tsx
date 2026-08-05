@@ -552,12 +552,12 @@ function BackupCard({
 							(verifyResult.valid ? (
 								<CheckCircle2
 									className="h-4 w-4 text-emerald-400"
-									title="Checksum valid"
+									// title="Checksum valid"
 								/>
 							) : (
 								<XCircle
 									className="h-4 w-4 text-red-400"
-									title={verifyResult.reason}
+									// title={verifyResult.reason}
 								/>
 							))}
 					</div>

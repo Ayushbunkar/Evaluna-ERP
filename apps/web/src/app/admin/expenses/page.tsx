@@ -195,7 +195,7 @@ export default function ExpensesPage() {
 													: "—"}
 											</TableCell>
 											<TableCell className="capitalize">
-												{expense.category ?? "General"}
+												{expense.expense_category ?? "General"}
 											</TableCell>
 											<TableCell className="max-w-xs truncate">
 												{expense.description ?? "—"}

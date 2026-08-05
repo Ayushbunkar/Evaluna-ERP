@@ -32,7 +32,7 @@ import { trpc } from "@/lib/trpc/client";
 export default function TransfersPage() {
 	const { data: transfers, isLoading } = trpc.transfers.list.useQuery();
 	const { data: branches } = trpc.branches.list.useQuery();
-	const { data: products } = trpc.products.list.useQuery({ limit: 100 });
+	const { data: products } = trpc.products.list.useQuery({} as any);
 	const utils = trpc.useUtils();
 
 	const [createOpen, setCreateOpen] = useState(false);
@@ -75,7 +75,7 @@ export default function TransfersPage() {
 	const getBranchName = (id: number) =>
 		branches?.find((b: any) => b.id === id)?.name || `Branch #${id}`;
 	const getProductName = (id: number) => {
-		const productItems = products?.items || products;
+		const productItems = (products as any) || products;
 		if (Array.isArray(productItems)) {
 			return (
 				productItems.find((p: any) => p.id === id)?.name || `Product #${id}`
@@ -182,7 +182,7 @@ export default function TransfersPage() {
 									<option value={0}>Select product...</option>
 									{(Array.isArray(products)
 										? products
-										: products?.items || []
+										: (products as any) || []
 									).map((p: any) => (
 										<option key={p.id} value={p.id}>
 											{p.name}
@@ -309,3 +309,4 @@ export default function TransfersPage() {
 		</div>
 	);
 }
+

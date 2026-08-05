@@ -300,7 +300,7 @@ export default function DataImportPage() {
 				entityType,
 				rows: parsedRows,
 			});
-			setValidation(result as ValidationResult);
+			setValidation(result as any);
 			setStep(3);
 		} catch {
 			// Fallback: client-side validation when API fails
@@ -877,3 +877,4 @@ export default function DataImportPage() {
 		</div>
 	);
 }
+

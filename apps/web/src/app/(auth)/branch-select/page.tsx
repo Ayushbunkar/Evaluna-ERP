@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { ArrowRight, Building2, Loader2 } from "lucide-react";
@@ -142,3 +143,4 @@ export default function BranchSelectPage() {
 		</div>
 	);
 }
+

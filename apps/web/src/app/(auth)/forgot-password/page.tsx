@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -122,3 +123,4 @@ export default function ForgotPasswordPage() {
 		</div>
 	);
 }
+

@@ -5,7 +5,7 @@ export async function GET() {
 	try {
 		// PGlite allows dumping its data directory as a tarball (or File/Blob depending on platform)
 		// In Node.js, it dumps as a Buffer or Blob containing a tar archive of the database
-		const file = await pglite.dumpDataDir("tar");
+		const file = await (pglite as any)?.dumpDataDir("tar");
 
 		// Convert to buffer if it's a File or Blob
 		let buffer: Buffer;
@@ -18,7 +18,7 @@ export async function GET() {
 		const date = new Date().toISOString().replace(/[:.]/g, "-");
 		const filename = `evaluna-erp-backup-${date}.tar`;
 
-		return new NextResponse(buffer, {
+		return new NextResponse(buffer as any, {
 			status: 200,
 			headers: {
 				"Content-Type": "application/x-tar",
@@ -30,3 +30,5 @@ export async function GET() {
 		return NextResponse.json({ error: "Backup failed" }, { status: 500 });
 	}
 }
+
+

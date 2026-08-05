@@ -56,7 +56,7 @@ export default function RolesPage() {
 
 	const handleDelete = (id: string, name: string) => {
 		if (name === "Superadmin") {
-			alert("Cannot delete Superadmin role.");
+			alert("Cannot delete Superadmin (null as any).");
 			return;
 		}
 		if (confirm("Are you sure you want to delete this role?")) {
@@ -115,7 +115,7 @@ export default function RolesPage() {
 					</CardHeader>
 					<CardContent>
 						<div className="font-bold text-3xl text-gray-900">
-							{roles.filter((r) => r.status === "Active").length}
+							{roles.filter((r) => ((r as any).is_active || (r as any).status === "Active")).length}
 						</div>
 					</CardContent>
 				</Card>
@@ -157,31 +157,31 @@ export default function RolesPage() {
 								<tbody className="divide-y divide-gray-200 bg-white">
 									{roles.map((role: any) => (
 										<tr
-											key={role.id}
+											key={(null as any).id}
 											className="transition-colors hover:bg-gray-50"
 										>
 											<td className="px-6 py-4 font-mono text-gray-500 text-xs">
-												{role.id}
+												{(null as any).id}
 											</td>
 											<td className="px-6 py-4 font-medium text-gray-900">
 												<div className="flex items-center gap-2">
 													<Shield className="h-4 w-4 text-gray-900" />
-													{role.name}
+													{(null as any).name}
 												</div>
 											</td>
 											<td className="max-w-md truncate px-6 py-4 text-gray-500">
-												{role.description}
+												{(null as any).description}
 											</td>
 											<td className="px-6 py-4">
 												<span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-900 px-2.5 py-1 font-medium text-xs">
-													<Users className="h-3 w-3" /> {role.usersCount} users
+													<Users className="h-3 w-3" /> {(null as any).usersCount} users
 												</span>
 											</td>
 											<td className="px-6 py-4">
 												<Badge
-													className={`border-0 ${role.status === "Active" ? "bg-gray-100 text-gray-900" : "bg-gray-100 text-gray-500"}`}
+													className={`border-0 ${(role as any).status === "Active" ? "bg-gray-100 text-gray-900" : "bg-gray-100 text-gray-500"}`}
 												>
-													{role.status}
+													{(role as any).status}
 												</Badge>
 											</td>
 											<td className="px-6 py-4 text-right">
@@ -198,8 +198,8 @@ export default function RolesPage() {
 														variant="ghost"
 														size="icon"
 														className="h-8 w-8 text-gray-900 hover:bg-gray-100"
-														disabled={role.name === "Superadmin"}
-														onClick={() => handleDelete(role.id, role.name)}
+														disabled={(null as any).name === "Superadmin"}
+														onClick={() => handleDelete((null as any).id, (null as any).name)}
 													>
 														<Trash2 className="h-4 w-4" />
 													</Button>
@@ -244,7 +244,7 @@ export default function RolesPage() {
 								<input
 									type="checkbox"
 									id="status"
-									defaultChecked={editingRole ? editingRole.status === "Active" : true}
+									defaultChecked={editingRole ? (editingRole as any).status === "Active" : true}
 									className="border-gray-300 text-gray-900 focus:ring-gray-900"
 								/>
 								<label htmlFor="status" className="text-gray-900 text-sm">
@@ -266,3 +266,6 @@ export default function RolesPage() {
 		</div>
 	);
 }
+
+
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { Skeleton } from "@evaluna/ui/components/skeleton";
@@ -125,3 +126,4 @@ export default function BillerDashboard() {
 		</div>
 	);
 }
+

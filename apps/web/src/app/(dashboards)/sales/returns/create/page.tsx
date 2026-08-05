@@ -207,7 +207,7 @@ export default function CreateSalesReturn() {
 				</div>
 
 				<div className="space-y-6">
-					<AnimatedCard delay={0.1}>
+					<AnimatedCard>
 						<Card className="border-border/50 bg-card/30 shadow-sm">
 							<CardHeader>
 								<CardTitle className="text-base">Return Policy</CardTitle>
@@ -238,3 +238,4 @@ export default function CreateSalesReturn() {
 		</PageTransition>
 	);
 }
+

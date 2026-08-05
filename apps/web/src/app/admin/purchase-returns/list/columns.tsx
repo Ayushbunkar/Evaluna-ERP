@@ -19,7 +19,7 @@ type PurchaseReturn = z.infer<typeof purchaseReturnInsertSchema> & {
 	id: number;
 };
 
-export const columns: ColumnDef<PurchaseReturn>[] = [
+export const columns: any[] = [
 	{
 		accessorKey: "id",
 		header: "ID",
@@ -42,7 +42,7 @@ export const columns: ColumnDef<PurchaseReturn>[] = [
 	},
 	{
 		id: "actions",
-		cell: ({ row }) => {
+		cell: ({ row }: any) => {
 			const purchaseReturn = row.original;
 
 			return (
@@ -68,3 +68,4 @@ export const columns: ColumnDef<PurchaseReturn>[] = [
 		},
 	},
 ];
+

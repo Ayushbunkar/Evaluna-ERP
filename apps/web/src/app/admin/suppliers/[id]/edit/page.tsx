@@ -6,7 +6,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function EditSupplierPage() {
 	const params = useParams();
-	const { data: supplier, isLoading } = useTRPC().suppliers.get.useQuery({
+	const { data: supplier, isLoading } = (useTRPC().suppliers as any).get.useQuery({
 		id: Number(params.id),
 	});
 

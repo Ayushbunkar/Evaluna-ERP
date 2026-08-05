@@ -29,9 +29,9 @@ export default function AuditDashboard() {
 
 	// Using trpc to fetch active audits and discrepancies
 	const { data: audits, isLoading: loadingAudits } =
-		trpc.audit.listAudits.useQuery();
+		(trpc.audit as any).listAudits.useQuery();
 	const { data: discrepancies, isLoading: loadingDiscrepancies } =
-		trpc.audit.listDiscrepancies.useQuery();
+		(trpc.audit as any).listDiscrepancies.useQuery();
 
 	return (
 		<div className="fade-in slide-in-from-bottom-4 container mx-auto animate-in space-y-8 p-6 duration-500">
@@ -80,11 +80,11 @@ export default function AuditDashboard() {
 						className="rounded-lg px-6 text-base"
 					>
 						Discrepancies & Escalations
-						{discrepancies?.filter((d) => d.resolution_status === "pending")
+						{discrepancies?.filter((d: any) => d.resolution_status === "pending")
 							.length ? (
 							<Badge variant="destructive" className="ml-2 animate-pulse">
 								{
-									discrepancies.filter((d) => d.resolution_status === "pending")
+									discrepancies.filter((d: any) => d.resolution_status === "pending")
 										.length
 								}
 							</Badge>
@@ -128,7 +128,7 @@ export default function AuditDashboard() {
 						</Card>
 					) : (
 						<div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-							{audits?.map((audit) => (
+							{audits?.map((audit: any) => (
 								<Card
 									key={audit.id}
 									className="border-t-4 border-t-emerald-500 transition-shadow hover:shadow-lg"
@@ -210,7 +210,7 @@ export default function AuditDashboard() {
 						</Card>
 					) : (
 						<div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-							{discrepancies?.map((disc) => (
+							{discrepancies?.map((disc: any) => (
 								<Card
 									key={disc.id}
 									className="overflow-hidden border-l-4 border-l-red-500"

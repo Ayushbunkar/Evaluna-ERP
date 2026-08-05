@@ -179,12 +179,12 @@ export default function FinanceDashboard() {
 
 			{/* KPIs Grid */}
 			<motion.div
-				variants={containerVariants}
+				variants={containerVariants as any}
 				initial="hidden"
 				animate="show"
 				className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"
 			>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Today's Cash"
 						value={formatCurrency(data.todaysCash, "en-IN")}
@@ -192,7 +192,7 @@ export default function FinanceDashboard() {
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Monthly Revenue"
 						value={formatCurrency(data.monthlyRevenue, "en-IN")}
@@ -202,7 +202,7 @@ export default function FinanceDashboard() {
 						colorClass="from-blue-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Total Expenses"
 						value={formatCurrency(data.totalExpenses, "en-IN")}
@@ -212,7 +212,7 @@ export default function FinanceDashboard() {
 						colorClass="from-rose-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Net Profit"
 						value={formatCurrency(data.netProfit, "en-IN")}
@@ -222,7 +222,7 @@ export default function FinanceDashboard() {
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="GST Liability"
 						value={formatCurrency(data.gstLiability, "en-IN")}
@@ -230,7 +230,7 @@ export default function FinanceDashboard() {
 						colorClass="from-amber-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Receivables (To Collect)"
 						value={formatCurrency(data.totalReceivables, "en-IN")}
@@ -238,7 +238,7 @@ export default function FinanceDashboard() {
 						colorClass="from-indigo-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Payables (To Pay)"
 						value={formatCurrency(data.totalPayables, "en-IN")}
@@ -246,7 +246,7 @@ export default function FinanceDashboard() {
 						colorClass="from-purple-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Cash Flow"
 						value={formatCurrency(data.cashFlow, "en-IN")}
@@ -258,13 +258,13 @@ export default function FinanceDashboard() {
 
 			{/* Main Widgets Bento Grid */}
 			<motion.div
-				variants={containerVariants}
+				variants={containerVariants as any}
 				initial="hidden"
 				animate="show"
 				className="grid grid-cols-1 gap-6 lg:grid-cols-3"
 			>
 				{/* Profit Chart */}
-				<motion.div variants={itemVariants} className="lg:col-span-2">
+				<motion.div variants={itemVariants as any} className="lg:col-span-2">
 					<Card className="flex h-full flex-col border-border/50 shadow-sm">
 						<CardHeader className="pb-2">
 							<CardTitle>Profit & Loss Trend</CardTitle>
@@ -285,7 +285,7 @@ export default function FinanceDashboard() {
 				</motion.div>
 
 				{/* Expense Breakdown */}
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<Card className="h-full border-border/50 shadow-sm">
 						<CardHeader>
 							<CardTitle>Expense Breakdown</CardTitle>
@@ -304,7 +304,7 @@ export default function FinanceDashboard() {
 				</motion.div>
 
 				{/* Cash Flow */}
-				<motion.div variants={itemVariants} className="lg:col-span-2">
+				<motion.div variants={itemVariants as any} className="lg:col-span-2">
 					<Card className="h-full border-border/50 shadow-sm">
 						<CardHeader>
 							<CardTitle>Weekly Cash Flow</CardTitle>
@@ -326,7 +326,7 @@ export default function FinanceDashboard() {
 
 				{/* Bank Balances & GST Summary */}
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="flex h-full flex-col gap-6"
 				>
 					<Card className="flex-1 border-blue-500/20 border-border/50 bg-gradient-to-br from-blue-500/5 to-transparent shadow-sm">
@@ -389,7 +389,7 @@ export default function FinanceDashboard() {
 
 				{/* Outstanding Payments & Recent Transactions */}
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:col-span-3 lg:grid-cols-3"
 				>
 					<Card className="h-full border-border/50 shadow-sm lg:col-span-1">
@@ -494,3 +494,4 @@ export default function FinanceDashboard() {
 		</div>
 	);
 }
+

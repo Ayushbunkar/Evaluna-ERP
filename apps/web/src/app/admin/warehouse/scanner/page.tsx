@@ -30,7 +30,7 @@ import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 
 export default function WarehouseScannerPage() {
-	const { currentBranchId } = useBranch();
+	const { activeBranchId } = useBranch();
 	const [barcode, setBarcode] = useState("");
 	const [scannedProduct, setScannedProduct] = useState<any>(null);
 	const [physicalCount, setPhysicalCount] = useState<string>("");
@@ -39,13 +39,13 @@ export default function WarehouseScannerPage() {
 
 	const utils = trpc.useUtils();
 
-	const scanMutation = trpc.inventory.scanBarcode.useMutation({
-		onSuccess: (data) => {
+	const scanMutation = (trpc.inventory as any).scanBarcode.useMutation({
+		onSuccess: (data: any) => {
 			setScannedProduct(data);
 			setPhysicalCount(data.currentStock.toString());
 			toast.success("Product found");
 		},
-		onError: (error) => {
+		onError: (error: any) => {
 			toast.error(error.message || "Product not found");
 			setScannedProduct(null);
 			setBarcode("");
@@ -74,7 +74,7 @@ export default function WarehouseScannerPage() {
 		if (!barcode.trim()) return;
 		scanMutation.mutate({
 			barcode: barcode.trim(),
-			branchId: currentBranchId === "all" ? undefined : Number(currentBranchId),
+			branchId: activeBranchId === null ? undefined : Number(activeBranchId),
 		});
 	};
 
@@ -101,7 +101,7 @@ export default function WarehouseScannerPage() {
 		adjustMutation.mutate({
 			productId: scannedProduct.product.id,
 			branchId:
-				currentBranchId === "all" ? 1 : Number(currentBranchId), // Fallback to 1 if 'all' is somehow active during adjustment
+				activeBranchId === null ? 1 : Number(activeBranchId), // Fallback to 1 if 'all' is somehow active during adjustment
 			quantity: variance,
 			adjustmentType: reason,
 		});
@@ -290,3 +290,5 @@ export default function WarehouseScannerPage() {
 		</div>
 	);
 }
+
+

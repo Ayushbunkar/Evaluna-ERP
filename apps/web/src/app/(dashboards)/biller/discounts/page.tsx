@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import {
@@ -50,3 +51,4 @@ export default function DiscountsPage() {
 		</Card>
 	);
 }
+

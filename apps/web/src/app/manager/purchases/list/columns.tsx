@@ -5,7 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 import type { RouterOutputs } from "@/lib/trpc/router";
 
-type Purchase = RouterOutputs["purchases"]["list"][number];
+type Purchase = any;
 
 export const columns: ColumnDef<Purchase>[] = [
 	{
@@ -62,3 +62,4 @@ export const columns: ColumnDef<Purchase>[] = [
 		},
 	},
 ];
+

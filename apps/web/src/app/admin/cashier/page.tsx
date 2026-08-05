@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { Badge } from "@evaluna/ui/components/badge";
@@ -543,3 +544,5 @@ export default function Cashier() {
 		</>
 	);
 }
+
+

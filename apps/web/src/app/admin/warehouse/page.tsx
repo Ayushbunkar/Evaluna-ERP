@@ -162,7 +162,7 @@ export default function WarehouseDashboard() {
 				className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8"
 			>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -173,7 +173,7 @@ export default function WarehouseDashboard() {
 					/>
 				</motion.div>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -184,7 +184,7 @@ export default function WarehouseDashboard() {
 					/>
 				</motion.div>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -195,7 +195,7 @@ export default function WarehouseDashboard() {
 					/>
 				</motion.div>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -206,7 +206,7 @@ export default function WarehouseDashboard() {
 					/>
 				</motion.div>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -217,7 +217,7 @@ export default function WarehouseDashboard() {
 					/>
 				</motion.div>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -228,7 +228,7 @@ export default function WarehouseDashboard() {
 					/>
 				</motion.div>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -239,7 +239,7 @@ export default function WarehouseDashboard() {
 					/>
 				</motion.div>
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="col-span-1 lg:col-span-1"
 				>
 					<KPICard
@@ -259,7 +259,7 @@ export default function WarehouseDashboard() {
 				className="grid grid-cols-1 gap-6 lg:grid-cols-3"
 			>
 				{/* Warehouse Heatmap */}
-				<motion.div variants={itemVariants} className="lg:col-span-2">
+				<motion.div variants={itemVariants as any} className="lg:col-span-2">
 					<Card className="flex h-full flex-col border-border/50 shadow-sm">
 						<CardHeader className="pb-2">
 							<CardTitle>Live Warehouse Heatmap</CardTitle>
@@ -278,7 +278,7 @@ export default function WarehouseDashboard() {
 				</motion.div>
 
 				{/* Realtime Alerts & Recent Activity */}
-				<motion.div variants={itemVariants} className="flex flex-col gap-6">
+				<motion.div variants={itemVariants as any} className="flex flex-col gap-6">
 					<Card className="flex-1 border-border/50 shadow-sm">
 						<CardHeader className="pb-3">
 							<CardTitle className="flex items-center gap-2 text-base">
@@ -339,7 +339,7 @@ export default function WarehouseDashboard() {
 				</motion.div>
 
 				{/* Rack Utilization */}
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<Card className="h-full border-border/50 shadow-sm">
 						<CardHeader>
 							<CardTitle>Rack Utilization</CardTitle>
@@ -358,7 +358,7 @@ export default function WarehouseDashboard() {
 				</motion.div>
 
 				{/* FIFO Status */}
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<Card className="h-full border-border/50 shadow-sm">
 						<CardHeader>
 							<CardTitle>FIFO Status (Inventory Age)</CardTitle>
@@ -380,7 +380,7 @@ export default function WarehouseDashboard() {
 
 				{/* Worker Performance & Pending Tasks */}
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="grid h-full grid-cols-1 gap-6 md:grid-cols-2"
 				>
 					<Card className="h-full border-border/50 shadow-sm">
@@ -466,3 +466,4 @@ export default function WarehouseDashboard() {
 		</div>
 	);
 }
+

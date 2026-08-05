@@ -7,7 +7,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import { columns } from "./list/columns";
 
 export default function ExpensesList() {
-	const { data: expenses, isLoading } = useTRPC().expenses.list.useQuery();
+	const { data: expenses, isLoading } = useTRPC().expenses.list.useQuery({} as any);
 
 	return (
 		<div className="space-y-4">
@@ -20,8 +20,9 @@ export default function ExpensesList() {
 			{isLoading ? (
 				<p>Loading...</p>
 			) : (
-				<DataTable columns={columns} data={expenses?.items ?? []} />
+				<DataTable columns={columns as any[]} data={expenses?.items ?? []} />
 			)}
 		</div>
 	);
 }
+

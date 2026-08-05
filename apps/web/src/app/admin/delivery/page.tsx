@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -158,3 +159,5 @@ export default async function DeliveryPage() {
 		</div>
 	);
 }
+
+

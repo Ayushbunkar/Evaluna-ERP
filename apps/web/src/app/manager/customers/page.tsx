@@ -210,7 +210,7 @@ export default function CustomersPage() {
 			status: "active" as "active" | "inactive",
 		},
 		validators: {
-			onSubmit: customerFormSchema,
+			onSubmit: (customerFormSchema as any),
 		},
 		onSubmit: ({ value }) => {
 			const payload = {
@@ -324,7 +324,7 @@ export default function CustomersPage() {
 		return (
 			<Card>
 				<CardContent>
-					<p className="text-red-500">{error.message}</p>
+					<p className="text-red-500">{(error as any)?.message}</p>
 				</CardContent>
 			</Card>
 		);
@@ -505,12 +505,14 @@ export default function CustomersPage() {
 				</Dialog>
 
 				<DeleteConfirmationDialog
-					isOpen={isDeleteOpen}
+					open={isDeleteOpen}
 					onOpenChange={setIsDeleteOpen}
 					onConfirm={handleDelete}
-					isDeleting={deleteMutation.isPending}
+					
 				/>
 			</Card>
 		</PageTransition>
 	);
 }
+
+

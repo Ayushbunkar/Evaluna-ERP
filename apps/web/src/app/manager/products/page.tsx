@@ -193,7 +193,7 @@ export default function Products() {
 			is_weighted: false,
 		},
 		validators: {
-			onSubmit: productFormSchema,
+			onSubmit: (productFormSchema as any),
 		},
 		onSubmit: ({ value }) => {
 			const payload = {
@@ -738,11 +738,11 @@ export default function Products() {
 						<div className="flex flex-col items-center justify-center space-y-4 p-8">
 							<h3 className="font-bold text-lg">{printBarcodeProduct.name}</h3>
 							<p className="text-xl">
-								{formatCurrency(printBarcodeProduct.price, locale)}
+								{formatCurrency((printBarcodeProduct as any).price, locale)}
 							</p>
 							<div className="border border-gray-300 border-dashed bg-white p-4">
 								<div className="font-mono text-2xl tracking-widest">
-									{printBarcodeProduct.barcode || "NO BARCODE"}
+									{(printBarcodeProduct as any).barcode || "NO BARCODE"}
 								</div>
 							</div>
 						</div>
@@ -759,6 +759,9 @@ export default function Products() {
 		</PageTransition>
 	);
 }
+
+
+
 
 
 

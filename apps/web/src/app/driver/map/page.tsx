@@ -20,9 +20,9 @@ import { trpc } from "@/lib/trpc/client";
 
 export default function DriverMapPage() {
 	const [tripId] = useState<number>(1); // Mock active trip ID for the driver
-	const { data: trips } = trpc.delivery.getTrips.useQuery();
-	const updateLocation = trpc.delivery.updateVehicleLocation.useMutation();
-	const updateStop = trpc.delivery.updateStopStatus.useMutation();
+	const { data: trips } = (trpc as any).delivery.getTrips.useQuery();
+	const updateLocation = (trpc as any).delivery.updateVehicleLocation.useMutation();
+	const updateStop = (trpc as any).delivery.updateStopStatus.useMutation();
 
 	const [currentLocation, setCurrentLocation] = useState<{
 		lat: number;
@@ -30,8 +30,8 @@ export default function DriverMapPage() {
 	} | null>(null);
 	const [geoError, setGeoError] = useState<string | null>(null);
 
-	const activeTrip = trips?.find((t) => t.id === tripId);
-	const nextStop = activeTrip?.stops.find((s) => s.status === "pending");
+	const activeTrip = trips?.find((t: any) => t.id === tripId);
+	const nextStop = activeTrip?.stops.find((s: any) => s.status === "pending");
 
 	useEffect(() => {
 		if (!navigator.geolocation) {
@@ -79,9 +79,9 @@ export default function DriverMapPage() {
 		};
 	}, [tripId, updateLocation]);
 
-	const handleStopStatus = (status: "reached" | "delivered" | "failed") => {
+	const handleStopStatus = (status: "arrived" | "delivered" | "failed") => {
 		if (!nextStop) return;
-		updateStop.mutate({ stop_id: nextStop.id, status });
+		updateStop.mutate({ stopId: nextStop.id, status });
 		// In a real app we'd invalidate the trips query here or optimistically update
 	};
 
@@ -153,7 +153,7 @@ export default function DriverMapPage() {
 							<Button
 								variant="outline"
 								className="h-12 flex-1"
-								onClick={() => handleStopStatus("reached")}
+								onClick={() => handleStopStatus("arrived")}
 							>
 								Reached
 							</Button>
@@ -186,3 +186,4 @@ export default function DriverMapPage() {
 		</div>
 	);
 }
+

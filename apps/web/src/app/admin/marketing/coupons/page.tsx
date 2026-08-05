@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc/client";
 
 export default function CouponsPage() {
-	const { data, isLoading } = trpc.marketing.getCoupons.useQuery();
+	const { data, isLoading } = trpc.marketing.listCoupons.useQuery();
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 pb-8">

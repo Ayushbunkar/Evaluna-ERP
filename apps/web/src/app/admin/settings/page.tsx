@@ -52,10 +52,10 @@ export default function SettingsPage() {
 	const [formData, setFormData] = useState<Record<string, string>>({});
 
 	// Merge loaded settings with local unsaved changes
-	const getValue = (key: string, defaultValue = "") => {
-		return formData[key] !== undefined
+	const getValue = (key: string, defaultValue = ""): string => {
+		return (formData[key] !== undefined
 			? formData[key]
-			: settings?.[key] || defaultValue;
+			: (settings as any)?.[key] || defaultValue) as string;
 	};
 
 	const handleChange = (key: string, value: string) => {
@@ -273,3 +273,5 @@ export default function SettingsPage() {
 		</div>
 	);
 }
+
+

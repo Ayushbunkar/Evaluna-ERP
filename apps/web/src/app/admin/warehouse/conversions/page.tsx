@@ -30,7 +30,7 @@ export default function WarehouseConversionsPage() {
 		onSuccess: () => {
 			toast.success("Successfully unpacked items");
 			utils.inventory.getConversions.invalidate();
-			utils.inventory.getInventory.invalidate();
+			(utils.inventory as any).getInventory?.invalidate();
 			setQuantity("");
 		},
 		onError: (error) => toast.error(error.message),
@@ -40,7 +40,7 @@ export default function WarehouseConversionsPage() {
 		onSuccess: () => {
 			toast.success("Successfully packed items");
 			utils.inventory.getConversions.invalidate();
-			utils.inventory.getInventory.invalidate();
+			(utils.inventory as any).getInventory?.invalidate();
 			setQuantity("");
 		},
 		onError: (error) => toast.error(error.message),
@@ -51,7 +51,7 @@ export default function WarehouseConversionsPage() {
 	);
 
 	const yieldAmount = activeProduct
-		? Number(quantity) * (activeProduct.unitsPerPack || 1)
+		? Number(quantity) * ((activeProduct as any).units_per_pack || 1)
 		: 0;
 
 	return (
@@ -100,7 +100,7 @@ export default function WarehouseConversionsPage() {
 											</option>
 											{convertibleProducts?.map((p) => (
 												<option key={p.id} value={p.id}>
-													{p.name} ({p.unitsPerPack} units/pack)
+													{p.name} ({(p as any).units_per_pack} units/pack)
 												</option>
 											))}
 										</select>
@@ -142,7 +142,7 @@ export default function WarehouseConversionsPage() {
 													{yieldAmount}
 												</span>
 												<span className="line-clamp-1">
-													{activeProduct.looseProduct?.name || "Loose Items"}
+													{(activeProduct as any).loose_product_id || "Loose Items"}
 												</span>
 											</div>
 										</div>
@@ -246,3 +246,4 @@ export default function WarehouseConversionsPage() {
 		</div>
 	);
 }
+

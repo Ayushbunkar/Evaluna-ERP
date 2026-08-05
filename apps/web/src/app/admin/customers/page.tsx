@@ -178,7 +178,6 @@ export default function CustomersPage() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
 			// Add manual refetch to ensure fresh data
-			trpc.customers.list.refetch();
 			toast.success(t("created"));
 			setIsDialogOpen(false);
 		},
@@ -513,12 +512,13 @@ export default function CustomersPage() {
 				</Dialog>
 
 				<DeleteConfirmationDialog
-					isOpen={isDeleteOpen}
+					open={isDeleteOpen}
 					onOpenChange={setIsDeleteOpen}
 					onConfirm={handleDelete}
-					isDeleting={deleteMutation.isPending}
+					
 				/>
 			</Card>
 		</PageTransition>
 	);
 }
+

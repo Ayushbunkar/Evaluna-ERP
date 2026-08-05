@@ -395,7 +395,7 @@ export default function PayrollPage() {
 								</SelectTrigger>
 								<SelectContent>
 									{paymentMethods
-										?.filter((m) => m.is_active)
+										?.filter((m: any) => m.is_active)
 										.map((method) => (
 											<SelectItem key={method.id} value={method.id.toString()}>
 												{method.name}
@@ -426,3 +426,4 @@ export default function PayrollPage() {
 		</motion.div>
 	);
 }
+

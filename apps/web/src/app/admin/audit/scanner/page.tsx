@@ -36,8 +36,8 @@ export default function AuditorScanner() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	// Mock endpoints
-	const submitCount = trpc.audit.submitAuditCount.useMutation({
-		onSuccess: (data) => {
+	const submitCount = (trpc.audit as any).submitAuditCount.useMutation({
+		onSuccess: (data: any) => {
 			if (data.status === "mismatch") {
 				toast.warning("Count mismatch. Please recount or escalate.");
 			} else {
@@ -46,19 +46,19 @@ export default function AuditorScanner() {
 			}
 			setIsSubmitting(false);
 		},
-		onError: (err) => {
+		onError: (err: any) => {
 			toast.error(err.message);
 			setIsSubmitting(false);
 		},
 	});
 
-	const reportDiscrepancy = trpc.audit.reportDiscrepancy.useMutation({
+	const reportDiscrepancy = (trpc.audit as any).reportDiscrepancy.useMutation({
 		onSuccess: () => {
 			toast.error(`Stock marked as ${exceptionType}. Escalation created.`);
 			resetScanner();
 			setIsSubmitting(false);
 		},
-		onError: (err) => {
+		onError: (err: any) => {
 			toast.error(err.message);
 			setIsSubmitting(false);
 		},

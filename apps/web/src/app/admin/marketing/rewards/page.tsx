@@ -12,7 +12,8 @@ import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc/client";
 
 export default function RewardsPage() {
-	const { data, isLoading } = trpc.loyalty.getRewards.useQuery();
+	const { data, isLoading } = trpc.loyalty.getCustomerLoyalty.useQuery({ customer_id: 1 } as any);
+	const rewards = (data as any) || [];
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 pb-8">
@@ -53,9 +54,9 @@ export default function RewardsPage() {
 							</div>
 						) : (
 							<div className="text-sm">
-								{data && data.length > 0 ? (
+								{rewards.length > 0 ? (
 									<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-										{data.map((reward: any) => (
+										{rewards.map((reward: any) => (
 											<div
 												key={reward.id}
 												className="rounded-md border p-4 shadow-sm"
@@ -85,3 +86,4 @@ export default function RewardsPage() {
 		</div>
 	);
 }
+

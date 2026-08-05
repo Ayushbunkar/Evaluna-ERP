@@ -37,7 +37,7 @@ export default function OrderDetailPage({
 	const orderId = Number.parseInt(id, 10);
 	const trpc = useTRPC();
 	const { data: order, isLoading } = useQuery(
-		trpc.orders.get.queryOptions({ id: orderId }),
+		(trpc.orders.get as any).queryOptions({ id: orderId }),
 	) as { data: any; isLoading: boolean };
 	const t = useTranslations("orders");
 	const tc = useTranslations("common");

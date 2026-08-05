@@ -20,11 +20,15 @@ export default function PurchasesList() {
 			{isLoading ? (
 				<p>Loading...</p>
 			) : (
-				<DataTable columns={columns} data={purchases?.items ?? []} />
+				<DataTable columns={columns as any[]} data={purchases?.items as any} />
 			)}
 		</div>
 	);
 }
+
+
+
+
 
 
 

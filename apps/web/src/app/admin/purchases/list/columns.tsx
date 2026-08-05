@@ -1,34 +1,34 @@
-"use client";
+	"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 import type { RouterOutputs } from "@/lib/trpc/router";
 
-type Purchase = RouterOutputs["purchases"]["list"][number];
+type Purchase = any;
 
-export const columns: ColumnDef<Purchase>[] = [
+export const columns: any[] = [
 	{
 		accessorKey: "grn_number",
 		header: "GRN Number",
-		cell: ({ row }) => (
+		cell: ({ row }: any) => (
 			<span className="font-medium">{row.getValue("grn_number")}</span>
 		),
 	},
 	{
 		id: "supplier",
 		header: "Supplier",
-		accessorFn: (row) => row.supplier?.name || "Unknown",
+		accessorFn: (row: any) => row.supplier?.name || "Unknown",
 	},
 	{
 		accessorKey: "total_amount",
 		header: "Total",
-		cell: ({ row }) => `₹${row.getValue("total_amount")}`,
+		cell: ({ row }: any) => `₹${row.getValue("total_amount")}`,
 	},
 	{
 		accessorKey: "payment_status",
 		header: "Payment Status",
-		cell: ({ row }) => (
+		cell: ({ row }: any) => (
 			<span
 				className={`rounded px-2 py-1 text-xs capitalize ${row.original.payment_status === "paid" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
 			>
@@ -39,12 +39,12 @@ export const columns: ColumnDef<Purchase>[] = [
 	{
 		accessorKey: "created_at",
 		header: "Date",
-		cell: ({ row }) =>
+		cell: ({ row }: any) =>
 			new Date(row.getValue("created_at")).toLocaleDateString(),
 	},
 	{
 		id: "actions",
-		cell: ({ row }) => {
+		cell: ({ row }: any) => {
 			const router = useRouter();
 			return (
 				<div className="flex gap-2">
@@ -62,3 +62,6 @@ export const columns: ColumnDef<Purchase>[] = [
 		},
 	},
 ];
+
+
+

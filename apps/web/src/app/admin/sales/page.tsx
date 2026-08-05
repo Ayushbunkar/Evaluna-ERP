@@ -146,7 +146,7 @@ export default async function SalesPage() {
 												</Link>
 											</TableCell>
 											<TableCell className="text-gray-900">
-												{order.customers?.name || "Walk-in Customer"}
+												{(order as any).customers?.name || "Walk-in Customer"}
 											</TableCell>
 											<TableCell>{statusBadge(order.status)}</TableCell>
 											<TableCell className="text-right font-medium text-gray-900">
@@ -163,3 +163,4 @@ export default async function SalesPage() {
 		</div>
 	);
 }
+

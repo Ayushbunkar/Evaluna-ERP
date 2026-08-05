@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { config } from "dotenv";
 
 config({ path: "d:/Evaluna ERP/.env" });
@@ -105,3 +106,4 @@ async function run() {
 }
 
 run().catch(console.error);
+

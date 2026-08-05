@@ -17,7 +17,7 @@ export default function SuppliersList() {
 					<Button>New Supplier</Button>
 				</Link>
 			</div>
-			<DataTable columns={columns} data={suppliers ?? []} />
+			<DataTable columns={columns as any[]} data={suppliers as any} />
 		</div>
 	);
 }

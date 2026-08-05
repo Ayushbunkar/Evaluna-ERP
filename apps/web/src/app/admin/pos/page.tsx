@@ -96,7 +96,7 @@ export default function POSPage() {
 	const validateCouponMutation = trpc.marketing.validateCoupon.useMutation({
 		onSuccess: (data) => {
 			setAppliedCoupon({
-				id: data.couponId,
+				id: (data as any).id || (data as any).couponId,
 				code: data.code,
 				discount: data.discountAmount,
 			});
@@ -111,7 +111,7 @@ export default function POSPage() {
 
 	const handleApplyCoupon = () => {
 		if (!couponCode) return;
-		validateCouponMutation.mutate({ code: couponCode, subtotal });
+		validateCouponMutation.mutate({ code: couponCode, cartTotal: subtotal } as any);
 	};
 
 	const removeCoupon = () => {
@@ -119,6 +119,18 @@ export default function POSPage() {
 	};
 
 	// Barcode Scanner Listener
+	const addToCart = (product: any, qty = 1) => {
+		setCart((prev) => {
+			const existing = prev.find((item) => item.id === product.id);
+			if (existing) {
+				return prev.map((item) =>
+					item.id === product.id ? { ...item, qty: item.qty + qty } : item,
+				);
+			}
+			return [...prev, { ...product, qty: qty }];
+		});
+	};
+
 	useEffect(() => {
 		let barcode = "";
 		let timeout: NodeJS.Timeout;
@@ -196,17 +208,6 @@ export default function POSPage() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [catalog, addToCart]);
 
-	const addToCart = (product: any, qty = 1) => {
-		setCart((prev) => {
-			const existing = prev.find((item) => item.id === product.id);
-			if (existing) {
-				return prev.map((item) =>
-					item.id === product.id ? { ...item, qty: item.qty + qty } : item,
-				);
-			}
-			return [...prev, { ...product, qty: qty }];
-		});
-	};
 
 	const updateQty = (id: number, delta: number) => {
 		setCart((prev) =>
@@ -246,8 +247,8 @@ export default function POSPage() {
 			payments: payments,
 			isOfflineSync: false,
 			couponId: appliedCoupon?.id,
-			discountAmount: appliedCoupon?.discount,
-		});
+			discountAmount: appliedCoupon?.discount ? String(appliedCoupon.discount) : undefined,
+		} as any);
 	};
 
 	const filteredCatalog = catalog?.filter(

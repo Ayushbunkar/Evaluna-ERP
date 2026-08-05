@@ -13,15 +13,15 @@ export default async function DeliveryPage() {
 	const trpc = await getServerClient();
 	
 	// Ensure the user is a delivery boy/driver
-	const session = await trpc.auth.getSession();
+	const session = await (trpc as any).auth.getSession();
 	if (!session || (session.user.role !== "delivery_boy" && session.user.role !== "driver" && session.user.role !== "admin")) {
 		redirect("/");
 	}
 	
-	const myTrips = await trpc.delivery.myTrips();
+	const myTrips = await (trpc as any).delivery.myTrips();
 	
 	// Find the currently active trip
-	const activeTrip = myTrips.find(t => t.status === "active" || t.status === "pending");
+	const activeTrip = myTrips.find((t: any) => t.status === "active" || t.status === "pending");
 
 	return (
 		<div className="flex flex-col h-screen bg-slate-50">
@@ -29,3 +29,4 @@ export default async function DeliveryPage() {
 		</div>
 	);
 }
+

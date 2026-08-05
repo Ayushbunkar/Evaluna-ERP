@@ -156,7 +156,7 @@ export default function AuditorDashboard() {
 	const chartConfig = {
 		count: { label: "Count", color: "hsl(var(--chart-1))" },
 		value: { label: "Value", color: "hsl(var(--chart-2))" },
-	} satisfies ChartConfig;
+	} as any;
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
@@ -181,7 +181,7 @@ export default function AuditorDashboard() {
 				animate="show"
 				className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6"
 			>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Pending Audits"
 						value={data.pendingAudits}
@@ -189,7 +189,7 @@ export default function AuditorDashboard() {
 						colorClass="from-blue-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Completed"
 						value={data.completedAudits}
@@ -197,7 +197,7 @@ export default function AuditorDashboard() {
 						colorClass="from-emerald-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Mismatch"
 						value={data.mismatchCount}
@@ -205,7 +205,7 @@ export default function AuditorDashboard() {
 						colorClass="from-amber-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Damage"
 						value={data.damageCount}
@@ -213,7 +213,7 @@ export default function AuditorDashboard() {
 						colorClass="from-rose-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Expiry"
 						value={data.expiryCount}
@@ -221,7 +221,7 @@ export default function AuditorDashboard() {
 						colorClass="from-orange-500/10 to-transparent"
 					/>
 				</motion.div>
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<KPICard
 						title="Stock Accuracy"
 						value={`${data.stockAccuracy}%`}
@@ -239,7 +239,7 @@ export default function AuditorDashboard() {
 				className="grid grid-cols-1 gap-6 lg:grid-cols-3"
 			>
 				{/* Expiry Timeline Chart */}
-				<motion.div variants={itemVariants} className="lg:col-span-2">
+				<motion.div variants={itemVariants as any} className="lg:col-span-2">
 					<Card className="flex h-full flex-col border-border/50 shadow-sm">
 						<CardHeader className="pb-2">
 							<CardTitle>Expiry Risk Timeline</CardTitle>
@@ -260,7 +260,7 @@ export default function AuditorDashboard() {
 				</motion.div>
 
 				{/* Realtime Notifications Feed */}
-				<motion.div variants={itemVariants} className="flex flex-col gap-6">
+				<motion.div variants={itemVariants as any} className="flex flex-col gap-6">
 					<Card className="flex h-full flex-col overflow-hidden border-border/50 bg-background/40 shadow-sm backdrop-blur-md">
 						<CardHeader className="pb-2">
 							<CardTitle className="flex items-center gap-2 text-base">
@@ -307,7 +307,7 @@ export default function AuditorDashboard() {
 				</motion.div>
 
 				{/* Damage Timeline */}
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<Card className="h-full border-border/50 shadow-sm">
 						<CardHeader>
 							<CardTitle>Damage Reports</CardTitle>
@@ -326,7 +326,7 @@ export default function AuditorDashboard() {
 				</motion.div>
 
 				{/* Warehouse Issues Breakdown */}
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<Card className="h-full border-border/50 shadow-sm">
 						<CardHeader>
 							<CardTitle>Warehouse Issues</CardTitle>
@@ -345,7 +345,7 @@ export default function AuditorDashboard() {
 				</motion.div>
 
 				{/* Product Mismatch Feed */}
-				<motion.div variants={itemVariants}>
+				<motion.div variants={itemVariants as any}>
 					<Card className="h-full border-border/50 border-rose-500/20 bg-rose-500/5 shadow-sm">
 						<CardHeader className="border-rose-500/10 border-b pb-3">
 							<CardTitle className="flex items-center gap-2 text-base text-rose-700">
@@ -387,7 +387,7 @@ export default function AuditorDashboard() {
 
 				{/* Audit Queue & Recent Audits */}
 				<motion.div
-					variants={itemVariants}
+					variants={itemVariants as any}
 					className="grid grid-cols-1 gap-6 lg:col-span-3 lg:grid-cols-2"
 				>
 					<Card className="border-border/50 shadow-sm">
@@ -493,3 +493,5 @@ export default function AuditorDashboard() {
 		</div>
 	);
 }
+
+

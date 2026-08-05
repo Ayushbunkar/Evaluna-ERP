@@ -181,7 +181,7 @@ export default function Cashier() {
 				description: value.description,
 				category: value.category || undefined,
 				type: value.type,
-				amount: Math.round(value.amount * 100),
+				amount: String(Math.round(value.amount * 100)),
 				status: value.status,
 			});
 		},
@@ -193,7 +193,7 @@ export default function Cashier() {
 		editForm.setFieldValue("description", t.description ?? "");
 		editForm.setFieldValue("category", t.category ?? "");
 		editForm.setFieldValue("type", (t.type ?? "income") as TransactionType);
-		editForm.setFieldValue("amount", t.amount / 100);
+		editForm.setFieldValue("amount", Number(t.amount) / 100);
 		editForm.setFieldValue(
 			"status",
 			(t.status ?? "completed") as TransactionStatus,
@@ -208,7 +208,7 @@ export default function Cashier() {
 			description: inlineForm.description,
 			category: inlineForm.category || undefined,
 			type: inlineForm.type,
-			amount: Math.round(inlineForm.amount * 100),
+			amount: String(Math.round(inlineForm.amount * 100)),
 			status: inlineForm.status,
 		});
 	};
@@ -543,3 +543,4 @@ export default function Cashier() {
 		</>
 	);
 }
+

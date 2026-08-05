@@ -130,7 +130,7 @@ export default function OrdersPage() {
 		{
 			key: "total",
 			header: tc("total"),
-			getValue: (o) => (o.total_amount / 100).toFixed(2),
+			getValue: (o) => (Number(o.total_amount) / 100).toFixed(2),
 		},
 		{
 			key: "status",
@@ -207,7 +207,7 @@ export default function OrdersPage() {
 		setEditingId(o.id);
 		setEditCustomerName(o.customer?.name ?? "");
 		form.reset();
-		form.setFieldValue("total", (o.total_amount / 100).toString());
+		form.setFieldValue("total", (Number(o.total_amount) / 100).toString());
 		form.setFieldValue("status", (o.status ?? "pending") as OrderStatus);
 		setIsDialogOpen(true);
 	};
@@ -417,3 +417,4 @@ export default function OrdersPage() {
 		</Card>
 	);
 }
+

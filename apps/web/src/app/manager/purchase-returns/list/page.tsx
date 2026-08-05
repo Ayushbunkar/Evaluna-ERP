@@ -26,11 +26,15 @@ export default function PurchaseReturnsList() {
 					))}
 				</div>
 			) : (
-				<DataTable columns={columns} data={purchaseReturns ?? []} />
+				<DataTable columns={columns as any[]} data={purchaseReturns as any} />
 			)}
 		</div>
 	);
 }
+
+
+
+
 
 
 

@@ -256,7 +256,7 @@ export default function ProductsPage() {
 											type="checkbox"
 											className="rounded border-gray-300"
 											checked={
-												filteredProducts?.length > 0 &&
+												(filteredProducts?.length || 0) > 0 &&
 												selectedIds.length === filteredProducts?.length
 											}
 											onChange={(e) => {
@@ -428,3 +428,5 @@ export default function ProductsPage() {
 		</div>
 	);
 }
+
+

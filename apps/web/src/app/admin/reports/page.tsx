@@ -114,10 +114,10 @@ export default function ReportsPage() {
 						result = await utils.reports.getExpiryReport.fetch(args);
 						break;
 					case "customers":
-						result = await utils.reports.getCustomersReport.fetch(args);
+						result = await utils.reports.getCustomerReport.fetch(args);
 						break;
 					case "suppliers":
-						result = await utils.reports.getSuppliersReport.fetch(args);
+						result = await utils.reports.getSupplierReport.fetch(args);
 						break;
 					case "cash_book":
 						result = await utils.reports.getCashBookReport.fetch(args);
@@ -126,7 +126,7 @@ export default function ReportsPage() {
 						result = await utils.reports.getBranchComparisonReport.fetch(args);
 						break;
 					case "coupons":
-						result = await utils.reports.getCouponsReport.fetch(args);
+						result = await utils.reports.getCouponReport.fetch(args);
 						break;
 					case "loyalty":
 						result = await utils.reports.getLoyaltyReport.fetch(args);
@@ -448,3 +448,4 @@ export default function ReportsPage() {
 		</div>
 	);
 }
+
