@@ -1,7 +1,7 @@
 import { pgTable, serial, text, varchar, integer, date, time, boolean, timestamp, decimal, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { employees } from "./hrms";
-import { branches } from "..";
+import { branches } from "../schema";
 // Attendance Status Enum
 export const attendanceStatusEnum = pgEnum("attendance_status", [
   "present",

@@ -10,7 +10,8 @@ import {
 	timestamp,
 	varchar,
 } from "drizzle-orm/pg-core";
-import { branches, customers, orders, staff, user } from "..";
+import { branches, customers, orders, staff } from "../schema";
+import { user } from "../auth-schema";
 
 export const vehicleStatusEnum = pgEnum("vehicle_status", [
 	"available",
