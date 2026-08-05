@@ -366,29 +366,28 @@ export default function POSPage() {
 										initial={{ opacity: 0, scale: 0.9, x: 20 }}
 										animate={{ opacity: 1, scale: 1, x: 0 }}
 										exit={{ opacity: 0, scale: 0.9, x: -20 }}
-										className="group flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border bg-card p-3 shadow-sm"
+										className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm"
 									>
-										<div className="flex-1 min-w-0 pr-2">
+										<div className="flex w-full items-center justify-between">
 											<div className="truncate font-semibold text-sm">
 												{item.name}
 											</div>
-											<div className="mt-1 flex items-center gap-1 text-muted-foreground text-xs">
-												<Tag className="h-3 w-3" /> ₹
-												{Number.parseFloat(item.price).toFixed(2)}
+											<div className="text-muted-foreground text-xs">
+												₹{Number.parseFloat(item.price).toFixed(2)} / unit
 											</div>
 										</div>
 
-										<div className="flex shrink-0 items-center gap-2">
-											<div className="flex h-8 shrink-0 items-center rounded-md border">
+										<div className="flex w-full items-center justify-between gap-2">
+											<div className="flex h-8 items-center rounded-md border">
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-full w-8 shrink-0 rounded-none rounded-l-md"
+													className="h-8 w-8 rounded-none rounded-l-md"
 													onClick={() => updateQty(item.id, -1)}
 												>
 													<Minus className="h-3 w-3" />
 												</Button>
-												<span className="min-w-[3rem] w-auto shrink-0 whitespace-nowrap px-1 text-center font-semibold text-sm">
+												<span className="w-12 text-center font-semibold text-sm">
 													{Number.isInteger(item.qty)
 														? item.qty
 														: item.qty.toFixed(3)}
@@ -396,14 +395,16 @@ export default function POSPage() {
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-full w-8 shrink-0 rounded-none rounded-r-md"
+													className="h-8 w-8 rounded-none rounded-r-md"
 													onClick={() => updateQty(item.id, 1)}
 												>
 													<Plus className="h-3 w-3" />
 												</Button>
 											</div>
-
-											<AnimatedButton>
+											<div className="flex items-center gap-3">
+												<span className="font-bold text-sm">
+													₹{(Number.parseFloat(item.price) * item.qty).toFixed(2)}
+												</span>
 												<Button
 													variant="ghost"
 													size="icon"
@@ -412,7 +413,7 @@ export default function POSPage() {
 												>
 													<Trash2 className="h-4 w-4" />
 												</Button>
-											</AnimatedButton>
+											</div>
 										</div>
 									</motion.div>
 								))}
