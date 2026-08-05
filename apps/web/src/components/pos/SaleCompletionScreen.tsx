@@ -17,10 +17,8 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 
 interface CompletedOrder {
 	id: number;
@@ -175,7 +173,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 										{store.gst && <p className="text-gray-400 text-xs mt-1">GSTIN: {store.gst}</p>}
 									</div>
 
-									<Separator className="border-dashed my-4" />
+									<hr className="border-dashed border-gray-300 my-4" />
 
 									{/* Invoice Meta */}
 									<div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-4">
@@ -199,7 +197,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 										)}
 									</div>
 
-									<Separator className="border-dashed my-4" />
+									<hr className="border-dashed border-gray-300 my-4" />
 
 									{/* Item Table */}
 									<table
@@ -253,7 +251,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 										</tbody>
 									</table>
 
-									<Separator className="border-dashed my-4" />
+									<hr className="border-dashed border-gray-300 my-4" />
 
 									{/* Summary */}
 									<div className="space-y-1.5 text-sm">
@@ -277,14 +275,14 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 												<span>{roundOff > 0 ? "+" : ""}₹{roundOff.toFixed(2)}</span>
 											</div>
 										)}
-										<Separator className="my-2" />
+										<hr className="border-gray-200 my-2" />
 										<div className="flex justify-between font-bold text-base text-gray-900">
 											<span>Grand Total</span>
 											<span>₹{grandTotal.toFixed(2)}</span>
 										</div>
 									</div>
 
-									<Separator className="border-dashed my-4" />
+									<hr className="border-dashed border-gray-300 my-4" />
 
 									{/* Payment */}
 									<div className="space-y-1.5 text-sm">
@@ -309,7 +307,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 										)}
 									</div>
 
-									<Separator className="border-dashed my-5" />
+									<hr className="border-dashed border-gray-300 my-5" />
 
 									<div className="text-center text-gray-400 text-xs space-y-1">
 										<p className="font-medium text-gray-600">Thank you for shopping!</p>
@@ -334,7 +332,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 								New Sale
 							</Button>
 
-							<Separator />
+							<hr className="border-gray-200 my-1" />
 							<div className="text-xs text-gray-400 uppercase tracking-wide font-medium">Print & Share</div>
 
 							<Button variant="outline" className="w-full justify-start gap-2 text-sm" onClick={handlePrint}>
@@ -358,7 +356,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 								Send Email
 							</Button>
 
-							<Separator />
+							<hr className="border-gray-200 my-1" />
 							<div className="text-xs text-gray-400 uppercase tracking-wide font-medium">Invoice Actions</div>
 
 							<Button variant="outline" className="w-full justify-start gap-2 text-sm" onClick={handleDuplicate}>
@@ -382,7 +380,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 								Cancel Invoice
 							</Button>
 
-							<Separator />
+							<hr className="border-gray-200 my-1" />
 							<Button
 								variant="ghost"
 								className="w-full justify-start gap-2 text-sm text-gray-500"
