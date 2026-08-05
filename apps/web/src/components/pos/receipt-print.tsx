@@ -29,7 +29,13 @@ export const ReceiptPrint = React.forwardRef<HTMLDivElement, any>(
 					<p>Cashier: {order.user_uid}</p>
 				</div>
 
-				<table className="mb-4 w-full border-gray-400 border-t border-b border-dashed">
+				<table className="mb-4 w-full border-gray-400 border-t border-b border-dashed" style={{ tableLayout: "fixed" }}>
+					<colgroup>
+						<col style={{ width: "55%" }} />
+						<col style={{ width: "10%" }} />
+						<col style={{ width: "15%" }} />
+						<col style={{ width: "20%" }} />
+					</colgroup>
 					<thead>
 						<tr className="border-gray-400 border-b border-dashed text-left">
 							<th className="py-1">Item</th>
@@ -41,10 +47,10 @@ export const ReceiptPrint = React.forwardRef<HTMLDivElement, any>(
 					<tbody>
 						{order.items?.map((item: any, idx: number) => (
 							<tr key={idx}>
-								<td className="break-words py-1 pr-1">{item.name}</td>
-								<td className="text-center align-top">{item.qty}</td>
-								<td className="text-right align-top">{item.price}</td>
-								<td className="text-right align-top">
+								<td className="break-words py-1 pr-2" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{item.name}</td>
+								<td className="text-center align-top py-1">{item.qty}</td>
+								<td className="text-right align-top py-1">{Number.parseFloat(item.price).toFixed(2)}</td>
+								<td className="text-right align-top py-1">
 									{(item.qty * Number.parseFloat(item.price)).toFixed(2)}
 								</td>
 							</tr>

@@ -29,7 +29,12 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 				</p>
 			</div>
 
-			<table className="mb-2 w-full">
+			<table className="mb-2 w-full" style={{ tableLayout: "fixed" }}>
+				<colgroup>
+					<col style={{ width: "55%" }} />
+					<col style={{ width: "15%" }} />
+					<col style={{ width: "30%" }} />
+				</colgroup>
 				<thead>
 					<tr className="border-black border-b border-dashed">
 						<th className="py-1 text-left font-normal">Item</th>
@@ -40,9 +45,9 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 				<tbody>
 					{(order?.items || []).map((item: any, idx: number) => (
 						<tr key={idx}>
-							<td className="py-1">{item.name || "Item Name"}</td>
-							<td className="py-1 text-right">{item.quantity || 1}</td>
-							<td className="py-1 text-right">
+							<td className="py-1 pr-2" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{item.name || "Item Name"}</td>
+							<td className="py-1 text-right align-top">{item.quantity || 1}</td>
+							<td className="py-1 text-right align-top">
 								{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
 							</td>
 						</tr>
