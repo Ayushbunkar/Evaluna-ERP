@@ -1,5 +1,5 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -14,8 +14,9 @@ if (DATABASE_URL.startsWith('"') && DATABASE_URL.endsWith('"')) {
 
 const cleanUrl = DATABASE_URL.replace(/^"|"$/g, "");
 
-const sql = neon(cleanUrl);
-export const db = drizzle({ client: sql, schema });
+// Use postgres.js for full transaction support (better than neon-http for full ERPs)
+const sql = postgres(cleanUrl, { prepare: false });
+export const db = drizzle(sql, { schema });
 
 // re-export pglite instance for any code that needs direct access (null for postgres mode)
 export const pglite = null;
