@@ -164,7 +164,7 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 						{/* ── Left: Receipt Preview ── */}
 						<div className="flex flex-col flex-1 min-h-0 border-r">
 							<ScrollArea className="flex-1">
-								<div ref={receiptRef} className="p-6 print:p-2">
+								<div ref={receiptRef} id="printable-receipt" className="p-6 print:p-0 print:w-[80mm] print:mx-auto">
 									{/* Store Header */}
 									<div className="text-center mb-5">
 										<h2 className="font-bold text-xl text-gray-900">{store.name}</h2>
@@ -411,6 +411,33 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 						</div>
 					</div>
 				</motion.div>
+
+				<style
+					dangerouslySetInnerHTML={{
+						__html: `
+						@media print {
+							body * {
+								visibility: hidden;
+							}
+							#printable-receipt, #printable-receipt * {
+								visibility: visible;
+							}
+							#printable-receipt {
+								position: absolute;
+								left: 0;
+								top: 0;
+								width: 80mm;
+								margin: 0 auto;
+								padding: 0 !important;
+							}
+							@page {
+								margin: 0;
+								size: 80mm auto;
+							}
+						}
+					`,
+					}}
+				/>
 			</motion.div>
 		</AnimatePresence>
 	);
