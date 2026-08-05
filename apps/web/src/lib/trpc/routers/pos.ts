@@ -188,8 +188,20 @@ export const posRouter = router({
 					total_amount: input.total,
 					status: "suspended",
 					user_uid: ctx.user.id,
+					branch_id: ctx.user.branchId,
 				})
 				.returning();
+
+			// Insert items
+			for (const item of input.items) {
+				await ctx.db.insert(orderItems).values({
+					order_id: order.id,
+					product_id: item.id || item.productId,
+					quantity: item.qty || item.quantity,
+					price: item.price.toString(),
+				});
+			}
+
 			return order;
 		}),
 

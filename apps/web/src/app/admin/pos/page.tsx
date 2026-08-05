@@ -77,6 +77,17 @@ export default function POSPage() {
 		},
 	});
 
+	const suspendMutation = trpc.pos.suspendCart.useMutation({
+		onSuccess: () => {
+			toast.success("Bill put on hold!");
+			setCart([]);
+			setAppliedCoupon(null);
+		},
+		onError: (err) => {
+			toast.error(`Hold bill failed: ${err.message}`);
+		},
+	});
+
 	// Offline Detection
 	useEffect(() => {
 		const handleOnline = () => setIsOffline(false);
@@ -474,9 +485,15 @@ export default function POSPage() {
 							variant="secondary"
 							size="lg"
 							className="w-full"
-							disabled={cart.length === 0}
+							onClick={() => {
+								suspendMutation.mutate({
+									items: cart,
+									total: total.toString(),
+								});
+							}}
+							disabled={cart.length === 0 || suspendMutation.isPending}
 						>
-							Hold Bill
+							{suspendMutation.isPending ? "Holding..." : "Hold Bill"}
 						</Button>
 						<Button
 							size="lg"
@@ -495,7 +512,7 @@ export default function POSPage() {
 					open={paymentModalOpen}
 					onOpenChange={setPaymentModalOpen}
 					totalAmount={total}
-					onConfirm={finalizeOrder}
+					onConfirm={(payments: any[]) => finalizeOrder(payments)}
 				/>
 			)}
 
