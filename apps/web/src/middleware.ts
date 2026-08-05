@@ -1,7 +1,6 @@
 import type { Session } from "@evaluna/auth/client";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
 
 /**
@@ -53,14 +52,20 @@ export default async function middleware(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
-	// 3. Validate session directly via better-auth
+	// 3. Validate session via HTTP fetch (to avoid Edge TCP limits with postgres.js)
 	let sessionData: any = null;
 	try {
-		const res = await auth.api.getSession({
-			headers: request.headers,
+		const sessionUrl = new URL("/api/auth/get-session", request.url);
+		const response = await fetch(sessionUrl.toString(), {
+			headers: {
+				cookie: request.headers.get("cookie") || "",
+			},
 		});
-		if (res?.session) {
-			sessionData = res;
+		if (response.ok) {
+			const res = await response.json();
+			if (res?.session) {
+				sessionData = res;
+			}
 		}
 	} catch (_err) {
 		console.error("Middleware session check failed:", _err);
