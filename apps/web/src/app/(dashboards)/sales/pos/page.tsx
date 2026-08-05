@@ -344,7 +344,7 @@ export default function POSCatalogPage() {
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<span className="w-5 shrink-0 text-center font-semibold text-sm">
+											<span className="min-w-[1.25rem] w-auto shrink-0 whitespace-nowrap px-1 text-center font-semibold text-sm">
 												{item.cartQuantity}
 											</span>
 											<Button
@@ -356,7 +356,7 @@ export default function POSCatalogPage() {
 												<PlusIcon className="h-3 w-3" />
 											</Button>
 										</div>
-										<div className="w-16 text-right font-semibold text-sm">
+										<div className="min-w-[4rem] shrink-0 whitespace-nowrap text-right font-semibold text-sm">
 											{formatCurrency(item.price * item.cartQuantity, locale)}
 										</div>
 										<Button

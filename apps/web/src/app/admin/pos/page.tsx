@@ -388,7 +388,7 @@ export default function POSPage() {
 												>
 													<Minus className="h-3 w-3" />
 												</Button>
-												<span className="w-12 shrink-0 text-center font-semibold text-sm">
+												<span className="min-w-[3rem] w-auto shrink-0 whitespace-nowrap px-1 text-center font-semibold text-sm">
 													{Number.isInteger(item.qty)
 														? item.qty
 														: item.qty.toFixed(3)}
