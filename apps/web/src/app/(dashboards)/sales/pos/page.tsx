@@ -339,18 +339,18 @@ export default function POSCatalogPage() {
 											<Button
 												variant="ghost"
 												size="icon"
-												className="h-6 w-6 rounded-md hover:bg-destructive/10 hover:text-destructive"
+												className="h-6 w-6 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive"
 												onClick={() => updateQuantity(item.id, -1)}
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<span className="w-5 text-center font-semibold text-sm">
+											<span className="w-5 shrink-0 text-center font-semibold text-sm">
 												{item.cartQuantity}
 											</span>
 											<Button
 												variant="ghost"
 												size="icon"
-												className="h-6 w-6 rounded-md hover:bg-primary/10 hover:text-primary"
+												className="h-6 w-6 shrink-0 rounded-md hover:bg-primary/10 hover:text-primary"
 												onClick={() => updateQuantity(item.id, 1)}
 											>
 												<PlusIcon className="h-3 w-3" />

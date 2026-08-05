@@ -331,7 +331,7 @@ export default function POSPage() {
 			</div>
 
 			{/* Right Pane - Cart */}
-			<div className="z-10 flex min-h-0 w-[400px] flex-col bg-background p-4 shadow-xl">
+			<div className="z-10 flex min-h-0 w-[350px] lg:w-[400px] shrink-0 flex-col bg-background p-4 shadow-xl">
 				<div className="mb-4 flex shrink-0 items-center justify-between">
 					<h2 className="flex items-center gap-2 font-bold text-xl">
 						<ShoppingCart className="h-5 w-5" /> Current Order
@@ -379,16 +379,16 @@ export default function POSPage() {
 										</div>
 
 										<div className="flex shrink-0 items-center gap-2">
-											<div className="flex h-8 items-center rounded-md border">
+											<div className="flex h-8 shrink-0 items-center rounded-md border">
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-full w-8 rounded-none rounded-l-md"
+													className="h-full w-8 shrink-0 rounded-none rounded-l-md"
 													onClick={() => updateQty(item.id, -1)}
 												>
 													<Minus className="h-3 w-3" />
 												</Button>
-												<span className="w-12 text-center font-semibold text-sm">
+												<span className="w-12 shrink-0 text-center font-semibold text-sm">
 													{Number.isInteger(item.qty)
 														? item.qty
 														: item.qty.toFixed(3)}
@@ -396,7 +396,7 @@ export default function POSPage() {
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-full w-8 rounded-none rounded-r-md"
+													className="h-full w-8 shrink-0 rounded-none rounded-r-md"
 													onClick={() => updateQty(item.id, 1)}
 												>
 													<Plus className="h-3 w-3" />
