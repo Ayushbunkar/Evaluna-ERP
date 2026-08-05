@@ -755,34 +755,34 @@ export default function BackupDashboard() {
 							label: "Total Backups",
 							value: stats.total,
 							icon: Archive,
-							color: "text-amber-400",
+							color: "text-amber-500",
 						},
 						{
 							label: "Encrypted",
 							value: stats.encrypted,
 							icon: Lock,
-							color: "text-emerald-400",
+							color: "text-emerald-500",
 						},
 						{
 							label: "Manual",
 							value: stats.manual,
 							icon: Zap,
-							color: "text-blue-400",
+							color: "text-blue-500",
 						},
 						{
 							label: "Total Size",
 							value: formatBytes(stats.totalSize),
 							icon: HardDrive,
-							color: "text-violet-400",
+							color: "text-violet-500",
 						},
 					].map((s) => (
 						<div
 							key={s.label}
-							className="rounded-xl border border-white/10 bg-slate-800/60 p-4"
+							className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
 						>
 							<s.icon className={`h-5 w-5 ${s.color} mb-2`} />
-							<p className="font-bold text-2xl text-white">{s.value}</p>
-							<p className="text-slate-400 text-sm">{s.label}</p>
+							<p className="font-bold text-2xl text-gray-900">{s.value}</p>
+							<p className="text-gray-500 text-sm">{s.label}</p>
 						</div>
 					))}
 				</div>
@@ -861,9 +861,9 @@ export default function BackupDashboard() {
 					</div>
 				) : (backups ?? []).length === 0 ? (
 					<div className="py-20 text-center">
-						<Archive className="mx-auto mb-4 h-16 w-16 text-slate-600" />
-						<p className="font-semibold text-lg text-white">No backups yet</p>
-						<p className="mt-1 mb-5 text-slate-400">
+						<Archive className="mx-auto mb-4 h-16 w-16 text-slate-300" />
+						<p className="font-semibold text-lg text-gray-900">No backups yet</p>
+						<p className="mt-1 mb-5 text-gray-500">
 							Create your first backup to protect your data
 						</p>
 						<button
@@ -905,31 +905,31 @@ export default function BackupDashboard() {
 					{[
 						{
 							icon: Lock,
-							color: "text-amber-400",
+							color: "text-amber-500",
 							title: "AES-256-GCM Encryption",
 							desc: "All backups are encrypted at rest. Set BACKUP_ENCRYPTION_KEY in .env.local for custom keys.",
 						},
 						{
 							icon: FileCheck,
-							color: "text-emerald-400",
+							color: "text-emerald-500",
 							title: "SHA-256 Verification",
 							desc: "Every backup has a cryptographic checksum. Click Verify to confirm file integrity before restore.",
 						},
 						{
 							icon: Cloud,
-							color: "text-blue-400",
+							color: "text-blue-500",
 							title: "Cloud Ready",
 							desc: "Configure BACKUP_CLOUD_BUCKET to auto-upload to S3, R2, or GCS. Stubs ready for SDK integration.",
 						},
 					].map((t) => (
 						<div
 							key={t.title}
-							className="flex items-start gap-3 rounded-xl border border-white/5 bg-slate-800/40 p-4"
+							className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
 						>
 							<t.icon className={`h-5 w-5 ${t.color} mt-0.5 shrink-0`} />
 							<div>
-								<p className="font-medium text-sm text-white">{t.title}</p>
-								<p className="mt-0.5 text-slate-500 text-xs">{t.desc}</p>
+								<p className="font-medium text-sm text-gray-900">{t.title}</p>
+								<p className="mt-0.5 text-gray-500 text-xs">{t.desc}</p>
 							</div>
 						</div>
 					))}

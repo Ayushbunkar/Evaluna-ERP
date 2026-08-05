@@ -260,8 +260,8 @@ export default function POSPage() {
 	return (
 		<PageTransition className="flex h-[calc(100vh-64px)] overflow-hidden bg-muted/40">
 			{/* Left Pane - Catalog */}
-			<div className="flex flex-1 flex-col border-r p-4">
-				<div className="mb-4 flex items-center justify-between">
+			<div className="flex min-h-0 flex-1 flex-col border-r p-4">
+				<div className="mb-4 flex shrink-0 items-center justify-between">
 					<h1 className="font-bold text-2xl">Point of Sale</h1>
 					<div className="flex items-center gap-2">
 						{isOffline ? (
@@ -276,7 +276,7 @@ export default function POSPage() {
 					</div>
 				</div>
 
-				<div className="relative mb-4">
+				<div className="relative mb-4 shrink-0">
 					<Search className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
 					<Input
 						placeholder="Search products by name or scan barcode..."
@@ -286,7 +286,7 @@ export default function POSPage() {
 					/>
 				</div>
 
-				<ScrollArea className="flex-1">
+				<ScrollArea className="flex-1 min-h-0">
 					{isLoading ? (
 						<div className="grid grid-cols-2 gap-4 p-2 md:grid-cols-3 lg:grid-cols-4">
 							{[1, 2, 3, 4, 5, 6].map((n) => (
@@ -331,8 +331,8 @@ export default function POSPage() {
 			</div>
 
 			{/* Right Pane - Cart */}
-			<div className="z-10 flex w-[400px] flex-col bg-background p-4 shadow-xl">
-				<div className="mb-4 flex items-center justify-between">
+			<div className="z-10 flex min-h-0 w-[400px] flex-col bg-background p-4 shadow-xl">
+				<div className="mb-4 flex shrink-0 items-center justify-between">
 					<h2 className="flex items-center gap-2 font-bold text-xl">
 						<ShoppingCart className="h-5 w-5" /> Current Order
 					</h2>
@@ -345,7 +345,7 @@ export default function POSPage() {
 						Clear
 					</Button>
 				</div>
-				<ScrollArea className="flex-1 bg-muted/20 p-4">
+				<ScrollArea className="flex-1 min-h-0 bg-muted/20 p-4">
 					<AnimatePresence>
 						{cart.length === 0 ? (
 							<motion.div
@@ -422,7 +422,7 @@ export default function POSPage() {
 					</AnimatePresence>
 				</ScrollArea>
 
-				<div className="mt-4 space-y-4 border-t pt-4">
+				<div className="mt-4 shrink-0 space-y-4 border-t pt-4">
 					<div className="flex items-center justify-between text-muted-foreground">
 						<span>Subtotal</span>
 						<span>₹{subtotal.toFixed(2)}</span>

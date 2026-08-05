@@ -140,8 +140,8 @@ export default function POSCatalogPage() {
 
 	if (isLoading) {
 		return (
-			<div className="flex h-[calc(100vh-8rem)] animate-pulse gap-6">
-				<div className="flex flex-1 flex-col gap-4">
+			<div className="flex min-h-0 flex-1 gap-6 p-6 animate-pulse">
+				<div className="flex min-h-0 flex-1 flex-col gap-6">
 					<Skeleton className="h-12 w-full rounded-xl" />
 					<div className="flex gap-2">
 						<Skeleton className="h-8 w-24 rounded-full" />
@@ -170,9 +170,9 @@ export default function POSCatalogPage() {
 
 	return (
 		<PageTransition>
-			<div className="flex h-[calc(100vh-7rem)] flex-col gap-6 overflow-hidden lg:flex-row">
+			<div className="flex min-h-0 h-[calc(100vh-7rem)] flex-col gap-6 overflow-hidden lg:flex-row">
 				{/* Left Side: Catalog */}
-				<div className="flex h-full flex-1 flex-col gap-4 overflow-hidden">
+				<div className="flex min-h-0 h-full flex-1 flex-col gap-4 overflow-hidden">
 					<div className="flex flex-col gap-3 sm:flex-row">
 						<div className="relative flex-1">
 							<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -293,7 +293,7 @@ export default function POSCatalogPage() {
 				</div>
 
 				{/* Right Side: Cart */}
-				<Card className="flex h-full w-full shrink-0 flex-col overflow-hidden rounded-2xl border-border/50 bg-background/80 shadow-lg backdrop-blur-xl lg:w-[400px]">
+				<Card className="flex min-h-0 h-full w-full shrink-0 flex-col overflow-hidden rounded-2xl border-border/50 bg-background/80 shadow-lg backdrop-blur-xl lg:w-[400px]">
 					<CardHeader className="shrink-0 border-border/40 border-b bg-muted/20 pb-4">
 						<div className="flex items-center justify-between">
 							<CardTitle className="flex items-center gap-2 text-lg">
@@ -313,7 +313,7 @@ export default function POSCatalogPage() {
 						</div>
 					</CardHeader>
 
-					<div className="flex-1 overflow-y-auto px-4">
+					<div className="flex-1 min-h-0 overflow-y-auto px-4">
 						{cart.length === 0 ? (
 							<div className="flex h-[300px] flex-col items-center justify-center text-muted-foreground opacity-60">
 								<ShoppingCartIcon className="mb-4 h-16 w-16 stroke-1" />
