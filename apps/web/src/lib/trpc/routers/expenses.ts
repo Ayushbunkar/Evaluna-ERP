@@ -1,4 +1,3 @@
-"use client";
 
 import { expenses } from "@evaluna/db/schema";
 import { count, eq } from "drizzle-orm";
