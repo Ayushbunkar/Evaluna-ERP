@@ -6,6 +6,7 @@ import {
 	purchases,
 	stockLedger,
 	suppliers,
+	branchInventory,
 } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -66,9 +67,8 @@ export const purchasesRouter = router({
 							product_id: product.id,
 							transaction_type: "in",
 							quantity: item.quantity,
-							reference_type: "purchase",
-							reference_id: newPurchase[0].id,
-							user_uid: ctx.user.id,
+							unit_cost: item.price.toString(),
+							total_cost: (item.quantity * Number(item.price)).toString(),
 						});
 					}
 				}
@@ -177,23 +177,22 @@ export const purchasesRouter = router({
 				});
 
 				// Deduct from inventory
-				const product = await db.query.products.findFirst({
-					where: eq(products.id, item.product_id),
+				const inv = await db.query.branchInventory.findFirst({
+					where: eq(branchInventory.product_id, item.product_id),
 				});
-				if (product) {
-					const newStock = Math.max(0, (product.in_stock || 0) - item.quantity);
+				if (inv) {
+					const newStock = Math.max(0, inv.in_stock - item.quantity);
 					await db
-						.update(products)
+						.update(branchInventory)
 						.set({ in_stock: newStock })
-						.where(eq(products.id, product.id));
+						.where(eq(branchInventory.id, inv.id));
 
 					await db.insert(stockLedger).values({
-						product_id: product.id,
+						product_id: item.product_id,
 						transaction_type: "out",
 						quantity: item.quantity,
-						reference_type: "purchase_return",
-						reference_id: newReturn.id,
-						user_uid: ctx.user.id,
+						unit_cost: "0", // Should calculate
+						total_cost: item.refund_amount.toString(),
 					});
 				}
 			}

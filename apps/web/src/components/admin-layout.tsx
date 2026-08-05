@@ -37,7 +37,6 @@ import {
 	UsersIcon,
 	WifiOffIcon,
 	XIcon,
-	HeartIcon,
 	BellIcon,
 	GlobeIcon,
 	type LucideIcon,
@@ -49,7 +48,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { logout } from "@/app/login/actions";
+import { authClient } from "@/lib/auth-client";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
@@ -337,7 +336,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 								</a>
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={() => logout()}>
+							<DropdownMenuItem onClick={async () => {
+								await authClient.signOut();
+								window.location.href = "/login";
+							}}>
 								{t("logout")}
 							</DropdownMenuItem>
 						</DropdownMenuContent>

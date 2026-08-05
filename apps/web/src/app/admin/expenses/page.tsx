@@ -66,29 +66,29 @@ export default function ExpensesPage() {
 			label: "Total This Month",
 			value: `₹${total.toLocaleString("en-IN")}`,
 			icon: IndianRupeeIcon,
-			color: "text-blue-600",
-			bg: "bg-blue-50",
+			color: "text-foreground",
+			bg: "bg-zinc-100 dark:bg-zinc-800",
 		},
 		{
 			label: "This Week",
 			value: `₹${thisWeek.toLocaleString("en-IN")}`,
 			icon: CalendarIcon,
-			color: "text-purple-600",
-			bg: "bg-purple-50",
+			color: "text-foreground",
+			bg: "bg-zinc-100 dark:bg-zinc-800",
 		},
 		{
 			label: "Pending Approval",
 			value: pending.length.toString(),
 			icon: AlertCircleIcon,
-			color: "text-yellow-600",
-			bg: "bg-yellow-50",
+			color: "text-foreground",
+			bg: "bg-zinc-100 dark:bg-zinc-800",
 		},
 		{
 			label: "Total Entries",
 			value: items.length.toString(),
 			icon: ReceiptIcon,
-			color: "text-green-600",
-			bg: "bg-green-50",
+			color: "text-foreground",
+			bg: "bg-zinc-100 dark:bg-zinc-800",
 		},
 	];
 
@@ -101,7 +101,7 @@ export default function ExpensesPage() {
 		>
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text font-bold text-3xl text-transparent">
+					<h1 className="font-bold text-3xl tracking-tight">
 						Expenses
 					</h1>
 					<p className="mt-1 text-muted-foreground text-sm">
@@ -109,7 +109,7 @@ export default function ExpensesPage() {
 					</p>
 				</div>
 				<Link href="/admin/expenses/create">
-					<Button className="gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white">
+					<Button className="gap-2">
 						<PlusIcon className="h-4 w-4" />
 						Add Expense
 					</Button>
@@ -147,8 +147,8 @@ export default function ExpensesPage() {
 
 			<Card className="border-0 shadow-sm">
 				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<ReceiptIcon className="h-5 w-5 text-orange-500" />
+					<CardTitle className="flex items-center gap-2 text-lg">
+						<ReceiptIcon className="h-5 w-5 text-muted-foreground" />
 						Expense Records
 					</CardTitle>
 				</CardHeader>

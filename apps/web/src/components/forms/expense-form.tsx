@@ -25,7 +25,7 @@ export function ExpenseForm({
 	const router = useRouter();
 
 	const form = useForm({
-		validator: zodValidator,
+
 		defaultValues: expense || {
 			description: "",
 			amount: 0,
@@ -73,7 +73,7 @@ export function ExpenseForm({
 			onSubmit={(e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				form.handleSubmit(handleSubmit)();
+				form.handleSubmit();
 			}}
 			className="space-y-6 max-w-2xl"
 		>

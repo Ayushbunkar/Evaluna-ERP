@@ -33,18 +33,18 @@ const statusBadge = (status: string | null) => {
 	const s = status?.toLowerCase() ?? "unpaid";
 	if (s === "paid")
 		return (
-			<Badge className="border-green-200 bg-green-100 text-green-800">
+			<Badge variant="default">
 				Paid
 			</Badge>
 		);
 	if (s === "partial")
 		return (
-			<Badge className="border-yellow-200 bg-yellow-100 text-yellow-800">
+			<Badge variant="secondary">
 				Partial
 			</Badge>
 		);
 	return (
-		<Badge className="border-red-200 bg-red-100 text-red-800">Unpaid</Badge>
+		<Badge variant="outline">Unpaid</Badge>
 	);
 };
 
@@ -65,29 +65,29 @@ export default function PurchasesPage() {
 			label: "Total Purchases",
 			value: `₹${total.toLocaleString("en-IN")}`,
 			icon: ShoppingBagIcon,
-			color: "text-blue-600",
-			bg: "bg-blue-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 		{
 			label: "Paid",
 			value: paid.length.toString(),
 			icon: CheckCircleIcon,
-			color: "text-green-600",
-			bg: "bg-green-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 		{
 			label: "Unpaid",
 			value: unpaid.length.toString(),
 			icon: AlertCircleIcon,
-			color: "text-red-600",
-			bg: "bg-red-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 		{
 			label: "Partial",
 			value: partial.length.toString(),
 			icon: ClockIcon,
-			color: "text-yellow-600",
-			bg: "bg-yellow-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 	];
 
@@ -100,7 +100,7 @@ export default function PurchasesPage() {
 		>
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text font-bold text-3xl text-transparent">
+					<h1 className="font-bold text-3xl tracking-tight">
 						Purchases
 					</h1>
 					<p className="mt-1 text-muted-foreground text-sm">
@@ -108,7 +108,7 @@ export default function PurchasesPage() {
 					</p>
 				</div>
 				<Link href="/admin/purchases/create">
-					<Button className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+					<Button className="gap-2">
 						<PlusIcon className="h-4 w-4" />
 						New Purchase
 					</Button>
@@ -147,7 +147,7 @@ export default function PurchasesPage() {
 			<Card className="border-0 shadow-sm">
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
-						<TruckIcon className="h-5 w-5 text-blue-600" />
+						<TruckIcon className="h-5 w-5 text-muted-foreground" />
 						Purchase Orders
 					</CardTitle>
 				</CardHeader>

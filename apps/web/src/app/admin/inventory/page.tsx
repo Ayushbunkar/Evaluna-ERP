@@ -336,27 +336,33 @@ export default function InventoryDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							{data.topMovingItems?.map((item: any, idx: number) => (
-								<div
-									key={idx}
-									className="flex items-center justify-between rounded p-2 transition-colors hover:bg-muted/50"
-								>
-									<div>
-										<h4 className="font-medium text-sm">{item.name}</h4>
-										<p className="text-[10px] text-muted-foreground">
-											{item.category}
-										</p>
-									</div>
-									<div className="text-right">
-										<div className="font-bold text-emerald-600 text-sm">
-											{item.turns}x
+							{data.topMovingItems && data.topMovingItems.length > 0 ? (
+								data.topMovingItems.map((item: any, idx: number) => (
+									<div
+										key={idx}
+										className="flex items-center justify-between rounded p-2 transition-colors hover:bg-muted/50"
+									>
+										<div>
+											<h4 className="font-medium text-sm">{item.name}</h4>
+											<p className="text-[10px] text-muted-foreground">
+												{item.category}
+											</p>
 										</div>
-										<div className="text-[10px] text-muted-foreground uppercase">
-											Turns/Yr
+										<div className="text-right">
+											<div className="font-bold text-emerald-600 text-sm">
+												{item.turns}x
+											</div>
+											<div className="text-[10px] text-muted-foreground uppercase">
+												Turns/Yr
+											</div>
 										</div>
 									</div>
+								))
+							) : (
+								<div className="flex h-[150px] items-center justify-center text-muted-foreground">
+									No data available
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 
@@ -368,40 +374,46 @@ export default function InventoryDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-3">
-							{data.recentMovements?.map((move: any) => (
-								<div
-									key={move.id}
-									className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-colors hover:border-primary/30"
-								>
+							{data.recentMovements && data.recentMovements.length > 0 ? (
+								data.recentMovements.map((move: any) => (
 									<div
-										className={`mt-0.5 flex-shrink-0 rounded px-2 py-0.5 font-bold text-[10px] uppercase tracking-wider ${
-											move.type === "in"
-												? "bg-emerald-500/10 text-emerald-500"
-												: move.type === "out"
-													? "bg-rose-500/10 text-rose-500"
-													: "bg-blue-500/10 text-blue-500"
-										}`}
+										key={move.id}
+										className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-colors hover:border-primary/30"
 									>
-										{move.type}
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex justify-between">
-											<h4 className="truncate pr-2 font-medium text-sm leading-tight">
-												{move.product}
-											</h4>
-											<span
-												className={`font-bold text-sm ${move.qty > 0 ? "text-emerald-500" : "text-rose-500"}`}
-											>
-												{move.qty > 0 ? "+" : ""}
-												{move.qty}
-											</span>
+										<div
+											className={`mt-0.5 flex-shrink-0 rounded px-2 py-0.5 font-bold text-[10px] uppercase tracking-wider ${
+												move.type === "in"
+													? "bg-emerald-500/10 text-emerald-500"
+													: move.type === "out"
+														? "bg-rose-500/10 text-rose-500"
+														: "bg-blue-500/10 text-blue-500"
+											}`}
+										>
+											{move.type}
 										</div>
-										<p className="mt-1 text-[10px] text-muted-foreground">
-											{move.time}
-										</p>
+										<div className="min-w-0 flex-1">
+											<div className="flex justify-between">
+												<h4 className="truncate pr-2 font-medium text-sm leading-tight">
+													{move.product}
+												</h4>
+												<span
+													className={`font-bold text-sm ${move.qty > 0 ? "text-emerald-500" : "text-rose-500"}`}
+												>
+													{move.qty > 0 ? "+" : ""}
+													{move.qty}
+												</span>
+											</div>
+											<p className="mt-1 text-[10px] text-muted-foreground">
+												{move.time}
+											</p>
+										</div>
 									</div>
+								))
+							) : (
+								<div className="flex h-[150px] items-center justify-center text-muted-foreground">
+									No movements recorded
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 				</motion.div>

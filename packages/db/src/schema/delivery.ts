@@ -3,13 +3,36 @@ import {
 	boolean,
 	decimal,
 	integer,
+	pgEnum,
 	pgTable,
 	serial,
 	text,
 	timestamp,
 	varchar,
 } from "drizzle-orm/pg-core";
-import { customers, orders, staff } from "..";
+import { branches, customers, orders, staff, user } from "..";
+
+export const vehicleStatusEnum = pgEnum("vehicle_status", [
+	"available",
+	"in_use",
+	"maintenance",
+	"retired",
+]);
+
+// Vehicles
+export const vehicles = pgTable("vehicles", {
+	id: serial("id").primaryKey(),
+	name: varchar("name", { length: 100 }).notNull(),
+	registration_number: varchar("registration_number", { length: 50 }).notNull(),
+	type: varchar("type", { length: 50 }).notNull(),
+	capacity_kg: decimal("capacity_kg", { precision: 10, scale: 2 }),
+	branch_id: integer("branch_id").references(() => branches.id),
+	status: vehicleStatusEnum("status").default("available"),
+	created_at: timestamp("created_at").defaultNow(),
+	updated_at: timestamp("updated_at")
+		.defaultNow()
+		.$onUpdateFn(() => new Date()),
+});
 
 // Delivery Routes
 export const deliveryRoutes = pgTable("delivery_routes", {
@@ -144,6 +167,14 @@ export const deliveryTripsRelations = relations(deliveryTrips, ({ many, one }) =
 	route: one(deliveryRoutes, {
 		fields: [deliveryTrips.route_id],
 		references: [deliveryRoutes.id],
+	}),
+	driver: one(user, {
+		fields: [deliveryTrips.driver_id],
+		references: [user.id],
+	}),
+	vehicle: one(vehicles, {
+		fields: [deliveryTrips.vehicle_id],
+		references: [vehicles.id],
 	}),
 }));
 

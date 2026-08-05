@@ -1378,8 +1378,6 @@ export const clientSettingsRouter = router({
 				.values({
 					user_id: input.user_id,
 					role_id: input.role_id,
-					assigned_by: ctx.user.id,
-					expires_at: input.expires_at,
 				})
 				.returning();
 

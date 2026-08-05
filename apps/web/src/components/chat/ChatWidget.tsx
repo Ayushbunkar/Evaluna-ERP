@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc/client";
 export function ChatWidget() {
 	const [isOpen, setIsOpen] = useState(false);
 	const [input, setInput] = useState("");
-	const [sessionId, setSessionId] = useState<string | null>(null);
+	const [sessionId, setSessionId] = useState<number | null>(null);
 
 	const createSession = trpc.chatbot.createSession.useMutation({
 		onSuccess: (data: any) => {
@@ -34,7 +34,7 @@ export function ChatWidget() {
 
 	useEffect(() => {
 		if (isOpen && !sessionId && !createSession.isPending) {
-			createSession.mutate();
+			createSession.mutate({} as any);
 		}
 	}, [isOpen, sessionId, createSession]);
 
@@ -44,7 +44,7 @@ export function ChatWidget() {
 
 	const handleSend = () => {
 		if (!input.trim() || !sessionId) return;
-		sendMessage.mutate({ sessionId, message: input });
+		sendMessage.mutate({ sessionId, content: input });
 	};
 
 	return (

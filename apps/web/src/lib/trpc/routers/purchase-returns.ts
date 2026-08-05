@@ -25,7 +25,7 @@ export const purchaseReturnsRouter = router({
 			return await db.query.purchaseReturns.findFirst({
 				where: eq(purchaseReturns.id, input.id),
 				with: {
-					purchaseReturnItems: {
+					returnItems: {
 						with: { product: true },
 					},
 					purchase: true,

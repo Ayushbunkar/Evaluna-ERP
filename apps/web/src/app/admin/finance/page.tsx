@@ -400,38 +400,44 @@ export default function FinanceDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							{data.outstandingPayments?.map((payment: any) => (
-								<div
-									key={payment.id}
-									className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-colors hover:border-primary/30"
-								>
-									<div className="min-w-0 flex-1">
-										<h4 className="truncate font-medium text-sm">
-											{payment.party}
-										</h4>
-										<div className="mt-0.5 flex items-center gap-2">
-											<span
-												className={`rounded px-1.5 py-0.5 font-bold text-[9px] uppercase ${payment.type === "Receivable" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}
+							{data.outstandingPayments && data.outstandingPayments.length > 0 ? (
+								data.outstandingPayments.map((payment: any) => (
+									<div
+										key={payment.id}
+										className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-colors hover:border-primary/30"
+									>
+										<div className="min-w-0 flex-1">
+											<h4 className="truncate font-medium text-sm">
+												{payment.party}
+											</h4>
+											<div className="mt-0.5 flex items-center gap-2">
+												<span
+													className={`rounded px-1.5 py-0.5 font-bold text-[9px] uppercase ${payment.type === "Receivable" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}
+												>
+													{payment.type}
+												</span>
+												<span className="text-[10px] text-muted-foreground">
+													{payment.id}
+												</span>
+											</div>
+										</div>
+										<div className="ml-2 text-right">
+											<div className="font-bold text-sm">
+												{formatCurrency(payment.amount, "en-IN")}
+											</div>
+											<div
+												className={`text-[10px] ${payment.due === "Overdue" ? "font-bold text-rose-500" : "text-muted-foreground"}`}
 											>
-												{payment.type}
-											</span>
-											<span className="text-[10px] text-muted-foreground">
-												{payment.id}
-											</span>
+												{payment.due}
+											</div>
 										</div>
 									</div>
-									<div className="ml-2 text-right">
-										<div className="font-bold text-sm">
-											{formatCurrency(payment.amount, "en-IN")}
-										</div>
-										<div
-											className={`text-[10px] ${payment.due === "Overdue" ? "font-bold text-rose-500" : "text-muted-foreground"}`}
-										>
-											{payment.due}
-										</div>
-									</div>
+								))
+							) : (
+								<div className="flex h-[200px] flex-col items-center justify-center text-center text-muted-foreground">
+									<p className="text-sm">No outstanding payments</p>
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 
@@ -443,43 +449,44 @@ export default function FinanceDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-3">
-							{data.recentTransactions?.map((tx: any) => (
-								<div
-									key={tx.id}
-									className="flex items-center gap-4 rounded-lg border border-border/40 bg-muted/20 p-3 transition-colors hover:border-primary/30"
-								>
+							{data.recentTransactions && data.recentTransactions.length > 0 ? (
+								data.recentTransactions.map((tx: any) => (
 									<div
-										className={`flex-shrink-0 rounded-full p-2 ${tx.type === "credit" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}
+										key={tx.id}
+										className="flex items-center gap-4 rounded-lg border border-border/40 bg-muted/20 p-3 transition-colors hover:border-primary/30"
 									>
-										{tx.type === "credit" ? (
-											<ArrowRightCircleIcon className="h-4 w-4" />
-										) : (
-											<ArrowLeftCircleIcon className="h-4 w-4" />
-										)}
-									</div>
-									<div className="min-w-0 flex-1">
-										<h4 className="font-medium text-sm leading-tight">
-											{tx.description}
-										</h4>
-										<p className="mt-1 text-[10px] text-muted-foreground">
-											{tx.date} • {tx.id}
-										</p>
-									</div>
-									<div className="text-right">
+										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background shadow-sm">
+											{tx.type === "IN" ? (
+												<ArrowRightCircleIcon className="h-5 w-5 text-emerald-500" />
+											) : (
+												<ArrowLeftCircleIcon className="h-5 w-5 text-rose-500" />
+											)}
+										</div>
+										<div className="min-w-0 flex-1">
+											<h4 className="truncate font-medium text-sm">
+												{tx.description}
+											</h4>
+											<div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+												<span>{tx.date}</span>
+												<span>&bull;</span>
+												<span className="capitalize">{tx.category}</span>
+												<span>&bull;</span>
+												<span>{tx.method}</span>
+											</div>
+										</div>
 										<div
-											className={`font-bold text-sm ${tx.type === "credit" ? "text-emerald-500" : "text-rose-500"}`}
+											className={`font-bold text-sm ${tx.type === "IN" ? "text-emerald-600" : "text-rose-600"}`}
 										>
-											{tx.type === "credit" ? "+" : "-"}
+											{tx.type === "IN" ? "+" : "-"}
 											{formatCurrency(tx.amount, "en-IN")}
 										</div>
-										<div
-											className={`mt-1 font-bold text-[10px] uppercase tracking-wider ${tx.status === "completed" ? "text-emerald-500" : "text-amber-500"}`}
-										>
-											{tx.status}
-										</div>
 									</div>
+								))
+							) : (
+								<div className="flex h-[200px] flex-col items-center justify-center text-center text-muted-foreground">
+									<p className="text-sm">No recent transactions</p>
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 				</motion.div>

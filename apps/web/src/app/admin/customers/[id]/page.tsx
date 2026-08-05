@@ -107,7 +107,7 @@ export default function CustomerIntelligencePage() {
 		{
 			key: "date",
 			header: "Date",
-			render: (row) => format(new Date(row.created_at), "dd MMM yyyy, p"),
+			render: (row) => row.created_at ? format(new Date(row.created_at), "dd MMM yyyy, p") : "N/A",
 		},
 		{
 			key: "type",
@@ -155,7 +155,7 @@ export default function CustomerIntelligencePage() {
 		{
 			key: "date",
 			header: "Date",
-			render: (row) => format(new Date(row.created_at), "dd MMM yyyy"),
+			render: (row) => row.created_at ? format(new Date(row.created_at), "dd MMM yyyy") : "N/A",
 		},
 		{
 			key: "status",

@@ -1,7 +1,7 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/hooks/use-session";
 
 export function useAuth() {
-	return authClient.useSession();
+	return useSession();
 }

@@ -16,7 +16,7 @@ export function SupplierForm({
 	const router = useRouter();
 
 	const form = useForm({
-		validator: zodValidator,
+
 		defaultValues: supplier || {
 			name: "",
 			email: "",
@@ -25,6 +25,7 @@ export function SupplierForm({
 			gstin: "",
 			pan: "",
 		},
+		onSubmit: ({ value }) => handleSubmit(value as any),
 	});
 
 	const { mutate: createSupplier } = useTRPC().suppliers.create.useMutation({
@@ -40,10 +41,18 @@ export function SupplierForm({
 	});
 
 	const handleSubmit = (values: z.infer<typeof supplierSchema>) => {
+		const payload = {
+			name: values.name,
+			email: values.email || undefined,
+			phone: values.phone || undefined,
+			address: values.address || undefined,
+			gst_number: values.gstin || undefined,
+			pan_number: values.pan || undefined,
+		};
 		if (supplier) {
-			updateSupplier({ ...values, id: supplier.id });
+			updateSupplier({ ...payload, id: supplier.id });
 		} else {
-			createSupplier(values);
+			createSupplier(payload as any);
 		}
 	};
 
@@ -52,7 +61,7 @@ export function SupplierForm({
 			onSubmit={(e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				form.handleSubmit(handleSubmit)();
+				form.handleSubmit();
 			}}
 			className="space-y-4"
 		>
@@ -75,7 +84,7 @@ export function SupplierForm({
 					<div>
 						<label>Email</label>
 						<input
-							value={field.state.value}
+							value={field.state.value || ""}
 							onChange={(e) => field.handleChange(e.target.value)}
 						/>
 					</div>
@@ -88,7 +97,7 @@ export function SupplierForm({
 					<div>
 						<label>Phone</label>
 						<input
-							value={field.state.value}
+							value={field.state.value || ""}
 							onChange={(e) => field.handleChange(e.target.value)}
 						/>
 					</div>
@@ -101,7 +110,7 @@ export function SupplierForm({
 					<div>
 						<label>Address</label>
 						<input
-							value={field.state.value}
+							value={field.state.value || ""}
 							onChange={(e) => field.handleChange(e.target.value)}
 						/>
 					</div>
@@ -114,7 +123,7 @@ export function SupplierForm({
 					<div>
 						<label>GSTIN</label>
 						<input
-							value={field.state.value}
+							value={field.state.value || ""}
 							onChange={(e) => {
 								// Format GSTIN as uppercase and validate pattern
 								let value = e.target.value.toUpperCase();
@@ -137,7 +146,7 @@ export function SupplierForm({
 					<div>
 						<label>PAN</label>
 						<input
-							value={field.state.value}
+							value={field.state.value || ""}
 							onChange={(e) => {
 								// Format PAN as uppercase and validate pattern
 								let value = e.target.value.toUpperCase();

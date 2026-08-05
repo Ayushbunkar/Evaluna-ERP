@@ -31,13 +31,10 @@ export default function MovementPage() {
 	const [productId, setProductId] = useState<string>("");
 	const [quantity, setQuantity] = useState<string>("");
 
-	const { data: locations } = trpc.warehouse.listLocations.useQuery();
-	const { data: products } = trpc.products.list.useQuery({
-		limit: 100,
-		offset: 0,
-	});
+	const { data: locations } = trpc.warehouse.getLocations.useQuery({} as any);
+	const { data: products } = trpc.products.list.useQuery({} as any);
 
-	const activeLocations = locations?.filter((l) => l.is_active) || [];
+	const activeLocations = locations?.filter((l: any) => l.is_active) || [];
 
 	const moveStockMutation = trpc.warehouse.moveStock.useMutation({
 		onSuccess: () => {
@@ -65,11 +62,11 @@ export default function MovementPage() {
 		}
 
 		moveStockMutation.mutate({
-			source_location_id: sourceId,
-			destination_location_id: destinationId,
-			product_id: productId,
+			from_location_id: Number(sourceId),
+			to_location_id: Number(destinationId),
+			batch_stock_id: Number(productId),
 			quantity: Number(quantity),
-		});
+		} as any);
 	};
 
 	return (
@@ -101,8 +98,8 @@ export default function MovementPage() {
 										<SelectValue placeholder={t("selectSource")} />
 									</SelectTrigger>
 									<SelectContent>
-										{activeLocations.map((loc) => (
-											<SelectItem key={loc.id} value={loc.id}>
+										{activeLocations.map((loc: any) => (
+											<SelectItem key={loc.id} value={loc.id.toString()}>
 												{loc.name}
 											</SelectItem>
 										))}
@@ -121,8 +118,8 @@ export default function MovementPage() {
 										<SelectValue placeholder={t("selectDestination")} />
 									</SelectTrigger>
 									<SelectContent>
-										{activeLocations.map((loc) => (
-											<SelectItem key={loc.id} value={loc.id}>
+										{activeLocations.map((loc: any) => (
+											<SelectItem key={loc.id} value={loc.id.toString()}>
 												{loc.name}
 											</SelectItem>
 										))}
@@ -138,8 +135,8 @@ export default function MovementPage() {
 									<SelectValue placeholder={t("selectProduct")} />
 								</SelectTrigger>
 								<SelectContent>
-									{products?.items?.map((p: any) => (
-										<SelectItem key={p.id} value={p.id}>
+									{(products as any[])?.map((p: any) => (
+										<SelectItem key={p.id} value={p.id.toString()}>
 											{p.name}
 										</SelectItem>
 									))}

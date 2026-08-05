@@ -100,15 +100,15 @@ export default function SuppliersPage() {
 			label: "Total Suppliers",
 			value: suppliers.length,
 			icon: UsersIcon,
-			color: "text-blue-600",
-			bg: "bg-blue-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 		{
 			label: "Active",
 			value: suppliers.filter((s: any) => s.status !== "inactive").length,
 			icon: TruckIcon,
-			color: "text-green-600",
-			bg: "bg-green-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 		{
 			label: "Categories",
@@ -116,15 +116,15 @@ export default function SuppliersPage() {
 				suppliers.map((s: any) => s.supplier_category).filter(Boolean),
 			).size,
 			icon: PackageIcon,
-			color: "text-purple-600",
-			bg: "bg-purple-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 		{
 			label: "With GST",
 			value: suppliers.filter((s: any) => s.gst_number).length,
 			icon: IndianRupeeIcon,
-			color: "text-amber-600",
-			bg: "bg-amber-50",
+			color: "text-foreground",
+			bg: "bg-muted",
 		},
 	];
 
@@ -137,7 +137,7 @@ export default function SuppliersPage() {
 		>
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text font-bold text-3xl text-transparent">
+					<h1 className="font-bold text-3xl tracking-tight">
 						Suppliers
 					</h1>
 					<p className="mt-1 text-muted-foreground text-sm">
@@ -146,7 +146,7 @@ export default function SuppliersPage() {
 				</div>
 				<Button
 					onClick={() => setOpen(true)}
-					className="gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
+					className="gap-2"
 				>
 					<PlusIcon className="h-4 w-4" />
 					Add Supplier
@@ -185,7 +185,7 @@ export default function SuppliersPage() {
 			<Card className="border-0 shadow-sm">
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
-						<TruckIcon className="h-5 w-5 text-teal-600" />
+						<TruckIcon className="h-5 w-5 text-muted-foreground" />
 						All Suppliers
 					</CardTitle>
 				</CardHeader>
@@ -240,11 +240,6 @@ export default function SuppliersPage() {
 												<Badge
 													variant={
 														s.status === "inactive" ? "secondary" : "default"
-													}
-													className={
-														s.status === "inactive"
-															? ""
-															: "bg-green-100 text-green-800 hover:bg-green-100"
 													}
 												>
 													{s.status ?? "Active"}

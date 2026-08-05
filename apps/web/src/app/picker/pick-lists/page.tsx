@@ -113,7 +113,7 @@ export default function PickListsPage() {
 											<td className="px-4 py-3">
 												{row.status === "Pending" && (
 													<Button
-														size="xs"
+														size="sm"
 														className="h-7 gap-1 bg-blue-600 text-white text-xs hover:bg-blue-700"
 													>
 														<Play className="h-3 w-3" /> Start

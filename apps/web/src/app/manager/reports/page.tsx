@@ -72,6 +72,8 @@ export default function ReportsPage() {
 	});
 	const [branchId, setBranchId] = useState("all");
 
+	const { data: branches } = trpc.branches.list.useQuery();
+
 	const utils = trpc.useUtils();
 	const [data, setData] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(false);
@@ -112,10 +114,10 @@ export default function ReportsPage() {
 						result = await utils.reports.getExpiryReport.fetch(args);
 						break;
 					case "customers":
-						result = await utils.reports.getCustomersReport.fetch(args);
+						result = await utils.reports.getCustomerReport.fetch(args);
 						break;
 					case "suppliers":
-						result = await utils.reports.getSuppliersReport.fetch(args);
+						result = await utils.reports.getSupplierReport.fetch(args);
 						break;
 					case "cash_book":
 						result = await utils.reports.getCashBookReport.fetch(args);
@@ -124,7 +126,7 @@ export default function ReportsPage() {
 						result = await utils.reports.getBranchComparisonReport.fetch(args);
 						break;
 					case "coupons":
-						result = await utils.reports.getCouponsReport.fetch(args);
+						result = await utils.reports.getCouponReport.fetch(args);
 						break;
 					case "loyalty":
 						result = await utils.reports.getLoyaltyReport.fetch(args);
@@ -378,8 +380,11 @@ export default function ReportsPage() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All Branches</SelectItem>
-								<SelectItem value="main">Main Branch</SelectItem>
-								<SelectItem value="downtown">Downtown Branch</SelectItem>
+								{branches?.map((b) => (
+									<SelectItem key={b.id} value={b.id.toString()}>
+										{b.name}
+									</SelectItem>
+								))}
 							</SelectContent>
 						</Select>
 
@@ -443,3 +448,4 @@ export default function ReportsPage() {
 		</div>
 	);
 }
+

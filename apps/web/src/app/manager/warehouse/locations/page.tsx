@@ -33,7 +33,7 @@ const Barcode = dynamic(() => import("react-barcode"), {
 });
 
 type Location = {
-	id: string;
+	id: number;
 	name: string;
 	location_type: string;
 	section: string | null;
@@ -42,7 +42,7 @@ type Location = {
 	level: string | null;
 	capacity: number | null;
 	current_stock: number | null;
-	is_active: boolean;
+	is_active: boolean | null;
 };
 
 export default function LocationsPage() {
@@ -53,12 +53,12 @@ export default function LocationsPage() {
 	const [printLocation, setPrintLocation] = useState<Location | null>(null);
 
 	const { data: locations, isLoading } =
-		trpc.warehouse.listLocations.useQuery();
+		trpc.warehouse.getLocations.useQuery({} as any);
 
 	const createMutation = trpc.warehouse.createLocation.useMutation({
 		onSuccess: () => {
 			toast.success(t("createSuccess"));
-			utils.warehouse.listLocations.invalidate();
+			utils.warehouse.getLocations.invalidate();
 			setIsFormOpen(false);
 		},
 		onError: (err) => toast.error(err.message),
@@ -67,7 +67,7 @@ export default function LocationsPage() {
 	const updateMutation = trpc.warehouse.updateLocation.useMutation({
 		onSuccess: () => {
 			toast.success(t("updateSuccess"));
-			utils.warehouse.listLocations.invalidate();
+			utils.warehouse.getLocations.invalidate();
 			setIsFormOpen(false);
 		},
 		onError: (err) => toast.error(err.message),
@@ -79,13 +79,13 @@ export default function LocationsPage() {
 		const data = {
 			name: formData.get("name") as string,
 			location_type: formData.get("location_type") as string,
-			section: (formData.get("section") as string) || null,
-			aisle: (formData.get("aisle") as string) || null,
-			shelf: (formData.get("shelf") as string) || null,
-			level: (formData.get("level") as string) || null,
+			section: (formData.get("section") as string) || undefined,
+			aisle: (formData.get("aisle") as string) || undefined,
+			shelf: (formData.get("shelf") as string) || undefined,
+			level: (formData.get("level") as string) || undefined,
 			capacity: formData.get("capacity")
 				? Number(formData.get("capacity"))
-				: null,
+				: undefined,
 		};
 
 		if (editingLocation) {
@@ -95,7 +95,7 @@ export default function LocationsPage() {
 		}
 	};
 
-	const columns: ColumnDef<Location>[] = [
+	const columns: any[] = [
 		{ accessorKey: "name", header: t("name") },
 		{ accessorKey: "location_type", header: t("location_type") },
 		{ accessorKey: "section", header: t("section") },
@@ -106,7 +106,7 @@ export default function LocationsPage() {
 		{ accessorKey: "current_stock", header: t("current_stock") },
 		{
 			id: "actions",
-			cell: ({ row }) => {
+			cell: ({ row }: any) => {
 				const location = row.original;
 				return (
 					<div className="flex gap-2">
@@ -155,7 +155,7 @@ export default function LocationsPage() {
 			<DataTable
 				columns={columns}
 				data={locations ?? []}
-				isLoading={isLoading}
+				
 			/>
 
 			<Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -259,7 +259,7 @@ export default function LocationsPage() {
 					<div className="flex flex-col items-center justify-center space-y-4 p-8">
 						<div className="flex items-center justify-center">
 							{printLocation && (
-								<Barcode value={printLocation.name || printLocation.id} />
+								<Barcode value={String(printLocation.name || printLocation.id)} />
 							)}
 						</div>
 						<p className="text-muted-foreground text-sm">{printLocation?.id}</p>
@@ -278,3 +278,8 @@ export default function LocationsPage() {
 		</motion.div>
 	);
 }
+
+
+
+
+

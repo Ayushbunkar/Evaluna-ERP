@@ -87,7 +87,7 @@ export function LoyaltySummary({ customerId }: LoyaltySummaryProps) {
 					</h3>
 					<p className={`mt-0.5 text-xs ${tierStyle.text}`}>
 						Member since{" "}
-						{new Date(customer.created_at as string).toLocaleDateString()}
+						{new Date(customer.created_at ? String(customer.created_at) : 0).toLocaleDateString()}
 					</p>
 				</div>
 				<motion.span

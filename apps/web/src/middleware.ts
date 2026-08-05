@@ -54,7 +54,7 @@ export default async function middleware(request: NextRequest) {
 	}
 
 	// 3. Validate session directly via better-auth
-	let sessionData: { session: Session; user: any } | null = null;
+	let sessionData: any = null;
 	try {
 		const res = await auth.api.getSession({
 			headers: request.headers,

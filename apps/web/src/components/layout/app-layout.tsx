@@ -32,6 +32,8 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Settings, LogOut, Loader2, Package, Map, FileText, CheckSquare, Search, Box, User, Briefcase, LayoutDashboard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

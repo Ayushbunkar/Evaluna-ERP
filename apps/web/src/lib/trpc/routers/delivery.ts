@@ -18,7 +18,7 @@ export const deliveryRouter = router({
 	listRoutes: roleProcedure(["admin", "manager", "delivery_manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.session?.user.branch_id;
+			const branch = input.branchId || ctx.user?.branchId;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 			return await db.query.deliveryRoutes.findMany({
 				where: eq(deliveryRoutes.branch_id, branch),
@@ -38,7 +38,7 @@ export const deliveryRouter = router({
 			})
 		)
 		.mutation(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.session?.user.branch_id;
+			const branch = input.branchId || ctx.user?.branchId;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 			
 			return await db.transaction(async (tx) => {
@@ -107,7 +107,7 @@ export const deliveryRouter = router({
 
 	myTrips: protectedProcedure.query(async ({ ctx }) => {
 		return await db.query.deliveryTrips.findMany({
-			where: eq(deliveryTrips.driver_id, ctx.session.user.id),
+			where: eq(deliveryTrips.driver_id, ctx.user.id),
 			with: {
 				route: true,
 				stops: {
@@ -121,6 +121,36 @@ export const deliveryRouter = router({
 	}),
 
 	// ── Live Execution ─────────────────────────────────────────────────────
+	activeTrips: roleProcedure(["admin", "manager", "delivery_manager"]).query(
+		async () => {
+			const activeTripsList = await db.query.deliveryTrips.findMany({
+				where: eq(deliveryTrips.status, "active"),
+				with: {
+					driver: true,
+					stops: {
+						with: { customer: true },
+						orderBy: (s, { asc }) => [asc(s.sequence)],
+					},
+					vehicle: true,
+				},
+			});
+
+			const tripIds = activeTripsList.map((t) => t.id);
+			if (tripIds.length === 0) return [];
+
+			// Fetch latest GPS log for each active trip
+			const logs = await db.query.gpsLogs.findMany({
+				where: (t, { inArray }) => inArray(t.trip_id, tripIds),
+				orderBy: (t, { desc }) => [desc(t.timestamp)],
+			});
+
+			return activeTripsList.map((trip) => {
+				const latestLog = logs.find((l) => l.trip_id === trip.id);
+				return { ...trip, latestLog };
+			});
+		}
+	),
+
 	updateTripStatus: protectedProcedure
 		.input(
 			z.object({
@@ -160,7 +190,7 @@ export const deliveryRouter = router({
 				.update(tripStops)
 				.set({
 					status: input.status,
-					reason: input.reason,
+					comments: input.reason,
 					...(input.status === "arrived" ? { arrival_time: new Date() } : {}),
 					...(["delivered", "partially_delivered", "skipped", "failed"].includes(
 						input.status
@@ -185,11 +215,9 @@ export const deliveryRouter = router({
 		.mutation(async ({ input, ctx }) => {
 			await db.insert(gpsLogs).values({
 				trip_id: input.tripId,
-				driver_id: ctx.session.user.id,
-				lat: input.lat.toString(),
-				lng: input.lng.toString(),
+				latitude: input.lat.toString(),
+				longitude: input.lng.toString(),
 				speed: input.speed?.toString(),
-				battery_level: input.batteryLevel,
 			});
 			return { success: true };
 		}),

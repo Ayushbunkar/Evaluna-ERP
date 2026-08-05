@@ -28,19 +28,13 @@ export function PurchaseForm({
 	const { data: products, error: productsError } = trpc.products.list.useQuery();
 
 	const form = useForm({
-		validator: zodValidator,
+
 		defaultValues: purchase || {
 			supplierId: "",
 			total: 0,
 			items: [],
 		},
-		onSubmit: ({ value }) => {
-			if (purchase) {
-				updatePurchase({ ...value, id: purchase.id });
-			} else {
-				createPurchase(value);
-			}
-		},
+		onSubmit: ({ value }) => handleSubmit(value),
 	});
 
 	const { mutate: createPurchase } = trpc.purchases.create.useMutation({
@@ -49,18 +43,8 @@ export function PurchaseForm({
 		},
 	});
 
-	const { mutate: updatePurchase } = trpc.purchases.update.useMutation({
-		onSuccess: () => {
-			router.push("/admin/purchases");
-		},
-	});
-
 	const handleSubmit = (values: z.infer<typeof purchaseSchema>) => {
-		if (purchase) {
-			updatePurchase({ ...values, id: purchase.id });
-		} else {
-			createPurchase(values);
-		}
+		createPurchase(values);
 	};
 
 	return (
@@ -117,90 +101,98 @@ export function PurchaseForm({
 			<div className="space-y-4">
 				<h3 className="font-medium text-lg">Purchase Items</h3>
 
-				{form.state.values.items.map((_, index) => (
-					<div
-						key={index}
-						className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-4"
-					>
-						<div className="space-y-2">
-							<Label htmlFor={`items[${index}].productId`}>Product</Label>
-							<form.Field
-								name={`items[${index}].productId`}
-								children={(field) => (
-									<Select
-										value={field.state.value?.toString()}
-										onValueChange={(value) => field.handleChange(value)}
-									>
-										<SelectTrigger id={`items[${index}].productId`}>
-											<SelectValue placeholder="Select product" />
-										</SelectTrigger>
-										<SelectContent>
-											{products?.map((product) => (
-												<SelectItem key={product.id} value={product.id.toString()}>
-													{product.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								)}
-							/>
-						</div>
+				<form.Field
+					name="items"
+					mode="array"
+					children={(itemsField) => (
+						<div className="space-y-4">
+							{itemsField.state.value.map((_, index) => (
+								<div
+									key={index}
+									className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-4"
+								>
+									<div className="space-y-2">
+										<Label htmlFor={`items[${index}].productId`}>Product</Label>
+										<form.Field
+											name={`items[${index}].productId`}
+											children={(field) => (
+												<Select
+													value={field.state.value?.toString()}
+													onValueChange={(value) => field.handleChange(value)}
+												>
+													<SelectTrigger id={`items[${index}].productId`}>
+														<SelectValue placeholder="Select product" />
+													</SelectTrigger>
+													<SelectContent>
+														{products?.map((product) => (
+															<SelectItem key={product.id} value={product.id.toString()}>
+																{product.name}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											)}
+										/>
+									</div>
 
-						<div className="space-y-2">
-							<Label htmlFor={`items[${index}].quantity`}>Quantity</Label>
-							<form.Field
-								name={`items[${index}].quantity`}
-								children={(field) => (
-									<Input
-										id={`items[${index}].quantity`}
-										type="number"
-										value={field.state.value ?? ""}
-										onChange={(e) => field.handleChange(Number(e.target.value))}
-										placeholder="Quantity"
-									/>
-								)}
-							/>
-						</div>
+									<div className="space-y-2">
+										<Label htmlFor={`items[${index}].quantity`}>Quantity</Label>
+										<form.Field
+											name={`items[${index}].quantity`}
+											children={(field) => (
+												<Input
+													id={`items[${index}].quantity`}
+													type="number"
+													value={field.state.value ?? ""}
+													onChange={(e) => field.handleChange(Number(e.target.value))}
+													placeholder="Quantity"
+												/>
+											)}
+										/>
+									</div>
 
-						<div className="space-y-2">
-							<Label htmlFor={`items[${index}].price`}>Price</Label>
-							<form.Field
-								name={`items[${index}].price`}
-								children={(field) => (
-									<Input
-										id={`items[${index}].price`}
-										type="number"
-										value={field.state.value ?? ""}
-										onChange={(e) => field.handleChange(Number(e.target.value))}
-										placeholder="Price"
-									/>
-								)}
-							/>
-						</div>
+									<div className="space-y-2">
+										<Label htmlFor={`items[${index}].price`}>Price</Label>
+										<form.Field
+											name={`items[${index}].price`}
+											children={(field) => (
+												<Input
+													id={`items[${index}].price`}
+													type="number"
+													value={field.state.value ?? ""}
+													onChange={(e) => field.handleChange(Number(e.target.value))}
+													placeholder="Price"
+												/>
+											)}
+										/>
+									</div>
 
-						<div className="flex items-end">
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={() => form.removeFieldValue("items", index)}
-								className="w-full"
-							>
-								Remove
-							</Button>
+									<div className="flex items-end">
+										<Button
+											type="button"
+											variant="destructive"
+											onClick={() => itemsField.removeValue(index)}
+											className="w-full"
+										>
+											Remove
+										</Button>
+									</div>
+								</div>
+							))}
 						</div>
-					</div>
-				))}
+					)}
+				/>
 
 				<Button
 					type="button"
 					variant="outline"
-					onClick={() =>
+					onClick={() => {
 						form.pushFieldValue("items", {
 							productId: "",
 							quantity: 1,
 							price: 0,
-						})
-					}
+						});
+					}}
 					className="w-full md:w-auto"
 				>
 					Add Item

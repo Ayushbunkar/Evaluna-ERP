@@ -56,7 +56,17 @@ export const cashbookRouter = router({
 			}),
 		)
 		.query(async ({ input }) => {
-			const targetDate = input.date ? new Date(input.date) : new Date();
+			let targetDate = input.date ? new Date(input.date) : new Date();
+			
+			if (!input.date) {
+				const latestTx = await db.query.transactions.findFirst({
+					orderBy: [desc(transactions.created_at)],
+				});
+				if (latestTx?.created_at) {
+					targetDate = new Date(latestTx.created_at);
+				}
+			}
+			
 			const start = startOfDay(targetDate);
 			const end = endOfDay(targetDate);
 
@@ -75,10 +85,10 @@ export const cashbookRouter = router({
 
 			for (const tx of dailyTx) {
 				const amt = Number.parseFloat(tx.amount);
-				if (tx.type === "in") {
+				if (tx.type === "in" || tx.type === "income") {
 					totalIn += amt;
-					if (tx.category === "sale") sales += amt;
-				} else if (tx.type === "out") {
+					if (tx.category === "sale" || tx.category === "selling") sales += amt;
+				} else if (tx.type === "out" || tx.type === "expense") {
 					totalOut += amt;
 					if (tx.category === "expense") expenses += amt;
 				}

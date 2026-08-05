@@ -1,53 +1,53 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import type { ReactNode } from "react";
 
 // ── Core animation variants ────────────────────────────────────────────────
-export const fadeIn = {
+export const fadeIn: Variants = {
 	hidden: { opacity: 0 },
-	visible: { opacity: 1, transition: { duration: 0.35, ease: "easeOut" } },
+	visible: { opacity: 1, transition: { duration: 0.35, ease: "easeOut" as const } },
 	exit: { opacity: 0, transition: { duration: 0.2 } },
 };
 
-export const slideUp = {
+export const slideUp: Variants = {
 	hidden: { opacity: 0, y: 24 },
 	visible: {
 		opacity: 1,
 		y: 0,
-		transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+		transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
 	},
 	exit: { opacity: 0, y: -12, transition: { duration: 0.2 } },
 };
 
-export const slideDown = {
+export const slideDown: Variants = {
 	hidden: { opacity: 0, y: -16 },
 	visible: {
 		opacity: 1,
 		y: 0,
-		transition: { duration: 0.35, ease: "easeOut" },
+		transition: { duration: 0.35, ease: "easeOut" as const },
 	},
 };
 
-export const slideLeft = {
+export const slideLeft: Variants = {
 	hidden: { opacity: 0, x: 24 },
 	visible: {
 		opacity: 1,
 		x: 0,
-		transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+		transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
 	},
 };
 
-export const scaleIn = {
+export const scaleIn: Variants = {
 	hidden: { opacity: 0, scale: 0.92 },
 	visible: {
 		opacity: 1,
 		scale: 1,
-		transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+		transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
 	},
 	exit: { opacity: 0, scale: 0.95, transition: { duration: 0.18 } },
 };
-
 export const stagger = {
 	visible: { transition: { staggerChildren: 0.07 } },
 };

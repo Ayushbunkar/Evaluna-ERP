@@ -12,6 +12,7 @@ import {
 import { Bell, Menu, Store, WifiOff } from "lucide-react";
 import * as React from "react";
 import { useSession } from "@/hooks/use-session";
+import { trpc } from "@/lib/trpc/client";
 import { CommandPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -35,6 +36,14 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 			window.removeEventListener("offline", handleOffline);
 		};
 	}, []);
+
+	const { data: branches } = trpc.branches.list.useQuery();
+
+	const activeBranch = React.useMemo(() => {
+		const user = session?.user as any;
+		if (!branches || !user?.branchId) return "Main Branch";
+		return branches.find((b) => b.id === user.branchId)?.name || "Main Branch";
+	}, [branches, session?.user]);
 
 	return (
 		<header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -62,15 +71,16 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 						<DropdownMenuTrigger asChild>
 							<Button variant="outline" size="sm" className="hidden md:flex">
 								<Store className="mr-2 h-4 w-4" />
-								Main Branch
+								{activeBranch}
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
 							<DropdownMenuLabel>Switch Branch</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem>Main Branch</DropdownMenuItem>
-							<DropdownMenuItem>Downtown Branch</DropdownMenuItem>
-							<DropdownMenuItem>Westside Branch</DropdownMenuItem>
+							{branches?.map((branch) => (
+								<DropdownMenuItem key={branch.id}>{branch.name}</DropdownMenuItem>
+							))}
+							{!branches?.length && <DropdownMenuItem disabled>No branches available</DropdownMenuItem>}
 						</DropdownMenuContent>
 					</DropdownMenu>
 

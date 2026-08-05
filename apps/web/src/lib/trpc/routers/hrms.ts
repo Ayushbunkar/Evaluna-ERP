@@ -51,7 +51,7 @@ export const hrmsRouter = router({
       }
 
       if (input.status) {
-        whereClause.push(eq(employees.status, input.status));
+        whereClause.push(eq(employees.status, input.status as any));
       }
 
       const results = await db.query.employees.findMany({
@@ -156,9 +156,9 @@ export const hrmsRouter = router({
         .insert(attendance)
         .values({
           employeeId: Number(employeeId),
-          date: date,
+          date: date as any,
           checkIn: today.toTimeString().split(" ")[0],
-          status: status,
+          status: status as any,
           location: input.location,
           ipAddress: input.ipAddress,
           deviceInfo: input.deviceInfo,
@@ -344,10 +344,10 @@ export const hrmsRouter = router({
         .values({
           employeeId: Number(employeeId),
           leaveTypeId: input.leaveTypeId,
-          startDate: input.startDate,
-          endDate: input.endDate,
+          startDate: input.startDate.toISOString().split("T")[0],
+          endDate: input.endDate.toISOString().split("T")[0],
           reason: input.reason,
-          status: "pending",
+          status: "pending" as any,
         })
         .returning();
 
@@ -373,7 +373,7 @@ export const hrmsRouter = router({
       const whereClause = [eq(leaveApplications.employeeId, Number(employeeId))];
 
       if (input.status) {
-        whereClause.push(eq(leaveApplications.status, input.status));
+        whereClause.push(eq(leaveApplications.status, input.status as any));
       }
 
       if (input.year) {

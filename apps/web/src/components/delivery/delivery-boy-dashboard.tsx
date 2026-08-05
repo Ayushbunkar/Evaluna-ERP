@@ -134,7 +134,6 @@ export function DeliveryBoyDashboard({ activeTrip, allTrips }: DeliveryBoyDashbo
 										</Button>
 
 										<Button 
-											variant="destructive" 
 											variant="outline" 
 											className="h-12 text-red-600 border-red-200 hover:bg-red-50"
 											onClick={() => alert("Open Skip/Return UI")}

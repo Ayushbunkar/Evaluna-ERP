@@ -1,215 +1,289 @@
 "use client";
 
-import {
-	ArrowRightIcon,
-	Loader2Icon,
-	PackageCheckIcon,
-	PackageMinusIcon,
-	ScanBarcodeIcon,
-} from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
-	CardFooter,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@evaluna/ui/components/card";
+import { Input } from "@evaluna/ui/components/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
+import {
+	BarcodeIcon,
+	CheckCircle2Icon,
+	KeyboardIcon,
+	Loader2Icon,
+	PackageIcon,
+	SearchIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 
-export default function WarehouseScanner() {
-	const [activeTab, setActiveTab] = useState("put");
-	const [locationBarcode, setLocationBarcode] = useState("");
-	const [productBarcode, setProductBarcode] = useState("");
-	const [quantity, setQuantity] = useState(1);
+export default function WarehouseScannerPage() {
+	const { activeBranchId } = useBranch();
+	const [barcode, setBarcode] = useState("");
+	const [scannedProduct, setScannedProduct] = useState<any>(null);
+	const [physicalCount, setPhysicalCount] = useState<string>("");
+	const [reason, setReason] = useState<string>("Audit");
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	const utils = trpc.useUtils();
+
 	const [isScanning, setIsScanning] = useState(false);
 
-	// Mock endpoints since we need full scanning logic
-	// In a real app, these would fetch product ID and location ID based on barcodes
-	const addPutItem = trpc.warehouse.addPutItem.useMutation({
+	const adjustMutation = trpc.inventory.adjustStock.useMutation({
 		onSuccess: () => {
-			toast.success("Item successfully stored!");
-			setProductBarcode("");
-			setQuantity(1);
-			// Keep location in case they are putting multiple things in the same place
-			setIsScanning(false);
+			toast.success("Inventory adjusted successfully");
+			setScannedProduct(null);
+			setBarcode("");
+			setPhysicalCount("");
+			utils.inventory.invalidate();
+			setTimeout(() => inputRef.current?.focus(), 100);
 		},
-		onError: (err) => {
-			toast.error(err.message);
-			setIsScanning(false);
+		onError: (error) => {
+			toast.error(error.message || "Failed to adjust inventory");
 		},
 	});
 
-	const handleAction = async () => {
-		if (!locationBarcode || !productBarcode || quantity <= 0) {
-			toast.error("Please fill in all scanning fields");
+	const handleScanSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!barcode.trim()) return;
+		setIsScanning(true);
+		try {
+			const data = await utils.inventory.scanBarcode.fetch({
+				barcode: barcode.trim(),
+				branchId: activeBranchId === null ? undefined : Number(activeBranchId),
+			});
+			setScannedProduct(data);
+			setPhysicalCount(data.currentStock.toString());
+			toast.success("Product found");
+		} catch (error: any) {
+			toast.error(error.message || "Product not found");
+			setScannedProduct(null);
+			setBarcode("");
+			setTimeout(() => inputRef.current?.focus(), 100);
+		} finally {
+			setIsScanning(false);
+		}
+	};
+
+	const handleAdjustmentSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!scannedProduct || physicalCount === "") return;
+
+		const parsedCount = Number.parseInt(physicalCount, 10);
+		if (Number.isNaN(parsedCount)) {
+			toast.error("Invalid physical count");
 			return;
 		}
 
-		setIsScanning(true);
+		const variance = parsedCount - scannedProduct.currentStock;
+		if (variance === 0 && reason === "Audit") {
+			toast.success("Stock matches, no adjustment needed.");
+			setScannedProduct(null);
+			setBarcode("");
+			setPhysicalCount("");
+			setTimeout(() => inputRef.current?.focus(), 100);
+			return;
+		}
 
-		// Simulate lookup of barcodes to IDs and processing
-		setTimeout(() => {
-			if (activeTab === "put") {
-				addPutItem.mutate({
-					put_list_id: 1, // Mock
-					product_id: 1, // Mock from barcode
-					location_id: 1, // Mock from barcode
-					quantity,
-					put_by: 1, // Mock current user
-				});
-			} else {
-				// Pick logic
-				toast.success(
-					`Successfully picked ${quantity} items from ${locationBarcode}`,
-				);
-				setProductBarcode("");
-				setQuantity(1);
-				setIsScanning(false);
-			}
-		}, 1000);
+		adjustMutation.mutate({
+			productId: scannedProduct.product.id,
+			branchId: activeBranchId === null ? 1 : Number(activeBranchId),
+			quantity: variance,
+			adjustmentType: reason,
+		});
 	};
 
+	useEffect(() => {
+		inputRef.current?.focus();
+	}, []);
+
 	return (
-		<div className="slide-in-from-bottom-8 container mx-auto flex min-h-screen max-w-md animate-in flex-col gap-6 bg-gray-50 p-4 duration-500">
-			<div className="py-6 text-center">
-				<div className="mb-4 inline-flex items-center justify-center rounded-full bg-blue-100 p-4">
-					<ScanBarcodeIcon className="h-10 w-10 text-blue-600" />
+		<div className="flex h-full flex-col gap-6 p-6">
+			<div className="flex items-center gap-3">
+				<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+					<BarcodeIcon className="h-6 w-6 text-foreground" />
 				</div>
-				<h1 className="font-bold text-2xl text-gray-900">Warehouse Scanner</h1>
-				<p className="text-gray-500 text-sm">
-					Scan locations and products to process tasks
-				</p>
+				<div>
+					<h1 className="font-bold text-3xl tracking-tight">Barcode Scanner</h1>
+					<p className="text-muted-foreground text-sm">
+						Scan items for inventory adjustments and audits.
+					</p>
+				</div>
 			</div>
 
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-				<TabsList className="grid w-full grid-cols-2 rounded-xl bg-gray-200/50 p-1">
-					<TabsTrigger
-						value="put"
-						className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
-					>
-						<PackageCheckIcon className="mr-2 h-4 w-4" />
-						Put Stock
-					</TabsTrigger>
-					<TabsTrigger
-						value="pick"
-						className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
-					>
-						<PackageMinusIcon className="mr-2 h-4 w-4" />
-						Pick Stock
-					</TabsTrigger>
-				</TabsList>
-
-				<div className="mt-6">
-					<Card
-						className={`border-t-4 shadow-xl ${activeTab === "put" ? "border-t-blue-500" : "border-t-orange-500"}`}
-					>
-						<CardHeader className="border-b bg-gray-50/50 pb-4">
-							<CardTitle className="flex items-center gap-2 text-xl">
-								{activeTab === "put"
-									? "Receiving & Placement"
-									: "Order Fulfillment"}
-							</CardTitle>
-							<CardDescription>
-								{activeTab === "put"
-									? "Scan the bin location first, then the product to place it."
-									: "Scan the pick list, then the location to retrieve from."}
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-6 pt-6">
-							<div className="group relative space-y-2">
-								<Label className="font-semibold text-base">
-									Location Barcode
-								</Label>
-								<div className="relative">
-									<Input
-										placeholder="Scan or enter location (e.g. A-01)"
-										className="h-12 pl-10 text-lg uppercase focus-visible:ring-blue-500"
-										value={locationBarcode}
-										onChange={(e) =>
-											setLocationBarcode(e.target.value.toUpperCase())
-										}
-										autoFocus
-									/>
-									<MapPinIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+			<div className="grid gap-6 md:grid-cols-2">
+				<Card className="border-0 shadow-sm">
+					<CardHeader>
+						<CardTitle className="text-lg">Scan Barcode</CardTitle>
+						<CardDescription>
+							Use a physical scanner or type the SKU/Barcode manually and press
+							Enter.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<form onSubmit={handleScanSubmit} className="flex gap-2">
+							<div className="relative flex-1">
+								<SearchIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+								<Input
+									ref={inputRef}
+									value={barcode}
+									onChange={(e) => setBarcode(e.target.value)}
+									placeholder="Scan or type barcode..."
+									className="h-14 pl-10 text-lg shadow-inner"
+									autoFocus
+									disabled={isScanning}
+								/>
+								<div className="absolute top-1/2 right-3 -translate-y-1/2">
+									<KeyboardIcon className="h-5 w-5 text-muted-foreground opacity-50" />
 								</div>
 							</div>
-
-							<div className="space-y-2">
-								<Label className="font-semibold text-base">
-									Product Barcode / SKU
-								</Label>
-								<div className="relative">
-									<Input
-										placeholder="Scan product barcode"
-										className="h-12 pl-10 text-lg focus-visible:ring-blue-500"
-										value={productBarcode}
-										onChange={(e) => setProductBarcode(e.target.value)}
-									/>
-									<ScanBarcodeIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
-								</div>
-							</div>
-
-							<div className="space-y-2">
-								<Label className="font-semibold text-base">Quantity</Label>
-								<div className="flex items-center gap-4">
-									<Button
-										variant="outline"
-										size="icon"
-										className="h-12 w-12 rounded-xl text-2xl active:bg-gray-200"
-										onClick={() => setQuantity(Math.max(1, quantity - 1))}
-									>
-										-
-									</Button>
-									<Input
-										type="number"
-										className="h-12 border-gray-300 bg-gray-50 text-center font-bold text-xl"
-										value={quantity}
-										onChange={(e) => setQuantity(Number(e.target.value) || 1)}
-										min="1"
-									/>
-									<Button
-										variant="outline"
-										size="icon"
-										className="h-12 w-12 rounded-xl text-2xl active:bg-gray-200"
-										onClick={() => setQuantity(quantity + 1)}
-									>
-										+
-									</Button>
-								</div>
-							</div>
-						</CardContent>
-						<CardFooter className="rounded-b-xl border-t bg-gray-50/50 pt-4">
 							<Button
-								className={`h-14 w-full font-bold text-lg shadow-lg transition-transform active:scale-95 ${
-									activeTab === "put"
-										? "bg-blue-600 hover:bg-blue-700"
-										: "bg-orange-600 hover:bg-orange-700"
-								}`}
-								onClick={handleAction}
-								disabled={isScanning || !locationBarcode || !productBarcode}
+								type="submit"
+								disabled={!barcode.trim() || isScanning}
+								className="h-14 w-28 text-lg"
 							>
 								{isScanning ? (
-									<Loader2Icon className="h-6 w-6 animate-spin" />
+									<Loader2Icon className="h-5 w-5 animate-spin" />
 								) : (
-									<>
-										CONFIRM {activeTab.toUpperCase()}
-										<ArrowRightIcon className="ml-2 h-5 w-5" />
-									</>
+									"Search"
 								)}
 							</Button>
-						</CardFooter>
-					</Card>
-				</div>
-			</Tabs>
+						</form>
+					</CardContent>
+				</Card>
 
-			{/* Visual Feedback Toast area via Sonner */}
+				{scannedProduct ? (
+					<Card className="border-0 shadow-sm ring-1 ring-border">
+						<CardHeader className="pb-4">
+							<div className="flex items-start justify-between">
+								<div>
+									<CardTitle className="text-xl">
+										{scannedProduct.product.name}
+									</CardTitle>
+									<CardDescription className="mt-1 flex items-center gap-2">
+										<PackageIcon className="h-4 w-4" />
+										SKU: {scannedProduct.product.sku}
+									</CardDescription>
+								</div>
+								<div className="text-right">
+									<p className="text-muted-foreground text-sm">
+										Current System Stock
+									</p>
+									<p className="font-bold text-3xl text-foreground">
+										{scannedProduct.currentStock}
+									</p>
+								</div>
+							</div>
+						</CardHeader>
+						<CardContent>
+							<form
+								onSubmit={handleAdjustmentSubmit}
+								className="space-y-4 rounded-xl border bg-muted/50 p-4"
+							>
+								<div className="grid gap-4 sm:grid-cols-2">
+									<div className="space-y-2">
+										<label className="font-medium text-sm">
+											Physical Count
+										</label>
+										<Input
+											type="number"
+											value={physicalCount}
+											onChange={(e) => setPhysicalCount(e.target.value)}
+											className="h-12 bg-background text-lg"
+											autoFocus
+											min="0"
+										/>
+									</div>
+									<div className="space-y-2">
+										<label className="font-medium text-sm">Reason</label>
+										<Select value={reason} onValueChange={setReason}>
+											<SelectTrigger className="h-12 bg-background">
+												<SelectValue placeholder="Select Reason" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="Audit">Audit Count</SelectItem>
+												<SelectItem value="Damage">Damage / Spoiled</SelectItem>
+												<SelectItem value="Theft">Theft / Missing</SelectItem>
+												<SelectItem value="Found">Found Items</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+								</div>
+
+								{physicalCount !== "" &&
+									!Number.isNaN(Number.parseInt(physicalCount)) && (
+										<div className="flex items-center gap-2 text-sm">
+											<span className="text-muted-foreground">Variance:</span>
+											<span
+												className={`font-semibold ${
+													Number.parseInt(physicalCount) -
+														scannedProduct.currentStock >
+													0
+														? "text-green-600"
+														: Number.parseInt(physicalCount) -
+																	scannedProduct.currentStock <
+																0
+															? "text-red-600"
+															: "text-muted-foreground"
+												}`}
+											>
+												{Number.parseInt(physicalCount) -
+													scannedProduct.currentStock >
+												0
+													? "+"
+													: ""}
+												{Number.parseInt(physicalCount) -
+													scannedProduct.currentStock}
+											</span>
+										</div>
+									)}
+
+								<Button
+									type="submit"
+									className="h-12 w-full gap-2"
+									disabled={
+										physicalCount === "" || adjustMutation.isPending
+									}
+								>
+									{adjustMutation.isPending ? (
+										<Loader2Icon className="h-5 w-5 animate-spin" />
+									) : (
+										<>
+											<CheckCircle2Icon className="h-5 w-5" />
+											Submit Adjustment
+										</>
+									)}
+								</Button>
+							</form>
+						</CardContent>
+					</Card>
+				) : (
+					<Card className="border border-border border-dashed bg-transparent shadow-none">
+						<CardContent className="flex h-full flex-col items-center justify-center py-12 text-center text-muted-foreground">
+							<BarcodeIcon className="mb-4 h-12 w-12 opacity-20" />
+							<p className="text-lg">Waiting for scan...</p>
+							<p className="text-sm">
+								Scan a barcode to pull up product details and adjust stock.
+							</p>
+						</CardContent>
+					</Card>
+				)}
+			</div>
 		</div>
 	);
 }
+
+
+

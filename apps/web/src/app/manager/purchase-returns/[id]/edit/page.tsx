@@ -20,7 +20,7 @@ export default function EditPurchaseReturnPage() {
 	return (
 		<div className="space-y-4">
 			<h1 className="font-bold text-2xl">Edit Purchase Return</h1>
-			<PurchaseReturnForm purchaseReturn={purchaseReturn} />
+			<PurchaseReturnForm purchaseReturn={purchaseReturn as any} />
 		</div>
 	);
 }

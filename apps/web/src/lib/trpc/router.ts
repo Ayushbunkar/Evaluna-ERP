@@ -17,6 +17,7 @@ import { customersRouter } from "./routers/customers";
 import { dashboardRouter } from "./routers/dashboard";
 import { deliveryRouter } from "./routers/delivery";
 import { driverRouter } from "./routers/driver";
+import { expensesRouter } from "./routers/expenses";
 import { financeRouter } from "./routers/finance";
 import { hrRouter } from "./routers/hr";
 import { hrmsRouter } from "./routers/hrms";
@@ -96,6 +97,7 @@ export const appRouter = router({
 	approvals: approvalsRouter,
 	picking: pickingRouter,
 	clientSettings: clientSettingsRouter,
+	expenses: expensesRouter,
 });
 
 export type AppRouter = typeof appRouter;

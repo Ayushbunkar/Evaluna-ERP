@@ -17,7 +17,7 @@ interface PrintPreviewDialogProps {
 	title?: string;
 	trigger?: ReactNode;
 	children: ReactNode;
-	onBeforePrint?: () => Promise<void> | void;
+	onBeforePrint?: () => Promise<void>;
 	onAfterPrint?: () => void;
 }
 

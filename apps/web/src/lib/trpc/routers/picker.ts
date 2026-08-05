@@ -98,7 +98,7 @@ export const pickerRouter = router({
 				area: "Warehouse",
 				status: r.status ?? "pending",
 				estimated_time: "N/A",
-				created_at: new Date(r.created_at).toLocaleString() || "",
+				created_at: r.created_at ? new Date(r.created_at).toLocaleString() : "",
 			}));
 		}),
 

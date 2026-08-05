@@ -66,4 +66,66 @@ export const pickingRouter = router({
 				status: item.status ?? "pending",
 			}));
 		}),
+
+	startPickList: protectedProcedure
+		.input(z.object({ pickListId: z.string() }))
+		.mutation(async ({ input, ctx }) => {
+			const idStr = input.pickListId.replace("PL-", "");
+			const id = Number.parseInt(idStr, 10);
+			if (Number.isNaN(id)) throw new Error("Invalid pick list ID");
+
+			await db
+				.update(pickLists)
+				.set({
+					status: "picking",
+					assigned_to: Number.parseInt(ctx.user.id) || null,
+				})
+				.where(eq(pickLists.id, id));
+
+			return { success: true };
+		}),
+
+	pickItem: protectedProcedure
+		.input(
+			z.object({
+				itemId: z.string(),
+				quantity: z.number(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			// itemId format: ITEM-<pick_list_id>-<id>
+			const parts = input.itemId.split("-");
+			const id = Number.parseInt(parts[2], 10);
+			if (Number.isNaN(id)) throw new Error("Invalid item ID");
+
+			await db
+				.update(pickListItems)
+				.set({
+					quantity_picked: input.quantity,
+					status: "picked",
+					picked_by: Number.parseInt(ctx.user.id) || null,
+					picked_at: new Date(),
+				})
+				.where(eq(pickListItems.id, id));
+
+			return { success: true };
+		}),
+
+	completePickList: protectedProcedure
+		.input(z.object({ pickListId: z.string() }))
+		.mutation(async ({ input }) => {
+			const idStr = input.pickListId.replace("PL-", "");
+			const id = Number.parseInt(idStr, 10);
+			if (Number.isNaN(id)) throw new Error("Invalid pick list ID");
+
+			await db
+				.update(pickLists)
+				.set({
+					status: "completed",
+					completed_at: new Date(),
+				})
+				.where(eq(pickLists.id, id));
+
+			return { success: true };
+		}),
 });

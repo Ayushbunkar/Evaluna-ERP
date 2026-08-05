@@ -101,13 +101,13 @@ export const billingRouter = router({
 				},
 			});
 
-			const recentBills = recentBillsRes.map((b) => ({
+			const recentTransactions = recentBillsRes.map((b) => ({
 				id: `INV-${b.id}`,
-				customer: b.customer?.name || "Walk-in Customer",
-				items: b.orderItems?.length || 0,
+				time: b.created_at ? format(new Date(b.created_at), "HH:mm") : "N/A",
+				cashier: "Admin", // TODO: link user_uid to actual staff member
 				amount: Number(b.total_amount || 0),
-				status: b.status || "pending",
-				payment: b.paymentMethod?.name || "Cash",
+				status: b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : "Pending",
+				method: b.paymentMethod?.name || "Cash",
 			}));
 
 			return {
@@ -123,7 +123,7 @@ export const billingRouter = router({
 				paymentDistribution,
 				hourlySales,
 				topCashiers,
-				recentBills,
+				recentTransactions,
 			};
 		}),
 });

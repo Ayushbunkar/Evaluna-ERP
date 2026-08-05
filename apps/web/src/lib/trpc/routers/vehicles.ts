@@ -9,7 +9,7 @@ export const vehiclesRouter = router({
 	list: roleProcedure(["admin", "manager", "delivery_manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.session?.user.branch_id;
+			const branch = input.branchId || ctx.user?.branchId;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 			return await db.query.vehicles.findMany({
 				where: eq(vehicles.branch_id, branch),
@@ -27,7 +27,7 @@ export const vehiclesRouter = router({
 			})
 		)
 		.mutation(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.session?.user.branch_id;
+			const branch = input.branchId || ctx.user?.branchId;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 			const [vehicle] = await db
 				.insert(vehicles)

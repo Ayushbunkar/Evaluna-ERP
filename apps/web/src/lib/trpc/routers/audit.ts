@@ -20,7 +20,7 @@ export const auditRouter = router({
 			const result = await ctx.db
 				.insert(stockAudits)
 				.values({
-					branch_id: input.warehouse_id,
+					branch_id: input.branch_id,
 					auditor_id: input.auditor_id,
 					status: "planned",
 				})

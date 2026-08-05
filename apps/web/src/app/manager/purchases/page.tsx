@@ -7,7 +7,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import { columns } from "./list/columns";
 
 export default function PurchasesList() {
-	const { data: purchases, isLoading } = useTRPC().purchases.list.useQuery();
+	const { data: purchases, isLoading } = useTRPC().purchases.list.useQuery({} as any);
 
 	return (
 		<div className="space-y-4">
@@ -25,3 +25,6 @@ export default function PurchasesList() {
 		</div>
 	);
 }
+
+
+

@@ -15,7 +15,7 @@ import { zodValidator } from "@tanstack/zod-form-adapter";
 import { useRouter } from "next/navigation";
 import type { z } from "zod";
 import { useTRPC } from "@/lib/trpc/client";
-import type { purchaseReturnSchema } from "@/lib/validation/purchase-return";
+import { purchaseReturnInsertSchema as purchaseReturnSchema } from "@/lib/validation/purchase-return";
 
 export function PurchaseReturnForm({
 	purchaseReturn,
@@ -23,15 +23,16 @@ export function PurchaseReturnForm({
 	purchaseReturn?: z.infer<typeof purchaseReturnSchema> & { id: number };
 }) {
 	const router = useRouter();
-	const { data: purchases } = useTRPC().purchases.list.useQuery();
+	const { data: purchases } = useTRPC().purchases.list.useQuery({} as any);
 	const { data: products } = useTRPC().products.list.useQuery();
 
 	const form = useForm({
-		validator: zodValidator,
+
 		defaultValues: purchaseReturn || {
-			purchaseId: "",
-			purchaseReturnItems: [],
+			purchase_id: 0,
+			items: [],
 		},
+		onSubmit: ({ value }) => handleSubmit(value as any),
 	});
 
 
@@ -63,25 +64,25 @@ export function PurchaseReturnForm({
 			onSubmit={(e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				form.handleSubmit(handleSubmit)();
+				form.handleSubmit();
 			}}
 			className="space-y-6"
 		>
 			<div className="space-y-2">
-				<Label htmlFor="purchaseId">Purchase</Label>
+				<Label htmlFor="purchase_id">Purchase</Label>
 				<form.Field
-					name="purchaseId"
+					name="purchase_id"
 					children={(field) => (
 						<Select
-							value={field.state.value}
-							onValueChange={(value) => field.handleChange(value)}
+							value={field.state.value?.toString()}
+							onValueChange={(value) => field.handleChange(Number(value))}
 						>
-							<SelectTrigger id="purchaseId">
+							<SelectTrigger id="purchase_id">
 								<SelectValue placeholder="Select a purchase" />
 							</SelectTrigger>
 							<SelectContent>
-								{purchases?.map((purchase) => (
-									<SelectItem key={purchase.id} value={purchase.id}>
+								{purchases?.items?.map((purchase: any) => (
+									<SelectItem key={purchase.id} value={purchase.id.toString()}>
 										{purchase.id}
 									</SelectItem>
 								))}
@@ -95,28 +96,30 @@ export function PurchaseReturnForm({
 				<h3 className="font-medium text-lg">Purchase Return Items</h3>
 
 				<div className="space-y-4">
-					{form.state.values.purchaseReturnItems.map((_, index) => (
+					{form.state.values.items?.map((_: any, index: number) => (
 						<div
 							key={index}
 							className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-3"
 						>
 							<div className="space-y-2">
-								<Label htmlFor={`purchaseReturnItems[${index}].productId`}>
+								<Label htmlFor={`items[${index}].product_id`}>
 									Product
 								</Label>
 								<form.Field
-									name={`purchaseReturnItems[${index}].productId`}
+									name={`items[${index}].product_id`}
 									children={(subField) => (
 										<Select
-											value={subField.state.value}
-											onValueChange={(value) => subField.handleChange(value)}
+											value={subField.state.value?.toString()}
+											onValueChange={(value) =>
+												subField.handleChange(Number(value))
+											}
 										>
-											<SelectTrigger id={`purchaseReturnItems[${index}].productId`}>
+											<SelectTrigger id={`items[${index}].product_id`}>
 												<SelectValue placeholder="Select a product" />
 											</SelectTrigger>
 											<SelectContent>
 												{products?.map((product) => (
-													<SelectItem key={product.id} value={product.id}>
+													<SelectItem key={product.id} value={product.id.toString()}>
 														{product.name}
 													</SelectItem>
 												))}
@@ -127,16 +130,16 @@ export function PurchaseReturnForm({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor={`purchaseReturnItems[${index}].quantity`}>
+								<Label htmlFor={`items[${index}].quantity`}>
 									Quantity
 								</Label>
 								<form.Field
-									name={`purchaseReturnItems[${index}].quantity`}
+									name={`items[${index}].quantity`}
 									children={(subField) => (
 										<Input
-											id={`purchaseReturnItems[${index}].quantity`}
+											id={`items[${index}].quantity`}
 											type="number"
-											value={subField.state.value}
+											value={subField.state.value || ""}
 											onChange={(e) =>
 												subField.handleChange(Number(e.target.value))
 											}
@@ -150,8 +153,13 @@ export function PurchaseReturnForm({
 								<Button
 									type="button"
 									variant="destructive"
-									onClick={() => form.removeFieldValue("purchaseReturnItems", index)}
-									className="w-full"
+									size="sm"
+									className="mt-8"
+									onClick={() => {
+										const newItems = [...form.state.values.items!];
+										newItems.splice(index, 1);
+										form.setFieldValue("items", newItems);
+									}}
 								>
 									Remove
 								</Button>
@@ -163,8 +171,14 @@ export function PurchaseReturnForm({
 				<Button
 					type="button"
 					variant="outline"
-					className="mt-4"
-					onClick={() => form.pushFieldValue("purchaseReturnItems", { productId: "", quantity: 1 })}
+					className="w-full"
+					onClick={() => {
+						const currentItems = form.state.values.items || [];
+						form.setFieldValue("items", [
+							...currentItems,
+							{ product_id: 0, quantity: 1, price: 0 },
+						]);
+					}}
 				>
 					Add Item
 				</Button>

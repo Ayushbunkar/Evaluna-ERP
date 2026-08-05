@@ -2168,27 +2168,6 @@ export const promotionSchemes = pgTable("promotion_schemes", {
 	created_at: timestamp("created_at").defaultNow(),
 });
 
-// ── Delivery Relations ───────────────────────────────────────────────────────
-export const deliveryTripsRelations = relations(
-	deliveryTrips,
-	({ many, one }) => ({
-		stops: many(tripStops),
-		driver: one(staff, {
-			fields: [deliveryTrips.driver_id],
-			references: [staff.id],
-		}),
-	}),
-);
-
-export const tripStopsRelations = relations(tripStops, ({ one }) => ({
-	trip: one(deliveryTrips, {
-		fields: [tripStops.trip_id],
-		references: [deliveryTrips.id],
-	}),
-	customer: one(customers, {
-		fields: [tripStops.customer_id],
-		references: [customers.id],
-	}),
-}));
-
 // ── Duplicate Picking Relations Removed ────────────────────────────--
+export * from "./schema/delivery";
+export * from "./schema/hrms";

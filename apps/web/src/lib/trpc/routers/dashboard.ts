@@ -316,7 +316,7 @@ export const dashboardRouter = router({
 				type: o.status === "pending" ? "approval" : "sale",
 				title: o.status === "pending" ? `Pending Order #${o.id}` : `Sale Completed #${o.id}`,
 				message: `Amount: ₹${Number(o.amount).toFixed(2)}`,
-				time: format(new Date(o.created_at), "MMM d, h:mm a"),
+				time: o.created_at ? format(new Date(o.created_at), "MMM d, h:mm a") : "N/A",
 			}));
 
 			// ── Low stock alerts ──────────────────────────────────────────────
@@ -370,7 +370,7 @@ export const dashboardRouter = router({
 				id: o.id,
 				title: `Order #${o.id} — ${o.status}`,
 				amount: Number(o.amount),
-				time: format(new Date(o.created_at), "h:mm a"),
+				time: o.created_at ? format(new Date(o.created_at), "h:mm a") : "N/A",
 			}));
 
 			// ── Manager tasks: pending orders requiring approval ───────────────

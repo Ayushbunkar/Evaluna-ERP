@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/use-session";
 import type React from "react";
 
 interface PermissionGuardProps {
@@ -18,21 +18,21 @@ export function PermissionGuard({
 	requiredPermissions = [],
 	fallback,
 }: PermissionGuardProps) {
-	const { data: session, status } = useSession();
+	const { session, isLoading } = useSession();
 	const router = useRouter();
 
-	if (status === "loading") {
+	if (isLoading) {
 		return <Skeleton className="h-[400px] w-full" />;
 	}
 
-	if (status === "unauthenticated" || !session?.user) {
+	if (!session?.user) {
 		if (fallback) return <>{fallback}</>;
 		router.push("/unauthorized");
 		return null;
 	}
 
 	const userRole = session.user.role as string;
-	const userPermissions = (session.user.permissions as string[]) || [];
+	const userPermissions = ((session.user as any).permissions as string[]) || [];
 
 	const hasRole = allowedRoles.length === 0 || allowedRoles.includes(userRole);
 	const hasPermissions =
@@ -47,3 +47,4 @@ export function PermissionGuard({
 
 	return <>{children}</>;
 }
+

@@ -3,8 +3,11 @@
 import { Button } from "@evaluna/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
+import type { RouterOutputs } from "@/lib/trpc/router";
 
-export const columns: ColumnDef<any>[] = [
+type Purchase = RouterOutputs["purchases"]["list"][number];
+
+export const columns: ColumnDef<Purchase>[] = [
 	{
 		accessorKey: "grn_number",
 		header: "GRN Number",

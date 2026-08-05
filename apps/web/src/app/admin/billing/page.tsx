@@ -73,100 +73,21 @@ export default async function BillingDashboard() {
 		activeBranchId ? { branch_id: activeBranchId } : {}
 	).catch(() => null);
 
-	// Mock data for fallback when database is not available
-	const mockData = {
-		todaysBills: 42,
-		revenue: 15750,
-		averageBill: 375,
-		refunds: 250,
-		cashCollected: 8500,
-		cardCollected: 5250,
-		upiCollected: 2000,
-		pendingBills: 3,
-		salesChart: [
-			{ time: "09:00", sales: 1000 },
-			{ time: "10:00", sales: 1500 },
-			{ time: "11:00", sales: 2000 },
-			{ time: "12:00", sales: 2500 },
-			{ time: "13:00", sales: 3000 },
-			{ time: "14:00", sales: 2800 },
-			{ time: "15:00", sales: 2200 },
-			{ time: "16:00", sales: 1800 },
-		],
-		paymentDistribution: [
-			{ name: "Cash", value: 8500 },
-			{ name: "Card", value: 5250 },
-			{ name: "UPI", value: 2000 },
-		],
-		hourlySales: [
-			{ hour: "09:00", sales: 1000 },
-			{ hour: "10:00", sales: 1500 },
-			{ hour: "11:00", sales: 2000 },
-			{ hour: "12:00", sales: 2500 },
-			{ hour: "13:00", sales: 3000 },
-			{ hour: "14:00", sales: 2800 },
-		],
-		topCashiers: [
-			{ name: "John Doe", bills: 15, revenue: 5625 },
-			{ name: "Jane Smith", bills: 12, revenue: 4500 },
-			{ name: "Mike Johnson", bills: 10, revenue: 3750 },
-			{ name: "Sarah Williams", bills: 5, revenue: 1875 },
-		],
-		recentTransactions: [
-			{
-				id: "TRX-1001",
-				time: "16:45",
-				cashier: "John Doe",
-				amount: 1250,
-				method: "Card",
-				status: "Completed",
-			},
-			{
-				id: "TRX-1002",
-				time: "16:30",
-				cashier: "Jane Smith",
-				amount: 850,
-				method: "UPI",
-				status: "Completed",
-			},
-			{
-				id: "TRX-1003",
-				time: "16:15",
-				cashier: "Mike Johnson",
-				amount: 450,
-				method: "Cash",
-				status: "Completed",
-			},
-			{
-				id: "TRX-1004",
-				time: "16:00",
-				cashier: "Sarah Williams",
-				amount: 2200,
-				method: "Card",
-				status: "Pending",
-			},
-			{
-				id: "TRX-1005",
-				time: "15:45",
-				cashier: "John Doe",
-				amount: 150,
-				method: "Cash",
-				status: "Refunded",
-			},
-		],
+	const data = apiData || {
+		todaysBills: 0,
+		revenue: 0,
+		averageBill: 0,
+		refunds: 0,
+		cashCollected: 0,
+		cardCollected: 0,
+		upiCollected: 0,
+		pendingBills: 0,
+		salesChart: [],
+		paymentDistribution: [],
+		hourlySales: [],
+		topCashiers: [],
+		recentTransactions: [],
 	};
-
-	// Use mock data if there's an error, no data, or still loading after a short delay
-	// This ensures we always show content instead of skeletons
-	const data = apiData ? {
-		...apiData,
-		// Ensure all arrays are properly initialized with fallbacks
-		topCashiers: apiData.topCashiers || mockData.topCashiers,
-		recentTransactions: apiData.recentTransactions || mockData.recentTransactions,
-		salesChart: apiData.salesChart || mockData.salesChart,
-		paymentDistribution: apiData.paymentDistribution || mockData.paymentDistribution,
-		hourlySales: apiData.hourlySales || mockData.hourlySales
-	} : mockData;
 
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
@@ -290,31 +211,37 @@ export default async function BillingDashboard() {
 							<CardDescription className="text-gray-500">By revenue generated today</CardDescription>
 						</CardHeader>
 						<CardContent className="flex-1">
-							<div className="space-y-4">
-								{data.topCashiers.map((cashier: any, index: number) => (
-									<div
-										key={index}
-										className="flex items-center justify-between"
-									>
-										<div className="flex items-center gap-3">
-											<div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-900 text-xs">
-												{cashier.name.charAt(0)}
+							{data.topCashiers && data.topCashiers.length > 0 ? (
+								<div className="space-y-4">
+									{data.topCashiers.map((cashier: any, index: number) => (
+										<div
+											key={index}
+											className="flex items-center justify-between"
+										>
+											<div className="flex items-center gap-3">
+												<div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-900 text-xs">
+													{cashier.name.charAt(0)}
+												</div>
+												<div>
+													<p className="font-medium text-sm text-gray-900">
+														{cashier.name}
+													</p>
+													<p className="text-xs text-gray-500">
+														{cashier.bills} bills
+													</p>
+												</div>
 											</div>
-											<div>
-												<p className="font-medium text-sm text-gray-900">
-													{cashier.name}
-												</p>
-												<p className="text-xs text-gray-500">
-													{cashier.bills} bills
-												</p>
+											<div className="font-semibold text-gray-900 text-sm">
+												{formatCurrency(cashier.revenue, "en-IN")}
 											</div>
 										</div>
-										<div className="font-semibold text-gray-900 text-sm">
-											{formatCurrency(cashier.revenue, "en-IN")}
-										</div>
-									</div>
-								))}
-							</div>
+									))}
+								</div>
+							) : (
+								<div className="flex h-[150px] items-center justify-center text-gray-500">
+									No cashier data available
+								</div>
+							)}
 						</CardContent>
 					</Card>
 				</div>
@@ -339,30 +266,38 @@ export default async function BillingDashboard() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{data.recentTransactions.map((txn: any) => (
-								<TableRow key={txn.id} className="border-b border-gray-100">
-									<TableCell className="font-medium text-gray-900">{txn.id}</TableCell>
-									<TableCell className="text-gray-500">{txn.time}</TableCell>
-									<TableCell className="text-gray-900">{txn.cashier}</TableCell>
-									<TableCell className="text-gray-900">{txn.method}</TableCell>
-									<TableCell>
-										<span
-											className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-												txn.status === "Completed"
-													? "bg-gray-100 text-gray-900"
-													: txn.status === "Pending"
-														? "bg-gray-100 text-gray-700"
-														: "bg-gray-100 text-gray-500"
-											}`}
-										>
-											{txn.status}
-										</span>
-									</TableCell>
-									<TableCell className="text-right font-medium text-gray-900">
-										{formatCurrency(txn.amount, "en-IN")}
+							{data.recentTransactions && data.recentTransactions.length > 0 ? (
+								data.recentTransactions.map((txn: any) => (
+									<TableRow key={txn.id} className="border-b border-gray-100">
+										<TableCell className="font-medium text-gray-900">{txn.id}</TableCell>
+										<TableCell className="text-gray-500">{txn.time}</TableCell>
+										<TableCell className="text-gray-900">{txn.cashier}</TableCell>
+										<TableCell className="text-gray-900">{txn.method}</TableCell>
+										<TableCell>
+											<span
+												className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+													txn.status === "Completed"
+														? "bg-gray-100 text-gray-900"
+														: txn.status === "Pending"
+															? "bg-gray-100 text-gray-700"
+															: "bg-gray-100 text-gray-500"
+												}`}
+											>
+												{txn.status}
+											</span>
+										</TableCell>
+										<TableCell className="text-right font-medium text-gray-900">
+											{formatCurrency(txn.amount, "en-IN")}
+										</TableCell>
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={6} className="h-24 text-center text-gray-500">
+										No recent transactions
 									</TableCell>
 								</TableRow>
-							))}
+							)}
 						</TableBody>
 					</Table>
 				</CardContent>

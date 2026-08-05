@@ -11,10 +11,12 @@ export const expensesRouter = router({
 	create: protectedProcedure
 		.input(expenseSchema)
 		.mutation(async ({ input, ctx }) => {
+			const { id, ...expenseData } = input;
 			const newExpense = await db
 				.insert(expenses)
 				.values({
-					...input,
+					...expenseData,
+					amount: expenseData.amount.toString(),
 					user_uid: ctx.user.id,
 				})
 				.returning();
@@ -67,6 +69,7 @@ export const expensesRouter = router({
 				.update(expenses)
 				.set({
 					...expenseData,
+					amount: expenseData.amount.toString(),
 					user_uid: ctx.user.id,
 				})
 				.where(eq(expenses.id, Number.parseInt(id, 10)))

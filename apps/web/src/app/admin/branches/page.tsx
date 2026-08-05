@@ -3,6 +3,19 @@
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
+import { useForm } from "@tanstack/react-form";
+import { z } from "zod/v4";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
+import { toast } from "sonner";
+import {
 	Card,
 	CardContent,
 	CardHeader,
@@ -45,6 +58,91 @@ export default function BranchesPage() {
 
 	const pagination = usePagination(filteredBranches, 10);
 
+	const utils = trpc.useUtils();
+	const [isDialogOpen, setIsDialogOpen] = useState(false);
+	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+	const [editingId, setEditingId] = useState<number | null>(null);
+	const [deleteId, setDeleteId] = useState<number | null>(null);
+
+	const isEditing = editingId !== null;
+
+	const createMutation = trpc.branches.create.useMutation({
+		onSuccess: () => {
+			utils.branches.list.invalidate();
+			toast.success("Branch created successfully");
+			setIsDialogOpen(false);
+		},
+		onError: (e) => toast.error(e.message || "Failed to create branch"),
+	});
+
+	const updateMutation = trpc.branches.update.useMutation({
+		onSuccess: () => {
+			utils.branches.list.invalidate();
+			toast.success("Branch updated successfully");
+			setIsDialogOpen(false);
+		},
+		onError: (e) => toast.error(e.message || "Failed to update branch"),
+	});
+
+	const deleteMutation = trpc.branches.delete.useMutation({
+		onSuccess: () => {
+			utils.branches.list.invalidate();
+			toast.success("Branch deleted successfully");
+			setIsDeleteOpen(false);
+		},
+		onError: (e) => toast.error(e.message || "Failed to delete branch"),
+	});
+
+	const form = useForm({
+		defaultValues: {
+			name: "",
+			code: "",
+			address: "",
+			phone: "",
+			email: "",
+		},
+		validators: {
+			onSubmit: z.object({
+				name: z.string().min(1, "Name is required"),
+				code: z.string().optional(),
+				address: z.string().optional(),
+				phone: z.string().optional(),
+				email: z.string().email("Invalid email").optional().or(z.literal("")),
+			}),
+		},
+		onSubmit: ({ value }) => {
+			const payload = {
+				name: value.name,
+				code: value.code || undefined,
+				address: value.address || undefined,
+				phone: value.phone || undefined,
+				email: value.email || undefined,
+			};
+			if (isEditing && editingId) {
+				updateMutation.mutate({ id: editingId, ...payload });
+			} else {
+				createMutation.mutate(payload);
+			}
+		},
+	});
+
+	const openCreate = () => {
+		setEditingId(null);
+		form.reset();
+		setIsDialogOpen(true);
+	};
+
+	const openEdit = (b: any) => {
+		setEditingId(b.id);
+		form.reset();
+		form.setFieldValue("name", b.name);
+		form.setFieldValue("code", b.code ?? "");
+		form.setFieldValue("address", b.address ?? "");
+		form.setFieldValue("phone", b.phone ?? "");
+		form.setFieldValue("email", b.email ?? "");
+		setIsDialogOpen(true);
+	};
+
 	return (
 		<div className="mx-auto max-w-7xl space-y-8 p-8">
 			{/* Header */}
@@ -57,7 +155,7 @@ export default function BranchesPage() {
 						Manage your distribution centers and retail hubs
 					</p>
 				</div>
-				<Button className="bg-primary text-white shadow-sm hover:bg-primary/90">
+				<Button onClick={openCreate} className="bg-primary text-white shadow-sm hover:bg-primary/90">
 					<Plus className="mr-2 h-4 w-4" /> Add Branch
 				</Button>
 			</div>
@@ -236,6 +334,7 @@ export default function BranchesPage() {
 												<td className="px-6 py-4 text-right">
 													<div className="flex items-center justify-end gap-2">
 														<Button
+															onClick={() => openEdit(branch)}
 															variant="ghost"
 															size="icon"
 															className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
@@ -243,6 +342,7 @@ export default function BranchesPage() {
 															<Edit className="h-4 w-4" />
 														</Button>
 														<Button
+															onClick={() => { setDeleteId(branch.id); setIsDeleteOpen(true); }}
 															variant="ghost"
 															size="icon"
 															className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -258,6 +358,120 @@ export default function BranchesPage() {
 					</div>
 				</CardContent>
 			</Card>
+
+			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>{isEditing ? "Edit Branch" : "Add Branch"}</DialogTitle>
+					</DialogHeader>
+					<form
+						onSubmit={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							form.handleSubmit();
+						}}
+					>
+						<div className="grid gap-4 py-4">
+							<form.Field name="name">
+								{(field) => (
+									<div className="grid grid-cols-4 items-center gap-4">
+										<Label htmlFor="name" className="text-right">Name</Label>
+										<div className="col-span-3">
+											<Input
+												id="name"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+											/>
+											{field.state.meta.errors ? (
+												<p className="mt-1 text-red-500 text-sm">{field.state.meta.errors.join(", ")}</p>
+											) : null}
+										</div>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="code">
+								{(field) => (
+									<div className="grid grid-cols-4 items-center gap-4">
+										<Label htmlFor="code" className="text-right">Code</Label>
+										<div className="col-span-3">
+											<Input
+												id="code"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+												placeholder="Auto-generated if empty"
+											/>
+										</div>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="address">
+								{(field) => (
+									<div className="grid grid-cols-4 items-center gap-4">
+										<Label htmlFor="address" className="text-right">Address</Label>
+										<div className="col-span-3">
+											<Input
+												id="address"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+											/>
+										</div>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="phone">
+								{(field) => (
+									<div className="grid grid-cols-4 items-center gap-4">
+										<Label htmlFor="phone" className="text-right">Phone</Label>
+										<div className="col-span-3">
+											<Input
+												id="phone"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+											/>
+										</div>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="email">
+								{(field) => (
+									<div className="grid grid-cols-4 items-center gap-4">
+										<Label htmlFor="email" className="text-right">Email</Label>
+										<div className="col-span-3">
+											<Input
+												id="email"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+											/>
+											{field.state.meta.errors ? (
+												<p className="mt-1 text-red-500 text-sm">{field.state.meta.errors.join(", ")}</p>
+											) : null}
+										</div>
+									</div>
+								)}
+							</form.Field>
+						</div>
+						<DialogFooter>
+							<Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+							<form.Subscribe selector={(state) => state.isSubmitting}>
+								{(isSubmitting) => (
+									<Button type="submit" disabled={isSubmitting || createMutation.isPending || updateMutation.isPending}>
+										{isEditing ? "Update Branch" : "Create Branch"}
+									</Button>
+								)}
+							</form.Subscribe>
+						</DialogFooter>
+					</form>
+				</DialogContent>
+			</Dialog>
+
+			<DeleteConfirmationDialog
+				isOpen={isDeleteOpen}
+				onOpenChange={setIsDeleteOpen}
+				onConfirm={() => {
+					if (deleteId) deleteMutation.mutate({ id: deleteId });
+				}}
+				isDeleting={deleteMutation.isPending}
+			/>
 		</div>
 	);
 }

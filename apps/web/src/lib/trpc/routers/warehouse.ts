@@ -1,4 +1,5 @@
 import {
+	batchStock,
 	branchInventory,
 	branchLocations,
 	orders,
@@ -35,6 +36,181 @@ export const warehouseRouter = router({
 
 		return locations;
 	}),
+
+	getLocations: protectedProcedure
+		.input(z.object({ branchId: z.number().optional() }))
+		.query(async ({ ctx, input }) => {
+			let query = ctx.db.select().from(branchLocations);
+			
+			if (input.branchId) {
+				query = query.where(eq(branchLocations.branch_id, input.branchId)) as any;
+			}
+			
+			return await query.orderBy(desc(branchLocations.created_at));
+		}),
+
+	createLocation: protectedProcedure
+		.input(
+			z.object({
+				branch_id: z.number().default(1),
+				name: z.string().min(1),
+				section: z.string().optional(),
+				aisle: z.string().optional(),
+				shelf: z.string().optional(),
+				level: z.string().optional(),
+				location_type: z.string().default("storage"),
+				capacity: z.number().default(0),
+				is_active: z.boolean().default(true),
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [location] = await ctx.db
+				.insert(branchLocations)
+				.values(input)
+				.returning();
+			return location;
+		}),
+
+	updateLocation: protectedProcedure
+		.input(
+			z.object({
+				id: z.number(),
+				name: z.string().min(1).optional(),
+				section: z.string().optional(),
+				aisle: z.string().optional(),
+				shelf: z.string().optional(),
+				level: z.string().optional(),
+				location_type: z.string().optional(),
+				capacity: z.number().optional(),
+				is_active: z.boolean().optional(),
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
+			const { id, ...data } = input;
+			const [location] = await ctx.db
+				.update(branchLocations)
+				.set(data)
+				.where(eq(branchLocations.id, id))
+				.returning();
+			return location;
+		}),
+
+	deleteLocation: protectedProcedure
+		.input(z.object({ id: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			await ctx.db
+				.delete(branchLocations)
+				.where(eq(branchLocations.id, input.id));
+			return { success: true };
+		}),
+
+	getStockByLocation: protectedProcedure
+		.input(z.object({ locationId: z.number() }))
+		.query(async ({ ctx, input }) => {
+			const stock = await ctx.db
+				.select({
+					id: batchStock.id,
+					batch_id: batchStock.batch_id,
+					batch_number: productBatches.batch_number,
+					product_name: products.name,
+					quantity: batchStock.quantity,
+				})
+				.from(batchStock)
+				.leftJoin(productBatches, eq(batchStock.batch_id, productBatches.id))
+				.leftJoin(products, eq(productBatches.product_id, products.id))
+				.where(eq(batchStock.location_id, input.locationId));
+			
+			return stock;
+		}),
+
+	moveStock: protectedProcedure
+		.input(
+			z.object({
+				batch_stock_id: z.number(),
+				from_location_id: z.number(),
+				to_location_id: z.number(),
+				quantity: z.number().min(1),
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
+			return await ctx.db.transaction(async (tx) => {
+				// 1. Verify source stock exists and has sufficient quantity
+				const [sourceStock] = await tx
+					.select()
+					.from(batchStock)
+					.where(eq(batchStock.id, input.batch_stock_id));
+
+				if (!sourceStock || sourceStock.quantity < input.quantity) {
+					throw new Error("Insufficient stock in source location");
+				}
+
+				// 2. Deduct from source
+				await tx
+					.update(batchStock)
+					.set({ quantity: sourceStock.quantity - input.quantity })
+					.where(eq(batchStock.id, input.batch_stock_id));
+
+				// 3. Find or create destination stock record for same batch
+				const [destStock] = await tx
+					.select()
+					.from(batchStock)
+					.where(
+						and(
+							eq(batchStock.batch_id, sourceStock.batch_id),
+							eq(batchStock.location_id, input.to_location_id)
+						)
+					);
+
+				if (destStock) {
+					await tx
+						.update(batchStock)
+						.set({ quantity: destStock.quantity + input.quantity })
+						.where(eq(batchStock.id, destStock.id));
+				} else {
+					await tx.insert(batchStock).values({
+						batch_id: sourceStock.batch_id,
+						location_id: input.to_location_id,
+						quantity: input.quantity,
+					});
+				}
+
+				// 4. Log to stock ledger
+				// Note: Since total branch inventory doesn't change, we may not need to hit branchInventory, 
+				// but we should log the internal movement.
+				// We'll use reference_type = 'internal_transfer'
+				const [batchInfo] = await tx
+					.select({ product_id: productBatches.product_id })
+					.from(productBatches)
+					.where(eq(productBatches.id, sourceStock.batch_id));
+				
+				if (batchInfo) {
+					await tx.insert(stockLedger).values({
+						branch_id: sourceStock.location_id, // approximation or hardcode to 1
+						product_id: batchInfo.product_id,
+						batch_id: sourceStock.batch_id,
+						transaction_type: "transfer", // Internal transfer out of bin
+						quantity: -input.quantity,
+						unit_cost: "0",
+						total_cost: "0",
+						reference_type: "internal_movement_out",
+						reference_id: input.from_location_id,
+					});
+					await tx.insert(stockLedger).values({
+						branch_id: sourceStock.location_id,
+						product_id: batchInfo.product_id,
+						batch_id: sourceStock.batch_id,
+						transaction_type: "transfer", // Internal transfer into bin
+						quantity: input.quantity,
+						unit_cost: "0",
+						total_cost: "0",
+						reference_type: "internal_movement_in",
+						reference_id: input.to_location_id,
+					});
+				}
+				
+				return { success: true };
+			});
+		}),
 
 	getStats: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
@@ -257,7 +433,7 @@ export const warehouseRouter = router({
 				title: `Order #${o.id} — ₹${Number(o.total_amount).toFixed(2)}`,
 				status: o.status,
 				priority:
-					new Date(o.created_at) < new Date(Date.now() - 3600000 * 2)
+					o.created_at && new Date(o.created_at) < new Date(Date.now() - 3600000 * 2)
 						? "high"
 						: "medium",
 			}));

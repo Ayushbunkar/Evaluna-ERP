@@ -287,19 +287,25 @@ export default function WarehouseDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							{data.recentActivity?.map((act: any) => (
-								<div
-									key={act.id}
-									className="relative flex flex-col border-primary/30 border-l-2 pl-3"
-								>
-									<div className="absolute top-1.5 -left-[5px] h-2 w-2 rounded-full bg-primary" />
-									<p className="font-medium text-sm">{act.action}</p>
-									<div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-										<span>{act.user}</span>
-										<span>{act.time}</span>
+							{data.recentActivity && data.recentActivity.length > 0 ? (
+								data.recentActivity.map((act: any) => (
+									<div
+										key={act.id}
+										className="relative flex flex-col border-primary/30 border-l-2 pl-3"
+									>
+										<div className="absolute top-1.5 -left-[5px] h-2 w-2 rounded-full bg-primary" />
+										<p className="font-medium text-sm">{act.action}</p>
+										<div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+											<span>{act.user}</span>
+											<span>{act.time}</span>
+										</div>
 									</div>
+								))
+							) : (
+								<div className="flex h-[120px] items-center justify-center text-muted-foreground">
+									No recent activity
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 
@@ -310,18 +316,24 @@ export default function WarehouseDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="mt-2 space-y-3">
-							{data.inventoryAlerts?.map((alert: any) => (
-								<div
-									key={alert.id}
-									className="flex items-start gap-2 text-rose-800 text-sm"
-								>
-									<ShieldAlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 opacity-70" />
-									<div>
-										<p className="font-medium leading-tight">{alert.message}</p>
-										<span className="text-[10px] opacity-70">{alert.time}</span>
+							{data.inventoryAlerts && data.inventoryAlerts.length > 0 ? (
+								data.inventoryAlerts.map((alert: any) => (
+									<div
+										key={alert.id}
+										className="flex items-start gap-2 text-rose-800 text-sm"
+									>
+										<ShieldAlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 opacity-70" />
+										<div>
+											<p className="font-medium leading-tight">{alert.message}</p>
+											<span className="text-[10px] opacity-70">{alert.time}</span>
+										</div>
 									</div>
+								))
+							) : (
+								<div className="flex h-[120px] items-center justify-center text-rose-700/60">
+									No active alerts
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 				</motion.div>
@@ -379,27 +391,33 @@ export default function WarehouseDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							{data.workerPerformance?.map((worker: any, idx: number) => (
-								<div
-									key={idx}
-									className="flex items-center justify-between rounded p-2 transition-colors hover:bg-muted/50"
-								>
-									<div>
-										<h4 className="font-medium text-sm">{worker.name}</h4>
-										<p className="text-[10px] text-muted-foreground uppercase">
-											{worker.role}
-										</p>
-									</div>
-									<div className="text-right">
-										<div className="font-bold text-sm">
-											{worker.items} items
+							{data.workerPerformance && data.workerPerformance.length > 0 ? (
+								data.workerPerformance.map((worker: any, idx: number) => (
+									<div
+										key={idx}
+										className="flex items-center justify-between rounded p-2 transition-colors hover:bg-muted/50"
+									>
+										<div>
+											<h4 className="font-medium text-sm">{worker.name}</h4>
+											<p className="text-[10px] text-muted-foreground uppercase">
+												{worker.role}
+											</p>
 										</div>
-										<div className="font-medium text-[10px] text-emerald-500">
-											{worker.accuracy}% acc
+										<div className="text-right">
+											<div className="font-bold text-sm">
+												{worker.items} items
+											</div>
+											<div className="font-medium text-[10px] text-emerald-500">
+												{worker.accuracy}% acc
+											</div>
 										</div>
 									</div>
+								))
+							) : (
+								<div className="flex h-[120px] items-center justify-center text-muted-foreground">
+									No data available
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 
@@ -411,30 +429,36 @@ export default function WarehouseDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-3">
-							{data.pendingTasks?.map((task: any) => (
-								<div
-									key={task.id}
-									className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-colors hover:border-primary/30"
-								>
+							{data.pendingTasks && data.pendingTasks.length > 0 ? (
+								data.pendingTasks.map((task: any) => (
 									<div
-										className={`mt-0.5 h-2.5 w-2.5 flex-shrink-0 rounded-full ${
-											task.priority === "high"
-												? "bg-rose-500"
-												: task.priority === "medium"
-													? "bg-amber-500"
-													: "bg-slate-400"
-										}`}
-									/>
-									<div>
-										<h4 className="font-medium text-sm leading-tight">
-											{task.title}
-										</h4>
-										<p className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
-											{task.status}
-										</p>
+										key={task.id}
+										className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-colors hover:border-primary/30"
+									>
+										<div
+											className={`mt-0.5 h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+												task.priority === "high"
+													? "bg-rose-500"
+													: task.priority === "medium"
+														? "bg-amber-500"
+														: "bg-slate-400"
+											}`}
+										/>
+										<div>
+											<h4 className="font-medium text-sm leading-tight">
+												{task.title}
+											</h4>
+											<p className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+												{task.status}
+											</p>
+										</div>
 									</div>
+								))
+							) : (
+								<div className="flex h-[120px] items-center justify-center text-muted-foreground">
+									No pending tasks
 								</div>
-							))}
+							)}
 						</CardContent>
 					</Card>
 				</motion.div>

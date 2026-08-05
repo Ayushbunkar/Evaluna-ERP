@@ -113,7 +113,7 @@ export async function seed() {
 			names.map((name) => ({
 				name,
 				description: faker.commerce.productDescription(),
-				price: faker.number.int({ min: 499, max: 29999 }),
+				price: faker.number.int({ min: 499, max: 29999 }).toString(),
 				in_stock: faker.number.int({ min: 0, max: 200 }),
 				user_uid: userId,
 				category,
@@ -143,7 +143,7 @@ export async function seed() {
 		}));
 
 		const totalAmount = items.reduce(
-			(sum, item) => sum + item.price * item.quantity,
+			(sum, item) => sum + Number(item.price) * item.quantity,
 			0,
 		);
 
@@ -153,7 +153,7 @@ export async function seed() {
 			.insert(orders)
 			.values({
 				customer_id: customer.id,
-				total_amount: totalAmount,
+				total_amount: totalAmount.toString(),
 				user_uid: userId,
 				status: faker.helpers.weightedArrayElement([
 					{ value: "completed", weight: 8 },
@@ -173,10 +173,9 @@ export async function seed() {
 
 		if (order.status === "completed") {
 			await db.insert(transactions).values({
-				description: `Payment for order #${order.id}`,
 				order_id: order.id,
 				payment_method_id: pmId,
-				amount: totalAmount,
+				amount: totalAmount.toString(),
 				user_uid: userId,
 				type: "income",
 				category: "selling",
@@ -203,11 +202,10 @@ export async function seed() {
 		};
 
 		await db.insert(transactions).values({
-			description: descriptions[category](),
 			payment_method_id: faker.helpers.arrayElement(paymentMethodIds),
-			amount: faker.number.int({ min: 2000, max: 150000 }),
+			amount: faker.number.int({ min: 2000, max: 150000 }).toString(),
 			user_uid: userId,
-			type: "expense",
+			type: "out",
 			category,
 			status: faker.helpers.weightedArrayElement([
 				{ value: "completed", weight: 9 },

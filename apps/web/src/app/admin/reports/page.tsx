@@ -72,6 +72,8 @@ export default function ReportsPage() {
 	});
 	const [branchId, setBranchId] = useState("all");
 
+	const { data: branches } = trpc.branches.list.useQuery();
+
 	const utils = trpc.useUtils();
 	const [data, setData] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(false);
@@ -378,8 +380,11 @@ export default function ReportsPage() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All Branches</SelectItem>
-								<SelectItem value="main">Main Branch</SelectItem>
-								<SelectItem value="downtown">Downtown Branch</SelectItem>
+								{branches?.map((b) => (
+									<SelectItem key={b.id} value={b.id.toString()}>
+										{b.name}
+									</SelectItem>
+								))}
 							</SelectContent>
 						</Select>
 

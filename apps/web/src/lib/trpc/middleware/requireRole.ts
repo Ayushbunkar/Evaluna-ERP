@@ -16,7 +16,7 @@ export function requireRole(requiredRole: Role) {
 			return next({ ctx }); // Superadmins bypass role checks
 		}
 
-		if (!isAtLeastRole(ctx.user.role, requiredRole)) {
+		if (!isAtLeastRole(ctx.user.role as Role, requiredRole)) {
 			throw new TRPCError({
 				code: "FORBIDDEN",
 				message: `Requires ${requiredRole} or higher. You are ${ctx.user.role}.`,

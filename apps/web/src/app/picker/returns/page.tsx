@@ -71,7 +71,7 @@ export default function ShelfReturnsPage() {
 											<td className="px-4 py-3">
 												{row.status === "Pending" && (
 													<Button
-														size="xs"
+														size="sm"
 														className="h-7 bg-green-600 text-white text-xs hover:bg-green-700"
 													>
 														Place

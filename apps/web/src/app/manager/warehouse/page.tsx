@@ -41,14 +41,12 @@ export default function WarehouseDashboard() {
 	});
 
 	const utils = trpc.useUtils();
-	const { data: locations, isLoading } = trpc.warehouse.listLocations.useQuery({
-		search,
-	});
+	const { data: locations, isLoading } = trpc.warehouse.getLocations.useQuery({} as any);
 	const createLocation = trpc.warehouse.createLocation.useMutation({
 		onSuccess: () => {
 			toast.success("Location created successfully");
 			setIsCreateOpen(false);
-			utils.warehouse.listLocations.invalidate();
+			utils.warehouse.getLocations.invalidate();
 			setNewLocation({ name: "", location_type: "storage", capacity: 0 });
 		},
 		onError: (error) => {
@@ -59,7 +57,6 @@ export default function WarehouseDashboard() {
 	const handleCreate = () => {
 		if (!newLocation.name) return toast.error("Name is required");
 		createLocation.mutate({
-			warehouse_id: 1, // Defaulting to main warehouse
 			name: newLocation.name,
 			location_type: newLocation.location_type,
 			capacity: Number(newLocation.capacity),
@@ -199,7 +196,7 @@ export default function WarehouseDashboard() {
 									</span>
 								</CardTitle>
 								<CardDescription>
-									Barcode ID: {loc.barcode || "N/A"}
+									ID: {loc.id}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="pt-4">
@@ -207,7 +204,7 @@ export default function WarehouseDashboard() {
 									<div className="flex items-center justify-between rounded-lg bg-gray-50 p-2">
 										<span className="font-medium">Capacity</span>
 										<span className="font-bold text-gray-900">
-											{loc.capacity > 0 ? loc.capacity : "Unlimited"}
+											{(loc.capacity ?? 0) > 0 ? loc.capacity : "Unlimited"}
 										</span>
 									</div>
 									<div className="flex items-center justify-between rounded-lg bg-gray-50 p-2">

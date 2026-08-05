@@ -82,7 +82,7 @@ export default function PendingQueuePage() {
 											</td>
 											<td className="px-4 py-3">
 												<Button
-													size="xs"
+													size="sm"
 													className="h-7 bg-blue-600 text-white text-xs hover:bg-blue-700"
 												>
 													Assign
