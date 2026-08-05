@@ -359,16 +359,16 @@ export default function POSPage() {
 								<p className="text-xs">Scan a barcode or click a product</p>
 							</motion.div>
 						) : (
-							<div className="space-y-3">
+							<div className="space-y-3 pr-4">
 								{cart.map((item) => (
 									<motion.div
 										key={item.id}
 										initial={{ opacity: 0, scale: 0.9, x: 20 }}
 										animate={{ opacity: 1, scale: 1, x: 0 }}
 										exit={{ opacity: 0, scale: 0.9, x: -20 }}
-										className="group flex items-center justify-between gap-2 rounded-lg border bg-card p-3 shadow-sm"
+										className="group flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border bg-card p-3 shadow-sm"
 									>
-										<div className="flex-1 overflow-hidden pr-2">
+										<div className="flex-1 min-w-0 pr-2">
 											<div className="truncate font-semibold text-sm">
 												{item.name}
 											</div>

@@ -321,11 +321,11 @@ export default function POSCatalogPage() {
 								<p className="text-sm">Click items to add them</p>
 							</div>
 						) : (
-							<div className="flex flex-col gap-3 py-4">
+							<div className="flex flex-col gap-3 py-4 pr-4">
 								{cart.map((item) => (
 									<div
 										key={item.id}
-										className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/20 p-2.5 transition-colors hover:bg-muted/40"
+										className="flex w-full min-w-0 items-center gap-3 rounded-xl border border-border/40 bg-muted/20 p-2.5 transition-colors hover:bg-muted/40"
 									>
 										<div className="min-w-0 flex-1">
 											<h4 className="truncate font-medium text-sm">
