@@ -7,6 +7,7 @@ import {
 	Search,
 	ShoppingCart,
 	Tag,
+	Ticket,
 	Trash2,
 	Wifi,
 	WifiOff,
@@ -21,6 +22,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
@@ -43,6 +46,7 @@ export default function POSPage() {
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
 
 	const [couponCode, setCouponCode] = useState("");
+	const [couponModalOpen, setCouponModalOpen] = useState(false);
 	const [appliedCoupon, setAppliedCoupon] = useState<{
 		id: number;
 		code: string;
@@ -422,46 +426,43 @@ export default function POSPage() {
 					</AnimatePresence>
 				</ScrollArea>
 
-				<div className="mt-4 shrink-0 space-y-4 border-t pt-4">
-					<div className="flex items-center justify-between text-muted-foreground">
+				<div className="mt-4 shrink-0 space-y-3 border-t pt-4">
+					{/* Subtotal row */}
+					<div className="flex items-center justify-between text-sm text-muted-foreground">
 						<span>Subtotal</span>
 						<span>₹{subtotal.toFixed(2)}</span>
 					</div>
 
-					<div className="flex items-center gap-2 py-2">
-						<Input
-							placeholder="Coupon code"
-							value={couponCode}
-							onChange={(e) => setCouponCode(e.target.value)}
-							className="h-8 text-sm"
-							disabled={!!appliedCoupon}
-						/>
-						{appliedCoupon ? (
-							<Button
-								size="sm"
-								variant="outline"
-								className="h-8"
-								onClick={removeCoupon}
-							>
-								Remove
-							</Button>
-						) : (
-							<Button
-								size="sm"
-								className="h-8"
-								onClick={handleApplyCoupon}
-								disabled={!couponCode || validateCouponMutation.isPending}
-							>
-								Apply
-							</Button>
-						)}
-					</div>
-
-					<div className="flex items-center justify-between text-muted-foreground">
-						<span>Discount</span>
-						<span className="flex items-center gap-1">
-							<Tag className="h-3 w-3" /> ₹{discount.toFixed(2)}
-						</span>
+					{/* Coupon row */}
+					<div className="flex items-center justify-between text-sm text-muted-foreground">
+						<div className="flex items-center gap-2">
+							<span>Discount</span>
+							{appliedCoupon ? (
+								<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+									<Ticket className="h-3 w-3" />
+									{appliedCoupon.code}
+									<button
+										type="button"
+										className="ml-1 text-green-500 hover:text-red-500"
+										onClick={removeCoupon}
+										title="Remove coupon"
+									>
+										×
+									</button>
+								</span>
+							) : (
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-6 gap-1 px-2 text-xs"
+									onClick={() => setCouponModalOpen(true)}
+									disabled={cart.length === 0}
+								>
+									<Ticket className="h-3 w-3" /> Add Coupon
+								</Button>
+							)}
+						</div>
+						<span className="text-green-600">− ₹{discount.toFixed(2)}</span>
 					</div>
 					<div className="flex items-center justify-between border-t pt-2 font-bold text-2xl">
 						<span>Total</span>
@@ -497,6 +498,50 @@ export default function POSPage() {
 					onConfirm={finalizeOrder}
 				/>
 			)}
+
+			{/* Coupon Modal */}
+			<Dialog open={couponModalOpen} onOpenChange={setCouponModalOpen}>
+				<DialogContent className="sm:max-w-[380px]">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Ticket className="h-5 w-5 text-primary" />
+							Apply Coupon Code
+						</DialogTitle>
+						<DialogDescription>
+							Enter your coupon code below to get a discount on your order.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="flex flex-col gap-3 py-2">
+						<Input
+							placeholder="Enter coupon code (e.g. SAVE10)"
+							value={couponCode}
+							onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+							className="text-sm"
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && couponCode) {
+									handleApplyCoupon();
+									setCouponModalOpen(false);
+								}
+							}}
+							autoFocus
+						/>
+					</div>
+					<DialogFooter className="gap-2">
+						<Button variant="outline" onClick={() => { setCouponModalOpen(false); setCouponCode(""); }}>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								handleApplyCoupon();
+								setCouponModalOpen(false);
+							}}
+							disabled={!couponCode || validateCouponMutation.isPending}
+						>
+							{validateCouponMutation.isPending ? "Applying..." : "Apply Coupon"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			<Dialog
 				open={!!lastCompletedOrder}
