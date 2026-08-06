@@ -32,6 +32,7 @@ export const salesReturnsRouter = router({
 			},
 		})
 		.input(z.void())
+		.output(z.any())
 		.query(async ({ ctx }) => {
 			const returns = await db.query.salesReturns.findMany({
 				where: eq(salesReturns.user_uid, ctx.user.id),
@@ -58,6 +59,7 @@ export const salesReturnsRouter = router({
 			},
 		})
 		.input(z.object({ id: z.number() }))
+		.output(z.any())
 		.query(async ({ ctx, input }) => {
 			const returnData = await db.query.salesReturns.findFirst({
 				where: and(
@@ -97,6 +99,7 @@ export const salesReturnsRouter = router({
 				igstAmount: z.number().default(0),
 			}),
 		)
+		.output(z.any())
 		.mutation(async ({ ctx, input }) => {
 			return db.transaction(async (tx: any) => {
 				// 1. Create the sales return record
@@ -149,6 +152,7 @@ export const salesReturnsRouter = router({
 			},
 		})
 		.input(z.object({ id: z.number() }))
+		.output(z.any())
 		.mutation(async ({ ctx, input }) => {
 			return db.transaction(async (tx: any) => {
 				// 1. Get the return data
