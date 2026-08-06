@@ -43,6 +43,35 @@ export default function POSPage() {
 	const [isOffline, setIsOffline] = useState(false);
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
+	const [resumeId, setResumeId] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			const params = new URLSearchParams(window.location.search);
+			setResumeId(params.get("resume"));
+		}
+	}, []);
+
+	const { data: resumeOrder } = trpc.orders.get.useQuery(
+		{ id: Number(resumeId) },
+		{ enabled: !!resumeId }
+	);
+
+	useEffect(() => {
+		if (resumeOrder && resumeOrder.orderItems && cart.length === 0) {
+			const restoredCart = resumeOrder.orderItems.map((item: any) => ({
+				id: item.product?.id || item.product_id,
+				name: item.product?.name || `Item #${item.product_id}`,
+				price: item.price,
+				qty: item.quantity,
+			}));
+			setCart(restoredCart);
+			// Clean up URL so refresh doesn't keep reloading it
+			if (typeof window !== "undefined") {
+				window.history.replaceState({}, '', window.location.pathname);
+			}
+		}
+	}, [resumeOrder]);
 
 	const [couponCode, setCouponCode] = useState("");
 	const [couponModalOpen, setCouponModalOpen] = useState(false);
@@ -57,6 +86,8 @@ export default function POSPage() {
 	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
 		staleTime: 1000 * 60 * 60, // heavily cache for offline use
 	});
+
+	const deleteHoldBillMutation = trpc.orders.delete.useMutation();
 
 	const checkoutMutation = trpc.pos.checkout.useMutation({
 		onSuccess: (data) => {
@@ -73,6 +104,11 @@ export default function POSPage() {
 			});
 			setCart([]);
 			setAppliedCoupon(null);
+
+			if (resumeId) {
+				deleteHoldBillMutation.mutate({ id: Number(resumeId) });
+				setResumeId(null);
+			}
 		},
 		onError: (err) => {
 			toast.error(`Checkout failed: ${err.message}`);
