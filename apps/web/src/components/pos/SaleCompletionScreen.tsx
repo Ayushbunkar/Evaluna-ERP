@@ -422,17 +422,27 @@ export function SaleCompletionScreen({ order, storeInfo, onNewSale }: SaleComple
 							#printable-receipt, #printable-receipt * {
 								visibility: visible;
 							}
+							
+							/* Reset parent containers to prevent cropping */
+							body, html, .fixed, .overflow-hidden, [data-radix-scroll-area-viewport] {
+								position: static !important;
+								overflow: visible !important;
+								max-height: none !important;
+								height: auto !important;
+								transform: none !important;
+							}
+
 							#printable-receipt {
 								position: absolute;
-								left: 0;
+								left: 50%;
+								transform: translateX(-50%) !important;
 								top: 0;
 								width: 80mm;
-								margin: 0 auto;
-								padding: 0 !important;
+								margin: 0;
+								padding: 10px !important;
 							}
 							@page {
 								margin: 0;
-								size: 80mm auto;
 							}
 						}
 					`,
