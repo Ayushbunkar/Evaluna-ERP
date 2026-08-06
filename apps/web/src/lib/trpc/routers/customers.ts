@@ -101,12 +101,19 @@ export const customersRouter = router({
 		)
 		.output(customerSchema)
 		.mutation(async ({ ctx, input }) => {
-			const code = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
-			const [data] = await db
-				.insert(customers)
-				.values({ ...input, customer_code: code, user_uid: ctx.user.id, branch_id: ctx.user.branchId ?? null })
-				.returning();
-			return data;
+			try {
+				const code = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
+				const [data] = await db
+					.insert(customers)
+					.values({ ...input, customer_code: code, user_uid: ctx.user.id, branch_id: ctx.user.branchId ?? null })
+					.returning();
+				return data;
+			} catch (error: any) {
+				if (error?.code === "23505" && error?.constraint === "customers_email_unique") {
+					throw new Error("A customer with this email already exists.");
+				}
+				throw new Error(error?.message || "Failed to create customer");
+			}
 		}),
 
 	update: roleProcedure(["admin", "manager", "auditor", "sales_person"])
@@ -133,13 +140,20 @@ export const customersRouter = router({
 		)
 		.output(customerSchema)
 		.mutation(async ({ ctx, input }) => {
-			const { id, ...data } = input;
-			const [updated] = await db
-				.update(customers)
-				.set({ ...data, user_uid: ctx.user.id })
-				.where(and(eq(customers.id, id), ctx.user.branchId ? eq(customers.branch_id, ctx.user.branchId) : undefined))
-				.returning();
-			return updated;
+			try {
+				const { id, ...data } = input;
+				const [updated] = await db
+					.update(customers)
+					.set({ ...data, user_uid: ctx.user.id })
+					.where(and(eq(customers.id, id), ctx.user.branchId ? eq(customers.branch_id, ctx.user.branchId) : undefined))
+					.returning();
+				return updated;
+			} catch (error: any) {
+				if (error?.code === "23505" && error?.constraint === "customers_email_unique") {
+					throw new Error("A customer with this email already exists.");
+				}
+				throw new Error(error?.message || "Failed to update customer");
+			}
 		}),
 
 	adjustLedger: roleProcedure(["admin", "manager", "auditor", "sales_person"])
