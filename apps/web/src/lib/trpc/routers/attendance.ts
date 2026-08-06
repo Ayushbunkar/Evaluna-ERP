@@ -13,16 +13,17 @@ export const attendanceRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const branchId = input.branch_id ?? ctx.user.branchId;
-			// Get all attendance for today by default, or specified date
-			const queryDate = input.date ?? new Date().toISOString().split("T")[0];
+			const conditions = [];
 
-			const conditions = [eq(staffAttendance.date, queryDate)];
+			if (input.date) {
+				conditions.push(eq(staffAttendance.date, input.date));
+			}
 			if (branchId) {
 				conditions.push(eq(staffAttendance.branch_id, branchId));
 			}
 
 			return ctx.db.query.staffAttendance.findMany({
-				where: and(...conditions),
+				where: conditions.length > 0 ? and(...conditions) : undefined,
 				with: {
 					staff: true,
 				},

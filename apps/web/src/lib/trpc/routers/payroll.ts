@@ -13,15 +13,17 @@ export const payrollRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const branchId = input.branch_id ?? ctx.user.branchId;
-			const currentMonth = input.month ?? new Date().toISOString().slice(0, 7); // YYYY-MM
+			const conditions = [];
 
-			const conditions = [eq(payroll.month, currentMonth)];
+			if (input.month) {
+				conditions.push(eq(payroll.month, input.month));
+			}
 			if (branchId) {
 				conditions.push(eq(payroll.branch_id, branchId));
 			}
 
 			return ctx.db.query.payroll.findMany({
-				where: and(...conditions),
+				where: conditions.length > 0 ? and(...conditions) : undefined,
 				with: {
 					staff: true,
 					paymentMethod: true,
