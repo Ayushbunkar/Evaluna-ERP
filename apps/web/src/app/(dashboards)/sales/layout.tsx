@@ -9,6 +9,7 @@ import {
 	UsersIcon,
 	TargetIcon,
 	SettingsIcon,
+	PauseCircleIcon,
 } from "lucide-react";
 import {
 	AppLayoutWithBranch,
@@ -22,6 +23,7 @@ const salesNavItems: NavItem[] = [
 	{ href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
 	{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },
 	{ href: "/sales/cashbook", labelKey: "cashbook", icon: IndianRupeeIcon },
+	{ href: "/sales/hold-bills", labelKey: "holdBills", icon: PauseCircleIcon },
 	// Newly Added Missing Pages
 	{ href: "/sales/targets", labelKey: "targets", icon: TargetIcon },
 	{ href: "/sales/settings", labelKey: "settings", icon: SettingsIcon },

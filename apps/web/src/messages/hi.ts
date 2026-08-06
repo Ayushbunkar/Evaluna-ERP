@@ -85,6 +85,7 @@ const messages: Messages = {
 		branches: "शाखाएं",
 		transfers: "स्थानांतरण (Transfers)",
 		staff: "स्टाफ",
+		holdBills: "होल्ड बिल (Hold Bills)",
 		targets: "बिक्री लक्ष्य",
 		attendance: "उपस्थिति",
 		payroll: "पेरोल",
