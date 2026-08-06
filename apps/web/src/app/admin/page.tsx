@@ -71,7 +71,7 @@ export default async function CompanyAdminDashboard() {
 	const branchCookie = cookieStore.get("evaluna.branch_context")?.value;
 	const activeBranchId = branchCookie ? Number(branchCookie) : undefined;
 	
-	const data = await caller.dashboard.getAdminOverview(
+	const data = await caller.dashboard.getKpis(
 		activeBranchId ? { branch_id: activeBranchId } : {}
 	);
 

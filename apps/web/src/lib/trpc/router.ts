@@ -39,6 +39,7 @@ import { purchaseReturnsRouter } from "./routers/purchase-returns";
 import { purchasesRouter } from "./routers/purchases";
 import { putterRouter } from "./routers/putter";
 import { reportsRouter } from "./routers/reports";
+import { salesReturnsRouter } from "./routers/sales-returns";
 import { schemesRouter } from "./routers/schemes";
 import { settingsRouter } from "./routers/settings";
 import { staffRouter } from "./routers/staff";
@@ -64,6 +65,7 @@ export const appRouter = router({
 	pos: posRouter,
 	cashbook: cashbookRouter,
 	reports: reportsRouter,
+	salesReturns: salesReturnsRouter,
 	branches: branchesRouter,
 	transfers: transfersRouter,
 	settings: settingsRouter,

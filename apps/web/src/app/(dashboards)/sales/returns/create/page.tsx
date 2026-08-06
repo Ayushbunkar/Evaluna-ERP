@@ -17,6 +17,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@evaluna/ui/components/select";
+import { Checkbox } from "@evaluna/ui/components/checkbox";
 import {
 	ArrowLeftIcon,
 	CheckCircle2Icon,
@@ -30,38 +31,92 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AnimatedCard, motion, PageTransition } from "@/lib/animations";
 import { formatCurrency } from "@/lib/utils";
+import { trpc } from "@/lib/trpc/client";
 
 export default function CreateSalesReturn() {
-	const [orderId, setOrderId] = useState("");
-	const [isSearching, setIsSearching] = useState(false);
-	const [orderFound, setOrderFound] = useState(false);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [searchInput, setSearchInput] = useState("");
+	const [searchId, setSearchId] = useState<number | null>(null);
+	const [selectedItems, setSelectedItems] = useState<Record<number, number>>({}); // itemId -> return qty
+	const [reason, setReason] = useState("defective");
+	const [notes, setNotes] = useState("");
 
 	const router = useRouter();
 	const locale = useLocale();
 
+	const { data: order, isFetching } = trpc.orders.get.useQuery(
+		{ id: searchId! },
+		{ enabled: !!searchId },
+	);
+
+	const createMutation = trpc.salesReturns.create.useMutation({
+		onSuccess: () => {
+			toast.success("Sales return logged successfully!");
+			router.push("/sales/returns/list");
+		},
+		onError: (err) => {
+			toast.error(`Failed to create return: ${err.message}`);
+		},
+	});
+
 	const handleSearch = () => {
-		if (!orderId) return;
-		setIsSearching(true);
-		setTimeout(() => {
-			setIsSearching(false);
-			if (orderId.includes("ORD")) {
-				setOrderFound(true);
-				toast.success("Order retrieved successfully");
+		const parsed = parseInt(searchInput.replace(/\D/g, ""), 10);
+		if (!parsed || isNaN(parsed)) {
+			toast.error("Please enter a valid numeric Order ID.");
+			return;
+		}
+		setSearchId(parsed);
+	};
+
+	const toggleItemSelection = (itemId: number, maxQty: number, checked: boolean) => {
+		setSelectedItems((prev) => {
+			const next = { ...prev };
+			if (checked) {
+				next[itemId] = 1; // Default to 1 on select
 			} else {
-				toast.error("Order not found. Check the ID and try again.");
+				delete next[itemId];
 			}
-		}, 1000);
+			return next;
+		});
+	};
+
+	const updateItemQty = (itemId: number, maxQty: number, qty: number) => {
+		if (qty < 1) qty = 1;
+		if (qty > maxQty) qty = maxQty;
+		setSelectedItems((prev) => ({ ...prev, [itemId]: qty }));
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		setIsSubmitting(true);
-		setTimeout(() => {
-			setIsSubmitting(false);
-			toast.success("Sales return logged successfully!");
-			router.push("/sales/returns/list");
-		}, 1500);
+		if (!order) return;
+
+		const itemsToReturn = Object.entries(selectedItems).map(([idStr, qty]) => {
+			const itemId = parseInt(idStr, 10);
+			const orderItem = order.orderItems.find((i: any) => i.id === itemId);
+			if (!orderItem) throw new Error("Invalid item");
+			return {
+				productId: orderItem.product_id!,
+				quantity: qty,
+				price: Number(orderItem.price),
+				refundAmount: Number(orderItem.price) * qty,
+			};
+		});
+
+		if (itemsToReturn.length === 0) {
+			toast.error("Please select at least one item to return.");
+			return;
+		}
+
+		const totalRefund = itemsToReturn.reduce((acc, curr) => acc + curr.refundAmount, 0);
+
+		createMutation.mutate({
+			orderId: order.id,
+			customerId: order.customer_id!,
+			items: itemsToReturn,
+			totalAmount: totalRefund,
+			cgstAmount: 0,
+			sgstAmount: 0,
+			igstAmount: 0,
+		});
 	};
 
 	return (
@@ -97,25 +152,30 @@ export default function CreateSalesReturn() {
 									<div className="relative flex-1">
 										<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 										<Input
-											placeholder="e.g. ORD-9201"
+											placeholder="e.g. 1234"
 											className="pl-9"
-											value={orderId}
-											onChange={(e) => setOrderId(e.target.value)}
+											value={searchInput}
+											onChange={(e) => setSearchInput(e.target.value)}
 											onKeyDown={(e) => e.key === "Enter" && handleSearch()}
 										/>
 									</div>
 									<Button
 										onClick={handleSearch}
-										disabled={isSearching || !orderId}
+										disabled={isFetching || !searchInput}
 									>
-										{isSearching ? "Searching..." : "Find"}
+										{isFetching ? "Searching..." : "Find"}
 									</Button>
 								</div>
+								{searchId && !isFetching && !order && (
+									<p className="mt-4 text-sm text-red-500">
+										Order not found or you don't have access to it.
+									</p>
+								)}
 							</CardContent>
 						</Card>
 					</AnimatedCard>
 
-					{orderFound && (
+					{order && (
 						<motion.div
 							initial={{ opacity: 0, y: 20 }}
 							animate={{ opacity: 1, y: 0 }}
@@ -135,15 +195,21 @@ export default function CreateSalesReturn() {
 													<ReceiptIcon className="h-5 w-5 text-primary" />
 												</div>
 												<div>
-													<p className="font-semibold">{orderId}</p>
+													<p className="font-semibold">Order #{order.id}</p>
 													<p className="text-muted-foreground text-xs">
-														Purchased on 2026-07-20
+														Purchased on{" "}
+														{order.created_at
+															? new Date(order.created_at).toLocaleDateString()
+															: "-"}
+													</p>
+													<p className="text-muted-foreground text-xs font-medium">
+														Customer: {order.customer?.name || "Unknown"}
 													</p>
 												</div>
 											</div>
 											<div className="text-right">
 												<p className="font-bold">
-													{formatCurrency(1250, locale)}
+													{formatCurrency(Number(order.total_amount), locale)}
 												</p>
 												<p className="text-muted-foreground text-xs">
 													Original Total
@@ -152,9 +218,61 @@ export default function CreateSalesReturn() {
 										</div>
 
 										<div className="space-y-4">
+											<Label>Select Items to Return</Label>
+											<div className="rounded-md border">
+												{order.orderItems.map((item: any) => {
+													const isSelected = !!selectedItems[item.id];
+													return (
+														<div
+															key={item.id}
+															className="flex items-center justify-between border-b p-3 last:border-0"
+														>
+															<div className="flex items-center gap-3">
+																<Checkbox
+																	checked={isSelected}
+																	onCheckedChange={(c) =>
+																		toggleItemSelection(item.id, item.quantity, !!c)
+																	}
+																/>
+																<div>
+																	<p className="text-sm font-medium">
+																		{item.product?.name || "Unknown Product"}
+																	</p>
+																	<p className="text-xs text-muted-foreground">
+																		Purchased: {item.quantity} x{" "}
+																		{formatCurrency(Number(item.price), locale)}
+																	</p>
+																</div>
+															</div>
+															{isSelected && (
+																<div className="flex items-center gap-2">
+																	<Label className="text-xs">Return Qty:</Label>
+																	<Input
+																		type="number"
+																		min={1}
+																		max={item.quantity}
+																		value={selectedItems[item.id]}
+																		onChange={(e) =>
+																			updateItemQty(
+																				item.id,
+																				item.quantity,
+																				parseInt(e.target.value) || 1
+																			)
+																		}
+																		className="h-8 w-20"
+																	/>
+																</div>
+															)}
+														</div>
+													);
+												})}
+											</div>
+										</div>
+
+										<div className="space-y-4 pt-2">
 											<div className="space-y-2">
 												<Label>Reason for Return</Label>
-												<Select defaultValue="defective">
+												<Select value={reason} onValueChange={setReason}>
 													<SelectTrigger>
 														<SelectValue placeholder="Select reason" />
 													</SelectTrigger>
@@ -176,6 +294,8 @@ export default function CreateSalesReturn() {
 											<div className="space-y-2">
 												<Label>Additional Notes (Optional)</Label>
 												<textarea
+													value={notes}
+													onChange={(e) => setNotes(e.target.value)}
 													placeholder="Condition of the item, specific defects, etc."
 													className="flex min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 													rows={3}
@@ -187,16 +307,16 @@ export default function CreateSalesReturn() {
 											<Button
 												type="button"
 												variant="outline"
-												onClick={() => setOrderFound(false)}
+												onClick={() => setSearchId(null)}
 											>
 												Cancel
 											</Button>
 											<Button
 												type="submit"
-												disabled={isSubmitting}
+												disabled={createMutation.isPending}
 												className="bg-primary text-primary-foreground hover:bg-primary/90"
 											>
-												{isSubmitting ? "Processing..." : "Process Return"}
+												{createMutation.isPending ? "Processing..." : "Create Return"}
 											</Button>
 										</div>
 									</CardContent>
@@ -238,4 +358,3 @@ export default function CreateSalesReturn() {
 		</PageTransition>
 	);
 }
-

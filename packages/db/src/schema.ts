@@ -1469,6 +1469,68 @@ export const customerLedgerRelations = relations(customerLedger, ({ one }) => ({
 	}),
 }));
 
+// ── Sales Returns ────────────────────────────────────────────────────────────
+export const salesReturns = pgTable("sales_returns", {
+	branch_id: integer("branch_id").references(() => branches.id),
+	id: serial("id").primaryKey(),
+	order_id: integer("order_id")
+		.references(() => orders.id)
+		.notNull(),
+	customer_id: integer("customer_id")
+		.references(() => customers.id)
+		.notNull(),
+	total_amount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+	cgst_amount: decimal("cgst_amount", { precision: 10, scale: 2 }).default("0"),
+	sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
+	igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
+	status: varchar("status", { length: 20 }).default("pending"), // pending, processed, cancelled
+	user_uid: varchar("user_uid", { length: 255 }).notNull(),
+	created_at: timestamp("created_at").defaultNow(),
+});
+
+export const salesReturnItems = pgTable("sales_return_items", {
+	id: serial("id").primaryKey(),
+	return_id: integer("return_id")
+		.references(() => salesReturns.id)
+		.notNull(),
+	product_id: integer("product_id")
+		.references(() => products.id)
+		.notNull(),
+	quantity: integer("quantity").notNull(),
+	price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+	refund_amount: decimal("refund_amount", { precision: 10, scale: 2 }).notNull(),
+	created_at: timestamp("created_at").defaultNow(),
+});
+
+export const salesReturnsRelations = relations(
+	salesReturns,
+	({ one, many }) => ({
+		order: one(orders, {
+			fields: [salesReturns.order_id],
+			references: [orders.id],
+		}),
+		customer: one(customers, {
+			fields: [salesReturns.customer_id],
+			references: [customers.id],
+		}),
+		returnItems: many(salesReturnItems),
+	}),
+);
+
+export const salesReturnItemsRelations = relations(
+	salesReturnItems,
+	({ one }) => ({
+		salesReturn: one(salesReturns, {
+			fields: [salesReturnItems.return_id],
+			references: [salesReturns.id],
+		}),
+		product: one(products, {
+			fields: [salesReturnItems.product_id],
+			references: [products.id],
+		}),
+	}),
+);
+
 // ── Purchase Returns (Phase 14) ──────────────────────────────────────────────────
 export const purchaseReturns = pgTable("purchase_returns", {
 	branch_id: integer("branch_id").references(() => branches.id),

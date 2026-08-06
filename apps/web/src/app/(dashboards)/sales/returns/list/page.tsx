@@ -21,59 +21,32 @@ import {
 } from "@/lib/animations";
 import { formatCurrency } from "@/lib/utils";
 
-// Mock data for Sales Returns since TRPC router doesn't exist yet
-type SalesReturn = {
-	id: string;
-	orderId: string;
-	customerName: string;
-	amount: number;
-	date: string;
-	status: "pending" | "approved" | "rejected" | "refunded";
-	items: number;
-};
+import { trpc } from "@/lib/trpc/client";
 
-const mockReturns: SalesReturn[] = [
-	{
-		id: "RET-001",
-		orderId: "ORD-9201",
-		customerName: "Rahul Sharma",
-		amount: 1250,
-		date: "2026-07-20T10:30:00Z",
-		status: "refunded",
-		items: 2,
-	},
-	{
-		id: "RET-002",
-		orderId: "ORD-9195",
-		customerName: "Priya Singh",
-		amount: 450,
-		date: "2026-07-21T14:15:00Z",
-		status: "pending",
-		items: 1,
-	},
-	{
-		id: "RET-003",
-		orderId: "ORD-9188",
-		customerName: "Amit Kumar",
-		amount: 890,
-		date: "2026-07-22T09:45:00Z",
-		status: "approved",
-		items: 3,
-	},
-];
+type SalesReturn = {
+	id: number;
+	order_id: number;
+	customer: { name: string | null } | null;
+	order: { id: number, total_amount: string } | null;
+	total_amount: string;
+	created_at: Date | null;
+	status: string | null;
+};
 
 export default function SalesReturnsList() {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const locale = useLocale();
 
-	const filteredReturns = mockReturns.filter((r) => {
+	const { data: salesReturns, isLoading } = trpc.salesReturns.list.useQuery();
+
+	const filteredReturns = (salesReturns ?? []).filter((r) => {
 		if (statusFilter !== "all" && r.status !== statusFilter) return false;
 		const q = searchTerm.toLowerCase();
 		return (
-			r.id.toLowerCase().includes(q) ||
-			r.orderId.toLowerCase().includes(q) ||
-			r.customerName.toLowerCase().includes(q)
+			r.id.toString().includes(q) ||
+			r.order_id.toString().includes(q) ||
+			(r.customer?.name?.toLowerCase() || "").includes(q)
 		);
 	});
 
@@ -84,25 +57,24 @@ export default function SalesReturnsList() {
 			sortable: true,
 			className: "font-medium",
 		},
-		{ key: "orderId", header: "Original Order", sortable: true },
-		{ key: "customerName", header: "Customer", sortable: true },
+		{ key: "order_id", header: "Original Order", sortable: true, render: (row) => `#${row.order_id}` },
+		{ key: "customer", header: "Customer", sortable: true, render: (row) => row.customer?.name || "N/A" },
 		{
 			key: "amount",
 			header: "Refund Amount",
 			sortable: true,
-			render: (row) => formatCurrency(row.amount, locale),
+			render: (row) => formatCurrency(Number(row.total_amount), locale),
 		},
-		{ key: "items", header: "Items", hideOnMobile: true },
+		{ key: "items", header: "Items", hideOnMobile: true, render: () => "-" },
 		{
 			key: "status",
 			header: "Status",
 			sortable: true,
 			render: (row) => (
 				<span
-					className={`rounded-full px-2.5 py-1 font-medium text-xs capitalize ${row.status === "refunded" ? "bg-emerald-100 text-emerald-700" : ""}
+					className={`rounded-full px-2.5 py-1 font-medium text-xs capitalize ${row.status === "refunded" || row.status === "processed" ? "bg-emerald-100 text-emerald-700" : ""}
           ${row.status === "pending" ? "bg-amber-100 text-amber-700" : ""}
-          ${row.status === "approved" ? "bg-blue-100 text-blue-700" : ""}
-          ${row.status === "rejected" ? "bg-red-100 text-red-700" : ""}
+          ${row.status === "cancelled" ? "bg-red-100 text-red-700" : ""}
         `}
 				>
 					{row.status}
@@ -110,11 +82,11 @@ export default function SalesReturnsList() {
 			),
 		},
 		{
-			key: "date",
+			key: "created_at",
 			header: "Date",
 			sortable: true,
 			hideOnMobile: true,
-			render: (row) => new Date(row.date).toLocaleDateString(),
+			render: (row) => row.created_at ? new Date(row.created_at).toLocaleDateString() : "-",
 		},
 		{
 			key: "actions",
@@ -210,8 +182,9 @@ export default function SalesReturnsList() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={filteredReturns}
-						columns={columns}
+						data={filteredReturns as any}
+						columns={columns as any}
+						isLoading={isLoading}
 						emptyMessage="No sales returns found matching your filters."
 						emptyIcon={<RefreshCcwIcon className="h-8 w-8" />}
 					/>
