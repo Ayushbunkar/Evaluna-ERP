@@ -422,11 +422,11 @@ export default function POSPage() {
 										exit={{ opacity: 0, scale: 0.9, x: -20 }}
 										className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm"
 									>
-										<div className="flex w-full items-center justify-between">
-											<div className="truncate font-semibold text-sm">
+										<div className="flex w-full items-center justify-between gap-2">
+											<div className="flex-1 min-w-0 truncate font-semibold text-sm">
 												{item.name}
 											</div>
-											<div className="text-muted-foreground text-xs">
+											<div className="shrink-0 text-muted-foreground text-xs whitespace-nowrap">
 												₹{Number.parseFloat(item.price).toFixed(2)} / unit
 											</div>
 										</div>
