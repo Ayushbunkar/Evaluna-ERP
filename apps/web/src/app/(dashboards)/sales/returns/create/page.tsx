@@ -17,7 +17,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@evaluna/ui/components/select";
-import { Checkbox } from "@evaluna/ui/components/checkbox";
 import {
 	ArrowLeftIcon,
 	CheckCircle2Icon,
@@ -228,10 +227,12 @@ export default function CreateSalesReturn() {
 															className="flex items-center justify-between border-b p-3 last:border-0"
 														>
 															<div className="flex items-center gap-3">
-																<Checkbox
+																<input
+																	type="checkbox"
+																	className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
 																	checked={isSelected}
-																	onCheckedChange={(c) =>
-																		toggleItemSelection(item.id, item.quantity, !!c)
+																	onChange={(e) =>
+																		toggleItemSelection(item.id, item.quantity, e.target.checked)
 																	}
 																/>
 																<div>
