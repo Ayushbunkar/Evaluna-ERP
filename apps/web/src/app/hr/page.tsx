@@ -186,7 +186,7 @@ export default function HrDashboard() {
 								}).format(Number(value));
 							}
 							if (key === "attritionRate") {
-								displayValue = \`\${value}%\`;
+								displayValue = `${value}%`;
 								trendIsPositive = false;
 								trendValue = "1.2%";
 							}
@@ -241,7 +241,7 @@ export default function HrDashboard() {
 										fontSize={12}
 										tickLine={false}
 										axisLine={false}
-										tickFormatter={(value) => \`\${value}\`}
+										tickFormatter={(value) => `${value}`}
 									/>
 									<RechartsTooltip
 										contentStyle={{
@@ -283,7 +283,7 @@ export default function HrDashboard() {
 											stroke="none"
 										>
 											{departmentData.map((entry, index) => (
-												<Cell key={\`cell-\${index}\`} fill={COLORS[index % COLORS.length]} />
+												<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
 											))}
 										</Pie>
 										<RechartsTooltip
@@ -355,11 +355,11 @@ export default function HrDashboard() {
 											<td className="py-4 text-muted-foreground">{emp.join_date}</td>
 											<td className="py-4 text-right">
 												<span
-													className={\`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium \${
+													className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
 														emp.status === "Active"
 															? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400"
 															: "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400"
-													}\`}
+													}`}
 												>
 													{emp.status}
 												</span>
