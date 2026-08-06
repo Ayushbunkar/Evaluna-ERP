@@ -143,7 +143,7 @@ export default function OrderDetailPage({
 					<dl className="grid gap-3 text-sm sm:grid-cols-2">
 						<div>
 							<dt className="text-muted-foreground">{t("customer")}</dt>
-							<dd className="font-medium">{order.customer?.name ?? "—"}</dd>
+							<dd className="font-medium">{order.customer?.name || "Walk-in Customer"}</dd>
 						</div>
 						<div>
 							<dt className="text-muted-foreground">{tc("total")}</dt>

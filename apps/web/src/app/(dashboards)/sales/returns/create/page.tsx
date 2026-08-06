@@ -202,7 +202,7 @@ export default function CreateSalesReturn() {
 															: "-"}
 													</p>
 													<p className="text-muted-foreground text-xs font-medium">
-														Customer: {order.customer?.name || "Unknown"}
+														Customer: {order.customer?.name || "Walk-in Customer"}
 													</p>
 												</div>
 											</div>
