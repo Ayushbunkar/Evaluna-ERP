@@ -5,15 +5,24 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
 
 export default function LeaveManagementPage() {
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data: leaveList, isLoading } = trpc.hr.getLeaveRequests.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
-		{ key: "date", header: "Date" },
+		{ key: "emp_name", header: "Employee", sortable: true },
+		{ key: "leave_type", header: "Type" },
+		{ key: "start_date", header: "Start Date" },
+		{ key: "end_date", header: "End Date" },
 		{ key: "status", header: "Status" },
 	];
+
+	const filteredData = leaveList?.filter(
+		(record: any) =>
+			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase())
+	) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -34,9 +43,9 @@ export default function LeaveManagementPage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={filteredData}
 						columns={columns}
-						emptyMessage="No records found in this module yet."
+						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
 					/>
 				</CardContent>
 			</Card>

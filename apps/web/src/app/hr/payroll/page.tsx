@@ -5,15 +5,31 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
 
 export default function PayrollProcessingPage() {
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data: payrollList, isLoading } = trpc.payroll.list.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
-		{ key: "date", header: "Date" },
+		{ key: "staff.name", header: "Employee", sortable: true },
+		{ key: "month", header: "Month", sortable: true },
+		{ key: "base_salary", header: "Base Salary" },
+		{ key: "net_payable", header: "Net Payable" },
 		{ key: "status", header: "Status" },
 	];
+
+	// Filter data based on search term
+	const filteredData = payrollList?.map(record => ({
+		...record,
+		"staff.name": record.staff?.name || "Unknown",
+		base_salary: `$${record.base_salary}`,
+		net_payable: `$${record.net_payable}`
+	})).filter(
+		(record) =>
+			record["staff.name"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			record.month?.toLowerCase().includes(searchTerm.toLowerCase())
+	) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -36,9 +52,9 @@ export default function PayrollProcessingPage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={filteredData}
 						columns={columns}
-						emptyMessage="No records found in this module yet."
+						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
 					/>
 				</CardContent>
 			</Card>

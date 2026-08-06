@@ -5,15 +5,24 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
 
-export default function PerformanceMetricsPage() {
+export default function PerformanceReviewsPage() {
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data: perfList, isLoading } = trpc.hr.getPerformance.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
-		{ key: "date", header: "Date" },
+		{ key: "emp_name", header: "Employee", sortable: true },
+		{ key: "review_date", header: "Review Date" },
+		{ key: "rating", header: "Rating" },
+		{ key: "reviewer", header: "Reviewer" },
 		{ key: "status", header: "Status" },
 	];
+
+	const filteredData = perfList?.filter(
+		(record: any) =>
+			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase())
+	) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -36,9 +45,9 @@ export default function PerformanceMetricsPage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={filteredData}
 						columns={columns}
-						emptyMessage="No records found in this module yet."
+						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
 					/>
 				</CardContent>
 			</Card>

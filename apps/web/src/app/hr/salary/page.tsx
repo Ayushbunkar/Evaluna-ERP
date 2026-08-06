@@ -5,15 +5,34 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
 
 export default function SalaryStructurePage() {
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data: salaryList, isLoading } = trpc.hr.getSalaryStructure.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
-		{ key: "date", header: "Date" },
-		{ key: "status", header: "Status" },
+		{ key: "emp_name", header: "Employee", sortable: true },
+		{ key: "department", header: "Department" },
+		{ key: "basic", header: "Basic" },
+		{ key: "hra", header: "HRA" },
+		{ key: "allowances", header: "Allowances" },
+		{ key: "deductions", header: "Deductions" },
+		{ key: "net_salary", header: "Net Salary" },
 	];
+
+	const filteredData = salaryList?.filter(
+		(record: any) =>
+			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			record.department?.toLowerCase().includes(searchTerm.toLowerCase())
+	).map(r => ({
+		...r,
+		basic: `$${r.basic}`,
+		hra: `$${r.hra}`,
+		allowances: `$${r.allowances}`,
+		deductions: `$${r.deductions}`,
+		net_salary: `$${r.net_salary}`,
+	})) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -34,9 +53,9 @@ export default function SalaryStructurePage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={filteredData}
 						columns={columns}
-						emptyMessage="No records found in this module yet."
+						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
 					/>
 				</CardContent>
 			</Card>

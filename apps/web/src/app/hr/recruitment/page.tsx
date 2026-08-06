@@ -5,15 +5,24 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
 
-export default function RecruitmentTrackerPage() {
+export default function RecruitmentPortalPage() {
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data: recruitList, isLoading } = trpc.hr.getRecruitment.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
-		{ key: "date", header: "Date" },
+		{ key: "job_title", header: "Job Title", sortable: true },
+		{ key: "department", header: "Department" },
+		{ key: "openings", header: "Openings" },
+		{ key: "applicants", header: "Applicants" },
 		{ key: "status", header: "Status" },
 	];
+
+	const filteredData = recruitList?.filter(
+		(record: any) =>
+			record.job_title?.toLowerCase().includes(searchTerm.toLowerCase())
+	) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -36,9 +45,9 @@ export default function RecruitmentTrackerPage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={filteredData}
 						columns={columns}
-						emptyMessage="No records found in this module yet."
+						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
 					/>
 				</CardContent>
 			</Card>
