@@ -89,7 +89,7 @@ export default function CustomerProfilePage() {
 				<Button
 					variant="outline"
 					size="icon"
-					onClick={() => router.push("/admin/customers")}
+					onClick={() => router.push("/sales/customers")}
 				>
 					<ArrowLeft className="h-4 w-4" />
 				</Button>

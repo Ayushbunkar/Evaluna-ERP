@@ -60,6 +60,7 @@ export default function CustomersPage() {
 		isLoading,
 		error,
 	} = trpc.customers.list.useQuery();
+	const utils = trpc.useUtils();
 	const t = useTranslations("customers");
 	const tc = useTranslations("common");
 
@@ -172,7 +173,7 @@ export default function CustomersPage() {
 
 	const createMutation = trpc.customers.create.useMutation({
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+			utils.customers.list.invalidate();
 			toast.success(t("created"));
 			setIsDialogOpen(false);
 		},
@@ -183,7 +184,7 @@ export default function CustomersPage() {
 
 	const updateMutation = trpc.customers.update.useMutation({
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+			utils.customers.list.invalidate();
 			toast.success(t("updated"));
 			setIsDialogOpen(false);
 		},
@@ -194,7 +195,7 @@ export default function CustomersPage() {
 
 	const deleteMutation = trpc.customers.delete.useMutation({
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+			utils.customers.list.invalidate();
 			toast.success(t("deleted"));
 		},
 		onError: () => {
@@ -275,7 +276,7 @@ export default function CustomersPage() {
 		render: (row) => (
 			<TableActions>
 				<TableActionButton
-					onClick={() => router.push(`/admin/customers/${row.id}`)}
+					onClick={() => router.push(`/sales/customers/${row.id}`)}
 					icon={<EyeIcon className="h-4 w-4" />}
 					label={tc("view")}
 				/>

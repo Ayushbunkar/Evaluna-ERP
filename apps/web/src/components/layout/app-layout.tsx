@@ -160,19 +160,20 @@ function BranchSwitcher({ isSuperadmin }: { isSuperadmin: boolean }) {
 	);
 }
 
-function NotificationBell() {
+function NotificationBell({ role }: { role?: string }) {
 	const { data: notifications } = trpc.notifications.list.useQuery(
 		{ is_read: false },
 		{ refetchInterval: 30000, refetchOnWindowFocus: true },
 	);
 
 	const unreadCount = notifications?.length || 0;
+	const notificationPath = role === "admin" ? "/admin/notifications" : role === "superadmin" ? "/superadmin/notifications" : role ? `/${role}/notifications` : "/sales/notifications";
 
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<Link href="/admin/notifications">
+					<Link href={notificationPath}>
 						<Button
 							variant="ghost"
 							size="icon"
@@ -327,7 +328,7 @@ export function AppLayout({
 						Sync
 					</Button>
 
-					<NotificationBell />
+					<NotificationBell role={role} />
 					<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
 
 					<div className="hidden sm:block">
