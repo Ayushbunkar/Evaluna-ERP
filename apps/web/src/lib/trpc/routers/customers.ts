@@ -19,7 +19,7 @@ const customerSchema = z.object({
 	tier_override: z.boolean().nullable(),
 	marketing_opt_in: z.boolean().nullable(),
 	created_at: z.coerce.date().nullable(),
-});
+}).passthrough();
 
 export const customersRouter = router({
 	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])

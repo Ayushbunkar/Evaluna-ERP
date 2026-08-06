@@ -7,6 +7,8 @@ import {
 	ShoppingBagIcon,
 	ShoppingCartIcon,
 	UsersIcon,
+	TargetIcon,
+	SettingsIcon,
 } from "lucide-react";
 import {
 	AppLayoutWithBranch,
@@ -21,8 +23,8 @@ const salesNavItems: NavItem[] = [
 	{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },
 	{ href: "/sales/cashbook", labelKey: "cashbook", icon: IndianRupeeIcon },
 	// Newly Added Missing Pages
-	{ href: "/sales/targets", labelKey: "targets", icon: IndianRupeeIcon },
-	{ href: "/sales/settings", labelKey: "settings", icon: IndianRupeeIcon },
+	{ href: "/sales/targets", labelKey: "targets", icon: TargetIcon },
+	{ href: "/sales/settings", labelKey: "settings", icon: SettingsIcon },
 ];
 
 export default function Layout({
