@@ -53,9 +53,9 @@ export async function login(formData: FormData) {
 		redirect("/login?error=invalid-credentials");
 	}
 
-	// Only true superadmins with no branch get the branch-select screen
+	// Superadmins are globally scoped and get their own dashboard
 	if (user?.is_superadmin) {
-		redirect("/branch-select");
+		redirect("/superadmin");
 	}
 
 	// Fetch role directly from DB to bypass any better-auth session caching issues

@@ -30,9 +30,9 @@ export async function signup(formData: FormData) {
 		redirect("/signup?error=signup-failed");
 	}
 
-	// Only true superadmins get the branch-select screen
+	// Superadmins are globally scoped and get their own dashboard
 	if (user?.is_superadmin) {
-		redirect("/branch-select");
+		redirect("/superadmin");
 	}
 
 	// Redirect based on role

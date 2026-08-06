@@ -255,9 +255,25 @@ export default function UsersPage() {
 								>
 									<option>Superadmin</option>
 									<option>Manager</option>
+									<option>Admin</option>
 									<option>Staff</option>
 									<option>Accountant</option>
 								</select>
+							</div>
+							<div>
+								<label className="mb-1 block font-medium text-gray-900 text-sm">
+									Assigned Branch
+								</label>
+								<select 
+									defaultValue={editingUser?.branch || "Global"}
+									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
+								>
+									<option>Global (All Branches)</option>
+									<option>Main Branch</option>
+									<option>Downtown Store</option>
+									<option>Warehouse A</option>
+								</select>
+								<p className="mt-1 text-xs text-gray-500">Admins will only see data for their assigned branch.</p>
 							</div>
 						</div>
 						<div className="mt-6 flex justify-end gap-3">

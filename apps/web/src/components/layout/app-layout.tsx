@@ -92,9 +92,28 @@ const ROLE_CONFIG: Record<
 	},
 };
 
-function BranchSwitcher() {
+function BranchSwitcher({ isSuperadmin }: { isSuperadmin: boolean }) {
 	const { activeBranchId, setActiveBranchId } = useBranch();
 	const { data: branchesList } = trpc.branches.list.useQuery();
+
+	const branchName = activeBranchId
+		? branchesList?.find((b: any) => b.id === activeBranchId)?.name || "Branch"
+		: "All Branches";
+
+	if (!isSuperadmin) {
+		return (
+			<Button
+				variant="outline"
+				size="sm"
+				className="h-9 gap-2 rounded-full border-border/50 bg-background/50 px-3 font-medium text-xs shadow-sm backdrop-blur-sm pointer-events-none"
+			>
+				<Building2Icon className="h-4 w-4 text-muted-foreground" />
+				<span className="hidden max-w-[120px] truncate sm:inline-block">
+					{branchName}
+				</span>
+			</Button>
+		);
+	}
 
 	return (
 		<DropdownMenu>
@@ -106,10 +125,7 @@ function BranchSwitcher() {
 				>
 					<Building2Icon className="h-4 w-4 text-muted-foreground" />
 					<span className="hidden max-w-[120px] truncate sm:inline-block">
-						{activeBranchId
-							? branchesList?.find((b: any) => b.id === activeBranchId)?.name ||
-								"Branch"
-							: "All Branches"}
+						{branchName}
 					</span>
 				</Button>
 			</DropdownMenuTrigger>
@@ -312,7 +328,7 @@ export function AppLayout({
 					</Button>
 
 					<NotificationBell />
-					<BranchSwitcher />
+					<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
 
 					<div className="hidden sm:block">
 						<LocaleSwitcher />
