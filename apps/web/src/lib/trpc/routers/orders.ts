@@ -9,7 +9,7 @@ import {
 	pendingSync,
 	eWayBills,
 	salesReturns,
-	loyaltyPointsHistory,
+	loyaltyHistory,
 	orderAudits,
 	proofOfDeliveries,
 } from "@evaluna/db/schema";
@@ -277,7 +277,7 @@ export const ordersRouter = router({
 				await tx.delete(auditLogs).where(and(eq(auditLogs.entity_id, input.id), eq(auditLogs.entity_type, 'orders')));
 				await tx.delete(eWayBills).where(eq(eWayBills.order_id, input.id));
 				await tx.delete(salesReturns).where(eq(salesReturns.order_id, input.id));
-				await tx.delete(loyaltyPointsHistory).where(eq(loyaltyPointsHistory.order_id, input.id));
+				await tx.delete(loyaltyHistory).where(eq(loyaltyHistory.order_id, input.id));
 				await tx.delete(orderAudits).where(eq(orderAudits.order_id, input.id));
 				await tx.delete(proofOfDeliveries).where(eq(proofOfDeliveries.order_id, input.id));
 				
