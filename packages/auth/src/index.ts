@@ -57,7 +57,17 @@ export function createAuth({
 		// ── Rate Limiting ────────────────────────────────────────────────────────
 		rateLimit: {
 			window: 60,
-			max: 10, // 10 login attempts per minute per IP
+			max: 1000, // Increased to prevent 429s from aggressive session polling
+			customRules: {
+				"/sign-in": {
+					window: 60,
+					max: 10, // Keep login attempts strict
+				},
+				"/sign-up": {
+					window: 60,
+					max: 10,
+				},
+			},
 		},
 
 		// ── Plugins ──────────────────────────────────────────────────────────────

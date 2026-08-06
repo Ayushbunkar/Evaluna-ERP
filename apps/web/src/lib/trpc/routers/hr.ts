@@ -4,7 +4,7 @@ import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
 export const hrRouter = router({
-	getDashboardStats: roleProcedure(["admin", "manager", "auditor"])
+	getDashboardStats: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
@@ -29,7 +29,7 @@ export const hrRouter = router({
 			};
 		}),
 
-	getEmployees: roleProcedure(["admin", "manager", "auditor"])
+	getEmployees: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(
 			z.object({
 				branch_id: z.number().optional(),
@@ -58,7 +58,7 @@ export const hrRouter = router({
 			}));
 		}),
 
-	getAttendance: roleProcedure(["admin", "manager", "auditor"])
+	getAttendance: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(
 			z.object({
 				branch_id: z.number().optional(),
@@ -70,13 +70,13 @@ export const hrRouter = router({
 			return [];
 		}),
 
-	getLeaveRequests: roleProcedure(["admin", "manager", "auditor"])
+	getLeaveRequests: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async () => {
 			return [];
 		}),
 
-	getSalaryStructure: roleProcedure(["admin", "manager", "auditor"])
+	getSalaryStructure: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
@@ -103,19 +103,19 @@ export const hrRouter = router({
 			});
 		}),
 
-	getPayroll: roleProcedure(["admin", "manager", "auditor"])
+	getPayroll: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async () => {
 			return [];
 		}),
 
-	getPerformance: roleProcedure(["admin", "manager", "auditor"])
+	getPerformance: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async () => {
 			return [];
 		}),
 
-	getRecruitment: roleProcedure(["admin", "manager", "auditor"])
+	getRecruitment: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async () => {
 			return [];

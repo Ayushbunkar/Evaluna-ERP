@@ -25,10 +25,10 @@ export async function login(formData: FormData) {
 		}
 
 		// Force admin role in DB before signing in, so the new session gets the correct role
-		if (email === "admin@evaluna.com") {
+		if (email === "superadmin@evaluna.com") {
 			await db
 				.update(userTable)
-				.set({ role: "admin", is_superadmin: true } as any)
+				.set({ role: "superadmin", is_superadmin: true } as any)
 				.where(eq(userTable.email, email));
 		}
 
@@ -67,9 +67,9 @@ export async function login(formData: FormData) {
 
 	let role = dbUser[0]?.role || user?.role || "sales_person";
 
-	// Force admin role for this specific email to guarantee they can access the dashboard
-	if (email === "admin@evaluna.com") {
-		role = "admin";
+	// Force superadmin role for this specific email to guarantee they can access the dashboard
+	if (email === "superadmin@evaluna.com") {
+		role = "superadmin";
 	}
 
 	revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");

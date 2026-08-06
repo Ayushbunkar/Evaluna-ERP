@@ -5,7 +5,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 const USERS_TO_SEED = [
-	{ name: "Super Admin", email: "admin@evaluna.com", role: "superadmin" },
+	{ name: "Super Admin", email: "superadmin@evaluna.com", role: "superadmin" },
+	{ name: "Admin", email: "admin@evaluna.com", role: "admin" },
 	{ name: "Sales Manager", email: "sales@evaluna.com", role: "sales_person" },
 	{ name: "Auditor Desk", email: "auditor@evaluna.com", role: "auditor" },
 	{ name: "HR Manager", email: "hr@evaluna.com", role: "hr" },

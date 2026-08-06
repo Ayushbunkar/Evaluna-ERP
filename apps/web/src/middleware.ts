@@ -17,10 +17,12 @@ export default async function middleware(request: NextRequest) {
 	requestHeaders.delete("x-forwarded-port");
 	requestHeaders.delete("x-forwarded-for");
 
-	// 1. Let public assets and auth APIs pass through
+	// 1. Let public assets, auth APIs, and TRPC pass through
+	// TRPC handles its own authentication via context
 	if (
 		pathname.startsWith("/api/auth") ||
 		pathname.startsWith("/api/seed-users") ||
+		pathname.startsWith("/api/trpc") ||
 		pathname.startsWith("/_next") ||
 		pathname.startsWith("/favicon.ico") ||
 		pathname.startsWith("/public")
@@ -45,7 +47,7 @@ export default async function middleware(request: NextRequest) {
 	if (!sessionToken && isAuthPage) {
 		return NextResponse.next({ request: { headers: requestHeaders } });
 	}
-	if (!sessionToken && !pathname.startsWith("/api/trpc")) {
+	if (!sessionToken) {
 		const url = request.nextUrl.clone();
 		url.pathname = "/login";
 		url.searchParams.set("callbackUrl", request.url);
@@ -72,14 +74,6 @@ export default async function middleware(request: NextRequest) {
 	}
 
 	if (!sessionData) {
-		// If it's an API request, return 401
-		if (pathname.startsWith("/api/trpc")) {
-			return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
-				status: 401,
-				headers: { "content-type": "application/json" },
-			});
-		}
-
 		// If we're already on an auth page, just render it so the user can log in
 		if (isAuthPage) {
 			return NextResponse.next({ request: { headers: requestHeaders } });
