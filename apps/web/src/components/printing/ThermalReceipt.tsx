@@ -65,15 +65,15 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 			<div className="space-y-1 border-black border-t border-dashed pt-2">
 				<div className="flex justify-between">
 					<span>Subtotal</span>
-					<span>{order?.subtotal?.toFixed(2) || "0.00"}</span>
+					<span>{order?.subtotal ? Number(order.subtotal).toFixed(2) : "0.00"}</span>
 				</div>
 				<div className="flex justify-between">
 					<span>Tax</span>
-					<span>{order?.tax?.toFixed(2) || "0.00"}</span>
+					<span>{order?.tax ? Number(order.tax).toFixed(2) : "0.00"}</span>
 				</div>
 				<div className="mt-2 flex justify-between border-black border-t pt-2 font-bold text-base">
 					<span>Total</span>
-					<span>{order?.total?.toFixed(2) || "0.00"}</span>
+					<span>{order?.total ? Number(order.total).toFixed(2) : "0.00"}</span>
 				</div>
 			</div>
 
