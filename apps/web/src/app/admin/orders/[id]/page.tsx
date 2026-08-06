@@ -17,14 +17,14 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { useQuery } from "@tanstack/react-query";
+
 import { ArrowLeftIcon, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { use } from "react";
 import { A4Invoice } from "@/components/printing/A4Invoice";
 import { PrintPreviewDialog } from "@/components/printing/PrintPreviewDialog";
-import { useTRPC } from "@/lib/trpc/client";
+import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 import { generateOrderWhatsAppLink } from "@/lib/whatsapp";
 
@@ -35,10 +35,7 @@ export default function OrderDetailPage({
 }) {
 	const { id } = use(params);
 	const orderId = Number.parseInt(id, 10);
-	const trpc = useTRPC();
-	const { data: order, isLoading } = useQuery(
-		(trpc.orders.get as any).queryOptions({ id: orderId }),
-	) as { data: any; isLoading: boolean };
+	const { data: order, isLoading } = trpc.orders.get.useQuery({ id: orderId }) as { data: any; isLoading: boolean };
 	const t = useTranslations("orders");
 	const tc = useTranslations("common");
 	const locale = useLocale();
