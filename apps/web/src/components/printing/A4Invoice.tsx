@@ -102,13 +102,13 @@ export const A4Invoice: React.FC<A4InvoiceProps> = ({
 								{item.taxPercent || "0"}%
 							</td>
 							<td className="border border-gray-300 px-4 py-2 text-right">
-								{item.price?.toFixed(2) || "0.00"}
+								{item.price ? Number(item.price).toFixed(2) : "0.00"}
 							</td>
 							<td className="border border-gray-300 px-4 py-2 text-right">
 								{item.quantity || 1}
 							</td>
 							<td className="border border-gray-300 px-4 py-2 text-right">
-								{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+								{((Number(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
 							</td>
 						</tr>
 					))}

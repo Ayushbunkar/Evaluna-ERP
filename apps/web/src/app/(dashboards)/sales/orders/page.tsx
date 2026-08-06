@@ -226,20 +226,7 @@ export default function OrdersPage() {
 		header: tc("actions"),
 		render: (row) => (
 			<TableActions>
-				<TableActionButton
-					onClick={() => openEdit(row)}
-					icon={<FilePenIcon className="h-4 w-4" />}
-					label={tc("edit")}
-				/>
-				<TableActionButton
-					variant="danger"
-					onClick={() => {
-						setDeleteId(row.id);
-						setIsDeleteOpen(true);
-					}}
-					icon={<TrashIcon className="h-4 w-4" />}
-					label={tc("delete")}
-				/>
+
 				<Link
 					href={`/sales/orders/${row.id}`}
 					prefetch={false}
