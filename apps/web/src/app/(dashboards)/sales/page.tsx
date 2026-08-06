@@ -210,12 +210,29 @@ export default function SalesDashboard() {
 						</CardHeader>
 						<CardContent>
 							<div className="flex h-[200px] flex-col items-center justify-center gap-4 text-center">
-								<div className="relative flex h-32 w-32 items-center justify-center rounded-full border-8 border-primary/20">
-									<span className="font-bold text-2xl text-foreground">{progress}%</span>
-									<div 
-										className="absolute inset-0 rounded-full border-8 border-primary transition-all duration-1000" 
-										style={{ clipPath: `polygon(0 0, 100% 0, 100% ${progress}%, 0 ${progress}%)` }}
-									/>
+								<div className="relative flex h-32 w-32 items-center justify-center">
+									<svg className="absolute inset-0 h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
+										<circle
+											className="text-primary/20 stroke-current"
+											strokeWidth="8"
+											cx="50"
+											cy="50"
+											r="40"
+											fill="transparent"
+										/>
+										<circle
+											className="text-primary stroke-current transition-all duration-1000 ease-out"
+											strokeWidth="8"
+											strokeLinecap="round"
+											cx="50"
+											cy="50"
+											r="40"
+											fill="transparent"
+											strokeDasharray="251.2"
+											strokeDashoffset={251.2 * (1 - Math.min(progress, 100) / 100)}
+										/>
+									</svg>
+									<span className="relative font-bold text-2xl text-foreground">{progress}%</span>
 								</div>
 								<p className="text-muted-foreground text-sm">
 									Today's Sales: {formatCurrency(todaySales, locale)} / {formatCurrency(dailyGoal, locale)}
