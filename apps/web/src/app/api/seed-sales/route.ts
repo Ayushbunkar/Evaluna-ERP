@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { transactions, orders, customers } from "@/lib/db/schema";
+import { transactions, orders, customers, salesReturns } from "@/lib/db/schema";
 import { auth } from "@evaluna/auth/server";
 import { headers } from "next/headers";
 import { eq, desc } from "drizzle-orm";
@@ -45,11 +45,24 @@ export async function GET(req: Request) {
 			{ customer_id: customerId, total_amount: "250.00", status: "pending", user_uid: userUid },
 		];
 
+		const insertedOrders = [];
 		for (const order of orderData) {
-			await db.insert(orders).values(order);
+			const [insertedOrder] = await db.insert(orders).values(order).returning();
+			insertedOrders.push(insertedOrder);
 		}
 
-		return NextResponse.json({ success: true, message: "Sales and Cashbook seed data generated successfully!" });
+		// 3. Seed Sales Returns
+		if (insertedOrders.length > 0) {
+			const returnsData = [
+				{ order_id: insertedOrders[0].id, customer_id: customerId, total_amount: "150.00", status: "pending", user_uid: userUid },
+				{ order_id: insertedOrders[1].id, customer_id: customerId, total_amount: "500.00", status: "processed", user_uid: userUid },
+			];
+			for (const ret of returnsData) {
+				await db.insert(salesReturns).values(ret);
+			}
+		}
+
+		return NextResponse.json({ success: true, message: "Sales, Returns, and Cashbook seed data generated successfully!" });
 	} catch (error: any) {
 		console.error("Seed error:", error);
 		return NextResponse.json({ success: false, error: error.message }, { status: 500 });
