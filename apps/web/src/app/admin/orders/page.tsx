@@ -153,11 +153,11 @@ export default function OrdersPage() {
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [editCustomerName, setEditCustomerName] = useState("");
 
-	const invalidateKeys = [["orders", "list"]];
+	const utils = trpc.useUtils();
 
 	const updateMutation = trpc.orders.update.useMutation({
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+			utils.orders.list.invalidate();
 			toast.success(t("updated"));
 			setIsDialogOpen(false);
 		},
@@ -168,7 +168,7 @@ export default function OrdersPage() {
 
 	const deleteMutation = trpc.orders.delete.useMutation({
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: invalidateKeys[0] });
+			utils.orders.list.invalidate();
 			toast.success(t("deleted"));
 		},
 		onError: () => {

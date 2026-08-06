@@ -12,6 +12,8 @@ import {
 	loyaltyHistory,
 	orderAudits,
 	proofOfDeliveries,
+	pickLists,
+	deliveryStops,
 } from "@evaluna/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
@@ -280,6 +282,8 @@ export const ordersRouter = router({
 				await tx.delete(loyaltyHistory).where(eq(loyaltyHistory.order_id, input.id));
 				await tx.delete(orderAudits).where(eq(orderAudits.order_id, input.id));
 				await tx.delete(proofOfDeliveries).where(eq(proofOfDeliveries.order_id, input.id));
+				await tx.delete(pickLists).where(eq(pickLists.order_id, input.id));
+				await tx.delete(deliveryStops).where(eq(deliveryStops.order_id, input.id));
 				
 				await tx
 					.delete(orders)
