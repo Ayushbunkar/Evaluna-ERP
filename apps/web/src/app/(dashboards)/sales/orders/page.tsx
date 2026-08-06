@@ -131,7 +131,7 @@ export default function OrdersPage() {
 		{
 			key: "total",
 			header: tc("total"),
-			getValue: (o) => (o.total_amount / 100).toFixed(2),
+			getValue: (o) => o.total_amount,
 		},
 		{
 			key: "status",
@@ -186,7 +186,7 @@ export default function OrdersPage() {
 			if (editingId !== null) {
 				updateMutation.mutate({
 					id: editingId,
-					total_amount: Math.round(Number.parseFloat(value.total) * 100),
+					total_amount: Math.round(Number.parseFloat(value.total)), // or pass as string if updateMutation takes number/string
 					status: value.status,
 				});
 			}
@@ -208,7 +208,7 @@ export default function OrdersPage() {
 		setEditingId(o.id);
 		setEditCustomerName(o.customer?.name ?? "");
 		form.reset();
-		form.setFieldValue("total", (o.total_amount / 100).toString());
+		form.setFieldValue("total", o.total_amount);
 		form.setFieldValue("status", (o.status ?? "pending") as OrderStatus);
 		setIsDialogOpen(true);
 	};
@@ -241,7 +241,7 @@ export default function OrdersPage() {
 					label={tc("delete")}
 				/>
 				<Link
-					href={`/admin/orders/${row.id}`}
+					href={`/sales/orders/${row.id}`}
 					prefetch={false}
 					onClick={(e) => e.stopPropagation()}
 				>

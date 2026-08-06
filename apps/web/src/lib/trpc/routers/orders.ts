@@ -5,6 +5,9 @@ import {
 	orderItems,
 	orders,
 	transactions,
+	stockLedger,
+	pendingSync,
+	auditLogs,
 } from "@evaluna/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
@@ -263,7 +266,12 @@ export const ordersRouter = router({
 		.output(z.object({ success: z.boolean() }))
 		.mutation(async ({ ctx, input }) => {
 			await db.transaction(async (tx: any) => {
+				await tx.delete(transactions).where(eq(transactions.order_id, input.id));
 				await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
+				await tx.delete(stockLedger).where(and(eq(stockLedger.reference_id, input.id), eq(stockLedger.reference_type, 'sale')));
+				await tx.delete(pendingSync).where(and(eq(pendingSync.entity_id, input.id), eq(pendingSync.entity_type, 'order')));
+				await tx.delete(auditLogs).where(and(eq(auditLogs.entity_id, input.id), eq(auditLogs.entity_type, 'orders')));
+				
 				await tx
 					.delete(orders)
 					.where(
