@@ -83,6 +83,7 @@ const messages = {
 		branches: "Branches",
 		transfers: "Transfers",
 		staff: "Staff",
+		targets: "Sales Targets",
 		attendance: "Attendance",
 		payroll: "Payroll",
 		permissions: "Access Control",

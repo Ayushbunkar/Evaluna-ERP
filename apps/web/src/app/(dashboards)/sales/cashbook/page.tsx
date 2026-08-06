@@ -251,7 +251,7 @@ export default function CashBookPage() {
 										<td
 											className={`text-right font-bold ${tx.type === "in" ? "text-emerald-600" : "text-red-600"}`}
 										>
-											{tx.type === "in" ? "+" : "-"}₹{tx.amount.toFixed(2)}
+											{tx.type === "in" ? "+" : "-"}₹{Number(tx.amount).toFixed(2)}
 										</td>
 									</tr>
 								))}
