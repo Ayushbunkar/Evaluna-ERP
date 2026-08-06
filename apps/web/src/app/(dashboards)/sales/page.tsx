@@ -17,15 +17,32 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import {
 	AnimatedCard,
 	motion,
 	PageTransition,
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
+import { useTRPC } from "@/lib/trpc/client";
+import { formatCurrency } from "@/lib/utils";
+import { useLocale } from "next-intl";
 
 export default function SalesDashboard() {
+	const trpc = useTRPC();
+	const locale = useLocale();
+	const { data: orders } = trpc.orders.list.useQuery();
+	
+	const recentOrders = orders?.slice(0, 5) || [];
+	const dailyGoal = 50000;
+	const todaySales = orders?.reduce((acc, order) => {
+		if (new Date(order.created_at || new Date()).toDateString() === new Date().toDateString()) {
+			return acc + Number(order.total_amount || 0);
+		}
+		return acc;
+	}, 0) || 0;
+	
+	const progress = Math.min(Math.round((todaySales / dailyGoal) * 100), 100);
+
 	return (
 		<PageTransition className="grid min-w-0 flex-1 items-start gap-6">
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -154,8 +171,25 @@ export default function SalesDashboard() {
 							</Button>
 						</CardHeader>
 						<CardContent>
-							<div className="flex h-[200px] items-center justify-center text-muted-foreground text-sm">
-								Connect to POS engine to display recent sales.
+							<div className="flex flex-col gap-4">
+								{recentOrders.length > 0 ? (
+									recentOrders.map((order) => (
+										<div key={order.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">
+											<div>
+												<p className="font-medium text-sm">Order #{order.id}</p>
+												<p className="text-muted-foreground text-xs">{order.customer?.name || "Walk-in Customer"}</p>
+											</div>
+											<div className="text-right">
+												<p className="font-bold text-sm">{formatCurrency(Number(order.total_amount), locale)}</p>
+												<p className="text-emerald-600 text-xs capitalize">{order.status}</p>
+											</div>
+										</div>
+									))
+								) : (
+									<div className="flex h-[150px] items-center justify-center text-muted-foreground text-sm">
+										No recent sales found.
+									</div>
+								)}
 							</div>
 						</CardContent>
 					</Card>
@@ -176,11 +210,14 @@ export default function SalesDashboard() {
 						<CardContent>
 							<div className="flex h-[200px] flex-col items-center justify-center gap-4 text-center">
 								<div className="relative flex h-32 w-32 items-center justify-center rounded-full border-8 border-primary/20">
-									<span className="font-bold text-2xl text-foreground">0%</span>
-									<div className="absolute inset-0 rotate-45 rounded-full border-8 border-primary border-r-transparent border-b-transparent border-l-transparent opacity-0 transition-opacity" />
+									<span className="font-bold text-2xl text-foreground">{progress}%</span>
+									<div 
+										className="absolute inset-0 rounded-full border-8 border-primary transition-all duration-1000" 
+										style={{ clipPath: `polygon(0 0, 100% 0, 100% ${progress}%, 0 ${progress}%)` }}
+									/>
 								</div>
 								<p className="text-muted-foreground text-sm">
-									Start selling to hit your target!
+									Today's Sales: {formatCurrency(todaySales, locale)} / {formatCurrency(dailyGoal, locale)}
 								</p>
 							</div>
 						</CardContent>
