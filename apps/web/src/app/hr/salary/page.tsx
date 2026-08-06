@@ -21,17 +21,27 @@ export default function SalaryStructurePage() {
 		{ key: "net_salary", header: "Net Salary" },
 	];
 
+	const formatRupees = (amount: number | string) => {
+		const num = typeof amount === "string" ? Number.parseFloat(amount) : amount;
+		return new Intl.NumberFormat('en-IN', {
+			style: 'currency',
+			currency: 'INR',
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 2,
+		}).format(num || 0);
+	};
+
 	const filteredData = salaryList?.filter(
 		(record: any) =>
 			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			record.department?.toLowerCase().includes(searchTerm.toLowerCase())
 	).map(r => ({
 		...r,
-		basic: `$${r.basic}`,
-		hra: `$${r.hra}`,
-		allowances: `$${r.allowances}`,
-		deductions: `$${r.deductions}`,
-		net_salary: `$${r.net_salary}`,
+		basic: formatRupees(r.basic),
+		hra: formatRupees(r.hra),
+		allowances: formatRupees(r.allowances),
+		deductions: formatRupees(r.deductions),
+		net_salary: formatRupees(r.net_salary),
 	})) || [];
 
 	return (

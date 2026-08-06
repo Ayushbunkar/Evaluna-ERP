@@ -19,12 +19,22 @@ export default function PayrollProcessingPage() {
 		{ key: "status", header: "Status" },
 	];
 
+	const formatRupees = (amount: number | string) => {
+		const num = typeof amount === "string" ? Number.parseFloat(amount) : amount;
+		return new Intl.NumberFormat('en-IN', {
+			style: 'currency',
+			currency: 'INR',
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 2,
+		}).format(num || 0);
+	};
+
 	// Filter data based on search term
 	const filteredData = payrollList?.map(record => ({
 		...record,
 		"staff.name": record.staff?.name || "Unknown",
-		base_salary: `$${record.base_salary}`,
-		net_payable: `$${record.net_payable}`
+		base_salary: formatRupees(record.base_salary as any),
+		net_payable: formatRupees(record.net_payable as any)
 	})).filter(
 		(record) =>
 			record["staff.name"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
