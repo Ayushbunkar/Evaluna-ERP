@@ -49,6 +49,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.4",
 		"@evaluna/config": "workspace:*",
+		"@faker-js/faker": "^10.5.0",
 		"@types/node": "^26.1.1",
 		"drizzle-kit": "^0.31.10",
 		"turbo": "^2.10.5",

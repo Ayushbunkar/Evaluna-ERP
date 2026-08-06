@@ -17,6 +17,7 @@
       "devDependencies": {
         "@biomejs/biome": "^2.5.4",
         "@evaluna/config": "workspace:*",
+        "@faker-js/faker": "^10.5.0",
         "@types/node": "^26.1.1",
         "drizzle-kit": "^0.31.10",
         "turbo": "^2.10.5",
@@ -75,6 +76,7 @@
         "next": "catalog:",
         "next-intl": "^4.13.2",
         "next-themes": "^0.4.6",
+        "postgres": "^3.4.5",
         "react": "catalog:",
         "react-barcode": "^1.6.1",
         "react-dom": "catalog:",
@@ -1724,6 +1726,8 @@
     "possible-typed-array-names": ["possible-typed-array-names@1.1.0", "", {}, "sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg=="],
 
     "postcss": ["postcss@8.5.19", "", { "dependencies": { "nanoid": "^3.3.12", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-Mz8SaolMd8nB+G13WkORcxQKHZ/NE4xXevtkJHVuG+guo9/wYKlIMTKAqGdEmYOXR2ijPjTYNHssizdaVSUNdQ=="],
+
+    "postgres": ["postgres@3.4.9", "", {}, "sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw=="],
 
     "postgres-array": ["postgres-array@2.0.0", "", {}, "sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA=="],
 
