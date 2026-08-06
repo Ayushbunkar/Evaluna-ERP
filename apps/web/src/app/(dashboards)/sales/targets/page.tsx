@@ -21,7 +21,8 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function TargetsPage() {
 	const locale = useLocale();
-	const { data: orders, isLoading } = trpc.orders.list.useQuery();
+	const { data: orders, isLoading: isOrdersLoading } = trpc.orders.list.useQuery();
+	const { data: me, isLoading: isMeLoading } = trpc.staff.me.useQuery();
 
 	// Calculate current month's sales
 	const now = new Date();
@@ -37,8 +38,9 @@ export default function TargetsPage() {
 		return acc;
 	}, 0);
 
-	const monthlyTarget = 500000; // 5 Lakhs fixed target for demo
-	const progressPercentage = Math.min(Math.round((currentMonthSales / monthlyTarget) * 100), 100);
+	const monthlyTarget = Number.parseFloat(me?.monthly_sales_target || "0"); // Dynamically fetched target from Manager/Admin
+	const targetToUse = monthlyTarget > 0 ? monthlyTarget : 500000; // Fallback to 5Lakhs if 0 for demo purposes
+	const progressPercentage = Math.min(Math.round((currentMonthSales / targetToUse) * 100), 100);
 
 	return (
 		<PageTransition className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 pb-8">
@@ -63,7 +65,7 @@ export default function TargetsPage() {
 									<p className="font-medium text-muted-foreground text-sm">
 										Monthly Target
 									</p>
-									<h3 className="font-bold text-2xl">{formatCurrency(monthlyTarget, locale)}</h3>
+									<h3 className="font-bold text-2xl">{formatCurrency(targetToUse, locale)}</h3>
 								</div>
 							</CardContent>
 						</Card>
@@ -120,7 +122,7 @@ export default function TargetsPage() {
 					<CardContent className="space-y-4">
 						<div className="flex justify-between text-sm font-medium">
 							<span>{progressPercentage}% Achieved</span>
-							<span>{formatCurrency(monthlyTarget - currentMonthSales > 0 ? monthlyTarget - currentMonthSales : 0, locale)} Remaining</span>
+							<span>{formatCurrency(targetToUse - currentMonthSales > 0 ? targetToUse - currentMonthSales : 0, locale)} Remaining</span>
 						</div>
 						<Progress value={progressPercentage} className="h-4" />
 						

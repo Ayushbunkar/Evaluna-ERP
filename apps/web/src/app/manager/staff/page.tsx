@@ -100,6 +100,7 @@ export default function StaffPage() {
 		department: "",
 		join_date: new Date().toISOString().split("T")[0],
 		salary: 0,
+		monthly_sales_target: 0,
 		branch_id: activeBranchId ?? (undefined as number | undefined),
 	});
 
@@ -180,6 +181,20 @@ export default function StaffPage() {
 											setForm({
 												...form,
 												salary: Number.parseFloat(e.target.value) || 0,
+											})
+										}
+									/>
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="staff-target">Monthly Target</Label>
+									<Input
+										id="staff-target"
+										type="number"
+										value={form.monthly_sales_target}
+										onChange={(e) =>
+											setForm({
+												...form,
+												monthly_sales_target: Number.parseFloat(e.target.value) || 0,
 											})
 										}
 									/>

@@ -395,6 +395,7 @@ export const staff = pgTable("staff", {
 	department: varchar("department", { length: 50 }),
 	join_date: timestamp("join_date").notNull(),
 	salary: decimal("salary", { precision: 10, scale: 2 }).notNull(),
+	monthly_sales_target: decimal("monthly_sales_target", { precision: 10, scale: 2 }).default("0"),
 	pf_number: varchar("pf_number", { length: 50 }),
 	pan: varchar("pan", { length: 10 }),
 	aadhaar: varchar("aadhaar", { length: 12 }),

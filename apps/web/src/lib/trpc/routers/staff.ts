@@ -14,6 +14,14 @@ export const staffRouter = router({
 			return ctx.db.select().from(staff);
 		}),
 
+	me: protectedProcedure.query(async ({ ctx }) => {
+		const result = await ctx.db
+			.select()
+			.from(staff)
+			.where(eq(staff.email, ctx.user.email));
+		return result[0] ?? null;
+	}),
+
 	getById: protectedProcedure
 		.input(z.object({ id: z.number() }))
 		.query(async ({ ctx, input }) => {
@@ -41,6 +49,7 @@ export const staffRouter = router({
 				department: z.string().optional(),
 				join_date: z.string(), // ISO string
 				salary: z.number().min(0),
+				monthly_sales_target: z.number().min(0).optional(),
 				branch_id: z.number().optional(),
 				pf_number: z.string().optional(),
 				pan: z.string().optional(),
@@ -59,6 +68,7 @@ export const staffRouter = router({
 					staff_code: staffCode,
 					join_date: new Date(input.join_date),
 					salary: input.salary.toString(),
+					monthly_sales_target: input.monthly_sales_target?.toString() ?? "0",
 					branch_id: input.branch_id ?? ctx.user.branchId,
 					status: "active",
 				})
@@ -77,17 +87,19 @@ export const staffRouter = router({
 					.optional(),
 				department: z.string().optional(),
 				salary: z.number().min(0).optional(),
+				monthly_sales_target: z.number().min(0).optional(),
 				branch_id: z.number().nullable().optional(),
 				status: z.enum(["active", "inactive"]).optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const { id, salary, ...rest } = input;
+			const { id, salary, monthly_sales_target, ...rest } = input;
 			const [updated] = await ctx.db
 				.update(staff)
 				.set({
 					...rest,
 					...(salary !== undefined ? { salary: salary.toString() } : {}),
+					...(monthly_sales_target !== undefined ? { monthly_sales_target: monthly_sales_target.toString() } : {}),
 				})
 				.where(eq(staff.id, id))
 				.returning();
