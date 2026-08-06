@@ -7,7 +7,6 @@ import {
 	transactions,
 	stockLedger,
 	pendingSync,
-	auditLogs,
 } from "@evaluna/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
