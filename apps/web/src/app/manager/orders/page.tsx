@@ -77,8 +77,8 @@ export default function OrdersPage() {
 			key: "customer",
 			header: t("customer"),
 			sortable: true,
-			accessorFn: (row) => row.customer?.name ?? "",
-			render: (row) => row.customer?.name ?? "",
+			accessorFn: (row) => row.customer?.name || "Walk-in Customer",
+			render: (row) => row.customer?.name || "Walk-in Customer",
 		},
 		{
 			key: "total_amount",
@@ -125,7 +125,7 @@ export default function OrdersPage() {
 		{
 			key: "customer",
 			header: t("customer"),
-			getValue: (o) => o.customer?.name ?? "",
+			getValue: (o) => o.customer?.name || "Walk-in Customer",
 		},
 		{
 			key: "total",
@@ -197,7 +197,7 @@ export default function OrdersPage() {
 			if (statusFilter !== "all" && o.status !== statusFilter) return false;
 			const q = searchTerm.toLowerCase();
 			return (
-				(o.customer?.name ?? "").toLowerCase().includes(q) ||
+				(o.customer?.name || "Walk-in Customer").toLowerCase().includes(q) ||
 				o.id.toString().includes(searchTerm)
 			);
 		});
@@ -205,7 +205,7 @@ export default function OrdersPage() {
 
 	const openEdit = (o: Order) => {
 		setEditingId(o.id);
-		setEditCustomerName(o.customer?.name ?? "");
+		setEditCustomerName(o.customer?.name || "Walk-in Customer");
 		form.reset();
 		form.setFieldValue("total", (Number(o.total_amount) / 100).toString());
 		form.setFieldValue("status", (o.status ?? "pending") as OrderStatus);
