@@ -43,12 +43,29 @@ export const attendanceRouter = router({
 	clockIn: protectedProcedure
 		.input(
 			z.object({
-				staff_id: z.number(),
+				staff_id: z.number().optional(), // Make optional for self-service
 				work_type: z.string().default("regular"),
 				notes: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			// Find staff member: either by explicit staff_id or by logged-in user's email
+			let staffMember;
+			if (input.staff_id) {
+				const result = await ctx.db.select().from(staff).where(eq(staff.id, input.staff_id));
+				staffMember = result[0];
+			} else {
+				const result = await ctx.db.select().from(staff).where(eq(staff.email, ctx.user.email));
+				staffMember = result[0];
+			}
+
+			if (!staffMember) {
+				throw new Error("Staff member not found or user is not a staff member.");
+			}
+
+			const targetStaffId = staffMember.id;
+			const branchId = staffMember.branch_id ?? ctx.user.branchId;
+
 			// Ensure the staff member doesn't already have an active shift today
 			const today = new Date().toISOString().split("T")[0];
 			const activeShift = await ctx.db
@@ -56,7 +73,7 @@ export const attendanceRouter = router({
 				.from(staffAttendance)
 				.where(
 					and(
-						eq(staffAttendance.staff_id, input.staff_id),
+						eq(staffAttendance.staff_id, targetStaffId),
 						eq(staffAttendance.date, today),
 						eq(staffAttendance.shift_status, "active"),
 					),
@@ -66,22 +83,10 @@ export const attendanceRouter = router({
 				throw new Error("Staff member is already clocked in today.");
 			}
 
-			// We need to get the staff's branch_id to associate the shift
-			const staffMember = await ctx.db
-				.select()
-				.from(staff)
-				.where(eq(staff.id, input.staff_id));
-
-			if (staffMember.length === 0) {
-				throw new Error("Staff member not found.");
-			}
-
-			const branchId = staffMember[0].branch_id ?? ctx.user.branchId;
-
 			const [created] = await ctx.db
 				.insert(staffAttendance)
 				.values({
-					staff_id: input.staff_id,
+					staff_id: targetStaffId,
 					branch_id: branchId,
 					date: today,
 					clock_in_time: new Date(),
@@ -95,8 +100,31 @@ export const attendanceRouter = router({
 		}),
 
 	clockOut: protectedProcedure
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.number().optional() })) // Make optional for self-service
 		.mutation(async ({ ctx, input }) => {
+			let targetAttendanceId = input.id;
+			
+			if (!targetAttendanceId) {
+				// Find current active shift for logged in user
+				const result = await ctx.db.select().from(staff).where(eq(staff.email, ctx.user.email));
+				const staffMember = result[0];
+				if (!staffMember) throw new Error("Staff member not found");
+
+				const today = new Date().toISOString().split("T")[0];
+				const activeShift = await ctx.db
+					.select()
+					.from(staffAttendance)
+					.where(
+						and(
+							eq(staffAttendance.staff_id, staffMember.id),
+							eq(staffAttendance.date, today),
+							eq(staffAttendance.shift_status, "active"),
+						),
+					);
+				if (activeShift.length === 0) throw new Error("No active shift found to clock out from");
+				targetAttendanceId = activeShift[0].id;
+			}
+
 			const [updated] = await ctx.db
 				.update(staffAttendance)
 				.set({
@@ -104,9 +132,32 @@ export const attendanceRouter = router({
 					shift_status: "completed",
 					updated_at: new Date(),
 				})
-				.where(eq(staffAttendance.id, input.id))
+				.where(eq(staffAttendance.id, targetAttendanceId))
 				.returning();
 
 			return updated;
 		}),
+
+	myStatus: protectedProcedure.query(async ({ ctx }) => {
+		const result = await ctx.db.select().from(staff).where(eq(staff.email, ctx.user.email));
+		const staffMember = result[0];
+		if (!staffMember) return null;
+
+		const today = new Date().toISOString().split("T")[0];
+		const activeShift = await ctx.db
+			.select()
+			.from(staffAttendance)
+			.where(
+				and(
+					eq(staffAttendance.staff_id, staffMember.id),
+					eq(staffAttendance.date, today),
+					eq(staffAttendance.shift_status, "active"),
+				),
+			);
+		
+		return {
+			staff: staffMember,
+			activeShift: activeShift.length > 0 ? activeShift[0] : null
+		};
+	}),
 });

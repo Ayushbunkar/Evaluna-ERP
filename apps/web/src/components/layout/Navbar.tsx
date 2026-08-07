@@ -15,6 +15,8 @@ import { useSession } from "@/hooks/use-session";
 import { trpc } from "@/lib/trpc/client";
 import { CommandPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
+import Link from "next/link";
+import { Clock } from "lucide-react";
 
 interface NavbarProps {
 	onMenuClick?: () => void;
@@ -38,6 +40,8 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 	}, []);
 
 	const { data: branches } = trpc.branches.list.useQuery();
+	const { data: statusData } = trpc.attendance.myStatus.useQuery();
+	const activeShift = statusData?.activeShift;
 
 	const activeBranch = React.useMemo(() => {
 		const user = session?.user as any;
@@ -90,6 +94,13 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 						<span className="sr-only">Notifications</span>
 					</Button>
 
+					<Link href="/staff">
+						<Button variant="ghost" size="sm" className={`hidden md:flex ${activeShift ? 'text-green-500' : 'text-orange-500'}`}>
+							<Clock className="mr-2 h-4 w-4" />
+							{activeShift ? 'Clocked In' : 'Clocked Out'}
+						</Button>
+					</Link>
+
 					<ThemeToggle />
 
 					<DropdownMenu>
@@ -120,7 +131,11 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 									<DropdownMenuSeparator />
 								</>
 							)}
-							<DropdownMenuItem>Profile</DropdownMenuItem>
+							<Link href="/staff" className="w-full">
+								<DropdownMenuItem className="cursor-pointer">
+									Staff Portal
+								</DropdownMenuItem>
+							</Link>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem>Log out</DropdownMenuItem>
 						</DropdownMenuContent>

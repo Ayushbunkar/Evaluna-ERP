@@ -139,13 +139,50 @@ export const pickerRouter = router({
 				items: items.map((i) => ({
 					id: i.id,
 					qty_required: i.quantity_ordered,
-					qty_picked: i.quantity_picked,
+					qty_picked: i.quantity_picked ?? 0,
 					status: i.status,
 					product: i.product?.name ?? "Unknown",
 					sku: i.product?.sku ?? i.product?.barcode ?? "N/A",
 					location: i.location?.name ?? "Warehouse",
+					batch: i.batch_id ? `B-${i.batch_id}` : "Any",
 				})),
 			};
+		}),
+
+	reportPNA: roleProcedure(["admin", "manager", "auditor", "picker"])
+		.input(z.object({ item_id: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			const [updated] = await ctx.db
+				.update(pickListItems)
+				.set({ status: "missing" })
+				.where(eq(pickListItems.id, input.item_id))
+				.returning();
+			return updated;
+		}),
+
+	scanItem: roleProcedure(["admin", "manager", "auditor", "picker"])
+		.input(z.object({ item_id: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			const item = await ctx.db.query.pickListItems.findFirst({
+				where: eq(pickListItems.id, input.item_id),
+			});
+			
+			if (!item) throw new Error("Item not found");
+			
+			const newQtyPicked = (item.quantity_picked ?? 0) + 1;
+			const newStatus = newQtyPicked >= item.quantity_ordered ? "picked" : "partial";
+			
+			const [updated] = await ctx.db
+				.update(pickListItems)
+				.set({ 
+					quantity_picked: newQtyPicked,
+					status: newStatus,
+					picked_at: new Date(),
+				})
+				.where(eq(pickListItems.id, input.item_id))
+				.returning();
+			
+			return updated;
 		}),
 
 	getCompleted: roleProcedure(["admin", "manager", "auditor", "picker"])

@@ -12,7 +12,21 @@ import { useTRPC } from "@/lib/trpc/client";
 import { AnimatedCard, PageTransition } from "@/lib/animations";
 
 export default function CurrentTaskPage() {
-	const { data, isLoading } = useTRPC().picker.getCurrentTask.useQuery({});
+	const trpc = useTRPC();
+	const utils = trpc.useUtils();
+	const { data, isLoading } = trpc.picker.getCurrentTask.useQuery({});
+	
+	const scanItem = trpc.picker.scanItem.useMutation({
+		onSuccess: () => {
+			utils.picker.getCurrentTask.invalidate();
+		}
+	});
+
+	const reportPNA = trpc.picker.reportPNA.useMutation({
+		onSuccess: () => {
+			utils.picker.getCurrentTask.invalidate();
+		}
+	});
 
 	if (isLoading)
 		return (
@@ -90,6 +104,7 @@ export default function CurrentTaskPage() {
 										"#",
 										"Product Name",
 										"SKU",
+										"Batch (FIFO)",
 										"Location",
 										"Qty Required",
 										"Qty Picked",
@@ -116,6 +131,11 @@ export default function CurrentTaskPage() {
 											{item.sku}
 										</td>
 										<td className="px-4 py-3">
+											<span className="inline-flex w-fit items-center rounded bg-purple-500/10 px-2 py-1 font-mono text-xs text-purple-400">
+												{item.batch}
+											</span>
+										</td>
+										<td className="px-4 py-3">
 											<span className="flex w-fit items-center gap-1 rounded bg-muted/30 px-2 py-1 font-mono text-xs">
 												<MapPin className="h-3 w-3 text-blue-400" />
 												{item.location}
@@ -126,22 +146,41 @@ export default function CurrentTaskPage() {
 											{item.qty_picked}
 										</td>
 										<td className="px-4 py-3">
-											{item.status === "Picked" ? (
+											{item.status === "picked" ? (
 												<span className="flex items-center gap-1 text-green-400 text-xs">
 													<CheckCircle2 className="h-4 w-4" /> Picked
 												</span>
+											) : item.status === "missing" ? (
+												<span className="flex items-center gap-1 text-red-400 text-xs">
+													Missing (PNA)
+												</span>
+											) : item.status === "partial" ? (
+												<span className="text-xs text-blue-400">Partial</span>
 											) : (
 												<span className="text-xs text-yellow-400">Pending</span>
 											)}
 										</td>
 										<td className="px-4 py-3">
-											{item.status !== "Picked" && (
-												<Button
-													size="sm"
-													className="h-7 gap-1 bg-blue-600 text-white text-xs hover:bg-blue-700"
-												>
-													<ScanLine className="h-3 w-3" /> Scan
-												</Button>
+											{item.status !== "picked" && item.status !== "missing" && (
+												<div className="flex items-center gap-2">
+													<Button
+														size="sm"
+														className="h-7 gap-1 bg-blue-600 text-white text-xs hover:bg-blue-700"
+														onClick={() => scanItem.mutate({ item_id: item.id })}
+														disabled={scanItem.isPending}
+													>
+														<ScanLine className="h-3 w-3" /> {scanItem.isPending ? "Scanning..." : "Scan"}
+													</Button>
+													<Button
+														size="sm"
+														variant="destructive"
+														className="h-7 text-xs"
+														onClick={() => reportPNA.mutate({ item_id: item.id })}
+														disabled={reportPNA.isPending}
+													>
+														{reportPNA.isPending ? "Reporting..." : "Report PNA"}
+													</Button>
+												</div>
 											)}
 										</td>
 									</tr>
