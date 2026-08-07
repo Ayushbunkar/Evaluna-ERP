@@ -45,7 +45,7 @@ export default function HoldBillsPage() {
 		},
 	});
 
-	const suspendedOrders = (orders ?? []).filter((o) => o.status === "suspended");
+	const suspendedOrders = (orders ?? []).filter((o) => o.status?.toLowerCase() === "suspended");
 
 	const handleResume = (id: number) => {
 		toast.info("Resuming hold bill...");

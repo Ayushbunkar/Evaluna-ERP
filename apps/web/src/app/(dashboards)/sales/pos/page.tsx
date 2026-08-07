@@ -120,6 +120,7 @@ export default function POSPage() {
 			toast.success("Bill put on hold!");
 			setCart([]);
 			setAppliedCoupon(null);
+			utils.orders.list.invalidate();
 		},
 		onError: (err) => {
 			toast.error(`Hold bill failed: ${err.message}`);
