@@ -209,7 +209,24 @@ export const pickerRouter = router({
 	getReturns: roleProcedure(["admin", "manager", "auditor", "picker"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async () => {
-			return [];
+			return [
+				{
+					id: "RTN-501",
+					order_id: "ORD-1002",
+					items: 2,
+					condition: "Damaged",
+					status: "pending",
+					action: "Restock",
+				},
+				{
+					id: "RTN-502",
+					order_id: "ORD-1005",
+					items: 1,
+					condition: "Good",
+					status: "processed",
+					action: "Restock",
+				}
+			];
 		}),
 
 	getReports: roleProcedure(["admin", "manager", "auditor", "picker"])
