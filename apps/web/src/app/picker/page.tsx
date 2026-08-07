@@ -46,8 +46,8 @@ const StatCard = ({
 						<p className="mt-1 font-bold text-3xl">{value}</p>
 						{sub && <p className="mt-1 text-muted-foreground text-xs">{sub}</p>}
 					</div>
-					<div className={`rounded-xl p-3 shadow-sm ${color}`}>
-						<Icon className="h-6 w-6 text-white" />
+					<div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${color}`}>
+						<Icon className="h-5 w-5 text-white" />
 					</div>
 				</div>
 			</CardContent>

@@ -52,7 +52,7 @@ export default function PickerReportsPage() {
 						<AnimatedCard>
 						<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl h-full transition-all hover:shadow-md">
 							<CardContent className="flex items-center gap-3 p-4">
-								<div className={`rounded-lg p-2 shadow-sm ${s.color}`}>
+								<div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${s.color}`}>
 									<s.icon className="h-5 w-5 text-white" />
 								</div>
 								<div>
