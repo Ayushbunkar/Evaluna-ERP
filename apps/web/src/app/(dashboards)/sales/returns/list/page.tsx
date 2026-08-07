@@ -134,7 +134,7 @@ export default function SalesReturnsList() {
 									<p className="font-medium text-muted-foreground text-sm">
 										Total Returns
 									</p>
-									<h3 className="font-bold text-2xl">124</h3>
+									<h3 className="font-bold text-2xl">{salesReturns?.length || 0}</h3>
 								</div>
 							</CardContent>
 						</Card>
@@ -151,7 +151,7 @@ export default function SalesReturnsList() {
 									<p className="font-medium text-muted-foreground text-sm">
 										Pending Review
 									</p>
-									<h3 className="font-bold text-2xl">12</h3>
+									<h3 className="font-bold text-2xl">{salesReturns?.filter(r => r.status?.toLowerCase() === 'pending').length || 0}</h3>
 								</div>
 							</CardContent>
 						</Card>

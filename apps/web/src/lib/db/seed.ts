@@ -8,6 +8,7 @@ import {
 	orders,
 	paymentMethods,
 	products,
+	salesReturns,
 	transactions,
 } from "./schema";
 
@@ -185,6 +186,43 @@ export async function seed() {
 		}
 	}
 
+	// ── Sales Returns ────────────────────────────────────────────────────────
+	const completedOrders = await db
+		.select()
+		.from(orders)
+		.where(eq(orders.status, "completed"))
+		.limit(5);
+	let returnCount = 0;
+	for (const order of completedOrders) {
+		const reason = faker.helpers.arrayElement([
+			"Defective product",
+			"Wrong item sent",
+			"Customer changed mind",
+		]);
+		const status = faker.helpers.arrayElement([
+			"pending",
+			"approved",
+			"refunded",
+			"rejected",
+		]);
+		const amount = (
+			Number.parseFloat(order.total_amount) *
+			faker.number.float({ min: 0.1, max: 1.0 })
+		).toFixed(2);
+
+		if (order.customer_id) {
+			await db.insert(salesReturns).values({
+				order_id: order.id,
+				customer_id: order.customer_id,
+				total_amount: amount,
+				reason,
+				status,
+				created_at: faker.date.recent({ days: 10 }),
+			});
+			returnCount++;
+		}
+	}
+
 	// ── Expense Transactions ─────────────────────────────────────────────────
 	const expenseCount = 25;
 	for (let i = 0; i < expenseCount; i++) {
@@ -218,6 +256,6 @@ export async function seed() {
 	console.log(
 		`Seeded: 3 payment methods, 1 demo user (${DEMO_EMAIL} / ${DEMO_PASSWORD}), ` +
 			`${customerValues.length} customers, ${productValues.length} products, ` +
-			`${orderCount} orders, ${expenseCount} expense transactions`,
+			`${orderCount} orders, ${returnCount} sales returns, ${expenseCount} expense transactions`,
 	);
 }

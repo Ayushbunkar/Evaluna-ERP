@@ -109,7 +109,7 @@ export default function CreateSalesReturn() {
 
 		createMutation.mutate({
 			orderId: order.id,
-			customerId: order.customer_id!,
+			customerId: order.customer_id ?? null,
 			items: itemsToReturn,
 			totalAmount: totalRefund,
 			cgstAmount: 0,

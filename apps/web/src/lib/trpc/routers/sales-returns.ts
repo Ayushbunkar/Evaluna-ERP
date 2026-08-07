@@ -91,7 +91,7 @@ export const salesReturnsRouter = router({
 		.input(
 			z.object({
 				orderId: z.number(),
-				customerId: z.number(),
+				customerId: z.number().nullable(),
 				items: z.array(salesReturnItemSchema),
 				totalAmount: z.number(),
 				cgstAmount: z.number().default(0),
