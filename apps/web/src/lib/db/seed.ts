@@ -217,6 +217,7 @@ export async function seed() {
 				total_amount: amount,
 				reason,
 				status,
+				user_uid: userId,
 				created_at: faker.date.recent({ days: 10 }),
 			});
 			returnCount++;
