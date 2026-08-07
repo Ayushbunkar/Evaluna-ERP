@@ -185,6 +185,31 @@ export const pickerRouter = router({
 			return updated;
 		}),
 
+	manualConfirm: roleProcedure(["admin", "manager", "auditor", "picker"])
+		.input(z.object({ item_id: z.number(), quantity: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			const item = await ctx.db.query.pickListItems.findFirst({
+				where: eq(pickListItems.id, input.item_id),
+			});
+			
+			if (!item) throw new Error("Item not found");
+			
+			const newQtyPicked = input.quantity;
+			const newStatus = newQtyPicked >= item.quantity_ordered ? "picked" : (newQtyPicked > 0 ? "partial" : "pending");
+			
+			const [updated] = await ctx.db
+				.update(pickListItems)
+				.set({ 
+					quantity_picked: newQtyPicked,
+					status: newStatus,
+					picked_at: newQtyPicked > 0 ? new Date() : null,
+				})
+				.where(eq(pickListItems.id, input.item_id))
+				.returning();
+			
+			return updated;
+		}),
+
 	getCompleted: roleProcedure(["admin", "manager", "auditor", "picker"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx }) => {

@@ -38,13 +38,17 @@ export async function GET(req: Request) {
 
 		// Create Pick List Items
 		for (const pl of insertedPickLists) {
-			await db.insert(pickListItems).values({
-				pick_list_id: pl.id,
-				product_id: productId,
-				quantity_ordered: 5,
-				quantity_picked: pl.status === "completed" ? 5 : (pl.status === "picking" ? 2 : 0),
-				status: pl.status === "completed" ? "picked" : "pending",
-			});
+			const itemCount = pl.status === "picking" ? 15 : 2; // Generate 15 items for active task
+			
+			for (let i = 0; i < itemCount; i++) {
+				await db.insert(pickListItems).values({
+					pick_list_id: pl.id,
+					product_id: productId,
+					quantity_ordered: Math.floor(Math.random() * 5) + 1,
+					quantity_picked: pl.status === "completed" ? 5 : 0,
+					status: pl.status === "completed" ? "picked" : "pending",
+				});
+			}
 		}
 
 		return NextResponse.json({ success: true, message: "Picker seed data generated successfully!" });

@@ -7,9 +7,18 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { CheckCircle2, MapPin, ScanLine } from "lucide-react";
+import { CheckCircle2, MapPin, ScanLine, Edit2 } from "lucide-react";
 import { useTRPC } from "@/lib/trpc/client";
 import { FadeIn, PageTransition } from "@/lib/animations";
+import { useState } from "react";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
 
 export default function CurrentTaskPage() {
 	const trpc = useTRPC();
@@ -27,6 +36,26 @@ export default function CurrentTaskPage() {
 			utils.picker.getCurrentTask.invalidate();
 		}
 	});
+
+	const manualConfirm = trpc.picker.manualConfirm.useMutation({
+		onSuccess: () => {
+			utils.picker.getCurrentTask.invalidate();
+			setManualVerifyItem(null);
+			setManualQty("");
+		}
+	});
+
+	const [manualVerifyItem, setManualVerifyItem] = useState<any>(null);
+	const [manualQty, setManualQty] = useState("");
+
+	const handleManualConfirm = () => {
+		if (manualVerifyItem && manualQty) {
+			manualConfirm.mutate({
+				item_id: manualVerifyItem.id,
+				quantity: parseInt(manualQty, 10),
+			});
+		}
+	};
 
 	if (isLoading)
 		return (
@@ -173,6 +202,17 @@ export default function CurrentTaskPage() {
 													</Button>
 													<Button
 														size="sm"
+														variant="outline"
+														className="h-7 gap-1 text-xs"
+														onClick={() => {
+															setManualVerifyItem(item);
+															setManualQty(item.qty_picked.toString());
+														}}
+													>
+														<Edit2 className="h-3 w-3" /> Qty
+													</Button>
+													<Button
+														size="sm"
 														variant="destructive"
 														className="h-7 text-xs"
 														onClick={() => reportPNA.mutate({ item_id: item.id })}
@@ -192,6 +232,40 @@ export default function CurrentTaskPage() {
 			</Card>
 			</FadeIn>
 		</div>
+
+		<Dialog open={!!manualVerifyItem} onOpenChange={(open) => !open && setManualVerifyItem(null)}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Manual Quantity Verification</DialogTitle>
+				</DialogHeader>
+				<div className="py-4 space-y-4">
+					<div>
+						<p className="text-sm font-medium">Product: {manualVerifyItem?.product}</p>
+						<p className="text-xs text-muted-foreground">SKU: {manualVerifyItem?.sku}</p>
+						<p className="text-sm mt-2">Required: {manualVerifyItem?.qty_required}</p>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="qty">Quantity Picked</Label>
+						<Input 
+							id="qty" 
+							type="number" 
+							min="0" 
+							max={manualVerifyItem?.qty_required}
+							value={manualQty}
+							onChange={(e) => setManualQty(e.target.value)}
+						/>
+					</div>
+					<Button 
+						className="w-full" 
+						onClick={handleManualConfirm}
+						disabled={manualConfirm.isPending || !manualQty}
+					>
+						{manualConfirm.isPending ? "Confirming..." : "Confirm Quantity"}
+					</Button>
+				</div>
+			</DialogContent>
+		</Dialog>
+
 		</PageTransition>
 	);
 }

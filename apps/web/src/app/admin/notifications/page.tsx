@@ -295,7 +295,7 @@ function PreferencesPanel() {
         <button
           onClick={handleSave}
           disabled={savePref.isPending}
-          className="rounded-lg bg-violet-600 px-4 py-2 font-medium text-sm text-foreground transition-colors hover:bg-violet-500 disabled:opacity-50"
+          className="rounded-lg bg-primary px-4 py-2 font-medium text-sm text-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           {savePref.isPending ? "Saving…" : "Save Preferences"}
         </button>
@@ -339,7 +339,7 @@ function PreferencesPanel() {
                         onClick={() => toggle(type, c.key)}
                         className={`relative h-5 w-10 rounded-full transition-colors ${
                           prefs[type]?.[c.key]
-                            ? "bg-violet-600"
+                            ? "bg-primary"
                             : "bg-slate-600"
                         }`}
                       >
@@ -435,8 +435,8 @@ export default function NotificationsPage() {
           <div>
             <h1 className="flex items-center gap-3 font-bold text-3xl text-foreground">
               <div className="relative">
-                <div className="rounded-xl border border-violet-500/30 bg-violet-600/20 p-2">
-                  <Bell className="h-7 w-7 text-violet-400" />
+                <div className="rounded-xl border border-border/50 bg-muted p-2">
+                  <Bell className="h-7 w-7 text-foreground" />
                 </div>
                 {(countData?.count ?? 0) > 0 && (
                   <motion.span
@@ -472,7 +472,7 @@ export default function NotificationsPage() {
             {(countData?.count ?? 0) > 0 && (
               <button
                 onClick={() => markAllRead.mutate({})}
-                className="flex items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-600/20 px-4 py-2 text-sm text-violet-300 transition-colors hover:bg-violet-600/30"
+                className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted px-4 py-2 text-sm text-foreground transition-colors hover:bg-muted/80"
               >
                 <CheckCheck className="h-4 w-4" /> Mark All Read
               </button>
@@ -488,7 +488,7 @@ export default function NotificationsPage() {
               onClick={() => setTab(id)}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-sm transition-all ${
                 tab === id
-                  ? "bg-violet-600 text-foreground"
+                  ? "bg-primary text-foreground"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               }`}
             >
@@ -517,7 +517,7 @@ export default function NotificationsPage() {
                       onClick={() => setReadFilter(f)}
                       className={`rounded-md px-3 py-1.5 font-medium text-sm capitalize transition-colors ${
                         readFilter === f
-                          ? "bg-violet-600 text-foreground"
+                          ? "bg-primary text-foreground"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -536,7 +536,7 @@ export default function NotificationsPage() {
                         onClick={() => setTypeFilter(t)}
                         className={`rounded-lg border px-3 py-1 font-medium text-xs capitalize transition-colors ${
                           typeFilter === t
-                            ? `${cfg?.bg ?? "bg-violet-600/20"} ${cfg?.color ?? "text-violet-300"} ${cfg?.border ?? "border-violet-500/30"}`
+                            ? `${cfg?.bg ?? "bg-muted"} ${cfg?.color ?? "text-foreground"} ${cfg?.border ?? "border-border/50"}`
                             : "border-border bg-card/40 text-foreground0 hover:border-white/20"
                         }`}
                       >
