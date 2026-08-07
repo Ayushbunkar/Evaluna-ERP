@@ -296,7 +296,7 @@ export const ordersRouter = router({
 				}
 				await tx.delete(pickLists).where(eq(pickLists.order_id, input.id));
 
-				await tx.delete(loyaltyHistory).where(eq(loyaltyHistory.order_id, input.id));
+				await tx.delete(loyaltyHistory).where(eq(loyaltyHistory.reference_id, String(input.id)));
 				await tx.delete(orderAudits).where(eq(orderAudits.order_id, input.id));
 				await tx.delete(proofOfDeliveries).where(eq(proofOfDeliveries.order_id, input.id));
 				await tx.delete(deliveryStops).where(eq(deliveryStops.order_id, input.id));
