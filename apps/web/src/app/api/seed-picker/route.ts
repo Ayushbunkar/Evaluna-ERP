@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 			orderId = newOrder.id;
 		}
 
-		let assignedUser = userUid;
+		let assignedUser = 1; // Needs to be an integer (staff.id)
 		
 		let productId = 1;
 		const existingProducts = await db.select().from(products).limit(1);
@@ -25,9 +25,9 @@ export async function GET(req: Request) {
 
 		// Create Pick Lists
 		const pickListData = [
-			{ order_id: orderId, assigned_to: assignedUser, status: "pending", priority: "High" },
-			{ order_id: orderId, assigned_to: assignedUser, status: "picking", priority: "Normal" },
-			{ order_id: orderId, assigned_to: assignedUser, status: "completed", priority: "High" },
+			{ order_id: orderId, reference_type: "sale", reference_id: orderId, assigned_to: assignedUser, status: "pending", priority: "High" },
+			{ order_id: orderId, reference_type: "sale", reference_id: orderId, assigned_to: assignedUser, status: "picking", priority: "Normal" },
+			{ order_id: orderId, reference_type: "sale", reference_id: orderId, assigned_to: assignedUser, status: "completed", priority: "High" },
 		];
 
 		const insertedPickLists = [];
