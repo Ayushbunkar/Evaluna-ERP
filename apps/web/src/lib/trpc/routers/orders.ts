@@ -262,7 +262,7 @@ export const ordersRouter = router({
 			return { ...updated, customer: customer ?? null };
 		}),
 
-	delete: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+	delete: roleProcedure(["admin", "manager"])
 		.meta({
 			openapi: {
 				method: "DELETE",

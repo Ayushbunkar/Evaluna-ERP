@@ -232,15 +232,7 @@ export default function OrdersPage() {
 					icon={<FilePenIcon className="h-4 w-4" />}
 					label={tc("edit")}
 				/>
-				<TableActionButton
-					variant="danger"
-					onClick={() => {
-						setDeleteId(row.id);
-						setIsDeleteOpen(true);
-					}}
-					icon={<TrashIcon className="h-4 w-4" />}
-					label={tc("delete")}
-				/>
+				{/* Delete button removed for Sales Person based on professional audit rules */}
 				<Link
 					href={`/sales/orders/${row.id}`}
 					prefetch={false}
