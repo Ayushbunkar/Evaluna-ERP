@@ -258,34 +258,59 @@ export default function DriverDashboard() {
 				</Button>
 
 				{/* Mini KPI Dashboard */}
-				<div className="mt-2 rounded-xl border border-border/50 bg-background p-4 shadow-sm">
-					<h3 className="mb-4 font-bold text-muted-foreground text-xs uppercase tracking-wider">
-						Today's Performance
-					</h3>
-					<div className="grid grid-cols-3 gap-x-2 gap-y-5">
-						<div className="text-center">
-							<div className="font-black text-xl">
-								{data.delivered}/{data.assignedOrders}
+				<h3 className="mt-6 mb-3 font-bold text-muted-foreground text-sm uppercase tracking-wider px-1">
+					Today's Performance
+				</h3>
+				<div className="grid grid-cols-2 gap-3 mb-6">
+					<Card className="border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
+						<CardContent className="p-4 flex flex-col justify-between h-full">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/80">
+								<PackageCheckIcon className="h-5 w-5 text-foreground" />
 							</div>
-							<div className="mt-0.5 text-[10px] text-muted-foreground">
-								Delivered
+							<div className="mt-4 space-y-1">
+								<p className="font-medium text-muted-foreground text-xs">
+									Delivered
+								</p>
+								<p className="font-bold text-2xl tracking-tight">
+									{data.delivered}/{data.assignedOrders}
+								</p>
 							</div>
-						</div>
-						<div className="border-border border-x text-center">
-							<div className="font-black text-amber-600 text-xl">
-								{formatCurrency(data.codCollected, "en-IN")}
+						</CardContent>
+					</Card>
+					
+					<Card className="border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
+						<CardContent className="p-4 flex flex-col justify-between h-full">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/80">
+								<BanknoteIcon className="h-5 w-5 text-foreground" />
 							</div>
-							<div className="mt-0.5 text-[10px] text-muted-foreground">
-								COD Collected
+							<div className="mt-4 space-y-1">
+								<p className="font-medium text-muted-foreground text-xs">
+									COD Collected
+								</p>
+								<p className="font-bold text-2xl tracking-tight text-amber-600">
+									{formatCurrency(data.codCollected, "en-IN")}
+								</p>
 							</div>
-						</div>
-						{data.distanceCovered && (
-							<div className="flex flex-col items-center text-center">
-								<div className="font-black text-xl">{data.distanceCovered}</div>
-								<div className="mt-0.5 text-[10px] text-muted-foreground">Distance</div>
-							</div>
-						)}
-					</div>
+						</CardContent>
+					</Card>
+
+					{data.distanceCovered && (
+						<Card className="col-span-2 border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
+							<CardContent className="p-4 flex flex-col justify-between h-full">
+								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/80">
+									<NavigationIcon className="h-5 w-5 text-foreground" />
+								</div>
+								<div className="mt-4 space-y-1">
+									<p className="font-medium text-muted-foreground text-xs">
+										Distance
+									</p>
+									<p className="font-bold text-2xl tracking-tight">
+										{data.distanceCovered}
+									</p>
+								</div>
+							</CardContent>
+						</Card>
+					)}
 				</div>
 
 				{/* Today's Route Timeline */}

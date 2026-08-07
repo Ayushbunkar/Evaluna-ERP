@@ -33,22 +33,26 @@ const StatCard = ({
 	value: string | number;
 	sub?: string;
 	icon: any;
-	color: string;
+	color?: string;
 }) => (
 	<AnimatedCard>
-		<Card className="h-full border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md">
-			<CardContent className="p-5">
-				<div className="flex items-center justify-between">
-					<div>
-						<p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-							{title}
-						</p>
-						<p className="mt-1 font-bold text-3xl">{value}</p>
-						{sub && <p className="mt-1 text-muted-foreground text-xs">{sub}</p>}
+		<Card className="h-full border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
+			<CardContent className="p-5 flex flex-col justify-between">
+				<div className="flex items-start justify-between">
+					<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted/80">
+						<Icon className="h-6 w-6 text-foreground" />
 					</div>
-					<div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-sm ${color}`}>
-						<Icon className="h-5 w-5 text-white" />
-					</div>
+					{sub && (
+						<div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600">
+							{sub}
+						</div>
+					)}
+				</div>
+				<div className="mt-6 space-y-1">
+					<p className="font-medium text-muted-foreground text-sm">
+						{title}
+					</p>
+					<p className="font-bold text-3xl tracking-tight">{value}</p>
 				</div>
 			</CardContent>
 		</Card>
