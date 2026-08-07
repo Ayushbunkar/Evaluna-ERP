@@ -235,7 +235,6 @@ export const ordersRouter = router({
 		.input(
 			z.object({
 				id: z.number(),
-				total_amount: z.number().int().optional(),
 				status: z.enum(["completed", "pending", "cancelled"]).optional(),
 			}),
 		)
@@ -243,8 +242,6 @@ export const ordersRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const { id, ...data } = input;
 			const updateData: any = { ...data, user_uid: ctx.user.id };
-			if (data.total_amount !== undefined)
-				updateData.total_amount = data.total_amount.toString();
 
 			const [updated] = await db
 				.update(orders)

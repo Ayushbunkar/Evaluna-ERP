@@ -186,7 +186,6 @@ export default function OrdersPage() {
 			if (editingId !== null) {
 				updateMutation.mutate({
 					id: editingId,
-					total_amount: Math.round(Number.parseFloat(value.total)), // or pass as string if updateMutation takes number/string
 					status: value.status,
 				});
 			}
@@ -346,15 +345,8 @@ export default function OrdersPage() {
 												id="total"
 												type="number"
 												value={field.state.value}
-												onChange={(e) => field.handleChange(e.target.value)}
-												onBlur={field.handleBlur}
-												error={
-													field.state.meta.errors.length > 0
-														? field.state.meta.errors
-																.map((e) => e?.message ?? e)
-																.join(", ")
-														: undefined
-												}
+												disabled
+												className="bg-muted"
 											/>
 										</div>
 									</div>
