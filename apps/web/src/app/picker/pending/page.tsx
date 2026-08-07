@@ -2,6 +2,7 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { useTRPC } from "@/lib/trpc/client";
+import { AnimatedCard, PageTransition } from "@/lib/animations";
 
 const priorityColor = (p: string) => {
 	if (p === "High") return "bg-red-500/20 text-red-400";
@@ -13,6 +14,7 @@ export default function PendingQueuePage() {
 	const { data, isLoading } = useTRPC().picker.getPending.useQuery({});
 
 	return (
+		<PageTransition>
 		<div className="flex flex-col gap-6 p-1">
 			<div>
 				<h1 className="font-bold text-2xl tracking-tight">Pending Queue</h1>
@@ -20,7 +22,8 @@ export default function PendingQueuePage() {
 					Upcoming pick tasks waiting to be started
 				</p>
 			</div>
-			<Card className="border-border/50 bg-card/50">
+			<AnimatedCard>
+			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardContent className="p-0">
 					{isLoading ? (
 						<div className="p-8 text-center text-muted-foreground">
@@ -96,6 +99,8 @@ export default function PendingQueuePage() {
 					)}
 				</CardContent>
 			</Card>
+			</AnimatedCard>
 		</div>
+		</PageTransition>
 	);
 }

@@ -1,13 +1,13 @@
 "use client";
 
 import {
-	CheckCircleIcon,
-	ClipboardListIcon,
-	ClockIcon,
-	FileTextIcon,
+	BarChart,
+	ClipboardCheck,
+	Hourglass,
 	LayoutDashboardIcon,
-	ListIcon,
-	RotateCcwIcon,
+	PackageCheck,
+	Target,
+	Undo2,
 } from "lucide-react";
 import {
 	AppLayoutWithBranch,
@@ -16,12 +16,12 @@ import {
 
 const pickerNavItems: NavItem[] = [
 	{ href: "/picker", labelKey: "dashboard", icon: LayoutDashboardIcon },
-	{ href: "/picker/pick-lists", labelKey: "pickLists", icon: ListIcon },
-	{ href: "/picker/tasks", labelKey: "currentTask", icon: ClipboardListIcon },
-	{ href: "/picker/completed", labelKey: "completed", icon: CheckCircleIcon },
-	{ href: "/picker/pending", labelKey: "pending", icon: ClockIcon },
-	{ href: "/picker/returns", labelKey: "returns", icon: RotateCcwIcon },
-	{ href: "/picker/reports", labelKey: "reports", icon: FileTextIcon },
+	{ href: "/picker/pick-lists", labelKey: "pickLists", icon: ClipboardCheck },
+	{ href: "/picker/tasks", labelKey: "currentTask", icon: Target },
+	{ href: "/picker/completed", labelKey: "completed", icon: PackageCheck },
+	{ href: "/picker/pending", labelKey: "pending", icon: Hourglass },
+	{ href: "/picker/returns", labelKey: "returns", icon: Undo2 },
+	{ href: "/picker/reports", labelKey: "reports", icon: BarChart },
 ];
 
 export default function Layout({

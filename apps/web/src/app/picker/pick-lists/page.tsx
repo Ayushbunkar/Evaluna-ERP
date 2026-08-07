@@ -4,6 +4,7 @@ import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { Play, RefreshCw } from "lucide-react";
 import { useTRPC } from "@/lib/trpc/client";
+import { AnimatedCard, PageTransition } from "@/lib/animations";
 
 const priorityColor = (p: string) => {
 	if (p === "High")
@@ -28,6 +29,7 @@ export default function PickListsPage() {
 	} = useTRPC().picker.getPickLists.useQuery({});
 
 	return (
+		<PageTransition>
 		<div className="flex flex-col gap-6 p-1">
 			<div className="flex items-center justify-between">
 				<div>
@@ -45,7 +47,8 @@ export default function PickListsPage() {
 					<RefreshCw className="h-4 w-4" /> Refresh
 				</Button>
 			</div>
-			<Card className="border-border/50 bg-card/50">
+			<AnimatedCard>
+			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardContent className="p-0">
 					{isLoading ? (
 						<div className="p-8 text-center text-muted-foreground">
@@ -128,6 +131,8 @@ export default function PickListsPage() {
 					)}
 				</CardContent>
 			</Card>
+			</AnimatedCard>
 		</div>
+		</PageTransition>
 	);
 }

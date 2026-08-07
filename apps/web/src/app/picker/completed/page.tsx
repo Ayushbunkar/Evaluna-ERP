@@ -2,11 +2,13 @@
 
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { useTRPC } from "@/lib/trpc/client";
+import { AnimatedCard, PageTransition } from "@/lib/animations";
 
 export default function CompletedPicksPage() {
 	const { data, isLoading } = useTRPC().picker.getCompleted.useQuery({});
 
 	return (
+		<PageTransition>
 		<div className="flex flex-col gap-6 p-1">
 			<div>
 				<h1 className="font-bold text-2xl tracking-tight">Completed Picks</h1>
@@ -14,7 +16,8 @@ export default function CompletedPicksPage() {
 					History of all completed picking tasks
 				</p>
 			</div>
-			<Card className="border-border/50 bg-card/50">
+			<AnimatedCard>
+			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardContent className="p-0">
 					{isLoading ? (
 						<div className="p-8 text-center text-muted-foreground">
@@ -73,6 +76,8 @@ export default function CompletedPicksPage() {
 					)}
 				</CardContent>
 			</Card>
+			</AnimatedCard>
 		</div>
+		</PageTransition>
 	);
 }

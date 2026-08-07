@@ -7,11 +7,13 @@ import {
 } from "@evaluna/ui/components/card";
 import { Award, Clock, Target, TrendingUp } from "lucide-react";
 import { useTRPC } from "@/lib/trpc/client";
+import { AnimatedCard, PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 
 export default function PickerReportsPage() {
 	const { data, isLoading } = useTRPC().picker.getReports.useQuery({});
 
 	return (
+		<PageTransition>
 		<div className="flex flex-col gap-6 p-1">
 			<div>
 				<h1 className="font-bold text-2xl tracking-tight">Picker Reports</h1>
@@ -19,7 +21,7 @@ export default function PickerReportsPage() {
 					Performance metrics and efficiency analytics
 				</p>
 			</div>
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+			<StaggerList className="grid grid-cols-2 gap-4 md:grid-cols-4">
 				{[
 					{
 						label: "Team Tasks Done",
@@ -46,20 +48,25 @@ export default function PickerReportsPage() {
 						color: "bg-yellow-600",
 					},
 				].map((s) => (
-					<Card key={s.label} className="border-border/50 bg-card/50">
-						<CardContent className="flex items-center gap-3 p-4">
-							<div className={`rounded-lg p-2 ${s.color}`}>
-								<s.icon className="h-5 w-5 text-white" />
-							</div>
-							<div>
-								<p className="text-muted-foreground text-xs">{s.label}</p>
-								<p className="font-bold">{s.value}</p>
-							</div>
-						</CardContent>
-					</Card>
+					<StaggerItem key={s.label}>
+						<AnimatedCard>
+						<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl h-full transition-all hover:shadow-md">
+							<CardContent className="flex items-center gap-3 p-4">
+								<div className={`rounded-lg p-2 shadow-sm ${s.color}`}>
+									<s.icon className="h-5 w-5 text-white" />
+								</div>
+								<div>
+									<p className="text-muted-foreground text-xs">{s.label}</p>
+									<p className="font-bold text-xl">{s.value}</p>
+								</div>
+							</CardContent>
+						</Card>
+						</AnimatedCard>
+					</StaggerItem>
 				))}
-			</div>
-			<Card className="border-border/50 bg-card/50">
+			</StaggerList>
+			<AnimatedCard>
+			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardHeader>
 					<CardTitle className="text-base">
 						Team Performance - January 2024
@@ -115,6 +122,8 @@ export default function PickerReportsPage() {
 					)}
 				</CardContent>
 			</Card>
+			</AnimatedCard>
 		</div>
+		</PageTransition>
 	);
 }
