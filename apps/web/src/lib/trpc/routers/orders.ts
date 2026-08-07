@@ -14,6 +14,9 @@ import {
 	proofOfDeliveries,
 	pickLists,
 	deliveryStops,
+	salesReturnItems,
+	pickListItems,
+	packLists,
 } from "@evaluna/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
@@ -278,11 +281,24 @@ export const ordersRouter = router({
 				await tx.delete(pendingSync).where(and(eq(pendingSync.entity_id, input.id), eq(pendingSync.entity_type, 'order')));
 				await tx.delete(auditLogs).where(and(eq(auditLogs.entity_id, input.id), eq(auditLogs.entity_type, 'orders')));
 				await tx.delete(eWayBills).where(eq(eWayBills.order_id, input.id));
+				const sRet = await tx.select({ id: salesReturns.id }).from(salesReturns).where(eq(salesReturns.order_id, input.id));
+				if (sRet.length > 0) {
+					const ids = sRet.map(s => s.id);
+					await tx.delete(salesReturnItems).where(inArray(salesReturnItems.return_id, ids));
+				}
 				await tx.delete(salesReturns).where(eq(salesReturns.order_id, input.id));
+
+				const pList = await tx.select({ id: pickLists.id }).from(pickLists).where(eq(pickLists.order_id, input.id));
+				if (pList.length > 0) {
+					const ids = pList.map(p => p.id);
+					await tx.delete(pickListItems).where(inArray(pickListItems.pick_list_id, ids));
+					await tx.delete(packLists).where(inArray(packLists.pick_list_id, ids));
+				}
+				await tx.delete(pickLists).where(eq(pickLists.order_id, input.id));
+
 				await tx.delete(loyaltyHistory).where(eq(loyaltyHistory.order_id, input.id));
 				await tx.delete(orderAudits).where(eq(orderAudits.order_id, input.id));
 				await tx.delete(proofOfDeliveries).where(eq(proofOfDeliveries.order_id, input.id));
-				await tx.delete(pickLists).where(eq(pickLists.order_id, input.id));
 				await tx.delete(deliveryStops).where(eq(deliveryStops.order_id, input.id));
 				
 				await tx
