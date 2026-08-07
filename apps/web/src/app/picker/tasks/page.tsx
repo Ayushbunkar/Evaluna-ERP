@@ -9,7 +9,7 @@ import {
 } from "@evaluna/ui/components/card";
 import { CheckCircle2, MapPin, ScanLine } from "lucide-react";
 import { useTRPC } from "@/lib/trpc/client";
-import { AnimatedCard, PageTransition } from "@/lib/animations";
+import { FadeIn, PageTransition } from "@/lib/animations";
 
 export default function CurrentTaskPage() {
 	const trpc = useTRPC();
@@ -52,7 +52,7 @@ export default function CurrentTaskPage() {
 			</div>
 
 			{task && (
-				<AnimatedCard>
+				<FadeIn>
 				<Card className="border-border/50 bg-gradient-to-r from-blue-900/40 to-blue-800/30 shadow-md backdrop-blur-xl transition-all">
 					<CardContent className="p-5">
 						<div className="mb-4 flex items-center justify-between">
@@ -87,10 +87,10 @@ export default function CurrentTaskPage() {
 						</div>
 					</CardContent>
 				</Card>
-				</AnimatedCard>
+				</FadeIn>
 			)}
 
-			<AnimatedCard>
+			<FadeIn>
 			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardHeader className="p-4 pb-0">
 					<CardTitle className="text-base">Items to Pick</CardTitle>
@@ -190,7 +190,7 @@ export default function CurrentTaskPage() {
 					</div>
 				</CardContent>
 			</Card>
-			</AnimatedCard>
+			</FadeIn>
 		</div>
 		</PageTransition>
 	);

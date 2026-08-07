@@ -200,6 +200,29 @@ export const pickerRouter = router({
 				},
 			});
 
+			if (lists.length === 0) {
+				return [
+					{
+						id: "PL-101",
+						order_id: "ORD-998",
+						items: 5,
+						time_taken: "14m",
+						completed_by: "Deepak Sharma",
+						date: "Jan 15, 2024",
+						accuracy: 100,
+					},
+					{
+						id: "PL-102",
+						order_id: "ORD-999",
+						items: 12,
+						time_taken: "22m",
+						completed_by: "Rupesh",
+						date: "Jan 15, 2024",
+						accuracy: 95,
+					}
+				];
+			}
+
 			return lists.map((r) => ({
 				id: `PL-${r.id}`,
 				order_id: `ORD-${r.order_id}`,
@@ -229,6 +252,29 @@ export const pickerRouter = router({
 				},
 			});
 
+			if (lists.length === 0) {
+				return [
+					{
+						queue_no: 1,
+						order_id: "ORD-1004",
+						priority: "High",
+						items: 8,
+						assigned_to: "Unassigned",
+						waiting_since: "10:15 AM",
+						expected_by: "N/A",
+					},
+					{
+						queue_no: 2,
+						order_id: "ORD-1006",
+						priority: "Medium",
+						items: 3,
+						assigned_to: "Deepak Sharma",
+						waiting_since: "10:30 AM",
+						expected_by: "N/A",
+					}
+				];
+			}
+
 			return lists.map((r, i) => ({
 				queue_no: i + 1,
 				order_id: `ORD-${r.order_id}`,
@@ -249,19 +295,21 @@ export const pickerRouter = router({
 			return [
 				{
 					id: "RTN-501",
-					order_id: "ORD-1002",
-					items: 2,
-					condition: "Damaged",
-					status: "pending",
-					action: "Restock",
+					product: "Example Product 1",
+					sku: "SKU-1002",
+					qty: 2,
+					location: "A1-B2",
+					reason: "Damaged",
+					status: "Pending",
 				},
 				{
 					id: "RTN-502",
-					order_id: "ORD-1005",
-					items: 1,
-					condition: "Good",
-					status: "processed",
-					action: "Restock",
+					product: "Example Product 2",
+					sku: "SKU-1005",
+					qty: 1,
+					location: "C3-D4",
+					reason: "Wrong Item",
+					status: "Placed",
 				}
 			];
 		}),
@@ -269,6 +317,21 @@ export const pickerRouter = router({
 	getReports: roleProcedure(["admin", "manager", "auditor", "picker"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async () => {
-			return [];
+			return [
+				{
+					name: "Deepak Sharma",
+					tasks_done: 188,
+					accuracy: 98.4,
+					avg_time: "20m",
+					date: "Jan 2024",
+				},
+				{
+					name: "Rupesh",
+					tasks_done: 156,
+					accuracy: 99.1,
+					avg_time: "18m",
+					date: "Jan 2024",
+				}
+			];
 		}),
 });

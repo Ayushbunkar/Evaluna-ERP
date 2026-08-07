@@ -7,7 +7,7 @@ import {
 } from "@evaluna/ui/components/card";
 import { Award, Clock, Target, TrendingUp } from "lucide-react";
 import { useTRPC } from "@/lib/trpc/client";
-import { AnimatedCard, PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import { FadeIn, PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 
 export default function PickerReportsPage() {
 	const { data, isLoading } = useTRPC().picker.getReports.useQuery({});
@@ -49,7 +49,6 @@ export default function PickerReportsPage() {
 					},
 				].map((s) => (
 					<StaggerItem key={s.label}>
-						<AnimatedCard>
 						<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl h-full transition-all hover:shadow-md">
 							<CardContent className="flex items-center gap-3 p-4">
 								<div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-sm ${s.color}`}>
@@ -61,11 +60,10 @@ export default function PickerReportsPage() {
 								</div>
 							</CardContent>
 						</Card>
-						</AnimatedCard>
 					</StaggerItem>
 				))}
 			</StaggerList>
-			<AnimatedCard>
+			<FadeIn>
 			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardHeader>
 					<CardTitle className="text-base">
@@ -122,7 +120,7 @@ export default function PickerReportsPage() {
 					)}
 				</CardContent>
 			</Card>
-			</AnimatedCard>
+			</FadeIn>
 		</div>
 		</PageTransition>
 	);

@@ -44,6 +44,7 @@ import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { useSession } from "@/hooks/use-session";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
+import { Clock } from "lucide-react";
 
 export interface NavItem {
 	href: string;
@@ -224,6 +225,9 @@ export function AppLayout({
 	const { session } = useSession();
 	const t = useTranslations(namespace);
 
+	const { data: statusData } = trpc.attendance.myStatus.useQuery();
+	const activeShift = statusData?.activeShift;
+
 	const handleSync = async () => {
 		if (isOffline) {
 			toast.error("Cannot sync while offline");
@@ -329,6 +333,14 @@ export function AppLayout({
 					</Button>
 
 					<NotificationBell role={role} />
+
+					<Link href="/staff">
+						<Button variant="ghost" size="sm" className={`hidden md:flex ${activeShift ? 'text-green-500' : 'text-orange-500'}`}>
+							<Clock className="mr-2 h-4 w-4" />
+							{activeShift ? 'Clocked In' : 'Clocked Out'}
+						</Button>
+					</Link>
+
 					<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
 
 					<div className="hidden sm:block">
@@ -392,6 +404,10 @@ export function AppLayout({
 									<DropdownMenuSeparator />
 								</>
 							) : null}
+							<DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-accent/50">
+								<Link href="/staff">Staff Portal</Link>
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
 							<DropdownMenuItem className="cursor-pointer rounded-md focus:bg-accent/50">
 								Support
 							</DropdownMenuItem>

@@ -2,7 +2,7 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { useTRPC } from "@/lib/trpc/client";
-import { AnimatedCard, PageTransition } from "@/lib/animations";
+import { FadeIn, PageTransition } from "@/lib/animations";
 
 const priorityColor = (p: string) => {
 	if (p === "High") return "bg-red-500/20 text-red-400";
@@ -22,7 +22,7 @@ export default function PendingQueuePage() {
 					Upcoming pick tasks waiting to be started
 				</p>
 			</div>
-			<AnimatedCard>
+			<FadeIn>
 			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardContent className="p-0">
 					{isLoading ? (
@@ -99,7 +99,7 @@ export default function PendingQueuePage() {
 					)}
 				</CardContent>
 			</Card>
-			</AnimatedCard>
+			</FadeIn>
 		</div>
 		</PageTransition>
 	);

@@ -2,7 +2,7 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { useTRPC } from "@/lib/trpc/client";
-import { AnimatedCard, PageTransition } from "@/lib/animations";
+import { FadeIn, PageTransition } from "@/lib/animations";
 
 export default function ShelfReturnsPage() {
 	const { data, isLoading } = useTRPC().picker.getReturns.useQuery({});
@@ -16,7 +16,7 @@ export default function ShelfReturnsPage() {
 					Items to be placed back on the shelf
 				</p>
 			</div>
-			<AnimatedCard>
+			<FadeIn>
 			<Card className="border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all">
 				<CardContent className="p-0">
 					{isLoading ? (
@@ -89,7 +89,7 @@ export default function ShelfReturnsPage() {
 					)}
 				</CardContent>
 			</Card>
-			</AnimatedCard>
+			</FadeIn>
 		</div>
 		</PageTransition>
 	);
