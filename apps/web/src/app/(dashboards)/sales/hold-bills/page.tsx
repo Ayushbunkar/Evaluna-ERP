@@ -20,6 +20,7 @@ import {
 } from "@/lib/animations";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+import { RoleGate } from "@/components/auth/RoleGate";
 
 type Order = {
 	id: number;
@@ -90,11 +91,13 @@ export default function HoldBillsPage() {
 						label="Resume Bill"
 						onClick={() => handleResume(row.id)}
 					/>
-					<TableActionButton
-						icon={<TrashIcon className="h-4 w-4 text-red-500" />}
-						label="Delete Bill"
-						onClick={() => handleDelete(row.id)}
-					/>
+					<RoleGate minRole="manager">
+						<TableActionButton
+							icon={<TrashIcon className="h-4 w-4 text-red-500" />}
+							label="Delete Bill"
+							onClick={() => handleDelete(row.id)}
+						/>
+					</RoleGate>
 				</TableActions>
 			),
 		},
