@@ -20,7 +20,7 @@ export default function PutterDashboard() {
 			{isLoading ? (
 				<p>Loading stats...</p>
 			) : (
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+				<div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
 					{stats &&
 						Object.entries(stats).map(([key, value]) => {
 							if (Array.isArray(value)) return null;
