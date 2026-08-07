@@ -82,6 +82,8 @@ export default function POSPage() {
 		discount: number;
 	} | null>(null);
 
+	const utils = trpc.useUtils();
+
 	// TRPC Queries
 	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
 		staleTime: 1000 * 60 * 60, // heavily cache for offline use
@@ -104,6 +106,10 @@ export default function POSPage() {
 			});
 			setCart([]);
 			setAppliedCoupon(null);
+
+			utils.orders.list.invalidate();
+			utils.cashbook.getLedger.invalidate();
+			utils.cashbook.getDailySummary.invalidate();
 
 			if (resumeId) {
 				deleteHoldBillMutation.mutate({ id: Number(resumeId) });
