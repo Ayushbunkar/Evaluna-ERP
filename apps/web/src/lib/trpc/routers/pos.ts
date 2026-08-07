@@ -140,8 +140,9 @@ export const posRouter = router({
 						amount: payment.amount,
 						user_uid: ctx.user.id,
 						branch_id: ctx.user.branchId,
-						type: "credit",
-						status: "success",
+						type: "in",
+						category: "sale",
+						status: "completed",
 					});
 				}
 
