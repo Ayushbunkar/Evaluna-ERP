@@ -86,6 +86,15 @@ export const pickerRouter = router({
 				},
 			});
 
+			if (lists.length === 0) {
+				return [
+					{ id: "PL-1011", order_id: "ORD-5001", priority: "High", items_count: 12, assigned_to: "Rahul M.", area: "Zone A, Aisle 1-4", status: "In Progress", estimated_time: "15 mins", created_at: "Today, 10:30 AM" },
+					{ id: "PL-1012", order_id: "ORD-5003", priority: "Medium", items_count: 5, assigned_to: "Unassigned", area: "Zone B", status: "Pending", estimated_time: "8 mins", created_at: "Today, 10:45 AM" },
+					{ id: "PL-1015", order_id: "ORD-5010", priority: "Low", items_count: 24, assigned_to: "Unassigned", area: "Bulk Section", status: "Pending", estimated_time: "35 mins", created_at: "Today, 11:00 AM" },
+					{ id: "PL-1008", order_id: "ORD-4990", priority: "High", items_count: 8, assigned_to: "Deepak S.", area: "Zone A", status: "Completed", estimated_time: "12 mins", created_at: "Yesterday" },
+				];
+			}
+
 			return lists.map((r) => ({
 				id: `PL-${r.id}`,
 				order_id: `ORD-${r.order_id}`,
@@ -121,7 +130,16 @@ export const pickerRouter = router({
 			});
 
 			if (activeLists.length === 0) {
-				return { task: null, items: [] };
+				return {
+					task: { id: "PL-1011", order_id: "ORD-5001", area: "Zone A, Aisle 1-4", progress: 40, total_items: 5, picked_items: 2 },
+					items: [
+						{ id: 1, qty_required: 2, qty_picked: 2, status: "picked", product: "Wireless Mouse M330", sku: "MS-WL-330", location: "A1-Bin2", batch: "Any" },
+						{ id: 2, qty_required: 1, qty_picked: 0, status: "pending", product: "Mechanical Keyboard RGB", sku: "KB-MCH-RGB", location: "A2-Shelf4", batch: "B-8801" },
+						{ id: 3, qty_required: 4, qty_picked: 0, status: "pending", product: "USB-C Hub 6-in-1", sku: "USB-HUB-61", location: "A2-Bin1", batch: "Any" },
+						{ id: 4, qty_required: 1, qty_picked: 0, status: "pending", product: "Laptop Stand Aluminum", sku: "LPT-STD-AL", location: "A4-Shelf1", batch: "Any" },
+						{ id: 5, qty_required: 2, qty_picked: 0, status: "pending", product: "Ergonomic Wrist Rest", sku: "ERG-WR-01", location: "A4-Bin5", batch: "B-9902" },
+					]
+				};
 			}
 
 			const task = activeLists[0];
