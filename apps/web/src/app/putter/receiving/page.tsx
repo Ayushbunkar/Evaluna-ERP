@@ -5,12 +5,20 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { useTRPC } from "@/lib/trpc/client";
 
 export default function InboundReceivingPage() {
+	const trpc = useTRPC();
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data, isLoading } = trpc.putter.getReceiving.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
+		{ key: "id", header: "GRN / ID", sortable: true },
+		{ key: "supplier", header: "Supplier" },
+		{ key: "products", header: "Items" },
+		{ key: "qty", header: "Total Qty" },
+		{ key: "po_ref", header: "PO Ref" },
+		{ key: "received_by", header: "Received By" },
 		{ key: "date", header: "Date" },
 		{ key: "status", header: "Status" },
 	];
@@ -34,8 +42,9 @@ export default function InboundReceivingPage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={data || []}
 						columns={columns}
+						isLoading={isLoading}
 						emptyMessage="No records found in this module yet."
 					/>
 				</CardContent>

@@ -5,14 +5,22 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { useTRPC } from "@/lib/trpc/client";
 
 export default function MissingStockPage() {
+	const trpc = useTRPC();
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data, isLoading } = trpc.putter.getMissingStock.useQuery({});
 
 	const columns: Column<any>[] = [
 		{ key: "id", header: "ID", sortable: true },
+		{ key: "product", header: "Product" },
+		{ key: "expected_qty", header: "Expected" },
+		{ key: "found_qty", header: "Found" },
+		{ key: "difference", header: "Diff" },
+		{ key: "location", header: "Location" },
+		{ key: "reported_by", header: "Reported By" },
 		{ key: "date", header: "Date" },
-		{ key: "status", header: "Status" },
 	];
 
 	return (
@@ -34,8 +42,9 @@ export default function MissingStockPage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={data || []}
 						columns={columns}
+						isLoading={isLoading}
 						emptyMessage="No records found in this module yet."
 					/>
 				</CardContent>

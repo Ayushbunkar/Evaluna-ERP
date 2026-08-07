@@ -5,13 +5,20 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { useTRPC } from "@/lib/trpc/client";
 
 export default function PutAwayTasksPage() {
+	const trpc = useTRPC();
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data, isLoading } = trpc.putter.getPutAwayTasks.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
-		{ key: "date", header: "Date" },
+		{ key: "id", header: "Task ID", sortable: true },
+		{ key: "product", header: "Product" },
+		{ key: "sku", header: "SKU" },
+		{ key: "qty", header: "Qty" },
+		{ key: "from", header: "From" },
+		{ key: "to_location", header: "To Location" },
 		{ key: "status", header: "Status" },
 	];
 
@@ -34,8 +41,9 @@ export default function PutAwayTasksPage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={data || []}
 						columns={columns}
+						isLoading={isLoading}
 						emptyMessage="No records found in this module yet."
 					/>
 				</CardContent>

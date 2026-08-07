@@ -5,14 +5,22 @@ import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { useTRPC } from "@/lib/trpc/client";
 
 export default function DamageRaisePage() {
+	const trpc = useTRPC();
 	const [searchTerm, setSearchTerm] = useState("");
+	const { data, isLoading } = trpc.putter.getDamageReports.useQuery({});
 
 	const columns: Column<any>[] = [
-		{ key: "id", header: "ID", sortable: true },
+		{ key: "id", header: "Report ID", sortable: true },
+		{ key: "product", header: "Product" },
+		{ key: "qty_damaged", header: "Qty Damaged" },
+		{ key: "damage_type", header: "Damage Type" },
+		{ key: "severity", header: "Severity" },
+		{ key: "location", header: "Location" },
+		{ key: "raised_by", header: "Raised By" },
 		{ key: "date", header: "Date" },
-		{ key: "status", header: "Status" },
 	];
 
 	return (
@@ -34,8 +42,9 @@ export default function DamageRaisePage() {
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
-						data={[]}
+						data={data || []}
 						columns={columns}
+						isLoading={isLoading}
 						emptyMessage="No records found in this module yet."
 					/>
 				</CardContent>
