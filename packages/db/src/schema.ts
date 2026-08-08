@@ -1109,6 +1109,62 @@ export const pickListItemsRelations = relations(pickListItems, ({ one }) => ({
 	}),
 }));
 
+// ── Packages (For Packer & Checker Phase) ──────────────────────────────────
+export const packages = pgTable("packages", {
+	id: serial("id").primaryKey(),
+	order_id: integer("order_id").references(() => orders.id).notNull(),
+	pick_list_id: integer("pick_list_id").references(() => pickLists.id),
+	package_number: varchar("package_number", { length: 100 }).notNull().unique(), // e.g. PKG-2024-001
+	status: varchar("status", { length: 50 }).default("packing"), // packing, packed, checking, checked, ready_for_dispatch, dispatched
+	packed_by: integer("packed_by").references(() => staff.id),
+	checked_by: integer("checked_by").references(() => staff.id),
+	packed_at: timestamp("packed_at"),
+	checked_at: timestamp("checked_at"),
+	weight: decimal("weight", { precision: 10, scale: 2 }),
+	dimensions: varchar("dimensions", { length: 100 }), // L x W x H
+	notes: text("notes"),
+	created_at: timestamp("created_at").defaultNow(),
+});
+
+export const packagesRelations = relations(packages, ({ one, many }) => ({
+	order: one(orders, {
+		fields: [packages.order_id],
+		references: [orders.id],
+	}),
+	pickList: one(pickLists, {
+		fields: [packages.pick_list_id],
+		references: [pickLists.id],
+	}),
+	packer: one(staff, {
+		fields: [packages.packed_by],
+		references: [staff.id],
+	}),
+	checker: one(staff, {
+		fields: [packages.checked_by],
+		references: [staff.id],
+	}),
+	items: many(packageItems),
+}));
+
+export const packageItems = pgTable("package_items", {
+	id: serial("id").primaryKey(),
+	package_id: integer("package_id").references(() => packages.id).notNull(),
+	product_id: integer("product_id").references(() => products.id).notNull(),
+	quantity: integer("quantity").notNull(),
+	created_at: timestamp("created_at").defaultNow(),
+});
+
+export const packageItemsRelations = relations(packageItems, ({ one }) => ({
+	package: one(packages, {
+		fields: [packageItems.package_id],
+		references: [packages.id],
+	}),
+	product: one(products, {
+		fields: [packageItems.product_id],
+		references: [products.id],
+	}),
+}));
+
 // ── Put Lists (Phase 9) ───────────────────────────────────────────────────────
 export const putLists = pgTable("put_lists", {
 	id: serial("id").primaryKey(),

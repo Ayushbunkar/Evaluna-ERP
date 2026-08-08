@@ -31,6 +31,8 @@ import { ordersRouter } from "./routers/orders";
 import { paymentMethodsRouter } from "./routers/payment-methods";
 import { payrollRouter } from "./routers/payroll";
 import { permissionsRouter } from "./routers/permissions";
+import { packerRouter } from "./routers/packer";
+import { checkerRouter } from "./routers/checker";
 import { pickerRouter } from "./routers/picker";
 import { pickingRouter } from "./routers/picking";
 import { posRouter } from "./routers/pos";
@@ -90,6 +92,8 @@ export const appRouter = router({
 	driver: driverRouter,
 	auditor: auditorRouter,
 	picker: pickerRouter,
+	packer: packerRouter,
+	checker: checkerRouter,
 	putter: putterRouter,
 	hr: hrRouter,
 	hrms: hrmsRouter,
