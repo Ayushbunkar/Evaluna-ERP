@@ -213,7 +213,20 @@ export const salesReturnsRouter = router({
 					// You would ideally link this to the appropriate payment method used for the refund
 				});
 
-				// 5. Log Audit
+				// 5. Adjust original order total
+				if (returnData.order_id) {
+					const order = await tx.query.orders.findFirst({
+						where: eq(orders.id, returnData.order_id)
+					});
+					if (order) {
+						const newTotal = Number(order.total_amount) - Number(returnData.total_amount);
+						await tx.update(orders)
+							.set({ total_amount: newTotal.toString() })
+							.where(eq(orders.id, returnData.order_id));
+					}
+				}
+
+				// 6. Log Audit
 				await tx.insert(auditLogs).values({
 					entity_type: "sales_returns",
 					entity_id: updatedReturn.id,

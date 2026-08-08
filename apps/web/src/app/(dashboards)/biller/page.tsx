@@ -6,6 +6,10 @@ import { motion } from "framer-motion";
 import { IndianRupee, ShoppingCart, TrendingUp, Users } from "lucide-react";
 import { ActivityCard } from "@/components/shared/cards/activity-card";
 import { KpiCard } from "@/components/shared/cards/kpi-card";
+import { Alert, AlertDescription, AlertTitle } from "@evaluna/ui/components/alert";
+import { Button } from "@evaluna/ui/components/button";
+import { AlertCircle } from "lucide-react";
+import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 
 export default function BillerDashboard() {
@@ -13,6 +17,12 @@ export default function BillerDashboard() {
 		undefined,
 		{ staleTime: 30_000, refetchOnWindowFocus: false },
 	);
+
+	const { data: returnsData } = trpc.salesReturns.list.useQuery(undefined, {
+		staleTime: 30_000,
+	});
+
+	const pendingReturnsCount = returnsData?.filter((r: any) => r.status === "pending").length || 0;
 
 	if (isLoading) {
 		return (
@@ -61,9 +71,19 @@ export default function BillerDashboard() {
 
 	return (
 		<div className="space-y-6 p-6">
-			<h1 className="font-bold text-2xl tracking-tight">
-				Today's Sales Overview
-			</h1>
+			<div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+				<h1 className="font-bold text-2xl tracking-tight">
+					Today's Sales Overview
+				</h1>
+				{pendingReturnsCount > 0 && (
+					<Link href="/biller/returns">
+						<Button variant="destructive" size="sm">
+							<AlertCircle className="mr-2 h-4 w-4" />
+							{pendingReturnsCount} Pending Returns
+						</Button>
+					</Link>
+				)}
+			</div>
 
 			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 				<KpiCard

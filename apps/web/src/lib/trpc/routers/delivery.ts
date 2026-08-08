@@ -11,8 +11,8 @@ import {
 	tripCollections,
 	tripStops,
 } from "@evaluna/db/schema/delivery";
-import { orders, salesReturns, salesReturnItems } from "@evaluna/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { orders, salesReturns, salesReturnItems, products } from "@evaluna/db/schema";
+import { eq, and, desc, inArray } from "drizzle-orm";
 
 export const deliveryRouter = router({
 	// ── Routes ─────────────────────────────────────────────────────────────
@@ -277,34 +277,64 @@ export const deliveryRouter = router({
 				),
 			})
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ input, ctx }) => {
 			const stop = await db.query.tripStops.findFirst({
 				where: eq(tripStops.id, input.stopId),
 			});
 
 			if (!stop) throw new TRPCError({ code: "NOT_FOUND" });
 
+			// Find the active order for this customer
+			const activeOrder = await db.query.orders.findFirst({
+				where: and(
+					eq(orders.customer_id, stop.customer_id)
+				),
+			});
+			if (!activeOrder) throw new TRPCError({ code: "NOT_FOUND", message: "No active order found for this customer" });
+
+			// Fetch product prices to calculate totals
+			const productIds = input.returnedItems.map(i => i.productId);
+			const productsData = await db.query.products.findMany({
+				where: inArray(products.id, productIds.length ? productIds : [0]),
+			});
+			
+			const productPriceMap = new Map(productsData.map(p => [p.id, Number(p.price || 0)]));
+			
+			let totalReturnAmount = 0;
+			const returnItemsData = input.returnedItems.map((item) => {
+				const price = productPriceMap.get(item.productId) || 0;
+				const refundAmount = price * item.quantity;
+				totalReturnAmount += refundAmount;
+				return {
+					product_id: item.productId,
+					quantity: item.quantity,
+					price: price.toString(),
+					refund_amount: refundAmount.toString(),
+					condition: "damaged",
+					reason: item.reason,
+				};
+			});
+
 			await db.transaction(async (tx) => {
 				// 1. Create Sales Return Record
 				const [salesReturn] = await tx
 					.insert(salesReturns)
 					.values({
+						order_id: activeOrder.id,
 						customer_id: stop.customer_id,
 						reference_type: "sale_return",
 						status: "pending",
-						user_uid: "driver", // or ctx.user.id
+						total_amount: totalReturnAmount.toString(),
+						user_uid: ctx.user?.id || "driver", 
 					})
 					.returning();
 
 				// 2. Insert Return Items
-				if (input.returnedItems.length > 0) {
+				if (returnItemsData.length > 0) {
 					await tx.insert(salesReturnItems).values(
-						input.returnedItems.map((item) => ({
+						returnItemsData.map((item) => ({
+							...item,
 							return_id: salesReturn.id,
-							product_id: item.productId,
-							quantity: item.quantity,
-							condition: "damaged",
-							reason: item.reason,
 						}))
 					);
 				}
