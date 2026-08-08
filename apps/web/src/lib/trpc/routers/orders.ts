@@ -280,14 +280,14 @@ export const ordersRouter = router({
 				await tx.delete(eWayBills).where(eq(eWayBills.order_id, input.id));
 				const sRet = await tx.select({ id: salesReturns.id }).from(salesReturns).where(eq(salesReturns.order_id, input.id));
 				if (sRet.length > 0) {
-					const ids = sRet.map(s => s.id);
+					const ids = sRet.map((s: any) => s.id);
 					await tx.delete(salesReturnItems).where(inArray(salesReturnItems.return_id, ids));
 				}
 				await tx.delete(salesReturns).where(eq(salesReturns.order_id, input.id));
 
 				const pList = await tx.select({ id: pickLists.id }).from(pickLists).where(eq(pickLists.order_id, input.id));
 				if (pList.length > 0) {
-					const ids = pList.map(p => p.id);
+					const ids = pList.map((p: any) => p.id);
 					await tx.delete(pickListItems).where(inArray(pickListItems.pick_list_id, ids));
 					await tx.delete(packLists).where(inArray(packLists.pick_list_id, ids));
 				}

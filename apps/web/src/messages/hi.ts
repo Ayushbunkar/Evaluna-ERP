@@ -164,7 +164,7 @@ const messages: Messages = {
 		emailPlaceholder: "name@example.com",
 		passwordPlaceholder: "न्यूनतम 8 अक्षर",
 	},
-	dashboard: {
+	financeDashboard: {
 		totalRevenue: "कुल राजस्व",
 		completedIncome: "पूर्ण आय लेनदेन",
 		totalExpenses: "कुल खर्च",

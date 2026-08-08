@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { auth } from "../auth";
 import { db } from ".";
 import {
@@ -215,7 +215,6 @@ export async function seed() {
 				order_id: order.id,
 				customer_id: order.customer_id,
 				total_amount: amount,
-				reason,
 				status,
 				user_uid: userId,
 				created_at: faker.date.recent({ days: 10 }),

@@ -45,7 +45,7 @@ export default function CompletedPutAwaysPage() {
 					<DataTable
 						data={data || []}
 						columns={columns}
-						isLoading={isLoading}
+
 						emptyMessage="No records found in this module yet."
 					/>
 				</CardContent>

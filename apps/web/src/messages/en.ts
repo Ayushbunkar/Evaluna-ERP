@@ -162,7 +162,7 @@ const messages = {
 		emailPlaceholder: "name@example.com",
 		passwordPlaceholder: "Min. 8 characters",
 	},
-	dashboard: {
+	financeDashboard: {
 		totalRevenue: "Total Revenue",
 		completedIncome: "Completed income transactions",
 		totalExpenses: "Total Expenses",

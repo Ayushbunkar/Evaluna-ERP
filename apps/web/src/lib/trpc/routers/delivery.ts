@@ -322,7 +322,6 @@ export const deliveryRouter = router({
 					.values({
 						order_id: activeOrder.id,
 						customer_id: stop.customer_id,
-						reference_type: "sale_return",
 						status: "pending",
 						total_amount: totalReturnAmount.toString(),
 						user_uid: ctx.user?.id || "driver", 
@@ -344,8 +343,8 @@ export const deliveryRouter = router({
 					.update(tripStops)
 					.set({
 						status: "partially_delivered",
-						departure_time: new Date(),
 						comments: "Partial return processed",
+						resolved_at: new Date(),
 					})
 					.where(eq(tripStops.id, input.stopId));
 			});
