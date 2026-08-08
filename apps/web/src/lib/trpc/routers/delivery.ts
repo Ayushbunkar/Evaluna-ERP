@@ -11,6 +11,7 @@ import {
 	tripCollections,
 	tripStops,
 } from "@evaluna/db/schema/delivery";
+import { orders, salesReturns, salesReturnItems } from "@evaluna/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export const deliveryRouter = router({
@@ -219,6 +220,106 @@ export const deliveryRouter = router({
 				longitude: input.lng.toString(),
 				speed: input.speed?.toString(),
 			});
+			return { success: true };
+		}),
+
+	getStopDetails: protectedProcedure
+		.input(z.object({ stopId: z.number() }))
+		.query(async ({ input }) => {
+			const stop = await db.query.tripStops.findFirst({
+				where: eq(tripStops.id, input.stopId),
+				with: {
+					customer: true,
+				},
+			});
+
+			if (!stop) throw new TRPCError({ code: "NOT_FOUND" });
+
+			// Find orders for this customer that are out for delivery or ready (simplified)
+			const customerOrders = await db.query.orders.findMany({
+				where: and(
+					eq(orders.customer_id, stop.customer_id)
+				),
+			});
+
+			const orderIds = customerOrders.map(o => o.id);
+			let items: any[] = [];
+			
+			if (orderIds.length > 0) {
+				// Mocked aggregation for demonstration:
+				// Fetch products from these orders
+				// In reality we would query package_items mapped to these orders
+				items = [
+					{
+						product_id: 1,
+						product: { name: "Wireless Mouse M330" },
+						quantity: 5,
+					}
+				];
+			}
+
+			return {
+				...stop,
+				items,
+			};
+		}),
+
+	processPartialReturn: protectedProcedure
+		.input(
+			z.object({
+				stopId: z.number(),
+				returnedItems: z.array(
+					z.object({
+						productId: z.number(),
+						quantity: z.number(),
+						reason: z.string(),
+					})
+				),
+			})
+		)
+		.mutation(async ({ input }) => {
+			const stop = await db.query.tripStops.findFirst({
+				where: eq(tripStops.id, input.stopId),
+			});
+
+			if (!stop) throw new TRPCError({ code: "NOT_FOUND" });
+
+			await db.transaction(async (tx) => {
+				// 1. Create Sales Return Record
+				const [salesReturn] = await tx
+					.insert(salesReturns)
+					.values({
+						customer_id: stop.customer_id,
+						reference_type: "sale_return",
+						status: "pending",
+						user_uid: "driver", // or ctx.user.id
+					})
+					.returning();
+
+				// 2. Insert Return Items
+				if (input.returnedItems.length > 0) {
+					await tx.insert(salesReturnItems).values(
+						input.returnedItems.map((item) => ({
+							return_id: salesReturn.id,
+							product_id: item.productId,
+							quantity: item.quantity,
+							condition: "damaged",
+							reason: item.reason,
+						}))
+					);
+				}
+
+				// 3. Mark Stop as partially delivered
+				await tx
+					.update(tripStops)
+					.set({
+						status: "partially_delivered",
+						departure_time: new Date(),
+						comments: "Partial return processed",
+					})
+					.where(eq(tripStops.id, input.stopId));
+			});
+
 			return { success: true };
 		}),
 });

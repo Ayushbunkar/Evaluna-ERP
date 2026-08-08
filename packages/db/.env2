@@ -1,0 +1,24 @@
+# Evaluna ERP Environment Configuration
+
+# Server variables (packages/env/src/server.ts)
+# Optional: The project currently defaults to a local PGLite database at './data/pglite' if this is missing.
+# If you plan to connect to an external PostgreSQL database, provide the connection string here:
+# DATABASE_URL=postgresql://user:password@localhost:5432/evaluna-erp
+DATABASE_URL="postgresql://neondb_owner:npg_USIF1tumG4yB@ep-snowy-violet-aokwego4.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+# Better Auth Configuration (Required for Sessions)
+# Generate a strong 32-character random string for production
+BETTER_AUTH_SECRET=9288e9e8bbe9983f9874eb13f6bb1c1b86de48029bbd5328754b14db14575c27
+BETTER_AUTH_URL=http://localhost:3001
+
+# Server-Side Base URL
+BASE_URL=http://localhost
+
+# Optional: Set this to restrict API access from other domains
+# CORS_ORIGIN=http://localhost:3000
+
+# Client variables (packages/env/src/web.ts)
+NEXT_PUBLIC_BASE_URL=http://localhost
+
+# Node Environment
+NODE_ENV=development

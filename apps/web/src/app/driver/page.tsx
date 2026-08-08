@@ -92,6 +92,12 @@ export default function DriverDashboard() {
 		}
 	};
 
+	const handlePartialDelivery = () => {
+		if (data?.nextDelivery?.stop_id) {
+			window.location.href = `/driver/returns?stopId=${data.nextDelivery.stop_id}`;
+		}
+	};
+
 	if (isLoading || !data) {
 		return (
 			<div className="flex h-full min-h-[400px] items-center justify-center">
@@ -242,6 +248,8 @@ export default function DriverDashboard() {
 					</Button>
 					<Button
 						variant="outline"
+						onClick={handlePartialDelivery}
+						disabled={updateStatus.isPending}
 						className="h-20 flex-col gap-2 rounded-xl border-border/60 bg-background shadow-sm hover:bg-muted"
 					>
 						<Undo2Icon className="h-6 w-6 text-amber-500" />

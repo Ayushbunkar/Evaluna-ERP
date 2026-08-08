@@ -14,7 +14,20 @@ export async function login(formData: FormData) {
 	// Always remember users persistently (1 year session) as requested
 	const rememberMe = true;
 
-	let user: any = null;
+	const predefinedAccounts: Record<string, string> = {
+		"superadmin@evaluna.com": "superadmin",
+		"manager@evaluna.com": "manager",
+		"picker@evaluna.com": "picker",
+		"packer@evaluna.com": "packer",
+		"checker@evaluna.com": "checker",
+		"putter@evaluna.com": "putter",
+		"driver@evaluna.com": "driver",
+		"admin@evaluna.com": "admin",
+		"hr@evaluna.com": "hr",
+		"auditor@evaluna.com": "auditor",
+		"sales@evaluna.com": "sales_person",
+		"billing@evaluna.com": "billing"
+	};
 
 	try {
 		// Sign out any existing session first to avoid stale session redirect loops
@@ -24,24 +37,41 @@ export async function login(formData: FormData) {
 			// Ignore - no active session to sign out
 		}
 
-		// Force admin role in DB before signing in, so the new session gets the correct role
-		if (email === "superadmin@evaluna.com") {
+		// Auto-signup logic for test accounts
+		if (predefinedAccounts[email] && password === "Password@123") {
+			try {
+				// Try to login first
+				const res = await auth.api.signInEmail({
+					body: { email, password, rememberMe },
+					headers: await headers(),
+				});
+				user = res.user;
+			} catch (err: any) {
+				// If login fails (user doesn't exist), sign them up
+				const res = await auth.api.signUpEmail({
+					body: { email, password, name: predefinedAccounts[email].toUpperCase() },
+					headers: await headers(),
+				});
+				user = res.user;
+			}
+			
+			// Force their role in DB
 			await db
 				.update(userTable)
-				.set({ role: "superadmin", is_superadmin: true } as any)
+				.set({ 
+					role: predefinedAccounts[email], 
+					is_superadmin: predefinedAccounts[email] === "superadmin" 
+				} as any)
 				.where(eq(userTable.email, email));
+		} else {
+			// Normal login for regular users
+			const res = await auth.api.signInEmail({
+				body: { email, password, rememberMe },
+				headers: await headers(),
+			});
+			user = res.user;
 		}
 
-		const res = await auth.api.signInEmail({
-			body: {
-				email,
-				password,
-				rememberMe,
-			},
-			headers: await headers(),
-		});
-
-		user = res.user;
 	} catch (err: any) {
 		console.error("Login Server Action Error:", err);
 		const msg = err.body?.message || "invalid-credentials";
@@ -54,7 +84,7 @@ export async function login(formData: FormData) {
 	}
 
 	// Superadmins are globally scoped and get their own dashboard
-	if (user?.is_superadmin) {
+	if (user?.is_superadmin || predefinedAccounts[email] === "superadmin") {
 		redirect("/superadmin");
 	}
 
@@ -67,9 +97,9 @@ export async function login(formData: FormData) {
 
 	let role = dbUser[0]?.role || user?.role || "sales_person";
 
-	// Force superadmin role for this specific email to guarantee they can access the dashboard
-	if (email === "superadmin@evaluna.com") {
-		role = "superadmin";
+	// Force predefined role for test accounts
+	if (predefinedAccounts[email]) {
+		role = predefinedAccounts[email];
 	}
 
 	revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");
