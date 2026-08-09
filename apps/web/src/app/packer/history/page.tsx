@@ -156,13 +156,15 @@ export default function PackingHistoryPage() {
               />
             </TabsContent>
 
-          <TabsContent value="recent">
-            <DataTable
-              columns={columns}
-              data={transform
-              isLoading={isLoading}
-            />
-          </TabsContent>
+            <TabsContent value="recent">
+              <DataTable
+                columns={columns}
+                data={transformedHistory.filter((item: any) =>
+                  new Date(item.packedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                )}
+                isLoading={isLoading}
+              />
+            </TabsContent>
 
           <TabsContent value="pending">
             <DataTable
