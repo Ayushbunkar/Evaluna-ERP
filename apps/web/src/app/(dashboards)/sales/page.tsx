@@ -45,21 +45,21 @@ export default function SalesDashboard() {
 	const progress = Math.min(Math.round((todaySales / dailyGoal) * 100), 100);
 
 	return (
-		<PageTransition className="grid min-w-0 flex-1 items-start gap-6">
-			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
+			<div className="flex flex-col justify-between gap-3 sm:gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="font-bold text-2xl text-foreground tracking-tight">
+					<h1 className="font-bold text-xl sm:text-2xl text-foreground tracking-tight">
 						Sales Dashboard
 					</h1>
-					<p className="text-muted-foreground text-sm">
+					<p className="text-muted-foreground text-xs sm:text-sm">
 						Welcome back. Start a new sale or manage recent orders.
 					</p>
 				</div>
-				<div className="flex gap-2">
-					<Button variant="outline" className="shadow-sm">
+				<div className="flex gap-1 sm:gap-2">
+					<Button variant="outline" className="shadow-sm text-xs sm:text-sm">
 						<SearchIcon className="mr-2 h-4 w-4" /> Lookup Order
 					</Button>
-					<Button className="shadow-sm" asChild>
+					<Button className="shadow-sm text-xs sm:text-sm" asChild>
 						<Link href="/sales/pos">
 							<ShoppingCart className="mr-2 h-4 w-4" /> Open POS
 						</Link>
@@ -67,19 +67,19 @@ export default function SalesDashboard() {
 				</div>
 			</div>
 
-			<StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" slow>
+			<StaggerList className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4" slow>
 				<StaggerItem>
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
 							onClick={() => (window.location.href = "/sales/pos")}
 						>
-							<CardContent className="p-6">
-								<div className="flex flex-col items-center gap-2 text-center">
-									<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 transition-transform group-hover:scale-110">
+							<CardContent className="p-4 sm:p-6">
+								<div className="flex flex-col items-center gap-1 sm:gap-2 text-center">
+									<div className="mb-1 sm:mb-2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-primary/10 transition-transform group-hover:scale-110">
 										<ShoppingCart className="h-6 w-6 text-primary" />
 									</div>
-									<h3 className="font-semibold text-lg">Point of Sale</h3>
+									<h3 className="font-semibold text-base sm:text-lg">Point of Sale</h3>
 									<p className="text-muted-foreground text-xs">
 										Process new transactions
 									</p>
@@ -153,17 +153,17 @@ export default function SalesDashboard() {
 				</StaggerItem>
 			</StaggerList>
 
-			<div className="mt-4 grid gap-6 md:grid-cols-2">
+			<div className="mt-3 sm:mt-4 grid gap-4 sm:gap-6 md:grid-cols-2">
 				<motion.div
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.5, delay: 0.3 }}
 				>
 					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardHeader className="flex flex-row items-center justify-between pb-2">
-							<div className="space-y-1">
-								<CardTitle>Recent Sales</CardTitle>
-								<CardDescription>Latest transactions processed</CardDescription>
+						<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
+							<div className="space-y-0.5">
+								<CardTitle className="text-base sm:text-lg">Recent Sales</CardTitle>
+								<CardDescription className="text-xs sm:text-sm">Latest transactions processed</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
 								<Link href="/sales/orders">
@@ -171,23 +171,23 @@ export default function SalesDashboard() {
 								</Link>
 							</Button>
 						</CardHeader>
-						<CardContent>
-							<div className="flex flex-col gap-4">
+						<CardContent className="pt-1 sm:pt-2">
+							<div className="flex flex-col gap-3 sm:gap-4">
 								{recentOrders.length > 0 ? (
 									recentOrders.map((order) => (
-										<div key={order.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">
+										<div key={order.id} className="flex items-center justify-between border-b border-border/50 pb-1.5 sm:pb-2 last:border-0 last:pb-0">
 											<div>
-												<p className="font-medium text-sm">Order #{order.id}</p>
+												<p className="font-medium text-xs sm:text-sm">Order #{order.id}</p>
 												<p className="text-muted-foreground text-xs">{order.customer?.name || "Walk-in Customer"}</p>
 											</div>
 											<div className="text-right">
-												<p className="font-bold text-sm">{formatCurrency(Number(order.total_amount), locale)}</p>
+												<p className="font-bold text-xs sm:text-sm">{formatCurrency(Number(order.total_amount), locale)}</p>
 												<p className="text-emerald-600 text-xs capitalize">{order.status}</p>
 											</div>
 										</div>
 									))
 								) : (
-									<div className="flex h-[150px] items-center justify-center text-muted-foreground text-sm">
+									<div className="flex h-[120px] sm:h-[150px] items-center justify-center text-muted-foreground text-xs sm:text-sm">
 										No recent sales found.
 									</div>
 								)}
@@ -203,14 +203,14 @@ export default function SalesDashboard() {
 				>
 					<Card className="border-border/50 bg-card/50 shadow-sm">
 						<CardHeader>
-							<CardTitle>Daily Goal</CardTitle>
-							<CardDescription>
+							<CardTitle className="text-base sm:text-lg">Daily Goal</CardTitle>
+							<CardDescription className="text-xs sm:text-sm">
 								Track your sales target for today
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<div className="flex h-[200px] flex-col items-center justify-center gap-4 text-center">
-								<div className="relative flex h-32 w-32 items-center justify-center">
+							<div className="flex h-[180px] sm:h-[200px] flex-col items-center justify-center gap-3 sm:gap-4 text-center">
+								<div className="relative flex h-24 w-24 sm:h-32 sm:w-32 items-center justify-center">
 									<svg className="absolute inset-0 h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
 										<circle
 											className="text-primary/20 stroke-current"
@@ -232,9 +232,9 @@ export default function SalesDashboard() {
 											strokeDashoffset={251.2 * (1 - Math.min(progress, 100) / 100)}
 										/>
 									</svg>
-									<span className="relative font-bold text-2xl text-foreground">{progress}%</span>
+									<span className="relative font-bold text-xl sm:text-2xl text-foreground">{progress}%</span>
 								</div>
-								<p className="text-muted-foreground text-sm">
+								<p className="text-muted-foreground text-xs sm:text-sm">
 									Today's Sales: {formatCurrency(todaySales, locale)} / {formatCurrency(dailyGoal, locale)}
 								</p>
 							</div>

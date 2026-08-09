@@ -78,17 +78,17 @@ export default async function CompanyAdminDashboard() {
 	if (!data) return <div>{t("noDataAvailable")}</div>;
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
-			<div>
-				<h1 className="font-bold text-3xl text-gray-900 tracking-tight">
+		<div className="container flex w-full flex-col gap-4 sm:gap-6 pb-6 sm:pb-8">
+			<div className="px-2 sm:px-0">
+				<h1 className="font-bold text-2xl sm:text-3xl text-gray-900 tracking-tight">
 					{t("overview")}
 				</h1>
-				<p className="mt-1 text-gray-500">
+				<p className="mt-1 text-gray-500 text-sm sm:text-base">
 					{t("overviewSubtitle")}
 				</p>
 			</div>
 
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<KPICard
 					title={t("todaysSales")}
 					value={formatCurrency(data.todaySales, "en-IN")}
@@ -141,7 +141,7 @@ export default async function CompanyAdminDashboard() {
 				/>
 			</div>
 
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+			<div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
 				<div className="lg:col-span-2">
 					<ErrorBoundary>
 						<Card className="flex h-full flex-col shadow-sm">
@@ -151,11 +151,11 @@ export default async function CompanyAdminDashboard() {
 									Monthly comparison across all branches
 								</CardDescription>
 							</CardHeader>
-							<CardContent className="min-h-[300px] flex-1">
+					<CardContent className="min-h-[250px] sm:min-h-[300px] flex-1">
 								{data.revenueTrend ? (
 									<AdminSalesTrendChart data={data.revenueTrend} />
 								) : (
-									<div className="flex h-[250px] items-center justify-center text-gray-500">
+								<div className="flex h-[200px] sm:h-[250px] items-center justify-center text-gray-500">
 										No trend data available
 									</div>
 								)}
@@ -173,12 +173,12 @@ export default async function CompanyAdminDashboard() {
 									System alerts and notifications
 								</CardDescription>
 							</CardHeader>
-							<CardContent className="space-y-4">
+					<CardContent className="space-y-3 sm:space-y-4">
 								{data.recentNotifications?.map((notif: any) => (
-									<div
-										key={notif.id}
-										className="flex items-start gap-4 p-3 border-b border-gray-100 last:border-0"
-									>
+						<div
+							key={notif.id}
+							className="flex items-start gap-3 sm:gap-4 p-2 sm:p-3 border-b border-gray-100 last:border-0"
+						>
 										<div className="flex-shrink-0 rounded-full p-2 bg-gray-100 text-gray-900">
 											{notif.type === "low_stock" && (
 												<AlertTriangleIcon className="h-4 w-4" />
@@ -194,10 +194,10 @@ export default async function CompanyAdminDashboard() {
 											)}
 										</div>
 										<div>
-											<h4 className="font-semibold text-sm text-gray-900">
+							<h4 className="font-semibold text-xs sm:text-sm text-gray-900">
 												{notif.title}
 											</h4>
-											<p className="mt-0.5 line-clamp-1 text-gray-500 text-xs">
+							<p className="mt-0.5 line-clamp-1 text-gray-500 text-xs">
 												{notif.message}
 											</p>
 											<span className="mt-1 block text-[10px] text-gray-400">
@@ -218,11 +218,11 @@ export default async function CompanyAdminDashboard() {
 								<CardTitle className="text-gray-900">Branch Performance</CardTitle>
 								<CardDescription className="text-gray-500">Sales vs Targets</CardDescription>
 							</CardHeader>
-							<CardContent>
+					<CardContent>
 								{data.branchPerformance ? (
 									<AdminBranchPerformanceChart data={data.branchPerformance} />
 								) : (
-									<div className="flex h-[250px] items-center justify-center text-gray-500">
+								<div className="flex h-[200px] sm:h-[250px] items-center justify-center text-gray-500">
 										No data
 									</div>
 								)}
@@ -238,11 +238,11 @@ export default async function CompanyAdminDashboard() {
 								<CardTitle className="text-gray-900">Cash Flow</CardTitle>
 								<CardDescription className="text-gray-500">Daily net cash balance</CardDescription>
 							</CardHeader>
-							<CardContent>
+					<CardContent>
 								{data.cashFlowTrend ? (
 									<AdminCashFlowChart data={data.cashFlowTrend} />
 								) : (
-									<div className="flex h-[250px] items-center justify-center text-gray-500">
+								<div className="flex h-[200px] sm:h-[250px] items-center justify-center text-gray-500">
 										No data
 									</div>
 								)}
@@ -262,11 +262,11 @@ export default async function CompanyAdminDashboard() {
 									Across all warehouses
 								</CardDescription>
 							</CardHeader>
-							<CardContent className="mt-8">
-								<h2 className="font-black text-4xl text-gray-900">
+					<CardContent className="mt-6 sm:mt-8">
+					<h2 className="font-black text-3xl sm:text-4xl text-gray-900">
 									{formatCurrency(data.inventoryValue || 0, "en-IN")}
 								</h2>
-								<div className="mt-4 flex w-fit items-center text-gray-500 font-medium text-sm">
+					<div className="mt-3 sm:mt-4 flex w-fit items-center text-gray-500 font-medium text-xs sm:text-sm">
 									<TrendingUpIcon className="mr-1 h-4 w-4" />
 									{data.warehouseCapacity}% warehouse utilized
 								</div>

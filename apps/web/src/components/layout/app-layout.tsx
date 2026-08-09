@@ -269,11 +269,11 @@ export function AppLayout({
 	);
 
 	return (
-		<div className="flex h-screen w-full flex-col overflow-hidden bg-background selection:bg-primary/20">
+		<div className="flex h-screen w-full flex-col overflow-hidden bg-background selection:bg-primary/20 prevent-overflow">
 			<NetworkStatusBanner />
 
 			{/* Top Navbar */}
-			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-border/40 border-b bg-background/80 px-4 backdrop-blur-xl transition-all">
+			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-border/40 border-b bg-background/80 px-2 sm:px-4 backdrop-blur-xl transition-all">
 				<Button
 					variant="ghost"
 					size="icon"
@@ -284,9 +284,9 @@ export function AppLayout({
 					<span className="sr-only">Open Menu</span>
 				</Button>
 
-				<div className="flex shrink-0 items-center gap-2 md:w-[240px]">
+				<div className="flex shrink-0 items-center gap-1 md:w-[240px]">
 					<Package2Icon className="h-6 w-6 text-primary" />
-					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-lg text-transparent tracking-tight md:inline-block">
+					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base sm:text-lg text-transparent tracking-tight md:inline-block">
 						Evaluna ERP
 					</span>
 					{role && ROLE_CONFIG[role] && (
@@ -298,7 +298,7 @@ export function AppLayout({
 					)}
 				</div>
 
-				<div className="hidden items-center gap-2 font-medium text-muted-foreground text-sm md:flex">
+				<div className="hidden items-center gap-1 font-medium text-muted-foreground text-xs sm:text-sm md:flex">
 					<span>/</span>
 					<span className="text-foreground">
 						{pageNames[pathname] || "Dashboard"}
@@ -312,7 +312,7 @@ export function AppLayout({
 					</div>
 				)}
 
-				<div className="ml-auto flex items-center gap-2 sm:gap-3">
+				<div className="ml-auto flex items-center gap-1 sm:gap-2">
 					{isOffline && (
 						<div className="flex items-center rounded-full bg-destructive/10 p-1.5 text-destructive ring-1 ring-destructive/20 md:hidden">
 							<WifiOffIcon className="h-4 w-4" />
@@ -324,7 +324,7 @@ export function AppLayout({
 						size="sm"
 						onClick={handleSync}
 						disabled={isOffline || isSyncing}
-						className="hidden h-9 gap-2 rounded-full border-border/50 bg-background/50 font-medium text-xs shadow-sm transition-all hover:bg-accent/50 md:flex"
+						className="hidden h-8 gap-1 rounded-full border-border/50 bg-background/50 font-medium text-xs shadow-sm transition-all hover:bg-accent/50 sm:h-9 sm:gap-2 md:flex"
 					>
 						<RefreshCwIcon
 							className={`h-3.5 w-3.5 text-muted-foreground ${isSyncing ? "animate-spin text-primary" : ""}`}
@@ -335,7 +335,7 @@ export function AppLayout({
 					<NotificationBell role={role} />
 
 					<Link href="/staff">
-						<Button variant="ghost" size="sm" className={`hidden md:flex ${activeShift ? 'text-green-500' : 'text-orange-500'}`}>
+						<Button variant="ghost" size="sm" className={`hidden sm:flex ${activeShift ? 'text-green-500' : 'text-orange-500'}`}>
 							<Clock className="mr-2 h-4 w-4" />
 							{activeShift ? 'Clocked In' : 'Clocked Out'}
 						</Button>
@@ -343,7 +343,7 @@ export function AppLayout({
 
 					<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
 
-					<div className="hidden sm:block">
+					<div className="hidden md:block">
 						<LocaleSwitcher />
 					</div>
 
@@ -504,9 +504,9 @@ export function AppLayout({
 				{/* Desktop Sidebar */}
 				<motion.aside
 					initial={false}
-					animate={{ width: isSidebarCollapsed ? 64 : 240 }}
+					animate={{ width: isSidebarCollapsed ? 64 : 200 }}
 					transition={{ type: "spring", stiffness: 300, damping: 30 }}
-					className="group relative z-10 hidden shrink-0 flex-col border-border/40 border-r bg-background/50 backdrop-blur-xl md:flex"
+					className="group relative z-10 hidden shrink-0 flex-col border-border/40 border-r bg-background/50 backdrop-blur-xl lg:flex"
 				>
 					<Button
 						variant="outline"
@@ -584,20 +584,20 @@ export function AppLayout({
 				</motion.aside>
 
 				{/* Main Content Area */}
-				<main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20">
-					<motion.div
-						key={pathname}
-						initial={{ opacity: 0, y: 15 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -15 }}
-						transition={{
-							type: "spring",
-							stiffness: 400,
-							damping: 40,
-							mass: 0.8,
-						}}
-						className="mx-auto h-full w-full max-w-7xl p-4 md:p-6"
-					>
+				<main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20 prevent-overflow">
+						<motion.div
+							key={pathname}
+							initial={{ opacity: 0, y: 15 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -15 }}
+							transition={{
+								type: "spring",
+								stiffness: 400,
+								damping: 40,
+								mass: 0.8,
+							}}
+							className="mx-auto h-full w-full max-w-7xl p-2 sm:p-4 md:p-6"
+						>
 						{children}
 					</motion.div>
 				</main>

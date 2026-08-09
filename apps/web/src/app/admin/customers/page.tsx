@@ -339,7 +339,7 @@ export default function CustomersPage() {
 
 	return (
 		<PageTransition>
-			<Card className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
+			<Card className="container flex flex-col gap-3 sm:gap-4 p-2 sm:p-3 md:gap-6 md:p-6">
 				<CardHeader className="p-0">
 					<SearchFilter
 						search={searchTerm}
@@ -393,22 +393,23 @@ export default function CustomersPage() {
 							<div className="grid gap-4 py-4">
 								<form.Field name="name">
 									{(field) => (
-										<div className="flex flex-col gap-2 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4">
+				<div className="flex flex-col gap-1 sm:gap-2 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4">
 											<Label htmlFor="name">{tc("name")}</Label>
-											<div className="col-span-3">
-												<Input
-													id="name"
-													value={field.state.value}
-													onChange={(e) => field.handleChange(e.target.value)}
-													onBlur={field.handleBlur}
-													error={
-														field.state.meta.errors.length > 0
-															? field.state.meta.errors
-																	.map((e) => e?.message ?? e)
-																	.join(", ")
-															: undefined
-													}
-												/>
+					<div className="col-span-3">
+						<Input
+							id="name"
+							value={field.state.value}
+							onChange={(e) => field.handleChange(e.target.value)}
+							onBlur={field.handleBlur}
+							error={
+								field.state.meta.errors.length > 0
+									? field.state.meta.errors
+											.map((e) => e?.message ?? e)
+											.join(", ")
+									: undefined
+							}
+							className="text-xs sm:text-sm"
+						/>
 											</div>
 										</div>
 									)}
@@ -418,19 +419,20 @@ export default function CustomersPage() {
 										<div className="flex flex-col gap-2 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4">
 											<Label htmlFor="email">{tc("email")}</Label>
 											<div className="col-span-3">
-												<Input
-													id="email"
-													value={field.state.value}
-													onChange={(e) => field.handleChange(e.target.value)}
-													onBlur={field.handleBlur}
-													error={
-														field.state.meta.errors.length > 0
-															? field.state.meta.errors
-																	.map((e) => e?.message ?? e)
-																	.join(", ")
-															: undefined
-													}
-												/>
+						<Input
+							id="email"
+							value={field.state.value}
+							onChange={(e) => field.handleChange(e.target.value)}
+							onBlur={field.handleBlur}
+							error={
+								field.state.meta.errors.length > 0
+									? field.state.meta.errors
+											.map((e) => e?.message ?? e)
+											.join(", ")
+									: undefined
+							}
+							className="text-xs sm:text-sm"
+						/>
 											</div>
 										</div>
 									)}
@@ -439,12 +441,12 @@ export default function CustomersPage() {
 									{(field) => (
 										<div className="flex flex-col gap-2 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4">
 											<Label htmlFor="phone">{tc("phone")}</Label>
-											<Input
-												id="phone"
-												value={field.state.value}
-												onChange={(e) => field.handleChange(e.target.value)}
-												className="col-span-3"
-											/>
+						<Input
+							id="phone"
+							value={field.state.value}
+							onChange={(e) => field.handleChange(e.target.value)}
+							className="col-span-3 text-xs sm:text-sm"
+						/>
 										</div>
 									)}
 								</form.Field>
@@ -452,12 +454,12 @@ export default function CustomersPage() {
 									{(field) => (
 										<div className="flex flex-col gap-2 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4">
 											<Label htmlFor="address">Address</Label>
-											<Input
-												id="address"
-												value={field.state.value}
-												onChange={(e) => field.handleChange(e.target.value)}
-												className="col-span-3"
-											/>
+						<Input
+							id="address"
+							value={field.state.value}
+							onChange={(e) => field.handleChange(e.target.value)}
+							className="col-span-3 text-xs sm:text-sm"
+						/>
 										</div>
 									)}
 								</form.Field>
@@ -465,13 +467,13 @@ export default function CustomersPage() {
 									{(field) => (
 										<div className="flex flex-col gap-2 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4">
 											<Label htmlFor="status">{tc("status")}</Label>
-											<Select
-												value={field.state.value}
-												onValueChange={(value) =>
-													field.handleChange(value as "active" | "inactive")
-												}
-											>
-												<SelectTrigger id="status" className="col-span-3">
+						<Select
+							value={field.state.value}
+							onValueChange={(value) =>
+								field.handleChange(value as "active" | "inactive")
+							}
+						>
+							<SelectTrigger id="status" className="col-span-3 text-xs sm:text-sm">
 													<SelectValue placeholder={t("selectStatus")} />
 												</SelectTrigger>
 												<SelectContent>
