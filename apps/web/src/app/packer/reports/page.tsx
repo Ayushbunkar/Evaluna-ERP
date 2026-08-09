@@ -24,6 +24,20 @@ export default function PackerReportsPage() {
     reportType,
   });
 
+  // Transform backend data to match our component structure
+  const transformedData = reportData ? {
+    totalOrders: reportData.totalOrders,
+    avgPackingTime: reportData.avgPackingTime,
+    period: reportData.period,
+    errorRate: reportData.errorRate,
+    totalItems: reportData.totalItems,
+    itemsTrend: reportData.itemsTrend,
+    accuracy: reportData.accuracy,
+    accuracyTrend: reportData.accuracyTrend,
+    totalErrors: reportData.totalErrors,
+    errorsTrend: reportData.errorsTrend
+  } : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -66,7 +80,7 @@ export default function PackerReportsPage() {
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : reportData ? (
+          ) : transformedData ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Summary Cards */}
               <div className="space-y-4">
@@ -76,9 +90,9 @@ export default function PackerReportsPage() {
                     <Package className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{reportData.totalOrders}</div>
+                    <div className="text-2xl font-bold">{transformedData.totalOrders}</div>
                     <p className="text-xs text-muted-foreground">
-                      {reportData.period} period
+                      {transformedData.period} period
                     </p>
                   </CardContent>
                 </Card>
@@ -89,7 +103,7 @@ export default function PackerReportsPage() {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{reportData.avgPackingTime} mins</div>
+                    <div className="text-2xl font-bold">{transformedData.avgPackingTime} mins</div>
                     <p className="text-xs text-muted-foreground">
                       Per order
                     </p>
@@ -120,7 +134,7 @@ export default function PackerReportsPage() {
                     <div className="text-center text-muted-foreground">
                       <PieChart className="mx-auto h-12 w-12 mb-2" />
                       <p>Packing Error Rate</p>
-                      <p className="text-sm">{reportData.errorRate}% of total orders</p>
+                      <p className="text-sm">{transformedData.errorRate}% of total orders</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -155,26 +169,26 @@ export default function PackerReportsPage() {
               <tbody>
                 <tr className="border-b hover:bg-muted/50">
                   <td className="p-2">Total Items Packed</td>
-                  <td className="p-2">{reportData?.totalItems || 0}</td>
+                  <td className="p-2">{transformedData?.totalItems || 0}</td>
                   <td className="p-2 flex items-center">
                     <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
-                    <span className="text-green-500">+{reportData?.itemsTrend || 0}%</span>
+                    <span className="text-green-500">+{transformedData?.itemsTrend || 0}%</span>
                   </td>
                 </tr>
                 <tr className="border-b hover:bg-muted/50">
                   <td className="p-2">Packing Accuracy</td>
-                  <td className="p-2">{reportData?.accuracy || 0}%</td>
+                  <td className="p-2">{transformedData?.accuracy || 0}%</td>
                   <td className="p-2 flex items-center">
                     <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
-                    <span className="text-green-500">+{reportData?.accuracyTrend || 0}%</span>
+                    <span className="text-green-500">+{transformedData?.accuracyTrend || 0}%</span>
                   </td>
                 </tr>
                 <tr className="border-b hover:bg-muted/50">
                   <td className="p-2">Errors Detected</td>
-                  <td className="p-2">{reportData?.totalErrors || 0}</td>
+                  <td className="p-2">{transformedData?.totalErrors || 0}</td>
                   <td className="p-2 flex items-center">
                     <TrendingUp className="h-4 w-4 mr-1 text-red-500" />
-                    <span className="text-red-500">{reportData?.errorsTrend || 0}%</span>
+                    <span className="text-red-500">{transformedData?.errorsTrend || 0}%</span>
                   </td>
                 </tr>
               </tbody>

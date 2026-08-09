@@ -19,30 +19,18 @@ export default function PackItemsPage() {
   // Fetch pending orders
   const { data: pendingOrders, isLoading } = useTRPC().packer.getPendingOrders.useQuery();
 
-  // Mock data for demonstration
-  const mockOrders = [
-    {
-      orderId: "ORD-001",
-      customer: "Rural Mart",
-      items: [
-        { id: "ITEM-001", name: "Rice 5kg", barcode: "123456789", packed: false },
-        { id: "ITEM-002", name: "Wheat Flour 10kg", barcode: "987654321", packed: false },
-        { id: "ITEM-003", name: "Sugar 1kg", barcode: "456123789", packed: false },
-      ],
-      status: "pending",
-    },
-    {
-      orderId: "ORD-002",
-      customer: "Village Store",
-      items: [
-        { id: "ITEM-004", name: "Cooking Oil 1L", barcode: "789123456", packed: false },
-        { id: "ITEM-005", name: "Tea Leaves 500g", barcode: "321654987", packed: false },
-      ],
-      status: "pending",
-    },
-  ];
-
-  const ordersToDisplay = pendingOrders || mockOrders;
+  // Transform backend data to match our component structure
+  const ordersToDisplay = pendingOrders?.map(order => ({
+    orderId: order.id,
+    customer: order.customerName,
+    items: order.items.map(item => ({
+      id: item.id,
+      name: item.productName,
+      barcode: item.barcode,
+      packed: item.status === 'packed'
+    })),
+    status: order.status
+  })) || [];
 
   const handleScan = (barcode: string) => {
     setScannedItem(barcode);

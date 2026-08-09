@@ -29,6 +29,16 @@ export default function PackingHistoryPage() {
     search: searchTerm,
   });
 
+  // Transform backend data to match our component structure
+  const transformedHistory = packingHistory?.map(item => ({
+    orderId: item.orderId,
+    customerName: item.customerName,
+    itemsCount: item.itemsCount,
+    packedBy: item.packedBy,
+    status: item.status,
+    packedAt: item.packedAt
+  })) || [];
+
   // Define columns for data table
   const columns = [
     {
@@ -139,7 +149,7 @@ export default function PackingHistoryPage() {
             <TabsContent value="all">
               <DataTable
                 columns={columns}
-                data={packingHistory || []}
+                data={transformedHistory}
                 isLoading={isLoading}
                 searchTerm={searchTerm}
                 searchKey="orderId"
@@ -149,17 +159,7 @@ export default function PackingHistoryPage() {
           <TabsContent value="recent">
             <DataTable
               columns={columns}
-              data={packingHistory?.filter((item: any) =>
-                new Date(item.packedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-              ) || []}
-              isLoading={isLoading}
-            />
-          </TabsContent>
-
-          <TabsContent value="completed">
-            <DataTable
-              columns={columns}
-              data={packingHistory?.filter((item: any) => item.status === "completed") || []}
+              data={transform
               isLoading={isLoading}
             />
           </TabsContent>
