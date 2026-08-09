@@ -9,6 +9,7 @@ import {
 	Settings,
 	ShoppingCart,
 	Users,
+	Home,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -54,10 +55,21 @@ export const defaultNavItems: NavItem[] = [
 	},
 ];
 
+export const adminNavItems: NavItem[] = [
+	...defaultNavItems,
+	{
+		title: "Public Site",
+		href: "/",
+		icon: Home,
+		roles: ["admin"],
+	},
+];
+
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 	items?: NavItem[];
 	userRole?: string;
 	onItemClick?: () => void;
+	showPublicSiteLink?: boolean;
 }
 
 export function Sidebar({
@@ -65,11 +77,22 @@ export function Sidebar({
 	items = defaultNavItems,
 	userRole = "manager",
 	onItemClick,
+	showPublicSiteLink = false,
 	...props
 }: SidebarProps) {
 	const pathname = usePathname();
 
 	const filteredItems = items.filter((item) => item.roles.includes(userRole));
+
+// Add public site link for admins if enabled
+if (showPublicSiteLink && userRole === "admin") {
+	filteredItems.push({
+		title: "Public Site",
+		href: "/",
+		icon: Home,
+		roles: ["admin"],
+	});
+}
 
 	return (
 		<div

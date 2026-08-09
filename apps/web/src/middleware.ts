@@ -30,6 +30,22 @@ export default async function middleware(request: NextRequest) {
 		return NextResponse.next({ request: { headers: requestHeaders } });
 	}
 
+	// 1.5. Allow public website routes without authentication
+	const publicRoutes = [
+		'/',
+		'/about',
+		'/features',
+		'/solutions',
+		'/pricing',
+		'/resources',
+		'/contact',
+		'/careers'
+	];
+
+	if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+		return NextResponse.next({ request: { headers: requestHeaders } });
+	}
+
 	// 2. Public auth pages — redirect to role dashboard if already logged in
 	const isAuthPage =
 		pathname === "/login" ||
