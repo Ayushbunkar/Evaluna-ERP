@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@evaluna/ui/components/card";
-import { MountainIcon, ArrowRight, Users, ShoppingCart, BarChart3, Truck, Package } from "lucide-react";
+import { MountainIcon, ArrowRight, Users, ShoppingCart, BarChart3, Truck, Package, HomeIcon, Settings, FileText, HelpCircle, Mail, BookOpen } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
@@ -26,16 +26,13 @@ export default function Home() {
 						</div>
 						<div className="flex items-center space-x-4">
 							<Link href="/features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-								Features
+								Our Systems
 							</Link>
-							<Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-								About
+							<Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+								Documentation
 							</Link>
 							<Button asChild variant="outline" className="text-sm">
-								<Link href="/login">Login</Link>
-							</Button>
-							<Button asChild className="text-sm shadow-sm">
-								<Link href="/signup">Get Started</Link>
+								<Link href="/login">Employee Login</Link>
 							</Button>
 						</div>
 					</div>
@@ -47,42 +44,42 @@ export default function Home() {
 				<div className="text-center">
 					<div className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1 text-sm font-medium text-primary mb-6">
 						<span className="bg-primary rounded-full h-2 w-2 mr-2 animate-pulse"></span>
-						All-in-One Business Management
+						Our Internal Business Management System
 					</div>
 
 					<h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-6">
-						Transform Your Business with <span className="text-primary">Evaluna ERP</span>
+						Evaluna Internal ERP System
 					</h1>
 
 					<p className="max-w-3xl mx-auto text-lg sm:text-xl text-muted-foreground mb-8">
-						Powerful, scalable ERP solution designed for modern businesses. Manage inventory, sales, customers, and operations
-						all in one integrated platform with real-time data and analytics.
+						Our comprehensive ERP solution for managing all aspects of our business operations.
+						Integrated platform with real-time data and analytics for better decision making.
 					</p>
 
 					<div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12">
 						<Button asChild size="lg" className="shadow-lg">
-							<Link href="/signup">Start Free Trial</Link>
+							<Link href="/login">Employee Login</Link>
 						</Button>
 						<Button asChild size="lg" variant="outline">
-							<Link href="/demo">Book a Demo</Link>
+							<Link href="/features">Explore Our Systems</Link>
 						</Button>
 					</div>
 
-					{/* Demo Preview */}
+					{/* System Overview */}
 					<div className="mt-16">
 						<Card className="max-w-4xl mx-auto shadow-xl">
 							<CardHeader>
-								<h3 className="text-xl font-semibold">Evaluna ERP Dashboard Preview</h3>
+								<h3 className="text-xl font-semibold">Evaluna ERP System Overview</h3>
 								<p className="text-sm text-muted-foreground">
-									See how our real-time analytics and intuitive interface can streamline your business operations.
+									Our integrated business management system provides real-time insights and tools for all departments.
 								</p>
 							</CardHeader>
 							<CardContent>
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-									{/* Sales Overview */}
+									{/* Business Performance */}
 									<Card className="hover:shadow-md transition-shadow">
 										<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-											<CardContent className="text-sm text-muted-foreground">Total Sales</CardContent>
+											<CardContent className="text-sm text-muted-foreground">Business Performance</CardContent>
 											<BarChart3 className="h-4 w-4 text-muted-foreground" />
 										</CardHeader>
 										<CardContent>
@@ -125,23 +122,23 @@ export default function Home() {
 										</CardContent>
 									</Card>
 
-									{/* Customer Activity */}
+									{/* Team Activity */}
 									<Card className="hover:shadow-md transition-shadow">
 										<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-											<CardContent className="text-sm text-muted-foreground">Customer Activity</CardContent>
+											<CardContent className="text-sm text-muted-foreground">Team Activity</CardContent>
 											<Users className="h-4 w-4 text-muted-foreground" />
 										</CardHeader>
 										<CardContent>
 											<div className="text-2xl font-bold">48 Active</div>
-											<p className="text-xs text-muted-foreground">8 new this week</p>
+											<p className="text-xs text-muted-foreground">8 new team members this month</p>
 											<div className="mt-4 space-y-3">
 												<div className="flex items-center space-x-3">
 													<div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
 														<span className="text-blue-600 font-medium text-sm">RC</span>
 													</div>
 													<div className="flex-1">
-														<p className="text-sm font-medium">Raj Enterprises</p>
-														<p className="text-xs text-muted-foreground">$2,450.00 lifetime</p>
+														<p className="text-sm font-medium">Raj Choudhary</p>
+														<p className="text-xs text-muted-foreground">Sales Team</p>
 													</div>
 												</div>
 												<div className="flex items-center space-x-3">
@@ -149,8 +146,8 @@ export default function Home() {
 														<span className="text-green-600 font-medium text-sm">MS</span>
 													</div>
 													<div className="flex-1">
-														<p className="text-sm font-medium">Metro Suppliers</p>
-														<p className="text-xs text-muted-foreground">$1,890.50 lifetime</p>
+														<p className="text-sm font-medium">Meera Sharma</p>
+														<p className="text-xs text-muted-foreground">Operations</p>
 													</div>
 												</div>
 											</div>
@@ -161,7 +158,7 @@ export default function Home() {
 							<CardFooter className="flex justify-end">
 								<Button asChild variant="outline">
 									<Link href="/login">
-										Explore Full Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+										Access Full System <ArrowRight className="ml-2 h-4 w-4" />
 									</Link>
 								</Button>
 							</CardFooter>
@@ -170,14 +167,14 @@ export default function Home() {
 				</div>
 			</main>
 
-			{/* Features Section */}
+			{/* Systems Section */}
 			<section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 				<div className="text-center mb-12">
 					<h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-						Everything You Need to Run Your Business
+						Our Integrated Business Systems
 					</h2>
 					<p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-						Evaluna ERP integrates all your business processes into one seamless system.
+						Evaluna ERP provides comprehensive tools for managing all aspects of our business operations.
 					</p>
 				</div>
 
@@ -185,38 +182,38 @@ export default function Home() {
 					{[
 						{
 							icon: <BarChart3 className="h-8 w-8 text-primary" />,
-							title: "Real-time Analytics",
-							description: "Get instant insights with powerful dashboards and reports that update in real-time.",
+							title: "Business Analytics",
+							description: "Real-time dashboards and comprehensive reports for monitoring our business performance and making data-driven decisions.",
 							link: "/features#analytics"
 						},
 						{
 							icon: <Package className="h-8 w-8 text-primary" />,
 							title: "Inventory Management",
-							description: "Track stock levels, manage suppliers, and automate reordering with smart alerts.",
+							description: "Track stock levels across all locations, manage supplier relationships, and receive automated alerts for low stock items.",
 							link: "/features#inventory"
 						},
 						{
 							icon: <ShoppingCart className="h-8 w-8 text-primary" />,
-							title: "Point of Sale",
-							description: "Fast, reliable POS system with offline mode and multi-location support.",
+							title: "Sales Operations",
+							description: "Our internal POS system with offline capabilities, supporting multiple locations and ensuring smooth sales operations.",
 							link: "/features#pos"
 						},
 						{
 							icon: <Users className="h-8 w-8 text-primary" />,
-							title: "Customer Relationships",
-							description: "Complete CRM with loyalty programs, purchase history, and targeted marketing.",
+							title: "Customer Management",
+							description: "Comprehensive customer records, purchase history tracking, and loyalty program management for our valued clients.",
 							link: "/features#crm"
 						},
 						{
 							icon: <Truck className="h-8 w-8 text-primary" />,
-							title: "Supply Chain",
-							description: "Manage suppliers, purchases, and deliveries with end-to-end visibility.",
+							title: "Supply Chain Operations",
+							description: "Manage supplier relationships, track purchases, and monitor deliveries with complete visibility of our supply chain.",
 							link: "/features#supply-chain"
 						},
 						{
 							icon: <MountainIcon className="h-8 w-8 text-primary" />,
-							title: "Multi-Branch Support",
-							description: "Centralized management for multiple locations with role-based access control.",
+							title: "Multi-Location Management",
+							description: "Centralized management system for all our branches with role-based access control tailored to our organization.",
 							link: "/features#multi-branch"
 						}
 					].map((feature, index) => (
@@ -236,21 +233,22 @@ export default function Home() {
 				</div>
 			</section>
 
-			{/* CTA Section */}
+			{/* Access Section */}
 			<section className="bg-primary text-white py-16 mt-16">
 				<div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
 					<h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-						Ready to Transform Your Business?
+						Access Our Internal ERP System
 					</h2>
 					<p className="text-lg text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-						Join thousands of businesses already using Evaluna ERP to streamline operations, reduce costs, and grow faster.
+						Our comprehensive ERP system is designed exclusively for internal use by our team members.
+						Access the tools and data you need based on your role and permissions.
 					</p>
 					<div className="flex flex-col sm:flex-row justify-center items-center gap-4">
 						<Button asChild size="lg" variant="secondary" className="shadow-lg">
-							<Link href="/signup">Start Your Free Trial</Link>
+							<Link href="/login">Employee Login</Link>
 						</Button>
 						<Button asChild size="lg" variant="outline" className="text-primary border-primary hover:bg-primary/10">
-							<Link href="/demo">Schedule a Demo</Link>
+							<Link href="/features">Explore Our Systems</Link>
 						</Button>
 					</div>
 				</div>
@@ -265,14 +263,14 @@ export default function Home() {
 							<span className="font-bold text-lg text-foreground">Evaluna ERP</span>
 						</div>
 						<div className="text-sm text-muted-foreground">
-							© {new Date().getFullYear()} Evaluna Technologies. All rights reserved.
+							© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
 						</div>
 					</div>
 					<div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
 						<Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
 						<Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
-						<Link href="/contact" className="hover:text-foreground transition-colors">Contact Us</Link>
-						<Link href="/docs" className="hover:text-foreground transition-colors">Documentation</Link>
+						<Link href="/contact" className="hover:text-foreground transition-colors">Contact IT Support</Link>
+						<Link href="/docs" className="hover:text-foreground transition-colors">Internal Documentation</Link>
 						<Link href="/status" className="hover:text-foreground transition-colors">System Status</Link>
 					</div>
 				</div>
