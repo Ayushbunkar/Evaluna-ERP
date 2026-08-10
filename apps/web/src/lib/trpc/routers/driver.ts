@@ -87,7 +87,7 @@ export const driverRouter = router({
 					where: eq(orders.customer_id, nextStop.customer_id),
 					orderBy: [desc(orders.created_at)],
 					with: {
-						items: true,
+						orderItems: true,
 					}
 				});
 
@@ -101,7 +101,7 @@ export const driverRouter = router({
 					landmark: "",
 					paymentType: "Cash on Delivery",
 					amountToCollect: activeOrder ? Number(activeOrder.total_amount) : 0,
-					packages: activeOrder?.items?.length ?? 1,
+					packages: activeOrder?.orderItems?.length ?? 1,
 					eta: null,
 					distance: null,
 					isVerified: false,
