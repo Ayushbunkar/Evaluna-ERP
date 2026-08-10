@@ -13,7 +13,7 @@ import {
 	staff,
 	suppliers,
 } from "@evaluna/db/schema";
-import { deliveryTrips, tripStops } from "@evaluna/db/schema/delivery";
+import { deliveryTrips, tripStops, tripCollections } from "@evaluna/db/schema/delivery";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -314,6 +314,15 @@ export async function GET() {
 					eta: new Date(),
 					notes: "Handle with care",
 				});
+
+				if (trip.status === "completed" || trip.status === "active") {
+					await db.insert(tripCollections).values({
+						trip_id: trip.id,
+						payment_method: "cash",
+						amount: "2500.00",
+						collected_by: staffId,
+					});
+				}
 			}
 		}
 
