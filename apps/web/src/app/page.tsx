@@ -28,9 +28,6 @@ export default function Home() {
 							<Link href="/features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
 								Features
 							</Link>
-							<Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-								Pricing
-							</Link>
 							<Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
 								About
 							</Link>

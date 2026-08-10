@@ -5,7 +5,7 @@ import {
 	pickLists,
 	staff,
 } from "@evaluna/db/schema";
-import { and, desc, eq, notInArray } from "drizzle-orm";
+import { and, desc, eq, gte, lte, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -111,5 +111,54 @@ export const packerRouter = router({
 				success: true,
 				package_number: newPackage.package_number,
 			};
+		}),
+
+	getPackingHistory: roleProcedure(["admin", "manager", "packer"])
+		.input(
+			z.object({
+				startDate: z.date(),
+				endDate: z.date(),
+				status: z.string().optional(),
+				search: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			// Build the base query for packages with proper joins
+			let query = ctx.db
+				.select({
+					orderId: packages.order_id,
+					packedBy: staff.name,
+					status: packages.status,
+					packedAt: packages.packed_at,
+				})
+				.from(packages)
+				.leftJoin(staff, eq(packages.packed_by, staff.id))
+				.where(
+					and(
+						input.startDate && input.endDate
+							? and(
+									gte(packages.packed_at, input.startDate),
+									lte(packages.packed_at, input.endDate),
+								)
+							: undefined,
+						input.status
+							? eq(packages.status, input.status)
+							: undefined,
+					),
+				)
+				.orderBy(desc(packages.packed_at));
+
+			// Execute the query
+			const results = await query;
+
+			// Transform the results to match the expected format
+			return results.map((item) => ({
+				orderId: `ORD-${item.orderId}`,
+				customerName: "Customer Name", // Placeholder for now
+				itemsCount: 1, // Default value since we don't have items_count in packages table
+				packedBy: item.packedBy || "Unknown",
+				status: item.status || "completed",
+				packedAt: item.packedAt || new Date(),
+			}));
 		}),
 });

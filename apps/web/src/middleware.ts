@@ -36,7 +36,6 @@ export default async function middleware(request: NextRequest) {
 		"/about",
 		"/features",
 		"/solutions",
-		"/pricing",
 		"/resources",
 		"/contact",
 		"/careers",
