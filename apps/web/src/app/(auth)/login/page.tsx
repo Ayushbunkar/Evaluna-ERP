@@ -161,14 +161,20 @@ export default function LoginPage() {
 							<span className="font-bold text-xl text-foreground">Evaluna ERP</span>
 						</div>
 						<div className="flex items-center space-x-4">
+							<Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+								Home
+							</Link>
+							<Link href="/product" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+								Product
+							</Link>
 							<Link href="/features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
 								Features
 							</Link>
-							<Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-								Pricing
+							<Link href="/solutions" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+								Solutions
 							</Link>
 							<Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-								About
+								Company
 							</Link>
 							<Button asChild variant="outline" className="text-sm">
 								<Link href="/signup">Sign Up</Link>
