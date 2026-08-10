@@ -13,7 +13,7 @@ const messages = {
 		lowStockItems: "Low Stock Items",
 		actionNeeded: "Action needed",
 		vsYesterday: "vs yesterday",
-		noDataAvailable: "No data available"
+		noDataAvailable: "No data available",
 	},
 	common: {
 		cancel: "Cancel",

@@ -14,7 +14,11 @@ import {
 const checkerNavItems: NavItem[] = [
 	{ href: "/checker", labelKey: "Dashboard", icon: LayoutDashboardIcon },
 	{ href: "/checker/verify", labelKey: "Verify Packages", icon: ShieldCheck },
-	{ href: "/checker/history", labelKey: "Checking History", icon: ClipboardCheck },
+	{
+		href: "/checker/history",
+		labelKey: "Checking History",
+		icon: ClipboardCheck,
+	},
 	{ href: "/checker/reports", labelKey: "Reports", icon: BarChart },
 ];
 

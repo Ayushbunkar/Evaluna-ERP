@@ -53,7 +53,7 @@ export default function UsersPage() {
 
 	const [mockUsers, setMockUsers] = useState(INITIAL_MOCK_USERS);
 	const users = usersData && usersData.length > 0 ? usersData : mockUsers;
-	
+
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingUser, setEditingUser] = useState<any>(null);
 
@@ -64,7 +64,7 @@ export default function UsersPage() {
 
 	const handleDelete = (id: string) => {
 		if (confirm("Are you sure you want to delete this user?")) {
-			setMockUsers(mockUsers.filter(u => u.id !== id));
+			setMockUsers(mockUsers.filter((u) => u.id !== id));
 		}
 	};
 
@@ -140,8 +140,8 @@ export default function UsersPage() {
 			</div>
 
 			<Card className="shadow-sm">
-				<CardHeader className="border-b border-gray-200 pb-4">
-					<CardTitle className="text-xl text-gray-900">Directory</CardTitle>
+				<CardHeader className="border-gray-200 border-b pb-4">
+					<CardTitle className="text-gray-900 text-xl">Directory</CardTitle>
 				</CardHeader>
 				<CardContent className="p-0">
 					{isLoading ? (
@@ -149,7 +149,7 @@ export default function UsersPage() {
 					) : (
 						<div className="overflow-x-auto">
 							<table className="w-full text-left text-sm">
-								<thead className="border-b border-gray-200 bg-gray-50 font-medium text-gray-900">
+								<thead className="border-gray-200 border-b bg-gray-50 font-medium text-gray-900">
 									<tr>
 										<th className="px-6 py-4">User ID</th>
 										<th className="px-6 py-4">Name</th>
@@ -174,7 +174,7 @@ export default function UsersPage() {
 											</td>
 											<td className="px-6 py-4 text-gray-500">{user.email}</td>
 											<td className="px-6 py-4">
-												<span className="inline-flex items-center bg-gray-100 text-gray-900 px-2.5 py-0.5 font-medium text-xs">
+												<span className="inline-flex items-center bg-gray-100 px-2.5 py-0.5 font-medium text-gray-900 text-xs">
 													{user.role}
 												</span>
 											</td>
@@ -232,7 +232,7 @@ export default function UsersPage() {
 								<input
 									type="text"
 									defaultValue={editingUser?.name || ""}
-									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
+									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none"
 								/>
 							</div>
 							<div>
@@ -242,16 +242,16 @@ export default function UsersPage() {
 								<input
 									type="email"
 									defaultValue={editingUser?.email || ""}
-									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
+									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none"
 								/>
 							</div>
 							<div>
 								<label className="mb-1 block font-medium text-gray-900 text-sm">
 									Role
 								</label>
-								<select 
+								<select
 									defaultValue={editingUser?.role || "Staff"}
-									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
+									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none"
 								>
 									<option>Superadmin</option>
 									<option>Manager</option>
@@ -264,23 +264,35 @@ export default function UsersPage() {
 								<label className="mb-1 block font-medium text-gray-900 text-sm">
 									Assigned Branch
 								</label>
-								<select 
+								<select
 									defaultValue={editingUser?.branch || "Global"}
-									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
+									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none"
 								>
 									<option>Global (All Branches)</option>
 									<option>Main Branch</option>
 									<option>Downtown Store</option>
 									<option>Warehouse A</option>
 								</select>
-								<p className="mt-1 text-xs text-gray-500">Admins will only see data for their assigned branch.</p>
+								<p className="mt-1 text-gray-500 text-xs">
+									Admins will only see data for their assigned branch.
+								</p>
 							</div>
 						</div>
 						<div className="mt-6 flex justify-end gap-3">
-							<Button variant="outline" className="border-gray-300 text-gray-900 hover:bg-gray-50" onClick={() => { setIsModalOpen(false); setEditingUser(null); }}>
+							<Button
+								variant="outline"
+								className="border-gray-300 text-gray-900 hover:bg-gray-50"
+								onClick={() => {
+									setIsModalOpen(false);
+									setEditingUser(null);
+								}}
+							>
 								Cancel
 							</Button>
-							<Button onClick={handleSave} className="bg-gray-900 text-white hover:bg-gray-800">
+							<Button
+								onClick={handleSave}
+								className="bg-gray-900 text-white hover:bg-gray-800"
+							>
 								Save User
 							</Button>
 						</div>

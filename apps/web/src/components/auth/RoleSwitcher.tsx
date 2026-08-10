@@ -10,8 +10,8 @@ import {
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useState } from "react";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc/client";
 import { useSession } from "@/hooks/use-session";
+import { trpc } from "@/lib/trpc/client";
 
 export function RoleSwitcher() {
 	const { session, isLoading } = useSession();

@@ -27,12 +27,18 @@ import { formatCurrency } from "@/lib/utils";
 
 const statusBadge = (status: string | null | undefined) => {
 	if (status === "completed" || status === "delivered")
-		return <Badge className="bg-gray-100 text-gray-900 border-0">Completed</Badge>;
+		return (
+			<Badge className="border-0 bg-gray-100 text-gray-900">Completed</Badge>
+		);
 	if (status === "cancelled")
-		return <Badge className="bg-gray-100 text-gray-500 border-0">Cancelled</Badge>;
+		return (
+			<Badge className="border-0 bg-gray-100 text-gray-500">Cancelled</Badge>
+		);
 	if (status === "processing")
-		return <Badge className="bg-gray-100 text-gray-700 border-0">Processing</Badge>;
-	return <Badge className="bg-gray-100 text-gray-500 border-0">Pending</Badge>;
+		return (
+			<Badge className="border-0 bg-gray-100 text-gray-700">Processing</Badge>
+		);
+	return <Badge className="border-0 bg-gray-100 text-gray-500">Pending</Badge>;
 };
 
 export default async function SalesPage() {
@@ -76,9 +82,7 @@ export default async function SalesPage() {
 		<div className="space-y-6 p-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="font-bold text-3xl text-gray-900">
-						Sales
-					</h1>
+					<h1 className="font-bold text-3xl text-gray-900">Sales</h1>
 					<p className="mt-1 text-gray-500 text-sm">
 						Track all sales orders and revenue
 					</p>
@@ -96,12 +100,12 @@ export default async function SalesPage() {
 					<Card key={kpi.label} className="border border-gray-200 shadow-sm">
 						<CardContent className="pt-6">
 							<div className="flex items-center gap-3">
-								<div className="bg-gray-100 rounded-lg p-2">
+								<div className="rounded-lg bg-gray-100 p-2">
 									<kpi.icon className="h-5 w-5 text-gray-900" />
 								</div>
 								<div>
 									<p className="text-gray-500 text-sm">{kpi.label}</p>
-									<p className="font-bold text-xl text-gray-900">{kpi.value}</p>
+									<p className="font-bold text-gray-900 text-xl">{kpi.value}</p>
 								</div>
 							</div>
 						</CardContent>
@@ -124,13 +128,18 @@ export default async function SalesPage() {
 									<TableHead className="text-gray-900">Order ID</TableHead>
 									<TableHead className="text-gray-900">Customer</TableHead>
 									<TableHead className="text-gray-900">Status</TableHead>
-									<TableHead className="text-right text-gray-900">Amount</TableHead>
+									<TableHead className="text-right text-gray-900">
+										Amount
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{items.length === 0 ? (
 									<TableRow>
-										<TableCell colSpan={4} className="h-24 text-center text-gray-500">
+										<TableCell
+											colSpan={4}
+											className="h-24 text-center text-gray-500"
+										>
 											No orders found.
 										</TableCell>
 									</TableRow>
@@ -138,7 +147,7 @@ export default async function SalesPage() {
 									items.map((order) => (
 										<TableRow key={order.id}>
 											<TableCell className="font-medium text-gray-900">
-												<Link 
+												<Link
 													href={`/admin/orders/${order.id}`}
 													className="hover:underline"
 												>
@@ -150,7 +159,10 @@ export default async function SalesPage() {
 											</TableCell>
 											<TableCell>{statusBadge(order.status)}</TableCell>
 											<TableCell className="text-right font-medium text-gray-900">
-												{formatCurrency(Number(order.total_amount || 0), "en-IN")}
+												{formatCurrency(
+													Number(order.total_amount || 0),
+													"en-IN",
+												)}
 											</TableCell>
 										</TableRow>
 									))
@@ -163,4 +175,3 @@ export default async function SalesPage() {
 		</div>
 	);
 }
-

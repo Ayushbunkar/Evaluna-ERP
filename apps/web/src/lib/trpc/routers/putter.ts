@@ -41,19 +41,28 @@ export const putterRouter = router({
 				.limit(100);
 
 			// Group by date for chart data
-			const chartDataMap = new Map<string, { date: string; received: number; putAway: number }>();
-			
+			const chartDataMap = new Map<
+				string,
+				{ date: string; received: number; putAway: number }
+			>();
+
 			// Initialize last 7 days with 0
 			for (let i = 6; i >= 0; i--) {
 				const d = new Date();
 				d.setDate(d.getDate() - i);
-				const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+				const dateStr = d.toLocaleDateString("en-US", {
+					month: "short",
+					day: "numeric",
+				});
 				chartDataMap.set(dateStr, { date: dateStr, received: 0, putAway: 0 });
 			}
 
 			recentPurchases.forEach((p) => {
 				if (!p.created_at) return;
-				const dateStr = p.created_at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+				const dateStr = p.created_at.toLocaleDateString("en-US", {
+					month: "short",
+					day: "numeric",
+				});
 				if (chartDataMap.has(dateStr)) {
 					const entry = chartDataMap.get(dateStr)!;
 					if (p.status === "pending") entry.received += 1; // representing items to receive
@@ -63,8 +72,8 @@ export const putterRouter = router({
 
 			// If no real data, provide some realistic variations based on the counts
 			let chartData = Array.from(chartDataMap.values());
-			if (chartData.every(c => c.received === 0 && c.putAway === 0)) {
-				chartData = chartData.map(c => ({
+			if (chartData.every((c) => c.received === 0 && c.putAway === 0)) {
+				chartData = chartData.map((c) => ({
 					date: c.date,
 					received: Math.floor(Math.random() * 20) + 10,
 					putAway: Math.floor(Math.random() * 15) + 5,

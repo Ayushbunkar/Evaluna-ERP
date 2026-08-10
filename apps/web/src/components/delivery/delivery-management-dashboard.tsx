@@ -1,15 +1,35 @@
 "use client";
 
+import { MapPinIcon, PackageIcon, RouteIcon, TruckIcon } from "lucide-react";
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc/client";
-import { PackageIcon, RouteIcon, TruckIcon, MapPinIcon } from "lucide-react";
 
 interface DeliveryManagementDashboardProps {
 	initialRoutes: any[];
@@ -25,15 +45,19 @@ export function DeliveryManagementDashboard({
 	branches,
 }: DeliveryManagementDashboardProps) {
 	const [activeTab, setActiveTab] = useState("overview");
-	
-	const { data: routes = initialRoutes, refetch: refetchRoutes } = trpc.delivery.listRoutes.useQuery({});
+
+	const { data: routes = initialRoutes, refetch: refetchRoutes } =
+		trpc.delivery.listRoutes.useQuery({});
 	const { data: customersResponse } = trpc.customers.list.useQuery() as any;
 	const vehicles = initialVehicles || [];
 	const customers = customersResponse || [];
 
-	const createVehicle = { isPending: false, mutateAsync: async (data: any) => {} };
+	const createVehicle = {
+		isPending: false,
+		mutateAsync: async (data: any) => {},
+	};
 	const createRoute = trpc.delivery.createRoute.useMutation({
-		onSuccess: () => refetchRoutes()
+		onSuccess: () => refetchRoutes(),
 	});
 	const assignTrip = { isPending: false, mutateAsync: async (data: any) => {} };
 
@@ -68,7 +92,10 @@ export function DeliveryManagementDashboard({
 		await createRoute.mutateAsync({
 			name: routeName,
 			description: routeDesc,
-			stops: routeCustomers.map((id, index) => ({ customerId: id, sequence: index + 1 }))
+			stops: routeCustomers.map((id, index) => ({
+				customerId: id,
+				sequence: index + 1,
+			})),
 		});
 		setIsRouteOpen(false);
 		setRouteName("");
@@ -102,26 +129,32 @@ export function DeliveryManagementDashboard({
 				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">Active Trips</CardTitle>
+							<CardTitle className="font-medium text-sm">
+								Active Trips
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">0</div>
+							<div className="font-bold text-2xl">0</div>
 						</CardContent>
 					</Card>
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">Available Vehicles</CardTitle>
+							<CardTitle className="font-medium text-sm">
+								Available Vehicles
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">{vehicles.length}</div>
+							<div className="font-bold text-2xl">{vehicles.length}</div>
 						</CardContent>
 					</Card>
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">Pending Settlements</CardTitle>
+							<CardTitle className="font-medium text-sm">
+								Pending Settlements
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">0</div>
+							<div className="font-bold text-2xl">0</div>
 						</CardContent>
 					</Card>
 				</div>
@@ -132,7 +165,9 @@ export function DeliveryManagementDashboard({
 					<CardHeader className="flex flex-row items-center justify-between">
 						<div>
 							<CardTitle>Delivery Routes</CardTitle>
-							<CardDescription>Manage and optimize delivery routes for your customers.</CardDescription>
+							<CardDescription>
+								Manage and optimize delivery routes for your customers.
+							</CardDescription>
 						</div>
 						<div className="flex space-x-2">
 							<Dialog open={isRouteOpen} onOpenChange={setIsRouteOpen}>
@@ -142,41 +177,72 @@ export function DeliveryManagementDashboard({
 								<DialogContent className="max-w-xl">
 									<DialogHeader>
 										<DialogTitle>Create Delivery Route</DialogTitle>
-										<DialogDescription>Define a route and assign customer stops.</DialogDescription>
+										<DialogDescription>
+											Define a route and assign customer stops.
+										</DialogDescription>
 									</DialogHeader>
-									<div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+									<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
 										<div className="space-y-2">
 											<Label>Route Name</Label>
-											<Input value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="e.g. Downtown Morning" />
+											<Input
+												value={routeName}
+												onChange={(e) => setRouteName(e.target.value)}
+												placeholder="e.g. Downtown Morning"
+											/>
 										</div>
 										<div className="space-y-2">
 											<Label>Description</Label>
-											<Input value={routeDesc} onChange={e => setRouteDesc(e.target.value)} placeholder="Route notes..." />
+											<Input
+												value={routeDesc}
+												onChange={(e) => setRouteDesc(e.target.value)}
+												placeholder="Route notes..."
+											/>
 										</div>
 										<div className="space-y-2">
 											<Label>Add Customers (Select to add to sequence)</Label>
-											<Select onValueChange={(val) => setRouteCustomers([...routeCustomers, Number(val)])}>
+											<Select
+												onValueChange={(val) =>
+													setRouteCustomers([...routeCustomers, Number(val)])
+												}
+											>
 												<SelectTrigger>
 													<SelectValue placeholder="Add a customer..." />
 												</SelectTrigger>
 												<SelectContent>
 													{customers.map((c: any) => (
-														<SelectItem key={c.id} value={c.id.toString()}>{c.name} ({c.phone || "No Phone"})</SelectItem>
+														<SelectItem key={c.id} value={c.id.toString()}>
+															{c.name} ({c.phone || "No Phone"})
+														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
 											{routeCustomers.length > 0 && (
-												<div className="p-3 mt-2 border rounded-md text-sm space-y-1 bg-muted/30">
+												<div className="mt-2 space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
 													{routeCustomers.map((id, idx) => {
-														const cust = customers.find((c: any) => c.id === id);
-														return <div key={idx} className="flex gap-2 items-center"><MapPinIcon className="w-4 h-4 text-primary"/> <strong>Stop {idx + 1}:</strong> {cust?.name}</div>;
+														const cust = customers.find(
+															(c: any) => c.id === id,
+														);
+														return (
+															<div
+																key={idx}
+																className="flex items-center gap-2"
+															>
+																<MapPinIcon className="h-4 w-4 text-primary" />{" "}
+																<strong>Stop {idx + 1}:</strong> {cust?.name}
+															</div>
+														);
 													})}
 												</div>
 											)}
 										</div>
 									</div>
 									<DialogFooter>
-										<Button onClick={handleCreateRoute} disabled={createRoute.isPending}>Save Route</Button>
+										<Button
+											onClick={handleCreateRoute}
+											disabled={createRoute.isPending}
+										>
+											Save Route
+										</Button>
 									</DialogFooter>
 								</DialogContent>
 							</Dialog>
@@ -188,45 +254,78 @@ export function DeliveryManagementDashboard({
 								<DialogContent>
 									<DialogHeader>
 										<DialogTitle>Dispatch Delivery Trip</DialogTitle>
-										<DialogDescription>Assign a route to a driver and vehicle.</DialogDescription>
+										<DialogDescription>
+											Assign a route to a driver and vehicle.
+										</DialogDescription>
 									</DialogHeader>
 									<div className="space-y-4 py-4">
 										<div className="space-y-2">
 											<Label>Select Route</Label>
-											<Select value={tripRouteId} onValueChange={setTripRouteId}>
-												<SelectTrigger><SelectValue placeholder="Select Route" /></SelectTrigger>
+											<Select
+												value={tripRouteId}
+												onValueChange={setTripRouteId}
+											>
+												<SelectTrigger>
+													<SelectValue placeholder="Select Route" />
+												</SelectTrigger>
 												<SelectContent>
 													{routes.map((r: any) => (
-														<SelectItem key={r.id} value={r.id.toString()}>{r.name} ({r.stops?.length || 0} stops)</SelectItem>
+														<SelectItem key={r.id} value={r.id.toString()}>
+															{r.name} ({r.stops?.length || 0} stops)
+														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
 										</div>
 										<div className="space-y-2">
 											<Label>Select Driver</Label>
-											<Select value={tripDriverId} onValueChange={setTripDriverId}>
-												<SelectTrigger><SelectValue placeholder="Select Driver" /></SelectTrigger>
+											<Select
+												value={tripDriverId}
+												onValueChange={setTripDriverId}
+											>
+												<SelectTrigger>
+													<SelectValue placeholder="Select Driver" />
+												</SelectTrigger>
 												<SelectContent>
 													{drivers.map((d: any) => (
-														<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+														<SelectItem key={d.id} value={d.id}>
+															{d.name}
+														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
 										</div>
 										<div className="space-y-2">
 											<Label>Select Vehicle</Label>
-											<Select value={tripVehicleId} onValueChange={setTripVehicleId}>
-												<SelectTrigger><SelectValue placeholder="Select Vehicle" /></SelectTrigger>
+											<Select
+												value={tripVehicleId}
+												onValueChange={setTripVehicleId}
+											>
+												<SelectTrigger>
+													<SelectValue placeholder="Select Vehicle" />
+												</SelectTrigger>
 												<SelectContent>
 													{vehicles.map((v: any) => (
-														<SelectItem key={v.id} value={v.id.toString()}>{v.name} - {v.registration_number}</SelectItem>
+														<SelectItem key={v.id} value={v.id.toString()}>
+															{v.name} - {v.registration_number}
+														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
 										</div>
 									</div>
 									<DialogFooter>
-										<Button onClick={handleAssignTrip} disabled={assignTrip.isPending || !tripRouteId || !tripDriverId || !tripVehicleId}>Dispatch Trip</Button>
+										<Button
+											onClick={handleAssignTrip}
+											disabled={
+												assignTrip.isPending ||
+												!tripRouteId ||
+												!tripDriverId ||
+												!tripVehicleId
+											}
+										>
+											Dispatch Trip
+										</Button>
 									</DialogFooter>
 								</DialogContent>
 							</Dialog>
@@ -235,19 +334,31 @@ export function DeliveryManagementDashboard({
 					<CardContent>
 						<div className="space-y-4">
 							{routes.length === 0 ? (
-								<p className="text-sm text-muted-foreground">No routes found.</p>
+								<p className="text-muted-foreground text-sm">
+									No routes found.
+								</p>
 							) : (
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 									{routes.map((route: any) => (
-										<div key={route.id} className="p-4 border rounded-md shadow-sm relative overflow-hidden group">
-											<div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+										<div
+											key={route.id}
+											className="group relative overflow-hidden rounded-md border p-4 shadow-sm"
+										>
+											<div className="absolute top-0 left-0 h-full w-1 bg-primary" />
 											<h4 className="font-semibold text-lg">{route.name}</h4>
-											<p className="text-sm text-muted-foreground mb-3">{route.description || "No description"}</p>
+											<p className="mb-3 text-muted-foreground text-sm">
+												{route.description || "No description"}
+											</p>
 											<div className="space-y-1">
-												<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Stops Sequence</div>
+												<div className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+													Stops Sequence
+												</div>
 												{route.stops?.map((stop: any) => (
-													<div key={stop.id} className="flex items-center text-sm gap-2">
-														<div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+													<div
+														key={stop.id}
+														className="flex items-center gap-2 text-sm"
+													>
+														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
 															{stop.sequence}
 														</div>
 														{stop.customer?.name}
@@ -270,30 +381,41 @@ export function DeliveryManagementDashboard({
 						<CardDescription>Simulated view of active trips.</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<div className="h-[400px] w-full bg-slate-100 rounded-md border flex items-center justify-center overflow-hidden relative">
+						<div className="relative flex h-[400px] w-full items-center justify-center overflow-hidden rounded-md border bg-slate-100">
 							{/* Simulated Map Background */}
-							<div className="absolute inset-0 opacity-20" style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-							
-							<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-4 bg-white shadow-lg rounded-xl flex items-center gap-3">
-								<div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center animate-pulse">
-									<TruckIcon className="text-primary w-5 h-5" />
+							<div
+								className="absolute inset-0 opacity-20"
+								style={{
+									backgroundImage:
+										"linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)",
+									backgroundSize: "20px 20px",
+								}}
+							/>
+
+							<div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-xl bg-white p-4 shadow-lg">
+								<div className="flex h-10 w-10 animate-pulse items-center justify-center rounded-full bg-primary/10">
+									<TruckIcon className="h-5 w-5 text-primary" />
 								</div>
 								<div>
 									<h4 className="font-bold">Truck 01</h4>
-									<p className="text-xs text-muted-foreground">Moving at 45 km/h • ETA 10 mins</p>
+									<p className="text-muted-foreground text-xs">
+										Moving at 45 km/h • ETA 10 mins
+									</p>
 								</div>
 							</div>
 						</div>
 					</CardContent>
 				</Card>
 			</TabsContent>
-            
+
 			<TabsContent value="vehicles">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between">
 						<div>
 							<CardTitle>Vehicle Fleet</CardTitle>
-							<CardDescription>Manage your delivery vehicles and their status.</CardDescription>
+							<CardDescription>
+								Manage your delivery vehicles and their status.
+							</CardDescription>
 						</div>
 						<Dialog open={isVehicleOpen} onOpenChange={setIsVehicleOpen}>
 							<DialogTrigger asChild>
@@ -306,16 +428,26 @@ export function DeliveryManagementDashboard({
 								<div className="space-y-4 py-4">
 									<div className="space-y-2">
 										<Label>Vehicle Name/Model</Label>
-										<Input value={vehicleName} onChange={e => setVehicleName(e.target.value)} placeholder="e.g. Ford Transit" />
+										<Input
+											value={vehicleName}
+											onChange={(e) => setVehicleName(e.target.value)}
+											placeholder="e.g. Ford Transit"
+										/>
 									</div>
 									<div className="space-y-2">
 										<Label>Registration Number</Label>
-										<Input value={vehicleReg} onChange={e => setVehicleReg(e.target.value)} placeholder="e.g. XY-1234" />
+										<Input
+											value={vehicleReg}
+											onChange={(e) => setVehicleReg(e.target.value)}
+											placeholder="e.g. XY-1234"
+										/>
 									</div>
 									<div className="space-y-2">
 										<Label>Type</Label>
 										<Select value={vehicleType} onValueChange={setVehicleType}>
-											<SelectTrigger><SelectValue /></SelectTrigger>
+											<SelectTrigger>
+												<SelectValue />
+											</SelectTrigger>
 											<SelectContent>
 												<SelectItem value="van">Van</SelectItem>
 												<SelectItem value="truck">Truck</SelectItem>
@@ -325,7 +457,12 @@ export function DeliveryManagementDashboard({
 									</div>
 								</div>
 								<DialogFooter>
-									<Button onClick={handleAddVehicle} disabled={createVehicle.isPending}>Add Vehicle</Button>
+									<Button
+										onClick={handleAddVehicle}
+										disabled={createVehicle.isPending}
+									>
+										Add Vehicle
+									</Button>
 								</DialogFooter>
 							</DialogContent>
 						</Dialog>
@@ -333,21 +470,28 @@ export function DeliveryManagementDashboard({
 					<CardContent>
 						<div className="space-y-4">
 							{vehicles.length === 0 ? (
-								<p className="text-sm text-muted-foreground">No vehicles found.</p>
+								<p className="text-muted-foreground text-sm">
+									No vehicles found.
+								</p>
 							) : (
 								<div className="grid gap-4 md:grid-cols-3">
 									{vehicles.map((vehicle: any) => (
-										<div key={vehicle.id} className="p-4 border rounded-md shadow-sm">
-											<div className="flex justify-between items-start mb-2">
+										<div
+											key={vehicle.id}
+											className="rounded-md border p-4 shadow-sm"
+										>
+											<div className="mb-2 flex items-start justify-between">
 												<div>
 													<h4 className="font-bold">{vehicle.name}</h4>
-													<p className="text-xs font-mono bg-muted px-2 py-0.5 rounded mt-1 inline-block">{vehicle.registration_number}</p>
+													<p className="mt-1 inline-block rounded bg-muted px-2 py-0.5 font-mono text-xs">
+														{vehicle.registration_number}
+													</p>
 												</div>
-												<span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-0.5 text-xs font-semibold">
+												<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-700 text-xs">
 													{vehicle.status || "available"}
 												</span>
 											</div>
-											<div className="mt-4 flex items-center justify-between text-sm text-muted-foreground border-t pt-3">
+											<div className="mt-4 flex items-center justify-between border-t pt-3 text-muted-foreground text-sm">
 												<span>Type: {vehicle.type}</span>
 												<span>Cap: {vehicle.capacity_kg || "N/A"} kg</span>
 											</div>
@@ -359,15 +503,19 @@ export function DeliveryManagementDashboard({
 					</CardContent>
 				</Card>
 			</TabsContent>
-            
+
 			<TabsContent value="settlements">
 				<Card>
 					<CardHeader>
 						<CardTitle>Cash Settlements</CardTitle>
-						<CardDescription>Verify end-of-day cash and UPI collections from delivery boys.</CardDescription>
+						<CardDescription>
+							Verify end-of-day cash and UPI collections from delivery boys.
+						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<p className="text-sm text-muted-foreground">No pending settlements.</p>
+						<p className="text-muted-foreground text-sm">
+							No pending settlements.
+						</p>
 					</CardContent>
 				</Card>
 			</TabsContent>

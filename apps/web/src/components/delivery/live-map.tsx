@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
+import { useEffect, useState } from "react";
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 // Fix for default marker icon issues in Next.js
 const customIcon = new L.Icon({
 	iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-	iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+	iconRetinaUrl:
+		"https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
 	shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 	iconSize: [25, 41],
 	iconAnchor: [12, 41],
 	popupAnchor: [1, -34],
-	shadowSize: [41, 41]
+	shadowSize: [41, 41],
 });
 
 interface Trip {
@@ -44,7 +45,7 @@ export default function LiveMap({ trips }: { trips: Trip[] }) {
 	const defaultCenter: [number, number] = [28.6139, 77.209]; // Default to New Delhi if no trips
 
 	const activeMarkers = trips.filter(
-		(t) => t.latestLog && t.latestLog.lat && t.latestLog.lng
+		(t) => t.latestLog && t.latestLog.lat && t.latestLog.lng,
 	);
 
 	const center: [number, number] =
@@ -60,14 +61,14 @@ export default function LiveMap({ trips }: { trips: Trip[] }) {
 			center={center}
 			zoom={13}
 			scrollWheelZoom={true}
-			className="h-full w-full z-0 relative"
+			className="relative z-0 h-full w-full"
 			style={{ minHeight: "500px" }}
 		>
 			<TileLayer
 				attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 				url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 			/>
-			
+
 			{activeMarkers.map((trip) => (
 				<Marker
 					key={trip.id}
@@ -80,7 +81,7 @@ export default function LiveMap({ trips }: { trips: Trip[] }) {
 					<Popup>
 						<div className="flex flex-col gap-1 p-1">
 							<h3 className="font-semibold text-sm">{trip.driver.name}</h3>
-							<div className="text-xs text-muted-foreground">
+							<div className="text-muted-foreground text-xs">
 								<p>Speed: {trip.latestLog?.speed ?? "0"} km/h</p>
 								<p>Battery: {trip.latestLog?.battery_level ?? "N/A"}%</p>
 								<p>

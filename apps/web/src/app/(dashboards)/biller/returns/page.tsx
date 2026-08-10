@@ -1,21 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@evaluna/ui/components/card";
 import { Button } from "@evaluna/ui/components/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@evaluna/ui/components/table";
-import { Loader2, CheckCircle2 } from "lucide-react";
-import { toast } from "sonner";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@evaluna/ui/components/card";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@evaluna/ui/components/table";
 import { format } from "date-fns";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { trpc } from "@/lib/trpc/client";
 
 export default function ReturnsReviewPage() {
 	const utils = trpc.useUtils();
 	const [processingId, setProcessingId] = useState<number | null>(null);
 
-	const { data: returns, isLoading } = trpc.salesReturns.list.useQuery(undefined, {
-		staleTime: 10_000,
-	});
+	const { data: returns, isLoading } = trpc.salesReturns.list.useQuery(
+		undefined,
+		{
+			staleTime: 10_000,
+		},
+	);
 
 	const processMutation = trpc.salesReturns.process.useMutation({
 		onSuccess: () => {
@@ -26,7 +42,7 @@ export default function ReturnsReviewPage() {
 		onError: (error) => {
 			toast.error(`Failed to process return: ${error.message}`);
 			setProcessingId(null);
-		}
+		},
 	});
 
 	if (isLoading) {
@@ -37,19 +53,28 @@ export default function ReturnsReviewPage() {
 		);
 	}
 
-	const pendingReturns = returns?.filter((r: any) => r.status === "pending") || [];
+	const pendingReturns =
+		returns?.filter((r: any) => r.status === "pending") || [];
 
 	return (
 		<div className="space-y-6 p-6">
 			<div>
-				<h1 className="font-bold text-2xl tracking-tight">Returns & Adjustments</h1>
-				<p className="text-muted-foreground">Review and approve partial returns from drivers to adjust the final bill.</p>
+				<h1 className="font-bold text-2xl tracking-tight">
+					Returns & Adjustments
+				</h1>
+				<p className="text-muted-foreground">
+					Review and approve partial returns from drivers to adjust the final
+					bill.
+				</p>
 			</div>
 
 			<Card>
 				<CardHeader>
 					<CardTitle>Pending Returns ({pendingReturns.length})</CardTitle>
-					<CardDescription>Returns waiting for biller approval to generate refunds and restock inventory.</CardDescription>
+					<CardDescription>
+						Returns waiting for biller approval to generate refunds and restock
+						inventory.
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{pendingReturns.length === 0 ? (
@@ -74,10 +99,16 @@ export default function ReturnsReviewPage() {
 								{pendingReturns.map((ret: any) => (
 									<TableRow key={ret.id}>
 										<TableCell className="font-medium">RET-{ret.id}</TableCell>
-										<TableCell>{format(new Date(ret.created_at), "MMM d, yyyy HH:mm")}</TableCell>
-										<TableCell>{ret.customer?.name || "Unknown Customer"}</TableCell>
+										<TableCell>
+											{format(new Date(ret.created_at), "MMM d, yyyy HH:mm")}
+										</TableCell>
+										<TableCell>
+											{ret.customer?.name || "Unknown Customer"}
+										</TableCell>
 										<TableCell>INV-{ret.order_id}</TableCell>
-										<TableCell className="font-semibold text-red-500">-₹{Number(ret.total_amount).toFixed(2)}</TableCell>
+										<TableCell className="font-semibold text-red-500">
+											-₹{Number(ret.total_amount).toFixed(2)}
+										</TableCell>
 										<TableCell className="text-right">
 											<Button
 												size="sm"

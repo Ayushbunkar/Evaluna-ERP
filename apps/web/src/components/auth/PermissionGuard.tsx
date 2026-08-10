@@ -2,8 +2,8 @@
 
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useRouter } from "next/navigation";
-import { useSession } from "@/hooks/use-session";
 import type React from "react";
+import { useSession } from "@/hooks/use-session";
 
 interface PermissionGuardProps {
 	children: React.ReactNode;
@@ -47,4 +47,3 @@ export function PermissionGuard({
 
 	return <>{children}</>;
 }
-

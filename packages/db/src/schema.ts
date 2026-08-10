@@ -395,7 +395,10 @@ export const staff = pgTable("staff", {
 	department: varchar("department", { length: 50 }),
 	join_date: timestamp("join_date").notNull(),
 	salary: decimal("salary", { precision: 10, scale: 2 }).notNull(),
-	monthly_sales_target: decimal("monthly_sales_target", { precision: 10, scale: 2 }).default("0"),
+	monthly_sales_target: decimal("monthly_sales_target", {
+		precision: 10,
+		scale: 2,
+	}).default("0"),
 	pf_number: varchar("pf_number", { length: 50 }),
 	pan: varchar("pan", { length: 10 }),
 	aadhaar: varchar("aadhaar", { length: 12 }),
@@ -1112,7 +1115,9 @@ export const pickListItemsRelations = relations(pickListItems, ({ one }) => ({
 // ── Packages (For Packer & Checker Phase) ──────────────────────────────────
 export const packages = pgTable("packages", {
 	id: serial("id").primaryKey(),
-	order_id: integer("order_id").references(() => orders.id).notNull(),
+	order_id: integer("order_id")
+		.references(() => orders.id)
+		.notNull(),
 	pick_list_id: integer("pick_list_id").references(() => pickLists.id),
 	package_number: varchar("package_number", { length: 100 }).notNull().unique(), // e.g. PKG-2024-001
 	status: varchar("status", { length: 50 }).default("packing"), // packing, packed, checking, checked, ready_for_dispatch, dispatched
@@ -1148,8 +1153,12 @@ export const packagesRelations = relations(packages, ({ one, many }) => ({
 
 export const packageItems = pgTable("package_items", {
 	id: serial("id").primaryKey(),
-	package_id: integer("package_id").references(() => packages.id).notNull(),
-	product_id: integer("product_id").references(() => products.id).notNull(),
+	package_id: integer("package_id")
+		.references(() => packages.id)
+		.notNull(),
+	product_id: integer("product_id")
+		.references(() => products.id)
+		.notNull(),
 	quantity: integer("quantity").notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -1555,7 +1564,10 @@ export const salesReturnItems = pgTable("sales_return_items", {
 		.notNull(),
 	quantity: integer("quantity").notNull(),
 	price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-	refund_amount: decimal("refund_amount", { precision: 10, scale: 2 }).notNull(),
+	refund_amount: decimal("refund_amount", {
+		precision: 10,
+		scale: 2,
+	}).notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });
 
@@ -2182,7 +2194,10 @@ export const deliveryRoutes = pgTable("delivery_routes", {
 	name: varchar("name", { length: 100 }).notNull(),
 	description: text("description"),
 	branch_id: integer("branch_id").references(() => branches.id),
-	estimated_distance: decimal("estimated_distance", { precision: 10, scale: 2 }),
+	estimated_distance: decimal("estimated_distance", {
+		precision: 10,
+		scale: 2,
+	}),
 	estimated_time: integer("estimated_time"), // in minutes
 	priority: varchar("priority", { length: 20 }).default("normal"), // low, normal, high, urgent
 	is_active: boolean("is_active").default(true),
@@ -2203,7 +2218,10 @@ export const routeStops = pgTable("route_stops", {
 	sequence: integer("sequence").notNull(),
 	estimated_arrival_time: timestamp("estimated_arrival_time"),
 	estimated_departure_time: timestamp("estimated_departure_time"),
-	distance_from_previous: decimal("distance_from_previous", { precision: 10, scale: 2 }),
+	distance_from_previous: decimal("distance_from_previous", {
+		precision: 10,
+		scale: 2,
+	}),
 	notes: text("notes"),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -2218,8 +2236,14 @@ export const deliveryTrips = pgTable("delivery_trips", {
 	start_time: timestamp("start_time"),
 	end_time: timestamp("end_time"),
 	total_distance: decimal("total_distance", { precision: 10, scale: 2 }),
-	expected_cash_collection: decimal("expected_cash_collection", { precision: 12, scale: 2 }),
-	actual_cash_collection: decimal("actual_cash_collection", { precision: 12, scale: 2 }),
+	expected_cash_collection: decimal("expected_cash_collection", {
+		precision: 12,
+		scale: 2,
+	}),
+	actual_cash_collection: decimal("actual_cash_collection", {
+		precision: 12,
+		scale: 2,
+	}),
 	expected_stops: integer("expected_stops"),
 	completed_stops: integer("completed_stops"),
 	created_at: timestamp("created_at").defaultNow(),
@@ -2230,9 +2254,13 @@ export const deliveryTrips = pgTable("delivery_trips", {
 
 export const deliveryStops = pgTable("delivery_stops", {
 	id: serial("id").primaryKey(),
-	trip_id: integer("trip_id").references(() => deliveryTrips.id).notNull(),
+	trip_id: integer("trip_id")
+		.references(() => deliveryTrips.id)
+		.notNull(),
 	order_id: integer("order_id").references(() => orders.id),
-	customer_id: integer("customer_id").references(() => customers.id).notNull(),
+	customer_id: integer("customer_id")
+		.references(() => customers.id)
+		.notNull(),
 	sequence: integer("sequence").notNull(),
 	status: varchar("status", { length: 50 }).default("pending"), // pending, delivered, returned, failed
 	comments: text("comments"),
@@ -2242,8 +2270,12 @@ export const deliveryStops = pgTable("delivery_stops", {
 
 export const tripStops = pgTable("trip_stops", {
 	id: serial("id").primaryKey(),
-	trip_id: integer("trip_id").references(() => deliveryTrips.id).notNull(),
-	customer_id: integer("customer_id").references(() => customers.id).notNull(),
+	trip_id: integer("trip_id")
+		.references(() => deliveryTrips.id)
+		.notNull(),
+	customer_id: integer("customer_id")
+		.references(() => customers.id)
+		.notNull(),
 	sequence: integer("sequence").notNull(),
 	status: varchar("status", { length: 50 }).default("pending"), // pending, approved, rejected
 	comments: text("comments"),
@@ -2256,7 +2288,9 @@ export const approvals = pgTable("approvals", {
 	id: serial("id").primaryKey(),
 	reference_type: varchar("reference_type", { length: 100 }).notNull(), // e.g. 'discount', 'return', 'stock_adjustment'
 	reference_id: integer("reference_id").notNull(),
-	requested_by: integer("requested_by").references(() => staff.id).notNull(),
+	requested_by: integer("requested_by")
+		.references(() => staff.id)
+		.notNull(),
 	approved_by: integer("approved_by").references(() => staff.id),
 	status: varchar("status", { length: 50 }).default("pending"), // pending, approved, rejected
 	comments: text("comments"),

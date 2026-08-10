@@ -27,9 +27,15 @@ export const dashboardRouter = router({
 			const yesterdayEnd = endOfDay(subDays(now, 1));
 
 			// ── Branch filter conditions ────────────────────────────────────
-			const txnBranchFilter = branch_id ? eq(transactions.branch_id, branch_id) : undefined;
-			const orderBranchFilter = branch_id ? eq(orders.branch_id, branch_id) : undefined;
-			const customerBranchFilter = branch_id ? eq(customers.branch_id, branch_id) : undefined;
+			const txnBranchFilter = branch_id
+				? eq(transactions.branch_id, branch_id)
+				: undefined;
+			const orderBranchFilter = branch_id
+				? eq(orders.branch_id, branch_id)
+				: undefined;
+			const customerBranchFilter = branch_id
+				? eq(customers.branch_id, branch_id)
+				: undefined;
 
 			// ── Parallel KPI queries ─────────────────────────────────────────
 			const [
@@ -53,83 +59,168 @@ export const dashboardRouter = router({
 				[usedCapacityRow],
 			] = await Promise.all([
 				// Today sales
-				db.select({ total: sum(transactions.amount) }).from(transactions).where(
-					and(eq(transactions.type, "in"), eq(transactions.category, "sale"),
-						gte(transactions.created_at, todayStart), lte(transactions.created_at, todayEnd), txnBranchFilter),
-				),
+				db
+					.select({ total: sum(transactions.amount) })
+					.from(transactions)
+					.where(
+						and(
+							eq(transactions.type, "in"),
+							eq(transactions.category, "sale"),
+							gte(transactions.created_at, todayStart),
+							lte(transactions.created_at, todayEnd),
+							txnBranchFilter,
+						),
+					),
 				// Yesterday sales (for trend)
-				db.select({ total: sum(transactions.amount) }).from(transactions).where(
-					and(eq(transactions.type, "in"), eq(transactions.category, "sale"),
-						gte(transactions.created_at, yesterdayStart), lte(transactions.created_at, yesterdayEnd), txnBranchFilter),
-				),
+				db
+					.select({ total: sum(transactions.amount) })
+					.from(transactions)
+					.where(
+						and(
+							eq(transactions.type, "in"),
+							eq(transactions.category, "sale"),
+							gte(transactions.created_at, yesterdayStart),
+							lte(transactions.created_at, yesterdayEnd),
+							txnBranchFilter,
+						),
+					),
 				// Total sales all time
-				db.select({ total: sum(transactions.amount) }).from(transactions).where(
-					and(eq(transactions.type, "in"), eq(transactions.category, "sale"), txnBranchFilter),
-				),
+				db
+					.select({ total: sum(transactions.amount) })
+					.from(transactions)
+					.where(
+						and(
+							eq(transactions.type, "in"),
+							eq(transactions.category, "sale"),
+							txnBranchFilter,
+						),
+					),
 				// Today expenses
-				db.select({ total: sum(transactions.amount) }).from(transactions).where(
-					and(eq(transactions.type, "out"), eq(transactions.category, "expense"),
-						gte(transactions.created_at, todayStart), lte(transactions.created_at, todayEnd), txnBranchFilter),
-				),
+				db
+					.select({ total: sum(transactions.amount) })
+					.from(transactions)
+					.where(
+						and(
+							eq(transactions.type, "out"),
+							eq(transactions.category, "expense"),
+							gte(transactions.created_at, todayStart),
+							lte(transactions.created_at, todayEnd),
+							txnBranchFilter,
+						),
+					),
 				// Total expenses
-				db.select({ total: sum(transactions.amount) }).from(transactions).where(
-					and(eq(transactions.type, "out"), eq(transactions.category, "expense"), txnBranchFilter),
-				),
+				db
+					.select({ total: sum(transactions.amount) })
+					.from(transactions)
+					.where(
+						and(
+							eq(transactions.type, "out"),
+							eq(transactions.category, "expense"),
+							txnBranchFilter,
+						),
+					),
 				// Today bills (completed orders)
-				db.select({ total: count() }).from(orders).where(
-					and(eq(orders.status, "completed"),
-						gte(orders.created_at, todayStart), lte(orders.created_at, todayEnd), orderBranchFilter),
-				),
+				db
+					.select({ total: count() })
+					.from(orders)
+					.where(
+						and(
+							eq(orders.status, "completed"),
+							gte(orders.created_at, todayStart),
+							lte(orders.created_at, todayEnd),
+							orderBranchFilter,
+						),
+					),
 				// Yesterday bills (for trend)
-				db.select({ total: count() }).from(orders).where(
-					and(eq(orders.status, "completed"),
-						gte(orders.created_at, yesterdayStart), lte(orders.created_at, yesterdayEnd), orderBranchFilter),
-				),
+				db
+					.select({ total: count() })
+					.from(orders)
+					.where(
+						and(
+							eq(orders.status, "completed"),
+							gte(orders.created_at, yesterdayStart),
+							lte(orders.created_at, yesterdayEnd),
+							orderBranchFilter,
+						),
+					),
 				// Total completed orders
-				db.select({ total: count() }).from(orders).where(
-					and(eq(orders.status, "completed"), orderBranchFilter),
-				),
+				db
+					.select({ total: count() })
+					.from(orders)
+					.where(and(eq(orders.status, "completed"), orderBranchFilter)),
 				// Total customers
-				db.select({ total: count() }).from(customers).where(
-					customerBranchFilter ? and(customerBranchFilter) : undefined,
-				),
+				db
+					.select({ total: count() })
+					.from(customers)
+					.where(customerBranchFilter ? and(customerBranchFilter) : undefined),
 				// Total products
 				db.select({ total: count() }).from(products),
 				// Pending deliveries
-				db.select({ total: count() }).from(orders).where(
-					and(eq(orders.status, "pending"), orderBranchFilter),
-				),
+				db
+					.select({ total: count() })
+					.from(orders)
+					.where(and(eq(orders.status, "pending"), orderBranchFilter)),
 				// Active staff
-				db.select({ total: count() }).from(staff).where(
-					and(eq(staff.status, "active"), branch_id ? eq(staff.branch_id, branch_id) : undefined),
-				),
+				db
+					.select({ total: count() })
+					.from(staff)
+					.where(
+						and(
+							eq(staff.status, "active"),
+							branch_id ? eq(staff.branch_id, branch_id) : undefined,
+						),
+					),
 				// Low stock count
-				db.select({ total: count() }).from(branchInventory).where(
-					and(lte(branchInventory.in_stock, branchInventory.reorder_level),
-						branch_id ? eq(branchInventory.branch_id, branch_id) : undefined),
-				),
+				db
+					.select({ total: count() })
+					.from(branchInventory)
+					.where(
+						and(
+							lte(branchInventory.in_stock, branchInventory.reorder_level),
+							branch_id ? eq(branchInventory.branch_id, branch_id) : undefined,
+						),
+					),
 				// Inventory value
-				db.select({
-					total: sql<string>`COALESCE(SUM(${branchInventory.in_stock} * ${products.price}), 0)`,
-				}).from(branchInventory).leftJoin(products, eq(branchInventory.product_id, products.id))
-					.where(branch_id ? eq(branchInventory.branch_id, branch_id) : undefined),
+				db
+					.select({
+						total: sql<string>`COALESCE(SUM(${branchInventory.in_stock} * ${products.price}), 0)`,
+					})
+					.from(branchInventory)
+					.leftJoin(products, eq(branchInventory.product_id, products.id))
+					.where(
+						branch_id ? eq(branchInventory.branch_id, branch_id) : undefined,
+					),
 				// Returns (purchase returns or cancelled orders)
-				db.select({ total: count() }).from(orders).where(
-					and(eq(orders.status, "cancelled"), orderBranchFilter),
-				),
+				db
+					.select({ total: count() })
+					.from(orders)
+					.where(and(eq(orders.status, "cancelled"), orderBranchFilter)),
 				// Orders ready (completed today that haven't been dispatched yet — proxy: "completed" orders today)
-				db.select({ total: count() }).from(orders).where(
-					and(eq(orders.status, "completed"),
-						gte(orders.created_at, todayStart), lte(orders.created_at, todayEnd), orderBranchFilter),
-				),
+				db
+					.select({ total: count() })
+					.from(orders)
+					.where(
+						and(
+							eq(orders.status, "completed"),
+							gte(orders.created_at, todayStart),
+							lte(orders.created_at, todayEnd),
+							orderBranchFilter,
+						),
+					),
 				// Warehouse total capacity (sum of reorder_level as proxy for max capacity)
-				db.select({ total: sum(branchInventory.reorder_level) }).from(branchInventory).where(
-					branch_id ? eq(branchInventory.branch_id, branch_id) : undefined,
-				),
+				db
+					.select({ total: sum(branchInventory.reorder_level) })
+					.from(branchInventory)
+					.where(
+						branch_id ? eq(branchInventory.branch_id, branch_id) : undefined,
+					),
 				// Warehouse used (sum of in_stock)
-				db.select({ total: sum(branchInventory.in_stock) }).from(branchInventory).where(
-					branch_id ? eq(branchInventory.branch_id, branch_id) : undefined,
-				),
+				db
+					.select({ total: sum(branchInventory.in_stock) })
+					.from(branchInventory)
+					.where(
+						branch_id ? eq(branchInventory.branch_id, branch_id) : undefined,
+					),
 			]);
 
 			const todaySales = Number.parseFloat(todaySalesRow?.total ?? "0");
@@ -149,15 +240,24 @@ export const dashboardRouter = router({
 			// ── Warehouse capacity % ─────────────────────────────────────────
 			const totalCap = Number(totalCapacityRow?.total ?? 0);
 			const usedCap = Number(usedCapacityRow?.total ?? 0);
-			const warehouseCapacity = totalCap > 0 ? Math.round((usedCap / totalCap) * 100) : 0;
+			const warehouseCapacity =
+				totalCap > 0 ? Math.round((usedCap / totalCap) * 100) : 0;
 
 			// ── Sales trend vs yesterday ─────────────────────────────────────
-			const salesTrendPct = yesterdaySales > 0
-				? ((todaySales - yesterdaySales) / yesterdaySales) * 100
-				: todaySales > 0 ? 100 : 0;
-			const billsTrendPct = Number(yesterdayBills) > 0
-				? ((Number(todayBills) - Number(yesterdayBills)) / Number(yesterdayBills)) * 100
-				: Number(todayBills) > 0 ? 100 : 0;
+			const salesTrendPct =
+				yesterdaySales > 0
+					? ((todaySales - yesterdaySales) / yesterdaySales) * 100
+					: todaySales > 0
+						? 100
+						: 0;
+			const billsTrendPct =
+				Number(yesterdayBills) > 0
+					? ((Number(todayBills) - Number(yesterdayBills)) /
+							Number(yesterdayBills)) *
+						100
+					: Number(todayBills) > 0
+						? 100
+						: 0;
 
 			// ── Revenue Trend: last 6 months ─────────────────────────────────
 			const sixMonthsAgo = subMonths(now, 6);
@@ -223,7 +323,10 @@ export const dashboardRouter = router({
 					total: sum(transactions.amount),
 				})
 				.from(transactions)
-				.leftJoin(paymentMethods, eq(transactions.payment_method_id, paymentMethods.id))
+				.leftJoin(
+					paymentMethods,
+					eq(transactions.payment_method_id, paymentMethods.id),
+				)
 				.where(
 					and(
 						eq(transactions.type, "in"),
@@ -314,9 +417,14 @@ export const dashboardRouter = router({
 			const recentNotifications = recentOrdersRaw.map((o) => ({
 				id: o.id,
 				type: o.status === "pending" ? "approval" : "sale",
-				title: o.status === "pending" ? `Pending Order #${o.id}` : `Sale Completed #${o.id}`,
+				title:
+					o.status === "pending"
+						? `Pending Order #${o.id}`
+						: `Sale Completed #${o.id}`,
 				message: `Amount: ₹${Number(o.amount).toFixed(2)}`,
-				time: o.created_at ? format(new Date(o.created_at), "MMM d, h:mm a") : "N/A",
+				time: o.created_at
+					? format(new Date(o.created_at), "MMM d, h:mm a")
+					: "N/A",
 			}));
 
 			// ── Low stock alerts ──────────────────────────────────────────────
@@ -345,7 +453,10 @@ export const dashboardRouter = router({
 				time: format(now, "h:mm a"),
 			}));
 
-			const allNotifications = [...alertNotifications, ...recentNotifications].slice(0, 8);
+			const allNotifications = [
+				...alertNotifications,
+				...recentNotifications,
+			].slice(0, 8);
 
 			// ── Today's timeline from recent orders ───────────────────────────
 			const timelineRaw = await db
@@ -382,12 +493,7 @@ export const dashboardRouter = router({
 					created_at: orders.created_at,
 				})
 				.from(orders)
-				.where(
-					and(
-						eq(orders.status, "pending"),
-						orderBranchFilter,
-					),
-				)
+				.where(and(eq(orders.status, "pending"), orderBranchFilter))
 				.orderBy(desc(orders.created_at))
 				.limit(10);
 

@@ -19,10 +19,10 @@ export default function LeaveManagementPage() {
 		{ key: "status", header: "Status" },
 	];
 
-	const filteredData = leaveList?.filter(
-		(record: any) =>
-			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase())
-	) || [];
+	const filteredData =
+		leaveList?.filter((record: any) =>
+			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase()),
+		) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -45,7 +45,11 @@ export default function LeaveManagementPage() {
 					<DataTable
 						data={filteredData}
 						columns={columns}
-						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
+						emptyMessage={
+							isLoading
+								? "Loading records..."
+								: "No records found in this module yet."
+						}
 					/>
 				</CardContent>
 			</Card>

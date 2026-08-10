@@ -51,7 +51,7 @@ export default function WarehouseMovementPage() {
 			toast.success("Stock moved successfully.");
 			utils.warehouse.getStockByLocation.invalidate();
 			utils.warehouse.getLocations.invalidate();
-			
+
 			// Reset form
 			setSourceLocationId("");
 			setDestLocationId("");
@@ -165,8 +165,8 @@ export default function WarehouseMovementPage() {
 															key={stock.id}
 															value={stock.id.toString()}
 														>
-															{stock.product_name} (Batch:{" "}
-															{stock.batch_number}) - {stock.quantity} available
+															{stock.product_name} (Batch: {stock.batch_number})
+															- {stock.quantity} available
 														</SelectItem>
 													))
 												)}

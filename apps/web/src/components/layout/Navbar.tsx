@@ -9,14 +9,13 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@evaluna/ui/components/dropdown-menu";
-import { Bell, Menu, Store, WifiOff, Home } from "lucide-react";
+import { Bell, Clock, Home, Home, Menu, Store, WifiOff } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 import { useSession } from "@/hooks/use-session";
 import { trpc } from "@/lib/trpc/client";
 import { CommandPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
-import Link from "next/link";
-import { Clock, Home } from "lucide-react";
 
 interface NavbarProps {
 	onMenuClick?: () => void;
@@ -82,32 +81,42 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 							<DropdownMenuLabel>Switch Branch</DropdownMenuLabel>
 							<DropdownMenuSeparator />
 							{branches?.map((branch) => (
-								<DropdownMenuItem key={branch.id}>{branch.name}</DropdownMenuItem>
+								<DropdownMenuItem key={branch.id}>
+									{branch.name}
+								</DropdownMenuItem>
 							))}
-							{!branches?.length && <DropdownMenuItem disabled>No branches available</DropdownMenuItem>}
+							{!branches?.length && (
+								<DropdownMenuItem disabled>
+									No branches available
+								</DropdownMenuItem>
+							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-<Button variant="ghost" size="icon" className="relative">
-	<Bell className="h-5 w-5" />
-	<span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
-	<span className="sr-only">Notifications</span>
-</Button>
+					<Button variant="ghost" size="icon" className="relative">
+						<Bell className="h-5 w-5" />
+						<span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
+						<span className="sr-only">Notifications</span>
+					</Button>
 
-{/* Admin-only public site button */}
-{session?.user?.isSuperadmin && (
-	<Link href="/" target="_blank" rel="noopener noreferrer">
-		<Button variant="ghost" size="icon" className="hidden md:flex">
-			<Home className="h-5 w-5" />
-			<span className="sr-only">Public Site</span>
-		</Button>
-	</Link>
-)}
+					{/* Admin-only public site button */}
+					{session?.user?.isSuperadmin && (
+						<Link href="/" target="_blank" rel="noopener noreferrer">
+							<Button variant="ghost" size="icon" className="hidden md:flex">
+								<Home className="h-5 w-5" />
+								<span className="sr-only">Public Site</span>
+							</Button>
+						</Link>
+					)}
 
 					<Link href="/staff">
-						<Button variant="ghost" size="sm" className={`hidden md:flex ${activeShift ? 'text-green-500' : 'text-orange-500'}`}>
+						<Button
+							variant="ghost"
+							size="sm"
+							className={`hidden md:flex ${activeShift ? "text-green-500" : "text-orange-500"}`}
+						>
 							<Clock className="mr-2 h-4 w-4" />
-							{activeShift ? 'Clocked In' : 'Clocked Out'}
+							{activeShift ? "Clocked In" : "Clocked Out"}
 						</Button>
 					</Link>
 

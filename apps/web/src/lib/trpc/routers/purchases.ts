@@ -1,4 +1,5 @@
 import {
+	branchInventory,
 	products,
 	purchaseItems,
 	purchaseReturnItems,
@@ -6,7 +7,6 @@ import {
 	purchases,
 	stockLedger,
 	suppliers,
-	branchInventory,
 } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";

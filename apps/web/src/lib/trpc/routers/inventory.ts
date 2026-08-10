@@ -10,7 +10,12 @@ import {
 import { and, count, desc, eq, lte, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { stockLedger } from "@/lib/db/schema";
-import { protectedProcedure, publicProcedure, roleProcedure, router } from "@/lib/trpc/init";
+import {
+	protectedProcedure,
+	publicProcedure,
+	roleProcedure,
+	router,
+} from "@/lib/trpc/init";
 
 export const inventoryRouter = router({
 	listByProduct: publicProcedure
@@ -223,11 +228,17 @@ export const inventoryRouter = router({
 		return { success: true };
 	}),
 
-	scanBarcode: roleProcedure(["admin", "manager", "auditor", "picker", "putter"])
+	scanBarcode: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"picker",
+		"putter",
+	])
 		.input(z.object({ barcode: z.string(), branchId: z.number().optional() }))
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			
+
 			// Try to find the product via barcode
 			const barcodeRecord = await db
 				.select()
@@ -542,7 +553,9 @@ export const inventoryRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			const convs = await db.query.productConversions.findMany({
-				where: input.branchId ? eq(productConversions.branch_id, input.branchId) : undefined,
+				where: input.branchId
+					? eq(productConversions.branch_id, input.branchId)
+					: undefined,
 				orderBy: [desc(productConversions.created_at)],
 				limit: 50,
 				with: {
@@ -559,7 +572,9 @@ export const inventoryRouter = router({
 				packsConverted: c.packs_converted,
 				looseYielded: c.loose_yielded,
 				convertedBy: c.convertedBy?.name || "System",
-				createdAt: c.created_at ? new Date(c.created_at).toISOString() : new Date().toISOString(),
+				createdAt: c.created_at
+					? new Date(c.created_at).toISOString()
+					: new Date().toISOString(),
 			}));
 		}),
 
@@ -636,8 +651,8 @@ export const inventoryRouter = router({
 					branch_id: input.branchId,
 					pack_product_id: pack.id,
 					loose_product_id: looseProductId,
-					packs_converted: -input.packsToCreate, 
-					loose_yielded: -looseRequired, 
+					packs_converted: -input.packsToCreate,
+					loose_yielded: -looseRequired,
 					converted_by: Number.parseInt(ctx.user.id) || null,
 				});
 

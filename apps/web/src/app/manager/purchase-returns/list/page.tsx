@@ -31,10 +31,3 @@ export default function PurchaseReturnsList() {
 		</div>
 	);
 }
-
-
-
-
-
-
-

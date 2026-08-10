@@ -26,6 +26,7 @@ import {
 } from "@evaluna/ui/components/tabs";
 import { format } from "date-fns";
 import {
+	Activity,
 	ArrowLeft,
 	Gift,
 	HandCoins,
@@ -37,7 +38,6 @@ import {
 	ShieldCheck,
 	TrendingUp,
 	Wallet,
-	Activity,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -108,7 +108,10 @@ export default function CustomerIntelligencePage() {
 		{
 			key: "date",
 			header: "Date",
-			render: (row) => row.created_at ? format(new Date(row.created_at), "dd MMM yyyy, p") : "N/A",
+			render: (row) =>
+				row.created_at
+					? format(new Date(row.created_at), "dd MMM yyyy, p")
+					: "N/A",
 		},
 		{
 			key: "type",
@@ -156,7 +159,10 @@ export default function CustomerIntelligencePage() {
 		{
 			key: "date",
 			header: "Date",
-			render: (row) => row.created_at ? format(new Date(row.created_at), "dd MMM yyyy") : "N/A",
+			render: (row) =>
+				row.created_at
+					? format(new Date(row.created_at), "dd MMM yyyy")
+					: "N/A",
 		},
 		{
 			key: "status",

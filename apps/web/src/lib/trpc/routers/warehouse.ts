@@ -41,11 +41,13 @@ export const warehouseRouter = router({
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ ctx, input }) => {
 			let query = ctx.db.select().from(branchLocations);
-			
+
 			if (input.branchId) {
-				query = query.where(eq(branchLocations.branch_id, input.branchId)) as any;
+				query = query.where(
+					eq(branchLocations.branch_id, input.branchId),
+				) as any;
 			}
-			
+
 			return await query.orderBy(desc(branchLocations.created_at));
 		}),
 
@@ -61,7 +63,7 @@ export const warehouseRouter = router({
 				location_type: z.string().default("storage"),
 				capacity: z.number().default(0),
 				is_active: z.boolean().default(true),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const [location] = await ctx.db
@@ -83,7 +85,7 @@ export const warehouseRouter = router({
 				location_type: z.string().optional(),
 				capacity: z.number().optional(),
 				is_active: z.boolean().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const { id, ...data } = input;
@@ -119,7 +121,7 @@ export const warehouseRouter = router({
 				.leftJoin(productBatches, eq(batchStock.batch_id, productBatches.id))
 				.leftJoin(products, eq(productBatches.product_id, products.id))
 				.where(eq(batchStock.location_id, input.locationId));
-			
+
 			return stock;
 		}),
 
@@ -130,7 +132,7 @@ export const warehouseRouter = router({
 				from_location_id: z.number(),
 				to_location_id: z.number(),
 				quantity: z.number().min(1),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			return await ctx.db.transaction(async (tx) => {
@@ -157,8 +159,8 @@ export const warehouseRouter = router({
 					.where(
 						and(
 							eq(batchStock.batch_id, sourceStock.batch_id),
-							eq(batchStock.location_id, input.to_location_id)
-						)
+							eq(batchStock.location_id, input.to_location_id),
+						),
 					);
 
 				if (destStock) {
@@ -175,14 +177,14 @@ export const warehouseRouter = router({
 				}
 
 				// 4. Log to stock ledger
-				// Note: Since total branch inventory doesn't change, we may not need to hit branchInventory, 
+				// Note: Since total branch inventory doesn't change, we may not need to hit branchInventory,
 				// but we should log the internal movement.
 				// We'll use reference_type = 'internal_transfer'
 				const [batchInfo] = await tx
 					.select({ product_id: productBatches.product_id })
 					.from(productBatches)
 					.where(eq(productBatches.id, sourceStock.batch_id));
-				
+
 				if (batchInfo) {
 					await tx.insert(stockLedger).values({
 						branch_id: sourceStock.location_id, // approximation or hardcode to 1
@@ -207,7 +209,7 @@ export const warehouseRouter = router({
 						reference_id: input.to_location_id,
 					});
 				}
-				
+
 				return { success: true };
 			});
 		}),
@@ -433,7 +435,8 @@ export const warehouseRouter = router({
 				title: `Order #${o.id} — ₹${Number(o.total_amount).toFixed(2)}`,
 				status: o.status,
 				priority:
-					o.created_at && new Date(o.created_at) < new Date(Date.now() - 3600000 * 2)
+					o.created_at &&
+					new Date(o.created_at) < new Date(Date.now() - 3600000 * 2)
 						? "high"
 						: "medium",
 			}));

@@ -99,7 +99,9 @@ export const staffRouter = router({
 				.set({
 					...rest,
 					...(salary !== undefined ? { salary: salary.toString() } : {}),
-					...(monthly_sales_target !== undefined ? { monthly_sales_target: monthly_sales_target.toString() } : {}),
+					...(monthly_sales_target !== undefined
+						? { monthly_sales_target: monthly_sales_target.toString() }
+						: {}),
 				})
 				.where(eq(staff.id, id))
 				.returning();

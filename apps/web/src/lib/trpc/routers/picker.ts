@@ -166,22 +166,23 @@ export const pickerRouter = router({
 			const item = await ctx.db.query.pickListItems.findFirst({
 				where: eq(pickListItems.id, input.item_id),
 			});
-			
+
 			if (!item) throw new Error("Item not found");
-			
+
 			const newQtyPicked = (item.quantity_picked ?? 0) + 1;
-			const newStatus = newQtyPicked >= item.quantity_ordered ? "picked" : "partial";
-			
+			const newStatus =
+				newQtyPicked >= item.quantity_ordered ? "picked" : "partial";
+
 			const [updated] = await ctx.db
 				.update(pickListItems)
-				.set({ 
+				.set({
 					quantity_picked: newQtyPicked,
 					status: newStatus,
 					picked_at: new Date(),
 				})
 				.where(eq(pickListItems.id, input.item_id))
 				.returning();
-			
+
 			return updated;
 		}),
 
@@ -191,22 +192,27 @@ export const pickerRouter = router({
 			const item = await ctx.db.query.pickListItems.findFirst({
 				where: eq(pickListItems.id, input.item_id),
 			});
-			
+
 			if (!item) throw new Error("Item not found");
-			
+
 			const newQtyPicked = input.quantity;
-			const newStatus = newQtyPicked >= item.quantity_ordered ? "picked" : (newQtyPicked > 0 ? "partial" : "pending");
-			
+			const newStatus =
+				newQtyPicked >= item.quantity_ordered
+					? "picked"
+					: newQtyPicked > 0
+						? "partial"
+						: "pending";
+
 			const [updated] = await ctx.db
 				.update(pickListItems)
-				.set({ 
+				.set({
 					quantity_picked: newQtyPicked,
 					status: newStatus,
 					picked_at: newQtyPicked > 0 ? new Date() : null,
 				})
 				.where(eq(pickListItems.id, input.item_id))
 				.returning();
-			
+
 			return updated;
 		}),
 
@@ -244,7 +250,7 @@ export const pickerRouter = router({
 						completed_by: "Rupesh",
 						date: "Jan 15, 2024",
 						accuracy: 95,
-					}
+					},
 				];
 			}
 
@@ -296,7 +302,7 @@ export const pickerRouter = router({
 						assigned_to: "Deepak Sharma",
 						waiting_since: "10:30 AM",
 						expected_by: "N/A",
-					}
+					},
 				];
 			}
 
@@ -335,7 +341,7 @@ export const pickerRouter = router({
 					location: "C3-D4",
 					reason: "Wrong Item",
 					status: "Placed",
-				}
+				},
 			];
 		}),
 
@@ -356,7 +362,7 @@ export const pickerRouter = router({
 					accuracy: 99.1,
 					avg_time: "18m",
 					date: "Jan 2024",
-				}
+				},
 			];
 		}),
 });

@@ -1,15 +1,24 @@
 // @ts-nocheck
 "use client";
 
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@evaluna/ui/components/alert";
+import { Button } from "@evaluna/ui/components/button";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { motion } from "framer-motion";
-import { IndianRupee, ShoppingCart, TrendingUp, Users } from "lucide-react";
+import {
+	AlertCircle,
+	IndianRupee,
+	ShoppingCart,
+	TrendingUp,
+	Users,
+} from "lucide-react";
+import Link from "next/link";
 import { ActivityCard } from "@/components/shared/cards/activity-card";
 import { KpiCard } from "@/components/shared/cards/kpi-card";
-import { Alert, AlertDescription, AlertTitle } from "@evaluna/ui/components/alert";
-import { Button } from "@evaluna/ui/components/button";
-import { AlertCircle } from "lucide-react";
-import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 
 export default function BillerDashboard() {
@@ -22,7 +31,8 @@ export default function BillerDashboard() {
 		staleTime: 30_000,
 	});
 
-	const pendingReturnsCount = returnsData?.filter((r: any) => r.status === "pending").length || 0;
+	const pendingReturnsCount =
+		returnsData?.filter((r: any) => r.status === "pending").length || 0;
 
 	if (isLoading) {
 		return (
@@ -146,4 +156,3 @@ export default function BillerDashboard() {
 		</div>
 	);
 }
-

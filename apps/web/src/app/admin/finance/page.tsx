@@ -339,7 +339,9 @@ export default function FinanceDashboard() {
 							{data.bankBalances?.map((bank: any, idx: number) => (
 								<div key={idx} className="flex items-center justify-between">
 									<div>
-										<h4 className="font-medium text-sm">{bank.bank || bank.account}</h4>
+										<h4 className="font-medium text-sm">
+											{bank.bank || bank.account}
+										</h4>
 										<p className="text-[10px] text-muted-foreground uppercase">
 											{bank.type}
 										</p>
@@ -400,7 +402,8 @@ export default function FinanceDashboard() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							{data.outstandingPayments && data.outstandingPayments.length > 0 ? (
+							{data.outstandingPayments &&
+							data.outstandingPayments.length > 0 ? (
 								data.outstandingPayments.map((payment: any) => (
 									<div
 										key={payment.id}
@@ -494,4 +497,3 @@ export default function FinanceDashboard() {
 		</div>
 	);
 }
-

@@ -194,7 +194,8 @@ export default function StaffPage() {
 										onChange={(e) =>
 											setForm({
 												...form,
-												monthly_sales_target: Number.parseFloat(e.target.value) || 0,
+												monthly_sales_target:
+													Number.parseFloat(e.target.value) || 0,
 											})
 										}
 									/>

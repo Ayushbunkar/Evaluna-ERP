@@ -1,6 +1,6 @@
+import { cache } from "react";
 import { createCallerFactory, createTRPCContext } from "./init";
 import { appRouter } from "./router";
-import { cache } from "react";
 
 const createCaller = createCallerFactory(appRouter);
 

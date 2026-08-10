@@ -278,7 +278,10 @@ export default function WarehouseDashboard() {
 				</motion.div>
 
 				{/* Realtime Alerts & Recent Activity */}
-				<motion.div variants={itemVariants as any} className="flex flex-col gap-6">
+				<motion.div
+					variants={itemVariants as any}
+					className="flex flex-col gap-6"
+				>
 					<Card className="flex-1 border-border/50 shadow-sm">
 						<CardHeader className="pb-3">
 							<CardTitle className="flex items-center gap-2 text-base">
@@ -324,8 +327,12 @@ export default function WarehouseDashboard() {
 									>
 										<ShieldAlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 opacity-70" />
 										<div>
-											<p className="font-medium leading-tight">{alert.message}</p>
-											<span className="text-[10px] opacity-70">{alert.time}</span>
+											<p className="font-medium leading-tight">
+												{alert.message}
+											</p>
+											<span className="text-[10px] opacity-70">
+												{alert.time}
+											</span>
 										</div>
 									</div>
 								))
@@ -466,4 +473,3 @@ export default function WarehouseDashboard() {
 		</div>
 	);
 }
-

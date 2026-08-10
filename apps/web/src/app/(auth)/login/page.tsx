@@ -36,7 +36,7 @@ function LoginForm() {
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
-						className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-2 sm:p-3 text-red-500 text-xs sm:text-sm"
+						className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-2 text-red-500 text-xs sm:p-3 sm:text-sm"
 					>
 						<AlertCircle className="mt-0.5 h-4 w-4" />
 						<p>
@@ -52,7 +52,7 @@ function LoginForm() {
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
-						className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-2 sm:p-3 text-amber-500 text-xs sm:text-sm"
+						className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-2 text-amber-500 text-xs sm:p-3 sm:text-sm"
 					>
 						<AlertCircle className="mt-0.5 h-4 w-4" />
 						<p>Your session has expired. Please log in again.</p>
@@ -62,7 +62,7 @@ function LoginForm() {
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
-						className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-2 sm:p-3 text-red-500 text-xs sm:text-sm"
+						className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-2 text-red-500 text-xs sm:p-3 sm:text-sm"
 					>
 						<AlertCircle className="mt-0.5 h-4 w-4" />
 						<p>
@@ -72,7 +72,9 @@ function LoginForm() {
 				)}
 
 				<div className="grid gap-1 sm:gap-2">
-					<Label htmlFor="email" className="text-xs sm:text-sm">{t("email")}</Label>
+					<Label htmlFor="email" className="text-xs sm:text-sm">
+						{t("email")}
+					</Label>
 					<Input
 						ref={emailRef}
 						id="email"
@@ -81,12 +83,14 @@ function LoginForm() {
 						placeholder={t("emailPlaceholder")}
 						required
 						autoComplete="email"
-						className="transition-all focus-visible:ring-primary text-xs sm:text-sm"
+						className="text-xs transition-all focus-visible:ring-primary sm:text-sm"
 					/>
 				</div>
 				<div className="grid gap-1 sm:gap-2">
 					<div className="flex items-center justify-between">
-						<Label htmlFor="password" className="text-xs sm:text-sm">{t("password")}</Label>
+						<Label htmlFor="password" className="text-xs sm:text-sm">
+							{t("password")}
+						</Label>
 						<Link
 							href="/forgot-password"
 							className="text-muted-foreground text-xs transition-colors hover:text-foreground"
@@ -101,7 +105,7 @@ function LoginForm() {
 						type="password"
 						required
 						autoComplete="current-password"
-						className="transition-all focus-visible:ring-primary text-xs sm:text-sm"
+						className="text-xs transition-all focus-visible:ring-primary sm:text-sm"
 					/>
 				</div>
 				<div className="mt-1 flex items-center gap-1 sm:gap-2">
@@ -113,19 +117,23 @@ function LoginForm() {
 					/>
 					<Label
 						htmlFor="rememberMe"
-						className="cursor-pointer font-normal text-muted-foreground text-xs sm:text-sm transition-colors hover:text-foreground"
+						className="cursor-pointer font-normal text-muted-foreground text-xs transition-colors hover:text-foreground sm:text-sm"
 					>
 						Remember me for 30 days
 					</Label>
 				</div>
 			</CardContent>
-			<CardFooter className="flex flex-col gap-3 sm:gap-4 pb-4 sm:pb-6">
-				<Button className="w-full shadow-sm text-xs sm:text-sm" type="submit" disabled={isPending}>
+			<CardFooter className="flex flex-col gap-3 pb-4 sm:gap-4 sm:pb-6">
+				<Button
+					className="w-full text-xs shadow-sm sm:text-sm"
+					type="submit"
+					disabled={isPending}
+				>
 					{isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
 					{isPending ? "Logging in..." : t("submit")}
 				</Button>
 
-				<p className="mt-1 sm:mt-2 text-center text-muted-foreground text-xs sm:text-sm">
+				<p className="mt-1 text-center text-muted-foreground text-xs sm:mt-2 sm:text-sm">
 					{t("noAccount")}{" "}
 					<Link
 						href="/signup"
@@ -160,7 +168,7 @@ export default function LoginPage() {
 				transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
 				className="mx-auto w-full max-w-md space-y-8 px-4"
 			>
-				<div className="flex flex-col items-center space-y-2 sm:space-y-3 text-center">
+				<div className="flex flex-col items-center space-y-2 text-center sm:space-y-3">
 					<motion.div
 						initial={{ scale: 0.8, opacity: 0 }}
 						animate={{ scale: 1, opacity: 1 }}
@@ -172,10 +180,10 @@ export default function LoginPage() {
 							strokeWidth={1.5}
 						/>
 					</motion.div>
-					<h2 className="font-semibold text-2xl sm:text-3xl text-foreground tracking-tight">
+					<h2 className="font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
 						{t("title")}
 					</h2>
-					<p className="max-w-sm text-xs sm:text-base text-muted-foreground">
+					<p className="max-w-sm text-muted-foreground text-xs sm:text-base">
 						{t("subtitle")}
 					</p>
 				</div>

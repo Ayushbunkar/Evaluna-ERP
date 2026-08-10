@@ -1,7 +1,9 @@
-import { z } from "zod";
-import { router, protectedProcedure, roleProcedure } from "../init";
-import { db } from "@/lib/db";
-import { TRPCError } from "@trpc/server";
+import {
+	orders,
+	products,
+	salesReturnItems,
+	salesReturns,
+} from "@evaluna/db/schema";
 import {
 	deliveryRoutes,
 	deliveryTrips,
@@ -11,8 +13,11 @@ import {
 	tripCollections,
 	tripStops,
 } from "@evaluna/db/schema/delivery";
-import { orders, salesReturns, salesReturnItems, products } from "@evaluna/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const deliveryRouter = router({
 	// ── Routes ─────────────────────────────────────────────────────────────
@@ -34,14 +39,14 @@ export const deliveryRouter = router({
 				description: z.string().optional(),
 				branchId: z.number().optional(),
 				stops: z.array(
-					z.object({ customerId: z.number(), sequence: z.number() })
+					z.object({ customerId: z.number(), sequence: z.number() }),
 				),
-			})
+			}),
 		)
 		.mutation(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
-			
+
 			return await db.transaction(async (tx) => {
 				const [route] = await tx
 					.insert(deliveryRoutes)
@@ -58,7 +63,7 @@ export const deliveryRouter = router({
 							route_id: route.id,
 							customer_id: stop.customerId,
 							sequence: stop.sequence,
-						}))
+						})),
 					);
 				}
 				return route;
@@ -72,7 +77,7 @@ export const deliveryRouter = router({
 				routeId: z.number(),
 				driverId: z.string(),
 				vehicleId: z.number(),
-			})
+			}),
 		)
 		.mutation(async ({ input }) => {
 			return await db.transaction(async (tx) => {
@@ -99,7 +104,7 @@ export const deliveryRouter = router({
 							customer_id: s.customer_id,
 							sequence: s.sequence,
 							status: "pending",
-						}))
+						})),
 					);
 				}
 				return trip;
@@ -149,7 +154,7 @@ export const deliveryRouter = router({
 				const latestLog = logs.find((l) => l.trip_id === trip.id);
 				return { ...trip, latestLog };
 			});
-		}
+		},
 	),
 
 	updateTripStatus: protectedProcedure
@@ -157,7 +162,7 @@ export const deliveryRouter = router({
 			z.object({
 				tripId: z.number(),
 				status: z.enum(["pending", "active", "completed", "cancelled"]),
-			})
+			}),
 		)
 		.mutation(async ({ input }) => {
 			await db
@@ -184,7 +189,7 @@ export const deliveryRouter = router({
 					"failed",
 				]),
 				reason: z.string().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ input }) => {
 			await db
@@ -193,9 +198,12 @@ export const deliveryRouter = router({
 					status: input.status,
 					comments: input.reason,
 					...(input.status === "arrived" ? { arrival_time: new Date() } : {}),
-					...(["delivered", "partially_delivered", "skipped", "failed"].includes(
-						input.status
-					)
+					...([
+						"delivered",
+						"partially_delivered",
+						"skipped",
+						"failed",
+					].includes(input.status)
 						? { departure_time: new Date() }
 						: {}),
 				})
@@ -211,7 +219,7 @@ export const deliveryRouter = router({
 				lng: z.number(),
 				speed: z.number().optional(),
 				batteryLevel: z.number().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ input, ctx }) => {
 			await db.insert(gpsLogs).values({
@@ -237,14 +245,12 @@ export const deliveryRouter = router({
 
 			// Find orders for this customer that are out for delivery or ready (simplified)
 			const customerOrders = await db.query.orders.findMany({
-				where: and(
-					eq(orders.customer_id, stop.customer_id)
-				),
+				where: and(eq(orders.customer_id, stop.customer_id)),
 			});
 
-			const orderIds = customerOrders.map(o => o.id);
+			const orderIds = customerOrders.map((o) => o.id);
 			let items: any[] = [];
-			
+
 			if (orderIds.length > 0) {
 				// Mocked aggregation for demonstration:
 				// Fetch products from these orders
@@ -254,7 +260,7 @@ export const deliveryRouter = router({
 						product_id: 1,
 						product: { name: "Wireless Mouse M330" },
 						quantity: 5,
-					}
+					},
 				];
 			}
 
@@ -273,9 +279,9 @@ export const deliveryRouter = router({
 						productId: z.number(),
 						quantity: z.number(),
 						reason: z.string(),
-					})
+					}),
 				),
-			})
+			}),
 		)
 		.mutation(async ({ input, ctx }) => {
 			const stop = await db.query.tripStops.findFirst({
@@ -286,20 +292,24 @@ export const deliveryRouter = router({
 
 			// Find the active order for this customer
 			const activeOrder = await db.query.orders.findFirst({
-				where: and(
-					eq(orders.customer_id, stop.customer_id)
-				),
+				where: and(eq(orders.customer_id, stop.customer_id)),
 			});
-			if (!activeOrder) throw new TRPCError({ code: "NOT_FOUND", message: "No active order found for this customer" });
+			if (!activeOrder)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "No active order found for this customer",
+				});
 
 			// Fetch product prices to calculate totals
-			const productIds = input.returnedItems.map(i => i.productId);
+			const productIds = input.returnedItems.map((i) => i.productId);
 			const productsData = await db.query.products.findMany({
 				where: inArray(products.id, productIds.length ? productIds : [0]),
 			});
-			
-			const productPriceMap = new Map(productsData.map(p => [p.id, Number(p.price || 0)]));
-			
+
+			const productPriceMap = new Map(
+				productsData.map((p) => [p.id, Number(p.price || 0)]),
+			);
+
 			let totalReturnAmount = 0;
 			const returnItemsData = input.returnedItems.map((item) => {
 				const price = productPriceMap.get(item.productId) || 0;
@@ -324,7 +334,7 @@ export const deliveryRouter = router({
 						customer_id: stop.customer_id,
 						status: "pending",
 						total_amount: totalReturnAmount.toString(),
-						user_uid: ctx.user?.id || "driver", 
+						user_uid: ctx.user?.id || "driver",
 					})
 					.returning();
 
@@ -334,7 +344,7 @@ export const deliveryRouter = router({
 						returnItemsData.map((item) => ({
 							...item,
 							return_id: salesReturn.id,
-						}))
+						})),
 					);
 				}
 

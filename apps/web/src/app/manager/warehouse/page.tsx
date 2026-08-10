@@ -41,7 +41,9 @@ export default function WarehouseDashboard() {
 	});
 
 	const utils = trpc.useUtils();
-	const { data: locations, isLoading } = trpc.warehouse.getLocations.useQuery({} as any);
+	const { data: locations, isLoading } = trpc.warehouse.getLocations.useQuery(
+		{} as any,
+	);
 	const createLocation = trpc.warehouse.createLocation.useMutation({
 		onSuccess: () => {
 			toast.success("Location created successfully");
@@ -195,9 +197,7 @@ export default function WarehouseDashboard() {
 										{loc.location_type}
 									</span>
 								</CardTitle>
-								<CardDescription>
-									ID: {loc.id}
-								</CardDescription>
+								<CardDescription>ID: {loc.id}</CardDescription>
 							</CardHeader>
 							<CardContent className="pt-4">
 								<div className="flex flex-col gap-2 text-gray-600 text-sm">

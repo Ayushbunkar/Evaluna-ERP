@@ -1,4 +1,4 @@
-	"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -62,6 +62,3 @@ export const columns: any[] = [
 		},
 	},
 ];
-
-
-

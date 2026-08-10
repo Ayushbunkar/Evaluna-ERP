@@ -8,7 +8,7 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { Progress } from "@evaluna/ui/components/progress";
-import { TargetIcon, TrendingUpIcon, CalendarIcon } from "lucide-react";
+import { CalendarIcon, TargetIcon, TrendingUpIcon } from "lucide-react";
 import { useLocale } from "next-intl";
 import {
 	AnimatedCard,
@@ -21,7 +21,8 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function TargetsPage() {
 	const locale = useLocale();
-	const { data: orders, isLoading: isOrdersLoading } = trpc.orders.list.useQuery();
+	const { data: orders, isLoading: isOrdersLoading } =
+		trpc.orders.list.useQuery();
 	const { data: me, isLoading: isMeLoading } = trpc.staff.me.useQuery();
 
 	// Calculate current month's sales
@@ -40,7 +41,10 @@ export default function TargetsPage() {
 
 	const monthlyTarget = Number.parseFloat(me?.monthly_sales_target || "0"); // Dynamically fetched target from Manager/Admin
 	const targetToUse = monthlyTarget > 0 ? monthlyTarget : 500000; // Fallback to 5Lakhs if 0 for demo purposes
-	const progressPercentage = Math.min(Math.round((currentMonthSales / targetToUse) * 100), 100);
+	const progressPercentage = Math.min(
+		Math.round((currentMonthSales / targetToUse) * 100),
+		100,
+	);
 
 	return (
 		<PageTransition className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 pb-8">
@@ -65,7 +69,9 @@ export default function TargetsPage() {
 									<p className="font-medium text-muted-foreground text-sm">
 										Monthly Target
 									</p>
-									<h3 className="font-bold text-2xl">{formatCurrency(targetToUse, locale)}</h3>
+									<h3 className="font-bold text-2xl">
+										{formatCurrency(targetToUse, locale)}
+									</h3>
 								</div>
 							</CardContent>
 						</Card>
@@ -104,7 +110,11 @@ export default function TargetsPage() {
 										Remaining Days
 									</p>
 									<h3 className="font-bold text-2xl">
-										{new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()}
+										{new Date(
+											now.getFullYear(),
+											now.getMonth() + 1,
+											0,
+										).getDate() - now.getDate()}
 									</h3>
 								</div>
 							</CardContent>
@@ -117,15 +127,26 @@ export default function TargetsPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle>Current Month Progress</CardTitle>
-						<CardDescription>Visual overview of your target achievement for {now.toLocaleString('default', { month: 'long' })}.</CardDescription>
+						<CardDescription>
+							Visual overview of your target achievement for{" "}
+							{now.toLocaleString("default", { month: "long" })}.
+						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						<div className="flex justify-between text-sm font-medium">
+						<div className="flex justify-between font-medium text-sm">
 							<span>{progressPercentage}% Achieved</span>
-							<span>{formatCurrency(targetToUse - currentMonthSales > 0 ? targetToUse - currentMonthSales : 0, locale)} Remaining</span>
+							<span>
+								{formatCurrency(
+									targetToUse - currentMonthSales > 0
+										? targetToUse - currentMonthSales
+										: 0,
+									locale,
+								)}{" "}
+								Remaining
+							</span>
 						</div>
 						<Progress value={progressPercentage} className="h-4" />
-						
+
 						{progressPercentage >= 100 && (
 							<div className="mt-4 rounded-md bg-emerald-50 p-4 text-emerald-700">
 								🎉 Congratulations! You have achieved your monthly sales target!

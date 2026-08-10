@@ -45,8 +45,15 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 				<tbody>
 					{(order?.items || []).map((item: any, idx: number) => (
 						<tr key={idx}>
-							<td className="py-1 pr-2" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{item.name || "Item Name"}</td>
-							<td className="py-1 text-right align-top">{item.quantity || 1}</td>
+							<td
+								className="py-1 pr-2"
+								style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+							>
+								{item.name || "Item Name"}
+							</td>
+							<td className="py-1 text-right align-top">
+								{item.quantity || 1}
+							</td>
 							<td className="py-1 text-right align-top">
 								{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
 							</td>
@@ -65,7 +72,9 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 			<div className="space-y-1 border-black border-t border-dashed pt-2">
 				<div className="flex justify-between">
 					<span>Subtotal</span>
-					<span>{order?.subtotal ? Number(order.subtotal).toFixed(2) : "0.00"}</span>
+					<span>
+						{order?.subtotal ? Number(order.subtotal).toFixed(2) : "0.00"}
+					</span>
 				</div>
 				<div className="flex justify-between">
 					<span>Tax</span>

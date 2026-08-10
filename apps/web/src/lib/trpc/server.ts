@@ -25,10 +25,10 @@ export const createContext = createTRPCContext;
  *       ^? Post[]
  */
 export const getServerClient = async () => {
-  const context = await createContext();
-  const caller = createCaller(context);
+	const context = await createContext();
+	const caller = createCaller(context);
 
-  return {
-    trpc: caller,
-  };
+	return {
+		trpc: caller,
+	};
 };

@@ -9,9 +9,10 @@ import {
 	TableActions,
 } from "@evaluna/ui/components/data-table";
 import { PlayCircleIcon, RefreshCcwIcon, TrashIcon } from "lucide-react";
-import { useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { toast } from "sonner";
+import { RoleGate } from "@/components/auth/RoleGate";
 import {
 	AnimatedCard,
 	PageTransition,
@@ -20,7 +21,6 @@ import {
 } from "@/lib/animations";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import { RoleGate } from "@/components/auth/RoleGate";
 
 type Order = {
 	id: number;
@@ -46,11 +46,13 @@ export default function HoldBillsPage() {
 		},
 	});
 
-	const suspendedOrders = (orders ?? []).filter((o) => o.status?.toLowerCase() === "suspended");
+	const suspendedOrders = (orders ?? []).filter(
+		(o) => o.status?.toLowerCase() === "suspended",
+	);
 
 	const handleResume = (id: number) => {
 		toast.info("Resuming hold bill...");
-		// Currently POS doesn't support resuming directly via URL yet, 
+		// Currently POS doesn't support resuming directly via URL yet,
 		// but we can route them or open it. For now we will just show a toast or redirect to POS.
 		router.push(`/sales/pos?resume=${id}`);
 	};
@@ -68,7 +70,12 @@ export default function HoldBillsPage() {
 			sortable: true,
 			className: "font-medium",
 		},
-		{ key: "customer", header: "Customer", sortable: true, render: (row) => row.customer?.name || "Walk-in" },
+		{
+			key: "customer",
+			header: "Customer",
+			sortable: true,
+			render: (row) => row.customer?.name || "Walk-in",
+		},
 		{
 			key: "amount",
 			header: "Total Amount",
@@ -79,7 +86,8 @@ export default function HoldBillsPage() {
 			key: "created_at",
 			header: "Date Held",
 			sortable: true,
-			render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : "-",
+			render: (row) =>
+				row.created_at ? new Date(row.created_at).toLocaleString() : "-",
 		},
 		{
 			key: "actions",
@@ -126,7 +134,9 @@ export default function HoldBillsPage() {
 									<p className="font-medium text-muted-foreground text-sm">
 										Suspended Bills
 									</p>
-									<h3 className="font-bold text-2xl">{suspendedOrders.length}</h3>
+									<h3 className="font-bold text-2xl">
+										{suspendedOrders.length}
+									</h3>
 								</div>
 							</CardContent>
 						</Card>
@@ -136,7 +146,7 @@ export default function HoldBillsPage() {
 
 			<Card className="flex flex-col gap-4 border-border/50 bg-card/50 p-3 shadow-sm sm:gap-6 sm:p-6">
 				<CardHeader className="p-0">
-					<h2 className="text-lg font-semibold">Active Hold Bills</h2>
+					<h2 className="font-semibold text-lg">Active Hold Bills</h2>
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable

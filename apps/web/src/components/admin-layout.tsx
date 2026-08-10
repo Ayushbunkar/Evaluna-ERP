@@ -19,13 +19,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
 	ArrowLeftRightIcon,
 	BanknoteIcon,
+	BellIcon,
 	Building2Icon,
 	ClockIcon,
 	CreditCardIcon,
-	IndianRupeeIcon,
 	FileTextIcon,
+	GlobeIcon,
 	HeartIcon,
+	IndianRupeeIcon,
 	LayoutDashboardIcon,
+	type LucideIcon,
+	MegaphoneIcon,
 	MenuIcon,
 	Package2Icon,
 	PackageIcon,
@@ -37,10 +41,6 @@ import {
 	UsersIcon,
 	WifiOffIcon,
 	XIcon,
-	BellIcon,
-	GlobeIcon,
-	type LucideIcon,
-	MegaphoneIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,10 +48,10 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { authClient } from "@/lib/auth-client";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { authClient } from "@/lib/auth-client";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
 
@@ -336,10 +336,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 								</a>
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={async () => {
-								await authClient.signOut();
-								window.location.href = "/login";
-							}}>
+							<DropdownMenuItem
+								onClick={async () => {
+									await authClient.signOut();
+									window.location.href = "/login";
+								}}
+							>
 								{t("logout")}
 							</DropdownMenuItem>
 						</DropdownMenuContent>

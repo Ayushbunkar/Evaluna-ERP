@@ -1,6 +1,6 @@
-import { db } from "./src/lib/db";
 import { orders } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
+import { db } from "./src/lib/db";
 
 async function main() {
 	try {

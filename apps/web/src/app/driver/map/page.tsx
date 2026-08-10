@@ -21,7 +21,9 @@ import { trpc } from "@/lib/trpc/client";
 export default function DriverMapPage() {
 	const [tripId] = useState<number>(1); // Mock active trip ID for the driver
 	const { data: trips } = (trpc as any).delivery.getTrips.useQuery();
-	const updateLocation = (trpc as any).delivery.updateVehicleLocation.useMutation();
+	const updateLocation = (
+		trpc as any
+	).delivery.updateVehicleLocation.useMutation();
 	const updateStop = (trpc as any).delivery.updateStopStatus.useMutation();
 
 	const [currentLocation, setCurrentLocation] = useState<{
@@ -186,4 +188,3 @@ export default function DriverMapPage() {
 		</div>
 	);
 }
-

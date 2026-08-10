@@ -1,21 +1,16 @@
 "use client";
 
+import { Card, CardContent } from "@evaluna/ui/components/card";
 import {
-	Card,
-	CardContent,
-} from "@evaluna/ui/components/card";
-import {
-	UsersIcon,
-	UserCheckIcon,
 	BanknoteIcon,
-	UserMinusIcon,
-	TrendingUpIcon,
-	ClockIcon,
 	BriefcaseIcon,
-	CalendarIcon
+	CalendarIcon,
+	ClockIcon,
+	TrendingUpIcon,
+	UserCheckIcon,
+	UserMinusIcon,
+	UsersIcon,
 } from "lucide-react";
-import { useTRPC } from "@/lib/trpc/client";
-
 import { useMemo } from "react";
 import {
 	Bar,
@@ -26,11 +21,12 @@ import {
 	LineChart,
 	Pie,
 	PieChart,
-	ResponsiveContainer,
 	Tooltip as RechartsTooltip,
+	ResponsiveContainer,
 	XAxis,
 	YAxis,
 } from "recharts";
+import { useTRPC } from "@/lib/trpc/client";
 
 function KPICard({
 	title,
@@ -70,10 +66,12 @@ function KPICard({
 					<p className="font-medium text-muted-foreground text-sm capitalize">
 						{title.replace(/([A-Z])/g, " $1").trim()}
 					</p>
-					<h3 className="mt-1 font-bold text-3xl tracking-tight text-foreground">
+					<h3 className="mt-1 font-bold text-3xl text-foreground tracking-tight">
 						{value}
 					</h3>
-					{trend && <p className="mt-2 text-muted-foreground text-xs">{trend}</p>}
+					{trend && (
+						<p className="mt-2 text-muted-foreground text-xs">{trend}</p>
+					)}
 				</div>
 			</CardContent>
 		</Card>
@@ -145,7 +143,11 @@ export default function HrDashboard() {
 		{ name: "Apr", hires: 12, attr: 3 },
 		{ name: "May", hires: 8, attr: 2 },
 		{ name: "Jun", hires: 15, attr: 4 },
-		{ name: "Jul", hires: Math.max(10, stats?.newHiresThisMonth || 0), attr: 2 },
+		{
+			name: "Jul",
+			hires: Math.max(10, stats?.newHiresThisMonth || 0),
+			attr: 2,
+		},
 	];
 
 	return (
@@ -164,7 +166,7 @@ export default function HrDashboard() {
 
 			{/* KPIs */}
 			{statsLoading ? (
-				<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 animate-pulse">
+				<div className="grid animate-pulse gap-6 md:grid-cols-2 lg:grid-cols-4">
 					{[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
 						<Card key={i} className="h-[160px] bg-muted/20" />
 					))}
@@ -177,7 +179,7 @@ export default function HrDashboard() {
 							let displayValue: string | number = value as any;
 							let trendIsPositive = true;
 							let trendValue = "";
-							
+
 							if (key === "avgSalary") {
 								displayValue = new Intl.NumberFormat("en-IN", {
 									style: "currency",
@@ -227,8 +229,15 @@ export default function HrDashboard() {
 						</div>
 						<div className="h-[300px] w-full">
 							<ResponsiveContainer width="100%" height="100%">
-								<BarChart data={growthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-									<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+								<BarChart
+									data={growthData}
+									margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+								>
+									<CartesianGrid
+										strokeDasharray="3 3"
+										vertical={false}
+										stroke="hsl(var(--border))"
+									/>
 									<XAxis
 										dataKey="name"
 										stroke="hsl(var(--muted-foreground))"
@@ -251,8 +260,18 @@ export default function HrDashboard() {
 											boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
 										}}
 									/>
-									<Bar dataKey="hires" name="New Hires" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-									<Bar dataKey="attr" name="Attrition" fill="#ef4444" radius={[4, 4, 0, 0]} />
+									<Bar
+										dataKey="hires"
+										name="New Hires"
+										fill="#3b82f6"
+										radius={[4, 4, 0, 0]}
+									/>
+									<Bar
+										dataKey="attr"
+										name="Attrition"
+										fill="#ef4444"
+										radius={[4, 4, 0, 0]}
+									/>
 								</BarChart>
 							</ResponsiveContainer>
 						</div>
@@ -283,7 +302,10 @@ export default function HrDashboard() {
 											stroke="none"
 										>
 											{departmentData.map((entry, index) => (
-												<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+												<Cell
+													key={`cell-${index}`}
+													fill={COLORS[index % COLORS.length]}
+												/>
 											))}
 										</Pie>
 										<RechartsTooltip
@@ -320,42 +342,63 @@ export default function HrDashboard() {
 					<div className="overflow-x-auto">
 						<table className="w-full text-left text-sm">
 							<thead>
-								<tr className="border-b border-border text-muted-foreground">
+								<tr className="border-border border-b text-muted-foreground">
 									<th className="pb-3 font-medium">Employee</th>
 									<th className="pb-3 font-medium">Role</th>
 									<th className="pb-3 font-medium">Department</th>
 									<th className="pb-3 font-medium">Join Date</th>
-									<th className="pb-3 font-medium text-right">Status</th>
+									<th className="pb-3 text-right font-medium">Status</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-border">
 								{employeesLoading ? (
 									Array.from({ length: 5 }).map((_, i) => (
 										<tr key={i} className="animate-pulse">
-											<td className="py-4"><div className="h-4 w-32 rounded bg-muted/40"></div></td>
-											<td className="py-4"><div className="h-4 w-24 rounded bg-muted/40"></div></td>
-											<td className="py-4"><div className="h-4 w-24 rounded bg-muted/40"></div></td>
-											<td className="py-4"><div className="h-4 w-20 rounded bg-muted/40"></div></td>
-											<td className="py-4 text-right"><div className="ml-auto h-6 w-16 rounded-full bg-muted/40"></div></td>
+											<td className="py-4">
+												<div className="h-4 w-32 rounded bg-muted/40" />
+											</td>
+											<td className="py-4">
+												<div className="h-4 w-24 rounded bg-muted/40" />
+											</td>
+											<td className="py-4">
+												<div className="h-4 w-24 rounded bg-muted/40" />
+											</td>
+											<td className="py-4">
+												<div className="h-4 w-20 rounded bg-muted/40" />
+											</td>
+											<td className="py-4 text-right">
+												<div className="ml-auto h-6 w-16 rounded-full bg-muted/40" />
+											</td>
 										</tr>
 									))
 								) : employees && employees.length > 0 ? (
 									employees.slice(0, 7).map((emp) => (
-										<tr key={emp.id} className="transition-colors hover:bg-muted/30">
+										<tr
+											key={emp.id}
+											className="transition-colors hover:bg-muted/30"
+										>
 											<td className="py-4">
-												<div className="font-medium text-foreground">{emp.name}</div>
-												<div className="text-muted-foreground text-xs">{emp.emp_code}</div>
+												<div className="font-medium text-foreground">
+													{emp.name}
+												</div>
+												<div className="text-muted-foreground text-xs">
+													{emp.emp_code}
+												</div>
 											</td>
-											<td className="py-4 capitalize">{emp.role.replace(/_/g, " ")}</td>
+											<td className="py-4 capitalize">
+												{emp.role.replace(/_/g, " ")}
+											</td>
 											<td className="py-4">
 												<span className="rounded-md bg-secondary px-2 py-1 text-xs">
 													{emp.department}
 												</span>
 											</td>
-											<td className="py-4 text-muted-foreground">{emp.join_date}</td>
+											<td className="py-4 text-muted-foreground">
+												{emp.join_date}
+											</td>
 											<td className="py-4 text-right">
 												<span
-													className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+													className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-medium text-xs ${
 														emp.status === "Active"
 															? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400"
 															: "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400"
@@ -368,7 +411,10 @@ export default function HrDashboard() {
 									))
 								) : (
 									<tr>
-										<td colSpan={5} className="py-8 text-center text-muted-foreground">
+										<td
+											colSpan={5}
+											className="py-8 text-center text-muted-foreground"
+										>
 											No employees found.
 										</td>
 									</tr>

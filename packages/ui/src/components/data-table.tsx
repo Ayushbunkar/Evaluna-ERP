@@ -185,31 +185,39 @@ export function DataTable<T>({
 
 	return (
 		<div className="space-y-1 sm:space-y-2">
-				{(exportColumns || children) && (
-					<div className="flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-2">
-						<div className="flex items-center gap-1 sm:gap-2">{children}</div>
-						{exportColumns && (
-							<Button variant="outline" size="sm" onClick={handleExport} className="mt-2 sm:mt-0">
-								<DownloadIcon className="mr-1 h-4 w-4" />
-								CSV
-							</Button>
-						)}
-					</div>
-				)}
+			{(exportColumns || children) && (
+				<div className="flex flex-col items-center justify-between gap-1 sm:flex-row sm:gap-2">
+					<div className="flex items-center gap-1 sm:gap-2">{children}</div>
+					{exportColumns && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleExport}
+							className="mt-2 sm:mt-0"
+						>
+							<DownloadIcon className="mr-1 h-4 w-4" />
+							CSV
+						</Button>
+					)}
+				</div>
+			)}
 
 			<div
 				ref={tableContainerRef}
-				className="relative max-h-[800px] overflow-x-auto overflow-y-auto responsive-table"
+				className="responsive-table relative max-h-[800px] overflow-x-auto overflow-y-auto"
 			>
 				<Table>
 					<TableHeader className="sticky top-0 z-10 bg-background">
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id}>
 								{headerGroup.headers.map((header) => (
-								<TableHead
-									key={header.id}
-									className={(header.column.columnDef.meta as any)?.className + " text-xs sm:text-sm"}
-								>
+									<TableHead
+										key={header.id}
+										className={
+											(header.column.columnDef.meta as any)?.className +
+											"text-xs sm:text-sm"
+										}
+									>
 										{header.isPlaceholder
 											? null
 											: flexRender(
@@ -226,9 +234,9 @@ export function DataTable<T>({
 							<TableRow>
 								<TableCell
 									colSpan={visibleColumnDefs.length}
-									className="h-20 sm:h-24 text-center"
+									className="h-20 text-center sm:h-24"
 								>
-									<div className="flex flex-col items-center gap-1 sm:gap-2 text-muted-foreground">
+									<div className="flex flex-col items-center gap-1 text-muted-foreground sm:gap-2">
 										{emptyIcon}
 										<span>{emptyMessage}</span>
 										{emptyAction}
@@ -238,20 +246,23 @@ export function DataTable<T>({
 						) : (
 							rows.map((row) => {
 								return (
-							<TableRow
-								key={row.id}
-								className={
-									onRowClick ? "cursor-pointer hover:bg-muted/50" : "hover:bg-muted/50"
-								}
-								onClick={() => onRowClick?.(row.original)}
-							>
+									<TableRow
+										key={row.id}
+										className={
+											onRowClick
+												? "cursor-pointer hover:bg-muted/50"
+												: "hover:bg-muted/50"
+										}
+										onClick={() => onRowClick?.(row.original)}
+									>
 										{row.getVisibleCells().map((cell) => (
-								<TableCell
-									key={cell.id}
-									className={
-										(cell.column.columnDef.meta as any)?.className + " text-xs sm:text-sm"
-									}
-								>
+											<TableCell
+												key={cell.id}
+												className={
+													(cell.column.columnDef.meta as any)?.className +
+													"text-xs sm:text-sm"
+												}
+											>
 												{flexRender(
 													cell.column.columnDef.cell,
 													cell.getContext(),

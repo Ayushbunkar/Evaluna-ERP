@@ -32,17 +32,21 @@ export default async function middleware(request: NextRequest) {
 
 	// 1.5. Allow public website routes without authentication
 	const publicRoutes = [
-		'/',
-		'/about',
-		'/features',
-		'/solutions',
-		'/pricing',
-		'/resources',
-		'/contact',
-		'/careers'
+		"/",
+		"/about",
+		"/features",
+		"/solutions",
+		"/pricing",
+		"/resources",
+		"/contact",
+		"/careers",
 	];
 
-	if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+	if (
+		publicRoutes.some(
+			(route) => pathname === route || pathname.startsWith(route + "/"),
+		)
+	) {
 		return NextResponse.next({ request: { headers: requestHeaders } });
 	}
 

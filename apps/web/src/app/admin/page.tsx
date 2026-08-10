@@ -18,11 +18,15 @@ import {
 	WarehouseIcon,
 } from "lucide-react";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
+import {
+	AdminBranchPerformanceChart,
+	AdminCashFlowChart,
+	AdminSalesTrendChart,
+} from "@/components/charts/admin-charts";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { getServerClient } from "@/lib/trpc/serverClient";
 import { formatCurrency } from "@/lib/utils";
-import { AdminSalesTrendChart, AdminBranchPerformanceChart, AdminCashFlowChart } from "@/components/charts/admin-charts";
-import { getTranslations } from "next-intl/server";
 
 function KPICard({
 	title,
@@ -47,17 +51,17 @@ function KPICard({
 						<Icon className="h-6 w-6" />
 					</div>
 					{trendValue && (
-						<div className="text-gray-900 font-medium text-sm">
+						<div className="font-medium text-gray-900 text-sm">
 							{trendIsPositive ? "↑" : "↓"} {trendValue}
 						</div>
 					)}
 				</div>
 				<div className="mt-4">
 					<p className="font-medium text-gray-500 text-sm">{title}</p>
-					<h3 className="mt-1 font-bold text-2xl text-gray-900 tracking-tight">{value}</h3>
-					{trend && (
-						<p className="mt-2 text-gray-500 text-xs">{trend}</p>
-					)}
+					<h3 className="mt-1 font-bold text-2xl text-gray-900 tracking-tight">
+						{value}
+					</h3>
+					{trend && <p className="mt-2 text-gray-500 text-xs">{trend}</p>}
 				</div>
 			</CardContent>
 		</Card>
@@ -70,17 +74,17 @@ export default async function CompanyAdminDashboard() {
 	const cookieStore = await cookies();
 	const branchCookie = cookieStore.get("evaluna.branch_context")?.value;
 	const activeBranchId = branchCookie ? Number(branchCookie) : undefined;
-	
+
 	const data = await caller.dashboard.getKpis(
-		activeBranchId ? { branch_id: activeBranchId } : {}
+		activeBranchId ? { branch_id: activeBranchId } : {},
 	);
 
 	if (!data) return <div>{t("noDataAvailable")}</div>;
 
 	return (
-		<div className="container flex w-full flex-col gap-4 sm:gap-6 pb-6 sm:pb-8">
+		<div className="container flex w-full flex-col gap-4 pb-6 sm:gap-6 sm:pb-8">
 			<div className="px-2 sm:px-0">
-				<h1 className="font-bold text-2xl sm:text-3xl text-gray-900 tracking-tight">
+				<h1 className="font-bold text-2xl text-gray-900 tracking-tight sm:text-3xl">
 					{t("overview")}
 				</h1>
 				<p className="mt-1 text-gray-500 text-sm sm:text-base">
@@ -88,13 +92,17 @@ export default async function CompanyAdminDashboard() {
 				</p>
 			</div>
 
-			<div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
 				<KPICard
 					title={t("todaysSales")}
 					value={formatCurrency(data.todaySales, "en-IN")}
 					icon={IndianRupeeIcon}
 					trend={data.salesTrendPct !== 0 ? t("vsYesterday") : undefined}
-					trendValue={data.salesTrendPct !== 0 ? `${Math.abs(data.salesTrendPct)}%` : undefined}
+					trendValue={
+						data.salesTrendPct !== 0
+							? `${Math.abs(data.salesTrendPct)}%`
+							: undefined
+					}
 					trendIsPositive={data.salesTrendIsPositive}
 				/>
 				<KPICard
@@ -102,7 +110,11 @@ export default async function CompanyAdminDashboard() {
 					value={data.todayOrders || 0}
 					icon={ShoppingCartIcon}
 					trend={data.billsTrendPct !== 0 ? t("vsYesterday") : undefined}
-					trendValue={data.billsTrendPct !== 0 ? `${Math.abs(data.billsTrendPct)}%` : undefined}
+					trendValue={
+						data.billsTrendPct !== 0
+							? `${Math.abs(data.billsTrendPct)}%`
+							: undefined
+					}
 					trendIsPositive={data.billsTrendIsPositive}
 				/>
 				<KPICard
@@ -146,16 +158,18 @@ export default async function CompanyAdminDashboard() {
 					<ErrorBoundary>
 						<Card className="flex h-full flex-col shadow-sm">
 							<CardHeader>
-								<CardTitle className="text-gray-900">Revenue & Expenses Trend</CardTitle>
+								<CardTitle className="text-gray-900">
+									Revenue & Expenses Trend
+								</CardTitle>
 								<CardDescription className="text-gray-500">
 									Monthly comparison across all branches
 								</CardDescription>
 							</CardHeader>
-					<CardContent className="min-h-[250px] sm:min-h-[300px] flex-1">
+							<CardContent className="min-h-[250px] flex-1 sm:min-h-[300px]">
 								{data.revenueTrend ? (
 									<AdminSalesTrendChart data={data.revenueTrend} />
 								) : (
-								<div className="flex h-[200px] sm:h-[250px] items-center justify-center text-gray-500">
+									<div className="flex h-[200px] items-center justify-center text-gray-500 sm:h-[250px]">
 										No trend data available
 									</div>
 								)}
@@ -168,18 +182,20 @@ export default async function CompanyAdminDashboard() {
 					<ErrorBoundary>
 						<Card className="h-full shadow-sm">
 							<CardHeader className="pb-4">
-								<CardTitle className="text-lg text-gray-900">Recent Activities</CardTitle>
+								<CardTitle className="text-gray-900 text-lg">
+									Recent Activities
+								</CardTitle>
 								<CardDescription className="text-gray-500">
 									System alerts and notifications
 								</CardDescription>
 							</CardHeader>
-					<CardContent className="space-y-3 sm:space-y-4">
+							<CardContent className="space-y-3 sm:space-y-4">
 								{data.recentNotifications?.map((notif: any) => (
-						<div
-							key={notif.id}
-							className="flex items-start gap-3 sm:gap-4 p-2 sm:p-3 border-b border-gray-100 last:border-0"
-						>
-										<div className="flex-shrink-0 rounded-full p-2 bg-gray-100 text-gray-900">
+									<div
+										key={notif.id}
+										className="flex items-start gap-3 border-gray-100 border-b p-2 last:border-0 sm:gap-4 sm:p-3"
+									>
+										<div className="flex-shrink-0 rounded-full bg-gray-100 p-2 text-gray-900">
 											{notif.type === "low_stock" && (
 												<AlertTriangleIcon className="h-4 w-4" />
 											)}
@@ -194,10 +210,10 @@ export default async function CompanyAdminDashboard() {
 											)}
 										</div>
 										<div>
-							<h4 className="font-semibold text-xs sm:text-sm text-gray-900">
+											<h4 className="font-semibold text-gray-900 text-xs sm:text-sm">
 												{notif.title}
 											</h4>
-							<p className="mt-0.5 line-clamp-1 text-gray-500 text-xs">
+											<p className="mt-0.5 line-clamp-1 text-gray-500 text-xs">
 												{notif.message}
 											</p>
 											<span className="mt-1 block text-[10px] text-gray-400">
@@ -215,14 +231,18 @@ export default async function CompanyAdminDashboard() {
 					<ErrorBoundary>
 						<Card className="h-full shadow-sm">
 							<CardHeader>
-								<CardTitle className="text-gray-900">Branch Performance</CardTitle>
-								<CardDescription className="text-gray-500">Sales vs Targets</CardDescription>
+								<CardTitle className="text-gray-900">
+									Branch Performance
+								</CardTitle>
+								<CardDescription className="text-gray-500">
+									Sales vs Targets
+								</CardDescription>
 							</CardHeader>
-					<CardContent>
+							<CardContent>
 								{data.branchPerformance ? (
 									<AdminBranchPerformanceChart data={data.branchPerformance} />
 								) : (
-								<div className="flex h-[200px] sm:h-[250px] items-center justify-center text-gray-500">
+									<div className="flex h-[200px] items-center justify-center text-gray-500 sm:h-[250px]">
 										No data
 									</div>
 								)}
@@ -236,13 +256,15 @@ export default async function CompanyAdminDashboard() {
 						<Card className="h-full shadow-sm">
 							<CardHeader>
 								<CardTitle className="text-gray-900">Cash Flow</CardTitle>
-								<CardDescription className="text-gray-500">Daily net cash balance</CardDescription>
+								<CardDescription className="text-gray-500">
+									Daily net cash balance
+								</CardDescription>
 							</CardHeader>
-					<CardContent>
+							<CardContent>
 								{data.cashFlowTrend ? (
 									<AdminCashFlowChart data={data.cashFlowTrend} />
 								) : (
-								<div className="flex h-[200px] sm:h-[250px] items-center justify-center text-gray-500">
+									<div className="flex h-[200px] items-center justify-center text-gray-500 sm:h-[250px]">
 										No data
 									</div>
 								)}
@@ -253,7 +275,7 @@ export default async function CompanyAdminDashboard() {
 
 				<div>
 					<ErrorBoundary>
-						<Card className="h-full shadow-sm bg-white border border-gray-200">
+						<Card className="h-full border border-gray-200 bg-white shadow-sm">
 							<CardHeader>
 								<CardTitle className="text-gray-900">
 									Total Inventory Value
@@ -262,11 +284,11 @@ export default async function CompanyAdminDashboard() {
 									Across all warehouses
 								</CardDescription>
 							</CardHeader>
-					<CardContent className="mt-6 sm:mt-8">
-					<h2 className="font-black text-3xl sm:text-4xl text-gray-900">
+							<CardContent className="mt-6 sm:mt-8">
+								<h2 className="font-black text-3xl text-gray-900 sm:text-4xl">
 									{formatCurrency(data.inventoryValue || 0, "en-IN")}
 								</h2>
-					<div className="mt-3 sm:mt-4 flex w-fit items-center text-gray-500 font-medium text-xs sm:text-sm">
+								<div className="mt-3 flex w-fit items-center font-medium text-gray-500 text-xs sm:mt-4 sm:text-sm">
 									<TrendingUpIcon className="mr-1 h-4 w-4" />
 									{data.warehouseCapacity}% warehouse utilized
 								</div>

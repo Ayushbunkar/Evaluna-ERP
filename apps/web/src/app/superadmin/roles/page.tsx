@@ -60,7 +60,7 @@ export default function RolesPage() {
 			return;
 		}
 		if (confirm("Are you sure you want to delete this role?")) {
-			setMockRoles(mockRoles.filter(r => r.id !== id));
+			setMockRoles(mockRoles.filter((r) => r.id !== id));
 		}
 	};
 
@@ -115,7 +115,11 @@ export default function RolesPage() {
 					</CardHeader>
 					<CardContent>
 						<div className="font-bold text-3xl text-gray-900">
-							{roles.filter((r) => ((r as any).is_active || (r as any).status === "Active")).length}
+							{
+								roles.filter(
+									(r) => (r as any).is_active || (r as any).status === "Active",
+								).length
+							}
 						</div>
 					</CardContent>
 				</Card>
@@ -135,8 +139,8 @@ export default function RolesPage() {
 			</div>
 
 			<Card className="shadow-sm">
-				<CardHeader className="border-b border-gray-200 pb-4">
-					<CardTitle className="text-xl text-gray-900">Roles List</CardTitle>
+				<CardHeader className="border-gray-200 border-b pb-4">
+					<CardTitle className="text-gray-900 text-xl">Roles List</CardTitle>
 				</CardHeader>
 				<CardContent className="p-0">
 					{isLoading ? (
@@ -144,7 +148,7 @@ export default function RolesPage() {
 					) : (
 						<div className="overflow-x-auto">
 							<table className="w-full text-left text-sm">
-								<thead className="border-b border-gray-200 bg-gray-50 font-medium text-gray-900">
+								<thead className="border-gray-200 border-b bg-gray-50 font-medium text-gray-900">
 									<tr>
 										<th className="px-6 py-4">Role ID</th>
 										<th className="px-6 py-4">Role Name</th>
@@ -173,8 +177,9 @@ export default function RolesPage() {
 												{(null as any).description}
 											</td>
 											<td className="px-6 py-4">
-												<span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-900 px-2.5 py-1 font-medium text-xs">
-													<Users className="h-3 w-3" /> {(null as any).usersCount} users
+												<span className="inline-flex items-center gap-1.5 bg-gray-100 px-2.5 py-1 font-medium text-gray-900 text-xs">
+													<Users className="h-3 w-3" />{" "}
+													{(null as any).usersCount} users
 												</span>
 											</td>
 											<td className="px-6 py-4">
@@ -199,7 +204,9 @@ export default function RolesPage() {
 														size="icon"
 														className="h-8 w-8 text-gray-900 hover:bg-gray-100"
 														disabled={(null as any).name === "Superadmin"}
-														onClick={() => handleDelete((null as any).id, (null as any).name)}
+														onClick={() =>
+															handleDelete((null as any).id, (null as any).name)
+														}
 													>
 														<Trash2 className="h-4 w-4" />
 													</Button>
@@ -228,7 +235,7 @@ export default function RolesPage() {
 								<input
 									type="text"
 									defaultValue={editingRole?.name || ""}
-									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
+									className="w-full border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none"
 								/>
 							</div>
 							<div>
@@ -237,14 +244,18 @@ export default function RolesPage() {
 								</label>
 								<textarea
 									defaultValue={editingRole?.description || ""}
-									className="min-h-[100px] w-full border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-gray-900"
+									className="min-h-[100px] w-full border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none"
 								/>
 							</div>
 							<div className="flex items-center gap-2">
 								<input
 									type="checkbox"
 									id="status"
-									defaultChecked={editingRole ? (editingRole as any).status === "Active" : true}
+									defaultChecked={
+										editingRole
+											? (editingRole as any).status === "Active"
+											: true
+									}
 									className="border-gray-300 text-gray-900 focus:ring-gray-900"
 								/>
 								<label htmlFor="status" className="text-gray-900 text-sm">
@@ -253,10 +264,20 @@ export default function RolesPage() {
 							</div>
 						</div>
 						<div className="mt-6 flex justify-end gap-3">
-							<Button variant="outline" className="border-gray-300 text-gray-900 hover:bg-gray-50" onClick={() => { setIsModalOpen(false); setEditingRole(null); }}>
+							<Button
+								variant="outline"
+								className="border-gray-300 text-gray-900 hover:bg-gray-50"
+								onClick={() => {
+									setIsModalOpen(false);
+									setEditingRole(null);
+								}}
+							>
 								Cancel
 							</Button>
-							<Button onClick={handleSave} className="bg-gray-900 text-white hover:bg-gray-800">
+							<Button
+								onClick={handleSave}
+								className="bg-gray-900 text-white hover:bg-gray-800"
+							>
 								Save Role
 							</Button>
 						</div>
@@ -266,6 +287,3 @@ export default function RolesPage() {
 		</div>
 	);
 }
-
-
-

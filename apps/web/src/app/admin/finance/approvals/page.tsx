@@ -17,7 +17,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@evaluna/ui/components/tabs";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@evaluna/ui/components/tabs";
 import { CheckIcon, Loader2Icon, ShieldCheckIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -44,7 +49,11 @@ export default function FinanceApprovalsPage() {
 		},
 	});
 
-	const renderTable = (data: any[], isLoading: boolean, showActions = false) => {
+	const renderTable = (
+		data: any[],
+		isLoading: boolean,
+		showActions = false,
+	) => {
 		if (isLoading) {
 			return (
 				<div className="space-y-4 p-4">
@@ -72,7 +81,9 @@ export default function FinanceApprovalsPage() {
 						<TableHead>Requested By</TableHead>
 						<TableHead>Reason</TableHead>
 						<TableHead>Date</TableHead>
-						{showActions && <TableHead className="text-right">Actions</TableHead>}
+						{showActions && (
+							<TableHead className="text-right">Actions</TableHead>
+						)}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -81,7 +92,9 @@ export default function FinanceApprovalsPage() {
 							<TableCell className="font-medium">{item.id}</TableCell>
 							<TableCell>
 								<div className="flex flex-col">
-									<span className="capitalize">{item.referenceType.replace("_", " ")}</span>
+									<span className="capitalize">
+										{item.referenceType.replace("_", " ")}
+									</span>
 									<span className="text-muted-foreground text-xs">
 										{item.referenceId}
 									</span>

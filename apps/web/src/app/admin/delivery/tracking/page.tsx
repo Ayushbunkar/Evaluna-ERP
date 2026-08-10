@@ -1,16 +1,24 @@
 // @ts-nocheck
 "use client";
 
-import { MapIcon, BatteryCharging, Navigation, BatteryMedium } from "lucide-react";
-import { trpc } from "@/lib/trpc/client";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { MapWrapper } from "@/components/delivery/map-wrapper";
 import { Badge } from "@evaluna/ui/components/badge";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
+import {
+	BatteryCharging,
+	BatteryMedium,
+	MapIcon,
+	Navigation,
+} from "lucide-react";
+import { MapWrapper } from "@/components/delivery/map-wrapper";
+import { trpc } from "@/lib/trpc/client";
 
 export default function DeliveryTrackingPage() {
-	const { data: trips, isLoading } = trpc.delivery.activeTrips.useQuery(undefined, {
-		refetchInterval: 10000, // Refetch every 10 seconds for live updates
-	});
+	const { data: trips, isLoading } = trpc.delivery.activeTrips.useQuery(
+		undefined,
+		{
+			refetchInterval: 10000, // Refetch every 10 seconds for live updates
+		},
+	);
 
 	return (
 		<div className="flex h-[calc(100vh-4rem)] flex-col gap-6 p-6">
@@ -19,20 +27,18 @@ export default function DeliveryTrackingPage() {
 					<MapIcon className="h-6 w-6 text-primary" />
 				</div>
 				<div>
-					<h1 className="font-bold text-3xl tracking-tight">
-						Live Tracking
-					</h1>
+					<h1 className="font-bold text-3xl tracking-tight">Live Tracking</h1>
 					<p className="text-muted-foreground text-sm">
 						Real-time map tracking for active deliveries.
 					</p>
 				</div>
 			</div>
-			
+
 			<div className="flex flex-1 gap-6 overflow-hidden">
 				{/* Sidebar for Active Drivers */}
 				<div className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border bg-card p-4 shadow-sm">
 					<h3 className="font-semibold text-lg">Active Drivers</h3>
-					
+
 					{isLoading ? (
 						<div className="space-y-3">
 							<Skeleton className="h-20 w-full rounded-lg" />
@@ -50,18 +56,18 @@ export default function DeliveryTrackingPage() {
 											{trip.driver?.name ?? "Unknown Driver"}
 										</p>
 										{trip.latestLog?.battery_level && (
-											<div className="flex items-center gap-1 text-xs text-muted-foreground">
+											<div className="flex items-center gap-1 text-muted-foreground text-xs">
 												<BatteryMedium className="h-3 w-3" />
 												{trip.latestLog.battery_level}%
 											</div>
 										)}
 									</div>
-									
+
 									<div className="flex items-center justify-between">
 										<Badge variant="outline" className="text-xs">
 											Trip #{trip.id}
 										</Badge>
-										<div className="flex items-center gap-1 text-xs text-muted-foreground">
+										<div className="flex items-center gap-1 text-muted-foreground text-xs">
 											<Navigation className="h-3 w-3" />
 											{trip.latestLog?.speed ?? "0"} km/h
 										</div>
@@ -88,5 +94,3 @@ export default function DeliveryTrackingPage() {
 		</div>
 	);
 }
-
-

@@ -75,12 +75,14 @@ export const hrRouter = router({
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
 			const staffData = await db.select().from(staff).limit(5);
-			
+
 			return staffData.map((s, i) => ({
 				id: i + 1,
 				emp_name: s.name,
 				leave_type: ["Sick Leave", "Casual Leave", "Annual Leave"][i % 3],
-				start_date: new Date(Date.now() - i * 86400000 * 2).toLocaleDateString(),
+				start_date: new Date(
+					Date.now() - i * 86400000 * 2,
+				).toLocaleDateString(),
 				end_date: new Date(Date.now() + i * 86400000).toLocaleDateString(),
 				status: ["Approved", "Pending", "Rejected"][i % 3],
 			}));
@@ -124,11 +126,13 @@ export const hrRouter = router({
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
 			const staffData = await db.select().from(staff).limit(5);
-			
+
 			return staffData.map((s, i) => ({
 				id: i + 1,
 				emp_name: s.name,
-				review_date: new Date(Date.now() - i * 86400000 * 30).toLocaleDateString(),
+				review_date: new Date(
+					Date.now() - i * 86400000 * 30,
+				).toLocaleDateString(),
 				rating: ["Excellent", "Good", "Average", "Needs Improvement"][i % 4],
 				reviewer: "HR Manager",
 				status: "Completed",
@@ -139,10 +143,38 @@ export const hrRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async () => {
 			return [
-				{ id: 1, job_title: "Software Engineer", department: "IT", openings: 3, applicants: 45, status: "Active" },
-				{ id: 2, job_title: "HR Executive", department: "HR", openings: 1, applicants: 12, status: "Active" },
-				{ id: 3, job_title: "Sales Manager", department: "Sales", openings: 2, applicants: 30, status: "Closed" },
-				{ id: 4, job_title: "Accountant", department: "Finance", openings: 1, applicants: 8, status: "Active" },
+				{
+					id: 1,
+					job_title: "Software Engineer",
+					department: "IT",
+					openings: 3,
+					applicants: 45,
+					status: "Active",
+				},
+				{
+					id: 2,
+					job_title: "HR Executive",
+					department: "HR",
+					openings: 1,
+					applicants: 12,
+					status: "Active",
+				},
+				{
+					id: 3,
+					job_title: "Sales Manager",
+					department: "Sales",
+					openings: 2,
+					applicants: 30,
+					status: "Closed",
+				},
+				{
+					id: 4,
+					job_title: "Accountant",
+					department: "Finance",
+					openings: 1,
+					applicants: 8,
+					status: "Active",
+				},
 			];
 		}),
 });

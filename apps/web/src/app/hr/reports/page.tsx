@@ -19,10 +19,10 @@ export default function HRAnalyticsPage() {
 		{ key: "status", header: "Status" },
 	];
 
-	const filteredData = reportList?.filter(
-		(record: any) =>
-			record.name?.toLowerCase().includes(searchTerm.toLowerCase())
-	) || [];
+	const filteredData =
+		reportList?.filter((record: any) =>
+			record.name?.toLowerCase().includes(searchTerm.toLowerCase()),
+		) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -45,7 +45,11 @@ export default function HRAnalyticsPage() {
 					<DataTable
 						data={filteredData}
 						columns={columns}
-						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
+						emptyMessage={
+							isLoading
+								? "Loading records..."
+								: "No records found in this module yet."
+						}
 					/>
 				</CardContent>
 			</Card>

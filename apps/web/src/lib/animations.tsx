@@ -1,13 +1,16 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import type { Variants } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import type { ReactNode } from "react";
 
 // ── Core animation variants ────────────────────────────────────────────────
 export const fadeIn: Variants = {
 	hidden: { opacity: 0 },
-	visible: { opacity: 1, transition: { duration: 0.35, ease: "easeOut" as const } },
+	visible: {
+		opacity: 1,
+		transition: { duration: 0.35, ease: "easeOut" as const },
+	},
 	exit: { opacity: 0, transition: { duration: 0.2 } },
 };
 
@@ -16,7 +19,10 @@ export const slideUp: Variants = {
 	visible: {
 		opacity: 1,
 		y: 0,
-		transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+		transition: {
+			duration: 0.4,
+			ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+		},
 	},
 	exit: { opacity: 0, y: -12, transition: { duration: 0.2 } },
 };
@@ -35,7 +41,10 @@ export const slideLeft: Variants = {
 	visible: {
 		opacity: 1,
 		x: 0,
-		transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+		transition: {
+			duration: 0.35,
+			ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+		},
 	},
 };
 
@@ -44,7 +53,10 @@ export const scaleIn: Variants = {
 	visible: {
 		opacity: 1,
 		scale: 1,
-		transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+		transition: {
+			duration: 0.35,
+			ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+		},
 	},
 	exit: { opacity: 0, scale: 0.95, transition: { duration: 0.18 } },
 };

@@ -128,7 +128,9 @@ export default function DriverDashboard() {
 					{data.batteryLevel !== null && (
 						<div className="flex items-center gap-1">
 							<BatteryIcon className="h-4 w-4" />{" "}
-							<span className="font-bold text-[10px]">{data.batteryLevel}%</span>
+							<span className="font-bold text-[10px]">
+								{data.batteryLevel}%
+							</span>
 						</div>
 					)}
 				</div>
@@ -145,7 +147,10 @@ export default function DriverDashboard() {
 							<MiniMapPreview />
 							<CardContent className="relative p-4 pt-5">
 								<div className="absolute top-0 right-4 flex -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-popover px-3 py-1 font-bold text-[10px] text-popover-foreground shadow-md">
-									<ClockIcon className="h-3 w-3" /> {data.nextDelivery.eta ? `ETA ${data.nextDelivery.eta}` : "En route"}
+									<ClockIcon className="h-3 w-3" />{" "}
+									{data.nextDelivery.eta
+										? `ETA ${data.nextDelivery.eta}`
+										: "En route"}
 								</div>
 
 								<div className="mb-3 flex items-start justify-between">
@@ -266,12 +271,12 @@ export default function DriverDashboard() {
 				</Button>
 
 				{/* Mini KPI Dashboard */}
-				<h3 className="mt-6 mb-3 font-bold text-muted-foreground text-sm uppercase tracking-wider px-1">
+				<h3 className="mt-6 mb-3 px-1 font-bold text-muted-foreground text-sm uppercase tracking-wider">
 					Today's Performance
 				</h3>
-				<div className="grid grid-cols-2 gap-3 mb-6">
-					<Card className="border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
-						<CardContent className="p-4 flex flex-col justify-between h-full">
+				<div className="mb-6 grid grid-cols-2 gap-3">
+					<Card className="rounded-xl border-border bg-card shadow-sm transition-all hover:shadow-md">
+						<CardContent className="flex h-full flex-col justify-between p-4">
 							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/80">
 								<PackageCheckIcon className="h-5 w-5 text-foreground" />
 							</div>
@@ -285,9 +290,9 @@ export default function DriverDashboard() {
 							</div>
 						</CardContent>
 					</Card>
-					
-					<Card className="border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
-						<CardContent className="p-4 flex flex-col justify-between h-full">
+
+					<Card className="rounded-xl border-border bg-card shadow-sm transition-all hover:shadow-md">
+						<CardContent className="flex h-full flex-col justify-between p-4">
 							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/80">
 								<BanknoteIcon className="h-5 w-5 text-foreground" />
 							</div>
@@ -295,7 +300,7 @@ export default function DriverDashboard() {
 								<p className="font-medium text-muted-foreground text-xs">
 									COD Collected
 								</p>
-								<p className="font-bold text-2xl tracking-tight text-amber-600">
+								<p className="font-bold text-2xl text-amber-600 tracking-tight">
 									{formatCurrency(data.codCollected, "en-IN")}
 								</p>
 							</div>
@@ -303,8 +308,8 @@ export default function DriverDashboard() {
 					</Card>
 
 					{data.distanceCovered && (
-						<Card className="col-span-2 border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
-							<CardContent className="p-4 flex flex-col justify-between h-full">
+						<Card className="col-span-2 rounded-xl border-border bg-card shadow-sm transition-all hover:shadow-md">
+							<CardContent className="flex h-full flex-col justify-between p-4">
 								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/80">
 									<NavigationIcon className="h-5 w-5 text-foreground" />
 								</div>

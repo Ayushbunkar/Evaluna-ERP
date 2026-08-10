@@ -52,15 +52,23 @@ export const attendanceRouter = router({
 			// Find staff member: either by explicit staff_id or by logged-in user's email
 			let staffMember;
 			if (input.staff_id) {
-				const result = await ctx.db.select().from(staff).where(eq(staff.id, input.staff_id));
+				const result = await ctx.db
+					.select()
+					.from(staff)
+					.where(eq(staff.id, input.staff_id));
 				staffMember = result[0];
 			} else {
-				const result = await ctx.db.select().from(staff).where(eq(staff.email, ctx.user.email));
+				const result = await ctx.db
+					.select()
+					.from(staff)
+					.where(eq(staff.email, ctx.user.email));
 				staffMember = result[0];
 			}
 
 			if (!staffMember) {
-				throw new Error("Staff member not found or user is not a staff member.");
+				throw new Error(
+					"Staff member not found or user is not a staff member.",
+				);
 			}
 
 			const targetStaffId = staffMember.id;
@@ -103,10 +111,13 @@ export const attendanceRouter = router({
 		.input(z.object({ id: z.number().optional() })) // Make optional for self-service
 		.mutation(async ({ ctx, input }) => {
 			let targetAttendanceId = input.id;
-			
+
 			if (!targetAttendanceId) {
 				// Find current active shift for logged in user
-				const result = await ctx.db.select().from(staff).where(eq(staff.email, ctx.user.email));
+				const result = await ctx.db
+					.select()
+					.from(staff)
+					.where(eq(staff.email, ctx.user.email));
 				const staffMember = result[0];
 				if (!staffMember) throw new Error("Staff member not found");
 
@@ -121,7 +132,8 @@ export const attendanceRouter = router({
 							eq(staffAttendance.shift_status, "active"),
 						),
 					);
-				if (activeShift.length === 0) throw new Error("No active shift found to clock out from");
+				if (activeShift.length === 0)
+					throw new Error("No active shift found to clock out from");
 				targetAttendanceId = activeShift[0].id;
 			}
 
@@ -139,7 +151,10 @@ export const attendanceRouter = router({
 		}),
 
 	myStatus: protectedProcedure.query(async ({ ctx }) => {
-		const result = await ctx.db.select().from(staff).where(eq(staff.email, ctx.user.email));
+		const result = await ctx.db
+			.select()
+			.from(staff)
+			.where(eq(staff.email, ctx.user.email));
 		const staffMember = result[0];
 		if (!staffMember) return null;
 
@@ -154,10 +169,10 @@ export const attendanceRouter = router({
 					eq(staffAttendance.shift_status, "active"),
 				),
 			);
-		
+
 		return {
 			staff: staffMember,
-			activeShift: activeShift.length > 0 ? activeShift[0] : null
+			activeShift: activeShift.length > 0 ? activeShift[0] : null,
 		};
 	}),
 });

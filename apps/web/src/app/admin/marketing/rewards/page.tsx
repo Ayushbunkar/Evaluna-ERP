@@ -12,7 +12,9 @@ import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc/client";
 
 export default function RewardsPage() {
-	const { data, isLoading } = trpc.loyalty.getCustomerLoyalty.useQuery({ customer_id: 1 } as any);
+	const { data, isLoading } = trpc.loyalty.getCustomerLoyalty.useQuery({
+		customer_id: 1,
+	} as any);
 	const rewards = (data as any) || [];
 
 	return (
@@ -86,4 +88,3 @@ export default function RewardsPage() {
 		</div>
 	);
 }
-

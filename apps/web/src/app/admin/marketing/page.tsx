@@ -54,10 +54,12 @@ function KPICard({
 export default function MarketingDashboard() {
 	const { activeBranchId } = useBranch();
 
-	const { data: metrics, isLoading } = (trpc.marketing as any).getMetrics?.useQuery(
-		activeBranchId ? { branch_id: activeBranchId } : {},
-		{ staleTime: 30_000, refetchOnWindowFocus: false },
-	) || { data: null, isLoading: false };
+	const { data: metrics, isLoading } = (
+		trpc.marketing as any
+	).getMetrics?.useQuery(activeBranchId ? { branch_id: activeBranchId } : {}, {
+		staleTime: 30_000,
+		refetchOnWindowFocus: false,
+	}) || { data: null, isLoading: false };
 
 	if (isLoading || !metrics) {
 		return (
@@ -183,4 +185,3 @@ export default function MarketingDashboard() {
 		</div>
 	);
 }
-

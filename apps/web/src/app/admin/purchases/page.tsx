@@ -31,21 +31,9 @@ import { trpc } from "@/lib/trpc/client";
 
 const statusBadge = (status: string | null) => {
 	const s = status?.toLowerCase() ?? "unpaid";
-	if (s === "paid")
-		return (
-			<Badge variant="default">
-				Paid
-			</Badge>
-		);
-	if (s === "partial")
-		return (
-			<Badge variant="secondary">
-				Partial
-			</Badge>
-		);
-	return (
-		<Badge variant="outline">Unpaid</Badge>
-	);
+	if (s === "paid") return <Badge variant="default">Paid</Badge>;
+	if (s === "partial") return <Badge variant="secondary">Partial</Badge>;
+	return <Badge variant="outline">Unpaid</Badge>;
 };
 
 export default function PurchasesPage() {
@@ -100,9 +88,7 @@ export default function PurchasesPage() {
 		>
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="font-bold text-3xl tracking-tight">
-						Purchases
-					</h1>
+					<h1 className="font-bold text-3xl tracking-tight">Purchases</h1>
 					<p className="mt-1 text-muted-foreground text-sm">
 						Manage all purchase orders and GRNs
 					</p>

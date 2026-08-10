@@ -17,10 +17,11 @@ export default function PartialReturnPage() {
 	const searchParams = useSearchParams();
 	const stopId = searchParams.get("stopId");
 
-	const { data: stopDetails, isLoading } = trpc.delivery.getStopDetails.useQuery(
-		{ stopId: Number(stopId) },
-		{ enabled: !!stopId }
-	);
+	const { data: stopDetails, isLoading } =
+		trpc.delivery.getStopDetails.useQuery(
+			{ stopId: Number(stopId) },
+			{ enabled: !!stopId },
+		);
 
 	const processReturn = trpc.delivery.processPartialReturn.useMutation({
 		onSuccess: () => {
@@ -28,17 +29,27 @@ export default function PartialReturnPage() {
 		},
 	});
 
-	const [returnedItems, setReturnedItems] = useState<Record<number, number>>({});
+	const [returnedItems, setReturnedItems] = useState<Record<number, number>>(
+		{},
+	);
 
 	if (isLoading) {
 		return <div className="p-6 text-center">Loading stop details...</div>;
 	}
 
 	if (!stopDetails) {
-		return <div className="p-6 text-center text-red-500">Stop not found or no items available.</div>;
+		return (
+			<div className="p-6 text-center text-red-500">
+				Stop not found or no items available.
+			</div>
+		);
 	}
 
-	const handleQuantityChange = (productId: number, qty: number, max: number) => {
+	const handleQuantityChange = (
+		productId: number,
+		qty: number,
+		max: number,
+	) => {
 		if (qty < 0 || qty > max) return;
 		setReturnedItems((prev) => ({
 			...prev,
@@ -64,39 +75,60 @@ export default function PartialReturnPage() {
 	return (
 		<div className="flex h-screen flex-col bg-slate-50">
 			{/* Header */}
-			<header className="sticky top-0 z-10 flex h-16 items-center border-b border-border/50 bg-white px-4 shadow-sm">
-				<Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2">
+			<header className="sticky top-0 z-10 flex h-16 items-center border-border/50 border-b bg-white px-4 shadow-sm">
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={() => router.back()}
+					className="mr-2"
+				>
 					<ArrowLeftIcon className="h-5 w-5" />
 				</Button>
 				<div>
 					<h1 className="font-bold text-lg">Partial Return</h1>
-					<p className="text-muted-foreground text-xs">{stopDetails.customer.name}</p>
+					<p className="text-muted-foreground text-xs">
+						{stopDetails.customer.name}
+					</p>
 				</div>
 			</header>
 
 			{/* Content */}
-			<main className="flex-1 overflow-y-auto p-4 space-y-4">
+			<main className="flex-1 space-y-4 overflow-y-auto p-4">
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-md flex items-center gap-2">
-							<PackageXIcon className="h-5 w-5 text-amber-500" /> Select Items to Return
+						<CardTitle className="flex items-center gap-2 text-md">
+							<PackageXIcon className="h-5 w-5 text-amber-500" /> Select Items
+							to Return
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						{stopDetails.items.map((item: any) => (
-							<div key={item.product_id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+							<div
+								key={item.product_id}
+								className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
+							>
 								<div>
 									<p className="font-bold text-sm">{item.product.name}</p>
-									<p className="text-muted-foreground text-xs">Delivering: {item.quantity}</p>
+									<p className="text-muted-foreground text-xs">
+										Delivering: {item.quantity}
+									</p>
 								</div>
 								<div className="flex items-center gap-3">
-									<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Return Qty</span>
+									<span className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+										Return Qty
+									</span>
 									<div className="flex items-center rounded-lg border bg-muted/50 p-1">
 										<Button
 											variant="ghost"
 											size="icon"
 											className="h-8 w-8 rounded-md"
-											onClick={() => handleQuantityChange(item.product_id, (returnedItems[item.product_id] || 0) - 1, item.quantity)}
+											onClick={() =>
+												handleQuantityChange(
+													item.product_id,
+													(returnedItems[item.product_id] || 0) - 1,
+													item.quantity,
+												)
+											}
 										>
 											-
 										</Button>
@@ -107,7 +139,13 @@ export default function PartialReturnPage() {
 											variant="ghost"
 											size="icon"
 											className="h-8 w-8 rounded-md"
-											onClick={() => handleQuantityChange(item.product_id, (returnedItems[item.product_id] || 0) + 1, item.quantity)}
+											onClick={() =>
+												handleQuantityChange(
+													item.product_id,
+													(returnedItems[item.product_id] || 0) + 1,
+													item.quantity,
+												)
+											}
 										>
 											+
 										</Button>
@@ -120,12 +158,15 @@ export default function PartialReturnPage() {
 			</main>
 
 			{/* Footer */}
-			<div className="border-t bg-white p-4 pb-8 safe-area-bottom">
+			<div className="safe-area-bottom border-t bg-white p-4 pb-8">
 				<Button
 					size="lg"
-					className="w-full h-14 rounded-xl font-bold shadow-md shadow-primary/20"
+					className="h-14 w-full rounded-xl font-bold shadow-md shadow-primary/20"
 					onClick={handleSubmit}
-					disabled={processReturn.isPending || Object.values(returnedItems).every(q => q === 0)}
+					disabled={
+						processReturn.isPending ||
+						Object.values(returnedItems).every((q) => q === 0)
+					}
 				>
 					<CheckIcon className="mr-2 h-5 w-5" />
 					Confirm Partial Return

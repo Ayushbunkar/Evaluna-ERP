@@ -28,12 +28,18 @@ import { formatCurrency } from "@/lib/utils";
 
 const statusBadge = (status: string | null | undefined) => {
 	if (status === "delivered")
-		return <Badge className="bg-gray-100 text-gray-900 border-0">Delivered</Badge>;
+		return (
+			<Badge className="border-0 bg-gray-100 text-gray-900">Delivered</Badge>
+		);
 	if (status === "in_transit")
-		return <Badge className="bg-gray-100 text-gray-700 border-0">In Transit</Badge>;
+		return (
+			<Badge className="border-0 bg-gray-100 text-gray-700">In Transit</Badge>
+		);
 	if (status === "pending")
-		return <Badge className="bg-gray-100 text-gray-500 border-0">Pending</Badge>;
-	return <Badge className="bg-gray-100 text-gray-500 border-0">Unknown</Badge>;
+		return (
+			<Badge className="border-0 bg-gray-100 text-gray-500">Pending</Badge>
+		);
+	return <Badge className="border-0 bg-gray-100 text-gray-500">Unknown</Badge>;
 };
 
 export default async function DeliveryPage() {
@@ -92,12 +98,12 @@ export default async function DeliveryPage() {
 					<Card key={kpi.label} className="border border-gray-200 shadow-sm">
 						<CardContent className="pt-6">
 							<div className="flex items-center gap-3">
-								<div className="bg-gray-100 rounded-lg p-2">
+								<div className="rounded-lg bg-gray-100 p-2">
 									<kpi.icon className="h-5 w-5 text-gray-900" />
 								</div>
 								<div>
 									<p className="text-gray-500 text-sm">{kpi.label}</p>
-									<p className="font-bold text-xl text-gray-900">{kpi.value}</p>
+									<p className="font-bold text-gray-900 text-xl">{kpi.value}</p>
 								</div>
 							</div>
 						</CardContent>
@@ -126,7 +132,10 @@ export default async function DeliveryPage() {
 							<TableBody>
 								{items.length === 0 ? (
 									<TableRow>
-										<TableCell colSpan={4} className="h-24 text-center text-gray-500">
+										<TableCell
+											colSpan={4}
+											className="h-24 text-center text-gray-500"
+										>
 											No active deliveries found.
 										</TableCell>
 									</TableRow>
@@ -137,7 +146,7 @@ export default async function DeliveryPage() {
 												#{delivery.id.toString().padStart(4, "0")}
 											</TableCell>
 											<TableCell className="text-gray-900">
-												<Link 
+												<Link
 													href={`/admin/orders/${delivery.order_id}`}
 													className="hover:underline"
 												>
@@ -159,5 +168,3 @@ export default async function DeliveryPage() {
 		</div>
 	);
 }
-
-

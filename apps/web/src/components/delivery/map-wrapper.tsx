@@ -1,7 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
+import dynamic from "next/dynamic";
 
 // Dynamically import the LiveMap component to disable SSR since Leaflet requires window
 const LiveMap = dynamic(() => import("./live-map"), {

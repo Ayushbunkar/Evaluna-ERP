@@ -16,7 +16,6 @@ export function SupplierForm({
 	const router = useRouter();
 
 	const form = useForm({
-
 		defaultValues: supplier || {
 			name: "",
 			email: "",

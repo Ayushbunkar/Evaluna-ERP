@@ -31,9 +31,13 @@ import {
 	WalletIcon,
 } from "lucide-react";
 import { cookies } from "next/headers";
+import {
+	BillingHourlyChart,
+	BillingPaymentChart,
+	BillingSalesChart,
+} from "@/components/charts/billing-charts";
 import { getServerClient } from "@/lib/trpc/serverClient";
 import { formatCurrency } from "@/lib/utils";
-import { BillingSalesChart, BillingHourlyChart, BillingPaymentChart } from "@/components/charts/billing-charts";
 
 function KPICard({
 	title,
@@ -56,7 +60,9 @@ function KPICard({
 					<p className="font-medium text-[10px] text-gray-500 uppercase tracking-wider">
 						{title}
 					</p>
-					<h3 className="mt-1 font-bold text-xl text-gray-900 tracking-tight">{value}</h3>
+					<h3 className="mt-1 font-bold text-gray-900 text-xl tracking-tight">
+						{value}
+					</h3>
 				</div>
 			</CardContent>
 		</Card>
@@ -69,9 +75,9 @@ export default async function BillingDashboard() {
 	const activeBranchId = branchCookie ? Number(branchCookie) : undefined;
 
 	const serverClient = await getServerClient();
-	const apiData = await serverClient.billing.getDashboardStats(
-		activeBranchId ? { branch_id: activeBranchId } : {}
-	).catch(() => null);
+	const apiData = await serverClient.billing
+		.getDashboardStats(activeBranchId ? { branch_id: activeBranchId } : {})
+		.catch(() => null);
 
 	const data = apiData || {
 		todaysBills: 0,
@@ -101,7 +107,10 @@ export default async function BillingDashboard() {
 					</p>
 				</div>
 				<div className="flex gap-2">
-					<Button variant="outline" className="gap-2 border-gray-300 text-gray-900 hover:bg-gray-50">
+					<Button
+						variant="outline"
+						className="gap-2 border-gray-300 text-gray-900 hover:bg-gray-50"
+					>
 						<HistoryIcon className="h-4 w-4" /> History
 					</Button>
 					<Button className="gap-2 bg-gray-900 text-white hover:bg-gray-800">
@@ -170,8 +179,12 @@ export default async function BillingDashboard() {
 				<div className="lg:col-span-2">
 					<Card className="flex h-full flex-col shadow-sm">
 						<CardHeader>
-							<CardTitle className="text-gray-900">Today's Sales Trend</CardTitle>
-							<CardDescription className="text-gray-500">Hourly revenue progression</CardDescription>
+							<CardTitle className="text-gray-900">
+								Today's Sales Trend
+							</CardTitle>
+							<CardDescription className="text-gray-500">
+								Hourly revenue progression
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="min-h-[250px] flex-1">
 							<BillingSalesChart data={data.salesChart} />
@@ -182,7 +195,9 @@ export default async function BillingDashboard() {
 					<Card className="flex h-full flex-col shadow-sm">
 						<CardHeader>
 							<CardTitle className="text-gray-900">Payment Methods</CardTitle>
-							<CardDescription className="text-gray-500">Distribution by volume</CardDescription>
+							<CardDescription className="text-gray-500">
+								Distribution by volume
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="flex min-h-[250px] flex-1 items-center justify-center">
 							<BillingPaymentChart data={data.paymentDistribution} />
@@ -196,8 +211,12 @@ export default async function BillingDashboard() {
 				<div className="lg:col-span-2">
 					<Card className="flex h-full flex-col shadow-sm">
 						<CardHeader>
-							<CardTitle className="text-gray-900">Hourly Transaction Volume</CardTitle>
-							<CardDescription className="text-gray-500">Number of bills processed per hour</CardDescription>
+							<CardTitle className="text-gray-900">
+								Hourly Transaction Volume
+							</CardTitle>
+							<CardDescription className="text-gray-500">
+								Number of bills processed per hour
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="min-h-[200px] flex-1">
 							<BillingHourlyChart data={data.hourlySales} />
@@ -208,7 +227,9 @@ export default async function BillingDashboard() {
 					<Card className="flex h-full flex-col shadow-sm">
 						<CardHeader>
 							<CardTitle className="text-gray-900">Top Cashiers</CardTitle>
-							<CardDescription className="text-gray-500">By revenue generated today</CardDescription>
+							<CardDescription className="text-gray-500">
+								By revenue generated today
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="flex-1">
 							{data.topCashiers && data.topCashiers.length > 0 ? (
@@ -223,10 +244,10 @@ export default async function BillingDashboard() {
 													{cashier.name.charAt(0)}
 												</div>
 												<div>
-													<p className="font-medium text-sm text-gray-900">
+													<p className="font-medium text-gray-900 text-sm">
 														{cashier.name}
 													</p>
-													<p className="text-xs text-gray-500">
+													<p className="text-gray-500 text-xs">
 														{cashier.bills} bills
 													</p>
 												</div>
@@ -251,31 +272,43 @@ export default async function BillingDashboard() {
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="text-gray-900">Recent Transactions</CardTitle>
-					<CardDescription className="text-gray-500">Latest billing activity across all registers</CardDescription>
+					<CardDescription className="text-gray-500">
+						Latest billing activity across all registers
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<Table>
 						<TableHeader>
-							<TableRow className="border-b border-gray-200">
-								<TableHead className="w-[100px] text-gray-900">Txn ID</TableHead>
+							<TableRow className="border-gray-200 border-b">
+								<TableHead className="w-[100px] text-gray-900">
+									Txn ID
+								</TableHead>
 								<TableHead className="text-gray-900">Time</TableHead>
 								<TableHead className="text-gray-900">Cashier</TableHead>
 								<TableHead className="text-gray-900">Method</TableHead>
 								<TableHead className="text-gray-900">Status</TableHead>
-								<TableHead className="text-right text-gray-900">Amount</TableHead>
+								<TableHead className="text-right text-gray-900">
+									Amount
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{data.recentTransactions && data.recentTransactions.length > 0 ? (
 								data.recentTransactions.map((txn: any) => (
-									<TableRow key={txn.id} className="border-b border-gray-100">
-										<TableCell className="font-medium text-gray-900">{txn.id}</TableCell>
+									<TableRow key={txn.id} className="border-gray-100 border-b">
+										<TableCell className="font-medium text-gray-900">
+											{txn.id}
+										</TableCell>
 										<TableCell className="text-gray-500">{txn.time}</TableCell>
-										<TableCell className="text-gray-900">{txn.cashier}</TableCell>
-										<TableCell className="text-gray-900">{txn.method}</TableCell>
+										<TableCell className="text-gray-900">
+											{txn.cashier}
+										</TableCell>
+										<TableCell className="text-gray-900">
+											{txn.method}
+										</TableCell>
 										<TableCell>
 											<span
-												className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+												className={`inline-flex items-center rounded-full px-2 py-1 font-medium text-xs ${
 													txn.status === "Completed"
 														? "bg-gray-100 text-gray-900"
 														: txn.status === "Pending"
@@ -293,7 +326,10 @@ export default async function BillingDashboard() {
 								))
 							) : (
 								<TableRow>
-									<TableCell colSpan={6} className="h-24 text-center text-gray-500">
+									<TableCell
+										colSpan={6}
+										className="h-24 text-center text-gray-500"
+									>
 										No recent transactions
 									</TableCell>
 								</TableRow>

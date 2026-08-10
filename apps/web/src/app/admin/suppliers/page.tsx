@@ -137,17 +137,12 @@ export default function SuppliersPage() {
 		>
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="font-bold text-3xl tracking-tight">
-						Suppliers
-					</h1>
+					<h1 className="font-bold text-3xl tracking-tight">Suppliers</h1>
 					<p className="mt-1 text-muted-foreground text-sm">
 						Manage all your suppliers and vendors
 					</p>
 				</div>
-				<Button
-					onClick={() => setOpen(true)}
-					className="gap-2"
-				>
+				<Button onClick={() => setOpen(true)} className="gap-2">
 					<PlusIcon className="h-4 w-4" />
 					Add Supplier
 				</Button>

@@ -1,9 +1,9 @@
-import { z } from "zod";
-import { router, roleProcedure } from "../init";
-import { db } from "@/lib/db";
-import { vehicles, vehicleStatusEnum } from "@evaluna/db/schema/delivery";
-import { eq } from "drizzle-orm";
+import { vehicleStatusEnum, vehicles } from "@evaluna/db/schema/delivery";
 import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { roleProcedure, router } from "../init";
 
 export const vehiclesRouter = router({
 	list: roleProcedure(["admin", "manager", "delivery_manager"])
@@ -24,7 +24,7 @@ export const vehiclesRouter = router({
 				type: z.string(),
 				capacity_kg: z.number().optional(),
 				branchId: z.number().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId;
@@ -47,7 +47,7 @@ export const vehiclesRouter = router({
 			z.object({
 				id: z.number(),
 				status: z.enum(vehicleStatusEnum.enumValues),
-			})
+			}),
 		)
 		.mutation(async ({ input }) => {
 			await db

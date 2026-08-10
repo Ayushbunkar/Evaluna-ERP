@@ -1,7 +1,8 @@
 // @ts-nocheck
-import { getServerClient } from "@/lib/trpc/server";
+
+import type { Metadata } from "next";
 import { DeliveryManagementDashboard } from "@/components/delivery/delivery-management-dashboard";
-import { Metadata } from "next";
+import { getServerClient } from "@/lib/trpc/server";
 
 export const metadata: Metadata = {
 	title: "Delivery Management | Evaluna ERP",
@@ -11,19 +12,23 @@ export const metadata: Metadata = {
 export default async function DeliveryManagementPage() {
 	const trpc = await getServerClient();
 	const branches = await (trpc as any).branches.list();
-	
+
 	// Fetch initial data for the current user's branch
 	const routes = await trpc.delivery.listRoutes({});
 	const vehicles = await (trpc as any).vehicles.list({});
 	const staff = await (trpc as any).staff.list({}); // Assuming staff list includes drivers
 
 	// Filter staff to find delivery drivers
-	const drivers = staff.filter(s => s.role === "delivery_boy" || s.role === "driver");
+	const drivers = staff.filter(
+		(s) => s.role === "delivery_boy" || s.role === "driver",
+	);
 
 	return (
 		<div className="flex flex-col gap-6 p-6">
 			<div>
-				<h1 className="text-3xl font-bold tracking-tight">Delivery Management</h1>
+				<h1 className="font-bold text-3xl tracking-tight">
+					Delivery Management
+				</h1>
 				<p className="text-muted-foreground">
 					Assign routes, track deliveries live, and manage your vehicle fleet.
 				</p>
@@ -37,5 +42,3 @@ export default async function DeliveryManagementPage() {
 		</div>
 	);
 }
-
-

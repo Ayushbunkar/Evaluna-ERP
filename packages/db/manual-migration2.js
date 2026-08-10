@@ -1,18 +1,18 @@
-import pg from 'pg';
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
+import pg from "pg";
 
 dotenv.config();
 
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+	connectionString: process.env.DATABASE_URL,
 });
 
 async function migrate() {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    await client.query(`
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+
+		await client.query(`
       CREATE TABLE IF NOT EXISTS "delivery_routes" (
         "id" serial PRIMARY KEY NOT NULL,
         "name" varchar(100) NOT NULL,
@@ -27,7 +27,7 @@ async function migrate() {
       );
     `);
 
-    await client.query(`
+		await client.query(`
       CREATE TABLE IF NOT EXISTS "route_stops" (
         "id" serial PRIMARY KEY NOT NULL,
         "route_id" integer NOT NULL,
@@ -41,7 +41,7 @@ async function migrate() {
       );
     `);
 
-    await client.query(`
+		await client.query(`
       CREATE TABLE IF NOT EXISTS "delivery_trips" (
         "id" serial PRIMARY KEY NOT NULL,
         "route_id" integer,
@@ -60,7 +60,7 @@ async function migrate() {
       );
     `);
 
-    await client.query(`
+		await client.query(`
       CREATE TABLE IF NOT EXISTS "trip_stops" (
         "id" serial PRIMARY KEY NOT NULL,
         "trip_id" integer NOT NULL,
@@ -73,8 +73,8 @@ async function migrate() {
         "created_at" timestamp DEFAULT now()
       );
     `);
-    
-    await client.query(`
+
+		await client.query(`
       CREATE TABLE IF NOT EXISTS "gps_logs" (
         "id" serial PRIMARY KEY NOT NULL,
         "trip_id" integer NOT NULL,
@@ -86,7 +86,7 @@ async function migrate() {
       );
     `);
 
-    await client.query(`
+		await client.query(`
       CREATE TABLE IF NOT EXISTS "sales_returns" (
         "id" serial PRIMARY KEY NOT NULL,
         "order_id" integer,
@@ -99,7 +99,7 @@ async function migrate() {
       );
     `);
 
-    await client.query(`
+		await client.query(`
       CREATE TABLE IF NOT EXISTS "sales_return_items" (
         "id" serial PRIMARY KEY NOT NULL,
         "return_id" integer,
@@ -111,14 +111,19 @@ async function migrate() {
       );
     `);
 
-    await client.query('COMMIT');
-    console.log("Migration 2 successful");
-  } catch (e) {
-    await client.query('ROLLBACK');
-    console.error("Migration 2 failed:", e);
-  } finally {
-    client.release();
-  }
+		await client.query("COMMIT");
+		console.log("Migration 2 successful");
+	} catch (e) {
+		await client.query("ROLLBACK");
+		console.error("Migration 2 failed:", e);
+	} finally {
+		client.release();
+	}
 }
 
-migrate().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+migrate()
+	.then(() => process.exit(0))
+	.catch((e) => {
+		console.error(e);
+		process.exit(1);
+	});

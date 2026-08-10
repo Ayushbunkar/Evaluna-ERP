@@ -10,8 +10,8 @@ import {
 	timestamp,
 	varchar,
 } from "drizzle-orm/pg-core";
-import { branches, customers, orders, staff } from "../schema";
 import { user } from "../auth-schema";
+import { branches, customers, orders, staff } from "../schema";
 
 export const vehicleStatusEnum = pgEnum("vehicle_status", [
 	"available",
@@ -41,7 +41,10 @@ export const deliveryRoutes = pgTable("delivery_routes", {
 	name: varchar("name", { length: 100 }).notNull(),
 	description: text("description"),
 	branch_id: integer("branch_id"),
-	estimated_distance: decimal("estimated_distance", { precision: 10, scale: 2 }),
+	estimated_distance: decimal("estimated_distance", {
+		precision: 10,
+		scale: 2,
+	}),
 	estimated_time: integer("estimated_time"), // in minutes
 	priority: varchar("priority", { length: 20 }).default("normal"),
 	is_active: boolean("is_active").default(true),
@@ -62,7 +65,10 @@ export const routeStops = pgTable("route_stops", {
 	sequence: integer("sequence").notNull(),
 	estimated_arrival_time: timestamp("estimated_arrival_time"),
 	estimated_departure_time: timestamp("estimated_departure_time"),
-	distance_from_previous: decimal("distance_from_previous", { precision: 10, scale: 2 }),
+	distance_from_previous: decimal("distance_from_previous", {
+		precision: 10,
+		scale: 2,
+	}),
 	notes: text("notes"),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -77,8 +83,14 @@ export const deliveryTrips = pgTable("delivery_trips", {
 	start_time: timestamp("start_time"),
 	end_time: timestamp("end_time"),
 	total_distance: decimal("total_distance", { precision: 10, scale: 2 }),
-	expected_cash_collection: decimal("expected_cash_collection", { precision: 12, scale: 2 }),
-	actual_cash_collection: decimal("actual_cash_collection", { precision: 12, scale: 2 }),
+	expected_cash_collection: decimal("expected_cash_collection", {
+		precision: 12,
+		scale: 2,
+	}),
+	actual_cash_collection: decimal("actual_cash_collection", {
+		precision: 12,
+		scale: 2,
+	}),
 	expected_stops: integer("expected_stops"),
 	completed_stops: integer("completed_stops"),
 	created_at: timestamp("created_at").defaultNow(),
@@ -145,10 +157,13 @@ export const tripCollections = pgTable("trip_collections", {
 });
 
 // Relations
-export const deliveryRoutesRelations = relations(deliveryRoutes, ({ many }) => ({
-	stops: many(routeStops),
-	trips: many(deliveryTrips),
-}));
+export const deliveryRoutesRelations = relations(
+	deliveryRoutes,
+	({ many }) => ({
+		stops: many(routeStops),
+		trips: many(deliveryTrips),
+	}),
+);
 
 export const routeStopsRelations = relations(routeStops, ({ one }) => ({
 	route: one(deliveryRoutes, {
@@ -161,23 +176,26 @@ export const routeStopsRelations = relations(routeStops, ({ one }) => ({
 	}),
 }));
 
-export const deliveryTripsRelations = relations(deliveryTrips, ({ many, one }) => ({
-	stops: many(tripStops),
-	gpsLogs: many(gpsLogs),
-	collections: many(tripCollections),
-	route: one(deliveryRoutes, {
-		fields: [deliveryTrips.route_id],
-		references: [deliveryRoutes.id],
+export const deliveryTripsRelations = relations(
+	deliveryTrips,
+	({ many, one }) => ({
+		stops: many(tripStops),
+		gpsLogs: many(gpsLogs),
+		collections: many(tripCollections),
+		route: one(deliveryRoutes, {
+			fields: [deliveryTrips.route_id],
+			references: [deliveryRoutes.id],
+		}),
+		driver: one(user, {
+			fields: [deliveryTrips.driver_id],
+			references: [user.id],
+		}),
+		vehicle: one(vehicles, {
+			fields: [deliveryTrips.vehicle_id],
+			references: [vehicles.id],
+		}),
 	}),
-	driver: one(user, {
-		fields: [deliveryTrips.driver_id],
-		references: [user.id],
-	}),
-	vehicle: one(vehicles, {
-		fields: [deliveryTrips.vehicle_id],
-		references: [vehicles.id],
-	}),
-}));
+);
 
 export const tripStopsRelations = relations(tripStops, ({ one, many }) => ({
 	trip: one(deliveryTrips, {
@@ -198,28 +216,34 @@ export const gpsLogsRelations = relations(gpsLogs, ({ one }) => ({
 	}),
 }));
 
-export const proofOfDeliveriesRelations = relations(proofOfDeliveries, ({ one }) => ({
-	tripStop: one(tripStops, {
-		fields: [proofOfDeliveries.trip_stop_id],
-		references: [tripStops.id],
+export const proofOfDeliveriesRelations = relations(
+	proofOfDeliveries,
+	({ one }) => ({
+		tripStop: one(tripStops, {
+			fields: [proofOfDeliveries.trip_stop_id],
+			references: [tripStops.id],
+		}),
+		order: one(orders, {
+			fields: [proofOfDeliveries.order_id],
+			references: [orders.id],
+		}),
+		deliveredBy: one(staff, {
+			fields: [proofOfDeliveries.delivered_by],
+			references: [staff.id],
+		}),
 	}),
-	order: one(orders, {
-		fields: [proofOfDeliveries.order_id],
-		references: [orders.id],
-	}),
-	deliveredBy: one(staff, {
-		fields: [proofOfDeliveries.delivered_by],
-		references: [staff.id],
-	}),
-}));
+);
 
-export const tripCollectionsRelations = relations(tripCollections, ({ one }) => ({
-	trip: one(deliveryTrips, {
-		fields: [tripCollections.trip_id],
-		references: [deliveryTrips.id],
+export const tripCollectionsRelations = relations(
+	tripCollections,
+	({ one }) => ({
+		trip: one(deliveryTrips, {
+			fields: [tripCollections.trip_id],
+			references: [deliveryTrips.id],
+		}),
+		collectedBy: one(staff, {
+			fields: [tripCollections.collected_by],
+			references: [staff.id],
+		}),
 	}),
-	collectedBy: one(staff, {
-		fields: [tripCollections.collected_by],
-		references: [staff.id],
-	}),
-}));
+);

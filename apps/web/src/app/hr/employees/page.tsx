@@ -21,12 +21,13 @@ export default function EmployeeDirectoryPage() {
 	];
 
 	// Filter data based on search term
-	const filteredData = staffList?.filter(
-		(emp) =>
-			emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			emp.staff_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			emp.email?.toLowerCase().includes(searchTerm.toLowerCase())
-	) || [];
+	const filteredData =
+		staffList?.filter(
+			(emp) =>
+				emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				emp.staff_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				emp.email?.toLowerCase().includes(searchTerm.toLowerCase()),
+		) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -51,7 +52,11 @@ export default function EmployeeDirectoryPage() {
 					<DataTable
 						data={filteredData}
 						columns={columns}
-						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
+						emptyMessage={
+							isLoading
+								? "Loading records..."
+								: "No records found in this module yet."
+						}
 					/>
 				</CardContent>
 			</Card>

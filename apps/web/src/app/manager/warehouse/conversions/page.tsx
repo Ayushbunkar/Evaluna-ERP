@@ -10,8 +10,13 @@ import {
 } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@evaluna/ui/components/tabs";
-import { ArrowRightIcon, BoxIcon, BoxesIcon, Loader2Icon } from "lucide-react";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@evaluna/ui/components/tabs";
+import { ArrowRightIcon, BoxesIcon, BoxIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -30,7 +35,7 @@ export default function WarehouseConversionsPage() {
 		onSuccess: () => {
 			toast.success("Successfully unpacked items");
 			utils.inventory.getConversions.invalidate();
-			
+
 			setQuantity("");
 		},
 		onError: (error) => toast.error(error.message),
@@ -40,7 +45,7 @@ export default function WarehouseConversionsPage() {
 		onSuccess: () => {
 			toast.success("Successfully packed items");
 			utils.inventory.getConversions.invalidate();
-			
+
 			setQuantity("");
 		},
 		onError: (error) => toast.error(error.message),
@@ -129,7 +134,7 @@ export default function WarehouseConversionsPage() {
 										<p className="font-medium text-sm">Conversion Preview</p>
 										<div className="mt-2 flex items-center justify-between text-muted-foreground text-sm">
 											<div className="text-center">
-												<span className="block font-bold text-lg text-foreground">
+												<span className="block font-bold text-foreground text-lg">
 													{quantity}
 												</span>
 												<span className="line-clamp-1">
@@ -138,11 +143,12 @@ export default function WarehouseConversionsPage() {
 											</div>
 											<ArrowRightIcon className="mx-2 h-5 w-5 flex-shrink-0" />
 											<div className="text-center">
-												<span className="block font-bold text-lg text-foreground">
+												<span className="block font-bold text-foreground text-lg">
 													{yieldAmount}
 												</span>
 												<span className="line-clamp-1">
-													{activeProduct.loose_product_id?.toString() || "Loose Items"}
+													{activeProduct.loose_product_id?.toString() ||
+														"Loose Items"}
 												</span>
 											</div>
 										</div>
@@ -152,7 +158,9 @@ export default function WarehouseConversionsPage() {
 								<TabsContent value="unpack" className="mt-4">
 									<Button
 										className="w-full"
-										disabled={!activeProduct || !quantity || unpackMutation.isPending}
+										disabled={
+											!activeProduct || !quantity || unpackMutation.isPending
+										}
 										onClick={() =>
 											unpackMutation.mutate({
 												packProductId: activeProduct!.id,
@@ -173,7 +181,9 @@ export default function WarehouseConversionsPage() {
 								<TabsContent value="pack" className="mt-4">
 									<Button
 										className="w-full"
-										disabled={!activeProduct || !quantity || packMutation.isPending}
+										disabled={
+											!activeProduct || !quantity || packMutation.isPending
+										}
 										onClick={() =>
 											packMutation.mutate({
 												packProductId: activeProduct!.id,
@@ -228,8 +238,7 @@ export default function WarehouseConversionsPage() {
 											</p>
 											<p className="text-muted-foreground text-xs">
 												{entry.packsConverted > 0 ? "+" : "-"}
-												{Math.abs(entry.looseYielded)}{" "}
-												{entry.looseProductName}
+												{Math.abs(entry.looseYielded)} {entry.looseProductName}
 											</p>
 										</div>
 										<div className="text-right text-muted-foreground text-xs">
@@ -246,6 +255,3 @@ export default function WarehouseConversionsPage() {
 		</div>
 	);
 }
-
-
-

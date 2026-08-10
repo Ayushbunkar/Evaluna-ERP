@@ -19,15 +19,14 @@ import {
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
-import { formatCurrency } from "@/lib/utils";
-
 import { trpc } from "@/lib/trpc/client";
+import { formatCurrency } from "@/lib/utils";
 
 type SalesReturn = {
 	id: number;
 	order_id: number;
 	customer: { name: string | null } | null;
-	order: { id: number, total_amount: string } | null;
+	order: { id: number; total_amount: string } | null;
 	total_amount: string;
 	created_at: Date | null;
 	status: string | null;
@@ -57,8 +56,18 @@ export default function SalesReturnsList() {
 			sortable: true,
 			className: "font-medium",
 		},
-		{ key: "order_id", header: "Original Order", sortable: true, render: (row) => `#${row.order_id}` },
-		{ key: "customer", header: "Customer", sortable: true, render: (row) => row.customer?.name || "N/A" },
+		{
+			key: "order_id",
+			header: "Original Order",
+			sortable: true,
+			render: (row) => `#${row.order_id}`,
+		},
+		{
+			key: "customer",
+			header: "Customer",
+			sortable: true,
+			render: (row) => row.customer?.name || "N/A",
+		},
 		{
 			key: "amount",
 			header: "Refund Amount",
@@ -86,7 +95,8 @@ export default function SalesReturnsList() {
 			header: "Date",
 			sortable: true,
 			hideOnMobile: true,
-			render: (row) => row.created_at ? new Date(row.created_at).toLocaleDateString() : "-",
+			render: (row) =>
+				row.created_at ? new Date(row.created_at).toLocaleDateString() : "-",
 		},
 		{
 			key: "actions",
@@ -134,7 +144,9 @@ export default function SalesReturnsList() {
 									<p className="font-medium text-muted-foreground text-sm">
 										Total Returns
 									</p>
-									<h3 className="font-bold text-2xl">{salesReturns?.length || 0}</h3>
+									<h3 className="font-bold text-2xl">
+										{salesReturns?.length || 0}
+									</h3>
 								</div>
 							</CardContent>
 						</Card>
@@ -151,7 +163,11 @@ export default function SalesReturnsList() {
 									<p className="font-medium text-muted-foreground text-sm">
 										Pending Review
 									</p>
-									<h3 className="font-bold text-2xl">{salesReturns?.filter(r => r.status?.toLowerCase() === 'pending').length || 0}</h3>
+									<h3 className="font-bold text-2xl">
+										{salesReturns?.filter(
+											(r) => r.status?.toLowerCase() === "pending",
+										).length || 0}
+									</h3>
 								</div>
 							</CardContent>
 						</Card>

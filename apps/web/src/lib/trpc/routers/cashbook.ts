@@ -57,7 +57,7 @@ export const cashbookRouter = router({
 		)
 		.query(async ({ input }) => {
 			let targetDate = input.date ? new Date(input.date) : new Date();
-			
+
 			if (!input.date) {
 				const latestTx = await db.query.transactions.findFirst({
 					orderBy: [desc(transactions.created_at)],
@@ -66,7 +66,7 @@ export const cashbookRouter = router({
 					targetDate = new Date(latestTx.created_at);
 				}
 			}
-			
+
 			const start = startOfDay(targetDate);
 			const end = endOfDay(targetDate);
 

@@ -100,8 +100,7 @@ export default function WarehouseScannerPage() {
 
 		adjustMutation.mutate({
 			productId: scannedProduct.product.id,
-			branchId:
-				activeBranchId === null ? 1 : Number(activeBranchId), // Fallback to 1 if 'all' is somehow active during adjustment
+			branchId: activeBranchId === null ? 1 : Number(activeBranchId), // Fallback to 1 if 'all' is somehow active during adjustment
 			quantity: variance,
 			adjustmentType: reason,
 		});
@@ -259,9 +258,7 @@ export default function WarehouseScannerPage() {
 								<Button
 									type="submit"
 									className="h-12 w-full gap-2"
-									disabled={
-										physicalCount === "" || adjustMutation.isPending
-									}
+									disabled={physicalCount === "" || adjustMutation.isPending}
 								>
 									{adjustMutation.isPending ? (
 										<Loader2Icon className="h-5 w-5 animate-spin" />
@@ -290,5 +287,3 @@ export default function WarehouseScannerPage() {
 		</div>
 	);
 }
-
-

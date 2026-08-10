@@ -1,22 +1,22 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import {
 	branches,
+	branchLocations,
+	customers,
+	orders,
+	packageItems,
+	packages,
+	pickListItems,
+	pickLists,
+	products,
+	purchaseItems,
+	purchases,
 	staff,
 	suppliers,
-	products,
-	orders,
-	pickLists,
-	pickListItems,
-	purchases,
-	purchaseItems,
-	branchLocations,
-	packages,
-	packageItems,
-	customers,
 } from "@evaluna/db/schema";
 import { deliveryTrips, tripStops } from "@evaluna/db/schema/delivery";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 export async function GET() {
 	try {
@@ -26,11 +26,14 @@ export async function GET() {
 		if (existingBranches.length > 0) {
 			branchId = existingBranches[0].id;
 		} else {
-			const [newBranch] = await db.insert(branches).values({
-				name: "Main Warehouse",
-				location: "Mumbai",
-				manager_id: null,
-			}).returning();
+			const [newBranch] = await db
+				.insert(branches)
+				.values({
+					name: "Main Warehouse",
+					location: "Mumbai",
+					manager_id: null,
+				})
+				.returning();
 			branchId = newBranch.id;
 		}
 
@@ -52,7 +55,10 @@ export async function GET() {
 					salary: "25000",
 				});
 			}
-			const insertedStaff = await db.insert(staff).values(staffData).returning();
+			const insertedStaff = await db
+				.insert(staff)
+				.values(staffData)
+				.returning();
 			staffId = insertedStaff[0].id;
 		}
 
@@ -71,7 +77,10 @@ export async function GET() {
 					capacity: 100,
 				});
 			}
-			const insertedLocs = await db.insert(branchLocations).values(locData).returning();
+			const insertedLocs = await db
+				.insert(branchLocations)
+				.values(locData)
+				.returning();
 			locId = insertedLocs[0].id;
 		}
 
@@ -91,7 +100,10 @@ export async function GET() {
 					user_uid: "admin",
 				});
 			}
-			const insertedProducts = await db.insert(products).values(prodData).returning();
+			const insertedProducts = await db
+				.insert(products)
+				.values(prodData)
+				.returning();
 			productId = insertedProducts[0].id;
 		}
 
@@ -108,7 +120,10 @@ export async function GET() {
 					email: i === 1 ? "supply@techcorp.com" : `supply${i}@techcorp.com`,
 				});
 			}
-			const insertedSuppliers = await db.insert(suppliers).values(suppData).returning();
+			const insertedSuppliers = await db
+				.insert(suppliers)
+				.values(suppData)
+				.returning();
 			supplierId = insertedSuppliers[0].id;
 		}
 
@@ -123,14 +138,17 @@ export async function GET() {
 				custData.push({
 					name: `Retail Store ${i}`,
 					email: `store${i}@retail.com`,
-					phone: `98765432${i.toString().padStart(2, '0')}`,
+					phone: `98765432${i.toString().padStart(2, "0")}`,
 					address: `12${i} Main Market, City`,
 					type: "retail",
 					branch_id: branchId,
 					user_uid: "admin",
 				});
 			}
-			const insertedCusts = await db.insert(customers).values(custData).returning();
+			const insertedCusts = await db
+				.insert(customers)
+				.values(custData)
+				.returning();
 			customerId = insertedCusts[0].id;
 		}
 
@@ -149,13 +167,16 @@ export async function GET() {
 					status: i % 2 === 0 ? "completed" : "processing",
 				});
 			}
-			const insertedOrders = await db.insert(orders).values(ordData).returning();
+			const insertedOrders = await db
+				.insert(orders)
+				.values(ordData)
+				.returning();
 			orderId = insertedOrders[0].id;
 		}
 
 		// 8. Pick Lists (50 pick lists)
 		const existingPickLists = await db.select().from(pickLists).limit(1);
-		let insertedPickLists = [];
+		const insertedPickLists = [];
 		if (existingPickLists.length === 0) {
 			const pickListData = [];
 			for (let i = 1; i <= 50; i++) {
@@ -164,12 +185,16 @@ export async function GET() {
 					reference_type: "sale",
 					reference_id: orderId,
 					assigned_to: staffId,
-					status: i % 3 === 0 ? "completed" : (i % 3 === 1 ? "picking" : "pending"),
+					status:
+						i % 3 === 0 ? "completed" : i % 3 === 1 ? "picking" : "pending",
 					priority: i % 2 === 0 ? "high" : "normal",
 				});
 			}
 			for (const pl of pickListData) {
-				const [inserted] = await db.insert(pickLists).values(pl as any).returning();
+				const [inserted] = await db
+					.insert(pickLists)
+					.values(pl as any)
+					.returning();
 				insertedPickLists.push(inserted);
 			}
 
@@ -197,17 +222,27 @@ export async function GET() {
 				packageData.push({
 					order_id: orderId,
 					pick_list_id: insertedPickLists[0]?.id || 1,
-					package_number: `PKG-2026-${i.toString().padStart(4, '0')}`,
-					status: i % 4 === 0 ? "checked" : (i % 4 === 1 ? "packed" : (i % 4 === 2 ? "packing" : "checking")),
+					package_number: `PKG-2026-${i.toString().padStart(4, "0")}`,
+					status:
+						i % 4 === 0
+							? "checked"
+							: i % 4 === 1
+								? "packed"
+								: i % 4 === 2
+									? "packing"
+									: "checking",
 					packed_by: staffId,
 					checked_by: i % 4 === 0 ? staffId : null,
 					packed_at: new Date(),
 					checked_at: i % 4 === 0 ? new Date() : null,
-					weight: `${2.5 + (i * 0.1)}`,
+					weight: `${2.5 + i * 0.1}`,
 				});
 			}
-			const insertedPkgs = await db.insert(packages).values(packageData).returning();
-			
+			const insertedPkgs = await db
+				.insert(packages)
+				.values(packageData)
+				.returning();
+
 			// Package Items
 			for (const pkg of insertedPkgs) {
 				await db.insert(packageItems).values({
@@ -228,10 +263,13 @@ export async function GET() {
 					branch_id: branchId,
 					status: i % 2 === 0 ? "received" : "pending",
 					total_amount: `${15000 + i * 200}`,
-					grn_number: `GRN-2026-${i.toString().padStart(3, '0')}`,
+					grn_number: `GRN-2026-${i.toString().padStart(3, "0")}`,
 				});
 			}
-			const insertedPurchases = await db.insert(purchases).values(purchData).returning();
+			const insertedPurchases = await db
+				.insert(purchases)
+				.values(purchData)
+				.returning();
 
 			for (const p of insertedPurchases) {
 				await db.insert(purchaseItems).values({
@@ -253,14 +291,18 @@ export async function GET() {
 					branch_id: branchId,
 					driver_id: staffId, // Assign to first staff
 					vehicle_id: null,
-					status: i % 3 === 0 ? "completed" : (i % 3 === 1 ? "active" : "pending"),
+					status:
+						i % 3 === 0 ? "completed" : i % 3 === 1 ? "active" : "pending",
 					start_time: new Date(),
 					end_time: i % 3 === 0 ? new Date() : null,
 					start_km: 10000 + i * 50,
 					end_km: i % 3 === 0 ? 10050 + i * 50 : null,
 				});
 			}
-			const insertedTrips = await db.insert(deliveryTrips).values(tripData).returning();
+			const insertedTrips = await db
+				.insert(deliveryTrips)
+				.values(tripData)
+				.returning();
 
 			// Delivery Stops
 			for (const trip of insertedTrips) {
@@ -275,9 +317,15 @@ export async function GET() {
 			}
 		}
 
-		return NextResponse.json({ success: true, message: "Comprehensive Seed Data (50 rows each) generated successfully!" });
+		return NextResponse.json({
+			success: true,
+			message: "Comprehensive Seed Data (50 rows each) generated successfully!",
+		});
 	} catch (error: any) {
 		console.error("Seed error:", error);
-		return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+		return NextResponse.json(
+			{ success: false, error: error.message },
+			{ status: 500 },
+		);
 	}
 }

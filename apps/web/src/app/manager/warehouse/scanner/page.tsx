@@ -253,9 +253,7 @@ export default function WarehouseScannerPage() {
 								<Button
 									type="submit"
 									className="h-12 w-full gap-2"
-									disabled={
-										physicalCount === "" || adjustMutation.isPending
-									}
+									disabled={physicalCount === "" || adjustMutation.isPending}
 								>
 									{adjustMutation.isPending ? (
 										<Loader2Icon className="h-5 w-5 animate-spin" />
@@ -284,6 +282,3 @@ export default function WarehouseScannerPage() {
 		</div>
 	);
 }
-
-
-

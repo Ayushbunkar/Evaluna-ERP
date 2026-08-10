@@ -36,7 +36,9 @@ export default function OrderDetailPage({
 }) {
 	const { id } = use(params);
 	const orderId = Number.parseInt(id, 10);
-	const { data: order, isLoading } = trpc.orders.get.useQuery({ id: orderId }) as { data: any; isLoading: boolean };
+	const { data: order, isLoading } = trpc.orders.get.useQuery({
+		id: orderId,
+	}) as { data: any; isLoading: boolean };
 	const t = useTranslations("orders");
 	const tc = useTranslations("common");
 	const locale = useLocale();
@@ -144,7 +146,9 @@ export default function OrderDetailPage({
 					<dl className="grid gap-3 text-sm sm:grid-cols-2">
 						<div>
 							<dt className="text-muted-foreground">{t("customer")}</dt>
-							<dd className="font-medium">{order.customer?.name || "Walk-in Customer"}</dd>
+							<dd className="font-medium">
+								{order.customer?.name || "Walk-in Customer"}
+							</dd>
 						</div>
 						<div>
 							<dt className="text-muted-foreground">{tc("total")}</dt>
@@ -216,4 +220,3 @@ export default function OrderDetailPage({
 		</div>
 	);
 }
-

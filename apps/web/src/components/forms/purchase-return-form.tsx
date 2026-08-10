@@ -15,7 +15,7 @@ import { zodValidator } from "@tanstack/zod-form-adapter";
 import { useRouter } from "next/navigation";
 import type { z } from "zod";
 import { useTRPC } from "@/lib/trpc/client";
-import { purchaseReturnInsertSchema as purchaseReturnSchema } from "@/lib/validation/purchase-return";
+import type { purchaseReturnInsertSchema as purchaseReturnSchema } from "@/lib/validation/purchase-return";
 
 export function PurchaseReturnForm({
 	purchaseReturn,
@@ -27,15 +27,12 @@ export function PurchaseReturnForm({
 	const { data: products } = useTRPC().products.list.useQuery();
 
 	const form = useForm({
-
 		defaultValues: purchaseReturn || {
 			purchase_id: 0,
 			items: [],
 		},
 		onSubmit: ({ value }) => handleSubmit(value as any),
 	});
-
-
 
 	const { mutate: createPurchaseReturn } =
 		useTRPC().purchaseReturns.create.useMutation({
@@ -102,9 +99,7 @@ export function PurchaseReturnForm({
 							className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-3"
 						>
 							<div className="space-y-2">
-								<Label htmlFor={`items[${index}].product_id`}>
-									Product
-								</Label>
+								<Label htmlFor={`items[${index}].product_id`}>Product</Label>
 								<form.Field
 									name={`items[${index}].product_id`}
 									children={(subField) => (
@@ -119,7 +114,10 @@ export function PurchaseReturnForm({
 											</SelectTrigger>
 											<SelectContent>
 												{products?.map((product) => (
-													<SelectItem key={product.id} value={product.id.toString()}>
+													<SelectItem
+														key={product.id}
+														value={product.id.toString()}
+													>
 														{product.name}
 													</SelectItem>
 												))}
@@ -130,9 +128,7 @@ export function PurchaseReturnForm({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor={`items[${index}].quantity`}>
-									Quantity
-								</Label>
+								<Label htmlFor={`items[${index}].quantity`}>Quantity</Label>
 								<form.Field
 									name={`items[${index}].quantity`}
 									children={(subField) => (

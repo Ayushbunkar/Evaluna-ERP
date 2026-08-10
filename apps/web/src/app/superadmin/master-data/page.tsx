@@ -22,42 +22,51 @@ import { useState } from "react";
 import { useTRPC } from "@/lib/trpc/client";
 
 // Fetch real data from backend
-const { data: categories, isLoading: categoriesLoading } = useTRPC().masterData.getCategories.useQuery();
-const { data: brands, isLoading: brandsLoading } = useTRPC().masterData.getBrands.useQuery();
-const { data: units, isLoading: unitsLoading } = useTRPC().masterData.getUnits.useQuery();
-const { data: taxes, isLoading: taxesLoading } = useTRPC().masterData.getTaxes.useQuery();
+const { data: categories, isLoading: categoriesLoading } =
+	useTRPC().masterData.getCategories.useQuery();
+const { data: brands, isLoading: brandsLoading } =
+	useTRPC().masterData.getBrands.useQuery();
+const { data: units, isLoading: unitsLoading } =
+	useTRPC().masterData.getUnits.useQuery();
+const { data: taxes, isLoading: taxesLoading } =
+	useTRPC().masterData.getTaxes.useQuery();
 
 // Show loading state while data is being fetched
-const isLoading = categoriesLoading || brandsLoading || unitsLoading || taxesLoading;
+const isLoading =
+	categoriesLoading || brandsLoading || unitsLoading || taxesLoading;
 
 // Transform data for display
-const displayCategories = categories?.map(cat => ({
-  id: cat.id,
-  name: cat.name,
-  description: cat.description,
-  status: cat.status
-})) || [];
+const displayCategories =
+	categories?.map((cat) => ({
+		id: cat.id,
+		name: cat.name,
+		description: cat.description,
+		status: cat.status,
+	})) || [];
 
-const displayBrands = brands?.map(brand => ({
-  id: brand.id,
-  name: brand.name,
-  origin: brand.origin,
-  status: brand.status
-})) || [];
+const displayBrands =
+	brands?.map((brand) => ({
+		id: brand.id,
+		name: brand.name,
+		origin: brand.origin,
+		status: brand.status,
+	})) || [];
 
-const displayUnits = units?.map(unit => ({
-  id: unit.id,
-  name: unit.name,
-  shortName: unit.shortName,
-  baseUnit: unit.baseUnit
-})) || [];
+const displayUnits =
+	units?.map((unit) => ({
+		id: unit.id,
+		name: unit.name,
+		shortName: unit.shortName,
+		baseUnit: unit.baseUnit,
+	})) || [];
 
-const displayTaxes = taxes?.map(tax => ({
-  id: tax.id,
-  name: tax.name,
-  rate: tax.rate,
-  type: tax.type
-})) || [];
+const displayTaxes =
+	taxes?.map((tax) => ({
+		id: tax.id,
+		name: tax.name,
+		rate: tax.rate,
+		type: tax.type,
+	})) || [];
 
 export default function MasterDataPage() {
 	const [activeTab, setActiveTab] = useState("categories");
@@ -162,8 +171,10 @@ export default function MasterDataPage() {
 											<tr>
 												<td colSpan={4} className="p-8 text-center">
 													<div className="flex flex-col items-center gap-4">
-														<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-														<span className="text-muted-foreground">Loading data...</span>
+														<div className="h-8 w-8 animate-spin rounded-full border-primary border-b-2" />
+														<span className="text-muted-foreground">
+															Loading data...
+														</span>
 													</div>
 												</td>
 											</tr>
@@ -208,7 +219,9 @@ export default function MasterDataPage() {
 													<td colSpan={4} className="p-8 text-center">
 														<div className="flex flex-col items-center gap-2">
 															<Boxes className="mx-auto h-8 w-8 text-muted-foreground" />
-															<span className="text-muted-foreground">No categories found</span>
+															<span className="text-muted-foreground">
+																No categories found
+															</span>
 															<Button size="sm" className="mt-2">
 																<Plus className="mr-2 h-4 w-4" /> Add Category
 															</Button>
@@ -257,7 +270,9 @@ export default function MasterDataPage() {
 													<td colSpan={4} className="p-8 text-center">
 														<div className="flex flex-col items-center gap-2">
 															<Tag className="mx-auto h-8 w-8 text-muted-foreground" />
-															<span className="text-muted-foreground">No brands found</span>
+															<span className="text-muted-foreground">
+																No brands found
+															</span>
 															<Button size="sm" className="mt-2">
 																<Plus className="mr-2 h-4 w-4" /> Add Brand
 															</Button>
@@ -300,7 +315,9 @@ export default function MasterDataPage() {
 													<td colSpan={4} className="p-8 text-center">
 														<div className="flex flex-col items-center gap-2">
 															<Scale className="mx-auto h-8 w-8 text-muted-foreground" />
-															<span className="text-muted-foreground">No units found</span>
+															<span className="text-muted-foreground">
+																No units found
+															</span>
 															<Button size="sm" className="mt-2">
 																<Plus className="mr-2 h-4 w-4" /> Add Unit
 															</Button>
@@ -308,47 +325,47 @@ export default function MasterDataPage() {
 													</td>
 												</tr>
 											)
-										) : (
-											displayTaxes.length > 0 ? (
-												displayTaxes.map((item) => (
-													<tr
-														key={item.id}
-														className="border-b last:border-0 hover:bg-muted/50"
-													>
-														<td className="p-4 font-medium">{item.name}</td>
-														<td className="p-4 text-muted-foreground">
-															{item.rate}%
-														</td>
-														<td className="p-4">
-															<Badge variant="outline">{item.type}</Badge>
-														</td>
-														<td className="p-4 text-right">
-															<Button variant="ghost" size="icon">
-																<Edit className="h-4 w-4" />
-															</Button>
-															<Button
-																variant="ghost"
-																size="icon"
-																className="text-destructive"
-															>
-																<Trash2 className="h-4 w-4" />
-															</Button>
-														</td>
-													</tr>
-												))
-											) : (
-												<tr>
-													<td colSpan={4} className="p-8 text-center">
-														<div className="flex flex-col items-center gap-2">
-															<Percent className="mx-auto h-8 w-8 text-muted-foreground" />
-															<span className="text-muted-foreground">No tax rates found</span>
-															<Button size="sm" className="mt-2">
-																<Plus className="mr-2 h-4 w-4" /> Add Tax Rate
-															</Button>
-														</div>
+										) : displayTaxes.length > 0 ? (
+											displayTaxes.map((item) => (
+												<tr
+													key={item.id}
+													className="border-b last:border-0 hover:bg-muted/50"
+												>
+													<td className="p-4 font-medium">{item.name}</td>
+													<td className="p-4 text-muted-foreground">
+														{item.rate}%
+													</td>
+													<td className="p-4">
+														<Badge variant="outline">{item.type}</Badge>
+													</td>
+													<td className="p-4 text-right">
+														<Button variant="ghost" size="icon">
+															<Edit className="h-4 w-4" />
+														</Button>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="text-destructive"
+														>
+															<Trash2 className="h-4 w-4" />
+														</Button>
 													</td>
 												</tr>
-											)
+											))
+										) : (
+											<tr>
+												<td colSpan={4} className="p-8 text-center">
+													<div className="flex flex-col items-center gap-2">
+														<Percent className="mx-auto h-8 w-8 text-muted-foreground" />
+														<span className="text-muted-foreground">
+															No tax rates found
+														</span>
+														<Button size="sm" className="mt-2">
+															<Plus className="mr-2 h-4 w-4" /> Add Tax Rate
+														</Button>
+													</div>
+												</td>
+											</tr>
 										)}
 									</tbody>
 								</table>

@@ -18,22 +18,33 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	BellIcon,
+	Box,
+	Briefcase,
 	Building2Icon,
+	CheckSquare,
 	ChevronLeft,
 	ChevronRight,
+	Clock,
+	FileText,
 	GlobeIcon,
+	LayoutDashboard,
+	Loader2,
+	LogOut,
 	type LucideIcon,
+	Map,
 	MenuIcon,
+	Package,
 	Package2Icon,
 	RefreshCwIcon,
+	Search,
+	Settings,
+	User,
 	WifiOffIcon,
 	XIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, LogOut, Loader2, Package, Map, FileText, CheckSquare, Search, Box, User, Briefcase, LayoutDashboard } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -41,10 +52,10 @@ import { logout } from "@/app/(auth)/login/actions";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/hooks/use-session";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
-import { Clock } from "lucide-react";
 
 export interface NavItem {
 	href: string;
@@ -106,7 +117,7 @@ function BranchSwitcher({ isSuperadmin }: { isSuperadmin: boolean }) {
 			<Button
 				variant="outline"
 				size="sm"
-				className="h-9 gap-2 rounded-full border-border/50 bg-background/50 px-3 font-medium text-xs shadow-sm backdrop-blur-sm pointer-events-none"
+				className="pointer-events-none h-9 gap-2 rounded-full border-border/50 bg-background/50 px-3 font-medium text-xs shadow-sm backdrop-blur-sm"
 			>
 				<Building2Icon className="h-4 w-4 text-muted-foreground" />
 				<span className="hidden max-w-[120px] truncate sm:inline-block">
@@ -168,7 +179,14 @@ function NotificationBell({ role }: { role?: string }) {
 	);
 
 	const unreadCount = notifications?.length || 0;
-	const notificationPath = role === "admin" ? "/admin/notifications" : role === "superadmin" ? "/superadmin/notifications" : role ? `/${role}/notifications` : "/sales/notifications";
+	const notificationPath =
+		role === "admin"
+			? "/admin/notifications"
+			: role === "superadmin"
+				? "/superadmin/notifications"
+				: role
+					? `/${role}/notifications`
+					: "/sales/notifications";
 
 	return (
 		<TooltipProvider>
@@ -269,11 +287,11 @@ export function AppLayout({
 	);
 
 	return (
-		<div className="flex h-screen w-full flex-col overflow-hidden bg-background selection:bg-primary/20 prevent-overflow">
+		<div className="prevent-overflow flex h-screen w-full flex-col overflow-hidden bg-background selection:bg-primary/20">
 			<NetworkStatusBanner />
 
 			{/* Top Navbar */}
-			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-border/40 border-b bg-background/80 px-2 sm:px-4 backdrop-blur-xl transition-all">
+			<header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-border/40 border-b bg-background/80 px-2 backdrop-blur-xl transition-all sm:px-4">
 				<Button
 					variant="ghost"
 					size="icon"
@@ -286,7 +304,7 @@ export function AppLayout({
 
 				<div className="flex shrink-0 items-center gap-1 md:w-[240px]">
 					<Package2Icon className="h-6 w-6 text-primary" />
-					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base sm:text-lg text-transparent tracking-tight md:inline-block">
+					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base text-transparent tracking-tight sm:text-lg md:inline-block">
 						Evaluna ERP
 					</span>
 					{role && ROLE_CONFIG[role] && (
@@ -335,9 +353,13 @@ export function AppLayout({
 					<NotificationBell role={role} />
 
 					<Link href="/staff">
-						<Button variant="ghost" size="sm" className={`hidden sm:flex ${activeShift ? 'text-green-500' : 'text-orange-500'}`}>
+						<Button
+							variant="ghost"
+							size="sm"
+							className={`hidden sm:flex ${activeShift ? "text-green-500" : "text-orange-500"}`}
+						>
 							<Clock className="mr-2 h-4 w-4" />
-							{activeShift ? 'Clocked In' : 'Clocked Out'}
+							{activeShift ? "Clocked In" : "Clocked Out"}
 						</Button>
 					</Link>
 
@@ -404,7 +426,10 @@ export function AppLayout({
 									<DropdownMenuSeparator />
 								</>
 							) : null}
-							<DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-accent/50">
+							<DropdownMenuItem
+								asChild
+								className="cursor-pointer rounded-md focus:bg-accent/50"
+							>
 								<Link href="/staff">Staff Portal</Link>
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
@@ -584,20 +609,20 @@ export function AppLayout({
 				</motion.aside>
 
 				{/* Main Content Area */}
-				<main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20 prevent-overflow">
-						<motion.div
-							key={pathname}
-							initial={{ opacity: 0, y: 15 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -15 }}
-							transition={{
-								type: "spring",
-								stiffness: 400,
-								damping: 40,
-								mass: 0.8,
-							}}
-							className="mx-auto h-full w-full max-w-7xl p-2 sm:p-4 md:p-6"
-						>
+				<main className="prevent-overflow relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20">
+					<motion.div
+						key={pathname}
+						initial={{ opacity: 0, y: 15 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -15 }}
+						transition={{
+							type: "spring",
+							stiffness: 400,
+							damping: 40,
+							mass: 0.8,
+						}}
+						className="mx-auto h-full w-full max-w-7xl p-2 sm:p-4 md:p-6"
+					>
 						{children}
 					</motion.div>
 				</main>

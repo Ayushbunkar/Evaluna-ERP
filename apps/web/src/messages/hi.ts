@@ -15,7 +15,7 @@ const messages: Messages = {
 		lowStockItems: "कम स्टॉक वाले आइटम",
 		actionNeeded: "कार्रवाई की आवश्यकता है",
 		vsYesterday: "कल की तुलना में",
-		noDataAvailable: "कोई डेटा उपलब्ध नहीं है"
+		noDataAvailable: "कोई डेटा उपलब्ध नहीं है",
 	},
 	common: {
 		cancel: "रद्द करें",

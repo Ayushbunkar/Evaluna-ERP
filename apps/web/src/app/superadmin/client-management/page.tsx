@@ -157,9 +157,7 @@ function RolesManagement() {
 		description: "",
 		can_edit_permissions: false,
 	});
-	const [editingRole, setEditingRole] = useState<any | null>(
-		null,
-	);
+	const [editingRole, setEditingRole] = useState<any | null>(null);
 	const [cloneSource, setCloneSource] = useState<number | null>(null);
 	const [cloneName, setCloneName] = useState("");
 
@@ -461,9 +459,7 @@ function UsersManagement() {
 		department: "",
 		status: "active" as any,
 	});
-	const [editingUser, setEditingUser] = useState<any | null>(
-		null,
-	);
+	const [editingUser, setEditingUser] = useState<any | null>(null);
 
 	const handleCreateUser = () => {
 		if (!newUser.name.trim() || !newUser.email.trim()) {
@@ -924,9 +920,7 @@ function ModulesManagement() {
 		description: "",
 		icon: "Package",
 	});
-	const [_editingModule, _setEditingModule] = useState<
-		any | null
-	>(null);
+	const [_editingModule, _setEditingModule] = useState<any | null>(null);
 
 	const handleToggleModule = (moduleId: number, isActive: boolean) => {
 		toggleModule.mutate({ module_id: moduleId, is_active: !isActive });
@@ -1145,13 +1139,14 @@ function AuditLogs() {
 										)}
 									</div>
 								</div>
-								{log.new_values && Object.keys(log.new_values as any).length > 0 && (
-									<div className="mt-2 rounded bg-muted/50 p-3">
-										<pre className="overflow-auto text-xs">
-											{JSON.stringify(log.new_values as any, null, 2)}
-										</pre>
-									</div>
-								)}
+								{log.new_values &&
+									Object.keys(log.new_values as any).length > 0 && (
+										<div className="mt-2 rounded bg-muted/50 p-3">
+											<pre className="overflow-auto text-xs">
+												{JSON.stringify(log.new_values as any, null, 2)}
+											</pre>
+										</div>
+									)}
 							</div>
 						))}
 					</div>
@@ -1272,6 +1267,3 @@ function SystemSettings() {
 		</Card>
 	);
 }
-
-
-

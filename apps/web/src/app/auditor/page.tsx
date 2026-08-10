@@ -260,7 +260,10 @@ export default function AuditorDashboard() {
 				</motion.div>
 
 				{/* Realtime Notifications Feed */}
-				<motion.div variants={itemVariants as any} className="flex flex-col gap-6">
+				<motion.div
+					variants={itemVariants as any}
+					className="flex flex-col gap-6"
+				>
 					<Card className="flex h-full flex-col overflow-hidden border-border/50 bg-background/40 shadow-sm backdrop-blur-md">
 						<CardHeader className="pb-2">
 							<CardTitle className="flex items-center gap-2 text-base">
@@ -493,5 +496,3 @@ export default function AuditorDashboard() {
 		</div>
 	);
 }
-
-

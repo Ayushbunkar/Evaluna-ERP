@@ -1,8 +1,8 @@
 import { orders, transactions } from "@evaluna/db/schema";
+import { format, startOfHour, subHours } from "date-fns";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
-import { subHours, startOfHour, format } from "date-fns";
 
 export const billingRouter = router({
 	getDashboardStats: protectedProcedure
@@ -74,20 +74,20 @@ export const billingRouter = router({
 
 			const hourlySales = hourlyRaw.map((h) => ({
 				hour: h.hourRaw,
-				amount: Number(h.amount)
+				amount: Number(h.amount),
 			}));
-            
-            // Format for sales chart which uses time/sales keys
+
+			// Format for sales chart which uses time/sales keys
 			const salesChart = hourlyRaw.map((h) => ({
 				time: h.hourRaw,
-				sales: Number(h.amount)
+				sales: Number(h.amount),
 			}));
 
 			const paymentDistribution = [
 				{ name: "Cash", value: cashCollected },
 				{ name: "Card", value: cardCollected },
 				{ name: "UPI", value: upiCollected },
-			].filter(p => p.value > 0);
+			].filter((p) => p.value > 0);
 
 			const topCashiers: any[] = []; // Would require staff/cashier relationships on orders
 
@@ -106,7 +106,9 @@ export const billingRouter = router({
 				time: b.created_at ? format(new Date(b.created_at), "HH:mm") : "N/A",
 				cashier: "Admin", // TODO: link user_uid to actual staff member
 				amount: Number(b.total_amount || 0),
-				status: b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : "Pending",
+				status: b.status
+					? b.status.charAt(0).toUpperCase() + b.status.slice(1)
+					: "Pending",
 				method: b.paymentMethod?.name || "Cash",
 			}));
 

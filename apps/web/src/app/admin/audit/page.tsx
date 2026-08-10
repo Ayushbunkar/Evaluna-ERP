@@ -28,10 +28,12 @@ export default function AuditDashboard() {
 	const [activeTab, setActiveTab] = useState("audits");
 
 	// Using trpc to fetch active audits and discrepancies
-	const { data: audits, isLoading: loadingAudits } =
-		(trpc.audit as any).listAudits.useQuery();
-	const { data: discrepancies, isLoading: loadingDiscrepancies } =
-		(trpc.audit as any).listDiscrepancies.useQuery();
+	const { data: audits, isLoading: loadingAudits } = (
+		trpc.audit as any
+	).listAudits.useQuery();
+	const { data: discrepancies, isLoading: loadingDiscrepancies } = (
+		trpc.audit as any
+	).listDiscrepancies.useQuery();
 
 	return (
 		<div className="fade-in slide-in-from-bottom-4 container mx-auto animate-in space-y-8 p-6 duration-500">
@@ -80,12 +82,14 @@ export default function AuditDashboard() {
 						className="rounded-lg px-6 text-base"
 					>
 						Discrepancies & Escalations
-						{discrepancies?.filter((d: any) => d.resolution_status === "pending")
-							.length ? (
+						{discrepancies?.filter(
+							(d: any) => d.resolution_status === "pending",
+						).length ? (
 							<Badge variant="destructive" className="ml-2 animate-pulse">
 								{
-									discrepancies.filter((d: any) => d.resolution_status === "pending")
-										.length
+									discrepancies.filter(
+										(d: any) => d.resolution_status === "pending",
+									).length
 								}
 							</Badge>
 						) : null}

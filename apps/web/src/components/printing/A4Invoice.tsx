@@ -129,7 +129,9 @@ export const A4Invoice: React.FC<A4InvoiceProps> = ({
 				<div className="w-64 space-y-2">
 					<div className="flex justify-between text-gray-600">
 						<span>Subtotal:</span>
-						<span>{order?.subtotal ? Number(order.subtotal).toFixed(2) : "0.00"}</span>
+						<span>
+							{order?.subtotal ? Number(order.subtotal).toFixed(2) : "0.00"}
+						</span>
 					</div>
 					<div className="flex justify-between border-gray-300 border-b pb-2 text-gray-600">
 						<span>Tax Total:</span>
@@ -137,7 +139,9 @@ export const A4Invoice: React.FC<A4InvoiceProps> = ({
 					</div>
 					<div className="flex justify-between pt-2 font-bold text-gray-900 text-lg">
 						<span>Grand Total:</span>
-						<span>{order?.total ? Number(order.total).toFixed(2) : "0.00"}</span>
+						<span>
+							{order?.total ? Number(order.total).toFixed(2) : "0.00"}
+						</span>
 					</div>
 				</div>
 			</div>

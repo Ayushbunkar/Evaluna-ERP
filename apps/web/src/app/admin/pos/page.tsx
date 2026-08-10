@@ -128,7 +128,10 @@ export default function POSPage() {
 
 	const handleApplyCoupon = () => {
 		if (!couponCode) return;
-		validateCouponMutation.mutate({ code: couponCode, cartTotal: subtotal } as any);
+		validateCouponMutation.mutate({
+			code: couponCode,
+			cartTotal: subtotal,
+		} as any);
 	};
 
 	const removeCoupon = () => {
@@ -225,7 +228,6 @@ export default function POSPage() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [catalog, addToCart]);
 
-
 	const updateQty = (id: number, delta: number) => {
 		setCart((prev) =>
 			prev.map((item) => {
@@ -265,7 +267,9 @@ export default function POSPage() {
 			payments: payments,
 			isOfflineSync: false,
 			couponId: appliedCoupon?.id,
-			discountAmount: appliedCoupon?.discount ? String(appliedCoupon.discount) : undefined,
+			discountAmount: appliedCoupon?.discount
+				? String(appliedCoupon.discount)
+				: undefined,
 		} as any);
 	};
 
@@ -304,7 +308,7 @@ export default function POSPage() {
 					/>
 				</div>
 
-				<ScrollArea className="flex-1 min-h-0">
+				<ScrollArea className="min-h-0 flex-1">
 					{isLoading ? (
 						<div className="grid grid-cols-2 gap-4 p-2 md:grid-cols-3 lg:grid-cols-4">
 							{[1, 2, 3, 4, 5, 6].map((n) => (
@@ -349,7 +353,7 @@ export default function POSPage() {
 			</div>
 
 			{/* Right Pane - Cart */}
-			<div className="z-10 flex min-h-0 w-[350px] lg:w-[400px] shrink-0 flex-col bg-background p-4 shadow-xl">
+			<div className="z-10 flex min-h-0 w-[350px] shrink-0 flex-col bg-background p-4 shadow-xl lg:w-[400px]">
 				<div className="mb-4 flex shrink-0 items-center justify-between">
 					<h2 className="flex items-center gap-2 font-bold text-xl">
 						<ShoppingCart className="h-5 w-5" /> Current Order
@@ -363,7 +367,7 @@ export default function POSPage() {
 						Clear
 					</Button>
 				</div>
-				<ScrollArea className="flex-1 min-h-0 bg-muted/20 p-4">
+				<ScrollArea className="min-h-0 flex-1 bg-muted/20 p-4">
 					<AnimatePresence>
 						{cart.length === 0 ? (
 							<motion.div
@@ -387,10 +391,10 @@ export default function POSPage() {
 										className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm"
 									>
 										<div className="flex w-full items-center justify-between gap-2">
-											<div className="flex-1 min-w-0 truncate font-semibold text-sm">
+											<div className="min-w-0 flex-1 truncate font-semibold text-sm">
 												{item.name}
 											</div>
-											<div className="shrink-0 text-muted-foreground text-xs whitespace-nowrap">
+											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs">
 												₹{Number.parseFloat(item.price).toFixed(2)} / unit
 											</div>
 										</div>
@@ -421,7 +425,10 @@ export default function POSPage() {
 											</div>
 											<div className="flex items-center gap-3">
 												<span className="font-bold text-sm">
-													₹{(Number.parseFloat(item.price) * item.qty).toFixed(2)}
+													₹
+													{(Number.parseFloat(item.price) * item.qty).toFixed(
+														2,
+													)}
 												</span>
 												<Button
 													variant="ghost"
@@ -442,17 +449,17 @@ export default function POSPage() {
 
 				<div className="mt-4 shrink-0 space-y-3 border-t pt-4">
 					{/* Subtotal row */}
-					<div className="flex items-center justify-between text-sm text-muted-foreground">
+					<div className="flex items-center justify-between text-muted-foreground text-sm">
 						<span>Subtotal</span>
 						<span>₹{subtotal.toFixed(2)}</span>
 					</div>
 
 					{/* Coupon row */}
-					<div className="flex items-center justify-between text-sm text-muted-foreground">
+					<div className="flex items-center justify-between text-muted-foreground text-sm">
 						<div className="flex items-center gap-2">
 							<span>Discount</span>
 							{appliedCoupon ? (
-								<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+								<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs">
 									<Ticket className="h-3 w-3" />
 									{appliedCoupon.code}
 									<button
@@ -547,7 +554,13 @@ export default function POSPage() {
 						/>
 					</div>
 					<DialogFooter className="gap-2">
-						<Button variant="outline" onClick={() => { setCouponModalOpen(false); setCouponCode(""); }}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setCouponModalOpen(false);
+								setCouponCode("");
+							}}
+						>
 							Cancel
 						</Button>
 						<Button
@@ -557,7 +570,9 @@ export default function POSPage() {
 							}}
 							disabled={!couponCode || validateCouponMutation.isPending}
 						>
-							{validateCouponMutation.isPending ? "Applying..." : "Apply Coupon"}
+							{validateCouponMutation.isPending
+								? "Applying..."
+								: "Apply Coupon"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

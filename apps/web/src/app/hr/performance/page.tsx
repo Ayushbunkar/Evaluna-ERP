@@ -19,10 +19,10 @@ export default function PerformanceReviewsPage() {
 		{ key: "status", header: "Status" },
 	];
 
-	const filteredData = perfList?.filter(
-		(record: any) =>
-			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase())
-	) || [];
+	const filteredData =
+		perfList?.filter((record: any) =>
+			record.emp_name?.toLowerCase().includes(searchTerm.toLowerCase()),
+		) || [];
 
 	return (
 		<PageTransition className="flex flex-col gap-6">
@@ -47,7 +47,11 @@ export default function PerformanceReviewsPage() {
 					<DataTable
 						data={filteredData}
 						columns={columns}
-						emptyMessage={isLoading ? "Loading records..." : "No records found in this module yet."}
+						emptyMessage={
+							isLoading
+								? "Loading records..."
+								: "No records found in this module yet."
+						}
 					/>
 				</CardContent>
 			</Card>

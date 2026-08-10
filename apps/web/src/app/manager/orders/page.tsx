@@ -85,7 +85,7 @@ export default function OrdersPage() {
 			header: tc("total"),
 			sortable: true,
 			accessorFn: (row) => row.total_amount,
-			render: (row) => formatCurrency((Number(row.total_amount)), locale),
+			render: (row) => formatCurrency(Number(row.total_amount), locale),
 		},
 		{
 			key: "status",
@@ -195,7 +195,11 @@ export default function OrdersPage() {
 	const filteredOrders = useMemo(() => {
 		return orders.filter((o) => {
 			const currentStatus = (o.status || "pending").toLowerCase();
-			if (statusFilter !== "all" && currentStatus !== statusFilter.toLowerCase()) return false;
+			if (
+				statusFilter !== "all" &&
+				currentStatus !== statusFilter.toLowerCase()
+			)
+				return false;
 			const q = searchTerm.toLowerCase();
 			return (
 				(o.customer?.name || "Walk-in Customer").toLowerCase().includes(q) ||
@@ -418,6 +422,3 @@ export default function OrdersPage() {
 		</Card>
 	);
 }
-
-
-

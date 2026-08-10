@@ -26,9 +26,9 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { trpc } from "@/lib/trpc/client";
 import { ImportModal } from "./components/ImportModal";
-import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 
 export default function ProductsPage() {
 	const utils = trpc.useUtils();
@@ -74,14 +74,14 @@ export default function ProductsPage() {
 	const fastMovingCount = products?.filter((p) => p.stock > 100).length || 0;
 
 	return (
-		<div className="container space-y-6 sm:space-y-8 p-4 sm:p-6 md:p-8">
+		<div className="container space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
 			{/* Header */}
 			<div className="flex flex-col items-start justify-between gap-3 sm:gap-4 md:flex-row md:items-center">
 				<div>
-					<h1 className="font-bold text-2xl sm:text-3xl text-gray-900 tracking-tight dark:text-white">
+					<h1 className="font-bold text-2xl text-gray-900 tracking-tight sm:text-3xl dark:text-white">
 						Product Master
 					</h1>
-					<p className="mt-1 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+					<p className="mt-1 text-gray-500 text-sm sm:text-base dark:text-gray-400">
 						Manage catalog, pricing, and visibility
 					</p>
 				</div>
@@ -106,7 +106,7 @@ export default function ProductsPage() {
 						<Box className="h-5 w-5 text-blue-600 dark:text-blue-400" />
 					</CardHeader>
 					<CardContent className="pt-1 sm:pt-2">
-						<div className="font-bold text-2xl sm:text-3xl text-gray-900 dark:text-white">
+						<div className="font-bold text-2xl text-gray-900 sm:text-3xl dark:text-white">
 							{isLoading ? (
 								<Skeleton className="h-8 w-16" />
 							) : (
@@ -164,7 +164,7 @@ export default function ProductsPage() {
 			</div>
 
 			{/* Advanced Filters */}
-			<Card className="border-gray-200 p-3 sm:p-4 shadow-sm dark:border-gray-800">
+			<Card className="border-gray-200 p-3 shadow-sm sm:p-4 dark:border-gray-800">
 				<div className="flex flex-col items-end gap-3 sm:gap-4 md:flex-row">
 					<div className="relative w-full flex-1">
 						<label className="mb-1 block font-medium text-gray-500 text-xs">
@@ -177,7 +177,7 @@ export default function ProductsPage() {
 								value={searchTerm}
 								onChange={(e) => setSearchTerm(e.target.value)}
 								placeholder="Search by name or SKU..."
-								className="w-full rounded-md border border-gray-200 py-1.5 sm:py-2 pr-3 sm:pr-4 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900"
+								className="w-full rounded-md border border-gray-200 py-1.5 pr-3 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 sm:py-2 sm:pr-4 dark:border-gray-700 dark:bg-gray-900"
 							/>
 						</div>
 					</div>
@@ -188,7 +188,7 @@ export default function ProductsPage() {
 						<select
 							value={categoryFilter}
 							onChange={(e) => setCategoryFilter(e.target.value)}
-							className="w-full rounded-md border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900"
+							className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 sm:px-3 sm:py-2 sm:text-sm dark:border-gray-700 dark:bg-gray-900"
 						>
 							<option value="all">All Categories</option>
 							{categories.map((c) => (
@@ -205,7 +205,7 @@ export default function ProductsPage() {
 						<select
 							value={visibilityFilter}
 							onChange={(e) => setVisibilityFilter(e.target.value)}
-							className="w-full rounded-md border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900"
+							className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 sm:px-3 sm:py-2 sm:text-sm dark:border-gray-700 dark:bg-gray-900"
 						>
 							<option value="all">All Levels</option>
 							<option value="global">Global</option>
@@ -223,7 +223,7 @@ export default function ProductsPage() {
 
 			{/* Data Table */}
 			<Card className="border-gray-200 shadow-sm dark:border-gray-800">
-				<CardHeader className="flex flex-row items-center justify-between border-gray-200 border-b bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 dark:border-gray-800 dark:bg-gray-900/50">
+				<CardHeader className="flex flex-row items-center justify-between border-gray-200 border-b bg-gray-50 px-3 py-2 sm:px-4 sm:py-3 dark:border-gray-800 dark:bg-gray-900/50">
 					<div className="flex items-center gap-1 sm:gap-2">
 						<span className="font-medium text-gray-700 text-xs sm:text-sm dark:text-gray-300">
 							{selectedIds.length} selected
@@ -246,12 +246,12 @@ export default function ProductsPage() {
 						)}
 					</div>
 				</CardHeader>
-					<CardContent className="p-0">
+				<CardContent className="p-0">
 					<div className="overflow-x-auto">
 						<table className="w-full whitespace-nowrap text-left text-xs sm:text-sm">
 							<thead className="border-gray-200 border-b bg-gray-50 font-medium text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
 								<tr>
-									<th className="w-8 sm:w-10 px-3 sm:px-6 py-2 sm:py-4">
+									<th className="w-8 px-3 py-2 sm:w-10 sm:px-6 sm:py-4">
 										<input
 											type="checkbox"
 											className="rounded border-gray-300"
@@ -270,14 +270,28 @@ export default function ProductsPage() {
 											}}
 										/>
 									</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4">ID / Product Name</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4">SKU & Category</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4 text-right">Procurement (₹)</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4 text-right">Selling (₹)</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4 text-center">Margin</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4 text-center">Visibility</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4 text-center">Status</th>
-									<th className="px-3 sm:px-6 py-2 sm:py-4 text-right">Actions</th>
+									<th className="px-3 py-2 sm:px-6 sm:py-4">
+										ID / Product Name
+									</th>
+									<th className="px-3 py-2 sm:px-6 sm:py-4">SKU & Category</th>
+									<th className="px-3 py-2 text-right sm:px-6 sm:py-4">
+										Procurement (₹)
+									</th>
+									<th className="px-3 py-2 text-right sm:px-6 sm:py-4">
+										Selling (₹)
+									</th>
+									<th className="px-3 py-2 text-center sm:px-6 sm:py-4">
+										Margin
+									</th>
+									<th className="px-3 py-2 text-center sm:px-6 sm:py-4">
+										Visibility
+									</th>
+									<th className="px-3 py-2 text-center sm:px-6 sm:py-4">
+										Status
+									</th>
+									<th className="px-3 py-2 text-right sm:px-6 sm:py-4">
+										Actions
+									</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -286,7 +300,7 @@ export default function ProductsPage() {
 											.fill(0)
 											.map((_, i) => (
 												<tr key={i}>
-													<td className="px-3 sm:px-6 py-2 sm:py-4">
+													<td className="px-3 py-2 sm:px-6 sm:py-4">
 														<Skeleton className="h-4 w-4" />
 													</td>
 													<td className="px-6 py-4">
@@ -344,17 +358,17 @@ export default function ProductsPage() {
 													</td>
 													<td className="px-6 py-4">
 														<div className="flex items-center gap-2 sm:gap-3">
-															<div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-gray-100 font-bold text-gray-500 text-xs dark:bg-gray-800">
+															<div className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 font-bold text-gray-500 text-xs sm:h-8 sm:w-8 dark:bg-gray-800">
 																#{product.id}
 															</div>
 															<div>
-																<div className="font-medium text-gray-900 dark:text-gray-100 text-xs sm:text-sm">
+																<div className="font-medium text-gray-900 text-xs sm:text-sm dark:text-gray-100">
 																	{product.name}
 																</div>
 															</div>
 														</div>
 													</td>
-													<td className="px-3 sm:px-6 py-2 sm:py-4">
+													<td className="px-3 py-2 sm:px-6 sm:py-4">
 														<div className="font-mono text-gray-900 text-xs dark:text-gray-100">
 															{product.sku}
 														</div>
@@ -362,26 +376,26 @@ export default function ProductsPage() {
 															{product.category}
 														</div>
 													</td>
-													<td className="px-3 sm:px-6 py-2 sm:py-4 text-right font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+													<td className="px-3 py-2 text-right font-medium text-gray-600 text-xs sm:px-6 sm:py-4 sm:text-sm dark:text-gray-400">
 														{product.baseProcurementPrice.toFixed(2)}
 													</td>
-													<td className="px-3 sm:px-6 py-2 sm:py-4 text-right font-medium text-gray-900 dark:text-gray-100 text-xs sm:text-sm">
+													<td className="px-3 py-2 text-right font-medium text-gray-900 text-xs sm:px-6 sm:py-4 sm:text-sm dark:text-gray-100">
 														{product.baseSellingPrice.toFixed(2)}
 													</td>
-					<td className="px-3 sm:px-6 py-2 sm:py-4 text-center">
-						<span
-							className={`${
-								product.margin >= 30
-									? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-									: product.margin > 15
-										? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-										: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-							} inline-flex items-center rounded px-1.5 sm:px-2 py-0.5 sm:py-1 font-medium text-xs`}
-						>
-							{product.margin}%
-						</span>
-					</td>
-													<td className="px-3 sm:px-6 py-2 sm:py-4 text-center">
+													<td className="px-3 py-2 text-center sm:px-6 sm:py-4">
+														<span
+															className={`${
+																product.margin >= 30
+																	? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+																	: product.margin > 15
+																		? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+																		: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+															} inline-flex items-center rounded px-1.5 py-0.5 font-medium text-xs sm:px-2 sm:py-1`}
+														>
+															{product.margin}%
+														</span>
+													</td>
+													<td className="px-3 py-2 text-center sm:px-6 sm:py-4">
 														<Badge
 															variant="outline"
 															className="font-normal text-xs capitalize"
@@ -389,30 +403,30 @@ export default function ProductsPage() {
 															{product.visibilityLevel.replace("_", " ")}
 														</Badge>
 													</td>
-													<td className="px-3 sm:px-6 py-2 sm:py-4 text-center">
+													<td className="px-3 py-2 text-center sm:px-6 sm:py-4">
 														<span className="flex items-center justify-center gap-1">
-									<span
-										className={`\${product.status === 'active' ? 'bg-green-500' : 'bg-red-500'} h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full`}
-									/>
+															<span
+																className={`\${product.status === 'active' ? 'bg-green-500' : 'bg-red-500'} h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2`}
+															/>
 															<span className="text-gray-600 text-xs capitalize dark:text-gray-400">
 																{product.status}
 															</span>
 														</span>
 													</td>
-													<td className="px-3 sm:px-6 py-2 sm:py-4 text-right">
+													<td className="px-3 py-2 text-right sm:px-6 sm:py-4">
 														<div className="flex items-center justify-end gap-1 sm:gap-2">
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-									>
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-6 w-6 text-blue-600 hover:bg-blue-50 hover:text-blue-700 sm:h-8 sm:w-8"
+															>
 																<Edit className="h-4 w-4" />
 															</Button>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
-									>
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-6 w-6 text-red-600 hover:bg-red-50 hover:text-red-700 sm:h-8 sm:w-8"
+															>
 																<Trash className="h-4 w-4" />
 															</Button>
 														</div>
@@ -428,4 +442,3 @@ export default function ProductsPage() {
 		</div>
 	);
 }
-

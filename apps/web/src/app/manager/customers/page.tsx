@@ -210,7 +210,7 @@ export default function CustomersPage() {
 			status: "active" as "active" | "inactive",
 		},
 		validators: {
-			onSubmit: (customerFormSchema as any),
+			onSubmit: customerFormSchema as any,
 		},
 		onSubmit: ({ value }) => {
 			const payload = {
@@ -508,11 +508,8 @@ export default function CustomersPage() {
 					open={isDeleteOpen}
 					onOpenChange={setIsDeleteOpen}
 					onConfirm={handleDelete}
-					
 				/>
 			</Card>
 		</PageTransition>
 	);
 }
-
-

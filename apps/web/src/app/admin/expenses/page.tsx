@@ -94,14 +94,14 @@ export default function ExpensesPage() {
 
 	return (
 		<motion.div
-			className="container space-y-4 sm:space-y-6 p-4 sm:p-6"
+			className="container space-y-4 p-4 sm:space-y-6 sm:p-6"
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.4 }}
 		>
-			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+			<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
 				<div>
-					<h1 className="font-bold text-2xl sm:text-3xl tracking-tight">
+					<h1 className="font-bold text-2xl tracking-tight sm:text-3xl">
 						Expenses
 					</h1>
 					<p className="mt-1 text-muted-foreground text-xs sm:text-sm">
@@ -109,14 +109,14 @@ export default function ExpensesPage() {
 					</p>
 				</div>
 				<Link href="/admin/expenses/create">
-					<Button className="gap-1 sm:gap-2 text-xs sm:text-sm">
+					<Button className="gap-1 text-xs sm:gap-2 sm:text-sm">
 						<PlusIcon className="h-4 w-4" />
 						Add Expense
 					</Button>
 				</Link>
 			</div>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4">
 				{kpis.map((kpi, i) => (
 					<motion.div
 						key={kpi.label}
@@ -124,18 +124,22 @@ export default function ExpensesPage() {
 						animate={{ opacity: 1, scale: 1 }}
 						transition={{ delay: i * 0.07 }}
 					>
-					<Card className="border-0 shadow-sm">
+						<Card className="border-0 shadow-sm">
 							<CardContent className="pt-4 sm:pt-6">
 								<div className="flex items-center gap-2 sm:gap-3">
 									<div className={`${kpi.bg} rounded-lg p-2`}>
 										<kpi.icon className={`h-5 w-5 ${kpi.color}`} />
 									</div>
 									<div>
-										<p className="text-muted-foreground text-xs sm:text-sm">{kpi.label}</p>
+										<p className="text-muted-foreground text-xs sm:text-sm">
+											{kpi.label}
+										</p>
 										{isLoading ? (
-											<Skeleton className="mt-1 h-5 sm:h-6 w-16 sm:w-20" />
+											<Skeleton className="mt-1 h-5 w-16 sm:h-6 sm:w-20" />
 										) : (
-											<p className="font-bold text-lg sm:text-xl">{kpi.value}</p>
+											<p className="font-bold text-lg sm:text-xl">
+												{kpi.value}
+											</p>
 										)}
 									</div>
 								</div>
@@ -147,8 +151,8 @@ export default function ExpensesPage() {
 
 			<Card className="border-0 shadow-sm">
 				<CardHeader>
-					<CardTitle className="flex items-center gap-1 sm:gap-2 text-base sm:text-lg">
-						<ReceiptIcon className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+					<CardTitle className="flex items-center gap-1 text-base sm:gap-2 sm:text-lg">
+						<ReceiptIcon className="h-4 w-4 text-muted-foreground sm:h-5 sm:w-5" />
 						Expense Records
 					</CardTitle>
 				</CardHeader>
@@ -166,19 +170,21 @@ export default function ExpensesPage() {
 									<TableHead className="text-xs sm:text-sm">ID</TableHead>
 									<TableHead className="text-xs sm:text-sm">Date</TableHead>
 									<TableHead className="text-xs sm:text-sm">Category</TableHead>
-									<TableHead className="text-xs sm:text-sm">Description</TableHead>
+									<TableHead className="text-xs sm:text-sm">
+										Description
+									</TableHead>
 									<TableHead className="text-xs sm:text-sm">Amount</TableHead>
 									<TableHead className="text-xs sm:text-sm">Status</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{items.length === 0 ? (
-								<TableRow>
-									<TableCell
-										colSpan={6}
-										className="py-8 sm:py-10 text-center text-muted-foreground text-xs sm:text-sm"
-									>
-										No expenses found. Record your first expense.
+									<TableRow>
+										<TableCell
+											colSpan={6}
+											className="py-8 text-center text-muted-foreground text-xs sm:py-10 sm:text-sm"
+										>
+											No expenses found. Record your first expense.
 										</TableCell>
 									</TableRow>
 								) : (
@@ -194,7 +200,7 @@ export default function ExpensesPage() {
 														)
 													: "—"}
 											</TableCell>
-											<TableCell className="capitalize text-xs sm:text-sm">
+											<TableCell className="text-xs capitalize sm:text-sm">
 												{expense.expense_category ?? "General"}
 											</TableCell>
 											<TableCell className="max-w-xs truncate text-xs sm:text-sm">

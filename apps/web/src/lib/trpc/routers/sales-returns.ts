@@ -178,7 +178,7 @@ export const salesReturnsRouter = router({
 				// 3. Restore stock logic
 				const branchId = returnData.branch_id || ctx.user.branchId || 1;
 				const items = returnData.returnItems;
-				
+
 				for (const item of items) {
 					const inventory = await tx.query.branchInventory.findFirst({
 						where: and(
@@ -186,7 +186,7 @@ export const salesReturnsRouter = router({
 							eq(branchInventory.product_id, item.product_id),
 						),
 					});
-					
+
 					if (inventory) {
 						await tx
 							.update(branchInventory)
@@ -216,11 +216,13 @@ export const salesReturnsRouter = router({
 				// 5. Adjust original order total
 				if (returnData.order_id) {
 					const order = await tx.query.orders.findFirst({
-						where: eq(orders.id, returnData.order_id)
+						where: eq(orders.id, returnData.order_id),
 					});
 					if (order) {
-						const newTotal = Number(order.total_amount) - Number(returnData.total_amount);
-						await tx.update(orders)
+						const newTotal =
+							Number(order.total_amount) - Number(returnData.total_amount);
+						await tx
+							.update(orders)
 							.set({ total_amount: newTotal.toString() })
 							.where(eq(orders.id, returnData.order_id));
 					}

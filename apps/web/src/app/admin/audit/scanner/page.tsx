@@ -132,7 +132,7 @@ export default function AuditorScanner() {
 								</Label>
 								<Input
 									placeholder="Scan Bin..."
-									className="h-14 border-gray-300 bg-white text-lg text-black uppercase placeholder:text-gray-500 focus-visible:ring-black"
+									className="h-14 border-gray-300 bg-white text-black text-lg uppercase placeholder:text-gray-500 focus-visible:ring-black"
 									value={locationBarcode}
 									onChange={(e) => setLocationBarcode(e.target.value)}
 									autoFocus
@@ -144,7 +144,7 @@ export default function AuditorScanner() {
 								</Label>
 								<Input
 									placeholder="Scan Item..."
-									className="h-14 border-gray-300 bg-white text-lg text-black placeholder:text-gray-500 focus-visible:ring-black"
+									className="h-14 border-gray-300 bg-white text-black text-lg placeholder:text-gray-500 focus-visible:ring-black"
 									value={productBarcode}
 									onChange={(e) => setProductBarcode(e.target.value)}
 								/>

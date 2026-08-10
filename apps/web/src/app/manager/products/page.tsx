@@ -121,7 +121,11 @@ export default function Products() {
 			header: tc("price"),
 			getValue: (p) => ((p as any).price / 100).toFixed(2),
 		},
-		{ key: "in_stock", header: t("stock"), getValue: (p) => (p as any).in_stock },
+		{
+			key: "in_stock",
+			header: t("stock"),
+			getValue: (p) => (p as any).in_stock,
+		},
 		{
 			key: "category",
 			header: tc("category"),
@@ -193,7 +197,7 @@ export default function Products() {
 			is_weighted: false,
 		},
 		validators: {
-			onSubmit: (productFormSchema as any),
+			onSubmit: productFormSchema as any,
 		},
 		onSubmit: ({ value }) => {
 			const payload = {
@@ -226,7 +230,8 @@ export default function Products() {
 			if (categoryFilter !== "all" && p.category !== categoryFilter)
 				return false;
 			if (stockFilter === "in-stock" && (p as any).in_stock === 0) return false;
-			if (stockFilter === "out-of-stock" && (p as any).in_stock > 0) return false;
+			if (stockFilter === "out-of-stock" && (p as any).in_stock > 0)
+				return false;
 			return p.name.toLowerCase().includes(searchTerm.toLowerCase());
 		});
 	}, [products, categoryFilter, stockFilter, searchTerm]);
@@ -546,7 +551,8 @@ export default function Products() {
 															<SelectContent>
 																{products
 																	.filter(
-																		(p) => !(p as any).is_pack && p.id !== editingId,
+																		(p) =>
+																			!(p as any).is_pack && p.id !== editingId,
 																	)
 																	.map((p) => (
 																		<SelectItem
@@ -759,10 +765,3 @@ export default function Products() {
 		</PageTransition>
 	);
 }
-
-
-
-
-
-
-

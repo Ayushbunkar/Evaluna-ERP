@@ -698,7 +698,7 @@ export default function BackupDashboard() {
 			) ?? 0,
 	};
 
-		return (
+	return (
 		<div className="min-h-screen bg-white p-6">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
@@ -862,7 +862,9 @@ export default function BackupDashboard() {
 				) : (backups ?? []).length === 0 ? (
 					<div className="py-20 text-center">
 						<Archive className="mx-auto mb-4 h-16 w-16 text-slate-300" />
-						<p className="font-semibold text-lg text-gray-900">No backups yet</p>
+						<p className="font-semibold text-gray-900 text-lg">
+							No backups yet
+						</p>
 						<p className="mt-1 mb-5 text-gray-500">
 							Create your first backup to protect your data
 						</p>
@@ -928,7 +930,7 @@ export default function BackupDashboard() {
 						>
 							<t.icon className={`h-5 w-5 ${t.color} mt-0.5 shrink-0`} />
 							<div>
-								<p className="font-medium text-sm text-gray-900">{t.title}</p>
+								<p className="font-medium text-gray-900 text-sm">{t.title}</p>
 								<p className="mt-0.5 text-gray-500 text-xs">{t.desc}</p>
 							</div>
 						</div>

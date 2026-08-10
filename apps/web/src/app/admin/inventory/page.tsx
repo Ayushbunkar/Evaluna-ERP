@@ -328,7 +328,10 @@ export default function InventoryDashboard() {
 				</motion.div>
 
 				{/* Top Moving & Recent Movements */}
-				<motion.div variants={itemVariants as any} className="flex flex-col gap-6">
+				<motion.div
+					variants={itemVariants as any}
+					className="flex flex-col gap-6"
+				>
 					<Card className="flex-1 border-border/50 shadow-sm">
 						<CardHeader className="pb-3">
 							<CardTitle className="flex items-center gap-2 text-base">
@@ -422,7 +425,3 @@ export default function InventoryDashboard() {
 		</div>
 	);
 }
-
-
-
-

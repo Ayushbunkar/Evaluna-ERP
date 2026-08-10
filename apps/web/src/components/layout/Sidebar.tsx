@@ -2,6 +2,7 @@
 
 import { cn } from "@evaluna/ui/lib/utils";
 import {
+	Home,
 	LayoutDashboard,
 	LogOut,
 	type LucideIcon,
@@ -9,7 +10,6 @@ import {
 	Settings,
 	ShoppingCart,
 	Users,
-	Home,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -84,15 +84,15 @@ export function Sidebar({
 
 	const filteredItems = items.filter((item) => item.roles.includes(userRole));
 
-// Add public site link for admins if enabled
-if (showPublicSiteLink && userRole === "admin") {
-	filteredItems.push({
-		title: "Public Site",
-		href: "/",
-		icon: Home,
-		roles: ["admin"],
-	});
-}
+	// Add public site link for admins if enabled
+	if (showPublicSiteLink && userRole === "admin") {
+		filteredItems.push({
+			title: "Public Site",
+			href: "/",
+			icon: Home,
+			roles: ["admin"],
+		});
+	}
 
 	return (
 		<div

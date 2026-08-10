@@ -1,22 +1,15 @@
 "use client";
 
-import {
-	Card,
-	CardContent,
-} from "@evaluna/ui/components/card";
-import {
-	ClipboardCheck,
-	PackageSearch,
-	ShieldCheck,
-} from "lucide-react";
-import { useTRPC } from "@/lib/trpc/client";
+import { Badge } from "@evaluna/ui/components/badge";
+import { Card, CardContent } from "@evaluna/ui/components/card";
+import { ClipboardCheck, PackageSearch, ShieldCheck } from "lucide-react";
 import {
 	AnimatedCard,
 	PageTransition,
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
-import { Badge } from "@evaluna/ui/components/badge";
+import { useTRPC } from "@/lib/trpc/client";
 
 const StatCard = ({
 	title,
@@ -30,22 +23,20 @@ const StatCard = ({
 	icon: any;
 }) => (
 	<AnimatedCard>
-		<Card className="h-full border-border bg-card shadow-sm rounded-xl transition-all hover:shadow-md">
-			<CardContent className="p-5 flex flex-col justify-between">
+		<Card className="h-full rounded-xl border-border bg-card shadow-sm transition-all hover:shadow-md">
+			<CardContent className="flex flex-col justify-between p-5">
 				<div className="flex items-start justify-between">
 					<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted/80">
 						<Icon className="h-6 w-6 text-foreground" />
 					</div>
 					{sub && (
-						<div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600">
+						<div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-bold text-[11px] text-emerald-600">
 							{sub}
 						</div>
 					)}
 				</div>
 				<div className="mt-6 space-y-1">
-					<p className="font-medium text-muted-foreground text-sm">
-						{title}
-					</p>
+					<p className="font-medium text-muted-foreground text-sm">{title}</p>
 					<p className="font-bold text-3xl tracking-tight">{value}</p>
 				</div>
 			</CardContent>
@@ -62,14 +53,16 @@ export default function CheckerDashboard() {
 
 	const { data: pendingToCheck } = useTRPC().checker.getPendingToCheck.useQuery(
 		{},
-		{ staleTime: 30_000 }
+		{ staleTime: 30_000 },
 	);
 
 	return (
 		<PageTransition>
 			<div className="flex flex-col gap-6 p-1">
 				<div>
-					<h1 className="font-bold text-2xl tracking-tight">Checker Dashboard</h1>
+					<h1 className="font-bold text-2xl tracking-tight">
+						Checker Dashboard
+					</h1>
 					<p className="text-muted-foreground text-sm">
 						Your verification tasks and performance
 					</p>
@@ -112,7 +105,7 @@ export default function CheckerDashboard() {
 					<Card>
 						<div className="p-6">
 							<h3 className="font-semibold text-lg">Needs Verification</h3>
-							<p className="text-sm text-muted-foreground mb-4">
+							<p className="mb-4 text-muted-foreground text-sm">
 								Packages that are packed and awaiting final checking.
 							</p>
 							<div className="space-y-4">
@@ -123,7 +116,7 @@ export default function CheckerDashboard() {
 									>
 										<div>
 											<p className="font-medium">{item.package_number}</p>
-											<p className="text-sm text-muted-foreground">
+											<p className="text-muted-foreground text-sm">
 												Ref: {item.order_ref}
 											</p>
 										</div>
@@ -131,7 +124,7 @@ export default function CheckerDashboard() {
 									</div>
 								))}
 								{pendingToCheck?.length === 0 && (
-									<div className="text-center py-6 text-muted-foreground text-sm">
+									<div className="py-6 text-center text-muted-foreground text-sm">
 										No pending packages to check.
 									</div>
 								)}

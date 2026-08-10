@@ -43,7 +43,9 @@ if (!fs.existsSync(BACKUPS_DIR)) {
 	try {
 		fs.mkdirSync(BACKUPS_DIR, { recursive: true });
 	} catch (e) {
-		console.warn("Failed to create backups directory (expected on Vercel read-only FS).");
+		console.warn(
+			"Failed to create backups directory (expected on Vercel read-only FS).",
+		);
 	}
 }
 
@@ -270,7 +272,8 @@ export function listBackups(): BackupEntry[] {
 		.filter(Boolean)
 		.sort(
 			(a, b) =>
-				new Date(b?.created_at ?? 0).getTime() - new Date(a?.created_at ?? 0).getTime(),
+				new Date(b?.created_at ?? 0).getTime() -
+				new Date(a?.created_at ?? 0).getTime(),
 		) as BackupEntry[];
 }
 

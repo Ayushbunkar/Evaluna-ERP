@@ -52,8 +52,9 @@ export default function LocationsPage() {
 	const [editingLocation, setEditingLocation] = useState<Location | null>(null);
 	const [printLocation, setPrintLocation] = useState<Location | null>(null);
 
-	const { data: locations, isLoading } =
-		trpc.warehouse.getLocations.useQuery({} as any);
+	const { data: locations, isLoading } = trpc.warehouse.getLocations.useQuery(
+		{} as any,
+	);
 
 	const createMutation = trpc.warehouse.createLocation.useMutation({
 		onSuccess: () => {
@@ -152,11 +153,7 @@ export default function LocationsPage() {
 				</Button>
 			</div>
 
-			<DataTable
-				columns={columns}
-				data={locations ?? []}
-				
-			/>
+			<DataTable columns={columns} data={locations ?? []} />
 
 			<Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
 				<DialogContent>
@@ -259,7 +256,9 @@ export default function LocationsPage() {
 					<div className="flex flex-col items-center justify-center space-y-4 p-8">
 						<div className="flex items-center justify-center">
 							{printLocation && (
-								<Barcode value={String(printLocation.name || printLocation.id)} />
+								<Barcode
+									value={String(printLocation.name || printLocation.id)}
+								/>
 							)}
 						</div>
 						<p className="text-muted-foreground text-sm">{printLocation?.id}</p>
@@ -278,8 +277,3 @@ export default function LocationsPage() {
 		</motion.div>
 	);
 }
-
-
-
-
-

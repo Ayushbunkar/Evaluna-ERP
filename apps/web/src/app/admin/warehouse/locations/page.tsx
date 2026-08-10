@@ -54,8 +54,9 @@ export default function WarehouseLocationsPage() {
 		is_active: true,
 	});
 
-	const { data: locations, isLoading } =
-		trpc.warehouse.getLocations.useQuery({});
+	const { data: locations, isLoading } = trpc.warehouse.getLocations.useQuery(
+		{},
+	);
 
 	const createLocation = trpc.warehouse.createLocation.useMutation({
 		onSuccess: () => {
@@ -220,7 +221,10 @@ export default function WarehouseLocationsPage() {
 										type="number"
 										value={formData.capacity}
 										onChange={(e) =>
-											setFormData({ ...formData, capacity: Number(e.target.value) })
+											setFormData({
+												...formData,
+												capacity: Number(e.target.value),
+											})
 										}
 									/>
 								</div>
@@ -271,7 +275,9 @@ export default function WarehouseLocationsPage() {
 								</Button>
 								<Button
 									type="submit"
-									disabled={createLocation.isPending || updateLocation.isPending}
+									disabled={
+										createLocation.isPending || updateLocation.isPending
+									}
 								>
 									{editingLocation ? "Save Changes" : "Create Location"}
 								</Button>
@@ -315,7 +321,8 @@ export default function WarehouseLocationsPage() {
 											? Math.min(
 													100,
 													Math.round(
-														(Number(loc.current_stock || 0) / Number(loc.capacity)) *
+														(Number(loc.current_stock || 0) /
+															Number(loc.capacity)) *
 															100,
 													),
 												)
@@ -354,7 +361,10 @@ export default function WarehouseLocationsPage() {
 														Active
 													</Badge>
 												) : (
-													<Badge variant="outline" className="text-muted-foreground">
+													<Badge
+														variant="outline"
+														className="text-muted-foreground"
+													>
 														Inactive
 													</Badge>
 												)}

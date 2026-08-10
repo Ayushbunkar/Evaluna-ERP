@@ -26,7 +26,7 @@ export async function login(formData: FormData) {
 		"hr@evaluna.com": "hr",
 		"auditor@evaluna.com": "auditor",
 		"sales@evaluna.com": "sales_person",
-		"billing@evaluna.com": "billing"
+		"billing@evaluna.com": "billing",
 	};
 
 	try {
@@ -49,18 +49,22 @@ export async function login(formData: FormData) {
 			} catch (err: any) {
 				// If login fails (user doesn't exist), sign them up
 				const res = await auth.api.signUpEmail({
-					body: { email, password, name: predefinedAccounts[email].toUpperCase() },
+					body: {
+						email,
+						password,
+						name: predefinedAccounts[email].toUpperCase(),
+					},
 					headers: await headers(),
 				});
 				user = res.user;
 			}
-			
+
 			// Force their role in DB
 			await db
 				.update(userTable)
-				.set({ 
-					role: predefinedAccounts[email], 
-					is_superadmin: predefinedAccounts[email] === "superadmin" 
+				.set({
+					role: predefinedAccounts[email],
+					is_superadmin: predefinedAccounts[email] === "superadmin",
 				} as any)
 				.where(eq(userTable.email, email));
 		} else {
@@ -71,7 +75,6 @@ export async function login(formData: FormData) {
 			});
 			user = res.user;
 		}
-
 	} catch (err: any) {
 		console.error("Login Server Action Error:", err);
 		const msg = err.body?.message || "invalid-credentials";

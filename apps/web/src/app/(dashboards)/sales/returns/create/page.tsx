@@ -29,13 +29,15 @@ import { useLocale } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AnimatedCard, motion, PageTransition } from "@/lib/animations";
-import { formatCurrency } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
+import { formatCurrency } from "@/lib/utils";
 
 export default function CreateSalesReturn() {
 	const [searchInput, setSearchInput] = useState("");
 	const [searchId, setSearchId] = useState<number | null>(null);
-	const [selectedItems, setSelectedItems] = useState<Record<number, number>>({}); // itemId -> return qty
+	const [selectedItems, setSelectedItems] = useState<Record<number, number>>(
+		{},
+	); // itemId -> return qty
 	const [reason, setReason] = useState("defective");
 	const [notes, setNotes] = useState("");
 
@@ -58,7 +60,7 @@ export default function CreateSalesReturn() {
 	});
 
 	const handleSearch = () => {
-		const parsed = parseInt(searchInput.replace(/\D/g, ""), 10);
+		const parsed = Number.parseInt(searchInput.replace(/\D/g, ""), 10);
 		if (!parsed || isNaN(parsed)) {
 			toast.error("Please enter a valid numeric Order ID.");
 			return;
@@ -66,7 +68,11 @@ export default function CreateSalesReturn() {
 		setSearchId(parsed);
 	};
 
-	const toggleItemSelection = (itemId: number, maxQty: number, checked: boolean) => {
+	const toggleItemSelection = (
+		itemId: number,
+		maxQty: number,
+		checked: boolean,
+	) => {
 		setSelectedItems((prev) => {
 			const next = { ...prev };
 			if (checked) {
@@ -89,7 +95,7 @@ export default function CreateSalesReturn() {
 		if (!order) return;
 
 		const itemsToReturn = Object.entries(selectedItems).map(([idStr, qty]) => {
-			const itemId = parseInt(idStr, 10);
+			const itemId = Number.parseInt(idStr, 10);
 			const orderItem = order.orderItems.find((i: any) => i.id === itemId);
 			if (!orderItem) throw new Error("Invalid item");
 			return {
@@ -105,7 +111,10 @@ export default function CreateSalesReturn() {
 			return;
 		}
 
-		const totalRefund = itemsToReturn.reduce((acc, curr) => acc + curr.refundAmount, 0);
+		const totalRefund = itemsToReturn.reduce(
+			(acc, curr) => acc + curr.refundAmount,
+			0,
+		);
 
 		createMutation.mutate({
 			orderId: order.id,
@@ -166,7 +175,7 @@ export default function CreateSalesReturn() {
 									</Button>
 								</div>
 								{searchId && !isFetching && !order && (
-									<p className="mt-4 text-sm text-red-500">
+									<p className="mt-4 text-red-500 text-sm">
 										Order not found or you don't have access to it.
 									</p>
 								)}
@@ -201,8 +210,9 @@ export default function CreateSalesReturn() {
 															? new Date(order.created_at).toLocaleDateString()
 															: "-"}
 													</p>
-													<p className="text-muted-foreground text-xs font-medium">
-														Customer: {order.customer?.name || "Walk-in Customer"}
+													<p className="font-medium text-muted-foreground text-xs">
+														Customer:{" "}
+														{order.customer?.name || "Walk-in Customer"}
 													</p>
 												</div>
 											</div>
@@ -232,14 +242,18 @@ export default function CreateSalesReturn() {
 																	className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
 																	checked={isSelected}
 																	onChange={(e) =>
-																		toggleItemSelection(item.id, item.quantity, e.target.checked)
+																		toggleItemSelection(
+																			item.id,
+																			item.quantity,
+																			e.target.checked,
+																		)
 																	}
 																/>
 																<div>
-																	<p className="text-sm font-medium">
+																	<p className="font-medium text-sm">
 																		{item.product?.name || "Unknown Product"}
 																	</p>
-																	<p className="text-xs text-muted-foreground">
+																	<p className="text-muted-foreground text-xs">
 																		Purchased: {item.quantity} x{" "}
 																		{formatCurrency(Number(item.price), locale)}
 																	</p>
@@ -257,7 +271,7 @@ export default function CreateSalesReturn() {
 																			updateItemQty(
 																				item.id,
 																				item.quantity,
-																				parseInt(e.target.value) || 1
+																				Number.parseInt(e.target.value) || 1,
 																			)
 																		}
 																		className="h-8 w-20"
@@ -317,7 +331,9 @@ export default function CreateSalesReturn() {
 												disabled={createMutation.isPending}
 												className="bg-primary text-primary-foreground hover:bg-primary/90"
 											>
-												{createMutation.isPending ? "Processing..." : "Create Return"}
+												{createMutation.isPending
+													? "Processing..."
+													: "Create Return"}
 											</Button>
 										</div>
 									</CardContent>

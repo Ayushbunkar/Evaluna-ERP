@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -7,12 +8,27 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
-import { Label } from "@evaluna/ui/components/label";
 import { Input } from "@evaluna/ui/components/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@evaluna/ui/components/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@evaluna/ui/components/tabs";
-import { PrinterIcon, MonitorSmartphoneIcon, KeyboardIcon, SaveIcon } from "lucide-react";
+import { Label } from "@evaluna/ui/components/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@evaluna/ui/components/select";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@evaluna/ui/components/tabs";
+import {
+	KeyboardIcon,
+	MonitorSmartphoneIcon,
+	PrinterIcon,
+	SaveIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 
@@ -70,7 +86,9 @@ export default function SalespersonSettingsPage() {
 										<SelectItem value="card">Credit/Debit Card</SelectItem>
 									</SelectContent>
 								</Select>
-								<p className="text-xs text-muted-foreground">This method will be auto-selected during checkout.</p>
+								<p className="text-muted-foreground text-xs">
+									This method will be auto-selected during checkout.
+								</p>
 							</div>
 
 							<div className="grid gap-3">
@@ -78,16 +96,27 @@ export default function SalespersonSettingsPage() {
 								<div className="flex items-center gap-2">
 									<Input defaultValue="50,100,500,1000" className="w-[300px]" />
 								</div>
-								<p className="text-xs text-muted-foreground">Comma-separated values for quick tender buttons (e.g. 50,100,500).</p>
+								<p className="text-muted-foreground text-xs">
+									Comma-separated values for quick tender buttons (e.g.
+									50,100,500).
+								</p>
 							</div>
 
-							<div className="flex items-center justify-between border rounded-lg p-4">
+							<div className="flex items-center justify-between rounded-lg border p-4">
 								<div>
-									<Label className="text-base font-medium">Enable Sound Effects</Label>
-									<p className="text-xs text-muted-foreground mt-1">Play sounds on successful scan and checkout.</p>
+									<Label className="font-medium text-base">
+										Enable Sound Effects
+									</Label>
+									<p className="mt-1 text-muted-foreground text-xs">
+										Play sounds on successful scan and checkout.
+									</p>
 								</div>
 								<div className="flex items-center gap-2">
-									<input type="checkbox" defaultChecked className="h-4 w-4 accent-primary" />
+									<input
+										type="checkbox"
+										defaultChecked
+										className="h-4 w-4 accent-primary"
+									/>
 								</div>
 							</div>
 						</CardContent>
@@ -104,13 +133,21 @@ export default function SalespersonSettingsPage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-6">
-							<div className="flex items-center justify-between border rounded-lg p-4">
+							<div className="flex items-center justify-between rounded-lg border p-4">
 								<div>
-									<Label className="text-base font-medium">Auto-Print Receipt</Label>
-									<p className="text-xs text-muted-foreground mt-1">Automatically trigger print dialog after checkout.</p>
+									<Label className="font-medium text-base">
+										Auto-Print Receipt
+									</Label>
+									<p className="mt-1 text-muted-foreground text-xs">
+										Automatically trigger print dialog after checkout.
+									</p>
 								</div>
 								<div className="flex items-center gap-2">
-									<input type="checkbox" defaultChecked className="h-4 w-4 accent-primary" />
+									<input
+										type="checkbox"
+										defaultChecked
+										className="h-4 w-4 accent-primary"
+									/>
 								</div>
 							</div>
 
@@ -130,8 +167,13 @@ export default function SalespersonSettingsPage() {
 
 							<div className="grid gap-3">
 								<Label>Footer Message</Label>
-								<Input defaultValue="Thank you for your business! Please visit again." className="w-full max-w-md" />
-								<p className="text-xs text-muted-foreground">Text to show at the bottom of the printed receipt.</p>
+								<Input
+									defaultValue="Thank you for your business! Please visit again."
+									className="w-full max-w-md"
+								/>
+								<p className="text-muted-foreground text-xs">
+									Text to show at the bottom of the printed receipt.
+								</p>
 							</div>
 						</CardContent>
 					</Card>
@@ -149,20 +191,28 @@ export default function SalespersonSettingsPage() {
 						<CardContent>
 							<div className="grid gap-4 sm:grid-cols-2">
 								<div className="flex items-center justify-between border-b py-2">
-									<span className="text-sm font-medium">Search Product</span>
-									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">F2</kbd>
+									<span className="font-medium text-sm">Search Product</span>
+									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium font-mono text-[10px] text-muted-foreground opacity-100">
+										F2
+									</kbd>
 								</div>
 								<div className="flex items-center justify-between border-b py-2">
-									<span className="text-sm font-medium">Checkout</span>
-									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">F9</kbd>
+									<span className="font-medium text-sm">Checkout</span>
+									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium font-mono text-[10px] text-muted-foreground opacity-100">
+										F9
+									</kbd>
 								</div>
 								<div className="flex items-center justify-between border-b py-2">
-									<span className="text-sm font-medium">Hold Bill</span>
-									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">F8</kbd>
+									<span className="font-medium text-sm">Hold Bill</span>
+									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium font-mono text-[10px] text-muted-foreground opacity-100">
+										F8
+									</kbd>
 								</div>
 								<div className="flex items-center justify-between border-b py-2">
-									<span className="text-sm font-medium">Clear Cart</span>
-									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd>
+									<span className="font-medium text-sm">Clear Cart</span>
+									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium font-mono text-[10px] text-muted-foreground opacity-100">
+										Esc
+									</kbd>
 								</div>
 							</div>
 						</CardContent>
@@ -170,7 +220,7 @@ export default function SalespersonSettingsPage() {
 				</TabsContent>
 			</Tabs>
 
-			<div className="flex justify-end mt-2">
+			<div className="mt-2 flex justify-end">
 				<Button onClick={handleSave} className="gap-2">
 					<SaveIcon className="h-4 w-4" />
 					Save Settings

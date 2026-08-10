@@ -30,5 +30,3 @@ export async function GET() {
 		return NextResponse.json({ error: "Backup failed" }, { status: 500 });
 	}
 }
-
-

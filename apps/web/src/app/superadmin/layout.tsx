@@ -43,10 +43,18 @@ const superAdminNavItems: NavItem[] = [
 		labelKey: "Dashboard Builder",
 		icon: LayoutDashboardIcon,
 	},
-	{ href: "/superadmin/health", labelKey: "systemHealth", icon: DatabaseZapIcon },
+	{
+		href: "/superadmin/health",
+		labelKey: "systemHealth",
+		icon: DatabaseZapIcon,
+	},
 	{ href: "/superadmin/audit-logs", labelKey: "auditLogs", icon: FileTextIcon },
 	{ href: "/superadmin/backups", labelKey: "backups", icon: HardDriveIcon },
-	{ href: "/superadmin/monitoring", labelKey: "monitoring", icon: BarChart3Icon },
+	{
+		href: "/superadmin/monitoring",
+		labelKey: "monitoring",
+		icon: BarChart3Icon,
+	},
 	{ href: "/superadmin/settings", labelKey: "settings", icon: SettingsIcon },
 ];
 

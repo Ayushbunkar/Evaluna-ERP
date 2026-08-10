@@ -25,7 +25,6 @@ export function ExpenseForm({
 	const router = useRouter();
 
 	const form = useForm({
-
 		defaultValues: expense || {
 			description: "",
 			amount: 0,
@@ -68,18 +67,20 @@ export function ExpenseForm({
 		"Other",
 	];
 
-		return (
-			<form
-				onSubmit={(e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					form.handleSubmit();
-				}}
-				className="container space-y-4 sm:space-y-6 max-w-2xl"
-			>
-				<div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-					<div className="space-y-1 sm:space-y-2">
-						<Label htmlFor="description" className="text-xs sm:text-sm">Description</Label>
+	return (
+		<form
+			onSubmit={(e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				form.handleSubmit();
+			}}
+			className="container max-w-2xl space-y-4 sm:space-y-6"
+		>
+			<div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
+				<div className="space-y-1 sm:space-y-2">
+					<Label htmlFor="description" className="text-xs sm:text-sm">
+						Description
+					</Label>
 					<form.Field
 						name="description"
 						children={(field) => (
@@ -95,7 +96,9 @@ export function ExpenseForm({
 				</div>
 
 				<div className="space-y-2">
-						<Label htmlFor="amount" className="text-xs sm:text-sm">Amount</Label>
+					<Label htmlFor="amount" className="text-xs sm:text-sm">
+						Amount
+					</Label>
 					<form.Field
 						name="amount"
 						children={(field) => (
@@ -112,7 +115,9 @@ export function ExpenseForm({
 				</div>
 
 				<div className="space-y-2">
-						<Label htmlFor="date" className="text-xs sm:text-sm">Date</Label>
+					<Label htmlFor="date" className="text-xs sm:text-sm">
+						Date
+					</Label>
 					<form.Field
 						name="date"
 						children={(field) => (
@@ -128,7 +133,9 @@ export function ExpenseForm({
 				</div>
 
 				<div className="space-y-2">
-						<Label htmlFor="category" className="text-xs sm:text-sm">Category</Label>
+					<Label htmlFor="category" className="text-xs sm:text-sm">
+						Category
+					</Label>
 					<form.Field
 						name="category"
 						children={(field) => (
@@ -139,9 +146,13 @@ export function ExpenseForm({
 								<SelectTrigger id="category" className="text-xs sm:text-sm">
 									<SelectValue placeholder="Select category" />
 								</SelectTrigger>
-							<SelectContent>
+								<SelectContent>
 									{expenseCategories.map((category) => (
-								<SelectItem key={category} value={category} className="text-xs sm:text-sm">
+										<SelectItem
+											key={category}
+											value={category}
+											className="text-xs sm:text-sm"
+										>
 											{category}
 										</SelectItem>
 									))}
@@ -153,7 +164,11 @@ export function ExpenseForm({
 			</div>
 
 			<div className="flex justify-end pt-3 sm:pt-4">
-				<Button type="submit" size="sm sm:size-lg" className="text-xs sm:text-sm">
+				<Button
+					type="submit"
+					size="sm sm:size-lg"
+					className="text-xs sm:text-sm"
+				>
 					{expense ? "Update Expense" : "Create Expense"}
 				</Button>
 			</div>

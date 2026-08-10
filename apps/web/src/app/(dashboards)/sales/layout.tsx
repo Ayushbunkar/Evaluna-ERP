@@ -3,13 +3,13 @@
 import {
 	IndianRupeeIcon,
 	LayoutDashboardIcon,
+	PauseCircleIcon,
 	ReceiptTextIcon,
+	SettingsIcon,
 	ShoppingBagIcon,
 	ShoppingCartIcon,
-	UsersIcon,
 	TargetIcon,
-	SettingsIcon,
-	PauseCircleIcon,
+	UsersIcon,
 } from "lucide-react";
 import {
 	AppLayoutWithBranch,

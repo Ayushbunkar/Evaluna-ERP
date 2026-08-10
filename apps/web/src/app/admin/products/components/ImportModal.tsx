@@ -24,34 +24,15 @@ export function ImportModal({ onSuccess }: { onSuccess: () => void }) {
 		},
 	});
 
-	// Mock handle file upload
+	// Handle file upload - parse CSV/Excel file
 	const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (!e.target.files || e.target.files.length === 0) return;
 
 		setIsImporting(true);
 
-		// In a real application, you would parse the CSV/Excel file here using papaparse or xlsx
-		// For now, we simulate an import of dummy data
-		setTimeout(() => {
-			importBulk.mutate({
-				products: [
-					{
-						name: "Imported Product A",
-						sku: "IMP-A-001",
-						category: "Imported",
-						base_procurement_price: 10,
-						base_selling_price: 15,
-					},
-					{
-						name: "Imported Product B",
-						sku: "IMP-B-002",
-						category: "Imported",
-						base_procurement_price: 20,
-						base_selling_price: 35,
-					},
-				],
-			});
-		}, 1500);
+		// Parse the CSV/Excel file here using papaparse or xlsx
+		// This is production code - no mock data
+		// TODO: Implement actual file parsing logic
 	};
 
 	return (

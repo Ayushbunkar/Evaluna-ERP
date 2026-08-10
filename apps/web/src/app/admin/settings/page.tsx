@@ -53,9 +53,11 @@ export default function SettingsPage() {
 
 	// Merge loaded settings with local unsaved changes
 	const getValue = (key: string, defaultValue = ""): string => {
-		return (formData[key] !== undefined
-			? formData[key]
-			: (settings as any)?.[key] || defaultValue) as string;
+		return (
+			formData[key] !== undefined
+				? formData[key]
+				: (settings as any)?.[key] || defaultValue
+		) as string;
 	};
 
 	const handleChange = (key: string, value: string) => {
@@ -273,5 +275,3 @@ export default function SettingsPage() {
 		</div>
 	);
 }
-
-

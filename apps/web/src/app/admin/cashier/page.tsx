@@ -544,5 +544,3 @@ export default function Cashier() {
 		</>
 	);
 }
-
-

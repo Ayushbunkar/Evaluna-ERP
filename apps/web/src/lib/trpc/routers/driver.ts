@@ -1,7 +1,7 @@
+import { deliveryTrips } from "@evaluna/db/schema/delivery";
 import { desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { deliveryTrips } from "@evaluna/db/schema/delivery";
 import { protectedProcedure, router } from "../init";
 
 export const driverRouter = router({
@@ -9,7 +9,10 @@ export const driverRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			let trip = await db.query.deliveryTrips.findFirst({
-				where: or(eq(deliveryTrips.status, "active"), eq(deliveryTrips.status, "pending")),
+				where: or(
+					eq(deliveryTrips.status, "active"),
+					eq(deliveryTrips.status, "pending"),
+				),
 				orderBy: [desc(deliveryTrips.created_at)],
 				with: {
 					stops: {
@@ -56,8 +59,12 @@ export const driverRouter = router({
 			}
 
 			const assignedOrders = trip.stops.length;
-			const delivered = trip.stops.filter((s: any) => s.status === "delivered").length;
-			const pending = trip.stops.filter((s: any) => s.status === "pending").length;
+			const delivered = trip.stops.filter(
+				(s: any) => s.status === "delivered",
+			).length;
+			const pending = trip.stops.filter(
+				(s: any) => s.status === "pending",
+			).length;
 
 			// In a real scenario, COD would be calculated from tripCollections or orders related to the stops.
 			// Since orders aren't directly linked to stops in the current schema (they are on proofOfDeliveries),
@@ -104,7 +111,9 @@ export const driverRouter = router({
 				delivered,
 				pending,
 				codCollected,
-				distanceCovered: trip.total_distance ? `${trip.total_distance} km` : null,
+				distanceCovered: trip.total_distance
+					? `${trip.total_distance} km`
+					: null,
 				rating: null,
 				nextDelivery,
 				routeStops,

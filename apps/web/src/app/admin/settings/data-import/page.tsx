@@ -1,5 +1,3 @@
-"use client";
-
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	AlertTriangle,
@@ -103,54 +101,8 @@ const TEMPLATES: Record<EntityType, string[]> = {
 	],
 };
 
-const SAMPLE_DATA: Record<EntityType, Record<string, string>[]> = {
-	product: [
-		{
-			name: "Rice Basmati 5kg",
-			price: "450",
-			barcode: "8901234567890",
-			category: "Grains",
-			description: "Premium basmati rice",
-			unit: "kg",
-			sku: "RICE001",
-			hsn: "1006",
-			taxable: "true",
-		},
-		{
-			name: "Sunflower Oil 1L",
-			price: "180",
-			barcode: "8901234567891",
-			category: "Oils",
-			description: "Refined sunflower oil",
-			unit: "L",
-			sku: "OIL001",
-			hsn: "1512",
-			taxable: "true",
-		},
-	],
-	customer: [
-		{
-			name: "Raj Enterprises",
-			email: "raj@example.com",
-			phone: "9876543210",
-			address: "123 MG Road, Bangalore",
-			gst_number: "29AAAAA0000A1Z5",
-			credit_limit: "50000",
-			customer_type: "wholesale",
-		},
-	],
-	supplier: [
-		{
-			name: "Metro Distributors",
-			email: "metro@example.com",
-			phone: "9876543211",
-			address: "45 Industrial Area, Delhi",
-			gst_number: "07BBBBB0000B1Z5",
-			pan_number: "BBBBB0000B",
-			supplier_category: "local",
-		},
-	],
-};
+// SAMPLE_DATA removed - use real data from database in production
+// Template download will use empty data structure for real implementation
 
 // ── CSV Utils ─────────────────────────────────────────────────────────────────
 function arrayToCSV(headers: string[], rows: Record<string, string>[]): string {
@@ -269,8 +221,8 @@ export default function DataImportPage() {
 	const downloadTemplate = useCallback(() => {
 		if (!entityType) return;
 		const headers = TEMPLATES[entityType];
-		const sampleRows = SAMPLE_DATA[entityType];
-		const csv = arrayToCSV(headers, sampleRows);
+		// Use empty array for production - no sample data
+		const csv = arrayToCSV(headers, []);
 		downloadCSV(`${entityType}_import_template.csv`, csv);
 	}, [entityType]);
 
@@ -479,8 +431,7 @@ export default function DataImportPage() {
 												Download CSV Template
 											</p>
 											<p className="text-slate-400 text-sm">
-												Get the required column headers with sample data
-												pre-filled
+												Get the required column headers for data import
 											</p>
 										</div>
 										<button
@@ -877,4 +828,3 @@ export default function DataImportPage() {
 		</div>
 	);
 }
-

@@ -4,6 +4,12 @@
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@evaluna/ui/components/card";
+import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
@@ -12,17 +18,8 @@ import {
 } from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
-import { useForm } from "@tanstack/react-form";
-import { z } from "zod/v4";
-import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
-import { toast } from "sonner";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@evaluna/ui/components/card";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
+import { useForm } from "@tanstack/react-form";
 import { motion } from "framer-motion";
 import {
 	Building,
@@ -35,6 +32,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod/v4";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePagination } from "@/hooks/use-pagination";
 import { trpc } from "@/lib/trpc/client";
@@ -156,7 +156,10 @@ export default function BranchesPage() {
 						Manage your distribution centers and retail hubs
 					</p>
 				</div>
-				<Button onClick={openCreate} className="bg-primary text-white shadow-sm hover:bg-primary/90">
+				<Button
+					onClick={openCreate}
+					className="bg-primary text-white shadow-sm hover:bg-primary/90"
+				>
 					<Plus className="mr-2 h-4 w-4" /> Add Branch
 				</Button>
 			</div>
@@ -343,7 +346,10 @@ export default function BranchesPage() {
 															<Edit className="h-4 w-4" />
 														</Button>
 														<Button
-															onClick={() => { setDeleteId(branch.id); setIsDeleteOpen(true); }}
+															onClick={() => {
+																setDeleteId(branch.id);
+																setIsDeleteOpen(true);
+															}}
 															variant="ghost"
 															size="icon"
 															className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -363,7 +369,9 @@ export default function BranchesPage() {
 			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>{isEditing ? "Edit Branch" : "Add Branch"}</DialogTitle>
+						<DialogTitle>
+							{isEditing ? "Edit Branch" : "Add Branch"}
+						</DialogTitle>
 					</DialogHeader>
 					<form
 						onSubmit={(e) => {
@@ -376,7 +384,9 @@ export default function BranchesPage() {
 							<form.Field name="name">
 								{(field) => (
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="name" className="text-right">Name</Label>
+										<Label htmlFor="name" className="text-right">
+											Name
+										</Label>
 										<div className="col-span-3">
 											<Input
 												id="name"
@@ -384,7 +394,9 @@ export default function BranchesPage() {
 												onChange={(e) => field.handleChange(e.target.value)}
 											/>
 											{field.state.meta.errors ? (
-												<p className="mt-1 text-red-500 text-sm">{field.state.meta.errors.join(", ")}</p>
+												<p className="mt-1 text-red-500 text-sm">
+													{field.state.meta.errors.join(", ")}
+												</p>
 											) : null}
 										</div>
 									</div>
@@ -393,7 +405,9 @@ export default function BranchesPage() {
 							<form.Field name="code">
 								{(field) => (
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="code" className="text-right">Code</Label>
+										<Label htmlFor="code" className="text-right">
+											Code
+										</Label>
 										<div className="col-span-3">
 											<Input
 												id="code"
@@ -408,7 +422,9 @@ export default function BranchesPage() {
 							<form.Field name="address">
 								{(field) => (
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="address" className="text-right">Address</Label>
+										<Label htmlFor="address" className="text-right">
+											Address
+										</Label>
 										<div className="col-span-3">
 											<Input
 												id="address"
@@ -422,7 +438,9 @@ export default function BranchesPage() {
 							<form.Field name="phone">
 								{(field) => (
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="phone" className="text-right">Phone</Label>
+										<Label htmlFor="phone" className="text-right">
+											Phone
+										</Label>
 										<div className="col-span-3">
 											<Input
 												id="phone"
@@ -436,7 +454,9 @@ export default function BranchesPage() {
 							<form.Field name="email">
 								{(field) => (
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="email" className="text-right">Email</Label>
+										<Label htmlFor="email" className="text-right">
+											Email
+										</Label>
 										<div className="col-span-3">
 											<Input
 												id="email"
@@ -444,7 +464,9 @@ export default function BranchesPage() {
 												onChange={(e) => field.handleChange(e.target.value)}
 											/>
 											{field.state.meta.errors ? (
-												<p className="mt-1 text-red-500 text-sm">{field.state.meta.errors.join(", ")}</p>
+												<p className="mt-1 text-red-500 text-sm">
+													{field.state.meta.errors.join(", ")}
+												</p>
 											) : null}
 										</div>
 									</div>
@@ -452,10 +474,23 @@ export default function BranchesPage() {
 							</form.Field>
 						</div>
 						<DialogFooter>
-							<Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={() => setIsDialogOpen(false)}
+							>
+								Cancel
+							</Button>
 							<form.Subscribe selector={(state) => state.isSubmitting}>
 								{(isSubmitting) => (
-									<Button type="submit" disabled={isSubmitting || createMutation.isPending || updateMutation.isPending}>
+									<Button
+										type="submit"
+										disabled={
+											isSubmitting ||
+											createMutation.isPending ||
+											updateMutation.isPending
+										}
+									>
 										{isEditing ? "Update Branch" : "Create Branch"}
 									</Button>
 								)}
@@ -471,11 +506,7 @@ export default function BranchesPage() {
 				onConfirm={() => {
 					if (deleteId) deleteMutation.mutate({ id: deleteId });
 				}}
-				
 			/>
 		</div>
 	);
 }
-
-
-

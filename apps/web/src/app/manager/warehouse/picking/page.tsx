@@ -10,7 +10,12 @@ import {
 } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@evaluna/ui/components/tabs";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@evaluna/ui/components/tabs";
 import {
 	ArrowLeftIcon,
 	CheckCircle2Icon,

@@ -25,10 +25,10 @@ export function PurchaseForm({
 	const router = useRouter();
 
 	const [suppliers] = trpc.suppliers.list.useSuspenseQuery();
-	const { data: products, error: productsError } = trpc.products.list.useQuery();
+	const { data: products, error: productsError } =
+		trpc.products.list.useQuery();
 
 	const form = useForm({
-
 		defaultValues: purchase || {
 			supplierId: "",
 			total: 0,
@@ -71,7 +71,10 @@ export function PurchaseForm({
 								</SelectTrigger>
 								<SelectContent>
 									{suppliers?.map((supplier) => (
-										<SelectItem key={supplier.id} value={supplier.id.toString()}>
+										<SelectItem
+											key={supplier.id}
+											value={supplier.id.toString()}
+										>
 											{supplier.name}
 										</SelectItem>
 									))}
@@ -86,13 +89,13 @@ export function PurchaseForm({
 					<form.Field
 						name="total"
 						children={(field) => (
-									<Input
-										id="total"
-										type="number"
-										value={field.state.value ?? ""}
-										onChange={(e) => field.handleChange(Number(e.target.value))}
-										placeholder="Enter total amount"
-									/>
+							<Input
+								id="total"
+								type="number"
+								value={field.state.value ?? ""}
+								onChange={(e) => field.handleChange(Number(e.target.value))}
+								placeholder="Enter total amount"
+							/>
 						)}
 					/>
 				</div>
@@ -125,7 +128,10 @@ export function PurchaseForm({
 													</SelectTrigger>
 													<SelectContent>
 														{products?.map((product) => (
-															<SelectItem key={product.id} value={product.id.toString()}>
+															<SelectItem
+																key={product.id}
+																value={product.id.toString()}
+															>
 																{product.name}
 															</SelectItem>
 														))}
@@ -144,7 +150,9 @@ export function PurchaseForm({
 													id={`items[${index}].quantity`}
 													type="number"
 													value={field.state.value ?? ""}
-													onChange={(e) => field.handleChange(Number(e.target.value))}
+													onChange={(e) =>
+														field.handleChange(Number(e.target.value))
+													}
 													placeholder="Quantity"
 												/>
 											)}
@@ -160,7 +168,9 @@ export function PurchaseForm({
 													id={`items[${index}].price`}
 													type="number"
 													value={field.state.value ?? ""}
-													onChange={(e) => field.handleChange(Number(e.target.value))}
+													onChange={(e) =>
+														field.handleChange(Number(e.target.value))
+													}
 													placeholder="Price"
 												/>
 											)}
