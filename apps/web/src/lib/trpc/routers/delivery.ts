@@ -361,4 +361,45 @@ export const deliveryRouter = router({
 
 			return { success: true };
 		}),
+
+	// New endpoint for vehicle location updates
+	updateVehicleLocation: protectedProcedure
+		.input(
+			z.object({
+				tripId: z.number(),
+				latitude: z.number(),
+				longitude: z.number(),
+				speed: z.number().optional(),
+				batteryLevel: z.number().optional(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			await db.insert(gpsLogs).values({
+				trip_id: input.tripId,
+				latitude: input.latitude.toString(),
+				longitude: input.longitude.toString(),
+				speed: input.speed?.toString(),
+				battery_level: input.batteryLevel?.toString(),
+				timestamp: new Date(),
+			});
+			return { success: true };
+		}),
+
+	// New endpoint to get trips for driver
+	getTrips: protectedProcedure
+		.input(z.object({ branch_id: z.number().optional() }))
+		.query(async ({ input, ctx }) => {
+			return await db.query.deliveryTrips.findMany({
+				where: eq(deliveryTrips.driver_id, ctx.user.id),
+				with: {
+					route: true,
+					stops: {
+						with: { customer: true },
+						orderBy: (s, { asc }) => [asc(s.sequence)],
+					},
+					vehicle: true,
+				},
+				orderBy: (t, { desc }) => [desc(t.created_at)],
+			});
+		}),
 });

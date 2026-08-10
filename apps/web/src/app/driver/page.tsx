@@ -50,9 +50,36 @@ import {
 } from "lucide-react";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+
+// Simple media query hook replacement
+function useMediaQuery(query: string): boolean {
+	const [matches, setMatches] = useState(false);
+
+	useEffect(() => {
+		const media = window.matchMedia(query);
+		if (media.matches !== matches) {
+			setMatches(media.matches);
+		}
+		const listener = () => setMatches(media.matches);
+		media.addListener(listener);
+		return () => media.removeListener(listener);
+	}, [matches, query]);
+
+	return matches;
+}
+
+// Simple currency formatter
+function formatCurrency(amount: number, locale: string = "en-IN"): string {
+	return new Intl.NumberFormat(locale, {
+		style: "currency",
+		currency: "INR",
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	}).format(amount);
+}
 
 // Type definitions
 interface DeliveryData {
@@ -332,9 +359,23 @@ export default function EnhancedDriverDashboard() {
 	});
 
 	// Fetch driver dashboard data
-	const { data, isLoading, refetch } = trpc.driver.getEnhancedDashboard.useQuery(
+	const { data: mobileData, isLoading: mobileLoading, refetch: mobileRefetch } = trpc.driver.getMobileDashboard.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
 	);
+
+	// Fetch trips data
+	const { data: tripsData, isLoading: tripsLoading, refetch: tripsRefetch } = trpc.delivery.getTrips.useQuery(
+		activeBranchId ? { branch_id: activeBranchId } : {},
+	);
+
+	// Combine data from both sources
+	const isLoading = mobileLoading || tripsLoading;
+	const data = mobileData;
+
+	const refetch = () => {
+		mobileRefetch();
+		tripsRefetch();
+	};
 
 	const updateStatus = trpc.delivery.updateStopStatus.useMutation({
 		onSuccess: () => refetch(),
