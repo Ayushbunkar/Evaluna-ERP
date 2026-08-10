@@ -151,16 +151,43 @@ export default function LoginPage() {
 	const t = useTranslations("login");
 
 	return (
-		<div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background selection:bg-primary/20">
-			{/* Background gradients for premium feel */}
-			<div className="pointer-events-none absolute top-0 left-0 -z-10 h-full w-full overflow-hidden">
-				<div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
-				<div className="absolute right-[-10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
-			</div>
+		<div className="min-h-screen bg-background">
+			{/* Navigation */}
+			<nav className="border-b border-border bg-background/80 backdrop-blur-sm">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div className="flex justify-between items-center h-16">
+						<div className="flex items-center space-x-2">
+							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
+							<span className="font-bold text-xl text-foreground">Evaluna ERP</span>
+						</div>
+						<div className="flex items-center space-x-4">
+							<Link href="/features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+								Features
+							</Link>
+							<Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+								Pricing
+							</Link>
+							<Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+								About
+							</Link>
+							<Button asChild variant="outline" className="text-sm">
+								<Link href="/signup">Sign Up</Link>
+							</Button>
+						</div>
+					</div>
+				</div>
+			</nav>
 
-			<div className="absolute top-6 right-6">
-				<LocaleSwitcher />
-			</div>
+			<div className="relative flex flex-col items-center justify-center overflow-hidden bg-background selection:bg-primary/20 min-h-[calc(100vh-64px)]">
+				{/* Background gradients for premium feel */}
+				<div className="pointer-events-none absolute top-0 left-0 -z-10 h-full w-full overflow-hidden">
+					<div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
+					<div className="absolute right-[-10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
+				</div>
+
+				<div className="absolute top-6 right-6">
+					<LocaleSwitcher />
+				</div>
 
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
@@ -200,6 +227,7 @@ export default function LoginPage() {
 					</Suspense>
 				</Card>
 			</motion.div>
+		</div>
 		</div>
 	);
 }
