@@ -41,14 +41,9 @@ export default function Layout({
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
-	// Enforce a "mobile-like" max-width on desktop for the driver app experience
 	return (
-		<div className="min-h-screen bg-muted">
-			<div className="relative mx-auto min-h-screen max-w-md overflow-hidden border-border/50 border-x bg-background shadow-2xl">
-				<AppLayoutWithBranch navItems={driverNavItems} namespace="nav">
-					{children}
-				</AppLayoutWithBranch>
-			</div>
-		</div>
+		<AppLayoutWithBranch navItems={driverNavItems} namespace="nav">
+			{children}
+		</AppLayoutWithBranch>
 	);
 }
