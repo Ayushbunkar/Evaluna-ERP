@@ -1,5 +1,5 @@
-import { deliveryTrips, tripCollections } from "@evaluna/db/schema/delivery";
-import { orders } from "@evaluna/db/schema";
+import { deliveryTrips, tripCollections, vehicles } from "@evaluna/db/schema/delivery";
+import { orders, branches } from "@evaluna/db/schema";
 import { desc, eq, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -140,5 +140,53 @@ export const driverRouter = router({
 				nextDelivery,
 				routeStops,
 			};
+		}),
+
+	getSupportInfo: protectedProcedure
+		.input(z.object({ branch_id: z.number().optional() }))
+		.query(async ({ input }) => {
+			if (input.branch_id) {
+				const branch = await db.query.branches.findFirst({
+					where: eq(branches.id, input.branch_id),
+				});
+				if (branch?.phone) return { dispatcherPhone: branch.phone };
+			}
+			return { dispatcherPhone: "+18005550199" };
+		}),
+
+	submitSupportTicket: protectedProcedure
+		.input(z.object({ message: z.string().min(1) }))
+		.mutation(async ({ input, ctx }) => {
+			// In a real scenario, this would insert into a `support_tickets` or `messages` table.
+			console.log(`[Support Ticket from ${ctx.user?.name}]: ${input.message}`);
+			return { success: true };
+		}),
+
+	reportVehicleBreakdown: protectedProcedure
+		.mutation(async ({ ctx }) => {
+			// Find the active trip for this driver
+			const trip = await db.query.deliveryTrips.findFirst({
+				where: or(
+					eq(deliveryTrips.status, "active"),
+					eq(deliveryTrips.status, "pending"),
+				),
+				orderBy: [desc(deliveryTrips.created_at)],
+			});
+
+			if (!trip || !trip.vehicle_id) {
+				throw new Error("No active vehicle found to report breakdown for.");
+			}
+
+			// Mark vehicle as maintenance
+			await db.update(vehicles)
+				.set({ status: "maintenance" })
+				.where(eq(vehicles.id, trip.vehicle_id));
+
+			// Optionally mark trip as failed or stalled
+			await db.update(deliveryTrips)
+				.set({ status: "pending" })
+				.where(eq(deliveryTrips.id, trip.id));
+
+			return { success: true };
 		}),
 });
