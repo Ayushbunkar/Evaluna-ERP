@@ -363,19 +363,9 @@ export default function EnhancedDriverDashboard() {
 		activeBranchId ? { branch_id: activeBranchId } : {},
 	);
 
-	// Fetch trips data
-	const { data: tripsData, isLoading: tripsLoading, refetch: tripsRefetch } = trpc.delivery.getTrips.useQuery(
-		activeBranchId ? { branch_id: activeBranchId } : {},
-	);
-
-	// Combine data from both sources
-	const isLoading = mobileLoading || tripsLoading;
+	const isLoading = mobileLoading;
 	const data = mobileData;
-
-	const refetch = () => {
-		mobileRefetch();
-		tripsRefetch();
-	};
+	const refetch = () => { mobileRefetch(); };
 
 	const updateStatus = trpc.delivery.updateStopStatus.useMutation({
 		onSuccess: () => refetch(),
@@ -385,12 +375,6 @@ export default function EnhancedDriverDashboard() {
 		onSuccess: () => {
 			refetch();
 			setShowReturnForm(false);
-		},
-	});
-
-	const generateBill = trpc.billing.generateDeliveryReceipt.useMutation({
-		onSuccess: (receiptUrl) => {
-			window.open(receiptUrl, '_blank');
 		},
 	});
 
@@ -415,18 +399,28 @@ export default function EnhancedDriverDashboard() {
 	};
 
 	const handleGenerateBill = () => {
-		if (data?.nextDelivery?.order_id) {
-			generateBill.mutate({
-				orderId: data.nextDelivery.order_id,
-				customerId: data.nextDelivery.customer_id,
-			});
-		}
+		// Navigate to the assigned orders page for billing
+		window.location.href = '/driver/assigned';
 	};
 
-	if (isLoading || !data) {
+	if (isLoading) {
 		return (
 			<div className="flex h-full min-h-[400px] items-center justify-center">
 				<div className="h-10 w-10 animate-spin rounded-full border-primary border-b-2" />
+			</div>
+		);
+	}
+
+	if (!data) {
+		return (
+			<div className="flex h-full min-h-[400px] flex-col items-center justify-center gap-4 text-center p-8">
+				<div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+					<PackageCheckIcon className="h-10 w-10 text-muted-foreground" />
+				</div>
+				<div>
+					<h2 className="text-xl font-bold">No Active Trip</h2>
+					<p className="text-muted-foreground mt-2">You have no active delivery trip assigned. Contact your branch admin.</p>
+				</div>
 			</div>
 		);
 	}
@@ -562,13 +556,16 @@ export default function EnhancedDriverDashboard() {
 														</p>
 													</div>
 													<div className="flex gap-2">
-														<Button
-															size="icon"
-															variant="outline"
-															className="h-10 w-10 shrink-0 rounded-full border-primary/20 bg-primary/5 text-primary"
-														>
-															<PhoneIcon className="h-4 w-4" />
-														</Button>
+														<a href={`tel:${data.nextDelivery.phone ?? ''}`}>
+															<Button
+																size="icon"
+																variant="outline"
+																className="h-10 w-10 shrink-0 rounded-full border-primary/20 bg-primary/5 text-primary"
+																disabled={!data.nextDelivery.phone}
+															>
+																<PhoneIcon className="h-4 w-4" />
+															</Button>
+														</a>
 														<Button
 															size="icon"
 															variant="outline"
@@ -596,10 +593,10 @@ export default function EnhancedDriverDashboard() {
 														<UserIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
 														<div>
 															<p className="font-medium text-sm">
-																Contact: {data.nextDelivery.contactName}
+																Contact: {data.nextDelivery.customerName}
 															</p>
 															<p className="text-muted-foreground text-xs">
-																{data.nextDelivery.contactPhone}
+																{data.nextDelivery.phone ?? 'No phone'}
 															</p>
 														</div>
 													</div>
