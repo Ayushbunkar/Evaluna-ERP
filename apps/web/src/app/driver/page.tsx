@@ -411,7 +411,7 @@ export default function EnhancedDriverDashboard() {
 		);
 	}
 
-	if (!data) {
+	if (!data?.driverName) {
 		return (
 			<div className="flex h-full min-h-[400px] flex-col items-center justify-center gap-4 text-center p-8">
 				<div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">

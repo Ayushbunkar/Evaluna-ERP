@@ -108,43 +108,25 @@ export const driverRouter = router({
 				};
 			}
 
-			// Enrich each stop with order details for the Assigned Orders billing modal
-			const routeStopsRaw = await Promise.all(
-				trip.stops.map(async (s: any) => {
-					const stopOrder = s.customer_id
-						? await db.query.orders.findFirst({
-								where: eq(orders.customer_id, s.customer_id),
-								orderBy: [desc(orders.created_at)],
-								with: { orderItems: { with: { product: true } } },
-							})
-						: null;
-
-					return {
-						id: s.id,
-						status:
-							s.status === "delivered"
-								? "completed"
-								: s.status === "pending" && s.id === nextStop?.id
-									? "next"
-									: "pending",
-						rawStatus: s.status,
-						time: s.status === "delivered" ? "Completed" : "--:--",
-						address: s.customer?.address ?? "N/A",
-						customerName: s.customer?.name ?? "Unknown",
-						phone: s.customer?.phone ?? null,
-						orderId: stopOrder?.id ?? null,
-						amountToCollect: stopOrder ? Number(stopOrder.total_amount) : 0,
-						packages: stopOrder?.orderItems?.length ?? 0,
-						orderItems: (stopOrder?.orderItems ?? []).map((item: any) => ({
-							id: item.id,
-							name: item.product?.name ?? `Item #${item.id}`,
-							qty: item.quantity ?? 1,
-							price: Number(item.price ?? 0),
-						})),
-					};
-				})
-			);
-			const routeStops = routeStopsRaw;
+			// Build route stops safely using only data already loaded from the trip query
+			const routeStops = trip.stops.map((s: any) => ({
+				id: s.id,
+				status:
+					s.status === "delivered"
+						? "completed"
+						: s.status === "pending" && s.id === nextStop?.id
+							? "next"
+							: "pending",
+				rawStatus: s.status,
+				time: s.status === "delivered" ? "Completed" : "--:--",
+				address: s.customer?.address ?? "N/A",
+				customerName: s.customer?.name ?? "Unknown",
+				phone: s.customer?.phone ?? null,
+				orderId: null as number | null,
+				amountToCollect: 0,
+				packages: 0,
+				orderItems: [] as Array<{ id: number; name: string; qty: number; price: number }>,
+			}));
 
 			return {
 				driverName: ctx.user?.name ?? "Driver",
