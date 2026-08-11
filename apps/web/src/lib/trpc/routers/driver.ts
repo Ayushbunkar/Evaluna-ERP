@@ -189,4 +189,18 @@ export const driverRouter = router({
 
 			return { success: true };
 		}),
+
+	logGPSPosition: protectedProcedure
+		.input(z.object({
+			lat: z.number(),
+			lng: z.number(),
+			speed: z.number().nullable().optional(),
+			heading: z.number().nullable().optional(),
+		}))
+		.mutation(async ({ input, ctx }) => {
+			// In a full production system, we would insert this into a `gps_logs` table:
+			// await db.insert(gpsLogs).values({ driver_id: ctx.user.id, ...input })
+			console.log(`[GPS SYNC] Driver ${ctx.user?.name} at [${input.lat}, ${input.lng}]`);
+			return { success: true };
+		}),
 });
