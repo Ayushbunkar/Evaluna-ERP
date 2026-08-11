@@ -359,7 +359,7 @@ export default function EnhancedDriverDashboard() {
 	});
 
 	// Fetch driver dashboard data
-	const { data: mobileData, isLoading: mobileLoading, refetch: mobileRefetch } = trpc.driver.getMobileDashboard.useQuery(
+	const { data: mobileData, isLoading: mobileLoading, isError, error, refetch: mobileRefetch } = trpc.driver.getMobileDashboard.useQuery(
 		activeBranchId ? { branch_id: activeBranchId } : {},
 	);
 
@@ -407,6 +407,20 @@ export default function EnhancedDriverDashboard() {
 		return (
 			<div className="flex h-full min-h-[400px] items-center justify-center">
 				<div className="h-10 w-10 animate-spin rounded-full border-primary border-b-2" />
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex h-full min-h-[400px] flex-col items-center justify-center gap-4 text-center p-8">
+				<div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-100 text-red-600">
+					<span className="font-bold text-xl">!</span>
+				</div>
+				<div>
+					<h2 className="text-xl font-bold text-red-600">Error Loading Dashboard</h2>
+					<p className="text-muted-foreground mt-2">{error?.message || "Unknown error occurred"}</p>
+				</div>
 			</div>
 		);
 	}
