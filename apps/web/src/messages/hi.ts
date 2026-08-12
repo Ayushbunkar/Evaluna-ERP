@@ -75,6 +75,7 @@ const messages: Messages = {
 		delivery: "वितरण",
 		finance: "वित्त",
 		inventory: "इन्वेंटरी",
+		payroll: "पेरोल",
 		warehouse: "गोदाम",
 		billing: "बिलिंग",
 		audit: "ऑडिट",

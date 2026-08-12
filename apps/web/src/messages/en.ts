@@ -73,6 +73,7 @@ const messages = {
 		delivery: "Delivery",
 		finance: "Finance",
 		inventory: "Inventory",
+		payroll: "Payroll",
 		warehouse: "Warehouse",
 		billing: "Billing",
 		audit: "Audit",
