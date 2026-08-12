@@ -71,12 +71,17 @@ export const driverRouter = router({
 				(s: any) => s.status === "partially_delivered" || s.status === "failed",
 			).length;
 
-			const collections = await db
-				.select({ amount: tripCollections.amount })
-				.from(tripCollections)
-				.where(eq(tripCollections.trip_id, trip.id));
+			let collections: any[] = [];
+			try {
+				collections = await db
+					.select({ amount: tripCollections.amount })
+					.from(tripCollections)
+					.where(eq(tripCollections.trip_id, trip.id));
+			} catch (error) {
+				console.warn("Failed to fetch trip collections:", error);
+			}
 
-			const codCollected = collections.reduce((acc, curr) => acc + Number(curr.amount), 0);
+			const codCollected = collections.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 			const successfulCollections = collections.length;
 
 			const nextStop = trip.stops.find((s: any) => s.status === "pending");
