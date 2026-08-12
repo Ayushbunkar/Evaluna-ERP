@@ -843,6 +843,7 @@ export default function EnhancedDriverDashboard() {
 											))}
 										</div>
 									</CardContent>
+								</Card>
 							</>
 						)}
 
