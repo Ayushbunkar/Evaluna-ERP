@@ -446,6 +446,67 @@ export const deliveryRouter = router({
 			return { success: true };
 		}),
 
+	optimizeRouteSequence: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(z.object({ customerIds: z.array(z.number()) }))
+		.mutation(async ({ input }) => {
+			if (input.customerIds.length <= 1) return input.customerIds;
+
+			// Fetch customers to get their coordinates
+			const customersData = await db.query.customers.findMany({
+				where: inArray(customers.id, input.customerIds),
+				columns: { id: true, latitude: true, longitude: true },
+			});
+
+			// Haversine distance function
+			const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+				const R = 6371; // Radius of the earth in km
+				const dLat = (lat2 - lat1) * (Math.PI / 180);
+				const dLon = (lon2 - lon1) * (Math.PI / 180);
+				const a =
+					Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+					Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+					Math.sin(dLon / 2) * Math.sin(dLon / 2);
+				const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+				return R * c; // Distance in km
+			};
+
+			// Default coordinates if missing (Mumbai center)
+			const parseCoord = (c: string | null) => c ? parseFloat(c) : 19.0760;
+			const parseLon = (c: string | null) => c ? parseFloat(c) : 72.8777;
+
+			// Implement Nearest Neighbor TSP Algorithm
+			let unvisited = [...customersData];
+			const optimizedIds: number[] = [];
+			
+			// Start from the first selected customer (or we could use branch coordinates)
+			let current = unvisited.find(c => c.id === input.customerIds[0]) || unvisited[0];
+			optimizedIds.push(current.id);
+			unvisited = unvisited.filter(c => c.id !== current.id);
+
+			while (unvisited.length > 0) {
+				let nearestIdx = 0;
+				let minDistance = Infinity;
+
+				for (let i = 0; i < unvisited.length; i++) {
+					const node = unvisited[i];
+					const dist = getDistance(
+						parseCoord(current.latitude), parseLon(current.longitude),
+						parseCoord(node.latitude), parseLon(node.longitude)
+					);
+					if (dist < minDistance) {
+						minDistance = dist;
+						nearestIdx = i;
+					}
+				}
+
+				current = unvisited[nearestIdx];
+				optimizedIds.push(current.id);
+				unvisited.splice(nearestIdx, 1);
+			}
+
+			return optimizedIds;
+		}),
+
 	createTripDirect: roleProcedure(["admin", "manager", "delivery_manager"])
 		.input(
 			z.object({

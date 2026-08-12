@@ -75,6 +75,7 @@ export function DeliveryManagementDashboard({
 			refetchTrips();
 		},
 	});
+	const optimizeRouteSequence = trpc.delivery.optimizeRouteSequence.useMutation();
 
 	// Form States
 	const [vehicleName, setVehicleName] = useState("");
@@ -147,6 +148,18 @@ export function DeliveryManagementDashboard({
 		setQuickTripCustomers([]);
 		setTripDriverId("");
 		setTripVehicleId("");
+	};
+
+	const handleOptimizeRoute = async () => {
+		if (routeCustomers.length <= 1) return;
+		const optimized = await optimizeRouteSequence.mutateAsync({ customerIds: routeCustomers });
+		setRouteCustomers(optimized);
+	};
+
+	const handleOptimizeQuickTrip = async () => {
+		if (quickTripCustomers.length <= 1) return;
+		const optimized = await optimizeRouteSequence.mutateAsync({ customerIds: quickTripCustomers });
+		setQuickTripCustomers(optimized);
 	};
 
 	return (
@@ -247,7 +260,20 @@ export function DeliveryManagementDashboard({
 											</Select>
 										</div>
 										<div className="space-y-2">
-											<Label>Add Customers (Select to add to sequence)</Label>
+											<div className="flex items-center justify-between">
+												<Label>Add Customers (Select to add to sequence)</Label>
+												{quickTripCustomers.length > 1 && (
+													<Button 
+														variant="outline" 
+														size="sm" 
+														onClick={handleOptimizeQuickTrip}
+														disabled={optimizeRouteSequence.isPending}
+														className="h-7 text-xs font-semibold bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+													>
+														✨ Auto-Optimize Route
+													</Button>
+												)}
+											</div>
 											<Select
 												onValueChange={(val) =>
 													setQuickTripCustomers([...quickTripCustomers, Number(val)])
@@ -319,7 +345,20 @@ export function DeliveryManagementDashboard({
 											/>
 										</div>
 										<div className="space-y-2">
-											<Label>Add Customers (Select to add to sequence)</Label>
+											<div className="flex items-center justify-between">
+												<Label>Add Customers (Select to add to sequence)</Label>
+												{routeCustomers.length > 1 && (
+													<Button 
+														variant="outline" 
+														size="sm" 
+														onClick={handleOptimizeRoute}
+														disabled={optimizeRouteSequence.isPending}
+														className="h-7 text-xs font-semibold bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+													>
+														✨ Auto-Optimize Route
+													</Button>
+												)}
+											</div>
 											<Select
 												onValueChange={(val) =>
 													setRouteCustomers([...routeCustomers, Number(val)])
