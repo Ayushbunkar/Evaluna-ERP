@@ -3,6 +3,7 @@ import {
 	products,
 	salesReturnItems,
 	salesReturns,
+	user,
 } from "@evaluna/db/schema";
 import {
 	deliveryRoutes,
@@ -400,6 +401,114 @@ export const deliveryRouter = router({
 					vehicle: true,
 				},
 				orderBy: (t, { desc }) => [desc(t.created_at)],
+			});
+		}),
+
+	// ── Dispatcher Panel ────────────────────────────────────────────────────
+	listDrivers: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(z.object({ branchId: z.number().optional() }))
+		.query(async ({ input, ctx }) => {
+			const branch = input.branchId || ctx.user?.branchId;
+			return await db.query.user.findMany({
+				where: (u, { eq, or }) => or(
+					eq(u.role, "delivery"),
+					eq(u.role, "driver"),
+					eq(u.role, "delivery_boy"),
+				),
+				columns: { id: true, name: true, email: true, role: true, image: true },
+			});
+		}),
+
+	listAllTrips: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(z.object({ branchId: z.number().optional(), status: z.string().optional() }))
+		.query(async ({ input, ctx }) => {
+			return await db.query.deliveryTrips.findMany({
+				with: {
+					route: true,
+					driver: { columns: { id: true, name: true, email: true, image: true } },
+					vehicle: true,
+					stops: {
+						with: { customer: { columns: { id: true, name: true, phone: true, address: true } } },
+						orderBy: (s, { asc }) => [asc(s.sequence)],
+					},
+				},
+				orderBy: (t, { desc }) => [desc(t.created_at)],
+			});
+		}),
+
+	cancelTrip: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(z.object({ tripId: z.number() }))
+		.mutation(async ({ input }) => {
+			await db
+				.update(deliveryTrips)
+				.set({ status: "cancelled" })
+				.where(eq(deliveryTrips.id, input.tripId));
+			return { success: true };
+		}),
+
+	createTripDirect: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(
+			z.object({
+				driverId: z.string(),
+				vehicleId: z.number().optional(),
+				stops: z.array(
+					z.object({
+						customerId: z.number(),
+						sequence: z.number(),
+						notes: z.string().optional(),
+					}),
+				),
+				routeName: z.string().optional(),
+				branchId: z.number().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const branch = input.branchId || ctx.user?.branchId;
+			return await db.transaction(async (tx) => {
+				// 1. Create a route for this trip
+				const [route] = await tx
+					.insert(deliveryRoutes)
+					.values({
+						name: input.routeName || `Trip ${new Date().toLocaleDateString("en-IN")}`,
+						branch_id: branch || null,
+					})
+					.returning();
+
+				// 2. Insert route stops
+				if (input.stops.length > 0) {
+					await tx.insert(routeStops).values(
+						input.stops.map((s) => ({
+							route_id: route.id,
+							customer_id: s.customerId,
+							sequence: s.sequence,
+						})),
+					);
+				}
+
+				// 3. Create the trip
+				const [trip] = await tx
+					.insert(deliveryTrips)
+					.values({
+						route_id: route.id,
+						driver_id: input.driverId,
+						vehicle_id: input.vehicleId || null,
+						status: "pending",
+					})
+					.returning();
+
+				// 4. Create trip stops
+				if (input.stops.length > 0) {
+					await tx.insert(tripStops).values(
+						input.stops.map((s) => ({
+							trip_id: trip.id,
+							customer_id: s.customerId,
+							sequence: s.sequence,
+							status: "pending",
+						})),
+					);
+				}
+
+				return trip;
 			});
 		}),
 });

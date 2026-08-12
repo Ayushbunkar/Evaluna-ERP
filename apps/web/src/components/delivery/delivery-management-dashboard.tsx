@@ -36,6 +36,7 @@ interface DeliveryManagementDashboardProps {
 	initialVehicles: any[];
 	drivers: any[];
 	branches: any[];
+	initialTrips?: any[];
 }
 
 export function DeliveryManagementDashboard({
@@ -43,23 +44,37 @@ export function DeliveryManagementDashboard({
 	initialVehicles,
 	drivers,
 	branches,
+	initialTrips,
 }: DeliveryManagementDashboardProps) {
 	const [activeTab, setActiveTab] = useState("overview");
 
 	const { data: routes = initialRoutes, refetch: refetchRoutes } =
 		trpc.delivery.listRoutes.useQuery({});
+	const { data: trips = initialTrips || [], refetch: refetchTrips } =
+		trpc.delivery.listAllTrips.useQuery({});
+	const { data: vehiclesData, refetch: refetchVehicles } = trpc.vehicles.list.useQuery({});
+	const vehicles = vehiclesData || initialVehicles || [];
 	const { data: customersResponse } = trpc.customers.list.useQuery() as any;
-	const vehicles = initialVehicles || [];
 	const customers = customersResponse || [];
 
-	const createVehicle = {
-		isPending: false,
-		mutateAsync: async (data: any) => {},
-	};
+	const createVehicle = trpc.vehicles.create.useMutation({
+		onSuccess: () => refetchVehicles(),
+	});
 	const createRoute = trpc.delivery.createRoute.useMutation({
 		onSuccess: () => refetchRoutes(),
 	});
-	const assignTrip = { isPending: false, mutateAsync: async (data: any) => {} };
+	const assignTrip = trpc.delivery.assignTrip.useMutation({
+		onSuccess: () => refetchTrips(),
+	});
+	const cancelTrip = trpc.delivery.cancelTrip.useMutation({
+		onSuccess: () => refetchTrips(),
+	});
+	const createTripDirect = trpc.delivery.createTripDirect.useMutation({
+		onSuccess: () => {
+			refetchRoutes();
+			refetchTrips();
+		},
+	});
 
 	// Form States
 	const [vehicleName, setVehicleName] = useState("");
@@ -76,6 +91,10 @@ export function DeliveryManagementDashboard({
 	const [tripDriverId, setTripDriverId] = useState("");
 	const [tripVehicleId, setTripVehicleId] = useState("");
 	const [isTripOpen, setIsTripOpen] = useState(false);
+
+	// Quick Trip States
+	const [quickTripCustomers, setQuickTripCustomers] = useState<number[]>([]);
+	const [isQuickTripOpen, setIsQuickTripOpen] = useState(false);
 
 	const handleAddVehicle = async () => {
 		await createVehicle.mutateAsync({
@@ -111,6 +130,21 @@ export function DeliveryManagementDashboard({
 		});
 		setIsTripOpen(false);
 		setTripRouteId("");
+		setTripDriverId("");
+		setTripVehicleId("");
+	};
+
+	const handleCreateQuickTrip = async () => {
+		await createTripDirect.mutateAsync({
+			driverId: tripDriverId,
+			vehicleId: tripVehicleId ? Number(tripVehicleId) : undefined,
+			stops: quickTripCustomers.map((id, index) => ({
+				customerId: id,
+				sequence: index + 1,
+			})),
+		});
+		setIsQuickTripOpen(false);
+		setQuickTripCustomers([]);
 		setTripDriverId("");
 		setTripVehicleId("");
 	};
@@ -170,6 +204,92 @@ export function DeliveryManagementDashboard({
 							</CardDescription>
 						</div>
 						<div className="flex space-x-2">
+							<Dialog open={isQuickTripOpen} onOpenChange={setIsQuickTripOpen}>
+								<DialogTrigger asChild>
+									<Button variant="secondary">Quick Custom Trip</Button>
+								</DialogTrigger>
+								<DialogContent className="max-w-xl">
+									<DialogHeader>
+										<DialogTitle>Quick Dispatch</DialogTitle>
+										<DialogDescription>
+											Assign a custom trip directly without creating a saved route.
+										</DialogDescription>
+									</DialogHeader>
+									<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
+										<div className="space-y-2">
+											<Label>Select Driver</Label>
+											<Select value={tripDriverId} onValueChange={setTripDriverId}>
+												<SelectTrigger>
+													<SelectValue placeholder="Select Driver" />
+												</SelectTrigger>
+												<SelectContent>
+													{drivers.map((d: any) => (
+														<SelectItem key={d.id} value={d.id}>
+															{d.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										<div className="space-y-2">
+											<Label>Select Vehicle</Label>
+											<Select value={tripVehicleId} onValueChange={setTripVehicleId}>
+												<SelectTrigger>
+													<SelectValue placeholder="Select Vehicle" />
+												</SelectTrigger>
+												<SelectContent>
+													{vehicles.map((v: any) => (
+														<SelectItem key={v.id} value={v.id.toString()}>
+															{v.name} - {v.registration_number}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										<div className="space-y-2">
+											<Label>Add Customers (Select to add to sequence)</Label>
+											<Select
+												onValueChange={(val) =>
+													setQuickTripCustomers([...quickTripCustomers, Number(val)])
+												}
+											>
+												<SelectTrigger>
+													<SelectValue placeholder="Add a customer..." />
+												</SelectTrigger>
+												<SelectContent>
+													{customers.map((c: any) => (
+														<SelectItem key={c.id} value={c.id.toString()}>
+															{c.name} ({c.phone || "No Phone"})
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											{quickTripCustomers.length > 0 && (
+												<div className="mt-2 space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
+													{quickTripCustomers.map((id, idx) => {
+														const cust = customers.find((c: any) => c.id === id);
+														return (
+															<div key={idx} className="flex items-center gap-2">
+																<MapPinIcon className="h-4 w-4 text-primary" />{" "}
+																<strong>Stop {idx + 1}:</strong> {cust?.name}
+															</div>
+														);
+													})}
+												</div>
+											)}
+										</div>
+									</div>
+									<DialogFooter>
+										<Button
+											onClick={handleCreateQuickTrip}
+											disabled={createTripDirect.isPending || !tripDriverId || quickTripCustomers.length === 0}
+										>
+											Dispatch Trip
+										</Button>
+									</DialogFooter>
+								</DialogContent>
+							</Dialog>
+
 							<Dialog open={isRouteOpen} onOpenChange={setIsRouteOpen}>
 								<DialogTrigger asChild>
 									<Button variant="outline">Create New Route</Button>
@@ -365,6 +485,76 @@ export function DeliveryManagementDashboard({
 													</div>
 												))}
 											</div>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
+
+						{/* Trips Section */}
+						<div className="mt-8 space-y-4">
+							<div className="flex items-center justify-between border-b pb-2">
+								<h3 className="font-bold text-xl">Assigned Trips</h3>
+							</div>
+							
+							{trips.length === 0 ? (
+								<p className="text-muted-foreground text-sm">
+									No trips assigned yet.
+								</p>
+							) : (
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+									{trips.map((trip: any) => (
+										<div
+											key={trip.id}
+											className="group relative overflow-hidden rounded-md border p-4 shadow-sm"
+										>
+											<div className={`absolute top-0 left-0 h-full w-1 ${
+												trip.status === "completed" ? "bg-emerald-500" :
+												trip.status === "active" ? "bg-amber-500" : 
+												trip.status === "cancelled" ? "bg-red-500" : "bg-primary"
+											}`} />
+											<div className="flex justify-between items-start">
+												<h4 className="font-semibold text-lg">{trip.route?.name || "Custom Trip"}</h4>
+												<span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${
+													trip.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+													trip.status === "active" ? "bg-amber-100 text-amber-700" : 
+													trip.status === "cancelled" ? "bg-red-100 text-red-700" : 
+													"bg-blue-100 text-blue-700"
+												}`}>
+													{trip.status}
+												</span>
+											</div>
+											<div className="mt-3 space-y-2 text-sm text-muted-foreground">
+												<div className="flex items-center gap-2">
+													<div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+														<PackageIcon className="w-3 h-3" />
+													</div>
+													Driver: <span className="font-medium text-foreground">{trip.driver?.name}</span>
+												</div>
+												<div className="flex items-center gap-2">
+													<div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+														<TruckIcon className="w-3 h-3" />
+													</div>
+													Vehicle: <span className="font-medium text-foreground">{trip.vehicle?.name || "N/A"}</span>
+												</div>
+												<div className="flex items-center gap-2">
+													<div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+														<RouteIcon className="w-3 h-3" />
+													</div>
+													Stops: <span className="font-medium text-foreground">{trip.stops?.length || 0}</span>
+												</div>
+											</div>
+											{trip.status === "pending" && (
+												<Button 
+													variant="destructive" 
+													size="sm" 
+													className="mt-4 w-full"
+													onClick={() => cancelTrip.mutate({ tripId: trip.id })}
+													disabled={cancelTrip.isPending}
+												>
+													Cancel Trip
+												</Button>
+											)}
 										</div>
 									))}
 								</div>
