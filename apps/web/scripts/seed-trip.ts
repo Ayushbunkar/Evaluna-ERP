@@ -37,10 +37,11 @@ async function seed() {
     let vh = await db.query.vehicles.findFirst();
     if (!vh) {
         const [insertedVh] = await db.insert(vehicles).values({
+            name: "Delivery Truck 1",
             registration_number: "ABC-1234",
             type: "truck",
             capacity: "1000",
-            status: "active",
+            status: "in_use",
         }).returning();
         vh = insertedVh;
     }

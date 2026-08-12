@@ -843,77 +843,221 @@ export default function EnhancedDriverDashboard() {
 											))}
 										</div>
 									</CardContent>
-								</Card>
 							</>
 						)}
 
 						{activeTab === "deliveries" && (
-							<div className="space-y-4">
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
 								<h2 className="text-xl font-bold">Delivery History</h2>
-								<Card>
-									<CardContent className="pt-6">
-										<DataTable
-											columns={[
-												{ accessorKey: "orderId", header: "Order ID" },
-												{ accessorKey: "customer", header: "Customer" },
-												{ accessorKey: "status", header: "Status" },
-												{ accessorKey: "time", header: "Time" },
-												{ accessorKey: "amount", header: "Amount" },
-											]}
-											data={data.deliveryHistory || []}
-											isLoading={isLoading}
-										/>
+								<span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{data.deliveryHistory?.length || 0} orders</span>
+							</div>
+							{/* Stats row */}
+							<div className="grid grid-cols-3 gap-3">
+								<Card className="rounded-xl">
+									<CardContent className="p-3 text-center">
+										<p className="text-2xl font-bold text-emerald-600">{data.delivered}</p>
+										<p className="text-xs text-muted-foreground">Delivered</p>
+									</CardContent>
+								</Card>
+								<Card className="rounded-xl">
+									<CardContent className="p-3 text-center">
+										<p className="text-2xl font-bold">{data.assignedOrders}</p>
+										<p className="text-xs text-muted-foreground">Assigned</p>
+									</CardContent>
+								</Card>
+								<Card className="rounded-xl">
+									<CardContent className="p-3 text-center">
+										<p className="text-2xl font-bold text-amber-600">{formatCurrency(data.codCollected, "en-IN")}</p>
+										<p className="text-xs text-muted-foreground">COD Collected</p>
 									</CardContent>
 								</Card>
 							</div>
-						)}
+							{/* Current pending stop */}
+							{data.nextDelivery && (
+								<Card className="border-primary/30 bg-primary/5">
+									<CardHeader className="pb-2">
+										<div className="flex items-center justify-between">
+											<CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Current Pending Delivery</CardTitle>
+											<span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">Pending</span>
+										</div>
+									</CardHeader>
+									<CardContent>
+										<div className="flex items-start justify-between">
+											<div>
+												<p className="font-bold text-lg">{data.nextDelivery.customerName}</p>
+												<p className="text-sm text-muted-foreground">Order #{data.nextDelivery.orderId}</p>
+												<p className="mt-1 text-sm">{data.nextDelivery.address}</p>
+											</div>
+											<div className="text-right">
+												<p className="font-bold text-amber-600">{formatCurrency(data.nextDelivery.amountToCollect, "en-IN")}</p>
+												<p className="text-xs text-muted-foreground">{data.nextDelivery.paymentType}</p>
+											</div>
+										</div>
+										<div className="mt-3 flex gap-2">
+											<Button size="sm" className="flex-1" onClick={() => handleUpdateStatus("delivered")} disabled={updateStatus.isPending}>
+												<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" /> Mark Delivered
+											</Button>
+											<a href={`tel:${data.nextDelivery.phone ?? ''}`}>
+												<Button size="sm" variant="outline" disabled={!data.nextDelivery.phone}>
+													<PhoneIcon className="h-3.5 w-3.5" />
+												</Button>
+											</a>
+										</div>
+									</CardContent>
+								</Card>
+							)}
+							{/* Route stops timeline */}
+							<Card>
+								<CardHeader className="pb-2">
+									<CardTitle className="text-sm">All Route Stops</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-3">
+									{data.routeStops?.length > 0 ? data.routeStops.map((stop, idx) => (
+										<div key={idx} className="flex items-start gap-3 rounded-lg border p-3">
+											<div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+												stop.status === "completed" ? "bg-emerald-500 text-white" :
+												stop.status === "next" ? "bg-primary text-white" :
+												"bg-muted text-muted-foreground"
+											}`}>{idx + 1}</div>
+											<div className="flex-1 min-w-0">
+												<p className="font-medium text-sm truncate">{stop.address}</p>
+												<p className="text-xs text-muted-foreground">{stop.time}</p>
+											</div>
+											<span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+												stop.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+												stop.status === "next" ? "bg-blue-100 text-blue-700" :
+												"bg-gray-100 text-gray-600"
+											}`}>{stop.status}</span>
+										</div>
+									)) : (
+										<p className="text-center text-muted-foreground py-4">No delivery history yet for today</p>
+									)}
+								</CardContent>
+							</Card>
+						</div>
+					)}
 
 						{activeTab === "returns" && (
-							<div className="space-y-4">
-								<h2 className="text-xl font-bold">Return History</h2>
-								<Card>
-									<CardContent className="pt-6">
-										<DataTable
-											columns={[
-												{ accessorKey: "returnId", header: "Return ID" },
-												{ accessorKey: "orderId", header: "Order ID" },
-												{ accessorKey: "reason", header: "Reason" },
-												{ accessorKey: "date", header: "Date" },
-												{ accessorKey: "status", header: "Status" },
-											]}
-											data={data.returnHistory || []}
-											isLoading={isLoading}
-										/>
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
+								<h2 className="text-xl font-bold">Returns</h2>
+								<Button size="sm" onClick={() => setShowReturnForm(true)}>
+									<Undo2Icon className="mr-1 h-4 w-4" /> Process Return
+								</Button>
+							</div>
+							{/* Return stats */}
+							<div className="grid grid-cols-2 gap-3">
+								<Card className="rounded-xl">
+									<CardContent className="p-4">
+										<p className="text-2xl font-bold">{data.returnsProcessed}</p>
+										<p className="text-xs text-muted-foreground">Returns Today</p>
+									</CardContent>
+								</Card>
+								<Card className="rounded-xl">
+									<CardContent className="p-4">
+										<p className="text-2xl font-bold">{data.returnRate}%</p>
+										<p className="text-xs text-muted-foreground">Return Rate</p>
 									</CardContent>
 								</Card>
 							</div>
-						)}
+							{/* Quick return action for current delivery */}
+							{data.nextDelivery && (
+								<Card className="border-amber-500/30 bg-amber-500/5">
+									<CardHeader className="pb-2">
+										<CardTitle className="text-sm font-bold text-amber-700">Process Return for Current Order</CardTitle>
+									</CardHeader>
+									<CardContent>
+										<p className="text-sm">Order #{data.nextDelivery.orderId} — {data.nextDelivery.customerName}</p>
+										<p className="text-xs text-muted-foreground">{data.nextDelivery.packages} package(s)</p>
+										<Button size="sm" variant="outline" className="mt-3 w-full border-amber-500/30 text-amber-700" onClick={() => setShowReturnForm(true)}>
+											<Undo2Icon className="mr-1 h-3.5 w-3.5" /> Initiate Return
+										</Button>
+									</CardContent>
+								</Card>
+							)}
+							{/* Return history list */}
+							<Card>
+								<CardHeader className="pb-2">
+									<CardTitle className="text-sm">Return History</CardTitle>
+								</CardHeader>
+								<CardContent>
+									{data.returnHistory?.length > 0 ? (
+										<div className="space-y-2">
+											{data.returnHistory.map((ret: any, idx: number) => (
+												<div key={idx} className="flex items-center justify-between rounded-lg border p-3">
+													<div>
+														<p className="font-medium text-sm">{ret.orderId || `Return #${idx + 1}`}</p>
+														<p className="text-xs text-muted-foreground">{ret.reason || "No reason"}</p>
+													</div>
+													<span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">{ret.status || "processed"}</span>
+												</div>
+											))}
+										</div>
+									) : (
+										<div className="py-8 text-center">
+											<Undo2Icon className="mx-auto h-8 w-8 text-muted-foreground/40" />
+											<p className="mt-2 text-muted-foreground">No returns processed today</p>
+										</div>
+									)}
+								</CardContent>
+							</Card>
+						</div>
+					)}
 
-						{activeTab === "reports" && (
-							<div className="space-y-4">
-								<h2 className="text-xl font-bold">Performance Reports</h2>
-								<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-									<Card>
-										<CardHeader>
-											<CardTitle>Daily Summary</CardTitle>
-										</CardHeader>
-										<CardContent>
-											{/* Daily summary content */}
-											<p>Comprehensive daily performance report</p>
-										</CardContent>
-									</Card>
-									<Card>
-										<CardHeader>
-											<CardTitle>Weekly Analytics</CardTitle>
-										</CardHeader>
-										<CardContent>
-											{/* Weekly analytics content */}
-											<p>Weekly performance trends and insights</p>
-										</CardContent>
-									</Card>
-								</div>
-							</div>
-						)}
+					{activeTab === "reports" && (
+						<div className="space-y-4">
+							<h2 className="text-xl font-bold">Performance Reports</h2>
+							{/* Today's summary */}
+							<Card>
+								<CardHeader>
+									<CardTitle className="flex items-center gap-2">
+										<FileTextIcon className="h-5 w-5" /> Daily Summary — {new Date().toLocaleDateString("en-IN", { dateStyle: "long" })}
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-3">
+									{[
+										{ label: "Deliveries Completed", value: `${data.delivered} / ${data.assignedOrders}`, sub: `${data.assignedOrders > 0 ? Math.round((data.delivered / data.assignedOrders) * 100) : 0}% completion rate` },
+										{ label: "COD Collected", value: formatCurrency(data.codCollected, "en-IN"), sub: `${data.successfulCollections} successful collections` },
+										{ label: "Returns Processed", value: data.returnsProcessed.toString(), sub: `${data.returnRate}% return rate` },
+										{ label: "Customer Rating", value: `${data.customerRating} / 5 ⭐`, sub: `${data.positiveReviews} positive reviews` },
+									].map((row, i) => (
+										<div key={i} className="flex items-center justify-between rounded-lg border px-4 py-3">
+											<div>
+												<p className="font-medium text-sm">{row.label}</p>
+												<p className="text-xs text-muted-foreground">{row.sub}</p>
+											</div>
+											<p className="font-bold text-lg">{row.value}</p>
+										</div>
+									))}
+								</CardContent>
+							</Card>
+							{/* Driver info */}
+							<Card>
+								<CardHeader>
+									<CardTitle className="flex items-center gap-2">
+										<UserIcon className="h-5 w-5" /> Driver Info
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-2">
+									<div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-medium">{data.driverName}</span></div>
+									<div className="flex justify-between"><span className="text-muted-foreground">Status</span><span className="font-medium capitalize text-emerald-600">{data.status}</span></div>
+									<div className="flex justify-between"><span className="text-muted-foreground">Location</span><span className="font-medium">{data.currentLocation || "Fetching..."}</span></div>
+									{data.vehicleStatus && (
+										<>
+											<div className="flex justify-between"><span className="text-muted-foreground">Vehicle Fuel</span><span className="font-medium">{data.vehicleStatus.fuelLevel || "N/A"}</span></div>
+											<div className="flex justify-between"><span className="text-muted-foreground">Odometer</span><span className="font-medium">{data.vehicleStatus.odometer || "N/A"}</span></div>
+											<div className="flex justify-between"><span className="text-muted-foreground">Maintenance</span><span className={`font-medium ${data.vehicleStatus.maintenanceDue ? "text-rose-500" : "text-emerald-500"}`}>{data.vehicleStatus.maintenanceDue ? "Due" : "OK"}</span></div>
+										</>
+									)}
+								</CardContent>
+							</Card>
+							{/* Export button */}
+							<Button className="w-full" variant="outline" onClick={() => window.print()}>
+								<PrinterIcon className="mr-2 h-4 w-4" /> Export / Print Report
+							</Button>
+						</div>
+					)}
 					</div>
 
 					{/* Right Column - Sidebar (Desktop only) */}
@@ -1012,15 +1156,31 @@ export default function EnhancedDriverDashboard() {
 				</DialogContent>
 			</Dialog>
 
-			{/* Emergency Button - Fixed at bottom for mobile */}
+			{/* Mobile Bottom Navigation Bar */}
 			{!isDesktop && (
-				<div className="sticky bottom-0 z-50 bg-background p-4 shadow-lg">
-					<Button
-						variant="destructive"
-						className="h-12 w-full gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 font-bold text-rose-600 shadow-none hover:bg-rose-500/20"
-					>
-						<AlertTriangleIcon className="h-4 w-4" /> Report Issue / Emergency
-					</Button>
+				<div className="sticky bottom-0 z-50 border-t border-border/50 bg-background shadow-lg">
+					<div className="grid grid-cols-4">
+						{([
+							{ id: "dashboard", icon: <ListIcon className="h-5 w-5" />, label: "Dashboard" },
+							{ id: "deliveries", icon: <PackageCheckIcon className="h-5 w-5" />, label: "Deliveries" },
+							{ id: "returns", icon: <Undo2Icon className="h-5 w-5" />, label: "Returns" },
+							{ id: "reports", icon: <FileTextIcon className="h-5 w-5" />, label: "Reports" },
+						] as const).map((tab) => (
+							<button
+								key={tab.id}
+								type="button"
+								onClick={() => setActiveTab(tab.id)}
+								className={`flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors ${
+									activeTab === tab.id
+										? "text-primary border-t-2 border-primary -mt-px"
+										: "text-muted-foreground hover:text-foreground"
+								}`}
+							>
+								{tab.icon}
+								{tab.label}
+							</button>
+						))}
+					</div>
 				</div>
 			)}
 		</div>
