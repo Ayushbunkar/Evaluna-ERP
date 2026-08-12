@@ -538,7 +538,7 @@ export default function EnhancedDriverDashboard() {
 				{/* Main Content Area */}
 				<div className="flex flex-1 gap-6 overflow-hidden">
 					{/* Left Column - Main Dashboard */}
-					<div className={`flex flex-1 flex-col ${isDesktop ? 'w-2/3' : 'w-full'}`}>
+					<div className={`flex flex-1 flex-col overflow-y-auto pr-2 pb-16 ${isDesktop ? 'w-2/3' : 'w-full'}`}>
 						{activeTab === "dashboard" && (
 							<>
 								{/* Next Delivery Card - Enhanced */}
@@ -1063,7 +1063,7 @@ export default function EnhancedDriverDashboard() {
 
 					{/* Right Column - Sidebar (Desktop only) */}
 					{isDesktop && (
-						<div className="w-1/3 space-y-4">
+						<div className="w-1/3 space-y-4 overflow-y-auto pr-2 pb-16">
 							<Card>
 								<CardHeader>
 									<CardTitle>Quick Actions</CardTitle>
