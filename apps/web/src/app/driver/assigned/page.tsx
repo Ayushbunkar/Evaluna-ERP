@@ -87,7 +87,12 @@ function OrderDetailModal({ stop, open, onClose }: { stop: Stop; open: boolean; 
 	const handleProceed = () => {
 		onClose();
 		toast.success(`Bill finalised for ${stop.customerName}. Proceed to OTP & cash collection.`);
-		router.push("/driver/otp");
+		const params = new URLSearchParams({
+			phone: stop.phone ?? "",
+			orderId: String(stop.orderId ?? ""),
+			customerName: stop.customerName,
+		});
+		router.push(`/driver/otp?${params.toString()}`);
 	};
 
 	return (
