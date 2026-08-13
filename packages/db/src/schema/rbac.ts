@@ -78,10 +78,19 @@ export const permissions = pgTable("permissions", {
 });
 
 // Role Permissions (Many-to-Many)
+// Keep compatibility with the app's canonical role_permissions table while allowing
+// legacy client-management screens to continue using role_id/module/is_allowed.
 export const rolePermissions = pgTable("role_permissions", {
+	id: serial("id").primaryKey(),
+	role_name: varchar("role_name", { length: 50 }),
 	roleId: integer("role_id").references(() => roles.id),
+	domain: varchar("domain", { length: 50 }),
+	module: varchar("module", { length: 50 }),
+	action: varchar("action", { length: 20 }).notNull(),
+	is_allowed: boolean("is_allowed").default(false),
 	permissionId: integer("permission_id").references(() => permissions.id),
 	createdAt: timestamp("created_at").defaultNow(),
+	updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // User Roles (Many-to-Many)

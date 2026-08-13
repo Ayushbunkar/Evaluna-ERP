@@ -165,12 +165,15 @@ export const rolesRelations = relations(roles, ({ many }) => ({
 }));
 
 // ── Role Permissions (Extended for client management) ────────────────────────
+// Keep the canonical auth fields and the legacy client-management fields together so
+// both role_name/domain/action checks and role_id/module/is_allowed screens work during
+// the migration window.
 export const rolePermissions = pgTable("role_permissions", {
 	id: serial("id").primaryKey(),
-	role_id: integer("role_id")
-		.references(() => roles.id)
-		.notNull(),
-	module: varchar("module", { length: 50 }).notNull(),
+	role_name: varchar("role_name", { length: 50 }),
+	role_id: integer("role_id").references(() => roles.id),
+	domain: varchar("domain", { length: 50 }),
+	module: varchar("module", { length: 50 }),
 	action: varchar("action", { length: 20 }).notNull(),
 	is_allowed: boolean("is_allowed").default(false),
 	created_at: timestamp("created_at").defaultNow(),

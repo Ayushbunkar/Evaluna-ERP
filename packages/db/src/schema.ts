@@ -2068,17 +2068,30 @@ export const branchHealthRelations = relations(
 // ── Role Permissions (Phase 43) ─────────────────────────────────────────────
 // Granular domain × action grants per role name.
 // Seeded on first run; editable by admin at runtime.
+//
+// NOTE:
+// The app has historically used both a canonical shape (`role_name`, `domain`, `action`)
+// and a legacy client-management shape (`role_id`, `module`, `is_allowed`).
+// To keep the database compatible during migration, we retain both sets of columns
+// in a single table until all callers are normalized.
 export const rolePermissions = pgTable("role_permissions", {
 	id: serial("id").primaryKey(),
-	/** Role name: admin | manager | auditor | putter | picker | biller | sales_person */
-	role_name: varchar("role_name", { length: 50 }).notNull(),
-	/** Permission domain: pos | inventory | purchases | suppliers | customers | products |
-	 *  staff | reports | accounting | settings | backups | monitoring | branches |
-	 *  payroll | marketing | warehouse | notifications | imports | loyalty */
-	domain: varchar("domain", { length: 50 }).notNull(),
-	/** Action: read | write | delete | approve */
+	/** Canonical app role name used by auth and permission checks */
+	role_name: varchar("role_name", { length: 50 }),
+	/** Legacy role reference used by admin client-management screens */
+	role_id: integer("role_id").references((): any => roles.id),
+	/** Canonical permission domain used by auth and runtime checks */
+	domain: varchar("domain", { length: 50 }),
+	/** Legacy permission module used by admin client-management screens */
+	module: varchar("module", { length: 50 }),
+	/** Canonical action used by auth checks */
 	action: varchar("action", { length: 20 }).notNull(),
+	/** Legacy boolean gate used by admin client-management screens */
+	is_allowed: boolean("is_allowed").default(false),
 	created_at: timestamp("created_at").defaultNow(),
+	updated_at: timestamp("updated_at")
+		.defaultNow()
+		.$onUpdateFn(() => new Date()),
 });
 
 // ── Password Reset Tokens ────────────────────────────────────────────────────

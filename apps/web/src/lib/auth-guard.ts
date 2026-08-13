@@ -3,7 +3,11 @@ import { eq } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { auth } from "./auth";
 import { db } from "./db";
-import type { Permission, Role } from "./permissions";
+import {
+	getPermissionsForRole,
+	type Permission,
+	type Role,
+} from "./permissions";
 import {
 	type CachedSession,
 	getCachedSession,
@@ -66,17 +70,27 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 
 	const role = (dbUser.role || "sales_person") as Role;
 
-	// 4. Resolve permissions from the DB (or could use static permissions map)
-	// For maximum flexibility, we read the static map for now, but in a real
-	// system you might query rolePermissions table if it was dynamic.
-	// We'll query it to ensure it matches the DB state if admins edited it.
-	const permsRows = await db
-		.select()
-		.from(rolePermissions)
-		.where(eq(rolePermissions.role_name, role));
-	const permissions = permsRows.map(
-		(r) => `${r.domain}.${r.action}` as Permission,
-	);
+	// 4. Resolve permissions defensively.
+	// Some environments still carry stale legacy role_permissions table shapes,
+	// so we prefer the canonical static permission matrix over crashing the whole
+	// session when the dynamic table is unavailable or mismatched.
+	let permissions: Permission[] = getPermissionsForRole(role as Role);
+	try {
+		const permsRows = await db
+			.select()
+			.from(rolePermissions)
+			.where(eq(rolePermissions.role_name, role));
+		if (permsRows.length > 0) {
+			permissions = permsRows.map(
+				(r) => `${r.domain}.${r.action}` as Permission,
+			);
+		}
+	} catch (error) {
+		console.warn("[auth-guard] Falling back to static permissions", {
+			role,
+			error,
+		});
+	}
 
 	// 5. Build enriched session
 	const enriched: CachedSession = {
