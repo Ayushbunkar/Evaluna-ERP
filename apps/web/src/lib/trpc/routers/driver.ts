@@ -162,9 +162,7 @@ export const driverRouter = router({
 						price: Number(item.price),
 					})) || [],
 				};
-			});
-				orderItems: [] as Array<{ id: number; name: string; qty: number; price: number; product_id: number }>,
-			}));
+				}));
 
 			return {
 				driverName: ctx.user?.name ?? "Driver",

@@ -314,9 +314,84 @@ function ReturnOrderForm({ onSubmit, onCancel, deliveryData }: {
 }
 
 // Bill Generation Component
-function BillGeneration({ deliveryData, onGenerate }) {
+function BillGeneration({ deliveryData, onGenerate, onClose }: {
+	deliveryData: DeliveryData;
+	onGenerate: () => void;
+	onClose: () => void;
+}) {
+	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedProducts, setSelectedProducts] = useState([]);
+	const [quantities, setQuantities] = useState({});
+
+	// Fetch product catalog
+	const { data: catalogData, isLoading: catalogLoading } = trpc.pos.catalog.useQuery();
+
+	// Calculate total amount
+	const calculateTotal = () => {
+		let total = deliveryData.amountToCollect || 0;
+		selectedProducts.forEach(product => {
+			const qty = quantities[product.id] || 1;
+			total += (product.price || 0) * qty;
+		});
+		return total;
+	};
+
+	const handleAddProduct = (product) => {
+		if (!selectedProducts.find(p => p.id === product.id)) {
+			setSelectedProducts([...selectedProducts, product]);
+			setQuantities({ ...quantities, [product.id]: 1 });
+		}
+	};
+
+	const handleQuantityChange = (productId, delta) => {
+		const newQty = (quantities[productId] || 1) + delta;
+		if (newQty > 0) {
+			setQuantities({ ...quantities, [productId]: newQty });
+		}
+	};
+
+	const handleRemoveProduct = (productId) => {
+		setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
+		const newQuantities = { ...quantities };
+		delete newQuantities[productId];
+		setQuantities(newQuantities);
+	};
+
+	const handleSaveChanges = async () => {
+		if (selectedProducts.length === 0) {
+			onGenerate();
+			return;
+		}
+
+		try {
+			const itemsToAdd = selectedProducts.map(product => ({
+				productId: product.id,
+				quantity: quantities[product.id] || 1,
+				price: product.price || 0
+			}));
+
+			// Call the new backend mutation
+			const result = await trpc.delivery.addItemsToDeliveryOrder.mutateAsync({
+				orderId: deliveryData.order_id,
+				items: itemsToAdd
+			});
+
+			// Refresh data and close
+			onGenerate();
+			onClose();
+		} catch (error) {
+			console.error("Failed to add items:", error);
+			// Show error to user
+		}
+	};
+
+	// Filter products based on search query
+	const filteredProducts = catalogData?.filter(product =>
+		product.name.toLowerCase().includes(searchQuery.toLowerCase())
+	) || [];
+
 	return (
-		<Card>
+		<Card className="max-w-2xl">
 			<CardHeader>
 				<CardTitle>Generate Delivery Receipt</CardTitle>
 			</CardHeader>
@@ -331,26 +406,142 @@ function BillGeneration({ deliveryData, onGenerate }) {
 						<p className="font-medium">{deliveryData.customerName}</p>
 					</div>
 					<div>
-						<p className="text-sm text-muted-foreground">Amount</p>
+						<p className="text-sm text-muted-foreground">Current Amount</p>
 						<p className="font-medium text-green-600">
-							{formatCurrency(deliveryData.amount, "en-IN")}
+							{formatCurrency(deliveryData.amountToCollect, "en-IN")}
 						</p>
 					</div>
 					<div>
-						<p className="text-sm text-muted-foreground">Payment Method</p>
-						<p className="font-medium">{deliveryData.paymentMethod}</p>
+						<p className="text-sm text-muted-foreground">New Total</p>
+						<p className="font-bold text-2xl text-primary">
+							{formatCurrency(calculateTotal(), "en-IN")}
+						</p>
 					</div>
 				</div>
 
-				<Button onClick={onGenerate} className="w-full">
-					<PrinterIcon className="mr-2 h-4 w-4" />
-					Generate and Print Receipt
-				</Button>
+				{/* Product Search & Add Interface */}
+				<div className="space-y-3">
+					<h3 className="font-semibold">Add Products</h3>
+					<Input
+						placeholder="Search products..."
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						className="w-full"
+					/>
 
-				<Button variant="outline" className="w-full">
-					<FileTextIcon className="mr-2 h-4 w-4" />
-					Email Receipt to Customer
-				</Button>
+					{catalogLoading ? (
+						<div className="flex justify-center py-4">
+							<div className="h-6 w-6 animate-spin rounded-full border-primary border-b-2" />
+						</div>
+					) : (
+						<div className="max-h-48 overflow-y-auto rounded-lg border">
+							{filteredProducts.length > 0 ? (
+								<table className="w-full text-sm">
+									<thead className="sticky top-0 bg-muted">
+										<tr>
+											<th className="p-2 text-left">Product</th>
+											<th className="p-2 text-right">Price</th>
+											<th className="p-2 text-center">Action</th>
+										</tr>
+									</thead>
+									<tbody>
+										{filteredProducts.map((product) => (
+											<tr key={product.id} className="border-t">
+												<td className="p-2">{product.name}</td>
+												<td className="p-2 text-right">{formatCurrency(product.price, "en-IN")}</td>
+												<td className="p-2 text-center">
+													<Button
+														size="sm"
+														variant="outline"
+														onClick={() => handleAddProduct(product)}
+														disabled={selectedProducts.some(p => p.id === product.id)}
+													>
+														Add
+													</Button>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							) : (
+								<p className="p-4 text-center text-muted-foreground">No products found</p>
+							)}
+						</div>
+					)}
+				</div>
+
+				{/* Selected Products */}
+				{selectedProducts.length > 0 && (
+					<div className="space-y-3">
+						<h3 className="font-semibold">Selected Products</h3>
+						<div className="max-h-48 overflow-y-auto rounded-lg border">
+							<table className="w-full text-sm">
+								<thead className="sticky top-0 bg-muted">
+									<tr>
+										<th className="p-2 text-left">Product</th>
+										<th className="p-2 text-right">Price</th>
+										<th className="p-2 text-center">Qty</th>
+										<th className="p-2 text-right">Total</th>
+										<th className="p-2">Action</th>
+									</tr>
+								</thead>
+								<tbody>
+									{selectedProducts.map((product) => (
+										<tr key={product.id} className="border-t">
+											<td className="p-2">{product.name}</td>
+											<td className="p-2 text-right">{formatCurrency(product.price, "en-IN")}</td>
+											<td className="p-2 text-center">
+												<div className="flex items-center justify-center gap-2">
+													<Button
+														size="icon"
+														variant="outline"
+														className="h-6 w-6"
+														onClick={() => handleQuantityChange(product.id, -1)}
+													>
+														-
+													</Button>
+													<span className="w-8 text-center">{quantities[product.id] || 1}</span>
+													<Button
+														size="icon"
+														variant="outline"
+														className="h-6 w-6"
+														onClick={() => handleQuantityChange(product.id, 1)}
+													>
+														+
+													</Button>
+												</div>
+											</td>
+											<td className="p-2 text-right">
+												{formatCurrency((product.price || 0) * (quantities[product.id] || 1), "en-IN")}
+											</td>
+											<td className="p-2">
+												<Button
+													size="icon"
+													variant="ghost"
+													className="h-6 w-6 text-red-500"
+													onClick={() => handleRemoveProduct(product.id)}
+												>
+													<XCircleIcon className="h-4 w-4" />
+												</Button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				)}
+
+				<div className="flex gap-2 pt-4">
+					<Button variant="outline" className="flex-1" onClick={onGenerate}>
+						<PrinterIcon className="mr-2 h-4 w-4" />
+						Generate Receipt
+					</Button>
+					<Button className="flex-1" onClick={handleSaveChanges}>
+						<UploadIcon className="mr-2 h-4 w-4" />
+						Save Changes
+					</Button>
+				</div>
 			</CardContent>
 		</Card>
 	);
@@ -1164,6 +1355,7 @@ export default function EnhancedDriverDashboard() {
 					<BillGeneration
 						deliveryData={data.nextDelivery}
 						onGenerate={handleGenerateBill}
+						onClose={() => setShowBillGeneration(false)}
 					/>
 				</DialogContent>
 			</Dialog>
