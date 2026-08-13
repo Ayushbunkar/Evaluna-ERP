@@ -230,7 +230,6 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
 	attendance: many(attendance),
 	leaveApplications: many(leaveApplications),
 	overtime: many(overtime),
-	payroll: many(payroll),
 }));
 
 export const shiftsRelations = relations(shifts, ({ many }) => ({
@@ -279,9 +278,3 @@ export const overtimeRelations = relations(overtime, ({ one }) => ({
 	}),
 }));
 
-export const payrollRelations = relations(payroll, ({ one }) => ({
-	employee: one(employees, {
-		fields: [payroll.employeeId],
-		references: [employees.id],
-	}),
-}));
