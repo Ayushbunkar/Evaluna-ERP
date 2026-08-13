@@ -95,10 +95,10 @@ interface DeliveryData {
 	estimatedDuration: string;
 	eta: string;
 	items: Array<{
+		id: number; // product_id
 		name: string;
 		quantity: number;
-		returnQuantity: number;
-		reason: string;
+		price: number;
 	}>;
 }
 
@@ -180,15 +180,23 @@ function ReturnOrderForm({ onSubmit, onCancel, deliveryData }: {
 	const [condition, setCondition] = useState("good");
 	const [notes, setNotes] = useState("");
 	const [returnItems, setReturnItems] = useState<Array<{
+		id: number; // product_id
 		name: string;
 		quantity: number;
+		price: number;
 		returnQuantity: number;
 		reason: string;
-	}>>(deliveryData?.items?.map(item => ({
-		...item,
-		returnQuantity: 0,
-		reason: ""
-	})) || []);
+	}>>([]);
+
+	useEffect(() => {
+		if (deliveryData?.items) {
+			setReturnItems(deliveryData.items.map(item => ({
+				...item,
+				returnQuantity: 0,
+				reason: ""
+			})));
+		}
+	}, [deliveryData?.items]);
 
 	const handleItemChange = (index: number, field: keyof typeof returnItems[0], value: string | number) => {
 		const updatedItems = [...returnItems];
@@ -202,7 +210,11 @@ function ReturnOrderForm({ onSubmit, onCancel, deliveryData }: {
 			returnReason,
 			condition,
 			notes,
-			items: returnItems.filter(item => item.returnQuantity > 0)
+			returnedItems: returnItems.filter(item => item.returnQuantity > 0).map(item => ({
+				productId: item.id,
+				quantity: item.returnQuantity,
+				reason: item.reason,
+			}))
 		});
 	};
 
@@ -371,7 +383,7 @@ export default function EnhancedDriverDashboard() {
 		onSuccess: () => refetch(),
 	});
 
-	const createReturnOrder = trpc.delivery.createReturnOrder.useMutation({
+	const processPartialReturn = trpc.delivery.processPartialReturn.useMutation({
 		onSuccess: () => {
 			refetch();
 			setShowReturnForm(false);
@@ -390,9 +402,8 @@ export default function EnhancedDriverDashboard() {
 
 	const handleReturnSubmit = (returnData) => {
 		if (data?.nextDelivery?.stop_id) {
-			createReturnOrder.mutate({
+			processPartialReturn.mutate({
 				stopId: data.nextDelivery.stop_id,
-				orderId: data.nextDelivery.order_id,
 				...returnData,
 			});
 		}

@@ -1,6 +1,6 @@
 import { deliveryTrips, tripCollections, vehicles } from "@evaluna/db/schema/delivery";
 import { orders, branches } from "@evaluna/db/schema";
-import { desc, eq, or, sql } from "drizzle-orm";
+import { desc, eq, or, sql, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -92,7 +92,11 @@ export const driverRouter = router({
 					where: eq(orders.customer_id, nextStop.customer_id),
 					orderBy: [desc(orders.created_at)],
 					with: {
-						orderItems: true,
+						orderItems: {
+							with: {
+								product: true
+							}
+						},
 					}
 				});
 
@@ -110,27 +114,56 @@ export const driverRouter = router({
 					eta: null,
 					distance: null,
 					isVerified: false,
+					items: activeOrder?.orderItems?.map(item => ({
+						id: item.product_id,
+						name: item.product?.name ?? "Unknown Product",
+						quantity: item.quantity,
+						price: Number(item.price),
+					})) || [],
 				};
 			}
 
+			const customerIds = trip.stops.map((s: any) => s.customer_id);
+			const ordersForStops = await db.query.orders.findMany({
+				where: inArray(orders.customer_id, customerIds),
+				with: {
+					orderItems: {
+						with: {
+							product: true
+						}
+					}
+				}
+			});
+
 			// Build route stops safely using only data already loaded from the trip query
-			const routeStops = trip.stops.map((s: any) => ({
-				id: s.id,
-				status:
-					s.status === "delivered"
-						? "completed"
-						: s.status === "pending" && s.id === nextStop?.id
-							? "next"
-							: "pending",
-				rawStatus: s.status,
-				time: s.status === "delivered" ? "Completed" : "--:--",
-				address: s.customer?.address ?? "N/A",
-				customerName: s.customer?.name ?? "Unknown",
-				phone: s.customer?.phone ?? null,
-				orderId: null as number | null,
-				amountToCollect: 0,
-				packages: 0,
-				orderItems: [] as Array<{ id: number; name: string; qty: number; price: number }>,
+			const routeStops = trip.stops.map((s: any) => {
+				const orderForStop = ordersForStops.find(order => order.customer_id === s.customer_id);
+				return {
+					id: s.id,
+					status:
+						s.status === "delivered"
+							? "completed"
+							: s.status === "pending" && s.id === nextStop?.id
+								? "next"
+								: "pending",
+					rawStatus: s.status,
+					time: s.status === "delivered" ? "Completed" : "--:--",
+					address: s.customer?.address ?? "N/A",
+					customerName: s.customer?.name ?? "Unknown",
+					phone: s.customer?.phone ?? null,
+					orderId: orderForStop?.id ?? null,
+					amountToCollect: orderForStop ? Number(orderForStop.total_amount) : 0,
+					packages: orderForStop?.orderItems?.length ?? 0,
+					orderItems: orderForStop?.orderItems?.map(item => ({
+						id: item.id,
+						product_id: item.product_id,
+						name: item.product?.name ?? "Unknown Product",
+						qty: item.quantity,
+						price: Number(item.price),
+					})) || [],
+				};
+			});
+				orderItems: [] as Array<{ id: number; name: string; qty: number; price: number; product_id: number }>,
 			}));
 
 			return {

@@ -1,4 +1,5 @@
 import {
+	orderItems,
 	orders,
 	products,
 	salesReturnItems,
@@ -26,7 +27,46 @@ export const deliveryRouter = router({
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId;
-			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
+			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" 	addItemsToDeliveryOrder: protectedProcedure
+		.input(
+			z.object({
+				orderId: z.number(),
+				items: z.array(
+					z.object({
+						productId: z.number(),
+						quantity: z.number(),
+						price: z.number(),
+					}),
+				),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const { orderId, items } = input;
+			
+			// 1. Insert new items
+			for (const item of items) {
+				await db.insert(orderItems).values({
+					order_id: orderId,
+					product_id: item.productId,
+					quantity: item.quantity,
+					price: item.price.toString(),
+				});
+			}
+
+			// 2. Recalculate total amount
+			const allItems = await db.query.orderItems.findMany({
+				where: eq(orderItems.order_id, orderId),
+			});
+			
+			const newTotal = allItems.reduce((acc, curr) => acc + (Number(curr.price) * curr.quantity), 0);
+			
+			await db.update(orders)
+				.set({ total_amount: newTotal.toString() })
+				.where(eq(orders.id, orderId));
+
+			return { success: true, newTotal };
+		}),
+});
 			return await db.query.deliveryRoutes.findMany({
 				where: eq(deliveryRoutes.branch_id, branch),
 				with: { stops: { with: { customer: true } } },
@@ -571,5 +611,45 @@ export const deliveryRouter = router({
 
 				return trip;
 			});
+		}),
+
+	addItemsToDeliveryOrder: protectedProcedure
+		.input(
+			z.object({
+				orderId: z.number(),
+				items: z.array(
+					z.object({
+						productId: z.number(),
+						quantity: z.number(),
+						price: z.number(),
+					}),
+				),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const { orderId, items } = input;
+			
+			// 1. Insert new items
+			for (const item of items) {
+				await db.insert(orderItems).values({
+					order_id: orderId,
+					product_id: item.productId,
+					quantity: item.quantity,
+					price: item.price.toString(),
+				});
+			}
+
+			// 2. Recalculate total amount
+			const allItems = await db.query.orderItems.findMany({
+				where: eq(orderItems.order_id, orderId),
+			});
+			
+			const newTotal = allItems.reduce((acc, curr) => acc + (Number(curr.price) * curr.quantity), 0);
+			
+			await db.update(orders)
+				.set({ total_amount: newTotal.toString() })
+				.where(eq(orders.id, orderId));
+
+			return { success: true, newTotal };
 		}),
 });
