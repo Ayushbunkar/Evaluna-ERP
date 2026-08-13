@@ -19,12 +19,11 @@ export async function POST(request: Request) {
 
 		if (action === "send") {
 			const res = await fetch(
-				`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseApiKey}`,
+				`https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${firebaseApiKey}`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						requestType: "PHONE_SIGN_IN",
 						phoneNumber: phone,
 					}),
 				},
@@ -48,12 +47,13 @@ export async function POST(request: Request) {
 			}
 
 			const res = await fetch(
-				`https://identitytoolkit.googleapis.com/v1/accounts:verifyOobCode?key=${firebaseApiKey}`,
+				`https://identitytoolkit.googleapis.com/v1/accounts:verifyPhoneNumber?key=${firebaseApiKey}`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						code,
+						sessionInfo,
 					}),
 				},
 			);
