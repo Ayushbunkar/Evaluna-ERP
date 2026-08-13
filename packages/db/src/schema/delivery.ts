@@ -122,6 +122,7 @@ export const gpsLogs = pgTable("gps_logs", {
 	longitude: decimal("longitude", { precision: 11, scale: 8 }),
 	accuracy: decimal("accuracy", { precision: 5, scale: 2 }),
 	speed: decimal("speed", { precision: 5, scale: 2 }),
+	battery_level: decimal("battery_level", { precision: 5, scale: 2 }),
 	bearing: decimal("bearing", { precision: 5, scale: 2 }),
 	altitude: decimal("altitude", { precision: 6, scale: 2 }),
 	timestamp: timestamp("timestamp").defaultNow(),

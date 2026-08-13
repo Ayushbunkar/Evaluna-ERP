@@ -195,23 +195,6 @@ export const overtime = pgTable("overtime", {
 	updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Payroll Table
-export const payroll = pgTable("payroll", {
-	id: serial("id").primaryKey(),
-	employeeId: integer("employee_id").references(() => employees.id),
-	month: integer("month").notNull(),
-	year: integer("year").notNull(),
-	basicSalary: decimal("basic_salary", { precision: 10, scale: 2 }).notNull(),
-	overtimePay: decimal("overtime_pay", { precision: 10, scale: 2 }).default(
-		"0",
-	),
-	deductions: decimal("deductions", { precision: 10, scale: 2 }).default("0"),
-	netSalary: decimal("net_salary", { precision: 10, scale: 2 }).notNull(),
-	status: varchar("status", { length: 20 }).default("pending"),
-	processedAt: timestamp("processed_at"),
-	createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Company Settings Table
 export const companySettings = pgTable("company_settings", {
 	id: serial("id").primaryKey(),

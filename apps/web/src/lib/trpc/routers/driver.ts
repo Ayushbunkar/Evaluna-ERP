@@ -162,7 +162,7 @@ export const driverRouter = router({
 						price: Number(item.price),
 					})) || [],
 				};
-				}));
+			});
 
 			return {
 				driverName: ctx.user?.name ?? "Driver",
