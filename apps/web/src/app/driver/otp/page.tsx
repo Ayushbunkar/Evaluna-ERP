@@ -1,7 +1,8 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { ArrowLeftIcon, ShieldCheckIcon } from "lucide-react";
+import { Card, CardContent } from "@evaluna/ui/components/card";
+import { ArrowLeftIcon, ShieldCheckIcon, PhoneIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -11,11 +12,10 @@ import { Input } from "@evaluna/ui/components/input";
 export default function OTPPage() {
 	const t = useTranslations("nav");
 	const searchParams = useSearchParams();
-	const initialPhone = searchParams.get("phone") ?? "";
+	const registeredPhone = searchParams.get("phone") ?? "";
 	const orderId = searchParams.get("orderId");
-	const customerName = searchParams.get("customerName") ?? "customer";
+	const customerName = searchParams.get("customerName") ?? "Customer";
 
-	const [customerPhone, setCustomerPhone] = useState(initialPhone);
 	const [sessionInfo, setSessionInfo] = useState<string | null>(null);
 	const [otpSent, setOtpSent] = useState(false);
 	const [otp, setOtp] = useState(["", "", "", ""]);
@@ -25,10 +25,10 @@ export default function OTPPage() {
 	const [error, setError] = useState("");
 
 	const cleanPhone = useMemo(
-		() => customerPhone.replace(/\D/g, "").slice(0, 10),
-		[customerPhone],
+		() => registeredPhone.replace(/\D/g, "").slice(0, 10),
+		[registeredPhone],
 	);
-	const canSendOtp = cleanPhone.length >= 10 && !isSending;
+	const canSendOtp = cleanPhone.length >= 10 && !isSending && !otpSent;
 	const canVerify = otpSent && otp.every((digit) => digit.length === 1) && !isVerifying;
 
 	const handleSendOtp = async () => {
@@ -58,7 +58,7 @@ export default function OTPPage() {
 			setSessionInfo(result.sessionInfo ?? null);
 			setOtpSent(true);
 			setOtp(["", "", "", ""]);
-			setMessage(`OTP sent to ${customerName} on ${result.phoneNumber ?? `+91${cleanPhone}`}.`);
+			setMessage(`OTP sent to ${customerName}`);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Unable to send OTP");
 		} finally {
@@ -127,7 +127,7 @@ export default function OTPPage() {
 					<ShieldCheckIcon className="h-12 w-12 text-primary" />
 				</div>
 
-				<h2 className="mb-2 text-2xl font-bold tracking-tight">Enter Delivery OTP</h2>
+				<h2 className="mb-6 text-2xl font-bold tracking-tight">Verify Delivery OTP</h2>
 
 				{message ? <p className="mb-4 text-sm text-green-600">{message}</p> : null}
 				{error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
