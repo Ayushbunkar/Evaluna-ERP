@@ -164,9 +164,6 @@ export function SaleCompletionScreen({
 	};
 
 	const handleDownloadPDF = () => {
-		const element = document.getElementById("printable-receipt");
-		if (!element) return;
-
 		const loadScript = (src: string) => {
 			return new Promise((resolve, reject) => {
 				if (document.querySelector(`script[src="${src}"]`)) {
@@ -177,10 +174,7 @@ export function SaleCompletionScreen({
 				script.src = src;
 				script.onload = () => resolve(true);
 				script.onerror = () => {
-					// Fallback to unpkg if cdnjs fails
-					const fallbackSrc = src.includes("html-to-image")
-						? "https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.js"
-						: "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js";
+					const fallbackSrc = "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js";
 					const fallbackScript = document.createElement("script");
 					fallbackScript.src = fallbackSrc;
 					fallbackScript.onload = () => resolve(true);
@@ -193,84 +187,189 @@ export function SaleCompletionScreen({
 		};
 
 		const generate = async () => {
-			// Load both html-to-image and jspdf from CDN if not already loaded
-			await Promise.all([
-				(window as any).htmlToImage
-					? Promise.resolve(true)
-					: loadScript(
-							"https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/htmlToImage.min.js",
-					  ),
-				(window as any).jspdf
-					? Promise.resolve(true)
-					: loadScript(
-							"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
-					  ),
-			]);
+			// 1. Ensure jsPDF is loaded
+			await (window as any).jspdf
+				? Promise.resolve(true)
+				: loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
 
-			const htmlToImage = (window as any).htmlToImage;
 			const { jsPDF } = (window as any).jspdf;
-
-			if (!htmlToImage || !jsPDF) {
+			if (!jsPDF) {
 				throw new Error("PDF generator library unavailable");
 			}
 
-			// Generate high resolution PNG from the visible DOM element natively
-			const dataUrl = await htmlToImage.toPng(element, {
-				pixelRatio: 2,
-				backgroundColor: "#ffffff",
-				cacheBust: true,
+			// 2. Calculate dynamic height for 80mm roll
+			const calculatedHeight = pageSize === "80mm"
+				? Math.max(140, 110 + order.items.length * 12 + (order.customerName ? 20 : 0) + order.payments.length * 5)
+				: 297; // A4 height is 297mm
+
+			const doc = new jsPDF({
+				orientation: "portrait",
+				unit: "mm",
+				format: pageSize === "80mm" ? [80, calculatedHeight] : "a4",
 			});
 
-			const img = new Image();
-			img.src = dataUrl;
-			await new Promise((resolve, reject) => {
-				img.onload = resolve;
-				img.onerror = reject;
-			});
-
-			const imgWidth = img.naturalWidth;
-			const imgHeight = img.naturalHeight;
-			const aspect = imgHeight / imgWidth;
-
-			if (pageSize === "80mm") {
-				const pdfWidth = 80;
-				const pdfHeight = Math.max(80, pdfWidth * aspect);
-				const pdf = new jsPDF({
-					orientation: "portrait",
-					unit: "mm",
-					format: [pdfWidth, pdfHeight],
-				});
-				pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
-				pdf.save(`invoice_${order.id}_80mm.pdf`);
-			} else {
-				// A4 format: 210mm x 297mm
-				const pdf = new jsPDF({
-					orientation: "portrait",
-					unit: "mm",
-					format: "a4",
-				});
-				const margin = 10;
-				const printableWidth = 210 - margin * 2;
-				const renderHeight = printableWidth * aspect;
-				pdf.addImage(
-					dataUrl,
-					"PNG",
-					margin,
-					margin,
-					printableWidth,
-					Math.min(renderHeight, 277),
-				);
-				pdf.save(`invoice_${order.id}_A4.pdf`);
+			// 3. Dynamically fetch and register Noto Sans Devanagari font for Hindi text support
+			try {
+				const fontUrl = "https://fonts.gstatic.com/s/notosansdevanagari/v28/Equ7FZ55t0yrL6sJ7w4PMc_w1N7q9-Vn.ttf";
+				const fontRes = await fetch(fontUrl);
+				if (fontRes.ok) {
+					const fontBlob = await fontRes.blob();
+					const fontBase64 = await new Promise<string>((resolve) => {
+						const reader = new FileReader();
+						reader.onloadend = () => {
+							const base64data = reader.result as string;
+							resolve(base64data.split(",")[1]);
+						};
+						reader.readAsDataURL(fontBlob);
+					});
+					doc.addFileToVFS("NotoSansDevanagari.ttf", fontBase64);
+					doc.addFont("NotoSansDevanagari.ttf", "NotoSansDevanagari", "normal");
+					doc.setFont("NotoSansDevanagari");
+				} else {
+					doc.setFont("Helvetica");
+				}
+			} catch (e) {
+				console.warn("Devanagari font load failed, falling back to Helvetica", e);
+				doc.setFont("Helvetica");
 			}
+
+			const isA4 = pageSize === "A4";
+			const pageWidth = isA4 ? 210 : 80;
+			const margin = isA4 ? 20 : 5;
+			const centerX = pageWidth / 2;
+			let y = isA4 ? 25 : 10;
+			const lineSpacing = isA4 ? 6 : 4.5;
+
+			const centerText = (text: string, size: number) => {
+				doc.setFontSize(size);
+				const textWidth = doc.getTextWidth(text);
+				doc.text(text, centerX - textWidth / 2, y);
+				y += lineSpacing;
+			};
+
+			const printRow = (key: string, val: string, size: number) => {
+				doc.setFontSize(size);
+				doc.text(key, margin, y);
+				const valWidth = doc.getTextWidth(val);
+				doc.text(val, pageWidth - margin - valWidth, y);
+				y += lineSpacing;
+			};
+
+			const drawSeparator = () => {
+				doc.setLineDashPattern([2, 1], 0);
+				doc.line(margin, y - 2, pageWidth - margin, y - 2);
+				y += 2;
+			};
+
+			// Store Details
+			centerText(STORE.name, isA4 ? 16 : 12);
+			centerText(STORE.address, isA4 ? 10 : 8);
+			centerText(STORE.city, isA4 ? 10 : 8);
+			centerText(`Phone: ${STORE.phone}`, isA4 ? 10 : 8);
+
+			y += 2;
+			drawSeparator();
+
+			// Invoice Meta
+			printRow("Invoice No:", `#${order.id}`, isA4 ? 10 : 8);
+			printRow("Date & Time:", formattedDate, isA4 ? 10 : 8);
+			printRow("Cashier:", order.cashierName || "Counter 1", isA4 ? 10 : 8);
+
+			// Customer details
+			if (order.customerName || order.customerPhone || order.shopName) {
+				y += 2;
+				drawSeparator();
+				doc.setFontSize(isA4 ? 11 : 8.5);
+				doc.text("BILL TO:", margin, y);
+				y += lineSpacing;
+
+				if (order.customerName) printRow("Name:", order.customerName, isA4 ? 10 : 8);
+				if (order.shopName) printRow("Shop:", order.shopName, isA4 ? 10 : 8);
+				if (order.customerPhone) printRow("Phone:", order.customerPhone, isA4 ? 10 : 8);
+			}
+
+			y += 2;
+			drawSeparator();
+
+			// Table Header
+			doc.setFontSize(isA4 ? 10 : 8);
+			doc.text("Item", margin, y);
+
+			const qtyHeaderX = pageWidth - margin - (isA4 ? 60 : 35);
+			const rateHeaderX = pageWidth - margin - (isA4 ? 35 : 18);
+			const totalHeaderX = pageWidth - margin;
+
+			doc.text("Qty", qtyHeaderX, y, { align: "right" });
+			doc.text("Rate", rateHeaderX, y, { align: "right" });
+			doc.text("Total", totalHeaderX, y, { align: "right" });
+			y += lineSpacing;
+
+			drawSeparator();
+
+			// Table Items
+			doc.setFontSize(isA4 ? 9.5 : 7.5);
+			order.items.forEach((item) => {
+				const rate = Number.parseFloat(item.price);
+				const lineTotal = rate * item.qty;
+				const qtyStr = Number.isInteger(item.qty) ? item.qty.toString() : item.qty.toFixed(3);
+
+				const maxNameWidth = isA4 ? 90 : 30;
+				const splitName = doc.splitTextToSize(item.name, maxNameWidth);
+				const startY = y;
+				doc.text(splitName, margin, y);
+
+				const nameHeight = splitName.length * (isA4 ? 5 : 4);
+
+				doc.text(qtyStr, qtyHeaderX, startY, { align: "right" });
+				doc.text(`Rs.${rate.toFixed(2)}`, rateHeaderX, startY, { align: "right" });
+				doc.text(`Rs.${lineTotal.toFixed(2)}`, totalHeaderX, startY, { align: "right" });
+
+				y += Math.max(nameHeight, lineSpacing);
+			});
+
+			drawSeparator();
+
+			// Summary Block
+			printRow("Subtotal:", `Rs.${order.subtotal.toFixed(2)}`, isA4 ? 10 : 8);
+			if (order.discount > 0) {
+				printRow("Discount:", `-Rs.${order.discount.toFixed(2)}`, isA4 ? 10 : 8);
+			}
+			if (roundOff !== 0) {
+				printRow("Round-off:", `${roundOff > 0 ? "+" : ""}Rs.${roundOff.toFixed(2)}`, isA4 ? 10 : 8);
+			}
+
+			y += 2;
+			drawSeparator();
+			printRow("Grand Total:", `Rs.${grandTotal.toFixed(2)}`, isA4 ? 12 : 9.5);
+			y += 2;
+			drawSeparator();
+
+			// Payment Details
+			doc.setFontSize(isA4 ? 9.5 : 7.5);
+			doc.text("PAYMENT DETAILS", margin, y);
+			y += lineSpacing;
+
+			order.payments.forEach((p) => {
+				const label = PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment";
+				printRow(label, `Rs.${Number.parseFloat(p.amount).toFixed(2)}`, isA4 ? 9.5 : 7.5);
+			});
+
+			y += 2;
+			drawSeparator();
+
+			// Footer
+			y += 2;
+			centerText("Thank you for shopping!", isA4 ? 11 : 8.5);
+			centerText("Goods once sold will not be taken back", isA4 ? 9 : 7);
+			centerText("without valid receipt within 7 days", isA4 ? 9 : 7);
+
+			doc.save(`invoice_${order.id}_${pageSize}.pdf`);
 		};
 
 		toast.promise(generate(), {
-			loading: "Generating PDF...",
-			success: "PDF downloaded successfully!",
-			error: (err) =>
-				`Failed to generate PDF: ${
-					err?.message || "Error"
-				}. Try 'Print Receipt' -> 'Save as PDF'`,
+			loading: "Generating vector PDF...",
+			success: "Vector PDF downloaded successfully!",
+			error: (err) => `Failed: ${err?.message || "Error"}. Try 'Print Receipt' -> 'Save as PDF'`,
 		});
 	};
 
