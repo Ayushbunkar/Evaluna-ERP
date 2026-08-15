@@ -176,22 +176,30 @@ export function SaleCompletionScreen({
 		};
 
 		const generatePDF = () => {
+			const calculatedHeight = pageSize === "80mm"
+				? Math.max(150, 130 + order.items.length * 15 + (order.customerName ? 25 : 0))
+				: 297;
+
 			const opt = {
 				margin: pageSize === "80mm" ? [4, 4, 4, 4] : 15,
 				filename: `invoice_${order.id}_${pageSize}.pdf`,
 				image: { type: "jpeg", quality: 0.98 },
 				html2canvas: { scale: 2, useCORS: true, logging: false },
 				jsPDF: pageSize === "80mm"
-					? { unit: "mm", format: [80, 220], orientation: "portrait" }
+					? { unit: "mm", format: [80, calculatedHeight], orientation: "portrait" }
 					: { unit: "mm", format: "a4", orientation: "portrait" },
 			};
 
 			const wrapper = document.createElement("div");
 			wrapper.innerHTML = element.innerHTML;
+			wrapper.style.position = "absolute";
+			wrapper.style.left = "-9999px";
+			wrapper.style.top = "-9999px";
 			wrapper.style.width = pageSize === "80mm" ? "72mm" : "100%";
 			wrapper.style.fontFamily = "sans-serif";
 			wrapper.style.fontSize = pageSize === "80mm" ? "11px" : "13px";
 			wrapper.style.color = "#000";
+			document.body.appendChild(wrapper);
 
 			// Inject basic table styling directly for PDF render container
 			const tables = wrapper.getElementsByTagName("table");
@@ -212,9 +220,11 @@ export function SaleCompletionScreen({
 				.set(opt)
 				.save()
 				.then(() => {
+					document.body.removeChild(wrapper);
 					toast.success("PDF downloaded!");
 				})
 				.catch((err: any) => {
+					document.body.removeChild(wrapper);
 					console.error(err);
 					toast.error("Failed to generate PDF");
 				});
