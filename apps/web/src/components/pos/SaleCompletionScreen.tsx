@@ -349,17 +349,17 @@ export function SaleCompletionScreen({
 						{/* ── Left: Receipt Preview ── */}
 						<div className="flex min-h-0 flex-1 flex-col border-r bg-gray-100/50">
 							{/* Size selector at the top of preview */}
-							<div className="flex justify-between items-center border-b bg-white px-6 py-2.5 shrink-0">
+							<div className="flex justify-between items-center border-b bg-white px-6 py-2.5 shrink-0 relative z-20">
 								<span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 									Template Preview
 								</span>
-								<div className="flex rounded-md bg-muted p-0.5">
+								<div className="flex rounded-md bg-muted p-0.5 relative z-25 pointer-events-auto">
 									<button
 										type="button"
 										onClick={() => setPageSize("80mm")}
-										className={`rounded px-2.5 py-1 text-xs font-medium transition-all ${
+										className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer relative z-30 pointer-events-auto ${
 											pageSize === "80mm"
-												? "bg-white text-foreground shadow-sm"
+												? "bg-white text-foreground shadow-sm font-semibold"
 												: "text-muted-foreground hover:text-foreground"
 										}`}
 									>
@@ -368,9 +368,9 @@ export function SaleCompletionScreen({
 									<button
 										type="button"
 										onClick={() => setPageSize("A4")}
-										className={`rounded px-2.5 py-1 text-xs font-medium transition-all ${
+										className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer relative z-30 pointer-events-auto ${
 											pageSize === "A4"
-												? "bg-white text-foreground shadow-sm"
+												? "bg-white text-foreground shadow-sm font-semibold"
 												: "text-muted-foreground hover:text-foreground"
 										}`}
 									>
