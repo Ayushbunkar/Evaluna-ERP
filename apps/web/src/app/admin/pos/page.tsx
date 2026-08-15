@@ -390,7 +390,7 @@ export default function POSPage() {
 										exit={{ opacity: 0, scale: 0.9, x: -20 }}
 										className="flex w-full flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm overflow-hidden"
 									>
-										<div className="flex w-full items-center justify-between gap-2">
+										<div className="flex w-full items-center justify-between gap-2 min-w-0">
 											<div className="min-w-0 flex-1 truncate font-semibold text-sm" title={item.name}>
 												{item.name}
 											</div>
@@ -399,7 +399,7 @@ export default function POSPage() {
 											</div>
 										</div>
 
-										<div className="flex w-full items-center justify-between gap-2">
+										<div className="flex w-full items-center justify-between gap-2 min-w-0">
 											<div className="flex h-8 items-center rounded-md border">
 												<Button
 													variant="ghost"
