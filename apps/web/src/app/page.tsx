@@ -1,18 +1,9 @@
-import { redirect } from "next/navigation";
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@evaluna/ui/components/card";
 import { MountainIcon, ArrowRight, Users, ShoppingCart, BarChart3, Truck, Package, HomeIcon, Settings, FileText, HelpCircle, Mail, BookOpen } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
-	// Redirect to BASE_URL if configured for production deployment
-	if (
-		process.env.BASE_URL &&
-		process.env.BASE_URL !== "http://localhost" &&
-		!process.env.BASE_PATH
-	) {
-		redirect(process.env.BASE_URL);
-	}
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
