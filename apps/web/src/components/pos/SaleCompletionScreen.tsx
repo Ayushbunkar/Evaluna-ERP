@@ -163,185 +163,225 @@ export function SaleCompletionScreen({
 		printWindow.document.close();
 	};
 
-	const handleDownloadPDF = () => {
-		const generate = async () => {
-			// 1. Import bundled jsPDF from npm directly (100% reliable, zero CDN dependency)
-			const { jsPDF } = await import("jspdf");
+	const handleDownloadPDF = async () => {
+		const toastId = toast.loading("Generating vector PDF...");
+		try {
+			// Dynamically import @react-pdf/renderer to avoid SSR issues
+			const { pdf, Document, Page, Text, View, StyleSheet, Font } = await import("@react-pdf/renderer");
 
-			// 2. Calculate dynamic height for 80mm roll
+			// Register a font that supports Devanagari (Hindi) and basic Latin
+			// We use Noto Sans Devanagari. It includes Latin characters as well.
+			Font.register({
+				family: "NotoSansDevanagari",
+				src: "https://fonts.gstatic.com/s/notosansdevanagari/v28/Equ7FZ55t0yrL6sJ7w4PMc_w1N7q9-Vn.ttf"
+			});
+
+			const isA4 = pageSize === "A4";
 			const calculatedHeight = pageSize === "80mm"
 				? Math.max(140, 110 + order.items.length * 12 + (order.customerName ? 20 : 0) + order.payments.length * 5)
 				: 297; // A4 height is 297mm
 
-			const doc = new jsPDF({
-				orientation: "portrait",
-				unit: "mm",
-				format: pageSize === "80mm" ? [80, calculatedHeight] : "a4",
-			});
-
-			// 3. Dynamically fetch and register Noto Sans Devanagari font for Hindi text support
-			try {
-				const fontUrl = "https://fonts.gstatic.com/s/notosansdevanagari/v28/Equ7FZ55t0yrL6sJ7w4PMc_w1N7q9-Vn.ttf";
-				const fontRes = await fetch(fontUrl);
-				if (fontRes.ok) {
-					const fontBlob = await fontRes.blob();
-					const fontBase64 = await new Promise<string>((resolve) => {
-						const reader = new FileReader();
-						reader.onloadend = () => {
-							const base64data = reader.result as string;
-							resolve(base64data.split(",")[1]);
-						};
-						reader.readAsDataURL(fontBlob);
-					});
-					doc.addFileToVFS("NotoSansDevanagari.ttf", fontBase64);
-					doc.addFont("NotoSansDevanagari.ttf", "NotoSansDevanagari", "normal");
-					doc.setFont("NotoSansDevanagari");
-				} else {
-					doc.setFont("helvetica");
+			const styles = StyleSheet.create({
+				page: {
+					fontFamily: "NotoSansDevanagari",
+					padding: isA4 ? 40 : 10,
+					fontSize: isA4 ? 12 : 9,
+					backgroundColor: "#ffffff",
+				},
+				header: {
+					textAlign: "center",
+					marginBottom: 10,
+				},
+				title: {
+					fontSize: isA4 ? 16 : 12,
+					fontWeight: "bold",
+					marginBottom: 4,
+				},
+				subtitle: {
+					fontSize: isA4 ? 10 : 8,
+					marginBottom: 2,
+				},
+				separator: {
+					borderBottomWidth: 1,
+					borderBottomStyle: "dashed",
+					borderBottomColor: "#000",
+					marginVertical: 6,
+				},
+				row: {
+					flexDirection: "row",
+					justifyContent: "space-between",
+					marginBottom: 4,
+				},
+				bold: {
+					fontWeight: "bold",
+				},
+				tableHeader: {
+					flexDirection: "row",
+					borderBottomWidth: 1,
+					borderBottomStyle: "dashed",
+					borderBottomColor: "#000",
+					paddingBottom: 4,
+					marginBottom: 4,
+				},
+				tableRow: {
+					flexDirection: "row",
+					marginBottom: 4,
+				},
+				colItem: { flex: isA4 ? 4 : 3 },
+				colQty: { flex: 1, textAlign: "right" },
+				colRate: { flex: 2, textAlign: "right" },
+				colTotal: { flex: 2, textAlign: "right" },
+				footer: {
+					textAlign: "center",
+					marginTop: 10,
+					fontSize: isA4 ? 10 : 7.5,
 				}
-			} catch (e) {
-				console.warn("Devanagari font load failed, falling back to helvetica", e);
-				doc.setFont("helvetica");
-			}
-
-			const isA4 = pageSize === "A4";
-			const pageWidth = isA4 ? 210 : 80;
-			const margin = isA4 ? 20 : 5;
-			const centerX = pageWidth / 2;
-			let y = isA4 ? 25 : 10;
-			const lineSpacing = isA4 ? 6 : 4.5;
-
-			const centerText = (text: string, size: number) => {
-				doc.setFontSize(size);
-				const textWidth = doc.getTextWidth(text);
-				doc.text(text, centerX - textWidth / 2, y);
-				y += lineSpacing;
-			};
-
-			const printRow = (key: string, val: string, size: number) => {
-				doc.setFontSize(size);
-				doc.text(key, margin, y);
-				const valWidth = doc.getTextWidth(val);
-				doc.text(val, pageWidth - margin - valWidth, y);
-				y += lineSpacing;
-			};
-
-			const drawSeparator = () => {
-				doc.setLineDashPattern([2, 1], 0);
-				doc.line(margin, y - 2, pageWidth - margin, y - 2);
-				y += 2;
-			};
-
-			// Store Details
-			centerText(STORE.name, isA4 ? 16 : 12);
-			centerText(STORE.address, isA4 ? 10 : 8);
-			centerText(STORE.city, isA4 ? 10 : 8);
-			centerText(`Phone: ${STORE.phone}`, isA4 ? 10 : 8);
-
-			y += 2;
-			drawSeparator();
-
-			// Invoice Meta
-			printRow("Invoice No:", `#${order.id}`, isA4 ? 10 : 8);
-			printRow("Date & Time:", formattedDate, isA4 ? 10 : 8);
-			printRow("Cashier:", order.cashierName || "Counter 1", isA4 ? 10 : 8);
-
-			// Customer details
-			if (order.customerName || order.customerPhone || order.shopName) {
-				y += 2;
-				drawSeparator();
-				doc.setFontSize(isA4 ? 11 : 8.5);
-				doc.text("BILL TO:", margin, y);
-				y += lineSpacing;
-
-				if (order.customerName) printRow("Name:", order.customerName, isA4 ? 10 : 8);
-				if (order.shopName) printRow("Shop:", order.shopName, isA4 ? 10 : 8);
-				if (order.customerPhone) printRow("Phone:", order.customerPhone, isA4 ? 10 : 8);
-			}
-
-			y += 2;
-			drawSeparator();
-
-			// Table Header
-			doc.setFontSize(isA4 ? 10 : 8);
-			doc.text("Item", margin, y);
-
-			const qtyHeaderX = pageWidth - margin - (isA4 ? 60 : 35);
-			const rateHeaderX = pageWidth - margin - (isA4 ? 35 : 18);
-			const totalHeaderX = pageWidth - margin;
-
-			doc.text("Qty", qtyHeaderX, y, { align: "right" });
-			doc.text("Rate", rateHeaderX, y, { align: "right" });
-			doc.text("Total", totalHeaderX, y, { align: "right" });
-			y += lineSpacing;
-
-			drawSeparator();
-
-			// Table Items
-			doc.setFontSize(isA4 ? 9.5 : 7.5);
-			order.items.forEach((item) => {
-				const rate = Number.parseFloat(item.price);
-				const lineTotal = rate * item.qty;
-				const qtyStr = Number.isInteger(item.qty) ? item.qty.toString() : item.qty.toFixed(3);
-
-				const maxNameWidth = isA4 ? 90 : 30;
-				const splitName = doc.splitTextToSize(item.name, maxNameWidth);
-				const startY = y;
-				doc.text(splitName, margin, y);
-
-				const nameHeight = splitName.length * (isA4 ? 5 : 4);
-
-				doc.text(qtyStr, qtyHeaderX, startY, { align: "right" });
-				doc.text(`Rs.${rate.toFixed(2)}`, rateHeaderX, startY, { align: "right" });
-				doc.text(`Rs.${lineTotal.toFixed(2)}`, totalHeaderX, startY, { align: "right" });
-
-				y += Math.max(nameHeight, lineSpacing);
 			});
 
-			drawSeparator();
+			const InvoiceDocument = () => (
+				<Document>
+					<Page 
+						size={pageSize === "80mm" ? [226.77, calculatedHeight * 2.834] : "A4"} 
+						style={styles.page}
+					>
+						{/* Header */}
+						<View style={styles.header}>
+							<Text style={styles.title}>{STORE.name}</Text>
+							<Text style={styles.subtitle}>{STORE.address}</Text>
+							<Text style={styles.subtitle}>{STORE.city}</Text>
+							<Text style={styles.subtitle}>Phone: {STORE.phone}</Text>
+						</View>
 
-			// Summary Block
-			printRow("Subtotal:", `Rs.${order.subtotal.toFixed(2)}`, isA4 ? 10 : 8);
-			if (order.discount > 0) {
-				printRow("Discount:", `-Rs.${order.discount.toFixed(2)}`, isA4 ? 10 : 8);
-			}
-			if (roundOff !== 0) {
-				printRow("Round-off:", `${roundOff > 0 ? "+" : ""}Rs.${roundOff.toFixed(2)}`, isA4 ? 10 : 8);
-			}
+						<View style={styles.separator} />
 
-			y += 2;
-			drawSeparator();
-			printRow("Grand Total:", `Rs.${grandTotal.toFixed(2)}`, isA4 ? 12 : 9.5);
-			y += 2;
-			drawSeparator();
+						{/* Invoice Meta */}
+						<View style={styles.row}>
+							<Text>Invoice No:</Text>
+							<Text>#{order.id}</Text>
+						</View>
+						<View style={styles.row}>
+							<Text>Date & Time:</Text>
+							<Text>{formattedDate}</Text>
+						</View>
+						<View style={styles.row}>
+							<Text>Cashier:</Text>
+							<Text>{order.cashierName || "Counter 1"}</Text>
+						</View>
 
-			// Payment Details
-			doc.setFontSize(isA4 ? 9.5 : 7.5);
-			doc.text("PAYMENT DETAILS", margin, y);
-			y += lineSpacing;
+						{/* Customer Details */}
+						{(order.customerName || order.customerPhone || order.shopName) && (
+							<>
+								<View style={styles.separator} />
+								<Text style={[styles.bold, { marginBottom: 4 }]}>BILL TO:</Text>
+								{order.customerName && (
+									<View style={styles.row}>
+										<Text>Name:</Text>
+										<Text>{order.customerName}</Text>
+									</View>
+								)}
+								{order.shopName && (
+									<View style={styles.row}>
+										<Text>Shop:</Text>
+										<Text>{order.shopName}</Text>
+									</View>
+								)}
+								{order.customerPhone && (
+									<View style={styles.row}>
+										<Text>Phone:</Text>
+										<Text>{order.customerPhone}</Text>
+									</View>
+								)}
+							</>
+						)}
 
-			order.payments.forEach((p) => {
-				const label = PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment";
-				printRow(label, `Rs.${Number.parseFloat(p.amount).toFixed(2)}`, isA4 ? 9.5 : 7.5);
-			});
+						<View style={styles.separator} />
 
-			y += 2;
-			drawSeparator();
+						{/* Table Header */}
+						<View style={styles.tableHeader}>
+							<Text style={[styles.colItem, styles.bold]}>Item</Text>
+							<Text style={[styles.colQty, styles.bold]}>Qty</Text>
+							<Text style={[styles.colRate, styles.bold]}>Rate</Text>
+							<Text style={[styles.colTotal, styles.bold]}>Total</Text>
+						</View>
 
-			// Footer
-			y += 2;
-			centerText("Thank you for shopping!", isA4 ? 11 : 8.5);
-			centerText("Goods once sold will not be taken back", isA4 ? 9 : 7);
-			centerText("without valid receipt within 7 days", isA4 ? 9 : 7);
+						{/* Table Items */}
+						{order.items.map((item, idx) => {
+							const rate = Number.parseFloat(item.price);
+							const lineTotal = rate * item.qty;
+							const qtyStr = Number.isInteger(item.qty) ? item.qty.toString() : item.qty.toFixed(3);
+							return (
+								<View key={idx} style={styles.tableRow}>
+									<Text style={styles.colItem}>{item.name}</Text>
+									<Text style={styles.colQty}>{qtyStr}</Text>
+									<Text style={styles.colRate}>Rs.{rate.toFixed(2)}</Text>
+									<Text style={styles.colTotal}>Rs.{lineTotal.toFixed(2)}</Text>
+								</View>
+							);
+						})}
 
-			doc.save(`invoice_${order.id}_${pageSize}.pdf`);
-		};
+						<View style={styles.separator} />
 
-		toast.promise(generate(), {
-			loading: "Generating vector PDF...",
-			success: "Vector PDF downloaded successfully!",
-			error: (err) => `Failed: ${err?.message || "Error"}. Try 'Print Receipt' -> 'Save as PDF'`,
-		});
+						{/* Summary */}
+						<View style={styles.row}>
+							<Text>Subtotal:</Text>
+							<Text>Rs.{order.subtotal.toFixed(2)}</Text>
+						</View>
+						{order.discount > 0 && (
+							<View style={styles.row}>
+								<Text>Discount:</Text>
+								<Text>-Rs.{order.discount.toFixed(2)}</Text>
+							</View>
+						)}
+						{roundOff !== 0 && (
+							<View style={styles.row}>
+								<Text>Round-off:</Text>
+								<Text>{roundOff > 0 ? "+" : ""}Rs.{roundOff.toFixed(2)}</Text>
+							</View>
+						)}
+
+						<View style={styles.separator} />
+						<View style={styles.row}>
+							<Text style={[styles.bold, { fontSize: isA4 ? 14 : 11 }]}>Grand Total:</Text>
+							<Text style={[styles.bold, { fontSize: isA4 ? 14 : 11 }]}>Rs.{grandTotal.toFixed(2)}</Text>
+						</View>
+						<View style={styles.separator} />
+
+						{/* Payment Details */}
+						<Text style={[styles.bold, { marginTop: 4, marginBottom: 4 }]}>PAYMENT DETAILS</Text>
+						{order.payments.map((p, idx) => (
+							<View key={idx} style={styles.row}>
+								<Text>{PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}</Text>
+								<Text>Rs.{Number.parseFloat(p.amount).toFixed(2)}</Text>
+							</View>
+						))}
+
+						<View style={styles.separator} />
+
+						{/* Footer */}
+						<View style={styles.footer}>
+							<Text style={[styles.bold, { marginBottom: 2, fontSize: isA4 ? 12 : 9 }]}>Thank you for shopping!</Text>
+							<Text>Goods once sold will not be taken back</Text>
+							<Text>without valid receipt within 7 days</Text>
+						</View>
+					</Page>
+				</Document>
+			);
+
+			const blob = await pdf(<InvoiceDocument />).toBlob();
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = `invoice_${order.id}_${pageSize}.pdf`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+
+			toast.success("Vector PDF downloaded successfully!", { id: toastId });
+		} catch (err: any) {
+			console.error("PDF generation error:", err);
+			toast.error(`Failed: ${err?.message || "Error"}. Try 'Print Receipt' -> 'Save as PDF'`, { id: toastId });
+		}
 	};
 
 	const handleWhatsApp = () => {
