@@ -247,3 +247,9 @@ body {
 		}
 	}
 }
+
+/* Force Radix ScrollArea viewport content wrapper to use block layout instead of table.
+   This prevents horizontal scrolling, bounds card widths, and enables text truncation. */
+.scroll-area-vertical [data-radix-scroll-area-viewport] > div {
+	display: block !important;
+}

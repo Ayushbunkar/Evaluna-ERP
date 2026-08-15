@@ -367,7 +367,7 @@ export default function POSPage() {
 						Clear
 					</Button>
 				</div>
-				<ScrollArea className="min-h-0 flex-1 bg-muted/20 p-4">
+				<ScrollArea className="min-h-0 flex-1 bg-muted/20 p-4 scroll-area-vertical">
 					<AnimatePresence>
 						{cart.length === 0 ? (
 							<motion.div
