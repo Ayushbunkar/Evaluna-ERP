@@ -170,10 +170,10 @@ export function SaleCompletionScreen({
 			const { pdf, Document, Page, Text, View, StyleSheet, Font } = await import("@react-pdf/renderer");
 
 			// Register a font that supports Devanagari (Hindi) and basic Latin
-			// We use Noto Sans Devanagari. It includes Latin characters as well.
+			// Loaded locally from our public/fonts folder to avoid 404/network errors
 			Font.register({
 				family: "NotoSansDevanagari",
-				src: "https://fonts.gstatic.com/s/notosansdevanagari/v28/Equ7FZ55t0yrL6sJ7w4PMc_w1N7q9-Vn.ttf"
+				src: `${window.location.origin}/fonts/NotoSansDevanagari-Regular.ttf`
 			});
 
 			const isA4 = pageSize === "A4";
