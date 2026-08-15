@@ -185,30 +185,61 @@ export function SaleCompletionScreen({
 		};
 
 		const runGeneration = () => {
-			const calculatedHeight = pageSize === "80mm"
-				? Math.max(150, 130 + order.items.length * 15 + (order.customerName ? 25 : 0))
-				: 297;
-
 			const opt = {
-				margin: pageSize === "80mm" ? 4 : 10,
+				margin: 10,
 				filename: `invoice_${order.id}_${pageSize}.pdf`,
 				image: { type: "jpeg", quality: 0.98 },
 				html2canvas: { scale: 2, useCORS: true, logging: false },
-				jsPDF: pageSize === "80mm"
-					? { unit: "mm", format: [80, calculatedHeight], orientation: "portrait" }
-					: { unit: "mm", format: "a4", orientation: "portrait" },
+				jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
 			};
 
-			// @ts-ignore
-			return window.html2pdf().from(element).set(opt).save()
-				.then((res: any) => {
-					cleanupHtml2Canvas();
-					return res;
-				})
-				.catch((err: any) => {
-					cleanupHtml2Canvas();
-					throw err;
-				});
+			if (pageSize === "80mm") {
+				// Center the 80mm receipt on A4 format to ensure compatibility
+				const pdfWrapper = document.createElement("div");
+				pdfWrapper.style.position = "absolute";
+				pdfWrapper.style.left = "-9999px";
+				pdfWrapper.style.top = "-9999px";
+				pdfWrapper.style.width = "190mm"; // Fits nicely on A4 width with margins
+				pdfWrapper.style.display = "flex";
+				pdfWrapper.style.flexDirection = "column";
+				pdfWrapper.style.alignItems = "center";
+				pdfWrapper.style.backgroundColor = "#ffffff";
+				pdfWrapper.style.padding = "10px 0";
+
+				const contentClone = element.cloneNode(true) as HTMLElement;
+				contentClone.style.width = "300px";
+				contentClone.style.margin = "0 auto";
+				contentClone.style.border = "none";
+				contentClone.style.boxShadow = "none";
+
+				pdfWrapper.appendChild(contentClone);
+				document.body.appendChild(pdfWrapper);
+
+				// @ts-ignore
+				return window.html2pdf().from(pdfWrapper).set(opt).save()
+					.then((res: any) => {
+						document.body.removeChild(pdfWrapper);
+						cleanupHtml2Canvas();
+						return res;
+					})
+					.catch((err: any) => {
+						document.body.removeChild(pdfWrapper);
+						cleanupHtml2Canvas();
+						throw err;
+					});
+			} else {
+				// Standard A4 generation
+				// @ts-ignore
+				return window.html2pdf().from(element).set(opt).save()
+					.then((res: any) => {
+						cleanupHtml2Canvas();
+						return res;
+					})
+					.catch((err: any) => {
+						cleanupHtml2Canvas();
+						throw err;
+					});
+			}
 		};
 
 		if ((window as any).html2pdf) {
