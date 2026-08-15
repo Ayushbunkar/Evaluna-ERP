@@ -175,13 +175,13 @@ export function SaleCompletionScreen({
 			document.head.appendChild(script);
 		};
 
-		const generatePDF = () => {
+		const runGeneration = () => {
 			const calculatedHeight = pageSize === "80mm"
 				? Math.max(150, 130 + order.items.length * 15 + (order.customerName ? 25 : 0))
 				: 297;
 
 			const opt = {
-				margin: pageSize === "80mm" ? [4, 4, 4, 4] : 15,
+				margin: pageSize === "80mm" ? 4 : 10,
 				filename: `invoice_${order.id}_${pageSize}.pdf`,
 				image: { type: "jpeg", quality: 0.98 },
 				html2canvas: { scale: 2, useCORS: true, logging: false },
@@ -190,63 +190,40 @@ export function SaleCompletionScreen({
 					: { unit: "mm", format: "a4", orientation: "portrait" },
 			};
 
-			const wrapper = document.createElement("div");
-			wrapper.innerHTML = element.innerHTML;
-			wrapper.style.position = "absolute";
-			wrapper.style.left = "-9999px";
-			wrapper.style.top = "-9999px";
-			wrapper.style.width = pageSize === "80mm" ? "72mm" : "100%";
-			wrapper.style.fontFamily = "sans-serif";
-			wrapper.style.fontSize = pageSize === "80mm" ? "11px" : "13px";
-			wrapper.style.color = "#000";
-			document.body.appendChild(wrapper);
-
-			// Inject basic table styling directly for PDF render container
-			const tables = wrapper.getElementsByTagName("table");
-			for (let i = 0; i < tables.length; i++) {
-				tables[i].style.width = "100%";
-				tables[i].style.borderCollapse = "collapse";
-			}
-			const hrs = wrapper.getElementsByTagName("hr");
-			for (let i = 0; i < hrs.length; i++) {
-				hrs[i].style.border = "none";
-				hrs[i].style.borderTop = "1px dashed #000";
-				hrs[i].style.margin = "10px 0";
-			}
-
 			// @ts-ignore
-			window.html2pdf()
-				.from(wrapper)
-				.set(opt)
-				.save()
-				.then(() => {
-					document.body.removeChild(wrapper);
-					toast.success("PDF downloaded!");
-				})
-				.catch((err: any) => {
-					document.body.removeChild(wrapper);
-					console.error(err);
-					toast.error("Failed to generate PDF");
-				});
+			return window.html2pdf().from(element).set(opt).save();
 		};
 
 		if ((window as any).html2pdf) {
-			generatePDF();
+			toast.promise(
+				runGeneration(),
+				{
+					loading: "Generating PDF...",
+					success: "PDF downloaded successfully!",
+					error: "Failed to generate PDF. Use 'Print Receipt' -> 'Save as PDF' instead.",
+				}
+			);
 		} else {
 			toast.promise(
-				new Promise((resolve) => {
+				new Promise((resolve, reject) => {
 					loadScript(
 						"https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
-						() => resolve(true),
+						() => {
+							if ((window as any).html2pdf) {
+								resolve(true);
+							} else {
+								reject(new Error("Failed to load PDF library"));
+							}
+						},
 					);
 				}).then(() => {
-					generatePDF();
+					return runGeneration();
 				}),
 				{
-					loading: "Loading PDF generator...",
-					success: "Ready to download",
-					error: "Failed to load PDF library",
-				},
+					loading: "Loading PDF library & generating...",
+					success: "PDF downloaded successfully!",
+					error: "Failed to generate PDF. Use 'Print Receipt' -> 'Save as PDF' instead.",
+				}
 			);
 		}
 	};
