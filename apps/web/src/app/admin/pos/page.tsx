@@ -385,9 +385,9 @@ export default function POSPage() {
 								{cart.map((item) => (
 									<motion.div
 										key={item.id}
-										initial={{ opacity: 0, scale: 0.9, x: 20 }}
-										animate={{ opacity: 1, scale: 1, x: 0 }}
-										exit={{ opacity: 0, scale: 0.9, x: -20 }}
+										initial={{ opacity: 0, scale: 0.95, y: 10 }}
+										animate={{ opacity: 1, scale: 1, y: 0 }}
+										exit={{ opacity: 0, scale: 0.95, y: -10 }}
 										className="flex w-full flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm overflow-hidden"
 									>
 										<div className="flex w-full items-center justify-between gap-2 min-w-0">
