@@ -10,6 +10,18 @@ const withPWA = withPWAInit({
 		exclude: [/\/api\//], // Exclude API routes from precaching
 		runtimeCaching: [
 			{
+				// Cache fonts with a long TTL - fonts never change
+				urlPattern: /\/fonts\//i,
+				handler: "CacheFirst",
+				options: {
+					cacheName: "fonts-cache",
+					expiration: {
+						maxEntries: 20,
+						maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+					},
+				},
+			},
+			{
 				urlPattern: /^(?!.*\/api\/trpc\/).*/i,
 				handler: "NetworkFirst",
 				options: {
@@ -31,14 +43,35 @@ const nextConfig = {
 	},
 	serverExternalPackages: ["@electric-sql/pglite", "postgres"],
 	experimental: {
-		optimizePackageImports: ["lucide-react", "@evaluna/ui", "framer-motion"],
-		// Million.js integration will be handled via separate build step
+		optimizePackageImports: [
+			"lucide-react",
+			"@evaluna/ui",
+			"framer-motion",
+			"@react-pdf/renderer",
+			"date-fns",
+		],
+	},
+	compiler: {
+		// Remove console.log in production for better performance
+		removeConsole: process.env.NODE_ENV === "production"
+			? { exclude: ["error", "warn"] }
+			: false,
 	},
 	typescript: {
 		ignoreBuildErrors: true,
 	},
 	async headers() {
 		return [
+			{
+				// Cache our custom fonts for 1 year (immutable)
+				source: "/fonts/(.*)",
+				headers: [
+					{
+						key: "Cache-Control",
+						value: "public, max-age=31536000, immutable",
+					},
+				],
+			},
 			{
 				source: "/(.*)",
 				headers: [

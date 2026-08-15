@@ -1,5 +1,5 @@
 import { products } from "@evaluna/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
@@ -117,12 +117,11 @@ export const productsRouter = router({
 	bulkDelete: protectedProcedure
 		.input(z.object({ ids: z.array(z.number()) }))
 		.mutation(async ({ input }) => {
-			for (const id of input.ids) {
-				await db
-					.update(products)
-					.set({ is_deleted: true })
-					.where(eq(products.id, id));
-			}
+			if (input.ids.length === 0) return { success: true, count: 0 };
+			await db
+				.update(products)
+				.set({ is_deleted: true })
+				.where(inArray(products.id, input.ids));
 			return { success: true, count: input.ids.length };
 		}),
 
@@ -141,10 +140,10 @@ export const productsRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			// In a real scenario, this would use a bulk insert db.insert(products).values(arrayOfObjects)
-			let count = 0;
-			for (const p of input.products) {
-				await db.insert(products).values({
+			if (input.products.length === 0) return { success: true, count: 0 };
+			// Batch insert all products in a single query
+			await db.insert(products).values(
+				input.products.map((p) => ({
 					name: p.name,
 					sku: p.sku,
 					description: p.name,
@@ -153,9 +152,8 @@ export const productsRouter = router({
 					price: p.base_selling_price.toString(),
 					category: p.category,
 					user_uid: ctx.user.id,
-				});
-				count++;
-			}
-			return { success: true, count };
+				})),
+			);
+			return { success: true, count: input.products.length };
 		}),
 });

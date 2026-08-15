@@ -1,5 +1,5 @@
 import { payroll, staff, transactions } from "@evaluna/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
 
@@ -52,31 +52,37 @@ export const payrollRouter = router({
 				where: staffConditions.length ? and(...staffConditions) : undefined,
 			});
 
-			const generated = [];
-
-			for (const employee of activeStaff) {
-				// Check if payroll record already exists
-				const existing = await ctx.db.query.payroll.findFirst({
+			// Batch-check existing payroll records for all staff in one query
+			const staffIds = activeStaff.map((s) => s.id);
+			const existingPayrolls = staffIds.length > 0
+				? await ctx.db.query.payroll.findMany({
 					where: and(
-						eq(payroll.staff_id, employee.id),
+						inArray(payroll.staff_id, staffIds),
 						eq(payroll.month, input.month),
 					),
-				});
+			  })
+				: [];
 
-				if (!existing) {
-					const [draft] = await ctx.db
-						.insert(payroll)
-						.values({
+			const existingStaffIds = new Set(existingPayrolls.map((p) => p.staff_id));
+
+			// Only create payroll for staff who don't have one yet
+			const newStaff = activeStaff.filter((e) => !existingStaffIds.has(e.id));
+
+			let generated: any[] = [];
+			if (newStaff.length > 0) {
+				generated = await ctx.db
+					.insert(payroll)
+					.values(
+						newStaff.map((employee) => ({
 							staff_id: employee.id,
 							branch_id: employee.branch_id,
 							month: input.month,
 							base_salary: employee.salary,
-							net_payable: employee.salary, // initially net = base
+							net_payable: employee.salary,
 							status: "draft",
-						})
-						.returning();
-					generated.push(draft);
-				}
+						}))
+					)
+					.returning();
 			}
 
 			return { generated: generated.length };

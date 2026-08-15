@@ -8,7 +8,7 @@ import {
 	stockLedger,
 	suppliers,
 } from "@evaluna/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { purchaseSchema } from "@/lib/validation/purchase";
@@ -44,7 +44,7 @@ export const purchasesRouter = router({
 				.returning();
 
 			if (newPurchase[0] && items) {
-				// Insert purchase items
+				// Insert purchase items (batch)
 				await db.insert(purchaseItems).values(
 					items.map((item) => ({
 						...item,
@@ -54,23 +54,29 @@ export const purchasesRouter = router({
 					})),
 				);
 
-				// Update inventory and stock ledger
-				for (const item of items) {
-					const product = await db.query.products.findFirst({
-						where: eq(products.id, Number.parseInt(item.productId, 10)),
-					});
-					if (product) {
-						// Note: Stock should be updated in branchInventory, not products table.
-						// await db.insert(branchInventory).values({...}).onConflictDoUpdate({...});
+				// Batch fetch all products at once, then insert ledger entries in one query
+				const productIds = items.map((item) => Number.parseInt(item.productId, 10));
+				const foundProducts = await db.query.products.findMany({
+					where: inArray(products.id, productIds),
+				});
+				const productMap = new Map(foundProducts.map((p) => [p.id, p]));
 
-						await db.insert(stockLedger).values({
+				const ledgerEntries = items
+					.map((item) => {
+						const product = productMap.get(Number.parseInt(item.productId, 10));
+						if (!product) return null;
+						return {
 							product_id: product.id,
-							transaction_type: "in",
+							transaction_type: "in" as const,
 							quantity: item.quantity,
 							unit_cost: item.price.toString(),
 							total_cost: (item.quantity * Number(item.price)).toString(),
-						});
-					}
+						};
+					})
+					.filter(Boolean) as any[];
+
+				if (ledgerEntries.length > 0) {
+					await db.insert(stockLedger).values(ledgerEntries);
 				}
 
 				// Increase supplier outstanding balance

@@ -4,7 +4,7 @@ import {
 	notifications,
 	notificationTemplates,
 } from "@evaluna/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -69,11 +69,11 @@ export const notificationsRouter = router({
 			const conditions = [eq(notifications.is_read, false)];
 			if (input.branch_id)
 				conditions.push(eq(notifications.branch_id, input.branch_id));
-			const rows = await db
-				.select()
+			const [result] = await db
+				.select({ count: count() })
 				.from(notifications)
 				.where(and(...conditions));
-			return { count: rows.length };
+			return { count: result?.count ?? 0 };
 		}),
 
 	// ── Mark as Read ────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import {
 	stockLedger,
 	transactions,
 } from "@evaluna/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
@@ -84,66 +84,83 @@ export const posRouter = router({
 					})
 					.returning();
 
-				// 2. Insert Order Items & Deduct Stock
-				for (const item of input.items) {
-					await tx.insert(orderItems).values({
-						order_id: order.id,
+				// 2. Batch insert Order Items & Deduct Stock
+				const itemsToInsert = input.items.map((item) => ({
+					order_id: order.id,
+					product_id: item.productId,
+					quantity: item.quantity,
+					price: item.price,
+				}));
+
+				await tx.insert(orderItems).values(itemsToInsert);
+
+				if (status === "completed") {
+					// Batch insert stock ledger
+					const ledgerEntries = input.items.map((item) => ({
 						product_id: item.productId,
-						quantity: item.quantity,
-						price: item.price,
-					});
+						transaction_type: "out" as const,
+						quantity: -item.quantity,
+						unit_cost: item.price,
+						total_cost: (
+							Number.parseFloat(item.price) * item.quantity
+						).toString(),
+						reference_id: order.id,
+						reference_type: "sale",
+						branch_id: ctx.user.branchId,
+					}));
 
-					if (status === "completed") {
-						// Deduct stock
-						await tx.insert(stockLedger).values({
-							product_id: item.productId,
-							transaction_type: "out",
-							quantity: -item.quantity,
-							unit_cost: item.price,
-							total_cost: (
-								Number.parseFloat(item.price) * item.quantity
-							).toString(),
-							reference_id: order.id,
-							reference_type: "sale",
-							branch_id: ctx.user.branchId,
-						});
+					if (ledgerEntries.length > 0) {
+						await tx.insert(stockLedger).values(ledgerEntries);
+					}
 
-						// Update branch inventory
-						if (ctx.user.branchId) {
-							const existingStock = await tx
-								.select()
-								.from(branchInventory)
-								.where(
-									and(
-										eq(branchInventory.branch_id, ctx.user.branchId),
-										eq(branchInventory.product_id, item.productId),
-									),
+					// Update branch inventory
+					if (ctx.user.branchId) {
+						const productIds = input.items.map((item) => item.productId);
+						const existingStocks = await tx
+							.select()
+							.from(branchInventory)
+							.where(
+								and(
+									eq(branchInventory.branch_id, ctx.user.branchId),
+									inArray(branchInventory.product_id, productIds),
+								),
+							);
+
+						if (existingStocks.length > 0) {
+							const updatePromises = input.items.map((item) => {
+								const existing = existingStocks.find(
+									(stock) => stock.product_id === item.productId,
 								);
+								if (existing) {
+									return tx
+										.update(branchInventory)
+										.set({
+											in_stock: sql`${branchInventory.in_stock} - ${item.quantity}`,
+										})
+										.where(eq(branchInventory.id, existing.id));
+								}
+								return Promise.resolve();
+							});
 
-							if (existingStock.length > 0) {
-								await tx
-									.update(branchInventory)
-									.set({
-										in_stock: sql`${branchInventory.in_stock} - ${item.quantity}`,
-									})
-									.where(eq(branchInventory.id, existingStock[0].id));
-							}
+							await Promise.all(updatePromises);
 						}
 					}
 				}
 
-				// 3. Process Payments (Split Payments Supported)
-				for (const payment of input.payments) {
-					await tx.insert(transactions).values({
-						order_id: order.id,
-						payment_method_id: payment.methodId,
-						amount: payment.amount,
-						user_uid: ctx.user.id,
-						branch_id: ctx.user.branchId,
-						type: "in",
-						category: "sale",
-						status: "completed",
-					});
+				// 3. Process Payments (Split Payments Supported, Batched)
+				const paymentsToInsert = input.payments.map((payment) => ({
+					order_id: order.id,
+					payment_method_id: payment.methodId,
+					amount: payment.amount,
+					user_uid: ctx.user.id,
+					branch_id: ctx.user.branchId,
+					type: "in" as const,
+					category: "sale" as const,
+					status: "completed" as const,
+				}));
+
+				if (paymentsToInsert.length > 0) {
+					await tx.insert(transactions).values(paymentsToInsert);
 				}
 
 				// 4. Update Coupon Usage
