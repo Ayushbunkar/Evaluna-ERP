@@ -175,6 +175,15 @@ export function SaleCompletionScreen({
 			document.head.appendChild(script);
 		};
 
+		const cleanupHtml2Canvas = () => {
+			// Remove any blank rendering iframes left behind by crashed html2canvas
+			document.querySelectorAll("iframe").forEach((iframe) => {
+				if (iframe.src === "" || iframe.src === "about:blank") {
+					iframe.parentNode?.removeChild(iframe);
+				}
+			});
+		};
+
 		const runGeneration = () => {
 			const calculatedHeight = pageSize === "80mm"
 				? Math.max(150, 130 + order.items.length * 15 + (order.customerName ? 25 : 0))
@@ -191,7 +200,15 @@ export function SaleCompletionScreen({
 			};
 
 			// @ts-ignore
-			return window.html2pdf().from(element).set(opt).save();
+			return window.html2pdf().from(element).set(opt).save()
+				.then((res: any) => {
+					cleanupHtml2Canvas();
+					return res;
+				})
+				.catch((err: any) => {
+					cleanupHtml2Canvas();
+					throw err;
+				});
 		};
 
 		if ((window as any).html2pdf) {
@@ -218,6 +235,10 @@ export function SaleCompletionScreen({
 					);
 				}).then(() => {
 					return runGeneration();
+				})
+				.catch((err) => {
+					cleanupHtml2Canvas();
+					throw err;
 				}),
 				{
 					loading: "Loading PDF library & generating...",
@@ -362,7 +383,7 @@ export function SaleCompletionScreen({
 									id="printable-receipt"
 									className={`mx-auto bg-white border shadow-sm transition-all duration-200 ${
 										pageSize === "80mm"
-											? "w-[80mm] max-w-full p-4 text-[11px] leading-relaxed"
+											? "w-[302px] max-w-full p-4 text-[11px] leading-relaxed"
 											: "w-full max-w-[700px] p-12 text-sm"
 									}`}
 									style={{ color: "#000" }}
