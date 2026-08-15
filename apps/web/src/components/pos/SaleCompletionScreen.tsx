@@ -35,19 +35,22 @@ interface CompletedOrder {
 	payments: Array<{ methodId: number; amount: string }>;
 	cashierName?: string;
 	customerName?: string;
+	customerPhone?: string;
+	shopName?: string;
 	couponCode?: string;
 }
 
 interface SaleCompletionScreenProps {
 	order: CompletedOrder;
-	storeInfo?: {
-		name: string;
-		address: string;
-		phone: string;
-		gst?: string;
-	};
 	onNewSale: () => void;
 }
+
+const STORE = {
+	name: "EVALUNA PVT LTD",
+	address: "Near Bank of India, Vidisha Road, Berasia",
+	city: "Bhopal, MP – 463106",
+	phone: "7000219747",
+};
 
 const PAYMENT_METHOD_LABELS: Record<number, string> = {
 	1: "Cash",
@@ -76,17 +79,9 @@ const getPaymentStatusBadge = (order: CompletedOrder) => {
 
 export function SaleCompletionScreen({
 	order,
-	storeInfo,
 	onNewSale,
 }: SaleCompletionScreenProps) {
 	const receiptRef = useRef<HTMLDivElement>(null);
-
-	const store = storeInfo ?? {
-		name: "Evaluna Supermarket",
-		address: "123 Retail Ave, Commerce City",
-		phone: "+91 98765 43210",
-		gst: "29ABCDE1234F1Z5",
-	};
 
 	const totalPaid = order.payments.reduce(
 		(a, p) => a + Number.parseFloat(p.amount),
@@ -116,15 +111,15 @@ export function SaleCompletionScreen({
 
 	const handleWhatsApp = () => {
 		const text = encodeURIComponent(
-			`🧾 Invoice #${order.id}\n${store.name}\n\nItems: ${order.items.length}\nTotal: ₹${order.total.toFixed(2)}\nStatus: ${status.label}\n\nThank you for shopping!`,
+			`🧾 Invoice #${order.id}\n${STORE.name}\n\nItems: ${order.items.length}\nTotal: ₹${order.total.toFixed(2)}\nStatus: ${status.label}\n\nThank you for shopping!`,
 		);
 		window.open(`https://wa.me/?text=${text}`, "_blank");
 	};
 
 	const handleEmail = () => {
-		const subject = encodeURIComponent(`Invoice #${order.id} - ${store.name}`);
+		const subject = encodeURIComponent(`Invoice #${order.id} - ${STORE.name}`);
 		const body = encodeURIComponent(
-			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${store.name}!`,
+			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
 		);
 		window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
 	};
@@ -198,17 +193,13 @@ export function SaleCompletionScreen({
 									className="p-6 print:mx-auto print:w-[80mm] print:p-0"
 								>
 									{/* Store Header */}
-									<div className="mb-5 text-center">
-										<h2 className="font-bold text-gray-900 text-xl">
-											{store.name}
+									<div className="mb-4 text-center">
+										<h2 className="font-bold text-gray-900 text-xl tracking-wide">
+											{STORE.name}
 										</h2>
-										<p className="text-gray-500 text-sm">{store.address}</p>
-										<p className="text-gray-500 text-sm">📞 {store.phone}</p>
-										{store.gst && (
-											<p className="mt-1 text-gray-400 text-xs">
-												GSTIN: {store.gst}
-											</p>
-										)}
+										<p className="text-gray-500 text-sm mt-0.5">{STORE.address}</p>
+										<p className="text-gray-500 text-sm">{STORE.city}</p>
+										<p className="text-gray-500 text-sm">📞 {STORE.phone}</p>
 									</div>
 
 									<hr className="my-4 border-gray-300 border-dashed" />
@@ -219,7 +210,7 @@ export function SaleCompletionScreen({
 										<div className="text-right font-semibold text-gray-800">
 											#{order.id}
 										</div>
-										<div className="text-gray-500">Date & Time</div>
+										<div className="text-gray-500">Date &amp; Time</div>
 										<div className="text-right text-gray-800">
 											{formattedDate}
 										</div>
@@ -227,14 +218,6 @@ export function SaleCompletionScreen({
 										<div className="text-right text-gray-800">
 											{order.cashierName || "Counter 1"}
 										</div>
-										{order.customerName && (
-											<>
-												<div className="text-gray-500">Customer</div>
-												<div className="text-right text-gray-800">
-													{order.customerName}
-												</div>
-											</>
-										)}
 										{order.couponCode && (
 											<>
 												<div className="text-gray-500">Coupon</div>
@@ -245,6 +228,38 @@ export function SaleCompletionScreen({
 										)}
 									</div>
 
+									{/* Customer Details (if provided) */}
+									{(order.customerName || order.customerPhone || order.shopName) && (
+										<>
+											<hr className="my-3 border-gray-300 border-dashed" />
+											<div className="mb-3">
+												<div className="mb-1.5 text-gray-400 text-xs font-medium uppercase tracking-wide">
+													Bill To
+												</div>
+												<div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+													{order.customerName && (
+														<>
+															<div className="text-gray-500">Name</div>
+															<div className="text-right font-medium text-gray-800">{order.customerName}</div>
+														</>
+													)}
+													{order.shopName && (
+														<>
+															<div className="text-gray-500">Shop</div>
+															<div className="text-right font-medium text-gray-800">{order.shopName}</div>
+														</>
+													)}
+													{order.customerPhone && (
+														<>
+															<div className="text-gray-500">Phone</div>
+															<div className="text-right text-gray-800">{order.customerPhone}</div>
+														</>
+													)}
+												</div>
+											</div>
+										</>
+									)}
+
 									<hr className="my-4 border-gray-300 border-dashed" />
 
 									{/* Item Table */}
@@ -254,17 +269,15 @@ export function SaleCompletionScreen({
 									>
 										<colgroup>
 											<col style={{ width: "44%" }} />
-											<col style={{ width: "10%" }} />
-											<col style={{ width: "16%" }} />
-											<col style={{ width: "14%" }} />
-											<col style={{ width: "16%" }} />
+											<col style={{ width: "12%" }} />
+											<col style={{ width: "22%" }} />
+											<col style={{ width: "22%" }} />
 										</colgroup>
 										<thead>
 											<tr className="border-gray-300 border-b border-dashed text-gray-400 text-xs uppercase tracking-wide">
 												<th className="py-2 text-left font-medium">Item</th>
 												<th className="py-2 text-center font-medium">Qty</th>
 												<th className="py-2 text-right font-medium">Rate</th>
-												<th className="py-2 text-right font-medium">Disc.</th>
 												<th className="py-2 text-right font-medium">Total</th>
 											</tr>
 										</thead>
@@ -294,9 +307,6 @@ export function SaleCompletionScreen({
 														<td className="py-2 text-right align-top text-gray-600">
 															₹{rate.toFixed(2)}
 														</td>
-														<td className="py-2 text-right align-top text-green-600">
-															—
-														</td>
 														<td className="py-2 text-right align-top font-medium text-gray-900">
 															₹{lineTotal.toFixed(2)}
 														</td>
@@ -323,10 +333,6 @@ export function SaleCompletionScreen({
 												<span>− ₹{order.discount.toFixed(2)}</span>
 											</div>
 										)}
-										<div className="flex justify-between text-gray-600">
-											<span>GST (incl.)</span>
-											<span className="text-gray-400">Incl. in price</span>
-										</div>
 										{roundOff !== 0 && (
 											<div className="flex justify-between text-gray-500">
 												<span>Round-off</span>
@@ -382,6 +388,8 @@ export function SaleCompletionScreen({
 										</p>
 										<p>Goods once sold will not be taken back</p>
 										<p>without valid receipt within 7 days</p>
+										<p className="mt-2 font-semibold text-gray-500">{STORE.name}</p>
+										<p>{STORE.phone}</p>
 									</div>
 								</div>
 							</ScrollArea>
@@ -405,7 +413,7 @@ export function SaleCompletionScreen({
 
 							<hr className="my-1 border-gray-200" />
 							<div className="font-medium text-gray-400 text-xs uppercase tracking-wide">
-								Print & Share
+								Print &amp; Share
 							</div>
 
 							<Button
@@ -526,37 +534,57 @@ export function SaleCompletionScreen({
 				<style
 					dangerouslySetInnerHTML={{
 						__html: `
-						@media print {
-							body * {
-								visibility: hidden;
-							}
-							#printable-receipt, #printable-receipt * {
-								visibility: visible;
-							}
-							
-							/* Reset parent containers to prevent cropping */
-							body, html, .fixed, .overflow-hidden, [data-radix-scroll-area-viewport] {
-								position: static !important;
-								overflow: visible !important;
-								max-height: none !important;
-								height: auto !important;
-								transform: none !important;
-							}
-
-							#printable-receipt {
-								position: absolute;
-								left: 50%;
-								transform: translateX(-50%) !important;
-								top: 0;
-								width: 80mm;
-								margin: 0;
-								padding: 10px !important;
-							}
-							@page {
-								margin: 0;
-							}
+					@media print {
+						body * {
+							visibility: hidden;
 						}
-					`,
+						#printable-receipt, #printable-receipt * {
+							visibility: visible;
+						}
+
+						/* Reset parent containers to prevent cropping */
+						body, html, .fixed, .overflow-hidden, [data-radix-scroll-area-viewport] {
+							position: static !important;
+							overflow: visible !important;
+							max-height: none !important;
+							height: auto !important;
+							transform: none !important;
+						}
+
+						#printable-receipt {
+							position: absolute;
+							left: 50%;
+							transform: translateX(-50%) !important;
+							top: 0;
+							width: 80mm;
+							max-width: 80mm;
+							margin: 0;
+							padding: 8px !important;
+							font-size: 11px !important;
+							line-height: 1.4 !important;
+							color: #000 !important;
+						}
+
+						#printable-receipt h2 {
+							font-size: 14px !important;
+							font-weight: 700 !important;
+						}
+
+						#printable-receipt table {
+							width: 100% !important;
+							font-size: 10px !important;
+						}
+
+						#printable-receipt td, #printable-receipt th {
+							padding: 3px 2px !important;
+						}
+
+						@page {
+							margin: 0;
+							size: 80mm auto;
+						}
+					}
+				`,
 					}}
 				/>
 			</motion.div>

@@ -44,6 +44,7 @@ export default function POSPage() {
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
 	const [resumeId, setResumeId] = useState<string | null>(null);
+	const [customerDetails, setCustomerDetails] = useState<{ customerName?: string; customerPhone?: string; shopName?: string }>({});
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -103,6 +104,7 @@ export default function POSPage() {
 				discount: discount,
 				couponCode: appliedCoupon?.code,
 				payments: lastPayments,
+				...customerDetails,
 			});
 			setCart([]);
 			setAppliedCoupon(null);
@@ -292,7 +294,9 @@ export default function POSPage() {
 		setPaymentModalOpen(true);
 	};
 
-	const finalizeOrder = (payments: any[]) => {
+	const finalizeOrder = (payments: any[], customer?: { customerName?: string; customerPhone?: string; shopName?: string }) => {
+		if (customer) setCustomerDetails(customer);
+
 		if (isOffline) {
 			toast.info("Saved offline bill. Will sync when online.");
 			setCart([]);
@@ -405,7 +409,7 @@ export default function POSPage() {
 						variant="ghost"
 						size="sm"
 						onClick={() => setCart([])}
-						disabled={cart.length === 0}
+						disabled={cart.length === 0 || checkoutMutation.isPending}
 					>
 						Clear
 					</Button>
@@ -449,6 +453,7 @@ export default function POSPage() {
 													size="icon"
 													className="h-8 w-8 rounded-none rounded-l-md"
 													onClick={() => updateQty(item.id, -1)}
+													disabled={checkoutMutation.isPending}
 												>
 													<Minus className="h-3 w-3" />
 												</Button>
@@ -462,6 +467,7 @@ export default function POSPage() {
 													size="icon"
 													className="h-8 w-8 rounded-none rounded-r-md"
 													onClick={() => updateQty(item.id, 1)}
+													disabled={checkoutMutation.isPending}
 												>
 													<Plus className="h-3 w-3" />
 												</Button>
@@ -478,6 +484,7 @@ export default function POSPage() {
 													size="icon"
 													className="h-8 w-8 text-destructive hover:bg-destructive/10"
 													onClick={() => removeFromCart(item.id)}
+													disabled={checkoutMutation.isPending}
 												>
 													<Trash2 className="h-4 w-4" />
 												</Button>
@@ -565,7 +572,7 @@ export default function POSPage() {
 					open={paymentModalOpen}
 					onOpenChange={setPaymentModalOpen}
 					totalAmount={total}
-					onConfirm={(payments: any[]) => finalizeOrder(payments)}
+					onConfirm={(payments: any[], customer: any) => finalizeOrder(payments, customer)}
 				/>
 			)}
 
