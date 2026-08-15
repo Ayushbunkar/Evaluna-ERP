@@ -167,117 +167,111 @@ export function SaleCompletionScreen({
 		const element = document.getElementById("printable-receipt");
 		if (!element) return;
 
-		const loadScript = (url: string, callback: () => void) => {
-			const script = document.createElement("script");
-			script.type = "text/javascript";
-			script.src = url;
-			script.onload = callback;
-			document.head.appendChild(script);
-		};
-
-		const cleanupHtml2Canvas = () => {
-			// Remove any blank rendering iframes left behind by crashed html2canvas
-			document.querySelectorAll("iframe").forEach((iframe) => {
-				if (iframe.src === "" || iframe.src === "about:blank") {
-					iframe.parentNode?.removeChild(iframe);
+		const loadScript = (src: string) => {
+			return new Promise((resolve, reject) => {
+				if (document.querySelector(`script[src="${src}"]`)) {
+					resolve(true);
+					return;
 				}
+				const script = document.createElement("script");
+				script.src = src;
+				script.onload = () => resolve(true);
+				script.onerror = () => {
+					// Fallback to unpkg if cdnjs fails
+					const fallbackSrc = src.includes("html-to-image")
+						? "https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.js"
+						: "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js";
+					const fallbackScript = document.createElement("script");
+					fallbackScript.src = fallbackSrc;
+					fallbackScript.onload = () => resolve(true);
+					fallbackScript.onerror = () =>
+						reject(new Error(`Failed to load ${src}`));
+					document.head.appendChild(fallbackScript);
+				};
+				document.head.appendChild(script);
 			});
 		};
 
-		const runGeneration = () => {
-			const opt = {
-				margin: 10,
-				filename: `invoice_${order.id}_${pageSize}.pdf`,
-				image: { type: "jpeg", quality: 0.98 },
-				html2canvas: { scale: 2, useCORS: true, logging: false },
-				jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-			};
+		const generate = async () => {
+			// Load both html-to-image and jspdf from CDN if not already loaded
+			await Promise.all([
+				(window as any).htmlToImage
+					? Promise.resolve(true)
+					: loadScript(
+							"https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/htmlToImage.min.js",
+					  ),
+				(window as any).jspdf
+					? Promise.resolve(true)
+					: loadScript(
+							"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+					  ),
+			]);
+
+			const htmlToImage = (window as any).htmlToImage;
+			const { jsPDF } = (window as any).jspdf;
+
+			if (!htmlToImage || !jsPDF) {
+				throw new Error("PDF generator library unavailable");
+			}
+
+			// Generate high resolution PNG from the visible DOM element natively
+			const dataUrl = await htmlToImage.toPng(element, {
+				pixelRatio: 2,
+				backgroundColor: "#ffffff",
+				cacheBust: true,
+			});
+
+			const img = new Image();
+			img.src = dataUrl;
+			await new Promise((resolve, reject) => {
+				img.onload = resolve;
+				img.onerror = reject;
+			});
+
+			const imgWidth = img.naturalWidth;
+			const imgHeight = img.naturalHeight;
+			const aspect = imgHeight / imgWidth;
 
 			if (pageSize === "80mm") {
-				// Center the 80mm receipt on A4 format to ensure compatibility
-				const pdfWrapper = document.createElement("div");
-				pdfWrapper.style.position = "absolute";
-				pdfWrapper.style.left = "-9999px";
-				pdfWrapper.style.top = "-9999px";
-				pdfWrapper.style.width = "190mm"; // Fits nicely on A4 width with margins
-				pdfWrapper.style.display = "flex";
-				pdfWrapper.style.flexDirection = "column";
-				pdfWrapper.style.alignItems = "center";
-				pdfWrapper.style.backgroundColor = "#ffffff";
-				pdfWrapper.style.padding = "10px 0";
-
-				const contentClone = element.cloneNode(true) as HTMLElement;
-				contentClone.style.width = "300px";
-				contentClone.style.margin = "0 auto";
-				contentClone.style.border = "none";
-				contentClone.style.boxShadow = "none";
-
-				pdfWrapper.appendChild(contentClone);
-				document.body.appendChild(pdfWrapper);
-
-				// @ts-ignore
-				return window.html2pdf().from(pdfWrapper).set(opt).save()
-					.then((res: any) => {
-						document.body.removeChild(pdfWrapper);
-						cleanupHtml2Canvas();
-						return res;
-					})
-					.catch((err: any) => {
-						document.body.removeChild(pdfWrapper);
-						cleanupHtml2Canvas();
-						throw err;
-					});
+				const pdfWidth = 80;
+				const pdfHeight = Math.max(80, pdfWidth * aspect);
+				const pdf = new jsPDF({
+					orientation: "portrait",
+					unit: "mm",
+					format: [pdfWidth, pdfHeight],
+				});
+				pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+				pdf.save(`invoice_${order.id}_80mm.pdf`);
 			} else {
-				// Standard A4 generation
-				// @ts-ignore
-				return window.html2pdf().from(element).set(opt).save()
-					.then((res: any) => {
-						cleanupHtml2Canvas();
-						return res;
-					})
-					.catch((err: any) => {
-						cleanupHtml2Canvas();
-						throw err;
-					});
+				// A4 format: 210mm x 297mm
+				const pdf = new jsPDF({
+					orientation: "portrait",
+					unit: "mm",
+					format: "a4",
+				});
+				const margin = 10;
+				const printableWidth = 210 - margin * 2;
+				const renderHeight = printableWidth * aspect;
+				pdf.addImage(
+					dataUrl,
+					"PNG",
+					margin,
+					margin,
+					printableWidth,
+					Math.min(renderHeight, 277),
+				);
+				pdf.save(`invoice_${order.id}_A4.pdf`);
 			}
 		};
 
-		if ((window as any).html2pdf) {
-			toast.promise(
-				runGeneration(),
-				{
-					loading: "Generating PDF...",
-					success: "PDF downloaded successfully!",
-					error: "Failed to generate PDF. Use 'Print Receipt' -> 'Save as PDF' instead.",
-				}
-			);
-		} else {
-			toast.promise(
-				new Promise((resolve, reject) => {
-					loadScript(
-						"https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
-						() => {
-							if ((window as any).html2pdf) {
-								resolve(true);
-							} else {
-								reject(new Error("Failed to load PDF library"));
-							}
-						},
-					);
-				}).then(() => {
-					return runGeneration();
-				})
-				.catch((err) => {
-					cleanupHtml2Canvas();
-					throw err;
-				}),
-				{
-					loading: "Loading PDF library & generating...",
-					success: "PDF downloaded successfully!",
-					error: "Failed to generate PDF. Use 'Print Receipt' -> 'Save as PDF' instead.",
-				}
-			);
-		}
+		toast.promise(generate(), {
+			loading: "Generating PDF...",
+			success: "PDF downloaded successfully!",
+			error: (err) =>
+				`Failed to generate PDF: ${
+					err?.message || "Error"
+				}. Try 'Print Receipt' -> 'Save as PDF'`,
+		});
 	};
 
 	const handleWhatsApp = () => {
