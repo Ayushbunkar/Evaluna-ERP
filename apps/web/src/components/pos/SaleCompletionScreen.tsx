@@ -164,38 +164,9 @@ export function SaleCompletionScreen({
 	};
 
 	const handleDownloadPDF = () => {
-		const loadScript = (src: string) => {
-			return new Promise((resolve, reject) => {
-				if (document.querySelector(`script[src="${src}"]`)) {
-					resolve(true);
-					return;
-				}
-				const script = document.createElement("script");
-				script.src = src;
-				script.onload = () => resolve(true);
-				script.onerror = () => {
-					const fallbackSrc = "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js";
-					const fallbackScript = document.createElement("script");
-					fallbackScript.src = fallbackSrc;
-					fallbackScript.onload = () => resolve(true);
-					fallbackScript.onerror = () =>
-						reject(new Error(`Failed to load ${src}`));
-					document.head.appendChild(fallbackScript);
-				};
-				document.head.appendChild(script);
-			});
-		};
-
 		const generate = async () => {
-			// 1. Ensure jsPDF is loaded
-			await (window as any).jspdf
-				? Promise.resolve(true)
-				: loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-
-			const { jsPDF } = (window as any).jspdf;
-			if (!jsPDF) {
-				throw new Error("PDF generator library unavailable");
-			}
+			// 1. Import bundled jsPDF from npm directly (100% reliable, zero CDN dependency)
+			const { jsPDF } = await import("jspdf");
 
 			// 2. Calculate dynamic height for 80mm roll
 			const calculatedHeight = pageSize === "80mm"
@@ -226,11 +197,11 @@ export function SaleCompletionScreen({
 					doc.addFont("NotoSansDevanagari.ttf", "NotoSansDevanagari", "normal");
 					doc.setFont("NotoSansDevanagari");
 				} else {
-					doc.setFont("Helvetica");
+					doc.setFont("helvetica");
 				}
 			} catch (e) {
-				console.warn("Devanagari font load failed, falling back to Helvetica", e);
-				doc.setFont("Helvetica");
+				console.warn("Devanagari font load failed, falling back to helvetica", e);
+				doc.setFont("helvetica");
 			}
 
 			const isA4 = pageSize === "A4";
