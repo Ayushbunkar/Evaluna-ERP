@@ -39,12 +39,12 @@
 	"dependencies": {
 		"@evaluna/env": "workspace:*",
 		"@tanstack/zod-form-adapter": "^0.42.1",
-		"dotenv": "catalog:",
+		"dotenv": "^17.2.2",
 		"drizzle-orm": "^0.45.2",
 		"pg": "^8.22.0",
 		"playwright": "^1.61.1",
-		"react-to-print": "^3.3.0",
-		"zod": "catalog:"
+		"react-to-print": "^3.3.0"
+	
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.4",
