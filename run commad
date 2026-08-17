@@ -2,6 +2,8 @@
 bun run db:push
 
 # Open Drizzle Studio (DB GUI)
+ jk 
+ 
 bun run db:studio
 
 # Generate migrations
