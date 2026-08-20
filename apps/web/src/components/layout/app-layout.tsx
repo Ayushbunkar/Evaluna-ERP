@@ -430,6 +430,13 @@ export function AppLayout({
 								asChild
 								className="cursor-pointer rounded-md focus:bg-accent/50"
 							>
+								<Link href="/attendance">My Attendance</Link>
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								asChild
+								className="cursor-pointer rounded-md focus:bg-accent/50"
+							>
 								<Link href="/staff">Staff Portal</Link>
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />

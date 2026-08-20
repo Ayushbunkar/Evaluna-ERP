@@ -4,6 +4,8 @@ import { accountingRouter } from "./routers/accounting";
 import { approvalsRouter } from "./routers/approvals";
 import { attendanceRouter } from "./routers/attendance";
 import { auditRouter } from "./routers/audit";
+import { auditFindingsRouter } from "./routers/audit-findings";
+import { auditTasksRouter } from "./routers/audit-tasks";
 import { auditorRouter } from "./routers/auditor";
 import { backupsRouter } from "./routers/backups";
 import { bankAccountsRouter } from "./routers/bank-accounts";
@@ -35,6 +37,8 @@ import { ordersRouter } from "./routers/orders";
 import { packerRouter } from "./routers/packer";
 import { paymentMethodsRouter } from "./routers/payment-methods";
 import { paymentsRouter } from "./routers/payments";
+import { placementRouter } from "./routers/placement";
+import { priceAuditRouter } from "./routers/price-audit";
 import { payrollRouter } from "./routers/payroll";
 import { permissionsRouter } from "./routers/permissions";
 import { pickerRouter } from "./routers/picker";
@@ -43,6 +47,8 @@ import { posRouter } from "./routers/pos";
 import { productsRouter } from "./routers/products";
 import { purchaseReturnsRouter } from "./routers/purchase-returns";
 import { purchasesRouter } from "./routers/purchases";
+import { receivingInspectionsRouter } from "./routers/receiving-inspections";
+import { routeAuditRouter } from "./routers/route-audit";
 import { putterRouter } from "./routers/putter";
 import { reportsRouter } from "./routers/reports";
 import { salesReturnsRouter } from "./routers/sales-returns";
@@ -54,6 +60,7 @@ import { supplierRouter } from "./routers/supplier";
 import { suppliersRouter } from "./routers/suppliers";
 import { transactionsRouter } from "./routers/transactions";
 import { transfersRouter } from "./routers/transfers";
+import { upcRouter } from "./routers/upc";
 import { vehiclesRouter } from "./routers/vehicles";
 import { warehouseRouter } from "./routers/warehouse";
 
@@ -96,6 +103,13 @@ export const appRouter = router({
 	billing: billingRouter,
 	driver: driverRouter,
 	auditor: auditorRouter,
+	upc: upcRouter,
+	auditFindings: auditFindingsRouter,
+	auditTasks: auditTasksRouter,
+	receivingInspections: receivingInspectionsRouter,
+	placement: placementRouter,
+	priceAudit: priceAuditRouter,
+	routeAudit: routeAuditRouter,
 	picker: pickerRouter,
 	packer: packerRouter,
 	checker: checkerRouter,

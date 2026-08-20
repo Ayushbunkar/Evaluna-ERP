@@ -1,8 +1,10 @@
-import { products } from "@evaluna/db/schema";
+import { priceChangeHistory, products } from "@evaluna/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
+import { logAudit, resolveStaffId } from "../util/audit";
+import { permProcedure } from "../util/auditor-procedures";
 
 export const productsRouter = router({
 	list: protectedProcedure.query(async ({ ctx }) => {
@@ -74,7 +76,9 @@ export const productsRouter = router({
 			return product;
 		}),
 
-	update: protectedProcedure
+	// Gated by `products.write` (manager/admin). Auditors have pricing_audit
+	// (flag-only) but NOT products.write, so they cannot edit a price here.
+	update: permProcedure("products", "write")
 		.input(
 			z.object({
 				id: z.number(),
@@ -89,19 +93,62 @@ export const productsRouter = router({
 				loose_product_id: z.number().optional().nullable(),
 				units_per_pack: z.number().optional().nullable(),
 				is_weighted: z.boolean().optional(),
+				// Optional provenance for the immutable price-change log.
+				priceChangeReason: z.string().optional(),
+				approvalRef: z.string().optional(),
 			}),
 		)
-		.mutation(async ({ input }) => {
-			const { id, ...data } = input;
+		.mutation(async ({ input, ctx }) => {
+			const { id, priceChangeReason, approvalRef, ...data } = input;
 			const updates: any = { ...data };
+			// These are audit-only fields, never columns on `products`.
+			delete updates.priceChangeReason;
+			delete updates.approvalRef;
 			if (data.price !== undefined) updates.price = data.price.toString();
 
-			const [product] = await db
-				.update(products)
-				.set(updates)
-				.where(eq(products.id, id))
-				.returning();
-			return product;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			return await db.transaction(async (tx: any) => {
+				// Snapshot the old price BEFORE the update so the log is accurate.
+				const [before] = await tx
+					.select({ price: products.price })
+					.from(products)
+					.where(eq(products.id, id))
+					.limit(1);
+
+				const [product] = await tx
+					.update(products)
+					.set(updates)
+					.where(eq(products.id, id))
+					.returning();
+
+				// Append-only price-change history + audit trail when price changed.
+				if (
+					data.price !== undefined &&
+					before &&
+					String(before.price) !== updates.price
+				) {
+					await tx.insert(priceChangeHistory).values({
+						product_id: id,
+						price_field: "price",
+						old_price: before.price ?? null,
+						new_price: updates.price,
+						changed_by: staffId,
+						changed_by_uid: ctx.user.id ?? null,
+						reason: priceChangeReason ?? null,
+						approval_ref: approvalRef ?? null,
+						source: "manual",
+					});
+					await logAudit(tx, {
+						userId: staffId,
+						action: "PRODUCT_PRICE_CHANGE",
+						entityType: "products",
+						entityId: id,
+						oldValues: { price: before.price ?? null },
+						newValues: { price: updates.price, reason: priceChangeReason ?? null },
+					});
+				}
+				return product;
+			});
 		}),
 
 	delete: protectedProcedure

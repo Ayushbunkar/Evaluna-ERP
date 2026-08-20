@@ -1,15 +1,17 @@
 "use client";
 
 import {
-	BanIcon,
+	BellIcon,
 	ClipboardListIcon,
-	ClockIcon,
-	FileTextIcon,
+	FileSearchIcon,
 	HistoryIcon,
 	LayoutDashboardIcon,
-	PackageXIcon,
-	RotateCwIcon,
-	SearchXIcon,
+	MapPinnedIcon,
+	PackageCheckIcon,
+	ScanBarcodeIcon,
+	TagIcon,
+	TruckIcon,
+	WarehouseIcon,
 } from "lucide-react";
 import {
 	AppLayoutWithBranch,
@@ -18,21 +20,28 @@ import {
 
 const auditorNavItems: NavItem[] = [
 	{ href: "/auditor", labelKey: "dashboard", icon: LayoutDashboardIcon },
-	/* 
-	TODO: Pages not built yet
 	{
-		href: "/auditor/pending",
-		labelKey: "pendingAudits",
-		icon: ClipboardListIcon,
+		href: "/auditor/receiving",
+		labelKey: "receivingInspection",
+		icon: PackageCheckIcon,
 	},
-	{ href: "/auditor/cycle-count", labelKey: "cycleCount", icon: RotateCwIcon },
-	{ href: "/auditor/damage", labelKey: "damage", icon: PackageXIcon },
-	{ href: "/auditor/expiry", labelKey: "expiry", icon: ClockIcon },
-	{ href: "/auditor/missing", labelKey: "missingProducts", icon: SearchXIcon },
-	{ href: "/auditor/pna", labelKey: "pna", icon: BanIcon },
-	{ href: "/auditor/history", labelKey: "auditHistory", icon: HistoryIcon },
-	{ href: "/auditor/reports", labelKey: "reports", icon: FileTextIcon },
-	*/
+	{ href: "/auditor/upc", labelKey: "upc", icon: ScanBarcodeIcon },
+	{
+		href: "/auditor/inventory-audit",
+		labelKey: "inventoryAudit",
+		icon: WarehouseIcon,
+	},
+	{ href: "/auditor/placement", labelKey: "placement", icon: MapPinnedIcon },
+	{ href: "/auditor/findings", labelKey: "findings", icon: FileSearchIcon },
+	{ href: "/auditor/price-audit", labelKey: "priceAudit", icon: TagIcon },
+	{ href: "/auditor/route-audit", labelKey: "routeAudit", icon: TruckIcon },
+	{ href: "/auditor/tasks", labelKey: "tasks", icon: ClipboardListIcon },
+	{
+		href: "/auditor/notifications",
+		labelKey: "notifications",
+		icon: BellIcon,
+	},
+	{ href: "/auditor/audit-logs", labelKey: "auditLogs", icon: HistoryIcon },
 ];
 
 export default function Layout({

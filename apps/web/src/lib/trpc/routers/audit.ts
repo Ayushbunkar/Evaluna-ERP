@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
 	auditDiscrepancies,
@@ -6,10 +6,48 @@ import {
 	stockAuditItems,
 	stockAudits,
 } from "@/lib/db/schema";
-import { publicProcedure, router } from "@/lib/trpc/init";
+import { router } from "@/lib/trpc/init";
+import { permProcedure } from "../util/auditor-procedures";
+import { logAudit, resolveStaffId } from "../util/audit";
 
+// Inventory-inspection service. Previously exposed via `publicProcedure` (an
+// authz gap); now every entry point is gated by `inventory_audit.<action>`
+// (auditor and above) and appends to the immutable audit trail.
 export const auditRouter = router({
-	create: publicProcedure
+	// ── Read: stock-audit list (newest first) ────────────────────────────────
+	listAudits: permProcedure("inventory_audit", "read")
+		.input(
+			z
+				.object({ status: z.string().optional(), branchId: z.number().optional() })
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const rows = await ctx.db.select().from(stockAudits).orderBy(desc(stockAudits.created_at));
+			return rows.filter((r: any) => {
+				if (input?.status && r.status !== input.status) return false;
+				if (input?.branchId && r.branch_id !== input.branchId) return false;
+				return true;
+			});
+		}),
+
+	// ── Read: single audit + its counted items ───────────────────────────────
+	getAudit: permProcedure("inventory_audit", "read")
+		.input(z.object({ auditId: z.number() }))
+		.query(async ({ ctx, input }) => {
+			const [audit] = await ctx.db
+				.select()
+				.from(stockAudits)
+				.where(eq(stockAudits.id, input.auditId))
+				.limit(1);
+			const items = await ctx.db
+				.select()
+				.from(stockAuditItems)
+				.where(eq(stockAuditItems.audit_id, input.auditId))
+				.orderBy(desc(stockAuditItems.id));
+			return { audit: audit ?? null, items };
+		}),
+
+	create: permProcedure("inventory_audit", "write")
 		.input(
 			z.object({
 				branch_id: z.number(),
@@ -17,6 +55,7 @@ export const auditRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(ctx.db, ctx.user.email);
 			const result = await ctx.db
 				.insert(stockAudits)
 				.values({
@@ -25,10 +64,17 @@ export const auditRouter = router({
 					status: "planned",
 				})
 				.returning();
+			await logAudit(ctx.db, {
+				userId: staffId,
+				action: "STOCK_AUDIT_CREATE",
+				entityType: "stock_audits",
+				entityId: result[0].id,
+				newValues: { branchId: input.branch_id, auditorId: input.auditor_id },
+			});
 			return result[0];
 		}),
 
-	addCount: publicProcedure
+	addCount: permProcedure("inventory_audit", "write")
 		.input(
 			z.object({
 				audit_id: z.number(),
@@ -75,7 +121,7 @@ export const auditRouter = router({
 			return result[0];
 		}),
 
-	reportDamageOrExpiry: publicProcedure
+	reportDamageOrExpiry: permProcedure("inventory_audit", "write")
 		.input(
 			z.object({
 				audit_item_id: z.number(),
@@ -97,14 +143,14 @@ export const auditRouter = router({
 			return result[0];
 		}),
 
-	listEscalations: publicProcedure.query(async ({ ctx }) => {
+	listEscalations: permProcedure("inventory_audit", "read").query(async ({ ctx }) => {
 		return ctx.db
 			.select()
 			.from(auditDiscrepancies)
 			.where(eq(auditDiscrepancies.resolution_status, "pending"));
 	}),
 
-	resolveDiscrepancy: publicProcedure
+	resolveDiscrepancy: permProcedure("inventory_audit", "approve")
 		.input(
 			z.object({
 				discrepancy_id: z.number(),
@@ -113,6 +159,7 @@ export const auditRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(ctx.db, ctx.user.email);
 			const result = await ctx.db
 				.update(auditDiscrepancies)
 				.set({
@@ -122,6 +169,13 @@ export const auditRouter = router({
 				})
 				.where(eq(auditDiscrepancies.id, input.discrepancy_id))
 				.returning();
+			await logAudit(ctx.db, {
+				userId: staffId,
+				action: "DISCREPANCY_RESOLVE",
+				entityType: "audit_discrepancies",
+				entityId: input.discrepancy_id,
+				newValues: { status: input.status },
+			});
 			return result[0];
 		}),
 });

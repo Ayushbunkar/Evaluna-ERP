@@ -74,6 +74,19 @@ export const DOMAINS = [
 	"notifications",
 	"imports",
 	"loyalty",
+	// ── Auditor (internal control / verification) domains ──────────────────────
+	"upc",
+	"audit",
+	"inventory_audit",
+	"placement",
+	"pricing_audit",
+	"route_audit",
+	"audit_tasks",
+	// ── Attendance & workforce tracking ────────────────────────────────────────
+	// read/write = employee self-service (own record only; row-scoped in code).
+	// approve = HR/manager verification, manual correction, device approval,
+	// geofence & settings config. delete reserved for admin.
+	"attendance",
 ] as const;
 
 export type Domain = (typeof DOMAINS)[number];
@@ -207,6 +220,57 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 	{ domain: "loyalty", action: "write", minRole: "biller" },
 	{ domain: "loyalty", action: "delete", minRole: "manager" },
 	{ domain: "loyalty", action: "approve", minRole: "manager" },
+
+	// ══ Auditor domains ═════════════════════════════════════════════════════
+	// Granted to auditor and above (admin/manager inherit). Roles below auditor
+	// (hr, putter, picker, …) get NONE of these. Actions map granular verbs:
+	//   write = create/generate/assign/flag ; approve = verify/resolve.
+	// Note: auditor is deliberately NOT given products.write/accounting.write —
+	// pricing and financial records stay with manager/admin.
+
+	// Inventory inspection / cycle count / discrepancy handling
+	{ domain: "inventory_audit", action: "read", minRole: "auditor" },
+	{ domain: "inventory_audit", action: "write", minRole: "auditor" },
+	{ domain: "inventory_audit", action: "approve", minRole: "auditor" },
+
+	// Audit findings + corrective actions
+	{ domain: "audit", action: "read", minRole: "auditor" },
+	{ domain: "audit", action: "write", minRole: "auditor" },
+	{ domain: "audit", action: "approve", minRole: "auditor" },
+
+	// UPC verification / generation / task assignment
+	{ domain: "upc", action: "read", minRole: "auditor" },
+	{ domain: "upc", action: "write", minRole: "auditor" },
+	{ domain: "upc", action: "approve", minRole: "auditor" },
+
+	// Stock placement verification
+	{ domain: "placement", action: "read", minRole: "auditor" },
+	{ domain: "placement", action: "write", minRole: "auditor" },
+	{ domain: "placement", action: "approve", minRole: "auditor" },
+
+	// Price-change review (flag only — never edits the price record)
+	{ domain: "pricing_audit", action: "read", minRole: "auditor" },
+	{ domain: "pricing_audit", action: "write", minRole: "auditor" },
+
+	// Route execution audit
+	{ domain: "route_audit", action: "read", minRole: "auditor" },
+	{ domain: "route_audit", action: "write", minRole: "auditor" },
+
+	// Auditor task feed
+	{ domain: "audit_tasks", action: "read", minRole: "auditor" },
+	{ domain: "audit_tasks", action: "write", minRole: "auditor" },
+
+	// ══ Attendance & workforce tracking ═════════════════════════════════════
+	// Self-service check-in/out/break is available to EVERY staff role
+	// (delivery_boy is the lowest staff level; customer is excluded by design).
+	// Row-level scoping ("own record only") is enforced in the procedures, not
+	// here — the matrix only grants the capability.
+	{ domain: "attendance", action: "read", minRole: "delivery_boy" },
+	{ domain: "attendance", action: "write", minRole: "delivery_boy" },
+	// Verification, manual correction, device approval, geofence & settings
+	// config — HR and above (hr, auditor, manager, admin via inheritance).
+	{ domain: "attendance", action: "approve", minRole: "hr" },
+	{ domain: "attendance", action: "delete", minRole: "admin" },
 ];
 
 // ── Runtime Helpers ───────────────────────────────────────────────────────────
@@ -295,6 +359,7 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/settings", minRole: "sales_person" }, // Fine-grained inside
 	{ path: "/profile", minRole: "sales_person" },
 	{ path: "/notifications", minRole: "sales_person" },
+	{ path: "/attendance", minRole: "delivery_boy" }, // self-service; all staff, not customers
 	{ path: "/sync", minRole: "sales_person" },
 
 	// Role Dashboards

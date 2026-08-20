@@ -15,8 +15,14 @@ import {
 } from "drizzle-orm/pg-core";
 import { branches } from "../schema";
 import { employees } from "./hrms";
-// Attendance Status Enum
-export const attendanceStatusEnum = pgEnum("attendance_status", [
+
+// Enhanced Attendance Status Enum.
+// NOTE: distinct pg type name (`enhanced_attendance_status`) and export name to
+// avoid colliding with hrms.ts's `attendanceStatusEnum` / pg `attendance_status`
+// — both files are re-exported from schema.ts, so identical names would break
+// the barrel and the DB migration. This richer set adds verification failure
+// states the geofenced flow needs.
+export const enhancedAttendanceStatusEnum = pgEnum("enhanced_attendance_status", [
 	"present",
 	"absent",
 	"half_day",
@@ -102,7 +108,7 @@ export const enhancedAttendance = pgTable("enhanced_attendance", {
 	lateMinutes: integer("late_minutes").default(0),
 	earlyExitMinutes: integer("early_exit_minutes").default(0),
 	overtimeMinutes: integer("overtime_minutes").default(0),
-	status: attendanceStatusEnum("status").default("absent"),
+	status: enhancedAttendanceStatusEnum("status").default("absent"),
 	riskScore: integer("risk_score").default(0),
 	riskReasons: jsonb("risk_reasons").$type<string[]>(),
 	distanceFromOffice: decimal("distance_from_office", {

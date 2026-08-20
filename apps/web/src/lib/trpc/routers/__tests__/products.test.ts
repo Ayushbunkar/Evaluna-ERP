@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
+import { buildDDL, createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
+import * as schema from "@/lib/db/schema";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
@@ -13,9 +14,22 @@ const caller = createCallerFactory(productsRouter)({
 });
 const callerAs = (uid: string) =>
 	createCallerFactory(productsRouter)({ user: makeUser(uid) });
+// update() is gated by products.write — build callers that carry that permission.
+const writeUser = (uid: string) => ({
+	...makeUser(uid),
+	permissions: ["products.write"],
+});
+const writer = createCallerFactory(productsRouter)({ user: writeUser("user-1"), db });
+const writerAs = (uid: string) =>
+	createCallerFactory(productsRouter)({ user: writeUser(uid), db });
 
 beforeAll(async () => {
 	await pg.exec(SCHEMA_DDL);
+	// update() now appends to these tables when a price changes.
+	// update() resolves a staff id (via email) and appends to these tables.
+	await pg.exec(
+		buildDDL([schema.staff, schema.priceChangeHistory, schema.auditLogs], false),
+	);
 });
 afterAll(async () => {
 	await pg.close();
@@ -136,7 +150,7 @@ describe("products.update", () => {
 			price: 100,
 			description: "keep-me",
 		});
-		const updated = await caller.update({ id: p.id, name: "New", price: 200 });
+		const updated = await writer.update({ id: p.id, name: "New", price: 200 });
 		expect(updated.name).toBe("New");
 		expect(Number(updated.price)).toBe(200);
 		// fields not included in the update input are preserved
@@ -147,11 +161,18 @@ describe("products.update", () => {
 		expect(persisted.name).toBe("New");
 	});
 
-	it("update is not ownership-scoped: any authenticated user can update by id", async () => {
-		// DRIFT: the current router's update() has no ownership check, so a
-		// different user's update succeeds and persists.
+	it("requires products.write — a permissionless user is FORBIDDEN", async () => {
+		const p = await caller.create({ name: "Guarded", price: 100 });
+		await expect(caller.update({ id: p.id, name: "Nope" })).rejects.toThrow(
+			/permission/i,
+		);
+	});
+
+	it("update is not ownership-scoped: any user WITH products.write can update by id", async () => {
+		// DRIFT: the current router's update() has no per-record ownership check, so
+		// any holder of products.write may update any product id.
 		const p = await caller.create({ name: "Mine", price: 100 });
-		const other = callerAs("attacker");
+		const other = writerAs("attacker");
 
 		const hacked = await other.update({ id: p.id, name: "Hacked" });
 		expect(hacked.name).toBe("Hacked");

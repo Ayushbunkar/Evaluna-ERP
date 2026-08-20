@@ -134,6 +134,7 @@ export default async function middleware(request: NextRequest) {
 		pathname.startsWith("/settings") ||
 		pathname.startsWith("/profile") ||
 		pathname.startsWith("/notifications") ||
+		pathname.startsWith("/attendance") ||
 		pathname.startsWith("/sync");
 
 	if (isDashboardRoute || isSharedRoute) {

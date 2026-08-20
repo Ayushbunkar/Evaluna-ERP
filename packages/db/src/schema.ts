@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	customType,
@@ -11,6 +11,7 @@ import {
 	serial,
 	text,
 	timestamp,
+	uniqueIndex,
 	varchar,
 } from "drizzle-orm/pg-core";
 
@@ -872,17 +873,27 @@ export const productCategoryMappingRelations = relations(
 );
 
 // ── Product Barcodes (Phase 7) ────────────────────────────────────────────────
-export const productBarcodes = pgTable("product_barcodes", {
-	id: serial("id").primaryKey(),
-	product_id: integer("product_id")
-		.references(() => products.id)
-		.notNull(),
-	barcode: varchar("barcode", { length: 50 }).notNull(),
-	barcode_type: varchar("barcode_type", { length: 20 }).default("EAN-13"),
-	is_weighted: boolean("is_weighted").default(false),
-	weight_per_unit: decimal("weight_per_unit", { precision: 10, scale: 3 }),
-	created_at: timestamp("created_at").defaultNow(),
-});
+export const productBarcodes = pgTable(
+	"product_barcodes",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		barcode: varchar("barcode", { length: 50 }).notNull(),
+		barcode_type: varchar("barcode_type", { length: 20 }).default("EAN-13"),
+		is_weighted: boolean("is_weighted").default(false),
+		weight_per_unit: decimal("weight_per_unit", { precision: 10, scale: 3 }),
+		created_at: timestamp("created_at").defaultNow(),
+	},
+	(t) => ({
+		// No two products may share an active UPC. Scoped to UPC rows so existing
+		// EAN-13/other barcode types are unaffected.
+		uniq_active_upc: uniqueIndex("uniq_active_upc")
+			.on(t.barcode)
+			.where(sql`${t.barcode_type} = 'UPC'`),
+	}),
+);
 
 export const productBarcodesRelations = relations(
 	productBarcodes,
@@ -2336,7 +2347,236 @@ export const promotionSchemes = pgTable("promotion_schemes", {
 	created_at: timestamp("created_at").defaultNow(),
 });
 
+// ══ Auditor Role (internal control / verification) ══════════════════════════
+
+// ── UPC Tasks — generate/verify work queue with a strict status machine ───────
+export const upcTasks = pgTable(
+	"upc_tasks",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		task_type: varchar("task_type", { length: 20 }).notNull(), // generate, verify
+		// PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, VERIFICATION_REQUIRED, VERIFIED, REJECTED, OVERDUE, CANCELLED
+		status: varchar("status", { length: 30 }).notNull().default("PENDING"),
+		assigned_to: integer("assigned_to").references(() => staff.id),
+		created_by: integer("created_by").references(() => staff.id),
+		verified_by: integer("verified_by").references(() => staff.id),
+		upc_value: varchar("upc_value", { length: 64 }),
+		upc_source: varchar("upc_source", { length: 20 }), // internal, external
+		due_at: timestamp("due_at"),
+		notes: text("notes"),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at").defaultNow(),
+		completed_at: timestamp("completed_at"),
+		verified_at: timestamp("verified_at"),
+	},
+	(t) => ({
+		idx_upc_tasks_product: index("idx_upc_tasks_product").on(t.product_id),
+		idx_upc_tasks_status: index("idx_upc_tasks_status").on(t.status),
+	}),
+);
+
+export const upcTasksRelations = relations(upcTasks, ({ one }) => ({
+	product: one(products, {
+		fields: [upcTasks.product_id],
+		references: [products.id],
+	}),
+	assignedTo: one(staff, {
+		fields: [upcTasks.assigned_to],
+		references: [staff.id],
+	}),
+}));
+
+// AUDITOR_TABLES_PLACEHOLDER
+
+// ── Audit Findings — severity + status state machine; cannot-approve-own ──────
+export const auditFindings = pgTable(
+	"audit_findings",
+	{
+		id: serial("id").primaryKey(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		// receiving, upc, placement, inventory, price, route, discrepancy
+		finding_type: varchar("finding_type", { length: 20 }).notNull(),
+		severity: varchar("severity", { length: 10 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH, CRITICAL
+		// OPEN, UNDER_REVIEW, CORRECTIVE_ACTION_REQUIRED, RESOLVED, VERIFIED, CLOSED
+		status: varchar("status", { length: 30 }).notNull().default("OPEN"),
+		title: varchar("title", { length: 255 }).notNull(),
+		description: text("description"),
+		reference_type: varchar("reference_type", { length: 50 }),
+		reference_id: integer("reference_id"),
+		raised_by: integer("raised_by").references(() => staff.id),
+		assigned_to: integer("assigned_to").references(() => staff.id),
+		resolved_by: integer("resolved_by").references(() => staff.id),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at").defaultNow(),
+		resolved_at: timestamp("resolved_at"),
+	},
+	(t) => ({
+		idx_audit_findings_status: index("idx_audit_findings_status").on(t.status),
+		idx_audit_findings_type: index("idx_audit_findings_type").on(
+			t.finding_type,
+		),
+	}),
+);
+
+export const auditFindingsRelations = relations(
+	auditFindings,
+	({ one, many }) => ({
+		raisedBy: one(staff, {
+			fields: [auditFindings.raised_by],
+			references: [staff.id],
+			relationName: "finding_raised_by",
+		}),
+		correctiveActions: many(correctiveActions),
+	}),
+);
+
+// ── Corrective Actions — remediation attached to a finding ────────────────────
+export const correctiveActions = pgTable("corrective_actions", {
+	id: serial("id").primaryKey(),
+	finding_id: integer("finding_id")
+		.references(() => auditFindings.id)
+		.notNull(),
+	description: text("description").notNull(),
+	status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING, IN_PROGRESS, COMPLETED, OVERDUE
+	assigned_to: integer("assigned_to").references(() => staff.id),
+	completed_by: integer("completed_by").references(() => staff.id),
+	due_at: timestamp("due_at"),
+	completed_at: timestamp("completed_at"),
+	created_at: timestamp("created_at").defaultNow(),
+});
+
+export const correctiveActionsRelations = relations(
+	correctiveActions,
+	({ one }) => ({
+		finding: one(auditFindings, {
+			fields: [correctiveActions.finding_id],
+			references: [auditFindings.id],
+		}),
+	}),
+);
+
+// ── Price Change History — append-only log of every product price change ──────
+export const priceChangeHistory = pgTable(
+	"price_change_history",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		// base_selling_price, base_procurement_price, price
+		price_field: varchar("price_field", { length: 40 }).notNull(),
+		old_price: decimal("old_price", { precision: 10, scale: 2 }),
+		new_price: decimal("new_price", { precision: 10, scale: 2 }),
+		changed_by: integer("changed_by").references(() => staff.id),
+		changed_by_uid: varchar("changed_by_uid", { length: 255 }),
+		reason: text("reason"),
+		approval_ref: varchar("approval_ref", { length: 100 }),
+		source: varchar("source", { length: 50 }), // manual, import, pos, api
+		created_at: timestamp("created_at").defaultNow(),
+	},
+	(t) => ({
+		idx_price_hist_product: index("idx_price_hist_product").on(t.product_id),
+	}),
+);
+
+export const priceChangeHistoryRelations = relations(
+	priceChangeHistory,
+	({ one }) => ({
+		product: one(products, {
+			fields: [priceChangeHistory.product_id],
+			references: [products.id],
+		}),
+	}),
+);
+
+// ── Receiving Inspections — auditor review of a GRN line (expected vs received)
+export const receivingInspections = pgTable(
+	"receiving_inspections",
+	{
+		id: serial("id").primaryKey(),
+		purchase_id: integer("purchase_id").references(() => purchases.id),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		expected_qty: integer("expected_qty"),
+		received_qty: integer("received_qty"),
+		condition: varchar("condition", { length: 20 }), // good, damaged, mismatch
+		upc_status: varchar("upc_status", { length: 20 }), // present, missing, invalid
+		status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING, VERIFIED, DISCREPANCY
+		inspected_by: integer("inspected_by").references(() => staff.id),
+		notes: text("notes"),
+		created_at: timestamp("created_at").defaultNow(),
+		verified_at: timestamp("verified_at"),
+	},
+	(t) => ({
+		idx_recv_insp_status: index("idx_recv_insp_status").on(t.status),
+	}),
+);
+
+export const receivingInspectionsRelations = relations(
+	receivingInspections,
+	({ one }) => ({
+		purchase: one(purchases, {
+			fields: [receivingInspections.purchase_id],
+			references: [purchases.id],
+		}),
+		product: one(products, {
+			fields: [receivingInspections.product_id],
+			references: [products.id],
+		}),
+	}),
+);
+
+// ── Placement Verifications — put-away placement workflow states ──────────────
+export const placementVerifications = pgTable(
+	"placement_verifications",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		batch_id: integer("batch_id").references(() => productBatches.id),
+		location_id: integer("location_id").references(() => branchLocations.id),
+		branch_id: integer("branch_id").references(() => branches.id),
+		// AWAITING_PLACEMENT, PLACED, VERIFICATION_REQUIRED, VERIFIED, PLACEMENT_EXCEPTION
+		status: varchar("status", { length: 30 })
+			.notNull()
+			.default("AWAITING_PLACEMENT"),
+		placed_by: integer("placed_by").references(() => staff.id),
+		verified_by: integer("verified_by").references(() => staff.id),
+		notes: text("notes"),
+		created_at: timestamp("created_at").defaultNow(),
+		verified_at: timestamp("verified_at"),
+	},
+	(t) => ({
+		idx_placement_status: index("idx_placement_status").on(t.status),
+	}),
+);
+
+export const placementVerificationsRelations = relations(
+	placementVerifications,
+	({ one }) => ({
+		product: one(products, {
+			fields: [placementVerifications.product_id],
+			references: [products.id],
+		}),
+		location: one(branchLocations, {
+			fields: [placementVerifications.location_id],
+			references: [branchLocations.id],
+		}),
+	}),
+);
+
 // ── Duplicate Picking Relations Removed ────────────────────────────--
 export * from "./schema/delivery";
 export * from "./schema/finance";
 export * from "./schema/hrms";
+// Enhanced attendance (GPS-geofenced check-in/out, breaks, devices, geofences,
+// settings). Its status enum is renamed to avoid the hrms `attendance_status`
+// collision — see schema/attendance-enhanced.ts.
+export * from "./schema/attendance-enhanced";

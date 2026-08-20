@@ -13,7 +13,8 @@ export function requirePermission(domain: Domain, action: Action) {
 		}
 
 		if (ctx.user.isSuperadmin) {
-			return next({ ctx }); // Superadmins bypass permission checks
+			// Narrow ctx.user to non-null for downstream resolvers.
+			return next({ ctx: { ...ctx, user: ctx.user } }); // Superadmins bypass permission checks
 		}
 
 		const requiredPerm: Permission = `${domain}.${action}`;
@@ -25,6 +26,6 @@ export function requirePermission(domain: Domain, action: Action) {
 			});
 		}
 
-		return next({ ctx });
+		return next({ ctx: { ...ctx, user: ctx.user } });
 	});
 }
