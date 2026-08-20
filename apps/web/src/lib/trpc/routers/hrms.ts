@@ -8,7 +8,6 @@ import {
 	leaveApplications,
 	leaveTypes,
 	overtime,
-	payroll,
 	shifts,
 	weekOffs,
 } from "@evaluna/db/schema/hrms";

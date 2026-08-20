@@ -21,55 +21,55 @@ import {
 import { useState } from "react";
 import { useTRPC } from "@/lib/trpc/client";
 
-// Fetch real data from backend
-const { data: categories, isLoading: categoriesLoading } =
-	useTRPC().masterData.getCategories.useQuery();
-const { data: brands, isLoading: brandsLoading } =
-	useTRPC().masterData.getBrands.useQuery();
-const { data: units, isLoading: unitsLoading } =
-	useTRPC().masterData.getUnits.useQuery();
-const { data: taxes, isLoading: taxesLoading } =
-	useTRPC().masterData.getTaxes.useQuery();
-
-// Show loading state while data is being fetched
-const isLoading =
-	categoriesLoading || brandsLoading || unitsLoading || taxesLoading;
-
-// Transform data for display
-const displayCategories =
-	categories?.map((cat) => ({
-		id: cat.id,
-		name: cat.name,
-		description: cat.description,
-		status: cat.status,
-	})) || [];
-
-const displayBrands =
-	brands?.map((brand) => ({
-		id: brand.id,
-		name: brand.name,
-		origin: brand.origin,
-		status: brand.status,
-	})) || [];
-
-const displayUnits =
-	units?.map((unit) => ({
-		id: unit.id,
-		name: unit.name,
-		shortName: unit.shortName,
-		baseUnit: unit.baseUnit,
-	})) || [];
-
-const displayTaxes =
-	taxes?.map((tax) => ({
-		id: tax.id,
-		name: tax.name,
-		rate: tax.rate,
-		type: tax.type,
-	})) || [];
-
 export default function MasterDataPage() {
 	const [activeTab, setActiveTab] = useState("categories");
+
+	// Fetch real data from backend
+	const { data: categories, isLoading: categoriesLoading } =
+		useTRPC().masterData.getCategories.useQuery();
+	const { data: brands, isLoading: brandsLoading } =
+		useTRPC().masterData.getBrands.useQuery();
+	const { data: units, isLoading: unitsLoading } =
+		useTRPC().masterData.getUnits.useQuery();
+	const { data: taxes, isLoading: taxesLoading } =
+		useTRPC().masterData.getTaxes.useQuery();
+
+	// Show loading state while data is being fetched
+	const isLoading =
+		categoriesLoading || brandsLoading || unitsLoading || taxesLoading;
+
+	// Transform data for display
+	const displayCategories =
+		categories?.map((cat) => ({
+			id: cat.id,
+			name: cat.name,
+			description: cat.description,
+			status: cat.status,
+		})) || [];
+
+	const displayBrands =
+		brands?.map((brand) => ({
+			id: brand.id,
+			name: brand.name,
+			origin: brand.origin,
+			status: brand.status,
+		})) || [];
+
+	const displayUnits =
+		units?.map((unit) => ({
+			id: unit.id,
+			name: unit.name,
+			shortName: unit.shortName,
+			baseUnit: unit.baseUnit,
+		})) || [];
+
+	const displayTaxes =
+		taxes?.map((tax) => ({
+			id: tax.id,
+			name: tax.name,
+			rate: tax.rate,
+			type: tax.type,
+		})) || [];
 
 	return (
 		<div className="space-y-6 p-6">

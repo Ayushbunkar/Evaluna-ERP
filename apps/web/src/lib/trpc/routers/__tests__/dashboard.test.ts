@@ -1,120 +1,70 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
+import { buildDDL, createTestDb, makeUser } from "./helpers";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const { dashboardRouter } = await import("../dashboard");
 const { createCallerFactory } = await import("../../init");
-const { transactions } = await import("@/lib/db/schema");
+const schema = await import("@/lib/db/schema");
 
 const caller = createCallerFactory(dashboardRouter)({
 	user: makeUser("user-1"),
 });
 
+// getKpis touches many tables; build DDL for exactly the ones it queries (FKs off).
+const DASH_DDL = buildDDL(
+	[
+		schema.branches,
+		schema.staff,
+		schema.products,
+		schema.customers,
+		schema.paymentMethods,
+		schema.orders,
+		schema.orderItems,
+		schema.transactions,
+		schema.branchInventory,
+	],
+	false,
+);
+
+const now = new Date();
+
 beforeAll(async () => {
-	await pg.exec(SCHEMA_DDL);
+	await pg.exec(DASH_DDL);
 
-	// Seed with exact, verifiable data:
-	//
-	// user-1, completed:
-	//   income/selling  1000  2025-01-15
-	//   income/selling   500  2025-01-15
-	//   income/refund    200  2025-01-16
-	//   expense/overhead 300  2025-01-15
-	//   expense/overhead 100  2025-01-16
-	//   income/null       50  2025-01-16    (null category)
-	//   income/selling    25  null          (null created_at)
-	//
-	// user-1, pending (must be EXCLUDED):
-	//   income/selling 9999  2025-01-15
-	//
-	// other-user, completed (must be EXCLUDED):
-	//   income/selling 5000  2025-01-15
+	await db
+		.insert(schema.branches)
+		.values([
+			{ id: 1, name: "Main" },
+			{ id: 2, name: "Other" },
+		]);
 
-	await db.insert(transactions).values([
-		{
-			description: "Sale 1",
-			amount: 1000,
-			user_uid: "user-1",
-			type: "income",
-			category: "selling",
-			status: "completed",
-			created_at: new Date("2025-01-15"),
-		},
-		{
-			description: "Sale 2",
-			amount: 500,
-			user_uid: "user-1",
-			type: "income",
-			category: "selling",
-			status: "completed",
-			created_at: new Date("2025-01-15"),
-		},
-		{
-			description: "Refund",
-			amount: 200,
-			user_uid: "user-1",
-			type: "income",
-			category: "refund",
-			status: "completed",
-			created_at: new Date("2025-01-16"),
-		},
-		{
-			description: "Rent",
-			amount: 300,
-			user_uid: "user-1",
-			type: "expense",
-			category: "overhead",
-			status: "completed",
-			created_at: new Date("2025-01-15"),
-		},
-		{
-			description: "Utils",
-			amount: 100,
-			user_uid: "user-1",
-			type: "expense",
-			category: "overhead",
-			status: "completed",
-			created_at: new Date("2025-01-16"),
-		},
-		{
-			description: "Pending",
-			amount: 9999,
-			user_uid: "user-1",
-			type: "income",
-			category: "selling",
-			status: "pending",
-			created_at: new Date("2025-01-15"),
-		},
-		{
-			description: "Other User",
-			amount: 5000,
-			user_uid: "other-u",
-			type: "income",
-			category: "selling",
-			status: "completed",
-			created_at: new Date("2025-01-15"),
-		},
-		{
-			description: "NoCat",
-			amount: 50,
-			user_uid: "user-1",
-			type: "income",
-			category: null,
-			status: "completed",
-			created_at: new Date("2025-01-16"),
-		},
-		{
-			description: "NoDate",
-			amount: 25,
-			user_uid: "user-1",
-			type: "income",
-			category: "selling",
-			status: "completed",
-			created_at: null,
-		},
+	await db.insert(schema.products).values([
+		{ name: "P1", price: "10.00", user_uid: "seed" },
+		{ name: "P2", price: "20.00", user_uid: "seed" },
+		{ name: "P3", price: "30.00", user_uid: "seed" },
+	]);
+
+	await db.insert(schema.customers).values([
+		{ name: "C1", email: "c1@t.com", user_uid: "seed", branch_id: 1 },
+		{ name: "C2", email: "c2@t.com", user_uid: "seed", branch_id: 1 },
+		{ name: "C3", email: "c3@t.com", user_uid: "seed", branch_id: 2 },
+	]);
+
+	// Sales/expense ledger — created "now" so it also counts toward today's KPIs.
+	await db.insert(schema.transactions).values([
+		{ amount: "1000.00", user_uid: "seed", type: "in", category: "sale", status: "completed", branch_id: 1, created_at: now },
+		{ amount: "500.00", user_uid: "seed", type: "in", category: "sale", status: "completed", branch_id: 1, created_at: now },
+		{ amount: "300.00", user_uid: "seed", type: "out", category: "expense", status: "completed", branch_id: 1, created_at: now },
+		{ amount: "5000.00", user_uid: "seed", type: "in", category: "sale", status: "completed", branch_id: 2, created_at: now },
+	]);
+
+	await db.insert(schema.orders).values([
+		{ total_amount: "1200.00", user_uid: "seed", status: "completed", branch_id: 1, created_at: now },
+		{ total_amount: "800.00", user_uid: "seed", status: "pending", branch_id: 1, created_at: now },
+		{ total_amount: "2000.00", user_uid: "seed", status: "completed", branch_id: 2, created_at: now },
 	]);
 });
 
@@ -122,96 +72,56 @@ afterAll(async () => {
 	await pg.close();
 });
 
-describe("dashboard.stats", () => {
-	// Expected aggregations (user-1, completed only):
-	//   totalRevenue  = 1000+500+200+50+25             = 1775
-	//   totalExpenses = 300+100                         = 400
-	//   totalSelling  = 1000+500+25                     = 1525
-	//   totalProfit   = 1525 - 400                      = 1125
-
-	it("totalRevenue = exact sum of completed income", async () => {
-		const { totalRevenue } = await caller.stats();
-		expect(totalRevenue).toBe(1775);
+describe("dashboard.getKpis — branch 1", () => {
+	it("aggregates all-time sales/expenses/profit for the branch only", async () => {
+		const k = await caller.getKpis({ branch_id: 1 });
+		expect(k.totalSales).toBe(1500);
+		expect(k.totalExpenses).toBe(300);
+		expect(k.totalProfit).toBe(1200);
+		expect(k.cashBalance).toBe(1200);
 	});
 
-	it("totalExpenses = exact sum of completed expense", async () => {
-		const { totalExpenses } = await caller.stats();
-		expect(totalExpenses).toBe(400);
+	it("aggregates today's sales/expenses (seeded at now)", async () => {
+		const k = await caller.getKpis({ branch_id: 1 });
+		expect(k.todaySales).toBe(1500);
+		expect(k.todayExpenses).toBe(300);
+		expect(k.todayProfit).toBe(1200);
 	});
 
-	it("totalProfit = selling - expenses (not all revenue)", async () => {
-		const { totalProfit } = await caller.stats();
-		expect(totalProfit).toBe(1125);
+	it("counts completed vs pending orders for the branch", async () => {
+		const k = await caller.getKpis({ branch_id: 1 });
+		expect(k.totalBills).toBe(1);
+		expect(k.pendingDeliveries).toBe(1);
 	});
 
-	it("pending transaction (9999) is excluded from all aggregations", async () => {
-		const stats = await caller.stats();
-		// If pending leaked, revenue would be 1775+9999=11774
-		expect(stats.totalRevenue).toBe(1775);
-		// Also check it doesn't appear in cashFlow
-		const cfMap = Object.fromEntries(
-			stats.cashFlow.map((e) => [e.date, e.amount]),
-		);
-		// 2025-01-15 should be 1000+500+300=1800, not 1800+9999=11799
-		expect(cfMap["2025-01-15"]).toBe(1800);
+	it("counts customers scoped to the branch, products globally", async () => {
+		const k = await caller.getKpis({ branch_id: 1 });
+		expect(k.totalCustomers).toBe(2);
+		expect(k.totalProducts).toBe(3);
+	});
+});
+
+describe("dashboard.getKpis — branch isolation", () => {
+	it("branch 2 sees only its own sales and customers", async () => {
+		const k = await caller.getKpis({ branch_id: 2 });
+		expect(k.totalSales).toBe(5000);
+		expect(k.totalCustomers).toBe(1);
+		expect(k.totalBills).toBe(1);
 	});
 
-	it("other user's data (5000) is excluded from all aggregations", async () => {
-		const stats = await caller.stats();
-		expect(stats.totalRevenue).toBe(1775);
-		// revenueByCategory.selling should be 1525, not 1525+5000=6525
-		expect(stats.revenueByCategory.selling).toBe(1525);
+	it("no branch filter aggregates across all branches", async () => {
+		const k = await caller.getKpis({});
+		expect(k.totalSales).toBe(6500);
+		expect(k.totalCustomers).toBe(3);
+		expect(k.totalProducts).toBe(3);
 	});
+});
 
-	it("revenueByCategory groups correctly, null category excluded from map", async () => {
-		const { revenueByCategory } = await caller.stats();
-		expect(revenueByCategory.selling).toBe(1525);
-		expect(revenueByCategory.refund).toBe(200);
-		expect("null" in revenueByCategory).toBe(false);
-		expect(Object.keys(revenueByCategory).length).toBe(2);
-		// 50 with null category is not in any bucket
-		const sumOfBuckets = Object.values(revenueByCategory).reduce(
-			(a, b) => a + b,
-			0,
-		);
-		expect(sumOfBuckets).toBe(1725); // 1775 - 50(null) = 1725
-	});
-
-	it("expensesByCategory groups correctly", async () => {
-		const { expensesByCategory } = await caller.stats();
-		expect(expensesByCategory.overhead).toBe(400);
-		expect(Object.keys(expensesByCategory).length).toBe(1);
-	});
-
-	it("cashFlow groups by date, null created_at → 'unknown'", async () => {
-		const { cashFlow } = await caller.stats();
-		const cfMap = Object.fromEntries(cashFlow.map((e) => [e.date, e.amount]));
-
-		// 2025-01-15: income 1000+500 + expense 300 = 1800
-		expect(cfMap["2025-01-15"]).toBe(1800);
-		// 2025-01-16: income 200+50 + expense 100 = 350
-		expect(cfMap["2025-01-16"]).toBe(350);
-		// null date → "unknown": 25
-		expect(cfMap.unknown).toBe(25);
-		// Exactly 3 entries
-		expect(cashFlow.length).toBe(3);
-	});
-
-	it("profitMargin: selling>0 → (selling-expense)/selling*100", async () => {
-		const { profitMargin } = await caller.stats();
-		const pmMap = Object.fromEntries(
-			profitMargin.map((e) => [e.date, e.margin]),
-		);
-		// 2025-01-15: selling=1500, expense=300 → (1200/1500)*100 = 80.00
-		expect(pmMap["2025-01-15"]).toBe(80);
-	});
-
-	it("profitMargin: selling=0 → margin is 0", async () => {
-		const { profitMargin } = await caller.stats();
-		const pmMap = Object.fromEntries(
-			profitMargin.map((e) => [e.date, e.margin]),
-		);
-		// 2025-01-16: selling=0, expense=100 → margin=0
-		expect(pmMap["2025-01-16"]).toBe(0);
+describe("dashboard.listBranches", () => {
+	it("returns all branches", async () => {
+		const branches = await caller.listBranches();
+		expect(branches.length).toBe(2);
+		expect(branches.some((b) => b.name === "Main")).toBe(true);
+		expect(branches.some((b) => b.name === "Other")).toBe(true);
 	});
 });

@@ -40,7 +40,7 @@ async function seed() {
             name: "Delivery Truck 1",
             registration_number: "ABC-1234",
             type: "truck",
-            capacity: "1000",
+            capacity_kg: "1000",
             status: "in_use",
         }).returning();
         vh = insertedVh;
@@ -87,6 +87,7 @@ async function seed() {
             name: "Premium Package",
             sku: "PKG-001",
             price: "150.00",
+            user_uid: cust.user_uid,
         }).returning();
         prod = newProd;
     }

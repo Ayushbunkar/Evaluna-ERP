@@ -55,6 +55,7 @@ interface DataTableProps<T> {
 	exportFilename?: string;
 	onRowClick?: (row: T) => void;
 	defaultSort?: SortingState;
+	isLoading?: boolean;
 	emptyMessage?: string;
 	emptyIcon?: ReactNode;
 	emptyAction?: ReactNode;
@@ -144,6 +145,7 @@ export function DataTable<T>({
 	exportFilename = "export",
 	onRowClick,
 	defaultSort,
+	isLoading = false,
 	emptyMessage = "No items found.",
 	emptyIcon,
 	emptyAction,
@@ -230,7 +232,19 @@ export function DataTable<T>({
 						))}
 					</TableHeader>
 					<TableBody>
-						{rows.length === 0 ? (
+						{isLoading ? (
+							<TableRow>
+								<TableCell
+									colSpan={visibleColumnDefs.length}
+									className="h-20 text-center sm:h-24"
+								>
+									<div className="flex items-center justify-center gap-2 text-muted-foreground">
+										<div className="h-5 w-5 animate-spin rounded-full border-primary border-b-2" />
+										<span>Loading…</span>
+									</div>
+								</TableCell>
+							</TableRow>
+						) : rows.length === 0 ? (
 							<TableRow>
 								<TableCell
 									colSpan={visibleColumnDefs.length}

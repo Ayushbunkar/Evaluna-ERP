@@ -12,10 +12,12 @@ import { Input } from "@evaluna/ui/components/input";
 export default function OTPPage() {
 	const t = useTranslations("nav");
 	const searchParams = useSearchParams();
-	const registeredPhone = searchParams.get("phone") ?? "";
 	const orderId = searchParams.get("orderId");
 	const customerName = searchParams.get("customerName") ?? "Customer";
 
+	const [customerPhone, setCustomerPhone] = useState(
+		searchParams.get("phone") ?? "",
+	);
 	const [sessionInfo, setSessionInfo] = useState<string | null>(null);
 	const [otpSent, setOtpSent] = useState(false);
 	const [otp, setOtp] = useState(["", "", "", ""]);
@@ -25,8 +27,8 @@ export default function OTPPage() {
 	const [error, setError] = useState("");
 
 	const cleanPhone = useMemo(
-		() => registeredPhone.replace(/\D/g, "").slice(0, 10),
-		[registeredPhone],
+		() => customerPhone.replace(/\D/g, "").slice(0, 10),
+		[customerPhone],
 	);
 	const canSendOtp = cleanPhone.length >= 10 && !isSending && !otpSent;
 	const canVerify = otpSent && otp.every((digit) => digit.length === 1) && !isVerifying;

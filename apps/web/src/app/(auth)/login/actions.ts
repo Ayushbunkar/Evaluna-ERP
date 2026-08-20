@@ -29,6 +29,8 @@ export async function login(formData: FormData) {
 		"billing@evaluna.com": "billing",
 	};
 
+	let user: Awaited<ReturnType<typeof auth.api.signInEmail>>["user"] | undefined;
+
 	try {
 		// Sign out any existing session first to avoid stale session redirect loops
 		try {

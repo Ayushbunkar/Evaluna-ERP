@@ -178,16 +178,31 @@ export function AnimatedCard({
 	children,
 	className = "",
 	onClick,
+	delay,
 }: {
 	children: ReactNode;
 	className?: string;
 	onClick?: () => void;
+	delay?: number;
 }) {
 	return (
 		<motion.div
+			{...(delay !== undefined
+				? {
+						initial: { opacity: 0, y: 8 },
+						animate: { opacity: 1, y: 0 },
+						transition: {
+							type: "spring",
+							stiffness: 400,
+							damping: 25,
+							delay,
+						},
+					}
+				: {
+						transition: { type: "spring", stiffness: 400, damping: 25 },
+					})}
 			whileHover={{ scale: 1.015, y: -2 }}
 			whileTap={{ scale: 0.98 }}
-			transition={{ type: "spring", stiffness: 400, damping: 25 }}
 			className={className}
 			onClick={onClick}
 		>

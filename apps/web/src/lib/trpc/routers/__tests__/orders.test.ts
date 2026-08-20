@@ -1,15 +1,22 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { eq } from "drizzle-orm";
-import { createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
+import { buildDDL, createTestDb, makeUser } from "./helpers";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const { ordersRouter } = await import("../orders");
 const { createCallerFactory } = await import("../../init");
-const { customers, products, paymentMethods, transactions, orderItems } =
-	await import("@/lib/db/schema");
+const schema = await import("@/lib/db/schema");
+const {
+	customers,
+	products,
+	paymentMethods,
+	transactions,
+	orderItems,
+	branchInventory,
+} = schema;
 
 const caller = createCallerFactory(ordersRouter)({ user: makeUser("user-1") });
 const callerAs = (uid: string) =>
@@ -19,8 +26,37 @@ let customerId: number;
 let productId: number;
 let paymentMethodId: number;
 
+// orders.create/delete touch many tables (inventory, audit log, and every
+// order-child table cleaned up on delete). Build DDL for all of them (FKs off).
+const ORDERS_DDL = buildDDL(
+	[
+		schema.branches,
+		schema.customers,
+		schema.products,
+		schema.paymentMethods,
+		schema.orders,
+		schema.orderItems,
+		schema.transactions,
+		schema.branchInventory,
+		schema.auditLogs,
+		schema.stockLedger,
+		schema.pendingSync,
+		schema.eWayBills,
+		schema.salesReturns,
+		schema.salesReturnItems,
+		schema.pickLists,
+		schema.pickListItems,
+		schema.packLists,
+		schema.loyaltyHistory,
+		schema.orderAudits,
+		schema.proofOfDeliveries,
+		schema.deliveryStops,
+	],
+	false,
+);
+
 beforeAll(async () => {
-	await pg.exec(SCHEMA_DDL);
+	await pg.exec(ORDERS_DDL);
 
 	const [cust] = await db
 		.insert(customers)
@@ -36,8 +72,7 @@ beforeAll(async () => {
 		.insert(products)
 		.values({
 			name: "Test Product",
-			price: 1000,
-			in_stock: 50,
+			price: "1000.00",
 			user_uid: "user-1",
 		})
 		.returning();
@@ -48,6 +83,16 @@ beforeAll(async () => {
 		.values({ name: "Cash-OrderTest" })
 		.returning();
 	paymentMethodId = pm.id;
+
+	// create() validates + reserves branch inventory (branch defaults to 1).
+	// Seed plenty of stock so repeated orders never exhaust it.
+	await db.insert(branchInventory).values({
+		branch_id: 1,
+		product_id: productId,
+		in_stock: 1_000_000,
+		reserved_stock: 0,
+		reorder_level: 10,
+	});
 });
 
 afterAll(async () => {
@@ -74,7 +119,7 @@ describe("orders.list", () => {
 		const order = list[0];
 		expect(order.customer).toBeDefined();
 		expect(order.customer?.name).toBe("Test Customer");
-		expect(order.total_amount).toBe(2000);
+		expect(Number(order.total_amount)).toBe(2000);
 		expect(order.user_uid).toBe("user-1");
 	});
 
@@ -100,31 +145,28 @@ describe("orders.create", () => {
 		});
 
 		expect(order.id).toBeGreaterThan(0);
-		expect(order.total_amount).toBe(3000);
+		expect(Number(order.total_amount)).toBe(3000);
 		expect(order.status).toBe("completed");
 		expect(order.customer?.name).toBe("Test Customer");
 
-		// Verify order appeared in list
 		const after = await caller.list();
 		expect(after.length).toBe(before.length + 1);
 
-		// Verify orderItems in DB
 		const items = await db
 			.select()
 			.from(orderItems)
 			.where(eq(orderItems.order_id, order.id));
 		expect(items.length).toBe(1);
 		expect(items[0].quantity).toBe(3);
-		expect(items[0].price).toBe(1000);
+		expect(Number(items[0].price)).toBe(1000);
 		expect(items[0].product_id).toBe(productId);
 
-		// Verify transaction in DB
 		const txns = await db
 			.select()
 			.from(transactions)
 			.where(eq(transactions.order_id, order.id));
 		expect(txns.length).toBe(1);
-		expect(txns[0].amount).toBe(3000);
+		expect(Number(txns[0].amount)).toBe(3000);
 		expect(txns[0].type).toBe("income");
 		expect(txns[0].category).toBe("selling");
 		expect(txns[0].status).toBe("completed");
@@ -161,7 +203,7 @@ describe("orders.update", () => {
 		const list = await caller.list();
 		const persisted = list.find((o) => o.id === order.id)!;
 		expect(persisted.status).toBe("cancelled");
-		expect(persisted.total_amount).toBe(500); // unchanged field preserved
+		expect(Number(persisted.total_amount)).toBe(500); // unchanged field preserved
 	});
 
 	it("rejects invalid status enum", async () => {
@@ -175,7 +217,6 @@ describe("orders.update", () => {
 			caller.update({ id: order.id, status: "bogus" as any }),
 		).rejects.toThrow();
 
-		// Original status untouched
 		const list = await caller.list();
 		const persisted = list.find((o) => o.id === order.id)!;
 		expect(persisted.status).toBe("completed");
@@ -191,9 +232,6 @@ describe("orders.delete", () => {
 			total: 100,
 		});
 
-		// Delete associated transaction first to avoid FK violation
-		await db.delete(transactions).where(eq(transactions.order_id, order.id));
-
 		const before = await caller.list();
 		await caller.delete({ id: order.id });
 		const after = await caller.list();
@@ -201,7 +239,6 @@ describe("orders.delete", () => {
 		expect(after.length).toBe(before.length - 1);
 		expect(after.some((o) => o.id === order.id)).toBe(false);
 
-		// Verify orderItems also deleted
 		const items = await db
 			.select()
 			.from(orderItems)
@@ -209,7 +246,7 @@ describe("orders.delete", () => {
 		expect(items.length).toBe(0);
 	});
 
-	it("fails with FK error when transaction references order — order survives", async () => {
+	it("removes the order together with its referencing transaction", async () => {
 		const order = await caller.create({
 			customerId,
 			paymentMethodId,
@@ -217,13 +254,23 @@ describe("orders.delete", () => {
 			total: 100,
 		});
 
-		const before = await caller.list();
-		await expect(caller.delete({ id: order.id })).rejects.toThrow();
+		const txnBefore = await db
+			.select()
+			.from(transactions)
+			.where(eq(transactions.order_id, order.id));
+		expect(txnBefore.length).toBe(1);
 
-		// Order still exists
-		const after = await caller.list();
-		expect(after.length).toBe(before.length);
-		expect(after.some((o) => o.id === order.id)).toBe(true);
+		await caller.delete({ id: order.id });
+
+		const list = await caller.list();
+		expect(list.some((o) => o.id === order.id)).toBe(false);
+
+		// The delete handler cascades cleanup, so the transaction is gone too.
+		const txnAfter = await db
+			.select()
+			.from(transactions)
+			.where(eq(transactions.order_id, order.id));
+		expect(txnAfter.length).toBe(0);
 	});
 
 	it("is idempotent — deleting non-existent id is no-op", async () => {

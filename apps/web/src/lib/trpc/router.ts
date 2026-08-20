@@ -28,6 +28,7 @@ import { importsRouter } from "./routers/imports";
 import { inventoryRouter } from "./routers/inventory";
 import { loyaltyRouter } from "./routers/loyalty";
 import { marketingRouter } from "./routers/marketing";
+import { masterDataRouter } from "./routers/master-data";
 import { monitoringRouter } from "./routers/monitoring";
 import { notificationsRouter } from "./routers/notifications";
 import { ordersRouter } from "./routers/orders";
@@ -53,6 +54,7 @@ import { supplierRouter } from "./routers/supplier";
 import { suppliersRouter } from "./routers/suppliers";
 import { transactionsRouter } from "./routers/transactions";
 import { transfersRouter } from "./routers/transfers";
+import { vehiclesRouter } from "./routers/vehicles";
 import { warehouseRouter } from "./routers/warehouse";
 
 export const appRouter = router({
@@ -110,6 +112,8 @@ export const appRouter = router({
 	payments: paymentsRouter,
 	bankAccounts: bankAccountsRouter,
 	employeeExpenses: employeeExpensesRouter,
+	vehicles: vehiclesRouter,
+	masterData: masterDataRouter,
 });
 
 export type AppRouter = typeof appRouter;

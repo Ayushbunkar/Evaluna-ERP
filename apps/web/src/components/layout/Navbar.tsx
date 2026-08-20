@@ -9,7 +9,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@evaluna/ui/components/dropdown-menu";
-import { Bell, Clock, Home, Home, Menu, Store, WifiOff } from "lucide-react";
+import { Bell, Clock, Home, Menu, Store, WifiOff } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { useSession } from "@/hooks/use-session";

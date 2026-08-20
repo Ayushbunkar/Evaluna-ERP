@@ -7,7 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { DataTable } from "@evaluna/ui/components/data-table";
+import { type Column, DataTable } from "@evaluna/ui/components/data-table";
 import { DatePickerWithRange } from "@evaluna/ui/components/date-range-picker";
 import { Input } from "@evaluna/ui/components/input";
 import {
@@ -58,58 +58,57 @@ export default function PackingHistoryPage() {
 		})) || [];
 
 	// Define columns for data table
-	const columns = [
+	type HistoryRow = (typeof transformedHistory)[number];
+	const columns: Column<HistoryRow>[] = [
 		{
-			accessorKey: "orderId",
+			key: "orderId",
 			header: "Order ID",
-			cell: ({ row }: any) => (
-				<div className="font-medium">{row.getValue("orderId")}</div>
-			),
+			sortable: true,
+			render: (row) => <div className="font-medium">{row.orderId}</div>,
 		},
 		{
-			accessorKey: "customerName",
+			key: "customerName",
 			header: "Customer",
+			sortable: true,
 		},
 		{
-			accessorKey: "itemsCount",
+			key: "itemsCount",
 			header: "Items",
-			cell: ({ row }: any) => (
-				<div className="text-center">{row.getValue("itemsCount")}</div>
-			),
+			render: (row) => <div className="text-center">{row.itemsCount}</div>,
 		},
 		{
-			accessorKey: "packedBy",
+			key: "packedBy",
 			header: "Packed By",
 		},
 		{
-			accessorKey: "status",
+			key: "status",
 			header: "Status",
-			cell: ({ row }: any) => (
+			sortable: true,
+			render: (row) => (
 				<div className="flex items-center">
 					<span
 						className={`mr-2 h-2 w-2 rounded-full ${
-							row.getValue("status") === "completed"
+							row.status === "completed"
 								? "bg-green-500"
-								: row.getValue("status") === "pending"
+								: row.status === "pending"
 									? "bg-yellow-500"
 									: "bg-red-500"
 						}`}
 					/>
-					{row.getValue("status")}
+					{row.status}
 				</div>
 			),
 		},
 		{
-			accessorKey: "packedAt",
+			key: "packedAt",
 			header: "Date",
-			cell: ({ row }: any) => (
-				<div>{new Date(row.getValue("packedAt")).toLocaleString()}</div>
-			),
+			sortable: true,
+			render: (row) => <div>{new Date(row.packedAt).toLocaleString()}</div>,
 		},
 		{
-			accessorKey: "actions",
+			key: "actions",
 			header: "Actions",
-			cell: ({ row }: any) => (
+			render: () => (
 				<Button variant="outline" size="sm">
 					View Details
 				</Button>
@@ -177,8 +176,6 @@ export default function PackingHistoryPage() {
 								columns={columns}
 								data={transformedHistory}
 								isLoading={isLoading}
-								searchTerm={searchTerm}
-								searchKey="orderId"
 							/>
 						</TabsContent>
 
@@ -186,7 +183,7 @@ export default function PackingHistoryPage() {
 							<DataTable
 								columns={columns}
 								data={transformedHistory.filter(
-									(item: any) =>
+									(item) =>
 										new Date(item.packedAt) >
 										new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
 								)}
@@ -197,11 +194,9 @@ export default function PackingHistoryPage() {
 						<TabsContent value="pending">
 							<DataTable
 								columns={columns}
-								data={
-									packingHistory?.filter(
-										(item: any) => item.status === "pending",
-									) || []
-								}
+								data={transformedHistory.filter(
+									(item) => item.status === "pending",
+								)}
 								isLoading={isLoading}
 							/>
 						</TabsContent>

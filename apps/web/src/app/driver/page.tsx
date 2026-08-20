@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
+import type { RouterOutputs } from "@/lib/trpc/router";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -81,55 +82,23 @@ function formatCurrency(amount: number, locale: string = "en-IN"): string {
 	}).format(amount);
 }
 
-// Type definitions
-interface DeliveryData {
-	orderId: string;
-	customerName: string;
-	address: string;
-	landmark: string;
-	contactName: string;
-	contactPhone: string;
-	paymentType: string;
-	amountToCollect: number;
-	packages: number;
-	estimatedDuration: string;
-	eta: string;
-	items: Array<{
-		id: number; // product_id
-		name: string;
-		quantity: number;
-		price: number;
-	}>;
-}
-
-interface DriverDashboardData {
-	driverName: string;
-	status: string;
-	batteryLevel: number | null;
-	currentLocation: string | null;
-	nextDelivery: DeliveryData | null;
-	delivered: number;
-	assignedOrders: number;
-	codCollected: number;
-	successfulCollections: number;
-	returnsProcessed: number;
-	returnRate: number;
-	customerRating: number;
-	positiveReviews: number;
-	deliveryHistory: Array<any>;
-	returnHistory: Array<any>;
-	notifications: Array<{ message: string; time: string }>;
-	vehicleStatus: {
-		fuelLevel: string | null;
-		odometer: string | null;
-		maintenanceDue: boolean;
-	} | null;
-	routeStops: Array<{
-		address: string;
-		time: string;
-		status: string;
-	}>;
-}
+// Type definitions — derived from the tRPC router so they can never drift.
+type DriverDashboardData = RouterOutputs["driver"]["getMobileDashboard"];
+type DeliveryData = NonNullable<DriverDashboardData["nextDelivery"]>;
+type CatalogProduct = RouterOutputs["pos"]["catalog"][number];
+type StopStatus =
+	| "pending"
+	| "arrived"
+	| "delivered"
+	| "partially_delivered"
+	| "skipped"
+	| "failed";
+type ReturnSubmitData = {
+	returnReason: string;
+	condition: string;
+	notes: string;
+	returnedItems: { productId: number; quantity: number; reason: string }[];
+};
 
 // Enhanced Mini Map Component with better responsiveness
 function EnhancedMiniMap() {
@@ -320,38 +289,39 @@ function BillGeneration({ deliveryData, onGenerate, onClose }: {
 	onClose: () => void;
 }) {
 	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedProducts, setSelectedProducts] = useState([]);
-	const [quantities, setQuantities] = useState({});
+	const [selectedProducts, setSelectedProducts] = useState<CatalogProduct[]>([]);
+	const [quantities, setQuantities] = useState<Record<number, number>>({});
 
 	// Fetch product catalog
 	const { data: catalogData, isLoading: catalogLoading } = trpc.pos.catalog.useQuery();
+	const addItemsToOrder = trpc.delivery.addItemsToDeliveryOrder.useMutation();
 
 	// Calculate total amount
 	const calculateTotal = () => {
 		let total = deliveryData.amountToCollect || 0;
-		selectedProducts.forEach(product => {
+		selectedProducts.forEach((product) => {
 			const qty = quantities[product.id] || 1;
-			total += (product.price || 0) * qty;
+			total += Number(product.price || 0) * qty;
 		});
 		return total;
 	};
 
-	const handleAddProduct = (product) => {
-		if (!selectedProducts.find(p => p.id === product.id)) {
+	const handleAddProduct = (product: CatalogProduct) => {
+		if (!selectedProducts.find((p) => p.id === product.id)) {
 			setSelectedProducts([...selectedProducts, product]);
 			setQuantities({ ...quantities, [product.id]: 1 });
 		}
 	};
 
-	const handleQuantityChange = (productId, delta) => {
+	const handleQuantityChange = (productId: number, delta: number) => {
 		const newQty = (quantities[productId] || 1) + delta;
 		if (newQty > 0) {
 			setQuantities({ ...quantities, [productId]: newQty });
 		}
 	};
 
-	const handleRemoveProduct = (productId) => {
-		setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
+	const handleRemoveProduct = (productId: number) => {
+		setSelectedProducts(selectedProducts.filter((p) => p.id !== productId));
 		const newQuantities = { ...quantities };
 		delete newQuantities[productId];
 		setQuantities(newQuantities);
@@ -363,17 +333,22 @@ function BillGeneration({ deliveryData, onGenerate, onClose }: {
 			return;
 		}
 
+		if (!deliveryData.order_id) {
+			console.error("No order id available for this delivery");
+			return;
+		}
+
 		try {
-			const itemsToAdd = selectedProducts.map(product => ({
+			const itemsToAdd = selectedProducts.map((product) => ({
 				productId: product.id,
 				quantity: quantities[product.id] || 1,
-				price: product.price || 0
+				price: Number(product.price || 0),
 			}));
 
-			// Call the new backend mutation
-			const result = await trpc.delivery.addItemsToDeliveryOrder.mutateAsync({
+			// Call the backend mutation
+			await addItemsToOrder.mutateAsync({
 				orderId: deliveryData.order_id,
-				items: itemsToAdd
+				items: itemsToAdd,
 			});
 
 			// Refresh data and close
@@ -386,9 +361,10 @@ function BillGeneration({ deliveryData, onGenerate, onClose }: {
 	};
 
 	// Filter products based on search query
-	const filteredProducts = catalogData?.filter(product =>
-		product.name.toLowerCase().includes(searchQuery.toLowerCase())
-	) || [];
+	const filteredProducts =
+		catalogData?.filter((product) =>
+			product.name.toLowerCase().includes(searchQuery.toLowerCase()),
+		) || [];
 
 	return (
 		<Card className="max-w-2xl">
@@ -448,7 +424,7 @@ function BillGeneration({ deliveryData, onGenerate, onClose }: {
 										{filteredProducts.map((product) => (
 											<tr key={product.id} className="border-t">
 												<td className="p-2">{product.name}</td>
-												<td className="p-2 text-right">{formatCurrency(product.price, "en-IN")}</td>
+												<td className="p-2 text-right">{formatCurrency(Number(product.price), "en-IN")}</td>
 												<td className="p-2 text-center">
 													<Button
 														size="sm"
@@ -489,7 +465,7 @@ function BillGeneration({ deliveryData, onGenerate, onClose }: {
 									{selectedProducts.map((product) => (
 										<tr key={product.id} className="border-t">
 											<td className="p-2">{product.name}</td>
-											<td className="p-2 text-right">{formatCurrency(product.price, "en-IN")}</td>
+											<td className="p-2 text-right">{formatCurrency(Number(product.price), "en-IN")}</td>
 											<td className="p-2 text-center">
 												<div className="flex items-center justify-center gap-2">
 													<Button
@@ -512,7 +488,7 @@ function BillGeneration({ deliveryData, onGenerate, onClose }: {
 												</div>
 											</td>
 											<td className="p-2 text-right">
-												{formatCurrency((product.price || 0) * (quantities[product.id] || 1), "en-IN")}
+												{formatCurrency((Number(product.price) || 0) * (quantities[product.id] || 1), "en-IN")}
 											</td>
 											<td className="p-2">
 												<Button
@@ -581,7 +557,7 @@ export default function EnhancedDriverDashboard() {
 		},
 	});
 
-	const handleUpdateStatus = (status) => {
+	const handleUpdateStatus = (status: StopStatus) => {
 		if (data?.nextDelivery?.stop_id) {
 			updateStatus.mutate({
 				stopId: data.nextDelivery.stop_id,
@@ -591,7 +567,7 @@ export default function EnhancedDriverDashboard() {
 		}
 	};
 
-	const handleReturnSubmit = (returnData) => {
+	const handleReturnSubmit = (returnData: ReturnSubmitData) => {
 		if (data?.nextDelivery?.stop_id) {
 			processPartialReturn.mutate({
 				stopId: data.nextDelivery.stop_id,

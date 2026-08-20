@@ -8,11 +8,15 @@ mock.module("@/lib/db", () => ({ db, pglite: pg }));
 const { customersRouter } = await import("../customers");
 const { createCallerFactory } = await import("../../init");
 
+// Default caller: admin with no branch → sees all branches (superadmin-like scope).
 const caller = createCallerFactory(customersRouter)({
 	user: makeUser("user-1"),
 });
-const callerAs = (uid: string) =>
-	createCallerFactory(customersRouter)({ user: makeUser(uid) });
+// A caller pinned to a specific branch — customers are isolated by branch_id.
+const inBranch = (uid: string, branchId: number) =>
+	createCallerFactory(customersRouter)({
+		user: { ...makeUser(uid), branchId },
+	});
 
 beforeAll(async () => {
 	await pg.exec(SCHEMA_DDL);
@@ -28,15 +32,19 @@ describe("customers.list", () => {
 		expect(list.length).toBe(0);
 	});
 
-	it("filters by user_uid — cross-user data invisible", async () => {
-		await caller.create({ name: "C1", email: "c1-list@t.com" });
-		const other = callerAs("other-cust");
-		await other.create({ name: "C-other", email: "c-other-list@t.com" });
+	it("isolates by branch_id — cross-branch data invisible", async () => {
+		const b1 = inBranch("mgr-b1", 1);
+		const b2 = inBranch("mgr-b2", 2);
+		await b1.create({ name: "C1", email: "c1-list@t.com" });
+		await b2.create({ name: "C-other", email: "c-other-list@t.com" });
 
-		const list = await caller.list();
-		expect(list.length).toBe(1);
-		expect(list[0].name).toBe("C1");
-		expect(list.some((c) => c.name === "C-other")).toBe(false);
+		const list1 = await b1.list();
+		expect(list1.some((c) => c.name === "C1")).toBe(true);
+		expect(list1.some((c) => c.name === "C-other")).toBe(false);
+
+		const list2 = await b2.list();
+		expect(list2.some((c) => c.name === "C-other")).toBe(true);
+		expect(list2.some((c) => c.name === "C1")).toBe(false);
 	});
 });
 
@@ -119,12 +127,16 @@ describe("customers.update", () => {
 		expect(persisted.email).toBe("upd@t.com"); // unchanged field preserved
 	});
 
-	it("cross-user update fails and original data is untouched", async () => {
-		const c = await caller.create({ name: "Mine", email: "cross-cust@t.com" });
-		const other = callerAs("attacker");
-		await expect(other.update({ id: c.id, name: "Hacked" })).rejects.toThrow();
+	it("cross-branch update fails and original data is untouched", async () => {
+		const b1 = inBranch("owner-b1", 1);
+		const attacker = inBranch("attacker-b2", 2);
+		const c = await b1.create({ name: "Mine", email: "cross-cust@t.com" });
+		// Update is scoped to the caller's branch; a branch-2 caller matches no row.
+		await expect(
+			attacker.update({ id: c.id, name: "Hacked" }),
+		).rejects.toThrow();
 
-		const list = await caller.list();
+		const list = await b1.list();
 		const original = list.find((x) => x.id === c.id)!;
 		expect(original.name).toBe("Mine");
 	});

@@ -47,12 +47,12 @@ const StatCard = ({
 export default function PackerDashboard() {
 	const { data: stats, isLoading } =
 		useTRPC().packer.getDashboardStats.useQuery(
-			{},
+			undefined,
 			{ staleTime: 30_000, refetchOnWindowFocus: false },
 		);
 
 	const { data: pendingToPack } = useTRPC().packer.getPendingToPack.useQuery(
-		{},
+		undefined,
 		{ staleTime: 30_000 },
 	);
 

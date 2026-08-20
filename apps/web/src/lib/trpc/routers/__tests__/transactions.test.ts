@@ -1,5 +1,4 @@
 // @ts-nocheck
-// @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
 
@@ -30,9 +29,13 @@ describe("transactions.list", () => {
 	});
 
 	it("filters by user_uid — cross-user data invisible", async () => {
-		await caller.create({ description: "T1", amount: 100, type: "income" });
+		await caller.create({ description: "T1", amount: "100.00", type: "income" });
 		const other = callerAs("other-tx");
-		await other.create({ description: "T-other", amount: 50, type: "expense" });
+		await other.create({
+			description: "T-other",
+			amount: "50.00",
+			type: "expense",
+		});
 
 		const list = await caller.list();
 		expect(list.length).toBe(1);
@@ -50,11 +53,11 @@ describe("transactions.create", () => {
 		const before = await caller.list();
 		const t = await caller.create({
 			description: "Sale",
-			amount: 500,
+			amount: "500.00",
 			type: "income",
 		});
 		expect(t.description).toBe("Sale");
-		expect(t.amount).toBe(500);
+		expect(Number(t.amount)).toBe(500);
 		expect(t.type).toBe("income");
 		expect(t.user_uid).toBe("user-1");
 
@@ -62,13 +65,13 @@ describe("transactions.create", () => {
 		expect(after.length).toBe(before.length + 1);
 		const found = after.find((x) => x.id === t.id)!;
 		expect(found.description).toBe("Sale");
-		expect(found.amount).toBe(500);
+		expect(Number(found.amount)).toBe(500);
 	});
 
 	it("creates expense with optionals — all fields persisted", async () => {
 		const t = await caller.create({
 			description: "Rent",
-			amount: 1000,
+			amount: "1000.00",
 			type: "expense",
 			category: "overhead",
 			status: "pending",
@@ -84,30 +87,34 @@ describe("transactions.create", () => {
 	it("rejects description: empty string — no record created", async () => {
 		const before = await caller.list();
 		await expect(
-			caller.create({ description: "", amount: 100, type: "income" }),
+			caller.create({ description: "", amount: "100.00", type: "income" }),
 		).rejects.toThrow();
 		const after = await caller.list();
 		expect(after.length).toBe(before.length);
 	});
 
-	it("rejects amount: 0 — no record created", async () => {
+	it("rejects non-numeric amount — no record created", async () => {
 		const before = await caller.list();
 		await expect(
-			caller.create({ description: "Zero", amount: 0, type: "income" }),
+			caller.create({ description: "Bad", amount: "not-a-number", type: "income" }),
 		).rejects.toThrow();
 		const after = await caller.list();
 		expect(after.length).toBe(before.length);
 	});
 
-	it("rejects amount: 1.5 (non-integer)", async () => {
+	it("rejects missing amount — required field", async () => {
 		await expect(
-			caller.create({ description: "Frac", amount: 1.5, type: "income" }),
+			caller.create({ description: "NoAmt", type: "income" } as any),
 		).rejects.toThrow();
 	});
 
 	it('rejects type: "other" — invalid enum', async () => {
 		await expect(
-			caller.create({ description: "Bad", amount: 100, type: "other" as any }),
+			caller.create({
+				description: "Bad",
+				amount: "100.00",
+				type: "other" as any,
+			}),
 		).rejects.toThrow();
 	});
 });
@@ -116,20 +123,20 @@ describe("transactions.update", () => {
 	it("updates amount+status and change persists in list()", async () => {
 		const t = await caller.create({
 			description: "Upd",
-			amount: 100,
+			amount: "100.00",
 			type: "income",
 		});
 		const updated = await caller.update({
 			id: t.id,
-			amount: 200,
+			amount: "200.00",
 			status: "completed",
 		});
-		expect(updated.amount).toBe(200);
+		expect(Number(updated.amount)).toBe(200);
 		expect(updated.status).toBe("completed");
 
 		const list = await caller.list();
 		const persisted = list.find((x) => x.id === t.id)!;
-		expect(persisted.amount).toBe(200);
+		expect(Number(persisted.amount)).toBe(200);
 		expect(persisted.status).toBe("completed");
 		expect(persisted.description).toBe("Upd"); // unchanged field preserved
 	});
@@ -137,15 +144,17 @@ describe("transactions.update", () => {
 	it("cross-user update fails and original data is untouched", async () => {
 		const t = await caller.create({
 			description: "Mine",
-			amount: 100,
+			amount: "100.00",
 			type: "income",
 		});
 		const other = callerAs("attacker");
-		await expect(other.update({ id: t.id, amount: 999 })).rejects.toThrow();
+		await expect(
+			other.update({ id: t.id, amount: "999.00" }),
+		).rejects.toThrow();
 
 		const list = await caller.list();
 		const original = list.find((x) => x.id === t.id)!;
-		expect(original.amount).toBe(100);
+		expect(Number(original.amount)).toBe(100);
 		expect(original.description).toBe("Mine");
 	});
 });
@@ -154,7 +163,7 @@ describe("transactions.delete", () => {
 	it("deletes a transaction — no longer in list()", async () => {
 		const t = await caller.create({
 			description: "ToDel",
-			amount: 100,
+			amount: "100.00",
 			type: "income",
 		});
 		const before = await caller.list();
@@ -170,7 +179,7 @@ describe("transactions.delete", () => {
 	it("is idempotent — deleting same id twice does not error", async () => {
 		const t = await caller.create({
 			description: "Del2x",
-			amount: 50,
+			amount: "50.00",
 			type: "expense",
 		});
 		await caller.delete({ id: t.id });

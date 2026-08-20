@@ -183,12 +183,12 @@ export default function PackItemsPage() {
 											>
 												<div className="flex items-center gap-3">
 													<Checkbox
-														id={item.id}
+														id={String(item.id)}
 														checked={item.packed}
-														onCheckedChange={() => handleScan(item.barcode)}
+														onChange={() => handleScan(item.barcode)}
 														disabled={!packingInProgress}
 													/>
-													<label htmlFor={item.id} className="flex flex-col">
+													<label htmlFor={String(item.id)} className="flex flex-col">
 														<span className="font-medium">{item.name}</span>
 														<span className="text-muted-foreground text-sm">
 															Barcode: {item.barcode}

@@ -30,7 +30,7 @@ export async function GET() {
 				.insert(branches)
 				.values({
 					name: "Main Warehouse",
-					location: "Mumbai",
+					address: "Mumbai",
 					manager_id: null,
 				})
 				.returning();
@@ -261,6 +261,7 @@ export async function GET() {
 				purchData.push({
 					supplier_id: supplierId,
 					branch_id: branchId,
+					user_uid: "seed-admin",
 					status: i % 2 === 0 ? "received" : "pending",
 					total_amount: `${15000 + i * 200}`,
 					grn_number: `GRN-2026-${i.toString().padStart(3, "0")}`,
@@ -276,8 +277,7 @@ export async function GET() {
 					purchase_id: p.id,
 					product_id: productId,
 					quantity: 50 + p.id,
-					unit_price: "300",
-					total_price: `${15000 + p.id * 300}`,
+					price: "300",
 				});
 			}
 		}
@@ -288,15 +288,12 @@ export async function GET() {
 			const tripData = [];
 			for (let i = 1; i <= 50; i++) {
 				tripData.push({
-					branch_id: branchId,
-					driver_id: staffId, // Assign to first staff
+					driver_id: String(staffId), // Assign to first staff
 					vehicle_id: null,
 					status:
 						i % 3 === 0 ? "completed" : i % 3 === 1 ? "active" : "pending",
 					start_time: new Date(),
 					end_time: i % 3 === 0 ? new Date() : null,
-					start_km: 10000 + i * 50,
-					end_km: i % 3 === 0 ? 10050 + i * 50 : null,
 				});
 			}
 			const insertedTrips = await db
@@ -311,8 +308,7 @@ export async function GET() {
 					customer_id: customerId,
 					sequence: 1,
 					status: trip.status === "completed" ? "delivered" : "pending",
-					eta: new Date(),
-					notes: "Handle with care",
+					comments: "Handle with care",
 				});
 
 				if (trip.status === "completed" || trip.status === "active") {

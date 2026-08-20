@@ -3,7 +3,6 @@ import {
 	pickListItems,
 	pickLists,
 	products,
-	users,
 } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";

@@ -1,11 +1,14 @@
 import {
+	customers,
 	orders,
 	packageItems,
 	packages,
+	pickListItems,
 	pickLists,
+	products,
 	staff,
 } from "@evaluna/db/schema";
-import { and, desc, eq, gte, lte, notInArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -69,6 +72,68 @@ export const packerRouter = router({
 						: `REF-${r.order_id}`,
 				status: "pending_packing",
 				completed_at: r.completed_at?.toLocaleDateString() || "Unknown",
+			}));
+		},
+	),
+
+	getPendingOrders: roleProcedure(["admin", "manager", "packer"]).query(
+		async ({ ctx }) => {
+			// Completed pick lists that have not yet been packed
+			const existingPackages = await ctx.db
+				.select({ pick_list_id: packages.pick_list_id })
+				.from(packages);
+			const packedPickListIds = existingPackages
+				.map((p) => p.pick_list_id)
+				.filter(Boolean) as number[];
+
+			const pending = await ctx.db
+				.select({
+					pick_list_id: pickLists.id,
+					order_id: pickLists.order_id,
+					status: pickLists.status,
+					customerName: customers.name,
+				})
+				.from(pickLists)
+				.leftJoin(orders, eq(pickLists.order_id, orders.id))
+				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.where(
+					packedPickListIds.length > 0
+						? and(
+								eq(pickLists.status, "completed"),
+								notInArray(pickLists.id, packedPickListIds),
+							)
+						: eq(pickLists.status, "completed"),
+				)
+				.orderBy(desc(pickLists.completed_at))
+				.limit(50);
+
+			if (pending.length === 0) return [];
+
+			const pickListIds = pending.map((p) => p.pick_list_id);
+			const items = await ctx.db
+				.select({
+					id: pickListItems.id,
+					pick_list_id: pickListItems.pick_list_id,
+					productName: products.name,
+					barcode: products.barcode,
+					status: pickListItems.status,
+				})
+				.from(pickListItems)
+				.leftJoin(products, eq(pickListItems.product_id, products.id))
+				.where(inArray(pickListItems.pick_list_id, pickListIds));
+
+			return pending.map((pl) => ({
+				id: `PL-${pl.pick_list_id}`,
+				customerName: pl.customerName ?? "Walk-in Customer",
+				status: pl.status ?? "pending_packing",
+				items: items
+					.filter((it) => it.pick_list_id === pl.pick_list_id)
+					.map((it) => ({
+						id: it.id,
+						productName: it.productName ?? "Unknown Product",
+						barcode: it.barcode ?? "",
+						status: it.status ?? "pending",
+					})),
 			}));
 		},
 	),
@@ -160,5 +225,51 @@ export const packerRouter = router({
 				status: item.status || "completed",
 				packedAt: item.packedAt || new Date(),
 			}));
+		}),
+
+	getReports: roleProcedure(["admin", "manager", "packer"])
+		.input(
+			z.object({
+				startDate: z.date(),
+				endDate: z.date(),
+				reportType: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const packed = await ctx.db
+				.select({ id: packages.id })
+				.from(packages)
+				.where(
+					and(
+						eq(packages.status, "packed"),
+						gte(packages.packed_at, input.startDate),
+						lte(packages.packed_at, input.endDate),
+					),
+				);
+
+			const packageIds = packed.map((p) => p.id);
+			const items =
+				packageIds.length > 0
+					? await ctx.db
+							.select({ id: packageItems.id })
+							.from(packageItems)
+							.where(inArray(packageItems.package_id, packageIds))
+					: [];
+
+			const totalOrders = packed.length;
+			const totalItems = items.length;
+
+			return {
+				totalOrders,
+				totalItems,
+				period: input.reportType ?? "summary",
+				avgPackingTime: 0,
+				errorRate: 0,
+				itemsTrend: 0,
+				accuracy: 100,
+				accuracyTrend: 0,
+				totalErrors: 0,
+				errorsTrend: 0,
+			};
 		}),
 });

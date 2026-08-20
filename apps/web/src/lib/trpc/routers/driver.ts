@@ -5,6 +5,75 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
 
+type NextDeliveryItem = {
+	id: number;
+	name: string;
+	quantity: number;
+	price: number;
+};
+
+type NextDelivery = {
+	id: string;
+	order_id: number | undefined;
+	orderId: string;
+	stop_id: number;
+	customerName: string;
+	phone: string;
+	address: string;
+	landmark: string;
+	contactName: string;
+	contactPhone: string;
+	paymentType: string;
+	amountToCollect: number;
+	packages: number;
+	estimatedDuration: string;
+	eta: string | null;
+	distance: string | null;
+	isVerified: boolean;
+	items: NextDeliveryItem[];
+};
+
+type RouteStop = {
+	id: number;
+	status: string;
+	rawStatus: string;
+	time: string;
+	address: string;
+	customerName: string;
+	phone: string | null;
+	orderId: number | null;
+	amountToCollect: number;
+	packages: number;
+	orderItems: {
+		id: number;
+		product_id: number;
+		name: string;
+		qty: number;
+		price: number;
+	}[];
+};
+
+type DeliveryHistoryEntry = {
+	orderId: string;
+	customerName: string;
+	status: string;
+	amount: number;
+};
+
+type ReturnHistoryEntry = {
+	orderId: string;
+	reason: string;
+	status: string;
+};
+
+type DriverNotification = { message: string; time: string };
+
+type VehicleStatus = {
+	fuelLevel: string | null;
+	odometer: string | null;
+	maintenanceDue: boolean;
+};
+
 export const driverRouter = router({
 	getMobileDashboard: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
@@ -47,15 +116,25 @@ export const driverRouter = router({
 				return {
 					driverName: ctx.user?.name ?? "Driver",
 					status: "Offline",
-					batteryLevel: 100,
+					batteryLevel: null as number | null,
+					currentLocation: null as string | null,
 					assignedOrders: 0,
 					delivered: 0,
 					pending: 0,
 					codCollected: 0,
-					distanceCovered: "0 km",
+					successfulCollections: 0,
+					returnsProcessed: 0,
+					returnRate: 0,
+					customerRating: 0,
+					positiveReviews: 0,
+					distanceCovered: "0 km" as string | null,
 					rating: 0,
-					nextDelivery: null,
-					routeStops: [],
+					nextDelivery: null as NextDelivery | null,
+					routeStops: [] as RouteStop[],
+					deliveryHistory: [] as DeliveryHistoryEntry[],
+					returnHistory: [] as ReturnHistoryEntry[],
+					notifications: [] as DriverNotification[],
+					vehicleStatus: null as VehicleStatus | null,
 				};
 			}
 
@@ -86,7 +165,7 @@ export const driverRouter = router({
 
 			const nextStop = trip.stops.find((s: any) => s.status === "pending");
 
-			let nextDelivery = null;
+			let nextDelivery: NextDelivery | null = null;
 			if (nextStop) {
 				const activeOrder = await db.query.orders.findFirst({
 					where: eq(orders.customer_id, nextStop.customer_id),
@@ -103,23 +182,28 @@ export const driverRouter = router({
 				nextDelivery = {
 					id: `CUST-${nextStop.customer_id}`,
 					order_id: activeOrder?.id,
+					orderId: activeOrder?.id ? String(activeOrder.id) : "N/A",
 					stop_id: nextStop.id,
 					customerName: nextStop.customer?.name ?? "Unknown",
 					phone: nextStop.customer?.phone ?? "N/A",
 					address: nextStop.customer?.address ?? "N/A",
 					landmark: "",
+					contactName: nextStop.customer?.name ?? "Unknown",
+					contactPhone: nextStop.customer?.phone ?? "N/A",
 					paymentType: "Cash on Delivery",
 					amountToCollect: activeOrder ? Number(activeOrder.total_amount) : 0,
 					packages: activeOrder?.orderItems?.length ?? 1,
+					estimatedDuration: "~15 min",
 					eta: null,
 					distance: null,
 					isVerified: false,
-					items: activeOrder?.orderItems?.map(item => ({
-						id: item.product_id,
-						name: item.product?.name ?? "Unknown Product",
-						quantity: item.quantity,
-						price: Number(item.price),
-					})) || [],
+					items:
+						activeOrder?.orderItems?.map((item) => ({
+							id: item.product_id ?? 0,
+							name: item.product?.name ?? "Unknown Product",
+							quantity: item.quantity,
+							price: Number(item.price),
+						})) || [],
 				};
 			}
 
@@ -164,10 +248,26 @@ export const driverRouter = router({
 				};
 			});
 
+			// Vehicle status for the active trip (if a vehicle is assigned)
+			let vehicleStatus: VehicleStatus | null = null;
+			if (trip.vehicle_id) {
+				const vehicle = await db.query.vehicles.findFirst({
+					where: eq(vehicles.id, trip.vehicle_id),
+				});
+				if (vehicle) {
+					vehicleStatus = {
+						fuelLevel: null,
+						odometer: null,
+						maintenanceDue: vehicle.status === "maintenance",
+					};
+				}
+			}
+
 			return {
 				driverName: ctx.user?.name ?? "Driver",
 				status: trip.status === "active" ? "Online" : "Offline",
-				batteryLevel: null,
+				batteryLevel: null as number | null,
+				currentLocation: null as string | null,
 				assignedOrders,
 				delivered,
 				pending,
@@ -183,6 +283,10 @@ export const driverRouter = router({
 				rating: 4.8,
 				nextDelivery,
 				routeStops,
+				deliveryHistory: [] as DeliveryHistoryEntry[],
+				returnHistory: [] as ReturnHistoryEntry[],
+				notifications: [] as DriverNotification[],
+				vehicleStatus,
 			};
 		}),
 

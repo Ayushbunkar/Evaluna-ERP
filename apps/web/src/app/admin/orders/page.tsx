@@ -185,7 +185,6 @@ export default function OrdersPage() {
 			if (editingId !== null) {
 				updateMutation.mutate({
 					id: editingId,
-					total_amount: Math.round(Number.parseFloat(value.total) * 100),
 					status: value.status,
 				});
 			}

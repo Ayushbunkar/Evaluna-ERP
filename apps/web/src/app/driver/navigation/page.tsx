@@ -114,7 +114,7 @@ export default function NavigationPage() {
 									</Link>
 								</Button>
 								<Button variant="default" className="flex-[2] py-6 text-lg rounded-xl font-semibold shadow-lg shadow-primary/25" asChild>
-									<a href={`tel:${nextDelivery.customerPhone || ""}`}>
+									<a href={`tel:${nextDelivery.phone || ""}`}>
 										<PhoneIcon className="mr-2 h-5 w-5" /> Contact Customer
 									</a>
 								</Button>

@@ -47,12 +47,12 @@ const StatCard = ({
 export default function CheckerDashboard() {
 	const { data: stats, isLoading } =
 		useTRPC().checker.getDashboardStats.useQuery(
-			{},
+			undefined,
 			{ staleTime: 30_000, refetchOnWindowFocus: false },
 		);
 
 	const { data: pendingToCheck } = useTRPC().checker.getPendingToCheck.useQuery(
-		{},
+		undefined,
 		{ staleTime: 30_000 },
 	);
 

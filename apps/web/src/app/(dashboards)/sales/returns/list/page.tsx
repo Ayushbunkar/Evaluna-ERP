@@ -39,7 +39,7 @@ export default function SalesReturnsList() {
 
 	const { data: salesReturns, isLoading } = trpc.salesReturns.list.useQuery();
 
-	const filteredReturns = (salesReturns ?? []).filter((r) => {
+	const filteredReturns = (salesReturns ?? []).filter((r: SalesReturn) => {
 		if (statusFilter !== "all" && r.status !== statusFilter) return false;
 		const q = searchTerm.toLowerCase();
 		return (
@@ -165,7 +165,7 @@ export default function SalesReturnsList() {
 									</p>
 									<h3 className="font-bold text-2xl">
 										{salesReturns?.filter(
-											(r) => r.status?.toLowerCase() === "pending",
+											(r: SalesReturn) => r.status?.toLowerCase() === "pending",
 										).length || 0}
 									</h3>
 								</div>
