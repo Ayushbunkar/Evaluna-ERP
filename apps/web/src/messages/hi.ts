@@ -58,6 +58,8 @@ const messages: Messages = {
 	},
 	nav: {
 		dashboard: "डैशबोर्ड",
+		bankAccounts: "बैंक खाते",
+		reimbursements: "प्रतिपूर्ति",
 		backups: "बैकअप",
 		cashier: "कैशियर",
 		products: "उत्पाद",

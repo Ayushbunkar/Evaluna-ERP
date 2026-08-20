@@ -9,6 +9,7 @@ export default defineConfig({
 		"./src/schema.ts",
 		"./src/auth-schema.ts",
 		"./src/schema/delivery.ts",
+		"./src/schema/finance.ts",
 		"./src/schema/hrms.ts",
 		"./src/schema/rbac.ts",
 		"./src/schema/attendance-enhanced.ts",

@@ -1,11 +1,12 @@
 import {
+	bankAccounts,
 	customers,
 	expenses,
 	orders,
 	suppliers,
 	transactions,
 } from "@evaluna/db/schema";
-import { and, desc, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -23,6 +24,15 @@ export const financeRouter = router({
 			const sevenDaysAgo = new Date(today);
 			sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+			// Tenant isolation: scoped users see only their branch; superadmin (null) sees all.
+			const branchId = ctx.user.branchId ?? null;
+			const txBranch =
+				branchId != null ? eq(transactions.branch_id, branchId) : undefined;
+			const orderBranch =
+				branchId != null ? eq(orders.branch_id, branchId) : undefined;
+			const expBranch =
+				branchId != null ? eq(expenses.branch_id, branchId) : undefined;
+
 			const [
 				todaysCashRes,
 				monthlyRevRes,
@@ -34,6 +44,7 @@ export const financeRouter = router({
 				recentTx,
 				outCust,
 				cashFlowRes,
+				bankBalancesRes,
 			] = await Promise.all([
 				ctx.db
 					.select({
@@ -42,6 +53,7 @@ export const financeRouter = router({
 					.from(transactions)
 					.where(
 						and(
+							txBranch,
 							gte(transactions.created_at, today),
 							sql`${transactions.type} IN ('in', 'credit')`,
 						),
@@ -51,13 +63,13 @@ export const financeRouter = router({
 						total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
 					})
 					.from(orders)
-					.where(gte(orders.created_at, firstDayOfMonth)),
+					.where(and(orderBranch, gte(orders.created_at, firstDayOfMonth))),
 				ctx.db
 					.select({
 						total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
 					})
 					.from(expenses)
-					.where(gte(expenses.created_at, firstDayOfMonth)),
+					.where(and(expBranch, gte(expenses.created_at, firstDayOfMonth))),
 				ctx.db
 					.select({
 						total: sql<number>`COALESCE(SUM(${customers.credit_used}), 0)`,
@@ -115,6 +127,25 @@ export const financeRouter = router({
 					.where(gte(transactions.created_at, sevenDaysAgo))
 					.groupBy(sql`CAST(${transactions.created_at} AS DATE)`)
 					.orderBy(sql`CAST(${transactions.created_at} AS DATE)`),
+				// Real bank/cash balances from the finance module's accounts.
+				ctx.db
+					.select({
+						id: bankAccounts.id,
+						bank: bankAccounts.account_name,
+						type: bankAccounts.account_type,
+						balance: bankAccounts.current_balance,
+					})
+					.from(bankAccounts)
+					.where(
+						and(
+							eq(bankAccounts.is_deleted, false),
+							eq(bankAccounts.status, "active"),
+							branchId != null
+								? eq(bankAccounts.branch_id, branchId)
+								: undefined,
+						),
+					)
+					.orderBy(bankAccounts.account_name),
 			]);
 
 			const todaysCash = Number(todaysCashRes[0]?.total || 0);
@@ -158,6 +189,17 @@ export const financeRouter = router({
 				expenses: 0, // expenses per month query can be added if needed
 			}));
 
+			// Real balances from bank_accounts; fall back to cash-in-hand only when
+			// no accounts have been set up yet so the widget is never empty/hardcoded.
+			const bankBalances =
+				bankBalancesRes.length > 0
+					? bankBalancesRes.map((b) => ({
+							bank: b.bank,
+							balance: Number(b.balance || 0),
+							type: b.type,
+						}))
+					: [{ bank: "Cash in Hand", balance: todaysCash, type: "cash" }];
+
 			return {
 				todaysCash,
 				monthlyRevenue,
@@ -173,13 +215,7 @@ export const financeRouter = router({
 					amount: Number(e.amount),
 				})),
 				cashFlowData,
-				bankBalances: [
-					{
-						bank: "Cash in Hand",
-						balance: todaysCash,
-						type: "cash",
-					},
-				],
+				bankBalances,
 				gstSummary: {
 					inputTax: 0,
 					outputTax: gstLiability,

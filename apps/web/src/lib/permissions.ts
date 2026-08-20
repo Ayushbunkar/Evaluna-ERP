@@ -58,6 +58,7 @@ export const DOMAINS = [
 	"staff",
 	"reports",
 	"accounting",
+	"finance",
 	"settings",
 	"backups",
 	"monitoring",
@@ -134,6 +135,13 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 	{ domain: "accounting", action: "write", minRole: "manager" },
 	{ domain: "accounting", action: "delete", minRole: "admin" },
 	{ domain: "accounting", action: "approve", minRole: "admin" },
+
+	// ── Finance ───────────────────────────────────────────────────────────────
+	// Payments, bank accounts, transfers, petty cash, reimbursement payouts.
+	{ domain: "finance", action: "read", minRole: "auditor" },
+	{ domain: "finance", action: "write", minRole: "manager" },
+	{ domain: "finance", action: "delete", minRole: "admin" },
+	{ domain: "finance", action: "approve", minRole: "manager" },
 
 	// ── Settings ──────────────────────────────────────────────────────────────
 	{ domain: "settings", action: "read", minRole: "manager" },

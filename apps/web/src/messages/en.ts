@@ -56,6 +56,8 @@ const messages = {
 	},
 	nav: {
 		dashboard: "Dashboard",
+		bankAccounts: "Bank Accounts",
+		reimbursements: "Reimbursements",
 		backups: "Backups",
 		cashier: "Cashier",
 		products: "Products",

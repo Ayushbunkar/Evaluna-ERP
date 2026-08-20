@@ -77,3 +77,6 @@ apps/docs/.source/
 
 # Manual fiscal test scripts (contain sensitive data)
 packages/*/src/manual-*.ts
+
+# Finance module — private receipt uploads (never served from /public)
+uploads/

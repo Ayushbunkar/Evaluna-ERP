@@ -6,6 +6,7 @@ import { attendanceRouter } from "./routers/attendance";
 import { auditRouter } from "./routers/audit";
 import { auditorRouter } from "./routers/auditor";
 import { backupsRouter } from "./routers/backups";
+import { bankAccountsRouter } from "./routers/bank-accounts";
 import { billingRouter } from "./routers/billing";
 import { branchesRouter } from "./routers/branches";
 import { cashbookRouter } from "./routers/cashbook";
@@ -18,6 +19,7 @@ import { customersRouter } from "./routers/customers";
 import { dashboardRouter } from "./routers/dashboard";
 import { deliveryRouter } from "./routers/delivery";
 import { driverRouter } from "./routers/driver";
+import { employeeExpensesRouter } from "./routers/employee-expenses";
 import { expensesRouter } from "./routers/expenses";
 import { financeRouter } from "./routers/finance";
 import { hrRouter } from "./routers/hr";
@@ -31,6 +33,7 @@ import { notificationsRouter } from "./routers/notifications";
 import { ordersRouter } from "./routers/orders";
 import { packerRouter } from "./routers/packer";
 import { paymentMethodsRouter } from "./routers/payment-methods";
+import { paymentsRouter } from "./routers/payments";
 import { payrollRouter } from "./routers/payroll";
 import { permissionsRouter } from "./routers/permissions";
 import { pickerRouter } from "./routers/picker";
@@ -104,6 +107,9 @@ export const appRouter = router({
 	picking: pickingRouter,
 	clientSettings: clientSettingsRouter,
 	expenses: expensesRouter,
+	payments: paymentsRouter,
+	bankAccounts: bankAccountsRouter,
+	employeeExpenses: employeeExpensesRouter,
 });
 
 export type AppRouter = typeof appRouter;

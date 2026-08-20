@@ -2338,4 +2338,5 @@ export const promotionSchemes = pgTable("promotion_schemes", {
 
 // ── Duplicate Picking Relations Removed ────────────────────────────--
 export * from "./schema/delivery";
+export * from "./schema/finance";
 export * from "./schema/hrms";

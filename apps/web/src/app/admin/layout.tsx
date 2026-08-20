@@ -50,6 +50,17 @@ const companyAdminNavItems: NavItem[] = [
 	},
 	{ href: "/admin/delivery", labelKey: "delivery", icon: TruckIcon },
 	{ href: "/admin/finance", labelKey: "finance", icon: LandmarkIcon },
+	{ href: "/admin/finance/payments", labelKey: "payments", icon: BanknoteIcon },
+	{
+		href: "/admin/finance/bank-accounts",
+		labelKey: "bankAccounts",
+		icon: WalletIcon,
+	},
+	{
+		href: "/admin/finance/reimbursements",
+		labelKey: "reimbursements",
+		icon: ReceiptTextIcon,
+	},
 	{ href: "/admin/cash-book", labelKey: "cashbook", icon: WalletIcon },
 	{ href: "/admin/expenses", labelKey: "expenses", icon: ReceiptTextIcon },
 	{ href: "/admin/staff", labelKey: "staff", icon: UsersIcon },
