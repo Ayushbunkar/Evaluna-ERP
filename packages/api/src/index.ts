@@ -43,6 +43,26 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 	return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
+// Customer self-service procedure.
+// Resolves the logged-in user to their own `customers` row (linked by email),
+// and attaches it as `ctx.customer`. All customer-facing data MUST be scoped to
+// `ctx.customer.id` — this is the server-side enforcement of tenant isolation
+// (no reliance on frontend hiding). Throws FORBIDDEN if the login has no linked
+// customer record.
+export const customerProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+	const customer = await ctx.db.query.customers.findFirst({
+		where: (c: any, { eq, and }: any) =>
+			and(eq(c.email, ctx.user.email), eq(c.is_deleted, false)),
+	});
+	if (!customer) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "No customer account is linked to this login.",
+		});
+	}
+	return next({ ctx: { ...ctx, user: ctx.user, customer } });
+});
+
 export const superadminProcedure = t.procedure.use(async ({ ctx, next }) => {
 	if (!ctx.user) {
 		throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });

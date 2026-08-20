@@ -127,7 +127,8 @@ export default async function middleware(request: NextRequest) {
 		pathname.startsWith("/picker") ||
 		pathname.startsWith("/driver") ||
 		pathname.startsWith("/biller") ||
-		pathname.startsWith("/sales");
+		pathname.startsWith("/sales") ||
+		pathname.startsWith("/customer");
 
 	const isSharedRoute =
 		pathname.startsWith("/settings") ||

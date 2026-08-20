@@ -9,9 +9,8 @@ import {
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function CustomerDashboard() {
-	const { data: stats, isLoading } = useTRPC().customer.getPortalStats.useQuery(
-		{},
-	);
+	const { data: stats, isLoading } =
+		useTRPC().customer.getPortalStats.useQuery();
 
 	return (
 		<div className="space-y-6 p-4">

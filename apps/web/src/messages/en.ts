@@ -63,6 +63,7 @@ const messages = {
 		products: "Products",
 		customers: "Customers",
 		orders: "Orders",
+		customerOrders: "Customer Orders",
 		paymentMethods: "Payment Methods",
 		pos: "Point of Sale",
 		invoices: "Invoices",

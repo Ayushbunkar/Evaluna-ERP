@@ -1,6 +1,8 @@
-import { customerLedger, customers, orders } from "@evaluna/db/schema";
+import { customerLedger, customers, orders, user } from "@evaluna/db/schema";
+import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod/v4";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";
 
@@ -259,5 +261,80 @@ export const customersRouter = router({
 					),
 				);
 			return { success: true };
+		}),
+
+	// ── Provision a customer self-service login ───────────────────────────────
+	// Creates (or links) a Better Auth `user` with role="customer" whose email
+	// matches the customer record — this is the linkage `customerProcedure` uses
+	// to resolve ctx.customer. Idempotent: if a login already exists for the email
+	// it is (re)linked to role="customer" instead of erroring. The temporary
+	// password is returned ONCE for the staff member to hand to the customer.
+	provisionLogin: roleProcedure(["admin", "manager", "sales_person"])
+		.input(z.object({ id: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			const customer = await db.query.customers.findFirst({
+				where: and(
+					eq(customers.id, input.id),
+					ctx.user.branchId
+						? eq(customers.branch_id, ctx.user.branchId)
+						: undefined,
+				),
+			});
+			if (!customer)
+				throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found" });
+			if (!customer.email)
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Customer has no email — add one before creating a login.",
+				});
+
+			const existing = await db
+				.select({ id: user.id })
+				.from(user)
+				.where(eq(user.email, customer.email))
+				.limit(1);
+
+			// Already has a login → just (re)link it to the customer role + branch.
+			if (existing.length > 0) {
+				await db
+					.update(user)
+					.set({
+						role: "customer",
+						branch_id: customer.branch_id ?? null,
+						is_active: true,
+					} as any)
+					.where(eq(user.email, customer.email));
+				return {
+					email: customer.email,
+					linked: true,
+					temporaryPassword: null as string | null,
+				};
+			}
+
+			// Create a fresh Better Auth login (same mechanism as user seeding).
+			const temporaryPassword = `Ev-${crypto.randomUUID().slice(0, 8)}A9!`;
+			const result = await auth.api.signUpEmail({
+				body: {
+					email: customer.email,
+					password: temporaryPassword,
+					name: customer.name,
+				},
+			});
+			if (!result)
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Failed to create the customer login.",
+				});
+
+			await db
+				.update(user)
+				.set({
+					role: "customer",
+					branch_id: customer.branch_id ?? null,
+					is_active: true,
+				} as any)
+				.where(eq(user.email, customer.email));
+
+			return { email: customer.email, linked: false, temporaryPassword };
 		}),
 });

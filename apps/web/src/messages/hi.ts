@@ -65,6 +65,7 @@ const messages: Messages = {
 		products: "उत्पाद",
 		customers: "ग्राहक",
 		orders: "ऑर्डर",
+		customerOrders: "ग्राहक ऑर्डर",
 		paymentMethods: "भुगतान के तरीके",
 		pos: "पॉइंट ऑफ़ सेल",
 		invoices: "चालान (Invoices)",

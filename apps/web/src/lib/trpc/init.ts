@@ -1,5 +1,6 @@
 import {
 	createCallerFactory,
+	customerProcedure,
 	middleware,
 	permissionProcedure,
 	protectedProcedure,
@@ -16,6 +17,7 @@ import { db } from "@/lib/db";
 export type { TRPCContext };
 export {
 	createCallerFactory,
+	customerProcedure,
 	middleware,
 	permissionProcedure,
 	protectedProcedure,

@@ -24,6 +24,7 @@ export const ROLES = [
 	"sales_person",
 	"delivery_manager",
 	"delivery_boy",
+	"customer",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -45,6 +46,10 @@ export const ROLE_LEVEL: Record<Role, number> = {
 	sales_person: 9,
 	delivery_manager: 10,
 	delivery_boy: 11,
+	// Customer self-service login. Bottom of the hierarchy and deliberately
+	// absent from PERMISSION_MATRIX, so it inherits ZERO staff permissions.
+	// Customer access is gated by `customerProcedure` in the API, never here.
+	customer: 12,
 };
 
 // ── Permission Domains ────────────────────────────────────────────────────────
@@ -303,4 +308,5 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/driver", minRole: "driver" },
 	{ path: "/biller", minRole: "biller" },
 	{ path: "/sales", minRole: "sales_person" },
+	{ path: "/customer", minRole: "customer" },
 ];
