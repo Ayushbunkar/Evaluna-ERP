@@ -10,6 +10,7 @@ import { auditorRouter } from "./routers/auditor";
 import { backupsRouter } from "./routers/backups";
 import { bankAccountsRouter } from "./routers/bank-accounts";
 import { billingRouter } from "./routers/billing";
+import { billerRouter } from "./routers/biller";
 import { branchesRouter } from "./routers/branches";
 import { cashbookRouter } from "./routers/cashbook";
 import { categoriesRouter } from "./routers/categories";
@@ -101,6 +102,7 @@ export const appRouter = router({
 	delivery: deliveryRouter,
 	finance: financeRouter,
 	billing: billingRouter,
+	biller: billerRouter,
 	driver: driverRouter,
 	auditor: auditorRouter,
 	upc: upcRouter,

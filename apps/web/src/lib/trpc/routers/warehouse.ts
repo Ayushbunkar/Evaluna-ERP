@@ -7,6 +7,9 @@ import {
 	products,
 	staff,
 	stockLedger,
+	stockAdjustments,
+	pickListItems,
+	pickLists,
 } from "@evaluna/db/schema";
 import { and, count, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { z } from "zod";
@@ -23,7 +26,7 @@ export const warehouseRouter = router({
 				capacity: branchLocations.capacity,
 				used: branchLocations.current_stock,
 				status: sql<string>`
-          CASE 
+          CASE
             WHEN ${branchLocations.current_stock} >= ${branchLocations.capacity} THEN 'full'
             WHEN ${branchLocations.current_stock} >= ${branchLocations.capacity} * 0.8 THEN 'near_full'
             WHEN ${branchLocations.is_active} = false THEN 'maintenance'
@@ -292,7 +295,7 @@ export const warehouseRouter = router({
 					y: Number(loc.current_stock) || 0,
 					activity: loc.capacity
 						? Math.round(
-								(Number(loc.current_stock) / Number(loc.capacity)) * 100,
+								(Number(loc.current_stock) / Number(loc.capacity)) * 100
 							)
 						: 0,
 					name: loc.name,
@@ -360,6 +363,7 @@ export const warehouseRouter = router({
 				.limit(6);
 
 			// ── Worker Performance from staff (warehouse pickers/putters) ─────
+			// Get warehouse staff (pickers, putters, warehouse)
 			const warehouseStaff = await db
 				.select({
 					id: staff.id,
@@ -373,20 +377,40 @@ export const warehouseRouter = router({
 						sql`${staff.role} IN ('picker', 'putter', 'warehouse')`,
 						eq(staff.status, "active"),
 						input.branch_id ? eq(staff.branch_id, input.branch_id) : undefined,
-					),
+					)
 				)
 				.limit(5);
 
-			// Get stock movements per staff (approximate by counting recent ledger entries)
+			// Get picking performance for each staff member from pickListItems
 			const workerPerformance = await Promise.all(
 				warehouseStaff.map(async (w) => {
+					// Get total quantity picked and total quantity ordered for this staff member
+					const [pickingStats] = await db
+						.select({
+							totalPicked: sum(pickListItems.quantity_picked).map((val) => Number(val) || 0),
+							totalOrdered: sum(pickListItems.quantity_ordered).map((val) => Number(val) || 0),
+						})
+						.from(pickListItems)
+						.innerJoin(pickLists, eq(pickListItems.pickListId, pickLists.id))
+						.where(
+							and(
+								eq(pickLists.assignedToId, w.id),
+								eq(pickLists.is_deleted, false),
+								input.branch_id ? eq(pickLists.branch_id, input.branch_id) : undefined
+							)
+						);
+
+					const totalPicked = pickingStats[0]?.totalPicked || 0;
+					const totalOrdered = pickingStats[0]?.totalOrdered || 0;
+					const accuracy = totalOrdered > 0 ? Math.round((totalPicked / totalOrdered) * 100) : 0;
+
 					return {
 						name: w.name,
 						role: w.role,
-						items: Math.floor(Math.random() * 50) + 10, // TODO: link to actual picking records
-						accuracy: 95 + Math.floor(Math.random() * 5),
+						items: totalPicked, // Total quantity picked
+						accuracy: accuracy, // Accuracy percentage
 					};
-				}),
+				})
 			);
 
 			// ── Inventory Alerts: low stock items ─────────────────────────────
@@ -405,7 +429,7 @@ export const warehouseRouter = router({
 						input.branch_id
 							? eq(branchInventory.branch_id, input.branch_id)
 							: undefined,
-					),
+					)
 				)
 				.orderBy(branchInventory.in_stock)
 				.limit(5);
@@ -416,6 +440,17 @@ export const warehouseRouter = router({
 				time: "Now",
 				severity: item.inStock === 0 ? "critical" : "warning",
 			}));
+
+			// ── Damage Items: count of damage stock adjustments ───────────────
+			const damageCount = await db
+				.select({ count: count() })
+				.from(stockAdjustments)
+				.where(
+					and(
+						eq(stockAdjustments.adjustment_type, "damage"),
+						input.branch_id ? eq(stockAdjustments.branch_id, input.branch_id) : undefined
+					)
+				);
 
 			// ── Pending Tasks: pending orders ─────────────────────────────────
 			const pendingOrdersList = await db
@@ -443,12 +478,12 @@ export const warehouseRouter = router({
 
 			return {
 				itemsReceived: Number(received[0]?.val) || 0,
-				itemsPutAway: Number(received[0]?.val) || 0,
+				itemsPutAway: Number(received[0]?.val) || 0, // Note: This is the same as itemsReceived; consider renaming or clarifying
 				pickingQueue: pickingCount[0]?.count || 0,
-				packingQueue: 0,
+				packingQueue: 0, // No packing queue data available
 				warehouseCapacity: capacityPct,
 				locationsUsed: locationsUsedVal,
-				damageItems: 0,
+				damageItems: damageCount[0]?.count || 0,
 				expiredProducts: expiredCount[0]?.count || 0,
 
 				heatmapData,

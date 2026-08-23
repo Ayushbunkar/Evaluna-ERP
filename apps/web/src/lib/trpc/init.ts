@@ -51,5 +51,5 @@ export const createTRPCContext = async (): Promise<TRPCContext> => {
 		);
 	}
 
-	return { user: baseUser, db: db as any };
+	return { user: baseUser, db: db as any, realtimeService };
 };

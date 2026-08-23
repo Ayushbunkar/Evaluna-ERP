@@ -1,5 +1,5 @@
 import { pickListItems, pickLists } from "@evaluna/db/schema";
-import { count, desc, eq, sql } from "drizzle-orm";
+import { count, desc, eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -222,7 +222,10 @@ export const pickerRouter = router({
 			const db = ctx.db;
 
 			const lists = await db.query.pickLists.findMany({
-				where: eq(pickLists.status, "completed"),
+				where: and(
+					eq(pickLists.status, "completed"),
+					ctx.user.branchId ? eq(pickLists.branch_id, ctx.user.branchId) : undefined
+				),
 				orderBy: [desc(pickLists.created_at)],
 				limit: 50,
 				with: {
@@ -230,29 +233,6 @@ export const pickerRouter = router({
 					pickListItems: true,
 				},
 			});
-
-			if (lists.length === 0) {
-				return [
-					{
-						id: "PL-101",
-						order_id: "ORD-998",
-						items: 5,
-						time_taken: "14m",
-						completed_by: "Deepak Sharma",
-						date: "Jan 15, 2024",
-						accuracy: 100,
-					},
-					{
-						id: "PL-102",
-						order_id: "ORD-999",
-						items: 12,
-						time_taken: "22m",
-						completed_by: "Rupesh",
-						date: "Jan 15, 2024",
-						accuracy: 95,
-					},
-				];
-			}
 
 			return lists.map((r) => ({
 				id: `PL-${r.id}`,
@@ -264,7 +244,7 @@ export const pickerRouter = router({
 				time_taken: "N/A",
 				completed_by: r.assignedTo?.name || "Unknown",
 				date: r.created_at?.toLocaleDateString() || "",
-				accuracy: 100,
+				accuracy: 100, // In real system, this would be calculated based on expected vs actual
 			}));
 		}),
 
@@ -274,7 +254,10 @@ export const pickerRouter = router({
 			const db = ctx.db;
 
 			const lists = await db.query.pickLists.findMany({
-				where: eq(pickLists.status, "pending"),
+				where: and(
+					eq(pickLists.status, "pending"),
+					ctx.user.branchId ? eq(pickLists.branch_id, ctx.user.branchId) : undefined
+				),
 				orderBy: [desc(pickLists.created_at)],
 				limit: 50,
 				with: {
@@ -282,29 +265,6 @@ export const pickerRouter = router({
 					pickListItems: true,
 				},
 			});
-
-			if (lists.length === 0) {
-				return [
-					{
-						queue_no: 1,
-						order_id: "ORD-1004",
-						priority: "High",
-						items: 8,
-						assigned_to: "Unassigned",
-						waiting_since: "10:15 AM",
-						expected_by: "N/A",
-					},
-					{
-						queue_no: 2,
-						order_id: "ORD-1006",
-						priority: "Medium",
-						items: 3,
-						assigned_to: "Deepak Sharma",
-						waiting_since: "10:30 AM",
-						expected_by: "N/A",
-					},
-				];
-			}
 
 			return lists.map((r, i) => ({
 				queue_no: i + 1,
@@ -322,47 +282,50 @@ export const pickerRouter = router({
 
 	getReturns: roleProcedure(["admin", "manager", "auditor", "picker"])
 		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async () => {
-			return [
-				{
-					id: "RTN-501",
-					product: "Example Product 1",
-					sku: "SKU-1002",
-					qty: 2,
-					location: "A1-B2",
-					reason: "Damaged",
-					status: "Pending",
-				},
-				{
-					id: "RTN-502",
-					product: "Example Product 2",
-					sku: "SKU-1005",
-					qty: 1,
-					location: "C3-D4",
-					reason: "Wrong Item",
-					status: "Placed",
-				},
-			];
+		.query(async ({ ctx }) => {
+			const db = ctx.db;
+
+			// For now returning empty array since we don't have a dedicated returns table in the schema yet
+			// In a real implementation, this would query sales returns or purchase returns tables
+			return [];
 		}),
 
 	getReports: roleProcedure(["admin", "manager", "auditor", "picker"])
 		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async () => {
-			return [
-				{
-					name: "Deepak Sharma",
-					tasks_done: 188,
-					accuracy: 98.4,
-					avg_time: "20m",
-					date: "Jan 2024",
-				},
-				{
-					name: "Rupesh",
-					tasks_done: 156,
-					accuracy: 99.1,
-					avg_time: "18m",
-					date: "Jan 2024",
-				},
-			];
+		.query(async ({ ctx }) => {
+			const db = ctx.db;
+
+			// Get picker performance metrics
+			const results = await db
+				.select({
+					staffId: staff.id,
+					staffName: staff.name,
+					pickListsCompleted: count().filterWhere(eq(pickLists.status, "completed")),
+					totalItemsPicked: sum(pickListItems.quantity_picked),
+					accuracy: sql`ROUND(
+						(SUM(pickListItems.quantity_picked)::decimal /
+						NULLIF(SUM(pickListItems.quantity_ordered), 0) * 100)
+					, 2)`,
+				})
+				.from(pickLists)
+				.innerJoin(pickListItems, eq(pickLists.id, pickListItems.pickListId))
+				.innerJoin(staff, eq(pickLists.assignedToId, staff.id))
+				.where(
+					and(
+						eq(pickLists.status, "completed"),
+						ctx.user.branchId ? eq(pickLists.branch_id, ctx.user.branchId) : undefined
+					)
+				)
+				.groupBy(staff.id, staff.name)
+				.orderBy(desc(sql`totalItemsPicked`))
+				.limit(10);
+
+			return results.map((r) => ({
+				employeeName: r.staffName || "Unknown",
+				tasksDone: Number(r.pickListsCompleted) || 0,
+				totalItemsPicked: Number(r.totalItemsPicked) || 0,
+				accuracyPct: Number(r.accuracy) || 0,
+				period: "Last 30 days", // Simplified - in real system would be configurable
+			}));
 		}),
 });

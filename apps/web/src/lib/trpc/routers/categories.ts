@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, ilike } from "drizzle-orm";
 import { z } from "zod";
 import { productCategories } from "@/lib/db/schema";
 import { publicProcedure, router } from "@/lib/trpc/init";
@@ -12,75 +12,59 @@ export const categoriesRouter = router({
 				offset: z.number().optional(),
 			}),
 		)
-		.query(async () => {
-			const data = [
-				{
-					id: 1,
-					name: "Groceries",
-					description: "Daily essentials and staples",
-					item_count: 1250,
-					status: "active",
-				},
-				{
-					id: 2,
-					name: "Dairy",
-					description: "Milk, butter, cheese and dairy products",
-					item_count: 85,
-					status: "active",
-				},
-				{
-					id: 3,
-					name: "Snacks",
-					description: "Chips, biscuits, namkeen",
-					item_count: 420,
-					status: "active",
-				},
-				{
-					id: 4,
-					name: "Beverages",
-					description: "Tea, coffee, soft drinks",
-					item_count: 150,
-					status: "active",
-				},
-				{
-					id: 5,
-					name: "Cleaning",
-					description: "Detergents and cleaning supplies",
-					item_count: 95,
-					status: "active",
-				},
-				{
-					id: 6,
-					name: "Personal Care",
-					description: "Soaps, shampoos, cosmetics",
-					item_count: 340,
-					status: "active",
-				},
-				{
-					id: 7,
-					name: "Frozen Foods",
-					description: "Ice creams, frozen peas",
-					item_count: 45,
-					status: "maintenance",
-				},
-				{
-					id: 8,
-					name: "Spices",
-					description: "Whole and powdered spices",
-					item_count: 210,
-					status: "active",
-				},
-			];
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			let query = db.select().from(productCategories);
+
+			if (input.search) {
+				const searchTerm = `%${input.search}%`;
+				query = query.where(
+					or(
+						ilike(productCategories.name, searchTerm),
+						ilike(productCategories.description, searchTerm)
+					)
+				);
+			}
+
+			// Apply pagination
+			if (input.limit !== undefined) {
+				query = query.limit(input.limit);
+			}
+			if (input.offset !== undefined) {
+				query = query.offset(input.offset);
+			}
+
+			const categories = await query.orderBy(productCategories.name);
+
+			const total = await db
+				.select({ count: count() })
+				.from(productCategories)
+				.where(
+					input.search
+						? or(
+							ilike(productCategories.name, `%${input.search}%`),
+							ilike(productCategories.description, `%${input.search}%`)
+						  )
+						: undefined
+				);
+
 			return {
-				categories: data,
-				total: data.length,
+				categories: categories.map((c) => ({
+					id: c.id,
+					name: c.name,
+					description: c.description ?? "",
+					item_count: 0, // We don't have a direct count of products per category here; we could join with productCategoryMapping but that might be heavy. We'll leave 0 or compute separately if needed.
+					status: "active", // We don't have a status field in productCategories; we can assume active or add a status field later.
+				})),
+				total: total[0]?.count || 0,
 			};
 		}),
 
 	getById: publicProcedure
 		.input(z.object({ id: z.number() }))
 		.query(async ({ ctx, input }) => {
-			const category = await ctx.db
+			const db = ctx.db;
+			const category = await db
 				.select()
 				.from(productCategories)
 				.where(eq(productCategories.id, input.id));
@@ -88,18 +72,60 @@ export const categoriesRouter = router({
 			return category[0];
 		}),
 
-	create: publicProcedure.mutation(async ({ ctx }) => {
-		// TODO: Implement create category
-		return { success: true };
-	}),
+	create: publicProcedure
+		.input(
+			z.object({
+				name: z.string().min(1),
+				slug: z.string().min(1),
+				description: z.string().optional(),
+				parent_id: z.number().optional().nullable(),
+				image_url: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const [category] = await db
+				.insert(productCategories)
+				.values({
+					name: input.name,
+					slug: input.slug,
+					description: input.description ?? null,
+					parent_id: input.parent_id,
+					image_url: input.image_url ?? null,
+				})
+				.returning();
+			return category;
+		}),
 
-	update: publicProcedure.mutation(async ({ ctx }) => {
-		// TODO: Implement update category
-		return { success: true };
-	}),
+	update: publicProcedure
+		.input(
+			z.object({
+				id: z.number(),
+				name: z.string().min(1).optional(),
+				slug: z.string().min(1).optional(),
+				description: z.string().optional(),
+				parent_id: z.number().optional().nullable(),
+				image_url: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const { id, ...data } = input;
+			const [category] = await db
+				.update(productCategories)
+				.set(data)
+				.where(eq(productCategories.id, id))
+				.returning();
+			return category;
+		}),
 
-	delete: publicProcedure.mutation(async ({ ctx }) => {
-		// TODO: Implement delete category
-		return { success: true };
-	}),
+	delete: publicProcedure
+		.input(z.object({ id: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			await db
+				.delete(productCategories)
+				.where(eq(productCategories.id, input.id));
+			return { success: true };
+		}),
 });

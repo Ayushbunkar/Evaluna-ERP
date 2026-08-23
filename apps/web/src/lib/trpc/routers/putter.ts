@@ -5,8 +5,9 @@ import {
 	staff,
 	stockAdjustments,
 	suppliers,
+	branchInventory,
 } from "@evaluna/db/schema";
-import { count, desc, eq, sum } from "drizzle-orm";
+import { count, desc, eq, sum, avg, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -15,20 +16,70 @@ export const putterRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
+			const branchId = ctx.user.branchId; // Use authenticated user's branch for scoping
 
-			const [receivingCount, putAwayCount, damageCount] = await Promise.all([
+			const [receivingCount, putAwayCount, damageCount, missingStockCount, saleReturnsCount, efficiencyData] = await Promise.all([
 				db
 					.select({ count: count() })
 					.from(purchases)
-					.where(eq(purchases.status, "pending")),
+					.where(
+						and(
+							eq(purchases.status, "pending"),
+							branchId ? eq(purchases.branch_id, branchId) : undefined
+						)
+					),
 				db
 					.select({ count: count() })
 					.from(purchases)
-					.where(eq(purchases.status, "received")),
+					.where(
+						and(
+							eq(purchases.status, "received"),
+							branchId ? eq(purchases.branch_id, branchId) : undefined
+						)
+					),
 				db
 					.select({ count: count() })
 					.from(stockAdjustments)
-					.where(eq(stockAdjustments.adjustment_type, "damage")),
+					.where(
+						and(
+							eq(stockAdjustments.adjustment_type, "damage"),
+							branchId ? eq(stockAdjustments.branch_id, branchId) : undefined
+						)
+					),
+				// Missing stock: items where reserved stock > 0 but in_stock = 0, or negative inventory
+				db
+					.select({ count: count() })
+					.from(branchInventory)
+					.where(
+						and(
+							branchId ? eq(branchInventory.branch_id, branchId) : undefined,
+							sql`${branchInventory.in_stock} < 0`
+						)
+					),
+				// Sale returns: count of completed sales with return status or similar
+				// For now using a placeholder approach - in real system this would query sales returns
+				db
+					.select({ count: count() })
+					.from(orders)
+					.where(
+						and(
+							eq(orders.status, "returned"),
+							branchId ? eq(orders.branch_id, branchId) : undefined
+						)
+					),
+				// Efficiency: percentage of put-away tasks completed on time vs total
+				db
+					.select({
+						completedOnTime: count().filterWhere(eq(purchases.status, "completed")),
+						totalPutAway: count().filterWhere(inArray(purchases.status, ["received", "completed"]))
+					})
+					.from(purchases)
+					.where(
+						and(
+							branchId ? eq(purchases.branch_id, branchId) : undefined,
+							inArray(purchases.status, ["received", "completed"])
+						)
+					)
 			]);
 
 			const recentPurchases = await db
@@ -37,6 +88,7 @@ export const putterRouter = router({
 					status: purchases.status,
 				})
 				.from(purchases)
+				.where(branchId ? eq(purchases.branch_id, branchId) : undefined)
 				.orderBy(desc(purchases.created_at))
 				.limit(100);
 
@@ -70,23 +122,21 @@ export const putterRouter = router({
 				}
 			});
 
-			// If no real data, provide some realistic variations based on the counts
+			// Use real data or empty arrays - no more mock fallbacks
 			let chartData = Array.from(chartDataMap.values());
-			if (chartData.every((c) => c.received === 0 && c.putAway === 0)) {
-				chartData = chartData.map((c) => ({
-					date: c.date,
-					received: Math.floor(Math.random() * 20) + 10,
-					putAway: Math.floor(Math.random() * 15) + 5,
-				}));
-			}
+
+			// Calculate efficiency percentage safely
+			const efficiencyPct = efficiencyData[0]?.completedOnTime && efficiencyData[0]?.totalPutAway
+				? Math.round((Number(efficiencyData[0].completedOnTime) / Number(efficiencyData[0].totalPutAway)) * 100)
+				: 0;
 
 			return {
 				itemsToReceive: receivingCount[0]?.count || 0,
 				putAwayQueue: putAwayCount[0]?.count || 0,
-				missingStock: 3,
+				missingStock: missingStockCount[0]?.count || 0,
 				damageReports: damageCount[0]?.count || 0,
-				saleReturns: 12,
-				efficiencyPct: 98.4,
+				saleReturns: saleReturnsCount[0]?.count || 0,
+				efficiencyPct,
 				recentActivity: [],
 				chartData,
 			};
@@ -158,14 +208,79 @@ export const putterRouter = router({
 
 	getMissingStock: roleProcedure(["admin", "manager", "auditor", "putter"])
 		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async () => {
-			return [];
+		.query(async ({ ctx }) => {
+			const db = ctx.db;
+			const branchId = ctx.user.branchId; // Use authenticated user's branch for scoping
+
+			const results = await db
+				.select({
+					id: branchInventory.id,
+					product: products.name,
+					sku: products.sku,
+					quantity_needed: sql`${branchInventory.reserved_stock} - ${branchInventory.in_stock}`,
+					location: "Warehouse", // Simplified - in real system would reference specific locations
+					reason: "Insufficient stock",
+					updated_at: branchInventory.updated_at,
+				})
+				.from(branchInventory)
+				.innerJoin(products, eq(branchInventory.product_id, products.id))
+				.where(
+					and(
+						branchId ? eq(branchInventory.branch_id, branchId) : undefined,
+						sql`${branchInventory.in_stock} < ${branchInventory.reserved_stock}`
+					)
+				)
+				.orderBy(desc(branchInventory.updated_at))
+				.limit(50);
+
+			return results.map((r) => ({
+				id: `MS-${r.id}`,
+				product: r.product || "Unknown",
+				sku: r.sku || "N/A",
+				quantity_needed: Number(r.quantity_needed) || 0,
+				location: r.location,
+				reason: r.reason || "Insufficient stock",
+				date: r.updated_at?.toLocaleDateString() || "",
+			}));
 		}),
 
 	getSaleReturns: roleProcedure(["admin", "manager", "auditor", "putter"])
 		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async () => {
-			return [];
+		.query(async ({ ctx }) => {
+			const db = ctx.db;
+			const branchId = ctx.user.branchId; // Use authenticated user's branch for scoping
+
+			const results = await db
+				.select({
+					id: orders.id,
+					product: products.name,
+					sku: products.sku,
+					quantity: orderItems.quantity,
+					reason: "Customer return", // Simplified - in real system would have specific return reasons
+					status: "Pending",
+					return_date: orders.updated_at,
+				})
+				.from(orders)
+				.innerJoin(orderItems, eq(orders.id, orderItems.order_id))
+				.innerJoin(products, eq(orderItems.product_id, products.id))
+				.where(
+					and(
+						eq(orders.status, "returned"),
+						branchId ? eq(orders.branch_id, branchId) : undefined
+					)
+				)
+				.orderBy(desc(orders.updated_at))
+				.limit(50);
+
+			return results.map((r) => ({
+				id: `RTN-${r.id}`,
+				product: r.product || "Unknown",
+				sku: r.sku || "N/A",
+				qty: Number(r.quantity) || 0,
+				reason: r.reason || "Customer return",
+				status: r.status,
+				date: r.return_date?.toLocaleDateString() || "",
+			}));
 		}),
 
 	getDamageReports: roleProcedure(["admin", "manager", "auditor", "putter"])
@@ -204,30 +319,94 @@ export const putterRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
+			const branchId = ctx.user.branchId; // Use authenticated user's branch for scoping
+
 			const results = await db
 				.select({
 					id: purchases.id,
 					status: purchases.status,
+					productName: products.name,
+					totalQuantity: sum(purchaseItems.quantity),
+					completedBy: staff.name,
+					createdAt: purchases.created_at,
+					updatedAt: purchases.updated_at,
 				})
 				.from(purchases)
-				.where(eq(purchases.status, "completed"))
+				.innerJoin(purchaseItems, eq(purchases.id, purchaseItems.purchase_id))
+				.innerJoin(products, eq(purchaseItems.product_id, products.id))
+				.leftJoin(staff, eq(purchases.user_uid, staff.user_uid))
+				.where(
+					and(
+						eq(purchases.status, "completed"),
+						branchId ? eq(purchases.branch_id, branchId) : undefined
+					)
+				)
+				.groupBy(
+					purchases.id,
+					purchases.status,
+					products.name,
+					staff.name,
+					purchases.created_at,
+					purchases.updated_at
+				)
 				.orderBy(desc(purchases.id))
 				.limit(50);
 
-			return results.map((r) => ({
-				id: `PA-${r.id}`,
-				product: "Various",
-				qty: 0,
-				location: "Warehouse",
-				completed_by: "Unknown",
-				time_taken: "N/A",
-				date: "N/A",
-			}));
+			return results.map((r) => {
+				const timeTakenHours = r.updatedAt && r.createdAt
+					? Math.round((r.updatedAt.getTime() - r.createdAt.getTime()) / (1000 * 60 * 60))
+					: 0;
+
+				return ({
+					id: `PA-${r.id}`,
+					product: r.productName || "Various Products",
+					qty: Number(r.totalQuantity) || 0,
+					location: "Warehouse", // Simplified - would be more specific in real system
+					completed_by: r.completedBy || "Unknown",
+					time_taken: `${timeTakenHours}h`,
+					date: r.updatedAt?.toLocaleDateString() || "",
+				});
+			});
 		}),
 
 	getReports: roleProcedure(["admin", "manager", "auditor", "putter"])
 		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async () => {
-			return [];
+		.query(async ({ ctx }) => {
+			const db = ctx.db;
+			const branchId = ctx.user.branchId; // Use authenticated user's branch for scoping
+
+			// Get putter performance metrics
+			const results = await db
+				.select({
+					staffId: staff.id,
+					staffName: staff.name,
+					tasksCompleted: count().filterWhere(eq(purchases.status, "completed")),
+					avgCompletionTime: avg(
+						sql`EXTRACT(EPOCH FROM (purchases.updated_at - purchases.created_at)) / 3600`
+					), // Average hours to complete
+					efficiency: sql`ROUND(
+						(COUNT(*) FILTER (WHERE purchases.status = 'completed')::decimal /
+						NULLIF(COUNT(*) FILTER (WHERE purchases.status IN ('received', 'completed')), 0) * 100
+					), 2)`,
+				})
+				.from(purchases)
+				.leftJoin(staff, eq(purchases.user_uid, staff.user_uid))
+				.where(
+					and(
+						branchId ? eq(purchases.branch_id, branchId) : undefined,
+						inArray(purchases.status, ["received", "completed"])
+					)
+				)
+				.groupBy(staff.id, staff.name)
+				.orderBy(desc(sql`tasksCompleted`))
+				.limit(10);
+
+			return results.map((r) => ({
+				employeeName: r.staffName || "Unknown",
+				tasksDone: Number(r.tasksCompleted) || 0,
+				avgCompletionHours: Number(r.avgCompletionTime) || 0,
+				efficiencyPct: Number(r.efficiency) || 0,
+				period: "Last 30 days", // Simplified - in real system would be configurable
+			}));
 		}),
 });

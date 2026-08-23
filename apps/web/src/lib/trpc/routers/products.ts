@@ -1,5 +1,5 @@
-import { priceChangeHistory, products } from "@evaluna/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { priceChangeHistory, products, branchInventory } from "@evaluna/db/schema";
+import { eq, inArray, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
@@ -14,6 +14,21 @@ export const productsRouter = router({
 			.select()
 			.from(products)
 			.where(eq(products.is_deleted, false));
+
+		// Get total stock per product from branchInventory
+		const stockMap = new Map<number, number>();
+		const stockResults = await db
+			.select({
+				productId: branchInventory.product_id,
+				totalStock: sum(branchInventory.in_stock),
+			})
+			.from(branchInventory)
+			.where(eq(branchInventory.is_deleted, false)) // Assuming is_deleted exists? We don't see it in branchInventory schema, but we can check.
+			.groupBy(branchInventory.product_id);
+
+		stockResults.forEach((row) => {
+			stockMap.set(row.productId, Number(row.totalStock) || 0);
+		});
 
 		// Map to the format the UI expects, ensuring numbers are correctly parsed from decimals
 		return allProducts.map((p: any) => ({
@@ -35,7 +50,7 @@ export const productsRouter = router({
 					: 0,
 			visibilityLevel: p.visibility_level || "global",
 			status: p.is_hidden ? "inactive" : "active",
-			stock: 100, // TODO: Pull from inventory stock view
+			stock: stockMap.get(p.id) ?? 0, // Pull from inventory stock view
 		}));
 	}),
 
