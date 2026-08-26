@@ -3,11 +3,13 @@ import {
 	orders,
 	pendingSync,
 	products,
+	customers,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { gte, lte, startOfDay, endOfDay } from "drizzle-orm";
 import { z } from "zod";
-import { customerProcedure, router } from "../init";
+import { customerProcedure, roleProcedure, router } from "../init";
 
 // Order lifecycle for the customer-ordering workflow.
 //   pending_review → customer submitted, awaiting salesperson (NO prices yet)
@@ -143,8 +145,7 @@ export const customerRouter = router({
 					orderItems: {
 						with: { product: { columns: { name: true, unit: true } } },
 					},
-				},
-			});
+				});
 			if (!order)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
 
@@ -153,7 +154,7 @@ export const customerRouter = router({
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
 				status: order.status,
-				date: order.created_at ? order.created_at.toISOString() : null,
+				date: o.created_at ? o.created_at.toISOString() : null,
 				priceVisible: isConfirmed,
 				total: isConfirmed ? Number(order.total_amount) : null,
 				items: order.orderItems.map((it) => ({
@@ -312,5 +313,111 @@ export const customerRouter = router({
 					duplicate: false,
 				};
 			});
+		}),
+
+	// ── Dashboard: customer relationship overview (for sales/reps) ────────
+	getDashboardStats: roleProcedure(["admin", "manager", "sales"])
+		.query(async ({ ctx }) => {
+			const [totalCustomers] = await ctx.db
+				.select({ c: count() })
+				.from(customers)
+				.where(eq(customers.isActive, true));
+
+			const [activeCustomers] = await ctx.db
+				.select({ c: count() })
+				.from(customers)
+				.where(
+					and(
+						eq(customers.isActive, true),
+						eq(customers.status, "active")
+					)
+				);
+
+			const [todayOrders] = await ctx.db
+				.select({ c: count() })
+				.from(orders)
+				.where(
+					and(
+						gte(orders.created_at, startOfDay(new Date())),
+						lte(orders.created_at, endOfDay(new Date()))
+					)
+				);
+
+			const [revenueToday] = await ctx.db
+				.select({ t: sql<number>`COALESCE(SUM(${orders.total_amount}),0)` })
+				.from(orders)
+				.where(
+					and(
+						gte(orders.created_at, startOfDay(new Date())),
+						lte(orders.created_at, endOfDay(new Date())),
+						inArray(orders.status, ["confirmed", "completed"])
+					)
+				);
+
+			const [satisfactionScore] = await ctx.db
+				.select({ s: sql<number>`COALESCE(AVG(${customers.satisfaction_score}), 0)` })
+				.from(customers)
+				.where(eq(customers.isActive, true));
+
+			const [repeatCustomerRate] = await ctx.db
+				.select({ r: sql<number>`COALESCE((
+						SELECT COUNT(DISTINCT customer_id)
+						FROM orders
+						WHERE customer_id IN (
+							SELECT customer_id
+							FROM orders
+							GROUP BY customer_id
+							HAVING COUNT(*) > 1
+						)
+					) * 100.0 / NULLIF(COUNT(DISTINCT customer_id), 0)`, 0) })
+				.from(orders);
+
+			const [avgOrderValue] = await ctx.db
+				.select({ a: sql<number>`COALESCE(AVG(${orders.total_amount}), 0)` })
+				.from(orders)
+				.where(inArray(orders.status, ["confirmed", "completed"]));
+
+			const [supportTickets] = await ctx.db
+				.select({ t: count() })
+				.from(pendingSync)
+				.where(
+					and(
+						eq(pendingSync.operation_type, "CUSTOMER_SUPPORT"),
+						gte(pendingSync.created_at, startOfDay(new Date()))
+					)
+				);
+
+			const recentOrders = await ctx.db.query.orders.findMany({
+				where: inArray(orders.status, ["pending_review", "under_review", "confirmed", "completed"]),
+				orderBy: [desc(orders.created_at)],
+				limit: 5,
+				with: {
+					customer: {
+						columns: { id: true, name: true }
+					},
+					orderItems: {
+						columns: { id: true }
+					}
+				}
+			}).then(rows => rows.map(o => ({
+				id: o.id,
+				customerName: o.customer?.name ?? "Unknown",
+				items: o.orderItems.length,
+				total: Number(o.total_amount),
+				status: o.status,
+				date: o.created_at
+			})));
+
+			return {
+				totalCustomers: Number(totalCustomers?.c ?? 0),
+				activeCustomers: Number(activeCustomers?.c ?? 0),
+				ordersToday: Number(todayOrders?.c ?? 0),
+				revenueToday: Number(revenueToday?.t ?? 0),
+				satisfactionScore: Number(satisfactionScore?.s ?? 0),
+				repeatCustomerRate: Number(repeatCustomerRate?.r ?? 0),
+				avgOrderValue: Number(avgOrderValue?.a ?? 0),
+				supportTickets: Number(supportTickets?.t ?? 0),
+				recentOrders
+			};
 		}),
 });

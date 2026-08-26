@@ -1,0 +1,29 @@
+ M apps/web/src/lib/trpc/routers/__tests__/auth.test.ts
+ M apps/web/src/lib/trpc/routers/__tests__/delivery.test.ts
+ M apps/web/src/lib/trpc/routers/__tests__/helpers.ts
+ M apps/web/src/lib/trpc/routers/__tests__/products.test.ts
+ M apps/web/src/lib/trpc/routers/customer.ts
+ M apps/web/src/lib/trpc/routers/hr.ts
+ M apps/web/src/lib/trpc/routers/marketing.ts
+ M apps/web/src/lib/trpc/routers/products.ts
+ M apps/web/src/lib/trpc/routers/route-audit.ts
+ M packages/db/src/schema/delivery.ts
+?? HR_IMPLEMENTATION_COMPLETE.md
+?? IMPLEMENTATION_SUMMARY.md
+?? apps/web/src/app/(dashboards)/admin/
+?? apps/web/src/app/(dashboards)/auditor/
+?? apps/web/src/app/(dashboards)/customer/
+?? apps/web/src/app/(dashboards)/dashboard)/
+?? apps/web/src/app/(dashboards)/driver/
+?? apps/web/src/app/(dashboards)/finance/
+?? apps/web/src/app/(dashboards)/hr/
+?? apps/web/src/app/(dashboards)/inventory/
+?? apps/web/src/app/(dashboards)/manager/
+?? apps/web/src/app/(dashboards)/packer/
+?? apps/web/src/app/(dashboards)/picker/
+?? apps/web/src/app/(dashboards)/route-manager/
+?? apps/web/src/app/(dashboards)/superadmin/
+?? apps/web/src/app/(dashboards)/supplier/
+?? apps/web/src/lib/trpc/routers/admin.ts
+?? nemotron.py
+?? nemotron_audits/

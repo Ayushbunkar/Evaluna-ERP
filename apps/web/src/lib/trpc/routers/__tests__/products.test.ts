@@ -28,7 +28,7 @@ beforeAll(async () => {
 	// update() now appends to these tables when a price changes.
 	// update() resolves a staff id (via email) and appends to these tables.
 	await pg.exec(
-		buildDDL([schema.staff, schema.priceChangeHistory, schema.auditLogs], false),
+		buildDDL([schema.staff, schema.priceChangeHistory, schema.auditLogs, schema.branchInventory], false),
 	);
 });
 afterAll(async () => {

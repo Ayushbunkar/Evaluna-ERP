@@ -110,6 +110,8 @@ export const tripStops = pgTable("trip_stops", {
 	sequence: integer("sequence").notNull(),
 	status: varchar("status", { length: 50 }).default("pending"),
 	comments: text("comments"),
+	arrival_time: timestamp("arrival_time"),
+	departure_time: timestamp("departure_time"),
 	created_at: timestamp("created_at").defaultNow(),
 	resolved_at: timestamp("resolved_at"),
 });

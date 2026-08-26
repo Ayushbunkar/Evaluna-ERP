@@ -243,4 +243,29 @@ export const marketingRouter = router({
 			// (In a real system, a queue processor would pick up 'pending' audiences and call Twilio/Meta API)
 			return { success: true, targeted: eligibleCustomers.length };
 		}),
+
+	getMetrics: protectedProcedure.query(async () => {
+		const [activeCampaignsCount] = await db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(campaigns)
+			.where(eq(campaigns.status, "active"));
+
+		const [totalCouponsCount] = await db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(coupons);
+
+		const [redeemedCouponsCount] = await db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(coupons)
+			.where(sql`usage_count > 0`);
+
+		return {
+			activeCampaigns: activeCampaignsCount?.count || 0,
+			totalCoupons: totalCouponsCount?.count || 0,
+			redeemedCoupons: redeemedCouponsCount?.count || 0,
+			conversionRate: redeemedCouponsCount?.count && totalCouponsCount?.count
+				? Math.round((redeemedCouponsCount.count / totalCouponsCount.count) * 100)
+				: 0,
+		};
+	}),
 });

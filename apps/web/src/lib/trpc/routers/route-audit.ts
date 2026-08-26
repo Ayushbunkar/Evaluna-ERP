@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { router } from "../init";
-import { permProcedure } from "../util/auditor-procedures";
+import { permProcedure, roleProcedure } from "../init";
 import { resolveStaffId } from "../util/audit";
 import { createFinding } from "./audit-findings";
 
@@ -67,5 +67,44 @@ export const routeAuditRouter = router({
 				});
 				return { findingId: id };
 			});
+		}),
+
+	// ── Dashboard: route management overview ────────────────────────
+	getDashboardStats: roleProcedure(["admin", "manager", "delivery_manager"])
+		.query(async ({ ctx }) => {
+			const rows = await ctx.db
+				.select()
+				.from(deliveryTrips)
+				.orderBy(desc(deliveryTrips.created_at));
+
+			const tripsWithData = rows.map((t: any) => {
+				const expectedStops = t.expected_stops ?? 0;
+				const completedStops = t.completed_stops ?? 0;
+				const expectedCash = Number(t.expected_cash_collection ?? 0);
+				const actualCash = Number(t.actual_cash_collection ?? 0);
+				return {
+					...t,
+					stops_deviation: completedStops - expectedStops,
+					cash_deviation: actualCash - expectedCash,
+					has_deviation:
+						(t.status === "completed" && completedStops !== expectedStops) ||
+						Math.abs(actualCash - expectedCash) > 0.001,
+				};
+			});
+
+			const totalTrips = tripsWithData.length;
+			const activeTrips = tripsWithData.filter(t => t.status === "active").length;
+			const completedTrips = tripsWithData.filter(t => t.status === "completed").length;
+			const pendingTrips = tripsWithData.filter(t => t.status === "pending").length;
+			const tripsWithDeviation = tripsWithData.filter(t => t.has_deviation).length;
+
+			return {
+				totalTrips,
+				activeTrips,
+				completedTrips,
+				pendingTrips,
+				tripsWithDeviation,
+				recentTrips: tripsWithData.slice(0, 10), // Return 10 most recent for dashboard
+			};
 		}),
 });

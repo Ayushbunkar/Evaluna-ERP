@@ -21,31 +21,8 @@ import {
 import { useState } from "react";
 import { useTRPC } from "@/lib/trpc/client";
 
-const roles = [
-	{ id: "admin", name: "Super Admin", icon: LayoutDashboard },
-	{ id: "sales", name: "Sales Manager", icon: ShoppingCart },
-	{ id: "hr", name: "HR Manager", icon: Users },
-];
-
-const availableWidgets = [
-	{ id: "w1", name: "Total Revenue KPI", category: "Sales", type: "KPI" },
-	{ id: "w2", name: "Recent Orders Table", category: "Sales", type: "Table" },
-	{ id: "w3", name: "Employee Count KPI", category: "HR", type: "KPI" },
-	{ id: "w4", name: "Leave Requests List", category: "HR", type: "List" },
-	{
-		id: "w5",
-		name: "Inventory Value Chart",
-		category: "Inventory",
-		type: "Chart",
-	},
-	{ id: "w6", name: "Low Stock Alerts", category: "Inventory", type: "Alerts" },
-	{
-		id: "w7",
-		name: "System Health Status",
-		category: "System",
-		type: "Status",
-	},
-];
+const { data: roles } = trpc.roles.list.useQuery();
+const { data: availableWidgets } = trpc.dashboardWidgets.list.useQuery();
 
 export default function DashboardBuilderPage() {
 	const [selectedRole, setSelectedRole] = useState("admin");

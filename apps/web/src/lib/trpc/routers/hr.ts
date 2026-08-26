@@ -1,5 +1,5 @@
-import { staff, leaveApplications, enhancedAttendance, payroll, branches } from "@evaluna/db/schema";
-import { count, desc, eq, sql, and, ilike } from "drizzle-orm";
+import { staff, leaveApplications, leaveTypes, employees, enhancedAttendance, payroll, branches } from "@evaluna/db/schema";
+import { count, desc, eq, sql, and, ilike, or, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -149,70 +149,6 @@ export const hrRouter = router({
 			}));
 		}),
 
-	getAttendance: roleProcedure(["admin", "manager", "auditor", "hr"])
-		.input(
-			z.object({
-				branch_id: z.number().optional(),
-				date: z.string().optional(),
-			}),
-		)
-		.query(async ({ ctx, input }) => {
-			const db = ctx.db;
-			let query = db
-				.select({
-					id: enhancedAttendance.id,
-					employeeId: enhancedAttendance.employeeId,
-					employeeName: staff.name,
-					date: enhancedAttendance.date,
-					checkIn: enhancedAttendance.checkIn,
-					checkOut: enhancedAttendance.checkOut,
-					status: enhancedAttendance.status,
-					workingHours: enhancedAttendance.workingHours,
-					breakHours: enhancedAttendance.breakHours,
-					lateMinutes: enhancedAttendance.lateMinutes,
-					earlyExitMinutes: enhancedAttendance.earlyExitMinutes,
-					overtimeMinutes: enhancedAttendance.overtimeMinutes,
-					riskScore: enhancedAttendance.riskScore,
-					isApproved: enhancedAttendance.isApproved,
-				})
-				.from(enhancedAttendance)
-				.innerJoin(staff, eq(enhancedAttendance.employeeId, staff.id))
-				.where(eq(staff.is_deleted, false));
-
-			if (input.branch_id) {
-				query = query.where(eq(staff.branch_id, input.branch_id));
-			} else {
-				// Use the authenticated user's branch if no branch_id is provided
-				query = query.where(eq(staff.branch_id, ctx.user.branchId));
-			}
-
-			if (input.date) {
-				query = query.where(eq(enhancedAttendance.date, input.date));
-			} else {
-				// Default to today if no date is provided
-				query = query.where(eq(enhancedAttendance.date, sql`CURRENT_DATE`));
-			}
-
-			const results = await query.orderBy(desc(enhancedAttendance.createdAt)).limit(100);
-
-			return results.map((r) => ({
-				id: r.id,
-				employee_id: r.employeeId,
-				employee_name: r.employeeName || "Unknown",
-				date: r.date?.toLocaleDateString() || "",
-				check_in: r.checkIn?.toLocaleTimeString() || "",
-				check_out: r.checkOut?.toLocaleTimeString() || "",
-				status: r.status,
-				working_hours: Number(r.workingHours) || 0,
-				break_hours: Number(r.breakHours) || 0,
-				late_minutes: r.lateMinutes || 0,
-				early_exit_minutes: r.earlyExitMinutes || 0,
-				overtime_minutes: r.overtimeMinutes || 0,
-				risk_score: r.riskScore,
-				is_approved: r.isApproved,
-			}));
-		}),
-
 	getLeaveRequests: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx, input }) => {
@@ -220,7 +156,7 @@ export const hrRouter = router({
 			let query = db
 				.select({
 					id: leaveApplications.id,
-					employeeName: staff.name,
+					employeeName: sql<string>`${employees.firstName} || ' ' || ${employees.lastName}`,
 					leaveType: leaveTypes.name,
 					startDate: leaveApplications.startDate,
 					endDate: leaveApplications.endDate,
@@ -228,19 +164,19 @@ export const hrRouter = router({
 					status: leaveApplications.status,
 					appliedAt: leaveApplications.appliedAt,
 					approvedAt: leaveApplications.approvedAt,
-					approvedBy: staffApproved.name,
+					approvedBy: sql<string>`${employees_approved.firstName} || ' ' || ${employees_approved.lastName}`,
 				})
 				.from(leaveApplications)
-				.innerJoin(staff, eq(leaveApplications.employeeId, staff.id))
+				.innerJoin(employees, eq(leaveApplications.employeeId, employees.id))
 				.innerJoin(leaveTypes, eq(leaveApplications.leaveTypeId, leaveTypes.id))
-				.leftJoin(staff as staffApproved, eq(leaveApplications.approvedBy, staffApproved.id))
-				.where(eq(staff.is_deleted, false));
+				.leftJoin(employees as employees_approved, eq(leaveApplications.approvedBy, employees_approved.id))
+				.where(eq(employees.status, 'active'));
 
 			if (input.branch_id) {
-				query = query.where(eq(staff.branch_id, input.branch_id));
+				query = query.where(eq(employees.branchId, input.branch_id));
 			} else {
 				// Use the authenticated user's branch if no branch_id is provided
-				query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				query = query.where(eq(employees.branchId, ctx.user.branchId));
 			}
 
 			const results = await query.orderBy(desc(leaveApplications.createdAt)).limit(50);
@@ -259,44 +195,209 @@ export const hrRouter = router({
 			}));
 		}),
 
-	getSalaryStructure: roleProcedure(["admin", "manager", "auditor", "hr"])
-		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async ({ ctx, input }) => {
+	createLeaveRequest: roleProcedure(["admin", "manager", "hr"])
+		.input(
+			z.object({
+				employeeId: z.number(),
+				leaveTypeId: z.number(),
+				startDate: z.date(),
+				endDate: z.date(),
+				reason: z.string().optional(),
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db
-				.select({
-					empId: staff.id,
-					empName: staff.name,
-					department: staff.department,
-					salary: staff.salary,
-				})
-				.from(staff)
-				.where(eq(staff.is_deleted, false));
 
-			if (input.branch_id) {
-				query = query.where(eq(staff.branch_id, input.branch_id));
-			} else {
-				// Use the authenticated user's branch if no branch_id is provided
-				query = query.where(eq(staff.branch_id, ctx.user.branchId));
+			// Validate that the employee exists and is active
+			const employee = await db
+				.select()
+				.from(employees)
+				.where(
+					and(
+						eq(employees.id, input.employeeId),
+						eq(employees.status, 'active')
+					)
+				)
+				.limit(1);
+
+			if (!employee.length) {
+				throw new Error("Employee not found or inactive");
 			}
 
-			const results = await query.orderBy(desc(staff.createdAt)).limit(100);
+			// Validate that the leave type exists
+			const leaveType = await db
+				.select()
+				.from(leaveTypes)
+				.where(eq(leaveTypes.id, input.leaveTypeId))
+				.limit(1);
 
-			return results.map((r) => {
-				const basic = Number(r.salary) * 0.5;
-				const hra = Number(r.salary) * 0.2;
-				const allowances = Number(r.salary) * 0.3;
-				return {
-					emp_name: r.empName || "Unknown",
-					department: r.department || "General",
-					basic,
-					hra,
-					allowances,
-					deductions: 0,
-					pf: 0,
-					net_salary: Number(r.salary),
-				};
-			});
+			if (!leaveType.length) {
+				throw new Error("Leave type not found");
+			}
+
+			// Validate dates
+			if (input.startDate > input.endDate) {
+				throw new Error("Start date must be before or equal to end date");
+			}
+
+			// Check for overlapping leave requests
+			const overlappingLeave = await db
+				.select({ count: count() })
+				.from(leaveApplications)
+				.where(
+					and(
+						eq(leaveApplications.employeeId, input.employeeId),
+						eq(leaveApplications.status, 'pending'), // Only check pending leaves
+						or(
+							and(
+								gte(leaveApplications.startDate, input.startDate),
+								lte(leaveApplications.startDate, input.endDate)
+							),
+							and(
+								gte(leaveApplications.endDate, input.startDate),
+								lte(leaveApplications.endDate, input.endDate)
+							),
+							and(
+								lte(leaveApplications.startDate, input.startDate),
+								gte(leaveApplications.endDate, input.endDate)
+							)
+						)
+					)
+				);
+
+			if (overlappingLeave[0]?.count > 0) {
+				throw new Error("Leave request overlaps with existing pending leave");
+			}
+
+			// Create the leave request
+			const [result] = await db
+				.insert(leaveApplications)
+				.values({
+					employeeId: input.employeeId,
+					leaveTypeId: input.leaveTypeId,
+					startDate: input.startDate,
+					endDate: input.endDate,
+					reason: input.reason,
+					status: 'pending',
+				})
+				.returning();
+
+			return {
+				id: result.id,
+				message: "Leave request created successfully",
+			};
+		}),
+
+	updateLeaveRequest: roleProcedure(["admin", "manager", "hr"])
+		.input(
+			z.object({
+				leaveId: z.number(),
+				status: z.enum(['approved', 'rejected', 'cancelled']),
+				approvedBy: z.number(), // ID of the approver (HR/manager)
+				approvedAt: z.date().optional(),
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+
+			// Get the leave request
+			const leaveRequest = await db
+				.select({
+					id: leaveApplications.id,
+					employeeId: leaveApplications.employeeId,
+					status: leaveApplications.status,
+					startDate: leaveApplications.startDate,
+					endDate: leaveApplications.endDate,
+				})
+				.from(leaveApplications)
+				.where(eq(leaveApplications.id, input.leaveId))
+				.limit(1);
+
+			if (!leaveRequest.length) {
+				throw new Error("Leave request not found");
+			}
+
+			const leave = leaveRequest[0];
+
+			// Validate that the leave request is in a state that can be updated
+			if (leave.status !== 'pending') {
+				throw new Error("Only pending leave requests can be updated");
+			}
+
+			// Validate that the approver exists and is active
+			const approver = await db
+				.select()
+				.from(employees)
+				.where(
+					and(
+						eq(employees.id, input.approvedBy),
+						eq(employees.status, 'active')
+					)
+				)
+				.limit(1);
+
+			if (!approver.length) {
+				throw new Error("Approver not found or inactive");
+			}
+
+			// Update the leave request
+			const [result] = await db
+				.update(leaveApplications)
+				.set({
+					status: input.status,
+					approvedBy: input.approvedBy,
+					approvedAt: input.approvedAt ?? new Date(),
+				})
+				.where(eq(leaveApplications.id, input.leaveId))
+				.returning();
+
+			// If leave is approved, create attendance records for the leave period
+			if (input.status === 'approved') {
+				await createAttendanceForLeavePeriod(
+					db,
+					leave.employeeId,
+					leave.startDate,
+					leave.endDate
+				);
+			}
+
+			return {
+				id: result.id,
+				message: `Leave request ${input.status} successfully`,
+			};
+		}),
+
+	deleteLeaveRequest: roleProcedure(["admin", "manager", "hr"])
+		.input(z.object({ leaveId: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+
+			// Check if leave request exists and is pending (can only delete pending requests)
+			const leaveRequest = await db
+				.select({
+					id: leaveApplications.id,
+					status: leaveApplications.status,
+				})
+				.from(leaveApplications)
+				.where(eq(leaveApplications.id, input.leaveId))
+				.limit(1);
+
+			if (!leaveRequest.length) {
+				throw new Error("Leave request not found");
+			}
+
+			if (leaveRequest[0].status !== 'pending') {
+				throw new Error("Only pending leave requests can be deleted");
+			}
+
+			// Delete the leave request
+			await db
+				.delete(leaveApplications)
+				.where(eq(leaveApplications.id, input.leaveId));
+
+			return {
+				message: "Leave request deleted successfully",
+			};
 		}),
 
 	getPayroll: roleProcedure(["admin", "manager", "auditor", "hr"])
@@ -306,7 +407,7 @@ export const hrRouter = router({
 			let query = db
 				.select({
 					id: payroll.id,
-					employeeName: staff.name,
+					employeeName: sql<string>`${staff.name}`,
 					month: payroll.month,
 					baseSalary: payroll.base_salary,
 					overtimePay: payroll.overtime_pay,
@@ -352,19 +453,73 @@ export const hrRouter = router({
 			}));
 		}),
 
-	getPerformance: roleProcedure(["admin", "manager", "auditor", "hr"])
-		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async ({ ctx, input }) => {
-			// Note: Performance table does not exist in the schema yet.
-			// Return empty array until the performance table is implemented.
-			return [];
-		}),
-
-	getRecruitment: roleProcedure(["admin", "manager", "auditor", "hr"])
-		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async ({ ctx, input }) => {
-			// Note: Recruitment table does not exist in the schema yet.
-			// Return empty array until the recruitment table is implemented.
-			return [];
-		}),
+	// TODO: Add payroll processing procedures in a follow-up implementation
 });
+
+/**
+ * Helper function to create attendance records for a leave period
+ */
+async function createAttendanceForLeavePeriod(
+	db: any,
+	employeeId: number,
+	startDate: Date,
+	endDate: Date
+) {
+	const currentDate = new Date(startDate);
+	const endDateObj = new Date(endDate);
+
+	while (currentDate <= endDateObj) {
+		// Skip weekends if needed (this depends on company policy)
+		// For now, we'll mark all days as leave
+		const dateString = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+		// Check if attendance record already exists for this date
+		const existingAttendance = await db
+			.select()
+			.from(enhancedAttendance)
+			.where(
+				and(
+					eq(enhancedAttendance.employeeId, employeeId),
+					eq(enhancedAttendance.date, dateString)
+				)
+			)
+			.limit(1);
+
+		if (!existingAttendance.length) {
+			// Create new attendance record
+			await db
+				.insert(enhancedAttendance)
+				.values({
+					employeeId: employeeId,
+					date: dateString,
+					status: 'leave',
+					checkIn: null,
+					checkOut: null,
+					workingHours: 0,
+					breakHours: 0,
+					lateMinutes: 0,
+					earlyExitMinutes: 0,
+					overtimeMinutes: 0,
+					riskScore: 0,
+					isApproved: true, // Leave is approved by definition
+				});
+		} else {
+			// Update existing record to mark as leave
+			await db
+				.update(enhancedAttendance)
+				.set({
+					status: 'leave',
+					isApproved: true,
+				})
+				.where(
+					and(
+						eq(enhancedAttendance.employeeId, employeeId),
+						eq(enhancedAttendance.date, dateString)
+					)
+				);
+		}
+
+		// Increment date by 1 day
+		currentDate.setDate(currentDate.getDate() + 1);
+	}
+}

@@ -1,0 +1,11 @@
+ .../src/lib/trpc/routers/__tests__/auth.test.ts    |   1 +
+ .../lib/trpc/routers/__tests__/delivery.test.ts    |  20 +-
+ apps/web/src/lib/trpc/routers/__tests__/helpers.ts |   7 +-
+ .../lib/trpc/routers/__tests__/products.test.ts    |   2 +-
+ apps/web/src/lib/trpc/routers/customer.ts          | 117 +++++-
+ apps/web/src/lib/trpc/routers/hr.ts                | 397 ++++++++++++++-------
+ apps/web/src/lib/trpc/routers/marketing.ts         |  25 ++
+ apps/web/src/lib/trpc/routers/products.ts          |   1 -
+ apps/web/src/lib/trpc/routers/route-audit.ts       |  43 ++-
+ packages/db/src/schema/delivery.ts                 |   2 +
+ 10 files changed, 472 insertions(+), 143 deletions(-)

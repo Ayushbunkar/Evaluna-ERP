@@ -16,6 +16,7 @@ const undefinedUser = createCallerFactory(productsRouter)({
 
 beforeAll(async () => {
 	await pg.exec(SCHEMA_DDL);
+	await pg.exec(buildDDL([schema.branchInventory], false));
 });
 afterAll(async () => {
 	await pg.close();

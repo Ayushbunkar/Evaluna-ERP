@@ -1,0 +1,79 @@
+[
+  {
+    "id": "admin-dashboard-missing-loading-error",
+    "severity": "HIGH",
+    "file": "apps/web/src/app/(dashboards)/admin/page.tsx",
+    "function": "AdminDashboard",
+    "problem": "Missing loading and error states for tRPC queries",
+    "evidence": "The component uses trpc.admin.getDashboardStats.useQuery(), trpc.admin.getEmployees.useQuery(), trpc.admin.getSuppliers.useQuery(), and trpc.admin.getCustomers.useQuery() but does not check the isLoading or error properties returned by the hooks. It directly accesses data without handling loading or error states.",
+    "impact": "If the queries are loading or fail, the component may attempt to access undefined data, causing runtime errors or displaying stale/incorrect data without user feedback.",
+    "fix": "Add loading and error states for each tRPC query, or use suspense and error boundaries appropriately. For example: const { data: stats, isLoading, error } = trpc.admin.getDashboardStats.useQuery(); if (isLoading) return <LoadingSpinner />; if (error) return <ErrorMessage />;",
+    "owner": "dashboards_frontend"
+  },
+  {
+    "id": "auditor-dashboard-missing-loading-error",
+    "severity": "HIGH",
+    "file": "apps/web/src/app/(dashboards)/auditor/page.tsx",
+    "function": "AuditorDashboard",
+    "problem": "Missing loading and error states for tRPC query",
+    "evidence": "The component uses trpc.auditor.getDashboardStats.useQuery() but does not check the isLoading or error properties returned by the hook. It directly accesses data without handling loading or error states.",
+    "impact": "If the query is loading or fails, the component may attempt to access undefined data, causing runtime errors or displaying stale/incorrect data without user feedback.",
+    "fix": "Add loading and error states for the tRPC query, or use suspense and error boundaries appropriately. For example: const { data: stats, isLoading, error } = trpc.auditor.getDashboardStats.useQuery(); if (isLoading) return <LoadingSpinner />; if (error) return <ErrorMessage />;",
+    "owner": "dashboards_frontend"
+  },
+  {
+    "id": "driver-dashboard-missing-loading-error",
+    "severity": "HIGH",
+    "file": "apps/web/src/app/(dashboards)/driver/page.tsx",
+    "function": "DriverDashboard",
+    "problem": "Missing loading and error states for tRPC query",
+    "evidence": "The component uses trpc.driver.getMobileDashboard.useQuery() but does not check the isLoading or error properties returned by the hook. It directly accesses data without handling loading or error states.",
+    "impact": "If the query is loading or fails, the component may attempt to access undefined data, causing runtime errors or displaying stale/incorrect data without user feedback.",
+    "fix": "Add loading and error states for the tRPC query, or use suspense and error boundaries appropriately. For example: const { data: dashboard, isLoading, error } = trpc.driver.getMobileDashboard.useQuery(); if (isLoading) return <LoadingSpinner />; if (error) return <ErrorMessage />;",
+    "owner": "dashboards_frontend"
+  },
+  {
+    "id": "manager-dashboard-missing-loading-error",
+    "severity": "HIGH",
+    "file": "apps/web/src/app/(dashboards)/manager/page.tsx",
+    "function": "ManagerDashboard",
+    "problem": "Missing loading and error states for tRPC queries",
+    "evidence": "The component uses trpc.hr.getDashboardStats.useQuery(), trpc.hr.getEmployees.useQuery(), and trpc.hr.getLeaveRequests.useQuery() but does not check the isLoading or error properties returned by the hooks. It directly accesses data without handling loading or error states.",
+    "impact": "If the queries are loading or fail, the component may attempt to access undefined data, causing runtime errors or displaying stale/incorrect data without user feedback.",
+    "fix": "Add loading and error states for each tRPC query, or use suspense and error boundaries appropriately. For example: const { data: stats, isLoading, error } = trpc.hr.getDashboardStats.useQuery(); if (isLoading) return <LoadingSpinner />; if (error) return <ErrorMessage />;",
+    "owner": "dashboards_frontend"
+  },
+  {
+    "id": "dashboard-builder-mock-data",
+    "severity": "HIGH",
+    "file": "apps/web/src/app/superadmin/dashboard-builder/page.tsx",
+    "function": "DashboardBuilderPage",
+    "problem": "Uses mock/static data (hardcoded roles and widgets) instead of real data from the backend",
+    "evidence": "The component defines hardcoded arrays for roles and available widgets: const roles = [ { id: 'admin', name: 'Super Admin', icon: LayoutDashboard }, ... ] and const availableWidgets = [ { id: 'w1', name: 'Total Revenue KPI', category: 'Sales', type: 'KPI' }, ... ]. There are no tRPC calls to fetch this data from the backend.",
+    "impact": "The dashboard builder does not reflect the actual system configuration, leading to a mismatch between the builder and the real system. This prevents administrators from configuring dashboards based on real data and roles.",
+    "fix": "Replace the hardcoded data with tRPC queries to fetch roles and available widgets from the backend. For example: const { data: roles } = trpc.roles.list.useQuery(); const { data: availableWidgets } = trpc.dashboardWidgets.list.useQuery();",
+    "owner": "dashboards_frontend"
+  },
+  {
+    "id": "delivery-processpartialreturn-order-association",
+    "severity": "HIGH",
+    "file": "apps/web/src/lib/trpc/routers/delivery.ts",
+    "function": "processPartialReturn",
+    "problem": "The processPartialReturn procedure associates the return with the first order found for the customer, which may not be the order corresponding to the stop, leading to returns being applied to the wrong order.",
+    "evidence": "The procedure uses `db.query.orders.findFirst({ where: and(eq(orders.customer_id, stop.customer_id)) })` to find an order for the customer, without linking to the specific stop or trip context.",
+    "impact": "Returns processed against incorrect orders, causing financial inaccuracies, inventory mismatches, and customer disputes.",
+    "fix": "Modify the procedure to require an orderId input linked to the stop, or enhance the trip stop schema to include an order_id field and use that for return processing.",
+    "owner": "backend_api"
+  },
+  {
+    "id": "delivery-processpartialreturn-stop-status-validation",
+    "severity": "HIGH",
+    "file": "apps/web/src/lib/trpc/routers/delivery.ts",
+    "function": "processPartialReturn",
+    "problem": "The processPartialReturn procedure does not validate that the stop is in a deliverable state before processing a partial return, allowing returns on stops that are not delivered (e.g., pending, arrived).",
+    "evidence": "In the processPartialReturn procedure, after fetching the stop by stopId, there is no check on stop.status before proceeding to create a sales return and update the stop status to 'partially_delivered'.",
+    "impact": "Incorrect stop status updates leading to inaccurate delivery tracking and potential inventory discrepancies.",
+    "fix": "Add a validation that the stop status must be 'delivered' before processing a partial return. Example: if (stop.status !== 'delivered') { throw new TRPCError({ code: 'BAD_REQUEST', message: 'Stop must be delivered to process a partial return.' }); }",
+    "owner": "backend_api"
+  }
+]

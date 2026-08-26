@@ -17,7 +17,7 @@ const caller = createCallerFactory(deliveryRouter)({
 const DELIVERY_DDL = buildDDL(
   [
     schema.branches,
-    schema.users, // Assuming users table exists for driver_id references
+    schema.user, // Better Auth users table
     schema.deliveryRoutes,
     schema.routeStops,
     schema.deliveryTrips,
@@ -47,17 +47,17 @@ beforeAll(async () => {
     ]);
 
   // Setup users (for driver_id and user references)
-  await db.insert(schema.users).values([
-    { id: "driver-1", name: "Driver One", role: "driver", branchId: 1 },
-    { id: "manager-1", name: "Manager One", role: "manager", branchId: 1 },
-    { id: "admin-1", name: "Admin One", role: "admin", branchId: 1 },
+  await db.insert(schema.user).values([
+    { id: "driver-1", name: "Driver One", email: "driver1@test.com", role: "driver", branch_id: 1 },
+    { id: "manager-1", name: "Manager One", email: "manager1@test.com", role: "manager", branch_id: 1 },
+    { id: "admin-1", name: "Admin One", email: "admin1@test.com", role: "admin", branch_id: 1 },
   ]);
 
   // Setup customers
   await db.insert(schema.customers).values([
-    { id: 1, name: "Customer 1", user_uid: "cust-1", branch_id: 1 },
-    { id: 2, name: "Customer 2", user_uid: "cust-2", branch_id: 1 },
-    { id: 3, name: "Customer 3", user_uid: "cust-3", branch_id: 2 },
+    { id: 1, name: "Customer 1", email: "cust1@test.com", user_uid: "cust-1", branch_id: 1 },
+    { id: 2, name: "Customer 2", email: "cust2@test.com", user_uid: "cust-2", branch_id: 1 },
+    { id: 3, name: "Customer 3", email: "cust3@test.com", user_uid: "cust-3", branch_id: 2 },
   ]);
 
   // Setup products
@@ -468,8 +468,8 @@ describe("delivery router core functionality", () => {
       const result = await caller.addItemsToDeliveryOrder({
         orderId: order.id,
         items: [
-          { productId: 1, quantity: 2, price: "10.00" },
-          { productId: 2, quantity: 1, price: "20.00" },
+          { productId: 1, quantity: 2, price: 10 },
+          { productId: 2, quantity: 1, price: 20 },
         ],
       });
 

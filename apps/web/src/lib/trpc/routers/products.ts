@@ -23,7 +23,6 @@ export const productsRouter = router({
 				totalStock: sum(branchInventory.in_stock),
 			})
 			.from(branchInventory)
-			.where(eq(branchInventory.is_deleted, false)) // Assuming is_deleted exists? We don't see it in branchInventory schema, but we can check.
 			.groupBy(branchInventory.product_id);
 
 		stockResults.forEach((row) => {

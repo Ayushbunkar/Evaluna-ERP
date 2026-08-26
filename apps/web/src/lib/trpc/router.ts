@@ -1,4 +1,3 @@
-import { appRouter } from "./index";
-
+import { appRouter } from "@evaluna/api";
 export { appRouter };
-export type { AppRouter } from "./index";
+export type { AppRouter } = typeof appRouter;

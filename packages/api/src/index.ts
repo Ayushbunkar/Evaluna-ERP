@@ -5,7 +5,6 @@ import superjson from "superjson";
 import type { OpenApiMeta } from "trpc-to-openapi";
 
 export type Role = string;
-// Permissions are stored in JSONB in roles.permissions, typically key-value. We use a flat string array here for checking.
 export type Permission = string;
 
 export interface BaseUser {
@@ -44,11 +43,6 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 });
 
 // Customer self-service procedure.
-// Resolves the logged-in user to their own `customers` row (linked by email),
-// and attaches it as `ctx.customer`. All customer-facing data MUST be scoped to
-// `ctx.customer.id` — this is the server-side enforcement of tenant isolation
-// (no reliance on frontend hiding). Throws FORBIDDEN if the login has no linked
-// customer record.
 export const customerProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 	const customer = await ctx.db.query.customers.findFirst({
 		where: (c: any, { eq, and }: any) =>
@@ -88,15 +82,13 @@ export const requirePermission = (requiredPermission: Permission) => {
 		if (!ctx.user.permissions?.includes(requiredPermission)) {
 			throw new TRPCError({
 				code: "FORBIDDEN",
-				message: `Missing required permission: ${requiredPermission}`,
+				message: "Missing required permission: ",
 			});
 		}
 		return next({ ctx: { ...ctx, user: ctx.user } });
 	});
 };
 
-// Use this to chain on existing procedures
-// example: protectedProcedure.use(requirePermission('Inventory:Read'))
 export const permissionProcedure = (permission: Permission) =>
 	protectedProcedure.use(requirePermission(permission));
 
@@ -111,7 +103,7 @@ export const requireRole = (roles: Role[]) => {
 		}
 		throw new TRPCError({
 			code: "FORBIDDEN",
-			message: `Role not permitted. Requires one of: ${roles.join(", ")}`,
+			message: "Role not permitted. Requires one of: ",
 		});
 	});
 };
@@ -121,3 +113,9 @@ export const roleProcedure = (roles: Role[]) =>
 
 export const middleware = t.middleware;
 export type { OpenApiMeta };
+
+export const appRouter = router({
+	__tests__ : __tests__Router, 	accounting : accountingRouter, 	admin : adminRouter, 	approvals : approvalsRouter, 	attendance : attendanceRouter, 	audit-findings : auditFindingsRouter, 	audit-tasks : auditTasksRouter, 	audit : auditRouter, 	auditor : auditorRouter, 	backups : backupsRouter, 	bank-accounts : bankAccountsRouter, 	barcodes : barcodesRouter, 	batches : batchesRouter, 	biller : billerRouter, 	billing : billingRouter, 	branches : branchesRouter, 	cashbook : cashbookRouter, 	categories : categoriesRouter, 	chatbot : chatbotRouter, 	checker : checkerRouter, 	client-settings : clientSettingsRouter, 	customer : customerRouter, 	customers : customersRouter, 	dashboard : dashboardRouter, 	delivery : deliveryRouter, 	driver : driverRouter, 	employee-expenses : employeeExpensesRouter, 	expenses : expensesRouter, 	finance : financeRouter, 	hr : hrRouter, 	hrms : hrmsRouter, 	imports : importsRouter, 	inventory : inventoryRouter, 	loyalty : loyaltyRouter, 	marketing : marketingRouter, 	master-data : masterDataRouter, 	monitoring : monitoringRouter, 	notifications : notificationsRouter, 	orders : ordersRouter, 	packer : packerRouter, 	payment-batch : paymentBatchRouter, 	payment-methods : paymentMethodsRouter, 	payments : paymentsRouter, 	payroll-enhanced : payrollEnhancedRouter, 	payroll-lock : payrollLockRouter, 	payroll-variance : payrollVarianceRouter, 	payroll : payrollRouter, 	payroll.ts : payroll.tsRouter, 	payslip : payslipRouter, 	permissions : permissionsRouter, 	picker : pickerRouter, 	picking : pickingRouter, 	placement : placementRouter, 	pos : posRouter, 	price-audit : priceAuditRouter, 	products : productsRouter, 	purchase-returns : purchaseReturnsRouter, 	purchases : purchasesRouter, 	putter : putterRouter, 	receiving-inspections : receivingInspectionsRouter, 	reports : reportsRouter, 	route-audit : routeAuditRouter, 	salary : salaryRouter, 	sales-returns : salesReturnsRouter, 	schemes : schemesRouter, 	settings : settingsRouter, 	staff : staffRouter, 	superadmin : superadminRouter, 	supplier : supplierRouter, 	suppliers : suppliersRouter, 	transactions : transactionsRouter, 	transfers : transfersRouter, 	upc : upcRouter, 	vehicles : vehiclesRouter, 	warehouse : warehouseRouter,
+});
+
+export type AppRouter = typeof appRouter;
