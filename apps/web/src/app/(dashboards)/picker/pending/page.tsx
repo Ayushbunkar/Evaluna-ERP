@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@
 import { useTRPC } from "@/lib/trpc/client";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
-import { ActivityIcon, CheckCircle2Icon, SearchIcon, ShippingIcon } from "lucide-react";
+import { ActivityIcon, CheckCircle2Icon, SearchIcon, TruckIcon } from "lucide-react";
 import Link from "next/link";
 
 export default function PickerPendingPage() {
@@ -41,12 +41,12 @@ export default function PickerPendingPage() {
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHeader className="text-left">Order</TableHeader>
-                <TableHeader className="text-left">Product</TableHeader>
-                <TableHeader className="text-left">Quantity</TableHeader>
-                <TableHeader className="text-left">Location</TableHeader>
-                <TableHeader className="text-left">Status</TableHeader>
-                <TableHeader className="text-left">Actions</TableHeader>
+                <TableHead className="text-left">Order</TableHead>
+                <TableHead className="text-left">Product</TableHead>
+                <TableHead className="text-left">Quantity</TableHead>
+                <TableHead className="text-left">Location</TableHead>
+                <TableHead className="text-left">Status</TableHead>
+                <TableHead className="text-left">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -65,7 +65,7 @@ export default function PickerPendingPage() {
                     {pick.status === "pending" && (
                       <>
                         <Button variant="outline" size="xs" onClick={() => alert(`Start pick ${pick.id}`)}>
-                          <ShippingIcon className="mr-1 h-3 w-3" /> Start
+                          <TruckIcon className="mr-1 h-3 w-3" /> Start
                         </Button>
                         <Button variant="outline" size="xs" onClick={() => alert(`Scan pick ${pick.id}`)}>
                           <SearchIcon className="mr-1 h-3 w-3" /> Scan
@@ -104,7 +104,7 @@ export default function PickerPendingPage() {
                     {pick.status === "verified" && (
                       <Button variant="default" size="xs" onClick={() => alert(`Complete pick ${pick.id}`)}>
                         Complete
-                      </>
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>

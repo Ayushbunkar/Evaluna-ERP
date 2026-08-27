@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -22,10 +22,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, motion } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import motion from "framer-motion";
 
 export default function RouteManagerDashboard() {
   const trpc = useTRPC();

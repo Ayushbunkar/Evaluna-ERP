@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -18,14 +18,13 @@ import {
   RefreshCwIcon,
   TruckIcon,
   UsersIcon,
+  ArrowRightIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, motion } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import motion from "framer-motion";
-import { ArrowRightIcon } from "lucide-react";
 
 export default function SupplierDashboard() {
   const trpc = useTRPC();

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 export default function DriverLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -68,7 +68,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
                 className="flex w-full items-center px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"
               >
                 <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254<.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254-.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
                 </svg>
                 <span className="ml-3">Support & Dispatch</span>
               </Link>

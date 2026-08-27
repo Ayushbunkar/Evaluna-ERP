@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -16,15 +16,13 @@ import {
   ShieldIcon,
   TrendingUpIcon,
   UsersIcon,
+  ArrowRightIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, StaggerList, StaggerItem, AnimatedCard, motion, AnimatePresence } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import motion, { AnimatePresence } from "framer-motion";
-import { StaggerList, StaggerItem, AnimatedCard } from "@/lib/animations/stagger";
-import { ArrowRightIcon } from "lucide-react";
 
 export default function AuditorDashboard() {
   const trpc = useTRPC();

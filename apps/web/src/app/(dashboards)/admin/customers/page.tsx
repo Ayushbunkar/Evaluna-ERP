@@ -1,12 +1,13 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { Table, TableBody, TableCell, Header, TableHead, TableRow } from "@evaluna/ui/components/table";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@evaluna/ui/components/table";
 import { useTRPC } from "@/lib/trpc/client";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { ActivityIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
 
 export default function AdminCustomersPage() {
   const trpc = useTRPC();
@@ -46,11 +47,11 @@ export default function AdminCustomersPage() {
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHeader className="text-left">ID</TableHeader>
-                <TableHeader className="text-left">Name</TableHeader>
-                <TableHeader className="text-left">Contact Person</TableHeader>
-                <TableHeader className="text-left">Credit Used / Limit</TableHeader>
-                <TableHeader className="text-left">Actions</TableHeader>
+                <TableHead className="text-left">ID</TableHead>
+                <TableHead className="text-left">Name</TableHead>
+                <TableHead className="text-left">Contact Person</TableHead>
+                <TableHead className="text-left">Credit Used / Limit</TableHead>
+                <TableHead className="text-left">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -1,12 +1,13 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { Table, TableBody, TableCell, Header, TableHead, TableRow } from "@evaluna/ui/components/table";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@evaluna/ui/components/table";
 import { useTRPC } from "@/lib/trpc/client";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { ActivityIcon, BanknoteIcon } from "lucide-react";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
 
 export default function AdminSuppliersPage() {
   const trpc = useTRPC();
@@ -46,16 +47,16 @@ export default function AdminSuppliersPage() {
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHeader className="text-left">ID</TableHeader>
-                <TableHeader className="text-left">Name</TableHeader>
-                <TableHeader className="text-left">Contact Person</TableHeader>
-                <TableHeader className="text-left">Outstanding Balance</TableHeader>
-                <TableHeader className="text-left">Actions</TableHeader>
+                <TableHead className="text-left">ID</TableHead>
+                <TableHead className="text-left">Name</TableHead>
+                <TableHead className="text-left">Contact Person</TableHead>
+                <TableHead className="text-left">Outstanding Balance</TableHead>
+                <TableHead className="text-left">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {suppliers.map((sup) => (
-                <TableRow key={sup.id={sup.id}>
+                <TableRow key={sup.id}>
                   <TableCell>{sup.id}</TableCell>
                   <TableCell>{sup.name}</TableCell>
                   <TableCell>{sup.contact_person || "N/A"}</TableCell>

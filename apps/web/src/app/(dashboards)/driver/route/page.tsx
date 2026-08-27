@@ -1,11 +1,11 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { Table, TableBody, TableCell, Header, TableHead, TableRow } from "@evaluna/ui/components/table";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@evaluna/ui/components/table";
 import { useTRPC } from "@/lib/trpc/client";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
-import { ActivityIcon, MapPinIcon, TruckIcon, UserIcon, WarningIcon } from "lucide-react";
+import { ActivityIcon, MapPinIcon, TruckIcon, UserIcon, AlertTriangleIcon, CheckCircle2Icon } from "lucide-react";
 import Link from "next/link";
 
 export default function DriverRoutePage() {
@@ -41,12 +41,12 @@ export default function DriverRoutePage() {
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHeader className="text-left">Stop #</TableHeader>
-                <TableHeader className="text-left">Customer</TableHeader>
-                <TableHeader className="text-left">Address</TableHeader>
-                <TableHeader className="text-left">Order</TableHeader>
-                <TableHeader className="text-left">Status</TableHeader>
-                <TableHeader className="text-left">Actions</TableHeader>
+                <TableHead className="text-left">Stop #</TableHead>
+                <TableHead className="text-left">Customer</TableHead>
+                <TableHead className="text-left">Address</TableHead>
+                <TableHead className="text-left">Order</TableHead>
+                <TableHead className="text-left">Status</TableHead>
+                <TableHead className="text-left">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -74,7 +74,7 @@ export default function DriverRoutePage() {
                         </Button>
                         {stop.codRequired && (
                           <Button variant="outline" size="xs" onClick={() => alert(`Collect COD for stop ${stop.id}`)}>
-                            <WarningIcon className="mr-1 h-3 w-3" /> Collect COD
+                            <AlertTriangleIcon className="mr-1 h-3 w-3" /> Collect COD
                           </Button>
                         )}
                       </>

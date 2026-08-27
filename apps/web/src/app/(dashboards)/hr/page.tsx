@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -15,10 +15,11 @@ import {
   ChartLineIcon,
   ClockIcon,
   UsersIcon,
+  ArrowRightIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, motion } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
@@ -279,8 +280,8 @@ export default function HRDashboard() {
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/hr/payroll">
                   View All <ArrowRightIcon className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </CardHeader>
             <CardContent className="pt-1 sm:pt-2"><div className="grid gap-4 sm:grid-cols-2">
                 <div className="text-center">

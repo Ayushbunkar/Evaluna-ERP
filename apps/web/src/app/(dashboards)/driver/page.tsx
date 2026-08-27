@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -19,14 +19,13 @@ import {
   RefreshCwIcon,
   TruckIcon,
   UserIcon,
-  WarningIcon,
+  AlertTriangleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, motion } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import motion from "framer-motion";
 
 export default function DriverDashboard() {
   const trpc = useTRPC();
@@ -327,7 +326,7 @@ export default function DriverDashboard() {
                   {dashboard?.successfulCollections || 0}
                 </p>
               </div>
-              <div className="border-border/50 p-4>
+              <div className="border-border/50 p-4">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   Returns Processed
                 </p>
@@ -335,7 +334,7 @@ export default function DriverDashboard() {
                   {dashboard?.returnsProcessed || 0}
                 </p>
               </div>
-              <div className="border-border/50 p-4>
+              <div className="border-border/50 p-4">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   Return Rate
                 </p>
@@ -356,53 +355,53 @@ export default function DriverDashboard() {
       >
         <Card className="border-border/50 bg-card/50 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-            <div className="space-y-0.5>
-              <CardTitle className="text-base sm:text-lg>
+            <div className="space-y-0.5">
+              <CardTitle className="text-base sm:text-lg">
                 Vehicle Status
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm>
+              <CardDescription className="text-xs sm:text-sm">
                 Current vehicle information and maintenance
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/driver/vehicle>
+              <Link href="/driver/vehicle">
                 View Details <ArrowRightIcon className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardHeader>
           <CardContent className="pt-1 sm:pt-2">{dashboard?.vehicleStatus ? (
-              <div className="grid gap-4 sm:grid-cols-2>
-                <div className="border-border/50 p-4>
-                  <p className="text-xs font-medium text-muted-foreground mb-1>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="border-border/50 p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
                     Maintenance Status
                   </p>
-                  <p className="font-bold text-lg ${
+                  <p className={`font-bold text-lg ${
                     dashboard?.vehicleStatus?.maintenanceDue
                       ? "text-red-600"
                       : "text-green-600"
-                  }>
+                  }`}>
                     {dashboard?.vehicleStatus?.maintenanceDue ? "Due" : "OK"}
                   </p>
                 </div>
-                <div className="border-border/50 p-4>
-                  <p className="text-xs font-medium text-muted-foreground mb-1>
+                <div className="border-border/50 p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
                     Fuel Level
                   </p>
-                  <p className="font-bold text-lg>
+                  <p className="font-bold text-lg">
                     {dashboard?.vehicleStatus?.fuelLevel || "N/A"}
                   </p>
                 </div>
-                <div className="border-border/50 p-4>
-                  <p className="text-xs font-medium text-muted-foreground mb-1>
+                <div className="border-border/50 p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
                     Odometer
                   </p>
-                  <p className="font-bold text-lg>
+                  <p className="font-bold text-lg">
                     {dashboard?.vehicleStatus?.odometer || "N/A"}
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm>
+              <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
                 Vehicle status not available
               </div>
             )}
@@ -417,38 +416,38 @@ export default function DriverDashboard() {
         transition={{ duration: 0.5, delay: 0.8 }}
       >
         <Card className="border-border/50 bg-card/50 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2>
-            <div className="space-y-0.5>
-              <CardTitle className="text-base sm:text-lg>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
+            <div className="space-y-0.5">
+              <CardTitle className="text-base sm:text-lg">
                 Notifications
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm>
+              <CardDescription className="text-xs sm:text-sm">
                 Dispatch messages and alerts
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/driver/support>
+              <Link href="/driver/support">
                 View All <ArrowRightIcon className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardHeader>
           <CardContent className="pt-1 sm:pt-2">{dashboard?.notifications?.length > 0 ? (
-              <div className="space-y-3>
+              <div className="space-y-3">
                 {dashboard.notifications.map((notif, index) => (
-                  <div key={index} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0>
-                    <div className="flex flex-col>
-                      <p className="font-medium text-sm>
+                  <div key={index} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0">
+                    <div className="flex flex-col">
+                      <p className="font-medium text-sm">
                         {notif.message}
                       </p>
                     </div>
-                    <div className="text-right text-xs text-gray-500>
+                    <div className="text-right text-xs text-gray-500">
                       {notif.time}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm"
+              <div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
                 No notifications
               </div>
             )}
@@ -457,10 +456,6 @@ export default function DriverDashboard() {
       </motion.div>
     </PageTransition>
   );
-}
-
-
-
 
 
 

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -17,15 +17,13 @@ import {
   TrendingUpIcon,
   TruckIcon,
   UsersIcon,
+  ArrowRightIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, StaggerList, StaggerItem, AnimatedCard, motion } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import motion from "framer-motion";
-import { StaggerList, StaggerItem, AnimatedCard } from "@/lib/animations/stagger";
-import { ArrowRightIcon } from "lucide-react";
 
 export default function PackerDashboard() {
   const trpc = useTRPC();

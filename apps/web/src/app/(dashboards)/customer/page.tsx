@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -18,13 +18,13 @@ import {
   RefreshCwIcon,
   TruckIcon,
   UsersIcon,
+  ArrowRightIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, motion } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import motion from "framer-motion";
 
 export default function CustomerDashboard() {
   const trpc = useTRPC();
@@ -234,6 +234,7 @@ export default function CustomerDashboard() {
             </Button>
           </CardHeader>
           <CardContent className="pt-1 sm:pt-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="border-border/50 p-4">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   Customer Satisfaction

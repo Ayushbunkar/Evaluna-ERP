@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { Table, TableBody, TableCell, Header, TableHead, TableRow } from "@evaluna/ui/components/table";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@evaluna/ui/components/table";
 import { useTRPC } from "@/lib/trpc/client";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
@@ -24,7 +24,7 @@ export default function InventoryLowStockPage() {
           <p className="text-muted-foreground text-xs sm:text-sm">
             Items below minimum stock level requiring attention
           </p>
-        </div
+        </div>
         <div className="flex gap-1 sm:gap-2">
           <Button variant="outline" className="text-xs shadow-sm sm:text-sm">
             <ActivityIcon className="mr-2 h-4 w-4" /> Inventory Activities
@@ -46,14 +46,14 @@ export default function InventoryLowStockPage() {
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHeader className="text-left">Product</TableHeader>
-                <TableHeader className="text-left">SKU</TableHeader>
-                <TableHeader className="text-left">Category</TableHeader>
-                <TableHeader className="text-left">Warehouse</TableHeader>
-                <TableHeader className="text-left">Current Qty</TableHeader>
-                <TableHeader className="text-left">Min Level</TableHeader>
-                <TableHeader className="text-left">Days of Supply</TableHeader>
-                <TableHeader className="text-left">Actions</TableHeader>
+                <TableHead className="text-left">Product</TableHead>
+                <TableHead className="text-left">SKU</TableHead>
+                <TableHead className="text-left">Category</TableHead>
+                <TableHead className="text-left">Warehouse</TableHead>
+                <TableHead className="text-left">Current Qty</TableHead>
+                <TableHead className="text-left">Min Level</TableHead>
+                <TableHead className="text-left">Days of Supply</TableHead>
+                <TableHead className="text-left">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

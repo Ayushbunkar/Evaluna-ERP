@@ -1,4 +1,4 @@
-﻿use client;
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -15,10 +15,8 @@ import {
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
 
 export default function CheckerDashboard() {
   const trpc = useTRPC();

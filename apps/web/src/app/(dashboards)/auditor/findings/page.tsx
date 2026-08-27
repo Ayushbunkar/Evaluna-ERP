@@ -1,11 +1,11 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { Table, TableBody, TableCell, Header, TableHead, TableRow } from "@evaluna/ui/components/table";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@evaluna/ui/components/table";
 import { useTRPC } from "@/lib/trpc/client";
-import { useLocale } = from "next-intl";
-import { PageTransition } = from "@/lib/animations";
-import { ActivityIcon, CalendarCheckIcon, ShieldIcon, UserIcon } = from "lucide-react";
+import { useLocale } from "next-intl";
+import { PageTransition } from "@/lib/animations";
+import { ActivityIcon, CalendarCheckIcon, ShieldIcon, UserIcon, CheckCircle2Icon } from "lucide-react";
 import Link from "next/link";
 
 export default function AuditorFindingsPage() {
@@ -46,13 +46,13 @@ export default function AuditorFindingsPage() {
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHeader className="text-left">ID</TableHeader>
-                <TableHeader className="text-left">Title</TableHeader>
-                <TableHeader className="text-left">Type</TableHeader>
-                <TableHeader className="text-left">Severity</TableHeader>
-                <TableHeader className="text-left">Status</TableHeader>
-                <TableHeader className="text-left">Date</TableHeader>
-                <TableHeader className="text-left">Actions</TableHeader>
+                <TableHead className="text-left">ID</TableHead>
+                <TableHead className="text-left">Title</TableHead>
+                <TableHead className="text-left">Type</TableHead>
+                <TableHead className="text-left">Severity</TableHead>
+                <TableHead className="text-left">Status</TableHead>
+                <TableHead className="text-left">Date</TableHead>
+                <TableHead className="text-left">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

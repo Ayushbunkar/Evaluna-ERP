@@ -1,26 +1,27 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
   Card,
-  CardContent CardDescription CardHeader CardTitle
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@evaluna/ui/components/card";
 import {
-  ActivityIcon
-  CalendarCheckIcon
-  ChartLineIcon
-  ClockIcon
-  PackageIcon
-  TrendingUpIcon
-  UsersIcon
+  ActivityIcon,
+  CalendarCheckIcon,
+  ChartLineIcon,
+  ClockIcon,
+  PackageIcon,
+  TrendingUpIcon,
+  UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import { PageTransition, StaggerList, StaggerItem, AnimatedCard, motion } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import motion from "framer-motion";
-import { StaggerList StaggerItem AnimatedCard } from "@/lib/animations/stagger";
 import { ArrowRightIcon } from "lucide-react";
 
 export default function PickerDashboard() {
