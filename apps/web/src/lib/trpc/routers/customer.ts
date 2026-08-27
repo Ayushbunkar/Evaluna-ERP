@@ -117,9 +117,7 @@ export const customerRouter = router({
 			where: eq(orders.customer_id, ctx.customer.id),
 			orderBy: [desc(orders.created_at)],
 			limit: 100,
-			with: { orderItems: { columns: { id: true } } },
-		});
-		return rows.map((o) => {
+			with: { orderItems: { columns: { id: true } } }`n  });`n`n  return rows.map((o) => {
 			const isConfirmed = CONFIRMED_STATUSES.includes(o.status ?? "");
 			return {
 				id: o.id,
@@ -129,7 +127,7 @@ export const customerRouter = router({
 				itemsCount: o.orderItems.length,
 				total: isConfirmed ? Number(o.total_amount) : null,
 			};
-		});
+		},
 	}),
 
 	// ── My order (detail) — line prices hidden until confirmed ────────────────
@@ -143,9 +141,11 @@ export const customerRouter = router({
 				),
 				with: {
 					orderItems: {
-						with: { product: { columns: { name: true, unit: true } } },
-					},
-				});
+						with: {
+								product: { columns: { name: true, unit: true } }
+							}
+					}
+				},
 			if (!order)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
 
@@ -180,17 +180,19 @@ export const customerRouter = router({
 				),
 				with: {
 					orderItems: {
-						with: { product: { columns: { name: true, unit: true } } },
-					},
-					paymentMethod: { columns: { name: true } },
-				},
-			});
-			if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+						with: {
+								product: { columns: { name: true, unit: true } }
+							}
+					}
+					paymentMethod: { columns: { name: true } }
+				}
+			},
+			if (!order) throw new TRPCError({ code: "NOT_FOUND" },
 			if (!CONFIRMED_STATUSES.includes(order.status ?? "")) {
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",
 					message: "Invoice is available only after the order is confirmed.",
-				});
+				},
 			}
 			const items = order.orderItems.map((it) => ({
 				name: it.product?.name ?? "Item",
@@ -239,14 +241,14 @@ export const customerRouter = router({
 				// Idempotency guard — same key already processed → return that order.
 				const existing = await tx.query.pendingSync.findFirst({
 					where: eq(pendingSync.id, input.idempotencyKey),
-				});
+				},
 				if (existing?.entity_id) {
 					const prior = await tx.query.orders.findFirst({
 						where: and(
 							eq(orders.id, existing.entity_id),
 							eq(orders.customer_id, ctx.customer.id),
 						),
-					});
+					},
 					if (prior)
 						return {
 							orderId: prior.id,
@@ -263,8 +265,8 @@ export const customerRouter = router({
 						eq(products.is_deleted, false),
 						eq(products.is_hidden, false),
 					),
-					columns: { id: true },
-				});
+					columns: { id: true }
+				},
 				const validIds = new Set(valid.map((p) => p.id));
 				const cleanItems = input.items.filter(
 					(i) => validIds.has(i.productId) && i.quantity > 0,
@@ -273,7 +275,7 @@ export const customerRouter = router({
 					throw new TRPCError({
 						code: "BAD_REQUEST",
 						message: "No valid products in the order.",
-					});
+					},
 				}
 
 				// Create the order with NO pricing — prices are applied by the
@@ -304,15 +306,15 @@ export const customerRouter = router({
 					operation_type: "CREATE_CUSTOMER_ORDER",
 					entity_type: "order",
 					entity_id: order.id,
-					payload: { customerId: ctx.customer.id, items: cleanItems },
-				});
+					payload: { customerId: ctx.customer.id, items: cleanItems }
+				},
 
 				return {
 					orderId: order.id,
 					orderRef: `ORD-${order.id}`,
 					duplicate: false,
 				};
-			});
+			},
 		}),
 
 	// ── Dashboard: customer relationship overview (for sales/reps) ────────
@@ -394,7 +396,7 @@ export const customerRouter = router({
 				with: {
 					customer: {
 						columns: { id: true, name: true }
-					},
+					}
 					orderItems: {
 						columns: { id: true }
 					}
@@ -420,4 +422,5 @@ export const customerRouter = router({
 				recentOrders
 			};
 		}),
-});
+},
+

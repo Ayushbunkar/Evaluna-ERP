@@ -1,7 +1,7 @@
 import {
   branches,
   companies,
-  customer,
+  customers,
   customerGroups,
   employees,
   enhancedAttendance,
@@ -125,8 +125,8 @@ export const adminRouter = router({
         // Total customers
         db
           .select({ count: count() })
-          .from(customer)
-          .where(eq(customer.is_deleted, false)),
+          .from(customers)
+          .where(eq(customers.is_deleted, false)),
 
         // Total branches
         db.select({ count: count() }).from(branches),
@@ -319,25 +319,25 @@ export const adminRouter = router({
       const db = ctx.db;
       let query = db
         .select()
-        .from(customer)
-        .where(eq(customer.is_deleted, false));
+        .from(customers)
+        .where(eq(customers.is_deleted, false));
 
       if (input.search) {
         const searchTerm = `%${input.search}%`;
         query = query.where(
           and(
-            ilike(customer.name, searchTerm),
-            ilike(customer.contact_person, searchTerm)
+            ilike(customers.name, searchTerm),
+            ilike(customers.contact_person, searchTerm)
           )
         );
       }
 
       if (input.customer_group_id) {
-        query = query.where(eq(customer.customer_group_id, input.customer_group_id));
+        query = query.where(eq(customers.customer_group_id, input.customer_group_id));
       }
 
       const results = await query
-        .orderBy(desc(customer.created_at))
+        .orderBy(desc(customers.created_at))
         .limit(50);
 
       return results.map((r) => ({
@@ -398,9 +398,9 @@ export const adminRouter = router({
         // Total receivables
         db
           .select({
-            total: sql<number>`COALESCE(SUM(${customer.credit_used}), 0)`,
+            total: sql<number>`COALESCE(SUM(${customers.credit_used}), 0)`,
           })
-          .from(customer),
+          .from(customers),
 
         // Total payables
         db

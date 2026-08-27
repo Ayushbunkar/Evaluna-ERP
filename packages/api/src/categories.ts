@@ -136,11 +136,11 @@ export const categoriesRouter = router({
 		const categoryMap = new Map<number, any>();
 		const roots: any[] = [];
 
-		categories.forEach((cat) => {
+		categories.forEach((cat: any) => {
 			categoryMap.set(cat.id, { ...cat, children: [] });
 		});
 
-		categories.forEach((cat) => {
+		categories.forEach((cat: any) => {
 			if (cat.parent_id) {
 				const parent = categoryMap.get(cat.parent_id);
 				if (parent) {
@@ -167,6 +167,6 @@ export const categoriesRouter = router({
 				)
 				.where(eq(schema.productCategoryMapping.category_id, input.categoryId));
 
-			return products.map((p) => p.products);
+			return products.map((p: any) => p.products);
 		}),
 });

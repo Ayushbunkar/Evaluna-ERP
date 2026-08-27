@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { router } from "../init";
-import { permProcedure, roleProcedure } from "../init";
+import { permissionProcedure, roleProcedure } from "../init";
 import { resolveStaffId } from "../util/audit";
 import { createFinding } from "./audit-findings";
 
@@ -14,7 +14,7 @@ import { createFinding } from "./audit-findings";
  */
 export const routeAuditRouter = router({
 	// ── Read: trips with planned-vs-actual deviation computed ─────────────────
-	listTrips: permProcedure("route_audit", "read")
+	listTrips: permissionProcedure("route_audit", "read")
 		.input(z.object({ status: z.string().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const rows = await ctx.db
@@ -39,7 +39,7 @@ export const routeAuditRouter = router({
 		}),
 
 	// ── Write: flag a route deviation → raise a route finding ─────────────────
-	flagDeviation: permProcedure("route_audit", "write")
+	flagDeviation: permissionProcedure("route_audit", "write")
 		.input(
 			z.object({
 				tripId: z.number(),
