@@ -122,10 +122,9 @@ export default function ManagerDashboard() {
                   </p>
                 </div>
               </CardContent>
-            </AnimatedCard>
-
+            </Card>
+          </AnimatedCard>
         </StaggerItem>
-
         <StaggerItem>
           <AnimatedCard>
             <Card
@@ -145,7 +144,7 @@ export default function ManagerDashboard() {
                   </p>
                 </div>
               </CardContent>
-            </AnimatedCard>
+            </Card>
           </AnimatedCard>
         </StaggerItem>
       </StaggerList>
@@ -359,3 +358,7 @@ export default function ManagerDashboard() {
     </PageTransition>
   );
 }
+
+
+
+

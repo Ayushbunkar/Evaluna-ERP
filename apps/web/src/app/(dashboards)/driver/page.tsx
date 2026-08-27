@@ -456,6 +456,4 @@ export default function DriverDashboard() {
       </motion.div>
     </PageTransition>
   );
-
-
-
+}
