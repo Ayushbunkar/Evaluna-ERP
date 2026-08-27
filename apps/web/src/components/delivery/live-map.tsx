@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import L from "leaflet";
 import { useEffect, useState } from "react";
@@ -99,3 +99,4 @@ export default function LiveMap({ trips }: { trips: Trip[] }) {
 		</MapContainer>
 	);
 }
+

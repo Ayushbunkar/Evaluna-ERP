@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { SearchIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -6,7 +6,7 @@ import { cn } from "../lib/utils";
 import { Button } from "./button";
 import { Input } from "./input";
 
-// ── Filter button types ────────────────────────────────────────────────────
+// â”€â”€ Filter button types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface FilterOption {
 	label: string;
@@ -89,3 +89,4 @@ export function SearchFilter({
 		</div>
 	);
 }
+

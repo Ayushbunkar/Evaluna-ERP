@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ReactLenis } from "@studio-freight/react-lenis";
 import type { ReactNode } from "react";
@@ -8,3 +8,4 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
 	// Returning children directly restores native scrolling and fixes the scrollbar issue.
 	return <>{children}</>;
 }
+

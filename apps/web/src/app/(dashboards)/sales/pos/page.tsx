@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -384,7 +384,7 @@ export default function POSPage() {
 											</CardHeader>
 											<CardContent className="flex flex-col justify-end p-4 pt-0">
 												<div className="font-bold text-lg text-primary">
-													₹{Number.parseFloat(product.price).toFixed(2)}
+													â‚¹{Number.parseFloat(product.price).toFixed(2)}
 												</div>
 												<div className="mt-1 line-clamp-2 min-h-[32px] text-muted-foreground text-xs">
 													{product.description || ""}
@@ -442,7 +442,7 @@ export default function POSPage() {
 												{item.name}
 											</div>
 											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs">
-												₹{Number.parseFloat(item.price).toFixed(2)} / unit
+												â‚¹{Number.parseFloat(item.price).toFixed(2)} / unit
 											</div>
 										</div>
 
@@ -474,7 +474,7 @@ export default function POSPage() {
 											</div>
 											<div className="flex items-center gap-3">
 												<span className="font-bold text-sm">
-													₹
+													â‚¹
 													{(Number.parseFloat(item.price) * item.qty).toFixed(
 														2,
 													)}
@@ -501,7 +501,7 @@ export default function POSPage() {
 					{/* Subtotal row */}
 					<div className="flex items-center justify-between text-muted-foreground text-sm">
 						<span>Subtotal</span>
-						<span>₹{subtotal.toFixed(2)}</span>
+						<span>â‚¹{subtotal.toFixed(2)}</span>
 					</div>
 
 					{/* Coupon row */}
@@ -518,7 +518,7 @@ export default function POSPage() {
 										onClick={removeCoupon}
 										title="Remove coupon"
 									>
-										×
+										Ã—
 									</button>
 								</span>
 							) : (
@@ -533,11 +533,11 @@ export default function POSPage() {
 								</Button>
 							)}
 						</div>
-						<span className="text-green-600">− ₹{discount.toFixed(2)}</span>
+						<span className="text-green-600">âˆ’ â‚¹{discount.toFixed(2)}</span>
 					</div>
 					<div className="flex items-center justify-between border-t pt-2 font-bold text-2xl">
 						<span>Total</span>
-						<span>₹{total.toFixed(2)}</span>
+						<span>â‚¹{total.toFixed(2)}</span>
 					</div>
 
 					<div className="grid grid-cols-2 gap-2 pt-4">
@@ -637,3 +637,8 @@ export default function POSPage() {
 		</PageTransition>
 	);
 }
+
+
+
+
+

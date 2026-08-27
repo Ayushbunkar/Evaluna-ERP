@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -47,7 +47,7 @@ export function CommandPalette() {
 				<span className="hidden lg:inline-flex">Search...</span>
 				<span className="inline-flex lg:hidden">Search...</span>
 				<kbd className="pointer-events-none absolute top-2 right-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium font-mono text-[10px] opacity-100 sm:flex">
-					<span className="text-xs">⌘</span>K
+					<span className="text-xs">âŒ˜</span>K
 				</kbd>
 			</Button>
 			<CommandDialog open={open} onOpenChange={setOpen}>
@@ -83,13 +83,13 @@ export function CommandPalette() {
 							}
 						>
 							Profile
-							<CommandShortcut>⌘P</CommandShortcut>
+							<CommandShortcut>âŒ˜P</CommandShortcut>
 						</CommandItem>
 						<CommandItem
 							onSelect={() => runCommand(() => router.push("/settings"))}
 						>
 							Settings
-							<CommandShortcut>⌘S</CommandShortcut>
+							<CommandShortcut>âŒ˜S</CommandShortcut>
 						</CommandItem>
 					</CommandGroup>
 				</CommandList>
@@ -97,3 +97,4 @@ export function CommandPalette() {
 		</>
 	);
 }
+

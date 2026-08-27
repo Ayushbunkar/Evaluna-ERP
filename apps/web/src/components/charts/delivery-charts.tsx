@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	type ChartConfig,
@@ -46,3 +46,4 @@ export function DeliveryStatusChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
+

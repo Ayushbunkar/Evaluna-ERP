@@ -1,4 +1,4 @@
-import { Button } from "@evaluna/ui/components/button";
+﻿import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import { ArrowLeft, MountainIcon, Monitor, MousePointer, Database, Shield, User, Settings } from "lucide-react";
 import Link from "next/link";
@@ -114,11 +114,11 @@ export default function DemoPage() {
                   Our robust data management system ensures data integrity, security, and accessibility.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Centralized database</li>
-                  <li>• Real-time synchronization</li>
-                  <li>• Data backup & recovery</li>
-                  <li>• Advanced search capabilities</li>
-                  <li>• Custom data views</li>
+                  <li>â€¢ Centralized database</li>
+                  <li>â€¢ Real-time synchronization</li>
+                  <li>â€¢ Data backup & recovery</li>
+                  <li>â€¢ Advanced search capabilities</li>
+                  <li>â€¢ Custom data views</li>
                 </ul>
               </CardContent>
             </Card>
@@ -133,11 +133,11 @@ export default function DemoPage() {
                   Comprehensive security measures to protect our business data and ensure compliance.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Role-based access control</li>
-                  <li>• Data encryption</li>
-                  <li>• Audit logging</li>
-                  <li>• Two-factor authentication</li>
-                  <li>• Regular security updates</li>
+                  <li>â€¢ Role-based access control</li>
+                  <li>â€¢ Data encryption</li>
+                  <li>â€¢ Audit logging</li>
+                  <li>â€¢ Two-factor authentication</li>
+                  <li>â€¢ Regular security updates</li>
                 </ul>
               </CardContent>
             </Card>
@@ -152,11 +152,11 @@ export default function DemoPage() {
                   Flexible user management system with customizable permissions and profiles.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• User roles & permissions</li>
-                  <li>• Profile customization</li>
-                  <li>• Activity tracking</li>
-                  <li>• Department-based access</li>
-                  <li>• User onboarding workflows</li>
+                  <li>â€¢ User roles & permissions</li>
+                  <li>â€¢ Profile customization</li>
+                  <li>â€¢ Activity tracking</li>
+                  <li>â€¢ Department-based access</li>
+                  <li>â€¢ User onboarding workflows</li>
                 </ul>
               </CardContent>
             </Card>
@@ -245,19 +245,19 @@ export default function DemoPage() {
                   <div>
                     <h4 className="font-medium mb-2">Supported Browsers:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Chrome (latest version)</li>
-                      <li>• Firefox (latest version)</li>
-                      <li>• Safari (latest version)</li>
-                      <li>• Edge (latest version)</li>
+                      <li>â€¢ Chrome (latest version)</li>
+                      <li>â€¢ Firefox (latest version)</li>
+                      <li>â€¢ Safari (latest version)</li>
+                      <li>â€¢ Edge (latest version)</li>
                     </ul>
                   </div>
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Device Requirements:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Desktop or laptop computer</li>
-                      <li>• Tablet devices</li>
-                      <li>• Minimum 1024x768 resolution</li>
-                      <li>• Internet connection</li>
+                      <li>â€¢ Desktop or laptop computer</li>
+                      <li>â€¢ Tablet devices</li>
+                      <li>â€¢ Minimum 1024x768 resolution</li>
+                      <li>â€¢ Internet connection</li>
                     </ul>
                   </div>
                 </div>
@@ -276,19 +276,19 @@ export default function DemoPage() {
                   <div>
                     <h4 className="font-medium mb-2">Access Methods:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Web browser access</li>
-                      <li>• Mobile responsive design</li>
-                      <li>• VPN access for remote users</li>
-                      <li>• Single sign-on (SSO) support</li>
+                      <li>â€¢ Web browser access</li>
+                      <li>â€¢ Mobile responsive design</li>
+                      <li>â€¢ VPN access for remote users</li>
+                      <li>â€¢ Single sign-on (SSO) support</li>
                     </ul>
                   </div>
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Support Options:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• IT help desk</li>
-                      <li>• Online documentation</li>
-                      <li>• Training sessions</li>
-                      <li>• User community forum</li>
+                      <li>â€¢ IT help desk</li>
+                      <li>â€¢ Online documentation</li>
+                      <li>â€¢ Training sessions</li>
+                      <li>â€¢ User community forum</li>
                     </ul>
                   </div>
                 </div>
@@ -326,7 +326,7 @@ export default function DemoPage() {
               <span className="font-bold text-lg text-foreground">Evaluna ERP</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
+              Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
@@ -340,3 +340,4 @@ export default function DemoPage() {
     </div>
   );
 }
+

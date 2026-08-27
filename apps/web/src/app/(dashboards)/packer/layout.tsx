@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function PackerLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -96,3 +96,7 @@ export default function PackerLayout({ children }: { children: React.ReactNode }
     </div>
   );
 }
+
+
+
+

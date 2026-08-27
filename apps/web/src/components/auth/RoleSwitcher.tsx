@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	Select,
@@ -70,3 +70,4 @@ export function RoleSwitcher() {
 		</div>
 	);
 }
+

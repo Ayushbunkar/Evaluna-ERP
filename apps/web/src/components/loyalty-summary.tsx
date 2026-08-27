@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import {
@@ -117,12 +117,12 @@ export function LoyaltySummary({ customerId }: LoyaltySummaryProps) {
 						Points Available
 					</div>
 					<div className="mt-1 font-medium text-xs">
-						= ₹{customer.loyalty_points ?? 0} discount
+						= â‚¹{customer.loyalty_points ?? 0} discount
 					</div>
 				</div>
 				<div className="rounded-lg bg-white/70 p-3 text-center">
 					<div className="font-bold text-2xl">
-						₹
+						â‚¹
 						{Number.parseFloat(
 							(customer.total_spent as string) ?? "0",
 						).toLocaleString("en-IN")}
@@ -132,7 +132,7 @@ export function LoyaltySummary({ customerId }: LoyaltySummaryProps) {
 					</div>
 					{nextTier && (
 						<div className="mt-1 font-medium text-blue-600 text-xs">
-							₹{(nextThreshold! - totalSpent).toLocaleString("en-IN")} to{" "}
+							â‚¹{(nextThreshold! - totalSpent).toLocaleString("en-IN")} to{" "}
 							{nextTier}
 						</div>
 					)}
@@ -187,3 +187,4 @@ export function LoyaltySummary({ customerId }: LoyaltySummaryProps) {
 		</motion.div>
 	);
 }
+

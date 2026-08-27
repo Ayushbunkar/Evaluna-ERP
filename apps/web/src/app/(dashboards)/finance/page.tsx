@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -106,8 +106,7 @@ export default function FinanceDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/finance/expenses")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ChartLineIcon className="h-6 w-6 text-red-500" />
                   </div>
@@ -129,8 +128,7 @@ export default function FinanceDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/finance/bank")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <CreditCardIcon className="h-6 w-6 text-yellow-500" />
                   </div>
@@ -180,3 +178,9 @@ export default function FinanceDashboard() {
     </PageTransition>
   );
 }
+
+
+
+
+
+

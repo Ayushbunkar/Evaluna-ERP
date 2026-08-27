@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -48,7 +48,7 @@ interface SaleCompletionScreenProps {
 const STORE = {
 	name: "EVALUNA PVT LTD",
 	address: "Near Bank of India, Vidisha Road, Berasia",
-	city: "Bhopal, MP – 463106",
+	city: "Bhopal, MP â€“ 463106",
 	phone: "7000219747",
 };
 
@@ -392,18 +392,18 @@ export function SaleCompletionScreen({
 			const qtyStr = Number.isInteger(item.qty)
 				? item.qty
 				: item.qty.toFixed(3);
-			itemsText += `${idx + 1}. *${item.name}*\n   Qty: ${qtyStr} x ₹${rate.toFixed(2)} = *₹${lineTotal.toFixed(2)}*\n`;
+			itemsText += `${idx + 1}. *${item.name}*\n   Qty: ${qtyStr} x â‚¹${rate.toFixed(2)} = *â‚¹${lineTotal.toFixed(2)}*\n`;
 		});
 
 		let customerText = "";
 		if (order.customerName || order.customerPhone || order.shopName) {
 			customerText += `--------------------------------\n*BILL TO:*\n`;
-			if (order.customerName) customerText += `• Name: ${order.customerName}\n`;
-			if (order.shopName) customerText += `• Shop: ${order.shopName}\n`;
-			if (order.customerPhone) customerText += `• Phone: ${order.customerPhone}\n`;
+			if (order.customerName) customerText += `â€¢ Name: ${order.customerName}\n`;
+			if (order.shopName) customerText += `â€¢ Shop: ${order.shopName}\n`;
+			if (order.customerPhone) customerText += `â€¢ Phone: ${order.customerPhone}\n`;
 		}
 
-		const fullText = `🧾 *INVOICE #${order.id}*\n*${STORE.name}*\n_${STORE.address}, ${STORE.city}_\n📞 Phone: ${STORE.phone}\n--------------------------------\n*Date:* ${formattedDate}\n*Cashier:* ${order.cashierName || "Counter 1"}\n${customerText}--------------------------------\n*ITEMS:*\n${itemsText}--------------------------------\n*Subtotal:* ₹${order.subtotal.toFixed(2)}\n*Grand Total:* *₹${grandTotal.toFixed(2)}*\n*Payment:* ${order.payments.map((p) => `${PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}: ₹${Number.parseFloat(p.amount).toFixed(2)}`).join(", ")}\n--------------------------------\nThank you for shopping!\n_*EVALUNA PVT LTD*_`;
+		const fullText = `ðŸ§¾ *INVOICE #${order.id}*\n*${STORE.name}*\n_${STORE.address}, ${STORE.city}_\nðŸ“ž Phone: ${STORE.phone}\n--------------------------------\n*Date:* ${formattedDate}\n*Cashier:* ${order.cashierName || "Counter 1"}\n${customerText}--------------------------------\n*ITEMS:*\n${itemsText}--------------------------------\n*Subtotal:* â‚¹${order.subtotal.toFixed(2)}\n*Grand Total:* *â‚¹${grandTotal.toFixed(2)}*\n*Payment:* ${order.payments.map((p) => `${PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}: â‚¹${Number.parseFloat(p.amount).toFixed(2)}`).join(", ")}\n--------------------------------\nThank you for shopping!\n_*EVALUNA PVT LTD*_`;
 
 		window.open(
 			`https://wa.me/?text=${encodeURIComponent(fullText)}`,
@@ -414,7 +414,7 @@ export function SaleCompletionScreen({
 	const handleEmail = () => {
 		const subject = encodeURIComponent(`Invoice #${order.id} - ${STORE.name}`);
 		const body = encodeURIComponent(
-			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
+			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: â‚¹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
 		);
 		window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
 	};
@@ -425,13 +425,13 @@ export function SaleCompletionScreen({
 
 	const handleReturn = () => {
 		toast.info(
-			"Return items: Please go to Invoice History → Select this invoice → Return.",
+			"Return items: Please go to Invoice History â†’ Select this invoice â†’ Return.",
 		);
 	};
 
 	const handleExchange = () => {
 		toast.info(
-			"Exchange items: Please go to Invoice History → Select this invoice → Exchange.",
+			"Exchange items: Please go to Invoice History â†’ Select this invoice â†’ Exchange.",
 		);
 	};
 
@@ -454,7 +454,7 @@ export function SaleCompletionScreen({
 					transition={{ type: "spring", damping: 22, stiffness: 300 }}
 					className="flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
 				>
-					{/* ── Header ── */}
+					{/* â”€â”€ Header â”€â”€ */}
 					<div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-green-600 to-emerald-500 px-6 py-4 text-white">
 						<div className="flex items-center gap-3">
 							<div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
@@ -479,7 +479,7 @@ export function SaleCompletionScreen({
 					</div>
 
 					<div className="flex min-h-0 flex-1 overflow-hidden">
-						{/* ── Left: Receipt Preview ── */}
+						{/* â”€â”€ Left: Receipt Preview â”€â”€ */}
 						<div className="flex min-h-0 flex-1 flex-col border-r bg-gray-100/50">
 							{/* Size selector at the top of preview */}
 							<div className="flex justify-between items-center border-b bg-white px-6 py-2.5 shrink-0 relative z-20">
@@ -530,7 +530,7 @@ export function SaleCompletionScreen({
 										</h2>
 										<p className="text-gray-500 mt-0.5">{STORE.address}</p>
 										<p className="text-gray-500">{STORE.city}</p>
-										<p className="text-gray-500">📞 {STORE.phone}</p>
+										<p className="text-gray-500">ðŸ“ž {STORE.phone}</p>
 									</div>
 
 									<hr className="my-3 border-t border-dashed border-gray-400" />
@@ -633,10 +633,10 @@ export function SaleCompletionScreen({
 																: item.qty.toFixed(3)}
 														</td>
 														<td className="py-2 text-right align-top text-gray-600">
-															₹{rate.toFixed(2)}
+															â‚¹{rate.toFixed(2)}
 														</td>
 														<td className="py-2 text-right align-top font-medium">
-															₹{lineTotal.toFixed(2)}
+															â‚¹{lineTotal.toFixed(2)}
 														</td>
 													</tr>
 												);
@@ -650,7 +650,7 @@ export function SaleCompletionScreen({
 									<div className="space-y-1.5">
 										<div className="flex justify-between text-gray-600">
 											<span>Subtotal</span>
-											<span>₹{order.subtotal.toFixed(2)}</span>
+											<span>â‚¹{order.subtotal.toFixed(2)}</span>
 										</div>
 										{order.discount > 0 && (
 											<div className="flex justify-between text-green-600">
@@ -658,21 +658,21 @@ export function SaleCompletionScreen({
 													Discount{" "}
 													{order.couponCode ? `(${order.couponCode})` : ""}
 												</span>
-												<span>− ₹{order.discount.toFixed(2)}</span>
+												<span>âˆ’ â‚¹{order.discount.toFixed(2)}</span>
 											</div>
 										)}
 										{roundOff !== 0 && (
 											<div className="flex justify-between text-gray-500">
 												<span>Round-off</span>
 												<span>
-													{roundOff > 0 ? "+" : ""}₹{roundOff.toFixed(2)}
+													{roundOff > 0 ? "+" : ""}â‚¹{roundOff.toFixed(2)}
 												</span>
 											</div>
 										)}
 										<hr className="my-2 border-gray-200" />
 										<div className="flex justify-between font-bold text-base">
 											<span>Grand Total</span>
-											<span>₹{grandTotal.toFixed(2)}</span>
+											<span>â‚¹{grandTotal.toFixed(2)}</span>
 										</div>
 									</div>
 
@@ -688,19 +688,19 @@ export function SaleCompletionScreen({
 												<span>
 													{PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}
 												</span>
-												<span>₹{Number.parseFloat(p.amount).toFixed(2)}</span>
+												<span>â‚¹{Number.parseFloat(p.amount).toFixed(2)}</span>
 											</div>
 										))}
 										{change > 0 && (
 											<div className="flex justify-between font-medium text-blue-600">
 												<span>Change Returned</span>
-												<span>₹{change.toFixed(2)}</span>
+												<span>â‚¹{change.toFixed(2)}</span>
 											</div>
 										)}
 										{balanceDue > 0 && (
 											<div className="flex justify-between font-semibold text-red-600">
 												<span>Balance Due</span>
-												<span>₹{balanceDue.toFixed(2)}</span>
+												<span>â‚¹{balanceDue.toFixed(2)}</span>
 											</div>
 										)}
 									</div>
@@ -722,7 +722,7 @@ export function SaleCompletionScreen({
 							</ScrollArea>
 						</div>
 
-						{/* ── Right: Actions Panel ── */}
+						{/* â”€â”€ Right: Actions Panel â”€â”€ */}
 						<div className="flex w-64 shrink-0 flex-col gap-3 bg-gray-50/80 p-4">
 							<div className="mb-1 font-semibold text-gray-400 text-xs uppercase tracking-wide">
 								Actions
@@ -823,10 +823,10 @@ export function SaleCompletionScreen({
 						</div>
 					</div>
 
-					{/* ── Footer ── */}
+					{/* â”€â”€ Footer â”€â”€ */}
 					<div className="flex shrink-0 items-center justify-between border-t bg-gray-50 px-6 py-3 text-gray-400 text-xs">
 						<span>
-							Invoice #{order.id} • {formattedDate}
+							Invoice #{order.id} â€¢ {formattedDate}
 						</span>
 						<div className="flex items-center gap-2">
 							<span className="inline-flex items-center gap-1">
@@ -848,3 +848,4 @@ export function SaleCompletionScreen({
 		</AnimatePresence>
 	);
 }
+

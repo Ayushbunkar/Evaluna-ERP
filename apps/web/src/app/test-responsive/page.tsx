@@ -1,4 +1,4 @@
-import { ResponsiveTest } from "@/lib/responsive-test";
+﻿import { ResponsiveTest } from "@/lib/responsive-test";
 
 export default function ResponsiveTestPage() {
 	return (
@@ -7,3 +7,4 @@ export default function ResponsiveTestPage() {
 		</div>
 	);
 }
+

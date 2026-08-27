@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { MapPinIcon, PackageIcon, RouteIcon, TruckIcon } from "lucide-react";
 import { useState } from "react";
@@ -270,7 +270,7 @@ export function DeliveryManagementDashboard({
 														disabled={optimizeRouteSequence.isPending}
 														className="h-7 text-xs font-semibold bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
 													>
-														✨ Auto-Optimize Route
+														âœ¨ Auto-Optimize Route
 													</Button>
 												)}
 											</div>
@@ -355,7 +355,7 @@ export function DeliveryManagementDashboard({
 														disabled={optimizeRouteSequence.isPending}
 														className="h-7 text-xs font-semibold bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
 													>
-														✨ Auto-Optimize Route
+														âœ¨ Auto-Optimize Route
 													</Button>
 												)}
 											</div>
@@ -628,7 +628,7 @@ export function DeliveryManagementDashboard({
 								<div>
 									<h4 className="font-bold">Truck 01</h4>
 									<p className="text-muted-foreground text-xs">
-										Moving at 45 km/h • ETA 10 mins
+										Moving at 45 km/h â€¢ ETA 10 mins
 									</p>
 								</div>
 							</div>
@@ -751,3 +751,4 @@ export function DeliveryManagementDashboard({
 		</Tabs>
 	);
 }
+

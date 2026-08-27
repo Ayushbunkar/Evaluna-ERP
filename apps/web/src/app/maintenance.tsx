@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { Wrench } from "lucide-react";
@@ -24,3 +24,4 @@ export default function MaintenancePage() {
 		</div>
 	);
 }
+

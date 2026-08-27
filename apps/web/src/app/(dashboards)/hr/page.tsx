@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -87,8 +87,7 @@ export default function HRDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
               onClick={() => (window.location.href = "/hr/attendance")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <CalendarCheckIcon className="h-6 w-6 text-green-500" />
                   </div>
@@ -110,8 +109,7 @@ export default function HRDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
               onClick={() => (window.location.href = "/hr/leave")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ClockIcon className="h-6 w-6 text-purple-500" />
                   </div>
@@ -133,8 +131,7 @@ export default function HRDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
               onClick={() => (window.location.href = "/hr/payroll")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <BanknoteIcon className="h-6 w-6 text-yellow-500" />
                   </div>
@@ -285,8 +282,7 @@ export default function HRDashboard() {
                 </Button>
               </Link>
             </CardHeader>
-            <CardContent className="pt-1 sm:pt-2>
-              <div className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="pt-1 sm:pt-2"><div className="grid gap-4 sm:grid-cols-2">
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">
                     Payroll Pending
@@ -347,8 +343,7 @@ export default function HRDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            <div className="flex flex-col gap-3 sm:gap-4">
+          <CardContent className="pt-1 sm:pt-2"><div className="flex flex-col gap-3 sm:gap-4">
               {/* Placeholder for recent activity - would come from actual HR audit logs */}
               <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
                 Recent HR activities will appear here
@@ -360,3 +355,9 @@ export default function HRDashboard() {
     </PageTransition>
   );
 }
+
+
+
+
+
+

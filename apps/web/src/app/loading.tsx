@@ -1,4 +1,4 @@
-import { Skeleton } from "@evaluna/ui/components/skeleton";
+﻿import { Skeleton } from "@evaluna/ui/components/skeleton";
 
 export default function RootLoading() {
 	return (
@@ -16,3 +16,4 @@ export default function RootLoading() {
 		</div>
 	);
 }
+

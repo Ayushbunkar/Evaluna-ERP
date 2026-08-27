@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	type ChartConfig,
@@ -102,7 +102,7 @@ export function InventoryValueChart({ data }: { data: any[] }) {
 				<YAxis
 					tickLine={false}
 					axisLine={false}
-					tickFormatter={(v) => `₹${v / 1000}k`}
+					tickFormatter={(v) => `â‚¹${v / 1000}k`}
 				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
@@ -203,3 +203,4 @@ export function InventoryWarehouseChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
+

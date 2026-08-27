@@ -1,3 +1,4 @@
-export function LineChart() {
+﻿export function LineChart() {
 	return <div>LineChart</div>;
 }
+

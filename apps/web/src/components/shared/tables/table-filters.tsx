@@ -1,3 +1,4 @@
-export function TableFilters() {
+﻿export function TableFilters() {
 	return <div>TableFilters</div>;
 }
+

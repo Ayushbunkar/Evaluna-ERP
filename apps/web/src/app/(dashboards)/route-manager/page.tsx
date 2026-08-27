@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -183,8 +183,7 @@ export default function RouteManagerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {activeTrips > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{activeTrips > 0 ? (
               <div className="space-y-3">
                 {trips
                   ?.filter(t => t.status === "active")
@@ -193,7 +192,7 @@ export default function RouteManagerDashboard() {
                       <div className="flex flex-col">
                         <p className="font-medium text-sm">Trip #{trip.id}</p>
                         <p className="text-xs text-muted-foreground">
-                          Route: {trip.route_id} • Driver: {trip.driver_id}
+                          Route: {trip.route_id} â€¢ Driver: {trip.driver_id}
                         </p>
                       </div>
                       <div className="text-right flex items-center gap-2">
@@ -238,8 +237,7 @@ export default function RouteManagerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {tripsWithDeviation > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{tripsWithDeviation > 0 ? (
               <div className="space-y-3">
                 {trips
                   ?.filter(t => t.has_deviation)
@@ -294,8 +292,7 @@ export default function RouteManagerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {trips?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{trips?.length > 0 ? (
               <div className="space-y-3">
                 {trips
                   ?.slice(0, 5)
@@ -334,3 +331,7 @@ export default function RouteManagerDashboard() {
     </PageTransition>
   );
 }
+
+
+
+

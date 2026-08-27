@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import dynamic from "next/dynamic";
@@ -20,3 +20,4 @@ export function MapWrapper({ trips }: { trips: any[] }) {
 		</div>
 	);
 }
+

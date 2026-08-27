@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import { type Column, DataTable } from "@evaluna/ui/components/data-table";
@@ -51,3 +51,4 @@ export default function DamageRaisePage() {
 		</PageTransition>
 	);
 }
+

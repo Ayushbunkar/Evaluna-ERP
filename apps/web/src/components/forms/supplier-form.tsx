@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { useForm } from "@tanstack/react-form";
@@ -166,3 +166,4 @@ export function SupplierForm({
 		</form>
 	);
 }
+

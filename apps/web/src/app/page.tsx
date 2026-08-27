@@ -1,4 +1,4 @@
-import { Button } from "@evaluna/ui/components/button";
+﻿import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@evaluna/ui/components/card";
 import { MountainIcon, ArrowRight, Users, ShoppingCart, BarChart3, Truck, Package, HomeIcon, Settings, FileText, HelpCircle, Mail, BookOpen } from "lucide-react";
 import Link from "next/link";
@@ -74,7 +74,7 @@ export default function Home() {
 											<BarChart3 className="h-4 w-4 text-muted-foreground" />
 										</CardHeader>
 									<CardContent>
-										<div className="text-2xl font-bold">₹12,345.67</div>
+										<div className="text-2xl font-bold">â‚¹12,345.67</div>
 										<p className="text-xs text-muted-foreground">+12.5% from last month</p>
 											<div className="mt-4 h-20 bg-gradient-to-r from-blue-100 to-blue-50 rounded-lg flex items-end p-2">
 												{/* Mock chart */}
@@ -254,7 +254,7 @@ export default function Home() {
 							<span className="font-bold text-lg text-foreground">Evaluna ERP</span>
 						</div>
 						<div className="text-sm text-muted-foreground">
-							© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
+							Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
 						</div>
 					</div>
 					<div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
@@ -269,3 +269,4 @@ export default function Home() {
 		</div>
 	);
 }
+

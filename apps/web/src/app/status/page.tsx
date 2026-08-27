@@ -1,4 +1,4 @@
-import { Button } from "@evaluna/ui/components/button";
+﻿import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import { ArrowLeft, MountainIcon, CheckCircle2, AlertTriangle, Clock, Server, Database, Shield, Activity } from "lucide-react";
 import Link from "next/link";
@@ -507,35 +507,35 @@ export default function StatusPage() {
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between items-center p-2 bg-green-50/50 rounded-lg">
-                  <span>• Core ERP System</span>
+                  <span>â€¢ Core ERP System</span>
                   <div className="flex items-center">
                     <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
                     <span className="font-medium">Operational</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-green-50/50 rounded-lg">
-                  <span>• Database Services</span>
+                  <span>â€¢ Database Services</span>
                   <div className="flex items-center">
                     <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
                     <span className="font-medium">Healthy</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-green-50/50 rounded-lg">
-                  <span>• Authentication Services</span>
+                  <span>â€¢ Authentication Services</span>
                   <div className="flex items-center">
                     <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
                     <span className="font-medium">Operational</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-green-50/50 rounded-lg">
-                  <span>• Integration Services</span>
+                  <span>â€¢ Integration Services</span>
                   <div className="flex items-center">
                     <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
                     <span className="font-medium">Operational</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-green-50/50 rounded-lg">
-                  <span>• Security Systems</span>
+                  <span>â€¢ Security Systems</span>
                   <div className="flex items-center">
                     <CheckCircle2 className="h-4 w-4 text-green-500 mr-1" />
                     <span className="font-medium">Secure</span>
@@ -575,7 +575,7 @@ export default function StatusPage() {
               <span className="font-bold text-lg text-foreground">Evaluna ERP</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
+              Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
@@ -588,3 +588,4 @@ export default function StatusPage() {
     </div>
   );
 }
+

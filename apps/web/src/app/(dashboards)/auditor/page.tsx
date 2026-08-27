@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -65,8 +65,7 @@ export default function AuditorDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
               onClick={() => (window.location.href = "/auditor/findings")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ShieldIcon className="h-6 w-6 text-blue-500" />
                   </div>
@@ -86,12 +85,11 @@ export default function AuditorDashboard() {
           <AnimatedCard>
             <Card
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
-              onClick={() => (window.location.href = "/auditor/upc")}
-            >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-                  <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-                    <CalendarCheckIcon className="h-6 w-6 text-green-500" />
+onClick={() => (window.location.href = "/auditor/upc")}
+             >
+               <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
+                     <CalendarCheckIcon className="h-6 w-6 text-green-500" />
                   </div>
                   <h3 className="font-semibold text-base sm:text-lg">
                     Pending UPC Tasks
@@ -109,12 +107,11 @@ export default function AuditorDashboard() {
           <AnimatedCard>
             <Card
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
-              onClick={() => (window.location.href = "/auditor/receiving")}
-            >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-                  <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-                    <ActivityIcon className="h-6 w-6 text-red-500" />
+onClick={() => (window.location.href = "/auditor/receiving")}
+             >
+               <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
+                     <ActivityIcon className="h-6 w-6 text-red-500" />
                   </div>
                   <h3 className="font-semibold text-base sm:text-lg">
                     Pending Receiving
@@ -132,12 +129,11 @@ export default function AuditorDashboard() {
           <AnimatedCard>
             <Card
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
-              onClick={() => (window.location.href = "/auditor/placement")}
-            >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-                  <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-                    <UsersIcon className="h-6 w-6 text-yellow-500" />
+onClick={() => (window.location.href = "/auditor/placement")}
+             >
+               <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
+                     <UsersIcon className="h-6 w-6 text-yellow-500" />
                   </div>
                   <h3 className="font-semibold text-base sm:text-lg">
                     Awaiting Placement
@@ -155,12 +151,11 @@ export default function AuditorDashboard() {
           <AnimatedCard>
             <Card
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
-              onClick={() => (window.location.href = "/auditor/reports")}
-            >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-                  <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-                    <ChartLineIcon className="h-6 w-6 text-purple-500" />
+onClick={() => (window.location.href = "/auditor/reports")}
+             >
+               <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
+                     <ChartLineIcon className="h-6 w-6 text-purple-500" />
                   </div>
                   <h3 className="font-semibold text-base sm:text-lg">
                     Completed Audits
@@ -182,8 +177,7 @@ export default function AuditorDashboard() {
                 className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
                 onClick={() => (window.location.href = "/auditor/findings")}
               >
-                <CardContent className="p-4 sm:p-6>
-                  <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+<CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                     <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                       <TrendingUpIcon className="h-6 w-6 text-orange-500" />
                     </div>
@@ -223,15 +217,14 @@ export default function AuditorDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.recentFindings?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.recentFindings?.length > 0 ? (
               <div className="space-y-3">
                 {stats.recentFindings.map((finding) => (
                   <div key={finding.id} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0">
                     <div className="flex flex-col">
                       <p className="font-medium text-sm">{finding.title}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {finding.type} • {finding.severity}
+                        {finding.type} â€¢ {finding.severity}
                       </p>
                     </div>
                     <div className="text-right flex items-center gap-2">
@@ -295,15 +288,14 @@ export default function AuditorDashboard() {
               <Link href="/auditor/dashboard">
                 View All <ArrowRightIcon className="ml-2 h-4 w-4" />
               </Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="border-border/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  Pending Audits
-                </p>
-                <p className="text-2xl font-bold">{stats?.pendingAudits || 0}</p>
+</Button>
+           </CardHeader>
+           <CardContent className="pt-1 sm:pt-2"><div className="grid gap-4 sm:grid-cols-2">
+               <div className="border-border/50 p-3">
+                 <p className="text-xs font-medium text-muted-foreground mb-1">
+                   Pending Audits
+                 </p>
+                 <p className="text-2xl font-bold">{stats?.pendingAudits || 0}</p>
               </div>
               <div className="border-border/50 p-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -350,8 +342,7 @@ export default function AuditorDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.warehouseIssues?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.warehouseIssues?.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-3">
                 {stats.warehouseIssues.map((issue) => (
                   <div key={issue.name} className="flex flex-col items-center justify-center p-3 border-border/50">
@@ -382,3 +373,7 @@ export default function AuditorDashboard() {
     </PageTransition>
   );
 }
+
+
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { AlertCircle } from "lucide-react";
@@ -43,3 +43,4 @@ export default function ErrorPage({
 		</div>
 	);
 }
+

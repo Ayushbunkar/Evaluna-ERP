@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -125,7 +125,7 @@ export function ResponsiveTest() {
 							</p>
 							<div className="flex items-center gap-4">
 								<span className="font-medium">
-									{screenSize.width} × {screenSize.height} px
+									{screenSize.width} Ã— {screenSize.height} px
 								</span>
 								<span
 									className={`font-medium ${breakpoint.includes("Mobile") ? "text-blue-600" : breakpoint.includes("Tablet") ? "text-green-600" : breakpoint.includes("Laptop") ? "text-yellow-600" : breakpoint.includes("Desktop") ? "text-orange-600" : "text-red-600"}`}
@@ -160,7 +160,7 @@ export function ResponsiveTest() {
 											{result.name}
 										</span>
 										<span className="font-semibold text-xs sm:text-sm">
-											{result.passed ? "✓ PASSED" : "✗ FAILED"}
+											{result.passed ? "âœ“ PASSED" : "âœ— FAILED"}
 										</span>
 									</motion.div>
 								))}
@@ -251,3 +251,4 @@ export function ResponsiveTest() {
 		</div>
 	);
 }
+

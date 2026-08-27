@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -61,8 +61,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 </svg>
-                <span className="ml-3">Payments</span>
-              </Link
+<span className="ml-3">Payments</span>
+               </Link>
 
             </ul>
           </nav>
@@ -98,3 +98,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     </div>
   );
 }
+
+
+
+

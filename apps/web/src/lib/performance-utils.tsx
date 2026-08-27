@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Performance Optimization Utilities
  * Combines Intersection Observer and React Scan for ultra-fast rendering
  */
@@ -113,3 +113,4 @@ export function OptimizedListItem({
 		</div>
 	);
 }
+

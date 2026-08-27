@@ -1,4 +1,4 @@
-import type React from "react";
+﻿import type React from "react";
 
 export interface A4InvoiceProps {
 	order: any;
@@ -156,3 +156,4 @@ export const A4Invoice: React.FC<A4InvoiceProps> = ({
 		</div>
 	);
 };
+

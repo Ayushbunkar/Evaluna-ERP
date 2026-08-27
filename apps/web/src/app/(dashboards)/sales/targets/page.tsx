@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	Card,
@@ -149,7 +149,7 @@ export default function TargetsPage() {
 
 						{progressPercentage >= 100 && (
 							<div className="mt-4 rounded-md bg-emerald-50 p-4 text-emerald-700">
-								🎉 Congratulations! You have achieved your monthly sales target!
+								ðŸŽ‰ Congratulations! You have achieved your monthly sales target!
 							</div>
 						)}
 					</CardContent>
@@ -158,3 +158,8 @@ export default function TargetsPage() {
 		</PageTransition>
 	);
 }
+
+
+
+
+

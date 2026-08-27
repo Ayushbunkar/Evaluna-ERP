@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -157,7 +157,7 @@ export default function BillerPOSPage() {
 										<div className="flex-1">
 											<div className="font-medium">{item.name}</div>
 											<div className="text-muted-foreground text-sm">
-												{formatCurrency(item.price, "en")} × {item.cartQuantity}
+												{formatCurrency(item.price, "en")} Ã— {item.cartQuantity}
 											</div>
 										</div>
 										<div className="flex items-center space-x-2">
@@ -253,3 +253,8 @@ export default function BillerPOSPage() {
 		</div>
 	);
 }
+
+
+
+
+

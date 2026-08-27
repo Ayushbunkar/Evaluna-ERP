@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	type ChartConfig,
@@ -81,7 +81,7 @@ export function AdminSalesTrendChart({ data }: { data: any[] }) {
 				<YAxis
 					tickLine={false}
 					axisLine={false}
-					tickFormatter={(v) => `₹${v}`}
+					tickFormatter={(v) => `â‚¹${v}`}
 				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
@@ -149,3 +149,4 @@ export function AdminCashFlowChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
+

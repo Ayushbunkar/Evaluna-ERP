@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -65,8 +65,7 @@ export default function InventoryDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
               onClick={() => (window.location.href = "/inventory/stock")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <WarehouseIcon className="h-6 w-6 text-blue-500" />
                   </div>
@@ -88,8 +87,7 @@ export default function InventoryDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/inventory/stock")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <UsersIcon className="h-6 w-6 text-green-500" />
                   </div>
@@ -111,8 +109,7 @@ export default function InventoryDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/inventory/stock")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ChartLineIcon className="h-6 w-6 text-red-500" />
                   </div>
@@ -134,8 +131,7 @@ export default function InventoryDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/inventory/batches")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ClockIcon className="h-6 w-6 text-yellow-500" />
                   </div>
@@ -157,8 +153,7 @@ export default function InventoryDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/inventory/adjustments")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ActivityIcon className="h-6 w-6 text-purple-500" />
                   </div>
@@ -180,8 +175,7 @@ export default function InventoryDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/inventory/stock")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <TrendingUpIcon className="h-6 w-6 text-orange-500" />
                   </div>
@@ -220,8 +214,7 @@ export default function InventoryDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.inventoryTrend?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.inventoryTrend?.length > 0 ? (
               <div className="h-[200px] w-full">
                 {/* In a real app, this would render a chart using a library like recharts or victory */}
                 <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
@@ -259,8 +252,7 @@ export default function InventoryDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.warehouseDistribution?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.warehouseDistribution?.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {stats.warehouseDistribution.map((warehouse) => (
                   <div key={warehouse.name} className="border-border/50 p-4">
@@ -305,8 +297,7 @@ export default function InventoryDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.categoryDistribution?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.categoryDistribution?.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {stats.categoryDistribution.map((category) => (
                   <div key={category.name} className="border-border/50 p-4">
@@ -351,8 +342,7 @@ export default function InventoryDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.abcAnalysis?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.abcAnalysis?.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-3">
                 {stats.abcAnalysis.map((abc) => (
                   <div key={abc.class} className="border-border/50 p-4">
@@ -397,8 +387,7 @@ export default function InventoryDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.recentMovements?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.recentMovements?.length > 0 ? (
               <div className="space-y-3">
                 {stats.recentMovements.map((movement) => (
                   <div key={movement.id} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0">
@@ -434,3 +423,8 @@ export default function InventoryDashboard() {
     </PageTransition>
   );
 }
+
+
+
+
+

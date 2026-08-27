@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	type ColumnDef,
@@ -28,7 +28,7 @@ import {
 	TableRow,
 } from "./table";
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Column<T> {
 	key: string;
@@ -63,7 +63,7 @@ interface DataTableProps<T> {
 	children?: ReactNode;
 }
 
-// ── Column mapping ─────────────────────────────────────────────────────────
+// â”€â”€ Column mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function mapToColumnDef<T>(col: Column<T>): ColumnDef<T> {
 	return {
@@ -109,7 +109,7 @@ function mapToColumnDef<T>(col: Column<T>): ColumnDef<T> {
 	};
 }
 
-// ── CSV Export ──────────────────────────────────────────────────────────────
+// â”€â”€ CSV Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function exportCSV<T>(data: T[], columns: ExportColumn<T>[], filename: string) {
 	const BOM = "\uFEFF";
@@ -136,7 +136,7 @@ function exportCSV<T>(data: T[], columns: ExportColumn<T>[], filename: string) {
 	}, 150);
 }
 
-// ── DataTable ──────────────────────────────────────────────────────────────
+// â”€â”€ DataTable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function DataTable<T>({
 	data,
@@ -240,7 +240,7 @@ export function DataTable<T>({
 								>
 									<div className="flex items-center justify-center gap-2 text-muted-foreground">
 										<div className="h-5 w-5 animate-spin rounded-full border-primary border-b-2" />
-										<span>Loading…</span>
+										<span>Loadingâ€¦</span>
 									</div>
 								</TableCell>
 							</TableRow>
@@ -295,7 +295,7 @@ export function DataTable<T>({
 	);
 }
 
-// ── Table action helpers ───────────────────────────────────────────────────
+// â”€â”€ Table action helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function TableActions({ children }: { children: ReactNode }) {
 	return (
@@ -340,3 +340,4 @@ export function TableActionButton({
 		</Button>
 	);
 }
+

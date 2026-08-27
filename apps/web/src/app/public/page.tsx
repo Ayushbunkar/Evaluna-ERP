@@ -1,4 +1,4 @@
-import { BusinessStory } from "@/components/public/business-story";
+﻿import { BusinessStory } from "@/components/public/business-story";
 import { CTA } from "@/components/public/cta";
 import { Footer } from "@/components/public/footer";
 import { Hero } from "@/components/public/hero";
@@ -17,3 +17,4 @@ export default function HomePage() {
 		</div>
 	);
 }
+

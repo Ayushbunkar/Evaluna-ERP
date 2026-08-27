@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useRouter } from "next/navigation";
@@ -47,3 +47,4 @@ export function PermissionGuard({
 
 	return <>{children}</>;
 }
+

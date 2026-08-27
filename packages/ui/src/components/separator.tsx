@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { cn } from "../lib/utils";
 
 const Separator = React.forwardRef<
@@ -23,3 +23,4 @@ const Separator = React.forwardRef<
 Separator.displayName = "Separator";
 
 export { Separator };
+

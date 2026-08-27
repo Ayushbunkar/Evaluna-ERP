@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Skeleton } from "@evaluna/ui/components/skeleton";
 import dynamic from "next/dynamic";
@@ -33,3 +33,4 @@ export const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ value, label }) => {
 		</div>
 	);
 };
+

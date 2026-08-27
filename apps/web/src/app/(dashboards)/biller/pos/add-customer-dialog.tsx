@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -137,7 +137,7 @@ export function AddCustomerDialog({
 											)}
 										</div>
 										{selectedCustomer?.id === customer.id && (
-											<div className="text-green-600">✓ Selected</div>
+											<div className="text-green-600">âœ“ Selected</div>
 										)}
 									</div>
 								))}
@@ -171,3 +171,8 @@ export function AddCustomerDialog({
 		</Dialog>
 	);
 }
+
+
+
+
+

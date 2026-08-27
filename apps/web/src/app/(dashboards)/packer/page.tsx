@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -66,8 +66,7 @@ export default function PackerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
               onClick={() => (window.location.href = "/packer/pending")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ClockIcon className="h-6 w-6 text-blue-500" />
                   </div>
@@ -89,8 +88,7 @@ export default function PackerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/packer/history")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ArchiveIcon className="h-6 w-6 text-green-500" />
                   </div>
@@ -112,8 +110,7 @@ export default function PackerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/packer/reports")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <TrendingUpIcon className="h-6 w-6 text-yellow-500" />
                   </div>
@@ -136,8 +133,7 @@ export default function PackerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/packer/history")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <TruckIcon className="h-6 w-6 text-purple-500" />
                   </div>
@@ -176,8 +172,7 @@ export default function PackerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {/* In a real app, this would come from getPendingToPack or getPendingOrders */}
+          <CardContent className="pt-1 sm:pt-2">{/* In a real app, this would come from getPendingToPack or getPendingOrders */}
             <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
               Pending packing orders would be displayed here
             </div>
@@ -207,8 +202,7 @@ export default function PackerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {/* In a real app, this would come from getPackingHistory */}
+          <CardContent className="pt-1 sm:pt-2">{/* In a real app, this would come from getPackingHistory */}
             <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
               Packing history would be displayed here
             </div>
@@ -238,8 +232,7 @@ export default function PackerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="pt-1 sm:pt-2"><div className="grid gap-4 sm:grid-cols-2">
               <div className="border-border/50 p-4">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   Packing Efficiency
@@ -259,3 +252,7 @@ export default function PackerDashboard() {
     </PageTransition>
   );
 }
+
+
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -172,15 +172,14 @@ export default function SupplierDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.recentOrders?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.recentOrders?.length > 0 ? (
               <div className="space-y-3">
                 {stats.recentOrders.map((order) => (
                   <div key={order.id} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0">
                     <div className="flex flex-col">
                       <p className="font-medium text-sm">Order #{order.id}</p>
                       <p className="text-xs text-muted-foreground">
-                        {order.customerName} • {order.items} items
+                        {order.customerName} â€¢ {order.items} items
                       </p>
                     </div>
                     <div className="text-right flex items-center gap-2">
@@ -233,8 +232,7 @@ export default function SupplierDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="pt-1 sm:pt-2"><div className="grid gap-4 sm:grid-cols-2">
               <div className="border-border/50 p-4">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   Top Selling Product
@@ -274,3 +272,7 @@ export default function SupplierDashboard() {
     </PageTransition>
   );
 }
+
+
+
+

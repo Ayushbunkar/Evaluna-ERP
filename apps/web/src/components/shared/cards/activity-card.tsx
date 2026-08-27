@@ -1,4 +1,4 @@
-import {
+﻿import {
 	Card,
 	CardContent,
 	CardDescription,
@@ -88,3 +88,4 @@ export function ActivityCard({
 		</Card>
 	);
 }
+

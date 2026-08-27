@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -27,7 +27,7 @@ export function LocaleSwitcher() {
 					className="h-9 gap-2 rounded-full border-border/50 font-medium text-xs shadow-sm hover:bg-accent/50"
 				>
 					<GlobeIcon className="h-4 w-4 text-muted-foreground" />
-					<span>{locale === "en" ? "English" : "हिंदी"}</span>
+					<span>{locale === "en" ? "English" : "à¤¹à¤¿à¤‚à¤¦à¥€"}</span>
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="rounded-xl shadow-xl">
@@ -41,9 +41,10 @@ export function LocaleSwitcher() {
 					onClick={() => switchLocale("hi")}
 					className="text-xs focus:bg-primary/10"
 				>
-					हिंदी (Hindi)
+					à¤¹à¤¿à¤‚à¤¦à¥€ (Hindi)
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
 }
+

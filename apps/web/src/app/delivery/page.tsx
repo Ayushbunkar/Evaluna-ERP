@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DeliveryBoyDashboard } from "@/components/delivery/delivery-boy-dashboard";
 import { getServerClient } from "@/lib/trpc/server";
@@ -38,3 +38,4 @@ export default async function DeliveryPage() {
 		</div>
 	);
 }
+

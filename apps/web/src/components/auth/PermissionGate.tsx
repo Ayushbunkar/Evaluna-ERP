@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import { useSession } from "@/hooks/use-session";
@@ -37,3 +37,4 @@ export function PermissionGate({
 
 	return hasPerm ? children : fallback;
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	type ChartConfig,
@@ -164,3 +164,4 @@ export function AuditorIssuesChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export default function RevenueChart() {
 	return (
@@ -7,3 +7,4 @@ export default function RevenueChart() {
 		</div>
 	);
 }
+

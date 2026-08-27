@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChevronsUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -19,7 +19,7 @@ interface ComboboxProps {
 	items: { id: number | string; name: string }[];
 	placeholder: string;
 	onSelect: (id: number | string) => void;
-	/** Controlled display value — shows this in the trigger button */
+	/** Controlled display value â€” shows this in the trigger button */
 	value?: string;
 	noSelect?: boolean;
 	className?: string;
@@ -95,3 +95,4 @@ export function Combobox({
 		</Popover>
 	);
 }
+

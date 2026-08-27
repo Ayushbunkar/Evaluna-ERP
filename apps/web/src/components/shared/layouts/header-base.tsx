@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -108,3 +108,4 @@ export function HeaderBase({ title, onMenuClick }: HeaderBaseProps) {
 		</header>
 	);
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { cn } from "@evaluna/ui/lib/utils";
 import {
@@ -148,3 +148,4 @@ export function Sidebar({
 		</div>
 	);
 }
+

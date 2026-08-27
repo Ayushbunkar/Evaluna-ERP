@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+﻿import { format } from "date-fns";
 import React from "react";
 
 export const ReceiptPrint = React.forwardRef<HTMLDivElement, any>(
@@ -70,7 +70,7 @@ export const ReceiptPrint = React.forwardRef<HTMLDivElement, any>(
 
 				<div className="mb-4 flex justify-between font-bold text-lg">
 					<span>TOTAL</span>
-					<span>₹{Number.parseFloat(order.total_amount).toFixed(2)}</span>
+					<span>â‚¹{Number.parseFloat(order.total_amount).toFixed(2)}</span>
 				</div>
 
 				<div className="mt-6 border-gray-400 border-t border-dashed pt-4 text-center">
@@ -108,3 +108,4 @@ export const ReceiptPrint = React.forwardRef<HTMLDivElement, any>(
 );
 
 ReceiptPrint.displayName = "ReceiptPrint";
+

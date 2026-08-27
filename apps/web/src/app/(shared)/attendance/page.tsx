@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 /**
- * Self-service attendance — geofenced, backend-authoritative.
+ * Self-service attendance â€” geofenced, backend-authoritative.
  *
  * The browser only gathers *evidence*: raw GPS (lat/long/accuracy) from the
  * Geolocation API and a LIVE camera frame (never a gallery upload). The server
- * recomputes presence against the branch geofence and decides — this page never
+ * recomputes presence against the branch geofence and decides â€” this page never
  * sends a "isInside"/"valid" boolean. Server time is the authoritative clock.
  */
 import { Badge } from "@evaluna/ui/components/badge";
@@ -101,7 +101,7 @@ export default function MyAttendancePage() {
 	const [busy, setBusy] = useState(false);
 	const [nowTick, setNowTick] = useState(Date.now());
 
-	// A ticking display clock. Purely cosmetic — the RECORD uses server time.
+	// A ticking display clock. Purely cosmetic â€” the RECORD uses server time.
 	useEffect(() => {
 		const t = setInterval(() => setNowTick(Date.now()), 1000);
 		return () => clearInterval(t);
@@ -139,7 +139,7 @@ export default function MyAttendancePage() {
 			const video = videoRef.current;
 			const canvas = canvasRef.current;
 			if (!video || !canvas || !streamRef.current)
-				throw new Error("Start the camera first — a live photo is required.");
+				throw new Error("Start the camera first â€” a live photo is required.");
 			canvas.width = video.videoWidth || 640;
 			canvas.height = video.videoHeight || 480;
 			const ctx = canvas.getContext("2d");
@@ -169,7 +169,7 @@ export default function MyAttendancePage() {
 			utils.attendance.getToday.invalidate();
 			toast.success(
 				r.flagged
-					? "Checked in — flagged for HR review (verification pending)."
+					? "Checked in â€” flagged for HR review (verification pending)."
 					: `Checked in at ${r.checkInTime} (${r.distance ?? 0}m from site).`,
 			);
 		},
@@ -179,7 +179,7 @@ export default function MyAttendancePage() {
 		onSuccess: (r) => {
 			stopCamera();
 			utils.attendance.getToday.invalidate();
-			toast.success(`Checked out — ${r.workingHours}h worked (${r.breakMinutes}m breaks).`);
+			toast.success(`Checked out â€” ${r.workingHours}h worked (${r.breakMinutes}m breaks).`);
 		},
 		onError: (e) => toast.error(e.message),
 	});
@@ -231,8 +231,8 @@ export default function MyAttendancePage() {
 	const label = STATE_LABEL[state] ?? STATE_LABEL.NOT_STARTED;
 	const pending = busy || checkIn.isPending || checkOut.isPending;
 
-	// Server-authoritative check-in timestamp → display-only elapsed clock.
-	let elapsed = "—";
+	// Server-authoritative check-in timestamp â†’ display-only elapsed clock.
+	let elapsed = "â€”";
 	if (row?.checkIn && !row?.checkOut) {
 		const startMs = new Date(`${row.date}T${row.checkIn}Z`).getTime();
 		const secs = Math.max(0, Math.floor((nowTick - startMs) / 1000));
@@ -253,7 +253,7 @@ export default function MyAttendancePage() {
 				<h2 className="font-bold text-3xl tracking-tight">My Attendance</h2>
 				<p className="mt-1 text-muted-foreground">
 					Check in from the warehouse. Your location and a live photo are verified
-					by the server — presence cannot be faked from the app.
+					by the server â€” presence cannot be faked from the app.
 				</p>
 			</div>
 
@@ -316,7 +316,7 @@ export default function MyAttendancePage() {
 									className="gap-2 bg-green-600 text-white hover:bg-green-700"
 								>
 									<LogInIcon className="h-4 w-4" />
-									{pending ? "Verifying…" : "Check in"}
+									{pending ? "Verifyingâ€¦" : "Check in"}
 								</Button>
 							)}
 
@@ -344,7 +344,7 @@ export default function MyAttendancePage() {
 										className="gap-2 bg-orange-600 text-white hover:bg-orange-700"
 									>
 										<LogOutIcon className="h-4 w-4" />
-										{pending ? "Verifying…" : "Check out"}
+										{pending ? "Verifyingâ€¦" : "Check out"}
 									</Button>
 								</>
 							)}
@@ -368,7 +368,7 @@ export default function MyAttendancePage() {
 
 						{cameraOn && state !== "COMPLETED" && (
 							<p className="mt-3 text-muted-foreground text-xs">
-								Keep your face in frame — a live photo is captured at check-in/out.
+								Keep your face in frame â€” a live photo is captured at check-in/out.
 							</p>
 						)}
 					</>
@@ -377,3 +377,4 @@ export default function MyAttendancePage() {
 		</motion.div>
 	);
 }
+

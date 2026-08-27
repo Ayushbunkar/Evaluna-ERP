@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useLocale } from "next-intl";
 import { useEffect, useState } from "react";
@@ -72,3 +72,4 @@ export function CookieConsent() {
 		</div>
 	);
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	AlertTriangleIcon,
@@ -41,3 +41,4 @@ export default function Layout({
 		</AppLayoutWithBranch>
 	);
 }
+

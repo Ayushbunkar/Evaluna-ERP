@@ -1,4 +1,4 @@
-import { Button } from "@evaluna/ui/components/button";
+﻿import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import { ArrowLeft, MountainIcon, Users, Briefcase, Globe, Building2 } from "lucide-react";
 import Link from "next/link";
@@ -101,11 +101,11 @@ export default function AboutPage() {
                   decisions and drive our business forward.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Streamline all business processes</li>
-                  <li>• Provide real-time business insights</li>
-                  <li>• Enhance inter-departmental collaboration</li>
-                  <li>• Ensure data security and compliance</li>
-                  <li>• Continuously improve operational efficiency</li>
+                  <li>â€¢ Streamline all business processes</li>
+                  <li>â€¢ Provide real-time business insights</li>
+                  <li>â€¢ Enhance inter-departmental collaboration</li>
+                  <li>â€¢ Ensure data security and compliance</li>
+                  <li>â€¢ Continuously improve operational efficiency</li>
                 </ul>
               </CardContent>
             </Card>
@@ -165,11 +165,11 @@ export default function AboutPage() {
                   that allows for easy maintenance and scalability.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Cloud-based infrastructure for accessibility</li>
-                  <li>• Role-based access control for security</li>
-                  <li>• Real-time data synchronization</li>
-                  <li>• Mobile-responsive design</li>
-                  <li>• Comprehensive API integration capabilities</li>
+                  <li>â€¢ Cloud-based infrastructure for accessibility</li>
+                  <li>â€¢ Role-based access control for security</li>
+                  <li>â€¢ Real-time data synchronization</li>
+                  <li>â€¢ Mobile-responsive design</li>
+                  <li>â€¢ Comprehensive API integration capabilities</li>
                 </ul>
               </CardContent>
             </Card>
@@ -182,37 +182,37 @@ export default function AboutPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="space-y-2">
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>Financial Management</span>
                     </div>
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>Inventory Control</span>
                     </div>
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>Sales & POS</span>
                     </div>
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>Customer Management</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>HR & Payroll</span>
                     </div>
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>Supply Chain</span>
                     </div>
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>Reporting & Analytics</span>
                     </div>
                     <div className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-green-500 mr-2">â€¢</span>
                       <span>Multi-branch Support</span>
                     </div>
                   </div>
@@ -238,11 +238,11 @@ export default function AboutPage() {
                   of our ERP system to ensure it meets our business objectives.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• CEO & Founder</li>
-                  <li>• CTO</li>
-                  <li>• COO</li>
-                  <li>• CFO</li>
-                  <li>• Department Heads</li>
+                  <li>â€¢ CEO & Founder</li>
+                  <li>â€¢ CTO</li>
+                  <li>â€¢ COO</li>
+                  <li>â€¢ CFO</li>
+                  <li>â€¢ Department Heads</li>
                 </ul>
               </CardContent>
             </Card>
@@ -257,11 +257,11 @@ export default function AboutPage() {
                   ensuring it runs smoothly and securely.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• System Administrators</li>
-                  <li>• Software Developers</li>
-                  <li>• Database Specialists</li>
-                  <li>• IT Support Staff</li>
-                  <li>• Security Experts</li>
+                  <li>â€¢ System Administrators</li>
+                  <li>â€¢ Software Developers</li>
+                  <li>â€¢ Database Specialists</li>
+                  <li>â€¢ IT Support Staff</li>
+                  <li>â€¢ Security Experts</li>
                 </ul>
               </CardContent>
             </Card>
@@ -276,11 +276,11 @@ export default function AboutPage() {
                   respective operations and collaborate across the organization.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Sales & Marketing</li>
-                  <li>• Operations</li>
-                  <li>• Finance & Accounting</li>
-                  <li>• Human Resources</li>
-                  <li>• Customer Service</li>
+                  <li>â€¢ Sales & Marketing</li>
+                  <li>â€¢ Operations</li>
+                  <li>â€¢ Finance & Accounting</li>
+                  <li>â€¢ Human Resources</li>
+                  <li>â€¢ Customer Service</li>
                 </ul>
               </CardContent>
             </Card>
@@ -316,7 +316,7 @@ export default function AboutPage() {
               <span className="font-bold text-lg text-foreground">Evaluna ERP</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
+              Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
@@ -330,3 +330,4 @@ export default function AboutPage() {
     </div>
   );
 }
+

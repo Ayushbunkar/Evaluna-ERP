@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent } from "@evaluna/ui/components/card";
@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useTRPC } from "@/lib/trpc/client";
 
 const STATUS_LABELS: Record<string, string> = {
-	pending_review: "New — awaiting review",
+	pending_review: "New â€” awaiting review",
 	under_review: "In progress",
 };
 
@@ -32,7 +32,7 @@ export default function CustomerOrderInboxPage() {
 			</div>
 
 			{isLoading ? (
-				<p className="text-muted-foreground text-sm">Loading…</p>
+				<p className="text-muted-foreground text-sm">Loadingâ€¦</p>
 			) : error ? (
 				<p className="text-destructive text-sm">{error.message}</p>
 			) : (orders ?? []).length === 0 ? (
@@ -54,7 +54,7 @@ export default function CustomerOrderInboxPage() {
 						>
 							<div className="min-w-0">
 								<p className="font-medium">
-									{o.orderRef} · {o.customerName}
+									{o.orderRef} Â· {o.customerName}
 								</p>
 								<p className="flex items-center gap-2 text-muted-foreground text-xs">
 									{o.customerPhone && (
@@ -87,3 +87,8 @@ export default function CustomerOrderInboxPage() {
 		</div>
 	);
 }
+
+
+
+
+

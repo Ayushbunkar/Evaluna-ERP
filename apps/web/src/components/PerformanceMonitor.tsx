@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { usePerformanceMonitor } from "@/lib/performance-utils";
@@ -70,3 +70,4 @@ export function RoutePrefetcher({ href }: { href: string }) {
 
 	return null;
 }
+

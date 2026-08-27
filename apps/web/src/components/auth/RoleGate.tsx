@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import { useSession } from "@/hooks/use-session";
@@ -30,3 +30,4 @@ export function RoleGate({
 
 	return hasRole ? children : fallback;
 }
+

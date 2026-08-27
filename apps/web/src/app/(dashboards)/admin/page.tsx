@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
                       {activity.timestamp}
                     </p>
                   </div>
-                >
+                </div>
               ))}
               {(!stats?.recentActivities || stats.recentActivities.length === 0) && (
                 <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
@@ -429,3 +429,8 @@ export default function AdminDashboard() {
     </PageTransition>
   );
 }
+
+
+
+
+

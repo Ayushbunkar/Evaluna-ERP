@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -481,3 +481,4 @@ export function AdminLayoutWithBranch({
 		</BranchProvider>
 	);
 }
+

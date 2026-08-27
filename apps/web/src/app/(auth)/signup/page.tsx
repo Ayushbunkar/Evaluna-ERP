@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
@@ -162,3 +162,4 @@ export default function SignupPage() {
 		</div>
 	);
 }
+

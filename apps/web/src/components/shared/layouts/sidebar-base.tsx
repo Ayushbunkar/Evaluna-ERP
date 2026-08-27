@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { cn } from "@evaluna/ui/lib/utils";
@@ -182,3 +182,4 @@ export function SidebarBase({
 		</aside>
 	);
 }
+

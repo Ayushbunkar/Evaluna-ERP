@@ -1,4 +1,4 @@
-import { Button } from "@evaluna/ui/components/button";
+﻿import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import { ArrowLeft, MountainIcon, Mail, Phone, MapPin, User, Laptop, Shield, Headset, FileText } from "lucide-react";
 import Link from "next/link";
@@ -119,11 +119,11 @@ export default function ContactPage() {
                   Assistance with system navigation, features, and general usage.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Account access issues</li>
-                  <li>• Feature explanations</li>
-                  <li>• Basic troubleshooting</li>
-                  <li>• User guide assistance</li>
-                  <li>• Password resets</li>
+                  <li>â€¢ Account access issues</li>
+                  <li>â€¢ Feature explanations</li>
+                  <li>â€¢ Basic troubleshooting</li>
+                  <li>â€¢ User guide assistance</li>
+                  <li>â€¢ Password resets</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Contact User Support
@@ -141,11 +141,11 @@ export default function ContactPage() {
                   Help with technical issues, system errors, and performance problems.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• System errors</li>
-                  <li>• Performance issues</li>
-                  <li>• Integration problems</li>
-                  <li>• Data import/export</li>
-                  <li>• Browser compatibility</li>
+                  <li>â€¢ System errors</li>
+                  <li>â€¢ Performance issues</li>
+                  <li>â€¢ Integration problems</li>
+                  <li>â€¢ Data import/export</li>
+                  <li>â€¢ Browser compatibility</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Contact Technical Support
@@ -163,11 +163,11 @@ export default function ContactPage() {
                   Report security concerns, access issues, and compliance questions.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Suspicious activity</li>
-                  <li>• Access violations</li>
-                  <li>• Data breaches</li>
-                  <li>• Compliance questions</li>
-                  <li>• Security training</li>
+                  <li>â€¢ Suspicious activity</li>
+                  <li>â€¢ Access violations</li>
+                  <li>â€¢ Data breaches</li>
+                  <li>â€¢ Compliance questions</li>
+                  <li>â€¢ Security training</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Contact Security Team
@@ -228,28 +228,28 @@ export default function ContactPage() {
                   <div>
                     <h4 className="font-medium mb-1">Slow Performance:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Clear your browser cache</li>
-                      <li>• Try a different browser</li>
-                      <li>• Check your internet connection</li>
-                      <li>• Close unused tabs</li>
+                      <li>â€¢ Clear your browser cache</li>
+                      <li>â€¢ Try a different browser</li>
+                      <li>â€¢ Check your internet connection</li>
+                      <li>â€¢ Close unused tabs</li>
                     </ul>
                   </div>
                   <div>
                     <h4 className="font-medium mb-1">Error Messages:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Note the exact error message</li>
-                      <li>• Try refreshing the page</li>
-                      <li>• Check if others are experiencing issues</li>
-                      <li>• Report to IT with screenshots</li>
+                      <li>â€¢ Note the exact error message</li>
+                      <li>â€¢ Try refreshing the page</li>
+                      <li>â€¢ Check if others are experiencing issues</li>
+                      <li>â€¢ Report to IT with screenshots</li>
                     </ul>
                   </div>
                   <div>
                     <h4 className="font-medium mb-1">Data Not Saving:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Check your internet connection</li>
-                      <li>• Verify you have edit permissions</li>
-                      <li>• Try saving smaller batches of data</li>
-                      <li>• Contact IT if issues persist</li>
+                      <li>â€¢ Check your internet connection</li>
+                      <li>â€¢ Verify you have edit permissions</li>
+                      <li>â€¢ Try saving smaller batches of data</li>
+                      <li>â€¢ Contact IT if issues persist</li>
                     </ul>
                   </div>
                 </div>
@@ -437,7 +437,7 @@ export default function ContactPage() {
               <span className="font-bold text-lg text-foreground">Evaluna ERP</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
+              Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
@@ -450,3 +450,4 @@ export default function ContactPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { AnimatePresence, motion } from "framer-motion";
@@ -136,3 +136,4 @@ export function Navbar() {
 		</header>
 	);
 }
+

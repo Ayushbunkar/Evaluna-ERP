@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function HRLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -116,3 +116,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+
+
+

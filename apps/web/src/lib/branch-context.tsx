@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	createContext,
@@ -46,3 +46,4 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 export function useBranch() {
 	return useContext(BranchContext);
 }
+

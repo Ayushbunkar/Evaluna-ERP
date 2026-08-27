@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function InventoryLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +17,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
               <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 Evaluna Inventory
               </span>
-            </Link>
+            </Link>>
           </div>
 
           {/* Navigation */}
@@ -31,7 +31,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 001 1h3m-3 2H9a2 2 0 00-2 2v1a2 2 0 002 2h10a2 2 0 002-2v-1a2 2 0 00-2-2H9m-3 5v-6"></path>
                 </svg>
                 <span className="ml-3">Dashboard</span>
-              </Link>
+              </Link>>
 
               <Link
                 href="/inventory/stock"
@@ -41,7 +41,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254-.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
                 </svg>
                 <span className="ml-3">Stock Levels</span>
-              </Link>
+              </Link>>
 
               <Link
                 href="/inventory/batches"
@@ -51,7 +51,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254-.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
                 </svg>
                 <span className="ml-3">Product Batches</span>
-              </Link>
+              </Link>>
 
               <Link
                 href="/inventory/adjustments"
@@ -61,7 +61,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254-.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
                 </svg>
                 <span className="ml-3">Stock Adjustments</span>
-              </Link>
+              </Link>>
 
               <Link
                 href="/inventory/conversions"
@@ -71,7 +71,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254-.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
                 </svg>
                 <span className="ml-3">Pack/Loose Conversions</span>
-              </Link>
+              </Link>>
 
               <Link
                 href="/inventory/reports"
@@ -81,7 +81,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254<.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
                 </svg>
                 <span className="ml-3">Reports</span>
-              </Link
+              </Link>
             </ul>
           </nav>
         </div>
@@ -116,3 +116,8 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
+
+
+
+

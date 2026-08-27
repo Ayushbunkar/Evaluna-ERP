@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -78,8 +78,7 @@ export default function DriverDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="pt-1 sm:pt-2"><div className="grid gap-4 sm:grid-cols-2">
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">
                   Status
@@ -143,8 +142,7 @@ export default function DriverDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {dashboard?.nextDelivery ? (
+          <CardContent className="pt-1 sm:pt-2">{dashboard?.nextDelivery ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-border/50 p-3">
                   <div className="flex flex-col">
@@ -243,8 +241,7 @@ export default function DriverDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {dashboard?.routeStops?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{dashboard?.routeStops?.length > 0 ? (
               <div className="space-y-3">
                 {dashboard.routeStops.map((stop, index) => (
                   <div key={`${stop.id}-${index}`} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0">
@@ -273,7 +270,7 @@ export default function DriverDashboard() {
                           ? "text-blue-600"
                           : "text-yellow-600"
                       }`}>
-                        {stop.status === "completed" ? "✓" : stop.status === "next" ? "→" : "○"}
+                        {stop.status === "completed" ? "âœ“" : stop.status === "next" ? "â†’" : "â—‹"}
                       </span>
                       <span className="text-xs text-gray-500">
                         {stop.time}
@@ -313,8 +310,7 @@ export default function DriverDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="pt-1 sm:pt-2"><div className="grid gap-4 sm:grid-cols-2">
               <div className="border-border/50 p-4">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   COD Collected
@@ -374,8 +370,7 @@ export default function DriverDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {dashboard?.vehicleStatus ? (
+          <CardContent className="pt-1 sm:pt-2">{dashboard?.vehicleStatus ? (
               <div className="grid gap-4 sm:grid-cols-2>
                 <div className="border-border/50 p-4>
                   <p className="text-xs font-medium text-muted-foreground mb-1>
@@ -437,8 +432,7 @@ export default function DriverDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {dashboard?.notifications?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{dashboard?.notifications?.length > 0 ? (
               <div className="space-y-3>
                 {dashboard.notifications.map((notif, index) => (
                   <div key={index} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0>
@@ -454,7 +448,7 @@ export default function DriverDashboard() {
                 ))}
               </div>
             ) : (
-              <div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm>
+              <div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm"
                 No notifications
               </div>
             )}
@@ -464,3 +458,9 @@ export default function DriverDashboard() {
     </PageTransition>
   );
 }
+
+
+
+
+
+

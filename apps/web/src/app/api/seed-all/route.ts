@@ -14,9 +14,9 @@ import {
 	suppliers,
 } from "@evaluna/db/schema";
 import { deliveryTrips, tripStops, tripCollections } from "@evaluna/db/schema/delivery";
-import { eq } from "drizzle-orm";
+
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db } from "../../../lib/db";
 
 export async function GET() {
 	try {

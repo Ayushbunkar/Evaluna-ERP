@@ -1,7 +1,8 @@
-export default function NotificationsPage() {
+﻿export default function NotificationsPage() {
 	return (
 		<div className="p-6">
 			<h1>Notifications</h1>
 		</div>
 	);
 }
+

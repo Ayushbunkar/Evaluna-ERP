@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import type { Variants } from "framer-motion";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ReactNode } from "react";
 
-// ── Core animation variants ────────────────────────────────────────────────
+// â”€â”€ Core animation variants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const fadeIn: Variants = {
 	hidden: { opacity: 0 },
 	visible: {
@@ -68,7 +68,7 @@ export const staggerSlow = {
 	visible: { transition: { staggerChildren: 0.12 } },
 };
 
-// ── Reusable wrapper components ───────────────────────────────────────────
+// â”€â”€ Reusable wrapper components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Fade-in wrapper with optional delay */
 export function FadeIn({
@@ -138,7 +138,7 @@ export function StaggerList({
 	);
 }
 
-/** Individual stagger item – wrap each child of StaggerList with this */
+/** Individual stagger item â€“ wrap each child of StaggerList with this */
 export function StaggerItem({
 	children,
 	className = "",
@@ -257,3 +257,4 @@ export function AnimatedNumber({
 
 /** AnimatePresence wrapper export for convenience */
 export { AnimatePresence, motion };
+

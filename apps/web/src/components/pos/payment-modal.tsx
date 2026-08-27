@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export function PaymentModal({
 					{/* Total Due */}
 					<div className="flex items-center justify-between rounded-lg bg-muted p-4">
 						<span className="font-medium text-xl">Total Due</span>
-						<span className="font-bold text-3xl">₹{totalAmount.toFixed(2)}</span>
+						<span className="font-bold text-3xl">â‚¹{totalAmount.toFixed(2)}</span>
 					</div>
 
 					{/* Customer Details */}
@@ -109,3 +109,4 @@ export function PaymentModal({
 		</Dialog>
 	);
 }
+

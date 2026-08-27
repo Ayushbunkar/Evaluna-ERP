@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -20,13 +20,16 @@ import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+import motion from "framer-motion";
+import { StaggerList, StaggerItem, AnimatedCard } from "@/lib/animations/stagger";
+import { ArrowRightIcon } from "lucide-react";
 
 export default function ManagerDashboard() {
   const trpc = useTRPC();
   const locale = useLocale();
-  const { data: stats } = trpc.hr.getDashboardStats.useQuery();
-  const { data: employees } = trpc.hr.getEmployees.useQuery();
-  const { data: leaveRequests } = trpc.hr.getLeaveRequests.useQuery();
+  const { data: stats } = trpc.manager.getDashboardStats.useQuery();
+  const { data: employees } = trpc.manager.getEmployees.useQuery();
+  const { data: leaveRequests } = trpc.manager.getLeaveRequests.useQuery();
 
   return (
     <PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
@@ -36,7 +39,7 @@ export default function ManagerDashboard() {
             Manager Dashboard
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
-            Team oversight and HR management
+            Today's orders, sales, pending approvals, inventory alerts, deliveries, returns, customers, suppliers, employees, exceptions
           </p>
         </div>
         <div className="flex gap-1 sm:gap-2">
@@ -51,7 +54,7 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid */}  
       <StaggerList
         className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
         slow
@@ -75,7 +78,7 @@ export default function ManagerDashboard() {
                   </p>
                 </div>
               </CardContent>
-            </Card>
+            </AnimatedCard>
           </AnimatedCard>
         </StaggerItem>
 
@@ -98,7 +101,7 @@ export default function ManagerDashboard() {
                   </p>
                 </div>
               </CardContent>
-            </Card>
+            </AnimatedCard>
           </AnimatedCard>
         </StaggerItem>
 
@@ -121,7 +124,7 @@ export default function ManagerDashboard() {
                   </p>
                 </div>
               </CardContent>
-            </Card>
+            </AnimatedCard>
           </AnimatedCard>
         </StaggerItem>
 
@@ -144,7 +147,7 @@ export default function ManagerDashboard() {
                   </p>
                 </div>
               </CardContent>
-            </Card>
+            </AnimatedCard>
           </AnimatedCard>
         </StaggerItem>
       </StaggerList>
@@ -347,7 +350,7 @@ export default function ManagerDashboard() {
           </CardHeader>
           <CardContent className="pt-1 sm:pt-2">
             <div className="flex flex-col gap-3 sm:gap-4">
-              {/* Placeholder for recent activity - would come from actual HR audit logs */}
+              {/* Placeholder for recent activity - would come from actual HR audit logs */}  
               <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
                 Recent team activities will appear here
               </div>

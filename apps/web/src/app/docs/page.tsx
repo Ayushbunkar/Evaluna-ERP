@@ -1,4 +1,4 @@
-import { Button } from "@evaluna/ui/components/button";
+﻿import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import { ArrowLeft, MountainIcon, BookOpen, FileText, Search, HelpCircle, Video, Download, Database } from "lucide-react";
 import Link from "next/link";
@@ -80,11 +80,11 @@ export default function DocsPage() {
                   Learn about our ERP system architecture, modules, and key features.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• System architecture</li>
-                  <li>• Module descriptions</li>
-                  <li>• User roles and permissions</li>
-                  <li>• System requirements</li>
-                  <li>• Navigation guide</li>
+                  <li>â€¢ System architecture</li>
+                  <li>â€¢ Module descriptions</li>
+                  <li>â€¢ User roles and permissions</li>
+                  <li>â€¢ System requirements</li>
+                  <li>â€¢ Navigation guide</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Read Overview
@@ -102,11 +102,11 @@ export default function DocsPage() {
                   Step-by-step guide to get you up and running quickly with our ERP system.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• First-time login</li>
-                  <li>• Dashboard setup</li>
-                  <li>• Basic navigation</li>
-                  <li>• Common tasks</li>
-                  <li>• Tips and best practices</li>
+                  <li>â€¢ First-time login</li>
+                  <li>â€¢ Dashboard setup</li>
+                  <li>â€¢ Basic navigation</li>
+                  <li>â€¢ Common tasks</li>
+                  <li>â€¢ Tips and best practices</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Start Quick Guide
@@ -124,11 +124,11 @@ export default function DocsPage() {
                   Visual guides and walkthroughs for key system features.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• System tour (5:32)</li>
-                  <li>• Dashboard setup (4:18)</li>
-                  <li>• Basic workflows (6:45)</li>
-                  <li>• Reporting tools (7:22)</li>
-                  <li>• Advanced features (8:10)</li>
+                  <li>â€¢ System tour (5:32)</li>
+                  <li>â€¢ Dashboard setup (4:18)</li>
+                  <li>â€¢ Basic workflows (6:45)</li>
+                  <li>â€¢ Reporting tools (7:22)</li>
+                  <li>â€¢ Advanced features (8:10)</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Watch Tutorials
@@ -156,20 +156,20 @@ export default function DocsPage() {
                   <div>
                     <h4 className="font-medium mb-2">Financial Management:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Accounts payable/receivable</li>
-                      <li>• General ledger</li>
-                      <li>• Budget management</li>
-                      <li>• Financial reporting</li>
+                      <li>â€¢ Accounts payable/receivable</li>
+                      <li>â€¢ General ledger</li>
+                      <li>â€¢ Budget management</li>
+                      <li>â€¢ Financial reporting</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">View Docs</Button>
                   </div>
                   <div>
                     <h4 className="font-medium mb-2">Inventory Management:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Stock tracking</li>
-                      <li>• Supplier management</li>
-                      <li>• Reorder automation</li>
-                      <li>• Warehouse operations</li>
+                      <li>â€¢ Stock tracking</li>
+                      <li>â€¢ Supplier management</li>
+                      <li>â€¢ Reorder automation</li>
+                      <li>â€¢ Warehouse operations</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">View Docs</Button>
                   </div>
@@ -189,20 +189,20 @@ export default function DocsPage() {
                   <div>
                     <h4 className="font-medium mb-2">Sales & POS:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Point of sale system</li>
-                      <li>• Order management</li>
-                      <li>• Customer records</li>
-                      <li>• Sales analytics</li>
+                      <li>â€¢ Point of sale system</li>
+                      <li>â€¢ Order management</li>
+                      <li>â€¢ Customer records</li>
+                      <li>â€¢ Sales analytics</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">View Docs</Button>
                   </div>
                   <div>
                     <h4 className="font-medium mb-2">Human Resources:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Employee management</li>
-                      <li>• Payroll processing</li>
-                      <li>• Attendance tracking</li>
-                      <li>• Performance reviews</li>
+                      <li>â€¢ Employee management</li>
+                      <li>â€¢ Payroll processing</li>
+                      <li>â€¢ Attendance tracking</li>
+                      <li>â€¢ Performance reviews</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">View Docs</Button>
                   </div>
@@ -301,20 +301,20 @@ export default function DocsPage() {
                   <div>
                     <h4 className="font-medium mb-1">REST API:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Authentication methods</li>
-                      <li>• Endpoint reference</li>
-                      <li>• Request/response formats</li>
-                      <li>• Rate limiting</li>
+                      <li>â€¢ Authentication methods</li>
+                      <li>â€¢ Endpoint reference</li>
+                      <li>â€¢ Request/response formats</li>
+                      <li>â€¢ Rate limiting</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">API Reference</Button>
                   </div>
                   <div>
                     <h4 className="font-medium mb-1">Webhooks:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Event types</li>
-                      <li>• Payload structures</li>
-                      <li>• Security requirements</li>
-                      <li>• Error handling</li>
+                      <li>â€¢ Event types</li>
+                      <li>â€¢ Payload structures</li>
+                      <li>â€¢ Security requirements</li>
+                      <li>â€¢ Error handling</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">Webhook Guide</Button>
                   </div>
@@ -337,20 +337,20 @@ export default function DocsPage() {
                   <div>
                     <h4 className="font-medium mb-1">Accounting Software:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• QuickBooks integration</li>
-                      <li>• Xero setup</li>
-                      <li>• Data mapping</li>
-                      <li>• Synchronization</li>
+                      <li>â€¢ QuickBooks integration</li>
+                      <li>â€¢ Xero setup</li>
+                      <li>â€¢ Data mapping</li>
+                      <li>â€¢ Synchronization</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">View Guide</Button>
                   </div>
                   <div>
                     <h4 className="font-medium mb-1">Payment Gateways:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Stripe integration</li>
-                      <li>• PayPal setup</li>
-                      <li>• Transaction processing</li>
-                      <li>• Security requirements</li>
+                      <li>â€¢ Stripe integration</li>
+                      <li>â€¢ PayPal setup</li>
+                      <li>â€¢ Transaction processing</li>
+                      <li>â€¢ Security requirements</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">View Guide</Button>
                   </div>
@@ -376,11 +376,11 @@ export default function DocsPage() {
                   Create and manage custom reports tailored to your needs.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Report builder guide</li>
-                  <li>• Custom fields</li>
-                  <li>• Advanced filtering</li>
-                  <li>• Scheduled reports</li>
-                  <li>• Export options</li>
+                  <li>â€¢ Report builder guide</li>
+                  <li>â€¢ Custom fields</li>
+                  <li>â€¢ Advanced filtering</li>
+                  <li>â€¢ Scheduled reports</li>
+                  <li>â€¢ Export options</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Reporting Guide
@@ -398,11 +398,11 @@ export default function DocsPage() {
                   Advanced data import, export, and management techniques.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Bulk data import</li>
-                  <li>• Data validation</li>
-                  <li>• Backup procedures</li>
-                  <li>• Data cleanup</li>
-                  <li>• Migration guides</li>
+                  <li>â€¢ Bulk data import</li>
+                  <li>â€¢ Data validation</li>
+                  <li>â€¢ Backup procedures</li>
+                  <li>â€¢ Data cleanup</li>
+                  <li>â€¢ Migration guides</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Data Guide
@@ -420,11 +420,11 @@ export default function DocsPage() {
                   Solutions to common issues and error resolution.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Error code reference</li>
-                  <li>• Performance issues</li>
-                  <li>• Login problems</li>
-                  <li>• Data sync errors</li>
-                  <li>• Browser compatibility</li>
+                  <li>â€¢ Error code reference</li>
+                  <li>â€¢ Performance issues</li>
+                  <li>â€¢ Login problems</li>
+                  <li>â€¢ Data sync errors</li>
+                  <li>â€¢ Browser compatibility</li>
                 </ul>
                 <Button className="w-full mt-4" variant="outline" size="sm">
                   Troubleshooting Guide
@@ -452,20 +452,20 @@ export default function DocsPage() {
                   <div>
                     <h4 className="font-medium mb-2">Training Courses:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Beginner course (2 hours)</li>
-                      <li>• Intermediate course (4 hours)</li>
-                      <li>• Advanced course (6 hours)</li>
-                      <li>• Department-specific training</li>
+                      <li>â€¢ Beginner course (2 hours)</li>
+                      <li>â€¢ Intermediate course (4 hours)</li>
+                      <li>â€¢ Advanced course (6 hours)</li>
+                      <li>â€¢ Department-specific training</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">View Courses</Button>
                   </div>
                   <div>
                     <h4 className="font-medium mb-2">Certification:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• User certification program</li>
-                      <li>• Exam preparation</li>
-                      <li>• Certification benefits</li>
-                      <li>• Renewal process</li>
+                      <li>â€¢ User certification program</li>
+                      <li>â€¢ Exam preparation</li>
+                      <li>â€¢ Certification benefits</li>
+                      <li>â€¢ Renewal process</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">Certification Info</Button>
                   </div>
@@ -485,20 +485,20 @@ export default function DocsPage() {
                   <div>
                     <h4 className="font-medium mb-2">Support Options:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• IT help desk (Ext. 1500)</li>
-                      <li>• Email support (support@evaluna.com)</li>
-                      <li>• Live chat support</li>
-                      <li>• Priority support levels</li>
+                      <li>â€¢ IT help desk (Ext. 1500)</li>
+                      <li>â€¢ Email support (support@evaluna.com)</li>
+                      <li>â€¢ Live chat support</li>
+                      <li>â€¢ Priority support levels</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">Contact Support</Button>
                   </div>
                   <div>
                     <h4 className="font-medium mb-2">Community:</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• User forum</li>
-                      <li>• Knowledge base</li>
-                      <li>• Best practices sharing</li>
-                      <li>• Feature requests</li>
+                      <li>â€¢ User forum</li>
+                      <li>â€¢ Knowledge base</li>
+                      <li>â€¢ Best practices sharing</li>
+                      <li>â€¢ Feature requests</li>
                     </ul>
                     <Button className="mt-2" variant="outline" size="sm">Join Community</Button>
                   </div>
@@ -537,7 +537,7 @@ export default function DocsPage() {
               <span className="font-bold text-lg text-foreground">Evaluna ERP</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
+              Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
@@ -550,3 +550,4 @@ export default function DocsPage() {
     </div>
   );
 }
+

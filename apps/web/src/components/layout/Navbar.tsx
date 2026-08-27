@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -164,3 +164,4 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 		</header>
 	);
 }
+

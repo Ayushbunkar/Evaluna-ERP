@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function SupplierLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -62,7 +62,7 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWeight="2" d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 0c1.1 0 2 .9 2 2-.001.682-.268 1.285-.732 1.64l-7 7c-.254.254-.566.39-.9.39s-.646-.136-.9-.39l-3-3c-.254-.254-.254-.667 0-.92s.667-.254.92 0L9 11l7-7c.464-.454 1.09-.484 1.716-.01l.008.01c.35.285.547.742.547 1.233v.01z"></path>
                 </svg>
                 <span className="ml-3">Orders</span>
-              </Link
+              </Link>
 
             </ul>
           </nav>
@@ -98,3 +98,7 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
     </div>
   );
 }
+
+
+
+

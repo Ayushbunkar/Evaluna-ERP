@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	type ChartConfig,
@@ -111,7 +111,7 @@ export function FinanceProfitChart({ data }: { data: any[] }) {
 				<YAxis
 					tickLine={false}
 					axisLine={false}
-					tickFormatter={(v) => `₹${v / 1000}k`}
+					tickFormatter={(v) => `â‚¹${v / 1000}k`}
 				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
@@ -164,7 +164,7 @@ export function FinanceExpenseChart({ data }: { data: any[] }) {
 	);
 }
 
-// FinanceCashFlowChart — uses date/inflow/outflow keys from backend
+// FinanceCashFlowChart â€” uses date/inflow/outflow keys from backend
 export function FinanceCashFlowChart({ data }: { data: any[] }) {
 	if (!data || data.length === 0) {
 		return (
@@ -180,7 +180,7 @@ export function FinanceCashFlowChart({ data }: { data: any[] }) {
 				<YAxis
 					tickLine={false}
 					axisLine={false}
-					tickFormatter={(v) => `₹${v / 1000}k`}
+					tickFormatter={(v) => `â‚¹${v / 1000}k`}
 				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Bar
@@ -199,3 +199,4 @@ export function FinanceCashFlowChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
+

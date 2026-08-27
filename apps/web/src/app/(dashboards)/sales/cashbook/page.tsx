@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -155,10 +155,10 @@ export default function CashBookPage() {
 							</CardHeader>
 							<CardContent>
 								<div className="font-bold text-2xl text-emerald-500">
-									₹{summary?.totalIn?.toFixed(2) || "0.00"}
+									â‚¹{summary?.totalIn?.toFixed(2) || "0.00"}
 								</div>
 								<p className="mt-1 text-muted-foreground text-xs">
-									Sales: ₹{summary?.sales?.toFixed(2) || "0.00"}
+									Sales: â‚¹{summary?.sales?.toFixed(2) || "0.00"}
 								</p>
 							</CardContent>
 						</Card>
@@ -177,10 +177,10 @@ export default function CashBookPage() {
 							</CardHeader>
 							<CardContent>
 								<div className="font-bold text-2xl text-red-500">
-									₹{summary?.totalOut?.toFixed(2) || "0.00"}
+									â‚¹{summary?.totalOut?.toFixed(2) || "0.00"}
 								</div>
 								<p className="mt-1 text-muted-foreground text-xs">
-									Expenses: ₹{summary?.expenses?.toFixed(2) || "0.00"}
+									Expenses: â‚¹{summary?.expenses?.toFixed(2) || "0.00"}
 								</p>
 							</CardContent>
 						</Card>
@@ -199,7 +199,7 @@ export default function CashBookPage() {
 							</CardHeader>
 							<CardContent>
 								<div className="font-bold text-2xl text-blue-500">
-									₹{summary?.net?.toFixed(2) || "0.00"}
+									â‚¹{summary?.net?.toFixed(2) || "0.00"}
 								</div>
 								<p className="mt-1 text-muted-foreground text-xs">
 									Net movement today
@@ -251,7 +251,7 @@ export default function CashBookPage() {
 										<td
 											className={`text-right font-bold ${tx.type === "in" ? "text-emerald-600" : "text-red-600"}`}
 										>
-											{tx.type === "in" ? "+" : "-"}₹
+											{tx.type === "in" ? "+" : "-"}â‚¹
 											{Number(tx.amount).toFixed(2)}
 										</td>
 									</tr>
@@ -275,3 +275,8 @@ export default function CashBookPage() {
 		</PageTransition>
 	);
 }
+
+
+
+
+

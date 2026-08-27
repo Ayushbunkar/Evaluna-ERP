@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -62,8 +62,7 @@ export default function PickerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
               onClick={() => (window.location.href = "/picker/pending")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <CalendarCheckIcon className="h-6 w-6 text-blue-500" />
                   </div>
@@ -85,8 +84,7 @@ export default function PickerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/picker/active")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ClockIcon className="h-6 w-6 text-green-500" />
                   </div>
@@ -108,8 +106,7 @@ export default function PickerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/picker/completed")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <TrendingUpIcon className="h-6 w-6 text-yellow-500" />
                   </div>
@@ -131,8 +128,7 @@ export default function PickerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/picker/dashboard")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <UsersIcon className="h-6 w-6 text-purple-500" />
                   </div>
@@ -154,8 +150,7 @@ export default function PickerDashboard() {
               className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition_all hover:shadow-md"
               onClick={() => (window.location.href = "/picker/reports")}
             >
-              <CardContent className="p-4 sm:p-6>
-                <div className="flex flex-col items-center gap-1 text-center sm:gap-2">
+              <CardContent className="p-4 sm:p-6"><div className="flex flex-col items-center gap-1 text-center sm:gap-2">
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 transition_transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
                     <ChartLineIcon className="h-6 w-6 text-orange-500" />
                   </div>
@@ -194,15 +189,14 @@ export default function PickerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.recentTasks?.length > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.recentTasks?.length > 0 ? (
               <div className="space-y-3">
                 {stats.recentTasks.map((task) => (
                   <div key={task.id} className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0">
                     <div className="flex flex-col">
                       <p className="font-medium text-sm">Order {task.order}</p>
                       <p className="text-xs text-muted-foreground">
-                        {task.items} items • {task.area}
+                        {task.items} items â€¢ {task.area}
                       </p>
                     </div>
                     <div className="text-right flex items-center gap-2">
@@ -258,8 +252,7 @@ export default function PickerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {/* In a real app, this would come from the getReports procedure */}
+          <CardContent className="pt-1 sm:pt-2">{/* In a real app, this would come from the getReports procedure */}
             <div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
               Picker performance data would be displayed here
             </div>
@@ -289,8 +282,7 @@ export default function PickerDashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2>
-            {stats?.exceptions || 0 > 0 ? (
+          <CardContent className="pt-1 sm:pt-2">{stats?.exceptions || 0 > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="border-border/50 p-4">
                   <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -316,3 +308,7 @@ export default function PickerDashboard() {
     </PageTransition>
   );
 }
+
+
+
+

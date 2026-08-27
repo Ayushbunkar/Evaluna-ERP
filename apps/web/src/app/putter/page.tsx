@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Card, CardContent } from "@evaluna/ui/components/card";
 import { Package } from "lucide-react";
@@ -124,3 +124,4 @@ export default function PutterDashboard() {
 		</div>
 	);
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
@@ -367,3 +367,4 @@ export {
 	ChartTooltip,
 	ChartTooltipContent,
 };
+

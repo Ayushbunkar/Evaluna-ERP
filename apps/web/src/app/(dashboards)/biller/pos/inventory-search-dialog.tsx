@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -174,10 +174,10 @@ export function InventorySearchDialog({
 										<div className="flex-1">
 											<div className="font-medium">{item.name}</div>
 											<div className="text-muted-foreground text-sm">
-												{formatCurrency(item.price, "en")} • Stock: {item.stock}
+												{formatCurrency(item.price, "en")} â€¢ Stock: {item.stock}
 												{item.barcode && (
 													<span className="ml-2">
-														• Barcode: {item.barcode}
+														â€¢ Barcode: {item.barcode}
 													</span>
 												)}
 											</div>
@@ -215,7 +215,7 @@ export function InventorySearchDialog({
 										<div className="flex-1">
 											<div className="font-medium">{item.name}</div>
 											<div className="text-muted-foreground text-sm">
-												{formatCurrency(item.price, "en")} × {item.quantity}
+												{formatCurrency(item.price, "en")} Ã— {item.quantity}
 											</div>
 										</div>
 										<div className="flex items-center space-x-2">
@@ -266,3 +266,8 @@ export function InventorySearchDialog({
 		</Dialog>
 	);
 }
+
+
+
+
+

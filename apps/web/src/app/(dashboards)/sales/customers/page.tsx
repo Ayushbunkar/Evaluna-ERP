@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -112,7 +112,7 @@ export default function CustomersPage() {
 			key: "store_credit",
 			header: "Credit",
 			sortable: true,
-			render: (row) => `₹${row.store_credit || "0.00"}`,
+			render: (row) => `â‚¹${row.store_credit || "0.00"}`,
 		},
 		{
 			key: "status",
@@ -516,3 +516,8 @@ export default function CustomersPage() {
 		</PageTransition>
 	);
 }
+
+
+
+
+

@@ -1,4 +1,4 @@
-import { Button } from "@evaluna/ui/components/button";
+﻿import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import { ArrowLeft, BarChart3, Package, ShoppingCart, Users, Truck, MountainIcon } from "lucide-react";
 import Link from "next/link";
@@ -107,10 +107,10 @@ export default function FeaturesPage() {
                   general ledger, and financial reporting.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Expense tracking and approval workflows</li>
-                  <li>• Budget management and forecasting</li>
-                  <li>• Tax calculation and compliance tools</li>
-                  <li>• Multi-currency support for international operations</li>
+                  <li>â€¢ Expense tracking and approval workflows</li>
+                  <li>â€¢ Budget management and forecasting</li>
+                  <li>â€¢ Tax calculation and compliance tools</li>
+                  <li>â€¢ Multi-currency support for international operations</li>
                 </ul>
               </CardContent>
             </Card>
@@ -125,11 +125,11 @@ export default function FeaturesPage() {
                   attendance tracking, and payroll processing.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Employee onboarding and offboarding</li>
-                  <li>• Time and attendance management</li>
-                  <li>• Leave and vacation tracking</li>
-                  <li>• Performance evaluation system</li>
-                  <li>• Payroll processing and tax filings</li>
+                  <li>â€¢ Employee onboarding and offboarding</li>
+                  <li>â€¢ Time and attendance management</li>
+                  <li>â€¢ Leave and vacation tracking</li>
+                  <li>â€¢ Performance evaluation system</li>
+                  <li>â€¢ Payroll processing and tax filings</li>
                 </ul>
               </CardContent>
             </Card>
@@ -143,11 +143,11 @@ export default function FeaturesPage() {
                   Tools for managing our day-to-day business operations across all departments.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Workflow automation and process management</li>
-                  <li>• Document management and version control</li>
-                  <li>• Task assignment and progress tracking</li>
-                  <li>• Inter-departmental communication tools</li>
-                  <li>• Compliance and audit tracking</li>
+                  <li>â€¢ Workflow automation and process management</li>
+                  <li>â€¢ Document management and version control</li>
+                  <li>â€¢ Task assignment and progress tracking</li>
+                  <li>â€¢ Inter-departmental communication tools</li>
+                  <li>â€¢ Compliance and audit tracking</li>
                 </ul>
               </CardContent>
             </Card>
@@ -161,11 +161,11 @@ export default function FeaturesPage() {
                   Advanced analytics and reporting tools to help us make data-driven decisions.
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li>• Custom report builder with drag-and-drop interface</li>
-                  <li>• Data visualization tools and dashboards</li>
-                  <li>• Predictive analytics for business forecasting</li>
-                  <li>• Key performance indicator tracking</li>
-                  <li>• Data export and integration capabilities</li>
+                  <li>â€¢ Custom report builder with drag-and-drop interface</li>
+                  <li>â€¢ Data visualization tools and dashboards</li>
+                  <li>â€¢ Predictive analytics for business forecasting</li>
+                  <li>â€¢ Key performance indicator tracking</li>
+                  <li>â€¢ Data export and integration capabilities</li>
                 </ul>
               </CardContent>
             </Card>
@@ -196,7 +196,7 @@ export default function FeaturesPage() {
               <span className="font-bold text-lg text-foreground">Evaluna ERP</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
+              Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use Only.
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-center md:justify-end space-x-6 text-sm text-muted-foreground">
@@ -210,3 +210,4 @@ export default function FeaturesPage() {
     </div>
   );
 }
+

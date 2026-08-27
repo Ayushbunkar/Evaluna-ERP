@@ -1,4 +1,4 @@
-import type React from "react";
+﻿import type React from "react";
 
 export interface ThermalReceiptProps {
 	order: any;
@@ -93,3 +93,4 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 		</div>
 	);
 };
+

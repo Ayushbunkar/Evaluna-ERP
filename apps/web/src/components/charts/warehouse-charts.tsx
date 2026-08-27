@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
 	type ChartConfig,
@@ -184,3 +184,4 @@ export function WarehouseFifoChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
+

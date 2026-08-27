@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { motion } from "framer-motion";
@@ -237,3 +237,4 @@ export function Hero() {
 		</section>
 	);
 }
+

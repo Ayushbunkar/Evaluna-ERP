@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { Input } from "@evaluna/ui/components/input";
@@ -172,3 +172,4 @@ export function ChatWidget() {
 		</div>
 	);
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { motion } from "framer-motion";
@@ -120,7 +120,7 @@ export function Footer() {
 					{/* Bottom Section */}
 					<div className="mt-12 flex flex-col items-center justify-between gap-6 border-border border-t pt-8 md:flex-row">
 						<div className="text-muted-foreground text-sm">
-							© {currentYear} Evalona. All rights reserved.
+							Â© {currentYear} Evalona. All rights reserved.
 						</div>
 
 						<div className="flex items-center gap-6">
@@ -169,3 +169,4 @@ export function Footer() {
 		</footer>
 	);
 }
+
