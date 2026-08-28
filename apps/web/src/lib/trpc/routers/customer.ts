@@ -142,6 +142,8 @@ export const customerRouter = router({
 							}
 					}
 				},
+			});
+
 			if (!order)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
 
@@ -150,7 +152,7 @@ export const customerRouter = router({
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
 				status: order.status,
-				date: o.created_at ? o.created_at.toISOString() : null,
+				date: order.created_at ? order.created_at.toISOString() : null,
 				priceVisible: isConfirmed,
 				total: isConfirmed ? Number(order.total_amount) : null,
 				items: order.orderItems.map((it) => ({
