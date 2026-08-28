@@ -241,14 +241,14 @@ export const customerRouter = router({
 				// Idempotency guard — same key already processed → return that order.
 				const existing = await tx.query.pendingSync.findFirst({
 					where: eq(pendingSync.id, input.idempotencyKey),
-				},
+				});
 				if (existing?.entity_id) {
 					const prior = await tx.query.orders.findFirst({
 						where: and(
 							eq(orders.id, existing.entity_id),
 							eq(orders.customer_id, ctx.customer.id),
 						),
-					},
+					});
 					if (prior)
 						return {
 							orderId: prior.id,
