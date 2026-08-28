@@ -125,7 +125,7 @@ export const customerRouter = router({
 				status: o.status,
 				itemsCount: o.orderItems.length,
 				total: isConfirmed ? Number(o.total_amount) : null,
-			});
+			}); );
 
 	// ── My order (detail) — line prices hidden until confirmed ────────────────
 	getMyOrder: customerProcedure
@@ -393,7 +393,7 @@ export const customerRouter = router({
 				with: {
 					customer: {
 						columns: { id: true, name: true }
-					}
+					},
 					orderItems: {
 						columns: { id: true }
 					}

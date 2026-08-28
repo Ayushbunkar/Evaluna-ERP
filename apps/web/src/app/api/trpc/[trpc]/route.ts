@@ -10,11 +10,6 @@ const handler = (req: Request) =>
     createContext: createTRPCContext,
   });
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
 
 export async function GET(req: Request) {
   return handler(req);
