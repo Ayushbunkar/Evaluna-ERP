@@ -117,25 +117,24 @@ export function LoyaltySummary({ customerId }: LoyaltySummaryProps) {
 						Points Available
 					</div>
 					<div className="mt-1 font-medium text-xs">
-						= â‚¹{customer.loyalty_points ?? 0} discount
+						= ₹{customer.loyalty_points ?? 0} discount
 					</div>
 				</div>
 				<div className="rounded-lg bg-white/70 p-3 text-center">
 					<div className="font-bold text-2xl">
-						â‚¹
-						{Number.parseFloat(
+						₹{Number.parseFloat(
 							(customer.total_spent as string) ?? "0",
 						).toLocaleString("en-IN")}
 					</div>
 					<div className="mt-0.5 text-muted-foreground text-xs">
 						Total Spent
 					</div>
-					{nextTier && (
-						<div className="mt-1 font-medium text-blue-600 text-xs">
-							â‚¹{(nextThreshold! - totalSpent).toLocaleString("en-IN")} to{" "}
-							{nextTier}
-						</div>
-					)}
+{nextTier && (
+					<div className="mt-1 font-medium text-blue-600 text-xs">
+						₹{(nextThreshold! - totalSpent).toLocaleString("en-IN")} to{" "}
+						{nextTier}
+					</div>
+				)}
 				</div>
 			</div>
 

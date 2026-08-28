@@ -73,9 +73,9 @@ export default function Home() {
 											<CardContent className="text-sm text-muted-foreground">Business Performance</CardContent>
 											<BarChart3 className="h-4 w-4 text-muted-foreground" />
 										</CardHeader>
-									<CardContent>
-										<div className="text-2xl font-bold">â‚¹12,345.67</div>
-										<p className="text-xs text-muted-foreground">+12.5% from last month</p>
+<CardContent>
+											<div className="text-2xl font-bold">₹12,345.67</div>
+											<p className="text-xs text-muted-foreground">+12.5% from last month</p>
 											<div className="mt-4 h-20 bg-gradient-to-r from-blue-100 to-blue-50 rounded-lg flex items-end p-2">
 												{/* Mock chart */}
 												<div className="flex space-x-1 w-full">

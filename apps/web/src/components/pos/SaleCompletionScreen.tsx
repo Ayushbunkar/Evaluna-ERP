@@ -392,7 +392,7 @@ export function SaleCompletionScreen({
 			const qtyStr = Number.isInteger(item.qty)
 				? item.qty
 				: item.qty.toFixed(3);
-			itemsText += `${idx + 1}. *${item.name}*\n   Qty: ${qtyStr} x â‚¹${rate.toFixed(2)} = *â‚¹${lineTotal.toFixed(2)}*\n`;
+			itemsText += `${idx + 1}. *${item.name}*\n   Qty: ${qtyStr} x ₹${rate.toFixed(2)} = *₹${lineTotal.toFixed(2)}*\n`;
 		});
 
 		let customerText = "";

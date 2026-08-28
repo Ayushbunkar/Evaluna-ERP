@@ -102,7 +102,7 @@ export function InventoryValueChart({ data }: { data: any[] }) {
 				<YAxis
 					tickLine={false}
 					axisLine={false}
-					tickFormatter={(v) => `â‚¹${v / 1000}k`}
+					tickFormatter={(v) => `₹${v / 1000}k`}
 				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
