@@ -116,17 +116,16 @@ export const customerRouter = router({
 		const rows = await ctx.db.query.orders.findMany({
 			where: eq(orders.customer_id, ctx.customer.id),
 			orderBy: [desc(orders.created_at)],
-            with: { orderItems: { columns: { id: true } } }
-            });
-
-			return rows.map((o) => ({
-				orderRef: `ORD-${o.id}`,
-				date: o.created_at ? o.created_at.toISOString() : null,
-				status: o.status,
-				itemsCount: o.orderItems.length,
-				total: isConfirmed ? Number(o.total_amount) : null,
-			}); );
-
+			with: { orderItems: { columns: { id: true } }}
+		});
+		return rows.map((o) => {
+			orderRef: `ORD-${o.id}`,
+			date: o.created_at ? o.created_at.toISOString() : null,
+			status: o.status,
+			itemsCount: o.orderItems.length,
+			total: isConfirmed ? Number(o.total_amount) : null,
+			});
+	),
 	// ── My order (detail) — line prices hidden until confirmed ────────────────
 	getMyOrder: customerProcedure
 		.input(z.object({ id: z.number() }))
