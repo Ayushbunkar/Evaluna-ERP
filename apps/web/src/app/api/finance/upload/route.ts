@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 import { attachments } from "@evaluna/db/schema";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-guard";

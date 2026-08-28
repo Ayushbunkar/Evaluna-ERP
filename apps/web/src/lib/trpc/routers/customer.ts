@@ -116,19 +116,16 @@ export const customerRouter = router({
 		const rows = await ctx.db.query.orders.findMany({
 			where: eq(orders.customer_id, ctx.customer.id),
 			orderBy: [desc(orders.created_at)],
-			limit: 100,
-			with: { orderItems: { columns: { id: true } } }`n  });`n`n  return rows.map((o) => {
-			const isConfirmed = CONFIRMED_STATUSES.includes(o.status ?? "");
-			return {
-				id: o.id,
+            with: { orderItems: { columns: { id: true } } }
+            });
+
+			return rows.map((o) => ({
 				orderRef: `ORD-${o.id}`,
 				date: o.created_at ? o.created_at.toISOString() : null,
 				status: o.status,
 				itemsCount: o.orderItems.length,
 				total: isConfirmed ? Number(o.total_amount) : null,
-			};
-		},
-	}),
+			});
 
 	// ── My order (detail) — line prices hidden until confirmed ────────────────
 	getMyOrder: customerProcedure
@@ -183,7 +180,7 @@ export const customerRouter = router({
 						with: {
 								product: { columns: { name: true, unit: true } }
 							}
-					}
+					},
 					paymentMethod: { columns: { name: true } }
 				}
 			},
@@ -423,4 +420,5 @@ export const customerRouter = router({
 			};
 		}),
 },
+
 
