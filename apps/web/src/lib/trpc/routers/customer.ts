@@ -184,13 +184,15 @@ export const customerRouter = router({
 					},
 					paymentMethod: { columns: { name: true } }
 				}
-			},
-			if (!order) throw new TRPCError({ code: "NOT_FOUND" },
+			});
+
+			if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+
 			if (!CONFIRMED_STATUSES.includes(order.status ?? "")) {
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",
 					message: "Invoice is available only after the order is confirmed.",
-				},
+				});
 			}
 			const items = order.orderItems.map((it) => ({
 				name: it.product?.name ?? "Item",
