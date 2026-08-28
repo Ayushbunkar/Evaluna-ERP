@@ -107,7 +107,7 @@ export default function ReturnsReviewPage() {
 										</TableCell>
 										<TableCell>INV-{ret.order_id}</TableCell>
 										<TableCell className="font-semibold text-red-500">
-											-â‚¹{Number(ret.total_amount).toFixed(2)}
+											-₹{Number(ret.total_amount).toFixed(2)}
 										</TableCell>
 										<TableCell className="text-right">
 											<Button

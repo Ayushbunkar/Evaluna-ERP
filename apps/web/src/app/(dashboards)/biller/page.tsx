@@ -62,19 +62,19 @@ export default function BillerDashboard() {
 		{
 			id: 1,
 			title: "Bill #1042 Paid",
-			description: "â‚¹120.50 via Card",
+			description: "₹120.50 via Card",
 			time: "2 min ago",
 		},
 		{
 			id: 2,
 			title: "Bill #1041 Paid",
-			description: "â‚¹45.00 via Cash",
+			description: "₹45.00 via Cash",
 			time: "15 min ago",
 		},
 		{
 			id: 3,
 			title: "Refund #1040",
-			description: "â‚¹20.00 returned",
+			description: "₹20.00 returned",
 			time: "1 hour ago",
 		},
 	];

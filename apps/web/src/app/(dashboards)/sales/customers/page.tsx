@@ -108,12 +108,12 @@ export default function CustomersPage() {
 			sortable: true,
 			render: (row) => row.loyalty_points?.toString() || "0",
 		},
-		{
-			key: "store_credit",
-			header: "Credit",
-			sortable: true,
-			render: (row) => `â‚¹${row.store_credit || "0.00"}`,
-		},
+{
+					key: "store_credit",
+					header: "Credit",
+					sortable: true,
+					render: (row) => `₹${row.store_credit || "0.00"}`,
+				},
 		{
 			key: "status",
 			header: tc("status"),

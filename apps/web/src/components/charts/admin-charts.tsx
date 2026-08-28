@@ -81,7 +81,7 @@ export function AdminSalesTrendChart({ data }: { data: any[] }) {
 				<YAxis
 					tickLine={false}
 					axisLine={false}
-					tickFormatter={(v) => `â‚¹${v}`}
+					tickFormatter={(v) => `₹${v}`}
 				/>
 				<ChartTooltip content={<ChartTooltipContent />} />
 				<Area
