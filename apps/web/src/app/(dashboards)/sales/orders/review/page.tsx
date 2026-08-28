@@ -65,9 +65,7 @@ export default function CustomerOrderInboxPage() {
 									)}
 									<span>{o.itemsCount} item(s)</span>
 									<span>
-										{o.createdAt
-											? new Date(o.createdAt).toLocaleString()
-											: ""}
+										{o.createdAt ? new Date(o.createdAt).toLocaleString() : ""}
 									</span>
 								</p>
 							</div>
@@ -87,8 +85,3 @@ export default function CustomerOrderInboxPage() {
 		</div>
 	);
 }
-
-
-
-
-

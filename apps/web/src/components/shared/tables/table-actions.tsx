@@ -1,4 +1,3 @@
 ﻿export function TableActions() {
 	return <div>TableActions</div>;
 }
-

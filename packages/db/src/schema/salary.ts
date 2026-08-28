@@ -3,17 +3,17 @@ import {
 	boolean,
 	date,
 	decimal,
-	pgEnum,
 	integer,
 	jsonb,
+	pgEnum,
 	pgTable,
 	serial,
 	text,
 	timestamp,
 	varchar,
 } from "drizzle-orm/pg-core";
+import { branches, paymentMethods, payroll } from "../schema";
 import { employees } from "./hrms";
-import { branches, payroll, paymentMethods } from "../schema";
 
 // Salary Component Types
 export const salaryComponentTypeEnum = pgEnum("salary_component_type", [
@@ -68,7 +68,7 @@ export const salaryStructureRelations = relations(
 			fields: [salaryStructure.employeeId],
 			references: [employees.id],
 		}),
-	})
+	}),
 );
 
 // Salary Change Request (for approval workflow)
@@ -82,11 +82,15 @@ export const salaryChangeRequest = pgTable("salary_change_request", {
 		.notNull(),
 	effectiveFrom: date("effective_from").notNull(),
 	// Changes to be applied (JSON format for flexibility)
-	changes: jsonb("changes").$type<{
-		componentId: number;
-		newAmount: string;
-		reason: string;
-	}[]>().notNull(),
+	changes: jsonb("changes")
+		.$type<
+			{
+				componentId: number;
+				newAmount: string;
+				reason: string;
+			}[]
+		>()
+		.notNull(),
 	status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
 	approvedBy: integer("approved_by").references(() => employees.id),
 	approvedAt: timestamp("approved_at"),
@@ -113,7 +117,7 @@ export const salaryChangeRequestRelations = relations(
 			references: [employees.id],
 			relationName: "approved_by_employee",
 		}),
-	})
+	}),
 );
 
 // Statutory Deduction Configuration (Company/Branch level)
@@ -126,13 +130,15 @@ export const statutoryDeductionConfig = pgTable("statutory_deduction_config", {
 	effectiveTo: date("effective_to"),
 	pfRate: decimal("pf_rate", { precision: 5, scale: 4 }).default("0.12"), // 12%
 	esiRate: decimal("esi_rate", { precision: 5, scale: 4 }).default("0.0075"), // 0.75%
-	professionalTaxSlabs: jsonb("professional_tax_slabs").$type<
-		Array<{
-			from: number;
-			to: number | null;
-			amount: number;
-		}>
-	>().notNull(),
+	professionalTaxSlabs: jsonb("professional_tax_slabs")
+		.$type<
+			Array<{
+				from: number;
+				to: number | null;
+				amount: number;
+			}>
+		>()
+		.notNull(),
 	tdsConfig: jsonb("tds_config").$type<{
 		applicable: boolean;
 		threshold: number;
@@ -140,7 +146,7 @@ export const statutoryDeductionConfig = pgTable("statutory_deduction_config", {
 			from: number;
 			to: number | null;
 			rate: number;
-		}>
+		}>;
 	}>(),
 	createdAt: timestamp("created_at").defaultNow(),
 	updatedAt: timestamp("updated_at").defaultNow(),
@@ -154,29 +160,46 @@ export const payrollEnhanced = pgTable("payroll_enhanced", {
 		.notNull()
 		.unique(),
 	// Detailed earnings breakdown
-	earnings: jsonb("earnings").$type<
-		Record<string, {
-			amount: string;
-			isTaxable: boolean;
-		}>
-	>().notNull(),
+	earnings: jsonb("earnings")
+		.$type<
+			Record<
+				string,
+				{
+					amount: string;
+					isTaxable: boolean;
+				}
+			>
+		>()
+		.notNull(),
 	// Detailed deductions breakdown
-	deductionsDetail: jsonb("deductions_detail").$type<
-		Record<string, {
-			amount: string;
-			isPreTax: boolean;
-			statutoryType: string | null;
-		}>
-	>().notNull(),
+	deductionsDetail: jsonb("deductions_detail")
+		.$type<
+			Record<
+				string,
+				{
+					amount: string;
+					isPreTax: boolean;
+					statutoryType: string | null;
+				}
+			>
+		>()
+		.notNull(),
 	// Reimbursements (non-taxable)
-	reimbursements: jsonb("reimbursements").$type<Record<string, string>>().notNull(),
+	reimbursements: jsonb("reimbursements")
+		.$type<Record<string, string>>()
+		.notNull(),
 	// Loan/salary advances
-	loansAndAdvances: jsonb("loans_and_advances").$type<
-		Record<string, {
-			amount: string;
-			loanId: number | null;
-		}>
-	>().notNull(),
+	loansAndAdvances: jsonb("loans_and_advances")
+		.$type<
+			Record<
+				string,
+				{
+					amount: string;
+					loanId: number | null;
+				}
+			>
+		>()
+		.notNull(),
 	// Net payable (should match payroll.net_payable for consistency)
 	netPayable: decimal("net_payable", { precision: 10, scale: 2 }).notNull(),
 	// Calculation metadata
@@ -193,7 +216,7 @@ export const payrollEnhancedRelations = relations(
 			fields: [payrollEnhanced.payrollId],
 			references: [payroll.id],
 		}),
-	})
+	}),
 );
 
 // Payroll Locking (for concurrency control)
@@ -243,17 +266,20 @@ export const paymentBatch = pgTable("payment_batch", {
 });
 
 // Payment Batch Relations
-export const paymentBatchRelations = relations(paymentBatch, ({ one, many }) => ({
-	branch: one(branches, {
-		fields: [paymentBatch.branchId],
-		references: [branches.id],
+export const paymentBatchRelations = relations(
+	paymentBatch,
+	({ one, many }) => ({
+		branch: one(branches, {
+			fields: [paymentBatch.branchId],
+			references: [branches.id],
+		}),
+		createdByEmployee: one(employees, {
+			fields: [paymentBatch.createdBy],
+			references: [employees.id],
+		}),
+		payments: many(paymentBatchItem),
 	}),
-	createdByEmployee: one(employees, {
-		fields: [paymentBatch.createdBy],
-		references: [employees.id],
-	}),
-	payments: many(paymentBatchItem),
-}));
+);
 
 // Payment Batch Items
 export const paymentBatchItem = pgTable("payment_batch_item", {
@@ -270,7 +296,7 @@ export const paymentBatchItem = pgTable("payment_batch_item", {
 	amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
 	status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, processed, failed, reconciled
 	paymentMethodId: integer("payment_method_id").references(
-		() => paymentMethods.id
+		() => paymentMethods.id,
 	),
 	processedAt: timestamp("processed_at"),
 	failureReason: text("failure_reason"),
@@ -298,7 +324,7 @@ export const paymentBatchItemRelations = relations(
 			fields: [paymentBatchItem.paymentMethodId],
 			references: [paymentMethods.id],
 		}),
-	})
+	}),
 );
 
 // Payslip Template
@@ -321,7 +347,7 @@ export const payslipTemplate = pgTable("payslip_template", {
 			label: string;
 			valuePath: string; // JSON path to value in payroll data
 			isCurrency: boolean;
-		}>
+		}>;
 	}>(),
 	createdAt: timestamp("created_at").defaultNow(),
 	updatedAt: timestamp("updated_at").defaultNow(),
@@ -335,7 +361,7 @@ export const payslipTemplateRelations = relations(
 			fields: [payslipTemplate.branchId],
 			references: [branches.id],
 		}),
-	})
+	}),
 );
 
 // Generated Payslip (for storage and access)
@@ -348,8 +374,7 @@ export const generatedPayslip = pgTable("generated_payslip", {
 	employeeId: integer("employee_id")
 		.references(() => employees.id)
 		.notNull(),
-	templateId: integer("template_id")
-		.references(() => payslipTemplate.id),
+	templateId: integer("template_id").references(() => payslipTemplate.id),
 	// Generated content (PDF as base64 or URL)
 	contentUrl: varchar("content_url", { length: 500 }),
 	isPublished: boolean("is_published").default(false),
@@ -373,7 +398,7 @@ export const generatedPayslipRelations = relations(
 			fields: [generatedPayslip.templateId],
 			references: [payslipTemplate.id],
 		}),
-	})
+	}),
 );
 
 // Payroll Variance Detection
@@ -388,7 +413,10 @@ export const payrollVariance = pgTable("payroll_variance", {
 	expectedValue: decimal("expected_value", { precision: 15, scale: 2 }),
 	actualValue: decimal("actual_value", { precision: 15, scale: 2 }),
 	varianceAmount: decimal("variance_amount", { precision: 15, scale: 2 }),
-	variancePercentage: decimal("variance_percentage", { precision: 5, scale: 2 }),
+	variancePercentage: decimal("variance_percentage", {
+		precision: 5,
+		scale: 2,
+	}),
 	isResolved: boolean("is_resolved").default(false),
 	resolvedBy: integer("resolved_by").references(() => employees.id),
 	resolvedAt: timestamp("resolved_at"),
@@ -409,7 +437,7 @@ export const payrollVarianceRelations = relations(
 			fields: [payrollVariance.resolvedBy],
 			references: [employees.id],
 		}),
-	})
+	}),
 );
 
 // Payroll Audit Events (enhanced audit for payroll-specific events)
@@ -430,19 +458,16 @@ export const payrollAudit = pgTable("payroll_audit", {
 });
 
 // Payroll Audit Relations
-export const payrollAuditRelations = relations(
-	payrollAudit,
-	({ one }) => ({
-		payroll: one(payroll, {
-			fields: [payrollAudit.payrollId],
-			references: [payroll.id],
-		}),
-		changedByEmployee: one(employees, {
-			fields: [payrollAudit.changedBy],
-			references: [employees.id],
-		}),
-	})
-);
+export const payrollAuditRelations = relations(payrollAudit, ({ one }) => ({
+	payroll: one(payroll, {
+		fields: [payrollAudit.payrollId],
+		references: [payroll.id],
+	}),
+	changedByEmployee: one(employees, {
+		fields: [payrollAudit.changedBy],
+		references: [employees.id],
+	}),
+}));
 
 // Notification Templates for Payroll
 export const notificationTemplate = pgTable("notification_template", {
@@ -462,8 +487,7 @@ export const payrollNotification = pgTable("payroll_notification", {
 	id: serial("id").primaryKey(),
 	payrollId: integer("payroll_id").references(() => payroll.id),
 	employeeId: integer("employee_id").references(() => employees.id),
-	templateId: integer("template_id")
-		.references(() => notificationTemplate.id),
+	templateId: integer("template_id").references(() => notificationTemplate.id),
 	channel: varchar("channel", { length: 20 }).notNull(), // email, sms, in_app, push
 	status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, sent, failed, read
 	sentAt: timestamp("sent_at"),
@@ -489,5 +513,5 @@ export const payrollNotificationRelations = relations(
 			fields: [payrollNotification.templateId],
 			references: [notificationTemplate.id],
 		}),
-	})
+	}),
 );

@@ -263,9 +263,12 @@ export const marketingRouter = router({
 			activeCampaigns: activeCampaignsCount?.count || 0,
 			totalCoupons: totalCouponsCount?.count || 0,
 			redeemedCoupons: redeemedCouponsCount?.count || 0,
-			conversionRate: redeemedCouponsCount?.count && totalCouponsCount?.count
-				? Math.round((redeemedCouponsCount.count / totalCouponsCount.count) * 100)
-				: 0,
+			conversionRate:
+				redeemedCouponsCount?.count && totalCouponsCount?.count
+					? Math.round(
+							(redeemedCouponsCount.count / totalCouponsCount.count) * 100,
+						)
+					: 0,
 		};
 	}),
 });

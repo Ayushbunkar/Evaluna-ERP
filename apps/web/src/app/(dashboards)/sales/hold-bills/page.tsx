@@ -161,8 +161,3 @@ export default function HoldBillsPage() {
 		</PageTransition>
 	);
 }
-
-
-
-
-

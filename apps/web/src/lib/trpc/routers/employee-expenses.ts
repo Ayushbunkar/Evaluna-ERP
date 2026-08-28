@@ -82,11 +82,7 @@ export const employeeExpensesRouter = router({
 
 	// ── My expenses ─────────────────────────────────────────────────────────────
 	listMine: protectedProcedure
-		.input(
-			z
-				.object({ status: z.string().optional() })
-				.optional(),
-		)
+		.input(z.object({ status: z.string().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const me = await requireStaff(ctx.user.email);
 			const conds = [
@@ -143,7 +139,10 @@ export const employeeExpensesRouter = router({
 				with: { staffMember: true, category: true, payment: true },
 			});
 			if (!row || row.is_deleted)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Expense not found" });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Expense not found",
+				});
 			// A submitter may always read their own; reviewers read within their branch.
 			const me = await requireStaff(ctx.user.email);
 			const isOwner = row.staff_id === me.id;
@@ -278,8 +277,7 @@ export const employeeExpensesRouter = router({
 						description:
 							existing.description ??
 							`Reimbursement ${existing.expense_number}`,
-						referenceNumber:
-							input.reference_number ?? existing.expense_number,
+						referenceNumber: input.reference_number ?? existing.expense_number,
 						source: "employee_expense",
 					},
 					actor,

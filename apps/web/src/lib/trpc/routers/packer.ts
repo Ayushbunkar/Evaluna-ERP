@@ -189,7 +189,7 @@ export const packerRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			// Build the base query for packages with proper joins
-			let query = ctx.db
+			const query = ctx.db
 				.select({
 					orderId: packages.order_id,
 					packedBy: staff.name,
@@ -206,9 +206,7 @@ export const packerRouter = router({
 									lte(packages.packed_at, input.endDate),
 								)
 							: undefined,
-						input.status
-							? eq(packages.status, input.status)
-							: undefined,
+						input.status ? eq(packages.status, input.status) : undefined,
 					),
 				)
 				.orderBy(desc(packages.packed_at));

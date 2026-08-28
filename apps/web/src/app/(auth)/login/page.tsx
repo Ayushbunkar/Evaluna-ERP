@@ -153,27 +153,44 @@ export default function LoginPage() {
 	return (
 		<div className="min-h-screen bg-background">
 			{/* Navigation */}
-			<nav className="border-b border-border bg-background/80 backdrop-blur-sm">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="flex justify-between items-center h-16">
+			<nav className="border-border border-b bg-background/80 backdrop-blur-sm">
+				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+					<div className="flex h-16 items-center justify-between">
 						<div className="flex items-center space-x-2">
 							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
-							<span className="font-bold text-xl text-foreground">Evaluna ERP</span>
+							<span className="font-bold text-foreground text-xl">
+								Evaluna ERP
+							</span>
 						</div>
 						<div className="flex items-center space-x-4">
-							<Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+							<Link
+								href="/"
+								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+							>
 								Home
 							</Link>
-							<Link href="/product" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+							<Link
+								href="/product"
+								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+							>
 								Product
 							</Link>
-							<Link href="/features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+							<Link
+								href="/features"
+								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+							>
 								Features
 							</Link>
-							<Link href="/solutions" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+							<Link
+								href="/solutions"
+								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+							>
 								Solutions
 							</Link>
-							<Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+							<Link
+								href="/about"
+								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+							>
 								Company
 							</Link>
 							<Button asChild variant="outline" className="text-sm">
@@ -184,7 +201,7 @@ export default function LoginPage() {
 				</div>
 			</nav>
 
-			<div className="relative flex flex-col items-center justify-center overflow-hidden bg-background selection:bg-primary/20 min-h-[calc(100vh-64px)]">
+			<div className="relative flex min-h-[calc(100vh-64px)] flex-col items-center justify-center overflow-hidden bg-background selection:bg-primary/20">
 				{/* Background gradients for premium feel */}
 				<div className="pointer-events-none absolute top-0 left-0 -z-10 h-full w-full overflow-hidden">
 					<div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
@@ -195,46 +212,45 @@ export default function LoginPage() {
 					<LocaleSwitcher />
 				</div>
 
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-				className="mx-auto w-full max-w-md space-y-8 px-4"
-			>
-				<div className="flex flex-col items-center space-y-2 text-center sm:space-y-3">
-					<motion.div
-						initial={{ scale: 0.8, opacity: 0 }}
-						animate={{ scale: 1, opacity: 1 }}
-						transition={{ delay: 0.1, duration: 0.5 }}
-						className="mb-2 rounded-2xl bg-secondary p-3 shadow-sm ring-1 ring-border"
-					>
-						<MountainIcon
-							className="h-8 w-8 text-foreground"
-							strokeWidth={1.5}
-						/>
-					</motion.div>
-					<h2 className="font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
-						{t("title")}
-					</h2>
-					<p className="max-w-sm text-muted-foreground text-xs sm:text-base">
-						{t("subtitle")}
-					</p>
-				</div>
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+					className="mx-auto w-full max-w-md space-y-8 px-4"
+				>
+					<div className="flex flex-col items-center space-y-2 text-center sm:space-y-3">
+						<motion.div
+							initial={{ scale: 0.8, opacity: 0 }}
+							animate={{ scale: 1, opacity: 1 }}
+							transition={{ delay: 0.1, duration: 0.5 }}
+							className="mb-2 rounded-2xl bg-secondary p-3 shadow-sm ring-1 ring-border"
+						>
+							<MountainIcon
+								className="h-8 w-8 text-foreground"
+								strokeWidth={1.5}
+							/>
+						</motion.div>
+						<h2 className="font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
+							{t("title")}
+						</h2>
+						<p className="max-w-sm text-muted-foreground text-xs sm:text-base">
+							{t("subtitle")}
+						</p>
+					</div>
 
-				<Card className="border-border/50 bg-card/80 shadow-xl backdrop-blur-xl">
-					<Suspense
-						fallback={
-							<div className="flex justify-center p-10">
-								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-							</div>
-						}
-					>
-						<LoginForm />
-					</Suspense>
-				</Card>
-			</motion.div>
-		</div>
+					<Card className="border-border/50 bg-card/80 shadow-xl backdrop-blur-xl">
+						<Suspense
+							fallback={
+								<div className="flex justify-center p-10">
+									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+								</div>
+							}
+						>
+							<LoginForm />
+						</Suspense>
+					</Card>
+				</motion.div>
+			</div>
 		</div>
 	);
 }
-

@@ -21,7 +21,12 @@ type FeedItem = {
 	overdue: boolean;
 };
 
-const UPC_OPEN = ["PENDING", "ASSIGNED", "IN_PROGRESS", "VERIFICATION_REQUIRED"];
+const UPC_OPEN = [
+	"PENDING",
+	"ASSIGNED",
+	"IN_PROGRESS",
+	"VERIFICATION_REQUIRED",
+];
 const CA_OPEN = ["PENDING", "IN_PROGRESS", "OVERDUE"];
 const SA_OPEN = ["planned", "in_progress", "escalated"];
 
@@ -42,7 +47,8 @@ export const auditTasksRouter = router({
 
 			const upcConds = [];
 			if (input?.onlyOpen) upcConds.push(inArray(upcTasks.status, UPC_OPEN));
-			if (input?.assignedTo) upcConds.push(eq(upcTasks.assigned_to, input.assignedTo));
+			if (input?.assignedTo)
+				upcConds.push(eq(upcTasks.assigned_to, input.assignedTo));
 			const upcRows = await ctx.db
 				.select()
 				.from(upcTasks)
@@ -57,13 +63,18 @@ export const auditTasksRouter = router({
 					assignedTo: t.assigned_to ?? null,
 					dueAt: t.due_at ?? null,
 					createdAt: t.created_at ?? null,
-					overdue: !!t.due_at && new Date(t.due_at).getTime() < now && UPC_OPEN.includes(t.status),
+					overdue:
+						!!t.due_at &&
+						new Date(t.due_at).getTime() < now &&
+						UPC_OPEN.includes(t.status),
 				});
 			}
 
 			const caConds = [];
-			if (input?.onlyOpen) caConds.push(inArray(correctiveActions.status, CA_OPEN));
-			if (input?.assignedTo) caConds.push(eq(correctiveActions.assigned_to, input.assignedTo));
+			if (input?.onlyOpen)
+				caConds.push(inArray(correctiveActions.status, CA_OPEN));
+			if (input?.assignedTo)
+				caConds.push(eq(correctiveActions.assigned_to, input.assignedTo));
 			const caRows = await ctx.db
 				.select()
 				.from(correctiveActions)
@@ -78,13 +89,17 @@ export const auditTasksRouter = router({
 					assignedTo: c.assigned_to ?? null,
 					dueAt: c.due_at ?? null,
 					createdAt: c.created_at ?? null,
-					overdue: !!c.due_at && new Date(c.due_at).getTime() < now && CA_OPEN.includes(c.status),
+					overdue:
+						!!c.due_at &&
+						new Date(c.due_at).getTime() < now &&
+						CA_OPEN.includes(c.status),
 				});
 			}
 
 			const saConds = [];
 			if (input?.onlyOpen) saConds.push(inArray(stockAudits.status, SA_OPEN));
-			if (input?.assignedTo) saConds.push(eq(stockAudits.auditor_id, input.assignedTo));
+			if (input?.assignedTo)
+				saConds.push(eq(stockAudits.auditor_id, input.assignedTo));
 			const saRows = await ctx.db
 				.select()
 				.from(stockAudits)
@@ -103,7 +118,9 @@ export const auditTasksRouter = router({
 				});
 			}
 
-			items.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+			items.sort(
+				(a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0),
+			);
 			return items;
 		}),
 });

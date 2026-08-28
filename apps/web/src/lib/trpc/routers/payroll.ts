@@ -54,14 +54,15 @@ export const payrollRouter = router({
 
 			// Batch-check existing payroll records for all staff in one query
 			const staffIds = activeStaff.map((s) => s.id);
-			const existingPayrolls = staffIds.length > 0
-				? await ctx.db.query.payroll.findMany({
-					where: and(
-						inArray(payroll.staff_id, staffIds),
-						eq(payroll.month, input.month),
-					),
-			  })
-				: [];
+			const existingPayrolls =
+				staffIds.length > 0
+					? await ctx.db.query.payroll.findMany({
+							where: and(
+								inArray(payroll.staff_id, staffIds),
+								eq(payroll.month, input.month),
+							),
+						})
+					: [];
 
 			const existingStaffIds = new Set(existingPayrolls.map((p) => p.staff_id));
 
@@ -80,7 +81,7 @@ export const payrollRouter = router({
 							base_salary: employee.salary,
 							net_payable: employee.salary,
 							status: "draft",
-						}))
+						})),
 					)
 					.returning();
 			}

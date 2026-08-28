@@ -60,9 +60,7 @@ export const paymentsRouter = router({
 	// ── Categories (configurable master data) ─────────────────────────────────
 	listCategories: roleProcedure([...READ_ROLES])
 		.input(
-			z
-				.object({ include_inactive: z.boolean().default(false) })
-				.optional(),
+			z.object({ include_inactive: z.boolean().default(false) }).optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const branchId = ctx.user.branchId;
@@ -123,7 +121,10 @@ export const paymentsRouter = router({
 				)
 				.returning();
 			if (!row)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Category not found" });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Category not found",
+				});
 			return row;
 		}),
 
@@ -222,7 +223,10 @@ export const paymentsRouter = router({
 				},
 			});
 			if (!payment)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found" });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Payment not found",
+				});
 			return payment;
 		}),
 
@@ -544,7 +548,4 @@ export const paymentsRouter = router({
 				return { id: existing.id, status: "void" as const };
 			});
 		}),
-
-
 });
-

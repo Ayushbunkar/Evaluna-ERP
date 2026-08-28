@@ -184,4 +184,3 @@ export function WarehouseFifoChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
-

@@ -1,6 +1,10 @@
-import { deliveryTrips, tripCollections, vehicles } from "@evaluna/db/schema/delivery";
-import { orders, branches } from "@evaluna/db/schema";
-import { desc, eq, or, sql, inArray } from "drizzle-orm";
+import { branches, orders } from "@evaluna/db/schema";
+import {
+	deliveryTrips,
+	tripCollections,
+	vehicles,
+} from "@evaluna/db/schema/delivery";
+import { desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -160,7 +164,10 @@ export const driverRouter = router({
 				console.warn("Failed to fetch trip collections:", error);
 			}
 
-			const codCollected = collections.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+			const codCollected = collections.reduce(
+				(acc, curr) => acc + Number(curr.amount || 0),
+				0,
+			);
 			const successfulCollections = collections.length;
 
 			const nextStop = trip.stops.find((s: any) => s.status === "pending");
@@ -173,10 +180,10 @@ export const driverRouter = router({
 					with: {
 						orderItems: {
 							with: {
-								product: true
-							}
+								product: true,
+							},
 						},
-					}
+					},
 				});
 
 				nextDelivery = {
@@ -213,15 +220,17 @@ export const driverRouter = router({
 				with: {
 					orderItems: {
 						with: {
-							product: true
-						}
-					}
-				}
+							product: true,
+						},
+					},
+				},
 			});
 
 			// Build route stops safely using only data already loaded from the trip query
 			const routeStops = trip.stops.map((s: any) => {
-				const orderForStop = ordersForStops.find(order => order.customer_id === s.customer_id);
+				const orderForStop = ordersForStops.find(
+					(order) => order.customer_id === s.customer_id,
+				);
 				return {
 					id: s.id,
 					status:
@@ -238,13 +247,14 @@ export const driverRouter = router({
 					orderId: orderForStop?.id ?? null,
 					amountToCollect: orderForStop ? Number(orderForStop.total_amount) : 0,
 					packages: orderForStop?.orderItems?.length ?? 0,
-					orderItems: orderForStop?.orderItems?.map(item => ({
-						id: item.id,
-						product_id: item.product_id,
-						name: item.product?.name ?? "Unknown Product",
-						qty: item.quantity,
-						price: Number(item.price),
-					})) || [],
+					orderItems:
+						orderForStop?.orderItems?.map((item) => ({
+							id: item.id,
+							product_id: item.product_id,
+							name: item.product?.name ?? "Unknown Product",
+							qty: item.quantity,
+							price: Number(item.price),
+						})) || [],
 				};
 			});
 
@@ -274,7 +284,10 @@ export const driverRouter = router({
 				codCollected,
 				successfulCollections,
 				returnsProcessed,
-				returnRate: assignedOrders > 0 ? Math.round((returnsProcessed / assignedOrders) * 100) : 0,
+				returnRate:
+					assignedOrders > 0
+						? Math.round((returnsProcessed / assignedOrders) * 100)
+						: 0,
 				customerRating: 4.8,
 				positiveReviews: 124,
 				distanceCovered: trip.total_distance
@@ -310,45 +323,50 @@ export const driverRouter = router({
 			return { success: true };
 		}),
 
-	reportVehicleBreakdown: protectedProcedure
-		.mutation(async ({ ctx }) => {
-			// Find the active trip for this driver
-			const trip = await db.query.deliveryTrips.findFirst({
-				where: or(
-					eq(deliveryTrips.status, "active"),
-					eq(deliveryTrips.status, "pending"),
-				),
-				orderBy: [desc(deliveryTrips.created_at)],
-			});
+	reportVehicleBreakdown: protectedProcedure.mutation(async ({ ctx }) => {
+		// Find the active trip for this driver
+		const trip = await db.query.deliveryTrips.findFirst({
+			where: or(
+				eq(deliveryTrips.status, "active"),
+				eq(deliveryTrips.status, "pending"),
+			),
+			orderBy: [desc(deliveryTrips.created_at)],
+		});
 
-			if (!trip || !trip.vehicle_id) {
-				throw new Error("No active vehicle found to report breakdown for.");
-			}
+		if (!trip || !trip.vehicle_id) {
+			throw new Error("No active vehicle found to report breakdown for.");
+		}
 
-			// Mark vehicle as maintenance
-			await db.update(vehicles)
-				.set({ status: "maintenance" })
-				.where(eq(vehicles.id, trip.vehicle_id));
+		// Mark vehicle as maintenance
+		await db
+			.update(vehicles)
+			.set({ status: "maintenance" })
+			.where(eq(vehicles.id, trip.vehicle_id));
 
-			// Optionally mark trip as failed or stalled
-			await db.update(deliveryTrips)
-				.set({ status: "pending" })
-				.where(eq(deliveryTrips.id, trip.id));
+		// Optionally mark trip as failed or stalled
+		await db
+			.update(deliveryTrips)
+			.set({ status: "pending" })
+			.where(eq(deliveryTrips.id, trip.id));
 
-			return { success: true };
-		}),
+		return { success: true };
+	}),
 
 	logGPSPosition: protectedProcedure
-		.input(z.object({
-			lat: z.number(),
-			lng: z.number(),
-			speed: z.number().nullable().optional(),
-			heading: z.number().nullable().optional(),
-		}))
+		.input(
+			z.object({
+				lat: z.number(),
+				lng: z.number(),
+				speed: z.number().nullable().optional(),
+				heading: z.number().nullable().optional(),
+			}),
+		)
 		.mutation(async ({ input, ctx }) => {
 			// In a full production system, we would insert this into a `gps_logs` table:
 			// await db.insert(gpsLogs).values({ driver_id: ctx.user.id, ...input })
-			console.log(`[GPS SYNC] Driver ${ctx.user?.name} at [${input.lat}, ${input.lng}]`);
+			console.log(
+				`[GPS SYNC] Driver ${ctx.user?.name} at [${input.lat}, ${input.lng}]`,
+			);
 			return { success: true };
 		}),
 });

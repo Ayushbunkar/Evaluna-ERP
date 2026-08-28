@@ -188,7 +188,10 @@ export async function isDeviceApproved(
 ): Promise<boolean> {
 	if (!fingerprint) return false;
 	const rows = await db
-		.select({ id: registeredDevices.id, approved: registeredDevices.isApproved })
+		.select({
+			id: registeredDevices.id,
+			approved: registeredDevices.isApproved,
+		})
 		.from(registeredDevices)
 		.where(
 			and(
@@ -285,4 +288,3 @@ export async function resolveEmployeeId(
 		.limit(1);
 	return rows[0]?.id ?? null;
 }
-

@@ -277,4 +277,3 @@ export const overtimeRelations = relations(overtime, ({ one }) => ({
 		relationName: "approved_by_employee_overtime",
 	}),
 }));
-

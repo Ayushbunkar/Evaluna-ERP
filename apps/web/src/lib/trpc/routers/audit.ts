@@ -7,8 +7,8 @@ import {
 	stockAudits,
 } from "@/lib/db/schema";
 import { router } from "@/lib/trpc/init";
-import { permProcedure } from "../util/auditor-procedures";
 import { logAudit, resolveStaffId } from "../util/audit";
+import { permProcedure } from "../util/auditor-procedures";
 
 // Inventory-inspection service. Previously exposed via `publicProcedure` (an
 // authz gap); now every entry point is gated by `inventory_audit.<action>`
@@ -18,11 +18,17 @@ export const auditRouter = router({
 	listAudits: permProcedure("inventory_audit", "read")
 		.input(
 			z
-				.object({ status: z.string().optional(), branchId: z.number().optional() })
+				.object({
+					status: z.string().optional(),
+					branchId: z.number().optional(),
+				})
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const rows = await ctx.db.select().from(stockAudits).orderBy(desc(stockAudits.created_at));
+			const rows = await ctx.db
+				.select()
+				.from(stockAudits)
+				.orderBy(desc(stockAudits.created_at));
 			return rows.filter((r: any) => {
 				if (input?.status && r.status !== input.status) return false;
 				if (input?.branchId && r.branch_id !== input.branchId) return false;
@@ -143,12 +149,14 @@ export const auditRouter = router({
 			return result[0];
 		}),
 
-	listEscalations: permProcedure("inventory_audit", "read").query(async ({ ctx }) => {
-		return ctx.db
-			.select()
-			.from(auditDiscrepancies)
-			.where(eq(auditDiscrepancies.resolution_status, "pending"));
-	}),
+	listEscalations: permProcedure("inventory_audit", "read").query(
+		async ({ ctx }) => {
+			return ctx.db
+				.select()
+				.from(auditDiscrepancies)
+				.where(eq(auditDiscrepancies.resolution_status, "pending"));
+		},
+	),
 
 	resolveDiscrepancy: permProcedure("inventory_audit", "approve")
 		.input(

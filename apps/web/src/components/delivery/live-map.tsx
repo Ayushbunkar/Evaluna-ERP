@@ -99,4 +99,3 @@ export default function LiveMap({ trips }: { trips: Trip[] }) {
 		</MapContainer>
 	);
 }
-

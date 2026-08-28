@@ -22,21 +22,24 @@ import { employees } from "./hrms";
 // — both files are re-exported from schema.ts, so identical names would break
 // the barrel and the DB migration. This richer set adds verification failure
 // states the geofenced flow needs.
-export const enhancedAttendanceStatusEnum = pgEnum("enhanced_attendance_status", [
-	"present",
-	"absent",
-	"half_day",
-	"late",
-	"leave",
-	"week_off",
-	"holiday",
-	"pending_approval",
-	"rejected",
-	"outside_geofence",
-	"gps_error",
-	"device_error",
-	"selfie_missing",
-]);
+export const enhancedAttendanceStatusEnum = pgEnum(
+	"enhanced_attendance_status",
+	[
+		"present",
+		"absent",
+		"half_day",
+		"late",
+		"leave",
+		"week_off",
+		"holiday",
+		"pending_approval",
+		"rejected",
+		"outside_geofence",
+		"gps_error",
+		"device_error",
+		"selfie_missing",
+	],
+);
 
 // Break Type Enum
 export const breakTypeEnum = pgEnum("break_type", [

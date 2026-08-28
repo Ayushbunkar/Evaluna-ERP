@@ -2572,12 +2572,12 @@ export const placementVerificationsRelations = relations(
 	}),
 );
 
+// Enhanced attendance (GPS-geofenced check-in/out, breaks, devices, geofences,
+// settings). Its status enum is renamed to avoid the hrms `attendance_status`
+// collision — see schema/attendance-enhanced.ts.
+export * from "./schema/attendance-enhanced";
 // ── Duplicate Picking Relations Removed ────────────────────────────--
 export * from "./schema/delivery";
 export * from "./schema/finance";
 export * from "./schema/hrms";
 export * from "./schema/salary";
-// Enhanced attendance (GPS-geofenced check-in/out, breaks, devices, geofences,
-// settings). Its status enum is renamed to avoid the hrms `attendance_status`
-// collision — see schema/attendance-enhanced.ts.
-export * from "./schema/attendance-enhanced";

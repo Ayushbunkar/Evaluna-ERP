@@ -108,4 +108,3 @@ export const ReceiptPrint = React.forwardRef<HTMLDivElement, any>(
 );
 
 ReceiptPrint.displayName = "ReceiptPrint";
-

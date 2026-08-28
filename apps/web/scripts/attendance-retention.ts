@@ -8,7 +8,10 @@
  *
  * Run: cd apps/web && bun scripts/attendance-retention.ts
  */
-import { purgeExpiredImages, retentionDays } from "../src/lib/attendance-storage";
+import {
+	purgeExpiredImages,
+	retentionDays,
+} from "../src/lib/attendance-storage";
 import { db } from "../src/lib/db/index";
 
 async function main() {

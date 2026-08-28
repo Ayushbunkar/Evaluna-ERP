@@ -3,13 +3,13 @@ import {
 	branchInventory,
 	branchLocations,
 	orders,
+	pickListItems,
+	pickLists,
 	productBatches,
 	products,
 	staff,
-	stockLedger,
 	stockAdjustments,
-	pickListItems,
-	pickLists,
+	stockLedger,
 } from "@evaluna/db/schema";
 import { and, count, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { z } from "zod";
@@ -295,7 +295,7 @@ export const warehouseRouter = router({
 					y: Number(loc.current_stock) || 0,
 					activity: loc.capacity
 						? Math.round(
-								(Number(loc.current_stock) / Number(loc.capacity)) * 100
+								(Number(loc.current_stock) / Number(loc.capacity)) * 100,
 							)
 						: 0,
 					name: loc.name,
@@ -377,7 +377,7 @@ export const warehouseRouter = router({
 						sql`${staff.role} IN ('picker', 'putter', 'warehouse')`,
 						eq(staff.status, "active"),
 						input.branch_id ? eq(staff.branch_id, input.branch_id) : undefined,
-					)
+					),
 				)
 				.limit(5);
 
@@ -387,8 +387,12 @@ export const warehouseRouter = router({
 					// Get total quantity picked and total quantity ordered for this staff member
 					const [pickingStats] = await db
 						.select({
-							totalPicked: sum(pickListItems.quantity_picked).map((val) => Number(val) || 0),
-							totalOrdered: sum(pickListItems.quantity_ordered).map((val) => Number(val) || 0),
+							totalPicked: sum(pickListItems.quantity_picked).map(
+								(val) => Number(val) || 0,
+							),
+							totalOrdered: sum(pickListItems.quantity_ordered).map(
+								(val) => Number(val) || 0,
+							),
 						})
 						.from(pickListItems)
 						.innerJoin(pickLists, eq(pickListItems.pickListId, pickLists.id))
@@ -396,13 +400,18 @@ export const warehouseRouter = router({
 							and(
 								eq(pickLists.assignedToId, w.id),
 								eq(pickLists.is_deleted, false),
-								input.branch_id ? eq(pickLists.branch_id, input.branch_id) : undefined
-							)
+								input.branch_id
+									? eq(pickLists.branch_id, input.branch_id)
+									: undefined,
+							),
 						);
 
 					const totalPicked = pickingStats[0]?.totalPicked || 0;
 					const totalOrdered = pickingStats[0]?.totalOrdered || 0;
-					const accuracy = totalOrdered > 0 ? Math.round((totalPicked / totalOrdered) * 100) : 0;
+					const accuracy =
+						totalOrdered > 0
+							? Math.round((totalPicked / totalOrdered) * 100)
+							: 0;
 
 					return {
 						name: w.name,
@@ -410,7 +419,7 @@ export const warehouseRouter = router({
 						items: totalPicked, // Total quantity picked
 						accuracy: accuracy, // Accuracy percentage
 					};
-				})
+				}),
 			);
 
 			// ── Inventory Alerts: low stock items ─────────────────────────────
@@ -429,7 +438,7 @@ export const warehouseRouter = router({
 						input.branch_id
 							? eq(branchInventory.branch_id, input.branch_id)
 							: undefined,
-					)
+					),
 				)
 				.orderBy(branchInventory.in_stock)
 				.limit(5);
@@ -448,8 +457,10 @@ export const warehouseRouter = router({
 				.where(
 					and(
 						eq(stockAdjustments.adjustment_type, "damage"),
-						input.branch_id ? eq(stockAdjustments.branch_id, input.branch_id) : undefined
-					)
+						input.branch_id
+							? eq(stockAdjustments.branch_id, input.branch_id)
+							: undefined,
+					),
 				);
 
 			// ── Pending Tasks: pending orders ─────────────────────────────────

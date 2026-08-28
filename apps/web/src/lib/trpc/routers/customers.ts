@@ -281,7 +281,10 @@ export const customersRouter = router({
 				),
 			});
 			if (!customer)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found" });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Customer not found",
+				});
 			if (!customer.email)
 				throw new TRPCError({
 					code: "BAD_REQUEST",

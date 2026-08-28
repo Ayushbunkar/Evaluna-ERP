@@ -1,14 +1,15 @@
-import {
-	productBarcodes,
-	products,
-	upcTasks,
-} from "@evaluna/db/schema";
+import { productBarcodes, products, upcTasks } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
+import {
+	assertTransition,
+	logAudit,
+	notify,
+	resolveStaffId,
+} from "../util/audit";
 import { permProcedure } from "../util/auditor-procedures";
-import { assertTransition, logAudit, notify, resolveStaffId } from "../util/audit";
 
 /**
  * Assignee-or-privileged guard: the person a task is assigned to may progress it,
@@ -16,7 +17,11 @@ import { assertTransition, logAudit, notify, resolveStaffId } from "../util/audi
  * unrelated employee from touching someone else's task while still letting the
  * assigned worker (who lacks the auditor domain) start/complete their own.
  */
-function assertCanWorkTask(ctxUser: any, staffId: number | null, assignedTo: number | null) {
+function assertCanWorkTask(
+	ctxUser: any,
+	staffId: number | null,
+	assignedTo: number | null,
+) {
 	if (ctxUser?.isSuperadmin) return;
 	if (ctxUser?.permissions?.includes("upc.write")) return;
 	if (assignedTo != null && staffId != null && assignedTo === staffId) return;
@@ -77,7 +82,10 @@ export const upcRouter = router({
 				.where(eq(products.id, input.productId))
 				.limit(1);
 			if (!product)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Product not found.",
+				});
 			const upcRows = await ctx.db
 				.select()
 				.from(productBarcodes)
@@ -92,7 +100,9 @@ export const upcRouter = router({
 
 	// ── Read: is this UPC already used by another product? ───────────────────
 	checkDuplicate: permProcedure("upc", "read")
-		.input(z.object({ upc: z.string(), excludeProductId: z.number().optional() }))
+		.input(
+			z.object({ upc: z.string(), excludeProductId: z.number().optional() }),
+		)
 		.query(async ({ ctx, input }) => {
 			const rows = await ctx.db
 				.select()
@@ -132,7 +142,8 @@ export const upcRouter = router({
 					if (!isValidUpc(upc))
 						throw new TRPCError({
 							code: "BAD_REQUEST",
-							message: "Invalid UPC-A (must be 12 digits with a valid check digit).",
+							message:
+								"Invalid UPC-A (must be 12 digits with a valid check digit).",
 						});
 				} else {
 					// Retry a few times to dodge the (rare) random collision.
@@ -162,7 +173,10 @@ export const upcRouter = router({
 				// Duplicate guard (application-level; the partial-unique index is the
 				// DB backstop and will also reject a concurrent duplicate).
 				const existing = await tx
-					.select({ id: productBarcodes.id, product_id: productBarcodes.product_id })
+					.select({
+						id: productBarcodes.id,
+						product_id: productBarcodes.product_id,
+					})
 					.from(productBarcodes)
 					.where(
 						and(
@@ -178,7 +192,11 @@ export const upcRouter = router({
 					});
 				const [row] = await tx
 					.insert(productBarcodes)
-					.values({ product_id: input.productId, barcode: upc, barcode_type: "UPC" })
+					.values({
+						product_id: input.productId,
+						barcode: upc,
+						barcode_type: "UPC",
+					})
 					.returning();
 				await logAudit(tx, {
 					userId: staffId,
@@ -241,7 +259,11 @@ export const upcRouter = router({
 					action: "UPC_TASK_CREATE",
 					entityType: "upc_tasks",
 					entityId: row.id,
-					newValues: { productId: input.productId, taskType: input.taskType, assignedTo: input.assignedTo ?? null },
+					newValues: {
+						productId: input.productId,
+						taskType: input.taskType,
+						assignedTo: input.assignedTo ?? null,
+					},
 				});
 				if (input.assignedTo)
 					await notify(tx, {
@@ -272,7 +294,8 @@ export const upcRouter = router({
 		.query(async ({ ctx, input }) => {
 			const conds = [];
 			if (input?.status) conds.push(eq(upcTasks.status, input.status));
-			if (input?.assignedTo) conds.push(eq(upcTasks.assigned_to, input.assignedTo));
+			if (input?.assignedTo)
+				conds.push(eq(upcTasks.assigned_to, input.assignedTo));
 			if (input?.branchId) conds.push(eq(upcTasks.branch_id, input.branchId));
 			const rows = await ctx.db
 				.select()
@@ -294,16 +317,31 @@ export const upcRouter = router({
 					.where(eq(upcTasks.id, input.taskId))
 					.limit(1);
 				if (!task)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Task not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Task not found.",
+					});
 				assertCanWorkTask(ctx.user, staffId, task.assigned_to);
 				assertTransition(task.status, ["PENDING", "ASSIGNED"], "UPC task");
 				const [row] = await tx
 					.update(upcTasks)
-					.set({ status: "IN_PROGRESS", assigned_to: task.assigned_to ?? staffId, updated_at: new Date() })
-					.where(and(eq(upcTasks.id, input.taskId), inArray(upcTasks.status, ["PENDING", "ASSIGNED"])))
+					.set({
+						status: "IN_PROGRESS",
+						assigned_to: task.assigned_to ?? staffId,
+						updated_at: new Date(),
+					})
+					.where(
+						and(
+							eq(upcTasks.id, input.taskId),
+							inArray(upcTasks.status, ["PENDING", "ASSIGNED"]),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Task changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Task changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "UPC_TASK_START",
@@ -330,7 +368,8 @@ export const upcRouter = router({
 			if (!isValidUpc(input.upcValue))
 				throw new TRPCError({
 					code: "BAD_REQUEST",
-					message: "Invalid UPC-A (must be 12 digits with a valid check digit).",
+					message:
+						"Invalid UPC-A (must be 12 digits with a valid check digit).",
 				});
 			return await ctx.db.transaction(async (tx: any) => {
 				const [task] = await tx
@@ -339,12 +378,22 @@ export const upcRouter = router({
 					.where(eq(upcTasks.id, input.taskId))
 					.limit(1);
 				if (!task)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Task not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Task not found.",
+					});
 				assertCanWorkTask(ctx.user, staffId, task.assigned_to);
-				assertTransition(task.status, ["IN_PROGRESS", "ASSIGNED", "PENDING"], "UPC task");
+				assertTransition(
+					task.status,
+					["IN_PROGRESS", "ASSIGNED", "PENDING"],
+					"UPC task",
+				);
 				// Reject a value that already belongs to another product's active UPC.
 				const dup = await tx
-					.select({ id: productBarcodes.id, product_id: productBarcodes.product_id })
+					.select({
+						id: productBarcodes.id,
+						product_id: productBarcodes.product_id,
+					})
 					.from(productBarcodes)
 					.where(
 						and(
@@ -368,10 +417,18 @@ export const upcRouter = router({
 						completed_at: new Date(),
 						updated_at: new Date(),
 					})
-					.where(and(eq(upcTasks.id, input.taskId), inArray(upcTasks.status, ["IN_PROGRESS", "ASSIGNED", "PENDING"])))
+					.where(
+						and(
+							eq(upcTasks.id, input.taskId),
+							inArray(upcTasks.status, ["IN_PROGRESS", "ASSIGNED", "PENDING"]),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Task changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Task changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "UPC_TASK_COMPLETE",
@@ -396,7 +453,10 @@ export const upcRouter = router({
 					.where(eq(upcTasks.id, input.taskId))
 					.limit(1);
 				if (!task)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Task not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Task not found.",
+					});
 				assertTransition(task.status, ["VERIFICATION_REQUIRED"], "UPC task");
 				// Separation of duties: the verifier cannot be the submitter.
 				if (staffId && task.assigned_to && staffId === task.assigned_to)
@@ -439,16 +499,31 @@ export const upcRouter = router({
 					)
 					.limit(1);
 				if (already.length === 0)
-					await tx
-						.insert(productBarcodes)
-						.values({ product_id: task.product_id, barcode: task.upc_value, barcode_type: "UPC" });
+					await tx.insert(productBarcodes).values({
+						product_id: task.product_id,
+						barcode: task.upc_value,
+						barcode_type: "UPC",
+					});
 				const [row] = await tx
 					.update(upcTasks)
-					.set({ status: "VERIFIED", verified_by: staffId, verified_at: new Date(), updated_at: new Date() })
-					.where(and(eq(upcTasks.id, input.taskId), eq(upcTasks.status, "VERIFICATION_REQUIRED")))
+					.set({
+						status: "VERIFIED",
+						verified_by: staffId,
+						verified_at: new Date(),
+						updated_at: new Date(),
+					})
+					.where(
+						and(
+							eq(upcTasks.id, input.taskId),
+							eq(upcTasks.status, "VERIFICATION_REQUIRED"),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Task changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Task changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "UPC_TASK_VERIFY",
@@ -484,7 +559,10 @@ export const upcRouter = router({
 					.where(eq(upcTasks.id, input.taskId))
 					.limit(1);
 				if (!task)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Task not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Task not found.",
+					});
 				assertTransition(task.status, ["VERIFICATION_REQUIRED"], "UPC task");
 				if (staffId && task.assigned_to && staffId === task.assigned_to)
 					throw new TRPCError({
@@ -500,10 +578,18 @@ export const upcRouter = router({
 						notes: input.reason ?? task.notes,
 						updated_at: new Date(),
 					})
-					.where(and(eq(upcTasks.id, input.taskId), eq(upcTasks.status, "VERIFICATION_REQUIRED")))
+					.where(
+						and(
+							eq(upcTasks.id, input.taskId),
+							eq(upcTasks.status, "VERIFICATION_REQUIRED"),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Task changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Task changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "UPC_TASK_REJECT",
@@ -519,7 +605,8 @@ export const upcRouter = router({
 						type: "UPC_TASK_REJECTED",
 						priority: "high",
 						title: "UPC task rejected",
-						message: `Your UPC task #${task.id} was rejected. ${input.reason ?? ""}`.trim(),
+						message:
+							`Your UPC task #${task.id} was rejected. ${input.reason ?? ""}`.trim(),
 						referenceType: "upc_tasks",
 						referenceId: task.id,
 					});

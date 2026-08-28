@@ -65,7 +65,10 @@ export const bankAccountsRouter = router({
 				)
 				.limit(1);
 			if (!row)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Account not found",
+				});
 			return sanitize(row);
 		}),
 
@@ -159,7 +162,10 @@ export const bankAccountsRouter = router({
 				)
 				.returning();
 			if (!row)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Account not found",
+				});
 			return sanitize(row);
 		}),
 

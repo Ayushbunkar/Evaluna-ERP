@@ -1,6 +1,6 @@
+import type { Action, Domain } from "@/lib/permissions";
 import { protectedProcedure } from "../init";
 import { requirePermission } from "../middleware/requirePermission";
-import type { Action, Domain } from "@/lib/permissions";
 
 /**
  * Build a tRPC procedure gated by a single `domain.action` permission, using

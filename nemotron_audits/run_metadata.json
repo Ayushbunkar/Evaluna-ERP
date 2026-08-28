@@ -1,30 +1,30 @@
 {
-  "timestamp": "20260827_003356",
-  "project_dir": "D:\\Evaluna ERP",
-  "model": "nvidia/nemotron-3-super-120b-a12b",
-  "audit_workers": 6,
-  "implementation_workers": 4,
-  "source_files": 738,
-  "confirmed_findings": 2,
-  "remaining_findings": 0,
-  "changed_files": [],
-  "implementation_errors": [
-    "performance_production: model failure: Model did not return valid JSON.",
-    "Repair worker failed: Model did not return valid JSON."
-  ],
-  "repair_rounds": 1,
-  "verification": [
-    {
-      "command": "bun run build",
-      "success": false,
-      "seconds": 146.8
-    },
-    {
-      "command": "git diff --check",
-      "success": true,
-      "seconds": 0.14
-    }
-  ],
-  "verification_green": false,
-  "total_seconds": 1094.51
+	"timestamp": "20260827_003356",
+	"project_dir": "D:\\Evaluna ERP",
+	"model": "nvidia/nemotron-3-super-120b-a12b",
+	"audit_workers": 6,
+	"implementation_workers": 4,
+	"source_files": 738,
+	"confirmed_findings": 2,
+	"remaining_findings": 0,
+	"changed_files": [],
+	"implementation_errors": [
+		"performance_production: model failure: Model did not return valid JSON.",
+		"Repair worker failed: Model did not return valid JSON."
+	],
+	"repair_rounds": 1,
+	"verification": [
+		{
+			"command": "bun run build",
+			"success": false,
+			"seconds": 146.8
+		},
+		{
+			"command": "git diff --check",
+			"success": true,
+			"seconds": 0.14
+		}
+	],
+	"verification_green": false,
+	"total_seconds": 1094.51
 }

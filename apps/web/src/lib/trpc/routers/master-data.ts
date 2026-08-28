@@ -1,6 +1,6 @@
 import { productCategories, taxRates } from "@evaluna/db/schema";
 import { asc } from "drizzle-orm";
-import { superadminProcedure, router } from "../init";
+import { router, superadminProcedure } from "../init";
 
 type Brand = {
 	id: number;

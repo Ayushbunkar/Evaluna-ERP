@@ -14,7 +14,10 @@ export async function POST(request: Request) {
 		}
 
 		if (!phone) {
-			return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
+			return NextResponse.json(
+				{ error: "Phone number is required." },
+				{ status: 400 },
+			);
 		}
 
 		if (action === "send") {
@@ -37,13 +40,17 @@ export async function POST(request: Request) {
 			return NextResponse.json({
 				success: true,
 				phoneNumber: phone,
-				sessionInfo: data.sessionInfo ?? `otp:${orderId ?? "delivery"}:${phone}`,
+				sessionInfo:
+					data.sessionInfo ?? `otp:${orderId ?? "delivery"}:${phone}`,
 			});
 		}
 
 		if (action === "verify") {
 			if (!code || !sessionInfo) {
-				return NextResponse.json({ error: "Code and session are required." }, { status: 400 });
+				return NextResponse.json(
+					{ error: "Code and session are required." },
+					{ status: 400 },
+				);
 			}
 
 			const res = await fetch(
@@ -72,7 +79,8 @@ export async function POST(request: Request) {
 
 		return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 	} catch (error) {
-		const message = error instanceof Error ? error.message : "Unknown OTP error";
+		const message =
+			error instanceof Error ? error.message : "Unknown OTP error";
 		return NextResponse.json({ error: message }, { status: 500 });
 	}
 }

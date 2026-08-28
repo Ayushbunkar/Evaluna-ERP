@@ -70,4 +70,3 @@ export function RoutePrefetcher({ href }: { href: string }) {
 
 	return null;
 }
-

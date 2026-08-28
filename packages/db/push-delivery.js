@@ -3,23 +3,23 @@ import postgres from "postgres";
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
-    throw new Error("DATABASE_URL is not set!");
+	throw new Error("DATABASE_URL is not set!");
 }
 
 const sql = postgres(DATABASE_URL);
 
 async function run() {
-    console.log("Pushing delivery schema directly to DB...");
+	console.log("Pushing delivery schema directly to DB...");
 
-    try {
-        await sql`CREATE TYPE "public"."vehicle_status" AS ENUM('available', 'in_use', 'maintenance', 'retired');`;
-        console.log("Created vehicle_status enum");
-    } catch (e) {
-        console.log("Enum likely already exists:", e.message);
-    }
+	try {
+		await sql`CREATE TYPE "public"."vehicle_status" AS ENUM('available', 'in_use', 'maintenance', 'retired');`;
+		console.log("Created vehicle_status enum");
+	} catch (e) {
+		console.log("Enum likely already exists:", e.message);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "vehicles" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "vehicles" (
             "id" serial PRIMARY KEY NOT NULL,
             "name" varchar(100) NOT NULL,
             "registration_number" varchar(50) NOT NULL,
@@ -30,13 +30,13 @@ async function run() {
             "created_at" timestamp DEFAULT now(),
             "updated_at" timestamp DEFAULT now()
         );`;
-        console.log("Created vehicles table");
-    } catch (e) {
-        console.error("Failed creating vehicles:", e);
-    }
+		console.log("Created vehicles table");
+	} catch (e) {
+		console.error("Failed creating vehicles:", e);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "delivery_routes" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "delivery_routes" (
             "id" serial PRIMARY KEY NOT NULL,
             "name" varchar(100) NOT NULL,
             "description" text,
@@ -48,13 +48,13 @@ async function run() {
             "created_at" timestamp DEFAULT now(),
             "updated_at" timestamp DEFAULT now()
         );`;
-        console.log("Created delivery_routes table");
-    } catch (e) {
-        console.error(e);
-    }
+		console.log("Created delivery_routes table");
+	} catch (e) {
+		console.error(e);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "route_stops" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "route_stops" (
             "id" serial PRIMARY KEY NOT NULL,
             "route_id" integer NOT NULL,
             "customer_id" integer NOT NULL,
@@ -65,13 +65,13 @@ async function run() {
             "notes" text,
             "created_at" timestamp DEFAULT now()
         );`;
-        console.log("Created route_stops table");
-    } catch (e) {
-        console.error(e);
-    }
+		console.log("Created route_stops table");
+	} catch (e) {
+		console.error(e);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "delivery_trips" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "delivery_trips" (
             "id" serial PRIMARY KEY NOT NULL,
             "route_id" integer,
             "driver_id" varchar(255) NOT NULL,
@@ -87,13 +87,13 @@ async function run() {
             "created_at" timestamp DEFAULT now(),
             "updated_at" timestamp DEFAULT now()
         );`;
-        console.log("Created delivery_trips table");
-    } catch (e) {
-        console.error(e);
-    }
+		console.log("Created delivery_trips table");
+	} catch (e) {
+		console.error(e);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "trip_stops" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "trip_stops" (
             "id" serial PRIMARY KEY NOT NULL,
             "trip_id" integer NOT NULL,
             "customer_id" integer NOT NULL,
@@ -103,13 +103,13 @@ async function run() {
             "created_at" timestamp DEFAULT now(),
             "resolved_at" timestamp
         );`;
-        console.log("Created trip_stops table");
-    } catch (e) {
-        console.error(e);
-    }
+		console.log("Created trip_stops table");
+	} catch (e) {
+		console.error(e);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "gps_logs" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "gps_logs" (
             "id" serial PRIMARY KEY NOT NULL,
             "trip_id" integer,
             "latitude" numeric(10, 8),
@@ -121,13 +121,13 @@ async function run() {
             "timestamp" timestamp DEFAULT now(),
             "created_at" timestamp DEFAULT now()
         );`;
-        console.log("Created gps_logs table");
-    } catch (e) {
-        console.error(e);
-    }
+		console.log("Created gps_logs table");
+	} catch (e) {
+		console.error(e);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "proof_of_deliveries" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "proof_of_deliveries" (
             "id" serial PRIMARY KEY NOT NULL,
             "trip_stop_id" integer,
             "order_id" integer,
@@ -139,13 +139,13 @@ async function run() {
             "delivered_at" timestamp,
             "created_at" timestamp DEFAULT now()
         );`;
-        console.log("Created proof_of_deliveries table");
-    } catch (e) {
-        console.error(e);
-    }
+		console.log("Created proof_of_deliveries table");
+	} catch (e) {
+		console.error(e);
+	}
 
-    try {
-        await sql`CREATE TABLE IF NOT EXISTS "trip_collections" (
+	try {
+		await sql`CREATE TABLE IF NOT EXISTS "trip_collections" (
             "id" serial PRIMARY KEY NOT NULL,
             "trip_id" integer,
             "payment_method" varchar(50) NOT NULL,
@@ -157,13 +157,13 @@ async function run() {
             "collected_at" timestamp,
             "created_at" timestamp DEFAULT now()
         );`;
-        console.log("Created trip_collections table");
-    } catch (e) {
-        console.error(e);
-    }
+		console.log("Created trip_collections table");
+	} catch (e) {
+		console.error(e);
+	}
 
-    console.log("All tables created successfully!");
-    process.exit(0);
+	console.log("All tables created successfully!");
+	process.exit(0);
 }
 
 run();

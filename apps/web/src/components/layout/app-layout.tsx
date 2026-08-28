@@ -659,4 +659,3 @@ export function AppLayoutWithBranch({
 		</BranchProvider>
 	);
 }
-

@@ -203,4 +203,3 @@ export function InventoryWarehouseChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
-

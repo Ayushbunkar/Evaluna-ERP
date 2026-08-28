@@ -1,4 +1,8 @@
-import { priceChangeHistory, products, branchInventory } from "@evaluna/db/schema";
+import {
+	branchInventory,
+	priceChangeHistory,
+	products,
+} from "@evaluna/db/schema";
 import { eq, inArray, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -158,7 +162,10 @@ export const productsRouter = router({
 						entityType: "products",
 						entityId: id,
 						oldValues: { price: before.price ?? null },
-						newValues: { price: updates.price, reason: priceChangeReason ?? null },
+						newValues: {
+							price: updates.price,
+							reason: priceChangeReason ?? null,
+						},
 					});
 				}
 				return product;

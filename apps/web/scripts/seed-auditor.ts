@@ -65,7 +65,9 @@ async function main() {
 	const existingTask = await db
 		.select({ id: upcTasks.id })
 		.from(upcTasks)
-		.where(and(eq(upcTasks.product_id, prodA.id), eq(upcTasks.task_type, "verify")))
+		.where(
+			and(eq(upcTasks.product_id, prodA.id), eq(upcTasks.task_type, "verify")),
+		)
 		.limit(1);
 	if (existingTask[0]) {
 		console.log("  upc_tasks: verify task already present");
@@ -92,7 +94,11 @@ async function main() {
 	} else {
 		const [audit] = await db
 			.insert(stockAudits)
-			.values({ branch_id: branchId, status: "escalated", auditor_id: auditor.id })
+			.values({
+				branch_id: branchId,
+				status: "escalated",
+				auditor_id: auditor.id,
+			})
 			.returning();
 		await db.insert(stockAuditItems).values({
 			audit_id: audit.id,
@@ -109,7 +115,8 @@ async function main() {
 				severity: "HIGH",
 				status: "CORRECTIVE_ACTION_REQUIRED",
 				title: `${TAG} Stock count mismatch on ${prodA.name}`,
-				description: "Physical count 88 vs expected 100 (−12). Investigate shrinkage.",
+				description:
+					"Physical count 88 vs expected 100 (−12). Investigate shrinkage.",
 				reference_type: "stock_audits",
 				reference_id: audit.id,
 				raised_by: auditor.id,
@@ -121,14 +128,21 @@ async function main() {
 			status: "PENDING",
 			assigned_to: auditor.id,
 		});
-		console.log("  stock_audits/finding/corrective_action: +1 escalated scenario");
+		console.log(
+			"  stock_audits/finding/corrective_action: +1 escalated scenario",
+		);
 	}
 
 	// 3) Append-only price-change awaiting review ─────────────────────────────
 	const existingPrice = await db
 		.select({ id: priceChangeHistory.id })
 		.from(priceChangeHistory)
-		.where(and(eq(priceChangeHistory.product_id, prodB.id), eq(priceChangeHistory.source, "seed")))
+		.where(
+			and(
+				eq(priceChangeHistory.product_id, prodB.id),
+				eq(priceChangeHistory.source, "seed"),
+			),
+		)
 		.limit(1);
 	if (existingPrice[0]) {
 		console.log("  price_change_history: seed change already present");
@@ -160,7 +174,8 @@ async function main() {
 			channel: "in_app",
 			priority: "high",
 			title: `${TAG} New inventory finding needs action`,
-			message: "A HIGH-severity stock discrepancy was raised. Review in Findings.",
+			message:
+				"A HIGH-severity stock discrepancy was raised. Review in Findings.",
 			reference_type: "audit_findings",
 			status: "pending",
 		});

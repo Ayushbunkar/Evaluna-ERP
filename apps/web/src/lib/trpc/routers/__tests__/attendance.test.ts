@@ -18,9 +18,9 @@
  *     attendance.approve; customer has none.
  */
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { buildDDL, createTestDb, makeUser } from "./helpers";
 import * as schema from "@/lib/db/schema";
 import { getPermissionsForRole } from "@/lib/permissions";
+import { buildDDL, createTestDb, makeUser } from "./helpers";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
@@ -65,7 +65,9 @@ beforeAll(async () => {
 		CREATE TYPE break_type AS ENUM ('lunch','tea','personal','meeting','official_visit','custom');
 	`);
 	await pg.exec(buildDDL(ATTENDANCE_TABLES, false));
-	await pg.exec(`INSERT INTO branches (id, name) VALUES (1, 'Main'), (2, 'NoFence');`);
+	await pg.exec(
+		`INSERT INTO branches (id, name) VALUES (1, 'Main'), (2, 'NoFence');`,
+	);
 	// One employee per scenario so each starts from a clean NOT_STARTED state.
 	await pg.exec(`
 		INSERT INTO employees (id, employee_code, first_name, last_name, email, hire_date, status) VALUES
@@ -97,19 +99,31 @@ const gpsAt = (p: { latitude: number; longitude: number }, accuracy = 20) => ({
 describe("Geofence — authoritative presence (client claims never trusted)", () => {
 	it("refuses check-in when no geofence is configured for the branch", async () => {
 		await expect(
-			as(worker(4)).checkIn({ branchId: 2, gps: gpsAt(CENTER), imageAttachmentId: 1 }),
+			as(worker(4)).checkIn({
+				branchId: 2,
+				gps: gpsAt(CENTER),
+				imageAttachmentId: 1,
+			}),
 		).rejects.toThrow(/no active geofence/i);
 	});
 
 	it("rejects check-in from OUTSIDE the geofence radius (FORBIDDEN)", async () => {
 		await expect(
-			as(worker(2)).checkIn({ branchId: 1, gps: gpsAt(FAR), imageAttachmentId: 1 }),
+			as(worker(2)).checkIn({
+				branchId: 1,
+				gps: gpsAt(FAR),
+				imageAttachmentId: 1,
+			}),
 		).rejects.toThrow(/physical presence/i);
 	});
 
 	it("rejects check-in when GPS accuracy is too poor to trust", async () => {
 		await expect(
-			as(worker(3)).checkIn({ branchId: 1, gps: gpsAt(CENTER, 999), imageAttachmentId: 1 }),
+			as(worker(3)).checkIn({
+				branchId: 1,
+				gps: gpsAt(CENTER, 999),
+				imageAttachmentId: 1,
+			}),
 		).rejects.toThrow(/accuracy too low/i);
 	});
 
@@ -145,7 +159,10 @@ describe("Check-in / break / check-out lifecycle", () => {
 	it("ends the break and checks out, netting working time of elapsed − breaks", async () => {
 		const ended = await as(worker(1)).endBreak();
 		expect(ended.durationMinutes).toBeGreaterThanOrEqual(0);
-		const out = await as(worker(1)).checkOut({ gps: gpsAt(CENTER), imageAttachmentId: 12 });
+		const out = await as(worker(1)).checkOut({
+			gps: gpsAt(CENTER),
+			imageAttachmentId: 12,
+		});
 		expect(out.checkOutTime).toBeTruthy();
 		expect(Number(out.workingHours)).toBeGreaterThanOrEqual(0);
 	});
@@ -153,9 +170,17 @@ describe("Check-in / break / check-out lifecycle", () => {
 
 describe("Duplicate prevention — one employee + one day = one record", () => {
 	it("rejects a second check-in on the same day (CONFLICT)", async () => {
-		await as(worker(5)).checkIn({ branchId: 1, gps: gpsAt(CENTER), imageAttachmentId: 51 });
+		await as(worker(5)).checkIn({
+			branchId: 1,
+			gps: gpsAt(CENTER),
+			imageAttachmentId: 51,
+		});
 		await expect(
-			as(worker(5)).checkIn({ branchId: 1, gps: gpsAt(CENTER), imageAttachmentId: 52 }),
+			as(worker(5)).checkIn({
+				branchId: 1,
+				gps: gpsAt(CENTER),
+				imageAttachmentId: 52,
+			}),
 		).rejects.toThrow(/shift is|already checked in/i);
 	});
 });
@@ -174,7 +199,9 @@ describe("State machine — illegal transitions rejected", () => {
 	});
 
 	it("cannot end a break when none is open", async () => {
-		await expect(as(worker(6)).endBreak()).rejects.toThrow(/cannot end a break/i);
+		await expect(as(worker(6)).endBreak()).rejects.toThrow(
+			/cannot end a break/i,
+		);
 	});
 });
 
@@ -185,7 +212,7 @@ describe("Immutable audit — manual correction appends, never overwrites", () =
 			gps: gpsAt(CENTER),
 			imageAttachmentId: 71,
 		});
-		const before = await pg.query(`SELECT COUNT(*)::int AS n FROM audit_logs`);
+		const before = await pg.query("SELECT COUNT(*)::int AS n FROM audit_logs");
 		const beforeCount = before.rows[0].n;
 
 		await as(hr).manualCorrection({
@@ -202,7 +229,7 @@ describe("Immutable audit — manual correction appends, never overwrites", () =
 		expect(row.rows[0].status).toBe("half_day");
 
 		// Audit log APPENDED (count grew by exactly one), original preserved.
-		const after = await pg.query(`SELECT COUNT(*)::int AS n FROM audit_logs`);
+		const after = await pg.query("SELECT COUNT(*)::int AS n FROM audit_logs");
 		expect(after.rows[0].n).toBe(beforeCount + 1);
 
 		const corr = await pg.query(
@@ -229,7 +256,12 @@ describe("RBAC — capability gating (frontend hiding is never the boundary)", (
 
 	it("FORBIDS a self-service worker from manual correction (needs approve)", async () => {
 		await expect(
-			as(worker(1)).manualCorrection({ id: 1, field: "notes", value: "x", reason: "nope" }),
+			as(worker(1)).manualCorrection({
+				id: 1,
+				field: "notes",
+				value: "x",
+				reason: "nope",
+			}),
 		).rejects.toThrow(/permission/i);
 	});
 

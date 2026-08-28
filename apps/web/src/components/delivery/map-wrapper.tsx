@@ -20,4 +20,3 @@ export function MapWrapper({ trips }: { trips: any[] }) {
 		</div>
 	);
 }
-

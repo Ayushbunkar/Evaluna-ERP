@@ -510,8 +510,7 @@ export const ordersRouter = router({
 				) {
 					throw new TRPCError({
 						code: "CONFLICT",
-						message:
-							"Order is already confirmed and can no longer be edited.",
+						message: "Order is already confirmed and can no longer be edited.",
 					});
 				}
 
@@ -613,8 +612,7 @@ export const ordersRouter = router({
 				) {
 					throw new TRPCError({
 						code: "CONFLICT",
-						message:
-							"Order is not in a reviewable state (already confirmed?).",
+						message: "Order is not in a reviewable state (already confirmed?).",
 					});
 				}
 
@@ -628,9 +626,7 @@ export const ordersRouter = router({
 				}[];
 				if (input.items && input.items.length > 0) {
 					finalItems = input.items;
-					await tx
-						.delete(orderItems)
-						.where(eq(orderItems.order_id, input.id));
+					await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
 					await tx.insert(orderItems).values(
 						finalItems.map((it) => ({
 							order_id: input.id,

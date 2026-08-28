@@ -1,8 +1,8 @@
-const path = require('node:path');
-const dotenv = require('dotenv');
-const { Client } = require('pg');
+const path = require("node:path");
+const dotenv = require("dotenv");
+const { Client } = require("pg");
 
-dotenv.config({ path: path.resolve(process.cwd(), 'packages/db/.env2') });
+dotenv.config({ path: path.resolve(process.cwd(), "packages/db/.env2") });
 
 const resetSql = `
   DROP TABLE IF EXISTS "proof_of_deliveries" CASCADE;
@@ -147,17 +147,17 @@ const resetSql = `
 `;
 
 (async () => {
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  });
+	const client = new Client({
+		connectionString: process.env.DATABASE_URL,
+		ssl: { rejectUnauthorized: false },
+	});
 
-  await client.connect();
-  await client.query('BEGIN');
-  await client.query(resetSql);
-  await client.query('COMMIT');
+	await client.connect();
+	await client.query("BEGIN");
+	await client.query(resetSql);
+	await client.query("COMMIT");
 
-  const result = await client.query(`
+	const result = await client.query(`
     SELECT table_name
     FROM information_schema.tables
     WHERE table_schema = 'public'
@@ -168,9 +168,9 @@ const resetSql = `
     ORDER BY table_name;
   `);
 
-  console.log(JSON.stringify(result.rows, null, 2));
-  await client.end();
+	console.log(JSON.stringify(result.rows, null, 2));
+	await client.end();
 })().catch((error) => {
-  console.error(error);
-  process.exit(1);
+	console.error(error);
+	process.exit(1);
 });

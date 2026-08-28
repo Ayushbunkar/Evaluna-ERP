@@ -1,5 +1,13 @@
-import { staff, leaveApplications, leaveTypes, employees, enhancedAttendance, payroll, branches } from "@evaluna/db/schema";
-import { count, desc, eq, sql, and, ilike, or, gte, lte } from "drizzle-orm";
+import {
+	branches,
+	employees,
+	enhancedAttendance,
+	leaveApplications,
+	leaveTypes,
+	payroll,
+	staff,
+} from "@evaluna/db/schema";
+import { and, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -16,65 +24,71 @@ export const hrRouter = router({
 				onLeaveCount,
 				payrollPendingCount,
 				newHiresThisMonth,
-				avgSalaryData
+				avgSalaryData,
 			] = await Promise.all([
-				db.select({ count: count() })
+				db
+					.select({ count: count() })
 					.from(staff)
 					.where(
 						and(
 							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined
-						)
+							branchId ? eq(staff.branch_id, branchId) : undefined,
+						),
 					),
-				db.select({ count: count() })
+				db
+					.select({ count: count() })
 					.from(enhancedAttendance)
 					.innerJoin(staff, eq(enhancedAttendance.employeeId, staff.id))
 					.where(
 						and(
 							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
-							eq(enhancedAttendance.status, 'present'),
+							eq(enhancedAttendance.status, "present"),
 							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined
-						)
+							branchId ? eq(staff.branch_id, branchId) : undefined,
+						),
 					),
-				db.select({ count: count() })
+				db
+					.select({ count: count() })
 					.from(enhancedAttendance)
 					.innerJoin(staff, eq(enhancedAttendance.employeeId, staff.id))
 					.where(
 						and(
 							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
-							eq(enhancedAttendance.status, 'leave'),
+							eq(enhancedAttendance.status, "leave"),
 							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined
-						)
+							branchId ? eq(staff.branch_id, branchId) : undefined,
+						),
 					),
-				db.select({ count: count() })
+				db
+					.select({ count: count() })
 					.from(payroll)
 					.where(
 						and(
 							eq(payroll.month, sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`),
-							not(eq(payroll.status, 'paid')),
-							branchId ? eq(payroll.branch_id, branchId) : undefined
-						)
+							not(eq(payroll.status, "paid")),
+							branchId ? eq(payroll.branch_id, branchId) : undefined,
+						),
 					),
-				db.select({ count: count() })
+				db
+					.select({ count: count() })
 					.from(staff)
 					.where(
 						and(
 							eq(staff.is_deleted, false),
 							sql`${staff.join_date} >= DATE_TRUNC('month', CURRENT_DATE)`,
 							sql`${staff.join_date} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`,
-							branchId ? eq(staff.branch_id, branchId) : undefined
-						)
+							branchId ? eq(staff.branch_id, branchId) : undefined,
+						),
 					),
-				db.select({ avg: sql<number>`AVG(${staff.salary})` })
+				db
+					.select({ avg: sql<number>`AVG(${staff.salary})` })
 					.from(staff)
 					.where(
 						and(
 							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined
-						)
-					)
+							branchId ? eq(staff.branch_id, branchId) : undefined,
+						),
+					),
 			]);
 
 			const totalEmp = totalEmployees[0]?.count || 0;
@@ -111,10 +125,7 @@ export const hrRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db
-				.select()
-				.from(staff)
-				.where(eq(staff.is_deleted, false));
+			let query = db.select().from(staff).where(eq(staff.is_deleted, false));
 
 			if (input.branch_id) {
 				query = query.where(eq(staff.branch_id, input.branch_id));
@@ -128,8 +139,8 @@ export const hrRouter = router({
 				query = query.where(
 					and(
 						ilike(staff.name, searchTerm),
-						ilike(staff.staff_code, searchTerm)
-					)
+						ilike(staff.staff_code, searchTerm),
+					),
 				);
 			}
 
@@ -169,8 +180,11 @@ export const hrRouter = router({
 				.from(leaveApplications)
 				.innerJoin(employees, eq(leaveApplications.employeeId, employees.id))
 				.innerJoin(leaveTypes, eq(leaveApplications.leaveTypeId, leaveTypes.id))
-				.leftJoin(employees as employees_approved, eq(leaveApplications.approvedBy, employees_approved.id))
-				.where(eq(employees.status, 'active'));
+				.leftJoin(
+					employees as employees_approved,
+					eq(leaveApplications.approvedBy, employees_approved.id),
+				)
+				.where(eq(employees.status, "active"));
 
 			if (input.branch_id) {
 				query = query.where(eq(employees.branchId, input.branch_id));
@@ -179,7 +193,9 @@ export const hrRouter = router({
 				query = query.where(eq(employees.branchId, ctx.user.branchId));
 			}
 
-			const results = await query.orderBy(desc(leaveApplications.createdAt)).limit(50);
+			const results = await query
+				.orderBy(desc(leaveApplications.createdAt))
+				.limit(50);
 
 			return results.map((r) => ({
 				id: r.id,
@@ -203,7 +219,7 @@ export const hrRouter = router({
 				startDate: z.date(),
 				endDate: z.date(),
 				reason: z.string().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
@@ -215,8 +231,8 @@ export const hrRouter = router({
 				.where(
 					and(
 						eq(employees.id, input.employeeId),
-						eq(employees.status, 'active')
-					)
+						eq(employees.status, "active"),
+					),
 				)
 				.limit(1);
 
@@ -247,22 +263,22 @@ export const hrRouter = router({
 				.where(
 					and(
 						eq(leaveApplications.employeeId, input.employeeId),
-						eq(leaveApplications.status, 'pending'), // Only check pending leaves
+						eq(leaveApplications.status, "pending"), // Only check pending leaves
 						or(
 							and(
 								gte(leaveApplications.startDate, input.startDate),
-								lte(leaveApplications.startDate, input.endDate)
+								lte(leaveApplications.startDate, input.endDate),
 							),
 							and(
 								gte(leaveApplications.endDate, input.startDate),
-								lte(leaveApplications.endDate, input.endDate)
+								lte(leaveApplications.endDate, input.endDate),
 							),
 							and(
 								lte(leaveApplications.startDate, input.startDate),
-								gte(leaveApplications.endDate, input.endDate)
-							)
-						)
-					)
+								gte(leaveApplications.endDate, input.endDate),
+							),
+						),
+					),
 				);
 
 			if (overlappingLeave[0]?.count > 0) {
@@ -278,7 +294,7 @@ export const hrRouter = router({
 					startDate: input.startDate,
 					endDate: input.endDate,
 					reason: input.reason,
-					status: 'pending',
+					status: "pending",
 				})
 				.returning();
 
@@ -292,10 +308,10 @@ export const hrRouter = router({
 		.input(
 			z.object({
 				leaveId: z.number(),
-				status: z.enum(['approved', 'rejected', 'cancelled']),
+				status: z.enum(["approved", "rejected", "cancelled"]),
 				approvedBy: z.number(), // ID of the approver (HR/manager)
 				approvedAt: z.date().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
@@ -320,7 +336,7 @@ export const hrRouter = router({
 			const leave = leaveRequest[0];
 
 			// Validate that the leave request is in a state that can be updated
-			if (leave.status !== 'pending') {
+			if (leave.status !== "pending") {
 				throw new Error("Only pending leave requests can be updated");
 			}
 
@@ -331,8 +347,8 @@ export const hrRouter = router({
 				.where(
 					and(
 						eq(employees.id, input.approvedBy),
-						eq(employees.status, 'active')
-					)
+						eq(employees.status, "active"),
+					),
 				)
 				.limit(1);
 
@@ -352,12 +368,12 @@ export const hrRouter = router({
 				.returning();
 
 			// If leave is approved, create attendance records for the leave period
-			if (input.status === 'approved') {
+			if (input.status === "approved") {
 				await createAttendanceForLeavePeriod(
 					db,
 					leave.employeeId,
 					leave.startDate,
-					leave.endDate
+					leave.endDate,
 				);
 			}
 
@@ -386,7 +402,7 @@ export const hrRouter = router({
 				throw new Error("Leave request not found");
 			}
 
-			if (leaveRequest[0].status !== 'pending') {
+			if (leaveRequest[0].status !== "pending") {
 				throw new Error("Only pending leave requests can be deleted");
 			}
 
@@ -401,7 +417,12 @@ export const hrRouter = router({
 		}),
 
 	getPayroll: roleProcedure(["admin", "manager", "auditor", "hr"])
-		.input(z.object({ branch_id: z.number().optional(), month: z.string().optional() }))
+		.input(
+			z.object({
+				branch_id: z.number().optional(),
+				month: z.string().optional(),
+			}),
+		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			let query = db
@@ -433,7 +454,9 @@ export const hrRouter = router({
 				query = query.where(eq(payroll.month, input.month));
 			} else {
 				// Default to current month if no month is provided
-				query = query.where(eq(payroll.month, sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`));
+				query = query.where(
+					eq(payroll.month, sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`),
+				);
 			}
 
 			const results = await query.orderBy(desc(payroll.createdAt)).limit(50);
@@ -463,7 +486,7 @@ async function createAttendanceForLeavePeriod(
 	db: any,
 	employeeId: number,
 	startDate: Date,
-	endDate: Date
+	endDate: Date,
 ) {
 	const currentDate = new Date(startDate);
 	const endDateObj = new Date(endDate);
@@ -471,7 +494,7 @@ async function createAttendanceForLeavePeriod(
 	while (currentDate <= endDateObj) {
 		// Skip weekends if needed (this depends on company policy)
 		// For now, we'll mark all days as leave
-		const dateString = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+		const dateString = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD format
 
 		// Check if attendance record already exists for this date
 		const existingAttendance = await db
@@ -480,42 +503,40 @@ async function createAttendanceForLeavePeriod(
 			.where(
 				and(
 					eq(enhancedAttendance.employeeId, employeeId),
-					eq(enhancedAttendance.date, dateString)
-				)
+					eq(enhancedAttendance.date, dateString),
+				),
 			)
 			.limit(1);
 
 		if (!existingAttendance.length) {
 			// Create new attendance record
-			await db
-				.insert(enhancedAttendance)
-				.values({
-					employeeId: employeeId,
-					date: dateString,
-					status: 'leave',
-					checkIn: null,
-					checkOut: null,
-					workingHours: 0,
-					breakHours: 0,
-					lateMinutes: 0,
-					earlyExitMinutes: 0,
-					overtimeMinutes: 0,
-					riskScore: 0,
-					isApproved: true, // Leave is approved by definition
-				});
+			await db.insert(enhancedAttendance).values({
+				employeeId: employeeId,
+				date: dateString,
+				status: "leave",
+				checkIn: null,
+				checkOut: null,
+				workingHours: 0,
+				breakHours: 0,
+				lateMinutes: 0,
+				earlyExitMinutes: 0,
+				overtimeMinutes: 0,
+				riskScore: 0,
+				isApproved: true, // Leave is approved by definition
+			});
 		} else {
 			// Update existing record to mark as leave
 			await db
 				.update(enhancedAttendance)
 				.set({
-					status: 'leave',
+					status: "leave",
 					isApproved: true,
 				})
 				.where(
 					and(
 						eq(enhancedAttendance.employeeId, employeeId),
-						eq(enhancedAttendance.date, dateString)
-					)
+						eq(enhancedAttendance.date, dateString),
+					),
 				);
 		}
 

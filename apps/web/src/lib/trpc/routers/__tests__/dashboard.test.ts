@@ -34,12 +34,10 @@ const now = new Date();
 beforeAll(async () => {
 	await pg.exec(DASH_DDL);
 
-	await db
-		.insert(schema.branches)
-		.values([
-			{ id: 1, name: "Main" },
-			{ id: 2, name: "Other" },
-		]);
+	await db.insert(schema.branches).values([
+		{ id: 1, name: "Main" },
+		{ id: 2, name: "Other" },
+	]);
 
 	await db.insert(schema.products).values([
 		{ name: "P1", price: "10.00", user_uid: "seed" },
@@ -55,16 +53,66 @@ beforeAll(async () => {
 
 	// Sales/expense ledger — created "now" so it also counts toward today's KPIs.
 	await db.insert(schema.transactions).values([
-		{ amount: "1000.00", user_uid: "seed", type: "in", category: "sale", status: "completed", branch_id: 1, created_at: now },
-		{ amount: "500.00", user_uid: "seed", type: "in", category: "sale", status: "completed", branch_id: 1, created_at: now },
-		{ amount: "300.00", user_uid: "seed", type: "out", category: "expense", status: "completed", branch_id: 1, created_at: now },
-		{ amount: "5000.00", user_uid: "seed", type: "in", category: "sale", status: "completed", branch_id: 2, created_at: now },
+		{
+			amount: "1000.00",
+			user_uid: "seed",
+			type: "in",
+			category: "sale",
+			status: "completed",
+			branch_id: 1,
+			created_at: now,
+		},
+		{
+			amount: "500.00",
+			user_uid: "seed",
+			type: "in",
+			category: "sale",
+			status: "completed",
+			branch_id: 1,
+			created_at: now,
+		},
+		{
+			amount: "300.00",
+			user_uid: "seed",
+			type: "out",
+			category: "expense",
+			status: "completed",
+			branch_id: 1,
+			created_at: now,
+		},
+		{
+			amount: "5000.00",
+			user_uid: "seed",
+			type: "in",
+			category: "sale",
+			status: "completed",
+			branch_id: 2,
+			created_at: now,
+		},
 	]);
 
 	await db.insert(schema.orders).values([
-		{ total_amount: "1200.00", user_uid: "seed", status: "completed", branch_id: 1, created_at: now },
-		{ total_amount: "800.00", user_uid: "seed", status: "pending", branch_id: 1, created_at: now },
-		{ total_amount: "2000.00", user_uid: "seed", status: "completed", branch_id: 2, created_at: now },
+		{
+			total_amount: "1200.00",
+			user_uid: "seed",
+			status: "completed",
+			branch_id: 1,
+			created_at: now,
+		},
+		{
+			total_amount: "800.00",
+			user_uid: "seed",
+			status: "pending",
+			branch_id: 1,
+			created_at: now,
+		},
+		{
+			total_amount: "2000.00",
+			user_uid: "seed",
+			status: "completed",
+			branch_id: 2,
+			created_at: now,
+		},
 	]);
 });
 

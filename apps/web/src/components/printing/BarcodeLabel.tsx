@@ -33,4 +33,3 @@ export const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ value, label }) => {
 		</div>
 	);
 };
-

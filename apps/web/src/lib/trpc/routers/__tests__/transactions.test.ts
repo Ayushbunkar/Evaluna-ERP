@@ -29,7 +29,11 @@ describe("transactions.list", () => {
 	});
 
 	it("filters by user_uid — cross-user data invisible", async () => {
-		await caller.create({ description: "T1", amount: "100.00", type: "income" });
+		await caller.create({
+			description: "T1",
+			amount: "100.00",
+			type: "income",
+		});
 		const other = callerAs("other-tx");
 		await other.create({
 			description: "T-other",
@@ -96,7 +100,11 @@ describe("transactions.create", () => {
 	it("rejects non-numeric amount — no record created", async () => {
 		const before = await caller.list();
 		await expect(
-			caller.create({ description: "Bad", amount: "not-a-number", type: "income" }),
+			caller.create({
+				description: "Bad",
+				amount: "not-a-number",
+				type: "income",
+			}),
 		).rejects.toThrow();
 		const after = await caller.list();
 		expect(after.length).toBe(before.length);

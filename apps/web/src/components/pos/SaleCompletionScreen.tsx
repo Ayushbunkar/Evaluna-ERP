@@ -113,13 +113,14 @@ export function SaleCompletionScreen({
 		}
 
 		// Inject only target content and style rules
-		const pageSizeStyle = pageSize === "80mm"
-			? `
+		const pageSizeStyle =
+			pageSize === "80mm"
+				? `
 				@page { size: 80mm auto; margin: 0; }
 				body { width: 80mm; margin: 0; padding: 4px; font-family: sans-serif; font-size: 11px; color: #000; }
 				#printable-receipt { width: 80mm; margin: 0; padding: 0; }
 			`
-			: `
+				: `
 				@page { size: A4 portrait; margin: 20mm; }
 				body { width: 100%; margin: 0; padding: 0; font-family: sans-serif; font-size: 13px; color: #000; }
 				#printable-receipt { width: 100%; margin: 0; padding: 0; }
@@ -167,19 +168,27 @@ export function SaleCompletionScreen({
 		const toastId = toast.loading("Generating vector PDF...");
 		try {
 			// Dynamically import @react-pdf/renderer to avoid SSR issues
-			const { pdf, Document, Page, Text, View, StyleSheet, Font } = await import("@react-pdf/renderer");
+			const { pdf, Document, Page, Text, View, StyleSheet, Font } =
+				await import("@react-pdf/renderer");
 
 			// Register a font that supports Devanagari (Hindi) and basic Latin
 			// Loaded locally from our public/fonts folder to avoid 404/network errors
 			Font.register({
 				family: "NotoSansDevanagari",
-				src: `${window.location.origin}/fonts/NotoSansDevanagari-Regular.ttf`
+				src: `${window.location.origin}/fonts/NotoSansDevanagari-Regular.ttf`,
 			});
 
 			const isA4 = pageSize === "A4";
-			const calculatedHeight = pageSize === "80mm"
-				? Math.max(140, 110 + order.items.length * 12 + (order.customerName ? 20 : 0) + order.payments.length * 5)
-				: 297; // A4 height is 297mm
+			const calculatedHeight =
+				pageSize === "80mm"
+					? Math.max(
+							140,
+							110 +
+								order.items.length * 12 +
+								(order.customerName ? 20 : 0) +
+								order.payments.length * 5,
+						)
+					: 297; // A4 height is 297mm
 
 			const styles = StyleSheet.create({
 				page: {
@@ -235,13 +244,15 @@ export function SaleCompletionScreen({
 					textAlign: "center",
 					marginTop: 10,
 					fontSize: isA4 ? 10 : 7.5,
-				}
+				},
 			});
 
 			const InvoiceDocument = () => (
 				<Document>
-					<Page 
-						size={pageSize === "80mm" ? [226.77, calculatedHeight * 2.834] : "A4"} 
+					<Page
+						size={
+							pageSize === "80mm" ? [226.77, calculatedHeight * 2.834] : "A4"
+						}
 						style={styles.page}
 					>
 						{/* Header */}
@@ -308,7 +319,9 @@ export function SaleCompletionScreen({
 						{order.items.map((item, idx) => {
 							const rate = Number.parseFloat(item.price);
 							const lineTotal = rate * item.qty;
-							const qtyStr = Number.isInteger(item.qty) ? item.qty.toString() : item.qty.toFixed(3);
+							const qtyStr = Number.isInteger(item.qty)
+								? item.qty.toString()
+								: item.qty.toFixed(3);
 							return (
 								<View key={idx} style={styles.tableRow}>
 									<Text style={styles.colItem}>{item.name}</Text>
@@ -335,19 +348,27 @@ export function SaleCompletionScreen({
 						{roundOff !== 0 && (
 							<View style={styles.row}>
 								<Text>Round-off:</Text>
-								<Text>{roundOff > 0 ? "+" : ""}Rs.{roundOff.toFixed(2)}</Text>
+								<Text>
+									{roundOff > 0 ? "+" : ""}Rs.{roundOff.toFixed(2)}
+								</Text>
 							</View>
 						)}
 
 						<View style={styles.separator} />
 						<View style={styles.row}>
-							<Text style={[styles.bold, { fontSize: isA4 ? 14 : 11 }]}>Grand Total:</Text>
-							<Text style={[styles.bold, { fontSize: isA4 ? 14 : 11 }]}>Rs.{grandTotal.toFixed(2)}</Text>
+							<Text style={[styles.bold, { fontSize: isA4 ? 14 : 11 }]}>
+								Grand Total:
+							</Text>
+							<Text style={[styles.bold, { fontSize: isA4 ? 14 : 11 }]}>
+								Rs.{grandTotal.toFixed(2)}
+							</Text>
 						</View>
 						<View style={styles.separator} />
 
 						{/* Payment Details */}
-						<Text style={[styles.bold, { marginTop: 4, marginBottom: 4 }]}>PAYMENT DETAILS</Text>
+						<Text style={[styles.bold, { marginTop: 4, marginBottom: 4 }]}>
+							PAYMENT DETAILS
+						</Text>
 						{order.payments.map((p, idx) => (
 							<View key={idx} style={styles.row}>
 								<Text>{PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}</Text>
@@ -359,7 +380,14 @@ export function SaleCompletionScreen({
 
 						{/* Footer */}
 						<View style={styles.footer}>
-							<Text style={[styles.bold, { marginBottom: 2, fontSize: isA4 ? 12 : 9 }]}>Thank you for shopping!</Text>
+							<Text
+								style={[
+									styles.bold,
+									{ marginBottom: 2, fontSize: isA4 ? 12 : 9 },
+								]}
+							>
+								Thank you for shopping!
+							</Text>
 							<Text>Goods once sold will not be taken back</Text>
 							<Text>without valid receipt within 7 days</Text>
 						</View>
@@ -369,7 +397,7 @@ export function SaleCompletionScreen({
 
 			const blob = await pdf(<InvoiceDocument />).toBlob();
 			const url = URL.createObjectURL(blob);
-			const link = document.createElement('a');
+			const link = document.createElement("a");
 			link.href = url;
 			link.download = `invoice_${order.id}_${pageSize}.pdf`;
 			document.body.appendChild(link);
@@ -380,7 +408,10 @@ export function SaleCompletionScreen({
 			toast.success("Vector PDF downloaded successfully!", { id: toastId });
 		} catch (err: any) {
 			console.error("PDF generation error:", err);
-			toast.error(`Failed: ${err?.message || "Error"}. Try 'Print Receipt' -> 'Save as PDF'`, { id: toastId });
+			toast.error(
+				`Failed: ${err?.message || "Error"}. Try 'Print Receipt' -> 'Save as PDF'`,
+				{ id: toastId },
+			);
 		}
 	};
 
@@ -397,13 +428,15 @@ export function SaleCompletionScreen({
 
 		let customerText = "";
 		if (order.customerName || order.customerPhone || order.shopName) {
-			customerText += `--------------------------------\n*BILL TO:*\n`;
-			if (order.customerName) customerText += `â€¢ Name: ${order.customerName}\n`;
+			customerText += "--------------------------------\n*BILL TO:*\n";
+			if (order.customerName)
+				customerText += `â€¢ Name: ${order.customerName}\n`;
 			if (order.shopName) customerText += `â€¢ Shop: ${order.shopName}\n`;
-			if (order.customerPhone) customerText += `â€¢ Phone: ${order.customerPhone}\n`;
+			if (order.customerPhone)
+				customerText += `â€¢ Phone: ${order.customerPhone}\n`;
 		}
 
-		const fullText = `ðŸ§¾ *INVOICE #${order.id}*\n*${STORE.name}*\n_${STORE.address}, ${STORE.city}_\nðŸ“ž Phone: ${STORE.phone}\n--------------------------------\n*Date:* ${formattedDate}\n*Cashier:* ${order.cashierName || "Counter 1"}\n${customerText}--------------------------------\n*ITEMS:*\n${itemsText}--------------------------------\n*Subtotal:* â‚¹${order.subtotal.toFixed(2)}\n*Grand Total:* *â‚¹${grandTotal.toFixed(2)}*\n*Payment:* ${order.payments.map((p) => `${PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}: â‚¹${Number.parseFloat(p.amount).toFixed(2)}`).join(", ")}\n--------------------------------\nThank you for shopping!\n_*EVALUNA PVT LTD*_`;
+		const fullText = `ðŸ§¾ *INVOICE #${order.id}*\n*${STORE.name}*\n_${STORE.address}, ${STORE.city}_\nðŸ“ž Phone: ${STORE.phone}\n--------------------------------\n*Date:* ${formattedDate}\n*Cashier:* ${order.cashierName || "Counter 1"}\n${customerText}--------------------------------\n*ITEMS:*\n${itemsText}--------------------------------\n*Subtotal:* ₹${order.subtotal.toFixed(2)}\n*Grand Total:* *₹${grandTotal.toFixed(2)}*\n*Payment:* ${order.payments.map((p) => `${PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}: ₹${Number.parseFloat(p.amount).toFixed(2)}`).join(", ")}\n--------------------------------\nThank you for shopping!\n_*EVALUNA PVT LTD*_`;
 
 		window.open(
 			`https://wa.me/?text=${encodeURIComponent(fullText)}`,
@@ -414,7 +447,7 @@ export function SaleCompletionScreen({
 	const handleEmail = () => {
 		const subject = encodeURIComponent(`Invoice #${order.id} - ${STORE.name}`);
 		const body = encodeURIComponent(
-			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: â‚¹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
+			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
 		);
 		window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
 	};
@@ -482,17 +515,17 @@ export function SaleCompletionScreen({
 						{/* â”€â”€ Left: Receipt Preview â”€â”€ */}
 						<div className="flex min-h-0 flex-1 flex-col border-r bg-gray-100/50">
 							{/* Size selector at the top of preview */}
-							<div className="flex justify-between items-center border-b bg-white px-6 py-2.5 shrink-0 relative z-20">
-								<span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+							<div className="relative z-20 flex shrink-0 items-center justify-between border-b bg-white px-6 py-2.5">
+								<span className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">
 									Template Preview
 								</span>
-								<div className="flex rounded-md bg-muted p-0.5 relative z-25 pointer-events-auto">
+								<div className="pointer-events-auto relative z-25 flex rounded-md bg-muted p-0.5">
 									<button
 										type="button"
 										onClick={() => setPageSize("80mm")}
-										className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer relative z-30 pointer-events-auto ${
+										className={`pointer-events-auto relative z-30 cursor-pointer rounded px-2.5 py-1 font-medium text-xs transition-all ${
 											pageSize === "80mm"
-												? "bg-white text-foreground shadow-sm font-semibold"
+												? "bg-white font-semibold text-foreground shadow-sm"
 												: "text-muted-foreground hover:text-foreground"
 										}`}
 									>
@@ -501,9 +534,9 @@ export function SaleCompletionScreen({
 									<button
 										type="button"
 										onClick={() => setPageSize("A4")}
-										className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer relative z-30 pointer-events-auto ${
+										className={`pointer-events-auto relative z-30 cursor-pointer rounded px-2.5 py-1 font-medium text-xs transition-all ${
 											pageSize === "A4"
-												? "bg-white text-foreground shadow-sm font-semibold"
+												? "bg-white font-semibold text-foreground shadow-sm"
 												: "text-muted-foreground hover:text-foreground"
 										}`}
 									>
@@ -516,7 +549,7 @@ export function SaleCompletionScreen({
 								<div
 									ref={receiptRef}
 									id="printable-receipt"
-									className={`mx-auto bg-white border shadow-sm transition-all duration-200 ${
+									className={`mx-auto border bg-white shadow-sm transition-all duration-200 ${
 										pageSize === "80mm"
 											? "w-[302px] max-w-full p-4 text-[11px] leading-relaxed"
 											: "w-full max-w-[700px] p-12 text-sm"
@@ -528,23 +561,19 @@ export function SaleCompletionScreen({
 										<h2 className="font-bold text-xl tracking-wide">
 											{STORE.name}
 										</h2>
-										<p className="text-gray-500 mt-0.5">{STORE.address}</p>
+										<p className="mt-0.5 text-gray-500">{STORE.address}</p>
 										<p className="text-gray-500">{STORE.city}</p>
 										<p className="text-gray-500">ðŸ“ž {STORE.phone}</p>
 									</div>
 
-									<hr className="my-3 border-t border-dashed border-gray-400" />
+									<hr className="my-3 border-gray-400 border-t border-dashed" />
 
 									{/* Invoice Meta */}
 									<div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-1">
 										<div className="text-gray-500">Invoice No.</div>
-										<div className="text-right font-semibold">
-											#{order.id}
-										</div>
+										<div className="text-right font-semibold">#{order.id}</div>
 										<div className="text-gray-500">Date &amp; Time</div>
-										<div className="text-right">
-											{formattedDate}
-										</div>
+										<div className="text-right">{formattedDate}</div>
 										<div className="text-gray-500">Cashier</div>
 										<div className="text-right">
 											{order.cashierName || "Counter 1"}
@@ -560,30 +589,38 @@ export function SaleCompletionScreen({
 									</div>
 
 									{/* Customer Details */}
-									{(order.customerName || order.customerPhone || order.shopName) && (
+									{(order.customerName ||
+										order.customerPhone ||
+										order.shopName) && (
 										<>
-											<hr className="my-3 border-t border-dashed border-gray-400" />
+											<hr className="my-3 border-gray-400 border-t border-dashed" />
 											<div className="mb-3">
-												<div className="mb-1.5 text-gray-400 text-xs font-semibold uppercase tracking-wide">
+												<div className="mb-1.5 font-semibold text-gray-400 text-xs uppercase tracking-wide">
 													Bill To
 												</div>
 												<div className="grid grid-cols-2 gap-x-4 gap-y-1">
 													{order.customerName && (
 														<>
 															<div className="text-gray-500">Name</div>
-															<div className="text-right font-medium">{order.customerName}</div>
+															<div className="text-right font-medium">
+																{order.customerName}
+															</div>
 														</>
 													)}
 													{order.shopName && (
 														<>
 															<div className="text-gray-500">Shop</div>
-															<div className="text-right font-medium">{order.shopName}</div>
+															<div className="text-right font-medium">
+																{order.shopName}
+															</div>
 														</>
 													)}
 													{order.customerPhone && (
 														<>
 															<div className="text-gray-500">Phone</div>
-															<div className="text-right">{order.customerPhone}</div>
+															<div className="text-right">
+																{order.customerPhone}
+															</div>
 														</>
 													)}
 												</div>
@@ -591,7 +628,7 @@ export function SaleCompletionScreen({
 										</>
 									)}
 
-									<hr className="my-3 border-t border-dashed border-gray-400" />
+									<hr className="my-3 border-gray-400 border-t border-dashed" />
 
 									{/* Item Table */}
 									<table className="mb-2 w-full">
@@ -602,7 +639,7 @@ export function SaleCompletionScreen({
 											<col style={{ width: "22%" }} />
 										</colgroup>
 										<thead>
-											<tr className="border-b border-dashed border-gray-400 text-gray-400 text-xs uppercase tracking-wide">
+											<tr className="border-gray-400 border-b border-dashed text-gray-400 text-xs uppercase tracking-wide">
 												<th className="py-2 text-left font-semibold">Item</th>
 												<th className="py-2 text-center font-semibold">Qty</th>
 												<th className="py-2 text-right font-semibold">Rate</th>
@@ -616,7 +653,7 @@ export function SaleCompletionScreen({
 												return (
 													<tr
 														key={item.id ?? idx}
-														className="border-b border-gray-100 last:border-0"
+														className="border-gray-100 border-b last:border-0"
 													>
 														<td
 															className="py-2 pr-2 leading-snug"
@@ -633,10 +670,10 @@ export function SaleCompletionScreen({
 																: item.qty.toFixed(3)}
 														</td>
 														<td className="py-2 text-right align-top text-gray-600">
-															â‚¹{rate.toFixed(2)}
+															₹{rate.toFixed(2)}
 														</td>
 														<td className="py-2 text-right align-top font-medium">
-															â‚¹{lineTotal.toFixed(2)}
+															₹{lineTotal.toFixed(2)}
 														</td>
 													</tr>
 												);
@@ -644,13 +681,13 @@ export function SaleCompletionScreen({
 										</tbody>
 									</table>
 
-									<hr className="my-3 border-t border-dashed border-gray-400" />
+									<hr className="my-3 border-gray-400 border-t border-dashed" />
 
 									{/* Summary */}
 									<div className="space-y-1.5">
 										<div className="flex justify-between text-gray-600">
 											<span>Subtotal</span>
-											<span>â‚¹{order.subtotal.toFixed(2)}</span>
+											<span>₹{order.subtotal.toFixed(2)}</span>
 										</div>
 										{order.discount > 0 && (
 											<div className="flex justify-between text-green-600">
@@ -658,25 +695,25 @@ export function SaleCompletionScreen({
 													Discount{" "}
 													{order.couponCode ? `(${order.couponCode})` : ""}
 												</span>
-												<span>âˆ’ â‚¹{order.discount.toFixed(2)}</span>
+												<span>âˆ’ ₹{order.discount.toFixed(2)}</span>
 											</div>
 										)}
 										{roundOff !== 0 && (
 											<div className="flex justify-between text-gray-500">
 												<span>Round-off</span>
 												<span>
-													{roundOff > 0 ? "+" : ""}â‚¹{roundOff.toFixed(2)}
+													{roundOff > 0 ? "+" : ""}₹{roundOff.toFixed(2)}
 												</span>
 											</div>
 										)}
 										<hr className="my-2 border-gray-200" />
 										<div className="flex justify-between font-bold text-base">
 											<span>Grand Total</span>
-											<span>â‚¹{grandTotal.toFixed(2)}</span>
+											<span>₹{grandTotal.toFixed(2)}</span>
 										</div>
 									</div>
 
-									<hr className="my-3 border-t border-dashed border-gray-400" />
+									<hr className="my-3 border-gray-400 border-t border-dashed" />
 
 									{/* Payment */}
 									<div className="space-y-1.5">
@@ -684,28 +721,31 @@ export function SaleCompletionScreen({
 											Payment Details
 										</div>
 										{order.payments.map((p, i) => (
-											<div key={i} className="flex justify-between text-gray-700">
+											<div
+												key={i}
+												className="flex justify-between text-gray-700"
+											>
 												<span>
 													{PAYMENT_METHOD_LABELS[p.methodId] ?? "Payment"}
 												</span>
-												<span>â‚¹{Number.parseFloat(p.amount).toFixed(2)}</span>
+												<span>₹{Number.parseFloat(p.amount).toFixed(2)}</span>
 											</div>
 										))}
 										{change > 0 && (
 											<div className="flex justify-between font-medium text-blue-600">
 												<span>Change Returned</span>
-												<span>â‚¹{change.toFixed(2)}</span>
+												<span>₹{change.toFixed(2)}</span>
 											</div>
 										)}
 										{balanceDue > 0 && (
 											<div className="flex justify-between font-semibold text-red-600">
 												<span>Balance Due</span>
-												<span>â‚¹{balanceDue.toFixed(2)}</span>
+												<span>₹{balanceDue.toFixed(2)}</span>
 											</div>
 										)}
 									</div>
 
-									<hr className="my-4 border-t border-dashed border-gray-400" />
+									<hr className="my-4 border-gray-400 border-t border-dashed" />
 
 									<div className="space-y-1 text-center text-gray-400 text-xs">
 										<p className="font-semibold text-gray-600">
@@ -848,4 +888,3 @@ export function SaleCompletionScreen({
 		</AnimatePresence>
 	);
 }
-

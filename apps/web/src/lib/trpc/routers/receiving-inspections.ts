@@ -3,8 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { router } from "../init";
-import { permProcedure } from "../util/auditor-procedures";
 import { assertTransition, logAudit, resolveStaffId } from "../util/audit";
+import { permProcedure } from "../util/auditor-procedures";
 import { createFinding } from "./audit-findings";
 
 export const receivingInspectionsRouter = router({
@@ -20,8 +20,10 @@ export const receivingInspectionsRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const conds = [];
-			if (input?.status) conds.push(eq(receivingInspections.status, input.status));
-			if (input?.branchId) conds.push(eq(receivingInspections.branch_id, input.branchId));
+			if (input?.status)
+				conds.push(eq(receivingInspections.status, input.status));
+			if (input?.branchId)
+				conds.push(eq(receivingInspections.branch_id, input.branchId));
 			return await ctx.db
 				.select()
 				.from(receivingInspections)
@@ -57,7 +59,10 @@ export const receivingInspectionsRouter = router({
 					action: "RECEIVING_INSPECTION_CREATE",
 					entityType: "receiving_inspections",
 					entityId: row.id,
-					newValues: { productId: input.productId, purchaseId: input.purchaseId ?? null },
+					newValues: {
+						productId: input.productId,
+						purchaseId: input.purchaseId ?? null,
+					},
 				});
 				return { inspectionId: row.id };
 			});
@@ -83,7 +88,10 @@ export const receivingInspectionsRouter = router({
 					.where(eq(receivingInspections.id, input.inspectionId))
 					.limit(1);
 				if (!insp)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Inspection not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Inspection not found.",
+					});
 				assertTransition(insp.status, ["PENDING"], "inspection");
 				const [row] = await tx
 					.update(receivingInspections)
@@ -96,17 +104,28 @@ export const receivingInspectionsRouter = router({
 						inspected_by: staffId,
 						verified_at: new Date(),
 					})
-					.where(and(eq(receivingInspections.id, input.inspectionId), eq(receivingInspections.status, "PENDING")))
+					.where(
+						and(
+							eq(receivingInspections.id, input.inspectionId),
+							eq(receivingInspections.status, "PENDING"),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Inspection changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Inspection changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "RECEIVING_INSPECTION_VERIFY",
 					entityType: "receiving_inspections",
 					entityId: input.inspectionId,
 					oldValues: { status: "PENDING" },
-					newValues: { status: "VERIFIED", receivedQty: input.receivedQty ?? null },
+					newValues: {
+						status: "VERIFIED",
+						receivedQty: input.receivedQty ?? null,
+					},
 				});
 				return { inspectionId: row.id, status: row.status };
 			});
@@ -119,7 +138,9 @@ export const receivingInspectionsRouter = router({
 				inspectionId: z.number(),
 				receivedQty: z.number().optional(),
 				condition: z.enum(["good", "damaged", "mismatch"]).optional(),
-				severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"),
+				severity: z
+					.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+					.default("MEDIUM"),
 				description: z.string().min(1),
 			}),
 		)
@@ -132,7 +153,10 @@ export const receivingInspectionsRouter = router({
 					.where(eq(receivingInspections.id, input.inspectionId))
 					.limit(1);
 				if (!insp)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Inspection not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Inspection not found.",
+					});
 				assertTransition(insp.status, ["PENDING"], "inspection");
 				const [row] = await tx
 					.update(receivingInspections)
@@ -144,10 +168,18 @@ export const receivingInspectionsRouter = router({
 						inspected_by: staffId,
 						verified_at: new Date(),
 					})
-					.where(and(eq(receivingInspections.id, input.inspectionId), eq(receivingInspections.status, "PENDING")))
+					.where(
+						and(
+							eq(receivingInspections.id, input.inspectionId),
+							eq(receivingInspections.status, "PENDING"),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Inspection changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Inspection changed concurrently; refresh.",
+					});
 				await createFinding(tx, staffId, {
 					branchId: insp.branch_id,
 					findingType: "receiving",

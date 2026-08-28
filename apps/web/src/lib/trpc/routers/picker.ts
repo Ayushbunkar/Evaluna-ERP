@@ -1,5 +1,5 @@
 import { pickListItems, pickLists } from "@evaluna/db/schema";
-import { count, desc, eq, and, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -224,7 +224,9 @@ export const pickerRouter = router({
 			const lists = await db.query.pickLists.findMany({
 				where: and(
 					eq(pickLists.status, "completed"),
-					ctx.user.branchId ? eq(pickLists.branch_id, ctx.user.branchId) : undefined
+					ctx.user.branchId
+						? eq(pickLists.branch_id, ctx.user.branchId)
+						: undefined,
 				),
 				orderBy: [desc(pickLists.created_at)],
 				limit: 50,
@@ -256,7 +258,9 @@ export const pickerRouter = router({
 			const lists = await db.query.pickLists.findMany({
 				where: and(
 					eq(pickLists.status, "pending"),
-					ctx.user.branchId ? eq(pickLists.branch_id, ctx.user.branchId) : undefined
+					ctx.user.branchId
+						? eq(pickLists.branch_id, ctx.user.branchId)
+						: undefined,
 				),
 				orderBy: [desc(pickLists.created_at)],
 				limit: 50,
@@ -300,7 +304,9 @@ export const pickerRouter = router({
 				.select({
 					staffId: staff.id,
 					staffName: staff.name,
-					pickListsCompleted: count().filterWhere(eq(pickLists.status, "completed")),
+					pickListsCompleted: count().filterWhere(
+						eq(pickLists.status, "completed"),
+					),
 					totalItemsPicked: sum(pickListItems.quantity_picked),
 					accuracy: sql`ROUND(
 						(SUM(pickListItems.quantity_picked)::decimal /
@@ -313,8 +319,10 @@ export const pickerRouter = router({
 				.where(
 					and(
 						eq(pickLists.status, "completed"),
-						ctx.user.branchId ? eq(pickLists.branch_id, ctx.user.branchId) : undefined
-					)
+						ctx.user.branchId
+							? eq(pickLists.branch_id, ctx.user.branchId)
+							: undefined,
+					),
 				)
 				.groupBy(staff.id, staff.name)
 				.orderBy(desc(sql`totalItemsPicked`))

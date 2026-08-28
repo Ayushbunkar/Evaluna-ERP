@@ -168,4 +168,3 @@ export function BillingPaymentChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
-

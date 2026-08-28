@@ -136,8 +136,3 @@ export default function ReturnsReviewPage() {
 		</div>
 	);
 }
-
-
-
-
-

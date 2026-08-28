@@ -257,4 +257,3 @@ export function AnimatedNumber({
 
 /** AnimatePresence wrapper export for convenience */
 export { AnimatePresence, motion };
-

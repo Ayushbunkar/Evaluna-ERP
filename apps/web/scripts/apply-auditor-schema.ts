@@ -127,31 +127,31 @@ CREATE TABLE IF NOT EXISTS placement_verifications (
 	// ── Indexes ────────────────────────────────────────────────────────────────
 	{
 		label: "idx_upc_tasks_product",
-		sql: `CREATE INDEX IF NOT EXISTS idx_upc_tasks_product ON upc_tasks (product_id);`,
+		sql: "CREATE INDEX IF NOT EXISTS idx_upc_tasks_product ON upc_tasks (product_id);",
 	},
 	{
 		label: "idx_upc_tasks_status",
-		sql: `CREATE INDEX IF NOT EXISTS idx_upc_tasks_status ON upc_tasks (status);`,
+		sql: "CREATE INDEX IF NOT EXISTS idx_upc_tasks_status ON upc_tasks (status);",
 	},
 	{
 		label: "idx_audit_findings_status",
-		sql: `CREATE INDEX IF NOT EXISTS idx_audit_findings_status ON audit_findings (status);`,
+		sql: "CREATE INDEX IF NOT EXISTS idx_audit_findings_status ON audit_findings (status);",
 	},
 	{
 		label: "idx_audit_findings_type",
-		sql: `CREATE INDEX IF NOT EXISTS idx_audit_findings_type ON audit_findings (finding_type);`,
+		sql: "CREATE INDEX IF NOT EXISTS idx_audit_findings_type ON audit_findings (finding_type);",
 	},
 	{
 		label: "idx_price_hist_product",
-		sql: `CREATE INDEX IF NOT EXISTS idx_price_hist_product ON price_change_history (product_id);`,
+		sql: "CREATE INDEX IF NOT EXISTS idx_price_hist_product ON price_change_history (product_id);",
 	},
 	{
 		label: "idx_recv_insp_status",
-		sql: `CREATE INDEX IF NOT EXISTS idx_recv_insp_status ON receiving_inspections (status);`,
+		sql: "CREATE INDEX IF NOT EXISTS idx_recv_insp_status ON receiving_inspections (status);",
 	},
 	{
 		label: "idx_placement_status",
-		sql: `CREATE INDEX IF NOT EXISTS idx_placement_status ON placement_verifications (status);`,
+		sql: "CREATE INDEX IF NOT EXISTS idx_placement_status ON placement_verifications (status);",
 	},
 	{
 		// DB-level guarantee: no two products may share an active UPC.

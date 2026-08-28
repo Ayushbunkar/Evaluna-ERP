@@ -38,14 +38,20 @@ async function seed() {
 		);
 		if (existing.rows[0].c > 0) {
 			await client.query("ROLLBACK");
-			console.log("Finance seed skipped: payment_categories already populated.");
+			console.log(
+				"Finance seed skipped: payment_categories already populated.",
+			);
 			return;
 		}
 
 		// Anchor to existing tenants/actors so all FKs resolve.
-		const branchRes = await client.query('SELECT id FROM "branches" ORDER BY id LIMIT 1');
+		const branchRes = await client.query(
+			'SELECT id FROM "branches" ORDER BY id LIMIT 1',
+		);
 		const branchId = branchRes.rows[0]?.id ?? null;
-		const userRes = await client.query('SELECT id FROM "user" ORDER BY id LIMIT 1');
+		const userRes = await client.query(
+			'SELECT id FROM "user" ORDER BY id LIMIT 1',
+		);
 		const createdBy = userRes.rows[0]?.id ?? "seed";
 		const staffRes = await client.query(
 			'SELECT id FROM "staff" ORDER BY id LIMIT 2',
@@ -85,9 +91,27 @@ async function seed() {
 			);
 			return r.rows[0].id;
 		}
-		const hdfc = await addAccount("HDFC Current A/C", "bank", "HDFC Bank", "50100234564832", "500000.00");
-		const cash = await addAccount("Cash in Hand", "cash", null, null, "25000.00");
-		const petty = await addAccount("Petty Cash Box", "petty_cash", null, null, "5000.00");
+		const hdfc = await addAccount(
+			"HDFC Current A/C",
+			"bank",
+			"HDFC Bank",
+			"50100234564832",
+			"500000.00",
+		);
+		const cash = await addAccount(
+			"Cash in Hand",
+			"cash",
+			null,
+			null,
+			"25000.00",
+		);
+		const petty = await addAccount(
+			"Petty Cash Box",
+			"petty_cash",
+			null,
+			null,
+			"5000.00",
+		);
 
 		// PLACEHOLDER_SEED2
 		// Helper mirroring postPaymentTx: payment + ledger transaction + balance move.
@@ -111,7 +135,19 @@ async function seed() {
 				  status, source, created_by)
 				 VALUES ($1,$2,$3,$4,$5,$6,'INR', now(), $7,$8,$9,'completed',$10,$11)
 				 RETURNING id`,
-				[branchId, num, type, categoryId, customName, amount, bankAccountId, staffId, description, source, createdBy],
+				[
+					branchId,
+					num,
+					type,
+					categoryId,
+					customName,
+					amount,
+					bankAccountId,
+					staffId,
+					description,
+					source,
+					createdBy,
+				],
 			);
 			const paymentId = p.rows[0].id;
 			const t = await client.query(
@@ -119,12 +155,20 @@ async function seed() {
 				 (branch_id, amount, user_uid, type, category, status, description,
 				  reference_type, reference_id)
 				 VALUES ($1,$2,$3,$4,$5,'completed',$6,'payment',$7) RETURNING id`,
-				[branchId, amount, createdBy, dir, customName || "payment", description || num, paymentId],
+				[
+					branchId,
+					amount,
+					createdBy,
+					dir,
+					customName || "payment",
+					description || num,
+					paymentId,
+				],
 			);
-			await client.query('UPDATE "payments" SET transaction_id = $1 WHERE id = $2', [
-				t.rows[0].id,
-				paymentId,
-			]);
+			await client.query(
+				'UPDATE "payments" SET transaction_id = $1 WHERE id = $2',
+				[t.rows[0].id, paymentId],
+			);
 			if (bankAccountId) {
 				const signed = dir === "in" ? amount : `-${amount}`;
 				await client.query(
@@ -136,33 +180,119 @@ async function seed() {
 		}
 
 		// ── Section-51 payments: the real everyday chain ─────────────────────────
-		await postPayment({ type: "expense", categoryId: catIds.Fuel, amount: "1500.00", bankAccountId: cash, description: "Petrol for delivery van" });
-		await postPayment({ type: "expense", categoryId: catIds.Fuel, amount: "4000.00", bankAccountId: hdfc, description: "Diesel — generator + truck" });
-		await postPayment({ type: "expense", categoryId: catIds["Food & Refreshments"], amount: "2800.00", bankAccountId: cash, description: "Team lunch" });
-		await postPayment({ type: "expense", customName: "Emergency courier", amount: "450.00", bankAccountId: petty, description: "Other — urgent document courier" });
-		await postPayment({ type: "income", categoryId: catIds["Sales Income"], amount: "18500.00", bankAccountId: hdfc, description: "Counter sales settlement" });
+		await postPayment({
+			type: "expense",
+			categoryId: catIds.Fuel,
+			amount: "1500.00",
+			bankAccountId: cash,
+			description: "Petrol for delivery van",
+		});
+		await postPayment({
+			type: "expense",
+			categoryId: catIds.Fuel,
+			amount: "4000.00",
+			bankAccountId: hdfc,
+			description: "Diesel — generator + truck",
+		});
+		await postPayment({
+			type: "expense",
+			categoryId: catIds["Food & Refreshments"],
+			amount: "2800.00",
+			bankAccountId: cash,
+			description: "Team lunch",
+		});
+		await postPayment({
+			type: "expense",
+			customName: "Emergency courier",
+			amount: "450.00",
+			bankAccountId: petty,
+			description: "Other — urgent document courier",
+		});
+		await postPayment({
+			type: "income",
+			categoryId: catIds["Sales Income"],
+			amount: "18500.00",
+			bankAccountId: hdfc,
+			description: "Counter sales settlement",
+		});
 
 		// ── Employee expenses (reimbursement workflow, various states) ───────────
 		if (staffIds.length > 0) {
 			const s0 = staffIds[0];
 			const s1 = staffIds[1] ?? staffIds[0];
-			async function addExpense(staffId, amount, status, categoryId, customName, extra = {}) {
+			async function addExpense(
+				staffId,
+				amount,
+				status,
+				categoryId,
+				customName,
+				extra = {},
+			) {
 				const num = docNumber("EXP");
-				const cols = { submitted_at: null, reviewed_by: null, reviewed_at: null, paid_at: null, payment_id: null, ...extra };
+				const cols = {
+					submitted_at: null,
+					reviewed_by: null,
+					reviewed_at: null,
+					paid_at: null,
+					payment_id: null,
+					...extra,
+				};
 				const r = await client.query(
 					`INSERT INTO "employee_expenses"
 					 (branch_id, expense_number, staff_id, amount, category_id, custom_category_name,
 					  expense_date, description, status, submitted_at, reviewed_by, reviewed_at, paid_at, payment_id, created_by)
 					 VALUES ($1,$2,$3,$4,$5,$6, now(), $7, $8, $9,$10,$11,$12,$13,$14) RETURNING id`,
-					[branchId, num, staffId, amount, categoryId, customName, `Reimbursement ${num}`, status, cols.submitted_at, cols.reviewed_by, cols.reviewed_at, cols.paid_at, cols.payment_id, createdBy],
+					[
+						branchId,
+						num,
+						staffId,
+						amount,
+						categoryId,
+						customName,
+						`Reimbursement ${num}`,
+						status,
+						cols.submitted_at,
+						cols.reviewed_by,
+						cols.reviewed_at,
+						cols.paid_at,
+						cols.payment_id,
+						createdBy,
+					],
 				);
 				return r.rows[0].id;
 			}
-			await addExpense(s0, "1200.00", "submitted", catIds.Travel, null, { submitted_at: "now()" === "now()" ? new Date().toISOString() : null });
-			await addExpense(s1, "800.00", "approved", catIds["Office Supplies"], null, { submitted_at: new Date().toISOString(), reviewed_by: s0, reviewed_at: new Date().toISOString() });
+			await addExpense(s0, "1200.00", "submitted", catIds.Travel, null, {
+				submitted_at: "now()" === "now()" ? new Date().toISOString() : null,
+			});
+			await addExpense(
+				s1,
+				"800.00",
+				"approved",
+				catIds["Office Supplies"],
+				null,
+				{
+					submitted_at: new Date().toISOString(),
+					reviewed_by: s0,
+					reviewed_at: new Date().toISOString(),
+				},
+			);
 			// A paid one: create its payout payment then link it.
-			const payoutId = await postPayment({ type: "payment", categoryId: catIds.Travel, amount: "2100.00", bankAccountId: hdfc, staffId: s1, description: "Reimbursement payout", source: "employee_expense" });
-			await addExpense(s1, "2100.00", "paid", catIds.Travel, null, { submitted_at: new Date().toISOString(), reviewed_by: s0, reviewed_at: new Date().toISOString(), paid_at: new Date().toISOString(), payment_id: payoutId });
+			const payoutId = await postPayment({
+				type: "payment",
+				categoryId: catIds.Travel,
+				amount: "2100.00",
+				bankAccountId: hdfc,
+				staffId: s1,
+				description: "Reimbursement payout",
+				source: "employee_expense",
+			});
+			await addExpense(s1, "2100.00", "paid", catIds.Travel, null, {
+				submitted_at: new Date().toISOString(),
+				reviewed_by: s0,
+				reviewed_at: new Date().toISOString(),
+				paid_at: new Date().toISOString(),
+				payment_id: payoutId,
+			});
 		}
 
 		// ── One account transfer (cash box → petty cash) ─────────────────────────
@@ -184,10 +314,26 @@ async function seed() {
 				 (branch_id, transfer_number, from_account_id, to_account_id, amount, transfer_date,
 				  description, from_transaction_id, to_transaction_id, status, created_by)
 				 VALUES ($1,$2,$3,$4,$5, now(), $6,$7,$8,'completed',$9)`,
-				[branchId, num, cash, petty, amount, "Top up petty cash", outT.rows[0].id, inT.rows[0].id, createdBy],
+				[
+					branchId,
+					num,
+					cash,
+					petty,
+					amount,
+					"Top up petty cash",
+					outT.rows[0].id,
+					inT.rows[0].id,
+					createdBy,
+				],
 			);
-			await client.query(`UPDATE "bank_accounts" SET current_balance = current_balance - $1::numeric WHERE id = $2`, [amount, cash]);
-			await client.query(`UPDATE "bank_accounts" SET current_balance = current_balance + $1::numeric WHERE id = $2`, [amount, petty]);
+			await client.query(
+				`UPDATE "bank_accounts" SET current_balance = current_balance - $1::numeric WHERE id = $2`,
+				[amount, cash],
+			);
+			await client.query(
+				`UPDATE "bank_accounts" SET current_balance = current_balance + $1::numeric WHERE id = $2`,
+				[amount, petty],
+			);
 		}
 
 		await client.query("COMMIT");

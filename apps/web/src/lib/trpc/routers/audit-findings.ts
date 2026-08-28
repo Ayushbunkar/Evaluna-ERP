@@ -3,8 +3,13 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { router } from "../init";
+import {
+	assertTransition,
+	logAudit,
+	notify,
+	resolveStaffId,
+} from "../util/audit";
 import { permProcedure } from "../util/auditor-procedures";
-import { assertTransition, logAudit, notify, resolveStaffId } from "../util/audit";
 
 const FINDING_TYPES = [
 	"receiving",
@@ -56,7 +61,11 @@ export async function createFinding(
 		action: "AUDIT_FINDING_CREATE",
 		entityType: "audit_findings",
 		entityId: row.id,
-		newValues: { type: input.findingType, severity: input.severity ?? "MEDIUM", title: input.title },
+		newValues: {
+			type: input.findingType,
+			severity: input.severity ?? "MEDIUM",
+			title: input.title,
+		},
 	});
 	return { id: row.id };
 }
@@ -99,9 +108,12 @@ export const auditFindingsRouter = router({
 		.query(async ({ ctx, input }) => {
 			const conds = [];
 			if (input?.status) conds.push(eq(auditFindings.status, input.status));
-			if (input?.findingType) conds.push(eq(auditFindings.finding_type, input.findingType));
-			if (input?.severity) conds.push(eq(auditFindings.severity, input.severity));
-			if (input?.branchId) conds.push(eq(auditFindings.branch_id, input.branchId));
+			if (input?.findingType)
+				conds.push(eq(auditFindings.finding_type, input.findingType));
+			if (input?.severity)
+				conds.push(eq(auditFindings.severity, input.severity));
+			if (input?.branchId)
+				conds.push(eq(auditFindings.branch_id, input.branchId));
 			return await ctx.db
 				.select()
 				.from(auditFindings)
@@ -119,7 +131,10 @@ export const auditFindingsRouter = router({
 				.where(eq(auditFindings.id, input.findingId))
 				.limit(1);
 			if (!finding)
-				throw new TRPCError({ code: "NOT_FOUND", message: "Finding not found." });
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Finding not found.",
+				});
 			const actions = await ctx.db
 				.select()
 				.from(correctiveActions)
@@ -150,15 +165,26 @@ export const auditFindingsRouter = router({
 					.where(eq(auditFindings.id, input.findingId))
 					.limit(1);
 				if (!finding)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Finding not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Finding not found.",
+					});
 				assertTransition(finding.status, allowedFrom[input.status], "finding");
 				const [row] = await tx
 					.update(auditFindings)
 					.set({ status: input.status, updated_at: new Date() })
-					.where(and(eq(auditFindings.id, input.findingId), eq(auditFindings.status, finding.status)))
+					.where(
+						and(
+							eq(auditFindings.id, input.findingId),
+							eq(auditFindings.status, finding.status),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Finding changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Finding changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "AUDIT_FINDING_STATUS",
@@ -190,7 +216,10 @@ export const auditFindingsRouter = router({
 					.where(eq(auditFindings.id, input.findingId))
 					.limit(1);
 				if (!finding)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Finding not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Finding not found.",
+					});
 				const [row] = await tx
 					.insert(correctiveActions)
 					.values({
@@ -206,7 +235,10 @@ export const auditFindingsRouter = router({
 					action: "CORRECTIVE_ACTION_CREATE",
 					entityType: "corrective_actions",
 					entityId: row.id,
-					newValues: { findingId: input.findingId, assignedTo: input.assignedTo ?? null },
+					newValues: {
+						findingId: input.findingId,
+						assignedTo: input.assignedTo ?? null,
+					},
 				});
 				if (input.assignedTo)
 					await notify(tx, {
@@ -244,19 +276,36 @@ export const auditFindingsRouter = router({
 					.where(eq(correctiveActions.id, input.correctiveActionId))
 					.limit(1);
 				if (!ca)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Corrective action not found." });
-				assertTransition(ca.status, allowedFrom[input.status], "corrective action");
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Corrective action not found.",
+					});
+				assertTransition(
+					ca.status,
+					allowedFrom[input.status],
+					"corrective action",
+				);
 				const [row] = await tx
 					.update(correctiveActions)
 					.set({
 						status: input.status,
-						completed_by: input.status === "COMPLETED" ? staffId : ca.completed_by,
-						completed_at: input.status === "COMPLETED" ? new Date() : ca.completed_at,
+						completed_by:
+							input.status === "COMPLETED" ? staffId : ca.completed_by,
+						completed_at:
+							input.status === "COMPLETED" ? new Date() : ca.completed_at,
 					})
-					.where(and(eq(correctiveActions.id, input.correctiveActionId), eq(correctiveActions.status, ca.status)))
+					.where(
+						and(
+							eq(correctiveActions.id, input.correctiveActionId),
+							eq(correctiveActions.status, ca.status),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Action changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Action changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "CORRECTIVE_ACTION_STATUS",
@@ -281,21 +330,41 @@ export const auditFindingsRouter = router({
 					.where(eq(auditFindings.id, input.findingId))
 					.limit(1);
 				if (!finding)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Finding not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Finding not found.",
+					});
 				// Separation of duties: cannot resolve a finding you raised.
 				if (staffId && finding.raised_by && staffId === finding.raised_by)
 					throw new TRPCError({
 						code: "FORBIDDEN",
 						message: "You cannot resolve a finding you raised yourself.",
 					});
-				assertTransition(finding.status, ["OPEN", "UNDER_REVIEW", "CORRECTIVE_ACTION_REQUIRED"], "finding");
+				assertTransition(
+					finding.status,
+					["OPEN", "UNDER_REVIEW", "CORRECTIVE_ACTION_REQUIRED"],
+					"finding",
+				);
 				const [row] = await tx
 					.update(auditFindings)
-					.set({ status: "RESOLVED", resolved_by: staffId, resolved_at: new Date(), updated_at: new Date() })
-					.where(and(eq(auditFindings.id, input.findingId), eq(auditFindings.status, finding.status)))
+					.set({
+						status: "RESOLVED",
+						resolved_by: staffId,
+						resolved_at: new Date(),
+						updated_at: new Date(),
+					})
+					.where(
+						and(
+							eq(auditFindings.id, input.findingId),
+							eq(auditFindings.status, finding.status),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Finding changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Finding changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "AUDIT_FINDING_RESOLVE",
@@ -320,15 +389,26 @@ export const auditFindingsRouter = router({
 					.where(eq(auditFindings.id, input.findingId))
 					.limit(1);
 				if (!finding)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Finding not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Finding not found.",
+					});
 				assertTransition(finding.status, ["RESOLVED"], "finding");
 				const [row] = await tx
 					.update(auditFindings)
 					.set({ status: "CLOSED", updated_at: new Date() })
-					.where(and(eq(auditFindings.id, input.findingId), eq(auditFindings.status, "RESOLVED")))
+					.where(
+						and(
+							eq(auditFindings.id, input.findingId),
+							eq(auditFindings.status, "RESOLVED"),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Finding changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Finding changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "AUDIT_FINDING_VERIFY",

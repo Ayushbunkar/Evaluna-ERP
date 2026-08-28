@@ -1,7 +1,12 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@evaluna/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -40,7 +45,11 @@ export default function CustomerOrderReviewPage() {
 	const params = useParams<{ id: string }>();
 	const id = Number(params.id);
 
-	const { data: order, isLoading, error } = trpc.orders.getForReview.useQuery(
+	const {
+		data: order,
+		isLoading,
+		error,
+	} = trpc.orders.getForReview.useQuery(
 		{ id },
 		{ enabled: Number.isFinite(id) },
 	);

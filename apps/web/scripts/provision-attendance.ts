@@ -54,7 +54,9 @@ async function syncRolePermissions() {
 		});
 		added++;
 	}
-	console.log(`  role_permissions: +${added} new (of ${seeds.length} canonical)`);
+	console.log(
+		`  role_permissions: +${added} new (of ${seeds.length} canonical)`,
+	);
 }
 
 async function ensureSettings() {
@@ -125,10 +127,12 @@ async function addUniqueIndex() {
 	try {
 		await db.execute(
 			sql.raw(
-				`CREATE UNIQUE INDEX IF NOT EXISTS uniq_enhanced_attendance_emp_date ON enhanced_attendance (employee_id, date);`,
+				"CREATE UNIQUE INDEX IF NOT EXISTS uniq_enhanced_attendance_emp_date ON enhanced_attendance (employee_id, date);",
 			),
 		);
-		console.log("  enhanced_attendance: (employee_id, date) unique index ensured");
+		console.log(
+			"  enhanced_attendance: (employee_id, date) unique index ensured",
+		);
 	} catch (err) {
 		console.warn(
 			`  ! unique index skipped (existing duplicates?): ${

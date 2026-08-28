@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { buildDDL, createTestDb, makeUser } from "./helpers";
 import * as schema from "@/lib/db/schema";
 import { getPermissionsForRole } from "@/lib/permissions";
+import { buildDDL, createTestDb, makeUser } from "./helpers";
 
 /**
  * Auditor Phase 6 — workflow coverage that `auditor.test.ts` does not carry:
@@ -67,12 +67,18 @@ const biller = withPerms("bil", "biller");
 const sales = withPerms("sal", "sales_person");
 
 const auditAs = (u: any) => createCallerFactory(auditRouter)({ user: u, db });
-const findAs = (u: any) => createCallerFactory(auditFindingsRouter)({ user: u, db });
-const tasksAs = (u: any) => createCallerFactory(auditTasksRouter)({ user: u, db });
-const recvAs = (u: any) => createCallerFactory(receivingInspectionsRouter)({ user: u, db });
-const placeAs = (u: any) => createCallerFactory(placementRouter)({ user: u, db });
-const routeAs = (u: any) => createCallerFactory(routeAuditRouter)({ user: u, db });
-const priceAs = (u: any) => createCallerFactory(priceAuditRouter)({ user: u, db });
+const findAs = (u: any) =>
+	createCallerFactory(auditFindingsRouter)({ user: u, db });
+const tasksAs = (u: any) =>
+	createCallerFactory(auditTasksRouter)({ user: u, db });
+const recvAs = (u: any) =>
+	createCallerFactory(receivingInspectionsRouter)({ user: u, db });
+const placeAs = (u: any) =>
+	createCallerFactory(placementRouter)({ user: u, db });
+const routeAs = (u: any) =>
+	createCallerFactory(routeAuditRouter)({ user: u, db });
+const priceAs = (u: any) =>
+	createCallerFactory(priceAuditRouter)({ user: u, db });
 const upcAs = (u: any) => createCallerFactory(upcRouter)({ user: u, db });
 const dashAs = (u: any) => createCallerFactory(auditorRouter)({ user: u, db });
 
@@ -123,7 +129,10 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 	let matchItemId: number;
 
 	it("creates a planned stock audit and logs it", async () => {
-		const audit = await auditAs(auditor).create({ branch_id: 1, auditor_id: 1 });
+		const audit = await auditAs(auditor).create({
+			branch_id: 1,
+			auditor_id: 1,
+		});
 		auditId = audit.id;
 		expect(audit.status).toBe("planned");
 		const log = await rows(
@@ -145,7 +154,7 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 		expect(item.status).toBe("mismatch");
 
 		const disc = await rows(
-			`SELECT * FROM audit_discrepancies WHERE audit_item_id = $1`,
+			"SELECT * FROM audit_discrepancies WHERE audit_item_id = $1",
 			[shortItemId],
 		);
 		expect(disc.length).toBe(1);
@@ -154,7 +163,7 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 		expect(disc[0].resolution_status).toBe("pending");
 
 		const queue = await rows(
-			`SELECT * FROM missing_stock_queue WHERE audit_id = $1 AND product_id = 3`,
+			"SELECT * FROM missing_stock_queue WHERE audit_id = $1 AND product_id = 3",
 			[auditId],
 		);
 		expect(queue.length).toBe(1);
@@ -172,11 +181,16 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 		matchItemId = item.id;
 		expect(item.status).toBe("match");
 		expect(
-			(await rows(`SELECT 1 FROM audit_discrepancies WHERE audit_item_id = $1`, [matchItemId]))
-				.length,
+			(
+				await rows(
+					"SELECT 1 FROM audit_discrepancies WHERE audit_item_id = $1",
+					[matchItemId],
+				)
+			).length,
 		).toBe(0);
 		expect(
-			(await rows(`SELECT 1 FROM missing_stock_queue WHERE product_id = 4`)).length,
+			(await rows("SELECT 1 FROM missing_stock_queue WHERE product_id = 4"))
+				.length,
 		).toBe(0);
 	});
 
@@ -189,10 +203,17 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 		});
 		expect(item.status).toBe("mismatch");
 		expect(
-			(await rows(`SELECT 1 FROM audit_discrepancies WHERE audit_item_id = $1`, [item.id]))
+			(
+				await rows(
+					"SELECT 1 FROM audit_discrepancies WHERE audit_item_id = $1",
+					[item.id],
+				)
+			).length,
+		).toBe(0);
+		expect(
+			(await rows("SELECT 1 FROM missing_stock_queue WHERE product_id = 5"))
 				.length,
 		).toBe(0);
-		expect((await rows(`SELECT 1 FROM missing_stock_queue WHERE product_id = 5`)).length).toBe(0);
 	});
 
 	it("getAudit returns the audit with its counted items; listAudits honours the status filter", async () => {
@@ -202,7 +223,9 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 
 		const planned = await auditAs(auditor).listAudits({ status: "planned" });
 		expect(planned.some((a: any) => a.id === auditId)).toBe(true);
-		const completed = await auditAs(auditor).listAudits({ status: "completed" });
+		const completed = await auditAs(auditor).listAudits({
+			status: "completed",
+		});
 		expect(completed.some((a: any) => a.id === auditId)).toBe(false);
 		const otherBranch = await auditAs(auditor).listAudits({ branchId: 99 });
 		expect(otherBranch.length).toBe(0);
@@ -218,8 +241,12 @@ describe("Inventory inspection — count fan-out (audit.ts)", () => {
 		expect(disc.discrepancy_type).toBe("damage");
 		expect(disc.resolution_status).toBe("pending");
 		expect(
-			(await rows(`SELECT 1 FROM audit_discrepancies WHERE audit_item_id = $1`, [matchItemId]))
-				.length,
+			(
+				await rows(
+					"SELECT 1 FROM audit_discrepancies WHERE audit_item_id = $1",
+					[matchItemId],
+				)
+			).length,
 		).toBe(1);
 	});
 
@@ -266,7 +293,10 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 		const { finding } = await findAs(auditor).get({ findingId });
 		expect(finding.status).toBe("OPEN");
 
-		const r1 = await findAs(auditor).updateStatus({ findingId, status: "UNDER_REVIEW" });
+		const r1 = await findAs(auditor).updateStatus({
+			findingId,
+			status: "UNDER_REVIEW",
+		});
 		expect(r1.status).toBe("UNDER_REVIEW");
 		const r2 = await findAs(auditor).updateStatus({
 			findingId,
@@ -292,16 +322,24 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 			// @ts-expect-error deliberate illegal target status
 			findAs(auditor).updateStatus({ findingId, status: "CLOSED" }),
 		).rejects.toThrow();
-		const [row] = await rows(`SELECT status FROM audit_findings WHERE id = $1`, [findingId]);
+		const [row] = await rows(
+			"SELECT status FROM audit_findings WHERE id = $1",
+			[findingId],
+		);
 		expect(row.status).toBe("CORRECTIVE_ACTION_REQUIRED");
 	});
 
 	it("resolve (by a second auditor) then verify closes the finding", async () => {
-		const resolved = await findAs(auditor2).resolve({ findingId, note: "recount matched" });
+		const resolved = await findAs(auditor2).resolve({
+			findingId,
+			note: "recount matched",
+		});
 		expect(resolved.status).toBe("RESOLVED");
 		const closed = await findAs(auditor).verify({ findingId });
 		expect(closed.status).toBe("CLOSED");
-		const [row] = await rows(`SELECT * FROM audit_findings WHERE id = $1`, [findingId]);
+		const [row] = await rows("SELECT * FROM audit_findings WHERE id = $1", [
+			findingId,
+		]);
 		expect(row.status).toBe("CLOSED");
 		expect(row.resolved_by).toBe(2);
 	});
@@ -313,9 +351,14 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 	});
 
 	it("404s on an unknown finding", async () => {
-		await expect(findAs(auditor).get({ findingId: 999999 })).rejects.toThrow(/not found/i);
+		await expect(findAs(auditor).get({ findingId: 999999 })).rejects.toThrow(
+			/not found/i,
+		);
 		await expect(
-			findAs(auditor).updateStatus({ findingId: 999999, status: "UNDER_REVIEW" }),
+			findAs(auditor).updateStatus({
+				findingId: 999999,
+				status: "UNDER_REVIEW",
+			}),
 		).rejects.toThrow(/not found/i);
 	});
 
@@ -323,9 +366,15 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 		const closed = await findAs(auditor).list({ status: "CLOSED" });
 		expect(closed.every((f: any) => f.status === "CLOSED")).toBe(true);
 		expect(closed.some((f: any) => f.id === findingId)).toBe(true);
-		const inventory = await findAs(auditor).list({ findingType: "inventory", severity: "HIGH" });
+		const inventory = await findAs(auditor).list({
+			findingType: "inventory",
+			severity: "HIGH",
+		});
 		expect(inventory.some((f: any) => f.id === findingId)).toBe(true);
-		const none = await findAs(auditor).list({ findingType: "route", severity: "LOW" });
+		const none = await findAs(auditor).list({
+			findingType: "route",
+			severity: "LOW",
+		});
 		expect(none.some((f: any) => f.id === findingId)).toBe(false);
 	});
 });

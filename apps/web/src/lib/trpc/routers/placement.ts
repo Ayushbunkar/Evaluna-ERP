@@ -3,8 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { router } from "../init";
-import { permProcedure } from "../util/auditor-procedures";
 import { assertTransition, logAudit, resolveStaffId } from "../util/audit";
+import { permProcedure } from "../util/auditor-procedures";
 import { createFinding } from "./audit-findings";
 
 export const placementRouter = router({
@@ -12,13 +12,18 @@ export const placementRouter = router({
 	list: permProcedure("placement", "read")
 		.input(
 			z
-				.object({ status: z.string().optional(), branchId: z.number().optional() })
+				.object({
+					status: z.string().optional(),
+					branchId: z.number().optional(),
+				})
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const conds = [];
-			if (input?.status) conds.push(eq(placementVerifications.status, input.status));
-			if (input?.branchId) conds.push(eq(placementVerifications.branch_id, input.branchId));
+			if (input?.status)
+				conds.push(eq(placementVerifications.status, input.status));
+			if (input?.branchId)
+				conds.push(eq(placementVerifications.branch_id, input.branchId));
 			return await ctx.db
 				.select()
 				.from(placementVerifications)
@@ -54,7 +59,10 @@ export const placementRouter = router({
 					action: "PLACEMENT_CREATE",
 					entityType: "placement_verifications",
 					entityId: row.id,
-					newValues: { productId: input.productId, locationId: input.locationId ?? null },
+					newValues: {
+						productId: input.productId,
+						locationId: input.locationId ?? null,
+					},
 				});
 				return { placementId: row.id };
 			});
@@ -62,7 +70,9 @@ export const placementRouter = router({
 
 	// ── Write: mark item physically placed (AWAITING_PLACEMENT → PLACED) ──────
 	markPlaced: permProcedure("placement", "write")
-		.input(z.object({ placementId: z.number(), locationId: z.number().optional() }))
+		.input(
+			z.object({ placementId: z.number(), locationId: z.number().optional() }),
+		)
 		.mutation(async ({ ctx, input }) => {
 			const staffId = await resolveStaffId(ctx.db, ctx.user.email);
 			return await ctx.db.transaction(async (tx: any) => {
@@ -72,7 +82,10 @@ export const placementRouter = router({
 					.where(eq(placementVerifications.id, input.placementId))
 					.limit(1);
 				if (!pv)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Placement not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Placement not found.",
+					});
 				assertTransition(pv.status, ["AWAITING_PLACEMENT"], "placement");
 				const [row] = await tx
 					.update(placementVerifications)
@@ -81,10 +94,18 @@ export const placementRouter = router({
 						location_id: input.locationId ?? pv.location_id,
 						placed_by: staffId,
 					})
-					.where(and(eq(placementVerifications.id, input.placementId), eq(placementVerifications.status, "AWAITING_PLACEMENT")))
+					.where(
+						and(
+							eq(placementVerifications.id, input.placementId),
+							eq(placementVerifications.status, "AWAITING_PLACEMENT"),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Placement changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Placement changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "PLACEMENT_PLACED",
@@ -109,8 +130,15 @@ export const placementRouter = router({
 					.where(eq(placementVerifications.id, input.placementId))
 					.limit(1);
 				if (!pv)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Placement not found." });
-				assertTransition(pv.status, ["VERIFICATION_REQUIRED", "PLACED"], "placement");
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Placement not found.",
+					});
+				assertTransition(
+					pv.status,
+					["VERIFICATION_REQUIRED", "PLACED"],
+					"placement",
+				);
 				// Separation of duties: verifier cannot be the person who placed it.
 				if (staffId && pv.placed_by && staffId === pv.placed_by)
 					throw new TRPCError({
@@ -119,11 +147,23 @@ export const placementRouter = router({
 					});
 				const [row] = await tx
 					.update(placementVerifications)
-					.set({ status: "VERIFIED", verified_by: staffId, verified_at: new Date() })
-					.where(and(eq(placementVerifications.id, input.placementId), eq(placementVerifications.status, pv.status)))
+					.set({
+						status: "VERIFIED",
+						verified_by: staffId,
+						verified_at: new Date(),
+					})
+					.where(
+						and(
+							eq(placementVerifications.id, input.placementId),
+							eq(placementVerifications.status, pv.status),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Placement changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Placement changed concurrently; refresh.",
+					});
 				await logAudit(tx, {
 					userId: staffId,
 					action: "PLACEMENT_VERIFY",
@@ -141,7 +181,9 @@ export const placementRouter = router({
 		.input(
 			z.object({
 				placementId: z.number(),
-				severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"),
+				severity: z
+					.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+					.default("MEDIUM"),
 				description: z.string().min(1),
 			}),
 		)
@@ -154,15 +196,30 @@ export const placementRouter = router({
 					.where(eq(placementVerifications.id, input.placementId))
 					.limit(1);
 				if (!pv)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Placement not found." });
-				assertTransition(pv.status, ["AWAITING_PLACEMENT", "PLACED", "VERIFICATION_REQUIRED"], "placement");
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Placement not found.",
+					});
+				assertTransition(
+					pv.status,
+					["AWAITING_PLACEMENT", "PLACED", "VERIFICATION_REQUIRED"],
+					"placement",
+				);
 				const [row] = await tx
 					.update(placementVerifications)
 					.set({ status: "PLACEMENT_EXCEPTION", notes: input.description })
-					.where(and(eq(placementVerifications.id, input.placementId), eq(placementVerifications.status, pv.status)))
+					.where(
+						and(
+							eq(placementVerifications.id, input.placementId),
+							eq(placementVerifications.status, pv.status),
+						),
+					)
 					.returning();
 				if (!row)
-					throw new TRPCError({ code: "CONFLICT", message: "Placement changed concurrently; refresh." });
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Placement changed concurrently; refresh.",
+					});
 				await createFinding(tx, staffId, {
 					branchId: pv.branch_id,
 					findingType: "placement",

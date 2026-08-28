@@ -40,8 +40,7 @@ export async function GET(
 			and(eq(attachments.id, attachmentId), eq(attachments.is_deleted, false)),
 		)
 		.limit(1);
-	if (!row)
-		return NextResponse.json({ error: "Not found" }, { status: 404 });
+	if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
 	// Branch isolation: a scoped user may only read their own branch's files.
 	if (user.branchId != null && row.branch_id !== user.branchId)

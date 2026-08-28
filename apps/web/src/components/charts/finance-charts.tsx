@@ -199,4 +199,3 @@ export function FinanceCashFlowChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
-

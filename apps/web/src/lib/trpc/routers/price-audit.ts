@@ -3,8 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { router } from "../init";
-import { permProcedure } from "../util/auditor-procedures";
 import { resolveStaffId } from "../util/audit";
+import { permProcedure } from "../util/auditor-procedures";
 import { createFinding } from "./audit-findings";
 
 /**
@@ -34,7 +34,11 @@ export const priceAuditRouter = router({
 				})
 				.from(priceChangeHistory)
 				.leftJoin(products, eq(priceChangeHistory.product_id, products.id))
-				.where(input?.productId ? eq(priceChangeHistory.product_id, input.productId) : undefined)
+				.where(
+					input?.productId
+						? eq(priceChangeHistory.product_id, input.productId)
+						: undefined,
+				)
 				.orderBy(desc(priceChangeHistory.created_at));
 			return rows;
 		}),
@@ -44,7 +48,9 @@ export const priceAuditRouter = router({
 		.input(
 			z.object({
 				priceChangeId: z.number(),
-				severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"),
+				severity: z
+					.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+					.default("MEDIUM"),
 				description: z.string().min(1),
 			}),
 		)
@@ -57,7 +63,10 @@ export const priceAuditRouter = router({
 					.where(eq(priceChangeHistory.id, input.priceChangeId))
 					.limit(1);
 				if (!change)
-					throw new TRPCError({ code: "NOT_FOUND", message: "Price change not found." });
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Price change not found.",
+					});
 				const { id } = await createFinding(tx, staffId, {
 					findingType: "price",
 					severity: input.severity,

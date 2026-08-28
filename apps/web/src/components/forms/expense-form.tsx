@@ -164,15 +164,10 @@ export function ExpenseForm({
 			</div>
 
 			<div className="flex justify-end pt-3 sm:pt-4">
-				<Button
-					type="submit"
-					size="sm"
-					className="text-xs sm:text-sm"
-				>
+				<Button type="submit" size="sm" className="text-xs sm:text-sm">
 					{expense ? "Update Expense" : "Create Expense"}
 				</Button>
 			</div>
 		</form>
 	);
 }
-

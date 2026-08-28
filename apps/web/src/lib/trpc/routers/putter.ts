@@ -1,13 +1,13 @@
 import {
+	branchInventory,
 	products,
 	purchaseItems,
 	purchases,
 	staff,
 	stockAdjustments,
 	suppliers,
-	branchInventory,
 } from "@evaluna/db/schema";
-import { count, desc, eq, sum, avg, and, sql } from "drizzle-orm";
+import { and, avg, count, desc, eq, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -18,15 +18,22 @@ export const putterRouter = router({
 			const db = ctx.db;
 			const branchId = ctx.user.branchId; // Use authenticated user's branch for scoping
 
-			const [receivingCount, putAwayCount, damageCount, missingStockCount, saleReturnsCount, efficiencyData] = await Promise.all([
+			const [
+				receivingCount,
+				putAwayCount,
+				damageCount,
+				missingStockCount,
+				saleReturnsCount,
+				efficiencyData,
+			] = await Promise.all([
 				db
 					.select({ count: count() })
 					.from(purchases)
 					.where(
 						and(
 							eq(purchases.status, "pending"),
-							branchId ? eq(purchases.branch_id, branchId) : undefined
-						)
+							branchId ? eq(purchases.branch_id, branchId) : undefined,
+						),
 					),
 				db
 					.select({ count: count() })
@@ -34,8 +41,8 @@ export const putterRouter = router({
 					.where(
 						and(
 							eq(purchases.status, "received"),
-							branchId ? eq(purchases.branch_id, branchId) : undefined
-						)
+							branchId ? eq(purchases.branch_id, branchId) : undefined,
+						),
 					),
 				db
 					.select({ count: count() })
@@ -43,8 +50,8 @@ export const putterRouter = router({
 					.where(
 						and(
 							eq(stockAdjustments.adjustment_type, "damage"),
-							branchId ? eq(stockAdjustments.branch_id, branchId) : undefined
-						)
+							branchId ? eq(stockAdjustments.branch_id, branchId) : undefined,
+						),
 					),
 				// Missing stock: items where reserved stock > 0 but in_stock = 0, or negative inventory
 				db
@@ -53,8 +60,8 @@ export const putterRouter = router({
 					.where(
 						and(
 							branchId ? eq(branchInventory.branch_id, branchId) : undefined,
-							sql`${branchInventory.in_stock} < 0`
-						)
+							sql`${branchInventory.in_stock} < 0`,
+						),
 					),
 				// Sale returns: count of completed sales with return status or similar
 				// For now using a placeholder approach - in real system this would query sales returns
@@ -64,22 +71,26 @@ export const putterRouter = router({
 					.where(
 						and(
 							eq(orders.status, "returned"),
-							branchId ? eq(orders.branch_id, branchId) : undefined
-						)
+							branchId ? eq(orders.branch_id, branchId) : undefined,
+						),
 					),
 				// Efficiency: percentage of put-away tasks completed on time vs total
 				db
 					.select({
-						completedOnTime: count().filterWhere(eq(purchases.status, "completed")),
-						totalPutAway: count().filterWhere(inArray(purchases.status, ["received", "completed"]))
+						completedOnTime: count().filterWhere(
+							eq(purchases.status, "completed"),
+						),
+						totalPutAway: count().filterWhere(
+							inArray(purchases.status, ["received", "completed"]),
+						),
 					})
 					.from(purchases)
 					.where(
 						and(
 							branchId ? eq(purchases.branch_id, branchId) : undefined,
-							inArray(purchases.status, ["received", "completed"])
-						)
-					)
+							inArray(purchases.status, ["received", "completed"]),
+						),
+					),
 			]);
 
 			const recentPurchases = await db
@@ -123,12 +134,17 @@ export const putterRouter = router({
 			});
 
 			// Use real data or empty arrays - no more mock fallbacks
-			let chartData = Array.from(chartDataMap.values());
+			const chartData = Array.from(chartDataMap.values());
 
 			// Calculate efficiency percentage safely
-			const efficiencyPct = efficiencyData[0]?.completedOnTime && efficiencyData[0]?.totalPutAway
-				? Math.round((Number(efficiencyData[0].completedOnTime) / Number(efficiencyData[0].totalPutAway)) * 100)
-				: 0;
+			const efficiencyPct =
+				efficiencyData[0]?.completedOnTime && efficiencyData[0]?.totalPutAway
+					? Math.round(
+							(Number(efficiencyData[0].completedOnTime) /
+								Number(efficiencyData[0].totalPutAway)) *
+								100,
+						)
+					: 0;
 
 			return {
 				itemsToReceive: receivingCount[0]?.count || 0,
@@ -227,8 +243,8 @@ export const putterRouter = router({
 				.where(
 					and(
 						branchId ? eq(branchInventory.branch_id, branchId) : undefined,
-						sql`${branchInventory.in_stock} < ${branchInventory.reserved_stock}`
-					)
+						sql`${branchInventory.in_stock} < ${branchInventory.reserved_stock}`,
+					),
 				)
 				.orderBy(desc(branchInventory.updated_at))
 				.limit(50);
@@ -266,8 +282,8 @@ export const putterRouter = router({
 				.where(
 					and(
 						eq(orders.status, "returned"),
-						branchId ? eq(orders.branch_id, branchId) : undefined
-					)
+						branchId ? eq(orders.branch_id, branchId) : undefined,
+					),
 				)
 				.orderBy(desc(orders.updated_at))
 				.limit(50);
@@ -338,8 +354,8 @@ export const putterRouter = router({
 				.where(
 					and(
 						eq(purchases.status, "completed"),
-						branchId ? eq(purchases.branch_id, branchId) : undefined
-					)
+						branchId ? eq(purchases.branch_id, branchId) : undefined,
+					),
 				)
 				.groupBy(
 					purchases.id,
@@ -347,17 +363,21 @@ export const putterRouter = router({
 					products.name,
 					staff.name,
 					purchases.created_at,
-					purchases.updated_at
+					purchases.updated_at,
 				)
 				.orderBy(desc(purchases.id))
 				.limit(50);
 
 			return results.map((r) => {
-				const timeTakenHours = r.updatedAt && r.createdAt
-					? Math.round((r.updatedAt.getTime() - r.createdAt.getTime()) / (1000 * 60 * 60))
-					: 0;
+				const timeTakenHours =
+					r.updatedAt && r.createdAt
+						? Math.round(
+								(r.updatedAt.getTime() - r.createdAt.getTime()) /
+									(1000 * 60 * 60),
+							)
+						: 0;
 
-				return ({
+				return {
 					id: `PA-${r.id}`,
 					product: r.productName || "Various Products",
 					qty: Number(r.totalQuantity) || 0,
@@ -365,7 +385,7 @@ export const putterRouter = router({
 					completed_by: r.completedBy || "Unknown",
 					time_taken: `${timeTakenHours}h`,
 					date: r.updatedAt?.toLocaleDateString() || "",
-				});
+				};
 			});
 		}),
 
@@ -380,9 +400,11 @@ export const putterRouter = router({
 				.select({
 					staffId: staff.id,
 					staffName: staff.name,
-					tasksCompleted: count().filterWhere(eq(purchases.status, "completed")),
+					tasksCompleted: count().filterWhere(
+						eq(purchases.status, "completed"),
+					),
 					avgCompletionTime: avg(
-						sql`EXTRACT(EPOCH FROM (purchases.updated_at - purchases.created_at)) / 3600`
+						sql`EXTRACT(EPOCH FROM (purchases.updated_at - purchases.created_at)) / 3600`,
 					), // Average hours to complete
 					efficiency: sql`ROUND(
 						(COUNT(*) FILTER (WHERE purchases.status = 'completed')::decimal /
@@ -394,8 +416,8 @@ export const putterRouter = router({
 				.where(
 					and(
 						branchId ? eq(purchases.branch_id, branchId) : undefined,
-						inArray(purchases.status, ["received", "completed"])
-					)
+						inArray(purchases.status, ["received", "completed"]),
+					),
 				)
 				.groupBy(staff.id, staff.name)
 				.orderBy(desc(sql`tasksCompleted`))

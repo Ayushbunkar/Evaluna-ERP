@@ -52,13 +52,18 @@ export function PaymentModal({
 					{/* Total Due */}
 					<div className="flex items-center justify-between rounded-lg bg-muted p-4">
 						<span className="font-medium text-xl">Total Due</span>
-						<span className="font-bold text-3xl">₹{totalAmount.toFixed(2)}</span>
+						<span className="font-bold text-3xl">
+							₹{totalAmount.toFixed(2)}
+						</span>
 					</div>
 
 					{/* Customer Details */}
 					<div className="space-y-4">
-						<Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-							Customer Details <span className="text-xs font-normal normal-case">(optional)</span>
+						<Label className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+							Customer Details{" "}
+							<span className="font-normal text-xs normal-case">
+								(optional)
+							</span>
 						</Label>
 
 						<div className="space-y-3">
@@ -80,7 +85,9 @@ export function PaymentModal({
 									type="tel"
 									maxLength={10}
 									value={customerPhone}
-									onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, ""))}
+									onChange={(e) =>
+										setCustomerPhone(e.target.value.replace(/\D/g, ""))
+									}
 								/>
 							</div>
 
@@ -109,4 +116,3 @@ export function PaymentModal({
 		</Dialog>
 	);
 }
-

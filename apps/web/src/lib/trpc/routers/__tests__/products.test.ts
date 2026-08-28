@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { buildDDL, createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
 import * as schema from "@/lib/db/schema";
+import { buildDDL, createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
@@ -19,7 +19,10 @@ const writeUser = (uid: string) => ({
 	...makeUser(uid),
 	permissions: ["products.write"],
 });
-const writer = createCallerFactory(productsRouter)({ user: writeUser("user-1"), db });
+const writer = createCallerFactory(productsRouter)({
+	user: writeUser("user-1"),
+	db,
+});
 const writerAs = (uid: string) =>
 	createCallerFactory(productsRouter)({ user: writeUser(uid), db });
 
@@ -28,7 +31,15 @@ beforeAll(async () => {
 	// update() now appends to these tables when a price changes.
 	// update() resolves a staff id (via email) and appends to these tables.
 	await pg.exec(
-		buildDDL([schema.staff, schema.priceChangeHistory, schema.auditLogs, schema.branchInventory], false),
+		buildDDL(
+			[
+				schema.staff,
+				schema.priceChangeHistory,
+				schema.auditLogs,
+				schema.branchInventory,
+			],
+			false,
+		),
 	);
 });
 afterAll(async () => {
@@ -124,9 +135,7 @@ describe("products.create", () => {
 
 	it("rejects name: empty string — no record created", async () => {
 		const before = await caller.list();
-		await expect(
-			caller.create({ name: "", price: 100 }),
-		).rejects.toThrow();
+		await expect(caller.create({ name: "", price: 100 })).rejects.toThrow();
 		const after = await caller.list();
 		expect(after.length).toBe(before.length);
 	});

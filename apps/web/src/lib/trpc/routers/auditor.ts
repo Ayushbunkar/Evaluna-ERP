@@ -16,7 +16,12 @@ import { z } from "zod";
 import { router } from "../init";
 import { permProcedure } from "../util/auditor-procedures";
 
-const UPC_OPEN = ["PENDING", "ASSIGNED", "IN_PROGRESS", "VERIFICATION_REQUIRED"];
+const UPC_OPEN = [
+	"PENDING",
+	"ASSIGNED",
+	"IN_PROGRESS",
+	"VERIFICATION_REQUIRED",
+];
 const FINDING_OPEN = ["OPEN", "UNDER_REVIEW", "CORRECTIVE_ACTION_REQUIRED"];
 
 export const auditorRouter = router({
@@ -115,21 +120,50 @@ export const auditorRouter = router({
 				recentFindings,
 				auditItemStatus,
 			] = await Promise.all([
-				db.select({ c: count() }).from(upcTasks).where(inArray(upcTasks.status, UPC_OPEN)),
-				db.select({ c: count() }).from(upcTasks).where(eq(upcTasks.status, "VERIFIED")),
-				db.select({ c: count() }).from(auditFindings).where(inArray(auditFindings.status, FINDING_OPEN)),
+				db
+					.select({ c: count() })
+					.from(upcTasks)
+					.where(inArray(upcTasks.status, UPC_OPEN)),
+				db
+					.select({ c: count() })
+					.from(upcTasks)
+					.where(eq(upcTasks.status, "VERIFIED")),
+				db
+					.select({ c: count() })
+					.from(auditFindings)
+					.where(inArray(auditFindings.status, FINDING_OPEN)),
 				db
 					.select({ severity: auditFindings.severity, c: count() })
 					.from(auditFindings)
 					.where(inArray(auditFindings.status, FINDING_OPEN))
 					.groupBy(auditFindings.severity),
-				db.select({ c: count() }).from(receivingInspections).where(eq(receivingInspections.status, "PENDING")),
+				db
+					.select({ c: count() })
+					.from(receivingInspections)
+					.where(eq(receivingInspections.status, "PENDING")),
 				db
 					.select({ c: count() })
 					.from(placementVerifications)
-					.where(inArray(placementVerifications.status, ["AWAITING_PLACEMENT", "VERIFICATION_REQUIRED"])),
-				db.select({ c: count() }).from(stockAudits).where(inArray(stockAudits.status, ["planned", "in_progress", "escalated"])),
-				db.select({ c: count() }).from(stockAudits).where(eq(stockAudits.status, "completed")),
+					.where(
+						inArray(placementVerifications.status, [
+							"AWAITING_PLACEMENT",
+							"VERIFICATION_REQUIRED",
+						]),
+					),
+				db
+					.select({ c: count() })
+					.from(stockAudits)
+					.where(
+						inArray(stockAudits.status, [
+							"planned",
+							"in_progress",
+							"escalated",
+						]),
+					),
+				db
+					.select({ c: count() })
+					.from(stockAudits)
+					.where(eq(stockAudits.status, "completed")),
 				db
 					.select({
 						id: auditFindings.id,
@@ -237,7 +271,8 @@ export const auditorRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const conds = [];
-			if (input?.entityType) conds.push(eq(auditLogs.entity_type, input.entityType));
+			if (input?.entityType)
+				conds.push(eq(auditLogs.entity_type, input.entityType));
 			if (input?.action) conds.push(eq(auditLogs.action, input.action));
 			const rows = await ctx.db
 				.select({

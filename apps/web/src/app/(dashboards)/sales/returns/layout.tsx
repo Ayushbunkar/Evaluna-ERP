@@ -3,8 +3,3 @@
 export default function PurchaseReturnsLayout({ children }: PropsWithChildren) {
 	return <>{children}</>;
 }
-
-
-
-
-

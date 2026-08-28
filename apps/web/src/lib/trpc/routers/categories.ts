@@ -21,8 +21,8 @@ export const categoriesRouter = router({
 				query = query.where(
 					or(
 						ilike(productCategories.name, searchTerm),
-						ilike(productCategories.description, searchTerm)
-					)
+						ilike(productCategories.description, searchTerm),
+					),
 				);
 			}
 
@@ -42,10 +42,10 @@ export const categoriesRouter = router({
 				.where(
 					input.search
 						? or(
-							ilike(productCategories.name, `%${input.search}%`),
-							ilike(productCategories.description, `%${input.search}%`)
-						  )
-						: undefined
+								ilike(productCategories.name, `%${input.search}%`),
+								ilike(productCategories.description, `%${input.search}%`),
+							)
+						: undefined,
 				);
 
 			return {

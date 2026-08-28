@@ -51,8 +51,3 @@ export default function BillingCheckoutPage() {
 		</Card>
 	);
 }
-
-
-
-
-

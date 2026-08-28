@@ -1,11 +1,11 @@
 import {
+	customers,
 	orderItems,
 	orders,
 	products,
 	salesReturnItems,
 	salesReturns,
 	user,
-	customers,
 } from "@evaluna/db/schema";
 import {
 	deliveryRoutes,
@@ -415,25 +415,37 @@ export const deliveryRouter = router({
 		.query(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId;
 			return await db.query.user.findMany({
-				where: (u, { eq, or }) => or(
-					eq(u.role, "delivery"),
-					eq(u.role, "driver"),
-					eq(u.role, "delivery_boy"),
-				),
+				where: (u, { eq, or }) =>
+					or(
+						eq(u.role, "delivery"),
+						eq(u.role, "driver"),
+						eq(u.role, "delivery_boy"),
+					),
 				columns: { id: true, name: true, email: true, role: true, image: true },
 			});
 		}),
 
 	listAllTrips: roleProcedure(["admin", "manager", "delivery_manager"])
-		.input(z.object({ branchId: z.number().optional(), status: z.string().optional() }))
+		.input(
+			z.object({
+				branchId: z.number().optional(),
+				status: z.string().optional(),
+			}),
+		)
 		.query(async ({ input, ctx }) => {
 			return await db.query.deliveryTrips.findMany({
 				with: {
 					route: true,
-					driver: { columns: { id: true, name: true, email: true, image: true } },
+					driver: {
+						columns: { id: true, name: true, email: true, image: true },
+					},
 					vehicle: true,
 					stops: {
-						with: { customer: { columns: { id: true, name: true, phone: true, address: true } } },
+						with: {
+							customer: {
+								columns: { id: true, name: true, phone: true, address: true },
+							},
+						},
 						orderBy: (s, { asc }) => [asc(s.sequence)],
 					},
 				},
@@ -476,33 +488,39 @@ export const deliveryRouter = router({
 					Math.sin(dLat / 2) * Math.sin(dLat / 2) +
 					Math.cos(lat1 * (Math.PI / 180)) *
 						Math.cos(lat2 * (Math.PI / 180)) *
-						Math.sin(dLon / 2) * Math.sin(dLon / 2);
+						Math.sin(dLon / 2) *
+						Math.sin(dLon / 2);
 				const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 				return R * c; // Distance in km
 			};
 
 			// Default coordinates if missing (Mumbai center)
-			const parseCoord = (c: string | null) => c ? parseFloat(c) : 19.0760;
-			const parseLon = (c: string | null) => c ? parseFloat(c) : 72.8777;
+			const parseCoord = (c: string | null) =>
+				c ? Number.parseFloat(c) : 19.076;
+			const parseLon = (c: string | null) =>
+				c ? Number.parseFloat(c) : 72.8777;
 
 			// Implement Nearest Neighbor TSP Algorithm
 			let unvisited = [...customersData];
 			const optimizedIds: number[] = [];
-			
+
 			// Start from the first selected customer (or we could use branch coordinates)
-			let current = unvisited.find(c => c.id === input.customerIds[0]) || unvisited[0];
+			let current =
+				unvisited.find((c) => c.id === input.customerIds[0]) || unvisited[0];
 			optimizedIds.push(current.id);
-			unvisited = unvisited.filter(c => c.id !== current.id);
+			unvisited = unvisited.filter((c) => c.id !== current.id);
 
 			while (unvisited.length > 0) {
 				let nearestIdx = 0;
-				let minDistance = Infinity;
+				let minDistance = Number.POSITIVE_INFINITY;
 
 				for (let i = 0; i < unvisited.length; i++) {
 					const node = unvisited[i];
 					const dist = getDistance(
-						parseCoord(current.latitude), parseLon(current.longitude),
-						parseCoord(node.latitude), parseLon(node.longitude)
+						parseCoord(current.latitude),
+						parseLon(current.longitude),
+						parseCoord(node.latitude),
+						parseLon(node.longitude),
 					);
 					if (dist < minDistance) {
 						minDistance = dist;
@@ -541,7 +559,9 @@ export const deliveryRouter = router({
 				const [route] = await tx
 					.insert(deliveryRoutes)
 					.values({
-						name: input.routeName || `Trip ${new Date().toLocaleDateString("en-IN")}`,
+						name:
+							input.routeName ||
+							`Trip ${new Date().toLocaleDateString("en-IN")}`,
 						branch_id: branch || null,
 					})
 					.returning();
@@ -615,9 +635,13 @@ export const deliveryRouter = router({
 				where: eq(orderItems.order_id, orderId),
 			});
 
-			const newTotal = allItems.reduce((acc, curr) => acc + (Number(curr.price) * curr.quantity), 0);
+			const newTotal = allItems.reduce(
+				(acc, curr) => acc + Number(curr.price) * curr.quantity,
+				0,
+			);
 
-			await db.update(orders)
+			await db
+				.update(orders)
 				.set({ total_amount: newTotal.toString() })
 				.where(eq(orders.id, orderId));
 

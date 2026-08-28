@@ -44,7 +44,11 @@ export default function POSPage() {
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
 	const [resumeId, setResumeId] = useState<string | null>(null);
-	const [customerDetails, setCustomerDetails] = useState<{ customerName?: string; customerPhone?: string; shopName?: string }>({});
+	const [customerDetails, setCustomerDetails] = useState<{
+		customerName?: string;
+		customerPhone?: string;
+		shopName?: string;
+	}>({});
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -294,7 +298,14 @@ export default function POSPage() {
 		setPaymentModalOpen(true);
 	};
 
-	const finalizeOrder = (payments: any[], customer?: { customerName?: string; customerPhone?: string; shopName?: string }) => {
+	const finalizeOrder = (
+		payments: any[],
+		customer?: {
+			customerName?: string;
+			customerPhone?: string;
+			shopName?: string;
+		},
+	) => {
 		if (customer) setCustomerDetails(customer);
 
 		if (isOffline) {
@@ -384,7 +395,7 @@ export default function POSPage() {
 											</CardHeader>
 											<CardContent className="flex flex-col justify-end p-4 pt-0">
 												<div className="font-bold text-lg text-primary">
-													â‚¹{Number.parseFloat(product.price).toFixed(2)}
+													₹{Number.parseFloat(product.price).toFixed(2)}
 												</div>
 												<div className="mt-1 line-clamp-2 min-h-[32px] text-muted-foreground text-xs">
 													{product.description || ""}
@@ -414,7 +425,7 @@ export default function POSPage() {
 						Clear
 					</Button>
 				</div>
-				<ScrollArea className="min-h-0 flex-1 bg-muted/20 p-4 scroll-area-vertical">
+				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 bg-muted/20 p-4">
 					<AnimatePresence>
 						{cart.length === 0 ? (
 							<motion.div
@@ -435,18 +446,21 @@ export default function POSPage() {
 										initial={{ opacity: 0, scale: 0.95, y: 10 }}
 										animate={{ opacity: 1, scale: 1, y: 0 }}
 										exit={{ opacity: 0, scale: 0.95, y: -10 }}
-										className="flex w-full flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm overflow-hidden"
+										className="flex w-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 shadow-sm"
 									>
-										<div className="flex w-full items-center justify-between gap-2 min-w-0">
-											<div className="min-w-0 flex-1 truncate font-semibold text-sm" title={item.name}>
+										<div className="flex w-full min-w-0 items-center justify-between gap-2">
+											<div
+												className="min-w-0 flex-1 truncate font-semibold text-sm"
+												title={item.name}
+											>
 												{item.name}
 											</div>
 											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs">
-												â‚¹{Number.parseFloat(item.price).toFixed(2)} / unit
+												₹{Number.parseFloat(item.price).toFixed(2)} / unit
 											</div>
 										</div>
 
-										<div className="flex w-full items-center justify-between gap-2 min-w-0">
+										<div className="flex w-full min-w-0 items-center justify-between gap-2">
 											<div className="flex h-8 items-center rounded-md border">
 												<Button
 													variant="ghost"
@@ -474,7 +488,7 @@ export default function POSPage() {
 											</div>
 											<div className="flex items-center gap-3">
 												<span className="font-bold text-sm">
-													â‚¹
+													₹
 													{(Number.parseFloat(item.price) * item.qty).toFixed(
 														2,
 													)}
@@ -501,7 +515,7 @@ export default function POSPage() {
 					{/* Subtotal row */}
 					<div className="flex items-center justify-between text-muted-foreground text-sm">
 						<span>Subtotal</span>
-						<span>â‚¹{subtotal.toFixed(2)}</span>
+						<span>₹{subtotal.toFixed(2)}</span>
 					</div>
 
 					{/* Coupon row */}
@@ -533,11 +547,11 @@ export default function POSPage() {
 								</Button>
 							)}
 						</div>
-						<span className="text-green-600">âˆ’ â‚¹{discount.toFixed(2)}</span>
+						<span className="text-green-600">âˆ’ ₹{discount.toFixed(2)}</span>
 					</div>
 					<div className="flex items-center justify-between border-t pt-2 font-bold text-2xl">
 						<span>Total</span>
-						<span>â‚¹{total.toFixed(2)}</span>
+						<span>₹{total.toFixed(2)}</span>
 					</div>
 
 					<div className="grid grid-cols-2 gap-2 pt-4">
@@ -572,7 +586,9 @@ export default function POSPage() {
 					open={paymentModalOpen}
 					onOpenChange={setPaymentModalOpen}
 					totalAmount={total}
-					onConfirm={(payments: any[], customer: any) => finalizeOrder(payments, customer)}
+					onConfirm={(payments: any[], customer: any) =>
+						finalizeOrder(payments, customer)
+					}
 				/>
 			)}
 
@@ -637,8 +653,3 @@ export default function POSPage() {
 		</PageTransition>
 	);
 }
-
-
-
-
-

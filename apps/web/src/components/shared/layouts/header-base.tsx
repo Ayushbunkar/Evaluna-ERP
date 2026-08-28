@@ -108,4 +108,3 @@ export function HeaderBase({ title, onMenuClick }: HeaderBaseProps) {
 		</header>
 	);
 }
-

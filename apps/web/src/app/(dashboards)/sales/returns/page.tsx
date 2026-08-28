@@ -3,8 +3,3 @@
 export default function PurchaseReturnsPage() {
 	redirect("/sales/returns/list");
 }
-
-
-
-
-

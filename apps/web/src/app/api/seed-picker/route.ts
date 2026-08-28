@@ -1,9 +1,4 @@
-import {
-	orders,
-	pickListItems,
-	pickLists,
-	products,
-} from "@evaluna/db/schema";
+import { orders, pickListItems, pickLists, products } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";

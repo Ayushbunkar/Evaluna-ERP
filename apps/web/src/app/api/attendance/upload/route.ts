@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth-guard";
 import {
 	ATTENDANCE_ENTITY,
 	storeAttendanceImage,
 } from "@/lib/attendance-storage";
+import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 
 /**
@@ -38,7 +38,9 @@ export async function POST(req: Request) {
 		return NextResponse.json({ error: "No image provided" }, { status: 400 });
 
 	const entityType =
-		kind === "checkOut" ? ATTENDANCE_ENTITY.checkOut : ATTENDANCE_ENTITY.checkIn;
+		kind === "checkOut"
+			? ATTENDANCE_ENTITY.checkOut
+			: ATTENDANCE_ENTITY.checkIn;
 
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());

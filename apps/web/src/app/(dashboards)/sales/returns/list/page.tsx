@@ -209,8 +209,3 @@ export default function SalesReturnsList() {
 		</PageTransition>
 	);
 }
-
-
-
-
-

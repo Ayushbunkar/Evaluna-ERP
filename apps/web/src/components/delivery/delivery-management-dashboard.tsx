@@ -52,7 +52,8 @@ export function DeliveryManagementDashboard({
 		trpc.delivery.listRoutes.useQuery({});
 	const { data: trips = initialTrips || [], refetch: refetchTrips } =
 		trpc.delivery.listAllTrips.useQuery({});
-	const { data: vehiclesData, refetch: refetchVehicles } = trpc.vehicles.list.useQuery({});
+	const { data: vehiclesData, refetch: refetchVehicles } =
+		trpc.vehicles.list.useQuery({});
 	const vehicles = vehiclesData || initialVehicles || [];
 	const { data: customersResponse } = trpc.customers.list.useQuery() as any;
 	const customers = customersResponse || [];
@@ -75,7 +76,8 @@ export function DeliveryManagementDashboard({
 			refetchTrips();
 		},
 	});
-	const optimizeRouteSequence = trpc.delivery.optimizeRouteSequence.useMutation();
+	const optimizeRouteSequence =
+		trpc.delivery.optimizeRouteSequence.useMutation();
 
 	// Form States
 	const [vehicleName, setVehicleName] = useState("");
@@ -152,13 +154,17 @@ export function DeliveryManagementDashboard({
 
 	const handleOptimizeRoute = async () => {
 		if (routeCustomers.length <= 1) return;
-		const optimized = await optimizeRouteSequence.mutateAsync({ customerIds: routeCustomers });
+		const optimized = await optimizeRouteSequence.mutateAsync({
+			customerIds: routeCustomers,
+		});
 		setRouteCustomers(optimized);
 	};
 
 	const handleOptimizeQuickTrip = async () => {
 		if (quickTripCustomers.length <= 1) return;
-		const optimized = await optimizeRouteSequence.mutateAsync({ customerIds: quickTripCustomers });
+		const optimized = await optimizeRouteSequence.mutateAsync({
+			customerIds: quickTripCustomers,
+		});
 		setQuickTripCustomers(optimized);
 	};
 
@@ -225,13 +231,17 @@ export function DeliveryManagementDashboard({
 									<DialogHeader>
 										<DialogTitle>Quick Dispatch</DialogTitle>
 										<DialogDescription>
-											Assign a custom trip directly without creating a saved route.
+											Assign a custom trip directly without creating a saved
+											route.
 										</DialogDescription>
 									</DialogHeader>
 									<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
 										<div className="space-y-2">
 											<Label>Select Driver</Label>
-											<Select value={tripDriverId} onValueChange={setTripDriverId}>
+											<Select
+												value={tripDriverId}
+												onValueChange={setTripDriverId}
+											>
 												<SelectTrigger>
 													<SelectValue placeholder="Select Driver" />
 												</SelectTrigger>
@@ -246,7 +256,10 @@ export function DeliveryManagementDashboard({
 										</div>
 										<div className="space-y-2">
 											<Label>Select Vehicle</Label>
-											<Select value={tripVehicleId} onValueChange={setTripVehicleId}>
+											<Select
+												value={tripVehicleId}
+												onValueChange={setTripVehicleId}
+											>
 												<SelectTrigger>
 													<SelectValue placeholder="Select Vehicle" />
 												</SelectTrigger>
@@ -263,12 +276,12 @@ export function DeliveryManagementDashboard({
 											<div className="flex items-center justify-between">
 												<Label>Add Customers (Select to add to sequence)</Label>
 												{quickTripCustomers.length > 1 && (
-													<Button 
-														variant="outline" 
-														size="sm" 
+													<Button
+														variant="outline"
+														size="sm"
 														onClick={handleOptimizeQuickTrip}
 														disabled={optimizeRouteSequence.isPending}
-														className="h-7 text-xs font-semibold bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+														className="h-7 border-emerald-200 bg-emerald-50 font-semibold text-emerald-600 text-xs hover:bg-emerald-100"
 													>
 														âœ¨ Auto-Optimize Route
 													</Button>
@@ -276,7 +289,10 @@ export function DeliveryManagementDashboard({
 											</div>
 											<Select
 												onValueChange={(val) =>
-													setQuickTripCustomers([...quickTripCustomers, Number(val)])
+													setQuickTripCustomers([
+														...quickTripCustomers,
+														Number(val),
+													])
 												}
 											>
 												<SelectTrigger>
@@ -293,9 +309,14 @@ export function DeliveryManagementDashboard({
 											{quickTripCustomers.length > 0 && (
 												<div className="mt-2 space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
 													{quickTripCustomers.map((id, idx) => {
-														const cust = customers.find((c: any) => c.id === id);
+														const cust = customers.find(
+															(c: any) => c.id === id,
+														);
 														return (
-															<div key={idx} className="flex items-center gap-2">
+															<div
+																key={idx}
+																className="flex items-center gap-2"
+															>
 																<MapPinIcon className="h-4 w-4 text-primary" />{" "}
 																<strong>Stop {idx + 1}:</strong> {cust?.name}
 															</div>
@@ -308,7 +329,11 @@ export function DeliveryManagementDashboard({
 									<DialogFooter>
 										<Button
 											onClick={handleCreateQuickTrip}
-											disabled={createTripDirect.isPending || !tripDriverId || quickTripCustomers.length === 0}
+											disabled={
+												createTripDirect.isPending ||
+												!tripDriverId ||
+												quickTripCustomers.length === 0
+											}
 										>
 											Dispatch Trip
 										</Button>
@@ -348,12 +373,12 @@ export function DeliveryManagementDashboard({
 											<div className="flex items-center justify-between">
 												<Label>Add Customers (Select to add to sequence)</Label>
 												{routeCustomers.length > 1 && (
-													<Button 
-														variant="outline" 
-														size="sm" 
+													<Button
+														variant="outline"
+														size="sm"
 														onClick={handleOptimizeRoute}
 														disabled={optimizeRouteSequence.isPending}
-														className="h-7 text-xs font-semibold bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+														className="h-7 border-emerald-200 bg-emerald-50 font-semibold text-emerald-600 text-xs hover:bg-emerald-100"
 													>
 														âœ¨ Auto-Optimize Route
 													</Button>
@@ -535,7 +560,7 @@ export function DeliveryManagementDashboard({
 							<div className="flex items-center justify-between border-b pb-2">
 								<h3 className="font-bold text-xl">Assigned Trips</h3>
 							</div>
-							
+
 							{trips.length === 0 ? (
 								<p className="text-muted-foreground text-sm">
 									No trips assigned yet.
@@ -547,46 +572,68 @@ export function DeliveryManagementDashboard({
 											key={trip.id}
 											className="group relative overflow-hidden rounded-md border p-4 shadow-sm"
 										>
-											<div className={`absolute top-0 left-0 h-full w-1 ${
-												trip.status === "completed" ? "bg-emerald-500" :
-												trip.status === "active" ? "bg-amber-500" : 
-												trip.status === "cancelled" ? "bg-red-500" : "bg-primary"
-											}`} />
-											<div className="flex justify-between items-start">
-												<h4 className="font-semibold text-lg">{trip.route?.name || "Custom Trip"}</h4>
-												<span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${
-													trip.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-													trip.status === "active" ? "bg-amber-100 text-amber-700" : 
-													trip.status === "cancelled" ? "bg-red-100 text-red-700" : 
-													"bg-blue-100 text-blue-700"
-												}`}>
+											<div
+												className={`absolute top-0 left-0 h-full w-1 ${
+													trip.status === "completed"
+														? "bg-emerald-500"
+														: trip.status === "active"
+															? "bg-amber-500"
+															: trip.status === "cancelled"
+																? "bg-red-500"
+																: "bg-primary"
+												}`}
+											/>
+											<div className="flex items-start justify-between">
+												<h4 className="font-semibold text-lg">
+													{trip.route?.name || "Custom Trip"}
+												</h4>
+												<span
+													className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
+														trip.status === "completed"
+															? "bg-emerald-100 text-emerald-700"
+															: trip.status === "active"
+																? "bg-amber-100 text-amber-700"
+																: trip.status === "cancelled"
+																	? "bg-red-100 text-red-700"
+																	: "bg-blue-100 text-blue-700"
+													}`}
+												>
 													{trip.status}
 												</span>
 											</div>
-											<div className="mt-3 space-y-2 text-sm text-muted-foreground">
+											<div className="mt-3 space-y-2 text-muted-foreground text-sm">
 												<div className="flex items-center gap-2">
-													<div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-														<PackageIcon className="w-3 h-3" />
+													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+														<PackageIcon className="h-3 w-3" />
 													</div>
-													Driver: <span className="font-medium text-foreground">{trip.driver?.name}</span>
+													Driver:{" "}
+													<span className="font-medium text-foreground">
+														{trip.driver?.name}
+													</span>
 												</div>
 												<div className="flex items-center gap-2">
-													<div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-														<TruckIcon className="w-3 h-3" />
+													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+														<TruckIcon className="h-3 w-3" />
 													</div>
-													Vehicle: <span className="font-medium text-foreground">{trip.vehicle?.name || "N/A"}</span>
+													Vehicle:{" "}
+													<span className="font-medium text-foreground">
+														{trip.vehicle?.name || "N/A"}
+													</span>
 												</div>
 												<div className="flex items-center gap-2">
-													<div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-														<RouteIcon className="w-3 h-3" />
+													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+														<RouteIcon className="h-3 w-3" />
 													</div>
-													Stops: <span className="font-medium text-foreground">{trip.stops?.length || 0}</span>
+													Stops:{" "}
+													<span className="font-medium text-foreground">
+														{trip.stops?.length || 0}
+													</span>
 												</div>
 											</div>
 											{trip.status === "pending" && (
-												<Button 
-													variant="destructive" 
-													size="sm" 
+												<Button
+													variant="destructive"
+													size="sm"
 													className="mt-4 w-full"
 													onClick={() => cancelTrip.mutate({ tripId: trip.id })}
 													disabled={cancelTrip.isPending}
@@ -751,4 +798,3 @@ export function DeliveryManagementDashboard({
 		</Tabs>
 	);
 }
-

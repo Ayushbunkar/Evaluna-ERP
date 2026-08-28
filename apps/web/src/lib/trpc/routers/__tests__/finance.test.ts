@@ -11,10 +11,30 @@ const { employeeExpensesRouter } = await import("../employee-expenses");
 const { createCallerFactory } = await import("../../init");
 
 // Actors
-const manager = makeFinanceUser({ id: "mgr", email: "mgr@test.com", role: "manager", branchId: 1 });
-const auditor = makeFinanceUser({ id: "aud", email: "aud@test.com", role: "auditor", branchId: 1 });
-const employee = makeFinanceUser({ id: "emp", email: "emp@test.com", role: "staff", branchId: 1 });
-const otherBranchMgr = makeFinanceUser({ id: "mgr2", email: "mgr2@test.com", role: "manager", branchId: 2 });
+const manager = makeFinanceUser({
+	id: "mgr",
+	email: "mgr@test.com",
+	role: "manager",
+	branchId: 1,
+});
+const auditor = makeFinanceUser({
+	id: "aud",
+	email: "aud@test.com",
+	role: "auditor",
+	branchId: 1,
+});
+const employee = makeFinanceUser({
+	id: "emp",
+	email: "emp@test.com",
+	role: "staff",
+	branchId: 1,
+});
+const otherBranchMgr = makeFinanceUser({
+	id: "mgr2",
+	email: "mgr2@test.com",
+	role: "manager",
+	branchId: 2,
+});
 
 const payAs = (u) => createCallerFactory(paymentsRouter)({ user: u });
 const bankAs = (u) => createCallerFactory(bankAccountsRouter)({ user: u });
@@ -30,7 +50,7 @@ const HDFC_OPENING = 500000;
 
 async function balance(id) {
 	const res = await pg.query(
-		`SELECT current_balance FROM bank_accounts WHERE id = $1`,
+		"SELECT current_balance FROM bank_accounts WHERE id = $1",
 		[id],
 	);
 	return Number(res.rows[0]?.current_balance);
@@ -39,7 +59,9 @@ async function balance(id) {
 beforeAll(async () => {
 	await pg.exec(FINANCE_SCHEMA_DDL);
 	// Branches
-	await pg.exec(`INSERT INTO branches (id, name) VALUES (1, 'Main'), (2, 'Other');`);
+	await pg.exec(
+		`INSERT INTO branches (id, name) VALUES (1, 'Main'), (2, 'Other');`,
+	);
 	// Staff (emails must match actor emails for requireStaff / audit resolution)
 	await pg.exec(`
 		INSERT INTO staff (id, name, email, role, join_date, salary, branch_id) VALUES
@@ -48,7 +70,9 @@ beforeAll(async () => {
 		(3, 'Other Mgr', 'mgr2@test.com', 'manager', NOW(), 50000, 2);
 	`);
 	// Category
-	await pg.exec(`INSERT INTO payment_categories (id, branch_id, name, kind, is_active, is_system) VALUES (1, 1, 'Fuel', 'expense', true, false);`);
+	await pg.exec(
+		`INSERT INTO payment_categories (id, branch_id, name, kind, is_active, is_system) VALUES (1, 1, 'Fuel', 'expense', true, false);`,
+	);
 	fuelCatId = 1;
 	// Accounts (branch 1: cash + hdfc; branch 2: one account for isolation)
 	await pg.exec(`
@@ -86,7 +110,9 @@ describe("payments.create — Section 51 real chain", () => {
 		);
 		const rows = txns.rows;
 		expect(rows.length).toBeGreaterThanOrEqual(1);
-		expect(rows.some((t) => t.type === "out" && Number(t.amount) === 1500)).toBe(true);
+		expect(
+			rows.some((t) => t.type === "out" && Number(t.amount) === 1500),
+		).toBe(true);
 
 		// Visible through the list API with its category joined.
 		const list = await payAs(manager).list({ limit: 50, offset: 0 });
@@ -125,7 +151,11 @@ describe("payments.create — Section 51 real chain", () => {
 	it("rejects a payment with neither category nor custom name — nothing posted", async () => {
 		const before = await balance(cashId);
 		await expect(
-			payAs(manager).create({ payment_type: "expense", amount: 100, bank_account_id: cashId }),
+			payAs(manager).create({
+				payment_type: "expense",
+				amount: 100,
+				bank_account_id: cashId,
+			}),
 		).rejects.toThrow();
 		expect(await balance(cashId)).toBe(before);
 	});
@@ -180,7 +210,11 @@ describe("bankAccounts.transfer — atomic both-sided move", () => {
 
 	it("rejects a transfer to the same account", async () => {
 		await expect(
-			bankAs(manager).transfer({ from_account_id: cashId, to_account_id: cashId, amount: 10 }),
+			bankAs(manager).transfer({
+				from_account_id: cashId,
+				to_account_id: cashId,
+				amount: 10,
+			}),
 		).rejects.toThrow();
 	});
 
@@ -213,13 +247,19 @@ describe("employeeExpenses — reimbursement workflow", () => {
 		expect(queue.items.some((e) => e.id === submitted.id)).toBe(true);
 
 		// Approve.
-		const approved = await expAs(manager).review({ id: submitted.id, decision: "approve" });
+		const approved = await expAs(manager).review({
+			id: submitted.id,
+			decision: "approve",
+		});
 		expect(approved.status).toBe("approved");
 		expect(approved.reviewed_by).toBe(1);
 
 		// Pay from HDFC.
 		const hdfcBefore = await balance(hdfcId);
-		const result = await expAs(manager).pay({ id: submitted.id, bank_account_id: hdfcId });
+		const result = await expAs(manager).pay({
+			id: submitted.id,
+			bank_account_id: hdfcId,
+		});
 		expect(result.expense.status).toBe("paid");
 		expect(result.expense.payment_id).toBe(result.payment.id);
 		expect(await balance(hdfcId)).toBe(hdfcBefore - 1200);
@@ -234,7 +274,10 @@ describe("employeeExpenses — reimbursement workflow", () => {
 	});
 
 	it("cannot review an already-reviewed expense", async () => {
-		const submitted = await expAs(employee).submit({ amount: 400, category_id: fuelCatId });
+		const submitted = await expAs(employee).submit({
+			amount: 400,
+			category_id: fuelCatId,
+		});
 		await expAs(manager).review({ id: submitted.id, decision: "reject" });
 		await expect(
 			expAs(manager).review({ id: submitted.id, decision: "approve" }),
@@ -242,7 +285,9 @@ describe("employeeExpenses — reimbursement workflow", () => {
 	});
 
 	it("forbids the reviewer list to a non-finance role", async () => {
-		await expect(expAs(employee).list({ limit: 10, offset: 0 })).rejects.toThrow();
+		await expect(
+			expAs(employee).list({ limit: 10, offset: 0 }),
+		).rejects.toThrow();
 	});
 });
 
@@ -255,7 +300,9 @@ describe("branch isolation", () => {
 	});
 
 	it("a manager in another branch sees none of branch 1's accounts", async () => {
-		const theirs = await bankAs(otherBranchMgr).list({ include_inactive: true });
+		const theirs = await bankAs(otherBranchMgr).list({
+			include_inactive: true,
+		});
 		expect(theirs.every((a) => a.id === otherBranchAcctId)).toBe(true);
 	});
 });

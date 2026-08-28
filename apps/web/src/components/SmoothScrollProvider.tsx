@@ -8,4 +8,3 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
 	// Returning children directly restores native scrolling and fixes the scrollbar issue.
 	return <>{children}</>;
 }
-

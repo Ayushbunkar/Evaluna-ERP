@@ -30,4 +30,3 @@ export function RoleGate({
 
 	return hasRole ? children : fallback;
 }
-

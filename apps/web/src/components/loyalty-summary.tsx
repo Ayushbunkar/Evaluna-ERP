@@ -122,19 +122,20 @@ export function LoyaltySummary({ customerId }: LoyaltySummaryProps) {
 				</div>
 				<div className="rounded-lg bg-white/70 p-3 text-center">
 					<div className="font-bold text-2xl">
-						₹{Number.parseFloat(
+						₹
+						{Number.parseFloat(
 							(customer.total_spent as string) ?? "0",
 						).toLocaleString("en-IN")}
 					</div>
 					<div className="mt-0.5 text-muted-foreground text-xs">
 						Total Spent
 					</div>
-{nextTier && (
-					<div className="mt-1 font-medium text-blue-600 text-xs">
-						₹{(nextThreshold! - totalSpent).toLocaleString("en-IN")} to{" "}
-						{nextTier}
-					</div>
-				)}
+					{nextTier && (
+						<div className="mt-1 font-medium text-blue-600 text-xs">
+							₹{(nextThreshold! - totalSpent).toLocaleString("en-IN")} to{" "}
+							{nextTier}
+						</div>
+					)}
 				</div>
 			</div>
 
@@ -186,4 +187,3 @@ export function LoyaltySummary({ customerId }: LoyaltySummaryProps) {
 		</motion.div>
 	);
 }
-

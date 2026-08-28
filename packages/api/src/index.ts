@@ -17,9 +17,12 @@ export type TRPCContext = {
 	realtimeService?: any;
 };
 
-const t = initTRPC.context<TRPCContext>().meta<Record<string, unknown>>().create({
-	transformer: superjson,
-});
+const t = initTRPC
+	.context<TRPCContext>()
+	.meta<Record<string, unknown>>()
+	.create({
+		transformer: superjson,
+	});
 
 export const router = t.router;
 export const createCallerFactory = t.createCallerFactory;

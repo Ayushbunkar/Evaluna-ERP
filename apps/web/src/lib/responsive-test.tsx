@@ -251,4 +251,3 @@ export function ResponsiveTest() {
 		</div>
 	);
 }
-

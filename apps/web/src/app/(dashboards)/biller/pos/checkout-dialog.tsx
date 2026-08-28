@@ -244,8 +244,3 @@ export function CheckoutDialog({
 		</Dialog>
 	);
 }
-
-
-
-
-

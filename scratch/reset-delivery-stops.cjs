@@ -1,8 +1,8 @@
-const path = require('node:path');
-const dotenv = require('dotenv');
-const { Client } = require('pg');
+const path = require("node:path");
+const dotenv = require("dotenv");
+const { Client } = require("pg");
 
-dotenv.config({ path: path.resolve(process.cwd(), 'packages/db/.env2') });
+dotenv.config({ path: path.resolve(process.cwd(), "packages/db/.env2") });
 
 const sql = `
   DROP TABLE IF EXISTS "delivery_stops";
@@ -21,25 +21,25 @@ const sql = `
 `;
 
 (async () => {
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  });
+	const client = new Client({
+		connectionString: process.env.DATABASE_URL,
+		ssl: { rejectUnauthorized: false },
+	});
 
-  await client.connect();
-  await client.query(sql);
-  console.log('Reset delivery_stops to canonical schema.');
+	await client.connect();
+	await client.query(sql);
+	console.log("Reset delivery_stops to canonical schema.");
 
-  const result = await client.query(`
+	const result = await client.query(`
     SELECT column_name, data_type
     FROM information_schema.columns
     WHERE table_name = 'delivery_stops'
     ORDER BY ordinal_position;
   `);
 
-  console.log(JSON.stringify(result.rows, null, 2));
-  await client.end();
+	console.log(JSON.stringify(result.rows, null, 2));
+	await client.end();
 })().catch((error) => {
-  console.error(error);
-  process.exit(1);
+	console.error(error);
+	process.exit(1);
 });

@@ -16,8 +16,14 @@ const { customerRouter } = await import("../customer");
 const { ordersRouter } = await import("../orders");
 const { createCallerFactory } = await import("../../init");
 const schema = await import("@/lib/db/schema");
-const { customers, products, orders, orderItems, transactions, branchInventory } =
-	schema;
+const {
+	customers,
+	products,
+	orders,
+	orderItems,
+	transactions,
+	branchInventory,
+} = schema;
 
 // Customer callers resolve their `customers` row by ctx.user.email, so the user
 // email must match a seeded customer. makeUser(id) → email `${id}@test.com`.
@@ -239,10 +245,7 @@ describe("tenant isolation (IDOR — rule 4)", () => {
 		expect(aList.length).toBeGreaterThan(0);
 		// Every listed order id belongs to A (verified against the DB).
 		for (const o of aList) {
-			const [row] = await db
-				.select()
-				.from(orders)
-				.where(eq(orders.id, o.id));
+			const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
 			expect(row.customer_id).toBe(custAId);
 		}
 	});
@@ -299,7 +302,10 @@ describe("full flow: submit → inbox → price → confirm → invoice", () => 
 
 	it("confirm finalizes: locks, deducts stock, writes ONE income transaction", async () => {
 		const before = (
-			await db.select().from(branchInventory).where(eq(branchInventory.product_id, prod1))
+			await db
+				.select()
+				.from(branchInventory)
+				.where(eq(branchInventory.product_id, prod1))
 		)[0].in_stock;
 
 		const confirmed = await salesCaller.confirmOrder({ id: orderId });
@@ -313,7 +319,10 @@ describe("full flow: submit → inbox → price → confirm → invoice", () => 
 
 		// Stock deducted by ordered qty (2 of prod1).
 		const after = (
-			await db.select().from(branchInventory).where(eq(branchInventory.product_id, prod1))
+			await db
+				.select()
+				.from(branchInventory)
+				.where(eq(branchInventory.product_id, prod1))
 		)[0].in_stock;
 		expect(before - after).toBe(2);
 

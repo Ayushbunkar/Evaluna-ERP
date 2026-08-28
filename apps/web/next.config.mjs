@@ -53,9 +53,10 @@ const nextConfig = {
 	},
 	compiler: {
 		// Remove console.log in production for better performance
-		removeConsole: process.env.NODE_ENV === "production"
-			? { exclude: ["error", "warn"] }
-			: false,
+		removeConsole:
+			process.env.NODE_ENV === "production"
+				? { exclude: ["error", "warn"] }
+				: false,
 	},
 	typescript: {
 		ignoreBuildErrors: true,

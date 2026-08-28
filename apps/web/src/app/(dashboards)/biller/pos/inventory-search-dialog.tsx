@@ -174,7 +174,8 @@ export function InventorySearchDialog({
 										<div className="flex-1">
 											<div className="font-medium">{item.name}</div>
 											<div className="text-muted-foreground text-sm">
-												{formatCurrency(item.price, "en")} â€¢ Stock: {item.stock}
+												{formatCurrency(item.price, "en")} â€¢ Stock:{" "}
+												{item.stock}
 												{item.barcode && (
 													<span className="ml-2">
 														â€¢ Barcode: {item.barcode}
@@ -266,8 +267,3 @@ export function InventorySearchDialog({
 		</Dialog>
 	);
 }
-
-
-
-
-

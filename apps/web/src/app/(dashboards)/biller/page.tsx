@@ -98,7 +98,7 @@ export default function BillerDashboard() {
 			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 				<KpiCard
 					title="Total Sales"
-					value={`â‚¹${metrics.totalSales.toFixed(2)}`}
+					value={`₹${metrics.totalSales.toFixed(2)}`}
 					icon={<IndianRupee className="h-4 w-4 text-muted-foreground" />}
 					description="+12.5% from yesterday"
 				/>
@@ -110,7 +110,7 @@ export default function BillerDashboard() {
 				/>
 				<KpiCard
 					title="Avg Bill Value"
-					value={`â‚¹${metrics.avgBillValue.toFixed(2)}`}
+					value={`₹${metrics.avgBillValue.toFixed(2)}`}
 					icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
 					description="Steady"
 				/>
@@ -156,8 +156,3 @@ export default function BillerDashboard() {
 		</div>
 	);
 }
-
-
-
-
-

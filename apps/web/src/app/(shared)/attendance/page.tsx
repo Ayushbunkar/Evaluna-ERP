@@ -48,7 +48,10 @@ function deviceFingerprint(): { fingerprint: string; userAgent: string } {
 		h = (h << 5) - h + parts.charCodeAt(i);
 		h |= 0;
 	}
-	return { fingerprint: `fp_${Math.abs(h).toString(36)}`, userAgent: navigator.userAgent };
+	return {
+		fingerprint: `fp_${Math.abs(h).toString(36)}`,
+		userAgent: navigator.userAgent,
+	};
 }
 
 /** Capture one raw GPS reading. Rejects if permission denied / unavailable. */
@@ -80,19 +83,37 @@ function captureGps(): Promise<Gps> {
 }
 
 const STATE_LABEL: Record<string, { text: string; cls: string }> = {
-	NOT_STARTED: { text: "Not checked in", cls: "border-gray-200 bg-gray-50 text-gray-700" },
-	CHECKED_IN: { text: "On duty", cls: "border-green-200 bg-green-50 text-green-700" },
-	ON_BREAK: { text: "On break", cls: "border-amber-200 bg-amber-50 text-amber-700" },
-	ON_LUNCH: { text: "On lunch", cls: "border-amber-200 bg-amber-50 text-amber-700" },
-	COMPLETED: { text: "Shift complete", cls: "border-blue-200 bg-blue-50 text-blue-700" },
+	NOT_STARTED: {
+		text: "Not checked in",
+		cls: "border-gray-200 bg-gray-50 text-gray-700",
+	},
+	CHECKED_IN: {
+		text: "On duty",
+		cls: "border-green-200 bg-green-50 text-green-700",
+	},
+	ON_BREAK: {
+		text: "On break",
+		cls: "border-amber-200 bg-amber-50 text-amber-700",
+	},
+	ON_LUNCH: {
+		text: "On lunch",
+		cls: "border-amber-200 bg-amber-50 text-amber-700",
+	},
+	COMPLETED: {
+		text: "Shift complete",
+		cls: "border-blue-200 bg-blue-50 text-blue-700",
+	},
 };
 
 export default function MyAttendancePage() {
 	const { activeBranchId } = useBranch();
 	const utils = trpc.useUtils();
-	const { data: today, isLoading } = trpc.attendance.getToday.useQuery(undefined, {
-		refetchInterval: 60000,
-	});
+	const { data: today, isLoading } = trpc.attendance.getToday.useQuery(
+		undefined,
+		{
+			refetchInterval: 60000,
+		},
+	);
 
 	const videoRef = useRef<HTMLVideoElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -119,7 +140,11 @@ export default function MyAttendancePage() {
 	const startCamera = useCallback(async () => {
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+				video: {
+					facingMode: "user",
+					width: { ideal: 640 },
+					height: { ideal: 480 },
+				},
 				audio: false,
 			});
 			streamRef.current = stream;
@@ -129,7 +154,9 @@ export default function MyAttendancePage() {
 			}
 			setCameraOn(true);
 		} catch {
-			toast.error("Camera access denied. A live photo is required to check in/out.");
+			toast.error(
+				"Camera access denied. A live photo is required to check in/out.",
+			);
 		}
 	}, []);
 
@@ -152,7 +179,10 @@ export default function MyAttendancePage() {
 			const fd = new FormData();
 			fd.append("file", blob, `${kind}-${Date.now()}.jpg`);
 			fd.append("kind", kind);
-			const resp = await fetch("/api/attendance/upload", { method: "POST", body: fd });
+			const resp = await fetch("/api/attendance/upload", {
+				method: "POST",
+				body: fd,
+			});
 			if (!resp.ok) {
 				const msg = await resp.text().catch(() => "");
 				throw new Error(msg || "Photo upload failed.");
@@ -179,7 +209,9 @@ export default function MyAttendancePage() {
 		onSuccess: (r) => {
 			stopCamera();
 			utils.attendance.getToday.invalidate();
-			toast.success(`Checked out â€” ${r.workingHours}h worked (${r.breakMinutes}m breaks).`);
+			toast.success(
+				`Checked out â€” ${r.workingHours}h worked (${r.breakMinutes}m breaks).`,
+			);
 		},
 		onError: (e) => toast.error(e.message),
 	});
@@ -252,8 +284,8 @@ export default function MyAttendancePage() {
 			<div>
 				<h2 className="font-bold text-3xl tracking-tight">My Attendance</h2>
 				<p className="mt-1 text-muted-foreground">
-					Check in from the warehouse. Your location and a live photo are verified
-					by the server â€” presence cannot be faked from the app.
+					Check in from the warehouse. Your location and a live photo are
+					verified by the server â€” presence cannot be faked from the app.
 				</p>
 			</div>
 
@@ -268,15 +300,17 @@ export default function MyAttendancePage() {
 					{row?.checkIn && !row?.checkOut && (
 						<div className="text-right">
 							<p className="text-muted-foreground text-sm">Elapsed</p>
-							<p className="font-mono font-semibold text-2xl tabular-nums">{elapsed}</p>
+							<p className="font-mono font-semibold text-2xl tabular-nums">
+								{elapsed}
+							</p>
 						</div>
 					)}
 				</div>
 
 				{isLoading ? null : today && !today.employeeLinked ? (
 					<p className="mt-4 rounded-md bg-amber-50 p-3 text-amber-800 text-sm">
-						Your account isn't linked to an employee profile yet. Contact HR before
-						you can record attendance.
+						Your account isn't linked to an employee profile yet. Contact HR
+						before you can record attendance.
 					</p>
 				) : (
 					<>
@@ -300,7 +334,11 @@ export default function MyAttendancePage() {
 
 						<div className="mt-4 flex flex-wrap gap-3">
 							{!cameraOn ? (
-								<Button variant="secondary" onClick={startCamera} className="gap-2">
+								<Button
+									variant="secondary"
+									onClick={startCamera}
+									className="gap-2"
+								>
 									<CameraIcon className="h-4 w-4" /> Start camera
 								</Button>
 							) : (
@@ -361,14 +399,16 @@ export default function MyAttendancePage() {
 
 							{state === "COMPLETED" && (
 								<p className="flex items-center gap-2 text-muted-foreground text-sm">
-									<MapPinIcon className="h-4 w-4" /> You've completed today's shift.
+									<MapPinIcon className="h-4 w-4" /> You've completed today's
+									shift.
 								</p>
 							)}
 						</div>
 
 						{cameraOn && state !== "COMPLETED" && (
 							<p className="mt-3 text-muted-foreground text-xs">
-								Keep your face in frame â€” a live photo is captured at check-in/out.
+								Keep your face in frame â€” a live photo is captured at
+								check-in/out.
 							</p>
 						)}
 					</>
@@ -377,4 +417,3 @@ export default function MyAttendancePage() {
 		</motion.div>
 	);
 }
-

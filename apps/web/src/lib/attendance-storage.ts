@@ -61,7 +61,10 @@ export async function storeAttendanceImage(
 	if (!ext) {
 		throw new Error("Unsupported image type. Allowed: JPG, PNG, WEBP.");
 	}
-	if (params.buffer.length <= 0 || params.buffer.length > ATTENDANCE_MAX_BYTES) {
+	if (
+		params.buffer.length <= 0 ||
+		params.buffer.length > ATTENDANCE_MAX_BYTES
+	) {
 		throw new Error("Image must be between 1 byte and 8 MB.");
 	}
 

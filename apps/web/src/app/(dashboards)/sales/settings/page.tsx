@@ -229,8 +229,3 @@ export default function SalespersonSettingsPage() {
 		</PageTransition>
 	);
 }
-
-
-
-
-

@@ -164,4 +164,3 @@ export function AuditorIssuesChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
-

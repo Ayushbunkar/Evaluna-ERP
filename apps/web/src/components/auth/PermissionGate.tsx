@@ -37,4 +37,3 @@ export function PermissionGate({
 
 	return hasPerm ? children : fallback;
 }
-

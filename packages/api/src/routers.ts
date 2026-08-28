@@ -1,2 +1,2 @@
-export { barcodesRouter } from './barcodes';
-export { categoriesRouter } from './categories';
+export { barcodesRouter } from "./barcodes";
+export { categoriesRouter } from "./categories";

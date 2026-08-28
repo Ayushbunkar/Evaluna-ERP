@@ -8,26 +8,26 @@
  * @returns true if valid, false otherwise
  */
 export function validateUPCCheckDigit(upc: string | number): boolean {
-  const upcStr = String(upc).padStart(12, '0');
+	const upcStr = String(upc).padStart(12, "0");
 
-  // Must be exactly 12 digits
-  if (!/^\d{12}$/.test(upcStr)) {
-    return false;
-  }
+	// Must be exactly 12 digits
+	if (!/^\d{12}$/.test(upcStr)) {
+		return false;
+	}
 
-  // Calculate check digit
-  let sum = 0;
-  for (let i = 0; i < 11; i++) {
-    const digit = parseInt(upcStr.charAt(i), 10);
-    // Multiply odd-positioned digits (1,3,5,...) by 3, even-positioned by 1
-    // Note: positions are 1-indexed from left
-    sum += digit * ((i % 2 === 0) ? 3 : 1);
-  }
+	// Calculate check digit
+	let sum = 0;
+	for (let i = 0; i < 11; i++) {
+		const digit = Number.parseInt(upcStr.charAt(i), 10);
+		// Multiply odd-positioned digits (1,3,5,...) by 3, even-positioned by 1
+		// Note: positions are 1-indexed from left
+		sum += digit * (i % 2 === 0 ? 3 : 1);
+	}
 
-  const checkDigit = (10 - (sum % 10)) % 10;
-  const actualCheckDigit = parseInt(upcStr.charAt(11), 10);
+	const checkDigit = (10 - (sum % 10)) % 10;
+	const actualCheckDigit = Number.parseInt(upcStr.charAt(11), 10);
 
-  return checkDigit === actualCheckDigit;
+	return checkDigit === actualCheckDigit;
 }
 
 /**
@@ -36,27 +36,27 @@ export function validateUPCCheckDigit(upc: string | number): boolean {
  * @returns true if valid, false otherwise
  */
 export function validateEANCheckDigit(ean: string | number): boolean {
-  const eanStr = String(ean).padStart(13, '0');
+	const eanStr = String(ean).padStart(13, "0");
 
-  // Must be exactly 13 digits
-  if (!/^\d{13}$/.test(eanStr)) {
-    return false;
-  }
+	// Must be exactly 13 digits
+	if (!/^\d{13}$/.test(eanStr)) {
+		return false;
+	}
 
-  // Calculate check digit
-  let sum = 0;
-  for (let i = 0; i < 12; i++) {
-    const digit = parseInt(eanStr.charAt(i), 10);
-    // Multiply odd-positioned digits (from right, 1-indexed) by 3, even by 1
-    // For EAN-13, we start from the right for the alternating multiplication
-    const posFromRight = 12 - i;
-    sum += digit * ((posFromRight % 2 === 1) ? 3 : 1);
-  }
+	// Calculate check digit
+	let sum = 0;
+	for (let i = 0; i < 12; i++) {
+		const digit = Number.parseInt(eanStr.charAt(i), 10);
+		// Multiply odd-positioned digits (from right, 1-indexed) by 3, even by 1
+		// For EAN-13, we start from the right for the alternating multiplication
+		const posFromRight = 12 - i;
+		sum += digit * (posFromRight % 2 === 1 ? 3 : 1);
+	}
 
-  const checkDigit = (10 - (sum % 10)) % 10;
-  const actualCheckDigit = parseInt(eanStr.charAt(12), 10);
+	const checkDigit = (10 - (sum % 10)) % 10;
+	const actualCheckDigit = Number.parseInt(eanStr.charAt(12), 10);
 
-  return checkDigit === actualCheckDigit;
+	return checkDigit === actualCheckDigit;
 }
 
 /**
@@ -65,15 +65,16 @@ export function validateEANCheckDigit(ean: string | number): boolean {
  * @returns true if valid, false otherwise
  */
 export function validateGTINCheckDigit(code: string | number): boolean {
-  const codeStr = String(code);
+	const codeStr = String(code);
 
-  if (/^\d{12}$/.test(codeStr)) {
-    return validateUPCCheckDigit(codeStr);
-  } else if (/^\d{13}$/.test(codeStr)) {
-    return validateEANCheckDigit(codeStr);
-  }
+	if (/^\d{12}$/.test(codeStr)) {
+		return validateUPCCheckDigit(codeStr);
+	}
+	if (/^\d{13}$/.test(codeStr)) {
+		return validateEANCheckDigit(codeStr);
+	}
 
-  return false;
+	return false;
 }
 
 /**
@@ -82,19 +83,19 @@ export function validateGTINCheckDigit(code: string | number): boolean {
  * @returns 12th digit (check digit)
  */
 export function generateUPCCheckDigit(upc: string | number): number {
-  const upcStr = String(upc).padStart(11, '0');
+	const upcStr = String(upc).padStart(11, "0");
 
-  if (!/^\d{11}$/.test(upcStr)) {
-    throw new Error('UPC must be exactly 11 digits for check digit generation');
-  }
+	if (!/^\d{11}$/.test(upcStr)) {
+		throw new Error("UPC must be exactly 11 digits for check digit generation");
+	}
 
-  let sum = 0;
-  for (let i = 0; i < 11; i++) {
-    const digit = parseInt(upcStr.charAt(i), 10);
-    sum += digit * ((i % 2 === 0) ? 3 : 1);
-  }
+	let sum = 0;
+	for (let i = 0; i < 11; i++) {
+		const digit = Number.parseInt(upcStr.charAt(i), 10);
+		sum += digit * (i % 2 === 0 ? 3 : 1);
+	}
 
-  return (10 - (sum % 10)) % 10;
+	return (10 - (sum % 10)) % 10;
 }
 
 /**
@@ -103,20 +104,20 @@ export function generateUPCCheckDigit(upc: string | number): number {
  * @returns 13th digit (check digit)
  */
 export function generateEANCheckDigit(ean: string | number): number {
-  const eanStr = String(ean).padStart(12, '0');
+	const eanStr = String(ean).padStart(12, "0");
 
-  if (!/^\d{12}$/.test(eanStr)) {
-    throw new Error('EAN must be exactly 12 digits for check digit generation');
-  }
+	if (!/^\d{12}$/.test(eanStr)) {
+		throw new Error("EAN must be exactly 12 digits for check digit generation");
+	}
 
-  let sum = 0;
-  for (let i = 0; i < 12; i++) {
-    const digit = parseInt(eanStr.charAt(i), 10);
-    const posFromRight = 11 - i;
-    sum += digit * ((posFromRight % 2 === 1) ? 3 : 1);
-  }
+	let sum = 0;
+	for (let i = 0; i < 12; i++) {
+		const digit = Number.parseInt(eanStr.charAt(i), 10);
+		const posFromRight = 11 - i;
+		sum += digit * (posFromRight % 2 === 1 ? 3 : 1);
+	}
 
-  return (10 - (sum % 10)) % 10;
+	return (10 - (sum % 10)) % 10;
 }
 
 /**
@@ -125,52 +126,57 @@ export function generateEANCheckDigit(ean: string | number): number {
  * @param type - Barcode type: 'UPC', 'EAN', or 'INTERNAL'
  * @returns Formatted barcode with valid check digit
  */
-export function formatBarcode(barcode: string, type: 'UPC' | 'EAN' | 'INTERNAL'): string {
-  // Remove any non-digit characters
-  const cleanBarcode = barcode.replace(/\D/g, '');
+export function formatBarcode(
+	barcode: string,
+	type: "UPC" | "EAN" | "INTERNAL",
+): string {
+	// Remove any non-digit characters
+	const cleanBarcode = barcode.replace(/\D/g, "");
 
-  if (type === 'UPC') {
-    // UPC-A should be 12 digits
-    if (cleanBarcode.length === 11) {
-      // Generate check digit
-      const checkDigit = generateUPCCheckDigit(cleanBarcode);
-      return cleanBarcode + checkDigit;
-    } else if (cleanBarcode.length === 12) {
-      // Validate existing check digit
-      if (validateUPCCheckDigit(cleanBarcode)) {
-        return cleanBarcode;
-      }
-      // If invalid, recalculate
-      const base = cleanBarcode.slice(0, 11);
-      const checkDigit = generateUPCCheckDigit(base);
-      return base + checkDigit;
-    }
-    // Default: pad or truncate to 11 and generate check digit
-    const base = cleanBarcode.slice(0, 11).padStart(11, '0');
-    const checkDigit = generateUPCCheckDigit(base);
-    return base + checkDigit;
-  } else if (type === 'EAN') {
-    // EAN-13 should be 13 digits
-    if (cleanBarcode.length === 12) {
-      // Generate check digit
-      const checkDigit = generateEANCheckDigit(cleanBarcode);
-      return cleanBarcode + checkDigit;
-    } else if (cleanBarcode.length === 13) {
-      // Validate existing check digit
-      if (validateEANCheckDigit(cleanBarcode)) {
-        return cleanBarcode;
-      }
-      // If invalid, recalculate
-      const base = cleanBarcode.slice(0, 12);
-      const checkDigit = generateEANCheckDigit(base);
-      return base + checkDigit;
-    }
-    // Default: pad or truncate to 12 and generate check digit
-    const base = cleanBarcode.slice(0, 12).padStart(12, '0');
-    const checkDigit = generateEANCheckDigit(base);
-    return base + checkDigit;
-  } else {
-    // INTERNAL: no validation, just return as-is or pad to reasonable length
-    return cleanBarcode || '000000';
-  }
+	if (type === "UPC") {
+		// UPC-A should be 12 digits
+		if (cleanBarcode.length === 11) {
+			// Generate check digit
+			const checkDigit = generateUPCCheckDigit(cleanBarcode);
+			return cleanBarcode + checkDigit;
+		}
+		if (cleanBarcode.length === 12) {
+			// Validate existing check digit
+			if (validateUPCCheckDigit(cleanBarcode)) {
+				return cleanBarcode;
+			}
+			// If invalid, recalculate
+			const base = cleanBarcode.slice(0, 11);
+			const checkDigit = generateUPCCheckDigit(base);
+			return base + checkDigit;
+		}
+		// Default: pad or truncate to 11 and generate check digit
+		const base = cleanBarcode.slice(0, 11).padStart(11, "0");
+		const checkDigit = generateUPCCheckDigit(base);
+		return base + checkDigit;
+	}
+	if (type === "EAN") {
+		// EAN-13 should be 13 digits
+		if (cleanBarcode.length === 12) {
+			// Generate check digit
+			const checkDigit = generateEANCheckDigit(cleanBarcode);
+			return cleanBarcode + checkDigit;
+		}
+		if (cleanBarcode.length === 13) {
+			// Validate existing check digit
+			if (validateEANCheckDigit(cleanBarcode)) {
+				return cleanBarcode;
+			}
+			// If invalid, recalculate
+			const base = cleanBarcode.slice(0, 12);
+			const checkDigit = generateEANCheckDigit(base);
+			return base + checkDigit;
+		}
+		// Default: pad or truncate to 12 and generate check digit
+		const base = cleanBarcode.slice(0, 12).padStart(12, "0");
+		const checkDigit = generateEANCheckDigit(base);
+		return base + checkDigit;
+	}
+	// INTERNAL: no validation, just return as-is or pad to reasonable length
+	return cleanBarcode || "000000";
 }

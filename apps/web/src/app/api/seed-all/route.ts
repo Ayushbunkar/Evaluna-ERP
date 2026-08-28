@@ -13,7 +13,11 @@ import {
 	staff,
 	suppliers,
 } from "@evaluna/db/schema";
-import { deliveryTrips, tripStops, tripCollections } from "@evaluna/db/schema/delivery";
+import {
+	deliveryTrips,
+	tripCollections,
+	tripStops,
+} from "@evaluna/db/schema/delivery";
 
 import { NextResponse } from "next/server";
 import { db } from "../../../lib/db";

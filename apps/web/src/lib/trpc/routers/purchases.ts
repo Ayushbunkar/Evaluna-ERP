@@ -55,7 +55,9 @@ export const purchasesRouter = router({
 				);
 
 				// Batch fetch all products at once, then insert ledger entries in one query
-				const productIds = items.map((item) => Number.parseInt(item.productId, 10));
+				const productIds = items.map((item) =>
+					Number.parseInt(item.productId, 10),
+				);
 				const foundProducts = await db.query.products.findMany({
 					where: inArray(products.id, productIds),
 				});

@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { buildDDL, createTestDb, makeUser } from "./helpers";
 import * as schema from "@/lib/db/schema";
 import { getPermissionsForRole } from "@/lib/permissions";
+import { buildDDL, createTestDb, makeUser } from "./helpers";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
@@ -47,9 +47,11 @@ const putter = withPerms("put", "putter");
 const biller = withPerms("bil", "biller");
 
 const upcAs = (u: any) => createCallerFactory(upcRouter)({ user: u, db });
-const findAs = (u: any) => createCallerFactory(auditFindingsRouter)({ user: u, db });
+const findAs = (u: any) =>
+	createCallerFactory(auditFindingsRouter)({ user: u, db });
 const prodAs = (u: any) => createCallerFactory(productsRouter)({ user: u, db });
-const priceAs = (u: any) => createCallerFactory(priceAuditRouter)({ user: u, db });
+const priceAs = (u: any) =>
+	createCallerFactory(priceAuditRouter)({ user: u, db });
 
 beforeAll(async () => {
 	await pg.exec(buildDDL(AUDITOR_TABLES, false));
@@ -80,7 +82,9 @@ describe("RBAC — auditor domain gating", () => {
 	});
 
 	it("FORBIDS putter from generating a UPC", async () => {
-		expect(upcAs(putter).generate({ productId: 1 })).rejects.toThrow(/permission/i);
+		expect(upcAs(putter).generate({ productId: 1 })).rejects.toThrow(
+			/permission/i,
+		);
 	});
 
 	it("FORBIDS biller from reading UPC tasks", async () => {
@@ -88,7 +92,9 @@ describe("RBAC — auditor domain gating", () => {
 	});
 
 	it("FORBIDS auditor from editing a product price (no products.write)", async () => {
-		expect(prodAs(auditor).update({ id: 1, price: 999 })).rejects.toThrow(/permission/i);
+		expect(prodAs(auditor).update({ id: 1, price: 999 })).rejects.toThrow(
+			/permission/i,
+		);
 	});
 });
 
@@ -106,13 +112,21 @@ describe("UPC generate + duplicate prevention", () => {
 		const first = await upcAs(auditor).generate({ productId: 2 });
 		// Re-using product 2's UPC on product 3 must conflict.
 		expect(
-			upcAs(auditor).generate({ productId: 3, upc: first.upc, source: "external" }),
+			upcAs(auditor).generate({
+				productId: 3,
+				upc: first.upc,
+				source: "external",
+			}),
 		).rejects.toThrow(/already assigned/i);
 	});
 
 	it("rejects an invalid check-digit UPC", async () => {
 		expect(
-			upcAs(auditor).generate({ productId: 3, upc: "000000000001", source: "external" }),
+			upcAs(auditor).generate({
+				productId: 3,
+				upc: "000000000001",
+				source: "external",
+			}),
 		).rejects.toThrow(/Invalid UPC/i);
 	});
 });
@@ -138,7 +152,9 @@ describe("UPC task state machine + idempotency", () => {
 	});
 
 	it("rejects an illegal jump (verify while not VERIFICATION_REQUIRED)", async () => {
-		expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(/Cannot transition/i);
+		expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(
+			/Cannot transition/i,
+		);
 	});
 
 	it("runs the legal path start → complete → verify (by a different auditor)", async () => {
@@ -146,8 +162,14 @@ describe("UPC task state machine + idempotency", () => {
 		// A fresh, unique valid UPC for product 3.
 		const gen = await upcAs(auditor).generate({ productId: 3 });
 		// Free that barcode row so completeTask can re-submit the same value for the task.
-		await pg.query(`DELETE FROM product_barcodes WHERE barcode = $1`, [gen.upc]);
-		await upcAs(putter).completeTask({ taskId, upcValue: gen.upc, upcSource: "internal" });
+		await pg.query("DELETE FROM product_barcodes WHERE barcode = $1", [
+			gen.upc,
+		]);
+		await upcAs(putter).completeTask({
+			taskId,
+			upcValue: gen.upc,
+			upcSource: "internal",
+		});
 		const verified = await upcAs(auditor).verifyTask({ taskId });
 		expect(verified.status).toBe("VERIFIED");
 	});
@@ -162,9 +184,13 @@ describe("Separation of duties", () => {
 		});
 		await upcAs(auditor).startTask({ taskId });
 		const gen = await upcAs(auditor).generate({ productId: 1 });
-		await pg.query(`DELETE FROM product_barcodes WHERE barcode = $1`, [gen.upc]);
+		await pg.query("DELETE FROM product_barcodes WHERE barcode = $1", [
+			gen.upc,
+		]);
 		await upcAs(auditor).completeTask({ taskId, upcValue: gen.upc });
-		expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(/cannot verify/i);
+		expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(
+			/cannot verify/i,
+		);
 	});
 
 	it("blocks resolving a finding you raised yourself", async () => {
@@ -173,7 +199,9 @@ describe("Separation of duties", () => {
 			severity: "HIGH",
 			title: "Test finding",
 		});
-		expect(findAs(auditor).resolve({ findingId })).rejects.toThrow(/cannot resolve/i);
+		expect(findAs(auditor).resolve({ findingId })).rejects.toThrow(
+			/cannot resolve/i,
+		);
 	});
 
 	it("allows a different auditor to resolve the finding", async () => {
@@ -189,9 +217,13 @@ describe("Separation of duties", () => {
 
 describe("Price-change immutability", () => {
 	it("manager price change appends price_change_history + audit_logs", async () => {
-		await prodAs(manager).update({ id: 2, price: 55, priceChangeReason: "market" });
+		await prodAs(manager).update({
+			id: 2,
+			price: 55,
+			priceChangeReason: "market",
+		});
 		const hist = await pg.query(
-			`SELECT * FROM price_change_history WHERE product_id = 2`,
+			"SELECT * FROM price_change_history WHERE product_id = 2",
 		);
 		expect(hist.rows.length).toBe(1);
 		expect(String(hist.rows[0].new_price)).toBe("55.00");
@@ -202,7 +234,11 @@ describe("Price-change immutability", () => {
 	});
 
 	it("auditor review of a price change creates a finding, never edits the price", async () => {
-		const [row] = (await pg.query(`SELECT id FROM price_change_history WHERE product_id = 2 LIMIT 1`)).rows;
+		const [row] = (
+			await pg.query(
+				"SELECT id FROM price_change_history WHERE product_id = 2 LIMIT 1",
+			)
+		).rows;
 		const res = await priceAs(auditor).reviewChange({
 			priceChangeId: row.id,
 			severity: "MEDIUM",
@@ -210,7 +246,7 @@ describe("Price-change immutability", () => {
 		});
 		expect(res.findingId).toBeGreaterThan(0);
 		// Price row untouched by the review.
-		const p = await pg.query(`SELECT price FROM products WHERE id = 2`);
+		const p = await pg.query("SELECT price FROM products WHERE id = 2");
 		expect(String(p.rows[0].price)).toBe("55.00");
 	});
 });

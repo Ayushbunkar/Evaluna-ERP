@@ -164,4 +164,3 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 		</header>
 	);
 }
-

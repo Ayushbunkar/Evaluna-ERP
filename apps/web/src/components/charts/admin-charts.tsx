@@ -149,4 +149,3 @@ export function AdminCashFlowChart({ data }: { data: any[] }) {
 		</ChartContainer>
 	);
 }
-
