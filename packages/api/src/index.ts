@@ -33,12 +33,16 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 	return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-export const roleProcedure = t.procedure.use(async ({ ctx, next }) => {
-	if (!ctx.user) {
-		throw new TRPCError({ code: "UNAUTHORIZED" });
-	}
-	return next({ ctx: { ...ctx, user: ctx.user } });
-});
+export const roleProcedure = (role: string) =>
+	t.procedure.use(async ({ ctx, next }) => {
+		if (!ctx.user) {
+			throw new TRPCError({ code: "UNAUTHORIZED" });
+		}
+		if (ctx.user.role !== role) {
+			throw new TRPCError({ code: "FORBIDDEN" });
+		}
+		return next({ ctx });
+	});
 
 export const customerProcedure = t.procedure.use(async ({ ctx, next }) => {
 	if (!ctx.user) {
