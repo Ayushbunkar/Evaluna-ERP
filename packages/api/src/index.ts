@@ -33,16 +33,19 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 	return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-export const roleProcedure = (role: string) =>
-	t.procedure.use(async ({ ctx, next }) => {
+export const roleProcedure = (allowedRoles: string[]) => {
+	return t.procedure.use(async ({ ctx, next }) => {
 		if (!ctx.user) {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
-		if (ctx.user.role !== role) {
+
+		if (!allowedRoles.includes(ctx.user.role)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
-		return next({ ctx });
+
+		return next({ ctx: { ...ctx, user: ctx.user } });
 	});
+};
 
 export const customerProcedure = t.procedure.use(async ({ ctx, next }) => {
 	if (!ctx.user) {
@@ -51,12 +54,19 @@ export const customerProcedure = t.procedure.use(async ({ ctx, next }) => {
 	return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-export const permissionProcedure = t.procedure.use(async ({ ctx, next }) => {
-	if (!ctx.user) {
-		throw new TRPCError({ code: "UNAUTHORIZED" });
-	}
-	return next({ ctx: { ...ctx, user: ctx.user } });
-});
+export const permissionProcedure = (permission: string) => {
+	return t.procedure.use(async ({ ctx, next }) => {
+		if (!ctx.user) {
+			throw new TRPCError({ code: "UNAUTHORIZED" });
+		}
+
+		if (!ctx.user.permissions?.includes(permission)) {
+			throw new TRPCError({ code: "FORBIDDEN" });
+		}
+
+		return next({ ctx: { ...ctx, user: ctx.user } });
+	});
+};
 
 export const superadminProcedure = t.procedure.use(async ({ ctx, next }) => {
 	if (!ctx.user || !ctx.user.isSuperadmin) {
