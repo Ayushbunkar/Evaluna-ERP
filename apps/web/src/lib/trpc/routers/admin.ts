@@ -446,4 +446,121 @@ export const adminRouter = router({
         bankBalance: Number(bankBalance[0]?.total || 0),
       };
     }),
+	  getCompanies: roleProcedure(["admin", "super_admin"])
+	    .query(async ({ ctx }) => {
+	      const db = ctx.db;
+	      const companies = await db
+	        .select({
+	          id: companies.id,
+	          name: companies.name,
+	          registration_number: companies.registration_number,
+	          address: companies.address,
+	          city: companies.city,
+	          country: companies.country,
+	          phone: companies.phone,
+	          email: companies.email,
+	          status: companies.status,
+	          created_at: companies.created_at,
+	          updated_at: companies.updated_at,
+	        })
+	        .from(companies)
+	        .orderBy(desc(companies.created_at));
+
+	      return companies.map((c) => ({
+	        id: c.id,
+	        name: c.name,
+	        registrationNumber: c.registration_number || "N/A",
+	        address: c.address || "N/A",
+	        city: c.city || "N/A",
+	        country: c.country || "N/A",
+	        phone: c.phone || "N/A",
+	        email: c.email || "N/A",
+	        status: c.status,
+	        createdAt: c.created_at ? new Date(c.created_at).toLocaleString() : "",
+	        updatedAt: c.updated_at ? new Date(c.updated_at).toLocaleString() : "",
+	      }));
+	    }),
+	  getActivityLog: roleProcedure(["admin", "super_admin"])
+	    .query(async ({ ctx }) => {
+	      const db = ctx.db;
+	      // We'll combine activities from various sources: staff, suppliers, customers, companies, etc.
+	      const [
+	        staffActivities,
+	        supplierActivities,
+	        customerActivities,
+	        companyActivities,
+	      ] = await Promise.all([
+	        // Staff activities (joins, updates)
+	        db
+	          .select({
+	            id: sql<string>`'staff-' || ${staff.id}`,
+	            type: sql<string>`'staff'`,
+	            description: sql<string>`${staff.name} ${staff.status === 'active' ? 'joined' : 'updated status'}`,
+	            timestamp: staff.updated_at,
+	            userId: staff.id,
+	          })
+	          .from(staff)
+	          .orderBy(desc(staff.updated_at))
+	          .limit(20),
+
+	        // Supplier activities
+	        db
+	          .select({
+	            id: sql<string>`'supplier-' || ${suppliers.id}`,
+	            type: sql<string>`'supplier'`,
+	            description: sql<string>`${suppliers.name} ${suppliers.status === 'active' ? 'added' : 'updated'}`,
+	            timestamp: suppliers.updated_at,
+	            userId: suppliers.id,
+	          })
+	          .from(suppliers)
+	          .orderBy(desc(suppliers.updated_at))
+	          .limit(20),
+
+	        // Customer activities
+	        db
+	          .select({
+	            id: sql<string>`'customer-' || ${customers.id}`,
+	            type: sql<string>`'customer'`,
+	            description: sql<string>`${customers.name} ${customers.status === 'active' ? 'registered' : 'updated'}`,
+	            timestamp: customers.updated_at,
+	            userId: customers.id,
+	          })
+	          .from(customers)
+	          .orderBy(desc(customers.updated_at))
+	          .limit(20),
+
+	        // Company activities
+	        db
+	          .select({
+	            id: sql<string>`'company-' || ${companies.id}`,
+	            type: sql<string>`'company'`,
+	            description: sql<string>`${companies.name} ${companies.status === 'active' ? 'added' : 'updated'}`,
+	            timestamp: companies.updated_at,
+	            userId: companies.id,
+	          })
+	          .from(companies)
+	          .orderBy(desc(companies.updated_at))
+	          .limit(20),
+	      ]);
+
+	      // Combine and sort by timestamp descending
+	      const allActivities = [
+	        ...staffActivities,
+	        ...supplierActivities,
+	        ...customerActivities,
+	        ...companyActivities,
+	      ]
+	        .filter((a) => a.timestamp) // Filter out null timestamps
+	        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+	        .slice(0, 50); // Limit to 50 most recent
+
+	      return allActivities.map((activity) => ({
+	        id: activity.id,
+	        type: activity.type,
+	        description: activity.description,
+	        timestamp: activity.timestamp
+	          ? new Date(activity.timestamp).toLocaleString()
+	          : "",
+	      }));
+	    }),
 });
