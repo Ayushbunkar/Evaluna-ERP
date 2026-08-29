@@ -10,11 +10,11 @@ import {
   TableRow,
 } from "@evaluna/ui/components/table";
 import {
-  ActivityIcon,
-  BanknoteIcon,
-  CalendarCheckIcon,
-  ChartLineIcon,
-  UsersIcon,
+	ActivityIcon,
+	BanknoteIcon,
+	CalendarCheckIcon,
+	ChartLineIcon,
+	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";

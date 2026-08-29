@@ -17,7 +17,7 @@ import {
 	transactions,
 	user,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq, gte, lte, or, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 

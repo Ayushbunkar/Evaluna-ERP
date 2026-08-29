@@ -25,3 +25,27 @@ Role: Driver
 ID (Email): marketing@evaluna.com
 Role: Marketing
 You can use these credentials to log in and fully test each of the Role-based Views and access controls we just built!
+
+
+
+All 15 dashboard credentials are now configured with the universal password Password@123:
+Original 8 Dashboards:
+1. Super Admin Dashboard: admin@evaluna.com
+2. Sales Manager Dashboard: sales@evaluna.com
+3. Auditor Dashboard: auditor@evaluna.com
+4. HR Dashboard: hr@evaluna.com
+5. Warehouse Picker Dashboard: picker@evaluna.com
+6. Warehouse Putter Dashboard: putter@evaluna.com
+7. Driver / Delivery Dashboard: driver@evaluna.com
+8. Marketing Dashboard: marketing@evaluna.com
+Newly Added Test Accounts:
+ 9. Executive Dashboard: executive@evaluna.dev
+10. Finance & Accounting Dashboard: finance@evaluna.dev
+11. Procurement & Suppliers Dashboard: procurement@evaluna.dev
+12. Products & Master Data Dashboard: products@evaluna.dev
+13. Inventory Control Dashboard: inventory@evaluna.dev
+14. Warehouse Operations Dashboard: warehouse@evaluna.dev
+15. Packing & Dispatch Dashboard: dispatch@evaluna.dev
+All accounts use the password: Password@123
+16 customer@evaluna.dev
+EvalunaCustomer@2026!
