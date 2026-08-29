@@ -2,11 +2,11 @@
 
 import { Button } from "@evaluna/ui/components/button";
 import {
-	Header,
 	Table,
 	TableBody,
 	TableCell,
 	TableHead,
+	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
 import { ActivityIcon, MapPinIcon, UsersIcon } from "lucide-react";
@@ -18,7 +18,7 @@ import { useTRPC } from "@/lib/trpc/client";
 export default function AdminBranchesPage() {
 	const trpc = useTRPC();
 	const locale = useLocale();
-	const { data: branches, isLoading, error } = trpc.branches.useQuery();
+	const { data: branches, isLoading, error } = trpc.branches.list.useQuery();
 
 	if (isLoading)
 		return (
