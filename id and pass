@@ -49,3 +49,22 @@ Newly Added Test Accounts:
 All accounts use the password: Password@123
 16 customer@evaluna.dev
 EvalunaCustomer@2026!
+
+
+Original 8 Dashboards:
+1. Super Admin: admin@evaluna.com
+2. Sales Manager: sales@evaluna.com
+3. Auditor: auditor@evaluna.com
+4. HR: hr@evaluna.com
+5. Warehouse Picker: picker@evaluna.com
+6. Warehouse Putter: putter@evaluna.com
+7. Driver/Delivery: driver@evaluna.com
+8. Marketing: marketing@evaluna.com
+Newly Implemented Test Accounts:
+9. Executive: executive@evaluna.dev
+10. Finance & Accounting: finance@evaluna.dev
+11. Procurement & Suppliers: procurement@evaluna.dev
+12. Products & Master Data: products@evaluna.dev
+13. Inventory Control: inventory@evaluna.dev
+14. Warehouse Operations: warehouse@evaluna.dev
+15. Packing & Dispatch: dispatch@evaluna.dev

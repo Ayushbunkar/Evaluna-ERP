@@ -25,7 +25,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTRPC } from "@/lib/trpc/client";
-import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/hooks/use-session";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function DashboardHeader() {
@@ -39,9 +39,9 @@ export function DashboardHeader() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
-  // Queries
-  const { data: session } = authClient.useSession();
-  const user = session?.user;
+// Queries
+    const sessionData = useSession();
+    const user = sessionData.session?.user;
 
   const { data: branches } = trpc.branches.list.useQuery(undefined);
   const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery({});
