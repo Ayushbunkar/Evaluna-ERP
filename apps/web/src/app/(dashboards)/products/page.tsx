@@ -195,7 +195,7 @@ export default function ProductsDashboard() {
                 <p className="font-bold text-xl">28</p>
                 <p className="text-muted-foreground text-xs">
                   {formatCurrency(67500, locale)} value
-                </p
+                </p>
               </div>
               <div className="border-border/50 p-4">
                 <p className="font-medium text-xs">Sports & Outdoors</p>

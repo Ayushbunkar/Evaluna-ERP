@@ -293,7 +293,7 @@ export default function WarehouseOperationsDashboard() {
                   <p className="text-muted-foreground text-xs">
                     Order #ORD-2026-0934
                   </p>
-                </div
+                </div>
               </div>
               <div className="flex items-start gap-3 border-border/50 border-b pb-3">
                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
