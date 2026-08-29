@@ -328,17 +328,12 @@ export const customerRouter = router({
 						eq(products.is_deleted, false),
 						eq(products.is_hidden, false),
 					),
-					columns: {
-						id: true,
-					},
+					columns: { id: true }
 				});
-
 				const validIds = new Set(valid.map((p) => p.id));
-
 				const cleanItems = input.items.filter(
 					(i) => validIds.has(i.productId) && i.quantity > 0,
 				);
-
 				if (cleanItems.length === 0) {
 					throw new TRPCError({
 						code: "BAD_REQUEST",
