@@ -44,8 +44,9 @@ export function DashboardHeader() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
-  const { data: branches } = trpc.branches.list.useQuery();
-  const { data: unreadCount = 0 } = trpc.notifications.unreadCount.useQuery();
+  const { data: branches } = trpc.branches.list.useQuery(undefined);
+  const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery({});
+  const unreadCount = unreadCountData?.count || 0;
   const { data: attendanceStatus } = trpc.attendance.myStatus.useQuery();
 
   // Handlers
@@ -78,16 +79,16 @@ export function DashboardHeader() {
   // Compute breadcrumb path
   const breadcrumbText = pathname === "/admin" 
     ? "/ Dashboard" 
-    : `/ ${pathname.split("/").filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" / ")}`;
+    : `/ ${(pathname || "").split("/").filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" / ")}`;
 
   // Determine Attendance State Label
   let attendanceLabel = "Clocked Out";
   let attendanceColor = "text-muted-foreground";
-  if (attendanceStatus) {
-    if (attendanceStatus.status === "present") {
+  if (attendanceStatus?.activeShift) {
+    if (attendanceStatus.activeShift.shift_status === "active") {
       attendanceLabel = "Clocked In";
       attendanceColor = "text-green-600";
-    } else if (attendanceStatus.status === "on_break") {
+    } else if (attendanceStatus.activeShift.shift_status === "on_break") {
       attendanceLabel = "On Break";
       attendanceColor = "text-yellow-600";
     }
@@ -138,7 +139,7 @@ export function DashboardHeader() {
         {/* 4. Notification Button */}
         <Button variant="ghost" size="icon" className="relative h-8 w-8" title="Notifications" aria-label="Notifications">
           <Bell className="h-4 w-4 text-muted-foreground" />
-          {(unreadCount as number) > 0 && (
+          {unreadCount > 0 && (
             <span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-destructive"></span>
           )}
         </Button>
