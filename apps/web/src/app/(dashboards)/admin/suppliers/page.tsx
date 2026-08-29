@@ -89,14 +89,14 @@ export default function AdminSuppliersPage() {
 									<TableCell className="flex flex-row gap-2">
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`View supplier ${sup.id}`)}
 										>
 											<BanknoteIcon className="mr-1 h-3 w-3" /> View
 										</Button>
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`Edit supplier ${sup.id}`)}
 										>
 											<ActivityIcon className="mr-1 h-3 w-3" /> Edit

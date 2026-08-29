@@ -92,14 +92,14 @@ export default function AdminBranchesPage() {
 									<TableCell className="flex flex-row gap-2">
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`View branch ${branch.id}`)}
 										>
 											<UsersIcon className="mr-1 h-3 w-3" /> View
 										</Button>
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`Edit branch ${branch.id}`)}
 										>
 											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
@@ -107,7 +107,7 @@ export default function AdminBranchesPage() {
 										{branch.status === "active" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() => alert(`Deactivate branch ${branch.id}`)}
 											>
 												<ActivityIcon className="mr-1 h-3 w-3" /> Deactivate
@@ -116,7 +116,7 @@ export default function AdminBranchesPage() {
 										{branch.status === "inactive" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() => alert(`Activate branch ${branch.id}`)}
 											>
 												<ActivityIcon className="mr-1 h-3 w-3" /> Activate

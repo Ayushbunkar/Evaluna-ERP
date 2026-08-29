@@ -90,14 +90,14 @@ export default function AdminCustomersPage() {
 									<TableCell className="flex flex-row gap-2">
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`View customer ${cust.id}`)}
 										>
 											<UsersIcon className="mr-1 h-3 w-3" /> View
 										</Button>
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`Edit customer ${cust.id}`)}
 										>
 											<ActivityIcon className="mr-1 h-3 w-3" /> Edit

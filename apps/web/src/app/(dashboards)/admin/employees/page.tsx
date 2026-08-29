@@ -1,14 +1,12 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import {
-	Header,
+import {TableHeader,
 	Table,
 	TableBody,
 	TableCell,
 	TableHead,
-	TableRow,
-} from "@evaluna/ui/components/table";
+	TableRow,} from "@evaluna/ui/components/table";
 import { ActivityIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
@@ -92,14 +90,14 @@ export default function AdminEmployeesPage() {
 									<TableCell className="flex flex-row gap-2">
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`View employee ${emp.id}`)}
 										>
 											<UsersIcon className="mr-1 h-3 w-3" /> View
 										</Button>
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`Edit employee ${emp.id}`)}
 										>
 											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
@@ -107,7 +105,7 @@ export default function AdminEmployeesPage() {
 										{emp.status === "active" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() => alert(`Deactivate employee ${emp.id}`)}
 											>
 												<ActivityIcon className="mr-1 h-3 w-3" /> Deactivate
@@ -116,7 +114,7 @@ export default function AdminEmployeesPage() {
 										{emp.status === "inactive" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() => alert(`Activate employee ${emp.id}`)}
 											>
 												<ActivityIcon className="mr-1 h-3 w-3" /> Activate

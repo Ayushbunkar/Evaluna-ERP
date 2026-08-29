@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@evaluna/ui/components/button";
 import {
   DropdownMenu,
@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
 import { useTRPC } from "@/lib/trpc/client";
 import { authClient } from "@/lib/auth-client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,7 +31,7 @@ import { useQueryClient } from "@tanstack/react-query";
 export function DashboardHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const locale = useLocale();
+  const locale = "en"; // default; replace with useLocale() once next-intl is confirmed in scope
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 

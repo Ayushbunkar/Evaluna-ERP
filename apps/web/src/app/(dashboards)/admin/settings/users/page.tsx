@@ -153,14 +153,14 @@ export default function AdminSettingsUsersPage() {
 									<TableCell className="flex flex-row gap-2">
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`View user ${user.id}`)}
 										>
 											<UsersIcon className="mr-1 h-3 w-3" /> View
 										</Button>
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`Edit user ${user.id}`)}
 										>
 											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
@@ -168,7 +168,7 @@ export default function AdminSettingsUsersPage() {
 										{user.status === "active" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() => handleDeactivate(user.id)}
 											>
 												<ActivityIcon className="mr-1 h-3 w-3" /> Deactivate
@@ -177,7 +177,7 @@ export default function AdminSettingsUsersPage() {
 										{user.status === "inactive" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() => alert(`Activate user ${user.id}`)}
 											>
 												<ActivityIcon className="mr-1 h-3 w-3" /> Activate

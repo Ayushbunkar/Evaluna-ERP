@@ -1,14 +1,12 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import {
-	Header,
+import {TableHeader,
 	Table,
 	TableBody,
 	TableCell,
 	TableHead,
-	TableRow,
-} from "@evaluna/ui/components/table";
+	TableRow,} from "@evaluna/ui/components/table";
 import {
 	ActivityIcon,
 	Building2Icon,
@@ -107,14 +105,14 @@ export default function AdminCompaniesPage() {
 									<TableCell className="flex flex-row gap-2">
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`View company ${company.id}`)}
 										>
 											<Building2Icon className="mr-1 h-3 w-3" /> View
 										</Button>
 										<Button
 											variant="outline"
-											size="xs"
+											size="sm"
 											onClick={() => alert(`Edit company ${company.id}`)}
 										>
 											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
@@ -122,7 +120,7 @@ export default function AdminCompaniesPage() {
 										{company.status === "active" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() =>
 													alert(`Deactivate company ${company.id}`)
 												}
@@ -133,7 +131,7 @@ export default function AdminCompaniesPage() {
 										{company.status === "inactive" && (
 											<Button
 												variant="outline"
-												size="xs"
+												size="sm"
 												onClick={() => alert(`Activate company ${company.id}`)}
 											>
 												<ActivityIcon className="mr-1 h-3 w-3" /> Activate
