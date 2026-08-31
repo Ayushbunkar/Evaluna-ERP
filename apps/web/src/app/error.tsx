@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { AlertCircle } from "lucide-react";
@@ -33,10 +33,10 @@ export default function ErrorPage({
 						Try again
 					</Button>
 					<Button
-						onClick={() => (window.location.href = "/")}
+						onClick={() => (window.location.href = "/login")}
 						variant="outline"
 					>
-						Go home
+						Go to Login
 					</Button>
 				</div>
 			</div>
