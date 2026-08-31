@@ -24,8 +24,8 @@ interface NavbarProps {
 export function Navbar({ onMenuClick }: NavbarProps) {
 	const [isOffline, setIsOffline] = React.useState(false);
 	const { session } = useSession();
-	const handleLogout = async () => {
-		await (await import("@/lib/auth-client")).authClient.signOut();
+	const handleLogout = () => {
+		import("@/lib/auth-client").then((mod) => mod.authClient.signOut().catch(console.error));
 		window.location.href = "/login";
 	};
 

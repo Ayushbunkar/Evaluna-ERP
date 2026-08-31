@@ -23,8 +23,8 @@ export function HeaderBase({ title, onMenuClick }: HeaderBaseProps) {
 	const { session } = useSession();
 	const router = useRouter();
 
-	const handleLogout = async () => {
-		await authClient.signOut();
+	const handleLogout = () => {
+		authClient.signOut().catch(console.error);
 		window.location.href = "/login";
 	};
 
