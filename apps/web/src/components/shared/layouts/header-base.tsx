@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -25,7 +25,7 @@ export function HeaderBase({ title, onMenuClick }: HeaderBaseProps) {
 
 	const handleLogout = async () => {
 		await authClient.signOut();
-		router.push("/login");
+		window.location.href = "/login";
 	};
 
 	return (
@@ -97,7 +97,7 @@ export function HeaderBase({ title, onMenuClick }: HeaderBaseProps) {
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onClick={handleLogout}
+							onSelect={handleLogout}
 							className="text-destructive focus:text-destructive"
 						>
 							Log out

@@ -59,8 +59,7 @@ export function DashboardHeader() {
       // Clear all cached data so a back-button navigation cannot show stale
       // authenticated content, then hard-replace the history entry.
       queryClient.clear();
-      router.replace("/login");
-      router.refresh();
+      window.location.href = "/login";
     }
   };
 
@@ -228,7 +227,7 @@ export function DashboardHeader() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:bg-destructive focus:text-destructive-foreground">
+            <DropdownMenuItem onSelect={handleLogout} className="cursor-pointer text-destructive focus:bg-destructive focus:text-destructive-foreground">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>

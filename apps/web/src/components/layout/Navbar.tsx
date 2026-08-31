@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -24,6 +24,10 @@ interface NavbarProps {
 export function Navbar({ onMenuClick }: NavbarProps) {
 	const [isOffline, setIsOffline] = React.useState(false);
 	const { session } = useSession();
+	const handleLogout = async () => {
+		await (await import("@/lib/auth-client")).authClient.signOut();
+		window.location.href = "/login";
+	};
 
 	React.useEffect(() => {
 		const handleOnline = () => setIsOffline(false);
@@ -156,7 +160,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 								</DropdownMenuItem>
 							</Link>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem>Log out</DropdownMenuItem>
+							<DropdownMenuItem onSelect={handleLogout} className="cursor-pointer">Log out</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>

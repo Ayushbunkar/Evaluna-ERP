@@ -109,9 +109,30 @@ export default async function middleware(request: NextRequest) {
 	// The user is authenticated — send them home regardless of error/expired params.
 	if (isAuthPage) {
 		const url = request.nextUrl.clone();
-		let role = sessionData.user.role || "sales_person";
-		if (role === "superadmin") role = "admin";
-		url.pathname = role === "sales_person" ? "/sales" : `/${role}`;
+		const rawRole = sessionData.user.role || "sales_person";
+		// Map every known role to its dashboard path
+		const roleDashboardMap: Record<string, string> = {
+			super_admin: "/admin",
+			superadmin: "/admin",
+			admin: "/admin",
+			manager: "/manager",
+			auditor: "/auditor",
+			hr: "/hr",
+			marketing: "/marketing",
+			putter: "/putter",
+			picker: "/picker",
+			driver: "/driver",
+			biller: "/biller",
+			checker: "/checker",
+			packer: "/packer",
+			sales_person: "/sales",
+			delivery_manager: "/manager",
+			delivery_boy: "/driver",
+			customer: "/customer",
+			billing: "/sales",
+			warehouse: "/inventory",
+		};
+		url.pathname = roleDashboardMap[rawRole] ?? "/admin";
 		url.search = ""; // clear any leftover query params
 		return NextResponse.redirect(url);
 	}
@@ -139,12 +160,14 @@ export default async function middleware(request: NextRequest) {
 
 	if (isDashboardRoute || isSharedRoute) {
 		let userRole = (sessionData.user.role || "sales_person") as Role;
-		if ((userRole as string) === "superadmin") userRole = "admin" as Role;
+		if ((userRole as string) === "superadmin" || (userRole as string) === "super_admin") userRole = "admin" as Role;
 
 		const isSuperadmin =
 			sessionData.user.isSuperadmin === true ||
 			sessionData.user.is_superadmin === true ||
-			sessionData.user.role === "superadmin";
+			sessionData.user.role === "superadmin" ||
+			sessionData.user.role === "super_admin" ||
+			sessionData.user.role === "admin";
 
 		if (!isSuperadmin) {
 			// Find the most specific route match

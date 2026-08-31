@@ -2,14 +2,21 @@ import { db } from './packages/db/src/index.ts';
 import { sql } from 'drizzle-orm';
 
 async function run() {
-  try {
-      const res = await db.execute(sql`SELECT email, role FROM public.staff`);
-      console.log("Users before:", res.rows);
-      await db.execute(sql`UPDATE public.staff SET role = 'super_admin'`);
-      console.log("Staff role updated to super_admin!");
-  } catch (e) {
-      console.log(e);
-  }
+  // Update public.user: set both role and is_superadmin flag
+  const res = await db.execute(sql`
+    UPDATE public.user 
+    SET role = 'super_admin', is_superadmin = true 
+    WHERE email = 'admin@evaluna.com' OR email LIKE '%@evaluna.com%'
+  `);
+  console.log("Updated rows:", res.rowCount);
+  
+  // Also show current state of admin user
+  const check = await db.execute(sql`
+    SELECT email, role, is_superadmin FROM public.user 
+    WHERE email = 'admin@evaluna.com'
+  `);
+  console.log("Admin user:", check.rows);
+  
   process.exit(0);
 }
 run();
