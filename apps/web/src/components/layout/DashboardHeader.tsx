@@ -51,24 +51,29 @@ export function DashboardHeader() {
 
   // Handlers
   const handleLogout = async (e?: any) => {
-    if (e) e.preventDefault();
-    queryClient.clear();
     
+
     try {
+      // 1. Direct fetch to bypass any authClient issues
+      await fetch("/api/auth/sign-out", { method: "POST" }).catch(() => {});
+      
+      // 2. Also try authClient just in case
       await Promise.race([
         authClient.signOut(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
-      ]);
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1000))
+      ]).catch(() => {});
     } catch (err) {
-      console.error("Logout error/timeout:", err);
+      console.error("Logout error:", err);
     }
     
-    document.cookie = "evaluna.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "__Secure-evaluna.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "better-auth.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "__Secure-better-auth.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    // 3. Clear all possible cookies manually
+    const cookies = ["evaluna.session_token", "__Secure-evaluna.session_token", "better-auth.session_token", "__Secure-better-auth.session_token"];
+    for (const c of cookies) {
+      document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    }
     
-    window.location.assign("/login");
+    // 4. Hard redirect
+    window.location.href = "/login";
   };
 
   const handleSync = async () => {
