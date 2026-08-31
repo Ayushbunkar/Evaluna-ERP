@@ -252,7 +252,7 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{employees?.slice(0, 5).map((emp) => (
+								{(Array.isArray(employees) ? employees : [])?.slice(0, 5).map((emp) => (
 									<div
 										key={emp.id}
 										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{suppliers?.slice(0, 5).map((sup) => (
+								{(Array.isArray(suppliers) ? suppliers : [])?.slice(0, 5).map((sup) => (
 									<div
 										key={sup.id}
 										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
@@ -359,7 +359,7 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{customers?.slice(0, 5).map((cust) => (
+								{(Array.isArray(customers) ? customers : [])?.slice(0, 5).map((cust) => (
 									<div
 										key={cust.id}
 										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
