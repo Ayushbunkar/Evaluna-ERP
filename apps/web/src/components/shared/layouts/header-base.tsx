@@ -23,9 +23,22 @@ export function HeaderBase({ title, onMenuClick }: HeaderBaseProps) {
 	const { session } = useSession();
 	const router = useRouter();
 
-	const handleLogout = () => {
-		authClient.signOut().catch(console.error);
-		window.location.href = "/login";
+	const handleLogout = async (e?: any) => {
+		if (e) e.preventDefault();
+		try {
+			await Promise.race([
+				authClient.signOut(),
+				new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
+			]);
+		} catch (err) {
+			console.error("Logout error/timeout:", err);
+		}
+		
+		document.cookie = "evaluna.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+		document.cookie = "__Secure-evaluna.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+		document.cookie = "better-auth.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+		document.cookie = "__Secure-better-auth.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+		window.location.assign("/login");
 	};
 
 	return (

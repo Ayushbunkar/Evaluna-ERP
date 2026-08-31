@@ -50,15 +50,24 @@ export function DashboardHeader() {
   const { data: attendanceStatus } = trpc.attendance.myStatus.useQuery();
 
   // Handlers
-  const handleLogout = (e?: any) => {
+  const handleLogout = async (e?: any) => {
     if (e) e.preventDefault();
-    // Clear cache immediately
     queryClient.clear();
     
-    // Fire and forget the server-side signout
-    authClient.signOut().catch(console.error);
+    try {
+      await Promise.race([
+        authClient.signOut(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
+      ]);
+    } catch (err) {
+      console.error("Logout error/timeout:", err);
+    }
     
-    // Force redirect to login immediately using window.location.assign
+    document.cookie = "evaluna.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "__Secure-evaluna.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "better-auth.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "__Secure-better-auth.session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    
     window.location.assign("/login");
   };
 
