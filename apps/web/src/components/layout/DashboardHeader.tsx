@@ -50,15 +50,16 @@ export function DashboardHeader() {
   const { data: attendanceStatus } = trpc.attendance.myStatus.useQuery();
 
   // Handlers
-  const handleLogout = () => {
+  const handleLogout = (e?: any) => {
+    if (e) e.preventDefault();
     // Clear cache immediately
     queryClient.clear();
     
     // Fire and forget the server-side signout
     authClient.signOut().catch(console.error);
     
-    // Force redirect to login immediately to prevent being trapped
-    window.location.href = "/login";
+    // Force redirect to login immediately using window.location.assign
+    window.location.assign("/login");
   };
 
   const handleSync = async () => {
