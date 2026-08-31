@@ -1,6 +1,10 @@
 "use client";
 
-import { Button } from "@evaluna/ui/components/button";
+import { PageTransition } from "@/lib/animations";
+import { ROLES, ROLE_LEVEL, getPermissionsForRole } from "@/lib/permissions";
+import {
+	AdminPageHeader,
+} from "@/components/admin/list-shell";
 import {
 	Table,
 	TableBody,
@@ -9,162 +13,84 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { ActivityIcon, ShieldIcon, UsersIcon } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { PageTransition } from "@/lib/animations";
-import { useTRPC } from "@/lib/trpc/client";
+import { Badge } from "@evaluna/ui/components/badge";
+
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+	super_admin: "Unrestricted access to all modules and data.",
+	admin: "Full access to all admin modules and settings.",
+	manager: "Branch oversight, staff and financial management.",
+	hr: "Human resources, payroll and attendance.",
+	auditor: "Inventory auditing and compliance.",
+	marketing: "Marketing campaigns and promotions.",
+	finance: "Financial records and reporting.",
+	sales_person: "Sales operations and customer management.",
+	biller: "Point-of-sale and billing.",
+	picker: "Warehouse picking and fulfillment.",
+	putter: "Warehouse put-away and receiving.",
+	delivery_boy: "Last-mile delivery operations.",
+	route_manager: "Delivery route planning and management.",
+	driver: "Vehicle and delivery tracking.",
+	supplier: "Supplier self-service portal.",
+	customer: "Customer self-service portal.",
+	checker: "Quality control and inspection.",
+	packer: "Packaging and dispatch.",
+};
 
 export default function AdminSettingsRolesPage() {
-	const trpc = useTRPC();
-	const [roles, setRoles] = useState<any[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-
-	useEffect(() => {
-		fetchRoles();
-	}, []);
-
-	const fetchRoles = async () => {
-		try {
-			setIsLoading(true);
-			const { data } = await trpc.permissions.getMatrix.query({
-				role: "manager",
-			}); // Example, we need a proper endpoint
-			// Since we don't have a roles list endpoint, we'll simulate with default roles
-			const roleList = [
-				{ id: 1, name: "superadmin", description: "Full system access" },
-				{
-					id: 2,
-					name: "manager",
-					description: "Branch oversight and staff management",
-				},
-				{ id: 3, name: "hr", description: "Human resources and payroll" },
-				{
-					id: 4,
-					name: "finance",
-					description: "Financial management and reporting",
-				},
-				{
-					id: 5,
-					name: "inventory",
-					description: "Stock and warehouse management",
-				},
-				{ id: 6, name: "sales", description: "Sales and customer management" },
-				{ id: 7, name: "cashier", description: "Point of sale operations" },
-				{
-					id: 8,
-					name: "auditor",
-					description: "Inventory auditing and compliance",
-				},
-			];
-			setRoles(roleList);
-		} catch (err) {
-			setError("Failed to load roles");
-			console.error("Roles error:", err);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	if (isLoading) {
-		return (
-			<PageTransition className="container mx-auto py-8">
-				<div className="flex h-[200px] items-center justify-center">
-					Loading...
-				</div>
-			</PageTransition>
-		);
-	}
-
-	if (error) {
-		return (
-			<PageTransition className="container mx-auto py-8">
-				<div className="flex h-[200px] items-center justify-center">
-					{error}
-				</div>
-			</PageTransition>
-		);
-	}
+	// Roles ordered from most powerful to least
+	const sortedRoles = [...ROLES].sort(
+		(a, b) => ROLE_LEVEL[a] - ROLE_LEVEL[b],
+	);
 
 	return (
-		<PageTransition className="container mx-auto py-8">
-			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-				<div className="flex flex-col gap-1">
-					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Roles & Permissions
-					</h1>
-					<p className="text-muted-foreground text-xs sm:text-sm">
-						Define roles and manage system permissions
-					</p>
-				</div>
-				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> Permission Matrix
-					</Button>
-					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/admin/settings/roles/create">
-							<ShieldIcon className="mr-2 h-4 w-4" /> Create Role
-						</Link>
-					</Button>
-				</div>
-			</div>
+		<PageTransition className="flex min-w-0 flex-col gap-5">
+			<AdminPageHeader
+				title="Roles & Permissions"
+				description="System roles are pre-defined. Each role inherits all permissions of lower-privilege roles."
+			/>
 
-			{!roles || roles.length === 0 ? (
-				<div className="flex h-[200px] items-center justify-center text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
-					No roles found
-				</div>
-			) : (
-				<div className="overflow-x-auto">
-					<Table className="w-full">
-						<TableHeader>
-							<TableRow>
-								<TableHead className="text-left">Role Name</TableHead>
-								<TableHead className="text-left">Description</TableHead>
-								<TableHead className="text-left">Assigned Users</TableHead>
-								<TableHead className="text-left">Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{roles.map((role) => (
-								<TableRow key={role.id}>
-									<TableCell>{role.name}</TableCell>
-									<TableCell>{role.description || "No description"}</TableCell>
+			<div className="overflow-x-auto rounded-lg border border-border/50">
+				<Table className="w-full">
+					<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
+						<TableRow>
+							<TableHead>Role</TableHead>
+							<TableHead>Level</TableHead>
+							<TableHead>Description</TableHead>
+							<TableHead>Permission count</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{sortedRoles.map((role) => {
+							const perms = getPermissionsForRole(role);
+							return (
+								<TableRow key={role} className="hover:bg-muted/30">
 									<TableCell>
-										{/* In a real app, we would fetch the count of users with this role */}
-										<span className="text-xs">0 users</span>
+										<span className="font-mono text-sm font-medium capitalize">
+											{role.replace(/_/g, " ")}
+										</span>
 									</TableCell>
-									<TableCell className="flex flex-row gap-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`View role ${role.id}`)}
-										>
-											<ShieldIcon className="mr-1 h-3 w-3" /> View
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`Edit role ${role.id}`)}
-										>
-											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
-										</Button>
-										{role.name !== "superadmin" && (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => alert(`Delete role ${role.id}`)}
-											>
-												<ActivityIcon className="mr-1 h-3 w-3" /> Delete
-											</Button>
-										)}
+									<TableCell>
+										<Badge variant="outline" className="tabular-nums">
+											{ROLE_LEVEL[role]}
+										</Badge>
+									</TableCell>
+									<TableCell className="text-muted-foreground text-sm">
+										{ROLE_DESCRIPTIONS[role] ?? "—"}
+									</TableCell>
+									<TableCell className="tabular-nums text-sm">
+										{perms.length}
 									</TableCell>
 								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</div>
-			)}
+							);
+						})}
+					</TableBody>
+				</Table>
+			</div>
+
+			<p className="text-muted-foreground text-xs">
+				Roles are defined in <code className="font-mono">@/lib/permissions.ts</code>.
+				To change permissions, update the <code className="font-mono">PERMISSION_MATRIX</code> there.
+			</p>
 		</PageTransition>
 	);
 }

@@ -4,12 +4,19 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
-const _localeCurrencyMap: Record<string, string> = {
-	en: "INR",
+/**
+ * Evaluna is an India-first ERP: money is always INR and numbers use the Indian
+ * lakh/crore grouping. A bare language tag ("en", "hi") is therefore widened to
+ * its Indian variant so `formatCurrency` renders 12,50,000 rather than 1,250,000.
+ */
+const LOCALE_ALIASES: Record<string, string> = {
+	en: "en-IN",
+	hi: "hi-IN",
 };
 
 function resolveLocale(locale?: string) {
-	return locale ?? "en-IN";
+	if (!locale) return "en-IN";
+	return LOCALE_ALIASES[locale] ?? locale;
 }
 
 function resolveCurrency(_locale: string) {
