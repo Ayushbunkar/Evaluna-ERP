@@ -9,29 +9,20 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { ActivityIcon, MapPinIcon, UsersIcon } from "lucide-react";
+import { ActivityIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
+import { DataEmpty, DataError, TableLoading } from "@/components/admin/data-states";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AdminBranchesPage() {
 	const trpc = useTRPC();
-	const locale = useLocale();
-	const { data: branches, isLoading, error } = trpc.branches.list.useQuery();
-
-	if (isLoading)
-		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Loading...
-			</div>
-		);
-	if (error)
-		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Error loading branches
-			</div>
-		);
+	const {
+		data: branches,
+		isLoading,
+		error,
+		refetch,
+	} = trpc.branches.list.useQuery();
 
 	return (
 		<PageTransition className="container mx-auto py-8">
@@ -56,79 +47,70 @@ export default function AdminBranchesPage() {
 				</div>
 			</div>
 
-			{!branches || branches.length === 0 ? (
-				<div className="flex h-[200px] items-center justify-center text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
-					No branches found
-				</div>
-			) : (
-				<div className="overflow-x-auto">
-					<Table className="w-full">
-						<TableHeader>
-							<TableRow>
-								<TableHead className="text-left">ID</TableHead>
-								<TableHead className="text-left">Name</TableHead>
-								<TableHead className="text-left">Location</TableHead>
-								<TableHead className="text-left">Manager</TableHead>
-								<TableHead className="text-left">Employees</TableHead>
-								<TableHead className="text-left">Status</TableHead>
-								<TableHead className="text-left">Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{branches.map((branch) => (
-								<TableRow key={branch.id}>
-									<TableCell>{branch.id}</TableCell>
-									<TableCell>{branch.name}</TableCell>
-									<TableCell>{branch.location || "N/A"}</TableCell>
-									<TableCell>{branch.manager_name || "Not Assigned"}</TableCell>
-									<TableCell>{branch.employee_count || 0}</TableCell>
-									<TableCell>
-										<span
-											className={`rounded-full px-2 py-0.5 text-xs ${branch.status === "active" ? "bg-green-100 text-green-800" : branch.status === "inactive" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}`}
-										>
-											{branch.status}
-										</span>
-									</TableCell>
-									<TableCell className="flex flex-row gap-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`View branch ${branch.id}`)}
-										>
-											<UsersIcon className="mr-1 h-3 w-3" /> View
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`Edit branch ${branch.id}`)}
-										>
-											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
-										</Button>
-										{branch.status === "active" && (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => alert(`Deactivate branch ${branch.id}`)}
-											>
-												<ActivityIcon className="mr-1 h-3 w-3" /> Deactivate
-											</Button>
-										)}
-										{branch.status === "inactive" && (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => alert(`Activate branch ${branch.id}`)}
-											>
-												<ActivityIcon className="mr-1 h-3 w-3" /> Activate
-											</Button>
-										)}
-									</TableCell>
+			<div className="mt-6">
+				{isLoading ? (
+					<TableLoading columns={6} />
+				) : error ? (
+					<DataError
+						title="Error loading branches"
+						message={error.message}
+						onRetry={() => refetch()}
+					/>
+				) : !branches || branches.length === 0 ? (
+					<DataEmpty
+						title="No branches found"
+						message="Add your first branch to get started."
+					/>
+				) : (
+					<div className="overflow-x-auto">
+						<Table className="w-full">
+							<TableHeader>
+								<TableRow>
+									<TableHead className="text-left">Code</TableHead>
+									<TableHead className="text-left">Name</TableHead>
+									<TableHead className="text-left">Address</TableHead>
+									<TableHead className="text-left">Phone</TableHead>
+									<TableHead className="text-left">Type</TableHead>
+									<TableHead className="text-left">Actions</TableHead>
 								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</div>
-			)}
+							</TableHeader>
+							<TableBody>
+								{branches.map((branch) => (
+									<TableRow key={branch.id}>
+										<TableCell>{branch.code || `BR-${branch.id}`}</TableCell>
+										<TableCell>{branch.name}</TableCell>
+										<TableCell>{branch.address || "N/A"}</TableCell>
+										<TableCell>{branch.phone || "N/A"}</TableCell>
+										<TableCell>
+											<span
+												className={`rounded-full px-2 py-0.5 text-xs ${branch.is_headquarters ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}
+											>
+												{branch.is_headquarters ? "Headquarters" : "Branch"}
+											</span>
+										</TableCell>
+										<TableCell className="flex flex-row gap-2">
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => alert(`View branch ${branch.id}`)}
+											>
+												<UsersIcon className="mr-1 h-3 w-3" /> View
+											</Button>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => alert(`Edit branch ${branch.id}`)}
+											>
+												<ActivityIcon className="mr-1 h-3 w-3" /> Edit
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</div>
+				)}
+			</div>
 		</PageTransition>
 	);
 }

@@ -1,23 +1,17 @@
 import {
 	branches,
 	companies,
-	customerGroups,
 	customers,
-	employees,
 	enhancedAttendance,
-	leaveApplications,
-	leaveTypes,
-	orders,
 	payroll,
-	permissions,
-	rolePermissions,
-	roles,
 	staff,
 	suppliers,
 	transactions,
 	user,
+	bankAccounts,
+	expenses,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq, gte, ilike, lte, or, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -98,7 +92,7 @@ export const adminRouter = router({
 					.where(
 						and(
 							eq(payroll.month, sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`),
-							not(eq(payroll.status, "paid")),
+							ne(payroll.status, "paid"),
 							branchId ? eq(payroll.branch_id, branchId) : undefined,
 						),
 					),
@@ -116,11 +110,8 @@ export const adminRouter = router({
 						),
 					),
 
-				// Total suppliers
-				db
-					.select({ count: count() })
-					.from(suppliers)
-					.where(eq(suppliers.is_deleted, false)),
+				// Total suppliers (suppliers table has no is_deleted column)
+				db.select({ count: count() }).from(suppliers),
 
 				// Total customers
 				db
@@ -166,7 +157,7 @@ export const adminRouter = router({
 					.select({
 						id: sql<string>`'emp-' || ${staff.id}`,
 						type: sql<string>`'employee'`,
-						description: sql<string>`${staff.name} joined the company`,
+						description: sql<string>`${staff.name} || ' joined the company'`,
 						timestamp: staff.join_date,
 					})
 					.from(staff)
@@ -182,7 +173,7 @@ export const adminRouter = router({
 			const newHires = newHiresThisMonth[0]?.count || 0;
 			const totalSup = totalSuppliers[0]?.count || 0;
 			const totalCust = totalCustomers[0]?.count || 0;
-			totalBranchesVal = totalBranches[0]?.count || 0;
+			const totalBranchesVal = totalBranches[0]?.count || 0;
 			const monthlyRev = monthlyRevenue[0]?.total || 0;
 			const monthlyExp = monthlyExpenses[0]?.total || 0;
 
@@ -226,34 +217,45 @@ export const adminRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db.select().from(staff).where(eq(staff.is_deleted, false));
 
+			const conditions = [eq(staff.is_deleted, false)];
+
+			// Branch scoping: explicit input wins, otherwise fall back to the
+			// authenticated user's branch. Users without a branch (e.g. superadmin)
+			// see all branches.
 			if (input.branch_id) {
-				query = query.where(eq(staff.branch_id, input.branch_id));
-			} else {
-				// Use the authenticated user's branch if no branch_id is provided
-				query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				conditions.push(eq(staff.branch_id, input.branch_id));
+			} else if (
+				ctx.user.branchId !== null &&
+				ctx.user.branchId !== undefined
+			) {
+				conditions.push(eq(staff.branch_id, ctx.user.branchId));
 			}
 
 			if (input.search) {
 				const searchTerm = `%${input.search}%`;
-				query = query.where(
-					and(
-						ilike(staff.name, searchTerm),
-						ilike(staff.staff_code, searchTerm),
-					),
+				const searchCondition = or(
+					ilike(staff.name, searchTerm),
+					ilike(staff.staff_code, searchTerm),
+					ilike(staff.email, searchTerm),
 				);
+				if (searchCondition) conditions.push(searchCondition);
 			}
 
 			if (input.department) {
-				query = query.where(eq(staff.department, input.department));
+				conditions.push(eq(staff.department, input.department));
 			}
 
 			if (input.status) {
-				query = query.where(eq(staff.status, input.status));
+				conditions.push(eq(staff.status, input.status));
 			}
 
-			const results = await query.orderBy(desc(staff.created_at)).limit(100);
+			const results = await db
+				.select()
+				.from(staff)
+				.where(and(...conditions))
+				.orderBy(desc(staff.created_at))
+				.limit(100);
 
 			return results.map((r) => ({
 				id: r.id,
@@ -263,9 +265,10 @@ export const adminRouter = router({
 				role: r.role || "Staff",
 				phone: r.phone || "N/A",
 				email: r.email || "N/A",
-				join_date: r.join_date?.toLocaleDateString() || "",
+				branch_id: r.branch_id,
+				join_date: r.join_date ? new Date(r.join_date).toLocaleDateString() : "",
 				salary: Number(r.salary) || 0,
-				status: r.status === "active" ? "Active" : "Inactive",
+				status: r.status || "active",
 			}));
 		}),
 
@@ -277,34 +280,37 @@ export const adminRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db
-				.select()
-				.from(suppliers)
-				.where(eq(suppliers.is_deleted, false));
 
+			// suppliers has no is_deleted / status columns — do not filter on them.
+			const conditions = [];
 			if (input.search) {
 				const searchTerm = `%${input.search}%`;
-				query = query.where(
-					and(
-						ilike(suppliers.name, searchTerm),
-						ilike(suppliers.contact_person, searchTerm),
-					),
+				const searchCondition = or(
+					ilike(suppliers.name, searchTerm),
+					ilike(suppliers.supplier_code, searchTerm),
+					ilike(suppliers.email, searchTerm),
 				);
+				if (searchCondition) conditions.push(searchCondition);
 			}
 
-			const results = await query.orderBy(desc(suppliers.created_at)).limit(50);
+			const results = await db
+				.select()
+				.from(suppliers)
+				.where(conditions.length ? and(...conditions) : undefined)
+				.orderBy(desc(suppliers.created_at))
+				.limit(50);
 
 			return results.map((r) => ({
 				id: r.id,
 				supplier_code: r.supplier_code || `SUP-${r.id}`,
 				name: r.name,
-				contact_person: r.contact_person || "N/A",
-				phone: r.phone || "N/A",
 				email: r.email || "N/A",
+				phone: r.phone || "N/A",
 				address: r.address || "N/A",
-				city: r.city || "N/A",
+				gst_number: r.gst_number || "N/A",
+				pan_number: r.pan_number || "N/A",
+				category: r.supplier_category || "local",
 				outstanding_balance: Number(r.outstanding_balance) || 0,
-				status: r.status === "active" ? "Active" : "Inactive",
 			}));
 		}),
 
@@ -312,46 +318,41 @@ export const adminRouter = router({
 		.input(
 			z.object({
 				search: z.string().optional(),
-				customer_group_id: z.number().optional(),
 			}),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db
-				.select()
-				.from(customers)
-				.where(eq(customers.is_deleted, false));
 
+			const conditions = [eq(customers.is_deleted, false)];
 			if (input.search) {
 				const searchTerm = `%${input.search}%`;
-				query = query.where(
-					and(
-						ilike(customers.name, searchTerm),
-						ilike(customers.contact_person, searchTerm),
-					),
+				const searchCondition = or(
+					ilike(customers.name, searchTerm),
+					ilike(customers.customer_code, searchTerm),
+					ilike(customers.email, searchTerm),
+					ilike(customers.phone, searchTerm),
 				);
+				if (searchCondition) conditions.push(searchCondition);
 			}
 
-			if (input.customer_group_id) {
-				query = query.where(
-					eq(customers.customer_group_id, input.customer_group_id),
-				);
-			}
-
-			const results = await query.orderBy(desc(customers.created_at)).limit(50);
+			const results = await db
+				.select()
+				.from(customers)
+				.where(and(...conditions))
+				.orderBy(desc(customers.created_at))
+				.limit(50);
 
 			return results.map((r) => ({
 				id: r.id,
 				customer_code: r.customer_code || `CUST-${r.id}`,
 				name: r.name,
-				contact_person: r.contact_person || "N/A",
-				phone: r.phone || "N/A",
 				email: r.email || "N/A",
+				phone: r.phone || "N/A",
 				address: r.address || "N/A",
-				city: r.city || "N/A",
+				customer_type: r.customer_type || "retail",
 				credit_limit: Number(r.credit_limit) || 0,
 				credit_used: Number(r.credit_used) || 0,
-				status: r.status === "active" ? "Active" : "Inactive",
+				status: r.status || "active",
 			}));
 		}),
 
@@ -445,35 +446,39 @@ export const adminRouter = router({
 	getCompanies: roleProcedure(["admin", "super_admin"]).query(
 		async ({ ctx }) => {
 			const db = ctx.db;
-			const companies = await db
+			const companyRows = await db
 				.select({
 					id: companies.id,
 					name: companies.name,
-					registration_number: companies.registration_number,
 					address: companies.address,
-					city: companies.city,
-					country: companies.country,
-					phone: companies.phone,
-					email: companies.email,
+					contact: companies.contact,
+					gst_number: companies.gst_number,
+					pan: companies.pan,
 					status: companies.status,
+					financial_year_start: companies.financial_year_start,
+					financial_year_end: companies.financial_year_end,
 					created_at: companies.created_at,
-					updated_at: companies.updated_at,
 				})
 				.from(companies)
 				.orderBy(desc(companies.created_at));
 
-			return companies.map((c) => ({
+			return companyRows.map((c) => ({
 				id: c.id,
 				name: c.name,
-				registrationNumber: c.registration_number || "N/A",
 				address: c.address || "N/A",
-				city: c.city || "N/A",
-				country: c.country || "N/A",
-				phone: c.phone || "N/A",
-				email: c.email || "N/A",
-				status: c.status,
-				createdAt: c.created_at ? new Date(c.created_at).toLocaleString() : "",
-				updatedAt: c.updated_at ? new Date(c.updated_at).toLocaleString() : "",
+				contact: c.contact || "N/A",
+				gstNumber: c.gst_number || "N/A",
+				pan: c.pan || "N/A",
+				status: c.status || "active",
+				financialYearStart: c.financial_year_start
+					? new Date(c.financial_year_start).toLocaleDateString()
+					: "N/A",
+				financialYearEnd: c.financial_year_end
+					? new Date(c.financial_year_end).toLocaleDateString()
+					: "N/A",
+				createdAt: c.created_at
+					? new Date(c.created_at).toLocaleString()
+					: "",
 			}));
 		},
 	),
@@ -492,25 +497,26 @@ export const adminRouter = router({
 					.select({
 						id: sql<string>`'staff-' || ${staff.id}`,
 						type: sql<string>`'staff'`,
-						description: sql<string>`${staff.name} ${staff.status === "active" ? "joined" : "updated status"}`,
+						description: sql<string>`${staff.name} || CASE WHEN ${staff.status} = 'active' THEN ' joined the company' ELSE ' status updated' END`,
 						timestamp: staff.updated_at,
 						userId: staff.id,
 					})
 					.from(staff)
+					.where(eq(staff.is_deleted, false))
 					.orderBy(desc(staff.updated_at))
 					.limit(20),
 
-				// Supplier activities
+				// Supplier activities (suppliers has no status/updated_at columns)
 				db
 					.select({
 						id: sql<string>`'supplier-' || ${suppliers.id}`,
 						type: sql<string>`'supplier'`,
-						description: sql<string>`${suppliers.name} ${suppliers.status === "active" ? "added" : "updated"}`,
-						timestamp: suppliers.updated_at,
+						description: sql<string>`${suppliers.name} || ' added as supplier'`,
+						timestamp: suppliers.created_at,
 						userId: suppliers.id,
 					})
 					.from(suppliers)
-					.orderBy(desc(suppliers.updated_at))
+					.orderBy(desc(suppliers.created_at))
 					.limit(20),
 
 				// Customer activities
@@ -518,25 +524,26 @@ export const adminRouter = router({
 					.select({
 						id: sql<string>`'customer-' || ${customers.id}`,
 						type: sql<string>`'customer'`,
-						description: sql<string>`${customers.name} ${customers.status === "active" ? "registered" : "updated"}`,
+						description: sql<string>`${customers.name} || CASE WHEN ${customers.status} = 'active' THEN ' registered' ELSE ' status updated' END`,
 						timestamp: customers.updated_at,
 						userId: customers.id,
 					})
 					.from(customers)
+					.where(eq(customers.is_deleted, false))
 					.orderBy(desc(customers.updated_at))
 					.limit(20),
 
-				// Company activities
+				// Company activities (companies has no updated_at column)
 				db
 					.select({
 						id: sql<string>`'company-' || ${companies.id}`,
 						type: sql<string>`'company'`,
-						description: sql<string>`${companies.name} ${companies.status === "active" ? "added" : "updated"}`,
-						timestamp: companies.updated_at,
+						description: sql<string>`${companies.name} || ' added'`,
+						timestamp: companies.created_at,
 						userId: companies.id,
 					})
 					.from(companies)
-					.orderBy(desc(companies.updated_at))
+					.orderBy(desc(companies.created_at))
 					.limit(20),
 			]);
 

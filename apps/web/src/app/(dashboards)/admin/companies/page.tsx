@@ -1,44 +1,28 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import {TableHeader,
+import {
 	Table,
 	TableBody,
 	TableCell,
 	TableHead,
-	TableRow,} from "@evaluna/ui/components/table";
-import {
-	ActivityIcon,
-	Building2Icon,
-	CalendarIcon,
-	UsersIcon,
-} from "lucide-react";
+	TableHeader,
+	TableRow,
+} from "@evaluna/ui/components/table";
+import { ActivityIcon, Building2Icon, UsersIcon } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
+import { DataEmpty, DataError, TableLoading } from "@/components/admin/data-states";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AdminCompaniesPage() {
 	const trpc = useTRPC();
-	const locale = useLocale();
 	const {
 		data: companies,
 		isLoading,
 		error,
+		refetch,
 	} = trpc.admin.getCompanies.useQuery();
-
-	if (isLoading)
-		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Loading...
-			</div>
-		);
-	if (error)
-		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Error loading companies
-			</div>
-		);
 
 	return (
 		<PageTransition className="container mx-auto py-8">
@@ -63,87 +47,70 @@ export default function AdminCompaniesPage() {
 				</div>
 			</div>
 
-			{!companies || companies.length === 0 ? (
-				<div className="flex h-[200px] items-center justify-center text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
-					No companies found
-				</div>
-			) : (
-				<div className="overflow-x-auto">
-					<Table className="w-full">
-						<TableHeader>
-							<TableRow>
-								<TableHead className="text-left">ID</TableHead>
-								<TableHead className="text-left">Name</TableHead>
-								<TableHead className="text-left">Registration</TableHead>
-								<TableHead className="text-left">Address</TableHead>
-								<TableHead className="text-left">City</TableHead>
-								<TableHead className="text-left">Country</TableHead>
-								<TableHead className="text-left">Contact</TableHead>
-								<TableHead className="text-left">Status</TableHead>
-								<TableHead className="text-left">Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{companies.map((company) => (
-								<TableRow key={company.id}>
-									<TableCell>{company.id}</TableCell>
-									<TableCell>{company.name}</TableCell>
-									<TableCell>{company.registrationNumber}</TableCell>
-									<TableCell>{company.address}</TableCell>
-									<TableCell>{company.city}</TableCell>
-									<TableCell>{company.country}</TableCell>
-									<TableCell>
-										{company.email} {/* Show email as primary contact */}
-									</TableCell>
-									<TableCell>
-										<span
-											className={`rounded-full px-2 py-0.5 text-xs ${company.status === "active" ? "bg-green-100 text-green-800" : company.status === "inactive" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}`}
-										>
-											{company.status}
-										</span>
-									</TableCell>
-									<TableCell className="flex flex-row gap-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`View company ${company.id}`)}
-										>
-											<Building2Icon className="mr-1 h-3 w-3" /> View
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`Edit company ${company.id}`)}
-										>
-											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
-										</Button>
-										{company.status === "active" && (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() =>
-													alert(`Deactivate company ${company.id}`)
-												}
-											>
-												<ActivityIcon className="mr-1 h-3 w-3" /> Deactivate
-											</Button>
-										)}
-										{company.status === "inactive" && (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => alert(`Activate company ${company.id}`)}
-											>
-												<ActivityIcon className="mr-1 h-3 w-3" /> Activate
-											</Button>
-										)}
-									</TableCell>
+			<div className="mt-6">
+				{isLoading ? (
+					<TableLoading columns={6} />
+				) : error ? (
+					<DataError
+						title="Error loading companies"
+						message={error.message}
+						onRetry={() => refetch()}
+					/>
+				) : !companies || companies.length === 0 ? (
+					<DataEmpty
+						title="No companies found"
+						message="Add your first company to get started."
+					/>
+				) : (
+					<div className="overflow-x-auto">
+						<Table className="w-full">
+							<TableHeader>
+								<TableRow>
+									<TableHead className="text-left">Name</TableHead>
+									<TableHead className="text-left">Contact</TableHead>
+									<TableHead className="text-left">GST Number</TableHead>
+									<TableHead className="text-left">PAN</TableHead>
+									<TableHead className="text-left">Status</TableHead>
+									<TableHead className="text-left">Actions</TableHead>
 								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</div>
-			)}
+							</TableHeader>
+							<TableBody>
+								{companies.map((company) => (
+									<TableRow key={company.id}>
+										<TableCell>{company.name}</TableCell>
+										<TableCell>{company.contact}</TableCell>
+										<TableCell>{company.gstNumber}</TableCell>
+										<TableCell>{company.pan}</TableCell>
+										<TableCell>
+											<span
+												className={`rounded-full px-2 py-0.5 text-xs capitalize ${company.status.toLowerCase() === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+											>
+												{company.status}
+											</span>
+										</TableCell>
+										<TableCell className="flex flex-row gap-2">
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => alert(`View company ${company.id}`)}
+											>
+												<Building2Icon className="mr-1 h-3 w-3" /> View
+											</Button>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => alert(`Edit company ${company.id}`)}
+											>
+												<ActivityIcon className="mr-1 h-3 w-3" /> Edit
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</div>
+				)}
+			</div>
 		</PageTransition>
 	);
 }

@@ -26,6 +26,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTRPC } from "@/lib/trpc/client";
 import { useSession } from "@/hooks/use-session";
+import { authClient } from "@/lib/auth-client";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function DashboardHeader() {
@@ -52,11 +53,14 @@ export function DashboardHeader() {
   const handleLogout = async () => {
     try {
       await authClient.signOut();
-      // Invalidate everything to be safe
-      queryClient.clear();
-      router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      // Clear all cached data so a back-button navigation cannot show stale
+      // authenticated content, then hard-replace the history entry.
+      queryClient.clear();
+      router.replace("/login");
+      router.refresh();
     }
   };
 

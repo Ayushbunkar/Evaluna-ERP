@@ -75,6 +75,15 @@ export default function AdminDashboard() {
 				</div>
 			</div>
 
+			{(statsError ||
+				employeesError ||
+				suppliersError ||
+				customersError) && (
+				<div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-sm">
+					Some dashboard data failed to load. Figures shown may be incomplete.
+				</div>
+			)}
+
 			{/* Stats Grid */}
 			<StaggerList
 				className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-6"
@@ -305,7 +314,7 @@ export default function AdminDashboard() {
 												{sup.name}
 											</p>
 											<p className="text-muted-foreground text-xs">
-												{sup.contact_person || "N/A"}
+												{sup.email || "N/A"}
 											</p>
 										</div>
 										<div className="text-right">
@@ -361,7 +370,7 @@ export default function AdminDashboard() {
 												{cust.name}
 											</p>
 											<p className="text-muted-foreground text-xs">
-												{cust.contact_person || "N/A"}
+												{cust.email || "N/A"}
 											</p>
 										</div>
 										<div className="text-right">

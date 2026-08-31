@@ -13,6 +13,7 @@ import { ActivityIcon, BanknoteIcon } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
+import { DataEmpty, DataError, TableLoading } from "@/components/admin/data-states";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
@@ -23,20 +24,8 @@ export default function AdminSuppliersPage() {
 		data: suppliers,
 		isLoading,
 		error,
+		refetch,
 	} = trpc.admin.getSuppliers.useQuery();
-
-	if (isLoading)
-		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Loading...
-			</div>
-		);
-	if (error)
-		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Error loading suppliers
-			</div>
-		);
 
 	return (
 		<PageTransition className="container mx-auto py-8">
@@ -61,53 +50,68 @@ export default function AdminSuppliersPage() {
 				</div>
 			</div>
 
-			{!suppliers || suppliers.length === 0 ? (
-				<div className="flex h-[200px] items-center justify-center text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
-					No suppliers found
-				</div>
-			) : (
-				<div className="overflow-x-auto">
-					<Table className="w-full">
-						<TableHeader>
-							<TableRow>
-								<TableHead className="text-left">ID</TableHead>
-								<TableHead className="text-left">Name</TableHead>
-								<TableHead className="text-left">Contact Person</TableHead>
-								<TableHead className="text-left">Outstanding Balance</TableHead>
-								<TableHead className="text-left">Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{suppliers.map((sup) => (
-								<TableRow key={sup.id}>
-									<TableCell>{sup.id}</TableCell>
-									<TableCell>{sup.name}</TableCell>
-									<TableCell>{sup.contact_person || "N/A"}</TableCell>
-									<TableCell>
-										{formatCurrency(Number(sup.outstanding_balance), locale)}
-									</TableCell>
-									<TableCell className="flex flex-row gap-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`View supplier ${sup.id}`)}
-										>
-											<BanknoteIcon className="mr-1 h-3 w-3" /> View
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => alert(`Edit supplier ${sup.id}`)}
-										>
-											<ActivityIcon className="mr-1 h-3 w-3" /> Edit
-										</Button>
-									</TableCell>
+			<div className="mt-6">
+				{isLoading ? (
+					<TableLoading columns={6} />
+				) : error ? (
+					<DataError
+						title="Error loading suppliers"
+						message={error.message}
+						onRetry={() => refetch()}
+					/>
+				) : !suppliers || suppliers.length === 0 ? (
+					<DataEmpty
+						title="No suppliers found"
+						message="Add your first supplier to get started."
+					/>
+				) : (
+					<div className="overflow-x-auto">
+						<Table className="w-full">
+							<TableHeader>
+								<TableRow>
+									<TableHead className="text-left">Code</TableHead>
+									<TableHead className="text-left">Name</TableHead>
+									<TableHead className="text-left">Email</TableHead>
+									<TableHead className="text-left">Phone</TableHead>
+									<TableHead className="text-left">GST Number</TableHead>
+									<TableHead className="text-left">Outstanding</TableHead>
+									<TableHead className="text-left">Actions</TableHead>
 								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</div>
-			)}
+							</TableHeader>
+							<TableBody>
+								{suppliers.map((sup) => (
+									<TableRow key={sup.id}>
+										<TableCell>{sup.supplier_code}</TableCell>
+										<TableCell>{sup.name}</TableCell>
+										<TableCell>{sup.email}</TableCell>
+										<TableCell>{sup.phone}</TableCell>
+										<TableCell>{sup.gst_number}</TableCell>
+										<TableCell>
+											{formatCurrency(Number(sup.outstanding_balance), locale)}
+										</TableCell>
+										<TableCell className="flex flex-row gap-2">
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => alert(`View supplier ${sup.id}`)}
+											>
+												<BanknoteIcon className="mr-1 h-3 w-3" /> View
+											</Button>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => alert(`Edit supplier ${sup.id}`)}
+											>
+												<ActivityIcon className="mr-1 h-3 w-3" /> Edit
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</div>
+				)}
+			</div>
 		</PageTransition>
 	);
 }

@@ -305,7 +305,7 @@ export default function AdminDashboard() {
 												{sup.name}
 											</p>
 											<p className="text-muted-foreground text-xs">
-												{sup.contact_person || "N/A"}
+												{sup.email || "N/A"}
 											</p>
 										</div>
 										<div className="text-right">
@@ -361,7 +361,7 @@ export default function AdminDashboard() {
 												{cust.name}
 											</p>
 											<p className="text-muted-foreground text-xs">
-												{cust.contact_person || "N/A"}
+												{cust.email || "N/A"}
 											</p>
 										</div>
 										<div className="text-right">
