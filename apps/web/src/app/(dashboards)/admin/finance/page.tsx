@@ -17,7 +17,6 @@ import {
 	TrendingUpIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { DataError, TableLoading } from "@/components/admin/data-states";
 import { useTRPC } from "@/lib/trpc/client";
@@ -25,7 +24,7 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function AdminFinancePage() {
 	const trpc = useTRPC();
-	const locale = useLocale();
+	const locale = "en"; // hardcoded — no next-intl provider in admin layout
 	const {
 		data: stats,
 		isLoading,

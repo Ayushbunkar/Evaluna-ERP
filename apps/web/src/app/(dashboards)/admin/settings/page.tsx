@@ -18,13 +18,12 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AdminSettingsPage() {
 	const trpc = useTRPC();
-	const locale = useLocale();
+	const locale = "en"; // hardcoded — no next-intl provider in admin layout
 
 	return (
 		<PageTransition className="container mx-auto py-8">

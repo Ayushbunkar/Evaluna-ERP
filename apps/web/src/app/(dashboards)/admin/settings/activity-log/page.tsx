@@ -17,14 +17,13 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import { useEffect, useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AdminSettingsActivityLogPage() {
   const trpc = useTRPC();
-  const locale = useLocale();
+  const locale = "en"; // hardcoded — no next-intl provider in admin layout
   const [activities, setActivities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

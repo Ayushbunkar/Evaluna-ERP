@@ -17,7 +17,6 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import {
 	AnimatedCard,
 	motion,
@@ -30,7 +29,7 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function AdminDashboard() {
 	const trpc = useTRPC();
-	const locale = useLocale();
+	const locale = "en"; // hardcoded — no next-intl provider in admin layout
 	const {
 		data: stats,
 		isLoading: statsLoading,
