@@ -42,7 +42,10 @@ export const roleProcedure = (allowedRoles: string[]) => {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
 
-		if (!allowedRoles.includes(ctx.user.role)) {
+		// Superadmins bypass every role gate. `super_admin` is not a value in the
+		// user.role enum — it is the `is_superadmin` flag on the user record — so
+		// role-string matching alone would wrongly reject a superadmin.
+		if (!ctx.user.isSuperadmin && !allowedRoles.includes(ctx.user.role)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 
@@ -63,7 +66,7 @@ export const permissionProcedure = (permission: string) => {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
 
-		if (!ctx.user.permissions?.includes(permission)) {
+		if (!ctx.user.isSuperadmin && !ctx.user.permissions?.includes(permission)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 
@@ -83,7 +86,7 @@ export const requirePermission = (permission: string) =>
 		if (!ctx.user) {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
-		if (!ctx.user.permissions?.includes(permission)) {
+		if (!ctx.user.isSuperadmin && !ctx.user.permissions?.includes(permission)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 		return next({ ctx });
