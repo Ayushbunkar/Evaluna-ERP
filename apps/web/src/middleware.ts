@@ -21,6 +21,7 @@ export default async function middleware(request: NextRequest) {
 	// TRPC handles its own authentication via context
 	if (
 		pathname.startsWith("/api/auth") ||
+		pathname.startsWith("/api/logout") ||
 		pathname.startsWith("/api/seed-users") ||
 		pathname.startsWith("/api/trpc") ||
 		pathname.startsWith("/_next") ||

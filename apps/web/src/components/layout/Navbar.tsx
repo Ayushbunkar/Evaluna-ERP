@@ -24,25 +24,8 @@ interface NavbarProps {
 export function Navbar({ onMenuClick }: NavbarProps) {
 	const [isOffline, setIsOffline] = React.useState(false);
 	const { session } = useSession();
-	const handleLogout = async (e?: any) => {
-		
-
-		try {
-			await fetch("/api/auth/sign-out", { method: "POST" }).catch(() => {});
-			const mod = await import("@/lib/auth-client");
-			await Promise.race([
-				mod.authClient.signOut(),
-				new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1000))
-			]).catch(() => {});
-		} catch (err) {
-			console.error("Logout error:", err);
-		}
-		
-		const cookies = ["evaluna.session_token", "__Secure-evaluna.session_token", "better-auth.session_token", "__Secure-better-auth.session_token"];
-		for (const c of cookies) {
-			document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-		}
-		window.location.href = "/login";
+	const handleLogout = () => {
+		window.location.href = "/api/logout";
 	};
 
 	React.useEffect(() => {

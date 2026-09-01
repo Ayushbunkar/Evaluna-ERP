@@ -1,20 +1,20 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "qwen-team/qwen3.8-27b",
+  "model": "vllm/qwen3.8-27b",
   "provider": {
-    "qwen-team": {
+    "vllm": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "My vLLM Qwen",
+      "name": "VLLM Local",
       "options": {
         "baseURL": "https://exclude-spouse-numerical-linda.trycloudflare.com/v1",
-        "apiKey": "{env:QWEN_BIFROST_KEY}"
+        "apiKey": "{env:VLLM_API_KEY}"
       },
       "models": {
         "qwen3.8-27b": {
-          "name": "Qwen3.8 27B",
+          "name": "Qwen 3.8 27B",
           "limit": {
-            "context": 32768,
-            "output": 4096
+            "context": 4096,
+            "output": 512
           }
         }
       }

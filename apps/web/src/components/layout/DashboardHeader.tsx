@@ -50,30 +50,11 @@ export function DashboardHeader() {
   const { data: attendanceStatus } = trpc.attendance.myStatus.useQuery();
 
   // Handlers
-  const handleLogout = async (e?: any) => {
-    
-
-    try {
-      // 1. Direct fetch to bypass any authClient issues
-      await fetch("/api/auth/sign-out", { method: "POST" }).catch(() => {});
-      
-      // 2. Also try authClient just in case
-      await Promise.race([
-        authClient.signOut(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1000))
-      ]).catch(() => {});
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-    
-    // 3. Clear all possible cookies manually
-    const cookies = ["evaluna.session_token", "__Secure-evaluna.session_token", "better-auth.session_token", "__Secure-better-auth.session_token"];
-    for (const c of cookies) {
-      document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-    }
-    
-    // 4. Hard redirect
-    window.location.href = "/login";
+  const handleLogout = () => {
+    // Navigate to the server-side logout route.
+    // /api/logout invalidates the session in the DB and clears HttpOnly cookies
+    // via Set-Cookie response headers — the ONLY reliable way to log out.
+    window.location.href = "/api/logout";
   };
 
   const handleSync = async () => {
