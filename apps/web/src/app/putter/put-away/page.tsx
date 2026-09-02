@@ -1,52 +1,298 @@
-﻿"use client";
+"use client";
 
-import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
-import { type Column, DataTable } from "@evaluna/ui/components/data-table";
-import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import { useState } from "react";
-import { PageTransition } from "@/lib/animations";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@evaluna/ui/components/card";
+import { Button } from "@evaluna/ui/components/button";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@evaluna/ui/components/table";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+} from "@evaluna/ui/components/dialog";
+import {
+	PackagePlusIcon,
+	CheckCircle2Icon,
+	Loader2Icon,
+	SearchIcon,
+	CameraIcon,
+	MapPinIcon,
+} from "lucide-react";
+import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
+import { toast } from "sonner";
 
 export default function PutAwayTasksPage() {
 	const trpc = useTRPC();
-	const [searchTerm, setSearchTerm] = useState("");
-	const { data, isLoading } = trpc.putter.getPutAwayTasks.useQuery({});
+	const {
+		data: putAwayTasks,
+		isLoading,
+		error,
+		refetch,
+	} = trpc.putter.getPutAwayTasks.useQuery({});
 
-	const columns: Column<any>[] = [
-		{ key: "id", header: "Task ID", sortable: true },
-		{ key: "product", header: "Product" },
-		{ key: "sku", header: "SKU" },
-		{ key: "qty", header: "Qty" },
-		{ key: "from", header: "From" },
-		{ key: "to_location", header: "To Location" },
-		{ key: "status", header: "Status" },
-	];
+	const confirmMutation = trpc.putter.confirmPutAway.useMutation({
+		onSuccess: () => {
+			toast.success("Put-away task confirmed and item placed in bin!");
+			refetch();
+			setSelectedTask(null);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to confirm put-away");
+		},
+	});
+
+	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedTask, setSelectedTask] = useState<any | null>(null);
+	const [targetLocation, setTargetLocation] = useState("Rack B-04 / Shelf 2");
+	const [showCameraScanner, setShowCameraScanner] = useState(false);
+
+	const handleConfirmSubmit = () => {
+		if (!selectedTask) return;
+		confirmMutation.mutate({
+			id: selectedTask.id,
+			location: targetLocation,
+		});
+	};
+
+	const filteredList = putAwayTasks?.filter(
+		(t) =>
+			t.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			t.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			t.id.toLowerCase().includes(searchQuery.toLowerCase())
+	);
 
 	return (
-		<PageTransition className="flex flex-col gap-6">
-			<div>
-				<h1 className="font-bold text-3xl tracking-tight">Put Away Tasks</h1>
-				<p className="text-muted-foreground text-sm">
-					Manage and view details for put away tasks.
-				</p>
+		<PageTransition className="container mx-auto space-y-6">
+			{/* Page Header */}
+			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+				<div className="flex flex-col gap-1">
+					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+						<PackagePlusIcon className="h-7 w-7 text-blue-600" />
+						Warehouse Put Away Tasks
+					</h1>
+					<p className="text-muted-foreground text-sm">
+						Transfer received stock items from receiving bay to designated warehouse shelf bin locations.
+					</p>
+				</div>
+
+				<Button
+					variant="outline"
+					className="gap-2 border-blue-600 text-blue-700 hover:bg-blue-50"
+					onClick={() => setShowCameraScanner(true)}
+				>
+					<CameraIcon className="h-4 w-4" /> Camera Scan Bin Barcode
+				</Button>
 			</div>
 
-			<Card className="border-border/50 bg-card/50 shadow-sm">
-				<CardHeader className="p-4">
-					<SearchFilter
-						search={searchTerm}
-						onSearchChange={setSearchTerm}
-						searchPlaceholder="Search records..."
-					/>
+			{/* KPI Summary */}
+			<StaggerList className="grid gap-4 sm:grid-cols-3" slow>
+				<StaggerItem>
+					<Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
+						<CardContent className="p-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Tasks Pending Put-Away</p>
+									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{putAwayTasks?.length ?? 0}</p>
+								</div>
+								<PackagePlusIcon className="h-8 w-8 text-blue-500" />
+							</div>
+						</CardContent>
+					</Card>
+				</StaggerItem>
+
+				<StaggerItem>
+					<Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20">
+						<CardContent className="p-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-green-700 dark:text-green-400">Put-Away Efficiency</p>
+									<p className="text-3xl font-bold text-green-800 dark:text-green-300">100%</p>
+								</div>
+								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
+							</div>
+						</CardContent>
+					</Card>
+				</StaggerItem>
+
+				<StaggerItem>
+					<Card className="border-purple-200 bg-purple-50 dark:border-purple-900 dark:bg-purple-950/20">
+						<CardContent className="p-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-purple-700 dark:text-purple-400">Receiving Bay Status</p>
+									<p className="text-xl font-bold text-purple-800 dark:text-purple-300">Clear</p>
+								</div>
+								<MapPinIcon className="h-8 w-8 text-purple-500" />
+							</div>
+						</CardContent>
+					</Card>
+				</StaggerItem>
+			</StaggerList>
+
+			{/* Main Data Table Card */}
+			<Card className="border-border/50 shadow-sm">
+				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+					<div>
+						<CardTitle className="flex items-center gap-2 text-lg">
+							<PackagePlusIcon className="h-5 w-5 text-blue-600" />
+							Put Away Task Queue
+						</CardTitle>
+						<CardDescription>Items received at loading dock awaiting bin placement</CardDescription>
+					</div>
+
+					<div className="relative w-full sm:w-64">
+						<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+						<input
+							type="text"
+							placeholder="Search product, SKU or Task ID..."
+							className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm shadow-sm"
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+						/>
+					</div>
 				</CardHeader>
-				<CardContent className="p-0">
-					<DataTable
-						data={data || []}
-						columns={columns}
-						emptyMessage="No records found in this module yet."
-					/>
+				<CardContent>
+					{isLoading ? (
+						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
+							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading put away queue...
+						</div>
+					) : error ? (
+						<div className="flex h-40 items-center justify-center text-destructive">
+							{error.message || "Error loading put-away tasks"}
+						</div>
+					) : !filteredList || filteredList.length === 0 ? (
+						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
+							<CheckCircle2Icon className="h-10 w-10 opacity-30 text-green-500" />
+							<p>No put-away tasks pending in queue.</p>
+						</div>
+					) : (
+						<div className="overflow-x-auto">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Task ID</TableHead>
+										<TableHead>Product Name</TableHead>
+										<TableHead>SKU</TableHead>
+										<TableHead>Quantity</TableHead>
+										<TableHead>From Location</TableHead>
+										<TableHead>Target Bin Location</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead className="text-right">Action</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{filteredList.map((task) => (
+										<TableRow key={task.id} className="hover:bg-muted/50">
+											<TableCell className="font-mono text-xs font-semibold">{task.id}</TableCell>
+											<TableCell className="font-bold text-sm">{task.product}</TableCell>
+											<TableCell className="font-mono text-xs text-muted-foreground">{task.sku}</TableCell>
+											<TableCell className="font-bold text-sm text-blue-600 dark:text-blue-400">
+												{task.qty} units
+											</TableCell>
+											<TableCell className="text-xs text-muted-foreground">{task.from}</TableCell>
+											<TableCell className="text-xs font-semibold text-green-600 dark:text-green-400">
+												{task.to_location}
+											</TableCell>
+											<TableCell>
+												<span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
+													{task.status}
+												</span>
+											</TableCell>
+											<TableCell className="text-right">
+												<Button
+													size="sm"
+													className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+													onClick={() => setSelectedTask(task)}
+												>
+													<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" /> Confirm Put Away
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					)}
 				</CardContent>
 			</Card>
+
+			{/* Confirm Put Away Modal */}
+			{selectedTask && (
+				<Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+					<DialogContent className="sm:max-w-[450px]">
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2">
+								<PackagePlusIcon className="h-5 w-5 text-blue-600" />
+								Confirm Item Put Away
+							</DialogTitle>
+							<DialogDescription>
+								Confirm placement of {selectedTask.product} in shelf bin.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="space-y-3 py-2 text-sm">
+							<div className="bg-blue-50 p-3 rounded-lg border border-blue-200 dark:bg-blue-950/30 dark:border-blue-900 text-xs space-y-1">
+								<p><strong>Product:</strong> {selectedTask.product}</p>
+								<p><strong>SKU:</strong> {selectedTask.sku}</p>
+								<p><strong>Quantity to Shelve:</strong> {selectedTask.qty} units</p>
+							</div>
+
+							<div className="space-y-1">
+								<label className="text-xs font-semibold">Target Bin Location:</label>
+								<input
+									type="text"
+									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+									value={targetLocation}
+									onChange={(e) => setTargetLocation(e.target.value)}
+								/>
+							</div>
+						</div>
+
+						<DialogFooter>
+							<Button variant="ghost" onClick={() => setSelectedTask(null)}>
+								Cancel
+							</Button>
+							<Button
+								disabled={confirmMutation.isPending}
+								onClick={handleConfirmSubmit}
+								className="bg-blue-600 hover:bg-blue-700 text-white"
+							>
+								{confirmMutation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+								Confirm Bin Placement
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			)}
+
+			{/* Camera Barcode Scanner Modal */}
+			<CameraBarcodeScannerModal
+				open={showCameraScanner}
+				onOpenChange={setShowCameraScanner}
+				onScan={(code) => {
+					setTargetLocation(code);
+					toast.success(`Scanned Bin Location: ${code}`);
+				}}
+				title="Scan Shelf Bin Location Barcode"
+				description="Point phone camera at shelf bin barcode sticker."
+			/>
 		</PageTransition>
 	);
 }
