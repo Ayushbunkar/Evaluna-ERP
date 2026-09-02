@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -30,6 +30,9 @@ interface InventorySearchDialogProps {
 	) => void;
 }
 
+import { CameraIcon } from "lucide-react";
+import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
+
 export function InventorySearchDialog({
 	open,
 	onOpenChange,
@@ -37,6 +40,7 @@ export function InventorySearchDialog({
 }: InventorySearchDialogProps) {
 	const trpc = useTRPC();
 	const [searchTerm, setSearchTerm] = useState("");
+	const [showCameraModal, setShowCameraModal] = useState(false);
 	const [inventory, setInventory] = useState<
 		Array<{
 			id: number;
@@ -94,6 +98,11 @@ export function InventorySearchDialog({
 		}
 	};
 
+	const handleCameraScan = (code: string) => {
+		setSearchTerm(code);
+	};
+
+
 	const handleAddItem = (item: {
 		id: number;
 		name: string;
@@ -148,13 +157,33 @@ export function InventorySearchDialog({
 
 				<div className="space-y-4 py-4">
 					<div className="space-y-2">
-						<Label>Search Products</Label>
+						<div className="flex items-center justify-between">
+							<Label>Search Products</Label>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="text-xs text-blue-600 gap-1 h-7"
+								onClick={() => setShowCameraModal(true)}
+							>
+								<CameraIcon className="h-3.5 w-3.5" /> Scan with Camera
+							</Button>
+						</div>
 						<Input
 							placeholder="Search by name, barcode, or SKU..."
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
 						/>
 					</div>
+
+					<CameraBarcodeScannerModal
+						open={showCameraModal}
+						onOpenChange={setShowCameraModal}
+						onScan={handleCameraScan}
+						title="Scan Barcode with Camera"
+						description="Point camera at product barcode to auto-fill search term."
+					/>
+
 
 					{isLoading && (
 						<div className="text-muted-foreground text-sm">Loading...</div>

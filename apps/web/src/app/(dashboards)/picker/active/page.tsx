@@ -33,9 +33,12 @@ import {
 	Loader2Icon,
 	PackageIcon,
 	MapPinIcon,
+	CameraIcon,
 } from "lucide-react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
+import { toast } from "sonner";
 
 export default function PickerActivePage() {
 	const trpc = useTRPC();
@@ -65,20 +68,26 @@ export default function PickerActivePage() {
 	const [confirmItem, setConfirmItem] = useState<any | null>(null);
 	const [confirmQty, setConfirmQty] = useState<number>(1);
 	const [scannedBarcode, setScannedBarcode] = useState<string>("");
+	const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
 
 	const task = currentTaskData?.task;
 	const items = currentTaskData?.items ?? [];
 
+	const handleScanCode = (code: string) => {
+		const match = items.find((i) => i.sku === code || i.id.toString() === code);
+		if (match) {
+			scanMutation.mutate({ item_id: match.id });
+			toast.success(`Scanned and verified ${match.product}!`);
+		} else {
+			toast.error(`No item found in this pick list matching barcode "${code}"`);
+		}
+	};
+
 	const handleScanBarcodeSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!scannedBarcode.trim()) return;
-		const match = items.find((i) => i.sku === scannedBarcode.trim() || i.id.toString() === scannedBarcode.trim());
-		if (match) {
-			scanMutation.mutate({ item_id: match.id });
-			setScannedBarcode("");
-		} else {
-			alert(`No item found with barcode/SKU matching "${scannedBarcode}"`);
-		}
+		handleScanCode(scannedBarcode.trim());
+		setScannedBarcode("");
 	};
 
 	const handleConfirmSubmit = () => {
@@ -103,9 +112,18 @@ export default function PickerActivePage() {
 						Active Pick Task Execution
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						Scan barcodes, confirm item quantities, report missing stock, and fulfill picking orders.
+						Scan barcodes using phone camera or barcode gun, confirm item quantities, report missing stock.
 					</p>
 				</div>
+
+				{task && (
+					<Button
+						className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-md"
+						onClick={() => setShowCameraScanner(true)}
+					>
+						<CameraIcon className="h-4 w-4" /> Scan Barcode with Phone Camera
+					</Button>
+				)}
 			</div>
 
 			{isLoading ? (
@@ -160,7 +178,7 @@ export default function PickerActivePage() {
 								<div className="bg-blue-600 h-full transition-all duration-300" style={{ width: `${pct}%` }} />
 							</div>
 
-							{/* Barcode Scanner Simulation Input */}
+							{/* Barcode Scanner Input + Camera Scanner Button */}
 							<form onSubmit={handleScanBarcodeSubmit} className="flex gap-2 pt-2">
 								<div className="relative flex-1">
 									<BarcodeIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -173,7 +191,15 @@ export default function PickerActivePage() {
 									/>
 								</div>
 								<Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
-									Scan Barcode
+									Scan Item
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									className="gap-1.5 border-blue-600 text-blue-600 hover:bg-blue-50"
+									onClick={() => setShowCameraScanner(true)}
+								>
+									<CameraIcon className="h-4 w-4" /> Camera Scanner
 								</Button>
 							</form>
 						</CardContent>
@@ -313,6 +339,15 @@ export default function PickerActivePage() {
 					</DialogContent>
 				</Dialog>
 			)}
+
+			{/* Camera Barcode Scanner Modal */}
+			<CameraBarcodeScannerModal
+				open={showCameraScanner}
+				onOpenChange={setShowCameraScanner}
+				onScan={handleScanCode}
+				title="Picker Phone Camera Barcode Scanner"
+				description="Point your phone camera at the item's barcode to scan and verify picking instantly."
+			/>
 		</PageTransition>
 	);
 }
