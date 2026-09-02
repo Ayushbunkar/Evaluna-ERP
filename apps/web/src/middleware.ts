@@ -139,27 +139,11 @@ export default async function middleware(request: NextRequest) {
 	}
 
 	// 5. Coarse-grained Role Checks (for pages)
-	const isDashboardRoute =
-		pathname.startsWith("/admin") ||
-		pathname.startsWith("/manager") ||
-		pathname.startsWith("/auditor") ||
-		pathname.startsWith("/hr") ||
-		pathname.startsWith("/marketing") ||
-		pathname.startsWith("/putter") ||
-		pathname.startsWith("/picker") ||
-		pathname.startsWith("/driver") ||
-		pathname.startsWith("/biller") ||
-		pathname.startsWith("/sales") ||
-		pathname.startsWith("/customer");
+	const matchedRoute = ROUTE_ROLE_MAP.find((route) =>
+		pathname.startsWith(route.path),
+	);
 
-	const isSharedRoute =
-		pathname.startsWith("/settings") ||
-		pathname.startsWith("/profile") ||
-		pathname.startsWith("/notifications") ||
-		pathname.startsWith("/attendance") ||
-		pathname.startsWith("/sync");
-
-	if (isDashboardRoute || isSharedRoute) {
+	if (matchedRoute) {
 		let userRole = (sessionData.user.role || "sales_person") as Role;
 		if ((userRole as string) === "superadmin" || (userRole as string) === "super_admin") userRole = "admin" as Role;
 
@@ -171,18 +155,11 @@ export default async function middleware(request: NextRequest) {
 			sessionData.user.role === "admin";
 
 		if (!isSuperadmin) {
-			// Find the most specific route match
-			const matchedRoute = ROUTE_ROLE_MAP.find((route) =>
-				pathname.startsWith(route.path),
-			);
-
-			if (matchedRoute) {
-				if (!isAtLeastRole(userRole, matchedRoute.minRole)) {
-					// User lacks role for this section
-					const url = request.nextUrl.clone();
-					url.pathname = "/error/403";
-					return NextResponse.rewrite(url);
-				}
+			if (!isAtLeastRole(userRole, matchedRoute.minRole)) {
+				// User lacks role for this section
+				const url = request.nextUrl.clone();
+				url.pathname = "/error/403";
+				return NextResponse.rewrite(url);
 			}
 		}
 	}

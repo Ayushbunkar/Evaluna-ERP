@@ -1,4 +1,36 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+
+const basePath = path.join('apps', 'web', 'src', 'app', '(dashboards)', 'auditor');
+
+const dirs = ['upc', 'receiving', 'placement', 'reports'];
+for (const dir of dirs) {
+    const fullPath = path.join(basePath, dir);
+    if (!fs.existsSync(fullPath)) {
+        fs.mkdirSync(fullPath, { recursive: true });
+    }
+    
+    const code = `"use client";
+
+import { PageTransition } from "@/lib/animations";
+
+export default function Auditor${dir.charAt(0).toUpperCase() + dir.slice(1)}Page() {
+    return (
+        <PageTransition className="container mx-auto py-8">
+            <h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl capitalize">
+                ${dir}
+            </h1>
+            <p className="mt-4 text-muted-foreground">
+                Coming soon...
+            </p>
+        </PageTransition>
+    );
+}`;
+    fs.writeFileSync(path.join(fullPath, 'page.tsx'), code);
+}
+
+// Fix findings page
+const findingsCode = `"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -88,14 +120,14 @@ export default function AuditorFindingsPage() {
 									<TableCell>{f.finding_type}</TableCell>
 									<TableCell>
 										<span
-											className={`rounded-full px-2 py-0.5 text-xs ${f.severity === "CRITICAL" ? "bg-red-100 text-red-800" : f.severity === "HIGH" ? "bg-orange-100 text-orange-800" : f.severity === "MEDIUM" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}
+											className={\`rounded-full px-2 py-0.5 text-xs \${f.severity === "CRITICAL" ? "bg-red-100 text-red-800" : f.severity === "HIGH" ? "bg-orange-100 text-orange-800" : f.severity === "MEDIUM" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}\`}
 										>
 											{f.severity?.charAt(0).toUpperCase() + (f.severity?.slice(1).toLowerCase() ?? "")}
 										</span>
 									</TableCell>
 									<TableCell>
 										<span
-											className={`rounded-full px-2 py-0.5 text-xs ${f.status === "OPEN" ? "bg-red-100 text-red-800" : f.status === "UNDER_REVIEW" ? "bg-yellow-100 text-yellow-800" : f.status === "CORRECTIVE_ACTION_REQUIRED" ? "bg-orange-100 text-orange-800" : f.status === "RESOLVED" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+											className={\`rounded-full px-2 py-0.5 text-xs \${f.status === "OPEN" ? "bg-red-100 text-red-800" : f.status === "UNDER_REVIEW" ? "bg-yellow-100 text-yellow-800" : f.status === "CORRECTIVE_ACTION_REQUIRED" ? "bg-orange-100 text-orange-800" : f.status === "RESOLVED" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}\`}
 										>
 											{f.status
 												?.split("_")
@@ -112,7 +144,7 @@ export default function AuditorFindingsPage() {
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => alert(`View finding ${f.id}`)}
+											onClick={() => alert(\`View finding \${f.id}\`)}
 										>
 											<ActivityIcon className="mr-1 h-3 w-3" /> View
 										</Button>
@@ -120,7 +152,7 @@ export default function AuditorFindingsPage() {
 											<Button
 												variant="outline"
 												size="sm"
-												onClick={() => alert(`Resolve finding ${f.id}`)}
+												onClick={() => alert(\`Resolve finding \${f.id}\`)}
 											>
 												<CheckCircle2Icon className="mr-1 h-3 w-3" /> Resolve
 											</Button>
@@ -134,4 +166,13 @@ export default function AuditorFindingsPage() {
 			)}
 		</PageTransition>
 	);
-}
+}`;
+
+fs.writeFileSync(path.join(basePath, 'findings', 'page.tsx'), findingsCode);
+
+// Fix layout links (change /auditor/dashboard to /auditor)
+let layoutCode = fs.readFileSync(path.join(basePath, 'layout.tsx'), 'utf8');
+layoutCode = layoutCode.replace(/href="\/auditor\/dashboard"/g, 'href="/auditor"');
+fs.writeFileSync(path.join(basePath, 'layout.tsx'), layoutCode);
+
+console.log('All files fixed!');

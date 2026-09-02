@@ -1,5 +1,14 @@
-﻿import Link from "next/link";
-import { LayoutDashboard, User, FileBarChart, Hexagon, Circle } from "lucide-react";
+import Link from "next/link";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import {
+	LayoutDashboard,
+	FileBarChart,
+	Hexagon,
+	ShieldIcon,
+	ActivityIcon,
+	CalendarCheckIcon,
+	UsersIcon,
+} from "lucide-react";
 
 export default function AuditorLayout({
 	children,
@@ -24,55 +33,65 @@ export default function AuditorLayout({
 					</div>
 
 					{/* Navigation */}
-					<nav className="mt-10 flex-1">
-						<ul className="space-y-1 px-3">
-							<Link
-								href="/auditor/dashboard"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<LayoutDashboard className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Dashboard</span>
-							</Link>
-
-							<Link
-								href="/auditor/findings"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Audit Findings</span>
-							</Link>
-
-							<Link
-								href="/auditor/upc"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">UPC Tasks</span>
-							</Link>
-
-							<Link
-								href="/auditor/receiving"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Receiving Inspections</span>
-							</Link>
-
-							<Link
-								href="/auditor/placement"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Placement Verification</span>
-							</Link>
-
-							<Link
-								href="/auditor/reports"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<FileBarChart className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Reports</span>
-							</Link>
+					<nav className="mt-6 flex-1 px-3">
+						<p className="mb-2 px-3 font-semibold text-gray-400 text-xs uppercase tracking-wider dark:text-gray-500">
+							Menu
+						</p>
+						<ul className="space-y-1">
+							<li>
+								<Link
+									href="/auditor"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
+									Dashboard
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/auditor/findings"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<ShieldIcon className="mr-3 h-5 w-5 text-gray-400" />
+									Audit Findings
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/auditor/upc"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<CalendarCheckIcon className="mr-3 h-5 w-5 text-gray-400" />
+									UPC Tasks
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/auditor/receiving"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<ActivityIcon className="mr-3 h-5 w-5 text-gray-400" />
+									Receiving Inspections
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/auditor/placement"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<UsersIcon className="mr-3 h-5 w-5 text-gray-400" />
+									Placement Verification
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/auditor/reports"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<FileBarChart className="mr-3 h-5 w-5 text-gray-400" />
+									Reports
+								</Link>
+							</li>
 						</ul>
 					</nav>
 				</div>
@@ -81,23 +100,7 @@ export default function AuditorLayout({
 			{/* Main Content */}
 			<main className="flex-1 overflow-hidden">
 				<div className="flex h-full flex-col">
-					{/* Header */}
-					<header className="border-gray-200 border-b bg-white dark:border-gray-700 dark:bg-gray-800">
-						<div className="flex items-center justify-between px-6 py-4">
-							<div className="text-gray-500 text-sm dark:text-gray-400">
-								Welcome, Auditor
-							</div>
-							<div className="flex items-center space-x-4">
-								<button className="flex items-center rounded-md border border-gray-300 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">
-									<User className="h-5 w-5 text-gray-400" />
-									<span className="ml-2 text-gray-600 text-sm dark:text-gray-300">
-										Profile
-									</span>
-								</button>
-							</div>
-						</div>
-					</header>
-
+					<DashboardHeader />
 					{/* Content */}
 					<div className="flex-1 overflow-y-auto p-6">{children}</div>
 				</div>

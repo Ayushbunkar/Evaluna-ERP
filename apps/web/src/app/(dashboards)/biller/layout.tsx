@@ -30,7 +30,7 @@ export default function Layout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<AppLayoutWithBranch navItems={billerNavItems} namespace="nav">
+		<AppLayoutWithBranch navItems={billerNavItems} namespace="nav" role="biller">
 			{children}
 		</AppLayoutWithBranch>
 	);

@@ -19,7 +19,6 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import {
 	AnimatedCard,
 	AnimatePresence,
@@ -33,8 +32,7 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function AuditorDashboard() {
 	const trpc = useTRPC();
-	const locale = useLocale();
-	const { data: stats } = trpc.auditor.getDashboardStats.useQuery();
+	const { data: stats } = trpc.auditor.getDashboardStats.useQuery({});
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">

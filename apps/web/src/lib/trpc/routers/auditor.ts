@@ -293,4 +293,167 @@ export const auditorRouter = router({
 				.limit(input?.limit ?? 200);
 			return rows;
 		}),
+
+	// ── getFindings: full audit findings list for the findings page ───────────
+	getFindings: permProcedure("audit", "read")
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					severity: z.string().optional(),
+					limit: z.number().min(1).max(200).default(100),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const conds = [];
+			if (input?.status) conds.push(eq(auditFindings.status, input.status));
+			if (input?.severity)
+				conds.push(eq(auditFindings.severity, input.severity));
+
+			const rows = await ctx.db
+				.select({
+					id: auditFindings.id,
+					title: auditFindings.title,
+					type: auditFindings.finding_type,
+					severity: auditFindings.severity,
+					status: auditFindings.status,
+					date: auditFindings.created_at,
+					description: auditFindings.description,
+					resolution_notes: auditFindings.resolution_notes,
+					resolved_at: auditFindings.resolved_at,
+				})
+				.from(auditFindings)
+				.where(conds.length ? and(...conds) : undefined)
+				.orderBy(desc(auditFindings.created_at))
+				.limit(input?.limit ?? 100);
+
+			return rows.map((r) => ({
+				...r,
+				date: r.date
+					? new Date(r.date).toISOString().split("T")[0]
+					: "N/A",
+			}));
+		}),
+
+	// ── getUpcTasks: UPC verification task list ────────────────────────────────
+	getUpcTasks: permProcedure("upc", "read")
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					limit: z.number().min(1).max(200).default(100),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const conds = [];
+			if (input?.status) conds.push(eq(upcTasks.status, input.status));
+
+			const rows = await ctx.db
+				.select({
+					id: upcTasks.id,
+					barcode: upcTasks.barcode,
+					status: upcTasks.status,
+					task_type: upcTasks.task_type,
+					priority: upcTasks.priority,
+					notes: upcTasks.notes,
+					created_at: upcTasks.created_at,
+					completed_at: upcTasks.completed_at,
+				})
+				.from(upcTasks)
+				.where(conds.length ? and(...conds) : undefined)
+				.orderBy(desc(upcTasks.created_at))
+				.limit(input?.limit ?? 100);
+
+			return rows.map((r) => ({
+				...r,
+				created_at: r.created_at
+					? new Date(r.created_at).toISOString().split("T")[0]
+					: "N/A",
+				completed_at: r.completed_at
+					? new Date(r.completed_at).toISOString().split("T")[0]
+					: null,
+			}));
+		}),
+
+	// ── getReceivingInspections: receiving inspection list ────────────────────
+	getReceivingInspections: permProcedure("audit", "read")
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					limit: z.number().min(1).max(200).default(100),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const conds = [];
+			if (input?.status)
+				conds.push(eq(receivingInspections.status, input.status));
+
+			const rows = await ctx.db
+				.select({
+					id: receivingInspections.id,
+					status: receivingInspections.status,
+					inspector_notes: receivingInspections.inspector_notes,
+					result: receivingInspections.result,
+					inspected_at: receivingInspections.inspected_at,
+					created_at: receivingInspections.created_at,
+				})
+				.from(receivingInspections)
+				.where(conds.length ? and(...conds) : undefined)
+				.orderBy(desc(receivingInspections.created_at))
+				.limit(input?.limit ?? 100);
+
+			return rows.map((r) => ({
+				...r,
+				created_at: r.created_at
+					? new Date(r.created_at).toISOString().split("T")[0]
+					: "N/A",
+				inspected_at: r.inspected_at
+					? new Date(r.inspected_at).toISOString().split("T")[0]
+					: null,
+			}));
+		}),
+
+	// ── getPlacementVerifications: placement verification list ────────────────
+	getPlacementVerifications: permProcedure("placement", "read")
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					limit: z.number().min(1).max(200).default(100),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const conds = [];
+			if (input?.status)
+				conds.push(eq(placementVerifications.status, input.status));
+
+			const rows = await ctx.db
+				.select({
+					id: placementVerifications.id,
+					status: placementVerifications.status,
+					notes: placementVerifications.notes,
+					verified_at: placementVerifications.verified_at,
+					created_at: placementVerifications.created_at,
+				})
+				.from(placementVerifications)
+				.where(conds.length ? and(...conds) : undefined)
+				.orderBy(desc(placementVerifications.created_at))
+				.limit(input?.limit ?? 100);
+
+			return rows.map((r) => ({
+				...r,
+				created_at: r.created_at
+					? new Date(r.created_at).toISOString().split("T")[0]
+					: "N/A",
+				verified_at: r.verified_at
+					? new Date(r.verified_at).toISOString().split("T")[0]
+					: null,
+			}));
+		}),
 });
+
