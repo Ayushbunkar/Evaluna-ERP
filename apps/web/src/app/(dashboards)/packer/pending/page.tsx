@@ -80,7 +80,7 @@ export default function PackerPendingPage() {
 			{/* Page Header */}
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
-					<PackageIcon className="h-7 w-7 text-purple-600" />
+					<PackageIcon className="h-7 w-7 text-blue-600" />
 					Pending Packing Queue
 				</h1>
 				<p className="text-muted-foreground text-sm">
@@ -91,14 +91,14 @@ export default function PackerPendingPage() {
 			{/* Stats */}
 			<StaggerList className="grid gap-4 sm:grid-cols-3" slow>
 				<StaggerItem>
-					<Card className="border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/20">
+					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-purple-700 dark:text-purple-400">Total Pending to Pack</p>
-									<p className="text-3xl font-bold text-purple-800 dark:text-purple-300">{pendingList?.length ?? 0}</p>
+									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Total Pending to Pack</p>
+									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{pendingList?.length ?? 0}</p>
 								</div>
-								<ClockIcon className="h-8 w-8 text-purple-500" />
+								<ClockIcon className="h-8 w-8 text-blue-500" />
 							</div>
 						</CardContent>
 					</Card>
@@ -138,7 +138,7 @@ export default function PackerPendingPage() {
 				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
-							<BoxIcon className="h-5 w-5 text-purple-600" />
+							<BoxIcon className="h-5 w-5 text-blue-600" />
 							Pending Pack Queue
 						</CardTitle>
 						<CardDescription>Orders waiting to be packed into shipping boxes</CardDescription>
@@ -158,7 +158,7 @@ export default function PackerPendingPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin text-purple-600" /> Loading queue...
+							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading queue...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -195,7 +195,7 @@ export default function PackerPendingPage() {
 											<TableCell className="text-right">
 												<Button
 													size="sm"
-													className="bg-purple-600 hover:bg-purple-700 text-white h-8"
+													className="bg-blue-600 hover:bg-blue-700 text-white h-8"
 													onClick={() => setSelectedPickList(pl)}
 												>
 													<BoxIcon className="mr-1 h-3.5 w-3.5" /> Pack Parcel
@@ -216,7 +216,7 @@ export default function PackerPendingPage() {
 					<DialogContent className="sm:max-w-[480px]">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
-								<BoxIcon className="h-5 w-5 text-purple-600" />
+								<BoxIcon className="h-5 w-5 text-blue-600" />
 								Pack Order {selectedPickList.order_ref}
 							</DialogTitle>
 							<DialogDescription>
@@ -225,7 +225,7 @@ export default function PackerPendingPage() {
 						</DialogHeader>
 
 						<div className="space-y-4 py-2 text-sm">
-							<div className="bg-purple-50 p-3 rounded-lg border border-purple-200 dark:bg-purple-950/30 dark:border-purple-900 text-xs text-purple-900 dark:text-purple-300">
+							<div className="bg-blue-50 p-3 rounded-lg border border-blue-200 dark:bg-blue-950/30 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-300">
 								<p><strong>Picklist:</strong> {selectedPickList.id}</p>
 								<p><strong>Order Reference:</strong> {selectedPickList.order_ref}</p>
 								<p><strong>Status:</strong> Ready for Packaging</p>
@@ -267,7 +267,7 @@ export default function PackerPendingPage() {
 							<Button
 								disabled={packMutation.isPending}
 								onClick={handlePackSubmit}
-								className="bg-purple-600 hover:bg-purple-700 text-white"
+								className="bg-blue-600 hover:bg-blue-700 text-white"
 							>
 								{packMutation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
 								Complete Packing & Save Package

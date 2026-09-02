@@ -85,7 +85,7 @@ export default function PackerHistoryPage() {
 			{/* Page Header */}
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
-					<ArchiveIcon className="h-7 w-7 text-purple-600" />
+					<ArchiveIcon className="h-7 w-7 text-blue-600" />
 					Packing History & Label Repository
 				</h1>
 				<p className="text-muted-foreground text-sm">
@@ -96,14 +96,14 @@ export default function PackerHistoryPage() {
 			{/* Stats */}
 			<StaggerList className="grid gap-4 sm:grid-cols-3" slow>
 				<StaggerItem>
-					<Card className="border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/20">
+					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-purple-700 dark:text-purple-400">Total Packed</p>
-									<p className="text-3xl font-bold text-purple-800 dark:text-purple-300">{historyList?.length ?? 0}</p>
+									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Total Packed</p>
+									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{historyList?.length ?? 0}</p>
 								</div>
-								<ArchiveIcon className="h-8 w-8 text-purple-500" />
+								<ArchiveIcon className="h-8 w-8 text-blue-500" />
 							</div>
 						</CardContent>
 					</Card>
@@ -143,7 +143,7 @@ export default function PackerHistoryPage() {
 				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
-							<ArchiveIcon className="h-5 w-5 text-purple-600" />
+							<ArchiveIcon className="h-5 w-5 text-blue-600" />
 							Package Audit History
 						</CardTitle>
 						<CardDescription>Full history of completed parcels and shipping barcodes</CardDescription>
@@ -163,7 +163,7 @@ export default function PackerHistoryPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin text-purple-600" /> Loading history...
+							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading history...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -171,7 +171,7 @@ export default function PackerHistoryPage() {
 						</div>
 					) : !filteredList || filteredList.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<ArchiveIcon className="h-10 w-10 opacity-30 text-purple-500" />
+							<ArchiveIcon className="h-10 w-10 opacity-30 text-blue-500" />
 							<p>No package history found.</p>
 						</div>
 					) : (
@@ -190,7 +190,7 @@ export default function PackerHistoryPage() {
 								<TableBody>
 									{filteredList.map((pkg, idx) => (
 										<TableRow key={idx} className="hover:bg-muted/50">
-											<TableCell className="font-mono text-xs font-bold text-purple-600 dark:text-purple-400">
+											<TableCell className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
 												{pkg.packageNumber}
 											</TableCell>
 											<TableCell className="font-semibold text-sm">{pkg.orderId}</TableCell>

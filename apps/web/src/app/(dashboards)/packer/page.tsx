@@ -132,7 +132,7 @@ export default function PackerDashboard() {
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
-					<Button className="bg-purple-600 hover:bg-purple-700 text-xs shadow-sm sm:text-sm" asChild>
+					<Button className="bg-blue-600 hover:bg-blue-700 text-xs shadow-sm sm:text-sm" asChild>
 						<Link href="/packer/pending">
 							<PackageIcon className="mr-2 h-4 w-4" /> View Pending Packing
 						</Link>
@@ -222,8 +222,8 @@ export default function PackerDashboard() {
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<TruckIcon className="h-6 w-6 text-purple-500" />
+									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
+										<TruckIcon className="h-6 w-6 text-blue-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
 										Ready for Dispatch
@@ -248,7 +248,7 @@ export default function PackerDashboard() {
 					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
 						<div className="space-y-0.5">
 							<CardTitle className="text-base sm:text-lg flex items-center gap-2">
-								<BoxIcon className="h-5 w-5 text-purple-600" />
+								<BoxIcon className="h-5 w-5 text-blue-600" />
 								Pending Orders Ready for Packing
 							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
@@ -264,7 +264,7 @@ export default function PackerDashboard() {
 					<CardContent className="pt-1 sm:pt-2">
 						{isLoadingPending ? (
 							<div className="flex h-32 items-center justify-center gap-2 text-muted-foreground text-xs">
-								<Loader2Icon className="h-5 w-5 animate-spin text-purple-600" /> Loading pending pick lists...
+								<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading pending pick lists...
 							</div>
 						) : !pendingPickLists || pendingPickLists.length === 0 ? (
 							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
@@ -297,7 +297,7 @@ export default function PackerDashboard() {
 												<TableCell className="text-right">
 													<Button
 														size="sm"
-														className="bg-purple-600 hover:bg-purple-700 text-white h-8"
+														className="bg-blue-600 hover:bg-blue-700 text-white h-8"
 														onClick={() => setSelectedPickList(pl)}
 													>
 														<BoxIcon className="mr-1 h-3.5 w-3.5" /> Pack Parcel
@@ -323,7 +323,7 @@ export default function PackerDashboard() {
 					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
 						<div className="space-y-0.5">
 							<CardTitle className="text-base sm:text-lg flex items-center gap-2">
-								<ArchiveIcon className="h-5 w-5 text-purple-600" />
+								<ArchiveIcon className="h-5 w-5 text-blue-600" />
 								Recent Packing History & Shipping Labels
 							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
@@ -357,7 +357,7 @@ export default function PackerDashboard() {
 									<TableBody>
 										{historyList.slice(0, 5).map((pkg, idx) => (
 											<TableRow key={idx}>
-												<TableCell className="font-mono text-xs font-bold text-purple-600 dark:text-purple-400">
+												<TableCell className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
 													{pkg.packageNumber}
 												</TableCell>
 												<TableCell className="font-semibold text-sm">{pkg.orderId}</TableCell>
@@ -389,7 +389,7 @@ export default function PackerDashboard() {
 					<DialogContent className="sm:max-w-[480px]">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
-								<BoxIcon className="h-5 w-5 text-purple-600" />
+								<BoxIcon className="h-5 w-5 text-blue-600" />
 								Pack Order {selectedPickList.order_ref}
 							</DialogTitle>
 							<DialogDescription>
@@ -398,7 +398,7 @@ export default function PackerDashboard() {
 						</DialogHeader>
 
 						<div className="space-y-4 py-2 text-sm">
-							<div className="bg-purple-50 p-3 rounded-lg border border-purple-200 dark:bg-purple-950/30 dark:border-purple-900 text-xs text-purple-900 dark:text-purple-300">
+							<div className="bg-blue-50 p-3 rounded-lg border border-blue-200 dark:bg-blue-950/30 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-300">
 								<p><strong>Picklist:</strong> {selectedPickList.id}</p>
 								<p><strong>Order Reference:</strong> {selectedPickList.order_ref}</p>
 								<p><strong>Status:</strong> Ready for Packaging</p>
@@ -440,7 +440,7 @@ export default function PackerDashboard() {
 							<Button
 								disabled={packMutation.isPending}
 								onClick={handlePackSubmit}
-								className="bg-purple-600 hover:bg-purple-700 text-white"
+								className="bg-blue-600 hover:bg-blue-700 text-white"
 							>
 								{packMutation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
 								Complete Packing & Save Package
