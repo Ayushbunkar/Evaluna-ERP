@@ -353,21 +353,25 @@ export const auditorRouter = router({
 			const rows = await ctx.db
 				.select({
 					id: upcTasks.id,
-					barcode: upcTasks.barcode,
+					product_id: upcTasks.product_id,
+					product_name: products.name,
+					barcode: upcTasks.upc_value,
 					status: upcTasks.status,
 					task_type: upcTasks.task_type,
-					priority: upcTasks.priority,
 					notes: upcTasks.notes,
 					created_at: upcTasks.created_at,
 					completed_at: upcTasks.completed_at,
 				})
 				.from(upcTasks)
+				.leftJoin(products, eq(upcTasks.product_id, products.id))
 				.where(conds.length ? and(...conds) : undefined)
 				.orderBy(desc(upcTasks.created_at))
 				.limit(input?.limit ?? 100);
 
 			return rows.map((r) => ({
 				...r,
+				barcode: r.barcode || "N/A",
+				product_name: r.product_name || `Product #${r.product_id}`,
 				created_at: r.created_at
 					? new Date(r.created_at).toISOString().split("T")[0]
 					: "N/A",
@@ -376,6 +380,57 @@ export const auditorRouter = router({
 					: null,
 			}));
 		}),
+
+	// ── getProductsList: Fetch products for barcode generator modal ────────────
+	getProductsList: permProcedure("upc", "read")
+		.query(async ({ ctx }) => {
+			const rows = await ctx.db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+					barcode: products.barcode,
+					price: products.price,
+				})
+				.from(products)
+				.where(eq(products.is_deleted, false))
+				.orderBy(products.name)
+				.limit(200);
+			return rows;
+		}),
+
+	// ── createUpcTask: Generate & assign barcode to product ─────────────────
+	createUpcTask: permProcedure("upc", "write")
+		.input(
+			z.object({
+				productId: z.number(),
+				upcValue: z.string().min(1),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			// Update product barcode
+			await ctx.db
+				.update(products)
+				.set({ barcode: input.upcValue, updated_at: new Date() })
+				.where(eq(products.id, input.productId));
+
+			// Insert UPC task record
+			const [task] = await ctx.db
+				.insert(upcTasks)
+				.values({
+					product_id: input.productId,
+					upc_value: input.upcValue,
+					task_type: "generate",
+					status: "COMPLETED",
+					notes: input.notes || "Barcode generated and printed by Auditor",
+					completed_at: new Date(),
+				})
+				.returning();
+
+			return task;
+		}),
+
 
 	// ── getReceivingInspections: receiving inspection list ────────────────────
 	getReceivingInspections: permProcedure("audit", "read")
