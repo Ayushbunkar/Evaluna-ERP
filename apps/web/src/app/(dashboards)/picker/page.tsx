@@ -9,17 +9,25 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@evaluna/ui/components/table";
+import {
 	ActivityIcon,
 	ArrowRightIcon,
 	CalendarCheckIcon,
-	ChartLineIcon,
+	CheckSquareIcon,
 	ClockIcon,
 	PackageIcon,
+	PlaySquareIcon,
 	TrendingUpIcon,
-	UsersIcon,
+	Loader2Icon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import {
 	AnimatedCard,
 	motion,
@@ -28,15 +36,14 @@ import {
 	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
 
 export default function PickerDashboard() {
 	const trpc = useTRPC();
-	const locale = useLocale();
-	const { data: stats } = trpc.picker.getDashboardStats.useQuery();
+	const { data: stats, isLoading, error } = trpc.picker.getDashboardStats.useQuery({});
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
+			{/* Header */}
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
@@ -47,12 +54,9 @@ export default function PickerDashboard() {
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> Picking Activities
-					</Button>
-					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/picker/pending">
-							<PackageIcon className="mr-2 h-4 w-4" /> View Pending Picks
+					<Button className="text-xs shadow-sm sm:text-sm bg-blue-600 hover:bg-blue-700 text-white" asChild>
+						<Link href="/picker/active">
+							<PlaySquareIcon className="mr-2 h-4 w-4" /> Start Picking
 						</Link>
 					</Button>
 				</div>
@@ -72,12 +76,12 @@ export default function PickerDashboard() {
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
 									<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<CalendarCheckIcon className="h-6 w-6 text-blue-500" />
+										<ClockIcon className="h-6 w-6 text-blue-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
 										Pending Picks
 									</h3>
-									<p className="text-muted-foreground text-xs">
+									<p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
 										{stats?.pending || 0}
 									</p>
 								</div>
@@ -95,12 +99,12 @@ export default function PickerDashboard() {
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
 									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<ClockIcon className="h-6 w-6 text-green-500" />
+										<CalendarCheckIcon className="h-6 w-6 text-green-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
 										Assigned Today
 									</h3>
-									<p className="text-muted-foreground text-xs">
+									<p className="text-2xl font-bold text-green-600 dark:text-green-400">
 										{stats?.assignedToday || 0}
 									</p>
 								</div>
@@ -117,37 +121,14 @@ export default function PickerDashboard() {
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<TrendingUpIcon className="h-6 w-6 text-yellow-500" />
+									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
+										<CheckSquareIcon className="h-6 w-6 text-purple-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
 										Completed Today
 									</h3>
-									<p className="text-muted-foreground text-xs">
+									<p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
 										{stats?.completed || 0}
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/picker/dashboard")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<UsersIcon className="h-6 w-6 text-purple-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Total Items Picked
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.totalItemsPicked || 0}
 									</p>
 								</div>
 							</CardContent>
@@ -163,14 +144,14 @@ export default function PickerDashboard() {
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<ChartLineIcon className="h-6 w-6 text-orange-500" />
+									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
+										<TrendingUpIcon className="h-6 w-6 text-yellow-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Pick Accuracy
+										Total Items Picked
 									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.pickAccuracy?.toFixed(1)}%
+									<p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+										{stats?.totalItemsPicked || 0}
 									</p>
 								</div>
 							</CardContent>
@@ -179,7 +160,7 @@ export default function PickerDashboard() {
 				</StaggerItem>
 			</StaggerList>
 
-			{/* Recent Tasks */}
+			{/* Recent Picking Tasks Table */}
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
@@ -188,7 +169,8 @@ export default function PickerDashboard() {
 				<Card className="border-border/50 bg-card/50 shadow-sm">
 					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
 						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
+							<CardTitle className="text-base sm:text-lg flex items-center gap-2">
+								<PackageIcon className="h-5 w-5 text-blue-600" />
 								Recent Picking Tasks
 							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
@@ -202,127 +184,49 @@ export default function PickerDashboard() {
 						</Button>
 					</CardHeader>
 					<CardContent className="pt-1 sm:pt-2">
-						{stats?.recentTasks?.length > 0 ? (
-							<div className="space-y-3">
-								{stats.recentTasks.map((task) => (
-									<div
-										key={task.id}
-										className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0"
-									>
-										<div className="flex flex-col">
-											<p className="font-medium text-sm">Order {task.order}</p>
-											<p className="text-muted-foreground text-xs">
-												{task.items} items â€¢ {task.area}
-											</p>
-										</div>
-										<div className="flex items-center gap-2 text-right">
-											<span
-												className={`text-xs ${
-													task.status === "completed"
-														? "text-green-600"
-														: task.status === "picking"
-															? "text-blue-600"
-															: task.status === "pending"
-																? "text-yellow-600"
-																: "text-gray-600"
-												}`}
-											>
-												{task.status
-													.split("_")
-													.map(
-														(word) =>
-															word.charAt(0).toUpperCase() + word.slice(1),
-													)
-													.join(" ")}
-											</span>
-											<span className="text-gray-500 text-xs">{task.time}</span>
-										</div>
-									</div>
-								))}
+						{isLoading ? (
+							<div className="flex h-32 items-center justify-center gap-2 text-muted-foreground text-xs">
+								<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading task queue...
+							</div>
+						) : error ? (
+							<div className="flex h-32 items-center justify-center text-destructive text-xs">
+								{error.message || "Error loading picking tasks"}
+							</div>
+						) : !stats?.recentTasks || stats.recentTasks.length === 0 ? (
+							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
+								<PackageIcon className="h-8 w-8 opacity-30 text-blue-500" />
+								<span>No recent picking tasks logged yet</span>
 							</div>
 						) : (
-							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
-								No recent picking tasks
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			</motion.div>
-
-			{/* Picker Performance */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.4 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Picker Performance
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Top performers and metrics
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/picker/reports">
-								View Details <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{/* In a real app, this would come from the getReports procedure */}
-						<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
-							Picker performance data would be displayed here
-						</div>
-					</CardContent>
-				</Card>
-			</motion.div>
-
-			{/* Exceptions / Issues */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.5 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Picking Exceptions
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Missing, damaged, or incorrect items
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/picker/pending">
-								View Details <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{stats?.exceptions || 0 > 0 ? (
-							<div className="grid gap-4 sm:grid-cols-2">
-								<div className="border-border/50 p-4">
-									<p className="mb-1 font-medium text-muted-foreground text-xs">
-										Exception Types
-									</p>
-									<p className="font-bold text-2xl">{stats?.exceptions || 0}</p>
-								</div>
-								<div className="border-border/50 p-4">
-									<p className="mb-1 font-medium text-muted-foreground text-xs">
-										Accuracy Rate
-									</p>
-									<p className="font-bold text-2xl">
-										{stats?.pickAccuracy?.toFixed(1)}%
-									</p>
-								</div>
-							</div>
-						) : (
-							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
-								No picking exceptions
+							<div className="overflow-x-auto">
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Picklist ID</TableHead>
+											<TableHead>Order Ref</TableHead>
+											<TableHead>Total Items</TableHead>
+											<TableHead>Area</TableHead>
+											<TableHead>Status</TableHead>
+											<TableHead>Created Time</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{stats.recentTasks.map((t) => (
+											<TableRow key={t.id} className="hover:bg-muted/50">
+												<TableCell className="font-mono text-xs font-semibold">{t.id}</TableCell>
+												<TableCell className="font-semibold text-sm">{t.order}</TableCell>
+												<TableCell className="text-sm font-medium">{t.items} items</TableCell>
+												<TableCell className="text-xs text-muted-foreground">{t.area}</TableCell>
+												<TableCell>
+													<span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
+														{t.status}
+													</span>
+												</TableCell>
+												<TableCell className="text-xs text-muted-foreground">{t.time || "Recently"}</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
 							</div>
 						)}
 					</CardContent>

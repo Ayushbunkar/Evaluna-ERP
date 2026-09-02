@@ -1,5 +1,13 @@
-﻿import Link from "next/link";
-import { LayoutDashboard, CheckSquare, User, FileBarChart, PlaySquare, Hexagon, Circle } from "lucide-react";
+import Link from "next/link";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import {
+	LayoutDashboard,
+	Clock,
+	PlaySquare,
+	CheckSquare,
+	FileBarChart,
+	Hexagon,
+} from "lucide-react";
 
 export default function PickerLayout({
 	children,
@@ -24,47 +32,56 @@ export default function PickerLayout({
 					</div>
 
 					{/* Navigation */}
-					<nav className="mt-10 flex-1">
-						<ul className="space-y-1 px-3">
-							<Link
-								href="/picker/dashboard"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<LayoutDashboard className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Dashboard</span>
-							</Link>
-
-							<Link
-								href="/picker/pending"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Pending Picks</span>
-							</Link>
-
-							<Link
-								href="/picker/active"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<PlaySquare className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Active Picks</span>
-							</Link>
-
-							<Link
-								href="/picker/completed"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<CheckSquare className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Completed Picks</span>
-							</Link>
-
-							<Link
-								href="/picker/reports"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<FileBarChart className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Reports</span>
-							</Link>
+					<nav className="mt-6 flex-1 px-3">
+						<p className="mb-2 px-3 font-semibold text-gray-400 text-xs uppercase tracking-wider dark:text-gray-500">
+							Picker Workspace
+						</p>
+						<ul className="space-y-1">
+							<li>
+								<Link
+									href="/picker"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
+									Dashboard
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/picker/pending"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<Clock className="mr-3 h-5 w-5 text-gray-400" />
+									Pending Picks
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/picker/active"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<PlaySquare className="mr-3 h-5 w-5 text-gray-400" />
+									Active Picks
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/picker/completed"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<CheckSquare className="mr-3 h-5 w-5 text-gray-400" />
+									Completed Picks
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/picker/reports"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<FileBarChart className="mr-3 h-5 w-5 text-gray-400" />
+									Reports
+								</Link>
+							</li>
 						</ul>
 					</nav>
 				</div>
@@ -73,23 +90,7 @@ export default function PickerLayout({
 			{/* Main Content */}
 			<main className="flex-1 overflow-hidden">
 				<div className="flex h-full flex-col">
-					{/* Header */}
-					<header className="border-gray-200 border-b bg-white dark:border-gray-700 dark:bg-gray-800">
-						<div className="flex items-center justify-between px-6 py-4">
-							<div className="text-gray-500 text-sm dark:text-gray-400">
-								Welcome, Picker
-							</div>
-							<div className="flex items-center space-x-4">
-								<button className="flex items-center rounded-md border border-gray-300 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">
-									<User className="h-5 w-5 text-gray-400" />
-									<span className="ml-2 text-gray-600 text-sm dark:text-gray-300">
-										Profile
-									</span>
-								</button>
-							</div>
-						</div>
-					</header>
-
+					<DashboardHeader />
 					{/* Content */}
 					<div className="flex-1 overflow-y-auto p-6">{children}</div>
 				</div>
