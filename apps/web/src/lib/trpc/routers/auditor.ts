@@ -490,18 +490,24 @@ export const auditorRouter = router({
 			const rows = await ctx.db
 				.select({
 					id: placementVerifications.id,
+					product_id: placementVerifications.product_id,
+					product_name: products.name,
+					product_sku: products.sku,
 					status: placementVerifications.status,
 					notes: placementVerifications.notes,
 					verified_at: placementVerifications.verified_at,
 					created_at: placementVerifications.created_at,
 				})
 				.from(placementVerifications)
+				.leftJoin(products, eq(placementVerifications.product_id, products.id))
 				.where(conds.length ? and(...conds) : undefined)
 				.orderBy(desc(placementVerifications.created_at))
 				.limit(input?.limit ?? 100);
 
 			return rows.map((r) => ({
 				...r,
+				product_name: r.product_name || `Product #${r.product_id}`,
+				product_sku: r.product_sku || "N/A",
 				created_at: r.created_at
 					? new Date(r.created_at).toISOString().split("T")[0]
 					: "N/A",
@@ -510,5 +516,51 @@ export const auditorRouter = router({
 					: null,
 			}));
 		}),
+
+	// ── createPlacementVerification: Perform physical bin placement audit ─────
+	createPlacementVerification: permProcedure("placement", "write")
+		.input(
+			z.object({
+				productId: z.number(),
+				locationNotes: z.string().optional(),
+				status: z.enum(["VERIFIED", "DISCREPANCY", "PLACEMENT_EXCEPTION"]).default("VERIFIED"),
+				notes: z.string().optional(),
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
+			const fullNotes = input.locationNotes
+				? `[Location: ${input.locationNotes}] ${input.notes || ""}`.trim()
+				: input.notes;
+
+			const [row] = await ctx.db
+				.insert(placementVerifications)
+				.values({
+					product_id: input.productId,
+					status: input.status,
+					notes: fullNotes,
+					verified_at: new Date(),
+				})
+				.returning();
+
+			// Auto-raise audit finding if discrepancy or exception
+			if (input.status === "DISCREPANCY" || input.status === "PLACEMENT_EXCEPTION") {
+				const [prod] = await ctx.db
+					.select({ name: products.name })
+					.from(products)
+					.where(eq(products.id, input.productId))
+					.limit(1);
+
+				await ctx.db.insert(auditFindings).values({
+					finding_type: "placement",
+					severity: input.status === "PLACEMENT_EXCEPTION" ? "CRITICAL" : "HIGH",
+					status: "OPEN",
+					title: `Placement Exception: ${prod?.name || `Product #${input.productId}`}`,
+					description: `Physical placement discrepancy logged during audit. ${fullNotes || ""}`,
+				});
+			}
+
+			return row;
+		}),
 });
+
 
