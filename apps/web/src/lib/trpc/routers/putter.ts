@@ -77,15 +77,11 @@ export const putterRouter = router({
 							branchId ? eq(orders.branch_id, branchId) : undefined,
 						),
 					),
-				// Efficiency: percentage of put-away tasks completed on time vs total
+				// Efficiency: percentage of put-away tasks completed vs total received/completed
 				db
 					.select({
-						completedOnTime: count().filterWhere(
-							eq(purchases.status, "completed"),
-						),
-						totalPutAway: count().filterWhere(
-							inArray(purchases.status, ["received", "completed"]),
-						),
+						completedOnTime: sql<number>`COUNT(CASE WHEN ${purchases.status} = 'completed' THEN 1 END)`,
+						totalPutAway: count(),
 					})
 					.from(purchases)
 					.where(
@@ -95,6 +91,7 @@ export const putterRouter = router({
 						),
 					),
 			]);
+
 
 			const recentPurchases = await db
 				.select({
