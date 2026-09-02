@@ -450,27 +450,98 @@ export const auditorRouter = router({
 			const rows = await ctx.db
 				.select({
 					id: receivingInspections.id,
+					product_id: receivingInspections.product_id,
+					product_name: products.name,
+					product_sku: products.sku,
+					expected_qty: receivingInspections.expected_qty,
+					received_qty: receivingInspections.received_qty,
+					condition: receivingInspections.condition,
+					upc_status: receivingInspections.upc_status,
 					status: receivingInspections.status,
-					inspector_notes: receivingInspections.inspector_notes,
-					result: receivingInspections.result,
-					inspected_at: receivingInspections.inspected_at,
+					notes: receivingInspections.notes,
 					created_at: receivingInspections.created_at,
+					verified_at: receivingInspections.verified_at,
 				})
 				.from(receivingInspections)
+				.leftJoin(products, eq(receivingInspections.product_id, products.id))
 				.where(conds.length ? and(...conds) : undefined)
 				.orderBy(desc(receivingInspections.created_at))
 				.limit(input?.limit ?? 100);
 
 			return rows.map((r) => ({
 				...r,
+				product_name: r.product_name || `Product #${r.product_id}`,
+				product_sku: r.product_sku || "N/A",
 				created_at: r.created_at
 					? new Date(r.created_at).toISOString().split("T")[0]
 					: "N/A",
-				inspected_at: r.inspected_at
-					? new Date(r.inspected_at).toISOString().split("T")[0]
+				verified_at: r.verified_at
+					? new Date(r.verified_at).toISOString().split("T")[0]
 					: null,
 			}));
 		}),
+
+	// ── createReceivingInspection: Log incoming goods GRN inspection ──────────
+	createReceivingInspection: permProcedure("audit", "write")
+		.input(
+			z.object({
+				productId: z.number(),
+				expectedQty: z.number().min(0),
+				receivedQty: z.number().min(0),
+				condition: z.enum(["good", "damaged", "mismatch"]).default("good"),
+				upcStatus: z.enum(["present", "missing", "invalid"]).default("present"),
+				notes: z.string().optional(),
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
+			const isMatch =
+				input.expectedQty === input.receivedQty &&
+				input.condition === "good" &&
+				input.upcStatus === "present";
+
+			const status = isMatch ? "VERIFIED" : "DISCREPANCY";
+
+			const [row] = await ctx.db
+				.insert(receivingInspections)
+				.values({
+					product_id: input.productId,
+					expected_qty: input.expectedQty,
+					received_qty: input.receivedQty,
+					condition: input.condition,
+					upc_status: input.upcStatus,
+					status: status,
+					notes: input.notes,
+					verified_at: new Date(),
+				})
+				.returning();
+
+			// Auto-raise audit finding if discrepancy
+			if (!isMatch) {
+				const [prod] = await ctx.db
+					.select({ name: products.name })
+					.from(products)
+					.where(eq(products.id, input.productId))
+					.limit(1);
+
+				const defectReason =
+					input.condition === "damaged"
+						? "Damaged Goods Received"
+						: input.expectedQty !== input.receivedQty
+						? `Quantity Mismatch (Expected ${input.expectedQty}, Got ${input.receivedQty})`
+						: `Barcode/UPC Issue (${input.upcStatus})`;
+
+				await ctx.db.insert(auditFindings).values({
+					finding_type: "receiving",
+					severity: input.condition === "damaged" ? "CRITICAL" : "HIGH",
+					status: "OPEN",
+					title: `Receiving Defect: ${prod?.name || `Product #${input.productId}`} - ${defectReason}`,
+					description: `Defect logged during incoming goods receiving inspection. Notes: ${input.notes || "None"}`,
+				});
+			}
+
+			return row;
+		}),
+
 
 	// ── getPlacementVerifications: placement verification list ────────────────
 	getPlacementVerifications: permProcedure("placement", "read")

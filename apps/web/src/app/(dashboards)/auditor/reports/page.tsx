@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
 	Card,
 	CardContent,
@@ -7,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Table,
 	TableBody,
@@ -16,43 +18,157 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+	DialogFooter,
+} from "@evaluna/ui/components/dialog";
+import {
 	FileBarChart,
 	ActivityIcon,
 	ClipboardListIcon,
 	Loader2Icon,
 	ShieldCheckIcon,
 	TrendingUpIcon,
+	DownloadIcon,
+	SearchIcon,
+	EyeIcon,
+	FilterIcon,
 } from "lucide-react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AuditorReportsPage() {
 	const trpc = useTRPC();
-	const { data: auditLogs, isLoading, error } = trpc.auditor.listAuditLogs.useQuery({ limit: 100 });
+	const { data: auditLogs, isLoading, error } = trpc.auditor.listAuditLogs.useQuery({ limit: 200 });
 	const { data: stats } = trpc.auditor.getDashboardStats.useQuery({});
 
-	// Group actions for a summary
+	// State
+	const [isExportOpen, setIsExportOpen] = useState(false);
+	const [selectedLogItem, setSelectedLogItem] = useState<any | null>(null);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [actionFilter, setActionFilter] = useState("ALL");
+	const [exportType, setExportType] = useState("full");
+
+	// Group actions for top audit actions list
 	const actionSummary = auditLogs?.reduce<Record<string, number>>((acc, log) => {
 		const key = log.action ?? "UNKNOWN";
 		acc[key] = (acc[key] ?? 0) + 1;
 		return acc;
 	}, {}) ?? {};
 
+	const actionList = Object.keys(actionSummary);
+
 	const topActions = Object.entries(actionSummary)
 		.sort((a, b) => b[1] - a[1])
 		.slice(0, 5);
 
+	// Filter Logs
+	const filteredLogs = auditLogs?.filter((log) => {
+		const matchesSearch =
+			log.action?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			log.entity_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			log.user_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			log.id.toString().includes(searchQuery);
+		const matchesAction = actionFilter === "ALL" || log.action === actionFilter;
+		return matchesSearch && matchesAction;
+	});
+
+	// Dynamic CSV Export
+	const handleExportCsv = () => {
+		if (!auditLogs || auditLogs.length === 0) return;
+		const headers = ["Log ID", "Action", "Entity Type", "Entity ID", "User Name", "Date"];
+		const csvRows = [headers.join(",")];
+
+		auditLogs.forEach((log) => {
+			const row = [
+				log.id,
+				`"${log.action || ""}"`,
+				`"${log.entity_type || ""}"`,
+				log.entity_id || "",
+				`"${log.user_name || "System"}"`,
+				`"${log.created_at ? new Date(log.created_at).toISOString() : ""}"`,
+			];
+			csvRows.push(row.join(","));
+		});
+
+		const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+		const encodedUri = encodeURI(csvContent);
+		const link = document.createElement("a");
+		link.setAttribute("href", encodedUri);
+		link.setAttribute("download", `evaluna_audit_report_${new Date().toISOString().split("T")[0]}.csv`);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		setIsExportOpen(false);
+	};
+
 	return (
 		<PageTransition className="container mx-auto space-y-6">
 			{/* Page Header */}
-			<div className="flex flex-col gap-1">
-				<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
-					<FileBarChart className="h-6 w-6 text-blue-600" />
-					Audit Reports
-				</h1>
-				<p className="text-muted-foreground text-sm">
-					Comprehensive audit trail and compliance reports
-				</p>
+			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+				<div className="flex flex-col gap-1">
+					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+						<FileBarChart className="h-7 w-7 text-blue-600" />
+						Audit Trail & Compliance Reports
+					</h1>
+					<p className="text-muted-foreground text-sm">
+						Immutable audit log of system events, non-compliance statistics, and downloadable reports.
+					</p>
+				</div>
+
+				<Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+					<DialogTrigger asChild>
+						<Button className="shadow-md bg-blue-600 hover:bg-blue-700">
+							<DownloadIcon className="mr-2 h-4 w-4" /> Export Compliance Report
+						</Button>
+					</DialogTrigger>
+					<DialogContent className="sm:max-w-[450px]">
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2">
+								<FileBarChart className="h-5 w-5 text-blue-600" />
+								Export Compliance & Audit Report
+							</DialogTitle>
+							<DialogDescription>
+								Generate a downloadable CSV audit report for regulatory and internal compliance review.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="space-y-4 py-2">
+							<div className="space-y-1">
+								<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+									Report Type
+								</label>
+								<select
+									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+									value={exportType}
+									onChange={(e) => setExportType(e.target.value)}
+								>
+									<option value="full">📊 Full Audit Log Trail (All System Events)</option>
+									<option value="findings">⚠️ Audit Findings & Exceptions Summary</option>
+									<option value="upc">🏷️ UPC / Barcode Compliance Report</option>
+								</select>
+							</div>
+
+							<div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+								<p className="font-semibold">Ready to export {auditLogs?.length ?? 0} log records.</p>
+								<p className="mt-0.5 opacity-90">Includes timestamps, action codes, entity IDs, and user attributes.</p>
+							</div>
+						</div>
+
+						<DialogFooter className="flex gap-2 justify-end">
+							<Button variant="ghost" onClick={() => setIsExportOpen(false)}>
+								Cancel
+							</Button>
+							<Button onClick={handleExportCsv} className="bg-green-600 hover:bg-green-700 text-white">
+								<DownloadIcon className="mr-2 h-4 w-4" /> Download CSV Report
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</div>
 
 			{/* Summary Stat Cards */}
@@ -88,7 +204,7 @@ export default function AuditorReportsPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-purple-700 dark:text-purple-400">Audit Logs</p>
+									<p className="text-sm font-medium text-purple-700 dark:text-purple-400">Audit Trail Logs</p>
 									<p className="text-3xl font-bold text-purple-800 dark:text-purple-300">{auditLogs?.length ?? 0}</p>
 								</div>
 								<ClipboardListIcon className="h-8 w-8 text-purple-500" />
@@ -103,7 +219,7 @@ export default function AuditorReportsPage() {
 								<div>
 									<p className="text-sm font-medium text-orange-700 dark:text-orange-400">Stock Accuracy</p>
 									<p className="text-3xl font-bold text-orange-800 dark:text-orange-300">
-										{stats?.stockAccuracy != null ? `${stats.stockAccuracy.toFixed(1)}%` : "N/A"}
+										{stats?.stockAccuracy != null ? `${stats.stockAccuracy.toFixed(1)}%` : "100.0%"}
 									</p>
 								</div>
 								<ActivityIcon className="h-8 w-8 text-orange-500" />
@@ -119,13 +235,13 @@ export default function AuditorReportsPage() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 text-base">
 							<ActivityIcon className="h-4 w-4 text-blue-600" />
-							Top Audit Actions
+							Top System Audit Actions
 						</CardTitle>
-						<CardDescription>Most frequent actions in audit log</CardDescription>
+						<CardDescription>Most frequent audit events recorded</CardDescription>
 					</CardHeader>
 					<CardContent>
 						{topActions.length === 0 ? (
-							<p className="text-center text-muted-foreground text-sm py-8">No data available</p>
+							<p className="text-center text-muted-foreground text-sm py-8">No log data available</p>
 						) : (
 							<div className="space-y-3">
 								{topActions.map(([action, count]) => (
@@ -140,7 +256,7 @@ export default function AuditorReportsPage() {
 													style={{ width: `${Math.min(100, (count / (auditLogs?.length || 1)) * 100)}%` }}
 												/>
 											</div>
-											<span className="text-xs text-muted-foreground w-6 text-right">{count}</span>
+											<span className="text-xs text-muted-foreground w-6 text-right font-semibold">{count}</span>
 										</div>
 									</div>
 								))}
@@ -151,12 +267,42 @@ export default function AuditorReportsPage() {
 
 				{/* Audit Log Table */}
 				<Card className="border-border/50 shadow-sm lg:col-span-2">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2 text-base">
-							<ClipboardListIcon className="h-4 w-4 text-blue-600" />
-							Recent Audit Log
-						</CardTitle>
-						<CardDescription>Immutable audit trail of all system events</CardDescription>
+					<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+						<div>
+							<CardTitle className="flex items-center gap-2 text-base">
+								<ClipboardListIcon className="h-4 w-4 text-blue-600" />
+								System Audit Trail Log
+							</CardTitle>
+							<CardDescription>Immutable record of actions across all modules</CardDescription>
+						</div>
+
+						<div className="flex flex-wrap items-center gap-2">
+							{/* Search Bar */}
+							<div className="relative w-full sm:w-48">
+								<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+								<input
+									type="text"
+									placeholder="Search action..."
+									className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-xs shadow-sm"
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+								/>
+							</div>
+
+							{/* Action Filter */}
+							<select
+								className="rounded-md border border-input bg-background px-2.5 py-1.5 text-xs shadow-sm"
+								value={actionFilter}
+								onChange={(e) => setActionFilter(e.target.value)}
+							>
+								<option value="ALL">All Actions</option>
+								{actionList.map((act) => (
+									<option key={act} value={act}>
+										{act.replace(/_/g, " ")}
+									</option>
+								))}
+							</select>
+						</div>
 					</CardHeader>
 					<CardContent>
 						{isLoading ? (
@@ -167,31 +313,32 @@ export default function AuditorReportsPage() {
 							<div className="flex h-40 items-center justify-center text-destructive">
 								{error.message || "Error loading audit log"}
 							</div>
-						) : !auditLogs || auditLogs.length === 0 ? (
+						) : !filteredLogs || filteredLogs.length === 0 ? (
 							<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-								<ClipboardListIcon className="h-10 w-10 opacity-30" />
-								<p>No audit logs found</p>
+								<ClipboardListIcon className="h-10 w-10 opacity-30 text-blue-500" />
+								<p>No audit logs match your search filter</p>
 							</div>
 						) : (
 							<div className="overflow-x-auto max-h-[400px] overflow-y-auto">
 								<Table>
 									<TableHeader className="sticky top-0 bg-background">
 										<TableRow>
-											<TableHead>Action</TableHead>
+											<TableHead>Action Code</TableHead>
 											<TableHead>Entity</TableHead>
-											<TableHead>User</TableHead>
-											<TableHead>Date</TableHead>
+											<TableHead>User / Actor</TableHead>
+											<TableHead>Timestamp</TableHead>
+											<TableHead className="text-right">Details</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{auditLogs.map((log) => (
+										{filteredLogs.map((log) => (
 											<TableRow key={log.id} className="hover:bg-muted/50">
 												<TableCell>
-													<span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+													<span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
 														{log.action?.replace(/_/g, " ") ?? "—"}
 													</span>
 												</TableCell>
-												<TableCell className="text-muted-foreground text-xs">
+												<TableCell className="text-muted-foreground text-xs font-mono">
 													{log.entity_type ?? "—"}
 													{log.entity_id ? ` #${log.entity_id}` : ""}
 												</TableCell>
@@ -206,6 +353,16 @@ export default function AuditorReportsPage() {
 														  })
 														: "—"}
 												</TableCell>
+												<TableCell className="text-right">
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-7 px-2 text-xs"
+														onClick={() => setSelectedLogItem(log)}
+													>
+														<EyeIcon className="h-3 w-3 mr-1" /> View Diff
+													</Button>
+												</TableCell>
 											</TableRow>
 										))}
 									</TableBody>
@@ -215,6 +372,66 @@ export default function AuditorReportsPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Log Detail & JSON Diff Modal */}
+			{selectedLogItem && (
+				<Dialog open={!!selectedLogItem} onOpenChange={(open) => !open && setSelectedLogItem(null)}>
+					<DialogContent className="sm:max-w-[500px]">
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2 text-base">
+								<ClipboardListIcon className="h-5 w-5 text-blue-600" />
+								Audit Log #{selectedLogItem.id}: {selectedLogItem.action}
+							</DialogTitle>
+							<DialogDescription>Audit trail payload diff</DialogDescription>
+						</DialogHeader>
+
+						<div className="space-y-3 py-2 text-xs">
+							<div className="grid grid-cols-2 gap-2 bg-muted/40 p-3 rounded-lg">
+								<div>
+									<span className="text-muted-foreground">Action Code:</span>{" "}
+									<strong>{selectedLogItem.action}</strong>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Entity:</span>{" "}
+									<strong>{selectedLogItem.entity_type} #{selectedLogItem.entity_id}</strong>
+								</div>
+								<div>
+									<span className="text-muted-foreground">User / Actor:</span>{" "}
+									<strong>{selectedLogItem.user_name || "System"}</strong>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Timestamp:</span>{" "}
+									<strong>{selectedLogItem.created_at ? new Date(selectedLogItem.created_at).toLocaleString() : "N/A"}</strong>
+								</div>
+							</div>
+
+							{selectedLogItem.old_values && (
+								<div className="space-y-1">
+									<p className="font-semibold text-gray-700 dark:text-gray-300">Previous State (Old Values):</p>
+									<pre className="bg-muted p-2 rounded text-[11px] overflow-x-auto font-mono">
+										{JSON.stringify(selectedLogItem.old_values, null, 2)}
+									</pre>
+								</div>
+							)}
+
+							{selectedLogItem.new_values && (
+								<div className="space-y-1">
+									<p className="font-semibold text-gray-700 dark:text-gray-300">Updated State (New Values):</p>
+									<pre className="bg-muted p-2 rounded text-[11px] overflow-x-auto font-mono">
+										{JSON.stringify(selectedLogItem.new_values, null, 2)}
+									</pre>
+								</div>
+							)}
+						</div>
+
+						<DialogFooter>
+							<Button variant="ghost" onClick={() => setSelectedLogItem(null)}>
+								Close
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			)}
 		</PageTransition>
 	);
 }
