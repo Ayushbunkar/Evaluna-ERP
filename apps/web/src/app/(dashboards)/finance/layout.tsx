@@ -1,5 +1,5 @@
 ﻿import Link from "next/link";
-import { LayoutDashboard, User, Hexagon, Circle } from "lucide-react";
+import { LayoutDashboard, User, Hexagon, Receipt, WalletCards, Landmark, ChartNoAxesCombined } from "lucide-react";
 
 export default function FinanceLayout({
 	children,
@@ -27,7 +27,7 @@ export default function FinanceLayout({
 					<nav className="mt-10 flex-1">
 						<ul className="space-y-1 px-3">
 							<Link
-								href="/finance/dashboard"
+								href="/finance"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<LayoutDashboard className="h-5 w-5 text-gray-400" />
@@ -38,7 +38,7 @@ export default function FinanceLayout({
 								href="/finance/transactions"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<Circle className="h-5 w-5 text-gray-400" />
+								<Receipt className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Transactions</span>
 							</Link>
 
@@ -46,7 +46,7 @@ export default function FinanceLayout({
 								href="/finance/expenses"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<Circle className="h-5 w-5 text-gray-400" />
+								<WalletCards className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Expenses</span>
 							</Link>
 
@@ -54,7 +54,7 @@ export default function FinanceLayout({
 								href="/finance/bank"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<Circle className="h-5 w-5 text-gray-400" />
+								<Landmark className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Bank Accounts</span>
 							</Link>
 
@@ -62,7 +62,7 @@ export default function FinanceLayout({
 								href="/finance/reports"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<Circle className="h-5 w-5 text-gray-400" />
+								<ChartNoAxesCombined className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Financial Reports</span>
 							</Link>
 						</ul>
