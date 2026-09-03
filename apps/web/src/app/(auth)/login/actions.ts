@@ -114,6 +114,8 @@ export async function login(formData: FormData) {
 		sales_person: "/sales",
 		warehouse: "/dashboard/warehouse",
 		"Warehouse Operations": "/dashboard/warehouse",
+		procurement: "/dashboard/procurement",
+		Procurement: "/dashboard/procurement",
 		billing: "/sales",
 	};
 

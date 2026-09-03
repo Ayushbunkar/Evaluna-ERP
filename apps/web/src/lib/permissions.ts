@@ -28,6 +28,8 @@ export const ROLES = [
 	"customer",
 	"warehouse",
 	"Warehouse Operations",
+	"procurement",
+	"Procurement",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -47,6 +49,8 @@ export const ROLE_LEVEL: Record<Role, number> = {
 	picker: 6,
 	warehouse: 5,
 	"Warehouse Operations": 5,
+	procurement: 5,
+	Procurement: 5,
 	driver: 7,
 	biller: 8,
 	sales_person: 9,
@@ -381,4 +385,6 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/customer", minRole: "customer" },
 	{ path: "/warehouse", minRole: "warehouse" },
 	{ path: "/dashboard/warehouse", minRole: "warehouse" },
+	{ path: "/procurement", minRole: "procurement" },
+	{ path: "/dashboard/procurement", minRole: "procurement" },
 ];

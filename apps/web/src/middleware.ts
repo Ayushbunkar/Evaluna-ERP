@@ -133,6 +133,8 @@ export default async function middleware(request: NextRequest) {
 			billing: "/sales",
 			warehouse: "/dashboard/warehouse",
 			"Warehouse Operations": "/dashboard/warehouse",
+			procurement: "/dashboard/procurement",
+			Procurement: "/dashboard/procurement",
 		};
 		url.pathname = roleDashboardMap[rawRole] ?? "/admin";
 		url.search = ""; // clear any leftover query params
