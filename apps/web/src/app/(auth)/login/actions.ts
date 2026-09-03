@@ -109,8 +109,17 @@ export async function login(formData: FormData) {
 		role = predefinedAccounts[email];
 	}
 
-	revalidatePath(`/${role === "sales_person" ? "sales" : role}`, "layout");
-	redirect(`/${role === "sales_person" ? "sales" : role}`);
+	// Map roles to their specific dashboard URL paths
+	const redirectMap: Record<string, string> = {
+		sales_person: "/sales",
+		warehouse: "/dashboard/warehouse",
+		"Warehouse Operations": "/dashboard/warehouse",
+		billing: "/sales",
+	};
+
+	const destination = redirectMap[role] ?? `/${role}`;
+	revalidatePath(destination, "layout");
+	redirect(destination);
 }
 
 export async function logout() {
