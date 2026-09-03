@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Button } from "@evaluna/ui/components/button";
 import {
   WarehouseIcon,
-  LayoutDashboardIcon,
   TruckIcon,
   BoxesIcon,
   CheckSquareIcon,
@@ -16,7 +15,6 @@ import {
   BarChart3Icon,
   AlertTriangleIcon,
   BellIcon,
-  SearchIcon,
   MenuIcon,
   XIcon,
   ChevronDownIcon,
@@ -140,13 +138,15 @@ export default function WarehouseWMSLayout({
   ];
 
   const sidebarContent = (
-    <div className="flex h-full flex-col border-r bg-slate-900 text-slate-100">
+    <div className="flex h-full flex-col border-gray-200 border-r bg-white dark:border-gray-700 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
       {/* Brand Header */}
-      <div className="flex h-16 items-center justify-between px-6 border-b border-slate-800">
+      <div className="flex h-16 items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700">
         <Link href="/" className="flex items-center gap-3">
-          <WarehouseIcon className="h-6 w-6 text-blue-400" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
+            <WarehouseIcon className="h-5 w-5 text-blue-600" />
+          </span>
           {!sidebarCollapsed && (
-            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-blue-400 to-indigo-200 bg-clip-text text-transparent">
+            <span className="font-bold text-gray-900 text-lg dark:text-gray-100">
               Evaluna WMS
             </span>
           )}
@@ -155,7 +155,7 @@ export default function WarehouseWMSLayout({
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden text-slate-400 hover:text-slate-100"
+          className="md:hidden text-gray-400 hover:text-gray-600"
           onClick={() => setMobileOpen(false)}
         >
           <XIcon className="h-5 w-5" />
@@ -163,11 +163,11 @@ export default function WarehouseWMSLayout({
       </div>
 
       {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
         {navGroups.map((group, idx) => (
-          <div key={idx} className="space-y-1">
+          <div key={idx} className="space-y-1.5">
             {!sidebarCollapsed && (
-              <h4 className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <h4 className="px-3 font-semibold text-gray-400 text-xs uppercase tracking-wider dark:text-gray-500">
                 {group.title}
               </h4>
             )}
@@ -182,12 +182,12 @@ export default function WarehouseWMSLayout({
                       onClick={() => setMobileOpen(false)}
                       className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                         isActive
-                          ? "bg-blue-600 text-white"
-                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-semibold"
+                          : "text-gray-600 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-gray-700 dark:hover:text-white"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className="h-5 w-5 flex-shrink-0" />
+                        <Icon className={`h-4.5 w-4.5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
                         {!sidebarCollapsed && <span>{item.label}</span>}
                       </div>
                       {!sidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
@@ -211,12 +211,12 @@ export default function WarehouseWMSLayout({
       </div>
 
       {/* Sidebar Footer */}
-      <div className="border-t border-slate-800 p-4">
+      <div className="border-t border-gray-200 dark:border-gray-700 p-4">
         <Link
           href="/api/logout"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/25 dark:hover:text-red-400"
         >
-          <LogOutIcon className="h-5 w-5" />
+          <LogOutIcon className="h-4.5 w-4.5 text-gray-400" />
           {!sidebarCollapsed && <span>Logout</span>}
         </Link>
       </div>
@@ -224,7 +224,7 @@ export default function WarehouseWMSLayout({
   );
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div className="flex h-screen w-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* Desktop Sidebar (Persistent) */}
       <aside
         className={`hidden md:block h-full transition-all duration-300 flex-shrink-0 ${
@@ -236,7 +236,7 @@ export default function WarehouseWMSLayout({
 
       {/* Mobile Sidebar (Drawer) */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden bg-slate-900/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex md:hidden bg-gray-900/60 backdrop-blur-sm">
           <div className="w-64 h-full animate-slide-in">{sidebarContent}</div>
           <div className="flex-1" onClick={() => setMobileOpen(false)} />
         </div>
@@ -245,7 +245,7 @@ export default function WarehouseWMSLayout({
       {/* Main Right Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top ERP Header */}
-        <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-slate-800 px-4 md:px-6 flex-shrink-0 shadow-sm z-30">
+        <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-gray-800 px-4 md:px-6 flex-shrink-0 shadow-sm z-30">
           <div className="flex items-center gap-4">
             {/* Burger Trigger */}
             <Button
@@ -267,15 +267,15 @@ export default function WarehouseWMSLayout({
             </Button>
 
             {/* Breadcrumbs */}
-            <nav className="hidden sm:flex items-center space-x-2 text-sm text-slate-500 font-medium">
-              <span className="text-slate-400">Warehouse</span>
+            <nav className="hidden sm:flex items-center space-x-2 text-sm text-gray-500 font-medium">
+              <span className="text-gray-400">Warehouse</span>
               {getBreadcrumbs().map((b, i) => (
                 <div key={i} className="flex items-center space-x-2">
-                  <span className="text-slate-300">/</span>
+                  <span className="text-gray-300">/</span>
                   {b.isLast ? (
-                    <span className="text-slate-800 dark:text-slate-100 font-semibold">{b.label}</span>
+                    <span className="text-gray-800 dark:text-gray-100 font-semibold">{b.label}</span>
                   ) : (
-                    <Link href={b.href} className="hover:text-slate-800 dark:hover:text-slate-100 transition-colors">
+                    <Link href={b.href} className="hover:text-gray-800 dark:hover:text-gray-100 transition-colors">
                       {b.label}
                     </Link>
                   )}
@@ -287,11 +287,11 @@ export default function WarehouseWMSLayout({
           {/* Right Header Controls */}
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Global live sync status */}
-            <div className="hidden lg:flex items-center gap-2 border rounded-full px-3 py-1 bg-slate-50 text-[11px] font-semibold text-slate-500 shadow-inner">
+            <div className="hidden lg:flex items-center gap-2 border rounded-full px-3 py-1 bg-gray-50 dark:bg-gray-700 text-[11px] font-semibold text-gray-500 dark:text-gray-300 shadow-inner">
               <span className="h-2 w-2 rounded-full bg-green-500 animate-ping"></span>
               <span>LIVE</span>
-              <span className="text-slate-300">|</span>
-              <span className="font-medium text-slate-400">SYNCED {syncTime}</span>
+              <span className="text-gray-300">|</span>
+              <span className="font-medium text-gray-400">SYNCED {syncTime}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -305,15 +305,15 @@ export default function WarehouseWMSLayout({
 
             {/* Global Selector */}
             <div className="relative">
-              <div className="flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-xs font-semibold bg-white cursor-pointer shadow-sm hover:bg-slate-50">
-                <span className="text-blue-600">Bhopal Main Warehouse</span>
-                <ChevronDownIcon className="h-3.5 w-3.5 text-slate-400" />
+              <div className="flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-xs font-semibold bg-white dark:bg-gray-700 cursor-pointer shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600">
+                <span className="text-blue-600 dark:text-blue-400">Bhopal Main Warehouse</span>
+                <ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" />
               </div>
             </div>
 
             {/* Notifications icon */}
             <Button variant="ghost" size="icon" className="relative rounded-full">
-              <BellIcon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <BellIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
               {stats?.delayedTasks !== undefined && stats.delayedTasks > 0 && (
                 <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500"></span>
               )}
@@ -329,7 +329,7 @@ export default function WarehouseWMSLayout({
         </header>
 
         {/* Content Container (Scrollable) */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 focus:outline-none">
+        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 focus:outline-none">
           {children}
         </main>
       </div>
