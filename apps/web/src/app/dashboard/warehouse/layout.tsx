@@ -212,13 +212,13 @@ export default function WarehouseWMSLayout({
 
       {/* Sidebar Footer */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <Link
+        <a
           href="/api/logout"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/25 dark:hover:text-red-400"
         >
           <LogOutIcon className="h-4.5 w-4.5 text-gray-400" />
           {!sidebarCollapsed && <span>Logout</span>}
-        </Link>
+        </a>
       </div>
     </div>
   );
