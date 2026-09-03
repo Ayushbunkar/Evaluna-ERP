@@ -22,7 +22,7 @@ export default function Forbidden403Page() {
 						<Link href="/">Go to My Dashboard</Link>
 					</Button>
 					<Button variant="outline" asChild>
-						<Link href="/login">Login with another Account</Link>
+						<a href="/api/logout">Login with another Account</a>
 					</Button>
 				</div>
 			</div>
