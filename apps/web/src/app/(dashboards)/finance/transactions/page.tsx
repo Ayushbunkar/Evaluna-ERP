@@ -11,8 +11,7 @@ import {
 } from "@evaluna/ui/components/table";
 import { Input } from "@evaluna/ui/components/input";
 import {
-	ActivityIcon,
-	BanknoteIcon,
+	IndianRupee,
 	CheckCircle2Icon,
 	SearchIcon,
 	ChevronLeftIcon,
@@ -56,7 +55,7 @@ export default function FinanceTransactionsPage() {
 				<div className="flex gap-1 sm:gap-2">
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
 						<Link href="/finance">
-							<BanknoteIcon className="mr-1 h-3 w-3" /> Back to Dashboard
+							<IndianRupee className="mr-1 h-3 w-3" /> Back to Dashboard
 						</Link>
 					</Button>
 				</div>

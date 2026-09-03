@@ -10,7 +10,7 @@ import {
 } from "@evaluna/ui/components/card";
 import {
 	ActivityIcon,
-	BanknoteIcon,
+	IndianRupee,
 	ChartLineIcon,
 	CreditCardIcon,
 	TrendingUpIcon,
@@ -77,7 +77,7 @@ export default function FinanceDashboard() {
 					</Button>
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
 						<Link href="/finance/transactions">
-							<BanknoteIcon className="mr-2 h-4 w-4" /> Transactions
+							<IndianRupee className="mr-2 h-4 w-4" /> Transactions
 						</Link>
 					</Button>
 				</div>
@@ -104,13 +104,13 @@ export default function FinanceDashboard() {
 					{
 						title: "Gross Profit",
 						value: stats?.grossProfit,
-						icon: <BanknoteIcon className="h-6 w-6 text-blue-500" />,
+						icon: <IndianRupee className="h-6 w-6 text-blue-500" />,
 						bg: "bg-blue-500/10",
 					},
 					{
 						title: "Net Profit",
 						value: stats?.netProfit,
-						icon: <ActivityIcon className="h-6 w-6 text-emerald-500" />,
+						icon: <IndianRupee className="h-6 w-6 text-emerald-500" />,
 						bg: "bg-emerald-500/10",
 					},
 					{

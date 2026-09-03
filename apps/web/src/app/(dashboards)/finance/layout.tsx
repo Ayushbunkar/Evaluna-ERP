@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
-import { LayoutDashboard, User, Hexagon, Receipt, WalletCards, Landmark, ChartNoAxesCombined } from "lucide-react";
+import { LayoutDashboard, Hexagon, Receipt, WalletCards, Landmark, ChartNoAxesCombined } from "lucide-react";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function FinanceLayout({
 	children,
@@ -74,21 +75,7 @@ export default function FinanceLayout({
 			<main className="flex-1 overflow-hidden">
 				<div className="flex h-full flex-col">
 					{/* Header */}
-					<header className="border-gray-200 border-b bg-white dark:border-gray-700 dark:bg-gray-800">
-						<div className="flex items-center justify-between px-6 py-4">
-							<div className="text-gray-500 text-sm dark:text-gray-400">
-								Welcome, Finance Manager
-							</div>
-							<div className="flex items-center space-x-4">
-								<button className="flex items-center rounded-md border border-gray-300 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">
-									<User className="h-5 w-5 text-gray-400" />
-									<span className="ml-2 text-gray-600 text-sm dark:text-gray-300">
-										Profile
-									</span>
-								</button>
-							</div>
-						</div>
-					</header>
+					<DashboardHeader />
 
 					{/* Content */}
 					<div className="flex-1 overflow-y-auto p-6">{children}</div>
