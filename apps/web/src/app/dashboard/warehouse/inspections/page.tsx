@@ -141,35 +141,14 @@ export default function InspectionsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {/* Seeded mockup logs for completeness */}
-                  <TableRow>
-                    <TableCell className="font-semibold text-xs">INSP-#1045</TableCell>
-                    <TableCell className="font-bold text-slate-800 dark:text-slate-100">Copper Wire Coil</TableCell>
-                    <TableCell>
-                      <Badge variant="default" className="bg-green-50 text-green-700 border-green-200">
-                        VERIFIED
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs font-bold">10 units</TableCell>
-                    <TableCell className="text-slate-500 text-xs">9/3/2026, 11:30 AM</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Good</Badge>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-semibold text-xs">INSP-#1044</TableCell>
-                    <TableCell className="font-bold text-slate-800 dark:text-slate-100">High-Grade Steel Widget</TableCell>
-                    <TableCell>
-                      <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-200">
-                        DISCREPANCY
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs font-bold">9 units (1 short)</TableCell>
-                    <TableCell className="text-slate-500 text-xs">9/3/2026, 10:15 AM</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-200">Mismatch</Badge>
-                    </TableCell>
-                  </TableRow>
+                  {filteredInspections.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        <ClipboardListIcon className="h-10 w-10 mx-auto text-slate-300 mb-2" />
+                        <p className="font-bold text-sm">No recent inspections found.</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

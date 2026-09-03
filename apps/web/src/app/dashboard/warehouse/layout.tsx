@@ -147,7 +147,7 @@ export default function WarehouseWMSLayout({
           </span>
           {!sidebarCollapsed && (
             <span className="font-bold text-gray-900 text-lg dark:text-gray-100">
-              Evaluna WMS
+              Evaluna ERP
             </span>
           )}
         </Link>
@@ -208,17 +208,6 @@ export default function WarehouseWMSLayout({
             </ul>
           </div>
         ))}
-      </div>
-
-      {/* Sidebar Footer */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <a
-          href="/api/logout"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/25 dark:hover:text-red-400"
-        >
-          <LogOutIcon className="h-4.5 w-4.5 text-gray-400" />
-          {!sidebarCollapsed && <span>Logout</span>}
-        </a>
       </div>
     </div>
   );
@@ -319,12 +308,22 @@ export default function WarehouseWMSLayout({
               )}
             </Button>
 
-            {/* Profile trigger */}
-            <Link href="/profile">
-              <Button variant="ghost" size="icon" className="rounded-full border shadow-sm">
-                <UserIcon className="h-4 w-4" />
-              </Button>
-            </Link>
+            {/* Profile & Logout triggers */}
+            <div className="flex items-center gap-1 border rounded-lg p-1 bg-slate-50 dark:bg-slate-700 shadow-inner">
+              <Link href="/profile">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-semibold gap-1.5 hover:bg-white dark:hover:bg-slate-600">
+                  <UserIcon className="h-3.5 w-3.5 text-gray-500" />
+                  <span className="hidden sm:inline">Profile</span>
+                </Button>
+              </Link>
+              <span className="text-gray-300">|</span>
+              <a href="/api/logout">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-semibold text-red-600 gap-1.5 hover:bg-red-50 dark:hover:bg-red-950/25">
+                  <LogOutIcon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </a>
+            </div>
           </div>
         </header>
 
