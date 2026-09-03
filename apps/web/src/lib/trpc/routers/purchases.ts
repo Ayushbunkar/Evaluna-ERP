@@ -7,8 +7,10 @@ import {
 	purchases,
 	stockLedger,
 	suppliers,
+	approvals,
+	receivingInspections,
 } from "@evaluna/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { purchaseSchema } from "@/lib/validation/purchase";
@@ -219,6 +221,163 @@ export const purchasesRouter = router({
 			}
 
 			return newReturn;
+		}),
+
+	getDashboardStats: protectedProcedure
+		.query(async ({ ctx }) => {
+			const todayStart = new Date();
+			todayStart.setHours(0, 0, 0, 0);
+
+			const [allPurchases, allSuppliers] = await Promise.all([
+				ctx.db.query.purchases.findMany({
+					with: {
+						purchaseItems: true,
+					},
+				}),
+				ctx.db.query.suppliers.findMany(),
+			]);
+
+			const posToday = allPurchases.filter(
+				(p) => p.created_at && new Date(p.created_at) >= todayStart,
+			).length;
+
+			const pendingApproval = allPurchases.filter(
+				(p) => p.status === "pending" || p.status === "pending_approval",
+			).length;
+
+			const incomingInventory = allPurchases
+				.filter((p) => p.status === "pending" || p.status === "pending_approval")
+				.reduce((acc, p) => {
+					const itemsCount =
+						p.purchaseItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+					return acc + itemsCount;
+				}, 0);
+
+			const supplierContacts = allSuppliers.length;
+
+			return {
+				posToday,
+				pendingApproval,
+				incomingInventory,
+				supplierContacts,
+			};
+		}),
+
+	getAnalytics: protectedProcedure
+		.query(async ({ ctx }) => {
+			const [allPurchases, allSuppliers, inspections, lowStockItems] = await Promise.all([
+				ctx.db.query.purchases.findMany({
+					with: {
+						purchaseItems: true,
+						supplier: true,
+					},
+					orderBy: (p, { asc }) => [asc(p.created_at)],
+				}),
+				ctx.db.query.suppliers.findMany(),
+				ctx.db.query.receivingInspections.findMany(),
+				ctx.db.query.branchInventory.findMany({
+					where: sql`${branchInventory.in_stock} <= 10`,
+					with: {
+						product: true,
+					},
+				}),
+			]);
+
+			const activePurchases = allPurchases.filter((p) => p.status !== "cancelled");
+			const totalSpend = activePurchases.reduce((acc, p) => acc + Number(p.total_amount || 0), 0);
+			const openPOsCount = activePurchases.filter(
+				(p) => p.status === "pending" || p.status === "pending_approval",
+			).length;
+
+			// Lead times
+			let totalLeadTimeMs = 0;
+			let leadTimeCount = 0;
+			for (const insp of inspections) {
+				const purchase = allPurchases.find((p) => p.id === insp.purchase_id);
+				if (purchase && purchase.created_at && insp.created_at) {
+					const diff = new Date(insp.created_at).getTime() - new Date(purchase.created_at).getTime();
+					if (diff > 0) {
+						totalLeadTimeMs += diff;
+						leadTimeCount++;
+					}
+				}
+			}
+			const avgLeadTimeDays = leadTimeCount > 0
+				? Number(((totalLeadTimeMs / leadTimeCount) / (1000 * 60 * 60 * 24)).toFixed(1))
+				: 0;
+
+			// Monthly Outlay Trend (last 6 months)
+			const monthlyDataMap: Record<string, number> = {};
+			const now = new Date();
+			const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+			const last6Months: { monthKey: string; label: string; amount: number }[] = [];
+			for (let i = 5; i >= 0; i--) {
+				const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+				const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+				const label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+				monthlyDataMap[monthKey] = 0;
+				last6Months.push({ monthKey, label, amount: 0 });
+			}
+
+			for (const p of activePurchases) {
+				if (p.created_at) {
+					const d = new Date(p.created_at);
+					const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+					if (key in monthlyDataMap) {
+						monthlyDataMap[key] += Number(p.total_amount || 0);
+					}
+				}
+			}
+
+			const outlayTrend = last6Months.map((m) => ({
+				label: m.label,
+				amount: Number(monthlyDataMap[m.monthKey].toFixed(2)),
+			}));
+
+			// Supplier metrics
+			const supplierSpendMap: Record<number, { name: string; spend: number; poCount: number }> = {};
+			for (const p of activePurchases) {
+				const sId = p.supplier_id;
+				if (sId) {
+					if (!supplierSpendMap[sId]) {
+						supplierSpendMap[sId] = {
+							name: p.supplier?.name || `Supplier ${sId}`,
+							spend: 0,
+							poCount: 0,
+						};
+					}
+					supplierSpendMap[sId].spend += Number(p.total_amount || 0);
+					supplierSpendMap[sId].poCount++;
+				}
+			}
+
+			const suppliersMetric = Object.entries(supplierSpendMap).map(([id, data]) => ({
+				id: Number(id),
+				name: data.name,
+				spend: Number(data.spend.toFixed(2)),
+				poCount: data.poCount,
+			})).sort((a, b) => b.spend - a.spend).slice(0, 5);
+
+			const onTimeRate = activePurchases.length > 0
+				? Number(((inspections.length / activePurchases.length) * 100).toFixed(1))
+				: 100;
+
+			return {
+				totalSpend,
+				activeSuppliersCount: allSuppliers.length,
+				openPOsCount,
+				avgLeadTimeDays,
+				outlayTrend,
+				suppliersMetric,
+				onTimeRate,
+				lowStockCount: lowStockItems.length,
+				lowStockItems: lowStockItems.map((item) => ({
+					productName: item.product?.name || "Unknown",
+					sku: item.product?.sku || "N/A",
+					inStock: item.in_stock,
+				})),
+			};
 		}),
 
 	delete: protectedProcedure

@@ -1,5 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
+import { customers } from "@evaluna/db/schema";
+import { eq } from "drizzle-orm";
 
 // Context type
 export type TRPCContext = {
@@ -31,7 +33,7 @@ export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 	if (!ctx.user) {
-		throw new TRPCError({ code: "UNAUTHORIZED" });
+		throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
 	}
 	return next({ ctx: { ...ctx, user: ctx.user } });
 });
@@ -39,7 +41,7 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 export const roleProcedure = (allowedRoles: string[]) => {
 	return t.procedure.use(async ({ ctx, next }) => {
 		if (!ctx.user) {
-			throw new TRPCError({ code: "UNAUTHORIZED" });
+			throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
 		}
 
 		// Superadmins bypass every role gate. `super_admin` is not a value in the
@@ -57,7 +59,22 @@ export const customerProcedure = t.procedure.use(async ({ ctx, next }) => {
 	if (!ctx.user) {
 		throw new TRPCError({ code: "UNAUTHORIZED" });
 	}
-	return next({ ctx: { ...ctx, user: ctx.user } });
+
+	const customerList = await ctx.db
+		.select()
+		.from(customers)
+		.where(eq(customers.email, ctx.user.email))
+		.limit(1);
+
+	const customer = customerList[0];
+	if (!customer) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "No customer account linked to this user.",
+		});
+	}
+
+	return next({ ctx: { ...ctx, user: ctx.user, customer } });
 });
 
 export const permissionProcedure = (permission: string) => {

@@ -1,3 +1,4 @@
+import { EWayBillService } from "@/lib/services/eway-bill";
 import {
 	batchStock,
 	branchInventory,
@@ -1151,9 +1152,12 @@ export const warehouseRouter = router({
 					packed_by: packages.packed_by,
 					worker_name: staff.name,
 					created_at: packages.created_at,
+					e_way_bill_no: orders.e_way_bill_no,
+					total_amount: orders.total_amount,
 				})
 				.from(packages)
 				.leftJoin(staff, eq(packages.packed_by, staff.id))
+				.leftJoin(orders, eq(packages.order_id, orders.id))
 				.orderBy(desc(packages.created_at))
 				.limit(100);
 		}),
@@ -1228,6 +1232,25 @@ export const warehouseRouter = router({
 				});
 
 				return { success: true, adjustmentId: adj.id };
+			});
+		}),
+
+	isEWayBillConfigured: protectedProcedure
+		.query(async () => {
+			return EWayBillService.isConfigured();
+		}),
+
+	generateEWayBill: protectedProcedure
+		.input(z.object({
+			orderId: z.number(),
+			vehicleNo: z.string(),
+			modeOfTransport: z.enum(["road", "rail", "air", "ship"]),
+			approxDistanceKm: z.number(),
+			transporterName: z.string().optional(),
+		}))
+		.mutation(async ({ ctx, input }) => {
+			return await ctx.db.transaction(async (tx) => {
+				return await EWayBillService.generate(tx, input, ctx.user);
 			});
 		}),
 });

@@ -1581,6 +1581,8 @@ export const salesReturnItems = pgTable("sales_return_items", {
 		precision: 10,
 		scale: 2,
 	}).notNull(),
+	condition: varchar("condition", { length: 50 }).default("good"),
+	reason: text("reason"),
 	created_at: timestamp("created_at").defaultNow(),
 });
 
@@ -2305,6 +2307,8 @@ export const tripStops = pgTable("trip_stops", {
 	sequence: integer("sequence").notNull(),
 	status: varchar("status", { length: 50 }).default("pending"), // pending, approved, rejected
 	comments: text("comments"),
+	arrival_time: timestamp("arrival_time"),
+	departure_time: timestamp("departure_time"),
 	created_at: timestamp("created_at").defaultNow(),
 	resolved_at: timestamp("resolved_at"),
 });

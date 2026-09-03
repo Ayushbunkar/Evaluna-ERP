@@ -12,6 +12,7 @@ import {
 	processNotificationQueue,
 } from "@/lib/notification-service";
 import { protectedProcedure, router } from "../init";
+import { resolveStaffId } from "../util/audit";
 
 // ── Input Schemas ──────────────────────────────────────────────────────────────
 const notificationTypeEnum = z.enum([
@@ -45,7 +46,15 @@ export const notificationsRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const conditions: ReturnType<typeof eq>[] = [];
+			const conditions: ReturnType<typeof eq | any>[] = [];
+			
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			if (staffId) {
+				conditions.push(eq(notifications.user_id, staffId));
+			} else {
+				conditions.push(eq(notifications.user_id, -1)); // Return nothing if no staff matching
+			}
+
 			if (input.branch_id)
 				conditions.push(eq(notifications.branch_id, input.branch_id));
 			if (input.is_read !== undefined)
@@ -66,9 +75,18 @@ export const notificationsRouter = router({
 	unreadCount: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx, input }) => {
-			const conditions = [eq(notifications.is_read, false)];
+			const conditions: any[] = [eq(notifications.is_read, false)];
+			
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			if (staffId) {
+				conditions.push(eq(notifications.user_id, staffId));
+			} else {
+				conditions.push(eq(notifications.user_id, -1));
+			}
+
 			if (input.branch_id)
 				conditions.push(eq(notifications.branch_id, input.branch_id));
+			
 			const [result] = await db
 				.select({ count: count() })
 				.from(notifications)
@@ -80,19 +98,37 @@ export const notificationsRouter = router({
 	markAsRead: protectedProcedure
 		.input(z.object({ id: z.number() }))
 		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			
+			const conditions: any[] = [eq(notifications.id, input.id)];
+			if (staffId) {
+				conditions.push(eq(notifications.user_id, staffId));
+			} else {
+				conditions.push(eq(notifications.user_id, -1));
+			}
+
 			return await db
 				.update(notifications)
 				.set({ is_read: true, read_by: ctx.user.id, read_at: new Date() })
-				.where(eq(notifications.id, input.id))
+				.where(and(...conditions))
 				.returning();
 		}),
 
 	markAllAsRead: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
 		.mutation(async ({ ctx, input }) => {
-			const conditions = [eq(notifications.is_read, false)];
+			const conditions: any[] = [eq(notifications.is_read, false)];
+			
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			if (staffId) {
+				conditions.push(eq(notifications.user_id, staffId));
+			} else {
+				conditions.push(eq(notifications.user_id, -1));
+			}
+
 			if (input.branch_id)
 				conditions.push(eq(notifications.branch_id, input.branch_id));
+
 			return await db
 				.update(notifications)
 				.set({ is_read: true, read_by: ctx.user.id, read_at: new Date() })

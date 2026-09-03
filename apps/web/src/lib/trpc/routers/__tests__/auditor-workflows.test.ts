@@ -283,7 +283,7 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 		const created = await findAs(auditor).create({
 			branchId: 1,
 			findingType: "inventory",
-			severity: "HIGH",
+			severity: "MEDIUM",
 			title: "Shortfall on product #3",
 			description: "counted 7 of 10",
 			referenceType: "stock_audits",
@@ -344,6 +344,42 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 		expect(row.resolved_by).toBe(2);
 	});
 
+	it("unauthorized audit verification fails", async () => {
+		// Picker does not have audit.approve permission, so it should be rejected.
+		await expect(findAs(picker).verify({ findingId })).rejects.toThrow(
+			/permission/i,
+		);
+	});
+
+	it("high-severity finding requires secondary verifier (resolver/creator cannot verify)", async () => {
+		// Create a high-severity finding raised by auditor (staffId: 1)
+		const created = await findAs(auditor).create({
+			branchId: 1,
+			findingType: "price",
+			severity: "HIGH",
+			title: "High risk price mismatch",
+			description: "unauthorized price change",
+		});
+		const highFindingId = created.findingId;
+
+		await findAs(auditor).updateStatus({ findingId: highFindingId, status: "UNDER_REVIEW" });
+		await findAs(auditor2).resolve({ findingId: highFindingId, note: "resolved by auditor2" });
+
+		// 1. Resolver (auditor2, staffId: 2) tries to verify their own resolution - must fail!
+		await expect(findAs(auditor2).verify({ findingId: highFindingId })).rejects.toThrow(
+			/Secondary verification required.*different auditor.*resolved/i,
+		);
+
+		// 2. Creator (auditor, staffId: 1) tries to verify - must fail because they raised it!
+		await expect(findAs(auditor).verify({ findingId: highFindingId })).rejects.toThrow(
+			/Secondary verification required.*different auditor.*raised/i,
+		);
+
+		// 3. A completely separate authorized user (manager, staffId: 3) verifies - must succeed!
+		const closed = await findAs(manager).verify({ findingId: highFindingId });
+		expect(closed.status).toBe("CLOSED");
+	});
+
 	it("refuses to re-verify an already CLOSED finding", async () => {
 		await expect(findAs(auditor).verify({ findingId })).rejects.toThrow(
 			/Cannot transition finding/i,
@@ -368,7 +404,7 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 		expect(closed.some((f: any) => f.id === findingId)).toBe(true);
 		const inventory = await findAs(auditor).list({
 			findingType: "inventory",
-			severity: "HIGH",
+			severity: "MEDIUM",
 		});
 		expect(inventory.some((f: any) => f.id === findingId)).toBe(true);
 		const none = await findAs(auditor).list({

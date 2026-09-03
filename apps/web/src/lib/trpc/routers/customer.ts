@@ -140,6 +140,7 @@ export const customerRouter = router({
 		});
 
 		return rows.map((o) => ({
+			id: o.id,
 			orderRef: `ORD-${o.id}`,
 			date: o.created_at ? o.created_at.toISOString() : null,
 			status: o.status,

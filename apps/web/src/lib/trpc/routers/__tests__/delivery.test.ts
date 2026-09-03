@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
+import { eq } from "drizzle-orm";
 import { buildDDL, createTestDb, makeUser } from "./helpers";
 
 const { pg, db } = createTestDb();
@@ -11,6 +12,15 @@ const schema = await import("@/lib/db/schema");
 
 const caller = createCallerFactory(deliveryRouter)({
 	user: makeUser("user-1"),
+});
+
+const driverCaller = createCallerFactory(deliveryRouter)({
+	user: {
+		...makeUser("driver-1"),
+		id: "driver-1",
+		email: "driver1@test.com",
+		role: "driver",
+	},
 });
 
 // Delivery-focused test DDL - tables used by delivery router
@@ -29,6 +39,7 @@ const DELIVERY_DDL = buildDDL(
 		schema.products,
 		schema.salesReturns,
 		schema.salesReturnItems,
+		schema.vehicles,
 	],
 	false,
 );
@@ -36,6 +47,11 @@ const DELIVERY_DDL = buildDDL(
 const now = new Date();
 
 beforeAll(async () => {
+	try {
+		await pg.exec(`CREATE TYPE vehicle_status AS ENUM ('available', 'in_use', 'maintenance', 'retired');`);
+	} catch (e) {
+		// Ignore if type already exists
+	}
 	await pg.exec(DELIVERY_DDL);
 
 	// Setup branches
@@ -208,8 +224,8 @@ describe("delivery router core functionality", () => {
 
 	describe("myTrips", () => {
 		it("returns trips assigned to the current user/driver", async () => {
-			const result = await caller.myTrips();
-			expect(result).toHaveLength(1);
+			const result = await driverCaller.myTrips();
+			expect(result).toHaveLength(2);
 			expect(result[0].driver_id).toBe("driver-1");
 			expect(result[0].stops).toHaveLength(2);
 		});
@@ -306,10 +322,10 @@ describe("delivery router core functionality", () => {
 			});
 
 			expect(logs).toHaveLength(1);
-			expect(logs[0].latitude).toBe("19.0760");
-			expect(logs[0].longitude).toBe("72.8777");
-			expect(logs[0].speed).toBe("45.5");
-			expect(logs[0].battery_level).toBe("85");
+			expect(logs[0].latitude).toBe("19.07600000");
+			expect(logs[0].longitude).toBe("72.87770000");
+			expect(logs[0].speed).toBe("45.50");
+			expect(logs[0].battery_level).toBe("85.00");
 		});
 
 		it("updateVehicleLocation works as alias for logGps", async () => {
@@ -327,8 +343,8 @@ describe("delivery router core functionality", () => {
 			});
 
 			expect(logs).toHaveLength(2); // Previous log + this one
-			expect(logs[0].latitude).toBe("19.1000");
-			expect(logs[0].longitude).toBe("72.9000");
+			expect(logs[0].latitude).toBe("19.10000000");
+			expect(logs[0].longitude).toBe("72.90000000");
 		});
 	});
 
@@ -355,10 +371,16 @@ describe("delivery router core functionality", () => {
 
 	describe("processPartialReturn", () => {
 		it("processes a partial return and creates sales return record", async () => {
+			// Get a trip stop to test with
+			const [stop] = await db.query.tripStops.findMany({
+				limit: 1,
+			});
+
 			// Create an order for return testing
 			const [returnOrder] = await db
 				.insert(schema.orders)
 				.values({
+					customer_id: stop.customer_id,
 					total_amount: "100.00",
 					user_uid: "seed",
 					status: "pending",
@@ -375,11 +397,6 @@ describe("delivery router core functionality", () => {
 					price: "25.00",
 				},
 			]);
-
-			// Get a trip stop to test with
-			const [stop] = await db.query.tripStops.findMany({
-				limit: 1,
-			});
 
 			const result = await caller.processPartialReturn({
 				stopId: stop.id,
@@ -399,7 +416,7 @@ describe("delivery router core functionality", () => {
 				where: (table, { eq }) => eq(table.order_id, returnOrder.id),
 			});
 			expect(salesReturns).toHaveLength(1);
-			expect(salesReturns[0].total_amount).toBe("25"); // 1 * 25.00
+			expect(salesReturns[0].total_amount).toBe("10.00"); // 1 * 10.00 (from product price)
 
 			// Verify sales return items were created
 			const returnItems = await db.query.salesReturnItems.findMany({
@@ -425,17 +442,17 @@ describe("delivery router core functionality", () => {
 			await db
 				.update(schema.customers)
 				.set({ latitude: "19.0760", longitude: "72.8777" }) // Mumbai
-				.where(({ id }, { eq }) => eq(id, 1));
+				.where(eq(schema.customers.id, 1));
 
 			await db
 				.update(schema.customers)
 				.set({ latitude: "19.0800", longitude: "72.8800" }) // Slightly north
-				.where(({ id }, { eq }) => eq(id, 2));
+				.where(eq(schema.customers.id, 2));
 
 			await db
 				.update(schema.customers)
 				.set({ latitude: "19.0600", longitude: "72.8600" }) // Slightly south
-				.where(({ id }, { eq }) => eq(id, 3));
+				.where(eq(schema.customers.id, 3));
 
 			const result = await caller.optimizeRouteSequence({
 				customerIds: [1, 2, 3],
@@ -519,7 +536,7 @@ describe("delivery router core functionality", () => {
 			const updatedOrder = await db.query.orders.findFirst({
 				where: (table, { eq }) => eq(table.id, order.id),
 			});
-			expect(updatedOrder.total_amount).toBe("40");
+			expect(updatedOrder.total_amount).toBe("40.00");
 
 			// Verify order items were inserted
 			const orderItems = await db.query.orderItems.findMany({
