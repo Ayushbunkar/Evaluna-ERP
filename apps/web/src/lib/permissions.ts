@@ -16,6 +16,7 @@ export const ROLES = [
 	"manager",
 	"auditor",
 	"hr",
+	"finance",
 	"marketing",
 	"putter",
 	"picker",
@@ -38,6 +39,7 @@ export const ROLE_LEVEL: Record<Role, number> = {
 	manager: 1,
 	auditor: 2,
 	hr: 3,
+	finance: 3,
 	marketing: 4,
 	putter: 5,
 	picker: 6,
@@ -48,8 +50,7 @@ export const ROLE_LEVEL: Record<Role, number> = {
 	delivery_boy: 11,
 	// Customer self-service login. Bottom of the hierarchy and deliberately
 	// absent from PERMISSION_MATRIX, so it inherits ZERO staff permissions.
-	// Customer access is gated by `customerProcedure` in the API, never here.
-	customer: 12,
+	customer: 99,
 };
 
 // ── Permission Domains ────────────────────────────────────────────────────────
