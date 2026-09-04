@@ -438,7 +438,7 @@ export default function AdminUsersPage() {
 										value={form.roleName}
 										onChange={(e) => setForm((prev) => ({ ...prev, roleName: e.target.value as any }))}
 									>
-										{ROLES.map((r) => (
+										{ROLES.filter((r) => r !== "super_admin").map((r) => (
 											<option key={r} value={r}>
 												{r.toUpperCase().replace("_", " ")}
 											</option>

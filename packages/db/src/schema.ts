@@ -430,8 +430,8 @@ export const staff = pgTable("staff", {
 	is_deleted: boolean("is_deleted").default(false),
 });
 
-export const staffRelations = relations(staff, ({ many }) => ({
-	userRoles: many(userRoles),
+export const staffRelations = relations(staff, ({ many, one }) => ({
+	user: one(user),
 	stockAdjustments: many(stockAdjustments),
 	stockTransfers: many(stockTransfers),
 	eWayBills: many(eWayBills),
