@@ -1,86 +1,102 @@
+"use client";
+
 import Link from "next/link";
-import { LayoutDashboard, Users, User, FileBarChart, Hexagon, Circle } from "lucide-react";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Users,
+  CheckSquare,
+  FileCheck,
+  Clock,
+  Calendar,
+  CreditCard,
+  TrendingUp,
+  BarChart3,
+  AlertTriangle,
+  History,
+  Bell,
+  FileBarChart,
+  Settings,
+  Hexagon,
+} from "lucide-react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function ManagerLayout({
-	children,
+  children,
 }: {
-	children: React.ReactNode;
+  children: React.ReactNode;
 }) {
-	return (
-		<div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-			{/* Sidebar */}
-			<aside className="w-64 border-gray-200 border-r bg-white dark:border-gray-700 dark:bg-gray-800">
-				<div className="flex h-full flex-col">
-					{/* Brand */}
-					<div className="flex-shrink-0 px-6 py-4">
-						<Link href="/" className="flex items-center space-x-3">
-							<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
-								<Hexagon className="h-5 w-5 text-blue-600" />
-							</span>
-							<span className="font-semibold text-gray-900 text-lg dark:text-gray-100">
-								Evaluna Manager
-							</span>
-						</Link>
-					</div>
+  const pathname = usePathname();
 
-					{/* Navigation */}
-					<nav className="mt-10 flex-1">
-						<ul className="space-y-1 px-3">
-							<Link
-								href="/manager"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<LayoutDashboard className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Dashboard</span>
-							</Link>
+  const navItems = [
+    { href: "/manager", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/manager/team", label: "My Team", icon: Users },
+    { href: "/manager/tasks", label: "Tasks", icon: CheckSquare },
+    { href: "/manager/approvals", label: "Approvals", icon: FileCheck },
+    { href: "/manager/attendance", label: "Attendance", icon: Clock },
+    { href: "/manager/leave", label: "Leave", icon: Calendar },
+    { href: "/manager/expenses", label: "Expenses", icon: CreditCard },
+    { href: "/manager/performance", label: "Performance", icon: TrendingUp },
+    { href: "/manager/workload", label: "Workload", icon: BarChart3 },
+    { href: "/manager/exceptions", label: "Exceptions", icon: AlertTriangle },
+    { href: "/manager/activity", label: "Activity", icon: History },
+    { href: "/manager/notifications", label: "Notifications", icon: Bell },
+    { href: "/manager/reports", label: "Reports", icon: FileBarChart },
+    { href: "/manager/settings", label: "Settings", icon: Settings },
+  ];
 
-							<Link
-								href="/manager/employees"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Users className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Employees</span>
-							</Link>
+  return (
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col flex-shrink-0 h-full">
+        {/* Brand */}
+        <div className="flex-shrink-0 px-6 py-5 border-b border-slate-100 dark:border-slate-900">
+          <Link href="/" className="flex items-center space-x-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
+              <Hexagon className="h-5 w-5 text-blue-600" />
+            </span>
+            <span className="font-bold text-slate-900 dark:text-slate-100 text-base">
+              Evaluna Manager
+            </span>
+          </Link>
+        </div>
 
-							<Link
-								href="/hr/leave"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Leave Management</span>
-							</Link>
+        {/* Scrollable Navigation */}
+        <nav className="flex-1 overflow-y-auto py-4">
+          <ul className="space-y-1 px-3">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
+                        : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900/40"
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 mr-3 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`} />
+                    <span>{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </aside>
 
-							<Link
-								href="/hr/attendance"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Attendance</span>
-							</Link>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Header */}
+        <DashboardHeader />
 
-							<Link
-								href="/finance/reports"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<FileBarChart className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Reports</span>
-							</Link>
-						</ul>
-					</nav>
-				</div>
-			</aside>
-
-			{/* Main Content */}
-			<main className="flex-1 overflow-hidden">
-				<div className="flex h-full flex-col">
-					{/* Header */}
-					<DashboardHeader />
-
-					{/* Content */}
-					<div className="flex-1 overflow-y-auto p-6">{children}</div>
-				</div>
-			</main>
-		</div>
-	);
+        {/* Scrollable Workspace Viewport */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
 }
