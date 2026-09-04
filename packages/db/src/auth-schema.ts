@@ -16,6 +16,37 @@ import {
 // Better Auth core tables — extended for Evaluna ERP
 // ─────────────────────────────────────────────────────────────────────────────
 
+export const staff = pgTable("staff", {
+	branch_id: integer("branch_id"),
+	id: serial("id").primaryKey(),
+	staff_code: varchar("staff_code", { length: 50 }).unique(),
+	name: varchar("name", { length: 255 }).notNull(),
+	email: varchar("email", { length: 255 }).notNull().unique(),
+	phone: varchar("phone", { length: 20 }),
+	address: text("address"),
+	role: varchar("role", { length: 50 }).notNull(),
+	department: varchar("department", { length: 50 }),
+	join_date: timestamp("join_date").notNull(),
+	salary: decimal("salary", { precision: 10, scale: 2 }).notNull(),
+	monthly_sales_target: decimal("monthly_sales_target", {
+		precision: 10,
+		scale: 2,
+	}).default("0"),
+	pf_number: varchar("pf_number", { length: 50 }),
+	pan: varchar("pan", { length: 10 }),
+	aadhaar: varchar("aadhaar", { length: 12 }),
+	bank_account: varchar("bank_account", { length: 50 }),
+	bank_name: varchar("bank_name", { length: 100 }),
+	ifsc: varchar("ifsc", { length: 11 }),
+	status: varchar("status", { length: 20 }).default("active"),
+	created_at: timestamp("created_at").defaultNow(),
+	updated_at: timestamp("updated_at")
+		.defaultNow()
+		.$onUpdate(() => new Date()),
+	deleted_at: timestamp("deleted_at"),
+	is_deleted: boolean("is_deleted").default(false),
+});
+
 export const user = pgTable("user", {
 	// ── Better Auth core ───────────────────────────────────────────────────────
 	id: text("id").primaryKey(),
@@ -175,37 +206,6 @@ export const verification = pgTable(
 	},
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
-
-export const staff = pgTable("staff", {
-	branch_id: integer("branch_id"),
-	id: serial("id").primaryKey(),
-	staff_code: varchar("staff_code", { length: 50 }).unique(),
-	name: varchar("name", { length: 255 }).notNull(),
-	email: varchar("email", { length: 255 }).notNull().unique(),
-	phone: varchar("phone", { length: 20 }),
-	address: text("address"),
-	role: varchar("role", { length: 50 }).notNull(),
-	department: varchar("department", { length: 50 }),
-	join_date: timestamp("join_date").notNull(),
-	salary: decimal("salary", { precision: 10, scale: 2 }).notNull(),
-	monthly_sales_target: decimal("monthly_sales_target", {
-		precision: 10,
-		scale: 2,
-	}).default("0"),
-	pf_number: varchar("pf_number", { length: 50 }),
-	pan: varchar("pan", { length: 10 }),
-	aadhaar: varchar("aadhaar", { length: 12 }),
-	bank_account: varchar("bank_account", { length: 50 }),
-	bank_name: varchar("bank_name", { length: 100 }),
-	ifsc: varchar("ifsc", { length: 11 }),
-	status: varchar("status", { length: 20 }).default("active"),
-	created_at: timestamp("created_at").defaultNow(),
-	updated_at: timestamp("updated_at")
-		.defaultNow()
-		.$onUpdate(() => new Date()),
-	deleted_at: timestamp("deleted_at"),
-	is_deleted: boolean("is_deleted").default(false),
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Relations
