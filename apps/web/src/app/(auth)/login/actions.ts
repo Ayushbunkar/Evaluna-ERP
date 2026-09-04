@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
 
 export async function login(formData: FormData) {
 	const email = formData.get("email") as string;
@@ -109,17 +110,14 @@ export async function login(formData: FormData) {
 		role = predefinedAccounts[email];
 	}
 
-	// Map roles to their specific dashboard URL paths
-	const redirectMap: Record<string, string> = {
-		sales_person: "/sales",
-		warehouse: "/dashboard/warehouse",
-		"Warehouse Operations": "/dashboard/warehouse",
-		procurement: "/dashboard/procurement",
-		Procurement: "/dashboard/procurement",
-		billing: "/sales",
-	};
+	// Normalize roles for backward-compatibility mapping
+	let normalizedRole = role;
+	if (role === "superadmin") {
+		normalizedRole = "super_admin";
+	}
 
-	const destination = redirectMap[role] ?? `/${role}`;
+	// Map roles to their specific dashboard URL paths (Requirements 4 & 5)
+	const destination = ROLE_DASHBOARD_MAP[normalizedRole as Role] ?? `/${normalizedRole}`;
 	revalidatePath(destination, "layout");
 	redirect(destination);
 }
