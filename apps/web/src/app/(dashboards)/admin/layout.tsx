@@ -1,4 +1,4 @@
-﻿import {
+import {
 	Building2,
 	DollarSign,
 	LayoutDashboard,
@@ -6,7 +6,6 @@
 	Settings,
 	ShieldAlert,
 	Truck,
-	User,
 	Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -54,6 +53,14 @@ export default function AdminLayout({
 							</Link>
 
 							<Link
+								href="/admin/users"
+								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+							>
+								<Users className="h-5 w-5 text-gray-400" />
+								<span className="ml-3">Users</span>
+							</Link>
+
+							<Link
 								href="/admin/suppliers"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
@@ -67,14 +74,6 @@ export default function AdminLayout({
 							>
 								<Users className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Customers</span>
-							</Link>
-
-							<Link
-								href="/admin/companies"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Building2 className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Companies</span>
 							</Link>
 
 							<Link

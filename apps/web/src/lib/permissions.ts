@@ -66,7 +66,7 @@ export const ROLE_LEVEL: Record<Role, number> = {
 // ── Role Dashboard Mapping ──────────────────────────────────────────────────
 // Canonical mapping for automatic redirection after login (Requirement 4 & 5)
 export const ROLE_DASHBOARD_MAP: Record<Role, string> = {
-	super_admin: "/superadmin",
+	super_admin: "/admin/dashboard",
 	admin: "/admin/dashboard",
 	manager: "/manager",
 	auditor: "/auditor",
@@ -420,6 +420,7 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/sync", minRole: "sales_person" },
 
 	// Role Dashboards
+	{ path: "/admin/companies", minRole: "super_admin" },
 	{ path: "/admin", minRole: "admin" }, // Note: Both super_admin (0) and admin (1) can access the /admin prefix
 	{ path: "/manager", minRole: "manager" },
 	{ path: "/auditor", minRole: "auditor" },

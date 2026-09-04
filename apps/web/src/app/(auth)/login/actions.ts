@@ -92,7 +92,7 @@ export async function login(formData: FormData) {
 	}
 
 	// Superadmins are globally scoped and get their own dashboard
-	if (user?.is_superadmin || predefinedAccounts[email] === "superadmin") {
+	if (user?.is_superadmin || predefinedAccounts[email] === "superadmin" || user?.role === "super_admin" || user?.role === "superadmin") {
 		redirect("/superadmin");
 	}
 

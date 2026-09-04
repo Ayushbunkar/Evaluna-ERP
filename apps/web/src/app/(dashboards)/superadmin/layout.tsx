@@ -43,7 +43,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/admin/companies"
+								href="/superadmin/companies"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Building2 className="h-5 w-5 text-gray-400" />
@@ -51,7 +51,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/admin/users"
+								href="/superadmin/users"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Users className="h-5 w-5 text-gray-400" />
@@ -59,7 +59,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/admin/finance"
+								href="/superadmin/billing"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Circle className="h-5 w-5 text-gray-400" />
@@ -67,7 +67,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/admin/settings"
+								href="/superadmin/settings"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Settings className="h-5 w-5 text-gray-400" />

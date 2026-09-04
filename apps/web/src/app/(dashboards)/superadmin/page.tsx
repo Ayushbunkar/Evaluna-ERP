@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -34,7 +34,6 @@ export default function SuperAdminDashboard() {
 	const locale = useLocale();
 	const { data: stats } = trpc.superadmin.getDashboardStats.useQuery();
 	const { data: companies } = trpc.superadmin.getCompanies.useQuery();
-	const { data: users } = trpc.superadmin.getSystemHealth.useQuery(); // Using getSystemHealth as placeholder for user stats
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
@@ -48,11 +47,13 @@ export default function SuperAdminDashboard() {
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> System Logs
+					<Button variant="outline" className="text-xs shadow-sm sm:text-sm" asChild>
+						<Link href="/superadmin/activity-log">
+							<ActivityIcon className="mr-2 h-4 w-4" /> System Logs
+						</Link>
 					</Button>
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/admin/settings">
+						<Link href="/superadmin/settings">
 							<ShieldIcon className="mr-2 h-4 w-4" /> Security
 						</Link>
 					</Button>
@@ -68,7 +69,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/admin/companies")}
+							onClick={() => (window.location.href = "/superadmin/companies")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -91,7 +92,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/admin/companies")}
+							onClick={() => (window.location.href = "/superadmin/companies")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -114,7 +115,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/admin/users")}
+							onClick={() => (window.location.href = "/superadmin/users")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -135,7 +136,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/admin/finance")}
+							onClick={() => (window.location.href = "/superadmin/billing")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -173,7 +174,7 @@ export default function SuperAdminDashboard() {
 								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
-								<Link href="/admin/companies">
+								<Link href="/superadmin/companies">
 									View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
@@ -195,7 +196,7 @@ export default function SuperAdminDashboard() {
 										</div>
 										<div className="text-right">
 											<Button variant="outline" size="xs" asChild>
-												<Link href={"/admin/companies"}>
+												<Link href={`/superadmin/companies`}>
 													Manage
 												</Link>
 											</Button>
@@ -228,13 +229,12 @@ export default function SuperAdminDashboard() {
 								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
-								<Link href="/admin/users">
+								<Link href="/superadmin/users">
 									View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
-							{/* Placeholder for user list - would come from a getUsers procedure */}
 							<div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
 								User management interface
 							</div>
@@ -258,7 +258,7 @@ export default function SuperAdminDashboard() {
 								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
-								<Link href="/admin/settings">
+								<Link href="/superadmin/settings">
 									View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
@@ -271,11 +271,11 @@ export default function SuperAdminDashboard() {
 										{stats?.serverStatus || "Online"}
 									</p>
 								</div>
-								<div class="text-center">
+								<div className="text-center">
 									<p className="text-muted-foreground text-xs">Uptime</p>
 									<p className="font-bold text-lg">{stats?.uptime || "0%"}</p>
 								</div>
-								<div class="text-center">
+								<div className="text-center">
 									<p className="text-muted-foreground text-xs">
 										Database Latency
 									</p>
@@ -283,7 +283,7 @@ export default function SuperAdminDashboard() {
 										{stats?.databaseLatency || "0ms"}
 									</p>
 								</div>
-								<div class="text-center">
+								<div className="text-center">
 									<p className="text-muted-foreground text-xs">Storage Used</p>
 									<p className="font-bold text-lg">
 										{stats?.storageUsed || "0 GB"}
@@ -312,14 +312,13 @@ export default function SuperAdminDashboard() {
 							</CardDescription>
 						</div>
 						<Button variant="ghost" size="sm" asChild>
-							<Link href="/admin/settings/activity-log">
+							<Link href="/superadmin/activity-log">
 								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>
 					<CardContent className="pt-1 sm:pt-2">
 						<div className="flex flex-col gap-3 sm:gap-4">
-							{/* Placeholder for recent activity - would come from actual audit logs */}
 							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
 								Recent system activities will appear here
 							</div>

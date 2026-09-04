@@ -420,6 +420,8 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/sync", minRole: "sales_person" },
 
 	// Role Dashboards
+	{ path: "/superadmin", minRole: "super_admin" },
+	{ path: "/admin/companies", minRole: "super_admin" },
 	{ path: "/admin", minRole: "admin" }, // Note: Both super_admin (0) and admin (1) can access the /admin prefix
 	{ path: "/manager", minRole: "manager" },
 	{ path: "/auditor", minRole: "auditor" },
