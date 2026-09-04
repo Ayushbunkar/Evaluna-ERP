@@ -35,7 +35,7 @@ export default function SuperAdminLayout({
 					<nav className="mt-10 flex-1">
 						<ul className="space-y-1 px-3">
 							<Link
-								href="/superadmin/dashboard"
+								href="/superadmin"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<LayoutDashboard className="h-5 w-5 text-gray-400" />
@@ -43,7 +43,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/superadmin/companies"
+								href="/admin/companies"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Building2 className="h-5 w-5 text-gray-400" />
@@ -51,7 +51,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/superadmin/users"
+								href="/admin/users"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Users className="h-5 w-5 text-gray-400" />
@@ -59,7 +59,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/superadmin/billing"
+								href="/admin/finance"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Circle className="h-5 w-5 text-gray-400" />
@@ -67,7 +67,7 @@ export default function SuperAdminLayout({
 							</Link>
 
 							<Link
-								href="/superadmin/settings"
+								href="/admin/settings"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<Settings className="h-5 w-5 text-gray-400" />
