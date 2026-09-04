@@ -52,7 +52,7 @@ export default function SuperAdminDashboard() {
 						<ActivityIcon className="mr-2 h-4 w-4" /> System Logs
 					</Button>
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/superadmin/settings">
+						<Link href="/admin/settings">
 							<ShieldIcon className="mr-2 h-4 w-4" /> Security
 						</Link>
 					</Button>
@@ -68,7 +68,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/superadmin/companies")}
+							onClick={() => (window.location.href = "/admin/companies")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -91,7 +91,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/superadmin/companies")}
+							onClick={() => (window.location.href = "/admin/companies")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -114,7 +114,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/superadmin/users")}
+							onClick={() => (window.location.href = "/admin/users")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -135,7 +135,7 @@ export default function SuperAdminDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/superadmin/billing")}
+							onClick={() => (window.location.href = "/admin/finance")}
 						>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
@@ -173,7 +173,7 @@ export default function SuperAdminDashboard() {
 								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
-								<Link href="/superadmin/companies">
+								<Link href="/admin/companies">
 									View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
@@ -195,7 +195,7 @@ export default function SuperAdminDashboard() {
 										</div>
 										<div className="text-right">
 											<Button variant="outline" size="xs" asChild>
-												<Link href={`/superadmin/companies/${company.id}`}>
+												<Link href={"/admin/companies"}>
 													Manage
 												</Link>
 											</Button>
@@ -228,7 +228,7 @@ export default function SuperAdminDashboard() {
 								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
-								<Link href="/superadmin/users">
+								<Link href="/admin/users">
 									View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
@@ -258,7 +258,7 @@ export default function SuperAdminDashboard() {
 								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
-								<Link href="/superadmin/settings">
+								<Link href="/admin/settings">
 									View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
@@ -312,7 +312,7 @@ export default function SuperAdminDashboard() {
 							</CardDescription>
 						</div>
 						<Button variant="ghost" size="sm" asChild>
-							<Link href="/superadmin/activity-log">
+							<Link href="/admin/settings/activity-log">
 								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
