@@ -3,11 +3,7 @@
 import { ROLES } from "@/lib/permissions"; // Central role definition
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
-import { Card } from "@evaluna/ui/components/card";
-import { Input } from "@evaluna/ui/components/input";
-import { Label } from "@evaluna/ui/components/label";
-import { Pagination } from "@evaluna/ui/components/pagination";
-import { Select } from "@evaluna/ui/components/select";
+import { Card, CardContent } from "@evaluna/ui/components/card";
 import {
 	Table,
 	TableBody,
@@ -17,9 +13,30 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import { Tooltip } from "@evaluna/ui/components/tooltip";
+import {
+	ActivityIcon,
+	Building2Icon,
+	EyeIcon,
+	KeyIcon,
+	LockIcon,
+	PlusIcon,
+	RefreshCwIcon,
+	ShieldAlertIcon,
+	UnlockIcon,
+	UserMinusIcon,
+	UserPlusIcon,
+} from "lucide-react";
 import { useState } from "react";
-// Assumed imports from project structure
-import { trpc } from "@/lib/trpc/client"; // tRPC client wrapper
+import { toast } from "sonner";
+import {
+	AdminPageHeader,
+	AdminToolbar,
+	FilterSelect,
+	TablePagination,
+} from "@/components/admin/list-shell";
+import { StatusBadge } from "@/components/admin/status-badge";
+import { PageTransition } from "@/lib/animations";
+import { trpc } from "@/lib/trpc/client";
 
 // --- Constants ---
 const USER_STATUSES = [
@@ -30,212 +47,257 @@ const USER_STATUSES = [
 	"SUSPENDED",
 ] as const;
 
-// --- Components ---
-
-/**
- * Renders a clickable action menu for a single user record.
- */
-const UserActions = ({ userId }: { userId: string }) => {
-	// Mutators for security actions
-	const updateStatus = trpc.users.updateStatus.useMutation();
-	const revokeSessions = trpc.users.revokeSessions.useMutation();
-	// Placeholder for dialogs/modals
-	const [showRoleModal, setShowRoleModal] = useState(false);
-	const [showPasswordModal, setShowPasswordModal] = useState(false);
-
-	const handleLock = () => {
-		updateStatus.mutate({
-			userId,
-			newStatus: "LOCKED",
-			reason: "Manually locked by super admin.",
-		});
-	};
-
-	const handleRevoke = () => {
-		revokeSessions.mutate({
-			userId,
-			reason: "Forced session revoke by super admin for security.",
-		});
-	};
-
-	return (
-		<div className="flex space-x-2">
-			<Button
-				size="sm"
-				variant="secondary"
-				onClick={() => console.log(`View ${userId}`)}
-			>
-				View
-			</Button>
-			<Button size="sm" onClick={() => setShowRoleModal(true)}>
-				Assign Role
-			</Button>
-			<Tooltip content="Lock Account">
-				<Button size="sm" variant="warning" onClick={handleLock}>
-					Lock
-				</Button>
-			</Tooltip>
-			<Tooltip content="Revoke All Sessions">
-				<Button size="sm" variant="danger" onClick={handleRevoke}>
-					Revoke
-				</Button>
-			</Tooltip>
-			<Button size="sm" onClick={() => setShowPasswordModal(true)}>
-				Reset Password
-			</Button>
-		</div>
-	);
-};
-
 export default function SuperAdminUsersPage() {
+	const utils = trpc.useUtils();
 	const [page, setPage] = useState(1);
-	const [filters, setFilters] = useState({
-		search: "",
-		status: "" as (typeof USER_STATUSES)[number] | "",
-		roleName: "" as (typeof ROLES)[number] | "",
-		branchId: undefined as number | undefined,
+	const [pageSize, setPageSize] = useState(10);
+	const [search, setSearch] = useState("");
+	const [statusFilter, setStatusFilter] = useState("");
+	const [roleFilter, setRoleFilter] = useState("");
+
+	// Fetch users list with real TRPC hook (Super Admin global view)
+	const { data, isLoading, refetch, isFetching } = trpc.users.list.useQuery({
+		page,
+		limit: pageSize,
+		search: search || undefined,
+		status: (statusFilter as any) || undefined,
+		roleName: (roleFilter as any) || undefined,
 	});
 
-	// Use the new tRPC query hook for listing users
-	const { data, isLoading, refetch } = trpc.users.list.useQuery({
-		page,
-		limit: 10,
-		search: filters.search || undefined,
-		status: filters.status || undefined,
-		roleName: filters.roleName || undefined,
-		branchId: filters.branchId,
+	// Mutations
+	const updateStatus = trpc.users.updateStatus.useMutation({
+		onSuccess: () => {
+			toast.success("User status updated successfully.");
+			void utils.users.list.invalidate();
+		},
+		onError: (err) => {
+			toast.error(`Failed to update status: ${err.message}`);
+		},
+	});
+
+	const revokeSessions = trpc.users.revokeSessions.useMutation({
+		onSuccess: () => {
+			toast.success("All active sessions revoked successfully.");
+		},
+		onError: (err) => {
+			toast.error(`Failed to revoke sessions: ${err.message}`);
+		},
 	});
 
 	const users = data?.users || [];
-	const totalPages = data?.pagination?.totalPages || 0;
+	const total = data?.pagination?.total || 0;
+	const totalPages = data?.pagination?.totalPages || 1;
 
-	const handleFilterChange = (key: keyof typeof filters, value: any) => {
-		setFilters((prev) => ({ ...prev, [key]: value }));
-		setPage(1); // Reset to first page on filter change
+	const handleStatusChange = (userId: string, newStatus: string) => {
+		updateStatus.mutate({
+			userId,
+			newStatus: newStatus as any,
+			reason: "Updated by super admin.",
+		});
+	};
+
+	const handleRevoke = (userId: string) => {
+		revokeSessions.mutate({
+			userId,
+			reason: "Sessions forcefully cleared by super admin.",
+		});
+	};
+
+	const handleClearFilters = () => {
+		setSearch("");
+		setStatusFilter("");
+		setRoleFilter("");
+		setPage(1);
 	};
 
 	return (
-		<div className="p-8">
-			<h1 className="mb-6 font-bold text-3xl">Super Admin: User Management</h1>
-
-			{/* Filter and Create User Bar (Requirement 19) */}
-			<Card className="mb-6 p-4">
-				<div className="flex items-center justify-between space-x-4">
-					<Input
-						placeholder="Search by Name, Email or Employee ID"
-						className="flex-1"
-						onChange={(e) => handleFilterChange("search", e.target.value)}
-					/>
-					<Select
-						value={filters.status}
-						onValueChange={(v) => handleFilterChange("status", v)}
+		<PageTransition className="flex min-w-0 flex-col gap-5">
+			<AdminPageHeader
+				title="Super Admin: User Management"
+				description="Manage system-wide login accounts, assign roles globally, reset credentials, and control access statuses across all companies."
+				actions={
+					<Button
+						size="sm"
+						onClick={() => console.log("Create User dialog open")}
 					>
-						<option value="">Filter by Status</option>
-						{USER_STATUSES.map((s) => (
-							<option key={s} value={s}>
-								{s}
-							</option>
-						))}
-					</Select>
-					<Select
-						value={filters.roleName}
-						onValueChange={(v) => handleFilterChange("roleName", v)}
-					>
-						<option value="">Filter by Role</option>
-						{ROLES.map((r) => (
-							<option key={r} value={r}>
-								{r.toUpperCase().replace("_", " ")}
-							</option>
-						))}
-					</Select>
-					<Button onClick={() => console.log("Open Create User Modal")}>
-						+ Create New User
+						<PlusIcon className="mr-2 h-4 w-4" /> Create User
 					</Button>
-				</div>
-			</Card>
+				}
+			/>
 
-			{/* User Table (Requirement 1) */}
-			<Card>
-				{isLoading ? (
-					<p className="p-4">Loading users...</p>
-				) : users.length === 0 ? (
-					<p className="p-4">No users found matching the criteria.</p>
-				) : (
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Name</TableHead>
-								<TableHead>Employee ID</TableHead>
-								<TableHead>Email</TableHead>
-								<TableHead>Role</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead>Last Login</TableHead>
-								<TableHead>Created Date</TableHead>
-								<TableHead>Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{users.map((user) => (
-								<TableRow key={user.id}>
-									<TableCell className="font-medium">{user.name}</TableCell>
-									<TableCell>{user.staffCode}</TableCell>
-									<TableCell>{user.email}</TableCell>
-									<TableCell>
-										<Badge variant="primary">
-											{user.role.toUpperCase().replace("_", " ")}
-										</Badge>
-									</TableCell>
-									<TableCell>
-										<Badge variant={userStatusVariant(user.status)}>
-											{user.status}
-										</Badge>
-									</TableCell>
-									<TableCell>
-										{user.lastActiveAt
-											? new Date(user.lastActiveAt).toLocaleDateString()
-											: "Never"}
-									</TableCell>
-									<TableCell>
-										{new Date(user.createdAt).toLocaleDateString()}
-									</TableCell>
-									<TableCell>
-										<UserActions userId={user.id} />
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				)}
+			<AdminToolbar
+				searchValue={search}
+				onSearchChange={(v) => {
+					setSearch(v);
+					setPage(1);
+				}}
+				searchPlaceholder="Search by name, email, or employee ID..."
+				entityLabel="users"
+				total={total}
+				isFiltered={Boolean(search || statusFilter || roleFilter)}
+				onClearFilters={handleClearFilters}
+				onRefresh={() => void refetch()}
+				refreshing={isFetching}
+				filters={
+					<div className="flex flex-wrap items-center gap-2">
+						<FilterSelect
+							label="Status"
+							value={statusFilter}
+							onChange={(v) => {
+								setStatusFilter(v === "all" ? "" : v);
+								setPage(1);
+							}}
+							allLabel="All statuses"
+							options={USER_STATUSES.map((s) => ({ value: s, label: s }))}
+						/>
+						<FilterSelect
+							label="Role"
+							value={roleFilter}
+							onChange={(v) => {
+								setRoleFilter(v === "all" ? "" : v);
+								setPage(1);
+							}}
+							allLabel="All roles"
+							options={ROLES.map((r) => ({
+								value: r,
+								label: r.toUpperCase().replace("_", " "),
+							}))}
+						/>
+					</div>
+				}
+			/>
+
+			{/* User Table Card */}
+			<Card className="border-border/50 bg-card/50 shadow-sm">
+				<CardContent className="p-0">
+					{isLoading ? (
+						<div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
+							<RefreshCwIcon className="mr-2 h-4 w-4 animate-spin" /> Loading users...
+						</div>
+					) : users.length === 0 ? (
+						<div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
+							No users found matching the criteria.
+						</div>
+					) : (
+						<div className="overflow-x-auto rounded-lg">
+							<Table className="w-full">
+								<TableHeader className="bg-muted/40 backdrop-blur">
+									<TableRow>
+										<TableHead>Name</TableHead>
+										<TableHead>Employee ID</TableHead>
+										<TableHead>Email</TableHead>
+										<TableHead>Role</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead>Last Active</TableHead>
+										<TableHead>Created Date</TableHead>
+										<TableHead className="text-right">Actions</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{users.map((u) => (
+										<TableRow key={u.id} className="hover:bg-muted/30">
+											<TableCell className="font-medium">{u.name}</TableCell>
+											<TableCell className="font-mono text-xs">
+												{u.staffCode || "N/A"}
+											</TableCell>
+											<TableCell>{u.email}</TableCell>
+											<TableCell>
+												<Badge variant="primary">
+													{u.role.toUpperCase().replace("_", " ")}
+												</Badge>
+											</TableCell>
+											<TableCell>
+												<StatusBadge status={u.status.toLowerCase()} />
+											</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{u.lastActiveAt
+													? new Date(u.lastActiveAt).toLocaleDateString()
+													: "Never"}
+											</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{new Date(u.createdAt).toLocaleDateString()}
+											</TableCell>
+											<TableCell>
+												<div className="flex items-center justify-end gap-1">
+													<Tooltip content="Edit Details">
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8 text-muted-foreground hover:text-foreground"
+															onClick={() => console.log("Edit user clicked")}
+														>
+															<EyeIcon className="h-4 w-4" />
+														</Button>
+													</Tooltip>
+
+													{u.status === "ACTIVE" ? (
+														<Tooltip content="Lock Account">
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8 text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10"
+																onClick={() => handleStatusChange(u.id, "LOCKED")}
+															>
+																<LockIcon className="h-4 w-4" />
+															</Button>
+														</Tooltip>
+													) : (
+														<Tooltip content="Unlock Account">
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+																onClick={() => handleStatusChange(u.id, "ACTIVE")}
+															>
+																<UnlockIcon className="h-4 w-4" />
+															</Button>
+														</Tooltip>
+													)}
+
+													<Tooltip content="Reset Password">
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+															onClick={() => console.log("Reset password clicked")}
+														>
+															<KeyIcon className="h-4 w-4" />
+														</Button>
+													</Tooltip>
+
+													<Tooltip content="Revoke All Active Sessions">
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+															onClick={() => handleRevoke(u.id)}
+														>
+															<UserMinusIcon className="h-4 w-4" />
+														</Button>
+													</Tooltip>
+												</div>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					)}
+				</CardContent>
 			</Card>
 
 			{/* Pagination */}
 			{totalPages > 1 && (
-				<div className="mt-4 flex justify-center">
-					<Pagination
-						currentPage={page}
-						totalPages={totalPages}
-						onPageChange={setPage}
-					/>
-				</div>
+				<TablePagination
+					page={page}
+					pageSize={pageSize}
+					total={total}
+					totalPages={totalPages}
+					onPageChange={setPage}
+					onPageSizeChange={setPageSize}
+					busy={isFetching}
+				/>
 			)}
-		</div>
+		</PageTransition>
 	);
-}
-
-// Utility function to get Badge variant based on status
-function userStatusVariant(status: (typeof USER_STATUSES)[number]) {
-	switch (status) {
-		case "ACTIVE":
-			return "success";
-		case "PENDING":
-			return "info";
-		case "LOCKED":
-			return "danger";
-		case "SUSPENDED":
-			return "warning";
-		case "INACTIVE":
-			return "secondary";
-		default:
-			return "secondary";
-	}
 }
