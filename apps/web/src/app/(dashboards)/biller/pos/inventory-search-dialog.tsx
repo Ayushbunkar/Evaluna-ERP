@@ -102,7 +102,6 @@ export function InventorySearchDialog({
 		setSearchTerm(code);
 	};
 
-
 	const handleAddItem = (item: {
 		id: number;
 		name: string;
@@ -163,7 +162,7 @@ export function InventorySearchDialog({
 								type="button"
 								variant="ghost"
 								size="sm"
-								className="text-xs text-blue-600 gap-1 h-7"
+								className="h-7 gap-1 text-blue-600 text-xs"
 								onClick={() => setShowCameraModal(true)}
 							>
 								<CameraIcon className="h-3.5 w-3.5" /> Scan with Camera
@@ -183,7 +182,6 @@ export function InventorySearchDialog({
 						title="Scan Barcode with Camera"
 						description="Point camera at product barcode to auto-fill search term."
 					/>
-
 
 					{isLoading && (
 						<div className="text-muted-foreground text-sm">Loading...</div>

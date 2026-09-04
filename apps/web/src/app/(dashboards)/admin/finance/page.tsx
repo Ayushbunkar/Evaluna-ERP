@@ -8,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import type { LucideIcon } from "lucide-react";
 import {
 	ActivityIcon,
 	BanknoteIcon,
@@ -16,9 +17,8 @@ import {
 	TrendingDownIcon,
 	TrendingUpIcon,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { PageTransition } from "@/lib/animations";
 import { DataError, TableLoading } from "@/components/admin/data-states";
+import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 

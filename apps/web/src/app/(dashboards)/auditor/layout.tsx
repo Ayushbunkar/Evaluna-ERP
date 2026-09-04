@@ -1,14 +1,14 @@
-import Link from "next/link";
-import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import {
-	LayoutDashboard,
-	FileBarChart,
-	Hexagon,
-	ShieldIcon,
 	ActivityIcon,
 	CalendarCheckIcon,
+	FileBarChart,
+	Hexagon,
+	LayoutDashboard,
+	ShieldIcon,
 	UsersIcon,
 } from "lucide-react";
+import Link from "next/link";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function AuditorLayout({
 	children,
@@ -41,7 +41,7 @@ export default function AuditorLayout({
 							<li>
 								<Link
 									href="/auditor"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
 									Dashboard
@@ -50,7 +50,7 @@ export default function AuditorLayout({
 							<li>
 								<Link
 									href="/auditor/findings"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<ShieldIcon className="mr-3 h-5 w-5 text-gray-400" />
 									Audit Findings
@@ -59,7 +59,7 @@ export default function AuditorLayout({
 							<li>
 								<Link
 									href="/auditor/upc"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<CalendarCheckIcon className="mr-3 h-5 w-5 text-gray-400" />
 									UPC Tasks
@@ -68,7 +68,7 @@ export default function AuditorLayout({
 							<li>
 								<Link
 									href="/auditor/receiving"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<ActivityIcon className="mr-3 h-5 w-5 text-gray-400" />
 									Receiving Inspections
@@ -77,7 +77,7 @@ export default function AuditorLayout({
 							<li>
 								<Link
 									href="/auditor/placement"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<UsersIcon className="mr-3 h-5 w-5 text-gray-400" />
 									Placement Verification
@@ -86,7 +86,7 @@ export default function AuditorLayout({
 							<li>
 								<Link
 									href="/auditor/reports"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<FileBarChart className="mr-3 h-5 w-5 text-gray-400" />
 									Reports

@@ -3,10 +3,14 @@ import {
 	boolean,
 	index,
 	integer,
+	jsonb,
 	pgTable,
+	serial,
 	text,
 	timestamp,
+	varchar,
 } from "drizzle-orm/pg-core";
+import { staff } from "./schema";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Better Auth core tables — extended for Evaluna ERP
@@ -27,14 +31,24 @@ export const user = pgTable("user", {
 	twoFactorEnabled: boolean("twoFactorEnabled").default(false),
 
 	// ── Evaluna ERP extensions ─────────────────────────────────────────────────
-	/** ERP role: admin | manager | auditor | putter | picker | biller | sales_person | delivery_manager | delivery_boy */
-	role: text("role").default("sales_person").notNull(),
-	/** Branch this user primarily belongs to. NULL = superadmin (all branches) */
+	/** Link to the staff/employee record. Unique constraint ensures 1:1. */
+	staff_id: integer("staff_id")
+		.unique()
+		.references(() => staff.id, { onDelete: "set null" }),
+	/** Branch this user primarily belongs to. NULL = organization-wide/superadmin. */
 	branch_id: integer("branch_id"),
-	/** Prevents login when false */
-	is_active: boolean("is_active").default(true).notNull(),
+	/** Warehouse this user primarily belongs to. NULL = all warehouses in branch scope. */
+	warehouse_id: integer("warehouse_id"),
+	/** Account status: PENDING | ACTIVE | INACTIVE | LOCKED | SUSPENDED. Replaces is_active/locked_until logic. */
+	status: varchar("status", { length: 20 })
+		.default("PENDING") // Initial state as per requirement 13
+		.notNull(),
 	/** Cross-branch superadmin flag */
 	is_superadmin: boolean("is_superadmin").default(false).notNull(),
+	/** Flag to force password change on next login (Requirement 2) */
+	force_password_change: boolean("force_password_change")
+		.default(false)
+		.notNull(),
 
 	// ── Security ───────────────────────────────────────────────────────────────
 	/** Increments on each failed login attempt */
@@ -82,6 +96,8 @@ export const session = pgTable(
 		// ── Evaluna ERP extensions ───────────────────────────────────────────────
 		/** Branch context for this session (may differ from user.branch_id for superadmins) */
 		branch_id: integer("branch_id"),
+		/** Warehouse context for this session */
+		warehouse_id: integer("warehouse_id"),
 		/** Human-readable device name, e.g. "Chrome on Windows" */
 		device_name: text("device_name"),
 		/** Canvas fingerprint or navigator hash for device tracking */
@@ -118,6 +134,32 @@ export const account = pgTable(
 	(table) => [index("account_userId_idx").on(table.userId)],
 );
 
+// ── Security Audit Log ────────────────────────────────────────────────────────
+export const securityAuditLog = pgTable("security_audit_log", {
+	id: serial("id").primaryKey(),
+	/** User who performed the action (Super Admin) */
+	actor_id: text("actor_id").references(() => user.id, {
+		onDelete: "set null",
+	}),
+	/** User who was affected by the action */
+	target_user_id: text("target_user_id").references(() => user.id, {
+		onDelete: "set null",
+	}),
+	/** Action taken (e.g., USER_CREATED, PASSWORD_RESET) */
+	action: varchar("action", { length: 50 }).notNull(),
+	/** Audit log event description */
+	description: text("description"),
+	/** Previous value of the affected field(s) - stores JSON of old data */
+	previous_value: jsonb("previous_value"),
+	/** New value of the affected field(s) - stores JSON of new data */
+	new_value: jsonb("new_value"),
+	/** Reason for the action, if provided */
+	reason: text("reason"),
+	/** IP address of the actor */
+	ip_address: varchar("ip_address", { length: 45 }),
+	created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const verification = pgTable(
 	"verification",
 	{
@@ -138,9 +180,35 @@ export const verification = pgTable(
 // Relations
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const userRelations = relations(user, ({ many }) => ({
+export const securityAuditLogRelations = relations(
+	securityAuditLog,
+	({ one }) => ({
+		actor: one(user, {
+			fields: [securityAuditLog.actor_id],
+			references: [user.id],
+			relationName: "actor_logs",
+		}),
+		targetUser: one(user, {
+			fields: [securityAuditLog.target_user_id],
+			references: [user.id],
+			relationName: "target_user_logs",
+		}),
+	}),
+);
+
+export const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),
 	accounts: many(account),
+	staff: one(staff, {
+		fields: [user.staff_id],
+		references: [staff.id],
+	}),
+	auditLogsAsActor: many(securityAuditLog, {
+		relationName: "actor_logs",
+	}),
+	auditLogsAsTarget: many(securityAuditLog, {
+		relationName: "target_user_logs",
+	}),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({

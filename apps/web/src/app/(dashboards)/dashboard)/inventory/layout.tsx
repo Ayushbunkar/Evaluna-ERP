@@ -1,5 +1,11 @@
-﻿import Link from "next/link";
-import { LayoutDashboard, User, FileBarChart, Hexagon, Circle } from "lucide-react";
+﻿import {
+	Circle,
+	FileBarChart,
+	Hexagon,
+	LayoutDashboard,
+	User,
+} from "lucide-react";
+import Link from "next/link";
 
 export default function InventoryLayout({
 	children,

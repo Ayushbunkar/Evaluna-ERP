@@ -19,7 +19,9 @@ function escapeCell(value: string | number | null | undefined): string {
 	const s = String(value);
 	// A leading =, +, - or @ makes spreadsheets treat the cell as a formula.
 	const guarded = /^[=+\-@]/.test(s) ? `'${s}` : s;
-	return /[",\n\r]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
+	return /[",\n\r]/.test(guarded)
+		? `"${guarded.replace(/"/g, '""')}"`
+		: guarded;
 }
 
 export function toCsv<T>(rows: T[], columns: CsvColumn<T>[]): string {

@@ -15,7 +15,18 @@ import {
 	varchar,
 } from "drizzle-orm/pg-core";
 
-// Re-export Better Auth tables so drizzle-kit picks them up
+import {
+	account,
+	accountRelations,
+	session,
+	sessionRelations,
+	user,
+	userRelations,
+	verification,
+	securityAuditLog,
+	securityAuditLogRelations,
+} from "./auth-schema";
+
 export {
 	account,
 	accountRelations,
@@ -24,7 +35,9 @@ export {
 	user,
 	userRelations,
 	verification,
-} from "./auth-schema";
+	securityAuditLog,
+	securityAuditLogRelations,
+};
 
 // Custom bytea type for PGLite compatibility
 export const bytea = customType<{ data: Buffer; driverData: Buffer }>({
@@ -436,13 +449,72 @@ export const roles = pgTable("roles", {
 
 export const rolesRelations = relations(roles, ({ many }) => ({
 	userRoles: many(userRoles),
+	rolePermissions: many(rolePermissions),
 }));
 
+// ── Permissions ───────────────────────────────────────────────────────────────
+// Normalized table for module.resource.action permissions (Requirement 12)
+export const permissions = pgTable("permissions", {
+	id: serial("id").primaryKey(),
+	// The unique permission string, e.g., 'users.read', 'inventory.adjust'
+	slug: varchar("slug", { length: 100 }).notNull().unique(),
+	description: text("description"),
+	module: varchar("module", { length: 50 }).notNull(), // e.g., 'users', 'inventory'
+	resource: varchar("resource", { length: 50 }).notNull(), // e.g., 'user', 'product'
+	action: varchar("action", { length: 50 }).notNull(), // e.g., 'read', 'create'
+	created_at: timestamp("created_at").defaultNow(),
+});
+
+export const permissionsRelations = relations(permissions, ({ many }) => ({
+	rolePermissions: many(rolePermissions),
+}));
+
+// ── Role Permissions (Unified Table) ─────────────────────────────────────────────
+// Granular domain × action grants per role name and/or normalized roles link
+export const rolePermissions = pgTable(
+	"role_permissions",
+	{
+		id: serial("id").primaryKey(),
+		role_name: varchar("role_name", { length: 50 }),
+		role_id: integer("role_id")
+			.references((): any => roles.id, { onDelete: "cascade" }),
+		domain: varchar("domain", { length: 50 }),
+		module: varchar("module", { length: 50 }),
+		action: varchar("action", { length: 20 }).notNull(),
+		is_allowed: boolean("is_allowed").default(false),
+		permission_id: integer("permission_id")
+			.references(() => permissions.id, { onDelete: "cascade" }),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+	},
+	(t) => ({
+		unq: uniqueIndex("role_permission_unq").on(t.role_id, t.permission_id),
+	}),
+);
+
+export const rolePermissionsRelations = relations(
+	rolePermissions,
+	({ one }) => ({
+		role: one(roles, {
+			fields: [rolePermissions.role_id],
+			references: [roles.id],
+		}),
+		permission: one(permissions, {
+			fields: [rolePermissions.permission_id],
+			references: [permissions.id],
+		}),
+	}),
+);
+
 // ── User Roles ────────────────────────────────────────────────────────────────
+// FIX: Changing user_id to reference the `user` table (text) instead of `staff` (integer)
+// This links roles to the Auth Account, not just the employee record.
 export const userRoles = pgTable("user_roles", {
 	id: serial("id").primaryKey(),
-	user_id: integer("user_id")
-		.references(() => staff.id)
+	user_id: text("user_id") // CHANGED: from integer to text
+		.references(() => user.id, { onDelete: "cascade" }) // CHANGED: from staff.id to user.id
 		.notNull(),
 	role_id: integer("role_id")
 		.references(() => roles.id)
@@ -452,9 +524,10 @@ export const userRoles = pgTable("user_roles", {
 });
 
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
-	user: one(staff, {
+	user: one(user, {
+		// CHANGED: from staff to user
 		fields: [userRoles.user_id],
-		references: [staff.id],
+		references: [user.id],
 	}),
 	role: one(roles, {
 		fields: [userRoles.role_id],
@@ -2083,29 +2156,8 @@ export const branchHealthRelations = relations(
 // Seeded on first run; editable by admin at runtime.
 //
 // NOTE:
-// The app has historically used both a canonical shape (`role_name`, `domain`, `action`)
-// and a legacy client-management shape (`role_id`, `module`, `is_allowed`).
-// To keep the database compatible during migration, we retain both sets of columns
-// in a single table until all callers are normalized.
-export const rolePermissions = pgTable("role_permissions", {
-	id: serial("id").primaryKey(),
-	/** Canonical app role name used by auth and permission checks */
-	role_name: varchar("role_name", { length: 50 }),
-	/** Legacy role reference used by admin client-management screens */
-	role_id: integer("role_id").references((): any => roles.id),
-	/** Canonical permission domain used by auth and runtime checks */
-	domain: varchar("domain", { length: 50 }),
-	/** Legacy permission module used by admin client-management screens */
-	module: varchar("module", { length: 50 }),
-	/** Canonical action used by auth checks */
-	action: varchar("action", { length: 20 }).notNull(),
-	/** Legacy boolean gate used by admin client-management screens */
-	is_allowed: boolean("is_allowed").default(false),
-	created_at: timestamp("created_at").defaultNow(),
-	updated_at: timestamp("updated_at")
-		.defaultNow()
-		.$onUpdateFn(() => new Date()),
-});
+// The rolePermissions table has been unified at line 460. We do not re-declare it here
+// to prevent block-scoped variable redeclaration errors.
 
 // ── Password Reset Tokens ────────────────────────────────────────────────────
 export const passwordResetTokens = pgTable("password_reset_tokens", {

@@ -148,7 +148,11 @@ export default async function middleware(request: NextRequest) {
 
 	if (matchedRoute) {
 		let userRole = (sessionData.user.role || "sales_person") as Role;
-		if ((userRole as string) === "superadmin" || (userRole as string) === "super_admin") userRole = "admin" as Role;
+		if (
+			(userRole as string) === "superadmin" ||
+			(userRole as string) === "super_admin"
+		)
+			userRole = "admin" as Role;
 
 		const isSuperadmin =
 			sessionData.user.isSuperadmin === true ||

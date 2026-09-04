@@ -70,12 +70,20 @@ function customerFields(
 	branches: Array<{ value: string; label: string }>,
 	mode: "create" | "edit",
 ): FormField[] {
-	const typeOptions = Array.from(new Set([...BASE_TYPES, ...types])).map((t) => ({
-		value: t,
-		label: t.charAt(0).toUpperCase() + t.slice(1),
-	}));
+	const typeOptions = Array.from(new Set([...BASE_TYPES, ...types])).map(
+		(t) => ({
+			value: t,
+			label: t.charAt(0).toUpperCase() + t.slice(1),
+		}),
+	);
 	const fields: FormField[] = [
-		{ name: "name", label: "Customer name", kind: "text", required: true, maxLength: 255 },
+		{
+			name: "name",
+			label: "Customer name",
+			kind: "text",
+			required: true,
+			maxLength: 255,
+		},
 		{
 			name: "email",
 			label: "Email",
@@ -131,7 +139,13 @@ function customerFields(
 				{ value: "inactive", label: "Inactive" },
 			],
 		},
-		{ name: "address", label: "Address", kind: "textarea", wide: true, maxLength: 500 },
+		{
+			name: "address",
+			label: "Address",
+			kind: "textarea",
+			wide: true,
+			maxLength: 500,
+		},
 		{
 			name: "marketing_opt_in",
 			label: "Opted in to marketing",
@@ -168,7 +182,10 @@ export default function AdminCustomersPage() {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editId, setEditId] = useState<number | null>(null);
 	const [viewId, setViewId] = useState<number | null>(null);
-	const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null);
+	const [archiveTarget, setArchiveTarget] = useState<{
+		id: number;
+		name: string;
+	} | null>(null);
 	const [formError, setFormError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [exporting, setExporting] = useState(false);
@@ -206,7 +223,10 @@ export default function AdminCustomersPage() {
 
 	const branchOptions = useMemo(
 		() =>
-			(branches.data?.items ?? []).map((b) => ({ value: String(b.id), label: b.name })),
+			(branches.data?.items ?? []).map((b) => ({
+				value: String(b.id),
+				label: b.name,
+			})),
 		[branches.data],
 	);
 	const createFields = useMemo(
@@ -247,7 +267,9 @@ export default function AdminCustomersPage() {
 
 	const update = trpc.admin.updateCustomer.useMutation({
 		onSuccess: (result) => {
-			toast.success("Customer updated", { description: `${result.name} was saved.` });
+			toast.success("Customer updated", {
+				description: `${result.name} was saved.`,
+			});
 			setEditId(null);
 			setFormError(null);
 			setFieldErrors({});
@@ -274,10 +296,16 @@ export default function AdminCustomersPage() {
 	const handleExport = async () => {
 		setExporting(true);
 		try {
-			const { rows, total, truncated } = await collectAllPages(async (page, pageSize) => {
-				const result = await utils.admin.getCustomers.fetch({ ...query, page, pageSize });
-				return { items: result.items, total: result.total };
-			});
+			const { rows, total, truncated } = await collectAllPages(
+				async (page, pageSize) => {
+					const result = await utils.admin.getCustomers.fetch({
+						...query,
+						page,
+						pageSize,
+					});
+					return { items: result.items, total: result.total };
+				},
+			);
 			downloadCsv(
 				timestampedFilename("customers"),
 				toCsv(rows, [
@@ -290,7 +318,10 @@ export default function AdminCustomersPage() {
 					{ header: "Status", value: (r) => r.status },
 					{ header: "Credit limit (INR)", value: (r) => r.credit_limit },
 					{ header: "Credit used (INR)", value: (r) => r.credit_used },
-					{ header: "Credit hold", value: (r) => (r.credit_hold ? "Yes" : "No") },
+					{
+						header: "Credit hold",
+						value: (r) => (r.credit_hold ? "Yes" : "No"),
+					},
 				]),
 			);
 			toast.success(
@@ -400,7 +431,11 @@ export default function AdminCustomersPage() {
 			{list.isLoading ? (
 				<TableLoading columns={8} />
 			) : list.error ? (
-				<DataError error={list.error} entity="customers" onRetry={() => list.refetch()} />
+				<DataError
+					error={list.error}
+					entity="customers"
+					onRetry={() => list.refetch()}
+				/>
 			) : items.length === 0 ? (
 				table.isFiltered ? (
 					<DataNoMatches onClear={table.reset} />
@@ -421,20 +456,59 @@ export default function AdminCustomersPage() {
 						<Table className="w-full min-w-[940px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
-									<SortableHead label="Code" column="code" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Name" column="name" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Code"
+										column="code"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Name"
+										column="name"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead>Contact</TableHead>
-									<SortableHead label="Type" column="type" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Credit used" column="credit_used" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} numeric />
-									<SortableHead label="Credit limit" column="credit_limit" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} numeric />
-									<SortableHead label="Status" column="status" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Type"
+										column="type"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Credit used"
+										column="credit_used"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+										numeric
+									/>
+									<SortableHead
+										label="Credit limit"
+										column="credit_limit"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+										numeric
+									/>
+									<SortableHead
+										label="Status"
+										column="status"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead className="text-right">Actions</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{items.map((cust) => {
 									const overLimit =
-										cust.credit_limit > 0 && cust.credit_used > cust.credit_limit;
+										cust.credit_limit > 0 &&
+										cust.credit_used > cust.credit_limit;
 									return (
 										<TableRow key={cust.id} className="hover:bg-muted/30">
 											<TableCell className="font-mono text-xs">
@@ -454,13 +528,15 @@ export default function AdminCustomersPage() {
 													{phone(cust.phone)}
 												</span>
 											</TableCell>
-											<TableCell className="capitalize">{text(cust.customer_type)}</TableCell>
+											<TableCell className="capitalize">
+												{text(cust.customer_type)}
+											</TableCell>
 											<TableCell
 												className={`text-right tabular-nums ${overLimit ? "font-medium text-destructive" : ""}`}
 											>
 												{inr(cust.credit_used)}
 											</TableCell>
-											<TableCell className="text-right tabular-nums text-muted-foreground">
+											<TableCell className="text-right text-muted-foreground tabular-nums">
 												{inr(cust.credit_limit)}
 											</TableCell>
 											<TableCell>
@@ -509,7 +585,10 @@ export default function AdminCustomersPage() {
 																		? "Settle the outstanding receivable first."
 																		: undefined,
 																onSelect: () =>
-																	setArchiveTarget({ id: cust.id, name: cust.name }),
+																	setArchiveTarget({
+																		id: cust.id,
+																		name: cust.name,
+																	}),
 															},
 														]}
 													/>
@@ -562,7 +641,8 @@ export default function AdminCustomersPage() {
 						customer_type: String(values.customer_type || "retail"),
 						credit_limit: Number(values.credit_limit || 0),
 						payment_terms: Number(values.payment_terms || 30),
-						status: (String(values.status) as "active" | "inactive") || "active",
+						status:
+							(String(values.status) as "active" | "inactive") || "active",
 						marketing_opt_in: Boolean(values.marketing_opt_in),
 						branch_id: values.branch_id ? Number(values.branch_id) : undefined,
 					})
@@ -594,7 +674,8 @@ export default function AdminCustomersPage() {
 						customer_type: String(values.customer_type || "retail"),
 						credit_limit: Number(values.credit_limit || 0),
 						payment_terms: Number(values.payment_terms || 30),
-						status: (String(values.status) as "active" | "inactive") || "active",
+						status:
+							(String(values.status) as "active" | "inactive") || "active",
 						marketing_opt_in: Boolean(values.marketing_opt_in),
 						credit_hold: Boolean(values.credit_hold),
 					});
@@ -617,13 +698,23 @@ export default function AdminCustomersPage() {
 								{
 									title: "Profile",
 									rows: [
-										{ label: "Customer code", value: detail.data.customer_code },
-										{ label: "Status", value: <StatusBadge status={detail.data.status} /> },
+										{
+											label: "Customer code",
+											value: detail.data.customer_code,
+										},
+										{
+											label: "Status",
+											value: <StatusBadge status={detail.data.status} />,
+										},
 										{ label: "Type", value: text(detail.data.customer_type) },
 										{ label: "Branch", value: text(detail.data.branch_name) },
 										{ label: "Email", value: text(detail.data.email) },
 										{ label: "Phone", value: phone(detail.data.phone) },
-										{ label: "Address", value: text(detail.data.address), wide: true },
+										{
+											label: "Address",
+											value: text(detail.data.address),
+											wide: true,
+										},
 									],
 								},
 								{
@@ -636,29 +727,66 @@ export default function AdminCustomersPage() {
 								{
 									title: "Credit",
 									rows: [
-										{ label: "Credit limit", value: inr(detail.data.credit_limit) },
-										{ label: "Credit used", value: inr(detail.data.credit_used) },
-										{ label: "Available", value: inr(detail.data.credit_available) },
-										{ label: "Payment terms", value: `${detail.data.payment_terms ?? 0} days` },
+										{
+											label: "Credit limit",
+											value: inr(detail.data.credit_limit),
+										},
+										{
+											label: "Credit used",
+											value: inr(detail.data.credit_used),
+										},
+										{
+											label: "Available",
+											value: inr(detail.data.credit_available),
+										},
+										{
+											label: "Payment terms",
+											value: `${detail.data.payment_terms ?? 0} days`,
+										},
 										{
 											label: "Credit hold",
-											value: <BooleanBadge value={detail.data.credit_hold} trueTone="warning" />,
+											value: (
+												<BooleanBadge
+													value={detail.data.credit_hold}
+													trueTone="warning"
+												/>
+											),
 										},
-										{ label: "Store credit", value: inr(detail.data.store_credit) },
+										{
+											label: "Store credit",
+											value: inr(detail.data.store_credit),
+										},
 									],
 								},
 								{
 									title: "Relationship",
 									rows: [
-										{ label: "Loyalty tier", value: text(detail.data.loyalty_tier) },
-										{ label: "Loyalty points", value: num(detail.data.loyalty_points) },
-										{ label: "Total spent", value: inr(detail.data.total_spent) },
-										{ label: "Lifetime value", value: inr(detail.data.lifetime_value) },
+										{
+											label: "Loyalty tier",
+											value: text(detail.data.loyalty_tier),
+										},
+										{
+											label: "Loyalty points",
+											value: num(detail.data.loyalty_points),
+										},
+										{
+											label: "Total spent",
+											value: inr(detail.data.total_spent),
+										},
+										{
+											label: "Lifetime value",
+											value: inr(detail.data.lifetime_value),
+										},
 										{
 											label: "Marketing opt-in",
-											value: <BooleanBadge value={detail.data.marketing_opt_in} />,
+											value: (
+												<BooleanBadge value={detail.data.marketing_opt_in} />
+											),
 										},
-										{ label: "Customer since", value: date(detail.data.created_at) },
+										{
+											label: "Customer since",
+											value: date(detail.data.created_at),
+										},
 									],
 								},
 							]

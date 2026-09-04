@@ -35,7 +35,7 @@ export default function AdminErrorPage({
 
 	return (
 		<div className="flex h-screen w-full flex-col items-center justify-center bg-background px-4">
-			<div className="flex flex-col items-center space-y-6 text-center max-w-md">
+			<div className="flex max-w-md flex-col items-center space-y-6 text-center">
 				<div className="rounded-full bg-red-100 p-4">
 					<svg
 						className="h-10 w-10 text-red-600"
@@ -51,12 +51,14 @@ export default function AdminErrorPage({
 						/>
 					</svg>
 				</div>
-				<h1 className="font-bold text-3xl tracking-tight">Something went wrong</h1>
+				<h1 className="font-bold text-3xl tracking-tight">
+					Something went wrong
+				</h1>
 				<p className="text-muted-foreground text-sm">
 					An unexpected error occurred. Click below to go to the login page.
 				</p>
 				{(error?.digest || error?.message) && (
-					<p className="text-muted-foreground text-xs font-mono bg-muted px-3 py-1 rounded break-all max-w-xs">
+					<p className="max-w-xs break-all rounded bg-muted px-3 py-1 font-mono text-muted-foreground text-xs">
 						{error?.digest ?? error?.message?.slice(0, 100)}
 					</p>
 				)}
@@ -64,13 +66,13 @@ export default function AdminErrorPage({
 					{/* Primary action: always go to login to escape the broken state */}
 					<button
 						onClick={handleGoToLogin}
-						className="px-5 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+						className="rounded-md bg-primary px-5 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
 					>
 						Go to Login
 					</button>
 					<button
 						onClick={reset}
-						className="px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-muted"
+						className="rounded-md border border-border px-4 py-2 font-medium text-sm hover:bg-muted"
 					>
 						Try again
 					</button>

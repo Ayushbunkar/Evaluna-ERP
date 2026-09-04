@@ -48,7 +48,9 @@ const now = new Date();
 
 beforeAll(async () => {
 	try {
-		await pg.exec(`CREATE TYPE vehicle_status AS ENUM ('available', 'in_use', 'maintenance', 'retired');`);
+		await pg.exec(
+			`CREATE TYPE vehicle_status AS ENUM ('available', 'in_use', 'maintenance', 'retired');`,
+		);
 	} catch (e) {
 		// Ignore if type already exists
 	}

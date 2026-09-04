@@ -1,18 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import {
-	LayoutDashboardIcon,
-	DownloadIcon,
-	PackagePlusIcon,
 	AlertTriangleIcon,
-	RotateCcwIcon,
-	XCircleIcon,
 	CheckCircleIcon,
+	DownloadIcon,
 	FileTextIcon,
 	Hexagon,
+	LayoutDashboardIcon,
+	PackagePlusIcon,
+	RotateCcwIcon,
+	XCircleIcon,
 } from "lucide-react";
+import Link from "next/link";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function PutterLayout({
 	children,
@@ -45,7 +45,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<LayoutDashboardIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Dashboard
@@ -54,7 +54,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter/receiving"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<DownloadIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Receiving
@@ -63,7 +63,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter/put-away"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<PackagePlusIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Put Away
@@ -72,7 +72,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter/missing"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<AlertTriangleIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Missing Stock
@@ -81,7 +81,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter/returns"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<RotateCcwIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Sale Return
@@ -90,7 +90,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter/damage"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<XCircleIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Raise Damage
@@ -99,7 +99,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter/completed"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<CheckCircleIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Completed
@@ -108,7 +108,7 @@ export default function PutterLayout({
 							<li>
 								<Link
 									href="/putter/reports"
-									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<FileTextIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Reports

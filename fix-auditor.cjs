@@ -1,16 +1,23 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-const basePath = path.join('apps', 'web', 'src', 'app', '(dashboards)', 'auditor');
+const basePath = path.join(
+	"apps",
+	"web",
+	"src",
+	"app",
+	"(dashboards)",
+	"auditor",
+);
 
-const dirs = ['upc', 'receiving', 'placement', 'reports'];
+const dirs = ["upc", "receiving", "placement", "reports"];
 for (const dir of dirs) {
-    const fullPath = path.join(basePath, dir);
-    if (!fs.existsSync(fullPath)) {
-        fs.mkdirSync(fullPath, { recursive: true });
-    }
-    
-    const code = `"use client";
+	const fullPath = path.join(basePath, dir);
+	if (!fs.existsSync(fullPath)) {
+		fs.mkdirSync(fullPath, { recursive: true });
+	}
+
+	const code = `"use client";
 
 import { PageTransition } from "@/lib/animations";
 
@@ -26,7 +33,7 @@ export default function Auditor${dir.charAt(0).toUpperCase() + dir.slice(1)}Page
         </PageTransition>
     );
 }`;
-    fs.writeFileSync(path.join(fullPath, 'page.tsx'), code);
+	fs.writeFileSync(path.join(fullPath, "page.tsx"), code);
 }
 
 // Fix findings page
@@ -168,11 +175,14 @@ export default function AuditorFindingsPage() {
 	);
 }`;
 
-fs.writeFileSync(path.join(basePath, 'findings', 'page.tsx'), findingsCode);
+fs.writeFileSync(path.join(basePath, "findings", "page.tsx"), findingsCode);
 
 // Fix layout links (change /auditor/dashboard to /auditor)
-let layoutCode = fs.readFileSync(path.join(basePath, 'layout.tsx'), 'utf8');
-layoutCode = layoutCode.replace(/href="\/auditor\/dashboard"/g, 'href="/auditor"');
-fs.writeFileSync(path.join(basePath, 'layout.tsx'), layoutCode);
+let layoutCode = fs.readFileSync(path.join(basePath, "layout.tsx"), "utf8");
+layoutCode = layoutCode.replace(
+	/href="\/auditor\/dashboard"/g,
+	'href="/auditor"',
+);
+fs.writeFileSync(path.join(basePath, "layout.tsx"), layoutCode);
 
-console.log('All files fixed!');
+console.log("All files fixed!");

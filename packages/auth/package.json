@@ -15,7 +15,8 @@
 		"check-types": "tsc --noEmit"
 	},
 	"dependencies": {
-		"better-auth": "catalog:"
+		"better-auth": "catalog:",
+		"@evaluna/db": "workspace:*"
 	},
 	"devDependencies": {
 		"@evaluna/config": "workspace:*",

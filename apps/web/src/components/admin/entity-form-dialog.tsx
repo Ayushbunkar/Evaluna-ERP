@@ -78,7 +78,10 @@ function validate(fields: FormField[], values: FormValues) {
 		}
 		if (value.length === 0) continue;
 
-		if (field.kind === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
+		if (
+			field.kind === "email" &&
+			!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)
+		) {
 			errors[field.name] = "Enter a valid email address.";
 			continue;
 		}
@@ -252,7 +255,10 @@ export function EntityFormDialog({
 												{field.label}
 											</Label>
 											{field.help && (
-												<p id={helpId} className="text-muted-foreground text-xs">
+												<p
+													id={helpId}
+													className="text-muted-foreground text-xs"
+												>
 													{field.help}
 												</p>
 											)}
@@ -269,11 +275,16 @@ export function EntityFormDialog({
 									<Label htmlFor={inputId}>
 										{field.label}
 										{field.required && (
-											<span className="ml-0.5 text-destructive" aria-hidden="true">
+											<span
+												className="ml-0.5 text-destructive"
+												aria-hidden="true"
+											>
 												*
 											</span>
 										)}
-										{field.required && <span className="sr-only"> (required)</span>}
+										{field.required && (
+											<span className="sr-only"> (required)</span>
+										)}
 									</Label>
 
 									{field.kind === "select" ? (
@@ -287,7 +298,9 @@ export function EntityFormDialog({
 												aria-invalid={Boolean(error)}
 												aria-describedby={describedBy}
 											>
-												<SelectValue placeholder={field.placeholder ?? "Select…"} />
+												<SelectValue
+													placeholder={field.placeholder ?? "Select…"}
+												/>
 											</SelectTrigger>
 											<SelectContent>
 												{(field.options ?? []).map((option) => (
@@ -338,7 +351,11 @@ export function EntityFormDialog({
 									)}
 
 									{error ? (
-										<p id={errorId} role="alert" className="text-destructive text-xs">
+										<p
+											id={errorId}
+											role="alert"
+											className="text-destructive text-xs"
+										>
 											{error}
 										</p>
 									) : field.help ? (

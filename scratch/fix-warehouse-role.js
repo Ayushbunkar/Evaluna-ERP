@@ -14,7 +14,12 @@ async function main() {
 		.returning();
 
 	if (updatedUser) {
-		console.log("Successfully updated user table:", updatedUser.email, "role set to:", updatedUser.role);
+		console.log(
+			"Successfully updated user table:",
+			updatedUser.email,
+			"role set to:",
+			updatedUser.role,
+		);
 	} else {
 		console.log("User warehouse@evaluna.dev not found in user table.");
 	}
@@ -27,7 +32,12 @@ async function main() {
 		.returning();
 
 	if (updatedStaff) {
-		console.log("Successfully updated staff table:", updatedStaff.email, "role set to:", updatedStaff.role);
+		console.log(
+			"Successfully updated staff table:",
+			updatedStaff.email,
+			"role set to:",
+			updatedStaff.role,
+		);
 	} else {
 		console.log("User warehouse@evaluna.dev not found in staff table.");
 	}

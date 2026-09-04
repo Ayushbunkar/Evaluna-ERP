@@ -19,7 +19,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { motion, PageTransition, StaggerList, StaggerItem, AnimatedCard } from "@/lib/animations";
+import {
+	AnimatedCard,
+	motion,
+	PageTransition,
+	StaggerItem,
+	StaggerList,
+} from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 

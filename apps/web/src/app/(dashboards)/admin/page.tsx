@@ -74,10 +74,7 @@ export default function AdminDashboard() {
 				</div>
 			</div>
 
-			{(statsError ||
-				employeesError ||
-				suppliersError ||
-				customersError) && (
+			{(statsError || employeesError || suppliersError || customersError) && (
 				<div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-sm">
 					Some dashboard data failed to load. Figures shown may be incomplete.
 				</div>
@@ -252,24 +249,26 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{(Array.isArray(employees) ? employees : [])?.slice(0, 5).map((emp) => (
-									<div
-										key={emp.id}
-										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
-									>
-										<div>
-											<p className="font-medium text-xs sm:text-sm">
-												{emp.name}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												{emp.role || "Staff"}
-											</p>
+								{(Array.isArray(employees) ? employees : [])
+									?.slice(0, 5)
+									.map((emp) => (
+										<div
+											key={emp.id}
+											className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
+										>
+											<div>
+												<p className="font-medium text-xs sm:text-sm">
+													{emp.name}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													{emp.role || "Staff"}
+												</p>
+											</div>
+											<div className="text-right">
+												<p className="text-xs sm:text-sm">{emp.status}</p>
+											</div>
 										</div>
-										<div className="text-right">
-											<p className="text-xs sm:text-sm">{emp.status}</p>
-										</div>
-									</div>
-								))}
+									))}
 								{(!employees || employees.length === 0) && (
 									<div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
 										No employees found
@@ -303,29 +302,31 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{(Array.isArray(suppliers) ? suppliers : [])?.slice(0, 5).map((sup) => (
-									<div
-										key={sup.id}
-										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
-									>
-										<div>
-											<p className="font-medium text-xs sm:text-sm">
-												{sup.name}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												{sup.email || "N/A"}
-											</p>
+								{(Array.isArray(suppliers) ? suppliers : [])
+									?.slice(0, 5)
+									.map((sup) => (
+										<div
+											key={sup.id}
+											className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
+										>
+											<div>
+												<p className="font-medium text-xs sm:text-sm">
+													{sup.name}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													{sup.email || "N/A"}
+												</p>
+											</div>
+											<div className="text-right">
+												<p className="text-xs sm:text-sm">
+													{formatCurrency(
+														Number(sup.outstanding_balance),
+														locale,
+													)}
+												</p>
+											</div>
 										</div>
-										<div className="text-right">
-											<p className="text-xs sm:text-sm">
-												{formatCurrency(
-													Number(sup.outstanding_balance),
-													locale,
-												)}
-											</p>
-										</div>
-									</div>
-								))}
+									))}
 								{(!suppliers || suppliers.length === 0) && (
 									<div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
 										No suppliers found
@@ -359,29 +360,31 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{(Array.isArray(customers) ? customers : [])?.slice(0, 5).map((cust) => (
-									<div
-										key={cust.id}
-										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
-									>
-										<div>
-											<p className="font-medium text-xs sm:text-sm">
-												{cust.name}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												{cust.email || "N/A"}
-											</p>
+								{(Array.isArray(customers) ? customers : [])
+									?.slice(0, 5)
+									.map((cust) => (
+										<div
+											key={cust.id}
+											className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
+										>
+											<div>
+												<p className="font-medium text-xs sm:text-sm">
+													{cust.name}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													{cust.email || "N/A"}
+												</p>
+											</div>
+											<div className="text-right">
+												<p className="font-bold text-xs sm:text-sm">
+													{formatCurrency(Number(cust.credit_used), locale)}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													/ {formatCurrency(Number(cust.credit_limit), locale)}
+												</p>
+											</div>
 										</div>
-										<div className="text-right">
-											<p className="font-bold text-xs sm:text-sm">
-												{formatCurrency(Number(cust.credit_used), locale)}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												/ {formatCurrency(Number(cust.credit_limit), locale)}
-											</p>
-										</div>
-									</div>
-								))}
+									))}
 								{(!customers || customers.length === 0) && (
 									<div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
 										No customers found

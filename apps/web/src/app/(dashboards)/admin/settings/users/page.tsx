@@ -9,11 +9,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import {
-	BanIcon,
-	CheckCircle2Icon,
-	EyeIcon,
-} from "lucide-react";
+import { BanIcon, CheckCircle2Icon, EyeIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -48,10 +44,11 @@ export default function AdminSettingsUsersPage() {
 	});
 
 	const [viewId, setViewId] = useState<number | null>(null);
-	const [confirm, setConfirm] = useState<
-		| { id: number; name: string; next: "active" | "inactive" }
-		| null
-	>(null);
+	const [confirm, setConfirm] = useState<{
+		id: number;
+		name: string;
+		next: "active" | "inactive";
+	} | null>(null);
 
 	const query = {
 		page: table.page,
@@ -146,7 +143,11 @@ export default function AdminSettingsUsersPage() {
 			{list.isLoading ? (
 				<TableLoading columns={6} />
 			) : list.error ? (
-				<DataError error={list.error} entity="users" onRetry={() => list.refetch()} />
+				<DataError
+					error={list.error}
+					entity="users"
+					onRetry={() => list.refetch()}
+				/>
 			) : items.length === 0 ? (
 				table.isFiltered ? (
 					<DataNoMatches onClear={table.reset} />
@@ -163,10 +164,28 @@ export default function AdminSettingsUsersPage() {
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
 									<TableHead>Code</TableHead>
-									<SortableHead label="Name" column="name" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Name"
+										column="name"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead>Email</TableHead>
-									<SortableHead label="Role" column="role" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Status" column="status" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Role"
+										column="role"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Status"
+										column="status"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead>Joined</TableHead>
 									<TableHead className="text-right">Actions</TableHead>
 								</TableRow>
@@ -174,16 +193,22 @@ export default function AdminSettingsUsersPage() {
 							<TableBody>
 								{items.map((user) => (
 									<TableRow key={user.id} className="hover:bg-muted/30">
-										<TableCell className="font-mono text-xs">{user.emp_code}</TableCell>
+										<TableCell className="font-mono text-xs">
+											{user.emp_code}
+										</TableCell>
 										<TableCell className="font-medium">{user.name}</TableCell>
-										<TableCell className="text-xs">{text(user.email)}</TableCell>
-										<TableCell className="capitalize text-sm">
+										<TableCell className="text-xs">
+											{text(user.email)}
+										</TableCell>
+										<TableCell className="text-sm capitalize">
 											{text(user.role?.replace(/_/g, " "))}
 										</TableCell>
 										<TableCell>
 											<StatusBadge status={user.status} />
 										</TableCell>
-										<TableCell className="whitespace-nowrap text-xs">{date(user.join_date)}</TableCell>
+										<TableCell className="whitespace-nowrap text-xs">
+											{date(user.join_date)}
+										</TableCell>
 										<TableCell>
 											<div className="flex items-center justify-end gap-1">
 												<Button
@@ -201,7 +226,13 @@ export default function AdminSettingsUsersPage() {
 														size="icon"
 														className="h-8 w-8 text-destructive hover:text-destructive"
 														title="Deactivate"
-														onClick={() => setConfirm({ id: user.id, name: user.name, next: "inactive" })}
+														onClick={() =>
+															setConfirm({
+																id: user.id,
+																name: user.name,
+																next: "inactive",
+															})
+														}
 													>
 														<BanIcon className="h-4 w-4" />
 													</Button>
@@ -211,7 +242,13 @@ export default function AdminSettingsUsersPage() {
 														size="icon"
 														className="h-8 w-8 text-green-600 hover:text-green-700"
 														title="Reactivate"
-														onClick={() => setConfirm({ id: user.id, name: user.name, next: "active" })}
+														onClick={() =>
+															setConfirm({
+																id: user.id,
+																name: user.name,
+																next: "active",
+															})
+														}
 													>
 														<CheckCircle2Icon className="h-4 w-4" />
 													</Button>
@@ -241,7 +278,11 @@ export default function AdminSettingsUsersPage() {
 					if (!open) setViewId(null);
 				}}
 				title={detail.data?.name ?? "User"}
-				subtitle={detail.data ? `${detail.data.emp_code} · ${detail.data.role ?? "—"}` : undefined}
+				subtitle={
+					detail.data
+						? `${detail.data.emp_code} · ${detail.data.role ?? "—"}`
+						: undefined
+				}
 				loading={detail.isLoading}
 				error={viewId !== null ? detail.error : undefined}
 				onRetry={() => detail.refetch()}
@@ -252,11 +293,20 @@ export default function AdminSettingsUsersPage() {
 									title: "Account",
 									rows: [
 										{ label: "Employee Code", value: detail.data.emp_code },
-										{ label: "Status", value: <StatusBadge status={detail.data.status} /> },
+										{
+											label: "Status",
+											value: <StatusBadge status={detail.data.status} />,
+										},
 										{ label: "Email", value: text(detail.data.email) },
 										{ label: "Phone", value: phone(detail.data.phone) },
-										{ label: "Role", value: text(detail.data.role?.replace(/_/g, " ")) },
-										{ label: "Department", value: text(detail.data.department) },
+										{
+											label: "Role",
+											value: text(detail.data.role?.replace(/_/g, " ")),
+										},
+										{
+											label: "Department",
+											value: text(detail.data.department),
+										},
 										{ label: "Branch", value: text(detail.data.branch_name) },
 									],
 								},
@@ -272,7 +322,11 @@ export default function AdminSettingsUsersPage() {
 				}}
 				destructive={confirm?.next === "inactive"}
 				pending={setStatus.isPending}
-				title={confirm?.next === "active" ? `Reactivate ${confirm?.name}?` : `Deactivate ${confirm?.name}?`}
+				title={
+					confirm?.next === "active"
+						? `Reactivate ${confirm?.name}?`
+						: `Deactivate ${confirm?.name}?`
+				}
 				description={
 					confirm?.next === "active"
 						? `${confirm?.name} will be able to log in and access the system again.`

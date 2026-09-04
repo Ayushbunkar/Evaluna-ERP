@@ -5,6 +5,14 @@
 		"declarationMap": true,
 		"sourceMap": true,
 		"outDir": "dist",
-		"composite": true
-	}
+		"composite": true,
+		"baseUrl": ".",
+		"paths": {
+			"@evaluna/db": ["../db/src/index.ts"],
+			"@evaluna/db/*": ["../db/src/*"]
+		}
+	},
+	"references": [
+		{ "path": "../db" }
+	]
 }

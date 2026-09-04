@@ -1,5 +1,12 @@
+import {
+	Circle,
+	Hexagon,
+	History,
+	LayoutDashboard,
+	Truck,
+	User,
+} from "lucide-react";
 import Link from "next/link";
-import { LayoutDashboard, Truck, User, History, Hexagon, Circle } from "lucide-react";
 
 export default function DriverLayout({
 	children,

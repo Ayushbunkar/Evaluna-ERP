@@ -1,5 +1,13 @@
-﻿import Link from "next/link";
-import { LayoutDashboard, Users, User, Banknote, FileBarChart, Hexagon, Circle } from "lucide-react";
+﻿import {
+	Banknote,
+	Circle,
+	FileBarChart,
+	Hexagon,
+	LayoutDashboard,
+	User,
+	Users,
+} from "lucide-react";
+import Link from "next/link";
 
 export default function HRLayout({ children }: { children: React.ReactNode }) {
 	return (

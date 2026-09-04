@@ -59,12 +59,14 @@ export function inrCompact(amount: number | string | null | undefined): string {
 }
 
 export function num(value: number | null | undefined): string {
-	if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+	if (value === null || value === undefined || !Number.isFinite(value))
+		return "—";
 	return numberFormatter.format(value);
 }
 
 export function percent(value: number | null | undefined, digits = 1): string {
-	if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+	if (value === null || value === undefined || !Number.isFinite(value))
+		return "—";
 	return `${value.toFixed(digits)}%`;
 }
 
@@ -73,7 +75,9 @@ export function date(value: string | number | Date | null | undefined): string {
 	return d ? dateFormatter.format(d) : "—";
 }
 
-export function dateTime(value: string | number | Date | null | undefined): string {
+export function dateTime(
+	value: string | number | Date | null | undefined,
+): string {
 	const d = toDate(value);
 	return d ? dateTimeFormatter.format(d) : "—";
 }

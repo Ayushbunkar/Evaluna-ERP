@@ -64,7 +64,13 @@ function supplierFields(categories: string[]): FormField[] {
 		(c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }),
 	);
 	return [
-		{ name: "name", label: "Supplier name", kind: "text", required: true, maxLength: 255 },
+		{
+			name: "name",
+			label: "Supplier name",
+			kind: "text",
+			required: true,
+			maxLength: 255,
+		},
 		{
 			name: "supplier_category",
 			label: "Category",
@@ -98,7 +104,13 @@ function supplierFields(categories: string[]): FormField[] {
 			step: 0.01,
 			help: "Amount already owed to this supplier.",
 		},
-		{ name: "address", label: "Address", kind: "textarea", wide: true, maxLength: 500 },
+		{
+			name: "address",
+			label: "Address",
+			kind: "textarea",
+			wide: true,
+			maxLength: 500,
+		},
 	];
 }
 
@@ -112,7 +124,10 @@ export default function AdminSuppliersPage() {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editId, setEditId] = useState<number | null>(null);
 	const [viewId, setViewId] = useState<number | null>(null);
-	const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<{
+		id: number;
+		name: string;
+	} | null>(null);
 	const [formError, setFormError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [exporting, setExporting] = useState(false);
@@ -176,7 +191,9 @@ export default function AdminSuppliersPage() {
 
 	const update = trpc.admin.updateSupplier.useMutation({
 		onSuccess: (result) => {
-			toast.success("Supplier updated", { description: `${result.name} was saved.` });
+			toast.success("Supplier updated", {
+				description: `${result.name} was saved.`,
+			});
 			setEditId(null);
 			setFormError(null);
 			setFieldErrors({});
@@ -188,7 +205,9 @@ export default function AdminSuppliersPage() {
 
 	const remove = trpc.admin.deleteSupplier.useMutation({
 		onSuccess: (result) => {
-			toast.success("Supplier deleted", { description: `${result.name} was removed.` });
+			toast.success("Supplier deleted", {
+				description: `${result.name} was removed.`,
+			});
 			setDeleteTarget(null);
 			refresh();
 		},
@@ -201,10 +220,16 @@ export default function AdminSuppliersPage() {
 	const handleExport = async () => {
 		setExporting(true);
 		try {
-			const { rows, total, truncated } = await collectAllPages(async (page, pageSize) => {
-				const result = await utils.admin.getSuppliers.fetch({ ...query, page, pageSize });
-				return { items: result.items, total: result.total };
-			});
+			const { rows, total, truncated } = await collectAllPages(
+				async (page, pageSize) => {
+					const result = await utils.admin.getSuppliers.fetch({
+						...query,
+						page,
+						pageSize,
+					});
+					return { items: result.items, total: result.total };
+				},
+			);
 			downloadCsv(
 				timestampedFilename("suppliers"),
 				toCsv(rows, [
@@ -311,7 +336,11 @@ export default function AdminSuppliersPage() {
 			{list.isLoading ? (
 				<TableLoading columns={7} />
 			) : list.error ? (
-				<DataError error={list.error} entity="suppliers" onRetry={() => list.refetch()} />
+				<DataError
+					error={list.error}
+					entity="suppliers"
+					onRetry={() => list.refetch()}
+				/>
 			) : items.length === 0 ? (
 				table.isFiltered ? (
 					<DataNoMatches onClear={table.reset} />
@@ -332,28 +361,59 @@ export default function AdminSuppliersPage() {
 						<Table className="w-full min-w-[880px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
-									<SortableHead label="Code" column="code" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Name" column="name" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Category" column="category" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Code"
+										column="code"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Name"
+										column="name"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Category"
+										column="category"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead>Contact</TableHead>
 									<TableHead>GSTIN</TableHead>
-									<SortableHead label="Outstanding" column="outstanding" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} numeric />
+									<SortableHead
+										label="Outstanding"
+										column="outstanding"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+										numeric
+									/>
 									<TableHead className="text-right">Actions</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{items.map((sup) => (
 									<TableRow key={sup.id} className="hover:bg-muted/30">
-										<TableCell className="font-mono text-xs">{sup.supplier_code}</TableCell>
+										<TableCell className="font-mono text-xs">
+											{sup.supplier_code}
+										</TableCell>
 										<TableCell className="font-medium">{sup.name}</TableCell>
 										<TableCell>
 											<StatusBadge status={sup.category} tone="info" />
 										</TableCell>
 										<TableCell className="text-xs">
 											<span className="block">{text(sup.email)}</span>
-											<span className="block text-muted-foreground">{phone(sup.phone)}</span>
+											<span className="block text-muted-foreground">
+												{phone(sup.phone)}
+											</span>
 										</TableCell>
-										<TableCell className="font-mono text-xs">{text(sup.gst_number)}</TableCell>
+										<TableCell className="font-mono text-xs">
+											{text(sup.gst_number)}
+										</TableCell>
 										<TableCell
 											className={`text-right tabular-nums ${sup.outstanding_balance > 0 ? "font-medium text-amber-600 dark:text-amber-400" : ""}`}
 										>
@@ -490,14 +550,26 @@ export default function AdminSuppliersPage() {
 								{
 									title: "Company",
 									rows: [
-										{ label: "Supplier code", value: detail.data.supplier_code },
+										{
+											label: "Supplier code",
+											value: detail.data.supplier_code,
+										},
 										{
 											label: "Category",
-											value: <StatusBadge status={detail.data.category} tone="info" />,
+											value: (
+												<StatusBadge
+													status={detail.data.category}
+													tone="info"
+												/>
+											),
 										},
 										{ label: "Email", value: text(detail.data.email) },
 										{ label: "Phone", value: phone(detail.data.phone) },
-										{ label: "Address", value: text(detail.data.address), wide: true },
+										{
+											label: "Address",
+											value: text(detail.data.address),
+											wide: true,
+										},
 									],
 								},
 								{
@@ -514,7 +586,10 @@ export default function AdminSuppliersPage() {
 											label: "Outstanding payable",
 											value: inr(detail.data.outstanding_balance),
 										},
-										{ label: "On record since", value: date(detail.data.created_at) },
+										{
+											label: "On record since",
+											value: date(detail.data.created_at),
+										},
 									],
 								},
 							]
@@ -537,8 +612,12 @@ export default function AdminSuppliersPage() {
 											key={p.id}
 											className="flex items-center justify-between gap-3 px-3 py-2 text-xs"
 										>
-											<span className="font-mono">{p.grn_number ?? `#${p.id}`}</span>
-											<span className="text-muted-foreground">{date(p.created_at)}</span>
+											<span className="font-mono">
+												{p.grn_number ?? `#${p.id}`}
+											</span>
+											<span className="text-muted-foreground">
+												{date(p.created_at)}
+											</span>
 											<StatusBadge status={p.payment_status ?? p.status} />
 											<span className="tabular-nums">{inr(p.total)}</span>
 										</li>

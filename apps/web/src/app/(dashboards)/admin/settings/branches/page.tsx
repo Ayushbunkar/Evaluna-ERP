@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { PageTransition } from "@/lib/animations";
 
 /**
@@ -15,7 +15,9 @@ export default function AdminSettingsBranchesPage() {
 	}, [router]);
 	return (
 		<PageTransition className="flex items-center justify-center p-12">
-			<span className="text-muted-foreground text-sm">Redirecting to Branches…</span>
+			<span className="text-muted-foreground text-sm">
+				Redirecting to Branches…
+			</span>
 		</PageTransition>
 	);
 }

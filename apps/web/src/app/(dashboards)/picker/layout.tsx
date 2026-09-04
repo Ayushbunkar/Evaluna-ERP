@@ -1,13 +1,13 @@
-import Link from "next/link";
-import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import {
-	LayoutDashboard,
-	Clock,
-	PlaySquare,
 	CheckSquare,
+	Clock,
 	FileBarChart,
 	Hexagon,
+	LayoutDashboard,
+	PlaySquare,
 } from "lucide-react";
+import Link from "next/link";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function PickerLayout({
 	children,
@@ -40,7 +40,7 @@ export default function PickerLayout({
 							<li>
 								<Link
 									href="/picker"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
 									Dashboard
@@ -49,7 +49,7 @@ export default function PickerLayout({
 							<li>
 								<Link
 									href="/picker/pending"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<Clock className="mr-3 h-5 w-5 text-gray-400" />
 									Pending Picks
@@ -58,7 +58,7 @@ export default function PickerLayout({
 							<li>
 								<Link
 									href="/picker/active"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<PlaySquare className="mr-3 h-5 w-5 text-gray-400" />
 									Active Picks
@@ -67,7 +67,7 @@ export default function PickerLayout({
 							<li>
 								<Link
 									href="/picker/completed"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<CheckSquare className="mr-3 h-5 w-5 text-gray-400" />
 									Completed Picks
@@ -76,7 +76,7 @@ export default function PickerLayout({
 							<li>
 								<Link
 									href="/picker/reports"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<FileBarChart className="mr-3 h-5 w-5 text-gray-400" />
 									Reports

@@ -16,13 +16,13 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	FileBarChart,
 	ActivityIcon,
-	TrendingUpIcon,
+	ClockIcon,
+	FileBarChart,
 	Loader2Icon,
 	PackageIcon,
-	ClockIcon,
 	ShieldCheckIcon,
+	TrendingUpIcon,
 	UsersIcon,
 } from "lucide-react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
@@ -30,19 +30,24 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerReportsPage() {
 	const trpc = useTRPC();
-	const { data: reports, isLoading, error } = trpc.picker.getReports.useQuery({});
+	const {
+		data: reports,
+		isLoading,
+		error,
+	} = trpc.picker.getReports.useQuery({});
 	const { data: stats } = trpc.picker.getDashboardStats.useQuery({});
 
 	return (
 		<PageTransition className="container mx-auto space-y-6">
 			{/* Page Header */}
 			<div className="flex flex-col gap-1">
-				<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 					<FileBarChart className="h-7 w-7 text-blue-600" />
 					Picker Performance & Fulfillment Reports
 				</h1>
 				<p className="text-muted-foreground text-sm">
-					Order picking velocity, items picked metrics, team leaderboards, and accuracy analytics.
+					Order picking velocity, items picked metrics, team leaderboards, and
+					accuracy analytics.
 				</p>
 			</div>
 
@@ -53,8 +58,12 @@ export default function PickerReportsPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Total Items Picked</p>
-									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{stats?.totalItemsPicked ?? 0}</p>
+									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
+										Total Items Picked
+									</p>
+									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+										{stats?.totalItemsPicked ?? 0}
+									</p>
 								</div>
 								<PackageIcon className="h-8 w-8 text-blue-500" />
 							</div>
@@ -66,8 +75,12 @@ export default function PickerReportsPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-green-700 dark:text-green-400">Completed Orders</p>
-									<p className="text-3xl font-bold text-green-800 dark:text-green-300">{stats?.completed ?? 0}</p>
+									<p className="font-medium text-green-700 text-sm dark:text-green-400">
+										Completed Orders
+									</p>
+									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
+										{stats?.completed ?? 0}
+									</p>
 								</div>
 								<TrendingUpIcon className="h-8 w-8 text-green-500" />
 							</div>
@@ -79,8 +92,12 @@ export default function PickerReportsPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-purple-700 dark:text-purple-400">Pick Accuracy</p>
-									<p className="text-3xl font-bold text-purple-800 dark:text-purple-300">{stats?.pickAccuracy ?? 100}%</p>
+									<p className="font-medium text-purple-700 text-sm dark:text-purple-400">
+										Pick Accuracy
+									</p>
+									<p className="font-bold text-3xl text-purple-800 dark:text-purple-300">
+										{stats?.pickAccuracy ?? 100}%
+									</p>
 								</div>
 								<ShieldCheckIcon className="h-8 w-8 text-purple-500" />
 							</div>
@@ -92,8 +109,12 @@ export default function PickerReportsPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Queue Items</p>
-									<p className="text-3xl font-bold text-yellow-800 dark:text-yellow-300">{stats?.pending ?? 0}</p>
+									<p className="font-medium text-sm text-yellow-700 dark:text-yellow-400">
+										Queue Items
+									</p>
+									<p className="font-bold text-3xl text-yellow-800 dark:text-yellow-300">
+										{stats?.pending ?? 0}
+									</p>
 								</div>
 								<ClockIcon className="h-8 w-8 text-yellow-500" />
 							</div>
@@ -109,12 +130,15 @@ export default function PickerReportsPage() {
 						<UsersIcon className="h-4 w-4 text-blue-600" />
 						Picker Staff Performance Leaderboard
 					</CardTitle>
-					<CardDescription>Individual picking metrics for the last 30 days</CardDescription>
+					<CardDescription>
+						Individual picking metrics for the last 30 days
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading reports...
+							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
+							Loading reports...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -122,7 +146,7 @@ export default function PickerReportsPage() {
 						</div>
 					) : !reports || reports.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<UsersIcon className="h-10 w-10 opacity-30 text-blue-500" />
+							<UsersIcon className="h-10 w-10 text-blue-500 opacity-30" />
 							<p>No picker performance logs recorded for this period.</p>
 						</div>
 					) : (
@@ -140,17 +164,23 @@ export default function PickerReportsPage() {
 								<TableBody>
 									{reports.map((r, idx) => (
 										<TableRow key={idx} className="hover:bg-muted/50">
-											<TableCell className="font-semibold text-sm">{r.employeeName}</TableCell>
-											<TableCell className="text-sm font-medium">{r.tasksDone} orders</TableCell>
-											<TableCell className="font-bold text-sm text-blue-600 dark:text-blue-400">
+											<TableCell className="font-semibold text-sm">
+												{r.employeeName}
+											</TableCell>
+											<TableCell className="font-medium text-sm">
+												{r.tasksDone} orders
+											</TableCell>
+											<TableCell className="font-bold text-blue-600 text-sm dark:text-blue-400">
 												{r.totalItemsPicked} units
 											</TableCell>
 											<TableCell>
-												<span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+												<span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800 text-xs dark:bg-green-900/30 dark:text-green-400">
 													{r.accuracyPct}%
 												</span>
 											</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{r.period}</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{r.period}
+											</TableCell>
 										</TableRow>
 									))}
 								</TableBody>

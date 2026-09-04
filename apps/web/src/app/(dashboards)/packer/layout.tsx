@@ -1,12 +1,12 @@
-import Link from "next/link";
-import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import {
-	LayoutDashboard,
-	PackageIcon,
 	ArchiveIcon,
 	FileBarChart,
 	Hexagon,
+	LayoutDashboard,
+	PackageIcon,
 } from "lucide-react";
+import Link from "next/link";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function PackerLayout({
 	children,
@@ -39,7 +39,7 @@ export default function PackerLayout({
 							<li>
 								<Link
 									href="/packer"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
 									Dashboard
@@ -48,7 +48,7 @@ export default function PackerLayout({
 							<li>
 								<Link
 									href="/packer/pending"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<PackageIcon className="mr-3 h-5 w-5 text-gray-400" />
 									Pending Packing
@@ -57,7 +57,7 @@ export default function PackerLayout({
 							<li>
 								<Link
 									href="/packer/history"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<ArchiveIcon className="mr-3 h-5 w-5 text-gray-400" />
 									Packing History
@@ -66,7 +66,7 @@ export default function PackerLayout({
 							<li>
 								<Link
 									href="/packer/reports"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<FileBarChart className="mr-3 h-5 w-5 text-gray-400" />
 									Reports

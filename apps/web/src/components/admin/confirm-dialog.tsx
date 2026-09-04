@@ -60,7 +60,9 @@ export function ConfirmDialog({
 						)}
 						<div className="space-y-1">
 							<DialogTitle>{title}</DialogTitle>
-							{description && <DialogDescription>{description}</DialogDescription>}
+							{description && (
+								<DialogDescription>{description}</DialogDescription>
+							)}
 						</div>
 					</div>
 				</DialogHeader>

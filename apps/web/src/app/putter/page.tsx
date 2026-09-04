@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -7,7 +8,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
 import {
 	Table,
 	TableBody,
@@ -17,16 +17,16 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	PackagePlusIcon,
-	DownloadIcon,
 	AlertTriangleIcon,
-	XCircleIcon,
+	ArrowRightIcon,
+	CameraIcon,
+	CheckCircle2Icon,
+	DownloadIcon,
+	Loader2Icon,
+	PackagePlusIcon,
 	RotateCcwIcon,
 	TrendingUpIcon,
-	Loader2Icon,
-	ArrowRightIcon,
-	CheckCircle2Icon,
-	CameraIcon,
+	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -38,12 +38,21 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import { PageTransition, StaggerItem, StaggerList, AnimatedCard } from "@/lib/animations";
+import {
+	AnimatedCard,
+	PageTransition,
+	StaggerItem,
+	StaggerList,
+} from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PutterDashboard() {
 	const trpc = useTRPC();
-	const { data: stats, isLoading, error } = trpc.putter.getDashboardStats.useQuery({});
+	const {
+		data: stats,
+		isLoading,
+		error,
+	} = trpc.putter.getDashboardStats.useQuery({});
 	const { data: putAwayTasks } = trpc.putter.getPutAwayTasks.useQuery({});
 
 	return (
@@ -51,15 +60,19 @@ export default function PutterDashboard() {
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="font-bold text-foreground text-2xl tracking-tight sm:text-3xl">
+					<h1 className="font-bold text-2xl text-foreground tracking-tight sm:text-3xl">
 						Putter & Warehouse Fulfillment Dashboard
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						Manage incoming receiving dock goods, shelf bin put-away, missing stock audits, and damaged items.
+						Manage incoming receiving dock goods, shelf bin put-away, missing
+						stock audits, and damaged items.
 					</p>
 				</div>
 				<div className="flex gap-2">
-					<Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm gap-2" asChild>
+					<Button
+						className="gap-2 bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+						asChild
+					>
 						<Link href="/putter/put-away">
 							<PackagePlusIcon className="h-4 w-4" /> Start Put-Away
 						</Link>
@@ -69,7 +82,8 @@ export default function PutterDashboard() {
 
 			{isLoading ? (
 				<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-					<Loader2Icon className="h-6 w-6 animate-spin text-blue-600" /> Loading dashboard stats...
+					<Loader2Icon className="h-6 w-6 animate-spin text-blue-600" /> Loading
+					dashboard stats...
 				</div>
 			) : error ? (
 				<div className="flex h-40 items-center justify-center text-destructive">
@@ -78,7 +92,10 @@ export default function PutterDashboard() {
 			) : (
 				<>
 					{/* KPI Summary Cards */}
-					<StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" slow>
+					<StaggerList
+						className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+						slow
+					>
 						<StaggerItem>
 							<AnimatedCard>
 								<Card
@@ -86,12 +103,14 @@ export default function PutterDashboard() {
 									onClick={() => (window.location.href = "/putter/receiving")}
 								>
 									<CardContent className="p-4">
-										<div className="flex flex-col items-center text-center gap-1">
-											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 group-hover:scale-110 transition-transform">
+										<div className="flex flex-col items-center gap-1 text-center">
+											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110">
 												<DownloadIcon className="h-5 w-5 text-blue-600" />
 											</div>
-											<p className="text-xs font-semibold text-muted-foreground">Items to Receive</p>
-											<p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+											<p className="font-semibold text-muted-foreground text-xs">
+												Items to Receive
+											</p>
+											<p className="font-bold text-2xl text-blue-600 dark:text-blue-400">
 												{stats?.itemsToReceive ?? 0}
 											</p>
 										</div>
@@ -107,12 +126,14 @@ export default function PutterDashboard() {
 									onClick={() => (window.location.href = "/putter/put-away")}
 								>
 									<CardContent className="p-4">
-										<div className="flex flex-col items-center text-center gap-1">
-											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 group-hover:scale-110 transition-transform">
+										<div className="flex flex-col items-center gap-1 text-center">
+											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 transition-transform group-hover:scale-110">
 												<PackagePlusIcon className="h-5 w-5 text-green-600" />
 											</div>
-											<p className="text-xs font-semibold text-muted-foreground">Put-Away Queue</p>
-											<p className="text-2xl font-bold text-green-600 dark:text-green-400">
+											<p className="font-semibold text-muted-foreground text-xs">
+												Put-Away Queue
+											</p>
+											<p className="font-bold text-2xl text-green-600 dark:text-green-400">
 												{stats?.putAwayQueue ?? 0}
 											</p>
 										</div>
@@ -128,12 +149,14 @@ export default function PutterDashboard() {
 									onClick={() => (window.location.href = "/putter/missing")}
 								>
 									<CardContent className="p-4">
-										<div className="flex flex-col items-center text-center gap-1">
-											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 group-hover:scale-110 transition-transform">
+										<div className="flex flex-col items-center gap-1 text-center">
+											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 transition-transform group-hover:scale-110">
 												<AlertTriangleIcon className="h-5 w-5 text-amber-600" />
 											</div>
-											<p className="text-xs font-semibold text-muted-foreground">Missing Stock</p>
-											<p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+											<p className="font-semibold text-muted-foreground text-xs">
+												Missing Stock
+											</p>
+											<p className="font-bold text-2xl text-amber-600 dark:text-amber-400">
 												{stats?.missingStock ?? 0}
 											</p>
 										</div>
@@ -149,12 +172,14 @@ export default function PutterDashboard() {
 									onClick={() => (window.location.href = "/putter/damage")}
 								>
 									<CardContent className="p-4">
-										<div className="flex flex-col items-center text-center gap-1">
-											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 group-hover:scale-110 transition-transform">
+										<div className="flex flex-col items-center gap-1 text-center">
+											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 transition-transform group-hover:scale-110">
 												<XCircleIcon className="h-5 w-5 text-red-600" />
 											</div>
-											<p className="text-xs font-semibold text-muted-foreground">Damage Reports</p>
-											<p className="text-2xl font-bold text-red-600 dark:text-red-400">
+											<p className="font-semibold text-muted-foreground text-xs">
+												Damage Reports
+											</p>
+											<p className="font-bold text-2xl text-red-600 dark:text-red-400">
 												{stats?.damageReports ?? 0}
 											</p>
 										</div>
@@ -170,12 +195,14 @@ export default function PutterDashboard() {
 									onClick={() => (window.location.href = "/putter/returns")}
 								>
 									<CardContent className="p-4">
-										<div className="flex flex-col items-center text-center gap-1">
-											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 group-hover:scale-110 transition-transform">
+										<div className="flex flex-col items-center gap-1 text-center">
+											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 transition-transform group-hover:scale-110">
 												<RotateCcwIcon className="h-5 w-5 text-purple-600" />
 											</div>
-											<p className="text-xs font-semibold text-muted-foreground">Sale Returns</p>
-											<p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+											<p className="font-semibold text-muted-foreground text-xs">
+												Sale Returns
+											</p>
+											<p className="font-bold text-2xl text-purple-600 dark:text-purple-400">
 												{stats?.saleReturns ?? 0}
 											</p>
 										</div>
@@ -191,12 +218,14 @@ export default function PutterDashboard() {
 									onClick={() => (window.location.href = "/putter/reports")}
 								>
 									<CardContent className="p-4">
-										<div className="flex flex-col items-center text-center gap-1">
-											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 group-hover:scale-110 transition-transform">
+										<div className="flex flex-col items-center gap-1 text-center">
+											<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110">
 												<TrendingUpIcon className="h-5 w-5 text-blue-600" />
 											</div>
-											<p className="text-xs font-semibold text-muted-foreground">Efficiency</p>
-											<p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+											<p className="font-semibold text-muted-foreground text-xs">
+												Efficiency
+											</p>
+											<p className="font-bold text-2xl text-blue-600 dark:text-blue-400">
 												{stats?.efficiencyPct ?? 100}%
 											</p>
 										</div>
@@ -210,11 +239,13 @@ export default function PutterDashboard() {
 					{stats?.chartData && stats.chartData.length > 0 && (
 						<Card className="border-border/50 shadow-sm">
 							<CardHeader>
-								<CardTitle className="text-base font-bold flex items-center gap-2">
+								<CardTitle className="flex items-center gap-2 font-bold text-base">
 									<TrendingUpIcon className="h-5 w-5 text-blue-600" />
 									Receiving & Put Away Trend (Last 7 Days)
 								</CardTitle>
-								<CardDescription>Daily comparison of dock receipts vs completed bin put-aways</CardDescription>
+								<CardDescription>
+									Daily comparison of dock receipts vs completed bin put-aways
+								</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="h-[280px] w-full">
@@ -232,13 +263,19 @@ export default function PutterDashboard() {
 												dataKey="date"
 												axisLine={false}
 												tickLine={false}
-												tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+												tick={{
+													fill: "hsl(var(--muted-foreground))",
+													fontSize: 12,
+												}}
 												dy={10}
 											/>
 											<YAxis
 												axisLine={false}
 												tickLine={false}
-												tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+												tick={{
+													fill: "hsl(var(--muted-foreground))",
+													fontSize: 12,
+												}}
 											/>
 											<Tooltip
 												contentStyle={{
@@ -276,11 +313,14 @@ export default function PutterDashboard() {
 					<Card className="border-border/50 shadow-sm">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<div>
-								<CardTitle className="text-lg flex items-center gap-2">
+								<CardTitle className="flex items-center gap-2 text-lg">
 									<PackagePlusIcon className="h-5 w-5 text-blue-600" />
 									Active Put-Away Queue
 								</CardTitle>
-								<CardDescription>Items waiting to be moved from receiving bay to warehouse shelf bins</CardDescription>
+								<CardDescription>
+									Items waiting to be moved from receiving bay to warehouse
+									shelf bins
+								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
 								<Link href="/putter/put-away">
@@ -291,7 +331,7 @@ export default function PutterDashboard() {
 						<CardContent>
 							{!putAwayTasks || putAwayTasks.length === 0 ? (
 								<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
-									<CheckCircle2Icon className="h-8 w-8 opacity-30 text-green-500" />
+									<CheckCircle2Icon className="h-8 w-8 text-green-500 opacity-30" />
 									<span>No pending put-away tasks in queue right now</span>
 								</div>
 							) : (
@@ -311,24 +351,33 @@ export default function PutterDashboard() {
 										<TableBody>
 											{putAwayTasks.slice(0, 5).map((task) => (
 												<TableRow key={task.id} className="hover:bg-muted/50">
-													<TableCell className="font-mono text-xs font-semibold">{task.id}</TableCell>
-													<TableCell className="font-bold text-sm">{task.product}</TableCell>
-													<TableCell className="font-mono text-xs text-muted-foreground">{task.sku}</TableCell>
-													<TableCell className="font-bold text-sm text-blue-600 dark:text-blue-400">
+													<TableCell className="font-mono font-semibold text-xs">
+														{task.id}
+													</TableCell>
+													<TableCell className="font-bold text-sm">
+														{task.product}
+													</TableCell>
+													<TableCell className="font-mono text-muted-foreground text-xs">
+														{task.sku}
+													</TableCell>
+													<TableCell className="font-bold text-blue-600 text-sm dark:text-blue-400">
 														{task.qty} units
 													</TableCell>
-													<TableCell className="text-xs text-muted-foreground">{task.from}</TableCell>
-													<TableCell className="text-xs font-semibold text-green-600 dark:text-green-400">
+													<TableCell className="text-muted-foreground text-xs">
+														{task.from}
+													</TableCell>
+													<TableCell className="font-semibold text-green-600 text-xs dark:text-green-400">
 														{task.to_location}
 													</TableCell>
 													<TableCell className="text-right">
 														<Button
 															size="sm"
-															className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+															className="h-8 bg-blue-600 text-white hover:bg-blue-700"
 															asChild
 														>
 															<Link href="/putter/put-away">
-																<PackagePlusIcon className="mr-1 h-3.5 w-3.5" /> Put Away
+																<PackagePlusIcon className="mr-1 h-3.5 w-3.5" />{" "}
+																Put Away
 															</Link>
 														</Button>
 													</TableCell>

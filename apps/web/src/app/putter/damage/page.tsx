@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -8,7 +8,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
 import {
 	Table,
 	TableBody,
@@ -18,25 +25,18 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogFooter,
-} from "@evaluna/ui/components/dialog";
-import {
-	XCircleIcon,
-	PlusIcon,
-	Loader2Icon,
-	SearchIcon,
-	CameraIcon,
 	AlertOctagonIcon,
+	CameraIcon,
+	Loader2Icon,
+	PlusIcon,
+	SearchIcon,
+	XCircleIcon,
 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
-import { toast } from "sonner";
 
 export default function DamageRaisePage() {
 	const trpc = useTRPC();
@@ -91,7 +91,7 @@ export default function DamageRaisePage() {
 		(r) =>
 			r.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			r.raised_by.toLowerCase().includes(searchQuery.toLowerCase())
+			r.raised_by.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
 	return (
@@ -99,12 +99,13 @@ export default function DamageRaisePage() {
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 						<XCircleIcon className="h-7 w-7 text-red-600" />
 						Damaged Goods & Quarantine Raise
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						Log damaged, crushed, expired, or compromised goods received into warehouse.
+						Log damaged, crushed, expired, or compromised goods received into
+						warehouse.
 					</p>
 				</div>
 
@@ -117,7 +118,7 @@ export default function DamageRaisePage() {
 						<CameraIcon className="h-4 w-4" /> Camera Scan
 					</Button>
 					<Button
-						className="bg-red-600 hover:bg-red-700 text-white gap-2 shadow-sm"
+						className="gap-2 bg-red-600 text-white shadow-sm hover:bg-red-700"
 						onClick={() => setShowCreateModal(true)}
 					>
 						<PlusIcon className="h-4 w-4" /> + Raise Damage Report
@@ -132,8 +133,12 @@ export default function DamageRaisePage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-red-700 dark:text-red-400">Total Damage Logs</p>
-									<p className="text-3xl font-bold text-red-800 dark:text-red-300">{damageReports?.length ?? 0}</p>
+									<p className="font-medium text-red-700 text-sm dark:text-red-400">
+										Total Damage Logs
+									</p>
+									<p className="font-bold text-3xl text-red-800 dark:text-red-300">
+										{damageReports?.length ?? 0}
+									</p>
 								</div>
 								<XCircleIcon className="h-8 w-8 text-red-500" />
 							</div>
@@ -146,8 +151,12 @@ export default function DamageRaisePage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-orange-700 dark:text-orange-400">Quarantined Goods</p>
-									<p className="text-3xl font-bold text-orange-800 dark:text-orange-300">{damageReports?.length ?? 0}</p>
+									<p className="font-medium text-orange-700 text-sm dark:text-orange-400">
+										Quarantined Goods
+									</p>
+									<p className="font-bold text-3xl text-orange-800 dark:text-orange-300">
+										{damageReports?.length ?? 0}
+									</p>
 								</div>
 								<AlertOctagonIcon className="h-8 w-8 text-orange-500" />
 							</div>
@@ -160,8 +169,12 @@ export default function DamageRaisePage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Audit Status</p>
-									<p className="text-xl font-bold text-blue-800 dark:text-blue-300">Quarantine Active</p>
+									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
+										Audit Status
+									</p>
+									<p className="font-bold text-blue-800 text-xl dark:text-blue-300">
+										Quarantine Active
+									</p>
 								</div>
 								<XCircleIcon className="h-8 w-8 text-blue-500" />
 							</div>
@@ -172,21 +185,23 @@ export default function DamageRaisePage() {
 
 			{/* Main Data Table */}
 			<Card className="border-border/50 shadow-sm">
-				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<XCircleIcon className="h-5 w-5 text-red-600" />
 							Damaged Goods Registry
 						</CardTitle>
-						<CardDescription>Records of damaged inventory reported by putter staff</CardDescription>
+						<CardDescription>
+							Records of damaged inventory reported by putter staff
+						</CardDescription>
 					</div>
 
 					<div className="relative w-full sm:w-64">
-						<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 						<input
 							type="text"
 							placeholder="Search product, report ID..."
-							className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm shadow-sm"
+							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -195,7 +210,8 @@ export default function DamageRaisePage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin text-red-600" /> Loading damage reports...
+							<Loader2Icon className="h-5 w-5 animate-spin text-red-600" />{" "}
+							Loading damage reports...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -203,7 +219,7 @@ export default function DamageRaisePage() {
 						</div>
 					) : !filteredList || filteredList.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<XCircleIcon className="h-10 w-10 opacity-30 text-red-500" />
+							<XCircleIcon className="h-10 w-10 text-red-500 opacity-30" />
 							<p>No damage reports found.</p>
 						</div>
 					) : (
@@ -224,20 +240,32 @@ export default function DamageRaisePage() {
 								<TableBody>
 									{filteredList.map((item) => (
 										<TableRow key={item.id} className="hover:bg-muted/50">
-											<TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
-											<TableCell className="font-bold text-sm">{item.product}</TableCell>
-											<TableCell className="font-bold text-sm text-red-600 dark:text-red-400">
+											<TableCell className="font-mono font-semibold text-xs">
+												{item.id}
+											</TableCell>
+											<TableCell className="font-bold text-sm">
+												{item.product}
+											</TableCell>
+											<TableCell className="font-bold text-red-600 text-sm dark:text-red-400">
 												{item.qty_damaged} units
 											</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{item.damage_type}</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{item.damage_type}
+											</TableCell>
 											<TableCell>
-												<span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
+												<span className="rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-800 text-xs dark:bg-red-900/30 dark:text-red-400">
 													{item.severity || "Medium"}
 												</span>
 											</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{item.location}</TableCell>
-											<TableCell className="text-xs font-medium">{item.raised_by}</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{item.date || "Today"}</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{item.location}
+											</TableCell>
+											<TableCell className="font-medium text-xs">
+												{item.raised_by}
+											</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{item.date || "Today"}
+											</TableCell>
 										</TableRow>
 									))}
 								</TableBody>
@@ -261,9 +289,12 @@ export default function DamageRaisePage() {
 							</DialogDescription>
 						</DialogHeader>
 
-						<form onSubmit={handleCreateSubmit} className="space-y-4 py-2 text-sm">
+						<form
+							onSubmit={handleCreateSubmit}
+							className="space-y-4 py-2 text-sm"
+						>
 							<div className="space-y-1">
-								<label className="text-xs font-semibold">Product ID</label>
+								<label className="font-semibold text-xs">Product ID</label>
 								<input
 									type="number"
 									required
@@ -276,7 +307,9 @@ export default function DamageRaisePage() {
 
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1">
-									<label className="text-xs font-semibold">Quantity Damaged</label>
+									<label className="font-semibold text-xs">
+										Quantity Damaged
+									</label>
 									<input
 										type="number"
 										required
@@ -288,7 +321,7 @@ export default function DamageRaisePage() {
 								</div>
 
 								<div className="space-y-1">
-									<label className="text-xs font-semibold">Severity</label>
+									<label className="font-semibold text-xs">Severity</label>
 									<select
 										className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
 										value={severity}
@@ -302,7 +335,7 @@ export default function DamageRaisePage() {
 							</div>
 
 							<div className="space-y-1">
-								<label className="text-xs font-semibold">Damage Type</label>
+								<label className="font-semibold text-xs">Damage Type</label>
 								<input
 									type="text"
 									required
@@ -314,7 +347,9 @@ export default function DamageRaisePage() {
 							</div>
 
 							<div className="space-y-1">
-								<label className="text-xs font-semibold">Notes / Inspection Details</label>
+								<label className="font-semibold text-xs">
+									Notes / Inspection Details
+								</label>
 								<textarea
 									rows={2}
 									placeholder="Provide additional details..."
@@ -325,15 +360,21 @@ export default function DamageRaisePage() {
 							</div>
 
 							<DialogFooter className="pt-2">
-								<Button type="button" variant="ghost" onClick={() => setShowCreateModal(false)}>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => setShowCreateModal(false)}
+								>
 									Cancel
 								</Button>
 								<Button
 									type="submit"
 									disabled={createMutation.isPending}
-									className="bg-red-600 hover:bg-red-700 text-white"
+									className="bg-red-600 text-white hover:bg-red-700"
 								>
-									{createMutation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+									{createMutation.isPending && (
+										<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+									)}
 									Submit Damage Report
 								</Button>
 							</DialogFooter>

@@ -330,9 +330,7 @@ export const auditorRouter = router({
 
 			return rows.map((r) => ({
 				...r,
-				date: r.date
-					? new Date(r.date).toISOString().split("T")[0]
-					: "N/A",
+				date: r.date ? new Date(r.date).toISOString().split("T")[0] : "N/A",
 			}));
 		}),
 
@@ -382,22 +380,21 @@ export const auditorRouter = router({
 		}),
 
 	// ── getProductsList: Fetch products for barcode generator modal ────────────
-	getProductsList: permProcedure("upc", "read")
-		.query(async ({ ctx }) => {
-			const rows = await ctx.db
-				.select({
-					id: products.id,
-					name: products.name,
-					sku: products.sku,
-					barcode: products.barcode,
-					price: products.price,
-				})
-				.from(products)
-				.where(eq(products.is_deleted, false))
-				.orderBy(products.name)
-				.limit(200);
-			return rows;
-		}),
+	getProductsList: permProcedure("upc", "read").query(async ({ ctx }) => {
+		const rows = await ctx.db
+			.select({
+				id: products.id,
+				name: products.name,
+				sku: products.sku,
+				barcode: products.barcode,
+				price: products.price,
+			})
+			.from(products)
+			.where(eq(products.is_deleted, false))
+			.orderBy(products.name)
+			.limit(200);
+		return rows;
+	}),
 
 	// ── createUpcTask: Generate & assign barcode to product ─────────────────
 	createUpcTask: permProcedure("upc", "write")
@@ -430,7 +427,6 @@ export const auditorRouter = router({
 
 			return task;
 		}),
-
 
 	// ── getReceivingInspections: receiving inspection list ────────────────────
 	getReceivingInspections: permProcedure("audit", "read")
@@ -491,7 +487,7 @@ export const auditorRouter = router({
 				condition: z.enum(["good", "damaged", "mismatch"]).default("good"),
 				upcStatus: z.enum(["present", "missing", "invalid"]).default("present"),
 				notes: z.string().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const isMatch =
@@ -527,8 +523,8 @@ export const auditorRouter = router({
 					input.condition === "damaged"
 						? "Damaged Goods Received"
 						: input.expectedQty !== input.receivedQty
-						? `Quantity Mismatch (Expected ${input.expectedQty}, Got ${input.receivedQty})`
-						: `Barcode/UPC Issue (${input.upcStatus})`;
+							? `Quantity Mismatch (Expected ${input.expectedQty}, Got ${input.receivedQty})`
+							: `Barcode/UPC Issue (${input.upcStatus})`;
 
 				await ctx.db.insert(auditFindings).values({
 					finding_type: "receiving",
@@ -541,7 +537,6 @@ export const auditorRouter = router({
 
 			return row;
 		}),
-
 
 	// ── getPlacementVerifications: placement verification list ────────────────
 	getPlacementVerifications: permProcedure("placement", "read")
@@ -594,9 +589,11 @@ export const auditorRouter = router({
 			z.object({
 				productId: z.number(),
 				locationNotes: z.string().optional(),
-				status: z.enum(["VERIFIED", "DISCREPANCY", "PLACEMENT_EXCEPTION"]).default("VERIFIED"),
+				status: z
+					.enum(["VERIFIED", "DISCREPANCY", "PLACEMENT_EXCEPTION"])
+					.default("VERIFIED"),
 				notes: z.string().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const fullNotes = input.locationNotes
@@ -614,7 +611,10 @@ export const auditorRouter = router({
 				.returning();
 
 			// Auto-raise audit finding if discrepancy or exception
-			if (input.status === "DISCREPANCY" || input.status === "PLACEMENT_EXCEPTION") {
+			if (
+				input.status === "DISCREPANCY" ||
+				input.status === "PLACEMENT_EXCEPTION"
+			) {
 				const [prod] = await ctx.db
 					.select({ name: products.name })
 					.from(products)
@@ -623,7 +623,8 @@ export const auditorRouter = router({
 
 				await ctx.db.insert(auditFindings).values({
 					finding_type: "placement",
-					severity: input.status === "PLACEMENT_EXCEPTION" ? "CRITICAL" : "HIGH",
+					severity:
+						input.status === "PLACEMENT_EXCEPTION" ? "CRITICAL" : "HIGH",
 					status: "OPEN",
 					title: `Placement Exception: ${prod?.name || `Product #${input.productId}`}`,
 					description: `Physical placement discrepancy logged during audit. ${fullNotes || ""}`,
@@ -633,5 +634,3 @@ export const auditorRouter = router({
 			return row;
 		}),
 });
-
-

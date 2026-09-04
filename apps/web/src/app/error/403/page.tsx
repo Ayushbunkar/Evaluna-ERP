@@ -11,11 +11,12 @@ export default function Forbidden403Page() {
 				<div className="rounded-full bg-red-100 p-4 dark:bg-red-900/20">
 					<ShieldAlertIcon className="h-10 w-10 text-red-600" />
 				</div>
-				<h1 className="font-bold text-4xl tracking-tighter sm:text-5xl text-red-600">
+				<h1 className="font-bold text-4xl text-red-600 tracking-tighter sm:text-5xl">
 					403 - Forbidden
 				</h1>
 				<p className="max-w-[500px] text-muted-foreground text-sm sm:text-base">
-					You do not have sufficient permissions to access the Admin panel. Your account role is restricted from this section.
+					You do not have sufficient permissions to access the Admin panel. Your
+					account role is restricted from this section.
 				</p>
 				<div className="flex gap-4">
 					<Button asChild>

@@ -1,7 +1,9 @@
+import { UserManagement } from "@evaluna/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins";
+
 import type {} from "zod";
 
 type DrizzleDb = Parameters<typeof drizzleAdapter>[0];
@@ -17,7 +19,7 @@ export function createAuth({
 	db,
 	baseURL,
 	trustedOrigins,
-	sessionExpiresIn = 60 * 60 * 24 * 365, // 1 year persistent sessions
+	sessionExpiresIn = 60 * 60 * 24 * 30, // 30 days persistent sessions (reduced from 1 year for ERP security)
 }: AuthOptions) {
 	return betterAuth({
 		secret:
@@ -30,10 +32,12 @@ export function createAuth({
 		// ── User ────────────────────────────────────────────────────────────────
 		user: {
 			additionalFields: {
-				role: { type: "string", defaultValue: "sales_person" },
+				staff_id: { type: "number", required: false }, // Links to staff/employee record
 				branch_id: { type: "number", required: false },
-				is_active: { type: "boolean", defaultValue: true },
+				warehouse_id: { type: "number", required: false },
+				status: { type: "string", defaultValue: "PENDING" }, // PENDING, ACTIVE, INACTIVE, LOCKED, SUSPENDED
 				is_superadmin: { type: "boolean", defaultValue: false },
+				force_password_change: { type: "boolean", defaultValue: false },
 			},
 		},
 
@@ -42,6 +46,46 @@ export function createAuth({
 			enabled: true,
 			requireEmailVerification: false, // Enforce in ERP context via admin activation
 			minPasswordLength: 8,
+			hooks: {
+				onSuccess: async ({ userId }: { userId: string }) => {
+					// Load the full security profile, which includes role, status, permissions, and dashboard route (Requirement 5)
+					const profile =
+						await UserManagement.getSecurityProfileByUserId(userId);
+
+					if (!profile) {
+						throw new Error("USER_NOT_FOUND");
+					}
+
+					// Check if account is Locked
+					if (
+						profile.lockedUntil &&
+						new Date(profile.lockedUntil) > new Date()
+					) {
+						throw new Error(
+							"ACCOUNT_LOCKED: Your account is temporarily locked due to too many failed login attempts.",
+						);
+					}
+
+					// Check for general forbidden statuses
+					if (
+						profile.status === "INACTIVE" ||
+						profile.status === "LOCKED" ||
+						profile.status === "SUSPENDED"
+					) {
+						// PENDING status is allowed, but triggers a force password change
+						throw new Error(
+							`ACCOUNT_STATUS_FORBIDDEN: Account status is ${profile.status}.`,
+						);
+					}
+
+					// Check for forced password change on first login (Requirement 6, 13)
+					if (profile.forcePasswordChange || profile.status === "PENDING") {
+						// The auth layer needs a mechanism to tell the UI to redirect to /password-change
+						// Throwing a dedicated error is a common way to signal this to the frontend.
+						throw new Error("PASSWORD_CHANGE_REQUIRED");
+					}
+				},
+			},
 		},
 
 		// ── Session ─────────────────────────────────────────────────────────────
@@ -51,6 +95,28 @@ export function createAuth({
 			cookieCache: {
 				enabled: true,
 				maxAge: 60 * 5, // Cache session for 5 minutes (reduces DB hits)
+			},
+			getters: {
+				data: async ({ userId }: { userId: string }) => {
+					// Use the repository function to fetch the complete security profile
+					const profile =
+						await UserManagement.getSecurityProfileByUserId(userId);
+					if (!profile) {
+						// Fallback for missing user record
+						return {
+							role: "customer",
+							permissions: [],
+							canonicalDashboard: "/customer/dashboard",
+						};
+					}
+
+					// Attach role, permissions, and canonicalDashboard to the session payload
+					return {
+						role: profile.role,
+						permissions: profile.permissions,
+						canonicalDashboard: profile.canonicalDashboard,
+					};
+				},
 			},
 		},
 

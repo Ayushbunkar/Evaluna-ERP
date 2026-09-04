@@ -1,31 +1,43 @@
-import { EWayBillService } from "@/lib/services/eway-bill";
 import {
+	auditLogs,
 	batchStock,
 	branchInventory,
 	branchLocations,
+	customers,
 	orders,
+	packageItems,
+	packages,
 	pickListItems,
 	pickLists,
+	placementVerifications,
 	productBatches,
 	products,
+	purchaseItems,
+	purchases,
+	receivingInspections,
 	staff,
 	stockAdjustments,
 	stockLedger,
-	purchases,
-	purchaseItems,
-	packages,
-	packageItems,
-	receivingInspections,
-	placementVerifications,
-	auditLogs,
-	customers,
-	user,
 	suppliers,
+	user,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq, gte, lte, sql, sum, inArray, notInArray, not } from "drizzle-orm";
+import {
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	lte,
+	not,
+	notInArray,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
+import { EWayBillService } from "@/lib/services/eway-bill";
 import { protectedProcedure, router } from "../init";
-import { resolveStaffId, logAudit, notify } from "../util/audit";
+import { logAudit, notify, resolveStaffId } from "../util/audit";
 
 export const warehouseRouter = router({
 	list: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
@@ -538,55 +550,46 @@ export const warehouseRouter = router({
 			const [ordersWaiting] = await db
 				.select({ count: count() })
 				.from(pickLists)
-				.where(
-					and(
-						eq(pickLists.status, "pending")
-					)
-				);
+				.where(and(eq(pickLists.status, "pending")));
 
 			const [receivingQueue] = await db
 				.select({ count: count() })
 				.from(purchases)
-				.where(
-					and(
-						eq(purchases.status, "pending")
-					)
-				);
+				.where(and(eq(purchases.status, "pending")));
 
 			const [putAwayQueue] = await db
 				.select({ count: count() })
 				.from(placementVerifications)
 				.where(
 					and(
-						inArray(placementVerifications.status, ["AWAITING_PLACEMENT", "VERIFICATION_REQUIRED"])
-					)
+						inArray(placementVerifications.status, [
+							"AWAITING_PLACEMENT",
+							"VERIFICATION_REQUIRED",
+						]),
+					),
 				);
 
 			const [pickingQueue] = await db
 				.select({ count: count() })
 				.from(pickLists)
-				.where(
-					and(
-						inArray(pickLists.status, ["assigned", "picking"])
-					)
-				);
+				.where(and(inArray(pickLists.status, ["assigned", "picking"])));
 
 			const [packingQueue] = await db
 				.select({ count: count() })
 				.from(packages)
-				.where(
-					and(
-						eq(packages.status, "packing")
-					)
-				);
+				.where(and(eq(packages.status, "packing")));
 
 			const [dispatchReady] = await db
 				.select({ count: count() })
 				.from(packages)
 				.where(
 					and(
-						inArray(packages.status, ["packed", "ready_for_dispatch", "checked"])
-					)
+						inArray(packages.status, [
+							"packed",
+							"ready_for_dispatch",
+							"checked",
+						]),
+					),
 				);
 
 			const todayStart = new Date();
@@ -598,8 +601,8 @@ export const warehouseRouter = router({
 				.where(
 					and(
 						eq(pickLists.status, "completed"),
-						gte(pickLists.completed_at, todayStart)
-					)
+						gte(pickLists.completed_at, todayStart),
+					),
 				);
 
 			const [completedPackages] = await db
@@ -607,32 +610,31 @@ export const warehouseRouter = router({
 				.from(packages)
 				.where(
 					and(
-						inArray(packages.status, ["packed", "ready_for_dispatch", "checked", "dispatched"]),
-						gte(packages.packed_at, todayStart)
-					)
+						inArray(packages.status, [
+							"packed",
+							"ready_for_dispatch",
+							"checked",
+							"dispatched",
+						]),
+						gte(packages.packed_at, todayStart),
+					),
 				);
 
-			const completedToday = (completedPickLists?.count || 0) + (completedPackages?.count || 0);
+			const completedToday =
+				(completedPickLists?.count || 0) + (completedPackages?.count || 0);
 
 			const [tasksInProgressPick] = await db
 				.select({ count: count() })
 				.from(pickLists)
-				.where(
-					and(
-						eq(pickLists.status, "picking")
-					)
-				);
+				.where(and(eq(pickLists.status, "picking")));
 
 			const [tasksInProgressPut] = await db
 				.select({ count: count() })
 				.from(placementVerifications)
-				.where(
-					and(
-						eq(placementVerifications.status, "VERIFICATION_REQUIRED")
-					)
-				);
+				.where(and(eq(placementVerifications.status, "VERIFICATION_REQUIRED")));
 
-			const tasksInProgress = (tasksInProgressPick?.count || 0) + (tasksInProgressPut?.count || 0);
+			const tasksInProgress =
+				(tasksInProgressPick?.count || 0) + (tasksInProgressPut?.count || 0);
 
 			const twoHoursAgo = new Date(Date.now() - 2 * 3600000);
 			const [delayedPickLists] = await db
@@ -641,8 +643,8 @@ export const warehouseRouter = router({
 				.where(
 					and(
 						notInArray(pickLists.status, ["completed", "cancelled"]),
-						lte(pickLists.created_at, twoHoursAgo)
-					)
+						lte(pickLists.created_at, twoHoursAgo),
+					),
 				);
 
 			const [delayedPurchases] = await db
@@ -650,12 +652,17 @@ export const warehouseRouter = router({
 				.from(purchases)
 				.where(
 					and(
-						notInArray(purchases.status, ["completed", "received", "cancelled"]),
-						lte(purchases.created_at, twoHoursAgo)
-					)
+						notInArray(purchases.status, [
+							"completed",
+							"received",
+							"cancelled",
+						]),
+						lte(purchases.created_at, twoHoursAgo),
+					),
 				);
 
-			const delayedTasks = (delayedPickLists?.count || 0) + (delayedPurchases?.count || 0);
+			const delayedTasks =
+				(delayedPickLists?.count || 0) + (delayedPurchases?.count || 0);
 
 			const capacityData = await db
 				.select({
@@ -683,25 +690,23 @@ export const warehouseRouter = router({
 			};
 		}),
 
-	getReceivingPOs: protectedProcedure
-		.input(z.void())
-		.query(async ({ ctx }) => {
-			const db = ctx.db;
-			return await db
-				.select({
-					id: purchases.id,
-					grn_number: purchases.grn_number,
-					supplier_id: purchases.supplier_id,
-					supplier_name: suppliers.name,
-					status: purchases.status,
-					created_at: purchases.created_at,
-					total_amount: purchases.total_amount,
-				})
-				.from(purchases)
-				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
-				.orderBy(desc(purchases.created_at))
-				.limit(100);
-		}),
+	getReceivingPOs: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
+		const db = ctx.db;
+		return await db
+			.select({
+				id: purchases.id,
+				grn_number: purchases.grn_number,
+				supplier_id: purchases.supplier_id,
+				supplier_name: suppliers.name,
+				status: purchases.status,
+				created_at: purchases.created_at,
+				total_amount: purchases.total_amount,
+			})
+			.from(purchases)
+			.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+			.orderBy(desc(purchases.created_at))
+			.limit(100);
+	}),
 
 	getPurchaseItems: protectedProcedure
 		.input(z.object({ purchaseId: z.number() }))
@@ -731,9 +736,9 @@ export const warehouseRouter = router({
 						expectedQty: z.number(),
 						receivedQty: z.number(),
 						condition: z.enum(["good", "damaged", "mismatch"]),
-					})
+					}),
 				),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
@@ -778,14 +783,12 @@ export const warehouseRouter = router({
 						batchId = newBatch.id;
 					}
 
-					await tx
-						.insert(placementVerifications)
-						.values({
-							product_id: item.productId,
-							batch_id: batchId,
-							branch_id: ctx.user.branchId ?? 1,
-							status: "AWAITING_PLACEMENT",
-						});
+					await tx.insert(placementVerifications).values({
+						product_id: item.productId,
+						batch_id: batchId,
+						branch_id: ctx.user.branchId ?? 1,
+						status: "AWAITING_PLACEMENT",
+					});
 				}
 
 				await tx
@@ -804,33 +807,37 @@ export const warehouseRouter = router({
 			});
 		}),
 
-	getPutAwayQueue: protectedProcedure
-		.input(z.void())
-		.query(async ({ ctx }) => {
-			const db = ctx.db;
-			return await db
-				.select({
-					id: placementVerifications.id,
-					product_id: placementVerifications.product_id,
-					product_name: products.name,
-					product_sku: products.sku,
-					batch_id: placementVerifications.batch_id,
-					batch_number: productBatches.batch_number,
-					location_id: placementVerifications.location_id,
-					location_name: branchLocations.name,
-					status: placementVerifications.status,
-					placed_by: placementVerifications.placed_by,
-					worker_name: staff.name,
-					created_at: placementVerifications.created_at,
-				})
-				.from(placementVerifications)
-				.innerJoin(products, eq(placementVerifications.product_id, products.id))
-				.leftJoin(productBatches, eq(placementVerifications.batch_id, productBatches.id))
-				.leftJoin(branchLocations, eq(placementVerifications.location_id, branchLocations.id))
-				.leftJoin(staff, eq(placementVerifications.placed_by, staff.id))
-				.orderBy(desc(placementVerifications.created_at))
-				.limit(100);
-		}),
+	getPutAwayQueue: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
+		const db = ctx.db;
+		return await db
+			.select({
+				id: placementVerifications.id,
+				product_id: placementVerifications.product_id,
+				product_name: products.name,
+				product_sku: products.sku,
+				batch_id: placementVerifications.batch_id,
+				batch_number: productBatches.batch_number,
+				location_id: placementVerifications.location_id,
+				location_name: branchLocations.name,
+				status: placementVerifications.status,
+				placed_by: placementVerifications.placed_by,
+				worker_name: staff.name,
+				created_at: placementVerifications.created_at,
+			})
+			.from(placementVerifications)
+			.innerJoin(products, eq(placementVerifications.product_id, products.id))
+			.leftJoin(
+				productBatches,
+				eq(placementVerifications.batch_id, productBatches.id),
+			)
+			.leftJoin(
+				branchLocations,
+				eq(placementVerifications.location_id, branchLocations.id),
+			)
+			.leftJoin(staff, eq(placementVerifications.placed_by, staff.id))
+			.orderBy(desc(placementVerifications.created_at))
+			.limit(100);
+	}),
 
 	assignPutAwayTask: protectedProcedure
 		.input(z.object({ placementId: z.number(), workerId: z.number() }))
@@ -886,7 +893,7 @@ export const warehouseRouter = router({
 				locationId: z.number(),
 				qty: z.number(),
 				notes: z.string().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
@@ -918,8 +925,8 @@ export const warehouseRouter = router({
 					.where(
 						and(
 							eq(batchStock.batch_id, pv.batch_id!),
-							eq(batchStock.location_id, input.locationId)
-						)
+							eq(batchStock.location_id, input.locationId),
+						),
 					)
 					.limit(1);
 
@@ -944,8 +951,8 @@ export const warehouseRouter = router({
 					.where(
 						and(
 							eq(branchInventory.product_id, pv.product_id),
-							eq(branchInventory.branch_id, ctx.user.branchId ?? 1)
-						)
+							eq(branchInventory.branch_id, ctx.user.branchId ?? 1),
+						),
 					)
 					.limit(1);
 
@@ -977,29 +984,27 @@ export const warehouseRouter = router({
 			});
 		}),
 
-	getPickingQueue: protectedProcedure
-		.input(z.void())
-		.query(async ({ ctx }) => {
-			const db = ctx.db;
-			return await db
-				.select({
-					id: pickLists.id,
-					order_id: pickLists.order_id,
-					reference_type: pickLists.reference_type,
-					status: pickLists.status,
-					priority: pickLists.priority,
-					assigned_to: pickLists.assigned_to,
-					worker_name: staff.name,
-					created_at: pickLists.created_at,
-					customer_name: customers.name,
-				})
-				.from(pickLists)
-				.leftJoin(orders, eq(pickLists.order_id, orders.id))
-				.leftJoin(customers, eq(orders.customer_id, customers.id))
-				.leftJoin(staff, eq(pickLists.assigned_to, staff.id))
-				.orderBy(desc(pickLists.created_at))
-				.limit(100);
-		}),
+	getPickingQueue: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
+		const db = ctx.db;
+		return await db
+			.select({
+				id: pickLists.id,
+				order_id: pickLists.order_id,
+				reference_type: pickLists.reference_type,
+				status: pickLists.status,
+				priority: pickLists.priority,
+				assigned_to: pickLists.assigned_to,
+				worker_name: staff.name,
+				created_at: pickLists.created_at,
+				customer_name: customers.name,
+			})
+			.from(pickLists)
+			.leftJoin(orders, eq(pickLists.order_id, orders.id))
+			.leftJoin(customers, eq(orders.customer_id, customers.id))
+			.leftJoin(staff, eq(pickLists.assigned_to, staff.id))
+			.orderBy(desc(pickLists.created_at))
+			.limit(100);
+	}),
 
 	assignPickingTask: protectedProcedure
 		.input(z.object({ pickListId: z.number(), workerId: z.number() }))
@@ -1138,29 +1143,27 @@ export const warehouseRouter = router({
 			});
 		}),
 
-	getPackingQueue: protectedProcedure
-		.input(z.void())
-		.query(async ({ ctx }) => {
-			const db = ctx.db;
-			return await db
-				.select({
-					id: packages.id,
-					package_number: packages.package_number,
-					order_id: packages.order_id,
-					pick_list_id: packages.pick_list_id,
-					status: packages.status,
-					packed_by: packages.packed_by,
-					worker_name: staff.name,
-					created_at: packages.created_at,
-					e_way_bill_no: orders.e_way_bill_no,
-					total_amount: orders.total_amount,
-				})
-				.from(packages)
-				.leftJoin(staff, eq(packages.packed_by, staff.id))
-				.leftJoin(orders, eq(packages.order_id, orders.id))
-				.orderBy(desc(packages.created_at))
-				.limit(100);
-		}),
+	getPackingQueue: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
+		const db = ctx.db;
+		return await db
+			.select({
+				id: packages.id,
+				package_number: packages.package_number,
+				order_id: packages.order_id,
+				pick_list_id: packages.pick_list_id,
+				status: packages.status,
+				packed_by: packages.packed_by,
+				worker_name: staff.name,
+				created_at: packages.created_at,
+				e_way_bill_no: orders.e_way_bill_no,
+				total_amount: orders.total_amount,
+			})
+			.from(packages)
+			.leftJoin(staff, eq(packages.packed_by, staff.id))
+			.leftJoin(orders, eq(packages.order_id, orders.id))
+			.orderBy(desc(packages.created_at))
+			.limit(100);
+	}),
 
 	packPackage: protectedProcedure
 		.input(
@@ -1169,7 +1172,7 @@ export const warehouseRouter = router({
 				weight: z.number().optional(),
 				dimensions: z.string().optional(),
 				notes: z.string().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
@@ -1204,7 +1207,7 @@ export const warehouseRouter = router({
 				qty: z.number(),
 				reason: z.string(),
 				type: z.enum(["damage", "missing", "mismatch"]),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
@@ -1235,19 +1238,20 @@ export const warehouseRouter = router({
 			});
 		}),
 
-	isEWayBillConfigured: protectedProcedure
-		.query(async () => {
-			return EWayBillService.isConfigured();
-		}),
+	isEWayBillConfigured: protectedProcedure.query(async () => {
+		return EWayBillService.isConfigured();
+	}),
 
 	generateEWayBill: protectedProcedure
-		.input(z.object({
-			orderId: z.number(),
-			vehicleNo: z.string(),
-			modeOfTransport: z.enum(["road", "rail", "air", "ship"]),
-			approxDistanceKm: z.number(),
-			transporterName: z.string().optional(),
-		}))
+		.input(
+			z.object({
+				orderId: z.number(),
+				vehicleNo: z.string(),
+				modeOfTransport: z.enum(["road", "rail", "air", "ship"]),
+				approxDistanceKm: z.number(),
+				transporterName: z.string().optional(),
+			}),
+		)
 		.mutation(async ({ ctx, input }) => {
 			return await ctx.db.transaction(async (tx) => {
 				return await EWayBillService.generate(tx, input, ctx.user);

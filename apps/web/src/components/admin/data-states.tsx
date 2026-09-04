@@ -58,7 +58,10 @@ export function TableLoading({
 
 export function CardsLoading({ count = 6 }: { count?: number }) {
 	return (
-		<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4" aria-busy="true">
+		<div
+			className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
+			aria-busy="true"
+		>
 			{Array.from({ length: count }).map((_, i) => (
 				<div
 					key={i}
@@ -103,13 +106,17 @@ function StateShell({
 			role={tone === "danger" ? "alert" : undefined}
 			className={`flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-lg border p-8 text-center ${border}`}
 		>
-			<div className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBg}`}>
+			<div
+				className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBg}`}
+			>
 				{icon}
 			</div>
 			<div className="space-y-1">
 				<p className="font-semibold text-foreground text-sm">{title}</p>
 				{message && (
-					<p className="mx-auto max-w-md text-muted-foreground text-xs">{message}</p>
+					<p className="mx-auto max-w-md text-muted-foreground text-xs">
+						{message}
+					</p>
 				)}
 			</div>
 			{action}

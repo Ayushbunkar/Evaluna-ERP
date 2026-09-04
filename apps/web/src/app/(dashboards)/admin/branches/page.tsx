@@ -9,12 +9,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import {
-	Building2Icon,
-	EyeIcon,
-	PencilIcon,
-	TrashIcon,
-} from "lucide-react";
+import { Building2Icon, EyeIcon, PencilIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -46,12 +41,32 @@ import { trpc } from "@/lib/trpc/client";
 type SortColumn = "name" | "code" | "created_at";
 
 const fields: FormField[] = [
-	{ name: "name", label: "Branch Name", kind: "text", required: true, maxLength: 100 },
+	{
+		name: "name",
+		label: "Branch Name",
+		kind: "text",
+		required: true,
+		maxLength: 100,
+	},
 	{ name: "code", label: "Branch Code", kind: "text", maxLength: 20 },
-	{ name: "address", label: "Address", kind: "textarea", maxLength: 500, wide: true },
+	{
+		name: "address",
+		label: "Address",
+		kind: "textarea",
+		maxLength: 500,
+		wide: true,
+	},
 	{ name: "phone", label: "Phone", kind: "tel", maxLength: 20 },
 	{ name: "email", label: "Email", kind: "email" },
-	{ name: "is_headquarters", label: "Is Headquarters", kind: "select", options: [{value: "true", label: "Yes"}, {value: "false", label: "No"}] }
+	{
+		name: "is_headquarters",
+		label: "Is Headquarters",
+		kind: "select",
+		options: [
+			{ value: "true", label: "Yes" },
+			{ value: "false", label: "No" },
+		],
+	},
 ];
 
 export default function AdminBranchesPage() {
@@ -63,7 +78,9 @@ export default function AdminBranchesPage() {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editId, setEditId] = useState<number | null>(null);
 	const [viewId, setViewId] = useState<number | null>(null);
-	const [confirm, setConfirm] = useState<{ id: number; name: string } | null>(null);
+	const [confirm, setConfirm] = useState<{ id: number; name: string } | null>(
+		null,
+	);
 	const [formError, setFormError] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -98,7 +115,9 @@ export default function AdminBranchesPage() {
 
 	const create = trpc.admin.createBranch.useMutation({
 		onSuccess: (result) => {
-			toast.success("Branch added", { description: `${result.name} was created.` });
+			toast.success("Branch added", {
+				description: `${result.name} was created.`,
+			});
 			setCreateOpen(false);
 			setFormError(null);
 			setFieldErrors({});
@@ -109,7 +128,9 @@ export default function AdminBranchesPage() {
 
 	const update = trpc.admin.updateBranch.useMutation({
 		onSuccess: (result) => {
-			toast.success("Branch updated", { description: `${result.name} details were saved.` });
+			toast.success("Branch updated", {
+				description: `${result.name} details were saved.`,
+			});
 			setEditId(null);
 			setFormError(null);
 			setFieldErrors({});
@@ -204,7 +225,11 @@ export default function AdminBranchesPage() {
 			{list.isLoading ? (
 				<TableLoading columns={6} />
 			) : list.error ? (
-				<DataError error={list.error} entity="branches" onRetry={() => list.refetch()} />
+				<DataError
+					error={list.error}
+					entity="branches"
+					onRetry={() => list.refetch()}
+				/>
 			) : items.length === 0 ? (
 				table.isFiltered ? (
 					<DataNoMatches onClear={table.reset} />
@@ -225,8 +250,20 @@ export default function AdminBranchesPage() {
 						<Table className="w-full">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
-									<SortableHead label="Code" column="code" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Name" column="name" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Code"
+										column="code"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Name"
+										column="name"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead>Address</TableHead>
 									<TableHead>Phone</TableHead>
 									<TableHead>Type</TableHead>
@@ -236,12 +273,16 @@ export default function AdminBranchesPage() {
 							<TableBody>
 								{items.map((b) => (
 									<TableRow key={b.id} className="hover:bg-muted/30">
-										<TableCell className="font-mono text-xs">{text(b.code)}</TableCell>
+										<TableCell className="font-mono text-xs">
+											{text(b.code)}
+										</TableCell>
 										<TableCell className="font-medium">{b.name}</TableCell>
 										<TableCell>{text(b.address)}</TableCell>
 										<TableCell>{text(b.phone)}</TableCell>
 										<TableCell>
-											<span className={`rounded-full px-2 py-0.5 text-xs ${b.is_headquarters ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
+											<span
+												className={`rounded-full px-2 py-0.5 text-xs ${b.is_headquarters ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}
+											>
 												{b.is_headquarters ? "Headquarters" : "Branch"}
 											</span>
 										</TableCell>
@@ -274,7 +315,8 @@ export default function AdminBranchesPage() {
 															label: "Delete",
 															icon: <TrashIcon className="h-4 w-4" />,
 															destructive: true,
-															onSelect: () => setConfirm({ id: b.id, name: b.name }),
+															onSelect: () =>
+																setConfirm({ id: b.id, name: b.name }),
 														},
 													]}
 												/>
@@ -342,10 +384,19 @@ export default function AdminBranchesPage() {
 									title: "Identity",
 									rows: [
 										{ label: "Code", value: text(detail.data.code) },
-										{ label: "Type", value: detail.data.is_headquarters ? "Headquarters" : "Branch" },
+										{
+											label: "Type",
+											value: detail.data.is_headquarters
+												? "Headquarters"
+												: "Branch",
+										},
 										{ label: "Phone", value: text(detail.data.phone) },
 										{ label: "Email", value: text(detail.data.email) },
-										{ label: "Address", value: text(detail.data.address), wide: true },
+										{
+											label: "Address",
+											value: text(detail.data.address),
+											wide: true,
+										},
 									],
 								},
 							]

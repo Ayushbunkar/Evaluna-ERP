@@ -1,6 +1,16 @@
-﻿import Link from "next/link";
+﻿import {
+	Building2,
+	DollarSign,
+	LayoutDashboard,
+	MapPin,
+	Settings,
+	ShieldAlert,
+	Truck,
+	User,
+	Users,
+} from "lucide-react";
+import Link from "next/link";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { LayoutDashboard, Users, Truck, Building2, MapPin, DollarSign, Settings, ShieldAlert, User } from "lucide-react";
 
 export default function AdminLayout({
 	children,

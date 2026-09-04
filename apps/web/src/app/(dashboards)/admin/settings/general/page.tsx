@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useState } from "react";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -10,9 +9,14 @@ import {
 } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
-import { ActivityIcon, CheckCircle2, Settings as SettingsIcon } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	ActivityIcon,
+	CheckCircle2,
+	Settings as SettingsIcon,
+} from "lucide-react";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -20,11 +24,17 @@ export default function AdminSettingsGeneralPage() {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 	const [success, setSuccess] = useState(false);
-	const [localSettings, setLocalSettings] = useState<Record<string, string>>({});
+	const [localSettings, setLocalSettings] = useState<Record<string, string>>(
+		{},
+	);
 	const [initialized, setInitialized] = useState(false);
 
 	const settingsQueryOptions = trpc.settings.getAll.queryOptions();
-	const { data: settingsData, isLoading, error } = useQuery(settingsQueryOptions);
+	const {
+		data: settingsData,
+		isLoading,
+		error,
+	} = useQuery(settingsQueryOptions);
 
 	React.useEffect(() => {
 		if (settingsData?.data && !initialized) {
@@ -37,7 +47,9 @@ export default function AdminSettingsGeneralPage() {
 		trpc.settings.setMany.mutationOptions({
 			onSuccess: () => {
 				setSuccess(true);
-				queryClient.invalidateQueries({ queryKey: settingsQueryOptions.queryKey });
+				queryClient.invalidateQueries({
+					queryKey: settingsQueryOptions.queryKey,
+				});
 				setTimeout(() => setSuccess(false), 3000);
 			},
 		}),

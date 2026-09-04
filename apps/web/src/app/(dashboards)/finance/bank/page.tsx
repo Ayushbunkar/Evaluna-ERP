@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Table,
@@ -12,23 +13,22 @@ import {
 import {
 	ActivityIcon,
 	BuildingIcon,
-	SearchIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
-	PlusIcon,
 	LandmarkIcon,
+	PlusIcon,
+	SearchIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import { Badge } from "@evaluna/ui/components/badge";
 
 export default function FinanceBankPage() {
 	const trpc = useTRPC();
 	const locale = useLocale();
-	
+
 	const {
 		data: accounts,
 		isLoading,
@@ -37,7 +37,7 @@ export default function FinanceBankPage() {
 
 	return (
 		<PageTransition className="container mx-auto py-8">
-			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4 mb-6">
+			<div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
 						Bank Accounts
@@ -52,7 +52,11 @@ export default function FinanceBankPage() {
 							<LandmarkIcon className="mr-1 h-3 w-3" /> Back to Dashboard
 						</Link>
 					</Button>
-					<Button variant="default" className="text-xs shadow-sm sm:text-sm" onClick={() => alert("Add Account Dialog")}>
+					<Button
+						variant="default"
+						className="text-xs shadow-sm sm:text-sm"
+						onClick={() => alert("Add Account Dialog")}
+					>
 						<PlusIcon className="mr-1 h-3 w-3" /> Add Account
 					</Button>
 				</div>
@@ -75,13 +79,23 @@ export default function FinanceBankPage() {
 					<Table className="w-full">
 						<TableHeader>
 							<TableRow>
-								<TableHead className="text-left font-semibold">Account Name</TableHead>
+								<TableHead className="text-left font-semibold">
+									Account Name
+								</TableHead>
 								<TableHead className="text-left font-semibold">Bank</TableHead>
 								<TableHead className="text-left font-semibold">Type</TableHead>
-								<TableHead className="text-left font-semibold">Account No.</TableHead>
-								<TableHead className="text-left font-semibold text-right">Current Balance</TableHead>
-								<TableHead className="text-left font-semibold">Status</TableHead>
-								<TableHead className="text-left font-semibold">Actions</TableHead>
+								<TableHead className="text-left font-semibold">
+									Account No.
+								</TableHead>
+								<TableHead className="text-left text-right font-semibold">
+									Current Balance
+								</TableHead>
+								<TableHead className="text-left font-semibold">
+									Status
+								</TableHead>
+								<TableHead className="text-left font-semibold">
+									Actions
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -90,12 +104,17 @@ export default function FinanceBankPage() {
 									<TableCell className="font-medium">{acc.name}</TableCell>
 									<TableCell>{acc.bank_name}</TableCell>
 									<TableCell>
-										<Badge variant="outline" className="font-normal capitalize bg-slate-50 text-slate-700">
-											{acc.type.replace('_', ' ')}
+										<Badge
+											variant="outline"
+											className="bg-slate-50 font-normal text-slate-700 capitalize"
+										>
+											{acc.type.replace("_", " ")}
 										</Badge>
 									</TableCell>
-									<TableCell className="font-mono text-sm">{acc.account_number}</TableCell>
-									<TableCell className="font-medium text-right text-green-600">
+									<TableCell className="font-mono text-sm">
+										{acc.account_number}
+									</TableCell>
+									<TableCell className="text-right font-medium text-green-600">
 										{formatCurrency(Number(acc.current_balance), locale)}
 									</TableCell>
 									<TableCell>

@@ -8,29 +8,38 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import { Skeleton } from "@evaluna/ui/components/skeleton";
+import { motion } from "framer-motion";
 import {
 	ActivityIcon,
-	IndianRupee,
+	AlertCircleIcon,
+	ArrowRightIcon,
+	CalculatorIcon,
 	ChartLineIcon,
 	CreditCardIcon,
-	TrendingUpIcon,
-	AlertCircleIcon,
 	FileTextIcon,
-	CalculatorIcon,
-	ArrowRightIcon,
+	IndianRupee,
+	TrendingUpIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { PageTransition, AnimatedCard, StaggerList, StaggerItem } from "@/lib/animations";
+import {
+	AnimatedCard,
+	PageTransition,
+	StaggerItem,
+	StaggerList,
+} from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import { motion } from "framer-motion";
-import { Skeleton } from "@evaluna/ui/components/skeleton";
 
 export default function FinanceDashboard() {
 	const trpc = useTRPC();
 	const locale = useLocale();
-	const { data: stats, isLoading, error } = trpc.finance.getDashboardStats.useQuery({});
+	const {
+		data: stats,
+		isLoading,
+		error,
+	} = trpc.finance.getDashboardStats.useQuery({});
 
 	if (isLoading) {
 		return (
@@ -70,7 +79,11 @@ export default function FinanceDashboard() {
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm" asChild>
+					<Button
+						variant="outline"
+						className="text-xs shadow-sm sm:text-sm"
+						asChild
+					>
 						<Link href="/finance/invoices">
 							<FileTextIcon className="mr-2 h-4 w-4" /> Invoices
 						</Link>
@@ -155,7 +168,9 @@ export default function FinanceDashboard() {
 							<Card className="group border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md">
 								<CardContent className="p-4 sm:p-6">
 									<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-										<div className={`transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full ${kpi.bg} group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12`}>
+										<div
+											className={`transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full ${kpi.bg} group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12`}
+										>
 											{kpi.icon}
 										</div>
 										<h3 className="font-semibold text-base sm:text-lg">
@@ -170,7 +185,7 @@ export default function FinanceDashboard() {
 						</AnimatedCard>
 					</StaggerItem>
 				))}
-				
+
 				<StaggerItem>
 					<AnimatedCard>
 						<Card className="group border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md">
@@ -218,13 +233,19 @@ export default function FinanceDashboard() {
 						{stats?.recentTransactions?.length ? (
 							<div className="space-y-4">
 								{stats.recentTransactions.map((tx: any) => (
-									<div key={tx.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+									<div
+										key={tx.id}
+										className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0"
+									>
 										<div>
 											<p className="font-medium text-sm">{tx.description}</p>
-											<p className="text-xs text-muted-foreground">{tx.date}</p>
+											<p className="text-muted-foreground text-xs">{tx.date}</p>
 										</div>
-										<div className={`font-medium ${tx.type === 'in' || tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-											{tx.type === 'in' || tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount, locale)}
+										<div
+											className={`font-medium ${tx.type === "in" || tx.type === "credit" ? "text-green-600" : "text-red-600"}`}
+										>
+											{tx.type === "in" || tx.type === "credit" ? "+" : "-"}
+											{formatCurrency(tx.amount, locale)}
 										</div>
 									</div>
 								))}

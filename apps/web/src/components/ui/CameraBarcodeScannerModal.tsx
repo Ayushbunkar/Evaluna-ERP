@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -8,9 +8,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@evaluna/ui/components/dialog";
-import { Button } from "@evaluna/ui/components/button";
-import { CameraIcon, RefreshCwIcon, SwitchCameraIcon, XIcon, CheckCircle2Icon } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
+import {
+	CameraIcon,
+	CheckCircle2Icon,
+	RefreshCwIcon,
+	SwitchCameraIcon,
+	XIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 interface CameraBarcodeScannerModalProps {
 	open: boolean;
@@ -47,7 +53,9 @@ export function CameraBarcodeScannerModal({
 						setCameras(devices);
 						// Prefer back camera if available
 						const backCam = devices.find(
-							(d) => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("environment")
+							(d) =>
+								d.label.toLowerCase().includes("back") ||
+								d.label.toLowerCase().includes("environment"),
 						);
 						setSelectedCameraId(backCam ? backCam.id : devices[0].id);
 					} else {
@@ -97,12 +105,14 @@ export function CameraBarcodeScannerModal({
 				},
 				(errorMessage) => {
 					// Ignore parse frame errors
-				}
+				},
 			);
 			setIsScanning(true);
 		} catch (err: any) {
 			console.error("Failed to start camera scanner:", err);
-			setCameraError("Unable to start video stream: " + (err?.message || "Unknown error"));
+			setCameraError(
+				"Unable to start video stream: " + (err?.message || "Unknown error"),
+			);
 		}
 	};
 
@@ -120,7 +130,9 @@ export function CameraBarcodeScannerModal({
 
 	const playBeepSound = () => {
 		try {
-			const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+			const ctx = new (
+				window.AudioContext || (window as any).webkitAudioContext
+			)();
 			const osc = ctx.createOscillator();
 			const gain = ctx.createGain();
 			osc.type = "sine";
@@ -143,7 +155,9 @@ export function CameraBarcodeScannerModal({
 						<CameraIcon className="h-5 w-5 text-blue-600" />
 						{title}
 					</DialogTitle>
-					<DialogDescription className="text-xs sm:text-sm">{description}</DialogDescription>
+					<DialogDescription className="text-xs sm:text-sm">
+						{description}
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-3 py-2">
@@ -166,26 +180,30 @@ export function CameraBarcodeScannerModal({
 					)}
 
 					{/* Camera Video Viewfinder */}
-					<div className="relative flex flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-blue-500 bg-black min-h-[260px]">
-						<div id={regionId} className="w-full h-full min-h-[250px]" />
+					<div className="relative flex min-h-[260px] flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-blue-500 border-dashed bg-black">
+						<div id={regionId} className="h-full min-h-[250px] w-full" />
 
 						{lastScannedCode && (
-							<div className="absolute inset-0 bg-green-900/90 flex flex-col items-center justify-center text-white p-4 text-center z-20">
-								<CheckCircle2Icon className="h-12 w-12 text-green-300 animate-bounce mb-2" />
+							<div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-green-900/90 p-4 text-center text-white">
+								<CheckCircle2Icon className="mb-2 h-12 w-12 animate-bounce text-green-300" />
 								<p className="font-bold text-lg">Barcode Scanned!</p>
-								<p className="font-mono text-sm bg-black/40 px-3 py-1 rounded mt-1">{lastScannedCode}</p>
+								<p className="mt-1 rounded bg-black/40 px-3 py-1 font-mono text-sm">
+									{lastScannedCode}
+								</p>
 							</div>
 						)}
 
 						{cameraError && (
-							<div className="absolute inset-0 bg-background/95 p-6 flex flex-col items-center justify-center text-center text-destructive z-10">
-								<XIcon className="h-10 w-10 mb-2 opacity-80" />
+							<div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 p-6 text-center text-destructive">
+								<XIcon className="mb-2 h-10 w-10 opacity-80" />
 								<p className="font-semibold text-sm">{cameraError}</p>
 								<Button
 									variant="outline"
 									size="sm"
 									className="mt-3"
-									onClick={() => selectedCameraId && startScanner(selectedCameraId)}
+									onClick={() =>
+										selectedCameraId && startScanner(selectedCameraId)
+									}
 								>
 									<RefreshCwIcon className="mr-1 h-3.5 w-3.5" /> Retry Camera
 								</Button>
@@ -193,8 +211,9 @@ export function CameraBarcodeScannerModal({
 						)}
 					</div>
 
-					<p className="text-[11px] text-center text-muted-foreground">
-						Position the barcode inside the box frame. Fits standard EAN-13, Code-128 & QR barcodes.
+					<p className="text-center text-[11px] text-muted-foreground">
+						Position the barcode inside the box frame. Fits standard EAN-13,
+						Code-128 & QR barcodes.
 					</p>
 				</div>
 			</DialogContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -8,7 +8,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
 import {
 	Table,
 	TableBody,
@@ -18,14 +17,15 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	ClockIcon,
-	PlaySquareIcon,
-	Loader2Icon,
-	SearchIcon,
 	CheckCircle2Icon,
+	ClockIcon,
+	Loader2Icon,
 	PackageIcon,
+	PlaySquareIcon,
+	SearchIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -42,7 +42,7 @@ export default function PickerPendingPage() {
 	const filteredPicks = pendingPicks?.filter(
 		(p) =>
 			p.order_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			p.assigned_to.toLowerCase().includes(searchQuery.toLowerCase())
+			p.assigned_to.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
 	return (
@@ -50,7 +50,7 @@ export default function PickerPendingPage() {
 			{/* Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 						<ClockIcon className="h-7 w-7 text-blue-600" />
 						Pending Pick Tasks
 					</h1>
@@ -58,7 +58,7 @@ export default function PickerPendingPage() {
 						Order picklists queued in warehouse waiting to be picked.
 					</p>
 				</div>
-				<Button className="bg-blue-600 hover:bg-blue-700 text-white" asChild>
+				<Button className="bg-blue-600 text-white hover:bg-blue-700" asChild>
 					<Link href="/picker/active">
 						<PlaySquareIcon className="mr-2 h-4 w-4" /> Start Active Pick
 					</Link>
@@ -72,8 +72,12 @@ export default function PickerPendingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Total Pending Picks</p>
-									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{pendingPicks?.length ?? 0}</p>
+									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
+										Total Pending Picks
+									</p>
+									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+										{pendingPicks?.length ?? 0}
+									</p>
 								</div>
 								<ClockIcon className="h-8 w-8 text-blue-500" />
 							</div>
@@ -86,9 +90,13 @@ export default function PickerPendingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">High Priority Orders</p>
-									<p className="text-3xl font-bold text-yellow-800 dark:text-yellow-300">
-										{pendingPicks?.filter((p) => p.priority === "High" || p.priority === "Urgent").length ?? 0}
+									<p className="font-medium text-sm text-yellow-700 dark:text-yellow-400">
+										High Priority Orders
+									</p>
+									<p className="font-bold text-3xl text-yellow-800 dark:text-yellow-300">
+										{pendingPicks?.filter(
+											(p) => p.priority === "High" || p.priority === "Urgent",
+										).length ?? 0}
 									</p>
 								</div>
 								<PackageIcon className="h-8 w-8 text-yellow-500" />
@@ -102,8 +110,12 @@ export default function PickerPendingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-green-700 dark:text-green-400">Queue Status</p>
-									<p className="text-xl font-bold text-green-800 dark:text-green-300">Active Queue</p>
+									<p className="font-medium text-green-700 text-sm dark:text-green-400">
+										Queue Status
+									</p>
+									<p className="font-bold text-green-800 text-xl dark:text-green-300">
+										Active Queue
+									</p>
 								</div>
 								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
 							</div>
@@ -114,21 +126,23 @@ export default function PickerPendingPage() {
 
 			{/* Main Data Table */}
 			<Card className="border-border/50 shadow-sm">
-				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<ClockIcon className="h-5 w-5 text-blue-600" />
 							Pending Pick Task Queue
 						</CardTitle>
-						<CardDescription>All picking assignments queued for fulfillment</CardDescription>
+						<CardDescription>
+							All picking assignments queued for fulfillment
+						</CardDescription>
 					</div>
 
 					<div className="relative w-full sm:w-64">
-						<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 						<input
 							type="text"
 							placeholder="Search order or assigned staff..."
-							className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm shadow-sm"
+							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -137,7 +151,8 @@ export default function PickerPendingPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading pending picks...
+							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
+							Loading pending picks...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -145,7 +160,7 @@ export default function PickerPendingPage() {
 						</div>
 					) : !filteredPicks || filteredPicks.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<CheckCircle2Icon className="h-10 w-10 opacity-30 text-green-500" />
+							<CheckCircle2Icon className="h-10 w-10 text-green-500 opacity-30" />
 							<p>No pending picks found in queue right now.</p>
 						</div>
 					) : (
@@ -165,32 +180,43 @@ export default function PickerPendingPage() {
 								<TableBody>
 									{filteredPicks.map((pick) => (
 										<TableRow key={pick.queue_no} className="hover:bg-muted/50">
-											<TableCell className="font-mono text-xs font-semibold">#{pick.queue_no}</TableCell>
-											<TableCell className="font-semibold text-sm">{pick.order_id}</TableCell>
+											<TableCell className="font-mono font-semibold text-xs">
+												#{pick.queue_no}
+											</TableCell>
+											<TableCell className="font-semibold text-sm">
+												{pick.order_id}
+											</TableCell>
 											<TableCell>
 												<span
-													className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+													className={`rounded-full px-2 py-0.5 font-medium text-xs ${
 														pick.priority === "High"
 															? "bg-red-100 text-red-800"
 															: pick.priority === "Urgent"
-															? "bg-orange-100 text-orange-800"
-															: "bg-gray-100 text-gray-800"
+																? "bg-orange-100 text-orange-800"
+																: "bg-gray-100 text-gray-800"
 													}`}
 												>
 													{pick.priority}
 												</span>
 											</TableCell>
-											<TableCell className="text-sm font-medium">{pick.items} items</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{pick.assigned_to}</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{pick.waiting_since || "Just now"}</TableCell>
+											<TableCell className="font-medium text-sm">
+												{pick.items} items
+											</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{pick.assigned_to}
+											</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{pick.waiting_since || "Just now"}
+											</TableCell>
 											<TableCell className="text-right">
 												<Button
 													size="sm"
-													className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+													className="h-8 bg-blue-600 text-white hover:bg-blue-700"
 													asChild
 												>
 													<Link href="/picker/active">
-														<PlaySquareIcon className="mr-1 h-3.5 w-3.5" /> Start Pick
+														<PlaySquareIcon className="mr-1 h-3.5 w-3.5" />{" "}
+														Start Pick
 													</Link>
 												</Button>
 											</TableCell>

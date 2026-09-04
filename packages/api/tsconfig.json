@@ -7,5 +7,6 @@
 		"outDir": "dist",
 		"composite": true
 	},
-	"include": ["src"]
+	"include": ["src"],
+	"exclude": ["src/users.router.ts", "src/routers.ts"]
 }

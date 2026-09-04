@@ -362,16 +362,26 @@ describe("Findings status state machine (audit-findings.ts)", () => {
 		});
 		const highFindingId = created.findingId;
 
-		await findAs(auditor).updateStatus({ findingId: highFindingId, status: "UNDER_REVIEW" });
-		await findAs(auditor2).resolve({ findingId: highFindingId, note: "resolved by auditor2" });
+		await findAs(auditor).updateStatus({
+			findingId: highFindingId,
+			status: "UNDER_REVIEW",
+		});
+		await findAs(auditor2).resolve({
+			findingId: highFindingId,
+			note: "resolved by auditor2",
+		});
 
 		// 1. Resolver (auditor2, staffId: 2) tries to verify their own resolution - must fail!
-		await expect(findAs(auditor2).verify({ findingId: highFindingId })).rejects.toThrow(
+		await expect(
+			findAs(auditor2).verify({ findingId: highFindingId }),
+		).rejects.toThrow(
 			/Secondary verification required.*different auditor.*resolved/i,
 		);
 
 		// 2. Creator (auditor, staffId: 1) tries to verify - must fail because they raised it!
-		await expect(findAs(auditor).verify({ findingId: highFindingId })).rejects.toThrow(
+		await expect(
+			findAs(auditor).verify({ findingId: highFindingId }),
+		).rejects.toThrow(
 			/Secondary verification required.*different auditor.*raised/i,
 		);
 

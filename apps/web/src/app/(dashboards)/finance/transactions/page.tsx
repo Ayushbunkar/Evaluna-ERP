@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
+import { Input } from "@evaluna/ui/components/input";
 import {
 	Table,
 	TableBody,
@@ -9,41 +10,40 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { Input } from "@evaluna/ui/components/input";
 import {
-	IndianRupee,
 	CheckCircle2Icon,
-	SearchIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
+	IndianRupee,
+	SearchIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 
 export default function FinanceTransactionsPage() {
 	const trpc = useTRPC();
 	const locale = useLocale();
-	
+
 	const [page, setPage] = useState(1);
 	const [search, setSearch] = useState("");
 	const limit = 10;
-	
-	const {
-		data,
-		isLoading,
-		error,
-	} = trpc.finance.getTransactions.useQuery({ page, limit, search });
+
+	const { data, isLoading, error } = trpc.finance.getTransactions.useQuery({
+		page,
+		limit,
+		search,
+	});
 
 	const transactions = data?.items || [];
 	const totalPages = data?.pages || 1;
 
 	return (
 		<PageTransition className="container mx-auto py-8">
-			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4 mb-6">
+			<div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
 						Financial Transactions
@@ -60,10 +60,10 @@ export default function FinanceTransactionsPage() {
 					</Button>
 				</div>
 			</div>
-			
-			<div className="mb-4 flex items-center max-w-sm">
-				<Input 
-					placeholder="Search description..." 
+
+			<div className="mb-4 flex max-w-sm items-center">
+				<Input
+					placeholder="Search description..."
 					value={search}
 					onChange={(e) => {
 						setSearch(e.target.value);
@@ -92,10 +92,18 @@ export default function FinanceTransactionsPage() {
 							<TableRow>
 								<TableHead className="text-left font-semibold">Date</TableHead>
 								<TableHead className="text-left font-semibold">Type</TableHead>
-								<TableHead className="text-left font-semibold">Description</TableHead>
-								<TableHead className="text-left font-semibold">Category</TableHead>
-								<TableHead className="text-left font-semibold">Amount</TableHead>
-								<TableHead className="text-left font-semibold">Status</TableHead>
+								<TableHead className="text-left font-semibold">
+									Description
+								</TableHead>
+								<TableHead className="text-left font-semibold">
+									Category
+								</TableHead>
+								<TableHead className="text-left font-semibold">
+									Amount
+								</TableHead>
+								<TableHead className="text-left font-semibold">
+									Status
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -103,14 +111,22 @@ export default function FinanceTransactionsPage() {
 								<TableRow key={tx.id}>
 									<TableCell>{tx.date}</TableCell>
 									<TableCell>
-										<span className={`font-medium ${tx.type === 'in' || tx.type === 'credit' || tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+										<span
+											className={`font-medium ${tx.type === "in" || tx.type === "credit" || tx.type === "income" ? "text-green-600" : "text-red-600"}`}
+										>
 											{tx.type}
 										</span>
 									</TableCell>
 									<TableCell>{tx.description}</TableCell>
 									<TableCell>{tx.category}</TableCell>
-									<TableCell className={`font-medium ${tx.type === 'in' || tx.type === 'credit' || tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-										{tx.type === 'in' || tx.type === 'credit' || tx.type === 'income' ? '+' : '-'}
+									<TableCell
+										className={`font-medium ${tx.type === "in" || tx.type === "credit" || tx.type === "income" ? "text-green-600" : "text-red-600"}`}
+									>
+										{tx.type === "in" ||
+										tx.type === "credit" ||
+										tx.type === "income"
+											? "+"
+											: "-"}
 										{formatCurrency(Number(tx.amount), locale)}
 									</TableCell>
 									<TableCell>
@@ -126,23 +142,25 @@ export default function FinanceTransactionsPage() {
 					</Table>
 				</div>
 			)}
-			
+
 			{!isLoading && !error && totalPages > 1 && (
 				<div className="mt-4 flex items-center justify-end space-x-2">
-					<Button 
-						variant="outline" 
-						size="sm" 
-						onClick={() => setPage(p => Math.max(1, p - 1))}
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setPage((p) => Math.max(1, p - 1))}
 						disabled={page === 1}
 					>
 						<ChevronLeftIcon className="h-4 w-4" />
 						Previous
 					</Button>
-					<span className="text-sm font-medium">Page {page} of {totalPages}</span>
-					<Button 
-						variant="outline" 
-						size="sm" 
-						onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+					<span className="font-medium text-sm">
+						Page {page} of {totalPages}
+					</span>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
 						disabled={page === totalPages}
 					>
 						Next

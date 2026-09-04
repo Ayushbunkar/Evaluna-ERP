@@ -111,7 +111,9 @@ export function useAdminTable<TSort extends string>(options: {
 	const [search, setSearch] = useState(initial.search);
 	const [sortBy, setSortBy] = useState<TSort>(initial.sortBy as TSort);
 	const [sortDir, setSortDir] = useState<SortDir>(initial.sortDir);
-	const [filters, setFilters] = useState<Record<string, string>>(initial.filters);
+	const [filters, setFilters] = useState<Record<string, string>>(
+		initial.filters,
+	);
 
 	// Debounce the search term so a five-letter word is one query, not five.
 	useEffect(() => {

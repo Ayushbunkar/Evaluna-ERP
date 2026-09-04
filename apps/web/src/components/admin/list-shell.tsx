@@ -13,8 +13,8 @@ import {
 import { TableHead } from "@evaluna/ui/components/table";
 import {
 	ArrowDownIcon,
-	ArrowUpIcon,
 	ArrowUpDownIcon,
+	ArrowUpIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	DownloadIcon,
@@ -44,7 +44,9 @@ export function AdminPageHeader({
 					{title}
 				</h1>
 				{description && (
-					<p className="text-muted-foreground text-xs sm:text-sm">{description}</p>
+					<p className="text-muted-foreground text-xs sm:text-sm">
+						{description}
+					</p>
 				)}
 			</div>
 			{actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -75,7 +77,10 @@ export function FilterSelect({
 				{label}
 			</Label>
 			<Select value={value || "all"} onValueChange={onChange}>
-				<SelectTrigger id={id} className="h-9 w-full min-w-[140px] text-xs sm:w-auto">
+				<SelectTrigger
+					id={id}
+					className="h-9 w-full min-w-[140px] text-xs sm:w-auto"
+				>
 					<SelectValue placeholder={label} />
 				</SelectTrigger>
 				<SelectContent>
@@ -224,7 +229,9 @@ export function SortableHead<T extends string>({
 	return (
 		<TableHead
 			className={`${numeric ? "text-right" : "text-left"} ${className ?? ""}`}
-			aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+			aria-sort={
+				active ? (sortDir === "asc" ? "ascending" : "descending") : "none"
+			}
 		>
 			<button
 				type="button"
@@ -292,7 +299,10 @@ export function TablePagination({
 						value={String(pageSize)}
 						onValueChange={(v) => onPageSizeChange(Number(v))}
 					>
-						<SelectTrigger className="h-8 w-[110px] text-xs" aria-label="Rows per page">
+						<SelectTrigger
+							className="h-8 w-[110px] text-xs"
+							aria-label="Rows per page"
+						>
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>

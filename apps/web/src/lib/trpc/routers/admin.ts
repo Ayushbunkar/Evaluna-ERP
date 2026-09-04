@@ -50,7 +50,12 @@ import { roleProcedure, router } from "../init";
 const READ_ROLES = ["admin", "super_admin", "manager"] as const;
 const WRITE_ROLES = ["admin", "super_admin"] as const;
 const HR_READ_ROLES = ["admin", "super_admin", "manager", "hr"] as const;
-const FINANCE_READ_ROLES = ["admin", "super_admin", "manager", "auditor"] as const;
+const FINANCE_READ_ROLES = [
+	"admin",
+	"super_admin",
+	"manager",
+	"auditor",
+] as const;
 
 const adminRead = () => roleProcedure([...READ_ROLES]);
 const adminWrite = () => roleProcedure([...WRITE_ROLES]);
@@ -114,7 +119,8 @@ function term(search?: string) {
 }
 
 function toNumber(value: unknown): number {
-	const n = typeof value === "string" ? Number.parseFloat(value) : Number(value);
+	const n =
+		typeof value === "string" ? Number.parseFloat(value) : Number(value);
 	return Number.isFinite(n) ? n : 0;
 }
 
@@ -386,10 +392,7 @@ export const adminRouter = router({
 					.select({ count: count() })
 					.from(customers)
 					.where(
-						and(
-							eq(customers.is_deleted, false),
-							inBranch(customers.branch_id),
-						),
+						and(eq(customers.is_deleted, false), inBranch(customers.branch_id)),
 					),
 				db
 					.select({ count: count() })
@@ -432,10 +435,7 @@ export const adminRouter = router({
 					})
 					.from(customers)
 					.where(
-						and(
-							eq(customers.is_deleted, false),
-							inBranch(customers.branch_id),
-						),
+						and(eq(customers.is_deleted, false), inBranch(customers.branch_id)),
 					),
 				db
 					.select({
@@ -543,7 +543,18 @@ export const adminRouter = router({
 		.input(
 			optionalInput({
 				...pageInput,
-				sortBy: z.enum(["name", "code", "department", "role", "status", "join_date", "salary", "created_at"]).default("created_at"),
+				sortBy: z
+					.enum([
+						"name",
+						"code",
+						"department",
+						"role",
+						"status",
+						"join_date",
+						"salary",
+						"created_at",
+					])
+					.default("created_at"),
 				branch_id: z.number().int().optional(),
 				search: z.string().optional(),
 				department: z.string().optional(),
@@ -592,7 +603,9 @@ export const adminRouter = router({
 					.from(staff)
 					.leftJoin(branches, eq(staff.branch_id, branches.id))
 					.where(where)
-					.orderBy(orderBy(EMPLOYEE_SORT, input.sortBy, input.sortDir, "created_at"))
+					.orderBy(
+						orderBy(EMPLOYEE_SORT, input.sortBy, input.sortDir, "created_at"),
+					)
 					.limit(input.pageSize)
 					.offset((input.page - 1) * input.pageSize),
 				db.select({ count: count() }).from(staff).where(where),
@@ -645,10 +658,14 @@ export const adminRouter = router({
 			return {
 				departments: departments
 					.map((d: any) => d.value)
-					.filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+					.filter(
+						(v: unknown): v is string => typeof v === "string" && v.length > 0,
+					),
 				roles: roles
 					.map((d: any) => d.value)
-					.filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+					.filter(
+						(v: unknown): v is string => typeof v === "string" && v.length > 0,
+					),
 			};
 		}),
 
@@ -715,10 +732,22 @@ export const adminRouter = router({
 				monthly_sales_target: z.number().min(0).optional(),
 				branch_id: z.number().int().optional(),
 				pf_number: z.string().trim().max(50).optional().or(z.literal("")),
-				pan: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				pan: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				bank_name: z.string().trim().max(100).optional().or(z.literal("")),
 				bank_account: z.string().trim().max(50).optional().or(z.literal("")),
-				ifsc: z.string().trim().toUpperCase().max(11).optional().or(z.literal("")),
+				ifsc: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(11)
+					.optional()
+					.or(z.literal("")),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -799,10 +828,22 @@ export const adminRouter = router({
 				branch_id: z.number().int().nullable().optional(),
 				status: z.enum(["active", "inactive"]).optional(),
 				pf_number: z.string().trim().max(50).optional().or(z.literal("")),
-				pan: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				pan: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				bank_name: z.string().trim().max(100).optional().or(z.literal("")),
 				bank_account: z.string().trim().max(50).optional().or(z.literal("")),
-				ifsc: z.string().trim().toUpperCase().max(11).optional().or(z.literal("")),
+				ifsc: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(11)
+					.optional()
+					.or(z.literal("")),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -969,8 +1010,12 @@ export const adminRouter = router({
 			const db = ctx.db;
 			const like = term(input.search);
 			const where = and(
-				input.category ? eq(suppliers.supplier_category, input.category) : undefined,
-				input.outstandingOnly ? sql`${suppliers.outstanding_balance} > 0` : undefined,
+				input.category
+					? eq(suppliers.supplier_category, input.category)
+					: undefined,
+				input.outstandingOnly
+					? sql`${suppliers.outstanding_balance} > 0`
+					: undefined,
 				like
 					? or(
 							ilike(suppliers.name, like),
@@ -987,7 +1032,9 @@ export const adminRouter = router({
 					.select()
 					.from(suppliers)
 					.where(where)
-					.orderBy(orderBy(SUPPLIER_SORT, input.sortBy, input.sortDir, "created_at"))
+					.orderBy(
+						orderBy(SUPPLIER_SORT, input.sortBy, input.sortDir, "created_at"),
+					)
 					.limit(input.pageSize)
 					.offset((input.page - 1) * input.pageSize),
 				db.select({ count: count() }).from(suppliers).where(where),
@@ -1020,7 +1067,9 @@ export const adminRouter = router({
 			.orderBy(asc(suppliers.supplier_category));
 		return rows
 			.map((r: any) => r.value)
-			.filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
+			.filter(
+				(v: unknown): v is string => typeof v === "string" && v.length > 0,
+			);
 	}),
 
 	getSupplier: adminRead()
@@ -1080,11 +1129,29 @@ export const adminRouter = router({
 		.input(
 			z.object({
 				name: z.string().trim().min(2).max(255),
-				email: z.string().trim().toLowerCase().email().optional().or(z.literal("")),
+				email: z
+					.string()
+					.trim()
+					.toLowerCase()
+					.email()
+					.optional()
+					.or(z.literal("")),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
-				gst_number: z.string().trim().toUpperCase().max(15).optional().or(z.literal("")),
-				pan_number: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				gst_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(15)
+					.optional()
+					.or(z.literal("")),
+				pan_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				supplier_category: z.string().trim().max(20).default("local"),
 				outstanding_balance: z.number().min(0).default(0),
 			}),
@@ -1134,11 +1201,29 @@ export const adminRouter = router({
 			z.object({
 				id: z.number().int(),
 				name: z.string().trim().min(2).max(255).optional(),
-				email: z.string().trim().toLowerCase().max(255).optional().or(z.literal("")),
+				email: z
+					.string()
+					.trim()
+					.toLowerCase()
+					.max(255)
+					.optional()
+					.or(z.literal("")),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
-				gst_number: z.string().trim().toUpperCase().max(15).optional().or(z.literal("")),
-				pan_number: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				gst_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(15)
+					.optional()
+					.or(z.literal("")),
+				pan_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				supplier_category: z.string().trim().max(20).optional(),
 				outstanding_balance: z.number().min(0).optional(),
 			}),
@@ -1169,7 +1254,10 @@ export const adminRouter = router({
 				patch.outstanding_balance = input.outstanding_balance.toString();
 			}
 			if (Object.keys(patch).length === 0) {
-				throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing to update." });
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Nothing to update.",
+				});
 			}
 
 			try {
@@ -1230,7 +1318,15 @@ export const adminRouter = router({
 			optionalInput({
 				...pageInput,
 				sortBy: z
-					.enum(["name", "code", "status", "type", "credit_used", "credit_limit", "created_at"])
+					.enum([
+						"name",
+						"code",
+						"status",
+						"type",
+						"credit_used",
+						"credit_limit",
+						"created_at",
+					])
 					.default("created_at"),
 				branch_id: z.number().int().optional(),
 				search: z.string().optional(),
@@ -1247,7 +1343,9 @@ export const adminRouter = router({
 				eq(customers.is_deleted, false),
 				branchId !== null ? eq(customers.branch_id, branchId) : undefined,
 				input.status ? eq(customers.status, input.status) : undefined,
-				input.customer_type ? eq(customers.customer_type, input.customer_type) : undefined,
+				input.customer_type
+					? eq(customers.customer_type, input.customer_type)
+					: undefined,
 				input.creditHoldOnly ? eq(customers.credit_hold, true) : undefined,
 				like
 					? or(
@@ -1281,7 +1379,9 @@ export const adminRouter = router({
 					.from(customers)
 					.leftJoin(branches, eq(customers.branch_id, branches.id))
 					.where(where)
-					.orderBy(orderBy(CUSTOMER_SORT, input.sortBy, input.sortDir, "created_at"))
+					.orderBy(
+						orderBy(CUSTOMER_SORT, input.sortBy, input.sortDir, "created_at"),
+					)
 					.limit(input.pageSize)
 					.offset((input.page - 1) * input.pageSize),
 				db.select({ count: count() }).from(customers).where(where),
@@ -1366,7 +1466,9 @@ export const adminRouter = router({
 			.orderBy(asc(customers.customer_type));
 		return rows
 			.map((r: any) => r.value)
-			.filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
+			.filter(
+				(v: unknown): v is string => typeof v === "string" && v.length > 0,
+			);
 	}),
 
 	createCustomer: adminWrite()
@@ -1376,8 +1478,20 @@ export const adminRouter = router({
 				email: z.string().trim().toLowerCase().email(),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
-				gst_number: z.string().trim().toUpperCase().max(15).optional().or(z.literal("")),
-				pan_number: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				gst_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(15)
+					.optional()
+					.or(z.literal("")),
+				pan_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				customer_type: z.string().trim().max(20).default("retail"),
 				credit_limit: z.number().min(0).default(0),
 				payment_terms: z.number().int().min(0).max(365).default(30),
@@ -1441,8 +1555,20 @@ export const adminRouter = router({
 				email: z.string().trim().toLowerCase().email().optional(),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
-				gst_number: z.string().trim().toUpperCase().max(15).optional().or(z.literal("")),
-				pan_number: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				gst_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(15)
+					.optional()
+					.or(z.literal("")),
+				pan_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				customer_type: z.string().trim().max(20).optional(),
 				credit_limit: z.number().min(0).optional(),
 				payment_terms: z.number().int().min(0).max(365).optional(),
@@ -1473,13 +1599,16 @@ export const adminRouter = router({
 			};
 			if (input.name !== undefined) patch.name = input.name;
 			if (input.email !== undefined) patch.email = input.email;
-			if (input.customer_type !== undefined) patch.customer_type = input.customer_type;
+			if (input.customer_type !== undefined)
+				patch.customer_type = input.customer_type;
 			if (input.status !== undefined) patch.status = input.status;
-			if (input.credit_hold !== undefined) patch.credit_hold = input.credit_hold;
+			if (input.credit_hold !== undefined)
+				patch.credit_hold = input.credit_hold;
 			if (input.marketing_opt_in !== undefined) {
 				patch.marketing_opt_in = input.marketing_opt_in;
 			}
-			if (input.payment_terms !== undefined) patch.payment_terms = input.payment_terms;
+			if (input.payment_terms !== undefined)
+				patch.payment_terms = input.payment_terms;
 			if (input.credit_limit !== undefined) {
 				patch.credit_limit = input.credit_limit.toString();
 			}
@@ -1489,7 +1618,10 @@ export const adminRouter = router({
 			setText("pan_number", input.pan_number);
 
 			if (Object.keys(patch).length === 0) {
-				throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing to update." });
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Nothing to update.",
+				});
 			}
 
 			try {
@@ -1589,7 +1721,9 @@ export const adminRouter = router({
 					.select()
 					.from(companies)
 					.where(where)
-					.orderBy(orderBy(COMPANY_SORT, input.sortBy, input.sortDir, "created_at"))
+					.orderBy(
+						orderBy(COMPANY_SORT, input.sortBy, input.sortDir, "created_at"),
+					)
 					.limit(input.pageSize)
 					.offset((input.page - 1) * input.pageSize),
 				db.select({ count: count() }).from(companies).where(where),
@@ -1644,8 +1778,20 @@ export const adminRouter = router({
 				name: z.string().trim().min(2).max(255),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
 				contact: z.string().trim().max(20).optional().or(z.literal("")),
-				gst_number: z.string().trim().toUpperCase().max(15).optional().or(z.literal("")),
-				pan: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				gst_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(15)
+					.optional()
+					.or(z.literal("")),
+				pan: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				financial_year_start: z.string().optional().or(z.literal("")),
 				financial_year_end: z.string().optional().or(z.literal("")),
 				status: z.enum(["active", "inactive"]).default("active"),
@@ -1699,8 +1845,20 @@ export const adminRouter = router({
 				name: z.string().trim().min(2).max(255).optional(),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
 				contact: z.string().trim().max(20).optional().or(z.literal("")),
-				gst_number: z.string().trim().toUpperCase().max(15).optional().or(z.literal("")),
-				pan: z.string().trim().toUpperCase().max(10).optional().or(z.literal("")),
+				gst_number: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(15)
+					.optional()
+					.or(z.literal("")),
+				pan: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(10)
+					.optional()
+					.or(z.literal("")),
 				financial_year_start: z.string().optional().or(z.literal("")),
 				financial_year_end: z.string().optional().or(z.literal("")),
 				status: z.enum(["active", "inactive"]).optional(),
@@ -1743,8 +1901,10 @@ export const adminRouter = router({
 			if (input.financial_year_end !== undefined) {
 				patch.financial_year_end = parseDate(input.financial_year_end);
 			}
-			const start = (patch.financial_year_start ?? existing.financial_year_start) as Date | null;
-			const end = (patch.financial_year_end ?? existing.financial_year_end) as Date | null;
+			const start = (patch.financial_year_start ??
+				existing.financial_year_start) as Date | null;
+			const end = (patch.financial_year_end ??
+				existing.financial_year_end) as Date | null;
 			if (start && end && new Date(end) <= new Date(start)) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
@@ -1753,7 +1913,10 @@ export const adminRouter = router({
 			}
 
 			if (Object.keys(patch).length === 0) {
-				throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing to update." });
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Nothing to update.",
+				});
 			}
 
 			try {
@@ -1867,12 +2030,17 @@ export const adminRouter = router({
 				ctx.db
 					.select({ count: count() })
 					.from(staff)
-					.where(and(eq(staff.branch_id, input.id), eq(staff.is_deleted, false))),
+					.where(
+						and(eq(staff.branch_id, input.id), eq(staff.is_deleted, false)),
+					),
 				ctx.db
 					.select({ count: count() })
 					.from(customers)
 					.where(
-						and(eq(customers.branch_id, input.id), eq(customers.is_deleted, false)),
+						and(
+							eq(customers.branch_id, input.id),
+							eq(customers.is_deleted, false),
+						),
 					),
 			]);
 
@@ -1897,10 +2065,22 @@ export const adminRouter = router({
 		.input(
 			z.object({
 				name: z.string().trim().min(2).max(100),
-				code: z.string().trim().toUpperCase().max(20).optional().or(z.literal("")),
+				code: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(20)
+					.optional()
+					.or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
-				email: z.string().trim().toLowerCase().email().optional().or(z.literal("")),
+				email: z
+					.string()
+					.trim()
+					.toLowerCase()
+					.email()
+					.optional()
+					.or(z.literal("")),
 				manager_id: z.number().int().nullable().optional(),
 				is_headquarters: z.boolean().default(false),
 			}),
@@ -1956,10 +2136,22 @@ export const adminRouter = router({
 			z.object({
 				id: z.number().int(),
 				name: z.string().trim().min(2).max(100).optional(),
-				code: z.string().trim().toUpperCase().max(20).optional().or(z.literal("")),
+				code: z
+					.string()
+					.trim()
+					.toUpperCase()
+					.max(20)
+					.optional()
+					.or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
-				email: z.string().trim().toLowerCase().max(255).optional().or(z.literal("")),
+				email: z
+					.string()
+					.trim()
+					.toLowerCase()
+					.max(255)
+					.optional()
+					.or(z.literal("")),
 				manager_id: z.number().int().nullable().optional(),
 				is_headquarters: z.boolean().optional(),
 			}),
@@ -1995,7 +2187,10 @@ export const adminRouter = router({
 			setText("email", input.email);
 
 			if (Object.keys(patch).length === 0) {
-				throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing to update." });
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Nothing to update.",
+				});
 			}
 
 			try {
@@ -2004,7 +2199,12 @@ export const adminRouter = router({
 						await tx
 							.update(branches)
 							.set({ is_headquarters: false })
-							.where(and(eq(branches.is_headquarters, true), ne(branches.id, input.id)));
+							.where(
+								and(
+									eq(branches.is_headquarters, true),
+									ne(branches.id, input.id),
+								),
+							);
 					}
 					const [row] = await tx
 						.update(branches)
@@ -2056,12 +2256,17 @@ export const adminRouter = router({
 				ctx.db
 					.select({ count: count() })
 					.from(staff)
-					.where(and(eq(staff.branch_id, input.id), eq(staff.is_deleted, false))),
+					.where(
+						and(eq(staff.branch_id, input.id), eq(staff.is_deleted, false)),
+					),
 				ctx.db
 					.select({ count: count() })
 					.from(customers)
 					.where(
-						and(eq(customers.branch_id, input.id), eq(customers.is_deleted, false)),
+						and(
+							eq(customers.branch_id, input.id),
+							eq(customers.is_deleted, false),
+						),
 					),
 			]);
 			const employeeCount = employees[0]?.count ?? 0;
@@ -2104,7 +2309,9 @@ export const adminRouter = router({
 					and(
 						eq(staff.is_deleted, false),
 						eq(staff.status, "active"),
-						like ? or(ilike(staff.name, like), ilike(staff.staff_code, like)) : undefined,
+						like
+							? or(ilike(staff.name, like), ilike(staff.staff_code, like))
+							: undefined,
 					),
 				)
 				.orderBy(asc(staff.name))
@@ -2150,81 +2357,92 @@ export const adminRouter = router({
 					to ? lte(column, to) : undefined,
 				);
 
-			const [
-				revenue,
-				spend,
-				receivables,
-				payables,
-				cash,
-				bank,
-				txCount,
-			] = await Promise.all([
-				db
-					.select({ total: sql<string>`COALESCE(SUM(${transactions.amount}), 0)` })
-					.from(transactions)
-					.where(
-						and(
-							eq(transactions.type, "in"),
-							branchId !== null ? eq(transactions.branch_id, branchId) : undefined,
-							inRange(transactions.created_at),
+			const [revenue, spend, receivables, payables, cash, bank, txCount] =
+				await Promise.all([
+					db
+						.select({
+							total: sql<string>`COALESCE(SUM(${transactions.amount}), 0)`,
+						})
+						.from(transactions)
+						.where(
+							and(
+								eq(transactions.type, "in"),
+								branchId !== null
+									? eq(transactions.branch_id, branchId)
+									: undefined,
+								inRange(transactions.created_at),
+							),
 						),
-					),
-				db
-					.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
-					.from(expenses)
-					.where(
-						and(
-							branchId !== null ? eq(expenses.branch_id, branchId) : undefined,
-							inRange(expenses.created_at),
+					db
+						.select({
+							total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
+						})
+						.from(expenses)
+						.where(
+							and(
+								branchId !== null
+									? eq(expenses.branch_id, branchId)
+									: undefined,
+								inRange(expenses.created_at),
+							),
 						),
-					),
-				db
-					.select({ total: sql<string>`COALESCE(SUM(${customers.credit_used}), 0)` })
-					.from(customers)
-					.where(
-						and(
-							eq(customers.is_deleted, false),
-							branchId !== null ? eq(customers.branch_id, branchId) : undefined,
+					db
+						.select({
+							total: sql<string>`COALESCE(SUM(${customers.credit_used}), 0)`,
+						})
+						.from(customers)
+						.where(
+							and(
+								eq(customers.is_deleted, false),
+								branchId !== null
+									? eq(customers.branch_id, branchId)
+									: undefined,
+							),
 						),
-					),
-				db
-					.select({
-						total: sql<string>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
-					})
-					.from(suppliers),
-				db
-					.select({
-						total: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'in' THEN ${transactions.amount} ELSE -${transactions.amount} END), 0)`,
-					})
-					.from(transactions)
-					.where(
-						and(
-							branchId !== null ? eq(transactions.branch_id, branchId) : undefined,
-							inRange(transactions.created_at),
+					db
+						.select({
+							total: sql<string>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
+						})
+						.from(suppliers),
+					db
+						.select({
+							total: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'in' THEN ${transactions.amount} ELSE -${transactions.amount} END), 0)`,
+						})
+						.from(transactions)
+						.where(
+							and(
+								branchId !== null
+									? eq(transactions.branch_id, branchId)
+									: undefined,
+								inRange(transactions.created_at),
+							),
 						),
-					),
-				db
-					.select({
-						total: sql<string>`COALESCE(SUM(${bankAccounts.current_balance}), 0)`,
-					})
-					.from(bankAccounts)
-					.where(
-						and(
-							eq(bankAccounts.is_deleted, false),
-							eq(bankAccounts.status, "active"),
-							branchId !== null ? eq(bankAccounts.branch_id, branchId) : undefined,
+					db
+						.select({
+							total: sql<string>`COALESCE(SUM(${bankAccounts.current_balance}), 0)`,
+						})
+						.from(bankAccounts)
+						.where(
+							and(
+								eq(bankAccounts.is_deleted, false),
+								eq(bankAccounts.status, "active"),
+								branchId !== null
+									? eq(bankAccounts.branch_id, branchId)
+									: undefined,
+							),
 						),
-					),
-				db
-					.select({ count: count() })
-					.from(transactions)
-					.where(
-						and(
-							branchId !== null ? eq(transactions.branch_id, branchId) : undefined,
-							inRange(transactions.created_at),
+					db
+						.select({ count: count() })
+						.from(transactions)
+						.where(
+							and(
+								branchId !== null
+									? eq(transactions.branch_id, branchId)
+									: undefined,
+								inRange(transactions.created_at),
+							),
 						),
-					),
-			]);
+				]);
 
 			const totalRevenue = toNumber(revenue[0]?.total);
 			const totalExpenses = toNumber(spend[0]?.total);
@@ -2237,7 +2455,8 @@ export const adminRouter = router({
 				totalRevenue,
 				totalExpenses,
 				netProfit,
-				profitMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : null,
+				profitMargin:
+					totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : null,
 				totalReceivables: toNumber(receivables[0]?.total),
 				totalPayables: toNumber(payables[0]?.total),
 				cashBalance: toNumber(cash[0]?.total),
@@ -2304,7 +2523,14 @@ export const adminRouter = router({
 					.from(transactions)
 					.leftJoin(branches, eq(transactions.branch_id, branches.id))
 					.where(where)
-					.orderBy(orderBy(TRANSACTION_SORT, input.sortBy, input.sortDir, "created_at"))
+					.orderBy(
+						orderBy(
+							TRANSACTION_SORT,
+							input.sortBy,
+							input.sortDir,
+							"created_at",
+						),
+					)
 					.limit(input.pageSize)
 					.offset((input.page - 1) * input.pageSize),
 				db.select({ count: count() }).from(transactions).where(where),
@@ -2349,7 +2575,9 @@ export const adminRouter = router({
 				.orderBy(asc(transactions.category));
 			return rows
 				.map((r: any) => r.value)
-				.filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
+				.filter(
+					(v: unknown): v is string => typeof v === "string" && v.length > 0,
+				);
 		},
 	),
 
@@ -2379,7 +2607,9 @@ export const adminRouter = router({
 			const to = parse(input.to);
 
 			const where = and(
-				input.entity_type ? eq(auditLogs.entity_type, input.entity_type) : undefined,
+				input.entity_type
+					? eq(auditLogs.entity_type, input.entity_type)
+					: undefined,
 				input.action ? ilike(auditLogs.action, `%${input.action}%`) : undefined,
 				from ? gte(auditLogs.created_at, from) : undefined,
 				to ? lte(auditLogs.created_at, to) : undefined,
@@ -2408,7 +2638,11 @@ export const adminRouter = router({
 					.from(auditLogs)
 					.leftJoin(staff, eq(auditLogs.user_id, staff.id))
 					.where(where)
-					.orderBy(input.sortDir === "asc" ? asc(auditLogs.created_at) : desc(auditLogs.created_at))
+					.orderBy(
+						input.sortDir === "asc"
+							? asc(auditLogs.created_at)
+							: desc(auditLogs.created_at),
+					)
 					.limit(input.pageSize)
 					.offset((input.page - 1) * input.pageSize),
 				db
@@ -2421,7 +2655,10 @@ export const adminRouter = router({
 			return envelope(
 				rows.map((r: any) => {
 					const payloadActor = (r.new_values && r.new_values._actor) || null;
-					const { _actor, ...changes } = (r.new_values ?? {}) as Record<string, unknown>;
+					const { _actor, ...changes } = (r.new_values ?? {}) as Record<
+						string,
+						unknown
+					>;
 					return {
 						id: r.id,
 						action: r.action,
@@ -2449,7 +2686,9 @@ export const adminRouter = router({
 		return {
 			entityTypes: rows
 				.map((r: any) => r.value)
-				.filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+				.filter(
+					(v: unknown): v is string => typeof v === "string" && v.length > 0,
+				),
 		};
 	}),
 
@@ -2506,12 +2745,20 @@ export const adminRouter = router({
 						and(
 							eq(staff.is_deleted, false),
 							scope !== null ? eq(staff.branch_id, scope) : undefined,
-							or(ilike(staff.name, like), ilike(staff.staff_code, like), ilike(staff.email, like)),
+							or(
+								ilike(staff.name, like),
+								ilike(staff.staff_code, like),
+								ilike(staff.email, like),
+							),
 						),
 					)
 					.limit(5),
 				db
-					.select({ id: customers.id, name: customers.name, code: customers.customer_code })
+					.select({
+						id: customers.id,
+						name: customers.name,
+						code: customers.customer_code,
+					})
 					.from(customers)
 					.where(
 						and(
@@ -2527,14 +2774,25 @@ export const adminRouter = router({
 					)
 					.limit(5),
 				db
-					.select({ id: suppliers.id, name: suppliers.name, code: suppliers.supplier_code })
+					.select({
+						id: suppliers.id,
+						name: suppliers.name,
+						code: suppliers.supplier_code,
+					})
 					.from(suppliers)
-					.where(or(ilike(suppliers.name, like), ilike(suppliers.supplier_code, like)))
+					.where(
+						or(
+							ilike(suppliers.name, like),
+							ilike(suppliers.supplier_code, like),
+						),
+					)
 					.limit(5),
 				db
 					.select({ id: companies.id, name: companies.name })
 					.from(companies)
-					.where(or(ilike(companies.name, like), ilike(companies.gst_number, like)))
+					.where(
+						or(ilike(companies.name, like), ilike(companies.gst_number, like)),
+					)
 					.limit(5),
 				db
 					.select({ id: branches.id, name: branches.name, code: branches.code })
@@ -2543,11 +2801,7 @@ export const adminRouter = router({
 					.limit(5),
 			]);
 
-			const map = (
-				rows: any[],
-				type: string,
-				href: (id: number) => string,
-			) =>
+			const map = (rows: any[], type: string, href: (id: number) => string) =>
 				rows.map((r) => ({
 					type,
 					id: r.id,

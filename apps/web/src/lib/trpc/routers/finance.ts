@@ -12,32 +12,46 @@ import { roleProcedure, router } from "../init";
 
 export const financeRouter = router({
 	getInvoices: roleProcedure(["admin", "manager", "auditor", "finance"])
-		.input(z.object({
-			branch_id: z.number().optional(),
-			page: z.number().default(1),
-			limit: z.number().default(10),
-			search: z.string().optional(),
-			status: z.string().optional(),
-			customer_id: z.number().optional(),
-			date_from: z.string().optional(),
-			date_to: z.string().optional(),
-		}).optional())
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					page: z.number().default(1),
+					limit: z.number().default(10),
+					search: z.string().optional(),
+					status: z.string().optional(),
+					customer_id: z.number().optional(),
+					date_from: z.string().optional(),
+					date_to: z.string().optional(),
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
 			const branchId = ctx.user.branchId ?? null;
-			const { page = 1, limit = 10, search, status, customer_id, date_from, date_to } = input || {};
-			
+			const {
+				page = 1,
+				limit = 10,
+				search,
+				status,
+				customer_id,
+				date_from,
+				date_to,
+			} = input || {};
+
 			const conditions = [];
 			if (branchId != null) conditions.push(eq(orders.branch_id, branchId));
 			if (status) conditions.push(eq(orders.status, status));
 			if (customer_id) conditions.push(eq(orders.customer_id, customer_id));
-			if (date_from) conditions.push(gte(orders.created_at, new Date(date_from)));
+			if (date_from)
+				conditions.push(gte(orders.created_at, new Date(date_from)));
 			if (date_to) conditions.push(lte(orders.created_at, new Date(date_to)));
 			if (search) {
-				conditions.push(sql`${orders.id}::text ILIKE ${'%' + search + '%'}`);
+				conditions.push(sql`${orders.id}::text ILIKE ${"%" + search + "%"}`);
 			}
-			
-			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-			
+
+			const whereClause =
+				conditions.length > 0 ? and(...conditions) : undefined;
+
 			const countResult = await ctx.db
 				.select({ count: sql<number>`count(*)` })
 				.from(orders)
@@ -58,7 +72,7 @@ export const financeRouter = router({
 				.orderBy(desc(orders.created_at))
 				.limit(limit)
 				.offset((page - 1) * limit);
-				
+
 			return {
 				items: results.map((r: any) => ({
 					id: r.id.toString(),
@@ -73,34 +87,53 @@ export const financeRouter = router({
 		}),
 
 	getTransactions: roleProcedure(["admin", "manager", "auditor", "finance"])
-		.input(z.object({
-			branch_id: z.number().optional(),
-			page: z.number().default(1),
-			limit: z.number().default(10),
-			search: z.string().optional(),
-			type: z.string().optional(),
-			category: z.string().optional(),
-			status: z.string().optional(),
-			date_from: z.string().optional(),
-			date_to: z.string().optional(),
-		}).optional())
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					page: z.number().default(1),
+					limit: z.number().default(10),
+					search: z.string().optional(),
+					type: z.string().optional(),
+					category: z.string().optional(),
+					status: z.string().optional(),
+					date_from: z.string().optional(),
+					date_to: z.string().optional(),
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
 			const branchId = ctx.user.branchId ?? null;
-			const { page = 1, limit = 10, search, type, category, status, date_from, date_to } = input || {};
-			
+			const {
+				page = 1,
+				limit = 10,
+				search,
+				type,
+				category,
+				status,
+				date_from,
+				date_to,
+			} = input || {};
+
 			const conditions = [];
-			if (branchId != null) conditions.push(eq(transactions.branch_id, branchId));
+			if (branchId != null)
+				conditions.push(eq(transactions.branch_id, branchId));
 			if (type) conditions.push(eq(transactions.type, type));
 			if (category) conditions.push(eq(transactions.category, category));
 			if (status) conditions.push(eq(transactions.status, status));
-			if (date_from) conditions.push(gte(transactions.created_at, new Date(date_from)));
-			if (date_to) conditions.push(lte(transactions.created_at, new Date(date_to)));
+			if (date_from)
+				conditions.push(gte(transactions.created_at, new Date(date_from)));
+			if (date_to)
+				conditions.push(lte(transactions.created_at, new Date(date_to)));
 			if (search) {
-				conditions.push(sql`${transactions.description} ILIKE ${'%' + search + '%'}`);
+				conditions.push(
+					sql`${transactions.description} ILIKE ${"%" + search + "%"}`,
+				);
 			}
-			
-			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-			
+
+			const whereClause =
+				conditions.length > 0 ? and(...conditions) : undefined;
+
 			const countResult = await ctx.db
 				.select({ count: sql<number>`count(*)` })
 				.from(transactions)
@@ -122,7 +155,7 @@ export const financeRouter = router({
 				.orderBy(desc(transactions.created_at))
 				.limit(limit)
 				.offset((page - 1) * limit);
-				
+
 			return {
 				items: results.map((r: any) => ({
 					id: r.id.toString(),
@@ -139,30 +172,45 @@ export const financeRouter = router({
 		}),
 
 	getExpenses: roleProcedure(["admin", "manager", "auditor", "finance"])
-		.input(z.object({
-			branch_id: z.number().optional(),
-			page: z.number().default(1),
-			limit: z.number().default(10),
-			search: z.string().optional(),
-			category: z.string().optional(),
-			date_from: z.string().optional(),
-			date_to: z.string().optional(),
-		}).optional())
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					page: z.number().default(1),
+					limit: z.number().default(10),
+					search: z.string().optional(),
+					category: z.string().optional(),
+					date_from: z.string().optional(),
+					date_to: z.string().optional(),
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
 			const branchId = ctx.user.branchId ?? null;
-			const { page = 1, limit = 10, search, category, date_from, date_to } = input || {};
-			
+			const {
+				page = 1,
+				limit = 10,
+				search,
+				category,
+				date_from,
+				date_to,
+			} = input || {};
+
 			const conditions = [];
 			if (branchId != null) conditions.push(eq(expenses.branch_id, branchId));
 			if (category) conditions.push(eq(expenses.expense_category, category));
-			if (date_from) conditions.push(gte(expenses.created_at, new Date(date_from)));
+			if (date_from)
+				conditions.push(gte(expenses.created_at, new Date(date_from)));
 			if (date_to) conditions.push(lte(expenses.created_at, new Date(date_to)));
 			if (search) {
-				conditions.push(sql`${expenses.description} ILIKE ${'%' + search + '%'}`);
+				conditions.push(
+					sql`${expenses.description} ILIKE ${"%" + search + "%"}`,
+				);
 			}
-			
-			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-			
+
+			const whereClause =
+				conditions.length > 0 ? and(...conditions) : undefined;
+
 			const countResult = await ctx.db
 				.select({ count: sql<number>`count(*)` })
 				.from(expenses)
@@ -182,7 +230,7 @@ export const financeRouter = router({
 				.orderBy(desc(expenses.created_at))
 				.limit(limit)
 				.offset((page - 1) * limit);
-				
+
 			return {
 				items: results.map((r: any) => ({
 					id: r.id.toString(),
@@ -198,12 +246,16 @@ export const financeRouter = router({
 		}),
 
 	getBankAccounts: roleProcedure(["admin", "manager", "auditor", "finance"])
-		.input(z.object({
-			branch_id: z.number().optional(),
-		}).optional())
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
 			const branchId = ctx.user.branchId ?? null;
-			
+
 			const results = await ctx.db
 				.select({
 					id: bankAccounts.id,
@@ -216,12 +268,14 @@ export const financeRouter = router({
 					status: bankAccounts.status,
 				})
 				.from(bankAccounts)
-				.where(and(
-					eq(bankAccounts.is_deleted, false),
-					branchId != null ? eq(bankAccounts.branch_id, branchId) : undefined
-				))
+				.where(
+					and(
+						eq(bankAccounts.is_deleted, false),
+						branchId != null ? eq(bankAccounts.branch_id, branchId) : undefined,
+					),
+				)
 				.orderBy(bankAccounts.account_name);
-				
+
 			return results.map((r: any) => ({
 				id: r.id.toString(),
 				name: r.name,
@@ -235,29 +289,37 @@ export const financeRouter = router({
 		}),
 
 	getFinancialReports: roleProcedure(["admin", "manager", "auditor", "finance"])
-		.input(z.object({
-			branch_id: z.number().optional(),
-			period: z.string().default("month"), // month, quarter, year
-		}).optional())
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					period: z.string().default("month"), // month, quarter, year
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
 			const branchId = ctx.user.branchId ?? null;
-			
+
 			// Revenue
 			const revenueRes = await ctx.db
-				.select({ total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)` })
+				.select({
+					total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
+				})
 				.from(orders)
 				.where(branchId != null ? eq(orders.branch_id, branchId) : undefined);
-				
+
 			// Purchases/COGS
 			const purchasesRes = await ctx.db
-				.select({ total: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)` }) // Simplified mock for purchases
+				.select({
+					total: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
+				}) // Simplified mock for purchases
 				.from(suppliers);
-				
+
 			// Operational Expenses
 			const expensesRes = await ctx.db
-				.select({ 
+				.select({
 					total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
-					category: expenses.expense_category 
+					category: expenses.expense_category,
 				})
 				.from(expenses)
 				.where(branchId != null ? eq(expenses.branch_id, branchId) : undefined)
@@ -265,26 +327,37 @@ export const financeRouter = router({
 
 			const totalRevenue = Number(revenueRes[0]?.total || 0);
 			const totalPurchases = Number(purchasesRes[0]?.total || 0);
-			const totalExpenses = expensesRes.reduce((acc: number, exp: any) => acc + Number(exp.total), 0);
-			
+			const totalExpenses = expensesRes.reduce(
+				(acc: number, exp: any) => acc + Number(exp.total),
+				0,
+			);
+
 			const grossProfit = totalRevenue - totalPurchases;
 			const netProfit = grossProfit - totalExpenses;
-			
+
 			const cashInRes = await ctx.db
-				.select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` })
+				.select({
+					total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+				})
 				.from(transactions)
-				.where(and(
-					sql`${transactions.type} IN ('in', 'credit')`,
-					branchId != null ? eq(transactions.branch_id, branchId) : undefined
-				));
-				
+				.where(
+					and(
+						sql`${transactions.type} IN ('in', 'credit')`,
+						branchId != null ? eq(transactions.branch_id, branchId) : undefined,
+					),
+				);
+
 			const cashOutRes = await ctx.db
-				.select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` })
+				.select({
+					total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+				})
 				.from(transactions)
-				.where(and(
-					sql`${transactions.type} IN ('out', 'debit')`,
-					branchId != null ? eq(transactions.branch_id, branchId) : undefined
-				));
+				.where(
+					and(
+						sql`${transactions.type} IN ('out', 'debit')`,
+						branchId != null ? eq(transactions.branch_id, branchId) : undefined,
+					),
+				);
 
 			return {
 				profitAndLoss: {
@@ -296,13 +369,15 @@ export const financeRouter = router({
 				},
 				expenseBreakdown: expensesRes.map((e: any) => ({
 					category: e.category || "Other",
-					amount: Number(e.total)
+					amount: Number(e.total),
 				})),
 				cashFlow: {
 					inflows: Number(cashInRes[0]?.total || 0),
 					outflows: Number(cashOutRes[0]?.total || 0),
-					net: Number(cashInRes[0]?.total || 0) - Number(cashOutRes[0]?.total || 0)
-				}
+					net:
+						Number(cashInRes[0]?.total || 0) -
+						Number(cashOutRes[0]?.total || 0),
+				},
 			};
 		}),
 
@@ -448,17 +523,17 @@ export const financeRouter = router({
 					.select({
 						count: sql<number>`COUNT(*)`,
 						amount: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
-						overdueAmount: sql<number>`COALESCE(SUM(CASE WHEN ${orders.created_at} < NOW() - INTERVAL '30 days' THEN ${orders.total_amount} ELSE 0 END), 0)`
+						overdueAmount: sql<number>`COALESCE(SUM(CASE WHEN ${orders.created_at} < NOW() - INTERVAL '30 days' THEN ${orders.total_amount} ELSE 0 END), 0)`,
 					})
 					.from(orders)
-					.where(and(eq(orders.status, 'pending'), orderBranch)),
+					.where(and(eq(orders.status, "pending"), orderBranch)),
 				// Unpaid / Overdue Purchases
 				ctx.db
 					.select({
 						count: sql<number>`COUNT(*)`,
 						amount: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`, // Simplified
 					})
-					.from(suppliers)
+					.from(suppliers),
 			]);
 
 			const todaysCash = Number(todaysCashRes[0]?.total || 0);
@@ -470,11 +545,10 @@ export const financeRouter = router({
 			const totalReceivables = Number(receivablesRes[0]?.total || 0);
 			const totalPayables = Number(payablesRes[0]?.total || 0);
 			const cashFlow = todaysCash - totalExpenses;
-			
+
 			const unpaidInvoicesCount = Number(unpaidOrdersRes[0]?.count || 0);
 			const overdueReceivables = Number(unpaidOrdersRes[0]?.overdueAmount || 0);
 			const overduePayables = totalPayables * 0.2; // Mocked portion since due date not explicit in schema
-
 
 			const recentTransactions = recentTx.map((tx: any) => ({
 				id: `TX-${tx.id}`,

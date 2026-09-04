@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { createTestDb, makeUser, SCHEMA_DDL, buildDDL } from "./helpers";
 import * as schema from "@/lib/db/schema";
+import { buildDDL, createTestDb, makeUser, SCHEMA_DDL } from "./helpers";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));

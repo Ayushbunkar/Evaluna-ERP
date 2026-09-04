@@ -1,10 +1,6 @@
 "use client";
 
-import { PageTransition } from "@/lib/animations";
-import { ROLES, ROLE_LEVEL, getPermissionsForRole } from "@/lib/permissions";
-import {
-	AdminPageHeader,
-} from "@/components/admin/list-shell";
+import { Badge } from "@evaluna/ui/components/badge";
 import {
 	Table,
 	TableBody,
@@ -13,7 +9,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { Badge } from "@evaluna/ui/components/badge";
+import { AdminPageHeader } from "@/components/admin/list-shell";
+import { PageTransition } from "@/lib/animations";
+import { getPermissionsForRole, ROLE_LEVEL, ROLES } from "@/lib/permissions";
 
 const ROLE_DESCRIPTIONS: Record<string, string> = {
 	super_admin: "Unrestricted access to all modules and data.",
@@ -38,9 +36,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 
 export default function AdminSettingsRolesPage() {
 	// Roles ordered from most powerful to least
-	const sortedRoles = [...ROLES].sort(
-		(a, b) => ROLE_LEVEL[a] - ROLE_LEVEL[b],
-	);
+	const sortedRoles = [...ROLES].sort((a, b) => ROLE_LEVEL[a] - ROLE_LEVEL[b]);
 
 	return (
 		<PageTransition className="flex min-w-0 flex-col gap-5">
@@ -65,7 +61,7 @@ export default function AdminSettingsRolesPage() {
 							return (
 								<TableRow key={role} className="hover:bg-muted/30">
 									<TableCell>
-										<span className="font-mono text-sm font-medium capitalize">
+										<span className="font-medium font-mono text-sm capitalize">
 											{role.replace(/_/g, " ")}
 										</span>
 									</TableCell>
@@ -77,7 +73,7 @@ export default function AdminSettingsRolesPage() {
 									<TableCell className="text-muted-foreground text-sm">
 										{ROLE_DESCRIPTIONS[role] ?? "—"}
 									</TableCell>
-									<TableCell className="tabular-nums text-sm">
+									<TableCell className="text-sm tabular-nums">
 										{perms.length}
 									</TableCell>
 								</TableRow>
@@ -88,8 +84,10 @@ export default function AdminSettingsRolesPage() {
 			</div>
 
 			<p className="text-muted-foreground text-xs">
-				Roles are defined in <code className="font-mono">@/lib/permissions.ts</code>.
-				To change permissions, update the <code className="font-mono">PERMISSION_MATRIX</code> there.
+				Roles are defined in{" "}
+				<code className="font-mono">@/lib/permissions.ts</code>. To change
+				permissions, update the{" "}
+				<code className="font-mono">PERMISSION_MATRIX</code> there.
 			</p>
 		</PageTransition>
 	);

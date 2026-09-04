@@ -47,7 +47,7 @@ export const notificationsRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const conditions: ReturnType<typeof eq | any>[] = [];
-			
+
 			const staffId = await resolveStaffId(db, ctx.user.email);
 			if (staffId) {
 				conditions.push(eq(notifications.user_id, staffId));
@@ -76,7 +76,7 @@ export const notificationsRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx, input }) => {
 			const conditions: any[] = [eq(notifications.is_read, false)];
-			
+
 			const staffId = await resolveStaffId(db, ctx.user.email);
 			if (staffId) {
 				conditions.push(eq(notifications.user_id, staffId));
@@ -86,7 +86,7 @@ export const notificationsRouter = router({
 
 			if (input.branch_id)
 				conditions.push(eq(notifications.branch_id, input.branch_id));
-			
+
 			const [result] = await db
 				.select({ count: count() })
 				.from(notifications)
@@ -99,7 +99,7 @@ export const notificationsRouter = router({
 		.input(z.object({ id: z.number() }))
 		.mutation(async ({ ctx, input }) => {
 			const staffId = await resolveStaffId(db, ctx.user.email);
-			
+
 			const conditions: any[] = [eq(notifications.id, input.id)];
 			if (staffId) {
 				conditions.push(eq(notifications.user_id, staffId));
@@ -118,7 +118,7 @@ export const notificationsRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.mutation(async ({ ctx, input }) => {
 			const conditions: any[] = [eq(notifications.is_read, false)];
-			
+
 			const staffId = await resolveStaffId(db, ctx.user.email);
 			if (staffId) {
 				conditions.push(eq(notifications.user_id, staffId));

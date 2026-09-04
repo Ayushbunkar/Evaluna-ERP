@@ -1,5 +1,13 @@
+import {
+	Building2,
+	Circle,
+	Hexagon,
+	LayoutDashboard,
+	Settings,
+	User,
+	Users,
+} from "lucide-react";
 import Link from "next/link";
-import { LayoutDashboard, Users, Building2, Settings, User, Hexagon, Circle } from "lucide-react";
 
 export default function SuperAdminLayout({
 	children,

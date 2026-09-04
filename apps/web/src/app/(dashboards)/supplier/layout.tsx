@@ -1,5 +1,12 @@
-﻿import Link from "next/link";
-import { LayoutDashboard, Package, ShoppingCart, User, Hexagon, Circle } from "lucide-react";
+﻿import {
+	Circle,
+	Hexagon,
+	LayoutDashboard,
+	Package,
+	ShoppingCart,
+	User,
+} from "lucide-react";
+import Link from "next/link";
 
 export default function SupplierLayout({
 	children,

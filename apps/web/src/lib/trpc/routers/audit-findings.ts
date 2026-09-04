@@ -397,16 +397,22 @@ export const auditFindingsRouter = router({
 
 				// High-severity / Critical findings requiring secondary verification
 				if (finding.severity === "HIGH" || finding.severity === "CRITICAL") {
-					if (staffId && finding.resolved_by && staffId === finding.resolved_by) {
+					if (
+						staffId &&
+						finding.resolved_by &&
+						staffId === finding.resolved_by
+					) {
 						throw new TRPCError({
 							code: "FORBIDDEN",
-							message: "Secondary verification required: A high-severity finding must be verified by a different auditor than the one who resolved it.",
+							message:
+								"Secondary verification required: A high-severity finding must be verified by a different auditor than the one who resolved it.",
 						});
 					}
 					if (staffId && finding.raised_by && staffId === finding.raised_by) {
 						throw new TRPCError({
 							code: "FORBIDDEN",
-							message: "Secondary verification required: A high-severity finding must be verified by a different auditor than the one who raised it.",
+							message:
+								"Secondary verification required: A high-severity finding must be verified by a different auditor than the one who raised it.",
 						});
 					}
 				}

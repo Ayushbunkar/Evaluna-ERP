@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -8,7 +8,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
 import {
 	Table,
 	TableBody,
@@ -18,16 +17,17 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	DownloadIcon,
+	CameraIcon,
 	CheckCircle2Icon,
+	DownloadIcon,
 	Loader2Icon,
 	SearchIcon,
-	CameraIcon,
 	TruckIcon,
 } from "lucide-react";
+import { useState } from "react";
+import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
 
 export default function ReceivingPage() {
 	const trpc = useTRPC();
@@ -44,7 +44,7 @@ export default function ReceivingPage() {
 		(r) =>
 			r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			r.supplier.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			r.po_ref.toLowerCase().includes(searchQuery.toLowerCase())
+			r.po_ref.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
 	return (
@@ -52,12 +52,13 @@ export default function ReceivingPage() {
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 						<DownloadIcon className="h-7 w-7 text-blue-600" />
 						Goods Receiving & Dock Verification
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						Incoming Goods Received Notes (GRN), purchase shipments, and unloading verification.
+						Incoming Goods Received Notes (GRN), purchase shipments, and
+						unloading verification.
 					</p>
 				</div>
 
@@ -77,8 +78,12 @@ export default function ReceivingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Total GRN Receipts</p>
-									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{receivingList?.length ?? 0}</p>
+									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
+										Total GRN Receipts
+									</p>
+									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+										{receivingList?.length ?? 0}
+									</p>
 								</div>
 								<TruckIcon className="h-8 w-8 text-blue-500" />
 							</div>
@@ -91,8 +96,12 @@ export default function ReceivingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-green-700 dark:text-green-400">Dock Accuracy</p>
-									<p className="text-3xl font-bold text-green-800 dark:text-green-300">100%</p>
+									<p className="font-medium text-green-700 text-sm dark:text-green-400">
+										Dock Accuracy
+									</p>
+									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
+										100%
+									</p>
 								</div>
 								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
 							</div>
@@ -105,8 +114,12 @@ export default function ReceivingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-purple-700 dark:text-purple-400">Unloading Bay</p>
-									<p className="text-xl font-bold text-purple-800 dark:text-purple-300">Ready</p>
+									<p className="font-medium text-purple-700 text-sm dark:text-purple-400">
+										Unloading Bay
+									</p>
+									<p className="font-bold text-purple-800 text-xl dark:text-purple-300">
+										Ready
+									</p>
 								</div>
 								<DownloadIcon className="h-8 w-8 text-purple-500" />
 							</div>
@@ -117,21 +130,23 @@ export default function ReceivingPage() {
 
 			{/* Main Data Table */}
 			<Card className="border-border/50 shadow-sm">
-				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<DownloadIcon className="h-5 w-5 text-blue-600" />
 							Incoming Goods Shipments
 						</CardTitle>
-						<CardDescription>GRN receipts awaiting put-away assignment</CardDescription>
+						<CardDescription>
+							GRN receipts awaiting put-away assignment
+						</CardDescription>
 					</div>
 
 					<div className="relative w-full sm:w-64">
-						<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 						<input
 							type="text"
 							placeholder="Search GRN, supplier, PO..."
-							className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm shadow-sm"
+							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -140,7 +155,8 @@ export default function ReceivingPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading receipts...
+							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
+							Loading receipts...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -148,7 +164,7 @@ export default function ReceivingPage() {
 						</div>
 					) : !filteredList || filteredList.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<CheckCircle2Icon className="h-10 w-10 opacity-30 text-green-500" />
+							<CheckCircle2Icon className="h-10 w-10 text-green-500 opacity-30" />
 							<p>No incoming goods receiving records found.</p>
 						</div>
 					) : (
@@ -168,21 +184,29 @@ export default function ReceivingPage() {
 								<TableBody>
 									{filteredList.map((item) => (
 										<TableRow key={item.id} className="hover:bg-muted/50">
-											<TableCell className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+											<TableCell className="font-bold font-mono text-blue-600 text-xs dark:text-blue-400">
 												{item.id}
 											</TableCell>
-											<TableCell className="font-semibold text-sm">{item.supplier}</TableCell>
-											<TableCell className="text-sm">{item.products} products</TableCell>
-											<TableCell className="font-bold text-sm text-blue-600 dark:text-blue-400">
+											<TableCell className="font-semibold text-sm">
+												{item.supplier}
+											</TableCell>
+											<TableCell className="text-sm">
+												{item.products} products
+											</TableCell>
+											<TableCell className="font-bold text-blue-600 text-sm dark:text-blue-400">
 												{item.qty} units
 											</TableCell>
-											<TableCell className="font-mono text-xs text-muted-foreground">{item.po_ref}</TableCell>
+											<TableCell className="font-mono text-muted-foreground text-xs">
+												{item.po_ref}
+											</TableCell>
 											<TableCell>
-												<span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
+												<span className="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs capitalize dark:bg-blue-900/30 dark:text-blue-400">
 													{item.status}
 												</span>
 											</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{item.date || "Today"}</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{item.date || "Today"}
+											</TableCell>
 										</TableRow>
 									))}
 								</TableBody>

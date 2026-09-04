@@ -22,10 +22,10 @@ import {
 	CalendarCheckIcon,
 	CheckSquareIcon,
 	ClockIcon,
+	Loader2Icon,
 	PackageIcon,
 	PlaySquareIcon,
 	TrendingUpIcon,
-	Loader2Icon,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -39,7 +39,11 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerDashboard() {
 	const trpc = useTRPC();
-	const { data: stats, isLoading, error } = trpc.picker.getDashboardStats.useQuery({});
+	const {
+		data: stats,
+		isLoading,
+		error,
+	} = trpc.picker.getDashboardStats.useQuery({});
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
@@ -54,7 +58,10 @@ export default function PickerDashboard() {
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
-					<Button className="text-xs shadow-sm sm:text-sm bg-blue-600 hover:bg-blue-700 text-white" asChild>
+					<Button
+						className="bg-blue-600 text-white text-xs shadow-sm hover:bg-blue-700 sm:text-sm"
+						asChild
+					>
 						<Link href="/picker/active">
 							<PlaySquareIcon className="mr-2 h-4 w-4" /> Start Picking
 						</Link>
@@ -81,7 +88,7 @@ export default function PickerDashboard() {
 									<h3 className="font-semibold text-base sm:text-lg">
 										Pending Picks
 									</h3>
-									<p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+									<p className="font-bold text-2xl text-blue-600 dark:text-blue-400">
 										{stats?.pending || 0}
 									</p>
 								</div>
@@ -104,7 +111,7 @@ export default function PickerDashboard() {
 									<h3 className="font-semibold text-base sm:text-lg">
 										Assigned Today
 									</h3>
-									<p className="text-2xl font-bold text-green-600 dark:text-green-400">
+									<p className="font-bold text-2xl text-green-600 dark:text-green-400">
 										{stats?.assignedToday || 0}
 									</p>
 								</div>
@@ -127,7 +134,7 @@ export default function PickerDashboard() {
 									<h3 className="font-semibold text-base sm:text-lg">
 										Completed Today
 									</h3>
-									<p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+									<p className="font-bold text-2xl text-purple-600 dark:text-purple-400">
 										{stats?.completed || 0}
 									</p>
 								</div>
@@ -150,7 +157,7 @@ export default function PickerDashboard() {
 									<h3 className="font-semibold text-base sm:text-lg">
 										Total Items Picked
 									</h3>
-									<p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+									<p className="font-bold text-2xl text-yellow-600 dark:text-yellow-400">
 										{stats?.totalItemsPicked || 0}
 									</p>
 								</div>
@@ -169,7 +176,7 @@ export default function PickerDashboard() {
 				<Card className="border-border/50 bg-card/50 shadow-sm">
 					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
 						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg flex items-center gap-2">
+							<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
 								<PackageIcon className="h-5 w-5 text-blue-600" />
 								Recent Picking Tasks
 							</CardTitle>
@@ -186,7 +193,8 @@ export default function PickerDashboard() {
 					<CardContent className="pt-1 sm:pt-2">
 						{isLoading ? (
 							<div className="flex h-32 items-center justify-center gap-2 text-muted-foreground text-xs">
-								<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" /> Loading task queue...
+								<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
+								Loading task queue...
 							</div>
 						) : error ? (
 							<div className="flex h-32 items-center justify-center text-destructive text-xs">
@@ -194,7 +202,7 @@ export default function PickerDashboard() {
 							</div>
 						) : !stats?.recentTasks || stats.recentTasks.length === 0 ? (
 							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
-								<PackageIcon className="h-8 w-8 opacity-30 text-blue-500" />
+								<PackageIcon className="h-8 w-8 text-blue-500 opacity-30" />
 								<span>No recent picking tasks logged yet</span>
 							</div>
 						) : (
@@ -213,16 +221,26 @@ export default function PickerDashboard() {
 									<TableBody>
 										{stats.recentTasks.map((t) => (
 											<TableRow key={t.id} className="hover:bg-muted/50">
-												<TableCell className="font-mono text-xs font-semibold">{t.id}</TableCell>
-												<TableCell className="font-semibold text-sm">{t.order}</TableCell>
-												<TableCell className="text-sm font-medium">{t.items} items</TableCell>
-												<TableCell className="text-xs text-muted-foreground">{t.area}</TableCell>
+												<TableCell className="font-mono font-semibold text-xs">
+													{t.id}
+												</TableCell>
+												<TableCell className="font-semibold text-sm">
+													{t.order}
+												</TableCell>
+												<TableCell className="font-medium text-sm">
+													{t.items} items
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{t.area}
+												</TableCell>
 												<TableCell>
-													<span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
+													<span className="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs capitalize dark:bg-blue-900/30 dark:text-blue-400">
 														{t.status}
 													</span>
 												</TableCell>
-												<TableCell className="text-xs text-muted-foreground">{t.time || "Recently"}</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{t.time || "Recently"}
+												</TableCell>
 											</TableRow>
 										))}
 									</TableBody>

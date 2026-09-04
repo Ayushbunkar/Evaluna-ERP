@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -8,7 +8,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@evaluna/ui/components/dialog";
 import {
 	Table,
 	TableBody,
@@ -18,40 +26,46 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-	DialogFooter,
-} from "@evaluna/ui/components/dialog";
-import {
 	ActivityIcon,
+	AlertTriangleIcon,
+	BarcodeIcon,
 	CheckCircle2Icon,
 	ClockIcon,
-	XCircleIcon,
-	PackageCheckIcon,
+	EyeIcon,
 	Loader2Icon,
+	PackageCheckIcon,
 	PlusIcon,
 	SearchIcon,
-	AlertTriangleIcon,
-	EyeIcon,
-	BarcodeIcon,
+	XCircleIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-	PENDING: { label: "Pending Audit", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
-	VERIFIED: { label: "Passed & Verified", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
-	DISCREPANCY: { label: "Defect Discrepancy", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
+	PENDING: {
+		label: "Pending Audit",
+		color:
+			"bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+	},
+	VERIFIED: {
+		label: "Passed & Verified",
+		color:
+			"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+	},
+	DISCREPANCY: {
+		label: "Defect Discrepancy",
+		color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+	},
 };
 
 const conditionConfig: Record<string, { label: string; color: string }> = {
 	good: { label: "Good Condition", color: "bg-green-100 text-green-700" },
 	damaged: { label: "Damaged Goods", color: "bg-red-100 text-red-700" },
-	mismatch: { label: "Quantity Mismatch", color: "bg-orange-100 text-orange-700" },
+	mismatch: {
+		label: "Quantity Mismatch",
+		color: "bg-orange-100 text-orange-700",
+	},
 };
 
 export default function AuditorReceivingPage() {
@@ -79,11 +93,17 @@ export default function AuditorReceivingPage() {
 
 	// State
 	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+	const [selectedProductId, setSelectedProductId] = useState<number | null>(
+		null,
+	);
 	const [expectedQty, setExpectedQty] = useState<number>(10);
 	const [receivedQty, setReceivedQty] = useState<number>(10);
-	const [condition, setCondition] = useState<"good" | "damaged" | "mismatch">("good");
-	const [upcStatus, setUpcStatus] = useState<"present" | "missing" | "invalid">("present");
+	const [condition, setCondition] = useState<"good" | "damaged" | "mismatch">(
+		"good",
+	);
+	const [upcStatus, setUpcStatus] = useState<"present" | "missing" | "invalid">(
+		"present",
+	);
 	const [notes, setNotes] = useState("");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("ALL");
@@ -113,28 +133,33 @@ export default function AuditorReceivingPage() {
 	});
 
 	const totalCount = inspections?.length ?? 0;
-	const passedCount = inspections?.filter((i) => i.status === "VERIFIED").length ?? 0;
-	const damagedCount = inspections?.filter((i) => i.condition === "damaged").length ?? 0;
-	const discrepancyCount = inspections?.filter((i) => i.status === "DISCREPANCY").length ?? 0;
+	const passedCount =
+		inspections?.filter((i) => i.status === "VERIFIED").length ?? 0;
+	const damagedCount =
+		inspections?.filter((i) => i.condition === "damaged").length ?? 0;
+	const discrepancyCount =
+		inspections?.filter((i) => i.status === "DISCREPANCY").length ?? 0;
 
 	return (
 		<PageTransition className="container mx-auto space-y-6">
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 						<ActivityIcon className="h-7 w-7 text-blue-600" />
 						Incoming Goods Receiving Inspection
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						Quality assurance, goods receipt note (GRN) audit, material condition & barcode verification.
+						Quality assurance, goods receipt note (GRN) audit, material
+						condition & barcode verification.
 					</p>
 				</div>
 
 				<Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
 					<DialogTrigger asChild>
-						<Button className="shadow-md bg-blue-600 hover:bg-blue-700">
-							<PlusIcon className="mr-2 h-4 w-4" /> Log Goods Receiving Inspection
+						<Button className="bg-blue-600 shadow-md hover:bg-blue-700">
+							<PlusIcon className="mr-2 h-4 w-4" /> Log Goods Receiving
+							Inspection
 						</Button>
 					</DialogTrigger>
 					<DialogContent className="sm:max-w-[500px]">
@@ -144,21 +169,24 @@ export default function AuditorReceivingPage() {
 								Log Incoming Goods GRN Audit
 							</DialogTitle>
 							<DialogDescription>
-								Inspect incoming shipments. Discrepancies and damaged goods auto-escalate to an Audit Finding.
+								Inspect incoming shipments. Discrepancies and damaged goods
+								auto-escalate to an Audit Finding.
 							</DialogDescription>
 						</DialogHeader>
 
 						<form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
 							{/* Product Selector */}
 							<div className="space-y-1">
-								<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Received Inventory Item *
 								</label>
 								<select
 									required
 									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 									value={selectedProductId ?? ""}
-									onChange={(e) => setSelectedProductId(Number(e.target.value) || null)}
+									onChange={(e) =>
+										setSelectedProductId(Number(e.target.value) || null)
+									}
 								>
 									<option value="">-- Select Incoming Product --</option>
 									{productsList?.map((p) => (
@@ -172,7 +200,7 @@ export default function AuditorReceivingPage() {
 							{/* Quantities */}
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1">
-									<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 										Expected Qty (GRN/PO)
 									</label>
 									<input
@@ -186,7 +214,7 @@ export default function AuditorReceivingPage() {
 								</div>
 
 								<div className="space-y-1">
-									<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 										Actual Physical Received Qty
 									</label>
 									<input
@@ -203,7 +231,7 @@ export default function AuditorReceivingPage() {
 							{/* Condition & UPC Status */}
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1">
-									<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 										Material Condition
 									</label>
 									<select
@@ -218,7 +246,7 @@ export default function AuditorReceivingPage() {
 								</div>
 
 								<div className="space-y-1">
-									<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 										Barcode Tag Status
 									</label>
 									<select
@@ -228,14 +256,16 @@ export default function AuditorReceivingPage() {
 									>
 										<option value="present">🏷️ Present & Valid</option>
 										<option value="missing">❓ Missing Tag</option>
-										<option value="invalid">❌ Invalid / Unreadable Code</option>
+										<option value="invalid">
+											❌ Invalid / Unreadable Code
+										</option>
 									</select>
 								</div>
 							</div>
 
 							{/* Notes */}
 							<div className="space-y-1">
-								<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Inspector Notes & Batch / Box Tag
 								</label>
 								<textarea
@@ -248,15 +278,21 @@ export default function AuditorReceivingPage() {
 							</div>
 
 							<DialogFooter className="pt-2">
-								<Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => setIsModalOpen(false)}
+								>
 									Cancel
 								</Button>
 								<Button
 									type="submit"
 									disabled={!selectedProductId || createMutation.isPending}
-									className="bg-blue-600 hover:bg-blue-700 text-white"
+									className="bg-blue-600 text-white hover:bg-blue-700"
 								>
-									{createMutation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+									{createMutation.isPending && (
+										<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+									)}
 									Save Inspection Audit
 								</Button>
 							</DialogFooter>
@@ -272,8 +308,12 @@ export default function AuditorReceivingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Total Inspections</p>
-									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{totalCount}</p>
+									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
+										Total Inspections
+									</p>
+									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+										{totalCount}
+									</p>
 								</div>
 								<PackageCheckIcon className="h-8 w-8 text-blue-500" />
 							</div>
@@ -286,8 +326,12 @@ export default function AuditorReceivingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-green-700 dark:text-green-400">Passed & Verified</p>
-									<p className="text-3xl font-bold text-green-800 dark:text-green-300">{passedCount}</p>
+									<p className="font-medium text-green-700 text-sm dark:text-green-400">
+										Passed & Verified
+									</p>
+									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
+										{passedCount}
+									</p>
 								</div>
 								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
 							</div>
@@ -300,8 +344,12 @@ export default function AuditorReceivingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-red-700 dark:text-red-400">Damaged Defective</p>
-									<p className="text-3xl font-bold text-red-800 dark:text-red-300">{damagedCount}</p>
+									<p className="font-medium text-red-700 text-sm dark:text-red-400">
+										Damaged Defective
+									</p>
+									<p className="font-bold text-3xl text-red-800 dark:text-red-300">
+										{damagedCount}
+									</p>
 								</div>
 								<XCircleIcon className="h-8 w-8 text-red-500" />
 							</div>
@@ -314,8 +362,12 @@ export default function AuditorReceivingPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-orange-700 dark:text-orange-400">Discrepancies</p>
-									<p className="text-3xl font-bold text-orange-800 dark:text-orange-300">{discrepancyCount}</p>
+									<p className="font-medium text-orange-700 text-sm dark:text-orange-400">
+										Discrepancies
+									</p>
+									<p className="font-bold text-3xl text-orange-800 dark:text-orange-300">
+										{discrepancyCount}
+									</p>
 								</div>
 								<AlertTriangleIcon className="h-8 w-8 text-orange-500" />
 							</div>
@@ -326,23 +378,25 @@ export default function AuditorReceivingPage() {
 
 			{/* Data Table Card */}
 			<Card className="border-border/50 shadow-sm">
-				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<ActivityIcon className="h-5 w-5 text-blue-600" />
 							Receiving Inspection Records
 						</CardTitle>
-						<CardDescription>Full audit log of incoming shipments and material GRN reviews</CardDescription>
+						<CardDescription>
+							Full audit log of incoming shipments and material GRN reviews
+						</CardDescription>
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
 						{/* Search Input */}
 						<div className="relative w-full sm:w-56">
-							<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+							<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 							<input
 								type="text"
 								placeholder="Search product, SKU..."
-								className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+								className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 							/>
@@ -364,7 +418,8 @@ export default function AuditorReceivingPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin" /> Loading receiving inspections...
+							<Loader2Icon className="h-5 w-5 animate-spin" /> Loading receiving
+							inspections...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -372,9 +427,13 @@ export default function AuditorReceivingPage() {
 						</div>
 					) : !filteredInspections || filteredInspections.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<PackageCheckIcon className="h-10 w-10 opacity-30 text-blue-500" />
-							<p className="text-sm font-medium">No receiving inspections match your filter rules</p>
-							<p className="text-xs text-gray-400">Click "Log Goods Receiving Inspection" above to add one.</p>
+							<PackageCheckIcon className="h-10 w-10 text-blue-500 opacity-30" />
+							<p className="font-medium text-sm">
+								No receiving inspections match your filter rules
+							</p>
+							<p className="text-gray-400 text-xs">
+								Click "Log Goods Receiving Inspection" above to add one.
+							</p>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
@@ -393,29 +452,49 @@ export default function AuditorReceivingPage() {
 								</TableHeader>
 								<TableBody>
 									{filteredInspections.map((i) => {
-										const statObj = statusConfig[i.status ?? "PENDING"] ?? statusConfig.VERIFIED;
-										const condObj = conditionConfig[i.condition ?? "good"] ?? conditionConfig.good;
+										const statObj =
+											statusConfig[i.status ?? "PENDING"] ??
+											statusConfig.VERIFIED;
+										const condObj =
+											conditionConfig[i.condition ?? "good"] ??
+											conditionConfig.good;
 
 										return (
 											<TableRow key={i.id} className="hover:bg-muted/50">
-												<TableCell className="font-mono text-xs font-semibold">#{i.id}</TableCell>
-												<TableCell className="font-semibold text-sm">{i.product_name}</TableCell>
-												<TableCell className="font-mono text-xs text-muted-foreground">{i.product_sku}</TableCell>
-												<TableCell className="text-sm font-medium">
-													<span className={i.expected_qty !== i.received_qty ? "text-red-600 font-bold" : ""}>
+												<TableCell className="font-mono font-semibold text-xs">
+													#{i.id}
+												</TableCell>
+												<TableCell className="font-semibold text-sm">
+													{i.product_name}
+												</TableCell>
+												<TableCell className="font-mono text-muted-foreground text-xs">
+													{i.product_sku}
+												</TableCell>
+												<TableCell className="font-medium text-sm">
+													<span
+														className={
+															i.expected_qty !== i.received_qty
+																? "font-bold text-red-600"
+																: ""
+														}
+													>
 														{i.expected_qty ?? "—"} / {i.received_qty ?? "—"}
 													</span>
 												</TableCell>
 												<TableCell>
-													<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${condObj.color}`}>
+													<span
+														className={`rounded-full px-2 py-0.5 font-medium text-xs ${condObj.color}`}
+													>
 														{condObj.label}
 													</span>
 												</TableCell>
-												<TableCell className="text-xs capitalize text-muted-foreground">
+												<TableCell className="text-muted-foreground text-xs capitalize">
 													{i.upc_status ?? "present"}
 												</TableCell>
 												<TableCell>
-													<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statObj.color}`}>
+													<span
+														className={`rounded-full px-2 py-0.5 font-medium text-xs ${statObj.color}`}
+													>
 														{statObj.label}
 													</span>
 												</TableCell>
@@ -441,21 +520,28 @@ export default function AuditorReceivingPage() {
 
 			{/* Inspect Modal */}
 			{inspectItem && (
-				<Dialog open={!!inspectItem} onOpenChange={(open) => !open && setInspectItem(null)}>
+				<Dialog
+					open={!!inspectItem}
+					onOpenChange={(open) => !open && setInspectItem(null)}
+				>
 					<DialogContent className="sm:max-w-[450px]">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								<PackageCheckIcon className="h-5 w-5 text-blue-600" />
 								Receiving GRN Audit #{inspectItem.id}
 							</DialogTitle>
-							<DialogDescription>Incoming goods inspection details</DialogDescription>
+							<DialogDescription>
+								Incoming goods inspection details
+							</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-3 py-2 text-sm">
-							<div className="bg-muted/40 p-3 rounded-lg space-y-1.5 text-xs">
+							<div className="space-y-1.5 rounded-lg bg-muted/40 p-3 text-xs">
 								<div>
 									<span className="text-muted-foreground">Product:</span>{" "}
-									<strong className="text-sm text-foreground">{inspectItem.product_name}</strong>
+									<strong className="text-foreground text-sm">
+										{inspectItem.product_name}
+									</strong>
 								</div>
 								<div>
 									<span className="text-muted-foreground">SKU:</span>{" "}
@@ -463,32 +549,50 @@ export default function AuditorReceivingPage() {
 								</div>
 								<div>
 									<span className="text-muted-foreground">Quantities:</span>{" "}
-									<strong>Expected: {inspectItem.expected_qty} | Received: {inspectItem.received_qty}</strong>
+									<strong>
+										Expected: {inspectItem.expected_qty} | Received:{" "}
+										{inspectItem.received_qty}
+									</strong>
 								</div>
 								<div>
-									<span className="text-muted-foreground">Material Condition:</span>{" "}
-									<strong className="capitalize">{inspectItem.condition}</strong>
+									<span className="text-muted-foreground">
+										Material Condition:
+									</span>{" "}
+									<strong className="capitalize">
+										{inspectItem.condition}
+									</strong>
 								</div>
 								<div>
-									<span className="text-muted-foreground">Barcode Tag Status:</span>{" "}
-									<strong className="capitalize">{inspectItem.upc_status}</strong>
+									<span className="text-muted-foreground">
+										Barcode Tag Status:
+									</span>{" "}
+									<strong className="capitalize">
+										{inspectItem.upc_status}
+									</strong>
 								</div>
 								<div>
 									<span className="text-muted-foreground">Audit Status:</span>{" "}
-									<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${(statusConfig[inspectItem.status]?.color || "")}`}>
-										{statusConfig[inspectItem.status]?.label || inspectItem.status}
+									<span
+										className={`rounded-full px-2 py-0.5 font-medium text-xs ${statusConfig[inspectItem.status]?.color || ""}`}
+									>
+										{statusConfig[inspectItem.status]?.label ||
+											inspectItem.status}
 									</span>
 								</div>
 								<div>
 									<span className="text-muted-foreground">Inspected At:</span>{" "}
-									<strong>{inspectItem.verified_at || inspectItem.created_at || "N/A"}</strong>
+									<strong>
+										{inspectItem.verified_at || inspectItem.created_at || "N/A"}
+									</strong>
 								</div>
 							</div>
 
 							{inspectItem.notes && (
 								<div className="space-y-1">
-									<p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Inspector Field Notes:</p>
-									<p className="bg-background border p-2.5 rounded-md text-xs text-gray-800 dark:text-gray-200">
+									<p className="font-semibold text-gray-700 text-xs dark:text-gray-300">
+										Inspector Field Notes:
+									</p>
+									<p className="rounded-md border bg-background p-2.5 text-gray-800 text-xs dark:text-gray-200">
 										{inspectItem.notes}
 									</p>
 								</div>

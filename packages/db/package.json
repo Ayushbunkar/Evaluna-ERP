@@ -16,6 +16,7 @@
 		"db:push": "drizzle-kit push --force"
 	},
 	"dependencies": {
+		"bcryptjs": "^3.0.3",
 		"drizzle-orm": "^0.45.2"
 	},
 	"devDependencies": {

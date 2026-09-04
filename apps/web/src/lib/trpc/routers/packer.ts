@@ -190,7 +190,8 @@ export const packerRouter = router({
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const startDate = input?.startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+			const startDate =
+				input?.startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 			const endDate = input?.endDate ?? new Date();
 
 			// Build the base query for packages with proper joins
@@ -241,7 +242,8 @@ export const packerRouter = router({
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const startDate = input?.startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+			const startDate =
+				input?.startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 			const endDate = input?.endDate ?? new Date();
 
 			const packed = await ctx.db
@@ -281,4 +283,3 @@ export const packerRouter = router({
 			};
 		}),
 });
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -8,7 +8,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@evaluna/ui/components/dialog";
 import {
 	Table,
 	TableBody,
@@ -18,37 +26,51 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-	DialogFooter,
-} from "@evaluna/ui/components/dialog";
-import {
-	UsersIcon,
+	AlertTriangleIcon,
 	CheckCircle2Icon,
 	ClockIcon,
+	EyeIcon,
+	Loader2Icon,
 	MapPinIcon,
 	PackageIcon,
-	Loader2Icon,
-	XCircleIcon,
 	PlusIcon,
 	SearchIcon,
-	AlertTriangleIcon,
-	EyeIcon,
+	UsersIcon,
+	XCircleIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-	AWAITING_PLACEMENT: { label: "Awaiting Placement", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
-	PLACED: { label: "Placed", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
-	VERIFICATION_REQUIRED: { label: "Needs Audit", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400" },
-	VERIFIED: { label: "Verified Correct", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
-	DISCREPANCY: { label: "Location Discrepancy", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
-	PLACEMENT_EXCEPTION: { label: "Critical Exception", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
+	AWAITING_PLACEMENT: {
+		label: "Awaiting Placement",
+		color:
+			"bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+	},
+	PLACED: {
+		label: "Placed",
+		color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+	},
+	VERIFICATION_REQUIRED: {
+		label: "Needs Audit",
+		color:
+			"bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+	},
+	VERIFIED: {
+		label: "Verified Correct",
+		color:
+			"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+	},
+	DISCREPANCY: {
+		label: "Location Discrepancy",
+		color:
+			"bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+	},
+	PLACEMENT_EXCEPTION: {
+		label: "Critical Exception",
+		color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+	},
 };
 
 export default function AuditorPlacementPage() {
@@ -74,9 +96,13 @@ export default function AuditorPlacementPage() {
 
 	// State
 	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+	const [selectedProductId, setSelectedProductId] = useState<number | null>(
+		null,
+	);
 	const [locationNotes, setLocationNotes] = useState("");
-	const [auditStatus, setAuditStatus] = useState<"VERIFIED" | "DISCREPANCY" | "PLACEMENT_EXCEPTION">("VERIFIED");
+	const [auditStatus, setAuditStatus] = useState<
+		"VERIFIED" | "DISCREPANCY" | "PLACEMENT_EXCEPTION"
+	>("VERIFIED");
 	const [notes, setNotes] = useState("");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("ALL");
@@ -104,28 +130,35 @@ export default function AuditorPlacementPage() {
 	});
 
 	const totalCount = verifications?.length ?? 0;
-	const verifiedCount = verifications?.filter((v) => v.status === "VERIFIED").length ?? 0;
-	const discrepancyCount = verifications?.filter((v) => v.status === "DISCREPANCY").length ?? 0;
-	const exceptionCount = verifications?.filter((v) => ["PLACEMENT_EXCEPTION", "FAILED"].includes(v.status ?? "")).length ?? 0;
+	const verifiedCount =
+		verifications?.filter((v) => v.status === "VERIFIED").length ?? 0;
+	const discrepancyCount =
+		verifications?.filter((v) => v.status === "DISCREPANCY").length ?? 0;
+	const exceptionCount =
+		verifications?.filter((v) =>
+			["PLACEMENT_EXCEPTION", "FAILED"].includes(v.status ?? ""),
+		).length ?? 0;
 
 	return (
 		<PageTransition className="container mx-auto space-y-6">
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 						<MapPinIcon className="h-7 w-7 text-blue-600" />
 						Bin Placement & Location Verification
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						Audit physical warehouse rack/bin placement, verify stock location accuracy, and report discrepancies.
+						Audit physical warehouse rack/bin placement, verify stock location
+						accuracy, and report discrepancies.
 					</p>
 				</div>
 
 				<Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
 					<DialogTrigger asChild>
-						<Button className="shadow-md bg-blue-600 hover:bg-blue-700">
-							<PlusIcon className="mr-2 h-4 w-4" /> Perform Physical Location Audit
+						<Button className="bg-blue-600 shadow-md hover:bg-blue-700">
+							<PlusIcon className="mr-2 h-4 w-4" /> Perform Physical Location
+							Audit
 						</Button>
 					</DialogTrigger>
 					<DialogContent className="sm:max-w-[500px]">
@@ -135,21 +168,24 @@ export default function AuditorPlacementPage() {
 								Log Placement Verification Audit
 							</DialogTitle>
 							<DialogDescription>
-								Verify physical item placement in warehouse bins/racks. Discrepancies auto-trigger an Audit Finding.
+								Verify physical item placement in warehouse bins/racks.
+								Discrepancies auto-trigger an Audit Finding.
 							</DialogDescription>
 						</DialogHeader>
 
 						<form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
 							{/* Product Selector */}
 							<div className="space-y-1">
-								<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Target Inventory Product *
 								</label>
 								<select
 									required
 									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 									value={selectedProductId ?? ""}
-									onChange={(e) => setSelectedProductId(Number(e.target.value) || null)}
+									onChange={(e) =>
+										setSelectedProductId(Number(e.target.value) || null)
+									}
 								>
 									<option value="">-- Select Product --</option>
 									{productsList?.map((p) => (
@@ -162,7 +198,7 @@ export default function AuditorPlacementPage() {
 
 							{/* Warehouse Location Input */}
 							<div className="space-y-1">
-								<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Physical Location / Bin Tag
 								</label>
 								<input
@@ -176,7 +212,7 @@ export default function AuditorPlacementPage() {
 
 							{/* Audit Status Outcome */}
 							<div className="space-y-1">
-								<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Audit Result
 								</label>
 								<select
@@ -184,15 +220,21 @@ export default function AuditorPlacementPage() {
 									value={auditStatus}
 									onChange={(e) => setAuditStatus(e.target.value as any)}
 								>
-									<option value="VERIFIED">✅ Verified (Correct Location & Quantity)</option>
-									<option value="DISCREPANCY">⚠️ Discrepancy (Wrong Rack/Bin - Auto Raises Finding)</option>
-									<option value="PLACEMENT_EXCEPTION">🚨 Placement Exception (Item Missing / Damaged)</option>
+									<option value="VERIFIED">
+										✅ Verified (Correct Location & Quantity)
+									</option>
+									<option value="DISCREPANCY">
+										⚠️ Discrepancy (Wrong Rack/Bin - Auto Raises Finding)
+									</option>
+									<option value="PLACEMENT_EXCEPTION">
+										🚨 Placement Exception (Item Missing / Damaged)
+									</option>
 								</select>
 							</div>
 
 							{/* Notes */}
 							<div className="space-y-1">
-								<label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
 									Auditor Field Notes
 								</label>
 								<textarea
@@ -205,15 +247,21 @@ export default function AuditorPlacementPage() {
 							</div>
 
 							<DialogFooter className="pt-2">
-								<Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => setIsModalOpen(false)}
+								>
 									Cancel
 								</Button>
 								<Button
 									type="submit"
 									disabled={!selectedProductId || createMutation.isPending}
-									className="bg-blue-600 hover:bg-blue-700 text-white"
+									className="bg-blue-600 text-white hover:bg-blue-700"
 								>
-									{createMutation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+									{createMutation.isPending && (
+										<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+									)}
 									Save Audit Log
 								</Button>
 							</DialogFooter>
@@ -229,8 +277,12 @@ export default function AuditorPlacementPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-blue-700 dark:text-blue-400">Total Audits</p>
-									<p className="text-3xl font-bold text-blue-800 dark:text-blue-300">{totalCount}</p>
+									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
+										Total Audits
+									</p>
+									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+										{totalCount}
+									</p>
 								</div>
 								<PackageIcon className="h-8 w-8 text-blue-500" />
 							</div>
@@ -243,8 +295,12 @@ export default function AuditorPlacementPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-green-700 dark:text-green-400">Verified Correct</p>
-									<p className="text-3xl font-bold text-green-800 dark:text-green-300">{verifiedCount}</p>
+									<p className="font-medium text-green-700 text-sm dark:text-green-400">
+										Verified Correct
+									</p>
+									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
+										{verifiedCount}
+									</p>
 								</div>
 								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
 							</div>
@@ -257,8 +313,12 @@ export default function AuditorPlacementPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-orange-700 dark:text-orange-400">Location Discrepancies</p>
-									<p className="text-3xl font-bold text-orange-800 dark:text-orange-300">{discrepancyCount}</p>
+									<p className="font-medium text-orange-700 text-sm dark:text-orange-400">
+										Location Discrepancies
+									</p>
+									<p className="font-bold text-3xl text-orange-800 dark:text-orange-300">
+										{discrepancyCount}
+									</p>
 								</div>
 								<AlertTriangleIcon className="h-8 w-8 text-orange-500" />
 							</div>
@@ -271,8 +331,12 @@ export default function AuditorPlacementPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-red-700 dark:text-red-400">Exceptions / Missing</p>
-									<p className="text-3xl font-bold text-red-800 dark:text-red-300">{exceptionCount}</p>
+									<p className="font-medium text-red-700 text-sm dark:text-red-400">
+										Exceptions / Missing
+									</p>
+									<p className="font-bold text-3xl text-red-800 dark:text-red-300">
+										{exceptionCount}
+									</p>
 								</div>
 								<XCircleIcon className="h-8 w-8 text-red-500" />
 							</div>
@@ -283,23 +347,25 @@ export default function AuditorPlacementPage() {
 
 			{/* Data Table Card */}
 			<Card className="border-border/50 shadow-sm">
-				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<MapPinIcon className="h-5 w-5 text-blue-600" />
 							Location Audit Records
 						</CardTitle>
-						<CardDescription>Full history of bin placement verification audits</CardDescription>
+						<CardDescription>
+							Full history of bin placement verification audits
+						</CardDescription>
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
 						{/* Search Input */}
 						<div className="relative w-full sm:w-56">
-							<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+							<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 							<input
 								type="text"
 								placeholder="Search product, location..."
-								className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+								className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 							/>
@@ -321,7 +387,8 @@ export default function AuditorPlacementPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin" /> Loading audit records...
+							<Loader2Icon className="h-5 w-5 animate-spin" /> Loading audit
+							records...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -329,9 +396,13 @@ export default function AuditorPlacementPage() {
 						</div>
 					) : !filteredVerifications || filteredVerifications.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<MapPinIcon className="h-10 w-10 opacity-30 text-blue-500" />
-							<p className="text-sm font-medium">No placement audits match your filter rules</p>
-							<p className="text-xs text-gray-400">Click "Perform Physical Location Audit" above to add one.</p>
+							<MapPinIcon className="h-10 w-10 text-blue-500 opacity-30" />
+							<p className="font-medium text-sm">
+								No placement audits match your filter rules
+							</p>
+							<p className="text-gray-400 text-xs">
+								Click "Perform Physical Location Audit" above to add one.
+							</p>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
@@ -349,21 +420,33 @@ export default function AuditorPlacementPage() {
 								</TableHeader>
 								<TableBody>
 									{filteredVerifications.map((v) => {
-										const statObj = statusConfig[v.status ?? "AWAITING_PLACEMENT"] ?? statusConfig.VERIFIED;
+										const statObj =
+											statusConfig[v.status ?? "AWAITING_PLACEMENT"] ??
+											statusConfig.VERIFIED;
 										return (
 											<TableRow key={v.id} className="hover:bg-muted/50">
-												<TableCell className="font-mono text-xs font-semibold">#{v.id}</TableCell>
-												<TableCell className="font-semibold text-sm">{v.product_name}</TableCell>
-												<TableCell className="font-mono text-xs text-muted-foreground">{v.product_sku}</TableCell>
+												<TableCell className="font-mono font-semibold text-xs">
+													#{v.id}
+												</TableCell>
+												<TableCell className="font-semibold text-sm">
+													{v.product_name}
+												</TableCell>
+												<TableCell className="font-mono text-muted-foreground text-xs">
+													{v.product_sku}
+												</TableCell>
 												<TableCell>
-													<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statObj.color}`}>
+													<span
+														className={`rounded-full px-2 py-0.5 font-medium text-xs ${statObj.color}`}
+													>
 														{statObj.label}
 													</span>
 												</TableCell>
 												<TableCell className="max-w-[220px] truncate text-muted-foreground text-xs">
 													{v.notes ?? "—"}
 												</TableCell>
-												<TableCell className="text-muted-foreground text-xs">{v.verified_at || v.created_at || "—"}</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{v.verified_at || v.created_at || "—"}
+												</TableCell>
 												<TableCell className="text-right">
 													<Button
 														variant="outline"
@@ -386,7 +469,10 @@ export default function AuditorPlacementPage() {
 
 			{/* Inspect Modal */}
 			{inspectItem && (
-				<Dialog open={!!inspectItem} onOpenChange={(open) => !open && setInspectItem(null)}>
+				<Dialog
+					open={!!inspectItem}
+					onOpenChange={(open) => !open && setInspectItem(null)}
+				>
 					<DialogContent className="sm:max-w-[450px]">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
@@ -397,10 +483,12 @@ export default function AuditorPlacementPage() {
 						</DialogHeader>
 
 						<div className="space-y-3 py-2 text-sm">
-							<div className="bg-muted/40 p-3 rounded-lg space-y-1.5 text-xs">
+							<div className="space-y-1.5 rounded-lg bg-muted/40 p-3 text-xs">
 								<div>
 									<span className="text-muted-foreground">Product:</span>{" "}
-									<strong className="text-sm text-foreground">{inspectItem.product_name}</strong>
+									<strong className="text-foreground text-sm">
+										{inspectItem.product_name}
+									</strong>
 								</div>
 								<div>
 									<span className="text-muted-foreground">SKU:</span>{" "}
@@ -408,20 +496,27 @@ export default function AuditorPlacementPage() {
 								</div>
 								<div>
 									<span className="text-muted-foreground">Audit Status:</span>{" "}
-									<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${(statusConfig[inspectItem.status]?.color || "")}`}>
-										{statusConfig[inspectItem.status]?.label || inspectItem.status}
+									<span
+										className={`rounded-full px-2 py-0.5 font-medium text-xs ${statusConfig[inspectItem.status]?.color || ""}`}
+									>
+										{statusConfig[inspectItem.status]?.label ||
+											inspectItem.status}
 									</span>
 								</div>
 								<div>
 									<span className="text-muted-foreground">Date Logged:</span>{" "}
-									<strong>{inspectItem.verified_at || inspectItem.created_at || "N/A"}</strong>
+									<strong>
+										{inspectItem.verified_at || inspectItem.created_at || "N/A"}
+									</strong>
 								</div>
 							</div>
 
 							{inspectItem.notes && (
 								<div className="space-y-1">
-									<p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Auditor Notes & Location:</p>
-									<p className="bg-background border p-2.5 rounded-md text-xs font-mono text-gray-800 dark:text-gray-200">
+									<p className="font-semibold text-gray-700 text-xs dark:text-gray-300">
+										Auditor Notes & Location:
+									</p>
+									<p className="rounded-md border bg-background p-2.5 font-mono text-gray-800 text-xs dark:text-gray-200">
 										{inspectItem.notes}
 									</p>
 								</div>

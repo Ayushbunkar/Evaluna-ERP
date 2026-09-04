@@ -11,43 +11,41 @@ import { logAudit, resolveStaffId } from "../util/audit";
 import { permProcedure } from "../util/auditor-procedures";
 
 export const productsRouter = router({
-	getDashboardStats: protectedProcedure
-		.query(async ({ ctx }) => {
-			const [allProducts, stockResults] = await Promise.all([
-				db
-					.select()
-					.from(products)
-					.where(eq(products.is_deleted, false)),
-				db
-					.select({
-						productId: branchInventory.product_id,
-						totalStock: sum(branchInventory.in_stock),
-					})
-					.from(branchInventory)
-					.groupBy(branchInventory.product_id),
-			]);
+	getDashboardStats: protectedProcedure.query(async ({ ctx }) => {
+		const [allProducts, stockResults] = await Promise.all([
+			db.select().from(products).where(eq(products.is_deleted, false)),
+			db
+				.select({
+					productId: branchInventory.product_id,
+					totalStock: sum(branchInventory.in_stock),
+				})
+				.from(branchInventory)
+				.groupBy(branchInventory.product_id),
+		]);
 
-			const totalProducts = allProducts.length;
-			const activeProducts = allProducts.filter((p) => !p.is_hidden).length;
-			const productsWithBarcodes = allProducts.filter((p) => p.barcode && p.barcode.trim() !== "").length;
+		const totalProducts = allProducts.length;
+		const activeProducts = allProducts.filter((p) => !p.is_hidden).length;
+		const productsWithBarcodes = allProducts.filter(
+			(p) => p.barcode && p.barcode.trim() !== "",
+		).length;
 
-			const stockMap = new Map<number, number>();
-			stockResults.forEach((row) => {
-				stockMap.set(row.productId, Number(row.totalStock) || 0);
-			});
+		const stockMap = new Map<number, number>();
+		stockResults.forEach((row) => {
+			stockMap.set(row.productId, Number(row.totalStock) || 0);
+		});
 
-			const lowStockProducts = allProducts.filter((p) => {
-				const stock = stockMap.get(p.id) ?? 0;
-				return stock <= 10;
-			}).length;
+		const lowStockProducts = allProducts.filter((p) => {
+			const stock = stockMap.get(p.id) ?? 0;
+			return stock <= 10;
+		}).length;
 
-			return {
-				totalProducts,
-				activeProducts,
-				productsWithBarcodes,
-				lowStockProducts,
-			};
-		}),
+		return {
+			totalProducts,
+			activeProducts,
+			productsWithBarcodes,
+			lowStockProducts,
+		};
+	}),
 
 	list: protectedProcedure.query(async ({ ctx }) => {
 		// Basic RBAC: If not admin, maybe filter by visibility. For now, fetch all active products.

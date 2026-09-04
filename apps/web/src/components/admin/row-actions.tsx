@@ -74,7 +74,9 @@ export function RowActions({
 									: undefined
 							}
 						>
-							{action.icon && <span className="mr-2 inline-flex">{action.icon}</span>}
+							{action.icon && (
+								<span className="mr-2 inline-flex">{action.icon}</span>
+							)}
 							<span>{action.label}</span>
 						</DropdownMenuItem>
 					);

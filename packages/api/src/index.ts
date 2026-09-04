@@ -1,19 +1,38 @@
+import { type Role } from "@evaluna/db";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { customers } from "@evaluna/db/schema";
-import { eq } from "drizzle-orm";
 
 // Context type
+
+export type StaffRecord = {
+	id: number;
+	name: string;
+	staffCode: string;
+	branchId?: number | null;
+	// Add other necessary staff fields here as we discover them
+};
+
+export type RoleContext = {
+	name: string;
+	dashboardRoute: string; // The canonical dashboard route for this role
+	permissions: string[]; // Aggregated permissions for the role
+};
+
 export type TRPCContext = {
 	user: {
 		id: string;
 		name: string;
 		email: string;
-		role: string;
-		branchId?: string | null;
-		isSuperadmin?: boolean;
-		isActive?: boolean;
-		permissions?: string[];
+		status: "PENDING" | "ACTIVE" | "INACTIVE" | "LOCKED" | "SUSPENDED";
+		forcePasswordChange: boolean;
+		isSuperadmin: boolean;
+		branchId?: number | null;
+		warehouseId?: number | null;
+		staff: StaffRecord | null; // Linked employee record
+		primaryRole: RoleContext; // The user's primary/active role context
+		roles: RoleContext[]; // All roles the user belongs to
+		permissions: string[]; // Aggregated, unique permissions
+		canonicalDashboardRoute: string; // The route the user should be redirected to on login
 	} | null;
 	db: any;
 	realtimeService?: any;
@@ -35,55 +54,31 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 	if (!ctx.user) {
 		throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
 	}
-	return next({ ctx: { ...ctx, user: ctx.user } });
-});
 
-export const roleProcedure = (allowedRoles: string[]) => {
-	return t.procedure.use(async ({ ctx, next }) => {
-		if (!ctx.user) {
-			throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
-		}
-
-		// Superadmins bypass every role gate. `super_admin` is not a value in the
-		// user.role enum — it is the `is_superadmin` flag on the user record — so
-		// role-string matching alone would wrongly reject a superadmin.
-		if (!ctx.user.isSuperadmin && !allowedRoles.includes(ctx.user.role)) {
-			throw new TRPCError({ code: "FORBIDDEN" });
-		}
-
-		return next({ ctx: { ...ctx, user: ctx.user } });
-	});
-};
-
-export const customerProcedure = t.procedure.use(async ({ ctx, next }) => {
-	if (!ctx.user) {
-		throw new TRPCError({ code: "UNAUTHORIZED" });
-	}
-
-	const customerList = await ctx.db
-		.select()
-		.from(customers)
-		.where(eq(customers.email, ctx.user.email))
-		.limit(1);
-
-	const customer = customerList[0];
-	if (!customer) {
+	// Enforce force password change on all protected routes (Requirement 13)
+	if (ctx.user.forcePasswordChange) {
 		throw new TRPCError({
 			code: "FORBIDDEN",
-			message: "No customer account linked to this user.",
+			message: "PASSWORD_CHANGE_REQUIRED",
 		});
 	}
 
-	return next({ ctx: { ...ctx, user: ctx.user, customer } });
+	return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-export const permissionProcedure = (permission: string) => {
-	return t.procedure.use(async ({ ctx, next }) => {
+/**
+ * A protected procedure that checks if the user's primary role is within the list of required roles.
+ */
+export const roleProcedure = (requiredRoles: Role[]) => {
+	return protectedProcedure.use(async ({ ctx, next }) => {
 		if (!ctx.user) {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
+		
+		const userRole = ctx.user.primaryRole.name as Role;
 
-		if (!ctx.user.isSuperadmin && !ctx.user.permissions?.includes(permission)) {
+		// Check if the user's primary role is one of the required roles
+		if (!requiredRoles.includes(userRole)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 
@@ -91,20 +86,54 @@ export const permissionProcedure = (permission: string) => {
 	});
 };
 
-export const superadminProcedure = t.procedure.use(async ({ ctx, next }) => {
-	if (!ctx.user || !ctx.user.isSuperadmin) {
-		throw new TRPCError({ code: "FORBIDDEN" });
-	}
-	return next({ ctx: { ...ctx, user: ctx.user } });
-});
+/**
+ * A protected procedure that allows a password change mutation even if
+ * `forcePasswordChange` is true. Used for the actual password update endpoint.
+ */
+export const forcePasswordChangeProcedure = t.procedure.use(
+	async ({ ctx, next }) => {
+		if (!ctx.user) {
+			throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+		}
+		return next({ ctx: { ...ctx, user: ctx.user } });
+	},
+);
+
+export const permissionProcedure = (permission: string) => {
+	return protectedProcedure.use(async ({ ctx, next }) => {
+		if (!ctx.user) {
+			// Should be unreachable due to protectedProcedure, but for safety
+			throw new TRPCError({ code: "UNAUTHORIZED" });
+		}
+
+		if (!ctx.user.isSuperadmin && !ctx.user.permissions.includes(permission)) {
+			throw new TRPCError({ code: "FORBIDDEN" });
+		}
+
+		return next({ ctx: { ...ctx, user: ctx.user } });
+	});
+};
+
+export const superadminProcedure = permissionProcedure("admin.super.access");
 
 export const requirePermission = (permission: string) =>
 	t.middleware(async ({ ctx, next }) => {
 		if (!ctx.user) {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
-		if (!ctx.user.isSuperadmin && !ctx.user.permissions?.includes(permission)) {
+		if (!ctx.user.isSuperadmin && !ctx.user.permissions.includes(permission)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 		return next({ ctx });
 	});
+
+export const customerProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+	if (!ctx.user) {
+		throw new TRPCError({ code: "UNAUTHORIZED" });
+	}
+	const userRole = ctx.user.primaryRole?.name;
+	if (userRole !== "customer" && !ctx.user.isSuperadmin) {
+		throw new TRPCError({ code: "FORBIDDEN" });
+	}
+	return next({ ctx: { ...ctx, user: ctx.user } });
+});

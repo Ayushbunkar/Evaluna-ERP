@@ -13,7 +13,6 @@ import { and, avg, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
-
 export const putterRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "auditor", "putter"])
 		.input(z.object({ branch_id: z.number().optional() }))
@@ -91,7 +90,6 @@ export const putterRouter = router({
 						),
 					),
 			]);
-
 
 			const recentPurchases = await db
 				.select({
@@ -419,7 +417,7 @@ export const putterRouter = router({
 		.input(z.object({ id: z.string(), location: z.string().optional() }))
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const cleanId = parseInt(input.id.replace(/\D/g, "") || "1", 10);
+			const cleanId = Number.parseInt(input.id.replace(/\D/g, "") || "1", 10);
 			const [updated] = await db
 				.update(purchases)
 				.set({ status: "completed", updated_at: new Date() })
@@ -449,7 +447,9 @@ export const putterRouter = router({
 					quantity: diff,
 					adjustment_type: "missing",
 					reason: input.notes || "Missing stock reported during put-away audit",
-					created_by: ctx.user.id ? parseInt(ctx.user.id.replace(/\D/g, "") || "1", 10) : 1,
+					created_by: ctx.user.id
+						? Number.parseInt(ctx.user.id.replace(/\D/g, "") || "1", 10)
+						: 1,
 				})
 				.returning();
 			return adj;
@@ -475,10 +475,11 @@ export const putterRouter = router({
 					quantity: input.qty_damaged,
 					adjustment_type: "damage",
 					reason: `[${input.damage_type}] ${input.notes || "Damaged goods reported"}`,
-					created_by: ctx.user.id ? parseInt(ctx.user.id.replace(/\D/g, "") || "1", 10) : 1,
+					created_by: ctx.user.id
+						? Number.parseInt(ctx.user.id.replace(/\D/g, "") || "1", 10)
+						: 1,
 				})
 				.returning();
 			return adj;
 		}),
 });
-

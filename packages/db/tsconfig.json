@@ -8,5 +8,5 @@
 		"composite": true,
 		"types": []
 	},
-	"include": ["src"]
+	"include": ["src", "utils"]
 }

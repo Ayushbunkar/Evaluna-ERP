@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
 	CardContent,
@@ -8,7 +8,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
-import { Button } from "@evaluna/ui/components/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
 import {
 	Table,
 	TableBody,
@@ -18,26 +25,19 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogFooter,
-} from "@evaluna/ui/components/dialog";
-import {
 	AlertTriangleIcon,
-	PlusIcon,
-	Loader2Icon,
-	SearchIcon,
 	CameraIcon,
-	PackageIcon,
 	CheckCircle2Icon,
+	Loader2Icon,
+	PackageIcon,
+	PlusIcon,
+	SearchIcon,
 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
-import { toast } from "sonner";
 
 export default function MissingStockPage() {
 	const trpc = useTRPC();
@@ -92,7 +92,7 @@ export default function MissingStockPage() {
 		(r) =>
 			r.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			r.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			r.id.toLowerCase().includes(searchQuery.toLowerCase())
+			r.id.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
 	return (
@@ -100,12 +100,13 @@ export default function MissingStockPage() {
 			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div className="flex flex-col gap-1">
-					<h1 className="flex items-center gap-2 font-bold text-foreground text-2xl tracking-tight">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 						<AlertTriangleIcon className="h-7 w-7 text-amber-600" />
 						Missing Stock Audit Queue
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						Track inventory discrepancies, expected vs actual stock counts, and log missing bin items.
+						Track inventory discrepancies, expected vs actual stock counts, and
+						log missing bin items.
 					</p>
 				</div>
 
@@ -118,7 +119,7 @@ export default function MissingStockPage() {
 						<CameraIcon className="h-4 w-4" /> Camera Scan
 					</Button>
 					<Button
-						className="bg-amber-600 hover:bg-amber-700 text-white gap-2 shadow-sm"
+						className="gap-2 bg-amber-600 text-white shadow-sm hover:bg-amber-700"
 						onClick={() => setShowCreateModal(true)}
 					>
 						<PlusIcon className="h-4 w-4" /> + Report Missing Stock
@@ -133,8 +134,12 @@ export default function MissingStockPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-amber-700 dark:text-amber-400">Total Missing Items</p>
-									<p className="text-3xl font-bold text-amber-800 dark:text-amber-300">{missingStockList?.length ?? 0}</p>
+									<p className="font-medium text-amber-700 text-sm dark:text-amber-400">
+										Total Missing Items
+									</p>
+									<p className="font-bold text-3xl text-amber-800 dark:text-amber-300">
+										{missingStockList?.length ?? 0}
+									</p>
 								</div>
 								<AlertTriangleIcon className="h-8 w-8 text-amber-500" />
 							</div>
@@ -147,9 +152,12 @@ export default function MissingStockPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-red-700 dark:text-red-400">Critical Discrepancies</p>
-									<p className="text-3xl font-bold text-red-800 dark:text-red-300">
-										{missingStockList?.filter((i) => i.quantity_needed > 5).length ?? 0}
+									<p className="font-medium text-red-700 text-sm dark:text-red-400">
+										Critical Discrepancies
+									</p>
+									<p className="font-bold text-3xl text-red-800 dark:text-red-300">
+										{missingStockList?.filter((i) => i.quantity_needed > 5)
+											.length ?? 0}
 									</p>
 								</div>
 								<PackageIcon className="h-8 w-8 text-red-500" />
@@ -163,8 +171,12 @@ export default function MissingStockPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-green-700 dark:text-green-400">Audit Status</p>
-									<p className="text-xl font-bold text-green-800 dark:text-green-300">Monitored</p>
+									<p className="font-medium text-green-700 text-sm dark:text-green-400">
+										Audit Status
+									</p>
+									<p className="font-bold text-green-800 text-xl dark:text-green-300">
+										Monitored
+									</p>
 								</div>
 								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
 							</div>
@@ -175,21 +187,24 @@ export default function MissingStockPage() {
 
 			{/* Main Data Table Card */}
 			<Card className="border-border/50 shadow-sm">
-				<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<AlertTriangleIcon className="h-5 w-5 text-amber-600" />
 							Missing Stock Audit Records
 						</CardTitle>
-						<CardDescription>Live database list of inventory discrepancies requiring putaway resolution</CardDescription>
+						<CardDescription>
+							Live database list of inventory discrepancies requiring putaway
+							resolution
+						</CardDescription>
 					</div>
 
 					<div className="relative w-full sm:w-64">
-						<SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 						<input
 							type="text"
 							placeholder="Search product, SKU or ID..."
-							className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm shadow-sm"
+							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -198,7 +213,8 @@ export default function MissingStockPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-							<Loader2Icon className="h-5 w-5 animate-spin text-amber-600" /> Loading missing stock records...
+							<Loader2Icon className="h-5 w-5 animate-spin text-amber-600" />{" "}
+							Loading missing stock records...
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -206,7 +222,7 @@ export default function MissingStockPage() {
 						</div>
 					) : !filteredList || filteredList.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
-							<CheckCircle2Icon className="h-10 w-10 opacity-30 text-green-500" />
+							<CheckCircle2Icon className="h-10 w-10 text-green-500 opacity-30" />
 							<p>No missing stock records logged.</p>
 						</div>
 					) : (
@@ -226,17 +242,27 @@ export default function MissingStockPage() {
 								<TableBody>
 									{filteredList.map((item) => (
 										<TableRow key={item.id} className="hover:bg-muted/50">
-											<TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
-											<TableCell className="font-bold text-sm">{item.product}</TableCell>
-											<TableCell className="font-mono text-xs text-muted-foreground">{item.sku}</TableCell>
-											<TableCell className="font-bold text-sm text-red-600 dark:text-red-400">
+											<TableCell className="font-mono font-semibold text-xs">
+												{item.id}
+											</TableCell>
+											<TableCell className="font-bold text-sm">
+												{item.product}
+											</TableCell>
+											<TableCell className="font-mono text-muted-foreground text-xs">
+												{item.sku}
+											</TableCell>
+											<TableCell className="font-bold text-red-600 text-sm dark:text-red-400">
 												{item.quantity_needed} units missing
 											</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{item.location}</TableCell>
-											<TableCell className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+											<TableCell className="text-muted-foreground text-xs">
+												{item.location}
+											</TableCell>
+											<TableCell className="font-medium text-amber-700 text-xs dark:text-amber-400">
 												{item.reason}
 											</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{item.date || "Today"}</TableCell>
+											<TableCell className="text-muted-foreground text-xs">
+												{item.date || "Today"}
+											</TableCell>
 										</TableRow>
 									))}
 								</TableBody>
@@ -256,13 +282,17 @@ export default function MissingStockPage() {
 								Report Missing Stock Discrepancy
 							</DialogTitle>
 							<DialogDescription>
-								Log an inventory discrepancy found during warehouse putaway audits.
+								Log an inventory discrepancy found during warehouse putaway
+								audits.
 							</DialogDescription>
 						</DialogHeader>
 
-						<form onSubmit={handleCreateSubmit} className="space-y-4 py-2 text-sm">
+						<form
+							onSubmit={handleCreateSubmit}
+							className="space-y-4 py-2 text-sm"
+						>
 							<div className="space-y-1">
-								<label className="text-xs font-semibold">Product ID</label>
+								<label className="font-semibold text-xs">Product ID</label>
 								<input
 									type="number"
 									required
@@ -275,7 +305,7 @@ export default function MissingStockPage() {
 
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1">
-									<label className="text-xs font-semibold">Expected Qty</label>
+									<label className="font-semibold text-xs">Expected Qty</label>
 									<input
 										type="number"
 										required
@@ -286,7 +316,9 @@ export default function MissingStockPage() {
 								</div>
 
 								<div className="space-y-1">
-									<label className="text-xs font-semibold">Actual Found Qty</label>
+									<label className="font-semibold text-xs">
+										Actual Found Qty
+									</label>
 									<input
 										type="number"
 										required
@@ -298,7 +330,7 @@ export default function MissingStockPage() {
 							</div>
 
 							<div className="space-y-1">
-								<label className="text-xs font-semibold">Location / Bin</label>
+								<label className="font-semibold text-xs">Location / Bin</label>
 								<input
 									type="text"
 									placeholder="e.g. Bin A-12"
@@ -309,7 +341,9 @@ export default function MissingStockPage() {
 							</div>
 
 							<div className="space-y-1">
-								<label className="text-xs font-semibold">Audit Notes / Reason</label>
+								<label className="font-semibold text-xs">
+									Audit Notes / Reason
+								</label>
 								<textarea
 									rows={2}
 									placeholder="Reason for missing stock..."
@@ -320,15 +354,21 @@ export default function MissingStockPage() {
 							</div>
 
 							<DialogFooter className="pt-2">
-								<Button type="button" variant="ghost" onClick={() => setShowCreateModal(false)}>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => setShowCreateModal(false)}
+								>
 									Cancel
 								</Button>
 								<Button
 									type="submit"
 									disabled={createMutation.isPending}
-									className="bg-amber-600 hover:bg-amber-700 text-white"
+									className="bg-amber-600 text-white hover:bg-amber-700"
 								>
-									{createMutation.isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
+									{createMutation.isPending && (
+										<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+									)}
 									Save Missing Stock Record
 								</Button>
 							</DialogFooter>

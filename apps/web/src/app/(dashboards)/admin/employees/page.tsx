@@ -10,9 +10,9 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
+	ArchiveIcon,
 	BanIcon,
 	CheckCircle2Icon,
-	ArchiveIcon,
 	EyeIcon,
 	HistoryIcon,
 	PencilIcon,
@@ -44,13 +44,13 @@ import {
 import { RowActions } from "@/components/admin/row-actions";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { useAdminTable } from "@/hooks/use-admin-table";
-import { normaliseError } from "@/lib/admin/errors";
 import {
 	collectAllPages,
 	downloadCsv,
 	timestampedFilename,
 	toCsv,
 } from "@/lib/admin/csv";
+import { normaliseError } from "@/lib/admin/errors";
 import { date, dateInputValue, inr, phone, text } from "@/lib/admin/format";
 import { PageTransition } from "@/lib/animations";
 import { ROLES } from "@/lib/permissions";
@@ -72,9 +72,17 @@ const ROLE_OPTIONS = ROLES.filter((r) => r !== "customer").map((r) => ({
 }));
 
 /** Shared by the create and edit dialogs so both stay in step. */
-function employeeFields(branchOptions: Array<{ value: string; label: string }>) {
+function employeeFields(
+	branchOptions: Array<{ value: string; label: string }>,
+) {
 	const fields: FormField[] = [
-		{ name: "name", label: "Full name", kind: "text", required: true, maxLength: 255 },
+		{
+			name: "name",
+			label: "Full name",
+			kind: "text",
+			required: true,
+			maxLength: 255,
+		},
 		{
 			name: "email",
 			label: "Email",
@@ -108,7 +116,13 @@ function employeeFields(branchOptions: Array<{ value: string; label: string }>) 
 			min: 0,
 			step: 0.01,
 		},
-		{ name: "address", label: "Address", kind: "textarea", wide: true, maxLength: 500 },
+		{
+			name: "address",
+			label: "Address",
+			kind: "textarea",
+			wide: true,
+			maxLength: 500,
+		},
 		{ name: "pf_number", label: "PF number", kind: "text", maxLength: 50 },
 		{
 			name: "pan",
@@ -119,7 +133,12 @@ function employeeFields(branchOptions: Array<{ value: string; label: string }>) 
 			patternMessage: "PAN must look like ABCDE1234F.",
 		},
 		{ name: "bank_name", label: "Bank name", kind: "text", maxLength: 100 },
-		{ name: "bank_account", label: "Bank account", kind: "text", maxLength: 50 },
+		{
+			name: "bank_account",
+			label: "Bank account",
+			kind: "text",
+			maxLength: 50,
+		},
 		{
 			name: "ifsc",
 			label: "IFSC",
@@ -181,7 +200,11 @@ export default function AdminEmployeesPage() {
 		placeholderData: (previous) => previous,
 	});
 	const facets = trpc.admin.getEmployeeFacets.useQuery();
-	const branches = trpc.admin.getBranches.useQuery({ pageSize: 100, sortBy: "name", sortDir: "asc" });
+	const branches = trpc.admin.getBranches.useQuery({
+		pageSize: 100,
+		sortBy: "name",
+		sortDir: "asc",
+	});
 	const detail = trpc.admin.getEmployee.useQuery(
 		{ id: (viewId ?? editId) as number },
 		{ enabled: viewId !== null || editId !== null },
@@ -240,7 +263,9 @@ export default function AdminEmployeesPage() {
 	const setStatus = trpc.admin.setEmployeeStatus.useMutation({
 		onSuccess: (_result, variables) => {
 			toast.success(
-				variables.status === "active" ? "Employee reactivated" : "Employee deactivated",
+				variables.status === "active"
+					? "Employee reactivated"
+					: "Employee deactivated",
 			);
 			setConfirm(null);
 			refresh();
@@ -268,14 +293,16 @@ export default function AdminEmployeesPage() {
 	const handleExport = async () => {
 		setExporting(true);
 		try {
-			const { rows, total, truncated } = await collectAllPages(async (page, pageSize) => {
-				const result = await utils.admin.getEmployees.fetch({
-					...query,
-					page,
-					pageSize,
-				});
-				return { items: result.items, total: result.total };
-			});
+			const { rows, total, truncated } = await collectAllPages(
+				async (page, pageSize) => {
+					const result = await utils.admin.getEmployees.fetch({
+						...query,
+						page,
+						pageSize,
+					});
+					return { items: result.items, total: result.total };
+				},
+			);
 			downloadCsv(
 				timestampedFilename("employees"),
 				toCsv(rows, [
@@ -287,7 +314,10 @@ export default function AdminEmployeesPage() {
 					{ header: "Role", value: (r) => r.role },
 					{ header: "Branch", value: (r) => r.branch_name },
 					{ header: "Status", value: (r) => r.status },
-					{ header: "Joined", value: (r) => (r.join_date ? r.join_date.slice(0, 10) : "") },
+					{
+						header: "Joined",
+						value: (r) => (r.join_date ? r.join_date.slice(0, 10) : ""),
+					},
 					{ header: "Salary (INR)", value: (r) => r.salary },
 				]),
 			);
@@ -453,7 +483,11 @@ export default function AdminEmployeesPage() {
 			{list.isLoading ? (
 				<TableLoading columns={8} />
 			) : list.error ? (
-				<DataError error={list.error} entity="employees" onRetry={() => list.refetch()} />
+				<DataError
+					error={list.error}
+					entity="employees"
+					onRetry={() => list.refetch()}
+				/>
 			) : items.length === 0 ? (
 				table.isFiltered ? (
 					<DataNoMatches onClear={table.reset} />
@@ -474,21 +508,66 @@ export default function AdminEmployeesPage() {
 						<Table className="w-full min-w-[900px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
-									<SortableHead label="Code" column="code" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Name" column="name" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Department" column="department" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Role" column="role" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Code"
+										column="code"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Name"
+										column="name"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Department"
+										column="department"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Role"
+										column="role"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead>Contact</TableHead>
-									<SortableHead label="Joined" column="join_date" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
-									<SortableHead label="Salary" column="salary" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} numeric />
-									<SortableHead label="Status" column="status" sortBy={table.sortBy} sortDir={table.sortDir} onToggle={table.toggleSort} />
+									<SortableHead
+										label="Joined"
+										column="join_date"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
+									<SortableHead
+										label="Salary"
+										column="salary"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+										numeric
+									/>
+									<SortableHead
+										label="Status"
+										column="status"
+										sortBy={table.sortBy}
+										sortDir={table.sortDir}
+										onToggle={table.toggleSort}
+									/>
 									<TableHead className="text-right">Actions</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{items.map((emp) => (
 									<TableRow key={emp.id} className="hover:bg-muted/30">
-										<TableCell className="font-mono text-xs">{emp.emp_code}</TableCell>
+										<TableCell className="font-mono text-xs">
+											{emp.emp_code}
+										</TableCell>
 										<TableCell>
 											<span className="font-medium">{emp.name}</span>
 											{emp.branch_name && (
@@ -507,8 +586,12 @@ export default function AdminEmployeesPage() {
 												{phone(emp.phone)}
 											</span>
 										</TableCell>
-										<TableCell className="whitespace-nowrap">{date(emp.join_date)}</TableCell>
-										<TableCell className="text-right tabular-nums">{inr(emp.salary)}</TableCell>
+										<TableCell className="whitespace-nowrap">
+											{date(emp.join_date)}
+										</TableCell>
+										<TableCell className="text-right tabular-nums">
+											{inr(emp.salary)}
+										</TableCell>
 										<TableCell>
 											<StatusBadge status={emp.status} />
 										</TableCell>
@@ -555,7 +638,9 @@ export default function AdminEmployeesPage() {
 																}
 															: {
 																	label: "Reactivate",
-																	icon: <CheckCircle2Icon className="h-4 w-4" />,
+																	icon: (
+																		<CheckCircle2Icon className="h-4 w-4" />
+																	),
 																	onSelect: () =>
 																		setConfirm({
 																			kind: "status",
@@ -569,7 +654,11 @@ export default function AdminEmployeesPage() {
 															icon: <ArchiveIcon className="h-4 w-4" />,
 															destructive: true,
 															onSelect: () =>
-																setConfirm({ kind: "archive", id: emp.id, name: emp.name }),
+																setConfirm({
+																	kind: "archive",
+																	id: emp.id,
+																	name: emp.name,
+																}),
 														},
 													]}
 												/>
@@ -628,7 +717,11 @@ export default function AdminEmployeesPage() {
 					if (!open) setViewId(null);
 				}}
 				title={detail.data?.name ?? "Employee"}
-				subtitle={detail.data ? `${detail.data.emp_code} · ${detail.data.role ?? "—"}` : undefined}
+				subtitle={
+					detail.data
+						? `${detail.data.emp_code} · ${detail.data.role ?? "—"}`
+						: undefined
+				}
 				loading={detail.isLoading}
 				error={viewId !== null ? detail.error : undefined}
 				onRetry={() => detail.refetch()}
@@ -645,13 +738,20 @@ export default function AdminEmployeesPage() {
 										},
 										{ label: "Email", value: text(detail.data.email) },
 										{ label: "Phone", value: phone(detail.data.phone) },
-										{ label: "Address", value: text(detail.data.address), wide: true },
+										{
+											label: "Address",
+											value: text(detail.data.address),
+											wide: true,
+										},
 									],
 								},
 								{
 									title: "Placement",
 									rows: [
-										{ label: "Department", value: text(detail.data.department) },
+										{
+											label: "Department",
+											value: text(detail.data.department),
+										},
 										{
 											label: "Role",
 											value: text(detail.data.role?.replace(/_/g, " ")),
@@ -679,7 +779,10 @@ export default function AdminEmployeesPage() {
 									title: "Record",
 									rows: [
 										{ label: "Created", value: date(detail.data.created_at) },
-										{ label: "Last updated", value: date(detail.data.updated_at) },
+										{
+											label: "Last updated",
+											value: date(detail.data.updated_at),
+										},
 									],
 								},
 							]
@@ -717,7 +820,9 @@ export default function AdminEmployeesPage() {
 				onOpenChange={(open) => {
 					if (!open) setConfirm(null);
 				}}
-				destructive={confirm?.kind === "archive" || confirm?.next === "inactive"}
+				destructive={
+					confirm?.kind === "archive" || confirm?.next === "inactive"
+				}
 				pending={setStatus.isPending || archive.isPending}
 				title={
 					confirm?.kind === "archive"

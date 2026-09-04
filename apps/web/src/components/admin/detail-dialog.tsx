@@ -92,7 +92,9 @@ export function DetailDialog({
 											key={row.label}
 											className={row.wide ? "sm:col-span-2" : undefined}
 										>
-											<dt className="text-muted-foreground text-xs">{row.label}</dt>
+											<dt className="text-muted-foreground text-xs">
+												{row.label}
+											</dt>
 											<dd className="mt-0.5 break-words font-medium text-sm">
 												{row.value}
 											</dd>

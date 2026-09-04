@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { createTestDb, buildDDL, makeFinanceUser } from "./helpers";
 import * as schema from "@/lib/db/schema";
+import { buildDDL, createTestDb, makeFinanceUser } from "./helpers";
 
 const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
@@ -128,8 +128,8 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 			purchaseId: 100,
 			items: [
 				{ productId: 1, expectedQty: 10, receivedQty: 10, condition: "good" },
-				{ productId: 2, expectedQty: 10, receivedQty: 10, condition: "good" }
-			]
+				{ productId: 2, expectedQty: 10, receivedQty: 10, condition: "good" },
+			],
 		});
 		expect(res.success).toBe(true);
 
@@ -140,18 +140,18 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 	it("should retrieve put-away queue and support assigning & completing put-away", async () => {
 		const queue = await callAs(admin).getPutAwayQueue();
 		expect(queue.length).toBeGreaterThan(0);
-		
+
 		const taskId = queue[0].id;
 		// Assign Put-Away
 		const assignRes = await callAs(admin).assignPutAwayTask({
 			placementId: taskId,
-			workerId: 2 // Worker staff ID
+			workerId: 2, // Worker staff ID
 		});
 		expect(assignRes.success).toBe(true);
 
 		// Start Put-Away
 		const startRes = await callAs(admin).startPutAwayTask({
-			placementId: taskId
+			placementId: taskId,
 		});
 		expect(startRes.success).toBe(true);
 
@@ -160,12 +160,14 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 			placementId: taskId,
 			locationId: 1,
 			qty: 10,
-			notes: "Placed Widget successfully"
+			notes: "Placed Widget successfully",
 		});
 		expect(completeRes.success).toBe(true);
 
 		// Verify stock was updated in DB
-		const stockRows = await pg.query("SELECT quantity FROM batch_stock WHERE location_id = 1");
+		const stockRows = await pg.query(
+			"SELECT quantity FROM batch_stock WHERE location_id = 1",
+		);
 		expect(stockRows.rows.length).toBeGreaterThan(0);
 		expect(Number(stockRows.rows[0].quantity)).toBe(10);
 	});
@@ -178,13 +180,13 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 		// Assign Picking
 		const assignRes = await callAs(admin).assignPickingTask({
 			pickListId: 300,
-			workerId: 2
+			workerId: 2,
 		});
 		expect(assignRes.success).toBe(true);
 
 		// Start Picking
 		const startRes = await callAs(admin).startPickingTask({
-			pickListId: 300
+			pickListId: 300,
 		});
 		expect(startRes.success).toBe(true);
 
@@ -196,13 +198,13 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 		// Pick Item
 		const pickRes = await callAs(admin).pickItem({
 			itemId: 30,
-			qtyPicked: 2
+			qtyPicked: 2,
 		});
 		expect(pickRes.success).toBe(true);
 
 		// Complete Picking Task
 		const completeRes = await callAs(admin).completePickingTask({
-			pickListId: 300
+			pickListId: 300,
 		});
 		expect(completeRes.success).toBe(true);
 		expect(completeRes.packageId).toBeDefined();
@@ -211,18 +213,21 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 	it("should retrieve packing queue and complete packing", async () => {
 		const queue = await callAs(admin).getPackingQueue();
 		expect(queue.length).toBeGreaterThan(0);
-		
+
 		const pkgId = queue[0].id;
 		const packRes = await callAs(admin).packPackage({
 			packageId: pkgId,
 			weight: 5.4,
 			dimensions: "10x10x10",
-			notes: "Securely taped"
+			notes: "Securely taped",
 		});
 		expect(packRes.success).toBe(true);
 
 		// Verify package status is packed
-		const pkgRows = await pg.query("SELECT status FROM packages WHERE id = $1", [pkgId]);
+		const pkgRows = await pg.query(
+			"SELECT status FROM packages WHERE id = $1",
+			[pkgId],
+		);
 		expect(pkgRows.rows[0].status).toBe("packed");
 	});
 
@@ -231,13 +236,16 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 			productId: 1,
 			qty: 1,
 			reason: "Water damage to widgets in rack A",
-			type: "damage"
+			type: "damage",
 		});
 		expect(res.success).toBe(true);
 		expect(res.adjustmentId).toBeDefined();
 
 		// Verify in DB
-		const adjRows = await pg.query("SELECT adjustment_type, reason FROM stock_adjustments WHERE id = $1", [res.adjustmentId]);
+		const adjRows = await pg.query(
+			"SELECT adjustment_type, reason FROM stock_adjustments WHERE id = $1",
+			[res.adjustmentId],
+		);
 		expect(adjRows.rows[0].adjustment_type).toBe("damage");
 		expect(adjRows.rows[0].reason).toBe("Water damage to widgets in rack A");
 	});

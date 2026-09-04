@@ -159,7 +159,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 								</DropdownMenuItem>
 							</Link>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem onSelect={handleLogout} className="cursor-pointer">Log out</DropdownMenuItem>
+							<DropdownMenuItem
+								onSelect={handleLogout}
+								className="cursor-pointer"
+							>
+								Log out
+							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>

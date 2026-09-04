@@ -127,7 +127,9 @@ export function normaliseError(error: unknown): NormalisedError {
 
 	// A fetch that never reached the server has no tRPC shape at all.
 	if (!shape && typeof rawMessage === "string") {
-		if (/failed to fetch|networkerror|load failed|econnrefused/i.test(rawMessage)) {
+		if (
+			/failed to fetch|networkerror|load failed|econnrefused/i.test(rawMessage)
+		) {
 			kind = "network";
 		} else if (/aborted|timeout/i.test(rawMessage)) {
 			kind = "network";

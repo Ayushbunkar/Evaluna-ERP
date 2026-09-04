@@ -14,11 +14,27 @@ const USERS_TO_SEED = [
 	{ name: "Marketing Exec", email: "marketing@evaluna.com", role: "marketing" },
 	{ name: "Executive", email: "executive@evaluna.dev", role: "superadmin" },
 	{ name: "Finance Manager", email: "finance@evaluna.dev", role: "finance" },
-	{ name: "Procurement Manager", email: "procurement@evaluna.dev", role: "manager" },
+	{
+		name: "Procurement Manager",
+		email: "procurement@evaluna.dev",
+		role: "manager",
+	},
 	{ name: "Products Manager", email: "products@evaluna.dev", role: "manager" },
-	{ name: "Inventory Manager", email: "inventory@evaluna.dev", role: "manager" },
-	{ name: "Warehouse Manager", email: "warehouse@evaluna.dev", role: "manager" },
-	{ name: "Packing Dispatch Manager", email: "dispatch@evaluna.dev", role: "manager" },
+	{
+		name: "Inventory Manager",
+		email: "inventory@evaluna.dev",
+		role: "manager",
+	},
+	{
+		name: "Warehouse Manager",
+		email: "warehouse@evaluna.dev",
+		role: "manager",
+	},
+	{
+		name: "Packing Dispatch Manager",
+		email: "dispatch@evaluna.dev",
+		role: "manager",
+	},
 	{ name: "Customer", email: "customer@evaluna.dev", role: "customer" },
 ];
 
