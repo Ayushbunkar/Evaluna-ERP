@@ -91,6 +91,19 @@ export class UserManagementRepository {
 			throw new Error(`Duplicate email found in user accounts: ${email}`);
 		}
 
+		// Enforce STRICT single Super Admin constraint: Only ONE Super Admin can exist in the entire system.
+		if (roleName === "super_admin") {
+			const existingSuperAdmins = await db
+				.select()
+				.from(userRoles)
+				.leftJoin(roles, eq(userRoles.role_id, roles.id))
+				.where(eq(roles.name, "super_admin"));
+
+			if (existingSuperAdmins.length > 0) {
+				throw new Error("Strict System Limit: There can strictly only be ONE Super Admin in the ERP system.");
+			}
+		}
+
 		// --- END PRE-CHECKS ----------------------------------------------------------
 
 		// 1. Validate if role exists
@@ -344,6 +357,20 @@ export class UserManagementRepository {
 		// the actor is authorized, but we check if the new role is valid.
 		if (!ROLES.includes(newRoleName)) {
 			throw new Error(`Invalid role: ${newRoleName}`);
+		}
+
+		// Enforce STRICT single Super Admin constraint during role updates
+		if (newRoleName === "super_admin") {
+			const existingSuperAdmins = await db
+				.select()
+				.from(userRoles)
+				.leftJoin(roles, eq(userRoles.role_id, roles.id))
+				.where(eq(roles.name, "super_admin"));
+
+			const otherSuperAdminExists = existingSuperAdmins.some((row) => row.user_roles.user_id !== targetUserId);
+			if (otherSuperAdminExists) {
+				throw new Error("Strict System Limit: There can strictly only be ONE Super Admin in the ERP system.");
+			}
 		}
 
 		return await db.transaction(async (tx) => {
