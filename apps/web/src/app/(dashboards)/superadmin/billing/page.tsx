@@ -29,17 +29,20 @@ import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/list-shell";
 import { PageTransition } from "@/lib/animations";
 
+import { trpc } from "@/lib/trpc/client";
+import { formatCurrency } from "@/lib/utils";
+import { useLocale } from "next-intl";
+
 export default function SuperAdminBillingPage() {
-	const [billingLogs] = useState([
-		{ id: "INV-1001", company: "Acme Corp", amount: "$499.00", status: "Paid", date: "2026-09-01" },
-		{ id: "INV-1002", company: "Globex Ltd", amount: "$299.00", status: "Paid", date: "2026-09-01" },
-		{ id: "INV-1003", company: "Initech", amount: "$149.00", status: "Paid", date: "2026-08-28" },
-		{ id: "INV-1004", company: "Umbrella Corp", amount: "$999.00", status: "Pending", date: "2026-08-25" },
-	]);
+	const locale = useLocale();
+	const { data: stats } = trpc.superadmin.getBillingStats.useQuery();
+	const { data: invoices } = trpc.superadmin.getBillingInvoices.useQuery();
 
 	const handleDownload = (id: string) => {
 		toast.success(`Downloading invoice ${id} PDF...`);
 	};
+
+	const billingLogs = invoices || [];
 
 	return (
 		<PageTransition className="flex min-w-0 flex-col gap-5">
@@ -62,7 +65,7 @@ export default function SuperAdminBillingPage() {
 						</div>
 						<div>
 							<p className="text-muted-foreground text-xs">Monthly Recurring Revenue</p>
-							<p className="font-bold text-2xl">$1,946.00</p>
+							<p className="font-bold text-2xl">{formatCurrency(stats?.mrr || 0, locale)}</p>
 						</div>
 					</CardContent>
 				</Card>
@@ -74,7 +77,7 @@ export default function SuperAdminBillingPage() {
 						</div>
 						<div>
 							<p className="text-muted-foreground text-xs">Annual Contract Value</p>
-							<p className="font-bold text-2xl">$23,352.00</p>
+							<p className="font-bold text-2xl">{formatCurrency(stats?.acv || 0, locale)}</p>
 						</div>
 					</CardContent>
 				</Card>
@@ -86,7 +89,7 @@ export default function SuperAdminBillingPage() {
 						</div>
 						<div>
 							<p className="text-muted-foreground text-xs">SaaS Customers</p>
-							<p className="font-bold text-2xl">4 Active Tenants</p>
+							<p className="font-bold text-2xl">{stats?.activeTenants || 0} Active Tenants</p>
 						</div>
 					</CardContent>
 				</Card>
@@ -99,38 +102,44 @@ export default function SuperAdminBillingPage() {
 					<CardDescription>System-wide transactional record for SaaS subscriptions.</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0">
-					<Table>
-						<TableHeader className="bg-muted/40 backdrop-blur">
-							<TableRow>
-								<TableHead>Invoice ID</TableHead>
-								<TableHead>Company</TableHead>
-								<TableHead>Amount</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead>Issue Date</TableHead>
-								<TableHead className="text-right">Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{billingLogs.map((log) => (
-								<TableRow key={log.id} className="hover:bg-muted/30">
-									<TableCell className="font-medium font-mono text-sm">{log.id}</TableCell>
-									<TableCell>{log.company}</TableCell>
-									<TableCell>{log.amount}</TableCell>
-									<TableCell>
-										<span className={`px-2 py-0.5 rounded text-xs font-semibold ${log.status === "Paid" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-600"}`}>
-											{log.status}
-										</span>
-									</TableCell>
-									<TableCell className="text-muted-foreground text-xs">{log.date}</TableCell>
-									<TableCell className="text-right">
-										<Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(log.id)}>
-											<DownloadIcon className="h-4 w-4" />
-										</Button>
-									</TableCell>
+					{billingLogs.length === 0 ? (
+						<div className="flex h-32 items-center justify-center text-muted-foreground text-sm">
+							No billing invoices recorded yet.
+						</div>
+					) : (
+						<Table>
+							<TableHeader className="bg-muted/40 backdrop-blur">
+								<TableRow>
+									<TableHead>Invoice ID</TableHead>
+									<TableHead>Company</TableHead>
+									<TableHead>Amount</TableHead>
+									<TableHead>Status</TableHead>
+									<TableHead>Issue Date</TableHead>
+									<TableHead className="text-right">Actions</TableHead>
 								</TableRow>
-							))}
-						</TableBody>
-					</Table>
+							</TableHeader>
+							<TableBody>
+								{billingLogs.map((log) => (
+									<TableRow key={log.id} className="hover:bg-muted/30">
+										<TableCell className="font-medium font-mono text-sm">{log.id}</TableCell>
+										<TableCell>{log.company}</TableCell>
+										<TableCell>{log.amount}</TableCell>
+										<TableCell>
+											<span className={`px-2 py-0.5 rounded text-xs font-semibold ${log.status === "Paid" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-600"}`}>
+												{log.status}
+											</span>
+										</TableCell>
+										<TableCell className="text-muted-foreground text-xs">{log.date}</TableCell>
+										<TableCell className="text-right">
+											<Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(log.id)}>
+												<DownloadIcon className="h-4 w-4" />
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					)}
 				</CardContent>
 			</Card>
 		</PageTransition>

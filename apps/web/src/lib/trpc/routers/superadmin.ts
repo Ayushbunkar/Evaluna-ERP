@@ -63,6 +63,49 @@ export const superadminRouter = router({
 		return db.select().from(plans).orderBy(plans.price);
 	}),
 
+	getBillingStats: superadminProcedure.query(async () => {
+		const [activeTenantsRes, paidInvoicesRes] = await Promise.all([
+			db.select({ count: count() }).from(companies).where(eq(companies.status, "active")),
+			db
+				.select({ total: sum(billingInvoices.amount) })
+				.from(billingInvoices)
+				.where(eq(billingInvoices.status, "paid")),
+		]);
+
+		const mrr = Number.parseFloat(paidInvoicesRes[0]?.total || "0");
+		const acv = mrr * 12;
+
+		return {
+			mrr,
+			acv,
+			activeTenants: activeTenantsRes[0]?.count || 0,
+		};
+	}),
+
+	getBillingInvoices: superadminProcedure.query(async () => {
+		const rows = await db
+			.select({
+				id: billingInvoices.id,
+				companyName: companies.name,
+				amount: billingInvoices.amount,
+				currency: billingInvoices.currency,
+				status: billingInvoices.status,
+				createdAt: billingInvoices.created_at,
+			})
+			.from(billingInvoices)
+			.leftJoin(companies, eq(billingInvoices.company_id, companies.id))
+			.orderBy(desc(billingInvoices.created_at))
+			.limit(50);
+
+		return rows.map((r) => ({
+			id: `INV-${r.id}`,
+			company: r.companyName || "Unknown Company",
+			amount: `₹${Number.parseFloat(r.amount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+			status: r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : "Open",
+			date: r.createdAt ? new Date(r.createdAt).toISOString().split("T")[0] : "N/A",
+		}));
+	}),
+
 	getSystemHealth: superadminProcedure.query(async () => {
 		return {
 			cpuUsage: 0,

@@ -75,10 +75,15 @@ export const roleProcedure = (requiredRoles: Role[]) => {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
 		
-		const userRole = ctx.user.primaryRole.name as Role;
+		// Superadmin bypasses role procedures
+		if (ctx.user.isSuperadmin) {
+			return next({ ctx: { ...ctx, user: ctx.user } });
+		}
+
+		const userRole = (ctx.user.primaryRole?.name || (ctx.user as any).role) as Role;
 
 		// Check if the user's primary role is one of the required roles
-		if (!requiredRoles.includes(userRole)) {
+		if (!userRole || !requiredRoles.includes(userRole)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 

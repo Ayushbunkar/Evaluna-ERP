@@ -31,17 +31,27 @@ export {
 export const createTRPCContext = async (): Promise<TRPCContext> => {
 	const user = await getAuthUser();
 
-	// Transform CachedSession to match BaseUser interface
+	// Transform CachedSession to match TRPCContext user interface
 	const baseUser = user
 		? {
 				id: user.userId,
 				name: user.name,
 				email: user.email,
-				role: user.role,
-				branchId: user.branchId,
+				status: user.status,
+				forcePasswordChange: user.forcePasswordChange,
 				isSuperadmin: user.isSuperadmin,
-				isActive: user.isActive,
-				permissions: user.permissions,
+				branchId: user.branchId,
+				warehouseId: user.warehouseId,
+				staff: user.staff,
+				primaryRole: user.primaryRole ?? {
+					name: user.isSuperadmin ? "super_admin" : "admin",
+					dashboardRoute: user.canonicalDashboardRoute ?? "/dashboard",
+					permissions: user.permissions ?? [],
+				},
+				roles: user.roles ?? [],
+				permissions: user.permissions ?? [],
+				canonicalDashboardRoute: user.canonicalDashboardRoute ?? "/dashboard",
+				role: user.primaryRole?.name || (user.isSuperadmin ? "super_admin" : "admin"),
 			}
 		: null;
 
@@ -51,5 +61,5 @@ export const createTRPCContext = async (): Promise<TRPCContext> => {
 		);
 	}
 
-	return { user: baseUser, db: db as any };
+	return { user: baseUser as any, db: db as any };
 };
