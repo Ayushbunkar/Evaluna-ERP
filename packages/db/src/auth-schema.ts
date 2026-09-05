@@ -227,21 +227,6 @@ export const securityAuditLogRelations = relations(
 	}),
 );
 
-export const userRelations = relations(user, ({ many, one }) => ({
-	sessions: many(session),
-	accounts: many(account),
-	staff: one(staff, {
-		fields: [user.staff_id],
-		references: [staff.id],
-	}),
-	auditLogsAsActor: many(securityAuditLog, {
-		relationName: "actor_logs",
-	}),
-	auditLogsAsTarget: many(securityAuditLog, {
-		relationName: "target_user_logs",
-	}),
-}));
-
 export const sessionRelations = relations(session, ({ one }) => ({
 	user: one(user, {
 		fields: [session.userId],

@@ -110,7 +110,7 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 		return null;
 	}
 
-	// 3. Resolve user details and linked staff record in a single query
+	// 3. Resolve user details, linked staff record, and roles in a single query
 	const dbUser = await db.query.user.findFirst({
 		where: eq(userTable.id, authSession.user.id),
 		with: {
@@ -121,17 +121,14 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 					staff_code: true,
 					branch_id: true,
 				},
-				// We also want to query the user's roles through the staff link
+			},
+			userRoles: {
+				columns: {}, // Only need the relation
 				with: {
-					userRoles: {
-						columns: {}, // Only need the relation
-						with: {
-							role: {
-								columns: {
-									name: true,
-									permissions: true,
-								},
-							},
+					role: {
+						columns: {
+							name: true,
+							permissions: true,
 						},
 					},
 				},
@@ -159,7 +156,7 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 
 	// 5. Resolve Roles, Permissions, and Dashboard Route (Requirements 4, 5, 8)
 	const rolesList =
-		dbUser.staff?.userRoles.map((ur) => ({
+		dbUser.userRoles.map((ur) => ({
 			name: ur.role.name as RoleName,
 			permissions: ur.role.permissions as string[],
 			dashboardRoute: getCanonicalDashboardRoute(ur.role.name),

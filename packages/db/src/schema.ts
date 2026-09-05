@@ -21,7 +21,6 @@ import {
 	session,
 	sessionRelations,
 	user,
-	userRelations,
 	verification,
 	securityAuditLog,
 	securityAuditLogRelations,
@@ -34,7 +33,6 @@ export {
 	session,
 	sessionRelations,
 	user,
-	userRelations,
 	verification,
 	securityAuditLog,
 	securityAuditLogRelations,
@@ -503,6 +501,22 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
 		fields: [userRoles.role_id],
 		references: [roles.id],
 	}),
+}));
+
+export const userRelations = relations(user, ({ many, one }) => ({
+	sessions: many(session),
+	accounts: many(account),
+	staff: one(staff, {
+		fields: [user.staff_id],
+		references: [staff.id],
+	}),
+	auditLogsAsActor: many(securityAuditLog, {
+		relationName: "actor_logs",
+	}),
+	auditLogsAsTarget: many(securityAuditLog, {
+		relationName: "target_user_logs",
+	}),
+	userRoles: many(userRoles),
 }));
 
 // ── Stock Adjustments ─────────────────────────────────────────────────────────
