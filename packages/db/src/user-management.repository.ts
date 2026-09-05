@@ -118,15 +118,24 @@ export class UserManagementRepository {
 
 		// 3. Perform the transactional insert
 		return await db.transaction(async (tx) => {
-			// Find the role ID
-			const [roleRecord] = await tx
-				.select()
-				.from(roles)
-				.where(eq(roles.name, roleName));
+			// Find the role ID or auto-create if missing (e.g. fresh DB environment)
+			let roleRecord = (
+				await tx
+					.select()
+					.from(roles)
+					.where(eq(roles.name, roleName))
+			)[0];
 
 			if (!roleRecord) {
-				tx.rollback();
-				throw new Error(`Role not found: ${roleName}`);
+				const [insertedRole] = await tx
+					.insert(roles)
+					.values({
+						name: roleName,
+						description: `${roleName.toUpperCase().replace("_", " ")} Role`,
+						permissions: {},
+					})
+					.returning();
+				roleRecord = insertedRole;
 			}
 
 			// A. Create the Staff (Employee) record first (Requirement 15)
