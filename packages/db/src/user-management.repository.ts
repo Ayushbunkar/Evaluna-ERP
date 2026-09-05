@@ -14,7 +14,7 @@ import {
 	type Role,
 } from "./permissions";
 import { hashPassword } from "../utils/password-hasher"; // Assuming a utility file for secure hashing
-import { db } from "./index";
+import { db } from "./db";
 import { roles, securityAuditLog, staff, user, userRoles, account, session } from "./schema";
 
 // =============================================================================
