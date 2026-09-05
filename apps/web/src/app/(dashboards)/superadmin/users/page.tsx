@@ -287,7 +287,7 @@ export default function SuperAdminUsersPage() {
 											<TableCell>{u.email}</TableCell>
 											<TableCell>
 												<Badge variant="primary">
-													{u.role.toUpperCase().replace("_", " ")}
+													{(u.role || "user").toUpperCase().replace("_", " ")}
 												</Badge>
 											</TableCell>
 											<TableCell>

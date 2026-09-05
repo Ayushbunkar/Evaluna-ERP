@@ -124,9 +124,9 @@ export const usersRouter = router({
 
 				return {
 					success: true,
-					userId: result.userId,
-					staffId: result.staffId,
-					role: result.role,
+					userId: result?.userId,
+					staffId: result?.staffId,
+					role: result?.role ?? input.roleName,
 				};
 			} catch (error: any) {
 				throw new TRPCError({
