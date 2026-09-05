@@ -4,6 +4,7 @@ import {
 	userRoles as userRolesTable,
 	user as userTable,
 } from "@evaluna/db/schema";
+import { getPermissionsForRole } from "@evaluna/db";
 import { and, desc, eq, get, isNotNull } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { auth } from "./auth";
@@ -158,7 +159,7 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 	const rolesList =
 		dbUser.userRoles.map((ur) => ({
 			name: ur.role.name as RoleName,
-			permissions: ur.role.permissions as string[],
+			permissions: getPermissionsForRole(ur.role.name as any) as string[],
 			dashboardRoute: getCanonicalDashboardRoute(ur.role.name),
 		})) ?? [];
 
