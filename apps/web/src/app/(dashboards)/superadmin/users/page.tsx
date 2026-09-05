@@ -122,7 +122,10 @@ export default function SuperAdminUsersPage() {
 			void utils.users.list.invalidate();
 		},
 		onError: (err) => {
-			toast.error(`Failed to create user: ${err.message}`);
+			const msg = err?.message?.startsWith("[")
+				? "Validation failed. Please check the form fields."
+				: err?.message || "Failed to create user.";
+			toast.error(`Failed to create user: ${msg}`);
 		},
 	});
 
