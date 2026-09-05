@@ -138,6 +138,11 @@ export class UserManagementRepository {
 				roleRecord = insertedRole;
 			}
 
+			if (!roleRecord) {
+				tx.rollback();
+				throw new Error(`Failed to resolve or create role: ${roleName}`);
+			}
+
 			// A. Create the Staff (Employee) record first (Requirement 15)
 			const [newStaff] = await tx
 				.insert(staff)

@@ -20,7 +20,7 @@ import {
 	BanknoteIcon,
 	CreditCardIcon,
 	DownloadIcon,
-	DollarSignIcon,
+	IndianRupeeIcon,
 	TrendingUpIcon,
 	UsersIcon,
 } from "lucide-react";
@@ -61,10 +61,10 @@ export default function SuperAdminBillingPage() {
 				<Card className="border-border/50 bg-card/50 shadow-sm">
 					<CardContent className="p-6 flex items-center space-x-4">
 						<div className="p-3 bg-blue-500/10 rounded-full">
-							<DollarSignIcon className="h-6 w-6 text-blue-500" />
+							<IndianRupeeIcon className="h-6 w-6 text-blue-500" />
 						</div>
 						<div>
-							<p className="text-muted-foreground text-xs">Monthly Recurring Revenue</p>
+							<p className="text-muted-foreground text-xs flex items-center gap-1">Monthly Recurring Revenue 🇮🇳</p>
 							<p className="font-bold text-2xl">{formatCurrency(stats?.mrr || 0, locale)}</p>
 						</div>
 					</CardContent>
@@ -76,7 +76,7 @@ export default function SuperAdminBillingPage() {
 							<TrendingUpIcon className="h-6 w-6 text-green-500" />
 						</div>
 						<div>
-							<p className="text-muted-foreground text-xs">Annual Contract Value</p>
+							<p className="text-muted-foreground text-xs flex items-center gap-1">Annual Contract Value 🇮🇳</p>
 							<p className="font-bold text-2xl">{formatCurrency(stats?.acv || 0, locale)}</p>
 						</div>
 					</CardContent>

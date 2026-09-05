@@ -16,7 +16,8 @@ const LOCALE_ALIASES: Record<string, string> = {
 
 function resolveLocale(locale?: string) {
 	if (!locale) return "en-IN";
-	return LOCALE_ALIASES[locale] ?? locale;
+	const base = locale.split("-")[0];
+	return LOCALE_ALIASES[base] ?? "en-IN";
 }
 
 function resolveCurrency(_locale: string) {
