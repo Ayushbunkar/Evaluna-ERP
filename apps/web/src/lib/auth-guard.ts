@@ -124,7 +124,9 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 				},
 			},
 			userRoles: {
-				columns: {}, // Only need the relation
+				columns: {
+					role_id: true,
+				},
 				with: {
 					role: {
 						columns: {
@@ -157,11 +159,13 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 
 	// 5. Resolve Roles, Permissions, and Dashboard Route (Requirements 4, 5, 8)
 	const rolesList =
-		dbUser.userRoles.map((ur) => ({
-			name: ur.role.name as RoleName,
-			permissions: getPermissionsForRole(ur.role.name as any) as string[],
-			dashboardRoute: getCanonicalDashboardRoute(ur.role.name),
-		})) ?? [];
+		dbUser.userRoles
+			.filter((ur) => ur && ur.role)
+			.map((ur) => ({
+				name: ur.role.name as RoleName,
+				permissions: getPermissionsForRole(ur.role.name as any) as string[],
+				dashboardRoute: getCanonicalDashboardRoute(ur.role.name),
+			})) ?? [];
 
 	// Use a Set to aggregate unique permissions
 	const aggregatedPermissions = new Set<string>();
