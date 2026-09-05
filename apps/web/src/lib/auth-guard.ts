@@ -159,7 +159,7 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 
 	// 5. Resolve Roles, Permissions, and Dashboard Route (Requirements 4, 5, 8)
 	const rolesList =
-		dbUser.userRoles
+		(dbUser.userRoles || [])
 			.filter((ur) => ur && ur.role)
 			.map((ur) => ({
 				name: ur.role.name as RoleName,
