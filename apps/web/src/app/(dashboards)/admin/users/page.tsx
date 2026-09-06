@@ -99,6 +99,28 @@ export default function AdminUsersPage() {
 	const [copiedField, setCopiedField] = useState<"email" | "password" | "all" | null>(null);
 	const [createdCreds, setCreatedCredentials] = useState<{ email: string; pass: string } | null>(null);
 
+	// State for administrative action modals
+	const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+	const [selectedUserName, setSelectedUserName] = useState<string>("");
+
+	// View Details Modal
+	const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+
+	// Lock/Unlock Modal
+	const [lockStatusOpen, setLockStatusOpen] = useState(false);
+	const [pendingStatus, setPendingStatus] = useState<"ACTIVE" | "LOCKED" | null>(null);
+	const [statusReason, setStatusStatusReason] = useState("");
+
+	// Reset Password Modal
+	const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+	const [newPasswordVal, setNewPasswordVal] = useState("");
+	const [forcePwdChange, setForcePasswordChange] = useState(true);
+	const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+
+	// Revoke Sessions Modal
+	const [revokeSessionsOpen, setRevokeSessionsOpen] = useState(false);
+	const [revokeReason, setRevokeReason] = useState("");
+
 	// Fetch users list with real TRPC hook
 	const { data, isLoading, refetch, isFetching } = trpc.users.list.useQuery({
 		page,
@@ -107,6 +129,12 @@ export default function AdminUsersPage() {
 		status: (statusFilter as any) || undefined,
 		roleName: (roleFilter as any) || undefined,
 	});
+
+	// Fetch detailed user profile for the View Details modal
+	const { data: userDetails, isLoading: detailsLoading } = trpc.users.get.useQuery(
+		{ userId: selectedUserId || "" },
+		{ enabled: !!selectedUserId && viewDetailsOpen }
+	);
 
 	// Mutations
 	const updateStatus = trpc.users.updateStatus.useMutation({
@@ -122,9 +150,20 @@ export default function AdminUsersPage() {
 	const revokeSessions = trpc.users.revokeSessions.useMutation({
 		onSuccess: () => {
 			toast.success("All active sessions revoked successfully.");
+			void utils.users.list.invalidate();
 		},
 		onError: (err) => {
 			toast.error(`Failed to revoke sessions: ${err.message}`);
+		},
+	});
+
+	const resetCredentials = trpc.users.resetCredentials.useMutation({
+		onSuccess: () => {
+			toast.success("User password has been reset successfully.");
+			setPasswordResetSuccess(true);
+		},
+		onError: (err) => {
+			toast.error(`Failed to reset password: ${err.message}`);
 		},
 	});
 
@@ -346,7 +385,11 @@ export default function AdminUsersPage() {
 															variant="ghost"
 															size="icon"
 															className="h-8 w-8 text-muted-foreground hover:text-foreground"
-															onClick={() => console.log("Edit user clicked")}
+															onClick={() => {
+																setSelectedUserId(u.id);
+																setSelectedUserName(u.name);
+																setViewDetailsOpen(true);
+															}}
 														>
 															<EyeIcon className="h-4 w-4" />
 														</Button>
@@ -358,7 +401,12 @@ export default function AdminUsersPage() {
 																variant="ghost"
 																size="icon"
 																className="h-8 w-8 text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10"
-																onClick={() => handleStatusChange(u.id, "LOCKED")}
+																onClick={() => {
+																	setSelectedUserId(u.id);
+																	setSelectedUserName(u.name);
+																	setPendingStatus("LOCKED");
+																	setLockStatusOpen(true);
+																}}
 															>
 																<LockIcon className="h-4 w-4" />
 															</Button>
@@ -369,7 +417,12 @@ export default function AdminUsersPage() {
 																variant="ghost"
 																size="icon"
 																className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-500/10"
-																onClick={() => handleStatusChange(u.id, "ACTIVE")}
+																onClick={() => {
+																	setSelectedUserId(u.id);
+																	setSelectedUserName(u.name);
+																	setPendingStatus("ACTIVE");
+																	setLockStatusOpen(true);
+																}}
 															>
 																<UnlockIcon className="h-4 w-4" />
 															</Button>
@@ -381,7 +434,13 @@ export default function AdminUsersPage() {
 															variant="ghost"
 															size="icon"
 															className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
-															onClick={() => console.log("Reset password clicked")}
+															onClick={() => {
+																setSelectedUserId(u.id);
+																setSelectedUserName(u.name);
+																setResetPasswordOpen(true);
+																setPasswordResetSuccess(false);
+																setNewPasswordVal("");
+															}}
 														>
 															<KeyIcon className="h-4 w-4" />
 														</Button>
@@ -392,7 +451,12 @@ export default function AdminUsersPage() {
 															variant="ghost"
 															size="icon"
 															className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-															onClick={() => handleRevoke(u.id)}
+															onClick={() => {
+																setSelectedUserId(u.id);
+																setSelectedUserName(u.name);
+																setRevokeSessionsOpen(true);
+																setRevokeReason("");
+															}}
 														>
 															<UserMinusIcon className="h-4 w-4" />
 														</Button>
@@ -599,6 +663,340 @@ export default function AdminUsersPage() {
 							</DialogFooter>
 						</div>
 					)}
+				</DialogContent>
+			</Dialog>
+
+			{/* View Details Dialog Modal */}
+			<Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+				<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>User Profile & Security Audit</DialogTitle>
+						<DialogDescription>
+							Detailed configuration, active sessions, and recent security logs for {selectedUserName || "the user"}.
+						</DialogDescription>
+					</DialogHeader>
+
+					{detailsLoading ? (
+						<div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
+							<RefreshCwIcon className="mr-2 h-4 w-4 animate-spin" /> Loading user details...
+						</div>
+					) : !userDetails ? (
+						<div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
+							Failed to load user details.
+						</div>
+					) : (
+						<div className="space-y-6 py-2">
+							{/* Profile Grid */}
+							<div className="grid grid-cols-2 gap-4 border-b pb-4 border-border/40">
+								<div>
+									<span className="text-xs font-semibold text-muted-foreground block">Full Name</span>
+									<span className="text-sm font-medium">{userDetails.profile?.name || "N/A"}</span>
+								</div>
+								<div>
+									<span className="text-xs font-semibold text-muted-foreground block">Email / Login ID</span>
+									<span className="text-sm font-medium">{userDetails.profile?.email || "N/A"}</span>
+								</div>
+								<div>
+									<span className="text-xs font-semibold text-muted-foreground block">Employee ID</span>
+									<span className="text-sm font-mono text-xs">{userDetails.profile?.staffCode || "N/A"}</span>
+								</div>
+								<div>
+									<span className="text-xs font-semibold text-muted-foreground block">Primary Role</span>
+									<span className="text-sm">
+										<Badge variant="outline" className="capitalize">
+											{(userDetails.profile?.role || "N/A").toUpperCase().replace("_", " ")}
+										</Badge>
+									</span>
+								</div>
+								<div>
+									<span className="text-xs font-semibold text-muted-foreground block">Status</span>
+									<span className="text-sm">
+										<StatusBadge status={userDetails.profile?.status || "ACTIVE"} />
+									</span>
+								</div>
+								<div>
+									<span className="text-xs font-semibold text-muted-foreground block">Branch ID</span>
+									<span className="text-sm">{userDetails.profile?.branchId ?? "N/A"}</span>
+								</div>
+							</div>
+
+							{/* Active Sessions */}
+							<div className="space-y-2">
+								<h4 className="text-sm font-semibold flex items-center">
+									<ActivityIcon className="mr-1.5 h-4 w-4 text-blue-500" />
+									Active Sessions ({userDetails.sessions?.length || 0})
+								</h4>
+								{userDetails.sessions?.length === 0 ? (
+									<p className="text-xs text-muted-foreground">No active sessions found.</p>
+								) : (
+									<div className="rounded-md border border-border/40 overflow-hidden text-xs">
+										<div className="bg-muted/40 p-2 grid grid-cols-3 font-semibold border-b border-border/40">
+											<span>Device / User Agent</span>
+											<span>IP Address</span>
+											<span>Last Used</span>
+										</div>
+										<div className="divide-y divide-border/30 max-h-32 overflow-y-auto">
+											{userDetails.sessions?.map((session: any) => (
+												<div key={session.id} className="p-2 grid grid-cols-3 hover:bg-muted/10">
+													<span className="truncate" title={session.userAgent}>
+														{session.deviceName || session.userAgent || "Unknown Device"}
+													</span>
+													<span>{session.ipAddress || "Unknown IP"}</span>
+													<span>{session.createdAt ? new Date(session.createdAt).toLocaleString() : "N/A"}</span>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
+							</div>
+
+							{/* Audit Logs */}
+							<div className="space-y-2">
+								<h4 className="text-sm font-semibold flex items-center">
+									<ShieldAlertIcon className="mr-1.5 h-4 w-4 text-yellow-500" />
+									Security Audit Logs ({userDetails.auditLogs?.length || 0})
+								</h4>
+								{userDetails.auditLogs?.length === 0 ? (
+									<p className="text-xs text-muted-foreground">No security logs recorded.</p>
+								) : (
+									<div className="rounded-md border border-border/40 overflow-hidden text-xs">
+										<div className="bg-muted/40 p-2 grid grid-cols-3 font-semibold border-b border-border/40">
+											<span>Action</span>
+											<span>Reason / Description</span>
+											<span>Date / Time</span>
+										</div>
+										<div className="divide-y divide-border/30 max-h-40 overflow-y-auto">
+											{userDetails.auditLogs?.map((log: any) => (
+												<div key={log.id} className="p-2 grid grid-cols-3 hover:bg-muted/10">
+													<span className="font-semibold text-yellow-600 dark:text-yellow-400">{log.action}</span>
+													<span className="truncate" title={log.reason || log.description}>
+														{log.reason || log.description || "N/A"}
+													</span>
+													<span>{new Date(log.createdAt).toLocaleString()}</span>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+
+					<DialogFooter>
+						<Button type="button" onClick={() => setViewDetailsOpen(false)}>
+							Close Details
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Lock/Unlock User Dialog Modal */}
+			<Dialog open={lockStatusOpen} onOpenChange={setLockStatusOpen}>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle>{pendingStatus === "LOCKED" ? "Lock User Account" : "Unlock User Account"}</DialogTitle>
+						<DialogDescription>
+							{pendingStatus === "LOCKED" 
+								? "Locking this account will prevent the user from logging in and suspend any active sessions immediately."
+								: "Unlocking this account will restore standard login and operation privileges."}
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						<div className="space-y-1">
+							<Label htmlFor="statusReason">Reason for status change *</Label>
+							<Input
+								id="statusReason"
+								value={statusReason}
+								onChange={(e) => setStatusStatusReason(e.target.value)}
+								placeholder="Enter reason (at least 5 characters)"
+								required
+							/>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={() => setLockStatusOpen(false)}>
+							Cancel
+						</Button>
+						<Button 
+							type="button" 
+							disabled={updateStatus.isPending || statusReason.trim().length < 5}
+							onClick={() => {
+								if (pendingStatus) {
+									updateStatus.mutate({
+										userId: selectedUserId || "",
+										newStatus: pendingStatus,
+										reason: statusReason,
+									}, {
+										onSuccess: () => {
+											setLockStatusOpen(false);
+											setStatusStatusReason("");
+										}
+									});
+								}
+							}}
+						>
+							{updateStatus.isPending ? "Updating..." : "Confirm"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Reset Password Dialog Modal */}
+			<Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle>Reset User Password</DialogTitle>
+						<DialogDescription>
+							Change or re-generate credentials for {selectedUserName}.
+						</DialogDescription>
+					</DialogHeader>
+
+					{!passwordResetSuccess ? (
+						<div className="space-y-4 py-2">
+							<div className="space-y-1">
+								<Label htmlFor="newPasswordVal">New Password (at least 8 chars)</Label>
+								<div className="flex gap-2">
+									<Input
+										id="newPasswordVal"
+										value={newPasswordVal}
+										onChange={(e) => setNewPasswordVal(e.target.value)}
+										placeholder="Leave empty to auto-generate"
+									/>
+									<Button 
+										type="button" 
+										variant="outline"
+										onClick={() => setNewPasswordVal(`Temp@${Math.random().toString(36).slice(-8)}123`)}
+									>
+										Generate
+									</Button>
+								</div>
+							</div>
+
+							<div className="flex items-center space-x-2 pt-1">
+								<input
+									id="forcePwdChange"
+									type="checkbox"
+									className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+									checked={forcePwdChange}
+									onChange={(e) => setForcePasswordChange(e.target.checked)}
+								/>
+								<Label htmlFor="forcePwdChange" className="cursor-pointer text-xs sm:text-sm">
+									Force password change on first login
+								</Label>
+							</div>
+
+							<DialogFooter className="pt-2">
+								<Button type="button" variant="outline" onClick={() => setResetPasswordOpen(false)}>
+									Cancel
+								</Button>
+								<Button 
+									type="button" 
+									disabled={resetCredentials.isPending}
+									onClick={() => {
+										const finalPass = newPasswordVal || `Temp@${Math.random().toString(36).slice(-8)}123`;
+										setNewPasswordVal(finalPass);
+										resetCredentials.mutate({
+											userId: selectedUserId || "",
+											newPassword: finalPass,
+											forcePasswordChange: forcePwdChange,
+										});
+									}}
+								>
+									{resetCredentials.isPending ? "Resetting..." : "Reset Password"}
+								</Button>
+							</DialogFooter>
+						</div>
+					) : (
+						<div className="space-y-4 py-2">
+							<div className="rounded-lg bg-green-500/10 p-3 text-center text-green-500 text-sm font-semibold">
+								Password Reset Successfully!
+							</div>
+
+							<Card className="border border-green-500/20 bg-background/50">
+								<CardContent className="p-4 space-y-3">
+									<div className="flex items-center justify-between text-xs sm:text-sm">
+										<span className="font-semibold text-muted-foreground">New Temporary Password:</span>
+										<div className="flex items-center space-x-2 font-mono">
+											<span className="bg-yellow-500/10 px-1.5 py-0.5 rounded text-yellow-600 font-semibold">{newPasswordVal}</span>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-6 w-6 text-muted-foreground"
+												onClick={() => copyToClipboard(newPasswordVal, "password")}
+											>
+												{copiedField === "password" ? <CheckIcon className="h-3.5 w-3.5 text-green-500" /> : <CopyIcon className="h-3.5 w-3.5" />}
+											</Button>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+
+							<DialogFooter className="pt-2">
+								<Button 
+									type="button" 
+									className="w-full"
+									onClick={() => {
+										copyToClipboard(newPasswordVal, "password");
+										setResetPasswordOpen(false);
+										setPasswordResetSuccess(false);
+										setNewPasswordVal("");
+									}}
+								>
+									Copy & Close
+								</Button>
+							</DialogFooter>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
+
+			{/* Revoke Sessions Dialog Modal */}
+			<Dialog open={revokeSessionsOpen} onOpenChange={setRevokeSessionsOpen}>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle>Revoke Active Sessions</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to terminate all active login sessions for {selectedUserName}? This will force the user to log out immediately on all devices.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						<div className="space-y-1">
+							<Label htmlFor="revokeReason">Reason for session revocation *</Label>
+							<Input
+								id="revokeReason"
+								value={revokeReason}
+								onChange={(e) => setRevokeReason(e.target.value)}
+								placeholder="Enter reason (at least 5 characters)"
+								required
+							/>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={() => setRevokeSessionsOpen(false)}>
+							Cancel
+						</Button>
+						<Button 
+							type="button" 
+							disabled={revokeSessions.isPending || revokeReason.trim().length < 5}
+							onClick={() => {
+								revokeSessions.mutate({
+									userId: selectedUserId || "",
+									reason: revokeReason,
+								}, {
+									onSuccess: () => {
+										setRevokeSessionsOpen(false);
+										setRevokeReason("");
+									}
+								});
+							}}
+						>
+							{revokeSessions.isPending ? "Revoking..." : "Confirm Revocation"}
+						</Button>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</PageTransition>
