@@ -80,10 +80,13 @@ export const roleProcedure = (requiredRoles: Role[]) => {
 			return next({ ctx: { ...ctx, user: ctx.user } });
 		}
 
-		const userRole = (ctx.user.primaryRole?.name || (ctx.user as any).role) as Role;
+		let userRole = (ctx.user.primaryRole?.name || (ctx.user as any).role) as string;
+		if (userRole === "salesperson") {
+			userRole = "sales_person";
+		}
 
 		// Check if the user's primary role is one of the required roles
-		if (!userRole || !requiredRoles.includes(userRole)) {
+		if (!userRole || !requiredRoles.includes(userRole as any)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 

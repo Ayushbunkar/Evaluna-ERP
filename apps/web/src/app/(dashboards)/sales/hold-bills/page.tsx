@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
@@ -35,10 +35,31 @@ export default function HoldBillsPage() {
 	const router = useRouter();
 	const utils = trpc.useUtils();
 
+	// Translations Dictionary
+	const t = {
+		title: locale === "hi" ? "होल्ड बिल (Hold Bills)" : "Hold Bills",
+		subtitle: locale === "hi" ? "उन बिलों को देखें और प्रबंधित करें जिन्हें होल्ड पर रखा गया था।" : "View and manage bills that were put on hold.",
+		suspendedTitle: locale === "hi" ? "निलंबित बिल (Suspended)" : "Suspended Bills",
+		activeHoldTitle: locale === "hi" ? "सक्रिय होल्ड बिल" : "Active Hold Bills",
+		emptyMsg: locale === "hi" ? "कोई होल्ड बिल नहीं मिला।" : "No hold bills found.",
+		resumeBill: locale === "hi" ? "बिल पुनर्प्रारंभ करें" : "Resume Bill",
+		deleteBill: locale === "hi" ? "बिल हटाएं" : "Delete Bill",
+		
+		thBillId: locale === "hi" ? "बिल आईडी" : "Bill ID",
+		thCustomer: locale === "hi" ? "ग्राहक" : "Customer",
+		thAmount: locale === "hi" ? "कुल राशि" : "Total Amount",
+		thDateHeld: locale === "hi" ? "होल्ड करने की तिथि" : "Date Held",
+		thActions: locale === "hi" ? "कार्रवाइयाँ" : "Actions",
+		walkIn: locale === "hi" ? "वॉक-इन" : "Walk-in",
+		resumeToast: locale === "hi" ? "बिल को पुनर्प्रारंभ किया जा रहा है..." : "Resuming hold bill...",
+		deleteConfirm: locale === "hi" ? "क्या आप वाकई इस होल्ड बिल को हटाना चाहते हैं?" : "Are you sure you want to delete this hold bill?",
+		deleteSuccess: locale === "hi" ? "होल्ड बिल सफलतापूर्वक हटा दिया गया।" : "Hold bill deleted successfully.",
+	};
+
 	const { data: orders, isLoading } = trpc.orders.list.useQuery();
 	const deleteMutation = trpc.orders.delete.useMutation({
 		onSuccess: () => {
-			toast.success("Hold bill deleted successfully.");
+			toast.success(t.deleteSuccess);
 			utils.orders.list.invalidate();
 		},
 		onError: (err) => {
@@ -51,14 +72,12 @@ export default function HoldBillsPage() {
 	);
 
 	const handleResume = (id: number) => {
-		toast.info("Resuming hold bill...");
-		// Currently POS doesn't support resuming directly via URL yet,
-		// but we can route them or open it. For now we will just show a toast or redirect to POS.
+		toast.info(t.resumeToast);
 		router.push(`/sales/pos?resume=${id}`);
 	};
 
 	const handleDelete = (id: number) => {
-		if (window.confirm("Are you sure you want to delete this hold bill?")) {
+		if (window.confirm(t.deleteConfirm)) {
 			deleteMutation.mutate({ id });
 		}
 	};
@@ -66,43 +85,43 @@ export default function HoldBillsPage() {
 	const columns: Column<Order>[] = [
 		{
 			key: "id",
-			header: "Bill ID",
+			header: t.thBillId,
 			sortable: true,
 			className: "font-medium",
 		},
 		{
 			key: "customer",
-			header: "Customer",
+			header: t.thCustomer,
 			sortable: true,
-			render: (row) => row.customer?.name || "Walk-in",
+			render: (row) => row.customer?.name || t.walkIn,
 		},
 		{
 			key: "amount",
-			header: "Total Amount",
+			header: t.thAmount,
 			sortable: true,
 			render: (row) => formatCurrency(Number(row.total_amount), locale),
 		},
 		{
 			key: "created_at",
-			header: "Date Held",
+			header: t.thDateHeld,
 			sortable: true,
 			render: (row) =>
 				row.created_at ? new Date(row.created_at).toLocaleString() : "-",
 		},
 		{
 			key: "actions",
-			header: "Actions",
+			header: t.thActions,
 			render: (row) => (
 				<TableActions>
 					<TableActionButton
 						icon={<PlayCircleIcon className="h-4 w-4" />}
-						label="Resume Bill"
+						label={t.resumeBill}
 						onClick={() => handleResume(row.id)}
 					/>
 					<RoleGate minRole="manager">
 						<TableActionButton
 							icon={<TrashIcon className="h-4 w-4 text-red-500" />}
-							label="Delete Bill"
+							label={t.deleteBill}
 							onClick={() => handleDelete(row.id)}
 						/>
 					</RoleGate>
@@ -115,9 +134,9 @@ export default function HoldBillsPage() {
 		<PageTransition className="flex flex-col gap-6 p-4">
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div>
-					<h1 className="font-bold text-3xl tracking-tight">Hold Bills</h1>
+					<h1 className="font-bold text-3xl tracking-tight">{t.title}</h1>
 					<p className="text-muted-foreground text-sm">
-						View and manage bills that were put on hold.
+						{t.subtitle}
 					</p>
 				</div>
 			</div>
@@ -132,7 +151,7 @@ export default function HoldBillsPage() {
 								</div>
 								<div>
 									<p className="font-medium text-muted-foreground text-sm">
-										Suspended Bills
+										{t.suspendedTitle}
 									</p>
 									<h3 className="font-bold text-2xl">
 										{suspendedOrders.length}
@@ -146,14 +165,14 @@ export default function HoldBillsPage() {
 
 			<Card className="flex flex-col gap-4 border-border/50 bg-card/50 p-3 shadow-sm sm:gap-6 sm:p-6">
 				<CardHeader className="p-0">
-					<h2 className="font-semibold text-lg">Active Hold Bills</h2>
+					<h2 className="font-semibold text-lg">{t.activeHoldTitle}</h2>
 				</CardHeader>
 				<CardContent className="p-0">
 					<DataTable
 						data={suspendedOrders as any}
 						columns={columns as any}
 						isLoading={isLoading}
-						emptyMessage="No hold bills found."
+						emptyMessage={t.emptyMsg}
 						emptyIcon={<RefreshCcwIcon className="h-8 w-8" />}
 					/>
 				</CardContent>

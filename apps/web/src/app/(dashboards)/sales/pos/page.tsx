@@ -660,9 +660,9 @@ export default function POSPage() {
 			{paymentModalOpen && (
 				<PaymentModal
 					open={paymentModalOpen}
-					onClose={() => setPaymentModalOpen(false)}
-					total={total}
-					onComplete={finalizeOrder}
+					onOpenChange={setPaymentModalOpen}
+					totalAmount={total}
+					onConfirm={finalizeOrder}
 				/>
 			)}
 

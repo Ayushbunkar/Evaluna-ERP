@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
 	Card,
@@ -25,8 +25,23 @@ export default function TargetsPage() {
 		trpc.orders.list.useQuery();
 	const { data: me, isLoading: isMeLoading } = trpc.staff.me.useQuery();
 
-	// Calculate current month's sales
 	const now = new Date();
+
+	// Translations Dictionary
+	const t = {
+		title: locale === "hi" ? "बिक्री लक्ष्य (Sales Targets)" : "Sales Targets",
+		subtitle: locale === "hi" ? "अपनी टीम के बिक्री लक्ष्यों और प्रदर्शन की निगरानी करें।" : "Monitor your team's sales targets and performance.",
+		monthlyTarget: locale === "hi" ? "मासिक लक्ष्य" : "Monthly Target",
+		achievedTitle: locale === "hi" ? "प्राप्त (इस महीने)" : "Achieved (This Month)",
+		remainingDays: locale === "hi" ? "शेष दिन" : "Remaining Days",
+		progressTitle: locale === "hi" ? "चालू माह की प्रगति" : "Current Month Progress",
+		progressDesc: locale === "hi" ? `${now.toLocaleString("default", { month: "long" })} के लिए आपके लक्ष्य प्राप्ति का विवरण।` : `Visual overview of your target achievement for ${now.toLocaleString("default", { month: "long" })}.`,
+		achievedSuffix: locale === "hi" ? "% प्राप्त" : "% Achieved",
+		remainingSuffix: locale === "hi" ? "शेष" : "Remaining",
+		congrats: locale === "hi" ? "🎉 बधाई हो! आपने अपना मासिक बिक्री लक्ष्य प्राप्त कर लिया है!" : "🎉 Congratulations! You have achieved your monthly sales sales_target!",
+	};
+
+	// Calculate current month's sales
 	const currentMonthSales = (orders || []).reduce((acc, order) => {
 		const orderDate = new Date(order.created_at || new Date());
 		if (
@@ -39,8 +54,8 @@ export default function TargetsPage() {
 		return acc;
 	}, 0);
 
-	const monthlyTarget = Number.parseFloat(me?.monthly_sales_target || "0"); // Dynamically fetched target from Manager/Admin
-	const targetToUse = monthlyTarget > 0 ? monthlyTarget : 500000; // Fallback to 5Lakhs if 0 for demo purposes
+	const monthlyTarget = Number.parseFloat(me?.monthly_sales_target || "0");
+	const targetToUse = monthlyTarget > 0 ? monthlyTarget : 500000;
 	const progressPercentage = Math.min(
 		Math.round((currentMonthSales / targetToUse) * 100),
 		100,
@@ -50,9 +65,9 @@ export default function TargetsPage() {
 		<PageTransition className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 pb-8">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="font-bold text-3xl tracking-tight">Sales Targets</h1>
+					<h1 className="font-bold text-3xl tracking-tight">{t.title}</h1>
 					<p className="mt-1 text-muted-foreground">
-						Monitor your team's sales targets and performance.
+						{t.subtitle}
 					</p>
 				</div>
 			</div>
@@ -67,7 +82,7 @@ export default function TargetsPage() {
 								</div>
 								<div>
 									<p className="font-medium text-muted-foreground text-sm">
-										Monthly Target
+										{t.monthlyTarget}
 									</p>
 									<h3 className="font-bold text-2xl">
 										{formatCurrency(targetToUse, locale)}
@@ -87,7 +102,7 @@ export default function TargetsPage() {
 								</div>
 								<div>
 									<p className="font-medium text-muted-foreground text-sm">
-										Achieved (This Month)
+										{t.achievedTitle}
 									</p>
 									<h3 className="font-bold text-2xl text-emerald-600">
 										{formatCurrency(currentMonthSales, locale)}
@@ -107,7 +122,7 @@ export default function TargetsPage() {
 								</div>
 								<div>
 									<p className="font-medium text-muted-foreground text-sm">
-										Remaining Days
+										{t.remainingDays}
 									</p>
 									<h3 className="font-bold text-2xl">
 										{new Date(
@@ -126,15 +141,14 @@ export default function TargetsPage() {
 			<AnimatedCard delay={0.3}>
 				<Card>
 					<CardHeader>
-						<CardTitle>Current Month Progress</CardTitle>
+						<CardTitle>{t.progressTitle}</CardTitle>
 						<CardDescription>
-							Visual overview of your target achievement for{" "}
-							{now.toLocaleString("default", { month: "long" })}.
+							{t.progressDesc}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex justify-between font-medium text-sm">
-							<span>{progressPercentage}% Achieved</span>
+							<span>{progressPercentage}{t.achievedSuffix}</span>
 							<span>
 								{formatCurrency(
 									targetToUse - currentMonthSales > 0
@@ -142,15 +156,14 @@ export default function TargetsPage() {
 										: 0,
 									locale,
 								)}{" "}
-								Remaining
+								{t.remainingSuffix}
 							</span>
 						</div>
 						<Progress value={progressPercentage} className="h-4" />
 
 						{progressPercentage >= 100 && (
 							<div className="mt-4 rounded-md bg-emerald-50 p-4 text-emerald-700">
-								ðŸŽ‰ Congratulations! You have achieved your monthly sales
-								target!
+								{t.congrats}
 							</div>
 						)}
 					</CardContent>

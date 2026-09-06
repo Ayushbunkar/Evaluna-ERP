@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,16 +10,33 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "next-intl";
 
 export function PaymentModal({
 	open,
 	onOpenChange,
-	totalAmount,
+	totalAmount = 0,
 	onConfirm,
 }: any) {
+	const locale = useLocale();
 	const [customerName, setCustomerName] = useState("");
 	const [customerPhone, setCustomerPhone] = useState("");
 	const [shopName, setShopName] = useState("");
+
+	// Hindi Translation dictionary
+	const t = {
+		title: locale === "hi" ? "भुगतान पूरा करें" : "Complete Payment",
+		totalDue: locale === "hi" ? "कुल देय राशि" : "Total Due",
+		custDetails: locale === "hi" ? "ग्राहक का विवरण" : "Customer Details",
+		optional: locale === "hi" ? "(वैकल्पिक)" : "(optional)",
+		custName: locale === "hi" ? "ग्राहक का नाम" : "Customer Name",
+		custNamePlaceholder: locale === "hi" ? "जैसे: रमेश कुमार" : "e.g. Ramesh Kumar",
+		phone: locale === "hi" ? "फ़ोन नंबर" : "Phone Number",
+		shopName: locale === "hi" ? "दुकान / फर्म का नाम" : "Shop / Firm Name",
+		shopPlaceholder: locale === "hi" ? "जैसे: शर्मा जनरल स्टोर" : "e.g. Sharma General Store",
+		cancel: locale === "hi" ? "रद्द करें" : "Cancel",
+		confirm: locale === "hi" ? "पुष्टि करें और प्रिंट करें" : "Confirm & Print",
+	};
 
 	// Reset when opened
 	useEffect(() => {
@@ -31,8 +48,8 @@ export function PaymentModal({
 	}, [open]);
 
 	const handleConfirm = () => {
-		// Always use Cash (methodId: 1) for full amount
-		const payments = [{ methodId: 1, amount: totalAmount.toString() }];
+		const amountToPay = typeof totalAmount === "number" ? totalAmount : Number.parseFloat(totalAmount || "0");
+		const payments = [{ methodId: 1, amount: amountToPay.toString() }];
 		onConfirm(payments, {
 			customerName: customerName.trim() || undefined,
 			customerPhone: customerPhone.trim() || undefined,
@@ -41,44 +58,46 @@ export function PaymentModal({
 		onOpenChange(false);
 	};
 
+	const displayAmount = typeof totalAmount === "number" ? totalAmount : Number.parseFloat(totalAmount || "0");
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[420px]">
 				<DialogHeader>
-					<DialogTitle className="text-2xl">Complete Payment</DialogTitle>
+					<DialogTitle className="text-2xl">{t.title}</DialogTitle>
 				</DialogHeader>
 
 				<div className="grid gap-6 py-4">
 					{/* Total Due */}
 					<div className="flex items-center justify-between rounded-lg bg-muted p-4">
-						<span className="font-medium text-xl">Total Due</span>
+						<span className="font-medium text-xl">{t.totalDue}</span>
 						<span className="font-bold text-3xl">
-							₹{totalAmount.toFixed(2)}
+							₹{displayAmount.toFixed(2)}
 						</span>
 					</div>
 
 					{/* Customer Details */}
 					<div className="space-y-4">
 						<Label className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
-							Customer Details{" "}
+							{t.custDetails}{" "}
 							<span className="font-normal text-xs normal-case">
-								(optional)
+								{t.optional}
 							</span>
 						</Label>
 
 						<div className="space-y-3">
 							<div className="space-y-1.5">
-								<Label htmlFor="customerName">Customer Name</Label>
+								<Label htmlFor="customerName">{t.custName}</Label>
 								<Input
 									id="customerName"
-									placeholder="e.g. Ramesh Kumar"
+									placeholder={t.custNamePlaceholder}
 									value={customerName}
 									onChange={(e) => setCustomerName(e.target.value)}
 								/>
 							</div>
 
 							<div className="space-y-1.5">
-								<Label htmlFor="customerPhone">Phone Number</Label>
+								<Label htmlFor="customerPhone">{t.phone}</Label>
 								<Input
 									id="customerPhone"
 									placeholder="e.g. 9876543210"
@@ -92,10 +111,10 @@ export function PaymentModal({
 							</div>
 
 							<div className="space-y-1.5">
-								<Label htmlFor="shopName">Shop / Firm Name</Label>
+								<Label htmlFor="shopName">{t.shopName}</Label>
 								<Input
 									id="shopName"
-									placeholder="e.g. Sharma General Store"
+									placeholder={t.shopPlaceholder}
 									value={shopName}
 									onChange={(e) => setShopName(e.target.value)}
 								/>
@@ -106,10 +125,10 @@ export function PaymentModal({
 
 				<div className="flex justify-end gap-3">
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
-						Cancel
+						{t.cancel}
 					</Button>
 					<Button size="lg" onClick={handleConfirm}>
-						Confirm &amp; Print
+						{t.confirm}
 					</Button>
 				</div>
 			</DialogContent>
