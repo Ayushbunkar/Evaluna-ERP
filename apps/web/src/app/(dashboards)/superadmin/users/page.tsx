@@ -15,7 +15,23 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import { Tooltip } from "@evaluna/ui/components/tooltip";
+import {
+	Tooltip as TooltipRoot,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@evaluna/ui/components/tooltip";
+
+function Tooltip({ content, children }: { content: string; children: React.ReactNode }) {
+	return (
+		<TooltipProvider>
+			<TooltipRoot>
+				<TooltipTrigger asChild>{children}</TooltipTrigger>
+				<TooltipContent>{content}</TooltipContent>
+			</TooltipRoot>
+		</TooltipProvider>
+	);
+}
 import {
 	Dialog,
 	DialogContent,
@@ -289,12 +305,12 @@ export default function SuperAdminUsersPage() {
 											</TableCell>
 											<TableCell>{u.email}</TableCell>
 											<TableCell>
-												<Badge variant="primary">
+												<Badge variant="default">
 													{(u.role || "user").toUpperCase().replace("_", " ")}
 												</Badge>
 											</TableCell>
 											<TableCell>
-												<StatusBadge status={u.status.toLowerCase()} />
+												<StatusBadge status={u.status} />
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{u.lastActiveAt
