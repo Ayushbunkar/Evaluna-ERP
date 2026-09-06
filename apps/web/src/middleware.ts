@@ -110,7 +110,8 @@ export default async function middleware(request: NextRequest) {
 	// The user is authenticated — send them home regardless of error/expired params.
 	if (isAuthPage) {
 		const url = request.nextUrl.clone();
-		const rawRole = sessionData.user.role || "sales_person";
+		let rawRole = sessionData.user.role || "sales_person";
+		if (rawRole === "salesperson") rawRole = "sales_person";
 		// Map every known role to its dashboard path
 		const roleDashboardMap: Record<string, string> = {
 			super_admin: "/admin",
@@ -148,6 +149,9 @@ export default async function middleware(request: NextRequest) {
 
 	if (matchedRoute) {
 		let userRole = (sessionData.user.role || "sales_person") as Role;
+		if ((userRole as string) === "salesperson") {
+			userRole = "sales_person" as Role;
+		}
 		if (
 			(userRole as string) === "superadmin" ||
 			(userRole as string) === "super_admin"
