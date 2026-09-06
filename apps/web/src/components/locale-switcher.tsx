@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -15,6 +15,7 @@ export function LocaleSwitcher() {
 
 	const switchLocale = (newLocale: string) => {
 		document.cookie = `locale=${newLocale}; path=/; max-age=31536000`;
+		document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000`;
 		window.location.reload();
 	};
 
@@ -24,24 +25,24 @@ export function LocaleSwitcher() {
 				<Button
 					variant="outline"
 					size="sm"
-					className="h-9 gap-2 rounded-full border-border/50 font-medium text-xs shadow-sm hover:bg-accent/50"
+					className="h-8 gap-2 rounded-full border-border/50 font-medium text-xs shadow-sm hover:bg-accent/50 bg-background"
 				>
 					<GlobeIcon className="h-4 w-4 text-muted-foreground" />
-					<span>{locale === "en" ? "English" : "à¤¹à¤¿à¤‚à¤¦à¥€"}</span>
+					<span>{locale === "en" ? "English" : "हिंदी"}</span>
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="rounded-xl shadow-xl">
 				<DropdownMenuItem
 					onClick={() => switchLocale("en")}
-					className="text-xs focus:bg-primary/10"
+					className="text-xs focus:bg-primary/10 cursor-pointer"
 				>
 					English
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					onClick={() => switchLocale("hi")}
-					className="text-xs focus:bg-primary/10"
+					className="text-xs focus:bg-primary/10 cursor-pointer"
 				>
-					à¤¹à¤¿à¤‚à¤¦à¥€ (Hindi)
+					हिंदी (Hindi)
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
