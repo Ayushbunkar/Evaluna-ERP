@@ -3,16 +3,16 @@
 import { user as userTable } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
+import { invalidateCachedSession } from "@/lib/session-cache";
 
 export async function login(formData: FormData) {
 	const email = formData.get("email") as string;
 	const password = formData.get("password") as string;
-	// Always remember users persistently (1 year session) as requested
 	const rememberMe = true;
 
 	const predefinedAccounts: Record<string, string> = {
@@ -84,16 +84,16 @@ export async function login(formData: FormData) {
 		console.error("Login Server Action Error:", err);
 		const msg = err.body?.message || "invalid-credentials";
 		if (msg.includes("suspended")) {
-			redirect("/login?error=suspended");
+			return { success: false, error: "suspended" };
 		} else if (msg.includes("locked")) {
-			redirect("/login?error=locked");
+			return { success: false, error: "locked" };
 		}
-		redirect("/login?error=invalid-credentials");
+		return { success: false, error: "invalid-credentials" };
 	}
 
 	// Superadmins are globally scoped and get their own dashboard
 	if (user?.is_superadmin || predefinedAccounts[email] === "superadmin" || user?.role === "super_admin" || user?.role === "superadmin") {
-		redirect("/superadmin");
+		return { success: true, redirectUrl: "/superadmin" };
 	}
 
 	// Fetch role directly from DB to bypass any better-auth session caching issues
@@ -116,13 +116,27 @@ export async function login(formData: FormData) {
 		normalizedRole = "super_admin";
 	}
 
-	// Map roles to their specific dashboard URL paths (Requirements 4 & 5)
 	const destination = ROLE_DASHBOARD_MAP[normalizedRole as Role] ?? `/${normalizedRole}`;
 	revalidatePath(destination, "layout");
-	redirect(destination);
+	return { success: true, redirectUrl: destination };
 }
 
 export async function logout() {
+	try {
+		const cookieStore = await cookies();
+		const token =
+			cookieStore.get("evaluna.session_token")?.value ||
+			cookieStore.get("__Secure-evaluna.session_token")?.value ||
+			cookieStore.get("better-auth.session_token")?.value ||
+			cookieStore.get("__Secure-better-auth.session_token")?.value;
+
+		if (token) {
+			invalidateCachedSession(token);
+		}
+	} catch (err) {
+		console.error("Failed to invalidate cached session on logout:", err);
+	}
+
 	await auth.api.signOut({
 		headers: await headers(),
 	});

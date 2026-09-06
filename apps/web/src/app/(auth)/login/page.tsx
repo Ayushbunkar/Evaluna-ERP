@@ -18,21 +18,27 @@ function LoginForm() {
 	const passwordRef = useRef<HTMLInputElement>(null);
 	const t = useTranslations("login");
 	const searchParams = useSearchParams();
-	const error = searchParams.get("error");
 	const expired = searchParams.get("expired");
 	const suspended = searchParams.get("suspended");
 	const [isPending, setIsPending] = useState(false);
+	const [localError, setLocalError] = useState<string | null>(searchParams.get("error"));
 
 	async function handleSubmit(formData: FormData) {
 		setIsPending(true);
-		await login(formData);
-		setIsPending(false);
+		setLocalError(null);
+		const res = await login(formData);
+		if (res && !res.success) {
+			setLocalError(res.error || "invalid-credentials");
+			setIsPending(false);
+		} else if (res && res.success && res.redirectUrl) {
+			window.location.href = res.redirectUrl;
+		}
 	}
 
 	return (
 		<form action={handleSubmit}>
 			<CardContent className="space-y-4 pt-6">
-				{error && (
+				{localError && (
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -40,9 +46,9 @@ function LoginForm() {
 					>
 						<AlertCircle className="mt-0.5 h-4 w-4" />
 						<p>
-							{error === "locked"
+							{localError === "locked"
 								? "Account locked due to too many failed attempts. Try again later."
-								: error === "suspended"
+								: localError === "suspended"
 									? "Your account has been suspended."
 									: "Invalid email or password."}
 						</p>
