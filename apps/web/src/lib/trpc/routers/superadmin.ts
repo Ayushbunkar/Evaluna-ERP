@@ -4,6 +4,8 @@ import {
 	companies,
 	plans,
 	user,
+	purchases,
+	suppliers,
 } from "@evaluna/db/schema";
 import { count, desc, eq, sum } from "drizzle-orm";
 import { z } from "zod";
@@ -64,44 +66,43 @@ export const superadminRouter = router({
 	}),
 
 	getBillingStats: superadminProcedure.query(async () => {
-		const [activeTenantsRes, paidInvoicesRes] = await Promise.all([
-			db.select({ count: count() }).from(companies).where(eq(companies.status, "active")),
-			db
-				.select({ total: sum(billingInvoices.amount) })
-				.from(billingInvoices)
-				.where(eq(billingInvoices.status, "paid")),
+		const [suppliersCount, outstandingDues, totalProcured] = await Promise.all([
+			db.select({ count: count() }).from(suppliers),
+			db.select({ total: sum(suppliers.outstanding_balance) }).from(suppliers),
+			db.select({ total: sum(purchases.total_amount) }).from(purchases),
 		]);
 
-		const mrr = Number.parseFloat(paidInvoicesRes[0]?.total || "0");
-		const acv = mrr * 12;
+		const mrr = Number.parseFloat(outstandingDues[0]?.total || "0");
+		const acv = Number.parseFloat(totalProcured[0]?.total || "0");
+		const activeTenants = suppliersCount[0]?.count || 0;
 
 		return {
 			mrr,
 			acv,
-			activeTenants: activeTenantsRes[0]?.count || 0,
+			activeTenants,
 		};
 	}),
 
 	getBillingInvoices: superadminProcedure.query(async () => {
 		const rows = await db
 			.select({
-				id: billingInvoices.id,
-				companyName: companies.name,
-				amount: billingInvoices.amount,
-				currency: billingInvoices.currency,
-				status: billingInvoices.status,
-				createdAt: billingInvoices.created_at,
+				id: purchases.id,
+				grnNumber: purchases.grn_number,
+				supplierName: suppliers.name,
+				totalAmount: purchases.total_amount,
+				paymentStatus: purchases.payment_status,
+				createdAt: purchases.created_at,
 			})
-			.from(billingInvoices)
-			.leftJoin(companies, eq(billingInvoices.company_id, companies.id))
-			.orderBy(desc(billingInvoices.created_at))
+			.from(purchases)
+			.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+			.orderBy(desc(purchases.created_at))
 			.limit(50);
 
 		return rows.map((r) => ({
-			id: `INV-${r.id}`,
-			company: r.companyName || "Unknown Company",
-			amount: `₹${Number.parseFloat(r.amount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-			status: r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : "Open",
+			id: r.grnNumber || `BILL-${r.id}`,
+			company: r.supplierName || "Unknown Supplier",
+			amount: `₹${Number.parseFloat(r.totalAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+			status: r.paymentStatus ? r.paymentStatus.toUpperCase() : "UNPAID",
 			date: r.createdAt ? new Date(r.createdAt).toISOString().split("T")[0] : "N/A",
 		}));
 	}),
