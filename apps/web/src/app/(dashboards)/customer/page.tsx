@@ -11,14 +11,14 @@ import {
 import {
 	ActivityIcon,
 	ArrowRightIcon,
-	CalendarIcon,
-	CheckCircleIcon,
+	CheckCircle2Icon,
 	ClockIcon,
+	CoinsIcon,
 	DollarSignIcon,
+	LayoutDashboardIcon,
 	PackageIcon,
-	RefreshCwIcon,
-	TruckIcon,
-	UsersIcon,
+	ShoppingBagIcon,
+	UserIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
@@ -29,19 +29,51 @@ import { formatCurrency } from "@/lib/utils";
 export default function CustomerDashboard() {
 	const trpc = useTRPC();
 	const locale = useLocale();
+
+	// Fetch custom, client-isolated Customer Portal Stats
 	const {
 		data: stats,
 		isLoading,
 		error,
-	} = trpc.customer.getDashboardStats.useQuery(undefined, {
-		suspense: true,
+	} = trpc.customer.getPortalStats.useQuery(undefined, {
+		suspense: false,
 	});
+
+	// Translations Dictionary
+	const t = {
+		title: locale === "hi" ? "ग्राहक सेवा पोर्टल" : "Customer Portal",
+		subtitle: locale === "hi" ? "ऑर्डर ट्रैक करें, वॉलेट बैलेंस प्रबंधित करें और लॉयल्टी पॉइंट्स देखें।" : "Track your orders, manage wallet balances, and view your loyalty points.",
+		
+		walletTitle: locale === "hi" ? "वॉलेट बैलेंस (Store Credit)" : "Wallet Balance",
+		walletDesc: locale === "hi" ? "खरीदारी के लिए सक्रिय स्टोर क्रेडिट" : "Active store credit",
+		
+		loyaltyTitle: locale === "hi" ? "लॉयल्टी पॉइंट्स और टियर" : "Loyalty Points & Tier",
+		loyaltyDesc: locale === "hi" ? "सक्रिय इनाम स्तर" : "Active reward level",
+		
+		pendingTitle: locale === "hi" ? "समीक्षा के अधीन आदेश" : "Pending Review Orders",
+		pendingDesc: locale === "hi" ? "मंजूरी और मूल्य निर्धारण की प्रतीक्षा में" : "Awaiting approval and pricing",
+		
+		totalTitle: locale === "hi" ? "कुल रखे गए आदेश" : "Total Orders Placed",
+		totalDesc: locale === "hi" ? "संपूर्ण ऑर्डर इतिहास" : "All placed orders",
+		
+		quickActions: locale === "hi" ? "त्वरित लिंक और शॉर्टकट्स" : "Quick Links & Actions",
+		quickDesc: locale === "hi" ? "पोर्टल का उपयोग करके अपने ऑर्डर और विवरण प्रबंधित करें।" : "Manage your orders and profile details using the portal.",
+		
+		placeOrder: locale === "hi" ? "नया ऑर्डर सबमिट करें" : "Submit New Order",
+		placeOrderDesc: locale === "hi" ? "खरीदारी सूची भरें और ऑर्डर भेजें" : "Submit a new cart list for review",
+		
+		viewOrders: locale === "hi" ? "ऑर्डर इतिहास देखें" : "View Order History",
+		viewOrdersDesc: locale === "hi" ? "अपनी सभी पिछली रसीदें और स्थिति ट्रैक करें" : "Track statuses and invoices",
+		
+		myProfile: locale === "hi" ? "मेरा प्रोफ़ाइल विवरण" : "My Profile & Details",
+		myProfileDesc: locale === "hi" ? "अपनी संपर्क जानकारी और पता अपडेट करें" : "View your billing and registry details",
+	};
 
 	if (isLoading) {
 		return (
-			<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
-				<div className="flex h-[400px] items-center justify-center text-muted-foreground">
-					Loading customer dashboard...
+			<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 p-6 sm:gap-6">
+				<div className="flex h-[400px] items-center justify-center text-muted-foreground text-sm">
+					Loading customer portal dashboard...
 				</div>
 			</PageTransition>
 		);
@@ -49,35 +81,25 @@ export default function CustomerDashboard() {
 
 	if (error) {
 		return (
-			<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
-				<div className="flex h-[400px] items-center justify-center text-destructive">
-					Error loading dashboard: {error.message}
+			<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 p-6 sm:gap-6">
+				<div className="flex h-[400px] items-center justify-center text-destructive text-sm">
+					Error loading customer portal: {error.message}
 				</div>
 			</PageTransition>
 		);
 	}
 
 	return (
-		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
+		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 p-6 sm:gap-6">
+			{/* Header */}
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Customer Dashboard
+						{t.title}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						Customer relationship management, order tracking, and service
-						overview
+						{t.subtitle}
 					</p>
-				</div>
-				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> Customer Activities
-					</Button>
-					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/customer/orders">
-							<PackageIcon className="mr-2 h-4 w-4" /> View Orders
-						</Link>
-					</Button>
 				</div>
 			</div>
 
@@ -85,200 +107,136 @@ export default function CustomerDashboard() {
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.3 }}
+				transition={{ duration: 0.5, delay: 0.2 }}
 			>
 				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-					{/* Total Customers */}
+					{/* Wallet Balance */}
 					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardContent className="p-4 sm:p-6">
-							<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-								<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
-									<UsersIcon className="h-6 w-6 text-blue-500" />
+						<CardContent className="p-6">
+							<div className="flex flex-col items-center gap-2 text-center">
+								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+									<DollarSignIcon className="h-6 w-6 text-emerald-500" />
 								</div>
-								<h3 className="font-semibold text-base sm:text-lg">
-									Total Customers
+								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									{t.walletTitle}
 								</h3>
-								<p className="font-bold text-2xl">
-									{stats?.totalCustomers || 0}
+								<p className="font-bold text-2xl text-emerald-600">
+									{formatCurrency(stats?.walletBalance || 0, locale)}
 								</p>
+								<span className="text-muted-foreground text-[10px]">{t.walletDesc}</span>
 							</div>
 						</CardContent>
 					</Card>
 
-					{/* Active Customers */}
+					{/* Loyalty points */}
 					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardContent className="p-4 sm:p-6">
-							<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-								<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
-									<CheckCircleIcon className="h-6 w-6 text-green-500" />
+						<CardContent className="p-6">
+							<div className="flex flex-col items-center gap-2 text-center">
+								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10">
+									<CoinsIcon className="h-6 w-6 text-yellow-500" />
 								</div>
-								<h3 className="font-semibold text-base sm:text-lg">
-									Active Customers
+								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									{t.loyaltyTitle}
 								</h3>
-								<p className="font-bold text-2xl">
-									{stats?.activeCustomers || 0}
+								<p className="font-bold text-2xl text-yellow-600">
+									{stats?.loyaltyPoints || 0}
 								</p>
+								<span className="inline-flex items-center rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-yellow-700 dark:text-yellow-400">
+									{stats?.loyaltyTier || "bronze"}
+								</span>
 							</div>
 						</CardContent>
 					</Card>
 
-					{/* Today's Orders */}
+					{/* Pending orders */}
 					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardContent className="p-4 sm:p-6">
-							<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-								<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10">
-									<CalendarIcon className="h-6 w-6 text-purple-500" />
+						<CardContent className="p-6">
+							<div className="flex flex-col items-center gap-2 text-center">
+								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+									<ClockIcon className="h-6 w-6 text-amber-500" />
 								</div>
-								<h3 className="font-semibold text-base sm:text-lg">
-									Orders Today
+								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									{t.pendingTitle}
 								</h3>
-								<p className="font-bold text-2xl">{stats?.ordersToday || 0}</p>
+								<p className="font-bold text-2xl text-amber-600">
+									{stats?.pendingOrders || 0}
+								</p>
+								<span className="text-muted-foreground text-[10px]">{t.pendingDesc}</span>
 							</div>
 						</CardContent>
 					</Card>
 
-					{/* Revenue Today */}
+					{/* Total Orders */}
 					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardContent className="p-4 sm:p-6">
-							<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-								<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
-									<DollarSignIcon className="h-6 w-6 text-green-500" />
+						<CardContent className="p-6">
+							<div className="flex flex-col items-center gap-2 text-center">
+								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+									<ShoppingBagIcon className="h-6 w-6 text-blue-500" />
 								</div>
-								<h3 className="font-semibold text-base sm:text-lg">
-									Revenue Today
+								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									{t.totalTitle}
 								</h3>
-								<p className="font-bold text-2xl">
-									{formatCurrency(stats?.revenueToday || 0, locale)}
+								<p className="font-bold text-2xl text-blue-600">
+									{stats?.totalOrders || 0}
 								</p>
+								<span className="text-muted-foreground text-[10px]">{t.totalDesc}</span>
 							</div>
 						</CardContent>
 					</Card>
 				</div>
 			</motion.div>
 
-			{/* Recent Orders */}
+			{/* Quick Actions Panel */}
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.4 }}
+				transition={{ duration: 0.5, delay: 0.3 }}
 			>
 				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Recent Orders
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Latest customer orders
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/customer/orders">
-								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
+					<CardHeader>
+						<CardTitle className="text-lg">{t.quickActions}</CardTitle>
+						<CardDescription>{t.quickDesc}</CardDescription>
 					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{stats?.recentOrders?.length > 0 ? (
-							<div className="space-y-3">
-								{stats.recentOrders.map((order) => (
-									<div
-										key={order.id}
-										className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0"
-									>
-										<div className="flex flex-col">
-											<p className="font-medium text-sm">Order #{order.id}</p>
-											<p className="text-muted-foreground text-xs">
-												{order.customerName} â€¢ {order.items} items
-											</p>
-										</div>
-										<div className="flex items-center gap-2 text-right">
-											<span
-												className={`rounded-full px-2 py-0.5 text-xs ${
-													order.status === "delivered"
-														? "bg-green-100 text-green-800"
-														: order.status === "pending"
-															? "bg-yellow-100 text-yellow-800"
-															: order.status === "processing"
-																? "bg-blue-100 text-blue-800"
-																: "bg-gray-100 text-gray-800"
-												}`}
-											>
-												{order.status.charAt(0).toUpperCase() +
-													order.status.slice(1)}
-											</span>
-											<span className="text-gray-500 text-xs">
-												{formatCurrency(order.total, locale)}
-											</span>
-										</div>
+					<CardContent className="p-6 pt-0">
+						<div className="grid gap-4 md:grid-cols-3">
+							{/* New Order */}
+							<Card className="hover:border-green-500/40 cursor-pointer transition-colors hover:shadow">
+								<CardContent className="p-5 flex flex-col items-start gap-3" onClick={() => window.location.href = "/customer/products"}>
+									<div className="p-2.5 bg-green-500/10 rounded-full">
+										<PackageIcon className="h-5 w-5 text-green-500" />
 									</div>
-								))}
-							</div>
-						) : (
-							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
-								No recent orders
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			</motion.div>
+									<div>
+										<h4 className="font-bold text-sm">{t.placeOrder}</h4>
+										<p className="text-muted-foreground text-xs mt-1">{t.placeOrderDesc}</p>
+									</div>
+								</CardContent>
+							</Card>
 
-			{/* Customer Analytics */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.5 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Customer Analytics
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Insights and trends
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/customer/analytics">
-								View Details <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-							<div className="border-border/50 p-4">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Customer Satisfaction
-								</p>
-								<p className="font-bold text-2xl text-green-600">
-									{stats?.satisfactionScore?.toFixed(1)}%
-								</p>
-							</div>
-							<div className="border-border/50 p-4">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Repeat Customer Rate
-								</p>
-								<p className="font-bold text-2xl text-blue-600">
-									{stats?.repeatCustomerRate?.toFixed(1)}%
-								</p>
-							</div>
-							<div className="border-border/50 p-4">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Average Order Value
-								</p>
-								<p className="font-bold text-2xl text-purple-600">
-									{formatCurrency(stats?.avgOrderValue || 0, locale)}
-								</p>
-							</div>
-							<div className="border-border/50 p-4">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Support Tickets
-								</p>
-								<p className="font-bold text-2xl text-orange-600">
-									{stats?.supportTickets || 0}
-								</p>
-							</div>
+							{/* History */}
+							<Card className="hover:border-blue-500/40 cursor-pointer transition-colors hover:shadow">
+								<CardContent className="p-5 flex flex-col items-start gap-3" onClick={() => window.location.href = "/customer/orders"}>
+									<div className="p-2.5 bg-blue-500/10 rounded-full">
+										<LayoutDashboardIcon className="h-5 w-5 text-blue-500" />
+									</div>
+									<div>
+										<h4 className="font-bold text-sm">{t.viewOrders}</h4>
+										<p className="text-muted-foreground text-xs mt-1">{t.viewOrdersDesc}</p>
+									</div>
+								</CardContent>
+							</Card>
+
+							{/* Profile */}
+							<Card className="hover:border-purple-500/40 cursor-pointer transition-colors hover:shadow">
+								<CardContent className="p-5 flex flex-col items-start gap-3" onClick={() => window.location.href = "/customer/profile"}>
+									<div className="p-2.5 bg-purple-500/10 rounded-full">
+										<UserIcon className="h-5 w-5 text-purple-500" />
+									</div>
+									<div>
+										<h4 className="font-bold text-sm">{t.myProfile}</h4>
+										<p className="text-muted-foreground text-xs mt-1">{t.myProfileDesc}</p>
+									</div>
+								</CardContent>
+							</Card>
 						</div>
 					</CardContent>
 				</Card>
