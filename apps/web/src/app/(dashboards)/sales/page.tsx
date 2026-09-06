@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -48,24 +48,56 @@ export default function SalesDashboard() {
 
 	const progress = Math.min(Math.round((todaySales / dailyGoal) * 100), 100);
 
+	// Multi-Language Translation Dictionary
+	const t = {
+		title: locale === "hi" ? "बिक्री डैशबोर्ड" : "Sales Dashboard",
+		subtitle: locale === "hi" ? "आपका स्वागत है। नई बिक्री शुरू करें या हाल के ऑर्डर प्रबंधित करें।" : "Welcome back. Start a new sale or manage recent orders.",
+		lookupOrder: locale === "hi" ? "ऑर्डर खोजें" : "Lookup Order",
+		openPos: locale === "hi" ? "पीओएस खोलें" : "Open POS",
+		
+		posTitle: locale === "hi" ? "बिक्री केंद्र (POS)" : "Point of Sale",
+		posDesc: locale === "hi" ? "नए लेनदेन की प्रक्रिया करें" : "Process new transactions",
+		
+		ordersTitle: locale === "hi" ? "आदेश (Orders)" : "Orders",
+		ordersDesc: locale === "hi" ? "पिछली रसीदें देखें" : "View past receipts",
+		
+		customersTitle: locale === "hi" ? "ग्राहक" : "Customers",
+		customersDesc: locale === "hi" ? "वफादारी और प्रोफाइल प्रबंधित करें" : "Manage loyalty and profiles",
+		
+		tillTitle: locale === "hi" ? "दैनिक गल्ला (Till)" : "Daily Till",
+		tillDesc: locale === "hi" ? "कैश दराज संचालन" : "Cash drawer operations",
+		
+		recentSalesTitle: locale === "hi" ? "हाल की बिक्री" : "Recent Sales",
+		recentSalesDesc: locale === "hi" ? "संसाधित नवीनतम लेनदेन" : "Latest transactions processed",
+		viewAll: locale === "hi" ? "सभी देखें" : "View All",
+		noSales: locale === "hi" ? "कोई हाल की बिक्री नहीं मिली।" : "No recent sales found.",
+		
+		dailyGoalTitle: locale === "hi" ? "दैनिक लक्ष्य" : "Daily Goal",
+		dailyGoalDesc: locale === "hi" ? "आज के लिए अपने बिक्री लक्ष्य को ट्रैक करें" : "Track your sales target for today",
+		todaySalesPrefix: locale === "hi" ? "आज की बिक्री:" : "Today's Sales:",
+		orderIdLabel: locale === "hi" ? "ऑर्डर" : "Order",
+		customerLabel: locale === "hi" ? "ग्राहक" : "Customer",
+		walkInLabel: locale === "hi" ? "वॉक-इन ग्राहक" : "Walk-in Customer"
+	};
+
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Sales Dashboard
+						{t.title}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						Welcome back. Start a new sale or manage recent orders.
+						{t.subtitle}
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
 					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<SearchIcon className="mr-2 h-4 w-4" /> Lookup Order
+						<SearchIcon className="mr-2 h-4 w-4" /> {t.lookupOrder}
 					</Button>
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
 						<Link href="/sales/pos">
-							<ShoppingCart className="mr-2 h-4 w-4" /> Open POS
+							<ShoppingCart className="mr-2 h-4 w-4" /> {t.openPos}
 						</Link>
 					</Button>
 				</div>
@@ -87,10 +119,10 @@ export default function SalesDashboard() {
 										<ShoppingCart className="h-6 w-6 text-primary" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Point of Sale
+										{t.posTitle}
 									</h3>
 									<p className="text-muted-foreground text-xs">
-										Process new transactions
+										{t.posDesc}
 									</p>
 								</div>
 							</CardContent>
@@ -109,9 +141,9 @@ export default function SalesDashboard() {
 									<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110">
 										<ReceiptTextIcon className="h-6 w-6 text-blue-500" />
 									</div>
-									<h3 className="font-semibold text-lg">Orders</h3>
+									<h3 className="font-semibold text-lg">{t.ordersTitle}</h3>
 									<p className="text-muted-foreground text-xs">
-										View past receipts
+										{t.ordersDesc}
 									</p>
 								</div>
 							</CardContent>
@@ -130,9 +162,9 @@ export default function SalesDashboard() {
 									<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10 transition-transform group-hover:scale-110">
 										<UsersIcon className="h-6 w-6 text-orange-500" />
 									</div>
-									<h3 className="font-semibold text-lg">Customers</h3>
+									<h3 className="font-semibold text-lg">{t.customersTitle}</h3>
 									<p className="text-muted-foreground text-xs">
-										Manage loyalty and profiles
+										{t.customersDesc}
 									</p>
 								</div>
 							</CardContent>
@@ -151,9 +183,9 @@ export default function SalesDashboard() {
 									<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 transition-transform group-hover:scale-110">
 										<BanknoteIcon className="h-6 w-6 text-emerald-500" />
 									</div>
-									<h3 className="font-semibold text-lg">Daily Till</h3>
+									<h3 className="font-semibold text-lg">{t.tillTitle}</h3>
 									<p className="text-muted-foreground text-xs">
-										Cash drawer operations
+										{t.tillDesc}
 									</p>
 								</div>
 							</CardContent>
@@ -172,15 +204,15 @@ export default function SalesDashboard() {
 						<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
 							<div className="space-y-0.5">
 								<CardTitle className="text-base sm:text-lg">
-									Recent Sales
+									{t.recentSalesTitle}
 								</CardTitle>
 								<CardDescription className="text-xs sm:text-sm">
-									Latest transactions processed
+									{t.recentSalesDesc}
 								</CardDescription>
 							</div>
 							<Button variant="ghost" size="sm" asChild>
 								<Link href="/sales/orders">
-									View All <ArrowRightIcon className="ml-2 h-4 w-4" />
+									{t.viewAll} <ArrowRightIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
 						</CardHeader>
@@ -194,10 +226,10 @@ export default function SalesDashboard() {
 										>
 											<div>
 												<p className="font-medium text-xs sm:text-sm">
-													Order #{order.id}
+													{t.orderIdLabel} #{order.id}
 												</p>
 												<p className="text-muted-foreground text-xs">
-													{order.customer?.name || "Walk-in Customer"}
+													{order.customer?.name || t.walkInLabel}
 												</p>
 											</div>
 											<div className="text-right">
@@ -212,7 +244,7 @@ export default function SalesDashboard() {
 									))
 								) : (
 									<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
-										No recent sales found.
+										{t.noSales}
 									</div>
 								)}
 							</div>
@@ -227,9 +259,9 @@ export default function SalesDashboard() {
 				>
 					<Card className="border-border/50 bg-card/50 shadow-sm">
 						<CardHeader>
-							<CardTitle className="text-base sm:text-lg">Daily Goal</CardTitle>
+							<CardTitle className="text-base sm:text-lg">{t.dailyGoalTitle}</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
-								Track your sales target for today
+								{t.dailyGoalDesc}
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -266,7 +298,7 @@ export default function SalesDashboard() {
 									</span>
 								</div>
 								<p className="text-muted-foreground text-xs sm:text-sm">
-									Today's Sales: {formatCurrency(todaySales, locale)} /{" "}
+									{t.todaySalesPrefix} {formatCurrency(todaySales, locale)} /{" "}
 									{formatCurrency(dailyGoal, locale)}
 								</p>
 							</div>

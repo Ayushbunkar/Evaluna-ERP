@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -36,8 +36,51 @@ import {
 	StaggerList,
 } from "@/lib/animations";
 import { trpc } from "@/lib/trpc/client";
+import { useLocale } from "next-intl";
+
+// Reusable Devanagari Parser to localize dynamic product content
+export function getLocalizedProductName(name: string, locale: string): string {
+	if (!name) return "";
+	if (locale !== "hi") {
+		return name;
+	}
+
+	// Try extracting Hindi inside parentheses, e.g. "Mishri (मिश्री)"
+	const match = name.match(/\(([^)]*[\u0900-\u097F][^)]*)\)/);
+	if (match && match[1]) {
+		return match[1].trim();
+	}
+
+	// Translation Dictionary Fallback for pre-seeded product datasets
+	const productTranslations: Record<string, string> = {
+		"Farari Spicy Namkeen": "फरार तीखा नमकीन",
+		"Sprite": "स्प्राइट",
+		"Maaza": "माज़ा",
+		"Mishri": "मिश्री",
+		"Revdi": "रेवड़ी",
+		"pepsi": "पेप्सी",
+		"pepsi rs1": "पेप्सी ₹1",
+		"Harish Chips": "हरीश चिप्स",
+		"Balaji Oil": "बालाजी तेल",
+		"Appy": "एप्पी",
+		"Swastik Toor Dal": "स्वस्तिक तूर दाल",
+		"Ghadhi 1kg Sack": "घड़ी १ किलो बोरी",
+		"Target Mango": "टारगेट आम",
+		"moongfali kacche dane": "मूँगफली कच्चे दाने",
+		"sikhe dane": "सीखे दाने",
+	};
+
+	for (const [eng, hin] of Object.entries(productTranslations)) {
+		if (name.toLowerCase().includes(eng.toLowerCase())) {
+			return hin;
+		}
+	}
+
+	return name;
+}
 
 export default function POSPage() {
+	const locale = useLocale();
 	const [cart, setCart] = useState<any[]>([]);
 	const [search, setSearch] = useState("");
 	const [isOffline, setIsOffline] = useState(false);
@@ -49,6 +92,34 @@ export default function POSPage() {
 		customerPhone?: string;
 		shopName?: string;
 	}>({});
+
+	// Translations Dictionary
+	const t = {
+		posTitle: locale === "hi" ? "बिक्री केंद्र (POS)" : "Point of Sale",
+		online: locale === "hi" ? "ऑनलाइन" : "Online",
+		offline: locale === "hi" ? "ऑफ़लाइन" : "Offline",
+		searchPlaceholder: locale === "hi" ? "नाम से उत्पाद खोजें या बारकोड स्कैन करें..." : "Search products by name or scan barcode...",
+		currentOrder: locale === "hi" ? "वर्तमान आदेश (Cart)" : "Current Order",
+		clear: locale === "hi" ? "साफ़ करें" : "Clear",
+		emptyCart: locale === "hi" ? "कार्ट खाली है" : "Cart is empty",
+		scanHint: locale === "hi" ? "एक बारकोड स्कैन करें या उत्पाद पर क्लिक करें" : "Scan a barcode or click a product",
+		unitLabel: locale === "hi" ? "प्रति इकाई" : "/ unit",
+		subtotal: locale === "hi" ? "उप-योग (Subtotal)" : "Subtotal",
+		discount: locale === "hi" ? "छूट (Discount)" : "Discount",
+		addCoupon: locale === "hi" ? "कूपन जोड़ें" : "Add Coupon",
+		total: locale === "hi" ? "कुल राशि (Total)" : "Total",
+		holdBill: locale === "hi" ? "बिल होल्ड करें" : "Hold Bill",
+		holding: locale === "hi" ? "होल्ड हो रहा है..." : "Holding...",
+		payNow: locale === "hi" ? "भुगतान करें" : "Pay Now",
+		processing: locale === "hi" ? "प्रक्रिया में..." : "Processing...",
+		successMsg: locale === "hi" ? "ऑर्डर सफलतापूर्वक संसाधित किया गया!" : "Order processed successfully!",
+		failMsg: locale === "hi" ? "चेकआउट विफल रहा:" : "Checkout failed:",
+		couponTitle: locale === "hi" ? "कूपन जोड़ें" : "Apply Coupon Code",
+		couponDesc: locale === "hi" ? "डिस्काउंट लागू करने के लिए सक्रिय प्रोमो कूपन कोड दर्ज करें।" : "Enter an active promo coupon code to apply structural discount.",
+		couponInput: locale === "hi" ? "कूपन कोड" : "Coupon Code",
+		couponSuccess: locale === "hi" ? "कूपन सफलतापूर्वक लागू हुआ!" : "Coupon applied!",
+		close: locale === "hi" ? "बंद करें" : "Close",
+	};
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -71,7 +142,6 @@ export default function POSPage() {
 				qty: item.quantity,
 			}));
 			setCart(restoredCart);
-			// Clean up URL so refresh doesn't keep reloading it
 			if (typeof window !== "undefined") {
 				window.history.replaceState({}, "", window.location.pathname);
 			}
@@ -89,16 +159,15 @@ export default function POSPage() {
 
 	const utils = trpc.useUtils();
 
-	// TRPC Queries
 	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
-		staleTime: 1000 * 60 * 60, // heavily cache for offline use
+		staleTime: 1000 * 60 * 60,
 	});
 
 	const deleteHoldBillMutation = trpc.orders.delete.useMutation();
 
 	const checkoutMutation = trpc.pos.checkout.useMutation({
 		onSuccess: (data) => {
-			toast.success("Order processed successfully!");
+			toast.success(t.successMsg);
 			setLastCompletedOrder({
 				id: data.id,
 				createdAt: new Date().toISOString(),
@@ -123,7 +192,7 @@ export default function POSPage() {
 			}
 		},
 		onError: (err) => {
-			toast.error(`Checkout failed: ${err.message}`);
+			toast.error(`${t.failMsg} ${err.message}`);
 		},
 	});
 
@@ -139,7 +208,6 @@ export default function POSPage() {
 		},
 	});
 
-	// Offline Detection
 	useEffect(() => {
 		const handleOnline = () => setIsOffline(false);
 		const handleOffline = () => setIsOffline(true);
@@ -166,7 +234,7 @@ export default function POSPage() {
 				code: data.code,
 				discount: data.discountAmount,
 			});
-			toast.success("Coupon applied!");
+			toast.success(t.couponSuccess);
 			setCouponCode("");
 		},
 		onError: (error) => {
@@ -187,7 +255,6 @@ export default function POSPage() {
 		setAppliedCoupon(null);
 	};
 
-	// Barcode Scanner Listener
 	const addToCart = (product: any, qty = 1) => {
 		setCart((prev) => {
 			const existing = prev.find((item) => item.id === product.id);
@@ -205,7 +272,6 @@ export default function POSPage() {
 		let timeout: NodeJS.Timeout;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
-			// Ignore if typing in an input field
 			if (
 				e.target instanceof HTMLInputElement ||
 				e.target instanceof HTMLTextAreaElement
@@ -223,7 +289,7 @@ export default function POSPage() {
 						if (product) {
 							if (product.is_weighted) {
 								addToCart(product, qty);
-								toast.success(`Added ${product.name}`);
+								toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
 							} else {
 								addToCart(product, 1);
 								toast.warning("Product is not weighted, added 1 unit");
@@ -240,7 +306,7 @@ export default function POSPage() {
 							if (product.is_weighted) {
 								const qty = price / Number.parseFloat(product.price);
 								addToCart(product, qty);
-								toast.success(`Added ${product.name}`);
+								toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
 							} else {
 								addToCart(product, 1);
 								toast.warning("Product is not weighted, added 1 unit");
@@ -254,7 +320,7 @@ export default function POSPage() {
 						);
 						if (product) {
 							addToCart(product, 1);
-							toast.success(`Added ${product.name}`);
+							toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
 						} else {
 							toast.error("Product not found");
 						}
@@ -269,7 +335,7 @@ export default function POSPage() {
 				clearTimeout(timeout);
 				timeout = setTimeout(() => {
 					barcode = "";
-				}, 100); // 100ms timeout to distinguish scanner from manual typing
+				}, 100);
 			}
 		};
 
@@ -294,7 +360,7 @@ export default function POSPage() {
 	};
 
 	const handleCheckout = () => {
-		if (cart.length === 0) return toast.error("Cart is empty");
+		if (cart.length === 0) return toast.error(t.emptyCart);
 		setPaymentModalOpen(true);
 	};
 
@@ -337,20 +403,29 @@ export default function POSPage() {
 			p.barcode?.includes(search),
 	);
 
+	if (lastCompletedOrder) {
+		return (
+			<SaleCompletionScreen
+				order={lastCompletedOrder}
+				onNewSale={() => setLastCompletedOrder(null)}
+			/>
+		);
+	}
+
 	return (
 		<PageTransition className="flex h-[calc(100vh-64px)] overflow-hidden bg-muted/40">
 			{/* Left Pane - Catalog */}
 			<div className="flex min-h-0 flex-1 flex-col border-r p-4">
 				<div className="mb-4 flex shrink-0 items-center justify-between">
-					<h1 className="font-bold text-2xl">Point of Sale</h1>
+					<h1 className="font-bold text-2xl">{t.posTitle}</h1>
 					<div className="flex items-center gap-2">
 						{isOffline ? (
 							<span className="flex items-center gap-2 font-semibold text-destructive">
-								<WifiOff className="h-4 w-4" /> Offline
+								<WifiOff className="h-4 w-4" /> {t.offline}
 							</span>
 						) : (
 							<span className="flex items-center gap-2 font-semibold text-primary">
-								<Wifi className="h-4 w-4" /> Online
+								<Wifi className="h-4 w-4" /> {t.online}
 							</span>
 						)}
 					</div>
@@ -359,7 +434,7 @@ export default function POSPage() {
 				<div className="relative mb-4 shrink-0">
 					<Search className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
 					<Input
-						placeholder="Search products by name or scan barcode..."
+						placeholder={t.searchPlaceholder}
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						className="bg-background pl-9"
@@ -388,9 +463,9 @@ export default function POSPage() {
 											<CardHeader className="p-4 pb-2">
 												<CardTitle
 													className="truncate font-semibold text-sm"
-													title={product.name}
+													title={getLocalizedProductName(product.name, locale)}
 												>
-													{product.name}
+													{getLocalizedProductName(product.name, locale)}
 												</CardTitle>
 											</CardHeader>
 											<CardContent className="flex flex-col justify-end p-4 pt-0">
@@ -398,7 +473,7 @@ export default function POSPage() {
 													₹{Number.parseFloat(product.price).toFixed(2)}
 												</div>
 												<div className="mt-1 line-clamp-2 min-h-[32px] text-muted-foreground text-xs">
-													{product.description || ""}
+													{getLocalizedProductName(product.description || "", locale)}
 												</div>
 											</CardContent>
 										</Card>
@@ -414,7 +489,7 @@ export default function POSPage() {
 			<div className="z-10 flex min-h-0 w-[350px] shrink-0 flex-col bg-background p-4 shadow-xl lg:w-[400px]">
 				<div className="mb-4 flex shrink-0 items-center justify-between">
 					<h2 className="flex items-center gap-2 font-bold text-xl">
-						<ShoppingCart className="h-5 w-5" /> Current Order
+						<ShoppingCart className="h-5 w-5" /> {t.currentOrder}
 					</h2>
 					<Button
 						variant="ghost"
@@ -422,7 +497,7 @@ export default function POSPage() {
 						onClick={() => setCart([])}
 						disabled={cart.length === 0 || checkoutMutation.isPending}
 					>
-						Clear
+						{t.clear}
 					</Button>
 				</div>
 				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 bg-muted/20 p-4">
@@ -435,8 +510,8 @@ export default function POSPage() {
 								className="flex h-full flex-col items-center justify-center space-y-4 text-muted-foreground"
 							>
 								<ShoppingCart className="h-16 w-16 opacity-20" />
-								<p>Cart is empty</p>
-								<p className="text-xs">Scan a barcode or click a product</p>
+								<p>{t.emptyCart}</p>
+								<p className="text-xs">{t.scanHint}</p>
 							</motion.div>
 						) : (
 							<div className="space-y-3 pr-4">
@@ -451,12 +526,12 @@ export default function POSPage() {
 										<div className="flex w-full min-w-0 items-center justify-between gap-2">
 											<div
 												className="min-w-0 flex-1 truncate font-semibold text-sm"
-												title={item.name}
+												title={getLocalizedProductName(item.name, locale)}
 											>
-												{item.name}
+												{getLocalizedProductName(item.name, locale)}
 											</div>
 											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs">
-												₹{Number.parseFloat(item.price).toFixed(2)} / unit
+												₹{Number.parseFloat(item.price).toFixed(2)} {t.unitLabel}
 											</div>
 										</div>
 
@@ -514,14 +589,14 @@ export default function POSPage() {
 				<div className="mt-4 shrink-0 space-y-3 border-t pt-4">
 					{/* Subtotal row */}
 					<div className="flex items-center justify-between text-muted-foreground text-sm">
-						<span>Subtotal</span>
+						<span>{t.subtotal}</span>
 						<span>₹{subtotal.toFixed(2)}</span>
 					</div>
 
 					{/* Coupon row */}
 					<div className="flex items-center justify-between text-muted-foreground text-sm">
 						<div className="flex items-center gap-2">
-							<span>Discount</span>
+							<span>{t.discount}</span>
 							{appliedCoupon ? (
 								<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs">
 									<Ticket className="h-3 w-3" />
@@ -532,7 +607,7 @@ export default function POSPage() {
 										onClick={removeCoupon}
 										title="Remove coupon"
 									>
-										Ã—
+										×
 									</button>
 								</span>
 							) : (
@@ -543,14 +618,14 @@ export default function POSPage() {
 									onClick={() => setCouponModalOpen(true)}
 									disabled={cart.length === 0}
 								>
-									<Ticket className="h-3 w-3" /> Add Coupon
+									<Ticket className="h-3 w-3" /> {t.addCoupon}
 								</Button>
 							)}
 						</div>
-						<span className="text-green-600">âˆ’ ₹{discount.toFixed(2)}</span>
+						<span className="text-green-600">− ₹{discount.toFixed(2)}</span>
 					</div>
 					<div className="flex items-center justify-between border-t pt-2 font-bold text-2xl">
-						<span>Total</span>
+						<span>{t.total}</span>
 						<span>₹{total.toFixed(2)}</span>
 					</div>
 
@@ -567,7 +642,7 @@ export default function POSPage() {
 							}}
 							disabled={cart.length === 0 || suspendMutation.isPending}
 						>
-							{suspendMutation.isPending ? "Holding..." : "Hold Bill"}
+							{suspendMutation.isPending ? t.holding : t.holdBill}
 						</Button>
 						<Button
 							size="lg"
@@ -575,81 +650,54 @@ export default function POSPage() {
 							onClick={handleCheckout}
 							disabled={cart.length === 0 || checkoutMutation.isPending}
 						>
-							{checkoutMutation.isPending ? "Processing..." : "Pay Now"}
+							{checkoutMutation.isPending ? t.processing : t.payNow}
 						</Button>
 					</div>
 				</div>
 			</div>
 
+			{/* Payment Modal */}
 			{paymentModalOpen && (
 				<PaymentModal
 					open={paymentModalOpen}
-					onOpenChange={setPaymentModalOpen}
-					totalAmount={total}
-					onConfirm={(payments: any[], customer: any) =>
-						finalizeOrder(payments, customer)
-					}
+					onClose={() => setPaymentModalOpen(false)}
+					total={total}
+					onComplete={finalizeOrder}
 				/>
 			)}
 
-			{/* Coupon Modal */}
+			{/* Coupon Dialog Modal */}
 			<Dialog open={couponModalOpen} onOpenChange={setCouponModalOpen}>
-				<DialogContent className="sm:max-w-[380px]">
+				<DialogContent className="max-w-sm">
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Ticket className="h-5 w-5 text-primary" />
-							Apply Coupon Code
-						</DialogTitle>
-						<DialogDescription>
-							Enter your coupon code below to get a discount on your order.
-						</DialogDescription>
+						<DialogTitle>{t.couponTitle}</DialogTitle>
+						<DialogDescription>{t.couponDesc}</DialogDescription>
 					</DialogHeader>
-					<div className="flex flex-col gap-3 py-2">
+					<div className="py-2">
 						<Input
-							placeholder="Enter coupon code (e.g. SAVE10)"
+							placeholder={t.couponInput}
 							value={couponCode}
-							onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-							className="text-sm"
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && couponCode) {
-									handleApplyCoupon();
-									setCouponModalOpen(false);
-								}
-							}}
-							autoFocus
+							onChange={(e) => setCouponCode(e.target.value)}
 						/>
 					</div>
-					<DialogFooter className="gap-2">
+					<DialogFooter className="gap-2 sm:gap-0">
 						<Button
 							variant="outline"
-							onClick={() => {
-								setCouponModalOpen(false);
-								setCouponCode("");
-							}}
+							onClick={() => setCouponModalOpen(false)}
 						>
-							Cancel
+							{t.close}
 						</Button>
 						<Button
 							onClick={() => {
 								handleApplyCoupon();
 								setCouponModalOpen(false);
 							}}
-							disabled={!couponCode || validateCouponMutation.isPending}
 						>
-							{validateCouponMutation.isPending
-								? "Applying..."
-								: "Apply Coupon"}
+							{t.addCoupon}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-
-			{lastCompletedOrder && (
-				<SaleCompletionScreen
-					order={lastCompletedOrder}
-					onNewSale={() => setLastCompletedOrder(null)}
-				/>
-			)}
 		</PageTransition>
 	);
 }
