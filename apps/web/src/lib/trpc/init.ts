@@ -31,7 +31,10 @@ export {
 export const createTRPCContext = async (): Promise<TRPCContext> => {
 	const user = await getAuthUser();
 
-	const resolvedRole = (user?.primaryRole?.name === "salesperson" || user?.primaryRole?.name === "sales") 
+	const rawRoleName = user?.primaryRole?.name || "";
+	const isSales = rawRoleName.toLowerCase() === "salesperson" || rawRoleName.toLowerCase() === "sales" || rawRoleName.toLowerCase() === "sales_person";
+
+	const resolvedRole = isSales 
 		? "sales_person" 
 		: (user?.primaryRole?.name || (user?.isSuperadmin ? "super_admin" : "admin"));
 
@@ -50,7 +53,7 @@ export const createTRPCContext = async (): Promise<TRPCContext> => {
 				primaryRole: user.primaryRole 
 					? {
 							...user.primaryRole,
-							name: (user.primaryRole.name === "salesperson" || user.primaryRole.name === "sales") ? "sales_person" : user.primaryRole.name,
+							name: isSales ? "sales_person" : user.primaryRole.name,
 					  }
 					: {
 							name: user.isSuperadmin ? "super_admin" : "admin",

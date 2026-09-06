@@ -81,8 +81,11 @@ export const roleProcedure = (requiredRoles: Role[]) => {
 		}
 
 		let userRole = (ctx.user.primaryRole?.name || (ctx.user as any).role) as string;
-		if (userRole === "salesperson" || userRole === "sales") {
-			userRole = "sales_person";
+		if (userRole) {
+			const lowerRole = userRole.toLowerCase();
+			if (lowerRole === "salesperson" || lowerRole === "sales" || lowerRole === "sales_person") {
+				userRole = "sales_person";
+			}
 		}
 
 		// Check if the user's primary role is one of the required roles
