@@ -129,18 +129,27 @@ export default function SuperAdminUsersPage() {
 	});
 
 	const createUser = trpc.users.create.useMutation({
-		onSuccess: (res) => {
+		onSuccess: (res, variables) => {
 			toast.success("User account and credentials created successfully!");
 			setCreatedCredentials({
-				email: form.email,
-				pass: form.initialPassword || "Password@123",
+				email: variables.email,
+				pass: variables.initialPassword || "Password@123",
 			});
 			void utils.users.list.invalidate();
 		},
 		onError: (err) => {
-			const msg = err?.message?.startsWith("[")
-				? "Validation failed. Please check the form fields."
-				: err?.message || "Failed to create user.";
+			let msg = "";
+			if (err?.message?.startsWith("[")) {
+				try {
+					const parsed = JSON.parse(err.message);
+					if (Array.isArray(parsed)) {
+						msg = parsed.map((issue: any) => issue.message).join(", ");
+					}
+				} catch (_) {}
+			}
+			if (!msg) {
+				msg = err?.message || "Failed to create user.";
+			}
 			toast.error(`Failed to create user: ${msg}`);
 		},
 	});
@@ -175,6 +184,16 @@ export default function SuperAdminUsersPage() {
 		e.preventDefault();
 		if (!form.fullName || !form.employeeId || !form.email) {
 			toast.error("Please fill in all required fields.");
+			return;
+		}
+
+		if (form.employeeId.length < 3) {
+			toast.error("Employee ID must be at least 3 characters.");
+			return;
+		}
+
+		if (form.initialPassword && form.initialPassword.length < 8) {
+			toast.error("Initial Password must be at least 8 characters.");
 			return;
 		}
 

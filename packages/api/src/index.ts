@@ -136,9 +136,18 @@ export const customerProcedure = protectedProcedure.use(async ({ ctx, next }) =>
 	if (!ctx.user) {
 		throw new TRPCError({ code: "UNAUTHORIZED" });
 	}
-	const userRole = ctx.user.primaryRole?.name;
-	if (userRole !== "customer" && !ctx.user.isSuperadmin) {
-		throw new TRPCError({ code: "FORBIDDEN" });
+
+	const customer = await ctx.db.query.customers.findFirst({
+		where: (c: any, { eq, and }: any) =>
+			and(eq(c.email, ctx.user.email), eq(c.is_deleted, false)),
+	});
+
+	if (!customer) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "No customer account is linked to this login.",
+		});
 	}
-	return next({ ctx: { ...ctx, user: ctx.user } });
+
+	return next({ ctx: { ...ctx, user: ctx.user, customer } });
 });
