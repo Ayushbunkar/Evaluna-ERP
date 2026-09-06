@@ -111,7 +111,7 @@ export default async function middleware(request: NextRequest) {
 	if (isAuthPage) {
 		const url = request.nextUrl.clone();
 		let rawRole = sessionData.user.role || "sales_person";
-		if (rawRole === "salesperson") rawRole = "sales_person";
+		if (rawRole === "salesperson" || rawRole === "sales") rawRole = "sales_person";
 		// Map every known role to its dashboard path
 		const roleDashboardMap: Record<string, string> = {
 			super_admin: "/admin",
@@ -149,7 +149,7 @@ export default async function middleware(request: NextRequest) {
 
 	if (matchedRoute) {
 		let userRole = (sessionData.user.role || "sales_person") as Role;
-		if ((userRole as string) === "salesperson") {
+		if ((userRole as string) === "salesperson" || (userRole as string) === "sales") {
 			userRole = "sales_person" as Role;
 		}
 		if (

@@ -81,7 +81,7 @@ export const roleProcedure = (requiredRoles: Role[]) => {
 		}
 
 		let userRole = (ctx.user.primaryRole?.name || (ctx.user as any).role) as string;
-		if (userRole === "salesperson") {
+		if (userRole === "salesperson" || userRole === "sales") {
 			userRole = "sales_person";
 		}
 
