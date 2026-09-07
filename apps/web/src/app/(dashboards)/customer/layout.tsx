@@ -1,106 +1,33 @@
+"use client";
+
 import {
-	CreditCard,
-	Hexagon,
-	LayoutDashboard,
-	Package,
-	ShoppingBag,
-	User,
+	CreditCardIcon,
+	LayoutDashboardIcon,
+	PackageIcon,
+	ShoppingBagIcon,
+	UserIcon,
 } from "lucide-react";
-import Link from "next/link";
+import {
+	AppLayoutWithBranch,
+	type NavItem,
+} from "@/components/layout/app-layout";
+
+const customerNavItems: NavItem[] = [
+	{ href: "/customer", labelKey: "dashboard", icon: LayoutDashboardIcon },
+	{ href: "/customer/products", labelKey: "productsPlaceOrder", icon: PackageIcon },
+	{ href: "/customer/orders", labelKey: "orders", icon: ShoppingBagIcon },
+	{ href: "/customer/payments", labelKey: "payments", icon: CreditCardIcon },
+	{ href: "/customer/profile", labelKey: "customerProfile", icon: UserIcon },
+];
 
 export default function CustomerLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	return (
-		<div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-			{/* Sidebar */}
-			<aside className="w-64 border-gray-200 border-r bg-white dark:border-gray-700 dark:bg-gray-800">
-				<div className="flex h-full flex-col">
-					{/* Brand */}
-					<div className="flex-shrink-0 px-6 py-4">
-						<Link href="/customer" className="flex items-center space-x-3">
-							<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
-								<Hexagon className="h-5 w-5 text-blue-600" />
-							</span>
-							<span className="font-semibold text-gray-900 text-lg dark:text-gray-100">
-								Evaluna Customer
-							</span>
-						</Link>
-					</div>
-
-					{/* Navigation */}
-					<nav className="mt-6 flex-1">
-						<ul className="space-y-1 px-3">
-							<Link
-								href="/customer"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<LayoutDashboard className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Dashboard</span>
-							</Link>
-
-							<Link
-								href="/customer/products"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<Package className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Products / Place Order</span>
-							</Link>
-
-							<Link
-								href="/customer/orders"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<ShoppingBag className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Orders</span>
-							</Link>
-
-							<Link
-								href="/customer/payments"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<CreditCard className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Payments</span>
-							</Link>
-
-							<Link
-								href="/customer/profile"
-								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-							>
-								<User className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Customer Profile</span>
-							</Link>
-						</ul>
-					</nav>
-				</div>
-			</aside>
-
-			{/* Main Content */}
-			<main className="flex-1 overflow-hidden">
-				<div className="flex h-full flex-col">
-					{/* Header */}
-					<header className="border-gray-200 border-b bg-white dark:border-gray-700 dark:bg-gray-800">
-						<div className="flex items-center justify-between px-6 py-4">
-							<div className="text-gray-500 text-sm dark:text-gray-400">
-								Welcome, Customer Representative
-							</div>
-							<div className="flex items-center space-x-4">
-								<button className="flex items-center rounded-md border border-gray-300 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">
-									<User className="h-5 w-5 text-gray-400" />
-									<span className="ml-2 text-gray-600 text-sm dark:text-gray-300">
-										Profile
-									</span>
-								</button>
-							</div>
-						</div>
-					</header>
-
-					{/* Content */}
-					<div className="flex-1 overflow-y-auto p-6">{children}</div>
-				</div>
-			</main>
-		</div>
+		<AppLayoutWithBranch navItems={customerNavItems} namespace="nav" role="customer">
+			{children}
+		</AppLayoutWithBranch>
 	);
 }

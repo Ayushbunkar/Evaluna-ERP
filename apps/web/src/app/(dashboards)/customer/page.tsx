@@ -198,43 +198,49 @@ export default function CustomerDashboard() {
 					<CardContent className="p-6 pt-0">
 						<div className="grid gap-4 md:grid-cols-3">
 							{/* New Order */}
-							<Card className="hover:border-green-500/40 cursor-pointer transition-colors hover:shadow">
-								<CardContent className="p-5 flex flex-col items-start gap-3" onClick={() => window.location.href = "/customer/products"}>
-									<div className="p-2.5 bg-green-500/10 rounded-full">
-										<PackageIcon className="h-5 w-5 text-green-500" />
-									</div>
-									<div>
-										<h4 className="font-bold text-sm">{t.placeOrder}</h4>
-										<p className="text-muted-foreground text-xs mt-1">{t.placeOrderDesc}</p>
-									</div>
-								</CardContent>
-							</Card>
+							<Link href="/customer/products">
+								<Card className="h-full hover:border-green-500/40 cursor-pointer transition-colors hover:shadow">
+									<CardContent className="p-5 flex flex-col items-start gap-3">
+										<div className="p-2.5 bg-green-500/10 rounded-full">
+											<PackageIcon className="h-5 w-5 text-green-500" />
+										</div>
+										<div>
+											<h4 className="font-bold text-sm">{t.placeOrder}</h4>
+											<p className="text-muted-foreground text-xs mt-1">{t.placeOrderDesc}</p>
+										</div>
+									</CardContent>
+								</Card>
+							</Link>
 
 							{/* History */}
-							<Card className="hover:border-blue-500/40 cursor-pointer transition-colors hover:shadow">
-								<CardContent className="p-5 flex flex-col items-start gap-3" onClick={() => window.location.href = "/customer/orders"}>
-									<div className="p-2.5 bg-blue-500/10 rounded-full">
-										<LayoutDashboardIcon className="h-5 w-5 text-blue-500" />
-									</div>
-									<div>
-										<h4 className="font-bold text-sm">{t.viewOrders}</h4>
-										<p className="text-muted-foreground text-xs mt-1">{t.viewOrdersDesc}</p>
-									</div>
-								</CardContent>
-							</Card>
+							<Link href="/customer/orders">
+								<Card className="h-full hover:border-blue-500/40 cursor-pointer transition-colors hover:shadow">
+									<CardContent className="p-5 flex flex-col items-start gap-3">
+										<div className="p-2.5 bg-blue-500/10 rounded-full">
+											<LayoutDashboardIcon className="h-5 w-5 text-blue-500" />
+										</div>
+										<div>
+											<h4 className="font-bold text-sm">{t.viewOrders}</h4>
+											<p className="text-muted-foreground text-xs mt-1">{t.viewOrdersDesc}</p>
+										</div>
+									</CardContent>
+								</Card>
+							</Link>
 
 							{/* Profile */}
-							<Card className="hover:border-purple-500/40 cursor-pointer transition-colors hover:shadow">
-								<CardContent className="p-5 flex flex-col items-start gap-3" onClick={() => window.location.href = "/customer/profile"}>
-									<div className="p-2.5 bg-purple-500/10 rounded-full">
-										<UserIcon className="h-5 w-5 text-purple-500" />
-									</div>
-									<div>
-										<h4 className="font-bold text-sm">{t.myProfile}</h4>
-										<p className="text-muted-foreground text-xs mt-1">{t.myProfileDesc}</p>
-									</div>
-								</CardContent>
-							</Card>
+							<Link href="/customer/profile">
+								<Card className="h-full hover:border-purple-500/40 cursor-pointer transition-colors hover:shadow">
+									<CardContent className="p-5 flex flex-col items-start gap-3">
+										<div className="p-2.5 bg-purple-500/10 rounded-full">
+											<UserIcon className="h-5 w-5 text-purple-500" />
+										</div>
+										<div>
+											<h4 className="font-bold text-sm">{t.myProfile}</h4>
+											<p className="text-muted-foreground text-xs mt-1">{t.myProfileDesc}</p>
+										</div>
+									</CardContent>
+								</Card>
+							</Link>
 						</div>
 					</CardContent>
 				</Card>

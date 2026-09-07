@@ -98,6 +98,11 @@ const ROLE_CONFIG: Record<
 		color: "text-cyan-700 dark:text-cyan-300",
 		bg: "bg-cyan-100 dark:bg-cyan-900/40",
 	},
+	customer: {
+		label: "Customer",
+		color: "text-emerald-700 dark:text-emerald-300",
+		bg: "bg-emerald-100 dark:bg-emerald-900/40",
+	},
 	putter: {
 		label: "Putter",
 		color: "text-teal-700 dark:text-teal-300",
@@ -283,8 +288,27 @@ export function AppLayout({
 		};
 	}, []);
 
+	const formatNavLabel = (key: string) => {
+		try {
+			const translated = t(key as any);
+			if (
+				translated &&
+				typeof translated === "string" &&
+				!translated.startsWith("nav.")
+			) {
+				return translated;
+			}
+		} catch (_e) {}
+		if (key === "productsPlaceOrder") return "Products / Place Order";
+		if (key === "customerProfile") return "Customer Profile";
+		return key
+			.replace(/([A-Z])/g, " $1")
+			.replace(/^./, (str) => str.toUpperCase())
+			.trim();
+	};
+
 	const pageNames: Record<string, string> = Object.fromEntries(
-		navItems.map((item) => [item.href, t(item.labelKey as any)]),
+		navItems.map((item) => [item.href, formatNavLabel(item.labelKey)]),
 	);
 
 	return (
@@ -353,16 +377,18 @@ export function AppLayout({
 
 					<NotificationBell role={role} />
 
-					<Link href="/staff">
-						<Button
-							variant="ghost"
-							size="sm"
-							className={`hidden sm:flex ${activeShift ? "text-green-500" : "text-orange-500"}`}
-						>
-							<Clock className="mr-2 h-4 w-4" />
-							{activeShift ? "Clocked In" : "Clocked Out"}
-						</Button>
-					</Link>
+					{role !== "customer" && (
+						<Link href="/staff">
+							<Button
+								variant="ghost"
+								size="sm"
+								className={`hidden sm:flex ${activeShift ? "text-green-500" : "text-orange-500"}`}
+							>
+								<Clock className="mr-2 h-4 w-4" />
+								{activeShift ? "Clocked In" : "Clocked Out"}
+							</Button>
+						</Link>
+					)}
 
 					<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
 
@@ -427,24 +453,46 @@ export function AppLayout({
 									<DropdownMenuSeparator />
 								</>
 							) : null}
-							<DropdownMenuItem
-								asChild
-								className="cursor-pointer rounded-md focus:bg-accent/50"
-							>
-								<Link href="/attendance">My Attendance</Link>
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								asChild
-								className="cursor-pointer rounded-md focus:bg-accent/50"
-							>
-								<Link href="/staff">Staff Portal</Link>
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem className="cursor-pointer rounded-md focus:bg-accent/50">
-								Support
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
+							{role === "customer" ? (
+								<>
+									<DropdownMenuItem
+										asChild
+										className="cursor-pointer rounded-md focus:bg-accent/50"
+									>
+										<Link href="/customer/profile">My Customer Profile</Link>
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										asChild
+										className="cursor-pointer rounded-md focus:bg-accent/50"
+									>
+										<Link href="/customer/orders">My Orders</Link>
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										asChild
+										className="cursor-pointer rounded-md focus:bg-accent/50"
+									>
+										<Link href="/customer/payments">Payments & Wallet</Link>
+									</DropdownMenuItem>
+									<DropdownMenuSeparator />
+								</>
+							) : (
+								<>
+									<DropdownMenuItem
+										asChild
+										className="cursor-pointer rounded-md focus:bg-accent/50"
+									>
+										<Link href="/attendance">My Attendance</Link>
+									</DropdownMenuItem>
+									<DropdownMenuSeparator />
+									<DropdownMenuItem
+										asChild
+										className="cursor-pointer rounded-md focus:bg-accent/50"
+									>
+										<Link href="/staff">Staff Portal</Link>
+									</DropdownMenuItem>
+									<DropdownMenuSeparator />
+								</>
+							)}
 							<DropdownMenuItem
 								onClick={() => logout()}
 								className="cursor-pointer rounded-md text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -524,7 +572,7 @@ export function AppLayout({
 													<Icon
 														className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}
 													/>
-													<span>{t(labelKey as any)}</span>
+													<span>{formatNavLabel(labelKey)}</span>
 												</div>
 												{badge !== undefined && badge !== null && badge !== 0 && (
 													<span className="rounded-full bg-destructive/15 px-2 py-0.5 font-bold text-destructive text-xs">
@@ -598,7 +646,7 @@ export function AppLayout({
 													exit={{ opacity: 0, width: 0 }}
 													className="flex-1 truncate whitespace-nowrap"
 												>
-													{t(labelKey as any)}
+													{formatNavLabel(labelKey)}
 												</motion.span>
 											)}
 										</AnimatePresence>
@@ -618,7 +666,7 @@ export function AppLayout({
 												side="right"
 												className="ml-2 rounded-lg border-border/50 font-medium text-xs"
 											>
-												{t(labelKey as any)}
+												{formatNavLabel(labelKey)}
 											</TooltipContent>
 										</Tooltip>
 									);
