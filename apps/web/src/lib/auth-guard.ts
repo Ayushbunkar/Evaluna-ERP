@@ -88,9 +88,44 @@ async function getSessionToken(): Promise<string | null> {
  * Gets the fully enriched auth user including roles, permissions, and staff data.
  * Uses LRU cache and DB fallback to guarantee 100% session availability.
  */
-export async function getAuthUser(): Promise<CachedSession | null> {
-	const token = await getSessionToken();
+export async function getAuthUser(req?: Request): Promise<CachedSession | null> {
+	let token = await getSessionToken();
+
+	// Also try to read cookie from the raw Request object (for Vercel/serverless)
+	if (!token && req) {
+		const cookieHeader = req.headers.get("cookie") || "";
+		const matches = [
+			"evaluna.session_token",
+			"better-auth.session_token",
+			"better_auth.session_token",
+			"__Secure-evaluna.session_token",
+			"__Secure-better-auth.session_token",
+			"__Host-evaluna.session_token",
+		];
+		for (const name of matches) {
+			const encoded = encodeURIComponent(name).replace(/%20/g, "+");
+			const pattern = new RegExp(`(?:^|;\\s*)(?:${name}|${encoded})=([^;]+)`);
+			const m = cookieHeader.match(pattern);
+			if (m?.[1]) {
+				token = decodeURIComponent(m[1]);
+				break;
+			}
+		}
+		// Generic fallback: any cookie value containing "session_token"
+		if (!token) {
+			const parts = cookieHeader.split(";");
+			for (const part of parts) {
+				const [k, v] = part.trim().split("=");
+				if (k && (k.endsWith("session_token") || k.includes("session_token")) && v) {
+					token = decodeURIComponent(v);
+					break;
+				}
+			}
+		}
+	}
+
 	if (!token) return null;
+
 
 	// 1. Check in-memory cache
 	const cached = getCachedSession(token);

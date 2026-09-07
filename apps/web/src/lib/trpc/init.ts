@@ -28,8 +28,9 @@ export {
 	superadminProcedure,
 };
 
-export const createTRPCContext = async (): Promise<TRPCContext> => {
-	const user = await getAuthUser();
+export const createTRPCContext = async (opts?: { req?: Request }): Promise<TRPCContext> => {
+	const user = await getAuthUser(opts?.req);
+
 
 	const rawRoleName = user?.primaryRole?.name || "";
 	const isSales = rawRoleName.toLowerCase() === "salesperson" || rawRoleName.toLowerCase() === "sales" || rawRoleName.toLowerCase() === "sales_person";

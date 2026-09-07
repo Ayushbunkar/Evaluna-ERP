@@ -362,18 +362,20 @@ export function AppLayout({
 						</div>
 					)}
 
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleSync}
-						disabled={isOffline || isSyncing}
-						className="hidden h-8 gap-1 rounded-full border-border/50 bg-background/50 font-medium text-xs shadow-sm transition-all hover:bg-accent/50 sm:h-9 sm:gap-2 md:flex"
-					>
-						<RefreshCwIcon
-							className={`h-3.5 w-3.5 text-muted-foreground ${isSyncing ? "animate-spin text-primary" : ""}`}
-						/>
-						Sync
-					</Button>
+					{role !== "customer" && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleSync}
+							disabled={isOffline || isSyncing}
+							className="hidden h-8 gap-1 rounded-full border-border/50 bg-background/50 font-medium text-xs shadow-sm transition-all hover:bg-accent/50 sm:h-9 sm:gap-2 md:flex"
+						>
+							<RefreshCwIcon
+								className={`h-3.5 w-3.5 text-muted-foreground ${isSyncing ? "animate-spin text-primary" : ""}`}
+							/>
+							Sync
+						</Button>
+					)}
 
 					<NotificationBell role={role} />
 
@@ -390,7 +392,9 @@ export function AppLayout({
 						</Link>
 					)}
 
+				{role !== "customer" && (
 					<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
+				)}
 
 					<div className="hidden md:block">
 						<LocaleSwitcher />
