@@ -7,6 +7,8 @@ import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
+import { UserManagement } from "@evaluna/db";
 import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
 import { invalidateCachedSession } from "@/lib/session-cache";
 
@@ -91,32 +93,25 @@ export async function login(formData: FormData) {
 		return { success: false, error: "invalid-credentials" };
 	}
 
+	if (!user) {
+		return { success: false, error: "invalid-credentials" };
+	}
+
 	// Superadmins are globally scoped and get their own dashboard
-	if (user?.is_superadmin || predefinedAccounts[email] === "superadmin" || user?.role === "super_admin" || user?.role === "superadmin") {
+	if (user?.is_superadmin || predefinedAccounts[email] === "superadmin" || (user as any)?.role === "super_admin" || (user as any)?.role === "superadmin") {
 		return { success: true, redirectUrl: "/superadmin" };
 	}
 
-	// Fetch role directly from DB to bypass any better-auth session caching issues
-	const dbUser = await db
-		.select({ role: userTable.role })
-		.from(userTable)
-		.where(eq(userTable.email, email))
-		.limit(1);
-
-	let role = dbUser[0]?.role || user?.role || "sales_person";
+	// Fetch role directly from DB security profile to bypass session caching issues
+	const profile = await UserManagement.getSecurityProfileByUserId(user.id);
+	let role = profile?.role || (user as any)?.role || "customer";
 
 	// Force predefined role for test accounts
 	if (predefinedAccounts[email]) {
 		role = predefinedAccounts[email];
 	}
 
-	// Normalize roles for backward-compatibility mapping
-	let normalizedRole = role;
-	if (role === "superadmin") {
-		normalizedRole = "super_admin";
-	}
-
-	const destination = ROLE_DASHBOARD_MAP[normalizedRole as Role] ?? `/${normalizedRole}`;
+	const destination = getCanonicalDashboardRoute(role);
 	revalidatePath(destination, "layout");
 	return { success: true, redirectUrl: destination };
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { ReactNode } from "react";
 import { useSession } from "@/hooks/use-session";
@@ -30,7 +30,7 @@ export function PermissionGate({
 	if (user.isSuperadmin) return <>{children}</>; // Superadmins bypass UI gates
 
 	const hasPerm = roleHasPermission(
-		user.role || "sales_person",
+		user.role || "customer",
 		domain,
 		action,
 	);

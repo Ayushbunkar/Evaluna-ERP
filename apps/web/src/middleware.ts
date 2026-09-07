@@ -110,21 +110,24 @@ export default async function middleware(request: NextRequest) {
 	// The user is authenticated — send them home regardless of error/expired params.
 	if (isAuthPage) {
 		const url = request.nextUrl.clone();
-		let rawRole = sessionData.user.role || "sales_person";
+		let rawRole = sessionData.session?.role || sessionData.user?.role || "customer";
 		if (rawRole) {
 			const lower = rawRole.toLowerCase();
 			if (lower === "salesperson" || lower === "sales" || lower === "sales_person") {
 				rawRole = "sales_person";
+			} else if (lower === "superadmin" || lower === "super_admin" || lower === "super admin") {
+				rawRole = "super_admin";
 			}
 		}
 		// Map every known role to its dashboard path
 		const roleDashboardMap: Record<string, string> = {
-			super_admin: "/admin",
-			superadmin: "/admin",
+			super_admin: "/superadmin",
+			superadmin: "/superadmin",
 			admin: "/admin",
 			manager: "/manager",
 			auditor: "/auditor",
 			hr: "/hr",
+			finance: "/finance",
 			marketing: "/marketing",
 			putter: "/putter",
 			picker: "/picker",
@@ -136,13 +139,13 @@ export default async function middleware(request: NextRequest) {
 			delivery_manager: "/manager",
 			delivery_boy: "/driver",
 			customer: "/customer",
-			billing: "/sales",
-			warehouse: "/dashboard/warehouse",
-			"Warehouse Operations": "/dashboard/warehouse",
-			procurement: "/dashboard/procurement",
-			Procurement: "/dashboard/procurement",
+			billing: "/biller",
+			warehouse: "/warehouse",
+			"Warehouse Operations": "/warehouse",
+			procurement: "/procurement",
+			Procurement: "/procurement",
 		};
-		url.pathname = roleDashboardMap[rawRole] ?? "/admin";
+		url.pathname = roleDashboardMap[rawRole] ?? "/customer";
 		url.search = ""; // clear any leftover query params
 		return NextResponse.redirect(url);
 	}
@@ -153,7 +156,7 @@ export default async function middleware(request: NextRequest) {
 	);
 
 	if (matchedRoute) {
-		let userRole = (sessionData.user.role || "sales_person") as Role;
+		let userRole = (sessionData.session?.role || sessionData.user?.role || "customer") as Role;
 		if (userRole) {
 			const lower = (userRole as string).toLowerCase();
 			if (lower === "salesperson" || lower === "sales" || lower === "sales_person") {
@@ -164,14 +167,15 @@ export default async function middleware(request: NextRequest) {
 			(userRole as string) === "superadmin" ||
 			(userRole as string) === "super_admin"
 		)
-			userRole = "admin" as Role;
+			userRole = "super_admin" as Role;
 
 		const isSuperadmin =
-			sessionData.user.isSuperadmin === true ||
-			sessionData.user.is_superadmin === true ||
-			sessionData.user.role === "superadmin" ||
-			sessionData.user.role === "super_admin" ||
-			sessionData.user.role === "admin";
+			sessionData.user?.isSuperadmin === true ||
+			sessionData.user?.is_superadmin === true ||
+			sessionData.user?.role === "superadmin" ||
+			sessionData.user?.role === "super_admin" ||
+			sessionData.session?.role === "superadmin" ||
+			sessionData.session?.role === "super_admin";
 
 		if (!isSuperadmin) {
 			if (!isAtLeastRole(userRole, matchedRoute.minRole)) {
@@ -185,9 +189,9 @@ export default async function middleware(request: NextRequest) {
 
 	// 6. Attach context headers for downstream consumption
 	const response = NextResponse.next({ request: { headers: requestHeaders } });
-	response.headers.set("X-User-Id", sessionData.user.id);
-	response.headers.set("X-User-Role", sessionData.user.role || "sales_person");
-	if ((sessionData.user as any).branchId) {
+	response.headers.set("X-User-Id", sessionData.user?.id || sessionData.session?.userId || "");
+	response.headers.set("X-User-Role", sessionData.session?.role || sessionData.user?.role || "customer");
+	if ((sessionData.user as any)?.branchId) {
 		response.headers.set(
 			"X-Branch-Id",
 			(sessionData.user as any).branchId.toString(),

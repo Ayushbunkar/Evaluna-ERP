@@ -685,6 +685,46 @@ export class UserManagementRepository {
 			},
 		};
 	}
+
+	/**
+	 * Assigns a role to a user ID, ensuring the role exists in the `roles` table.
+	 */
+	async assignRoleToUser(targetUserId: string, roleName: string) {
+		return await db.transaction(async (tx) => {
+			let [roleRecord] = await tx
+				.select()
+				.from(roles)
+				.where(eq(roles.name, roleName))
+				.limit(1);
+
+			if (!roleRecord) {
+				const [inserted] = await tx
+					.insert(roles)
+					.values({
+						name: roleName,
+						description: `${roleName.toUpperCase().replace("_", " ")} Role`,
+						permissions: {},
+					})
+					.returning();
+				roleRecord = inserted;
+			}
+
+			if (!roleRecord) {
+				throw new Error(`Failed to resolve role: ${roleName}`);
+			}
+
+			// Clear existing roles for user
+			await tx.delete(userRoles).where(eq(userRoles.user_id, targetUserId));
+
+			// Insert new user_roles row
+			await tx.insert(userRoles).values({
+				user_id: targetUserId,
+				role_id: roleRecord.id,
+			});
+
+			return { userId: targetUserId, roleName: roleRecord.name };
+		});
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

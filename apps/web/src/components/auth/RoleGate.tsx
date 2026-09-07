@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { ReactNode } from "react";
 import { useSession } from "@/hooks/use-session";
@@ -26,7 +26,7 @@ export function RoleGate({
 	const user = session.user as any;
 	if (user.isSuperadmin) return <>{children}</>;
 
-	const hasRole = isAtLeastRole(user.role || "sales_person", minRole);
+	const hasRole = isAtLeastRole(user.role || "customer", minRole);
 
 	return hasRole ? children : fallback;
 }

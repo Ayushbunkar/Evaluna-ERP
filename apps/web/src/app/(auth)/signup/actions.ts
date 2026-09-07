@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+import { UserManagement } from "@evaluna/db";
+
 export async function signup(formData: FormData) {
 	const name = formData.get("name") as string;
 	const email = formData.get("email") as string;
@@ -31,10 +33,10 @@ export async function signup(formData: FormData) {
 
 		if (user) {
 			// Always enforce only "customer" role for self-service guest registration
+			await UserManagement.assignRoleToUser(user.id, "customer");
 			await db
 				.update(userTable)
 				.set({
-					role: "customer",
 					is_superadmin: false,
 				} as any)
 				.where(eq(userTable.id, user.id));

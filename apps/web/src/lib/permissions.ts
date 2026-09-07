@@ -66,25 +66,25 @@ export const ROLE_LEVEL: Record<Role, number> = {
 // ── Role Dashboard Mapping ──────────────────────────────────────────────────
 // Canonical mapping for automatic redirection after login (Requirement 4 & 5)
 export const ROLE_DASHBOARD_MAP: Record<Role, string> = {
-	super_admin: "/admin/dashboard",
-	admin: "/admin/dashboard",
+	super_admin: "/superadmin",
+	admin: "/admin",
 	manager: "/manager",
 	auditor: "/auditor",
 	hr: "/hr",
 	finance: "/finance",
 	marketing: "/marketing",
-	warehouse_supervisor: "/dashboard/warehouse/supervisor",
-	putter: "/dashboard/warehouse/put-away",
-	picker: "/dashboard/warehouse/picking",
-	packer: "/dashboard/warehouse/packing",
-	dispatcher: "/dashboard/warehouse/packing-dispatch",
-	procurement: "/dashboard/procurement",
+	warehouse_supervisor: "/warehouse",
+	putter: "/putter",
+	picker: "/picker",
+	packer: "/packer",
+	dispatcher: "/packing-dispatch",
+	procurement: "/procurement",
 	driver: "/driver",
-	biller: "/dashboard/pos", // Assuming biller is the POS operator
+	biller: "/biller",
 	sales_person: "/sales",
-	delivery_manager: "/delivery/manager",
-	delivery_boy: "/delivery/dashboard",
-	customer: "/customer/dashboard",
+	delivery_manager: "/manager",
+	delivery_boy: "/driver",
+	customer: "/customer",
 };
 
 // ── Permission Domains ────────────────────────────────────────────────────────
