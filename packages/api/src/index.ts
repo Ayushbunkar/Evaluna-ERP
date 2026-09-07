@@ -162,6 +162,7 @@ export const customerProcedure = protectedProcedure.use(async ({ ctx, next }) =>
 			""
 		).toLowerCase();
 		if (
+			!roleName ||
 			roleName === "customer" ||
 			roleName === "customer representative" ||
 			roleName.includes("customer")

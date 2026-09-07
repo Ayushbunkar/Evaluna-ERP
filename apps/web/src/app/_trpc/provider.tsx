@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
@@ -42,6 +42,12 @@ export default function TRPCProvider({
 				httpBatchLink({
 					url: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/trpc`,
 					transformer: superjson,
+					fetch(url, options) {
+						return fetch(url, {
+							...options,
+							credentials: "include",
+						});
+					},
 				}),
 			],
 		}),
