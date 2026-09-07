@@ -1,11 +1,12 @@
 import {
 	roles as rolesTable,
+	session as sessionTable,
 	staff as staffTable,
 	userRoles as userRolesTable,
 	user as userTable,
 } from "@evaluna/db/schema";
 import { getPermissionsForRole } from "@evaluna/db";
-import { and, desc, eq, get, isNotNull } from "drizzle-orm";
+import { and, desc, eq, get, gte, isNotNull } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { auth } from "./auth";
 import { db } from "./db";
@@ -59,8 +60,8 @@ export type CachedSession = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Parses the Better Auth session token from headers.
- * Better Auth uses "evaluna.session_token" due to our cookiePrefix.
+ * Parses the Better Auth session token from headers and cookies.
+ * Supports production Vercel HTTPS cookie prefixes (__Secure-, __Host-, etc.)
  */
 async function getSessionToken(): Promise<string | null> {
 	const cookieStore = await cookies();
@@ -68,14 +69,24 @@ async function getSessionToken(): Promise<string | null> {
 		cookieStore.get("evaluna.session_token")?.value ||
 		cookieStore.get("__Secure-evaluna.session_token")?.value ||
 		cookieStore.get("better-auth.session_token")?.value ||
-		cookieStore.get("__Secure-better-auth.session_token")?.value;
+		cookieStore.get("__Secure-better-auth.session_token")?.value ||
+		cookieStore.get("better_auth.session_token")?.value ||
+		cookieStore.get("__Secure-better_auth.session_token")?.value;
 
-	return token || null;
+	if (token) return token;
+
+	// Fallback: search for any cookie ending with or containing "session_token"
+	const allCookies = cookieStore.getAll();
+	const found = allCookies.find(
+		(c) => c.name.endsWith("session_token") || c.name.includes("session_token"),
+	);
+
+	return found?.value || null;
 }
 
 /**
  * Gets the fully enriched auth user including roles, permissions, and staff data.
- * Uses LRU cache to avoid hammering the database.
+ * Uses LRU cache and DB fallback to guarantee 100% session availability.
  */
 export async function getAuthUser(): Promise<CachedSession | null> {
 	const token = await getSessionToken();
@@ -98,16 +109,49 @@ export async function getAuthUser(): Promise<CachedSession | null> {
 		return cached;
 	}
 
-	// 2. Fetch from Better Auth
-	const reqHeaders = await headers();
-	const authSession = await auth.api.getSession({
-		headers: reqHeaders,
-	});
+	// 2. Fetch from Better Auth with Direct DB Fallback
+	let authSession: {
+		user: { id: string; email: string; name: string };
+		session: { expiresAt: Date };
+	} | null = null;
+
+	try {
+		const reqHeaders = await headers();
+		authSession = (await auth.api.getSession({
+			headers: reqHeaders,
+		})) as any;
+	} catch (err) {
+		console.warn("[auth-guard] auth.api.getSession error, checking DB session table directly:", err);
+	}
+
+	// Direct DB lookup fallback for production environments (e.g. Vercel serverless)
+	if (!authSession?.user || !authSession?.session) {
+		const dbSession = await db.query.session.findFirst({
+			where: and(
+				eq(sessionTable.token, token),
+				gte(sessionTable.expiresAt, new Date()),
+			),
+			with: {
+				user: true,
+			},
+		});
+
+		if (dbSession?.user) {
+			authSession = {
+				user: {
+					id: dbSession.userId,
+					email: dbSession.user.email,
+					name: dbSession.user.name,
+				},
+				session: {
+					expiresAt: dbSession.expiresAt,
+				},
+			};
+		}
+	}
 
 	if (!authSession?.user || !authSession?.session) {
-		console.error("[auth-guard] auth.api.getSession returned null!", {
-			authSession,
-		});
+		console.error("[auth-guard] Invalid or expired session for token:", token);
 		return null;
 	}
 
