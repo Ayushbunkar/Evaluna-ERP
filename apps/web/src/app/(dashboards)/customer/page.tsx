@@ -110,63 +110,7 @@ export default function CustomerDashboard() {
 				transition={{ duration: 0.5, delay: 0.2 }}
 			>
 				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-					{/* Wallet Balance */}
-					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardContent className="p-6">
-							<div className="flex flex-col items-center gap-2 text-center">
-								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-									<DollarSignIcon className="h-6 w-6 text-emerald-500" />
-								</div>
-								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									{t.walletTitle}
-								</h3>
-								<p className="font-bold text-2xl text-emerald-600">
-									{formatCurrency(stats?.walletBalance || 0, locale)}
-								</p>
-								<span className="text-muted-foreground text-[10px]">{t.walletDesc}</span>
-							</div>
-						</CardContent>
-					</Card>
-
-					{/* Loyalty points */}
-					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardContent className="p-6">
-							<div className="flex flex-col items-center gap-2 text-center">
-								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10">
-									<CoinsIcon className="h-6 w-6 text-yellow-500" />
-								</div>
-								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									{t.loyaltyTitle}
-								</h3>
-								<p className="font-bold text-2xl text-yellow-600">
-									{stats?.loyaltyPoints || 0}
-								</p>
-								<span className="inline-flex items-center rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-yellow-700 dark:text-yellow-400">
-									{stats?.loyaltyTier || "bronze"}
-								</span>
-							</div>
-						</CardContent>
-					</Card>
-
-					{/* Pending orders */}
-					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardContent className="p-6">
-							<div className="flex flex-col items-center gap-2 text-center">
-								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
-									<ClockIcon className="h-6 w-6 text-amber-500" />
-								</div>
-								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									{t.pendingTitle}
-								</h3>
-								<p className="font-bold text-2xl text-amber-600">
-									{stats?.pendingOrders || 0}
-								</p>
-								<span className="text-muted-foreground text-[10px]">{t.pendingDesc}</span>
-							</div>
-						</CardContent>
-					</Card>
-
-					{/* Total Orders */}
+					{/* Active Orders */}
 					<Card className="border-border/50 bg-card/50 shadow-sm">
 						<CardContent className="p-6">
 							<div className="flex flex-col items-center gap-2 text-center">
@@ -174,12 +118,66 @@ export default function CustomerDashboard() {
 									<ShoppingBagIcon className="h-6 w-6 text-blue-500" />
 								</div>
 								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									{t.totalTitle}
+									Active Orders
 								</h3>
 								<p className="font-bold text-2xl text-blue-600">
-									{stats?.totalOrders || 0}
+									{(stats?.pendingOrders || 0) + (stats?.confirmedOrders || 0)}
 								</p>
-								<span className="text-muted-foreground text-[10px]">{t.totalDesc}</span>
+								<span className="text-muted-foreground text-[10px]">Orders in progress</span>
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Pending Confirmation */}
+					<Card className="border-border/50 bg-card/50 shadow-sm">
+						<CardContent className="p-6">
+							<div className="flex flex-col items-center gap-2 text-center">
+								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+									<ClockIcon className="h-6 w-6 text-amber-500" />
+								</div>
+								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Pending Confirmation
+								</h3>
+								<p className="font-bold text-2xl text-amber-600">
+									{stats?.pendingOrders || 0}
+								</p>
+								<span className="text-muted-foreground text-[10px]">Awaiting sales review</span>
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Confirmed Orders */}
+					<Card className="border-border/50 bg-card/50 shadow-sm">
+						<CardContent className="p-6">
+							<div className="flex flex-col items-center gap-2 text-center">
+								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+									<CheckCircle2Icon className="h-6 w-6 text-emerald-500" />
+								</div>
+								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Confirmed Orders
+								</h3>
+								<p className="font-bold text-2xl text-emerald-600">
+									{stats?.confirmedOrders || 0}
+								</p>
+								<span className="text-muted-foreground text-[10px]">Confirmed by sales</span>
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Completed Orders */}
+					<Card className="border-border/50 bg-card/50 shadow-sm">
+						<CardContent className="p-6">
+							<div className="flex flex-col items-center gap-2 text-center">
+								<div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-500/10">
+									<ActivityIcon className="h-6 w-6 text-purple-500" />
+								</div>
+								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Completed Orders
+								</h3>
+								<p className="font-bold text-2xl text-purple-600">
+									{stats?.completedOrders || 0}
+								</p>
+								<span className="text-muted-foreground text-[10px]">Fulfilled orders</span>
 							</div>
 						</CardContent>
 					</Card>

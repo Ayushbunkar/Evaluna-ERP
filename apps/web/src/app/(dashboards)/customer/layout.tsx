@@ -1,8 +1,9 @@
-﻿import {
-	Circle,
+import {
+	CreditCard,
 	Hexagon,
 	LayoutDashboard,
-	ShoppingCart,
+	Package,
+	ShoppingBag,
 	User,
 } from "lucide-react";
 import Link from "next/link";
@@ -19,7 +20,7 @@ export default function CustomerLayout({
 				<div className="flex h-full flex-col">
 					{/* Brand */}
 					<div className="flex-shrink-0 px-6 py-4">
-						<Link href="/" className="flex items-center space-x-3">
+						<Link href="/customer" className="flex items-center space-x-3">
 							<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
 								<Hexagon className="h-5 w-5 text-blue-600" />
 							</span>
@@ -30,10 +31,10 @@ export default function CustomerLayout({
 					</div>
 
 					{/* Navigation */}
-					<nav className="mt-10 flex-1">
+					<nav className="mt-6 flex-1">
 						<ul className="space-y-1 px-3">
 							<Link
-								href="/customer/dashboard"
+								href="/customer"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
 								<LayoutDashboard className="h-5 w-5 text-gray-400" />
@@ -41,18 +42,18 @@ export default function CustomerLayout({
 							</Link>
 
 							<Link
-								href="/customer/profile"
+								href="/customer/products"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<Circle className="h-5 w-5 text-gray-400" />
-								<span className="ml-3">Customer Profile</span>
+								<Package className="h-5 w-5 text-gray-400" />
+								<span className="ml-3">Products / Place Order</span>
 							</Link>
 
 							<Link
 								href="/customer/orders"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<ShoppingCart className="h-5 w-5 text-gray-400" />
+								<ShoppingBag className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Orders</span>
 							</Link>
 
@@ -60,8 +61,16 @@ export default function CustomerLayout({
 								href="/customer/payments"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<Circle className="h-5 w-5 text-gray-400" />
+								<CreditCard className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Payments</span>
+							</Link>
+
+							<Link
+								href="/customer/profile"
+								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+							>
+								<User className="h-5 w-5 text-gray-400" />
+								<span className="ml-3">Customer Profile</span>
 							</Link>
 						</ul>
 					</nav>

@@ -23,7 +23,18 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@evaluna/ui/components/select";
-import { ArrowLeftIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+	ArrowLeftIcon,
+	CheckCircle2Icon,
+	PhoneIcon,
+	PlusIcon,
+	SaveIcon,
+	Trash2Icon,
+	UserIcon,
+	MapPinIcon,
+	AlertCircleIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -119,17 +130,19 @@ export default function CustomerOrderReviewPage() {
 
 	const saveDraft = trpc.orders.updateReviewItems.useMutation({
 		onSuccess: () => {
-			toast.success("Draft saved.");
+			toast.success("Order draft updated successfully.");
 			utils.orders.getForReview.invalidate({ id });
 			utils.orders.listPendingReview.invalidate();
+			utils.orders.getPendingCount.invalidate();
 		},
 		onError: (e) => toast.error(e.message),
 	});
 
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
-			toast.success(`Order confirmed. Invoice ${res.invoiceNo} generated.`);
+			toast.success(`Order confirmed! Invoice ${res.invoiceNo} generated.`);
 			utils.orders.listPendingReview.invalidate();
+			utils.orders.getPendingCount.invalidate();
 			setConfirmOpen(false);
 			router.push("/sales/orders/review");
 		},
@@ -139,10 +152,13 @@ export default function CustomerOrderReviewPage() {
 		},
 	});
 
-	// PLACEHOLDER_REVIEW_JSX
-
 	if (isLoading)
-		return <p className="text-muted-foreground text-sm">Loading…</p>;
+		return (
+			<div className="py-12 text-center text-muted-foreground text-sm">
+				Loading order details…
+			</div>
+		);
+
 	if (error || !order)
 		return (
 			<div className="space-y-4">
@@ -150,16 +166,16 @@ export default function CustomerOrderReviewPage() {
 					href="/sales/orders/review"
 					className="inline-flex items-center gap-1 text-primary text-sm hover:underline"
 				>
-					<ArrowLeftIcon className="h-4 w-4" /> Back
+					<ArrowLeftIcon className="h-4 w-4" /> Back to orders queue
 				</Link>
-				<p className="text-destructive text-sm">
+				<div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive text-sm">
 					{error?.message ?? "Order not found."}
-				</p>
+				</div>
 			</div>
 		);
 
-	const priced = lines.every((l) => l.price > 0);
-	const canConfirm = !locked && lines.length > 0 && priced;
+	const unpricedCount = lines.filter((l) => l.price <= 0).length;
+	const canConfirm = !locked && lines.length > 0 && unpricedCount === 0;
 
 	const handleSave = () =>
 		saveDraft.mutate({
@@ -184,54 +200,118 @@ export default function CustomerOrderReviewPage() {
 		});
 
 	return (
-		<div className="space-y-5">
-			<Link
-				href="/sales/orders/review"
-				className="inline-flex items-center gap-1 text-primary text-sm hover:underline"
-			>
-				<ArrowLeftIcon className="h-4 w-4" /> Back to inbox
-			</Link>
-
-			<div className="flex flex-wrap items-start justify-between gap-3">
+		<div className="space-y-6">
+			{/* Back Link & Header */}
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="font-bold text-2xl tracking-tight">
-						{order.orderRef}
-					</h1>
-					<p className="text-muted-foreground text-sm">
-						{order.customer?.name}
-						{order.customer?.phone ? ` · ${order.customer.phone}` : ""}
-					</p>
-					{order.customer?.address && (
-						<p className="text-muted-foreground text-xs">
-							{order.customer.address}
-						</p>
-					)}
+					<Link
+						href="/sales/orders/review"
+						className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline mb-2"
+					>
+						<ArrowLeftIcon className="h-4 w-4" /> Back to Queue
+					</Link>
+					<div className="flex items-center gap-3">
+						<h1 className="font-mono font-bold text-2xl tracking-tight">
+							{order.orderRef}
+						</h1>
+						{locked ? (
+							<Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
+								Confirmed & Invoiced
+							</Badge>
+						) : (
+							<Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+								Review In Progress
+							</Badge>
+						)}
+					</div>
 				</div>
-				{locked && (
-					<span className="rounded-full bg-green-100 px-3 py-1 font-medium text-green-700 text-sm dark:bg-green-900/40 dark:text-green-300">
-						Confirmed
-					</span>
+
+				{/* Prominent Call Customer Button */}
+				{order.customer?.phone && (
+					<Button
+						asChild
+						size="lg"
+						className="gap-2 bg-emerald-600 font-semibold text-white shadow-md hover:bg-emerald-700"
+					>
+						<a href={`tel:${order.customer.phone}`}>
+							<PhoneIcon className="h-5 w-5" />
+							Call Customer ({order.customer.phone})
+						</a>
+					</Button>
 				)}
 			</div>
 
+			{/* Customer Details Card */}
+			<Card className="border-border/50 bg-gradient-to-r from-card via-card to-primary/5">
+				<CardHeader className="pb-3">
+					<CardTitle className="flex items-center gap-2 text-base">
+						<UserIcon className="h-4 w-4 text-primary" />
+						Customer Information
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+					<div>
+						<p className="font-semibold text-foreground text-sm">
+							{order.customer?.name}
+						</p>
+						<p className="text-muted-foreground text-xs">Customer Name</p>
+					</div>
+
+					<div>
+						<p className="font-mono font-medium text-foreground text-sm">
+							{order.customer?.phone || "No phone available"}
+						</p>
+						<p className="text-muted-foreground text-xs">Contact Number</p>
+					</div>
+
+					<div>
+						<div className="flex items-center gap-1 font-medium text-foreground text-sm">
+							<MapPinIcon className="h-3.5 w-3.5 text-muted-foreground" />
+							<span className="truncate">{order.customer?.address || "No address provided"}</span>
+						</div>
+						<p className="text-muted-foreground text-xs">Delivery Address</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Unpriced warning banner */}
+			{!locked && unpricedCount > 0 && (
+				<div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 text-sm dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+					<AlertCircleIcon className="h-4 w-4 shrink-0 text-amber-600" />
+					<span>
+						{unpricedCount} line item(s) have ₹0.00 price. Enter valid prices before confirming the order.
+					</span>
+				</div>
+			)}
+
+			{/* Line Items Table Card */}
 			<Card className="border-border/50">
 				<CardHeader>
 					<CardTitle className="text-base">Line Items & Pricing</CardTitle>
 				</CardHeader>
-				<CardContent className="space-y-3">
+				<CardContent className="space-y-4">
+					<div className="hidden rounded-lg bg-muted/50 px-4 py-2 font-medium text-muted-foreground text-xs sm:grid sm:grid-cols-[1fr_100px_140px_120px_40px] sm:gap-4">
+						<span>Product</span>
+						<span>Quantity</span>
+						<span>Unit Price (₹)</span>
+						<span className="text-right">Line Total</span>
+						<span className="sr-only">Actions</span>
+					</div>
+
 					{lines.map((l) => (
 						<div
 							key={l.productId}
-							className="grid grid-cols-[1fr_auto] items-center gap-3 border-border/40 border-b pb-3 last:border-0 sm:grid-cols-[1fr_90px_120px_auto]"
+							className="flex flex-col gap-3 rounded-lg border border-border/40 p-3 sm:grid sm:grid-cols-[1fr_100px_140px_120px_40px] sm:items-center sm:gap-4 sm:border-0 sm:border-b sm:p-0 sm:pb-3 last:border-0"
 						>
 							<div className="min-w-0">
-								<p className="truncate font-medium text-sm">{l.name}</p>
-								<p className="text-muted-foreground text-xs">
-									Line: ₹{(l.price * l.quantity).toLocaleString("en-IN")}
-								</p>
+								<p className="font-medium text-foreground text-sm">{l.name}</p>
+								{l.unit && (
+									<p className="text-muted-foreground text-xs">Unit: {l.unit}</p>
+								)}
 							</div>
+
 							<div>
-								<Label className="sr-only">Qty</Label>
+								<Label className="text-xs sm:sr-only">Quantity</Label>
 								<Input
 									type="number"
 									min={1}
@@ -242,31 +322,44 @@ export default function CustomerOrderReviewPage() {
 											quantity: Math.max(1, Number(e.target.value) || 1),
 										})
 									}
-									className="h-8"
+									className="h-9"
 								/>
 							</div>
+
 							<div>
-								<Label className="sr-only">Unit price</Label>
+								<Label className="text-xs sm:sr-only">Price (₹)</Label>
 								<Input
 									type="number"
 									min={0}
 									step="0.01"
 									value={l.price}
 									disabled={locked}
-									placeholder="Price"
+									placeholder="Enter price"
 									onChange={(e) =>
 										setLine(l.productId, {
 											price: Math.max(0, Number(e.target.value) || 0),
 										})
 									}
-									className="h-8"
+									className={`h-9 ${l.price <= 0 ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/20" : ""}`}
 								/>
 							</div>
+
+							<div className="flex items-center justify-between sm:justify-end">
+								<span className="text-muted-foreground text-xs sm:hidden">Line Total:</span>
+								<span className="font-semibold text-foreground text-sm">
+									₹{(l.price * l.quantity).toLocaleString("en-IN", {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									})}
+								</span>
+							</div>
+
 							{!locked && (
 								<button
 									type="button"
 									onClick={() => removeLine(l.productId)}
-									className="justify-self-end text-muted-foreground hover:text-destructive"
+									className="self-end text-muted-foreground transition-colors hover:text-destructive sm:self-center"
+									title="Remove item"
 								>
 									<Trash2Icon className="h-4 w-4" />
 								</button>
@@ -274,16 +367,17 @@ export default function CustomerOrderReviewPage() {
 						</div>
 					))}
 
+					{/* Add Extra Item Row */}
 					{!locked && (
-						<div className="flex items-center gap-2 pt-1">
+						<div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center">
 							<Select value={addProductId} onValueChange={setAddProductId}>
-								<SelectTrigger className="h-9">
-									<SelectValue placeholder="Add a product…" />
+								<SelectTrigger className="h-9 flex-1">
+									<SelectValue placeholder="Add another product to order…" />
 								</SelectTrigger>
 								<SelectContent>
 									{(catalog ?? []).map((p) => (
 										<SelectItem key={p.id} value={String(p.id)}>
-											{p.name}
+											{p.name} {p.baseSellingPrice ? `(Base: ₹${p.baseSellingPrice})` : ""}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -293,84 +387,131 @@ export default function CustomerOrderReviewPage() {
 								size="sm"
 								onClick={addProduct}
 								disabled={!addProductId}
+								className="gap-1 sm:w-auto"
 							>
-								<PlusIcon className="mr-1 h-4 w-4" /> Add
+								<PlusIcon className="h-4 w-4" /> Add Item
 							</Button>
 						</div>
 					)}
 				</CardContent>
 			</Card>
 
-			<Card className="border-border/50">
-				<CardContent className="space-y-2 p-4 text-sm">
-					<div className="flex justify-between">
-						<span className="text-muted-foreground">Subtotal</span>
-						<span>₹{subtotal.toLocaleString("en-IN")}</span>
-					</div>
-					<div className="flex items-center justify-between gap-3">
-						<span className="text-muted-foreground">Discount</span>
-						<Input
-							type="number"
-							min={0}
-							step="0.01"
-							value={discount}
-							disabled={locked}
-							onChange={(e) =>
-								setDiscount(Math.max(0, Number(e.target.value) || 0))
-							}
-							className="h-8 w-32 text-right"
-						/>
-					</div>
-					<div className="flex justify-between border-border/40 border-t pt-2 font-semibold text-base">
-						<span>Total</span>
-						<span>₹{total.toLocaleString("en-IN")}</span>
-					</div>
-				</CardContent>
-			</Card>
+			{/* Order Summary & Actions */}
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Card className="border-border/50">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-base">Order Notes / Staff Info</CardTitle>
+					</CardHeader>
+					<CardContent className="text-muted-foreground text-xs space-y-1">
+						<p>• Verify prices verbally with the customer before confirming.</p>
+						<p>• Once confirmed, pricing becomes visible on Customer Portal.</p>
+						<p>• Stock will be reserved and an invoice generated automatically.</p>
+					</CardContent>
+				</Card>
 
+				<Card className="border-border/50">
+					<CardContent className="space-y-3 p-4 text-sm">
+						<div className="flex justify-between font-medium">
+							<span className="text-muted-foreground">Subtotal</span>
+							<span>
+								₹{subtotal.toLocaleString("en-IN", {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2,
+								})}
+							</span>
+						</div>
+
+						<div className="flex items-center justify-between gap-3">
+							<span className="text-muted-foreground">Discount (₹)</span>
+							<Input
+								type="number"
+								min={0}
+								step="0.01"
+								value={discount}
+								disabled={locked}
+								onChange={(e) =>
+									setDiscount(Math.max(0, Number(e.target.value) || 0))
+								}
+								className="h-8 w-32 text-right"
+							/>
+						</div>
+
+						<div className="flex justify-between border-border/40 border-t pt-2 font-bold text-base text-foreground">
+							<span>Final Total</span>
+							<span className="text-primary font-mono text-lg">
+								₹{total.toLocaleString("en-IN", {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2,
+								})}
+							</span>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* Bottom Action Bar */}
 			{!locked && (
-				<div className="flex flex-wrap justify-end gap-2">
+				<div className="flex flex-wrap items-center justify-end gap-3 pt-2">
 					<Button
 						variant="outline"
 						onClick={handleSave}
 						disabled={saveDraft.isPending || lines.length === 0}
+						className="gap-2"
 					>
-						{saveDraft.isPending ? "Saving…" : "Save Draft"}
+						<SaveIcon className="h-4 w-4" />
+						{saveDraft.isPending ? "Saving Draft…" : "Save Draft"}
 					</Button>
+
 					<Button
 						onClick={() => setConfirmOpen(true)}
 						disabled={!canConfirm}
-						title={
-							!priced ? "All items must have a price before confirming" : ""
-						}
+						className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
 					>
-						Confirm & Generate Bill
+						<CheckCircle2Icon className="h-4 w-4" />
+						Confirm & Generate Invoice
 					</Button>
 				</div>
 			)}
 
+			{/* Confirm Order Dialog */}
 			<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-				<DialogContent>
+				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle>Confirm order {order.orderRef}?</DialogTitle>
+						<DialogTitle className="text-lg">Confirm Customer Order?</DialogTitle>
 					</DialogHeader>
-					<div className="space-y-2 text-sm">
+					<div className="space-y-3 py-2 text-sm">
 						<p className="text-muted-foreground">
-							This finalizes the order, deducts stock, and generates the
-							invoice. Pricing becomes visible to the customer. This cannot be
-							undone.
+							Are you sure you want to finalize order <strong className="font-mono text-foreground">{order.orderRef}</strong> for <strong className="text-foreground">{order.customer?.name}</strong>?
 						</p>
-						<div className="flex justify-between font-semibold">
-							<span>Total</span>
-							<span>₹{total.toLocaleString("en-IN")}</span>
+						<div className="rounded-lg bg-muted/60 p-3 space-y-1.5 text-xs">
+							<div className="flex justify-between">
+								<span>Line Items:</span>
+								<span className="font-semibold">{lines.length} items</span>
+							</div>
+							<div className="flex justify-between font-bold text-sm text-foreground pt-1 border-t border-border/40">
+								<span>Total Invoice Amount:</span>
+								<span className="text-emerald-600 font-mono">
+									₹{total.toLocaleString("en-IN", {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									})}
+								</span>
+							</div>
 						</div>
+						<p className="text-muted-foreground text-xs">
+							This will reserve stock, issue the final invoice, and make prices visible on the customer portal.
+						</p>
 					</div>
-					<DialogFooter>
-						<Button variant="secondary" onClick={() => setConfirmOpen(false)}>
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button variant="outline" onClick={() => setConfirmOpen(false)}>
 							Cancel
 						</Button>
-						<Button onClick={handleConfirm} disabled={confirm.isPending}>
-							{confirm.isPending ? "Confirming…" : "Confirm"}
+						<Button
+							onClick={handleConfirm}
+							disabled={confirm.isPending}
+							className="bg-emerald-600 hover:bg-emerald-700 text-white"
+						>
+							{confirm.isPending ? "Confirming & Invoicing…" : "Confirm Order"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

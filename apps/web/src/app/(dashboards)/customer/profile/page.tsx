@@ -9,7 +9,8 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import {
-	ActivityIcon,
+	AwardIcon,
+	CreditCardIcon,
 	MailIcon,
 	MapPinIcon,
 	PhoneIcon,
@@ -19,6 +20,7 @@ import Link from "next/link";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { formatCurrency } from "@/lib/utils";
 
 export default function CustomerProfilePage() {
 	const trpc = useTRPC();
@@ -27,178 +29,147 @@ export default function CustomerProfilePage() {
 		data: profile,
 		isLoading,
 		error,
-	} = trpc.customer.getProfile.useQuery();
+	} = trpc.customer.getMyProfile.useQuery();
 
-	if (isLoading)
+	if (isLoading) {
 		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Loading...
+			<div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">
+				Loading customer profile...
 			</div>
 		);
-	if (error)
+	}
+
+	if (error || !profile) {
 		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Error loading profile
+			<div className="flex h-[300px] items-center justify-center text-destructive text-sm">
+				{error?.message ?? "Profile not found."}
 			</div>
 		);
+	}
 
 	return (
-		<PageTransition className="container mx-auto py-8">
+		<PageTransition className="container mx-auto space-y-6">
+			{/* Page Header */}
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-				<div className="flex flex-col gap-1">
+				<div>
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						My Profile
+						Customer Profile
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						View and edit your profile information
+						Your registered customer account information and store credit status.
 					</p>
 				</div>
-				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> Customer Activities
-					</Button>
-					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/customer">
-							<UserIcon className="mr-1 h-3 w-3" /> Back to Dashboard
-						</Link>
-					</Button>
-				</div>
+				<Button asChild variant="outline" className="text-xs">
+					<Link href="/customer">
+						<UserIcon className="mr-1.5 h-4 w-4" /> Back to Dashboard
+					</Link>
+				</Button>
 			</div>
 
-			{!profile ? (
-				<div className="flex h-[200px] items-center justify-center text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
-					No profile data found
-				</div>
-			) : (
-				<div className="space-y-6">
-					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardHeader className="flex flex-row items-center justify-between pb-1">
-							<div className="space-y-0.5">
-								<CardTitle className="text-base sm:text-lg">
-									Personal Information
-								</CardTitle>
-								<CardDescription className="text-xs sm:text-sm">
-									Your basic details
-								</CardDescription>
+			<div className="grid gap-6 md:grid-cols-2">
+				{/* Account Information */}
+				<Card className="border-border/50 bg-card/50 shadow-sm">
+					<CardHeader>
+						<CardTitle className="text-base">Account Information</CardTitle>
+						<CardDescription className="text-xs">
+							Personal and contact details linked to your account.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4 text-sm">
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<p className="text-xs font-medium text-muted-foreground">Full Name</p>
+								<p className="font-semibold text-foreground">{profile.name}</p>
 							</div>
-						</CardHeader>
-						<CardContent className="pt-1">
-							<div className="grid gap-4 sm:grid-cols-2">
-								<div className="space-y-2">
-									<p className="font-medium text-muted-foreground text-xs">
-										Full Name
-									</p>
-									<p className="font-semibold text-lg">{profile.name}</p>
-								</div>
-								<div className="space-y-2">
-									<p className="font-medium text-muted-foreground text-xs">
-										Email
-									</p>
-									<p className="font-semibold text-lg">{profile.email}</p>
-								</div>
-								<div className="space-y-2">
-									<p className="font-medium text-muted-foreground text-xs">
-										Phone
-									</p>
-									<p className="font-semibold text-lg">{profile.phone}</p>
-								</div>
-								<div className="space-y-2">
-									<p className="font-medium text-muted-foreground text-xs">
-										Date of Birth
-									</p>
-									<p className="font-semibold text-lg">{profile.dob}</p>
-								</div>
+							<div>
+								<p className="text-xs font-medium text-muted-foreground">Customer Code</p>
+								<p className="font-mono text-xs font-semibold text-foreground">
+									{profile.customer_code}
+								</p>
 							</div>
-						</CardContent>
-					</Card>
+						</div>
 
-					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardHeader className="flex flex-row items-center justify-between pb-1">
-							<div className="space-y-0.5">
-								<CardTitle className="text-base sm:text-lg">Address</CardTitle>
-								<CardDescription className="text-xs sm:text-sm">
-									Your default shipping address
-								</CardDescription>
+						<div className="grid grid-cols-2 gap-4 border-border/40 border-t pt-3">
+							<div className="flex items-center gap-2">
+								<MailIcon className="h-4 w-4 text-muted-foreground" />
+								<div>
+									<p className="text-[11px] font-medium text-muted-foreground">Email</p>
+									<p className="font-medium text-xs text-foreground">{profile.email}</p>
+								</div>
 							</div>
-						</CardHeader>
-						<CardContent className="pt-1">
-							<p className="text-sm">{profile.address_line1}</p>
-							{profile.address_line2 && (
-								<p className="text-sm">{profile.address_line2}</p>
-							)}
-							<p className="text-sm">
-								{profile.city}, {profile.state} {profile.postal_code}
+							<div className="flex items-center gap-2">
+								<PhoneIcon className="h-4 w-4 text-muted-foreground" />
+								<div>
+									<p className="text-[11px] font-medium text-muted-foreground">Phone</p>
+									<p className="font-medium text-xs text-foreground">
+										{profile.phone || "Not provided"}
+									</p>
+								</div>
+							</div>
+						</div>
+
+						<div className="border-border/40 border-t pt-3">
+							<div className="flex items-start gap-2">
+								<MapPinIcon className="h-4 w-4 mt-0.5 text-muted-foreground" />
+								<div>
+									<p className="text-[11px] font-medium text-muted-foreground">Address</p>
+									<p className="font-medium text-xs text-foreground">
+										{profile.address || "No address on file."}
+									</p>
+								</div>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+
+				{/* Loyalty & Store Credit */}
+				<Card className="border-border/50 bg-card/50 shadow-sm">
+					<CardHeader>
+						<CardTitle className="text-base">Rewards & Store Credit</CardTitle>
+						<CardDescription className="text-xs">
+							Active tier status and store credit balance.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4 text-sm">
+						<div className="grid grid-cols-2 gap-4">
+							<div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+								<div className="flex items-center gap-2">
+									<AwardIcon className="h-4 w-4 text-amber-500" />
+									<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+										Loyalty Tier
+									</span>
+								</div>
+								<p className="mt-1 font-bold text-lg text-amber-600 capitalize">
+									{profile.loyalty_tier || "Bronze"}
+								</p>
+								<p className="text-[11px] text-muted-foreground">
+									Points: {profile.loyalty_points || 0}
+								</p>
+							</div>
+
+							<div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+								<div className="flex items-center gap-2">
+									<CreditCardIcon className="h-4 w-4 text-emerald-500" />
+									<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+										Store Credit
+									</span>
+								</div>
+								<p className="mt-1 font-bold text-lg text-emerald-600">
+									{formatCurrency(profile.store_credit || 0, locale)}
+								</p>
+								<p className="text-[11px] text-muted-foreground">Active wallet credit</p>
+							</div>
+						</div>
+
+						<div className="rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground">
+							<p className="font-medium text-foreground">Account Scoping & Roles</p>
+							<p className="mt-1 text-[11px]">
+								Account status: <span className="font-semibold text-emerald-600">Active Customer</span>. To update sensitive administrative fields or address changes, please contact support.
 							</p>
-							<p className="text-sm">{profile.country}</p>
-							<Button
-								variant="outline"
-								size="xs"
-								className="mt-2"
-								onClick={() => alert("Edit address")}
-							>
-								<MapPinIcon className="mr-1 h-3 w-3" /> Edit
-							</Button>
-						</CardContent>
-					</Card>
-
-					<Card className="border-border/50 bg-card/50 shadow-sm">
-						<CardHeader className="flex flex-row items-center justify-between pb-1">
-							<div className="space-y-0.5">
-								<CardTitle className="text-base sm:text-lg">
-									Account Settings
-								</CardTitle>
-								<CardDescription className="text-xs sm:text-sm">
-									Notifications, privacy, and security
-								</CardDescription>
-							</div>
-						</CardHeader>
-						<CardContent className="pt-1">
-							<div className="space-y-3">
-								<div className="flex items-center justify-between">
-									<div className="flex items-center gap-2">
-										<MailIcon className="h-4 w-4" />
-										<div>
-											<p className="font-medium text-muted-foreground text-xs">
-												Email Notifications
-											</p>
-											<p className="text-sm">
-												{profile.email_notifications ? "Enabled" : "Disabled"}
-											</p>
-										</div>
-									</div>
-									<Button
-										variant="outline"
-										size="xs"
-										onClick={() => alert("Toggle email notifications")}
-									>
-										{profile.email_notifications ? "Disable" : "Enable"}
-									</Button>
-								</div>
-								<div className="flex items-center justify-between">
-									<div className="flex items-center gap-2">
-										<ActivityIcon className="h-4 w-4" />
-										<div>
-											<p className="font-medium text-muted-foreground text-xs">
-												SMS Alerts
-											</p>
-											<p className="text-sm">
-												{profile.sms_alerts ? "Enabled" : "Disabled"}
-											</p>
-										</div>
-									</div>
-									<Button
-										variant="outline"
-										size="xs"
-										onClick={() => alert("Toggle SMS alerts")}
-									>
-										{profile.sms_alerts ? "Disable" : "Enable"}
-									</Button>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-			)}
+						</div>
+					</CardContent>
+				</Card>
+			</div>
 		</PageTransition>
 	);
 }

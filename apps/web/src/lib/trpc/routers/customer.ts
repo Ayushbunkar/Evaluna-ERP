@@ -92,6 +92,7 @@ export const customerRouter = router({
 	}),
 
 	// ── Product browsing (NO price fields ever returned — rule 2) ─────────────
+	// ── Product browsing (NO price fields ever returned — rule 2) ─────────────
 	browseProducts: customerProcedure
 		.input(
 			z
@@ -119,9 +120,12 @@ export const customerRouter = router({
 			return rows.map((p) => ({
 				id: p.id,
 				name: p.name,
+				description: (p as any).description ?? "No description available",
 				category: p.category ?? "General",
 				unit: p.unit ?? null,
 				sku: p.sku ?? null,
+				image: (p as any).image_url ?? (p as any).image ?? null,
+				available: !(p as any).is_out_of_stock && !p.is_deleted && !p.is_hidden,
 			}));
 		}),
 
@@ -150,6 +154,52 @@ export const customerRouter = router({
 			)
 				? Number(o.total_amount)
 				: null,
+		}));
+	}),
+
+	getOrders: customerProcedure.query(async ({ ctx }) => {
+		const rows = await ctx.db.query.orders.findMany({
+			where: eq(orders.customer_id, ctx.customer.id),
+			orderBy: [desc(orders.created_at)],
+			with: {
+				orderItems: {
+					columns: {
+						id: true,
+					},
+				},
+			},
+		});
+
+		return rows.map((o) => ({
+			id: o.id,
+			orderRef: `ORD-${o.id}`,
+			date: o.created_at ? o.created_at.toISOString() : null,
+			status: o.status,
+			itemsCount: o.orderItems.length,
+			total: CONFIRMED_STATUSES.includes(
+				o.status as (typeof CONFIRMED_STATUSES)[number],
+			)
+				? Number(o.total_amount)
+				: null,
+		}));
+	}),
+
+	getPayments: customerProcedure.query(async ({ ctx }) => {
+		const cid = ctx.customer.id;
+		const rows = await ctx.db.query.orders.findMany({
+			where: and(
+				eq(orders.customer_id, cid),
+				inArray(orders.status, ["confirmed", "completed"]),
+			),
+			orderBy: [desc(orders.created_at)],
+		});
+		return rows.map((o) => ({
+			id: o.id,
+			paymentRef: `PAY-${o.id}`,
+			orderRef: `ORD-${o.id}`,
+			date: o.created_at ? o.created_at.toISOString() : null,
+			status: o.status === "completed" ? "Completed" : "Confirmed",
+			amount: Number(o.total_amount),
 		}));
 	}),
 

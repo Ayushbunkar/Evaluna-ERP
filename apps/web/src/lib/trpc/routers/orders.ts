@@ -401,6 +401,23 @@ export const ordersRouter = router({
 				createdAt: o.created_at,
 			}));
 		}),
+	getPendingCount: roleProcedure(["admin", "manager", "sales_person", "biller"])
+		.input(z.void())
+		.query(async ({ ctx }) => {
+			const branchId = ctx.user?.branchId ?? null;
+			const [row] = await db
+				.select({ c: count() })
+				.from(orders)
+				.where(
+					branchId
+						? and(
+								inArray(orders.status, ["pending_review", "under_review"]),
+								eq(orders.branch_id, branchId),
+							)
+						: inArray(orders.status, ["pending_review", "under_review"]),
+				);
+			return Number(row?.c ?? 0);
+		}),
 
 	// PLACEHOLDER_SALES_PROCS_2
 

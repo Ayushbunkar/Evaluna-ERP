@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -61,6 +61,7 @@ export interface NavItem {
 	href: string;
 	labelKey: string;
 	icon: LucideIcon;
+	badge?: string | number;
 }
 
 const ROLE_CONFIG: Record<
@@ -499,7 +500,8 @@ export function AppLayout({
 								</Button>
 							</div>
 							<div className="flex-1 space-y-1">
-								{navItems.map(({ href, labelKey, icon: Icon }, i) => {
+								{navItems.map((item, i) => {
+									const { href, labelKey, icon: Icon, badge } = item;
 									const isActive =
 										pathname === href || pathname.startsWith(`${href}/`);
 									return (
@@ -512,16 +514,23 @@ export function AppLayout({
 											<Link
 												href={href}
 												onClick={() => setMobileMenuOpen(false)}
-												className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
+												className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all ${
 													isActive
 														? "bg-primary/10 font-medium text-primary"
 														: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
 												}`}
 											>
-												<Icon
-													className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}
-												/>
-												{t(labelKey as any)}
+												<div className="flex items-center gap-3">
+													<Icon
+														className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}
+													/>
+													<span>{t(labelKey as any)}</span>
+												</div>
+												{badge !== undefined && badge !== null && badge !== 0 && (
+													<span className="rounded-full bg-destructive/15 px-2 py-0.5 font-bold text-destructive text-xs">
+														{badge}
+													</span>
+												)}
 											</Link>
 										</motion.div>
 									);
@@ -555,7 +564,8 @@ export function AppLayout({
 
 					<TooltipProvider delayDuration={0}>
 						<div className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3 py-4">
-							{navItems.map(({ href, labelKey, icon: Icon }) => {
+							{navItems.map((item) => {
+								const { href, labelKey, icon: Icon, badge } = item;
 								const isActive =
 									pathname === href || pathname.startsWith(`${href}/`);
 
@@ -586,12 +596,17 @@ export function AppLayout({
 													initial={{ opacity: 0, width: 0 }}
 													animate={{ opacity: 1, width: "auto" }}
 													exit={{ opacity: 0, width: 0 }}
-													className="truncate whitespace-nowrap"
+													className="flex-1 truncate whitespace-nowrap"
 												>
 													{t(labelKey as any)}
 												</motion.span>
 											)}
 										</AnimatePresence>
+										{!isSidebarCollapsed && badge !== undefined && badge !== null && badge !== 0 && (
+											<span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 font-semibold text-[11px] text-destructive-foreground">
+												{badge}
+											</span>
+										)}
 									</Link>
 								);
 

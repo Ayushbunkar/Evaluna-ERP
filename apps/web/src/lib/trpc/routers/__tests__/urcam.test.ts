@@ -190,7 +190,7 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 			});
 			const putterProfile = await UserManagement.getSecurityProfileByUserId(res.userId);
 			expect(putterProfile).toBeDefined();
-			expect(putterProfile.canonicalDashboard).toBe("/dashboard/warehouse/put-away");
+			expect(putterProfile.canonicalDashboard).toBe("/putter");
 		});
 	});
 
