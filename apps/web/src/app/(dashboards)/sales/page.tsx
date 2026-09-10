@@ -51,33 +51,45 @@ export default function SalesDashboard() {
 	// Multi-Language Translation Dictionary
 	const t = {
 		title: locale === "hi" ? "बिक्री डैशबोर्ड" : "Sales Dashboard",
-		subtitle: locale === "hi" ? "आपका स्वागत है। नई बिक्री शुरू करें या हाल के ऑर्डर प्रबंधित करें।" : "Welcome back. Start a new sale or manage recent orders.",
+		subtitle:
+			locale === "hi"
+				? "आपका स्वागत है। नई बिक्री शुरू करें या हाल के ऑर्डर प्रबंधित करें।"
+				: "Welcome back. Start a new sale or manage recent orders.",
 		lookupOrder: locale === "hi" ? "ऑर्डर खोजें" : "Lookup Order",
 		openPos: locale === "hi" ? "पीओएस खोलें" : "Open POS",
-		
+
 		posTitle: locale === "hi" ? "बिक्री केंद्र (POS)" : "Point of Sale",
-		posDesc: locale === "hi" ? "नए लेनदेन की प्रक्रिया करें" : "Process new transactions",
-		
+		posDesc:
+			locale === "hi" ? "नए लेनदेन की प्रक्रिया करें" : "Process new transactions",
+
 		ordersTitle: locale === "hi" ? "आदेश (Orders)" : "Orders",
 		ordersDesc: locale === "hi" ? "पिछली रसीदें देखें" : "View past receipts",
-		
+
 		customersTitle: locale === "hi" ? "ग्राहक" : "Customers",
-		customersDesc: locale === "hi" ? "वफादारी और प्रोफाइल प्रबंधित करें" : "Manage loyalty and profiles",
-		
+		customersDesc:
+			locale === "hi"
+				? "वफादारी और प्रोफाइल प्रबंधित करें"
+				: "Manage loyalty and profiles",
+
 		tillTitle: locale === "hi" ? "दैनिक गल्ला (Till)" : "Daily Till",
 		tillDesc: locale === "hi" ? "कैश दराज संचालन" : "Cash drawer operations",
-		
+
 		recentSalesTitle: locale === "hi" ? "हाल की बिक्री" : "Recent Sales",
-		recentSalesDesc: locale === "hi" ? "संसाधित नवीनतम लेनदेन" : "Latest transactions processed",
+		recentSalesDesc:
+			locale === "hi" ? "संसाधित नवीनतम लेनदेन" : "Latest transactions processed",
 		viewAll: locale === "hi" ? "सभी देखें" : "View All",
-		noSales: locale === "hi" ? "कोई हाल की बिक्री नहीं मिली।" : "No recent sales found.",
-		
+		noSales:
+			locale === "hi" ? "कोई हाल की बिक्री नहीं मिली।" : "No recent sales found.",
+
 		dailyGoalTitle: locale === "hi" ? "दैनिक लक्ष्य" : "Daily Goal",
-		dailyGoalDesc: locale === "hi" ? "आज के लिए अपने बिक्री लक्ष्य को ट्रैक करें" : "Track your sales target for today",
+		dailyGoalDesc:
+			locale === "hi"
+				? "आज के लिए अपने बिक्री लक्ष्य को ट्रैक करें"
+				: "Track your sales target for today",
 		todaySalesPrefix: locale === "hi" ? "आज की बिक्री:" : "Today's Sales:",
 		orderIdLabel: locale === "hi" ? "ऑर्डर" : "Order",
 		customerLabel: locale === "hi" ? "ग्राहक" : "Customer",
-		walkInLabel: locale === "hi" ? "वॉक-इन ग्राहक" : "Walk-in Customer"
+		walkInLabel: locale === "hi" ? "वॉक-इन ग्राहक" : "Walk-in Customer",
 	};
 
 	return (
@@ -121,9 +133,7 @@ export default function SalesDashboard() {
 									<h3 className="font-semibold text-base sm:text-lg">
 										{t.posTitle}
 									</h3>
-									<p className="text-muted-foreground text-xs">
-										{t.posDesc}
-									</p>
+									<p className="text-muted-foreground text-xs">{t.posDesc}</p>
 								</div>
 							</CardContent>
 						</Card>
@@ -184,9 +194,7 @@ export default function SalesDashboard() {
 										<BanknoteIcon className="h-6 w-6 text-emerald-500" />
 									</div>
 									<h3 className="font-semibold text-lg">{t.tillTitle}</h3>
-									<p className="text-muted-foreground text-xs">
-										{t.tillDesc}
-									</p>
+									<p className="text-muted-foreground text-xs">{t.tillDesc}</p>
 								</div>
 							</CardContent>
 						</Card>
@@ -259,7 +267,9 @@ export default function SalesDashboard() {
 				>
 					<Card className="border-border/50 bg-card/50 shadow-sm">
 						<CardHeader>
-							<CardTitle className="text-base sm:text-lg">{t.dailyGoalTitle}</CardTitle>
+							<CardTitle className="text-base sm:text-lg">
+								{t.dailyGoalTitle}
+							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
 								{t.dailyGoalDesc}
 							</CardDescription>

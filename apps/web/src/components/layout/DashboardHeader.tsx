@@ -2,6 +2,14 @@
 
 import { Button } from "@evaluna/ui/components/button";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
@@ -9,7 +17,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@evaluna/ui/components/dropdown-menu";
-import { useQueryClient } from "@tanstack/react-query";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
 import {
 	Bell,
 	Check,
@@ -26,28 +35,17 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSession } from "@/hooks/use-session";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/lib/trpc/client";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@evaluna/ui/components/dialog";
-import { Label } from "@evaluna/ui/components/label";
-import { Input } from "@evaluna/ui/components/input";
-import { toast } from "sonner";
 
 export function DashboardHeader() {
 	const router = useRouter();
 	const pathname = usePathname();
 	const locale = "en"; // default; replace with useLocale() once next-intl is confirmed in scope
 	const trpc = useTRPC();
-	const queryClient = useQueryClient();
 
 	// State
 	const [isSyncing, setIsSyncing] = useState(false);
@@ -75,14 +73,14 @@ export function DashboardHeader() {
 	});
 
 	// Notifications Queries & Mutations
-	const { data: notificationsList, refetch: refetchNotifs } = trpc.notifications.list.useQuery(
-		{ limit: 10 },
-		{ enabled: notifOpen }
-	);
+	const { data: notificationsList, refetch: refetchNotifs } =
+		trpc.notifications.list.useQuery({ limit: 10 }, { enabled: notifOpen });
 
 	const markAsReadMutation = trpc.notifications.markAsRead.useMutation({
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: [["notifications", "unreadCount"]] });
+			void queryClient.invalidateQueries({
+				queryKey: [["notifications", "unreadCount"]],
+			});
 			void refetchNotifs();
 		},
 		onError: (err) => {
@@ -92,7 +90,9 @@ export function DashboardHeader() {
 
 	const markAllAsReadMutation = trpc.notifications.markAllAsRead.useMutation({
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: [["notifications", "unreadCount"]] });
+			void queryClient.invalidateQueries({
+				queryKey: [["notifications", "unreadCount"]],
+			});
 			void refetchNotifs();
 			toast.success("All notifications marked as read.");
 		},
@@ -163,8 +163,8 @@ export function DashboardHeader() {
 
 	return (
 		<header className="sticky top-0 z-40 flex h-14 w-full shrink-0 items-center gap-4 border-border/50 border-b bg-white/80 px-4 shadow-sm backdrop-blur-md sm:px-6 dark:bg-gray-900/80">
-			{/* 1. Branding */}
-			<div className="flex items-center gap-2">
+			{/* 1. Branding (Hidden on desktop to avoid duplication with sidebar) */}
+			<div className="flex lg:hidden items-center gap-2">
 				<Link href="/admin" className="flex items-center gap-2">
 					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10">
 						<ShieldAlert className="h-5 w-5 text-blue-600" />
@@ -322,7 +322,6 @@ export function DashboardHeader() {
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
-
 			{/* Profile Dialog Modal */}
 			<Dialog open={profileOpen} onOpenChange={setProfileOpen}>
 				<DialogContent className="max-w-md">
@@ -340,27 +339,41 @@ export function DashboardHeader() {
 							</div>
 						</div>
 
-						<div className="grid grid-cols-2 gap-4 border-b border-border/40 pb-4 text-xs sm:text-sm">
+						<div className="grid grid-cols-2 gap-4 border-border/40 border-b pb-4 text-xs sm:text-sm">
 							<div>
-								<span className="text-xs font-semibold text-muted-foreground block">Full Name</span>
-								<span className="font-medium text-foreground">{user?.name || "N/A"}</span>
+								<span className="block font-semibold text-muted-foreground text-xs">
+									Full Name
+								</span>
+								<span className="font-medium text-foreground">
+									{user?.name || "N/A"}
+								</span>
 							</div>
 							<div>
-								<span className="text-xs font-semibold text-muted-foreground block">Email / Login ID</span>
-								<span className="font-medium text-foreground">{user?.email || "N/A"}</span>
+								<span className="block font-semibold text-muted-foreground text-xs">
+									Email / Login ID
+								</span>
+								<span className="font-medium text-foreground">
+									{user?.email || "N/A"}
+								</span>
 							</div>
 						</div>
 
 						<div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
 							<div>
-								<span className="text-xs font-semibold text-muted-foreground block">Primary Role</span>
-								<span className="font-medium capitalize text-foreground">
-									{user?.role ? user.role.toUpperCase().replace("_", " ") : "N/A"}
+								<span className="block font-semibold text-muted-foreground text-xs">
+									Primary Role
+								</span>
+								<span className="font-medium text-foreground capitalize">
+									{user?.role
+										? user.role.toUpperCase().replace("_", " ")
+										: "N/A"}
 								</span>
 							</div>
 							<div>
-								<span className="text-xs font-semibold text-muted-foreground block">Account Status</span>
-								<span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+								<span className="block font-semibold text-muted-foreground text-xs">
+									Account Status
+								</span>
+								<span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 font-medium text-green-700 text-xs dark:text-green-400">
 									Active Login
 								</span>
 							</div>
@@ -368,13 +381,16 @@ export function DashboardHeader() {
 					</div>
 
 					<DialogFooter>
-						<Button type="button" className="w-full" onClick={() => setProfileOpen(false)}>
+						<Button
+							type="button"
+							className="w-full"
+							onClick={() => setProfileOpen(false)}
+						>
 							Close Profile
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-
 			{/* Account Settings Dialog Modal */}
 			<Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
 				<DialogContent className="max-w-md">
@@ -385,7 +401,7 @@ export function DashboardHeader() {
 						</DialogDescription>
 					</DialogHeader>
 
-					<form 
+					<form
 						onSubmit={(e) => {
 							e.preventDefault();
 							if (newPwd.length < 8) {
@@ -410,22 +426,26 @@ export function DashboardHeader() {
 								id="currentName"
 								value={user?.name || ""}
 								disabled
-								className="bg-muted/40 cursor-not-allowed"
+								className="cursor-not-allowed bg-muted/40"
 							/>
 						</div>
 
 						<div className="space-y-1">
-							<Label htmlFor="currentEmail">My Email / Login ID (Read Only)</Label>
+							<Label htmlFor="currentEmail">
+								My Email / Login ID (Read Only)
+							</Label>
 							<Input
 								id="currentEmail"
 								value={user?.email || ""}
 								disabled
-								className="bg-muted/40 cursor-not-allowed"
+								className="cursor-not-allowed bg-muted/40"
 							/>
 						</div>
 
-						<div className="border-t border-border/40 pt-3 space-y-3">
-							<h4 className="text-sm font-semibold text-foreground">Change Password</h4>
+						<div className="space-y-3 border-border/40 border-t pt-3">
+							<h4 className="font-semibold text-foreground text-sm">
+								Change Password
+							</h4>
 
 							<div className="space-y-1">
 								<Label htmlFor="newPwd">New Password *</Label>
@@ -453,32 +473,39 @@ export function DashboardHeader() {
 						</div>
 
 						<DialogFooter className="pt-2">
-							<Button type="button" variant="outline" onClick={() => setSettingsOpen(false)}>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setSettingsOpen(false)}
+							>
 								Cancel
 							</Button>
 							<Button type="submit" disabled={changePasswordMutation.isPending}>
-								{changePasswordMutation.isPending ? "Saving..." : "Change Password"}
+								{changePasswordMutation.isPending
+									? "Saving..."
+									: "Change Password"}
 							</Button>
 						</DialogFooter>
 					</form>
 				</DialogContent>
 			</Dialog>
-
 			{/* Notifications Dialog Modal */}
 			<Dialog open={notifOpen} onOpenChange={setNotifOpen}>
-				<DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-					<DialogHeader className="flex flex-row items-center justify-between border-b pb-3 border-border/40">
+				<DialogContent className="max-h-[80vh] max-w-md overflow-y-auto">
+					<DialogHeader className="flex flex-row items-center justify-between border-border/40 border-b pb-3">
 						<div>
-							<DialogTitle className="text-base font-bold">Notifications Inbox</DialogTitle>
-							<DialogDescription className="text-xs text-muted-foreground mt-0.5">
+							<DialogTitle className="font-bold text-base">
+								Notifications Inbox
+							</DialogTitle>
+							<DialogDescription className="mt-0.5 text-muted-foreground text-xs">
 								System-wide alerts, activities, and operational warnings.
 							</DialogDescription>
 						</div>
 						{unreadCount > 0 && (
-							<Button 
-								variant="outline" 
-								size="xs" 
-								className="text-xs h-7"
+							<Button
+								variant="outline"
+								size="xs"
+								className="h-7 text-xs"
 								disabled={markAllAsReadMutation.isPending}
 								onClick={() => markAllAsReadMutation.mutate({})}
 							>
@@ -487,30 +514,45 @@ export function DashboardHeader() {
 						)}
 					</DialogHeader>
 
-					<div className="space-y-3 py-2 divide-y divide-border/30 max-h-96 overflow-y-auto">
+					<div className="max-h-96 space-y-3 divide-y divide-border/30 overflow-y-auto py-2">
 						{notificationsList && notificationsList.length > 0 ? (
 							notificationsList.map((notif: any) => (
-								<div key={notif.id} className="pt-3 first:pt-0 flex items-start justify-between gap-3 text-xs sm:text-sm">
+								<div
+									key={notif.id}
+									className="flex items-start justify-between gap-3 pt-3 text-xs first:pt-0 sm:text-sm"
+								>
 									<div className="flex-1 space-y-1">
 										<div className="flex items-center gap-1.5">
-											<span className={`h-2 w-2 rounded-full flex-shrink-0 ${
-												notif.is_read ? "bg-transparent" : "bg-red-500 animate-pulse"
-											}`} />
-											<span className="font-semibold text-foreground">{notif.title}</span>
-											<span className="text-[10px] text-muted-foreground ml-auto">
-												{notif.created_at ? new Date(notif.created_at).toLocaleDateString() : ""}
+											<span
+												className={`h-2 w-2 flex-shrink-0 rounded-full ${
+													notif.is_read
+														? "bg-transparent"
+														: "animate-pulse bg-red-500"
+												}`}
+											/>
+											<span className="font-semibold text-foreground">
+												{notif.title}
+											</span>
+											<span className="ml-auto text-[10px] text-muted-foreground">
+												{notif.created_at
+													? new Date(notif.created_at).toLocaleDateString()
+													: ""}
 											</span>
 										</div>
-										<p className="text-muted-foreground text-xs leading-normal">{notif.message}</p>
+										<p className="text-muted-foreground text-xs leading-normal">
+											{notif.message}
+										</p>
 									</div>
-									
+
 									{!notif.is_read && (
 										<Button
 											variant="ghost"
 											size="icon"
 											className="h-6 w-6 text-blue-500 hover:text-blue-600"
 											disabled={markAsReadMutation.isPending}
-											onClick={() => markAsReadMutation.mutate({ id: notif.id })}
+											onClick={() =>
+												markAsReadMutation.mutate({ id: notif.id })
+											}
 											title="Mark as read"
 										>
 											<Check className="h-3.5 w-3.5" />
@@ -519,15 +561,19 @@ export function DashboardHeader() {
 								</div>
 							))
 						) : (
-							<div className="flex h-32 flex-col items-center justify-center text-muted-foreground text-xs sm:text-sm gap-2">
+							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
 								<Bell className="h-8 w-8 text-muted-foreground/40" />
 								<span>No notifications received yet.</span>
 							</div>
 						)}
 					</div>
 
-					<DialogFooter className="pt-2 border-t border-border/40">
-						<Button type="button" className="w-full" onClick={() => setNotifOpen(false)}>
+					<DialogFooter className="border-border/40 border-t pt-2">
+						<Button
+							type="button"
+							className="w-full"
+							onClick={() => setNotifOpen(false)}
+						>
 							Close Inbox
 						</Button>
 					</DialogFooter>

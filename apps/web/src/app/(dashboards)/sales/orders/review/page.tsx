@@ -1,31 +1,35 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@evaluna/ui/components/card";
-import { Badge } from "@/components/ui/badge";
 import {
-	ClockIcon,
-	ClipboardListIcon,
-	PhoneIcon,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@evaluna/ui/components/card";
+import {
 	AlertCircleIcon,
-	CheckCircle2Icon,
 	ArrowRightIcon,
+	CheckCircle2Icon,
+	ClipboardListIcon,
+	ClockIcon,
+	PhoneIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
 import { useTRPC } from "@/lib/trpc/client";
 
-const STATUS_CONFIG: Record<
-	string,
-	{ label: string; badgeClass: string }
-> = {
+const STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
 	pending_review: {
 		label: "Awaiting Review",
-		badgeClass: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-900",
+		badgeClass:
+			"bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-900",
 	},
 	under_review: {
 		label: "In Progress",
-		badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-900",
+		badgeClass:
+			"bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-900",
 	},
 };
 
@@ -77,9 +81,12 @@ export default function CustomerOrderInboxPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="font-bold text-2xl tracking-tight">Customer Orders Queue</h1>
+				<h1 className="font-bold text-2xl tracking-tight">
+					Customer Orders Queue
+				</h1>
 				<p className="text-muted-foreground text-sm">
-					Incoming portal orders awaiting staff phone review and price confirmation.
+					Incoming portal orders awaiting staff phone review and price
+					confirmation.
 				</p>
 			</div>
 
@@ -141,13 +148,15 @@ export default function CustomerOrderInboxPage() {
 					{error.message}
 				</div>
 			) : sortedOrders.length === 0 ? (
-				<Card className="border-dashed border-border/60">
+				<Card className="border-border/60 border-dashed">
 					<CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
 						<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
 							<CheckCircle2Icon className="h-6 w-6" />
 						</div>
 						<div>
-							<p className="font-semibold text-foreground text-base">All clear!</p>
+							<p className="font-semibold text-base text-foreground">
+								All clear!
+							</p>
 							<p className="text-muted-foreground text-sm">
 								No customer orders waiting in the queue.
 							</p>
@@ -168,9 +177,9 @@ export default function CustomerOrderInboxPage() {
 								className="border-border/50 transition-all hover:border-primary/40 hover:shadow-md"
 							>
 								<CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-									<div className="space-y-1.5 min-w-0 flex-1">
+									<div className="min-w-0 flex-1 space-y-1.5">
 										<div className="flex flex-wrap items-center gap-2">
-											<span className="font-mono font-bold text-base text-primary">
+											<span className="font-bold font-mono text-base text-primary">
 												{o.orderRef}
 											</span>
 											<Badge
@@ -202,12 +211,15 @@ export default function CustomerOrderInboxPage() {
 											<span>{o.itemsCount} line item(s)</span>
 											<span>•</span>
 											<span>
-												Placed: {o.createdAt ? new Date(o.createdAt).toLocaleString() : "Recently"}
+												Placed:{" "}
+												{o.createdAt
+													? new Date(o.createdAt).toLocaleString()
+													: "Recently"}
 											</span>
 										</div>
 									</div>
 
-									<div className="flex items-center gap-2 shrink-0 pt-2 border-t border-border/40 sm:border-t-0 sm:pt-0">
+									<div className="flex shrink-0 items-center gap-2 border-border/40 border-t pt-2 sm:border-t-0 sm:pt-0">
 										{o.customerPhone && (
 											<Button
 												variant="outline"

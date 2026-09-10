@@ -30,15 +30,26 @@ export default function TargetsPage() {
 	// Translations Dictionary
 	const t = {
 		title: locale === "hi" ? "बिक्री लक्ष्य (Sales Targets)" : "Sales Targets",
-		subtitle: locale === "hi" ? "अपनी टीम के बिक्री लक्ष्यों और प्रदर्शन की निगरानी करें।" : "Monitor your team's sales targets and performance.",
+		subtitle:
+			locale === "hi"
+				? "अपनी टीम के बिक्री लक्ष्यों और प्रदर्शन की निगरानी करें।"
+				: "Monitor your team's sales targets and performance.",
 		monthlyTarget: locale === "hi" ? "मासिक लक्ष्य" : "Monthly Target",
-		achievedTitle: locale === "hi" ? "प्राप्त (इस महीने)" : "Achieved (This Month)",
+		achievedTitle:
+			locale === "hi" ? "प्राप्त (इस महीने)" : "Achieved (This Month)",
 		remainingDays: locale === "hi" ? "शेष दिन" : "Remaining Days",
-		progressTitle: locale === "hi" ? "चालू माह की प्रगति" : "Current Month Progress",
-		progressDesc: locale === "hi" ? `${now.toLocaleString("default", { month: "long" })} के लिए आपके लक्ष्य प्राप्ति का विवरण।` : `Visual overview of your target achievement for ${now.toLocaleString("default", { month: "long" })}.`,
+		progressTitle:
+			locale === "hi" ? "चालू माह की प्रगति" : "Current Month Progress",
+		progressDesc:
+			locale === "hi"
+				? `${now.toLocaleString("default", { month: "long" })} के लिए आपके लक्ष्य प्राप्ति का विवरण।`
+				: `Visual overview of your target achievement for ${now.toLocaleString("default", { month: "long" })}.`,
 		achievedSuffix: locale === "hi" ? "% प्राप्त" : "% Achieved",
 		remainingSuffix: locale === "hi" ? "शेष" : "Remaining",
-		congrats: locale === "hi" ? "🎉 बधाई हो! आपने अपना मासिक बिक्री लक्ष्य प्राप्त कर लिया है!" : "🎉 Congratulations! You have achieved your monthly sales sales_target!",
+		congrats:
+			locale === "hi"
+				? "🎉 बधाई हो! आपने अपना मासिक बिक्री लक्ष्य प्राप्त कर लिया है!"
+				: "🎉 Congratulations! You have achieved your monthly sales sales_target!",
 	};
 
 	// Calculate current month's sales
@@ -66,9 +77,7 @@ export default function TargetsPage() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="font-bold text-3xl tracking-tight">{t.title}</h1>
-					<p className="mt-1 text-muted-foreground">
-						{t.subtitle}
-					</p>
+					<p className="mt-1 text-muted-foreground">{t.subtitle}</p>
 				</div>
 			</div>
 
@@ -142,13 +151,14 @@ export default function TargetsPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle>{t.progressTitle}</CardTitle>
-						<CardDescription>
-							{t.progressDesc}
-						</CardDescription>
+						<CardDescription>{t.progressDesc}</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex justify-between font-medium text-sm">
-							<span>{progressPercentage}{t.achievedSuffix}</span>
+							<span>
+								{progressPercentage}
+								{t.achievedSuffix}
+							</span>
 							<span>
 								{formatCurrency(
 									targetToUse - currentMonthSales > 0

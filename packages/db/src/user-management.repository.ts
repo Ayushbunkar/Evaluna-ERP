@@ -7,15 +7,23 @@ import {
 	or,
 	type SQL,
 } from "drizzle-orm";
+import { hashPassword } from "../utils/password-hasher"; // Assuming a utility file for secure hashing
+import { db } from "./db";
 import {
 	getPermissionsForRole,
 	ROLE_DASHBOARD_MAP,
 	ROLES,
 	type Role,
 } from "./permissions";
-import { hashPassword } from "../utils/password-hasher"; // Assuming a utility file for secure hashing
-import { db } from "./db";
-import { roles, securityAuditLog, staff, user, userRoles, account, session } from "./schema";
+import {
+	account,
+	roles,
+	securityAuditLog,
+	session,
+	staff,
+	user,
+	userRoles,
+} from "./schema";
 
 // =============================================================================
 // TYPES
@@ -100,7 +108,9 @@ export class UserManagementRepository {
 				.where(eq(roles.name, "super_admin"));
 
 			if (existingSuperAdmins.length > 0) {
-				throw new Error("Strict System Limit: There can strictly only be ONE Super Admin in the ERP system.");
+				throw new Error(
+					"Strict System Limit: There can strictly only be ONE Super Admin in the ERP system.",
+				);
 			}
 		}
 
@@ -120,10 +130,7 @@ export class UserManagementRepository {
 		return await db.transaction(async (tx) => {
 			// Find the role ID or auto-create if missing (e.g. fresh DB environment)
 			let roleRecord = (
-				await tx
-					.select()
-					.from(roles)
-					.where(eq(roles.name, roleName))
+				await tx.select().from(roles).where(eq(roles.name, roleName))
 			)[0];
 
 			if (!roleRecord) {
@@ -381,9 +388,13 @@ export class UserManagementRepository {
 				.leftJoin(roles, eq(userRoles.role_id, roles.id))
 				.where(eq(roles.name, "super_admin"));
 
-			const otherSuperAdminExists = existingSuperAdmins.some((row) => row.user_roles.user_id !== targetUserId);
+			const otherSuperAdminExists = existingSuperAdmins.some(
+				(row) => row.user_roles.user_id !== targetUserId,
+			);
 			if (otherSuperAdminExists) {
-				throw new Error("Strict System Limit: There can strictly only be ONE Super Admin in the ERP system.");
+				throw new Error(
+					"Strict System Limit: There can strictly only be ONE Super Admin in the ERP system.",
+				);
 			}
 		}
 

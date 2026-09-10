@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -110,6 +110,22 @@ export default function OrdersPage() {
 			},
 		},
 		{
+			key: "finance_status",
+			header: "Payment Status",
+			sortable: false,
+			render: (row: any) => {
+				const fs = row.finance_status ?? "pending_collection";
+				const map: Record<string, { label: string; cls: string }> = {
+					pending_collection: { label: "Pending Collection", cls: "text-yellow-600" },
+					driver_collected: { label: "Driver Collected", cls: "text-blue-600" },
+					finance_submitted: { label: "Submitted to Finance", cls: "text-purple-600" },
+					reconciled: { label: "Reconciled ✓", cls: "text-emerald-600 font-semibold" },
+				};
+				const { label, cls } = map[fs] ?? map.pending_collection;
+				return <span className={`text-xs ${cls}`}>{label}</span>;
+			},
+		},
+		{
 			key: "created_at",
 			header: tc("date"),
 			sortable: true,
@@ -153,6 +169,8 @@ export default function OrdersPage() {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [editCustomerName, setEditCustomerName] = useState("");
+	const [statusChangeReason, setStatusChangeReason] = useState("");
+	const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending");
 
 	const utils = trpc.useUtils();
 
@@ -184,6 +202,21 @@ export default function OrdersPage() {
 		},
 		onSubmit: ({ value }) => {
 			if (editingId !== null) {
+				if (value.status === "pending" || value.status === "cancelled") {
+					if (!statusChangeReason.trim()) {
+						toast.error(
+							locale === "hi"
+								? "आगे बढ़ने के लिए कारण दर्ज करना आवश्यक है!"
+								: "Entering a reason is required to proceed!",
+						);
+						return;
+					}
+					console.log(
+						`[Order ID #${editingId} Status Change to ${value.status.toUpperCase()}]: Reason:`,
+						statusChangeReason,
+					);
+				}
+
 				updateMutation.mutate({
 					id: editingId,
 					status: value.status,
@@ -211,9 +244,12 @@ export default function OrdersPage() {
 	const openEdit = (o: Order) => {
 		setEditingId(o.id);
 		setEditCustomerName(o.customer?.name || "Walk-in Customer");
+		setStatusChangeReason("");
+		const initialStatus = (o.status ?? "pending") as OrderStatus;
+		setSelectedStatus(initialStatus);
 		form.reset();
 		form.setFieldValue("total", o.total_amount);
-		form.setFieldValue("status", (o.status ?? "pending") as OrderStatus);
+		form.setFieldValue("status", initialStatus);
 		setIsDialogOpen(true);
 	};
 
@@ -362,9 +398,10 @@ export default function OrdersPage() {
 										<Label htmlFor="status">{tc("status")}</Label>
 										<Select
 											value={field.state.value}
-											onValueChange={(value) =>
-												field.handleChange(value as OrderStatus)
-											}
+											onValueChange={(value) => {
+												field.handleChange(value as OrderStatus);
+												setSelectedStatus(value as OrderStatus);
+											}}
 										>
 											<SelectTrigger id="status" className="col-span-3">
 												<SelectValue placeholder={t("selectStatus")} />
@@ -382,6 +419,31 @@ export default function OrdersPage() {
 									</div>
 								)}
 							</form.Field>
+							{(selectedStatus === "pending" ||
+								selectedStatus === "cancelled") && (
+								<div className="flex flex-col gap-2 transition-all duration-200 sm:grid sm:grid-cols-4 sm:gap-4">
+									<Label
+										htmlFor="reason"
+										className="font-bold text-amber-600 text-xs dark:text-amber-400"
+									>
+										{locale === "hi" ? "बदलने का कारण" : "Reason Required"} *
+									</Label>
+									<div className="col-span-3">
+										<textarea
+											id="reason"
+											placeholder={
+												locale === "hi"
+													? "इस स्थिति में बदलाव का कारण यहाँ दर्ज करें (अनिवार्य)..."
+													: "Enter the mandatory reason for this status change..."
+											}
+											value={statusChangeReason}
+											onChange={(e) => setStatusChangeReason(e.target.value)}
+											className="min-h-[60px] w-full rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-amber-500"
+											required
+										/>
+									</div>
+								</div>
+							)}
 						</div>
 						<DialogFooter>
 							<Button

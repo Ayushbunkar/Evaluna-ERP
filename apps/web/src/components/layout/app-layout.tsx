@@ -392,9 +392,9 @@ export function AppLayout({
 						</Link>
 					)}
 
-				{role !== "customer" && (
-					<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
-				)}
+					{role !== "customer" && (
+						<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
+					)}
 
 					<div className="hidden md:block">
 						<LocaleSwitcher />
@@ -578,11 +578,13 @@ export function AppLayout({
 													/>
 													<span>{formatNavLabel(labelKey)}</span>
 												</div>
-												{badge !== undefined && badge !== null && badge !== 0 && (
-													<span className="rounded-full bg-destructive/15 px-2 py-0.5 font-bold text-destructive text-xs">
-														{badge}
-													</span>
-												)}
+												{badge !== undefined &&
+													badge !== null &&
+													badge !== 0 && (
+														<span className="rounded-full bg-destructive/15 px-2 py-0.5 font-bold text-destructive text-xs">
+															{badge}
+														</span>
+													)}
 											</Link>
 										</motion.div>
 									);
@@ -654,11 +656,14 @@ export function AppLayout({
 												</motion.span>
 											)}
 										</AnimatePresence>
-										{!isSidebarCollapsed && badge !== undefined && badge !== null && badge !== 0 && (
-											<span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 font-semibold text-[11px] text-destructive-foreground">
-												{badge}
-											</span>
-										)}
+										{!isSidebarCollapsed &&
+											badge !== undefined &&
+											badge !== null &&
+											badge !== 0 && (
+												<span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 font-semibold text-[11px] text-destructive-foreground">
+													{badge}
+												</span>
+											)}
 									</Link>
 								);
 

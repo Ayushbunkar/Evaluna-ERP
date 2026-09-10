@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLocale } from "next-intl";
 
 export function PaymentModal({
 	open,
@@ -33,7 +33,8 @@ export function PaymentModal({
 		custNamePlaceholder: locale === "hi" ? "जैसे: रमेश कुमार" : "e.g. Ramesh Kumar",
 		phone: locale === "hi" ? "फ़ोन नंबर" : "Phone Number",
 		shopName: locale === "hi" ? "दुकान / फर्म का नाम" : "Shop / Firm Name",
-		shopPlaceholder: locale === "hi" ? "जैसे: शर्मा जनरल स्टोर" : "e.g. Sharma General Store",
+		shopPlaceholder:
+			locale === "hi" ? "जैसे: शर्मा जनरल स्टोर" : "e.g. Sharma General Store",
 		cancel: locale === "hi" ? "रद्द करें" : "Cancel",
 		confirm: locale === "hi" ? "पुष्टि करें और प्रिंट करें" : "Confirm & Print",
 	};
@@ -48,7 +49,10 @@ export function PaymentModal({
 	}, [open]);
 
 	const handleConfirm = () => {
-		const amountToPay = typeof totalAmount === "number" ? totalAmount : Number.parseFloat(totalAmount || "0");
+		const amountToPay =
+			typeof totalAmount === "number"
+				? totalAmount
+				: Number.parseFloat(totalAmount || "0");
 		const payments = [{ methodId: 1, amount: amountToPay.toString() }];
 		onConfirm(payments, {
 			customerName: customerName.trim() || undefined,
@@ -58,7 +62,10 @@ export function PaymentModal({
 		onOpenChange(false);
 	};
 
-	const displayAmount = typeof totalAmount === "number" ? totalAmount : Number.parseFloat(totalAmount || "0");
+	const displayAmount =
+		typeof totalAmount === "number"
+			? totalAmount
+			: Number.parseFloat(totalAmount || "0");
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>

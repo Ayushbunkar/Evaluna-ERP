@@ -58,13 +58,35 @@ export const ROLE_DASHBOARD_MAP: Record<RoleName, string> = {
  */
 export function getCanonicalDashboardRoute(roleName: string): string {
 	if (!roleName) return "/customer";
-	const normalized = roleName.trim().toLowerCase();
-	if (normalized === "superadmin" || normalized === "super_admin" || normalized === "super admin") return "/superadmin";
-	if (normalized === "admin") return "/admin";
-	if (normalized === "salesperson" || normalized === "sales_person" || normalized === "sales") return "/sales";
-	if (normalized === "customer") return "/customer";
-	
-	return (
-		(ROLE_DASHBOARD_MAP as Record<string, string>)[roleName] ?? "/customer"
-	);
+	const normalized = roleName.trim().replace(/_/g, " ").toLowerCase();
+
+	const roleDashboardMap: Record<string, string> = {
+		superadmin: "/superadmin",
+		"super admin": "/superadmin",
+		admin: "/admin",
+		manager: "/manager",
+		auditor: "/auditor",
+		hr: "/hr",
+		finance: "/finance",
+		marketing: "/marketing",
+		putter: "/putter",
+		picker: "/picker",
+		driver: "/driver",
+		"delivery boy": "/driver",
+		biller: "/biller",
+		billing: "/biller",
+		checker: "/checker",
+		packer: "/packer",
+		salesperson: "/sales",
+		sales: "/sales",
+		"sales person": "/sales",
+		"delivery manager": "/manager",
+		customer: "/customer",
+		warehouse: "/warehouse",
+		"warehouse supervisor": "/warehouse",
+		"warehouse operations": "/warehouse",
+		procurement: "/procurement",
+	};
+
+	return roleDashboardMap[normalized] ?? "/customer";
 }

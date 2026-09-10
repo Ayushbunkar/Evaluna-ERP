@@ -339,7 +339,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 							<DropdownMenuItem
 								onClick={async () => {
 									await authClient.signOut();
-									window.location.href = "/login";
+									window.location.href =
+										(process.env.NEXT_PUBLIC_BASE_PATH || "") + "/login";
 								}}
 							>
 								{t("logout")}

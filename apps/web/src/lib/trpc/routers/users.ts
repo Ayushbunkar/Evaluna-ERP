@@ -1,15 +1,15 @@
-import { TRPCError } from "@trpc/server";
-import { z } from "zod";
 import {
-	UserManagement,
-	type UserStatus,
-	securityAuditLog,
-	session,
 	ROLES,
 	type Role,
+	securityAuditLog,
+	session,
+	UserManagement,
+	type UserStatus,
 } from "@evaluna/db";
+import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
-import { router, roleProcedure, protectedProcedure } from "../init";
+import { z } from "zod";
+import { protectedProcedure, roleProcedure, router } from "../init";
 
 // Convert ROLES array to a tuple of string literals for Zod
 const zRole = z.enum(ROLES as unknown as [string, ...string[]]);
@@ -18,15 +18,19 @@ export const usersRouter = router({
 	// ── List Users (Requirement 1 & 19) ───────────────────────────────────────
 	list: roleProcedure(["admin", "super_admin", "manager"])
 		.input(
-			z.object({
-				page: z.number().min(1).default(1),
-				limit: z.number().min(1).max(100).default(10),
-				search: z.string().optional(),
-				status: z.enum(["ACTIVE", "INACTIVE", "LOCKED", "PENDING", "SUSPENDED"]).optional(),
-				roleName: zRole.optional(),
-				branchId: z.number().optional(),
-				warehouseId: z.number().optional(),
-			}).default({})
+			z
+				.object({
+					page: z.number().min(1).default(1),
+					limit: z.number().min(1).max(100).default(10),
+					search: z.string().optional(),
+					status: z
+						.enum(["ACTIVE", "INACTIVE", "LOCKED", "PENDING", "SUSPENDED"])
+						.optional(),
+					roleName: zRole.optional(),
+					branchId: z.number().optional(),
+					warehouseId: z.number().optional(),
+				})
+				.default({}),
 		)
 		.query(async ({ input }) => {
 			const result = await UserManagement.listUsers(input.page, input.limit, {
@@ -96,9 +100,12 @@ export const usersRouter = router({
 				roleName: zRole,
 				branchId: z.number().min(1, "Branch is required."),
 				warehouseId: z.number().optional(),
-				initialPassword: z.string().min(8, "Password must be at least 8 characters.").optional(),
+				initialPassword: z
+					.string()
+					.min(8, "Password must be at least 8 characters.")
+					.optional(),
 				forcePasswordChange: z.boolean().default(true),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			// Privilege Escalation Prevention (Requirement 17)
@@ -144,7 +151,7 @@ export const usersRouter = router({
 				roleName: zRole,
 				branchId: z.number().min(1),
 				warehouseId: z.number().optional(),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			// Get target user to check if they are currently super_admin
@@ -161,7 +168,8 @@ export const usersRouter = router({
 				if (target.role === "super_admin" || input.roleName === "super_admin") {
 					throw new TRPCError({
 						code: "FORBIDDEN",
-						message: "Only a Super Admin can assign or change the Super Admin role.",
+						message:
+							"Only a Super Admin can assign or change the Super Admin role.",
 					});
 				}
 			}
@@ -172,7 +180,7 @@ export const usersRouter = router({
 					input.roleName as Role,
 					input.branchId,
 					input.warehouseId,
-					ctx.user.id
+					ctx.user.id,
 				);
 
 				return { success: true };
@@ -189,9 +197,15 @@ export const usersRouter = router({
 		.input(
 			z.object({
 				userId: z.string(),
-				newStatus: z.enum(["ACTIVE", "INACTIVE", "LOCKED", "PENDING", "SUSPENDED"]),
+				newStatus: z.enum([
+					"ACTIVE",
+					"INACTIVE",
+					"LOCKED",
+					"PENDING",
+					"SUSPENDED",
+				]),
 				reason: z.string().min(5, "Reason for status change must be provided."),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const target = await UserManagement.getUserById(input.userId);
@@ -206,7 +220,8 @@ export const usersRouter = router({
 			if (target.role === "super_admin" && !ctx.user.isSuperadmin) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
-					message: "Only a Super Admin can modify another Super Admin's status.",
+					message:
+						"Only a Super Admin can modify another Super Admin's status.",
 				});
 			}
 
@@ -215,7 +230,7 @@ export const usersRouter = router({
 					input.userId,
 					input.newStatus as UserStatus,
 					input.reason,
-					ctx.user.id
+					ctx.user.id,
 				);
 
 				return { success: true };
@@ -232,9 +247,11 @@ export const usersRouter = router({
 		.input(
 			z.object({
 				userId: z.string(),
-				newPassword: z.string().min(8, "Password must be at least 8 characters."),
+				newPassword: z
+					.string()
+					.min(8, "Password must be at least 8 characters."),
 				forcePasswordChange: z.boolean().default(true),
-			})
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const target = await UserManagement.getUserById(input.userId);
@@ -249,7 +266,8 @@ export const usersRouter = router({
 			if (target.role === "super_admin" && !ctx.user.isSuperadmin) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
-					message: "Only a Super Admin can reset credentials for a Super Admin account.",
+					message:
+						"Only a Super Admin can reset credentials for a Super Admin account.",
 				});
 			}
 
@@ -258,7 +276,7 @@ export const usersRouter = router({
 					input.userId,
 					input.newPassword,
 					input.forcePasswordChange,
-					ctx.user.id
+					ctx.user.id,
 				);
 
 				return { success: true };
@@ -275,8 +293,10 @@ export const usersRouter = router({
 		.input(
 			z.object({
 				userId: z.string(),
-				reason: z.string().min(5, "Reason for session revocation must be provided."),
-			})
+				reason: z
+					.string()
+					.min(5, "Reason for session revocation must be provided."),
+			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const target = await UserManagement.getUserById(input.userId);
@@ -290,7 +310,8 @@ export const usersRouter = router({
 			if (target.role === "super_admin" && !ctx.user.isSuperadmin) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
-					message: "Only a Super Admin can revoke sessions for a Super Admin account.",
+					message:
+						"Only a Super Admin can revoke sessions for a Super Admin account.",
 				});
 			}
 
@@ -298,7 +319,7 @@ export const usersRouter = router({
 				await UserManagement.revokeUserSessions(
 					input.userId,
 					input.reason,
-					ctx.user.id
+					ctx.user.id,
 				);
 
 				return { success: true };

@@ -1,14 +1,13 @@
 "use server";
 
-import { user as userTable, customers } from "@evaluna/db/schema";
+import { UserManagement } from "@evaluna/db";
+import { customers, user as userTable } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-
-import { UserManagement } from "@evaluna/db";
 
 export async function signup(formData: FormData) {
 	const name = formData.get("name") as string;
@@ -38,6 +37,7 @@ export async function signup(formData: FormData) {
 				.update(userTable)
 				.set({
 					is_superadmin: false,
+					status: "ACTIVE", // Activate self-registered customers immediately
 				} as any)
 				.where(eq(userTable.id, user.id));
 

@@ -5,6 +5,8 @@ import {
 	orderItems,
 	orders,
 	pendingSync,
+	pickListItems,
+	pickLists,
 	staff,
 	stockLedger,
 	transactions,
@@ -60,11 +62,7 @@ export const posRouter = router({
 				const extra = Number.parseFloat(input.otherCharges || "0");
 				const total = subtotal - discount + extra;
 
-				const paid = input.payments.reduce(
-					(acc, p) => acc + Number.parseFloat(p.amount),
-					0,
-				);
-				const status = paid >= total ? "completed" : "pending";
+				const status = "pending";
 
 				// 1. Create Order
 				const [order] = await tx
@@ -84,7 +82,7 @@ export const posRouter = router({
 					})
 					.returning();
 
-				// 2. Batch insert Order Items & Deduct Stock
+				// 2. Batch insert Order Items
 				const itemsToInsert = input.items.map((item) => ({
 					order_id: order.id,
 					product_id: item.productId,
@@ -93,6 +91,30 @@ export const posRouter = router({
 				}));
 
 				await tx.insert(orderItems).values(itemsToInsert);
+
+				// Create Picking List task for Picker queue
+				const [pl] = await tx
+					.insert(pickLists)
+					.values({
+						order_id: order.id,
+						reference_type: "sale",
+						reference_id: order.id,
+						status: "pending",
+						priority: "normal",
+					})
+					.returning();
+
+				if (pl && input.items.length > 0) {
+					await tx.insert(pickListItems).values(
+						input.items.map((item) => ({
+							pick_list_id: pl.id,
+							product_id: item.productId,
+							quantity_ordered: item.quantity,
+							quantity_picked: 0,
+							status: "pending",
+						})),
+					);
+				}
 
 				if (status === "completed") {
 					// Batch insert stock ledger
@@ -152,11 +174,16 @@ export const posRouter = router({
 					order_id: order.id,
 					payment_method_id: payment.methodId,
 					amount: payment.amount,
+					original_amount: payment.amount, // preserve original sales amount
+					adjustment_amount: "0",
+					reconciliation_status: "pending",
 					user_uid: ctx.user.id,
 					branch_id: ctx.user.branchId,
 					type: "in" as const,
 					category: "sale" as const,
 					status: "completed" as const,
+					reference_type: "order",
+					reference_id: order.id,
 				}));
 
 				if (paymentsToInsert.length > 0) {

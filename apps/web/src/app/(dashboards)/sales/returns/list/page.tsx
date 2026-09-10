@@ -40,16 +40,25 @@ export default function SalesReturnsList() {
 	// Translations Dictionary
 	const t = {
 		title: locale === "hi" ? "बिक्री वापसी (Sales Returns)" : "Sales Returns",
-		subtitle: locale === "hi" ? "ग्राहक की वापसी और धनवापसी (refunds) की प्रक्रिया प्रबंधित करें।" : "Manage customer returns and process refunds.",
+		subtitle:
+			locale === "hi"
+				? "ग्राहक की वापसी और धनवापसी (refunds) की प्रक्रिया प्रबंधित करें।"
+				: "Manage customer returns and process refunds.",
 		newReturnBtn: locale === "hi" ? "नई वापसी" : "New Return",
-		
+
 		totalReturns: locale === "hi" ? "कुल वापसी (Returns)" : "Total Returns",
 		pendingReview: locale === "hi" ? "लंबित समीक्षा" : "Pending Review",
-		
-		searchPlaceholder: locale === "hi" ? "आईडी, ऑर्डर या ग्राहक द्वारा खोजें..." : "Search by ID, Order, or Customer...",
-		emptyMsg: locale === "hi" ? "आपके फ़िल्टर से मेल खाती कोई बिक्री वापसी नहीं मिली।" : "No sales returns found matching your filters.",
+
+		searchPlaceholder:
+			locale === "hi"
+				? "आईडी, ऑर्डर या ग्राहक द्वारा खोजें..."
+				: "Search by ID, Order, or Customer...",
+		emptyMsg:
+			locale === "hi"
+				? "आपके फ़िल्टर से मेल खाती कोई बिक्री वापसी नहीं मिली।"
+				: "No sales returns found matching your filters.",
 		viewDetails: locale === "hi" ? "विवरण देखें" : "View Details",
-		
+
 		thReturnId: locale === "hi" ? "वापसी आईडी" : "Return ID",
 		thOriginalOrder: locale === "hi" ? "मूल ऑर्डर" : "Original Order",
 		thCustomer: locale === "hi" ? "ग्राहक" : "Customer",
@@ -58,7 +67,7 @@ export default function SalesReturnsList() {
 		thStatus: locale === "hi" ? "स्थिति" : "Status",
 		thDate: locale === "hi" ? "तारीख" : "Date",
 		thActions: locale === "hi" ? "कार्रवाइयाँ" : "Actions",
-		
+
 		// Status Options
 		statusAll: locale === "hi" ? "सभी स्थिति" : "All Status",
 		statusPending: locale === "hi" ? "लंबित" : "Pending",
@@ -116,7 +125,15 @@ export default function SalesReturnsList() {
           ${row.status === "cancelled" ? "bg-red-100 text-red-700" : ""}
         `}
 				>
-					{row.status === "pending" ? t.statusPending : row.status === "approved" ? t.statusApproved : row.status === "refunded" ? t.statusRefunded : row.status === "rejected" ? t.statusRejected : row.status}
+					{row.status === "pending"
+						? t.statusPending
+						: row.status === "approved"
+							? t.statusApproved
+							: row.status === "refunded"
+								? t.statusRefunded
+								: row.status === "rejected"
+									? t.statusRejected
+									: row.status}
 				</span>
 			),
 		},
@@ -148,9 +165,7 @@ export default function SalesReturnsList() {
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div>
 					<h1 className="font-bold text-3xl tracking-tight">{t.title}</h1>
-					<p className="text-muted-foreground text-sm">
-						{t.subtitle}
-					</p>
+					<p className="text-muted-foreground text-sm">{t.subtitle}</p>
 				</div>
 				<Button
 					asChild
@@ -217,10 +232,26 @@ export default function SalesReturnsList() {
 								onChange: setStatusFilter,
 								options: [
 									{ label: t.statusAll, value: "all" },
-									{ label: t.statusPending, value: "pending", variant: "warning" },
-									{ label: t.statusApproved, value: "approved", variant: "default" },
-									{ label: t.statusRefunded, value: "refunded", variant: "success" },
-									{ label: t.statusRejected, value: "rejected", variant: "danger" },
+									{
+										label: t.statusPending,
+										value: "pending",
+										variant: "warning",
+									},
+									{
+										label: t.statusApproved,
+										value: "approved",
+										variant: "default",
+									},
+									{
+										label: t.statusRefunded,
+										value: "refunded",
+										variant: "success",
+									},
+									{
+										label: t.statusRejected,
+										value: "rejected",
+										variant: "danger",
+									},
 								],
 							},
 						]}

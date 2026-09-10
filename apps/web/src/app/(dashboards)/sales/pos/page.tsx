@@ -12,6 +12,8 @@ import {
 	Wifi,
 	WifiOff,
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PaymentModal } from "@/components/pos/payment-modal";
@@ -36,7 +38,6 @@ import {
 	StaggerList,
 } from "@/lib/animations";
 import { trpc } from "@/lib/trpc/client";
-import { useLocale } from "next-intl";
 
 // Reusable Devanagari Parser to localize dynamic product content
 export function getLocalizedProductName(name: string, locale: string): string {
@@ -54,15 +55,15 @@ export function getLocalizedProductName(name: string, locale: string): string {
 	// Translation Dictionary Fallback for pre-seeded product datasets
 	const productTranslations: Record<string, string> = {
 		"Farari Spicy Namkeen": "फरार तीखा नमकीन",
-		"Sprite": "स्प्राइट",
-		"Maaza": "माज़ा",
-		"Mishri": "मिश्री",
-		"Revdi": "रेवड़ी",
-		"pepsi": "पेप्सी",
+		Sprite: "स्प्राइट",
+		Maaza: "माज़ा",
+		Mishri: "मिश्री",
+		Revdi: "रेवड़ी",
+		pepsi: "पेप्सी",
 		"pepsi rs1": "पेप्सी ₹1",
 		"Harish Chips": "हरीश चिप्स",
 		"Balaji Oil": "बालाजी तेल",
-		"Appy": "एप्पी",
+		Appy: "एप्पी",
 		"Swastik Toor Dal": "स्वस्तिक तूर दाल",
 		"Ghadhi 1kg Sack": "घड़ी १ किलो बोरी",
 		"Target Mango": "टारगेट आम",
@@ -81,6 +82,8 @@ export function getLocalizedProductName(name: string, locale: string): string {
 
 export default function POSPage() {
 	const locale = useLocale();
+	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [cart, setCart] = useState<any[]>([]);
 	const [search, setSearch] = useState("");
 	const [isOffline, setIsOffline] = useState(false);
@@ -93,16 +96,68 @@ export default function POSPage() {
 		shopName?: string;
 	}>({});
 
+	const completedOrderIdParam = searchParams.get("completedOrderId");
+	const completedOrderId = completedOrderIdParam
+		? Number.parseInt(completedOrderIdParam, 10)
+		: null;
+
+	const { data: fetchedCompletedOrder } = trpc.orders.get.useQuery(
+		{ id: completedOrderId ?? 0 },
+		{ enabled: !!completedOrderId },
+	);
+
+	useEffect(() => {
+		if (
+			fetchedCompletedOrder &&
+			(!lastCompletedOrder ||
+				lastCompletedOrder.id !== fetchedCompletedOrder.id)
+		) {
+			setLastCompletedOrder({
+				id: fetchedCompletedOrder.id,
+				createdAt: fetchedCompletedOrder.created_at
+					? new Date(fetchedCompletedOrder.created_at).toISOString()
+					: new Date().toISOString(),
+				items:
+					fetchedCompletedOrder.orderItems?.map((item: any) => ({
+						id: item.id,
+						name: item.product?.name || "Item",
+						qty: item.quantity,
+						price: Number(item.price).toFixed(2),
+					})) || [],
+				total: Number(fetchedCompletedOrder.total_amount),
+				subtotal: Number(fetchedCompletedOrder.total_amount),
+				discount: Number(fetchedCompletedOrder.discount_amount || 0),
+				cashierName: "Counter 1",
+				customerName:
+					fetchedCompletedOrder.customer?.name || "Walk-in Customer",
+				customerPhone: fetchedCompletedOrder.customer?.phone || "",
+				shopName: "",
+				payments: [
+					{
+						methodId: fetchedCompletedOrder.payment_method_id || 1,
+						amount: Number(fetchedCompletedOrder.total_amount).toFixed(2),
+					},
+				],
+			});
+		}
+	}, [fetchedCompletedOrder, lastCompletedOrder]);
+
 	// Translations Dictionary
 	const t = {
 		posTitle: locale === "hi" ? "बिक्री केंद्र (POS)" : "Point of Sale",
 		online: locale === "hi" ? "ऑनलाइन" : "Online",
 		offline: locale === "hi" ? "ऑफ़लाइन" : "Offline",
-		searchPlaceholder: locale === "hi" ? "नाम से उत्पाद खोजें या बारकोड स्कैन करें..." : "Search products by name or scan barcode...",
+		searchPlaceholder:
+			locale === "hi"
+				? "नाम से उत्पाद खोजें या बारकोड स्कैन करें..."
+				: "Search products by name or scan barcode...",
 		currentOrder: locale === "hi" ? "वर्तमान आदेश (Cart)" : "Current Order",
 		clear: locale === "hi" ? "साफ़ करें" : "Clear",
 		emptyCart: locale === "hi" ? "कार्ट खाली है" : "Cart is empty",
-		scanHint: locale === "hi" ? "एक बारकोड स्कैन करें या उत्पाद पर क्लिक करें" : "Scan a barcode or click a product",
+		scanHint:
+			locale === "hi"
+				? "एक बारकोड स्कैन करें या उत्पाद पर क्लिक करें"
+				: "Scan a barcode or click a product",
 		unitLabel: locale === "hi" ? "प्रति इकाई" : "/ unit",
 		subtotal: locale === "hi" ? "उप-योग (Subtotal)" : "Subtotal",
 		discount: locale === "hi" ? "छूट (Discount)" : "Discount",
@@ -112,12 +167,19 @@ export default function POSPage() {
 		holding: locale === "hi" ? "होल्ड हो रहा है..." : "Holding...",
 		payNow: locale === "hi" ? "भुगतान करें" : "Pay Now",
 		processing: locale === "hi" ? "प्रक्रिया में..." : "Processing...",
-		successMsg: locale === "hi" ? "ऑर्डर सफलतापूर्वक संसाधित किया गया!" : "Order processed successfully!",
+		successMsg:
+			locale === "hi"
+				? "ऑर्डर सफलतापूर्वक संसाधित किया गया!"
+				: "Order processed successfully!",
 		failMsg: locale === "hi" ? "चेकआउट विफल रहा:" : "Checkout failed:",
 		couponTitle: locale === "hi" ? "कूपन जोड़ें" : "Apply Coupon Code",
-		couponDesc: locale === "hi" ? "डिस्काउंट लागू करने के लिए सक्रिय प्रोमो कूपन कोड दर्ज करें।" : "Enter an active promo coupon code to apply structural discount.",
+		couponDesc:
+			locale === "hi"
+				? "डिस्काउंट लागू करने के लिए सक्रिय प्रोमो कूपन कोड दर्ज करें।"
+				: "Enter an active promo coupon code to apply structural discount.",
 		couponInput: locale === "hi" ? "कूपन कोड" : "Coupon Code",
-		couponSuccess: locale === "hi" ? "कूपन सफलतापूर्वक लागू हुआ!" : "Coupon applied!",
+		couponSuccess:
+			locale === "hi" ? "कूपन सफलतापूर्वक लागू हुआ!" : "Coupon applied!",
 		close: locale === "hi" ? "बंद करें" : "Close",
 	};
 
@@ -289,7 +351,9 @@ export default function POSPage() {
 						if (product) {
 							if (product.is_weighted) {
 								addToCart(product, qty);
-								toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
+								toast.success(
+									`Added ${getLocalizedProductName(product.name, locale)}`,
+								);
 							} else {
 								addToCart(product, 1);
 								toast.warning("Product is not weighted, added 1 unit");
@@ -306,7 +370,9 @@ export default function POSPage() {
 							if (product.is_weighted) {
 								const qty = price / Number.parseFloat(product.price);
 								addToCart(product, qty);
-								toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
+								toast.success(
+									`Added ${getLocalizedProductName(product.name, locale)}`,
+								);
 							} else {
 								addToCart(product, 1);
 								toast.warning("Product is not weighted, added 1 unit");
@@ -320,7 +386,9 @@ export default function POSPage() {
 						);
 						if (product) {
 							addToCart(product, 1);
-							toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
+							toast.success(
+								`Added ${getLocalizedProductName(product.name, locale)}`,
+							);
 						} else {
 							toast.error("Product not found");
 						}
@@ -407,7 +475,10 @@ export default function POSPage() {
 		return (
 			<SaleCompletionScreen
 				order={lastCompletedOrder}
-				onNewSale={() => setLastCompletedOrder(null)}
+				onNewSale={() => {
+					setLastCompletedOrder(null);
+					router.replace("/sales/pos");
+				}}
 			/>
 		);
 	}
@@ -434,6 +505,8 @@ export default function POSPage() {
 				<div className="relative mb-4 shrink-0">
 					<Search className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
 					<Input
+						type="text"
+						suppressHydrationWarning
 						placeholder={t.searchPlaceholder}
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
@@ -473,7 +546,10 @@ export default function POSPage() {
 													₹{Number.parseFloat(product.price).toFixed(2)}
 												</div>
 												<div className="mt-1 line-clamp-2 min-h-[32px] text-muted-foreground text-xs">
-													{getLocalizedProductName(product.description || "", locale)}
+													{getLocalizedProductName(
+														product.description || "",
+														locale,
+													)}
 												</div>
 											</CardContent>
 										</Card>
@@ -531,7 +607,8 @@ export default function POSPage() {
 												{getLocalizedProductName(item.name, locale)}
 											</div>
 											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs">
-												₹{Number.parseFloat(item.price).toFixed(2)} {t.unitLabel}
+												₹{Number.parseFloat(item.price).toFixed(2)}{" "}
+												{t.unitLabel}
 											</div>
 										</div>
 
@@ -675,16 +752,14 @@ export default function POSPage() {
 					</DialogHeader>
 					<div className="py-2">
 						<Input
+							type="text"
 							placeholder={t.couponInput}
 							value={couponCode}
 							onChange={(e) => setCouponCode(e.target.value)}
 						/>
 					</div>
 					<DialogFooter className="gap-2 sm:gap-0">
-						<Button
-							variant="outline"
-							onClick={() => setCouponModalOpen(false)}
-						>
+						<Button variant="outline" onClick={() => setCouponModalOpen(false)}>
 							{t.close}
 						</Button>
 						<Button

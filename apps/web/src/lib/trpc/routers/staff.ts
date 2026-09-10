@@ -1,4 +1,4 @@
-import { staff } from "@evaluna/db/schema";
+import { staff, user } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
@@ -82,6 +82,7 @@ export const staffRouter = router({
 				id: z.number(),
 				name: z.string().min(1).optional(),
 				phone: z.string().optional(),
+				address: z.string().optional(),
 				role: z
 					.enum(["superadmin", "manager", "cashier", "inventory", "auditor"])
 					.optional(),
@@ -105,6 +106,15 @@ export const staffRouter = router({
 				})
 				.where(eq(staff.id, id))
 				.returning();
+
+			// Cascadingly sync with Better-Auth user table to propagate name changes globally
+			if (updated && updated.email && updated.name) {
+				await ctx.db
+					.update(user)
+					.set({ name: updated.name })
+					.where(eq(user.email, updated.email));
+			}
+
 			return updated;
 		}),
 

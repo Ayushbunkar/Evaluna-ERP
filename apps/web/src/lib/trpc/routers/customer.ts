@@ -4,6 +4,7 @@ import {
 	orders,
 	pendingSync,
 	products,
+	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { endOfDay, startOfDay } from "date-fns";
@@ -50,6 +51,59 @@ export const customerRouter = router({
 			created_at: c.created_at ? c.created_at.toISOString() : null,
 		};
 	}),
+
+	updateMyProfile: customerProcedure
+		.input(
+			z.object({
+				name: z.string().min(2, "Name must be at least 2 characters"),
+				phone: z
+					.string()
+					.min(10, "Phone number must be at least 10 characters")
+					.nullable()
+					.optional(),
+				address: z
+					.string()
+					.min(5, "Address must be at least 5 characters")
+					.nullable()
+					.optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const cid = ctx.customer.id;
+			const uid = ctx.user.id;
+
+			try {
+				await ctx.db.transaction(async (tx: any) => {
+					// 1. Update the customers record
+					await tx
+						.update(customers)
+						.set({
+							name: input.name,
+							phone: input.phone || null,
+							address: input.address || null,
+							updated_at: new Date(),
+						})
+						.where(eq(customers.id, cid));
+
+					// 2. Update the user record
+					await tx
+						.update(user)
+						.set({
+							name: input.name,
+							updatedAt: new Date(),
+						})
+						.where(eq(user.id, uid));
+				});
+
+				return { success: true };
+			} catch (error: any) {
+				console.error("[customerRouter] updateMyProfile error:", error);
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Failed to update profile",
+				});
+			}
+		}),
 
 	getPortalStats: customerProcedure.query(async ({ ctx }) => {
 		const cid = ctx.customer.id;
@@ -244,6 +298,7 @@ export const customerRouter = router({
 				date: order.created_at ? order.created_at.toISOString() : null,
 				priceVisible: isConfirmed,
 				total: isConfirmed ? Number(order.total_amount) : null,
+				original_items: order.original_items,
 				items: order.orderItems.map((it) => ({
 					id: it.id,
 					productId: it.product_id,
@@ -379,12 +434,21 @@ export const customerRouter = router({
 						eq(products.is_deleted, false),
 						eq(products.is_hidden, false),
 					),
-					columns: { id: true },
+					columns: { id: true, name: true, sku: true },
 				});
-				const validIds = new Set(valid.map((p) => p.id));
-				const cleanItems = input.items.filter(
-					(i) => validIds.has(i.productId) && i.quantity > 0,
-				);
+				const productMap = new Map(valid.map((p) => [p.id, p]));
+				const cleanItems = input.items
+					.filter((i) => productMap.has(i.productId) && i.quantity > 0)
+					.map((i) => {
+						const p = productMap.get(i.productId)!;
+						return {
+							productId: i.productId,
+							quantity: i.quantity,
+							name: p.name,
+							sku: p.sku,
+						};
+					});
+
 				if (cleanItems.length === 0) {
 					throw new TRPCError({
 						code: "BAD_REQUEST",
@@ -402,6 +466,7 @@ export const customerRouter = router({
 						total_amount: "0",
 						user_uid: ctx.user.id,
 						status: "pending_review",
+						original_items: cleanItems,
 					})
 					.returning();
 

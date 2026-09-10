@@ -23,14 +23,15 @@ export default function AdminErrorPage({
 			msg.includes("token")
 		) {
 			const timer = setTimeout(() => {
-				window.location.href = "/login";
+				window.location.href =
+					(process.env.NEXT_PUBLIC_BASE_PATH || "") + "/login";
 			}, 1500);
 			return () => clearTimeout(timer);
 		}
 	}, [error]);
 
 	const handleGoToLogin = () => {
-		window.location.href = "/login";
+		window.location.href = (process.env.NEXT_PUBLIC_BASE_PATH || "") + "/login";
 	};
 
 	return (

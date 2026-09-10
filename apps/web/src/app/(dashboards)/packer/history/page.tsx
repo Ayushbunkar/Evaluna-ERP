@@ -208,6 +208,7 @@ export default function PackerHistoryPage() {
 									<TableRow>
 										<TableHead>Package Number</TableHead>
 										<TableHead>Order Ref</TableHead>
+										<TableHead>Assigned Driver & Truck</TableHead>
 										<TableHead>Packed By</TableHead>
 										<TableHead>Status</TableHead>
 										<TableHead>Packed Date</TableHead>
@@ -222,6 +223,10 @@ export default function PackerHistoryPage() {
 											</TableCell>
 											<TableCell className="font-semibold text-sm">
 												{pkg.orderId}
+											</TableCell>
+											<TableCell className="text-xs">
+												<div className="font-medium text-gray-800 dark:text-gray-200">👤 {pkg.driverName || "Unassigned"}</div>
+												<div className="text-muted-foreground text-[10px] mt-0.5 font-mono">🚛 {pkg.vehiclePlate || "N/A"}</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pkg.packedBy}

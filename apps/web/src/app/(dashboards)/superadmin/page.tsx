@@ -10,21 +10,21 @@ import {
 } from "@evaluna/ui/components/card";
 import {
 	ActivityIcon,
+	ArrowRight as ArrowRightIcon,
 	BanknoteIcon,
 	ChartLineIcon,
 	CheckCircle2Icon,
 	ShieldIcon,
 	UsersIcon,
-	ArrowRight as ArrowRightIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import {
-	PageTransition,
-	StaggerList,
-	StaggerItem,
 	AnimatedCard,
 	motion,
+	PageTransition,
+	StaggerItem,
+	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
@@ -47,7 +47,11 @@ export default function SuperAdminDashboard() {
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm" asChild>
+					<Button
+						variant="outline"
+						className="text-xs shadow-sm sm:text-sm"
+						asChild
+					>
 						<Link href="/superadmin/activity-log">
 							<ActivityIcon className="mr-2 h-4 w-4" /> System Logs
 						</Link>
@@ -196,9 +200,7 @@ export default function SuperAdminDashboard() {
 										</div>
 										<div className="text-right">
 											<Button variant="outline" size="xs" asChild>
-												<Link href={`/superadmin/companies`}>
-													Manage
-												</Link>
+												<Link href={"/superadmin/companies"}>Manage</Link>
 											</Button>
 										</div>
 									</div>

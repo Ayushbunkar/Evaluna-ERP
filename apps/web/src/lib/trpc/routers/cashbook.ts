@@ -3,63 +3,72 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
-import { publicProcedure, router } from "../init";
+import { protectedProcedure, publicProcedure, router } from "../init";
 
 export const cashbookRouter = router({
-	getLedger: publicProcedure
+	getLedger: protectedProcedure
 		.input(
 			z.object({
 				limit: z.number().default(50),
 				offset: z.number().default(0),
 			}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ ctx, input }) => {
+			const userId = ctx.user?.id;
 			const items = await db.query.transactions.findMany({
+				where: userId ? eq(transactions.user_uid, userId) : undefined,
 				orderBy: [desc(transactions.created_at)],
 				limit: input.limit,
 				offset: input.offset,
 			});
 
-			// Compute running balance for displayed items roughly (usually requires window functions)
 			return { items };
 		}),
 
-	addEntry: publicProcedure
+	addEntry: protectedProcedure
 		.input(
 			z.object({
 				amount: z.number().positive(),
 				type: z.enum(["in", "out"]),
 				description: z.string().min(1),
 				category: z.string().optional().default("manual"),
-				user_uid: z.string(),
+				user_uid: z.string().optional(),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ ctx, input }) => {
+			const userId = ctx.user?.id || input.user_uid || "system";
 			return await db
 				.insert(transactions)
 				.values({
 					amount: input.amount.toString(),
+					original_amount: input.amount.toString(),
 					type: input.type,
 					description: input.description,
 					category: input.category,
-					user_uid: input.user_uid,
+					user_uid: userId,
 					reference_type: "manual",
 					status: "completed",
+					reconciliation_status: "pending",
 				})
 				.returning();
 		}),
 
-	getDailySummary: publicProcedure
+	getDailySummary: protectedProcedure
 		.input(
 			z.object({
 				date: z.string().optional(),
 			}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ ctx, input }) => {
+			const userId = ctx.user?.id;
 			let targetDate = input.date ? new Date(input.date) : new Date();
 
 			if (!input.date) {
+				const whereClause = userId
+					? and(eq(transactions.user_uid, userId))
+					: undefined;
 				const latestTx = await db.query.transactions.findFirst({
+					where: whereClause,
 					orderBy: [desc(transactions.created_at)],
 				});
 				if (latestTx?.created_at) {
@@ -70,8 +79,11 @@ export const cashbookRouter = router({
 			const start = startOfDay(targetDate);
 			const end = endOfDay(targetDate);
 
+			const userFilter = userId ? eq(transactions.user_uid, userId) : undefined;
+
 			const dailyTx = await db.query.transactions.findMany({
 				where: and(
+					userFilter,
 					gte(transactions.created_at, start),
 					lte(transactions.created_at, end),
 					eq(transactions.status, "completed"),
@@ -103,3 +115,4 @@ export const cashbookRouter = router({
 			};
 		}),
 });
+

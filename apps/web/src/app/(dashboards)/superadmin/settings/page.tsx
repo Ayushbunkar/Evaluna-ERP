@@ -12,9 +12,9 @@ import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import {
 	DatabaseIcon,
-	ShieldCheckIcon,
-	ServerIcon,
 	SaveIcon,
+	ServerIcon,
+	ShieldCheckIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,14 +26,11 @@ export default function SuperAdminSettingsPage() {
 	const [autoBackups, setAutoBackups] = useState(true);
 
 	const triggerBackup = () => {
-		toast.promise(
-			new Promise((resolve) => setTimeout(resolve, 2000)),
-			{
-				loading: "Running global system backup...",
-				success: "Backup successfully generated and uploaded to AWS S3!",
-				error: "Failed to create backup.",
-			}
-		);
+		toast.promise(new Promise((resolve) => setTimeout(resolve, 2000)), {
+			loading: "Running global system backup...",
+			success: "Backup successfully generated and uploaded to AWS S3!",
+			error: "Failed to create backup.",
+		});
 	};
 
 	const saveSystemConfig = (e: React.FormEvent) => {
@@ -53,9 +50,13 @@ export default function SuperAdminSettingsPage() {
 				<Card className="border-border/50 bg-card/50 shadow-sm">
 					<CardHeader>
 						<CardTitle className="flex items-center text-lg">
-							<DatabaseIcon className="mr-2 h-5 w-5 text-blue-500" /> System Backup Controls
+							<DatabaseIcon className="mr-2 h-5 w-5 text-blue-500" /> System
+							Backup Controls
 						</CardTitle>
-						<CardDescription>Configure automated snapshot parameters or trigger an instant full system backup.</CardDescription>
+						<CardDescription>
+							Configure automated snapshot parameters or trigger an instant full
+							system backup.
+						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="space-y-1">
@@ -75,12 +76,15 @@ export default function SuperAdminSettingsPage() {
 								checked={autoBackups}
 								onChange={(e) => setAutoBackups(e.target.checked)}
 							/>
-							<Label htmlFor="auto" className="cursor-pointer text-xs sm:text-sm">
+							<Label
+								htmlFor="auto"
+								className="cursor-pointer text-xs sm:text-sm"
+							>
 								Enable automated daily backups to cloud storage
 							</Label>
 						</div>
 
-						<div className="pt-4 border-t border-border/50">
+						<div className="border-border/50 border-t pt-4">
 							<Button type="button" className="w-full" onClick={triggerBackup}>
 								Trigger Instant Global Backup
 							</Button>
@@ -93,9 +97,12 @@ export default function SuperAdminSettingsPage() {
 					<Card className="border-border/50 bg-card/50 shadow-sm">
 						<CardHeader>
 							<CardTitle className="flex items-center text-lg">
-								<ServerIcon className="mr-2 h-5 w-5 text-purple-500" /> Core System Parameters
+								<ServerIcon className="mr-2 h-5 w-5 text-purple-500" /> Core
+								System Parameters
 							</CardTitle>
-							<CardDescription>Adjust technical security limits and SaaS parameters globally.</CardDescription>
+							<CardDescription>
+								Adjust technical security limits and SaaS parameters globally.
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							<div className="grid grid-cols-2 gap-4">
@@ -121,12 +128,15 @@ export default function SuperAdminSettingsPage() {
 									className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 									defaultChecked
 								/>
-								<Label htmlFor="mfa" className="cursor-pointer text-xs sm:text-sm">
+								<Label
+									htmlFor="mfa"
+									className="cursor-pointer text-xs sm:text-sm"
+								>
 									Enforce Multi-Factor Authentication (MFA) for Admin roles
 								</Label>
 							</div>
 
-							<div className="pt-4 border-t border-border/50">
+							<div className="border-border/50 border-t pt-4">
 								<Button type="submit" className="w-full">
 									<SaveIcon className="mr-2 h-4 w-4" /> Save System Parameters
 								</Button>

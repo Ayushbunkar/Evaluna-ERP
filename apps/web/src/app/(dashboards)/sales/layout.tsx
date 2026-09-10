@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	AlertCircleIcon,
 	ClipboardListIcon,
 	IndianRupeeIcon,
 	LayoutDashboardIcon,
@@ -40,6 +41,7 @@ export default function Layout({
 			icon: ClipboardListIcon,
 			badge: pendingCount > 0 ? pendingCount : undefined,
 		},
+		{ href: "/sales/shortages", labelKey: "shortages", icon: AlertCircleIcon },
 		{ href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
 		{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },
 		{ href: "/sales/cashbook", labelKey: "cashbook", icon: IndianRupeeIcon },

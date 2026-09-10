@@ -38,22 +38,36 @@ export default function HoldBillsPage() {
 	// Translations Dictionary
 	const t = {
 		title: locale === "hi" ? "होल्ड बिल (Hold Bills)" : "Hold Bills",
-		subtitle: locale === "hi" ? "उन बिलों को देखें और प्रबंधित करें जिन्हें होल्ड पर रखा गया था।" : "View and manage bills that were put on hold.",
-		suspendedTitle: locale === "hi" ? "निलंबित बिल (Suspended)" : "Suspended Bills",
+		subtitle:
+			locale === "hi"
+				? "उन बिलों को देखें और प्रबंधित करें जिन्हें होल्ड पर रखा गया था।"
+				: "View and manage bills that were put on hold.",
+		suspendedTitle:
+			locale === "hi" ? "निलंबित बिल (Suspended)" : "Suspended Bills",
 		activeHoldTitle: locale === "hi" ? "सक्रिय होल्ड बिल" : "Active Hold Bills",
-		emptyMsg: locale === "hi" ? "कोई होल्ड बिल नहीं मिला।" : "No hold bills found.",
+		emptyMsg:
+			locale === "hi" ? "कोई होल्ड बिल नहीं मिला।" : "No hold bills found.",
 		resumeBill: locale === "hi" ? "बिल पुनर्प्रारंभ करें" : "Resume Bill",
 		deleteBill: locale === "hi" ? "बिल हटाएं" : "Delete Bill",
-		
+
 		thBillId: locale === "hi" ? "बिल आईडी" : "Bill ID",
 		thCustomer: locale === "hi" ? "ग्राहक" : "Customer",
 		thAmount: locale === "hi" ? "कुल राशि" : "Total Amount",
 		thDateHeld: locale === "hi" ? "होल्ड करने की तिथि" : "Date Held",
 		thActions: locale === "hi" ? "कार्रवाइयाँ" : "Actions",
 		walkIn: locale === "hi" ? "वॉक-इन" : "Walk-in",
-		resumeToast: locale === "hi" ? "बिल को पुनर्प्रारंभ किया जा रहा है..." : "Resuming hold bill...",
-		deleteConfirm: locale === "hi" ? "क्या आप वाकई इस होल्ड बिल को हटाना चाहते हैं?" : "Are you sure you want to delete this hold bill?",
-		deleteSuccess: locale === "hi" ? "होल्ड बिल सफलतापूर्वक हटा दिया गया।" : "Hold bill deleted successfully.",
+		resumeToast:
+			locale === "hi"
+				? "बिल को पुनर्प्रारंभ किया जा रहा है..."
+				: "Resuming hold bill...",
+		deleteConfirm:
+			locale === "hi"
+				? "क्या आप वाकई इस होल्ड बिल को हटाना चाहते हैं?"
+				: "Are you sure you want to delete this hold bill?",
+		deleteSuccess:
+			locale === "hi"
+				? "होल्ड बिल सफलतापूर्वक हटा दिया गया।"
+				: "Hold bill deleted successfully.",
 	};
 
 	const { data: orders, isLoading } = trpc.orders.list.useQuery();
@@ -135,9 +149,7 @@ export default function HoldBillsPage() {
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div>
 					<h1 className="font-bold text-3xl tracking-tight">{t.title}</h1>
-					<p className="text-muted-foreground text-sm">
-						{t.subtitle}
-					</p>
+					<p className="text-muted-foreground text-sm">{t.subtitle}</p>
 				</div>
 			</div>
 

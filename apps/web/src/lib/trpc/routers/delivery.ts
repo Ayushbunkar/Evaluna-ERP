@@ -3,9 +3,11 @@ import {
 	orderItems,
 	orders,
 	products,
+	roles,
 	salesReturnItems,
 	salesReturns,
 	user,
+	userRoles,
 } from "@evaluna/db/schema";
 import {
 	deliveryRoutes,
@@ -17,7 +19,7 @@ import {
 	tripStops,
 } from "@evaluna/db/schema/delivery";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, roleProcedure, router } from "../init";
@@ -27,7 +29,7 @@ export const deliveryRouter = router({
 	listRoutes: roleProcedure(["admin", "manager", "delivery_manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.user?.branchId;
+			const branch = input.branchId || ctx.user?.branchId || 1;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 
 			return await db.query.deliveryRoutes.findMany({
@@ -48,7 +50,7 @@ export const deliveryRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.user?.branchId;
+			const branch = input.branchId || ctx.user?.branchId || 1;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 
 			return await db.transaction(async (tx) => {
@@ -61,9 +63,23 @@ export const deliveryRouter = router({
 					})
 					.returning();
 
-				if (input.stops.length > 0) {
+				// Filter out duplicate stops for the same customer to prevent DB constraint errors
+				const uniqueStops = [];
+				const seenCustomers = new Set();
+				let currentSequence = 1;
+				for (const stop of input.stops) {
+					if (!seenCustomers.has(stop.customerId)) {
+						seenCustomers.add(stop.customerId);
+						uniqueStops.push({
+							...stop,
+							sequence: currentSequence++,
+						});
+					}
+				}
+
+				if (uniqueStops.length > 0) {
 					await tx.insert(routeStops).values(
-						input.stops.map((stop) => ({
+						uniqueStops.map((stop) => ({
 							route_id: route.id,
 							customer_id: stop.customerId,
 							sequence: stop.sequence,
@@ -84,35 +100,66 @@ export const deliveryRouter = router({
 			}),
 		)
 		.mutation(async ({ input }) => {
-			return await db.transaction(async (tx) => {
-				// 1. Create Trip
-				const [trip] = await tx
-					.insert(deliveryTrips)
-					.values({
-						route_id: input.routeId,
-						driver_id: input.driverId,
-						vehicle_id: input.vehicleId,
-						status: "pending",
-					})
-					.returning();
-
-				// 2. Fetch Route Stops to mirror them into Trip Stops
-				const stops = await tx.query.routeStops.findMany({
-					where: eq(routeStops.route_id, input.routeId),
-				});
-
-				if (stops.length > 0) {
-					await tx.insert(tripStops).values(
-						stops.map((s) => ({
-							trip_id: trip.id,
-							customer_id: s.customer_id,
-							sequence: s.sequence,
+			try {
+				return await db.transaction(async (tx) => {
+					// 1. Create Trip
+					const [trip] = await tx
+						.insert(deliveryTrips)
+						.values({
+							route_id: input.routeId,
+							driver_id: input.driverId,
+							vehicle_id: input.vehicleId,
 							status: "pending",
-						})),
-					);
-				}
-				return trip;
-			});
+						})
+						.returning();
+
+					// 2. Fetch Route Stops to mirror them into Trip Stops
+					const stops = await tx.query.routeStops.findMany({
+						where: eq(routeStops.route_id, input.routeId),
+					});
+
+					// Filter duplicate route stops with same customer_id to protect trip_stops unique constraint on older routes
+					const uniqueStops = [];
+					const seenCustomers = new Set();
+					let currentSequence = 1;
+					for (const s of stops) {
+						if (!seenCustomers.has(s.customer_id)) {
+							seenCustomers.add(s.customer_id);
+							uniqueStops.push({
+								...s,
+								sequence: currentSequence++,
+							});
+						}
+					}
+
+					if (uniqueStops.length > 0) {
+						await tx.insert(tripStops).values(
+							uniqueStops.map((s) => ({
+								trip_id: trip.id,
+								customer_id: s.customer_id,
+								sequence: s.sequence,
+								status: "pending",
+							})),
+						);
+					}
+					return trip;
+				});
+			} catch (err: any) {
+				const fs = require("fs");
+				const path = require("path");
+				const errorLog = `
+=========================================
+TIMESTAMP: ${new Date().toISOString()}
+ERROR MESSAGE: ${err.message}
+ERROR CODE: ${err.code}
+ERROR DETAIL: ${err.detail}
+ERROR CONSTRAINT: ${err.constraint}
+ERROR TABLE: ${err.table}
+=========================================
+`;
+				fs.appendFileSync(path.join(process.cwd(), "scratch/error-details.txt"), errorLog);
+				throw err;
+			}
 		}),
 
 	myTrips: protectedProcedure.query(async ({ ctx }) => {
@@ -413,16 +460,58 @@ export const deliveryRouter = router({
 	listDrivers: roleProcedure(["admin", "manager", "delivery_manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.user?.branchId;
-			return await db.query.user.findMany({
-				where: (u, { eq, or }) =>
+			const usersWithRole = await db
+				.select({
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					role: roles.name,
+					image: user.image,
+				})
+				.from(user)
+				.innerJoin(userRoles, eq(userRoles.user_id, user.id))
+				.innerJoin(roles, eq(userRoles.role_id, roles.id))
+				.where(
 					or(
-						eq(u.role, "delivery"),
-						eq(u.role, "driver"),
-						eq(u.role, "delivery_boy"),
+						eq(roles.name, "delivery"),
+						eq(roles.name, "driver"),
+						eq(roles.name, "delivery_boy"),
+					)
+				);
+
+			const staffMembers = await db.query.staff.findMany({
+				where: (s, { eq, or }) =>
+					or(
+						eq(s.role, "delivery"),
+						eq(s.role, "driver"),
+						eq(s.role, "delivery_boy"),
 					),
-				columns: { id: true, name: true, email: true, role: true, image: true },
+				columns: { id: true, name: true, email: true, role: true },
 			});
+
+			const merged = new Map();
+			for (const u of usersWithRole) {
+				merged.set(u.email.toLowerCase(), {
+					id: u.id,
+					name: u.name,
+					email: u.email,
+					role: u.role,
+					image: u.image,
+				});
+			}
+			for (const s of staffMembers) {
+				if (s.email && !merged.has(s.email.toLowerCase())) {
+					merged.set(s.email.toLowerCase(), {
+						id: String(s.id),
+						name: s.name,
+						email: s.email,
+						role: s.role,
+						image: null,
+					});
+				}
+			}
+
+			return Array.from(merged.values());
 		}),
 
 	listAllTrips: roleProcedure(["admin", "manager", "delivery_manager"])
@@ -460,6 +549,24 @@ export const deliveryRouter = router({
 				.update(deliveryTrips)
 				.set({ status: "cancelled" })
 				.where(eq(deliveryTrips.id, input.tripId));
+			return { success: true };
+		}),
+
+	deleteTrip: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(z.object({ tripId: z.number() }))
+		.mutation(async ({ input }) => {
+			await db.delete(tripStops).where(eq(tripStops.trip_id, input.tripId));
+			await db.delete(tripCollections).where(eq(tripCollections.trip_id, input.tripId));
+			await db.delete(deliveryTrips).where(eq(deliveryTrips.id, input.tripId));
+			return { success: true };
+		}),
+
+	deleteRoute: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(z.object({ routeId: z.number() }))
+		.mutation(async ({ input }) => {
+			await db.delete(routeStops).where(eq(routeStops.route_id, input.routeId));
+			await db.update(deliveryTrips).set({ route_id: null }).where(eq(deliveryTrips.route_id, input.routeId));
+			await db.delete(deliveryRoutes).where(eq(deliveryRoutes.id, input.routeId));
 			return { success: true };
 		}),
 
@@ -553,55 +660,86 @@ export const deliveryRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			const branch = input.branchId || ctx.user?.branchId;
-			return await db.transaction(async (tx) => {
-				// 1. Create a route for this trip
-				const [route] = await tx
-					.insert(deliveryRoutes)
-					.values({
-						name:
-							input.routeName ||
-							`Trip ${new Date().toLocaleDateString("en-IN")}`,
-						branch_id: branch || null,
-					})
-					.returning();
+			const branch = input.branchId || ctx.user?.branchId || 1;
+			try {
+				return await db.transaction(async (tx) => {
+					// 1. Create a route for this trip
+					const [route] = await tx
+						.insert(deliveryRoutes)
+						.values({
+							name:
+								input.routeName ||
+								`Trip ${new Date().toLocaleDateString("en-IN")}`,
+							branch_id: branch || null,
+						})
+						.returning();
 
-				// 2. Insert route stops
-				if (input.stops.length > 0) {
-					await tx.insert(routeStops).values(
-						input.stops.map((s) => ({
+					// Filter out duplicate stops for the same customer to prevent DB constraint errors
+					const uniqueStops = [];
+					const seenCustomers = new Set();
+					let currentSequence = 1;
+					for (const s of input.stops) {
+						if (!seenCustomers.has(s.customerId)) {
+							seenCustomers.add(s.customerId);
+							uniqueStops.push({
+								...s,
+								sequence: currentSequence++,
+							});
+						}
+					}
+
+					// 2. Insert route stops
+					if (uniqueStops.length > 0) {
+						await tx.insert(routeStops).values(
+							uniqueStops.map((s) => ({
+								route_id: route.id,
+								customer_id: s.customerId,
+								sequence: s.sequence,
+							})),
+						);
+					}
+
+					// 3. Create the trip
+					const [trip] = await tx
+						.insert(deliveryTrips)
+						.values({
 							route_id: route.id,
-							customer_id: s.customerId,
-							sequence: s.sequence,
-						})),
-					);
-				}
-
-				// 3. Create the trip
-				const [trip] = await tx
-					.insert(deliveryTrips)
-					.values({
-						route_id: route.id,
-						driver_id: input.driverId,
-						vehicle_id: input.vehicleId || null,
-						status: "pending",
-					})
-					.returning();
-
-				// 4. Create trip stops
-				if (input.stops.length > 0) {
-					await tx.insert(tripStops).values(
-						input.stops.map((s) => ({
-							trip_id: trip.id,
-							customer_id: s.customerId,
-							sequence: s.sequence,
+							driver_id: input.driverId,
+							vehicle_id: input.vehicleId || null,
 							status: "pending",
-						})),
-					);
-				}
+						})
+						.returning();
 
-				return trip;
-			});
+					// 4. Create trip stops
+					if (uniqueStops.length > 0) {
+						await tx.insert(tripStops).values(
+							uniqueStops.map((s) => ({
+								trip_id: trip.id,
+								customer_id: s.customerId,
+								sequence: s.sequence,
+								status: "pending",
+							})),
+						);
+					}
+
+					return trip;
+				});
+			} catch (err: any) {
+				const fs = require("fs");
+				const path = require("path");
+				const errorLog = `
+=========================================
+TIMESTAMP: ${new Date().toISOString()}
+ERROR MESSAGE: ${err.message}
+ERROR CODE: ${err.code}
+ERROR DETAIL: ${err.detail}
+ERROR CONSTRAINT: ${err.constraint}
+ERROR TABLE: ${err.table}
+=========================================
+`;
+				fs.appendFileSync(path.join(process.cwd(), "scratch/error-details.txt"), errorLog);
+				throw err;
+			}
 		}),
 
 	addItemsToDeliveryOrder: protectedProcedure

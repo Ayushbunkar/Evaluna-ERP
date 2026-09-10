@@ -18,25 +18,25 @@ import {
 import {
 	account,
 	accountRelations,
-	session,
-	sessionRelations,
-	user,
-	verification,
 	securityAuditLog,
 	securityAuditLogRelations,
+	session,
+	sessionRelations,
 	staff,
+	user,
+	verification,
 } from "./auth-schema";
 
 export {
 	account,
 	accountRelations,
-	session,
-	sessionRelations,
-	user,
-	verification,
 	securityAuditLog,
 	securityAuditLogRelations,
+	session,
+	sessionRelations,
 	staff,
+	user,
+	verification,
 };
 
 // Custom bytea type for PGLite compatibility
@@ -199,6 +199,15 @@ export const orders = pgTable(
 		photo_url: varchar("photo_url", { length: 255 }),
 		delivery_time: timestamp("delivery_time"),
 		locked: boolean("locked").default(false),
+		original_items: jsonb("original_items"),
+		driver_collected_amount: decimal("driver_collected_amount", { precision: 10, scale: 2 }),
+		finance_verified_amount: decimal("finance_verified_amount", { precision: 10, scale: 2 }),
+		finance_status: varchar("finance_status", { length: 50 }).default("pending_collection"),
+		driver_id: integer("driver_id").references(() => staff.id),
+		driver_collected_at: timestamp("driver_collected_at"),
+		finance_verified_by: integer("finance_verified_by").references(() => staff.id),
+		finance_verified_at: timestamp("finance_verified_at"),
+		finance_notes: text("finance_notes"),
 		created_at: timestamp("created_at").defaultNow(),
 	},
 	(table) => ({
@@ -269,6 +278,9 @@ export const transactions = pgTable(
 		status: varchar("status", { length: 20 }),
 		reference_id: integer("reference_id"), // Polymorphic relation ID
 		reference_type: varchar("reference_type", { length: 50 }), // 'order', 'expense', 'purchase', 'manual'
+		original_amount: decimal("original_amount", { precision: 10, scale: 2 }),
+		adjustment_amount: decimal("adjustment_amount", { precision: 10, scale: 2 }).default("0"),
+		reconciliation_status: varchar("reconciliation_status", { length: 20 }).default("pending"),
 		created_at: timestamp("created_at").defaultNow(),
 	},
 	(table) => ({
@@ -444,14 +456,16 @@ export const rolePermissions = pgTable(
 	{
 		id: serial("id").primaryKey(),
 		role_name: varchar("role_name", { length: 50 }),
-		role_id: integer("role_id")
-			.references((): any => roles.id, { onDelete: "cascade" }),
+		role_id: integer("role_id").references((): any => roles.id, {
+			onDelete: "cascade",
+		}),
 		domain: varchar("domain", { length: 50 }),
 		module: varchar("module", { length: 50 }),
 		action: varchar("action", { length: 20 }).notNull(),
 		is_allowed: boolean("is_allowed").default(false),
-		permission_id: integer("permission_id")
-			.references(() => permissions.id, { onDelete: "cascade" }),
+		permission_id: integer("permission_id").references(() => permissions.id, {
+			onDelete: "cascade",
+		}),
 		created_at: timestamp("created_at").defaultNow(),
 		updated_at: timestamp("updated_at")
 			.defaultNow()

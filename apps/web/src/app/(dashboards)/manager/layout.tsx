@@ -15,6 +15,7 @@ import {
 	LayoutDashboard,
 	Settings,
 	TrendingUp,
+	Truck,
 	Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,6 +31,7 @@ export default function ManagerLayout({
 
 	const navItems = [
 		{ href: "/manager", label: "Dashboard", icon: LayoutDashboard },
+		{ href: "/manager/dispatch", label: "Assign Route", icon: Truck },
 		{ href: "/manager/team", label: "My Team", icon: Users },
 		{ href: "/manager/tasks", label: "Tasks", icon: CheckSquare },
 		{ href: "/manager/approvals", label: "Approvals", icon: FileCheck },

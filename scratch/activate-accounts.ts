@@ -1,6 +1,11 @@
 import { eq } from "drizzle-orm";
-import { db } from "../packages/db/src/index";
-import { user, roles, userRoles, rolePermissions } from "../packages/db/src/index";
+import {
+	db,
+	rolePermissions,
+	roles,
+	user,
+	userRoles,
+} from "../packages/db/src/index";
 import { generateRolePermissionSeeds } from "../packages/db/src/permissions";
 
 const ROLE_MAPPINGS: Record<string, string> = {
@@ -28,19 +33,46 @@ const ROLE_MAPPINGS: Record<string, string> = {
 };
 
 const STANDARD_ROLES = [
-	{ name: "super_admin", description: "Super Administrator with cross-company permissions" },
-	{ name: "admin", description: "Company Administrator with local company permissions" },
-	{ name: "manager", description: "General Manager with operational oversight" },
-	{ name: "auditor", description: "Internal Auditor with cycle count and pricing review access" },
+	{
+		name: "super_admin",
+		description: "Super Administrator with cross-company permissions",
+	},
+	{
+		name: "admin",
+		description: "Company Administrator with local company permissions",
+	},
+	{
+		name: "manager",
+		description: "General Manager with operational oversight",
+	},
+	{
+		name: "auditor",
+		description: "Internal Auditor with cycle count and pricing review access",
+	},
 	{ name: "hr", description: "HR Manager overseeing attendance and payroll" },
-	{ name: "finance", description: "Financial Accountant managing transactions and bank accounts" },
-	{ name: "marketing", description: "Marketing Coordinator driving sales campaigns" },
-	{ name: "warehouse_supervisor", description: "Warehouse Supervisor overseeing putaway and picking" },
+	{
+		name: "finance",
+		description: "Financial Accountant managing transactions and bank accounts",
+	},
+	{
+		name: "marketing",
+		description: "Marketing Coordinator driving sales campaigns",
+	},
+	{
+		name: "warehouse_supervisor",
+		description: "Warehouse Supervisor overseeing putaway and picking",
+	},
 	{ name: "putter", description: "Warehouse Putter executing stock placement" },
 	{ name: "picker", description: "Warehouse Picker executing stock selection" },
 	{ name: "packer", description: "Warehouse Packer executing parcel boxing" },
-	{ name: "dispatcher", description: "Warehouse Dispatcher executing courier handoff" },
-	{ name: "procurement", description: "Procurement Manager driving supplier purchase orders" },
+	{
+		name: "dispatcher",
+		description: "Warehouse Dispatcher executing courier handoff",
+	},
+	{
+		name: "procurement",
+		description: "Procurement Manager driving supplier purchase orders",
+	},
 	{ name: "driver", description: "Logistics Driver executing delivery routes" },
 	{ name: "biller", description: "Point of Sale (POS) Operator" },
 	{ name: "sales_person", description: "Sales Representative" },
@@ -83,8 +115,8 @@ async function main() {
 			.from(rolePermissions)
 			.where(
 				eq(rolePermissions.role_name, row.role_name) &&
-				eq(rolePermissions.domain, row.domain) &&
-				eq(rolePermissions.action, row.action)
+					eq(rolePermissions.domain, row.domain) &&
+					eq(rolePermissions.action, row.action),
 			)
 			.limit(1);
 
@@ -149,7 +181,9 @@ async function main() {
 		console.log(`Activated and mapped ${dbUser.email} -> ${expectedRole}`);
 	}
 
-	console.log("\nSeeding & Activation Complete! All accounts are now fully ACTIVE with correct roles!");
+	console.log(
+		"\nSeeding & Activation Complete! All accounts are now fully ACTIVE with correct roles!",
+	);
 }
 
 main()

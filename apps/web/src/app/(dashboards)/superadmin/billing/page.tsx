@@ -9,6 +9,14 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -16,42 +24,41 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
+import { jsPDF } from "jspdf";
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@evaluna/ui/components/dialog";
-import {
+	CalendarDaysIcon,
 	DownloadIcon,
+	FileSpreadsheetIcon,
 	IndianRupeeIcon,
 	TrendingUpIcon,
 	UsersIcon,
-	FileSpreadsheetIcon,
-	CalendarDaysIcon,
 } from "lucide-react";
+import { useLocale } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/admin/list-shell";
 import { PageTransition } from "@/lib/animations";
-import { jsPDF } from "jspdf";
-
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
-import { useLocale } from "next-intl";
 
 export default function SuperAdminBillingPage() {
 	const locale = useLocale();
-	const { data: stats, isLoading: statsLoading } = trpc.superadmin.getBillingStats.useQuery();
-	const { data: invoices, isLoading: invoicesLoading } = trpc.superadmin.getBillingInvoices.useQuery();
+	const { data: stats, isLoading: statsLoading } =
+		trpc.superadmin.getBillingStats.useQuery();
+	const { data: invoices, isLoading: invoicesLoading } =
+		trpc.superadmin.getBillingInvoices.useQuery();
 
 	const [exportDialogOpen, setExportOpen] = useState(false);
 
 	const billingLogs = invoices || [];
 
-	const downloadInvoicePDF = (invoice: { id: string; company: string; amount: string; status: string; date: string }) => {
+	const downloadInvoicePDF = (invoice: {
+		id: string;
+		company: string;
+		amount: string;
+		status: string;
+		date: string;
+	}) => {
 		try {
 			const doc = new jsPDF({
 				orientation: "p",
@@ -63,7 +70,8 @@ export default function SuperAdminBillingPage() {
 			const primaryColor = [22, 38, 76]; // Deep Navy
 			const secondaryColor = [100, 116, 139]; // Slate Gray
 			const textColor = [33, 43, 54]; // Off Black
-			const accentColor = invoice.status === "PAID" ? [34, 197, 94] : [239, 68, 68]; // Green vs Red
+			const accentColor =
+				invoice.status === "PAID" ? [34, 197, 94] : [239, 68, 68]; // Green vs Red
 
 			// Header - Brand Section
 			doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -175,7 +183,11 @@ export default function SuperAdminBillingPage() {
 			doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
 			doc.setFontSize(8);
 			doc.setFont("helvetica", "italic");
-			doc.text("This is an electronically generated purchase billing voucher and does not require a physical signature.", 15, 265);
+			doc.text(
+				"This is an electronically generated purchase billing voucher and does not require a physical signature.",
+				15,
+				265,
+			);
 			doc.text("Evaluna ERP - Procurement Ledger Compliance System", 15, 270);
 
 			doc.save(`Invoice_${invoice.id}.pdf`);
@@ -196,17 +208,17 @@ export default function SuperAdminBillingPage() {
 
 			const now = new Date();
 			const todayStr = now.toISOString().split("T")[0];
-			
+
 			let filteredLogs = [...billingLogs];
 			let rangeLabel = "";
 
 			if (timeframe === "today") {
-				filteredLogs = billingLogs.filter(log => log.date === todayStr);
+				filteredLogs = billingLogs.filter((log) => log.date === todayStr);
 				rangeLabel = "Today";
 			} else if (timeframe === "week") {
 				const sevenDaysAgo = new Date();
 				sevenDaysAgo.setDate(now.getDate() - 7);
-				filteredLogs = billingLogs.filter(log => {
+				filteredLogs = billingLogs.filter((log) => {
 					if (log.date === "N/A") return false;
 					const logDate = new Date(log.date);
 					return logDate >= sevenDaysAgo && logDate <= now;
@@ -215,7 +227,7 @@ export default function SuperAdminBillingPage() {
 			} else if (timeframe === "month") {
 				const thirtyDaysAgo = new Date();
 				thirtyDaysAgo.setDate(now.getDate() - 30);
-				filteredLogs = billingLogs.filter(log => {
+				filteredLogs = billingLogs.filter((log) => {
 					if (log.date === "N/A") return false;
 					const logDate = new Date(log.date);
 					return logDate >= thirtyDaysAgo && logDate <= now;
@@ -224,7 +236,7 @@ export default function SuperAdminBillingPage() {
 			} else if (timeframe === "last_year") {
 				const oneYearAgo = new Date();
 				oneYearAgo.setDate(now.getDate() - 365);
-				filteredLogs = billingLogs.filter(log => {
+				filteredLogs = billingLogs.filter((log) => {
 					if (log.date === "N/A") return false;
 					const logDate = new Date(log.date);
 					return logDate >= oneYearAgo && logDate <= now;
@@ -247,7 +259,11 @@ export default function SuperAdminBillingPage() {
 			doc.setFont("helvetica", "normal");
 			doc.setFontSize(10);
 			doc.text("Evaluna ERP - Multi-Entity Enterprise Ledger", 15, 23);
-			doc.text(`Timeframe: ${rangeLabel} | Date Generated: ${now.toLocaleDateString()}`, 15, 28);
+			doc.text(
+				`Timeframe: ${rangeLabel} | Date Generated: ${now.toLocaleDateString()}`,
+				15,
+				28,
+			);
 
 			// Summary Statistics Section
 			doc.setTextColor(textColor[0], textColor[1], textColor[2]);
@@ -281,7 +297,11 @@ export default function SuperAdminBillingPage() {
 			doc.setFont("helvetica", "bold");
 			doc.setFontSize(11);
 			doc.text(totalCount.toString(), 18, 69);
-			doc.text(`INR ${sumAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 78, 69);
+			doc.text(
+				`INR ${sumAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+				78,
+				69,
+			);
 			doc.text(rangeLabel, 143, 69);
 
 			// Table Header
@@ -304,7 +324,11 @@ export default function SuperAdminBillingPage() {
 			let currentY = 97;
 
 			if (filteredLogs.length === 0) {
-				doc.text("No transaction logs recorded within this timeframe.", 15, currentY);
+				doc.text(
+					"No transaction logs recorded within this timeframe.",
+					15,
+					currentY,
+				);
 			} else {
 				filteredLogs.forEach((log, index) => {
 					if (index % 2 === 1) {
@@ -330,7 +354,11 @@ export default function SuperAdminBillingPage() {
 			doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
 			doc.setFontSize(8);
 			doc.setFont("helvetica", "italic");
-			doc.text(`Generated automatically by Super Admin of Evaluna ERP. Security Level: Global Admin. Page 1 of 1.`, 15, 275);
+			doc.text(
+				"Generated automatically by Super Admin of Evaluna ERP. Security Level: Global Admin. Page 1 of 1.",
+				15,
+				275,
+			);
 
 			doc.save(`Ledger_Report_${timeframe}_${todayStr}.pdf`);
 			setExportOpen(false);
@@ -348,7 +376,8 @@ export default function SuperAdminBillingPage() {
 				description="Track system-wide material purchases, outstanding supplier balances, and procurement invoice histories."
 				actions={
 					<Button size="sm" onClick={() => setExportOpen(true)}>
-						<FileSpreadsheetIcon className="mr-2 h-4 w-4" /> Export Ledger Report
+						<FileSpreadsheetIcon className="mr-2 h-4 w-4" /> Export Ledger
+						Report
 					</Button>
 				}
 			/>
@@ -356,12 +385,14 @@ export default function SuperAdminBillingPage() {
 			{/* Stats cards */}
 			<div className="grid gap-4 sm:grid-cols-3">
 				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardContent className="p-6 flex items-center space-x-4">
-						<div className="p-3 bg-red-500/10 rounded-full">
+					<CardContent className="flex items-center space-x-4 p-6">
+						<div className="rounded-full bg-red-500/10 p-3">
 							<IndianRupeeIcon className="h-6 w-6 text-red-500" />
 						</div>
 						<div>
-							<p className="text-muted-foreground text-xs flex items-center gap-1">Total Accounts Payable 🇮🇳</p>
+							<p className="flex items-center gap-1 text-muted-foreground text-xs">
+								Total Accounts Payable 🇮🇳
+							</p>
 							<p className="font-bold text-2xl">
 								{statsLoading ? "..." : formatCurrency(stats?.mrr || 0, locale)}
 							</p>
@@ -370,12 +401,14 @@ export default function SuperAdminBillingPage() {
 				</Card>
 
 				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardContent className="p-6 flex items-center space-x-4">
-						<div className="p-3 bg-green-500/10 rounded-full">
+					<CardContent className="flex items-center space-x-4 p-6">
+						<div className="rounded-full bg-green-500/10 p-3">
 							<TrendingUpIcon className="h-6 w-6 text-green-500" />
 						</div>
 						<div>
-							<p className="text-muted-foreground text-xs flex items-center gap-1">Total Value Procured 🇮🇳</p>
+							<p className="flex items-center gap-1 text-muted-foreground text-xs">
+								Total Value Procured 🇮🇳
+							</p>
 							<p className="font-bold text-2xl">
 								{statsLoading ? "..." : formatCurrency(stats?.acv || 0, locale)}
 							</p>
@@ -384,14 +417,18 @@ export default function SuperAdminBillingPage() {
 				</Card>
 
 				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardContent className="p-6 flex items-center space-x-4">
-						<div className="p-3 bg-blue-500/10 rounded-full">
+					<CardContent className="flex items-center space-x-4 p-6">
+						<div className="rounded-full bg-blue-500/10 p-3">
 							<UsersIcon className="h-6 w-6 text-blue-500" />
 						</div>
 						<div>
-							<p className="text-muted-foreground text-xs">Active Registered Suppliers</p>
+							<p className="text-muted-foreground text-xs">
+								Active Registered Suppliers
+							</p>
 							<p className="font-bold text-2xl">
-								{statsLoading ? "..." : `${stats?.activeTenants || 0} Suppliers`}
+								{statsLoading
+									? "..."
+									: `${stats?.activeTenants || 0} Suppliers`}
 							</p>
 						</div>
 					</CardContent>
@@ -402,7 +439,10 @@ export default function SuperAdminBillingPage() {
 			<Card className="border-border/50 bg-card/50 shadow-sm">
 				<CardHeader>
 					<CardTitle className="text-lg">Recent Supplier Invoices</CardTitle>
-					<CardDescription>System-wide transactional record for material purchases and raw goods.</CardDescription>
+					<CardDescription>
+						System-wide transactional record for material purchases and raw
+						goods.
+					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0">
 					{invoicesLoading ? (
@@ -428,23 +468,34 @@ export default function SuperAdminBillingPage() {
 							<TableBody>
 								{billingLogs.map((log) => (
 									<TableRow key={log.id} className="hover:bg-muted/30">
-										<TableCell className="font-medium font-mono text-sm">{log.id}</TableCell>
+										<TableCell className="font-medium font-mono text-sm">
+											{log.id}
+										</TableCell>
 										<TableCell>{log.company}</TableCell>
 										<TableCell>{log.amount}</TableCell>
 										<TableCell>
-											<span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-												log.status === "PAID" 
-													? "bg-green-500/10 text-green-500" 
-													: log.status === "PARTIAL" 
-														? "bg-blue-500/10 text-blue-500" 
-														: "bg-red-500/10 text-red-500"
-											}`}>
+											<span
+												className={`rounded px-2 py-0.5 font-semibold text-xs ${
+													log.status === "PAID"
+														? "bg-green-500/10 text-green-500"
+														: log.status === "PARTIAL"
+															? "bg-blue-500/10 text-blue-500"
+															: "bg-red-500/10 text-red-500"
+												}`}
+											>
 												{log.status}
 											</span>
 										</TableCell>
-										<TableCell className="text-muted-foreground text-xs">{log.date}</TableCell>
+										<TableCell className="text-muted-foreground text-xs">
+											{log.date}
+										</TableCell>
 										<TableCell className="text-right">
-											<Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadInvoicePDF(log)}>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8"
+												onClick={() => downloadInvoicePDF(log)}
+											>
 												<DownloadIcon className="h-4 w-4" />
 											</Button>
 										</TableCell>
@@ -462,45 +513,46 @@ export default function SuperAdminBillingPage() {
 					<DialogHeader>
 						<DialogTitle>Export Procurement Ledger Report</DialogTitle>
 						<DialogDescription>
-							Select a timeframe interval to generate and download a clean, production-grade PDF of the supplier billing ledger.
+							Select a timeframe interval to generate and download a clean,
+							production-grade PDF of the supplier billing ledger.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="grid grid-cols-2 gap-4 py-4">
-						<Button 
-							type="button" 
-							variant="outline" 
-							className="h-20 flex flex-col items-center justify-center gap-2 border hover:bg-muted/20"
+						<Button
+							type="button"
+							variant="outline"
+							className="flex h-20 flex-col items-center justify-center gap-2 border hover:bg-muted/20"
 							onClick={() => downloadLedgerPDF("today")}
 						>
 							<CalendarDaysIcon className="h-6 w-6 text-red-500" />
 							<span className="font-semibold text-sm">Today</span>
 						</Button>
 
-						<Button 
-							type="button" 
-							variant="outline" 
-							className="h-20 flex flex-col items-center justify-center gap-2 border hover:bg-muted/20"
+						<Button
+							type="button"
+							variant="outline"
+							className="flex h-20 flex-col items-center justify-center gap-2 border hover:bg-muted/20"
 							onClick={() => downloadLedgerPDF("week")}
 						>
 							<CalendarDaysIcon className="h-6 w-6 text-green-500" />
 							<span className="font-semibold text-sm">This Week</span>
 						</Button>
 
-						<Button 
-							type="button" 
-							variant="outline" 
-							className="h-20 flex flex-col items-center justify-center gap-2 border hover:bg-muted/20"
+						<Button
+							type="button"
+							variant="outline"
+							className="flex h-20 flex-col items-center justify-center gap-2 border hover:bg-muted/20"
 							onClick={() => downloadLedgerPDF("month")}
 						>
 							<CalendarDaysIcon className="h-6 w-6 text-blue-500" />
 							<span className="font-semibold text-sm">This Month</span>
 						</Button>
 
-						<Button 
-							type="button" 
-							variant="outline" 
-							className="h-20 flex flex-col items-center justify-center gap-2 border hover:bg-muted/20"
+						<Button
+							type="button"
+							variant="outline"
+							className="flex h-20 flex-col items-center justify-center gap-2 border hover:bg-muted/20"
 							onClick={() => downloadLedgerPDF("last_year")}
 						>
 							<CalendarDaysIcon className="h-6 w-6 text-purple-500" />
@@ -509,7 +561,12 @@ export default function SuperAdminBillingPage() {
 					</div>
 
 					<DialogFooter>
-						<Button type="button" variant="outline" className="w-full" onClick={() => setExportOpen(false)}>
+						<Button
+							type="button"
+							variant="outline"
+							className="w-full"
+							onClick={() => setExportOpen(false)}
+						>
 							Cancel Export
 						</Button>
 					</DialogFooter>

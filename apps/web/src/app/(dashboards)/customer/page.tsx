@@ -42,31 +42,71 @@ export default function CustomerDashboard() {
 	// Translations Dictionary
 	const t = {
 		title: locale === "hi" ? "ग्राहक सेवा पोर्टल" : "Customer Portal",
-		subtitle: locale === "hi" ? "ऑर्डर ट्रैक करें, वॉलेट बैलेंस प्रबंधित करें और लॉयल्टी पॉइंट्स देखें।" : "Track your orders, manage wallet balances, and view your loyalty points.",
-		
+		subtitle:
+			locale === "hi"
+				? "ऑर्डर ट्रैक करें, वॉलेट बैलेंस प्रबंधित करें और लॉयल्टी पॉइंट्स देखें।"
+				: "Track your orders, manage wallet balances, and view your loyalty points.",
+
 		walletTitle: locale === "hi" ? "वॉलेट बैलेंस (Store Credit)" : "Wallet Balance",
-		walletDesc: locale === "hi" ? "खरीदारी के लिए सक्रिय स्टोर क्रेडिट" : "Active store credit",
-		
-		loyaltyTitle: locale === "hi" ? "लॉयल्टी पॉइंट्स और टियर" : "Loyalty Points & Tier",
+		walletDesc:
+			locale === "hi"
+				? "खरीदारी के लिए सक्रिय स्टोर क्रेडिट"
+				: "Active store credit",
+
+		loyaltyTitle:
+			locale === "hi" ? "लॉयल्टी पॉइंट्स और टियर" : "Loyalty Points & Tier",
 		loyaltyDesc: locale === "hi" ? "सक्रिय इनाम स्तर" : "Active reward level",
-		
-		pendingTitle: locale === "hi" ? "समीक्षा के अधीन आदेश" : "Pending Review Orders",
-		pendingDesc: locale === "hi" ? "मंजूरी और मूल्य निर्धारण की प्रतीक्षा में" : "Awaiting approval and pricing",
-		
+
+		pendingTitle:
+			locale === "hi" ? "समीक्षा के अधीन आदेश" : "Pending Review Orders",
+		pendingDesc:
+			locale === "hi"
+				? "मंजूरी और मूल्य निर्धारण की प्रतीक्षा में"
+				: "Awaiting approval and pricing",
+
 		totalTitle: locale === "hi" ? "कुल रखे गए आदेश" : "Total Orders Placed",
 		totalDesc: locale === "hi" ? "संपूर्ण ऑर्डर इतिहास" : "All placed orders",
-		
-		quickActions: locale === "hi" ? "त्वरित लिंक और शॉर्टकट्स" : "Quick Links & Actions",
-		quickDesc: locale === "hi" ? "पोर्टल का उपयोग करके अपने ऑर्डर और विवरण प्रबंधित करें।" : "Manage your orders and profile details using the portal.",
-		
+
+		quickActions:
+			locale === "hi" ? "त्वरित लिंक और शॉर्टकट्स" : "Quick Links & Actions",
+		quickDesc:
+			locale === "hi"
+				? "पोर्टल का उपयोग करके अपने ऑर्डर और विवरण प्रबंधित करें।"
+				: "Manage your orders and profile details using the portal.",
+
 		placeOrder: locale === "hi" ? "नया ऑर्डर सबमिट करें" : "Submit New Order",
-		placeOrderDesc: locale === "hi" ? "खरीदारी सूची भरें और ऑर्डर भेजें" : "Submit a new cart list for review",
-		
+		placeOrderDesc:
+			locale === "hi"
+				? "खरीदारी सूची भरें और ऑर्डर भेजें"
+				: "Submit a new cart list for review",
+
 		viewOrders: locale === "hi" ? "ऑर्डर इतिहास देखें" : "View Order History",
-		viewOrdersDesc: locale === "hi" ? "अपनी सभी पिछली रसीदें और स्थिति ट्रैक करें" : "Track statuses and invoices",
-		
+		viewOrdersDesc:
+			locale === "hi"
+				? "अपनी सभी पिछली रसीदें और स्थिति ट्रैक करें"
+				: "Track statuses and invoices",
+
 		myProfile: locale === "hi" ? "मेरा प्रोफ़ाइल विवरण" : "My Profile & Details",
-		myProfileDesc: locale === "hi" ? "अपनी संपर्क जानकारी और पता अपडेट करें" : "View your billing and registry details",
+		myProfileDesc:
+			locale === "hi"
+				? "अपनी संपर्क जानकारी और पता अपडेट करें"
+				: "View your billing and registry details",
+
+		activeOrdersTitle: locale === "hi" ? "सक्रिय ऑर्डर" : "Active Orders",
+		activeOrdersDesc: locale === "hi" ? "प्रगति में ऑर्डर" : "Orders in progress",
+
+		pendingConfTitle: locale === "hi" ? "पुष्टि लंबित" : "Pending Confirmation",
+		pendingConfDesc:
+			locale === "hi" ? "बिक्री समीक्षा की प्रतीक्षा" : "Awaiting sales review",
+
+		confirmedOrdersTitle:
+			locale === "hi" ? "पुष्टि किए गए ऑर्डर" : "Confirmed Orders",
+		confirmedOrdersDesc:
+			locale === "hi" ? "बिक्री द्वारा पुष्टि" : "Confirmed by sales",
+
+		completedOrdersTitle: locale === "hi" ? "पूर्ण ऑर्डर" : "Completed Orders",
+		completedOrdersDesc:
+			locale === "hi" ? "पूरे किए गए ऑर्डर" : "Fulfilled orders",
 	};
 
 	if (isLoading) {
@@ -118,12 +158,14 @@ export default function CustomerDashboard() {
 									<ShoppingBagIcon className="h-6 w-6 text-blue-500" />
 								</div>
 								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									Active Orders
+									{t.activeOrdersTitle}
 								</h3>
 								<p className="font-bold text-2xl text-blue-600">
 									{(stats?.pendingOrders || 0) + (stats?.confirmedOrders || 0)}
 								</p>
-								<span className="text-muted-foreground text-[10px]">Orders in progress</span>
+								<span className="text-[10px] text-muted-foreground">
+									{t.activeOrdersDesc}
+								</span>
 							</div>
 						</CardContent>
 					</Card>
@@ -136,12 +178,14 @@ export default function CustomerDashboard() {
 									<ClockIcon className="h-6 w-6 text-amber-500" />
 								</div>
 								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									Pending Confirmation
+									{t.pendingConfTitle}
 								</h3>
 								<p className="font-bold text-2xl text-amber-600">
 									{stats?.pendingOrders || 0}
 								</p>
-								<span className="text-muted-foreground text-[10px]">Awaiting sales review</span>
+								<span className="text-[10px] text-muted-foreground">
+									{t.pendingConfDesc}
+								</span>
 							</div>
 						</CardContent>
 					</Card>
@@ -154,12 +198,14 @@ export default function CustomerDashboard() {
 									<CheckCircle2Icon className="h-6 w-6 text-emerald-500" />
 								</div>
 								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									Confirmed Orders
+									{t.confirmedOrdersTitle}
 								</h3>
 								<p className="font-bold text-2xl text-emerald-600">
 									{stats?.confirmedOrders || 0}
 								</p>
-								<span className="text-muted-foreground text-[10px]">Confirmed by sales</span>
+								<span className="text-[10px] text-muted-foreground">
+									{t.confirmedOrdersDesc}
+								</span>
 							</div>
 						</CardContent>
 					</Card>
@@ -172,12 +218,14 @@ export default function CustomerDashboard() {
 									<ActivityIcon className="h-6 w-6 text-purple-500" />
 								</div>
 								<h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									Completed Orders
+									{t.completedOrdersTitle}
 								</h3>
 								<p className="font-bold text-2xl text-purple-600">
 									{stats?.completedOrders || 0}
 								</p>
-								<span className="text-muted-foreground text-[10px]">Fulfilled orders</span>
+								<span className="text-[10px] text-muted-foreground">
+									{t.completedOrdersDesc}
+								</span>
 							</div>
 						</CardContent>
 					</Card>
@@ -199,14 +247,16 @@ export default function CustomerDashboard() {
 						<div className="grid gap-4 md:grid-cols-3">
 							{/* New Order */}
 							<Link href="/customer/products">
-								<Card className="h-full hover:border-green-500/40 cursor-pointer transition-colors hover:shadow">
-									<CardContent className="p-5 flex flex-col items-start gap-3">
-										<div className="p-2.5 bg-green-500/10 rounded-full">
+								<Card className="h-full cursor-pointer transition-colors hover:border-green-500/40 hover:shadow">
+									<CardContent className="flex flex-col items-start gap-3 p-5">
+										<div className="rounded-full bg-green-500/10 p-2.5">
 											<PackageIcon className="h-5 w-5 text-green-500" />
 										</div>
 										<div>
 											<h4 className="font-bold text-sm">{t.placeOrder}</h4>
-											<p className="text-muted-foreground text-xs mt-1">{t.placeOrderDesc}</p>
+											<p className="mt-1 text-muted-foreground text-xs">
+												{t.placeOrderDesc}
+											</p>
 										</div>
 									</CardContent>
 								</Card>
@@ -214,14 +264,16 @@ export default function CustomerDashboard() {
 
 							{/* History */}
 							<Link href="/customer/orders">
-								<Card className="h-full hover:border-blue-500/40 cursor-pointer transition-colors hover:shadow">
-									<CardContent className="p-5 flex flex-col items-start gap-3">
-										<div className="p-2.5 bg-blue-500/10 rounded-full">
+								<Card className="h-full cursor-pointer transition-colors hover:border-blue-500/40 hover:shadow">
+									<CardContent className="flex flex-col items-start gap-3 p-5">
+										<div className="rounded-full bg-blue-500/10 p-2.5">
 											<LayoutDashboardIcon className="h-5 w-5 text-blue-500" />
 										</div>
 										<div>
 											<h4 className="font-bold text-sm">{t.viewOrders}</h4>
-											<p className="text-muted-foreground text-xs mt-1">{t.viewOrdersDesc}</p>
+											<p className="mt-1 text-muted-foreground text-xs">
+												{t.viewOrdersDesc}
+											</p>
 										</div>
 									</CardContent>
 								</Card>
@@ -229,14 +281,16 @@ export default function CustomerDashboard() {
 
 							{/* Profile */}
 							<Link href="/customer/profile">
-								<Card className="h-full hover:border-purple-500/40 cursor-pointer transition-colors hover:shadow">
-									<CardContent className="p-5 flex flex-col items-start gap-3">
-										<div className="p-2.5 bg-purple-500/10 rounded-full">
+								<Card className="h-full cursor-pointer transition-colors hover:border-purple-500/40 hover:shadow">
+									<CardContent className="flex flex-col items-start gap-3 p-5">
+										<div className="rounded-full bg-purple-500/10 p-2.5">
 											<UserIcon className="h-5 w-5 text-purple-500" />
 										</div>
 										<div>
 											<h4 className="font-bold text-sm">{t.myProfile}</h4>
-											<p className="text-muted-foreground text-xs mt-1">{t.myProfileDesc}</p>
+											<p className="mt-1 text-muted-foreground text-xs">
+												{t.myProfileDesc}
+											</p>
 										</div>
 									</CardContent>
 								</Card>

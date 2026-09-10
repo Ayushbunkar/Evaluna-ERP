@@ -1,0 +1,20 @@
+
+=========================================
+TIMESTAMP: 2026-09-09T21:25:38.068Z
+ERROR MESSAGE: Failed query: insert into "trip_stops" ("id", "trip_id", "customer_id", "sequence", "status", "comments", "arrival_time", "departure_time", "created_at", "resolved_at") values (default, $1, $2, $3, $4, default, default, default, default, default), (default, $5, $6, $7, $8, default, default, default, default, default), (default, $9, $10, $11, $12, default, default, default, default, default), (default, $13, $14, $15, $16, default, default, default, default, default)
+params: 2,59,1,pending,2,72,2,pending,2,68,3,pending,2,69,4,pending
+ERROR CODE: undefined
+ERROR DETAIL: undefined
+ERROR CONSTRAINT: undefined
+ERROR TABLE: undefined
+=========================================
+
+=========================================
+TIMESTAMP: 2026-09-09T21:39:42.810Z
+ERROR MESSAGE: Failed query: insert into "delivery_routes" ("id", "name", "description", "branch_id", "estimated_distance", "estimated_time", "priority", "is_active", "created_at", "updated_at") values (default, $1, default, $2, default, default, default, default, default, default) returning "id", "name", "description", "branch_id", "estimated_distance", "estimated_time", "priority", "is_active", "created_at", "updated_at"
+params: Trip 10/9/2026,1
+ERROR CODE: undefined
+ERROR DETAIL: undefined
+ERROR CONSTRAINT: undefined
+ERROR TABLE: undefined
+=========================================

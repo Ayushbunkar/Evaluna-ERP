@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { drizzle } from "drizzle-orm/pglite";
 import { PGlite } from "@electric-sql/pglite";
-import { eq, and } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "@/lib/db/schema";
 import { buildDDL } from "./helpers";
 
@@ -159,7 +159,7 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 					roleName: "picker",
 					branchId: 1,
 					forcePasswordChange: true,
-				})
+				}),
 			).rejects.toThrow(/Duplicate employee ID/);
 
 			// Duplicate email
@@ -171,7 +171,7 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 					roleName: "picker",
 					branchId: 1,
 					forcePasswordChange: true,
-				})
+				}),
 			).rejects.toThrow(/Duplicate email/);
 		});
 	});
@@ -188,7 +188,9 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 				branchId: 1,
 				forcePasswordChange: false,
 			});
-			const putterProfile = await UserManagement.getSecurityProfileByUserId(res.userId);
+			const putterProfile = await UserManagement.getSecurityProfileByUserId(
+				res.userId,
+			);
 			expect(putterProfile).toBeDefined();
 			expect(putterProfile.canonicalDashboard).toBe("/putter");
 		});
@@ -209,7 +211,7 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 					roleName: "super_admin",
 					branchId: 1,
 					forcePasswordChange: true,
-				})
+				}),
 			).rejects.toThrow(); // Manager has no write permissions in roleProcedure list
 		});
 
@@ -222,7 +224,7 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 					roleName: "super_admin",
 					branchId: 1,
 					forcePasswordChange: true,
-				})
+				}),
 			).rejects.toThrow(/Only a Super Admin can create/);
 		});
 	});
@@ -245,8 +247,20 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 
 			// Insert some active sessions for this user
 			await db.insert(schema.session).values([
-				{ id: "sess_1", userId: userId, expiresAt: new Date(Date.now() + 10000000), token: "tok1", updatedAt: new Date() },
-				{ id: "sess_2", userId: userId, expiresAt: new Date(Date.now() + 10000000), token: "tok2", updatedAt: new Date() },
+				{
+					id: "sess_1",
+					userId: userId,
+					expiresAt: new Date(Date.now() + 10000000),
+					token: "tok1",
+					updatedAt: new Date(),
+				},
+				{
+					id: "sess_2",
+					userId: userId,
+					expiresAt: new Date(Date.now() + 10000000),
+					token: "tok2",
+					updatedAt: new Date(),
+				},
 			]);
 		});
 
@@ -255,7 +269,9 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 			expect(details.profile).toBeDefined();
 			expect(details.profile.name).toBe("Lockable User");
 			expect(details.sessions.length).toBe(2);
-			expect(details.auditLogs.some((l) => l.action === "USER_CREATED")).toBe(true);
+			expect(details.auditLogs.some((l) => l.action === "USER_CREATED")).toBe(
+				true,
+			);
 		});
 
 		it("Super Admin deactivates account -> status is INACTIVE, active sessions are deleted, status audited", async () => {
@@ -285,10 +301,12 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 			const audits = await db
 				.select()
 				.from(schema.securityAuditLog)
-				.where(and(
-					eq(schema.securityAuditLog.target_user_id, userId),
-					eq(schema.securityAuditLog.action, "USER_STATUS_CHANGE_INACTIVE")
-				));
+				.where(
+					and(
+						eq(schema.securityAuditLog.target_user_id, userId),
+						eq(schema.securityAuditLog.action, "USER_STATUS_CHANGE_INACTIVE"),
+					),
+				);
 			expect(audits.length).toBe(1);
 			expect(audits[0].reason).toBe("Terminated contract.");
 		});
@@ -338,10 +356,12 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 			const audits = await db
 				.select()
 				.from(schema.securityAuditLog)
-				.where(and(
-					eq(schema.securityAuditLog.target_user_id, userId),
-					eq(schema.securityAuditLog.action, "PASSWORD_RESET")
-				));
+				.where(
+					and(
+						eq(schema.securityAuditLog.target_user_id, userId),
+						eq(schema.securityAuditLog.action, "PASSWORD_RESET"),
+					),
+				);
 			expect(audits.length).toBe(1);
 		});
 	});
@@ -413,10 +433,12 @@ describe("User, Role, Credential, and Access Management (URCAM) System", () => {
 			const audits = await db
 				.select()
 				.from(schema.securityAuditLog)
-				.where(and(
-					eq(schema.securityAuditLog.target_user_id, userId),
-					eq(schema.securityAuditLog.action, "ROLE_CHANGED")
-				));
+				.where(
+					and(
+						eq(schema.securityAuditLog.target_user_id, userId),
+						eq(schema.securityAuditLog.action, "ROLE_CHANGED"),
+					),
+				);
 			expect(audits.length).toBe(1);
 			expect(JSON.stringify(audits[0].new_value)).toContain("manager");
 		});

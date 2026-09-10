@@ -13,6 +13,7 @@ import {
 	MenuIcon,
 	ReceiptIcon,
 	RefreshCwIcon,
+	ShieldCheckIcon,
 	UserIcon,
 	UsersIcon,
 	WalletCardsIcon,
@@ -130,6 +131,16 @@ export default function FinanceLayout({
 					label: "Financial Reports",
 					href: "/finance/reports",
 					icon: ChartNoAxesCombinedIcon,
+				},
+			],
+		},
+		{
+			title: "Reconciliation",
+			items: [
+				{
+					label: "Payment Reconciliation",
+					href: "/finance/reconciliation",
+					icon: ShieldCheckIcon,
 				},
 			],
 		},

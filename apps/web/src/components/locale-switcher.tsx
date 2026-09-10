@@ -25,7 +25,7 @@ export function LocaleSwitcher() {
 				<Button
 					variant="outline"
 					size="sm"
-					className="h-8 gap-2 rounded-full border-border/50 font-medium text-xs shadow-sm hover:bg-accent/50 bg-background"
+					className="h-8 gap-2 rounded-full border-border/50 bg-background font-medium text-xs shadow-sm hover:bg-accent/50"
 				>
 					<GlobeIcon className="h-4 w-4 text-muted-foreground" />
 					<span>{locale === "en" ? "English" : "हिंदी"}</span>
@@ -34,13 +34,13 @@ export function LocaleSwitcher() {
 			<DropdownMenuContent align="end" className="rounded-xl shadow-xl">
 				<DropdownMenuItem
 					onClick={() => switchLocale("en")}
-					className="text-xs focus:bg-primary/10 cursor-pointer"
+					className="cursor-pointer text-xs focus:bg-primary/10"
 				>
 					English
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					onClick={() => switchLocale("hi")}
-					className="text-xs focus:bg-primary/10 cursor-pointer"
+					className="cursor-pointer text-xs focus:bg-primary/10"
 				>
 					हिंदी (Hindi)
 				</DropdownMenuItem>

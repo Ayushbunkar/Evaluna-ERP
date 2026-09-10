@@ -34,7 +34,8 @@ import {
 	Trash2Icon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useLocale } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -50,6 +51,7 @@ type CartItem = {
 export default function CustomerProductsPage() {
 	const trpc = useTRPC();
 	const router = useRouter();
+	const locale = useLocale();
 
 	const [search, setSearch] = useState("");
 	const [category, setCategory] = useState<string>("all");
@@ -57,7 +59,11 @@ export default function CustomerProductsPage() {
 	const [quantities, setQuantities] = useState<Record<number, number>>({});
 	const [reviewOpen, setReviewOpen] = useState(false);
 
-	const { data: products, isLoading, error } = trpc.customer.browseProducts.useQuery({
+	const {
+		data: products,
+		isLoading,
+		error,
+	} = trpc.customer.browseProducts.useQuery({
 		search: search.trim() || undefined,
 		category: category !== "all" ? category : undefined,
 	});
@@ -105,53 +111,178 @@ export default function CustomerProductsPage() {
 				},
 			};
 		});
-		toast.success(`Added ${qtyToAdd} × ${product.name} to order list`);
+		toast.success(
+			locale === "hi" ? "आइटम ऑर्डर में जोड़ा गया!" : "Added items to order!",
+		);
 	};
 
-	const handleRemoveFromCart = (productId: number) => {
+	const updateCartQty = (pid: number, val: number) => {
+		const finalVal = Math.max(1, val);
 		setCart((prev) => {
-			const next = { ...prev };
-			delete next[productId];
-			return next;
+			if (!prev[pid]) return prev;
+			return {
+				...prev,
+				[pid]: {
+					...prev[pid],
+					quantity: finalVal,
+				},
+			};
 		});
 	};
 
-	const updateCartQty = (productId: number, qty: number) => {
-		if (qty <= 0) {
-			handleRemoveFromCart(productId);
-			return;
-		}
-		setCart((prev) => ({
-			...prev,
-			[productId]: {
-				...prev[productId],
-				quantity: qty,
-			},
-		}));
+	const handleRemoveFromCart = (pid: number) => {
+		setCart((prev) => {
+			const clone = { ...prev };
+			delete clone[pid];
+			return clone;
+		});
 	};
 
-	const submitOrderMutation = trpc.customer.submitOrder.useMutation({
-		onSuccess: (res) => {
-			toast.success(`Order ${res.orderRef} placed successfully!`);
-			setCart({});
-			setReviewOpen(false);
-			router.push("/customer/orders");
-		},
+	const { data: profile } = trpc.customer.getMyProfile.useQuery();
+	const [phone, setPhone] = useState("");
+	const [address, setAddress] = useState("");
+
+	useEffect(() => {
+		if (profile) {
+			setPhone(profile.phone || "");
+			setAddress(profile.address || "");
+		}
+	}, [profile]);
+
+	const updateProfileMutation = trpc.customer.updateMyProfile.useMutation({
 		onError: (err) => {
-			toast.error(`Failed to submit order: ${err.message}`);
+			toast.error(
+				err.message ||
+					(locale === "hi"
+						? "प्रोफ़ाइल अपडेट करने में विफल।"
+						: "Failed to save profile."),
+			);
 		},
 	});
 
-	const handleSubmitOrder = () => {
+	const submitOrderMutation = trpc.customer.submitOrder.useMutation({
+		onSuccess: () => {
+			setCart({});
+			setReviewOpen(false);
+			toast.success(
+				locale === "hi"
+					? "ऑर्डर सफलतापूर्वक सबमिट किया गया!"
+					: "Order submitted successfully for sales review!",
+			);
+			router.push("/customer/orders");
+		},
+		onError: (err) => {
+			toast.error(
+				err.message ||
+					(locale === "hi"
+						? "ऑर्डर सबमिट करने में विफल।"
+						: "Failed to submit order."),
+			);
+		},
+	});
+
+	const handleSubmitOrder = async () => {
 		if (cartItemsList.length === 0) return;
-		const idempotencyKey = crypto.randomUUID();
-		submitOrderMutation.mutate({
-			idempotencyKey,
-			items: cartItemsList.map((item) => ({
-				productId: item.productId,
-				quantity: item.quantity,
-			})),
-		});
+
+		const cleanPhone = phone.trim();
+		const cleanAddress = address.trim();
+
+		if (cleanPhone.length < 10) {
+			toast.error(
+				locale === "hi"
+					? "कृपया एक वैध फ़ोन नंबर दर्ज करें (न्यूनतम 10 अंक)"
+					: "Please enter a valid phone number (min 10 digits).",
+			);
+			return;
+		}
+		if (cleanAddress.length < 5) {
+			toast.error(
+				locale === "hi"
+					? "कृपया एक वैध वितरण पता दर्ज करें (न्यूनतम 5 वर्ण)"
+					: "Please enter a valid delivery address (min 5 characters).",
+			);
+			return;
+		}
+
+		try {
+			// Save phone & address permanently to profile first
+			await updateProfileMutation.mutateAsync({
+				name: profile?.name || "Customer",
+				phone: cleanPhone,
+				address: cleanAddress,
+			});
+
+			// Now submit the order
+			const idempotencyKey = crypto.randomUUID();
+			submitOrderMutation.mutate({
+				idempotencyKey,
+				items: cartItemsList.map((item) => ({
+					productId: item.productId,
+					quantity: item.quantity,
+				})),
+			});
+		} catch (_err) {
+			// handled by mutation onError
+		}
+	};
+
+	const t = {
+		title: locale === "hi" ? "उत्पाद और ऑर्डर देना" : "Products & Place Order",
+		subtitle:
+			locale === "hi"
+				? "उपलब्ध कैटलॉग ब्राउज़ करें, मात्राएँ चुनें और बिक्री समीक्षा के लिए अपना ऑर्डर सबमिट करें।"
+				: "Browse available catalog, select quantities, and submit your order for sales review.",
+		reviewOrderBtn:
+			locale === "hi"
+				? `ऑर्डर समीक्षा (${totalCartCount} आइटम)`
+				: `Review Order (${totalCartCount} items)`,
+		searchPlaceholder:
+			locale === "hi"
+				? "उत्पाद नाम, SKU द्वारा खोजें..."
+				: "Search by product name, SKU...",
+		allCategories: locale === "hi" ? "सभी श्रेणियां" : "All Categories",
+		loadingProducts:
+			locale === "hi"
+				? "उपलब्ध उत्पाद लोड हो रहे हैं..."
+				: "Loading available products...",
+		noProductsFound:
+			locale === "hi"
+				? "आपके फ़िल्टर से मेल खाने वाले कोई उत्पाद नहीं मिले।"
+				: "No products found matching your filter.",
+		quantity: locale === "hi" ? "मात्रा" : "Quantity",
+		addToOrder: locale === "hi" ? "ऑर्डर में जोड़ें" : "Add to Order",
+		addMore:
+			locale === "hi"
+				? (qty: number) => `और जोड़ें (ऑर्डर में ${qty})`
+				: (qty: number) => `Add More (${qty} in order)`,
+		available: locale === "hi" ? "उपलब्ध" : "Available",
+		unavailable: locale === "hi" ? "अनुपलब्ध" : "Unavailable",
+		floatingCartTitle:
+			locale === "hi"
+				? (prodCount: number, itemCount: number) =>
+						`ऑर्डर सूची (${prodCount} उत्पाद · ${itemCount} आइटम)`
+				: (prodCount: number, itemCount: number) =>
+						`Order List (${prodCount} products · ${itemCount} items)`,
+		floatingCartDesc:
+			locale === "hi"
+				? "बिक्री समीक्षा के लिए सबमिट करने के लिए तैयार।"
+				: "Ready to submit for sales review.",
+		clear: locale === "hi" ? "साफ करें" : "Clear",
+		reviewOrderTitle:
+			locale === "hi" ? "अपने ऑर्डर की समीक्षा करें" : "Review Your Order",
+		reviewOrderDesc:
+			locale === "hi"
+				? "सबमिट करने से पहले कृपया चुने गए उत्पादों और मात्राओं की जांच कर लें।"
+				: "Please check the selected products and quantities before submitting.",
+		policyTitle: locale === "hi" ? "ऑर्डर समीक्षा नीति" : "Order Review Policy",
+		policyDesc:
+			locale === "hi"
+				? "आपका ऑर्डर हमारी बिक्री टीम द्वारा समीक्षा और पुष्टि किया जाएगा। विवरण को अंतिम रूप देने के लिए आपसे संपर्क किया जाएगा।"
+				: "Your order will be reviewed and confirmed by our sales team. You will be contacted to finalize details.",
+		back: locale === "hi" ? "पीछे" : "Back",
+		submitBtn: locale === "hi" ? "ऑर्डर सबमिट करें" : "Submit Order",
+		submitting: locale === "hi" ? "सबमिट किया जा रहा है..." : "Submitting...",
+		reviewOrderBtnShort: locale === "hi" ? "ऑर्डर समीक्षा" : "Review Order",
 	};
 
 	return (
@@ -160,10 +291,10 @@ export default function CustomerProductsPage() {
 			<div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
 				<div>
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Products & Place Order
+						{t.title}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						Browse available catalog, select quantities, and submit your order for sales review.
+						{t.subtitle}
 					</p>
 				</div>
 				{cartItemsList.length > 0 && (
@@ -171,29 +302,29 @@ export default function CustomerProductsPage() {
 						onClick={() => setReviewOpen(true)}
 						className="bg-emerald-600 text-white hover:bg-emerald-700"
 					>
-						<ShoppingBagIcon className="mr-2 h-4 w-4" /> Review Order ({totalCartCount} items)
+						<ShoppingBagIcon className="mr-2 h-4 w-4" /> {t.reviewOrderBtn}
 					</Button>
 				)}
 			</div>
 
 			{/* Search & Filter Bar */}
 			<Card className="border-border/50 bg-card/50 shadow-sm">
-				<CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+				<CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
 					<div className="relative flex-1">
-						<SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+						<SearchIcon className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
 						<Input
-							placeholder="Search by product name, SKU..."
+							placeholder={t.searchPlaceholder}
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 							className="pl-9 text-xs sm:text-sm"
 						/>
 					</div>
 					<Select value={category} onValueChange={setCategory}>
-						<SelectTrigger className="w-full sm:w-[200px] text-xs sm:text-sm">
-							<SelectValue placeholder="All Categories" />
+						<SelectTrigger className="w-full text-xs sm:w-[200px] sm:text-sm">
+							<SelectValue placeholder={t.allCategories} />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="all">All Categories</SelectItem>
+							<SelectItem value="all">{t.allCategories}</SelectItem>
 							{categories.map((cat) => (
 								<SelectItem key={cat} value={cat}>
 									{cat}
@@ -207,7 +338,7 @@ export default function CustomerProductsPage() {
 			{/* Product Grid */}
 			{isLoading ? (
 				<div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">
-					Loading available products...
+					{t.loadingProducts}
 				</div>
 			) : error ? (
 				<div className="flex h-[300px] items-center justify-center text-destructive text-sm">
@@ -217,7 +348,7 @@ export default function CustomerProductsPage() {
 				<Card>
 					<CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
 						<PackageIcon className="h-10 w-10 opacity-40" />
-						<p className="text-sm">No products found matching your filter.</p>
+						<p className="text-sm">{t.noProductsFound}</p>
 					</CardContent>
 				</Card>
 			) : (
@@ -238,16 +369,16 @@ export default function CustomerProductsPage() {
 											<PackageIcon className="h-5 w-5 text-blue-500" />
 										</div>
 										<span
-											className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+											className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
 												isAvailable
 													? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
 													: "bg-red-500/10 text-red-600 dark:text-red-400"
 											}`}
 										>
-											{isAvailable ? "Available" : "Unavailable"}
+											{isAvailable ? t.available : t.unavailable}
 										</span>
 									</div>
-									<CardTitle className="line-clamp-1 mt-2 text-base">
+									<CardTitle className="mt-2 line-clamp-1 text-base">
 										{product.name}
 									</CardTitle>
 									<CardDescription className="line-clamp-2 text-xs">
@@ -255,17 +386,19 @@ export default function CustomerProductsPage() {
 									</CardDescription>
 								</CardHeader>
 
-								<CardContent className="p-4 pt-0 space-y-2">
+								<CardContent className="space-y-2 p-4 pt-0">
 									{product.sku && (
-										<p className="text-[11px] font-mono text-muted-foreground">
+										<p className="font-mono text-[11px] text-muted-foreground">
 											SKU: {product.sku}
 										</p>
 									)}
 
 									{/* Quantity Control */}
 									<div className="flex items-center justify-between gap-2 pt-2">
-										<span className="text-xs text-muted-foreground">Quantity</span>
-										<div className="flex items-center rounded-md border border-border">
+										<span className="text-muted-foreground text-xs">
+											{t.quantity}
+										</span>
+										<div className="center flex items-center rounded-md border border-border">
 											<Button
 												variant="ghost"
 												size="icon"
@@ -275,7 +408,7 @@ export default function CustomerProductsPage() {
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<span className="w-8 text-center text-xs font-semibold">
+											<span className="w-8 text-center font-semibold text-xs">
 												{currentQty}
 											</span>
 											<Button
@@ -298,7 +431,7 @@ export default function CustomerProductsPage() {
 										onClick={() => handleAddToCart(product)}
 										disabled={!isAvailable}
 									>
-										{inCart ? `Add More (${inCart.quantity} in order)` : "Add to Order"}
+										{inCart ? t.addMore(inCart.quantity) : t.addToOrder}
 									</Button>
 								</CardFooter>
 							</Card>
@@ -309,14 +442,14 @@ export default function CustomerProductsPage() {
 
 			{/* Floating Order Cart Bar */}
 			{cartItemsList.length > 0 && (
-				<div className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-4xl rounded-xl border border-emerald-500/30 bg-card p-4 shadow-xl backdrop-blur sm:left-auto">
+				<div className="fixed right-4 bottom-4 left-4 z-40 mx-auto max-w-4xl rounded-xl border border-emerald-500/30 bg-card p-4 shadow-xl backdrop-blur sm:left-auto">
 					<div className="flex items-center justify-between gap-4">
 						<div>
-							<p className="font-bold text-sm text-foreground">
-								Order List ({cartItemsList.length} products · {totalCartCount} items)
+							<p className="font-bold text-foreground text-sm">
+								{t.floatingCartTitle(cartItemsList.length, totalCartCount)}
 							</p>
-							<p className="text-xs text-muted-foreground">
-								Ready to submit for sales confirmation.
+							<p className="text-muted-foreground text-xs">
+								{t.floatingCartDesc}
 							</p>
 						</div>
 						<div className="flex items-center gap-2">
@@ -326,14 +459,15 @@ export default function CustomerProductsPage() {
 								className="text-xs"
 								onClick={() => setCart({})}
 							>
-								Clear
+								{t.clear}
 							</Button>
 							<Button
 								size="sm"
-								className="bg-emerald-600 text-white hover:bg-emerald-700 text-xs"
+								className="bg-emerald-600 text-white text-xs hover:bg-emerald-700"
 								onClick={() => setReviewOpen(true)}
 							>
-								<CheckCircle2Icon className="mr-1.5 h-4 w-4" /> Review Order
+								<CheckCircle2Icon className="mr-1.5 h-4 w-4" />{" "}
+								{t.reviewOrderBtnShort}
 							</Button>
 						</div>
 					</div>
@@ -344,23 +478,21 @@ export default function CustomerProductsPage() {
 			<Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
 				<DialogContent className="max-w-lg">
 					<DialogHeader>
-						<DialogTitle>Review Your Order</DialogTitle>
+						<DialogTitle>{t.reviewOrderTitle}</DialogTitle>
 					</DialogHeader>
 					<div className="space-y-4 text-sm">
-						<p className="text-xs text-muted-foreground">
-							Please check the selected products and quantities before submitting.
-						</p>
+						<p className="text-muted-foreground text-xs">{t.reviewOrderDesc}</p>
 
 						<div className="max-h-[300px] space-y-2 overflow-y-auto pr-1">
 							{cartItemsList.map((item) => (
 								<div
 									key={item.productId}
-									className="flex items-center justify-between gap-3 rounded-lg border border-border/50 p-3 bg-muted/20"
+									className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-muted/20 p-3"
 								>
 									<div>
 										<p className="font-semibold text-sm">{item.name}</p>
 										{item.sku && (
-											<p className="text-[11px] font-mono text-muted-foreground">
+											<p className="font-mono text-[11px] text-muted-foreground">
 												SKU: {item.sku}
 											</p>
 										)}
@@ -377,7 +509,7 @@ export default function CustomerProductsPage() {
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<span className="w-8 text-center text-xs font-semibold">
+											<span className="w-8 text-center font-semibold text-xs">
 												{item.quantity}
 											</span>
 											<Button
@@ -404,10 +536,63 @@ export default function CustomerProductsPage() {
 							))}
 						</div>
 
-						<div className="rounded-lg bg-blue-500/10 p-3 text-xs text-blue-600 dark:text-blue-400">
-							<p className="font-medium">Order Review Policy</p>
-							<p className="mt-0.5 text-[11px]">
-								Your order will be reviewed and confirmed by our sales team. You will be contacted to finalize details.
+						{/* Delivery Information Section */}
+						<div className="space-y-3 rounded-lg border border-border/60 bg-muted/10 p-4">
+							<p className="font-bold text-foreground text-xs uppercase tracking-wide">
+								🚚{" "}
+								{locale === "hi"
+									? "वितरण और संपर्क जानकारी"
+									: "Delivery & Contact Information"}
+							</p>
+							<div className="grid gap-3">
+								<div className="space-y-1">
+									<label className="flex items-center gap-1 font-semibold text-[11px] text-muted-foreground">
+										<span>
+											{locale === "hi"
+												? "फ़ोन नंबर (अनिवार्य)"
+												: "Phone Number (Required)"}{" "}
+											*
+										</span>
+									</label>
+									<Input
+										type="tel"
+										placeholder={
+											locale === "hi"
+												? "अपना 10-अंकों का फ़ोन नंबर दर्ज करें"
+												: "Enter your 10-digit phone number"
+										}
+										value={phone}
+										onChange={(e) => setPhone(e.target.value)}
+										className="h-9 text-xs"
+									/>
+								</div>
+								<div className="space-y-1">
+									<label className="flex items-center gap-1 font-semibold text-[11px] text-muted-foreground">
+										<span>
+											{locale === "hi"
+												? "वितरण का पता (अनिवार्य)"
+												: "Delivery Address (Required)"}{" "}
+											*
+										</span>
+									</label>
+									<textarea
+										placeholder={
+											locale === "hi"
+												? "अपना पूरा पता दर्ज करें जहाँ ऑर्डर पहुंचाना है"
+												: "Enter your complete delivery address"
+										}
+										value={address}
+										onChange={(e) => setAddress(e.target.value)}
+										className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+									/>
+								</div>
+							</div>
+						</div>
+
+						<div className="rounded-lg bg-blue-500/10 p-3 text-blue-600 text-xs dark:text-blue-400">
+							<p className="font-medium">{t.policyTitle}</p>
+							<p className="mt-0.5 text-[11px] leading-relaxed">
+								{t.policyDesc}
 							</p>
 						</div>
 					</div>
@@ -418,14 +603,16 @@ export default function CustomerProductsPage() {
 							onClick={() => setReviewOpen(false)}
 							disabled={submitOrderMutation.isPending}
 						>
-							Back
+							{t.back}
 						</Button>
 						<Button
 							className="bg-emerald-600 text-white hover:bg-emerald-700"
 							onClick={handleSubmitOrder}
-							disabled={submitOrderMutation.isPending || cartItemsList.length === 0}
+							disabled={
+								submitOrderMutation.isPending || cartItemsList.length === 0
+							}
 						>
-							{submitOrderMutation.isPending ? "Submitting..." : "Submit Order"}
+							{submitOrderMutation.isPending ? t.submitting : t.submitBtn}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

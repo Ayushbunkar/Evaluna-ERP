@@ -9,6 +9,7 @@ import {
 	LayoutDashboardIcon,
 	PackagePlusIcon,
 	RotateCcwIcon,
+	TruckIcon,
 	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -67,6 +68,15 @@ export default function PutterLayout({
 								>
 									<PackagePlusIcon className="mr-3 h-4 w-4 text-gray-400" />
 									Put Away
+								</Link>
+							</li>
+							<li>
+								<Link
+									href="/putter/vehicle-stock"
+									className="flex w-full items-center rounded-lg px-3 py-2 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+								>
+									<TruckIcon className="mr-3 h-4 w-4 text-gray-400" />
+									Vehicle Stock Loading
 								</Link>
 							</li>
 							<li>

@@ -331,12 +331,28 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 
 // ── Runtime Helpers ───────────────────────────────────────────────────────────
 
+function normalizeRole(r: string): Role {
+	if (!r) return "customer" as Role;
+	const lower = r.trim().replace(/_/g, " ").toLowerCase();
+	if (lower === "superadmin" || lower === "super admin")
+		return "super_admin" as Role;
+	if (lower === "salesperson" || lower === "sales person" || lower === "sales")
+		return "sales_person" as Role;
+	if (lower === "delivery boy") return "delivery_boy" as Role;
+	if (lower === "delivery manager") return "delivery_manager" as Role;
+	if (lower === "warehouse supervisor") return "warehouse_supervisor" as Role;
+	if (lower === "warehouse operations" || lower === "warehouse")
+		return "warehouse_supervisor" as Role;
+	return lower as Role;
+}
+
 /**
  * Returns all permissions (domain.action strings) that a role inherits.
  * Uses numeric hierarchy: role with level <= seed.minRole.level gets the permission.
  */
 export function getPermissionsForRole(role: Role): Permission[] {
-	const level = ROLE_LEVEL[role];
+	const level = ROLE_LEVEL[normalizeRole(role)];
+	if (level === undefined) return [];
 	return PERMISSION_MATRIX.filter(
 		(seed) => level <= ROLE_LEVEL[seed.minRole],
 	).map((seed) => `${seed.domain}.${seed.action}` as Permission);
@@ -354,7 +370,9 @@ export function roleHasPermission(
 		(s) => s.domain === domain && s.action === action,
 	);
 	if (!seed) return false;
-	return ROLE_LEVEL[role] <= ROLE_LEVEL[seed.minRole];
+	const level = ROLE_LEVEL[normalizeRole(role)];
+	if (level === undefined) return false;
+	return level <= ROLE_LEVEL[seed.minRole];
 }
 
 /**
@@ -362,7 +380,10 @@ export function roleHasPermission(
  * e.g. isAtLeastRole("manager", "auditor") → true
  */
 export function isAtLeastRole(userRole: Role, requiredRole: Role): boolean {
-	return ROLE_LEVEL[userRole] <= ROLE_LEVEL[requiredRole];
+	const uLevel = ROLE_LEVEL[normalizeRole(userRole)];
+	const rLevel = ROLE_LEVEL[normalizeRole(requiredRole)];
+	if (uLevel === undefined || rLevel === undefined) return false;
+	return uLevel <= rLevel;
 }
 
 /**

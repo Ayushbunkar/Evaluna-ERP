@@ -103,13 +103,15 @@ export const pickerRouter = router({
 		}),
 
 	getCurrentTask: roleProcedure(["admin", "manager", "auditor", "picker"])
-		.input(z.object({}))
-		.query(async ({ ctx }) => {
+		.input(z.object({ pickListId: z.number().optional() }))
+		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 
 			const activeLists = await db.query.pickLists.findMany({
-				where: eq(pickLists.status, "picking"),
-				limit: 1,
+				where: input.pickListId
+					? eq(pickLists.id, input.pickListId)
+					: eq(pickLists.status, "picking"),
+				orderBy: [desc(pickLists.created_at)],
 				with: {
 					pickListItems: {
 						with: {
@@ -120,11 +122,15 @@ export const pickerRouter = router({
 				},
 			});
 
-			if (activeLists.length === 0) {
+			const validActive = activeLists.filter(
+				(l) => l.pickListItems && l.pickListItems.length > 0,
+			);
+
+			if (validActive.length === 0) {
 				return { task: null, items: [] };
 			}
 
-			const task = activeLists[0];
+			const task = validActive[0];
 			const items = task.pickListItems;
 
 			return {
@@ -132,7 +138,11 @@ export const pickerRouter = router({
 					id: `PL-${task.id}`,
 					order_id: `ORD-${task.order_id}`,
 					area: "Warehouse",
-					progress: 0,
+					progress: Math.round(
+						(items.filter((i) => i.status === "picked").length /
+							(items.length || 1)) *
+							100,
+					),
 					total_items: items.length,
 					picked_items: items.filter((i) => i.status === "picked").length,
 				},
@@ -256,12 +266,7 @@ export const pickerRouter = router({
 			const db = ctx.db;
 
 			const lists = await db.query.pickLists.findMany({
-				where: and(
-					eq(pickLists.status, "pending"),
-					ctx.user.branchId
-						? eq(pickLists.branch_id, ctx.user.branchId)
-						: undefined,
-				),
+				where: eq(pickLists.status, "pending"),
 				orderBy: [desc(pickLists.created_at)],
 				limit: 50,
 				with: {
@@ -270,18 +275,21 @@ export const pickerRouter = router({
 				},
 			});
 
-			return lists.map((r, i) => ({
-				queue_no: i + 1,
-				order_id: `ORD-${r.order_id}`,
-				priority: r.priority ?? "Normal",
-				items: r.pickListItems.reduce(
-					(acc, item) => acc + (item.quantity_ordered ?? 0),
-					0,
-				),
-				assigned_to: r.assignedTo?.name || "Unassigned",
-				waiting_since: r.created_at?.toLocaleTimeString() || "",
-				expected_by: "N/A",
-			}));
+			return lists
+				.filter((r) => r.pickListItems && r.pickListItems.length > 0)
+				.map((r, i) => ({
+					id: r.id,
+					queue_no: i + 1,
+					order_id: `ORD-${r.order_id}`,
+					priority: r.priority ?? "Normal",
+					items: r.pickListItems.reduce(
+						(acc, item) => acc + (item.quantity_ordered ?? 0),
+						0,
+					),
+					assigned_to: r.assignedTo?.name || "Unassigned",
+					waiting_since: r.created_at?.toLocaleTimeString() || "",
+					expected_by: "N/A",
+				}));
 		}),
 
 	getReturns: roleProcedure(["admin", "manager", "auditor", "picker"])

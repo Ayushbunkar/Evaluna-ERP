@@ -1,35 +1,50 @@
-import { db } from "../apps/web/src/lib/db/index.js";
-import { appRouter } from "../apps/web/src/lib/trpc/root.js";
+import { db } from "../packages/db/src/index";
+import { deliveryTrips, tripStops } from "../packages/db/src/schema/delivery";
+import { sql } from "drizzle-orm";
 
-async function main() {
-	const caller = appRouter.createCaller({
-		db,
-		user: { id: "1", role: "admin", email: "test@test.com" },
-	});
+async function run() {
+	console.log("SIMULATING TRANSACTIONAL TRIP CREATION TO CAPTURE DEEP POSTGRES EXCEPTION...");
 
-	console.log("Testing scanBarcode...");
 	try {
-		// Try with a known product SKU or barcode from DB (e.g. from seed data)
-		const res = await caller.inventory.scanBarcode({
-			barcode: "SKU-312",
-			branchId: 1,
-		});
-		console.log("Scan result:", res);
+		await db.transaction(async (tx) => {
+			// 1. Create a dummy trip inside transaction
+			const [trip] = await tx
+				.insert(deliveryTrips)
+				.values({
+					driver_id: "driver@evaluna.com",
+					vehicle_id: null,
+					status: "pending",
+				})
+				.returning();
 
-		if (res.product) {
-			console.log("Testing adjustStock...");
-			const adjRes = await caller.inventory.adjustStock({
-				productId: res.product.id,
-				branchId: 1,
-				quantity: 1,
-				adjustmentType: "Audit",
-				notes: "Test adjustment",
-			});
-			console.log("Adjust result:", adjRes);
-		}
-	} catch (e) {
-		console.error("Test error:", e);
+			console.log(`Generated Trip ID inside transaction: ${trip.id}`);
+
+			// 2. Try to insert the 4 stops that failed
+			await tx
+				.insert(tripStops)
+				.values([
+					{ trip_id: trip.id, customer_id: 59, sequence: 1, status: "pending" },
+					{ trip_id: trip.id, customer_id: 72, sequence: 2, status: "pending" },
+					{ trip_id: trip.id, customer_id: 68, sequence: 3, status: "pending" },
+					{ trip_id: trip.id, customer_id: 69, sequence: 4, status: "pending" },
+				]);
+
+			console.log("Transaction insert succeeded programmatically!");
+		});
+	} catch (e: any) {
+		console.error("\n🚨 [CAPTURE EXCEPTION DETAILS] 🚨\n");
+		console.error("Error Code:", e.code);
+		console.error("Error Message:", e.message);
+		console.error("Error Detail:", e.detail);
+		console.error("Error Constraint:", e.constraint);
+		console.error("Error Table:", e.table);
+		console.error("Full Error Object:", e);
 	}
+
 	process.exit(0);
 }
-main();
+
+run().catch((err) => {
+	console.error(err);
+	process.exit(1);
+});

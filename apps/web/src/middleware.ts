@@ -77,7 +77,8 @@ export default async function middleware(request: NextRequest) {
 	// 3. Validate session via HTTP fetch (to avoid Edge TCP limits with postgres.js)
 	let sessionData: any = null;
 	try {
-		const sessionUrl = new URL("/api/auth/get-session", request.url);
+		const basePath = request.nextUrl.basePath || "";
+		const sessionUrl = new URL(basePath + "/api/auth/get-session", request.url);
 		const response = await fetch(sessionUrl.toString(), {
 			headers: {
 				cookie: request.headers.get("cookie") || "",
@@ -110,12 +111,21 @@ export default async function middleware(request: NextRequest) {
 	// The user is authenticated — send them home regardless of error/expired params.
 	if (isAuthPage) {
 		const url = request.nextUrl.clone();
-		let rawRole = sessionData.session?.role || sessionData.user?.role || "customer";
+		let rawRole =
+			sessionData.session?.role || sessionData.user?.role || "customer";
 		if (rawRole) {
 			const lower = rawRole.toLowerCase();
-			if (lower === "salesperson" || lower === "sales" || lower === "sales_person") {
+			if (
+				lower === "salesperson" ||
+				lower === "sales" ||
+				lower === "sales_person"
+			) {
 				rawRole = "sales_person";
-			} else if (lower === "superadmin" || lower === "super_admin" || lower === "super admin") {
+			} else if (
+				lower === "superadmin" ||
+				lower === "super_admin" ||
+				lower === "super admin"
+			) {
 				rawRole = "super_admin";
 			}
 		}
@@ -156,10 +166,25 @@ export default async function middleware(request: NextRequest) {
 	);
 
 	if (matchedRoute) {
-		let userRole = (sessionData.session?.role || sessionData.user?.role || "customer") as Role;
+		let userRole = (sessionData.session?.role ||
+			sessionData.user?.role ||
+			"customer") as Role;
+		console.log("[MIDDLEWARE ROLE CHECK]", {
+			email: sessionData.user?.email,
+			sessionRole: sessionData.session?.role,
+			userRoleField: sessionData.user?.role,
+			resolvedUserRole: userRole,
+			matchedRoutePath: matchedRoute.path,
+			matchedRouteMinRole: matchedRoute.minRole,
+			isAtLeast: isAtLeastRole(userRole, matchedRoute.minRole),
+		});
 		if (userRole) {
 			const lower = (userRole as string).toLowerCase();
-			if (lower === "salesperson" || lower === "sales" || lower === "sales_person") {
+			if (
+				lower === "salesperson" ||
+				lower === "sales" ||
+				lower === "sales_person"
+			) {
 				userRole = "sales_person" as Role;
 			}
 		}
@@ -189,8 +214,14 @@ export default async function middleware(request: NextRequest) {
 
 	// 6. Attach context headers for downstream consumption
 	const response = NextResponse.next({ request: { headers: requestHeaders } });
-	response.headers.set("X-User-Id", sessionData.user?.id || sessionData.session?.userId || "");
-	response.headers.set("X-User-Role", sessionData.session?.role || sessionData.user?.role || "customer");
+	response.headers.set(
+		"X-User-Id",
+		sessionData.user?.id || sessionData.session?.userId || "",
+	);
+	response.headers.set(
+		"X-User-Role",
+		sessionData.session?.role || sessionData.user?.role || "customer",
+	);
 	if ((sessionData.user as any)?.branchId) {
 		response.headers.set(
 			"X-Branch-Id",
@@ -199,7 +230,10 @@ export default async function middleware(request: NextRequest) {
 	}
 
 	// Prevent BFCache / secure page backtracking after logout
-	response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+	response.headers.set(
+		"Cache-Control",
+		"no-store, no-cache, must-revalidate, proxy-revalidate",
+	);
 	response.headers.set("Pragma", "no-cache");
 	response.headers.set("Expires", "0");
 

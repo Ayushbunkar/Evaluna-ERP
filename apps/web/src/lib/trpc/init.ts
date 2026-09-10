@@ -28,16 +28,21 @@ export {
 	superadminProcedure,
 };
 
-export const createTRPCContext = async (opts?: { req?: Request }): Promise<TRPCContext> => {
+export const createTRPCContext = async (opts?: {
+	req?: Request;
+}): Promise<TRPCContext> => {
 	const user = await getAuthUser(opts?.req);
 
-
 	const rawRoleName = user?.primaryRole?.name || "";
-	const isSales = rawRoleName.toLowerCase() === "salesperson" || rawRoleName.toLowerCase() === "sales" || rawRoleName.toLowerCase() === "sales_person";
+	const isSales =
+		rawRoleName.toLowerCase() === "salesperson" ||
+		rawRoleName.toLowerCase() === "sales" ||
+		rawRoleName.toLowerCase() === "sales_person";
 
-	const resolvedRole = isSales 
-		? "sales_person" 
-		: (user?.primaryRole?.name || (user?.isSuperadmin ? "super_admin" : "customer"));
+	const resolvedRole = isSales
+		? "sales_person"
+		: user?.primaryRole?.name ||
+			(user?.isSuperadmin ? "super_admin" : "customer");
 
 	// Transform CachedSession to match TRPCContext user interface
 	const baseUser = user
@@ -51,16 +56,16 @@ export const createTRPCContext = async (opts?: { req?: Request }): Promise<TRPCC
 				branchId: user.branchId,
 				warehouseId: user.warehouseId,
 				staff: user.staff,
-				primaryRole: user.primaryRole 
+				primaryRole: user.primaryRole
 					? {
 							...user.primaryRole,
 							name: isSales ? "sales_person" : user.primaryRole.name,
-					  }
+						}
 					: {
 							name: user.isSuperadmin ? "super_admin" : "customer",
 							dashboardRoute: user.canonicalDashboardRoute ?? "/customer",
 							permissions: user.permissions ?? [],
-					  },
+						},
 				roles: user.roles ?? [],
 				permissions: user.permissions ?? [],
 				canonicalDashboardRoute: user.canonicalDashboardRoute ?? "/customer",

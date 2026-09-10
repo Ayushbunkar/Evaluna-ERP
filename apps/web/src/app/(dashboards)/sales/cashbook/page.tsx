@@ -20,6 +20,7 @@ import { Label } from "@evaluna/ui/components/label";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ArrowDownRight, ArrowUpRight, Wallet } from "lucide-react";
+import { useLocale } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -29,7 +30,6 @@ import {
 	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { useLocale } from "next-intl";
 
 export default function CashBookPage() {
 	const locale = useLocale();
@@ -44,34 +44,42 @@ export default function CashBookPage() {
 	// Translations Dictionary
 	const t = {
 		title: locale === "hi" ? "दैनिक कैशबुक" : "Daily Cashbook",
-		subtitle: locale === "hi" ? "कैश प्रवाह और खर्चों को ट्रैक करें।" : "Manage register cash flows and track expenses.",
+		subtitle:
+			locale === "hi"
+				? "कैश प्रवाह और खर्चों को ट्रैक करें।"
+				: "Manage register cash flows and track expenses.",
 		cashInBtn: locale === "hi" ? "कैश इन (In)" : "Cash In",
 		cashOutBtn: locale === "hi" ? "कैश आउट (Out)" : "Cash Out",
-		
+
 		addTitleIn: locale === "hi" ? "कैश इन जोड़ें (Cash In)" : "Add Cash In",
 		addTitleOut: locale === "hi" ? "कैश आउट जोड़ें (Cash Out)" : "Add Cash Out",
 		amountLabel: locale === "hi" ? "राशि" : "Amount",
 		descLabel: locale === "hi" ? "विवरण / कारण" : "Description",
-		descPlaceholder: locale === "hi" ? "कैश प्रविष्टि का कारण दर्ज करें" : "Reason for cash entry",
+		descPlaceholder:
+			locale === "hi" ? "कैश प्रविष्टि का कारण दर्ज करें" : "Reason for cash entry",
 		saveBtn: locale === "hi" ? "प्रविष्टि सहेजें" : "Save Entry",
 		saving: locale === "hi" ? "सहेजा जा रहा है..." : "Saving...",
-		
+
 		cardIn: locale === "hi" ? "दैनिक कैश इन (Cash In)" : "Daily Cash In",
 		salesLabel: locale === "hi" ? "बिक्री:" : "Sales:",
 		cardOut: locale === "hi" ? "दैनिक कैश आउट (Cash Out)" : "Daily Cash Out",
 		expensesLabel: locale === "hi" ? "खर्चे:" : "Expenses:",
 		cardNet: locale === "hi" ? "शुद्ध दैनिक प्रवाह" : "Net Daily Flow",
 		netMovement: locale === "hi" ? "आज का शुद्ध कैश प्रवाह" : "Net movement today",
-		
+
 		recentTxTitle: locale === "hi" ? "हाल के लेनदेन" : "Recent Transactions",
 		thDate: locale === "hi" ? "तारीख और समय" : "Date & Time",
 		thType: locale === "hi" ? "प्रकार" : "Type",
 		thCategory: locale === "hi" ? "श्रेणी" : "Category",
 		thDesc: locale === "hi" ? "विवरण" : "Description",
 		thAmount: locale === "hi" ? "राशि" : "Amount",
-		noTx: locale === "hi" ? "आज कोई कैश लेनदेन नहीं हुआ है।" : "No recent cash transactions today",
+		noTx:
+			locale === "hi"
+				? "आज कोई कैश लेनदेन नहीं हुआ है।"
+				: "No recent cash transactions today",
 		toastSuccess: locale === "hi" ? "कैश प्रविष्टि जोड़ी गई" : "Cash entry added",
-		toastErrAmount: locale === "hi" ? "वैध राशि आवश्यक है" : "Valid amount required",
+		toastErrAmount:
+			locale === "hi" ? "वैध राशि आवश्यक है" : "Valid amount required",
 		toastErrDesc: locale === "hi" ? "विवरण आवश्यक है" : "Description required",
 	};
 
@@ -104,7 +112,6 @@ export default function CashBookPage() {
 			type,
 			description,
 			category: "manual",
-			user_uid: "current-user",
 		});
 	};
 
@@ -113,9 +120,7 @@ export default function CashBookPage() {
 			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 				<div>
 					<h1 className="font-bold text-3xl tracking-tight">{t.title}</h1>
-					<p className="text-muted-foreground text-sm">
-						{t.subtitle}
-					</p>
+					<p className="text-muted-foreground text-sm">{t.subtitle}</p>
 				</div>
 				<div className="flex gap-2">
 					<Dialog open={open} onOpenChange={setOpen}>
@@ -258,43 +263,65 @@ export default function CashBookPage() {
 									<th className="font-medium">{t.thType}</th>
 									<th className="font-medium">{t.thCategory}</th>
 									<th className="font-medium">{t.thDesc}</th>
+									<th className="text-right font-medium">Original ₹</th>
+									<th className="text-right font-medium">Adjustment</th>
 									<th className="text-right font-medium">{t.thAmount}</th>
+									<th className="text-center font-medium">Status</th>
 								</tr>
 							</thead>
 							<tbody>
-								{ledger?.items?.map((tx) => (
-									<tr
-										key={tx.id}
-										className="border-border/30 border-b transition-colors last:border-0 hover:bg-muted/30"
-									>
-										<td className="whitespace-nowrap py-3 text-muted-foreground">
-											{format(new Date(tx.created_at || new Date()), "PP p")}
-										</td>
-										<td>
-											<span
-												className={`rounded-full px-2.5 py-1 font-bold text-[10px] uppercase tracking-wider ${tx.type === "in" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"}`}
-											>
-												{tx.type}
-											</span>
-										</td>
-										<td className="text-muted-foreground capitalize">
-											{tx.category || "manual"}
-										</td>
-										<td className="max-w-[200px] truncate font-medium">
-											{tx.description || "-"}
-										</td>
-										<td
-											className={`text-right font-bold ${tx.type === "in" ? "text-emerald-600" : "text-red-600"}`}
+								{ledger?.items?.map((tx) => {
+									const originalAmt = tx.original_amount ? Number(tx.original_amount) : Number(tx.amount);
+									const finalAmt = Number(tx.amount);
+									const adjustment = Number(tx.adjustment_amount || 0);
+									const hasAdjustment = adjustment !== 0;
+									const isReconciled = tx.reconciliation_status === "reconciled";
+
+									return (
+										<tr
+											key={tx.id}
+											className="border-border/30 border-b transition-colors last:border-0 hover:bg-muted/30"
 										>
-											{tx.type === "in" ? "+" : "-"}₹
-											{Number(tx.amount).toFixed(2)}
-										</td>
-									</tr>
-								))}
+											<td className="whitespace-nowrap py-3 text-muted-foreground">
+												{format(new Date(tx.created_at || new Date()), "PP p")}
+											</td>
+											<td>
+												<span
+													className={`rounded-full px-2.5 py-1 font-bold text-[10px] uppercase tracking-wider ${tx.type === "in" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"}`}
+												>
+													{tx.type}
+												</span>
+											</td>
+											<td className="text-muted-foreground capitalize">
+												{tx.category || "manual"}
+											</td>
+											<td className="max-w-[160px] truncate font-medium">
+												{tx.description || "-"}
+											</td>
+											<td className="text-right text-muted-foreground">
+												₹{originalAmt.toFixed(2)}
+											</td>
+											<td className={`text-right font-medium ${hasAdjustment ? (adjustment < 0 ? "text-red-500" : "text-emerald-500") : "text-muted-foreground"}`}>
+												{hasAdjustment ? (adjustment >= 0 ? "+" : "") + `₹${adjustment.toFixed(2)}` : "—"}
+											</td>
+											<td
+												className={`text-right font-bold ${tx.type === "in" ? "text-emerald-600" : "text-red-600"}`}
+											>
+												{tx.type === "in" ? "+" : "-"}₹
+												{finalAmt.toFixed(2)}
+											</td>
+											<td className="text-center">
+												<span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${isReconciled ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"}`}>
+													{isReconciled ? "Reconciled" : "Pending"}
+												</span>
+											</td>
+										</tr>
+									);
+								})}
 								{(!ledger?.items || ledger.items.length === 0) && (
 									<tr>
 										<td
-											colSpan={5}
+											colSpan={8}
 											className="py-12 text-center text-muted-foreground"
 										>
 											<Wallet className="mx-auto mb-3 h-12 w-12 opacity-20" />
@@ -310,3 +337,4 @@ export default function CashBookPage() {
 		</PageTransition>
 	);
 }
+

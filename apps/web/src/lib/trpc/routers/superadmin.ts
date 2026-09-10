@@ -3,9 +3,9 @@ import {
 	branches,
 	companies,
 	plans,
-	user,
 	purchases,
 	suppliers,
+	user,
 } from "@evaluna/db/schema";
 import { count, desc, eq, sum } from "drizzle-orm";
 import { z } from "zod";
@@ -103,7 +103,9 @@ export const superadminRouter = router({
 			company: r.supplierName || "Unknown Supplier",
 			amount: `₹${Number.parseFloat(r.totalAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
 			status: r.paymentStatus ? r.paymentStatus.toUpperCase() : "UNPAID",
-			date: r.createdAt ? new Date(r.createdAt).toISOString().split("T")[0] : "N/A",
+			date: r.createdAt
+				? new Date(r.createdAt).toISOString().split("T")[0]
+				: "N/A",
 		}));
 	}),
 

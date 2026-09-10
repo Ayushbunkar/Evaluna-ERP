@@ -29,11 +29,7 @@ export function PermissionGate({
 	const user = session.user as any;
 	if (user.isSuperadmin) return <>{children}</>; // Superadmins bypass UI gates
 
-	const hasPerm = roleHasPermission(
-		user.role || "customer",
-		domain,
-		action,
-	);
+	const hasPerm = roleHasPermission(user.role || "customer", domain, action);
 
 	return hasPerm ? children : fallback;
 }

@@ -21,7 +21,9 @@ function LoginForm() {
 	const expired = searchParams.get("expired");
 	const suspended = searchParams.get("suspended");
 	const [isPending, setIsPending] = useState(false);
-	const [localError, setLocalError] = useState<string | null>(searchParams.get("error"));
+	const [localError, setLocalError] = useState<string | null>(
+		searchParams.get("error"),
+	);
 
 	async function handleSubmit(formData: FormData) {
 		setIsPending(true);
@@ -31,7 +33,12 @@ function LoginForm() {
 			setLocalError(res.error || "invalid-credentials");
 			setIsPending(false);
 		} else if (res && res.success && res.redirectUrl) {
-			window.location.href = res.redirectUrl;
+			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+			let target = res.redirectUrl;
+			if (basePath && target.startsWith("/") && !target.startsWith(basePath)) {
+				target = basePath + target;
+			}
+			window.location.href = target;
 		}
 	}
 
@@ -119,6 +126,7 @@ function LoginForm() {
 						type="checkbox"
 						id="rememberMe"
 						name="rememberMe"
+						suppressHydrationWarning={true}
 						className="h-4 w-4 rounded border-border bg-background accent-primary transition-all"
 					/>
 					<Label

@@ -26,6 +26,7 @@ import { deliveryRouter } from "./delivery";
 import { driverRouter } from "./driver";
 import { employeeExpensesRouter } from "./employee-expenses";
 import { expensesRouter } from "./expenses";
+import { financeReconciliationRouter } from "./finance-reconciliation";
 import { financeRouter } from "./finance";
 import { hrRouter } from "./hr";
 import { hrmsRouter } from "./hrms";
@@ -71,9 +72,9 @@ import { suppliersRouter } from "./suppliers";
 import { transactionsRouter } from "./transactions";
 import { transfersRouter } from "./transfers";
 import { upcRouter } from "./upc";
+import { usersRouter } from "./users";
 import { vehiclesRouter } from "./vehicles";
 import { warehouseRouter } from "./warehouse";
-import { usersRouter } from "./users";
 
 export const appRouter = router({
 	accounting: accountingRouter,
@@ -104,6 +105,7 @@ export const appRouter = router({
 	employeeExpenses: employeeExpensesRouter,
 	expenses: expensesRouter,
 	finance: financeRouter,
+	financeReconciliation: financeReconciliationRouter,
 	hr: hrRouter,
 	hrms: hrmsRouter,
 	imports: importsRouter,

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { getCanonicalDashboardRoute, ROLE_DASHBOARD_MAP } from "@/lib/rbac-config";
 import { isAtLeastRole } from "@/lib/permissions";
+import {
+	getCanonicalDashboardRoute,
+	ROLE_DASHBOARD_MAP,
+} from "@/lib/rbac-config";
 
 describe("RBAC Dashboard Routing & Permissions", () => {
 	it("maps customer role to /customer", () => {

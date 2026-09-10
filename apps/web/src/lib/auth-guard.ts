@@ -1,3 +1,4 @@
+import { getPermissionsForRole } from "@evaluna/db";
 import {
 	roles as rolesTable,
 	session as sessionTable,
@@ -5,7 +6,6 @@ import {
 	userRoles as userRolesTable,
 	user as userTable,
 } from "@evaluna/db/schema";
-import { getPermissionsForRole } from "@evaluna/db";
 import { and, desc, eq, get, gte, isNotNull } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { auth } from "./auth";
@@ -64,31 +64,42 @@ export type CachedSession = {
  * Supports production Vercel HTTPS cookie prefixes (__Secure-, __Host-, etc.)
  */
 async function getSessionToken(): Promise<string | null> {
-	const cookieStore = await cookies();
-	const token =
-		cookieStore.get("evaluna.session_token")?.value ||
-		cookieStore.get("__Secure-evaluna.session_token")?.value ||
-		cookieStore.get("better-auth.session_token")?.value ||
-		cookieStore.get("__Secure-better-auth.session_token")?.value ||
-		cookieStore.get("better_auth.session_token")?.value ||
-		cookieStore.get("__Secure-better_auth.session_token")?.value;
+	try {
+		const cookieStore = await cookies();
+		const token =
+			cookieStore.get("evaluna.session_token")?.value ||
+			cookieStore.get("__Secure-evaluna.session_token")?.value ||
+			cookieStore.get("better-auth.session_token")?.value ||
+			cookieStore.get("__Secure-better-auth.session_token")?.value ||
+			cookieStore.get("better_auth.session_token")?.value ||
+			cookieStore.get("__Secure-better_auth.session_token")?.value;
 
-	if (token) return token;
+		if (token) return token;
 
-	// Fallback: search for any cookie ending with or containing "session_token"
-	const allCookies = cookieStore.getAll();
-	const found = allCookies.find(
-		(c) => c.name.endsWith("session_token") || c.name.includes("session_token"),
-	);
+		// Fallback: search for any cookie ending with or containing "session_token"
+		const allCookies = cookieStore.getAll();
+		const found = allCookies.find(
+			(c) =>
+				c.name.endsWith("session_token") || c.name.includes("session_token"),
+		);
 
-	return found?.value || null;
+		return found?.value || null;
+	} catch (err) {
+		console.warn(
+			"[auth-guard] getSessionToken error (cookies() probably called outside request context):",
+			err,
+		);
+		return null;
+	}
 }
 
 /**
  * Gets the fully enriched auth user including roles, permissions, and staff data.
  * Uses LRU cache and DB fallback to guarantee 100% session availability.
  */
-export async function getAuthUser(req?: Request): Promise<CachedSession | null> {
+export async function getAuthUser(
+	req?: Request,
+): Promise<CachedSession | null> {
 	let token = await getSessionToken();
 
 	// Also try to read cookie from the raw Request object (for Vercel/serverless)
@@ -116,7 +127,11 @@ export async function getAuthUser(req?: Request): Promise<CachedSession | null> 
 			const parts = cookieHeader.split(";");
 			for (const part of parts) {
 				const [k, v] = part.trim().split("=");
-				if (k && (k.endsWith("session_token") || k.includes("session_token")) && v) {
+				if (
+					k &&
+					(k.endsWith("session_token") || k.includes("session_token")) &&
+					v
+				) {
 					token = decodeURIComponent(v);
 					break;
 				}
@@ -125,7 +140,6 @@ export async function getAuthUser(req?: Request): Promise<CachedSession | null> 
 	}
 
 	if (!token) return null;
-
 
 	// 1. Check in-memory cache
 	const cached = getCachedSession(token);
@@ -156,7 +170,10 @@ export async function getAuthUser(req?: Request): Promise<CachedSession | null> 
 			headers: reqHeaders,
 		})) as any;
 	} catch (err) {
-		console.warn("[auth-guard] auth.api.getSession error, checking DB session table directly:", err);
+		console.warn(
+			"[auth-guard] auth.api.getSession error, checking DB session table directly:",
+			err,
+		);
 	}
 
 	// Direct DB lookup fallback for production environments (e.g. Vercel serverless)

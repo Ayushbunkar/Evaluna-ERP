@@ -23,22 +23,22 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@evaluna/ui/components/select";
-import { Badge } from "@/components/ui/badge";
 import {
+	AlertCircleIcon,
 	ArrowLeftIcon,
 	CheckCircle2Icon,
+	MapPinIcon,
 	PhoneIcon,
 	PlusIcon,
 	SaveIcon,
 	Trash2Icon,
 	UserIcon,
-	MapPinIcon,
-	AlertCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { useTRPC } from "@/lib/trpc/client";
 
 type Line = {
@@ -140,11 +140,11 @@ export default function CustomerOrderReviewPage() {
 
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
-			toast.success(`Order confirmed! Invoice ${res.invoiceNo} generated.`);
+			toast.success("Order confirmed! Bill generated successfully.");
 			utils.orders.listPendingReview.invalidate();
 			utils.orders.getPendingCount.invalidate();
 			setConfirmOpen(false);
-			router.push("/sales/orders/review");
+			router.push(`/sales/pos?completedOrderId=${order.id}`);
 		},
 		onError: (e) => {
 			setConfirmOpen(false);
@@ -206,12 +206,12 @@ export default function CustomerOrderReviewPage() {
 				<div>
 					<Link
 						href="/sales/orders/review"
-						className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline mb-2"
+						className="mb-2 inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
 					>
 						<ArrowLeftIcon className="h-4 w-4" /> Back to Queue
 					</Link>
 					<div className="flex items-center gap-3">
-						<h1 className="font-mono font-bold text-2xl tracking-tight">
+						<h1 className="font-bold font-mono text-2xl tracking-tight">
 							{order.orderRef}
 						</h1>
 						{locked ? (
@@ -219,7 +219,10 @@ export default function CustomerOrderReviewPage() {
 								Confirmed & Invoiced
 							</Badge>
 						) : (
-							<Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+							<Badge
+								variant="outline"
+								className="border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+							>
 								Review In Progress
 							</Badge>
 						)}
@@ -258,7 +261,7 @@ export default function CustomerOrderReviewPage() {
 					</div>
 
 					<div>
-						<p className="font-mono font-medium text-foreground text-sm">
+						<p className="font-medium font-mono text-foreground text-sm">
 							{order.customer?.phone || "No phone available"}
 						</p>
 						<p className="text-muted-foreground text-xs">Contact Number</p>
@@ -267,7 +270,9 @@ export default function CustomerOrderReviewPage() {
 					<div>
 						<div className="flex items-center gap-1 font-medium text-foreground text-sm">
 							<MapPinIcon className="h-3.5 w-3.5 text-muted-foreground" />
-							<span className="truncate">{order.customer?.address || "No address provided"}</span>
+							<span className="truncate">
+								{order.customer?.address || "No address provided"}
+							</span>
 						</div>
 						<p className="text-muted-foreground text-xs">Delivery Address</p>
 					</div>
@@ -279,7 +284,8 @@ export default function CustomerOrderReviewPage() {
 				<div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 text-sm dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
 					<AlertCircleIcon className="h-4 w-4 shrink-0 text-amber-600" />
 					<span>
-						{unpricedCount} line item(s) have ₹0.00 price. Enter valid prices before confirming the order.
+						{unpricedCount} line item(s) have ₹0.00 price. Enter valid prices
+						before confirming the order.
 					</span>
 				</div>
 			)}
@@ -301,13 +307,20 @@ export default function CustomerOrderReviewPage() {
 					{lines.map((l) => (
 						<div
 							key={l.productId}
-							className="flex flex-col gap-3 rounded-lg border border-border/40 p-3 sm:grid sm:grid-cols-[1fr_100px_140px_120px_40px] sm:items-center sm:gap-4 sm:border-0 sm:border-b sm:p-0 sm:pb-3 last:border-0"
+							className="flex flex-col gap-3 rounded-lg border border-border/40 p-3 last:border-0 sm:grid sm:grid-cols-[1fr_100px_140px_120px_40px] sm:items-center sm:gap-4 sm:border-0 sm:border-b sm:p-0 sm:pb-3"
 						>
 							<div className="min-w-0">
 								<p className="font-medium text-foreground text-sm">{l.name}</p>
-								{l.unit && (
-									<p className="text-muted-foreground text-xs">Unit: {l.unit}</p>
-								)}
+								<div className="flex flex-wrap items-center gap-2 pt-1">
+									<span className="inline-flex items-center rounded-md border border-border/40 bg-muted/85 px-2 py-0.5 font-bold font-mono text-[10px] text-muted-foreground shadow-sm">
+										ID: {l.productId}
+									</span>
+									{l.unit && (
+										<span className="font-medium text-muted-foreground text-xs">
+											Unit: {l.unit}
+										</span>
+									)}
+								</div>
 							</div>
 
 							<div>
@@ -345,9 +358,12 @@ export default function CustomerOrderReviewPage() {
 							</div>
 
 							<div className="flex items-center justify-between sm:justify-end">
-								<span className="text-muted-foreground text-xs sm:hidden">Line Total:</span>
+								<span className="text-muted-foreground text-xs sm:hidden">
+									Line Total:
+								</span>
 								<span className="font-semibold text-foreground text-sm">
-									₹{(l.price * l.quantity).toLocaleString("en-IN", {
+									₹
+									{(l.price * l.quantity).toLocaleString("en-IN", {
 										minimumFractionDigits: 2,
 										maximumFractionDigits: 2,
 									})}
@@ -377,7 +393,10 @@ export default function CustomerOrderReviewPage() {
 								<SelectContent>
 									{(catalog ?? []).map((p) => (
 										<SelectItem key={p.id} value={String(p.id)}>
-											{p.name} {p.baseSellingPrice ? `(Base: ₹${p.baseSellingPrice})` : ""}
+											{p.name}{" "}
+											{p.baseSellingPrice
+												? `(Base: ₹${p.baseSellingPrice})`
+												: ""}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -400,12 +419,16 @@ export default function CustomerOrderReviewPage() {
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Card className="border-border/50">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-base">Order Notes / Staff Info</CardTitle>
+						<CardTitle className="text-base">
+							Order Notes / Staff Info
+						</CardTitle>
 					</CardHeader>
-					<CardContent className="text-muted-foreground text-xs space-y-1">
+					<CardContent className="space-y-1 text-muted-foreground text-xs">
 						<p>• Verify prices verbally with the customer before confirming.</p>
 						<p>• Once confirmed, pricing becomes visible on Customer Portal.</p>
-						<p>• Stock will be reserved and an invoice generated automatically.</p>
+						<p>
+							• Stock will be reserved and an invoice generated automatically.
+						</p>
 					</CardContent>
 				</Card>
 
@@ -414,7 +437,8 @@ export default function CustomerOrderReviewPage() {
 						<div className="flex justify-between font-medium">
 							<span className="text-muted-foreground">Subtotal</span>
 							<span>
-								₹{subtotal.toLocaleString("en-IN", {
+								₹
+								{subtotal.toLocaleString("en-IN", {
 									minimumFractionDigits: 2,
 									maximumFractionDigits: 2,
 								})}
@@ -438,8 +462,9 @@ export default function CustomerOrderReviewPage() {
 
 						<div className="flex justify-between border-border/40 border-t pt-2 font-bold text-base text-foreground">
 							<span>Final Total</span>
-							<span className="text-primary font-mono text-lg">
-								₹{total.toLocaleString("en-IN", {
+							<span className="font-mono text-lg text-primary">
+								₹
+								{total.toLocaleString("en-IN", {
 									minimumFractionDigits: 2,
 									maximumFractionDigits: 2,
 								})}
@@ -465,10 +490,10 @@ export default function CustomerOrderReviewPage() {
 					<Button
 						onClick={() => setConfirmOpen(true)}
 						disabled={!canConfirm}
-						className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+						className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
 					>
 						<CheckCircle2Icon className="h-4 w-4" />
-						Confirm & Generate Invoice
+						Confirm & Generate Bill
 					</Button>
 				</div>
 			)}
@@ -477,21 +502,32 @@ export default function CustomerOrderReviewPage() {
 			<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle className="text-lg">Confirm Customer Order?</DialogTitle>
+						<DialogTitle className="text-lg">
+							Confirm Customer Order?
+						</DialogTitle>
 					</DialogHeader>
 					<div className="space-y-3 py-2 text-sm">
 						<p className="text-muted-foreground">
-							Are you sure you want to finalize order <strong className="font-mono text-foreground">{order.orderRef}</strong> for <strong className="text-foreground">{order.customer?.name}</strong>?
+							Are you sure you want to finalize order{" "}
+							<strong className="font-mono text-foreground">
+								{order.orderRef}
+							</strong>{" "}
+							for{" "}
+							<strong className="text-foreground">
+								{order.customer?.name}
+							</strong>
+							?
 						</p>
-						<div className="rounded-lg bg-muted/60 p-3 space-y-1.5 text-xs">
+						<div className="space-y-1.5 rounded-lg bg-muted/60 p-3 text-xs">
 							<div className="flex justify-between">
 								<span>Line Items:</span>
 								<span className="font-semibold">{lines.length} items</span>
 							</div>
-							<div className="flex justify-between font-bold text-sm text-foreground pt-1 border-t border-border/40">
-								<span>Total Invoice Amount:</span>
-								<span className="text-emerald-600 font-mono">
-									₹{total.toLocaleString("en-IN", {
+							<div className="flex justify-between border-border/40 border-t pt-1 font-bold text-foreground text-sm">
+								<span>Total Bill Amount:</span>
+								<span className="font-mono text-emerald-600">
+									₹
+									{total.toLocaleString("en-IN", {
 										minimumFractionDigits: 2,
 										maximumFractionDigits: 2,
 									})}
@@ -499,7 +535,8 @@ export default function CustomerOrderReviewPage() {
 							</div>
 						</div>
 						<p className="text-muted-foreground text-xs">
-							This will reserve stock, issue the final invoice, and make prices visible on the customer portal.
+							This will reserve stock, generate the final bill, and make prices
+							visible on the customer portal.
 						</p>
 					</div>
 					<DialogFooter className="gap-2 sm:gap-0">
@@ -509,9 +546,9 @@ export default function CustomerOrderReviewPage() {
 						<Button
 							onClick={handleConfirm}
 							disabled={confirm.isPending}
-							className="bg-emerald-600 hover:bg-emerald-700 text-white"
+							className="bg-emerald-600 text-white hover:bg-emerald-700"
 						>
-							{confirm.isPending ? "Confirming & Invoicing…" : "Confirm Order"}
+							{confirm.isPending ? "Confirming & Billing…" : "Confirm Order"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -1,4 +1,4 @@
-import { type Role } from "@evaluna/db";
+import type { Role } from "@evaluna/db";
 import { customers } from "@evaluna/db/schema";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
@@ -75,16 +75,21 @@ export const roleProcedure = (requiredRoles: Role[]) => {
 		if (!ctx.user) {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
-		
+
 		// Superadmin bypasses role procedures
 		if (ctx.user.isSuperadmin) {
 			return next({ ctx: { ...ctx, user: ctx.user } });
 		}
 
-		let userRole = (ctx.user.primaryRole?.name || (ctx.user as any).role) as string;
+		let userRole = (ctx.user.primaryRole?.name ||
+			(ctx.user as any).role) as string;
 		if (userRole) {
 			const lowerRole = userRole.toLowerCase();
-			if (lowerRole === "salesperson" || lowerRole === "sales" || lowerRole === "sales_person") {
+			if (
+				lowerRole === "salesperson" ||
+				lowerRole === "sales" ||
+				lowerRole === "sales_person"
+			) {
 				userRole = "sales_person";
 			}
 		}
@@ -139,69 +144,71 @@ export const requirePermission = (permission: string) =>
 		return next({ ctx });
 	});
 
-export const customerProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-	if (!ctx.user) {
-		throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
-	}
+export const customerProcedure = protectedProcedure.use(
+	async ({ ctx, next }) => {
+		if (!ctx.user) {
+			throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+		}
 
-	let customer = await ctx.db.query.customers.findFirst({
-		where: (c: any, { eq, and, or }: any) =>
-			and(
-				or(
-					eq(c.user_uid, ctx.user.id),
-					ctx.user.email ? eq(c.email, ctx.user.email) : undefined,
+		let customer = await ctx.db.query.customers.findFirst({
+			where: (c: any, { eq, and, or }: any) =>
+				and(
+					or(
+						eq(c.user_uid, ctx.user.id),
+						ctx.user.email ? eq(c.email, ctx.user.email) : undefined,
+					),
+					eq(c.is_deleted, false),
 				),
-				eq(c.is_deleted, false),
-			),
-	});
+		});
 
-	if (!customer && ctx.user.email) {
-		const roleName = (
-			ctx.user.role ||
-			ctx.user.primaryRole?.name ||
-			""
-		).toLowerCase();
-		if (
-			!roleName ||
-			roleName === "customer" ||
-			roleName === "customer representative" ||
-			roleName.includes("customer")
-		) {
-			const customerCode = `CUST-${Date.now()}`;
-			try {
-				const [newCustomer] = await ctx.db
-					.insert(customers)
-					.values({
-						name: ctx.user.name || "Customer",
-						email: ctx.user.email,
-						user_uid: ctx.user.id,
-						customer_code: customerCode,
-						status: "active",
-						is_deleted: false,
-						branch_id: ctx.user.branchId ?? 1,
-					})
-					.onConflictDoNothing()
-					.returning();
+		if (!customer && ctx.user.email) {
+			const roleName = (
+				(ctx.user as any).role ||
+				ctx.user.primaryRole?.name ||
+				""
+			).toLowerCase();
+			if (
+				!roleName ||
+				roleName === "customer" ||
+				roleName === "customer representative" ||
+				roleName.includes("customer")
+			) {
+				const customerCode = `CUST-${Date.now()}`;
+				try {
+					const [newCustomer] = await ctx.db
+						.insert(customers)
+						.values({
+							name: ctx.user.name || "Customer",
+							email: ctx.user.email,
+							user_uid: ctx.user.id,
+							customer_code: customerCode,
+							status: "active",
+							is_deleted: false,
+							branch_id: ctx.user.branchId ?? 1,
+						})
+						.onConflictDoNothing()
+						.returning();
 
-				customer =
-					newCustomer ||
-					(await ctx.db.query.customers.findFirst({
+					customer =
+						newCustomer ||
+						(await ctx.db.query.customers.findFirst({
+							where: (c: any, { eq }: any) => eq(c.email, ctx.user.email),
+						}));
+				} catch (_err) {
+					customer = await ctx.db.query.customers.findFirst({
 						where: (c: any, { eq }: any) => eq(c.email, ctx.user.email),
-					}));
-			} catch (_err) {
-				customer = await ctx.db.query.customers.findFirst({
-					where: (c: any, { eq }: any) => eq(c.email, ctx.user.email),
-				});
+					});
+				}
 			}
 		}
-	}
 
-	if (!customer) {
-		throw new TRPCError({
-			code: "FORBIDDEN",
-			message: "No customer account is linked to this login.",
-		});
-	}
+		if (!customer) {
+			throw new TRPCError({
+				code: "FORBIDDEN",
+				message: "No customer account is linked to this login.",
+			});
+		}
 
-	return next({ ctx: { ...ctx, user: ctx.user, customer } });
-});
+		return next({ ctx: { ...ctx, user: ctx.user, customer } });
+	},
+);

@@ -30,7 +30,7 @@ import { formatCurrency } from "@/lib/utils";
 export default function DriverDashboard() {
 	const trpc = useTRPC();
 	const locale = useLocale();
-	const { data: dashboard } = trpc.driver.getMobileDashboard.useQuery();
+	const { data: dashboard } = trpc.driver.getMobileDashboard.useQuery({});
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
@@ -269,22 +269,14 @@ export default function DriverDashboard() {
 											</div>
 										</div>
 										<div className="flex items-center gap-2 text-right">
-											<span
-												className={`text-xs ${
-													stop.status === "completed"
-														? "text-green-600"
-														: stop.status === "next"
-															? "text-blue-600"
-															: "text-yellow-600"
-												}`}
-											>
-												{stop.status === "completed"
-													? "âœ“"
-													: stop.status === "next"
-														? "â†’"
-														: "â—‹"}
-											</span>
-											<span className="text-gray-500 text-xs">{stop.time}</span>
+											{stop.status === "completed" ? (
+												<CheckCircleIcon className="h-4 w-4 text-green-600" />
+											) : stop.status === "next" ? (
+												<ArrowRightIcon className="h-4 w-4 text-blue-600 animate-pulse" />
+											) : (
+												<ClockIcon className="h-4 w-4 text-amber-500" />
+											)}
+											<span className="text-gray-500 text-xs font-mono">{stop.time || "--:--"}</span>
 										</div>
 									</div>
 								))}

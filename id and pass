@@ -21,3 +21,17 @@ erified Working Credentials
       * Auditor: auditor@evaluna.com
       * Driver: driver@evaluna.com
       * Marketing: marketing@evaluna.com
+
+
+
+
+  🔑 1. Customer Logins & Password
+  You can now log in as any of the 5 newly registered Berasia village customers directly on the customer portal
+  http://localhost:3001/login to submit real-world orders and check their interfaces:
+
+   * Customer Email 1: verma.berasia@gmail.com (Verma Kirana & General Store)
+   * Customer Email 2: patel.lalariya@gmail.com (Patel Fertilizer & Grain Traders)
+   * Customer Email 3: sharma.runaha@gmail.com (Sharma Provision & Seed Store)
+   * Customer Email 4: choudhary.gunga@gmail.com (Choudhary Agro Machinery & Hardware)
+   * Customer Email 5: bundela.harrakheda@gmail.com (Bundela Supermarket & Feed Depot)
+   * Universal Test Password: Password@123

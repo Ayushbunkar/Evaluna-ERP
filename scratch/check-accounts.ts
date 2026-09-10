@@ -1,5 +1,4 @@
-import { db } from "../packages/db/src/index";
-import { user } from "../packages/db/src/index";
+import { db, user } from "../packages/db/src/index";
 
 async function main() {
 	const users = await db.select().from(user);
@@ -11,7 +10,7 @@ async function main() {
 			email: u.email,
 			role: u.role || u.roleName,
 			status: u.status || "ACTIVE",
-		}))
+		})),
 	);
 }
 main()

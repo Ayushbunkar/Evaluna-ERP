@@ -1,15 +1,15 @@
 "use server";
 
-import { user as userTable } from "@evaluna/db/schema";
-import { eq } from "drizzle-orm";
+import { UserManagement } from "@evaluna/db";
+import { roles, userRoles, user as userTable } from "@evaluna/db/schema";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers, cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
-import { UserManagement } from "@evaluna/db";
 import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
+import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
 import { invalidateCachedSession } from "@/lib/session-cache";
 
 export async function login(formData: FormData) {
@@ -30,6 +30,11 @@ export async function login(formData: FormData) {
 		"auditor@evaluna.com": "auditor",
 		"sales@evaluna.com": "sales_person",
 		"billing@evaluna.com": "billing",
+		"verma.berasia@gmail.com": "customer",
+		"patel.lalariya@gmail.com": "customer",
+		"sharma.runaha@gmail.com": "customer",
+		"choudhary.gunga@gmail.com": "customer",
+		"bundela.harrakheda@gmail.com": "customer",
 	};
 
 	let user:
@@ -71,9 +76,57 @@ export async function login(formData: FormData) {
 				.update(userTable)
 				.set({
 					role: predefinedAccounts[email],
-					is_superadmin: predefinedAccounts[email] === "superadmin",
+					is_superadmin:
+						predefinedAccounts[email] === "superadmin" ||
+						predefinedAccounts[email] === "super_admin",
 				} as any)
 				.where(eq(userTable.email, email));
+
+			// Sync with RBAC tables to ensure Next.js middleware and auth-guard resolve the role successfully
+			if (user) {
+				const assignedRole =
+					predefinedAccounts[email] === "superadmin"
+						? "super_admin"
+						: predefinedAccounts[email];
+
+				// 1. Find or create the role record
+				let [roleRecord] = await db
+					.select()
+					.from(roles)
+					.where(eq(roles.name, assignedRole))
+					.limit(1);
+
+				if (!roleRecord) {
+					const [newRole] = await db
+						.insert(roles)
+						.values({
+							name: assignedRole,
+							description: `${assignedRole.toUpperCase()} Role`,
+							permissions: {},
+						})
+						.returning();
+					roleRecord = newRole;
+				}
+
+				// 2. Assign role to user in user_roles table if not already assigned
+				const [existingUserRole] = await db
+					.select()
+					.from(userRoles)
+					.where(
+						and(
+							eq(userRoles.user_id, user.id),
+							eq(userRoles.role_id, roleRecord.id),
+						),
+					)
+					.limit(1);
+
+				if (!existingUserRole) {
+					await db.insert(userRoles).values({
+						user_id: user.id,
+						role_id: roleRecord.id,
+					});
+				}
+			}
 		} else {
 			// Normal login for regular users
 			const res = await auth.api.signInEmail({
@@ -87,7 +140,8 @@ export async function login(formData: FormData) {
 		const msg = err.body?.message || "invalid-credentials";
 		if (msg.includes("suspended")) {
 			return { success: false, error: "suspended" };
-		} else if (msg.includes("locked")) {
+		}
+		if (msg.includes("locked")) {
 			return { success: false, error: "locked" };
 		}
 		return { success: false, error: "invalid-credentials" };
@@ -98,7 +152,12 @@ export async function login(formData: FormData) {
 	}
 
 	// Superadmins are globally scoped and get their own dashboard
-	if (user?.is_superadmin || predefinedAccounts[email] === "superadmin" || (user as any)?.role === "super_admin" || (user as any)?.role === "superadmin") {
+	if (
+		user?.is_superadmin ||
+		predefinedAccounts[email] === "superadmin" ||
+		(user as any)?.role === "super_admin" ||
+		(user as any)?.role === "superadmin"
+	) {
 		return { success: true, redirectUrl: "/superadmin" };
 	}
 

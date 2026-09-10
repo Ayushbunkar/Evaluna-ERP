@@ -21,6 +21,7 @@ import {
 
 import { ArrowLeftIcon, MessageCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { use } from "react";
 import { A4Invoice } from "@/components/printing/A4Invoice";
@@ -36,6 +37,7 @@ export default function OrderDetailPage({
 }) {
 	const { id } = use(params);
 	const orderId = Number.parseInt(id, 10);
+	const router = useRouter();
 	const { data: order, isLoading } = trpc.orders.get.useQuery({
 		id: orderId,
 	}) as { data: any; isLoading: boolean };
@@ -112,24 +114,14 @@ export default function OrderDetailPage({
 						</a>
 					)}
 
-					<PrintPreviewDialog title={`Invoice #${order.id}`}>
-						<A4Invoice
-							order={{
-								id: order.id,
-								createdAt: order.created_at,
-								items: order.orderItems?.map((item: any) => ({
-									name: item.product?.name,
-									quantity: item.quantity,
-									price: item.price,
-								})),
-								total: order.total_amount,
-								subtotal: order.total_amount, // simplifed for now
-								tax: 0,
-							}}
-							branch={{ name: "Store Branch" }}
-							customer={order.customer}
-						/>
-					</PrintPreviewDialog>
+					<Button
+						onClick={() =>
+							router.push(`/sales/pos?completedOrderId=${order.id}`)
+						}
+						className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+					>
+						Print Bill
+					</Button>
 				</div>
 			</div>
 
@@ -146,9 +138,19 @@ export default function OrderDetailPage({
 					<dl className="grid gap-3 text-sm sm:grid-cols-2">
 						<div>
 							<dt className="text-muted-foreground">{t("customer")}</dt>
-							<dd className="font-medium">
+							<dd className="font-bold text-foreground text-sm">
 								{order.customer?.name || "Walk-in Customer"}
 							</dd>
+							{order.customer?.phone && (
+								<p className="pt-0.5 font-mono text-muted-foreground text-xs">
+									📞 {order.customer.phone}
+								</p>
+							)}
+							{order.customer?.address && (
+								<p className="pt-1 text-muted-foreground text-xs leading-relaxed">
+									📍 {order.customer.address}
+								</p>
+							)}
 						</div>
 						<div>
 							<dt className="text-muted-foreground">{tc("total")}</dt>

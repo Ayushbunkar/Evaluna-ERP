@@ -60,7 +60,7 @@ export default function DriverSupportPage() {
 				</div>
 			) : (
 				<div className="space-y-6">
-					{supportTickets.map((ticket) => (
+					{supportTickets.map((ticket: any) => (
 						<div key={ticket.id} className="border-border/50 p-4">
 							<Card className="border-border/50 bg-card/50 shadow-sm">
 								<CardHeader className="flex flex-row items-center justify-between pb-1">

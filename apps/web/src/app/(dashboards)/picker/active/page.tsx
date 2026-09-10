@@ -34,6 +34,7 @@ import {
 	PackageIcon,
 	PlaySquareIcon,
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
@@ -42,12 +43,20 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerActivePage() {
 	const trpc = useTRPC();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const activePickId = searchParams.get("id");
+
 	const {
 		data: currentTaskData,
 		isLoading,
 		error,
 		refetch,
-	} = trpc.picker.getCurrentTask.useQuery({});
+	} = trpc.picker.getCurrentTask.useQuery({
+		pickListId: activePickId ? Number(activePickId) : undefined,
+	});
+
+	const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
 
 	const scanMutation = trpc.picker.scanItem.useMutation({
 		onSuccess: () => refetch(),
@@ -64,6 +73,21 @@ export default function PickerActivePage() {
 	const pnaMutation = trpc.picker.reportPNA.useMutation({
 		onSuccess: () => refetch(),
 	});
+
+	const completeMutation = trpc.warehouse.completePickingTask.useMutation({
+		onSuccess: () => {
+			setShowSuccessModal(true);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to complete picking task.");
+		},
+	});
+
+	const handleCompleteTask = () => {
+		if (!task) return;
+		const numericId = Number(task.id.replace("PL-", ""));
+		completeMutation.mutate({ pickListId: numericId });
+	};
 
 	const [confirmItem, setConfirmItem] = useState<any | null>(null);
 	const [confirmQty, setConfirmQty] = useState<number>(1);
@@ -170,15 +194,27 @@ export default function PickerActivePage() {
 									</p>
 								</div>
 
-								<div className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm dark:bg-gray-800">
-									<div className="text-right">
-										<p className="text-muted-foreground text-xs">
-											Pick Progress
-										</p>
-										<p className="font-bold text-blue-600 text-xl dark:text-blue-400">
-											{task.picked_items} / {task.total_items} ({pct}%)
-										</p>
+								<div className="flex flex-wrap items-center gap-4">
+									<div className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm dark:bg-gray-800">
+										<div className="text-right">
+											<p className="text-muted-foreground text-xs">
+												Pick Progress
+											</p>
+											<p className="font-bold text-blue-600 text-xl dark:text-blue-400">
+												{task.picked_items} / {task.total_items} ({pct}%)
+											</p>
+										</div>
 									</div>
+
+									{pct === 100 && (
+										<Button
+											className="bg-green-600 hover:bg-green-700 text-white font-bold h-14 px-6 shadow-md transition-all animate-bounce"
+											onClick={handleCompleteTask}
+											disabled={completeMutation.isPending}
+										>
+											{completeMutation.isPending ? "Completing…" : "🏁 Complete Picking"}
+										</Button>
+									)}
 								</div>
 							</div>
 
@@ -393,6 +429,54 @@ export default function PickerActivePage() {
 				title="Picker Phone Camera Barcode Scanner"
 				description="Point your phone camera at the item's barcode to scan and verify picking instantly."
 			/>
+
+			{/* Celebratory Completion Success Modal */}
+			<Dialog
+				open={showSuccessModal}
+				onOpenChange={(open) => {
+					if (!open) {
+						setShowSuccessModal(false);
+						router.push("/picker/completed");
+					}
+				}}
+			>
+				<DialogContent className="sm:max-w-[420px] text-center">
+					<DialogHeader className="flex flex-col items-center justify-center pt-4">
+						<div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 mb-2">
+							<CheckCircle2Icon className="h-10 w-10 text-green-600 animate-pulse" />
+						</div>
+						<DialogTitle className="font-bold text-xl text-green-800 dark:text-green-400">
+							Task Completed!
+						</DialogTitle>
+						<DialogDescription className="text-muted-foreground text-sm mt-1">
+							Picking checklist has been verified and safely forwarded to the **Packing Station** queue.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="py-4 text-sm space-y-2 border-y border-border/50 my-2">
+						<p className="flex justify-between">
+							<span className="text-muted-foreground">Picking Status:</span>
+							<span className="font-bold text-green-600">100% Verified</span>
+						</p>
+						<p className="flex justify-between">
+							<span className="text-muted-foreground">Routing Step:</span>
+							<span className="font-semibold text-blue-600">Next ➡️ Packer Queue</span>
+						</p>
+					</div>
+
+					<DialogFooter className="flex sm:justify-center pt-2">
+						<Button
+							className="w-full bg-blue-600 text-white hover:bg-blue-700"
+							onClick={() => {
+								setShowSuccessModal(false);
+								router.push("/picker/completed");
+							}}
+						>
+							View Completed Picks Archive
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</PageTransition>
 	);
 }

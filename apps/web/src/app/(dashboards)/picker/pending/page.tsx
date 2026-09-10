@@ -25,19 +25,39 @@ import {
 	SearchIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerPendingPage() {
 	const trpc = useTRPC();
+	const router = useRouter();
 	const {
 		data: pendingPicks,
 		isLoading,
 		error,
+		refetch
 	} = trpc.picker.getPending.useQuery({});
 
 	const [searchQuery, setSearchQuery] = useState("");
+	const [activeStartingId, setActiveStartingId] = useState<number | null>(null);
+
+	const startTaskMutation = trpc.warehouse.startPickingTask.useMutation({
+		onSuccess: (_, variables) => {
+			toast.success("Picking task started successfully! Taking you to execution screen...");
+			router.push(`/picker/active?id=${variables.pickListId}`);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to start picking task.");
+		},
+	});
+
+	const handleStartPick = (pickListId: number) => {
+		setActiveStartingId(pickListId);
+		startTaskMutation.mutate({ pickListId });
+	};
 
 	const filteredPicks = pendingPicks?.filter(
 		(p) =>
@@ -212,12 +232,11 @@ export default function PickerPendingPage() {
 												<Button
 													size="sm"
 													className="h-8 bg-blue-600 text-white hover:bg-blue-700"
-													asChild
+													onClick={() => handleStartPick(pick.id)}
+													disabled={startTaskMutation.isPending}
 												>
-													<Link href="/picker/active">
-														<PlaySquareIcon className="mr-1 h-3.5 w-3.5" />{" "}
-														Start Pick
-													</Link>
+													<PlaySquareIcon className="mr-1 h-3.5 w-3.5" />{" "}
+													{startTaskMutation.isPending ? "Starting…" : "Start Pick"}
 												</Button>
 											</TableCell>
 										</TableRow>

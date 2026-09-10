@@ -1,14 +1,17 @@
-import { getAuthUser } from "@/lib/auth-guard";
 import { NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-guard";
 
 export async function GET() {
 	try {
 		const user = await getAuthUser();
 		if (!user) {
-			return NextResponse.json({ 
-				success: false, 
-				message: "No active session found. Please log in first." 
-			}, { status: 401 });
+			return NextResponse.json(
+				{
+					success: false,
+					message: "No active session found. Please log in first.",
+				},
+				{ status: 401 },
+			);
 		}
 
 		return NextResponse.json({
@@ -25,12 +28,15 @@ export async function GET() {
 				roles: user.roles,
 				permissions: user.permissions,
 				canonicalDashboardRoute: user.canonicalDashboardRoute,
-			}
+			},
 		});
 	} catch (error: any) {
-		return NextResponse.json({ 
-			success: false, 
-			error: error.message || String(error) 
-		}, { status: 500 });
+		return NextResponse.json(
+			{
+				success: false,
+				error: error.message || String(error),
+			},
+			{ status: 500 },
+		);
 	}
 }
