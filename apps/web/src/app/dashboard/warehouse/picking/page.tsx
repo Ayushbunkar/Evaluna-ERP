@@ -249,29 +249,7 @@ export default function PickingPage() {
 											</TableCell>
 											<TableCell className="text-right">
 												<div className="flex justify-end gap-2">
-													{!pl.assigned_to && (
-														<select
-															className="cursor-pointer rounded border bg-white px-2 py-1 font-bold text-xs"
-															onChange={async (e) => {
-																const val = e.target.value;
-																if (val) {
-																	await assignPickingMutation.mutateAsync({
-																		pickListId: pl.id,
-																		workerId: Number.parseInt(val),
-																	});
-																}
-															}}
-														>
-															<option value="">Assign Picker</option>
-															{staffList?.map((s) => (
-																<option key={s.id} value={s.id}>
-																	{s.name}
-																</option>
-															))}
-														</select>
-													)}
-
-													{pl.assigned_to && pl.status === "assigned" && (
+													{(!pl.assigned_to || pl.status === "pending") && (
 														<Button
 															size="sm"
 															onClick={() =>
@@ -279,7 +257,23 @@ export default function PickingPage() {
 																	pickListId: pl.id,
 																})
 															}
-															className="h-8 text-xs shadow-sm"
+															disabled={startPickingMutation.isPending}
+															className="h-8 bg-slate-900 text-white text-xs hover:bg-slate-800 shadow-sm dark:bg-slate-100 dark:text-slate-900"
+														>
+															Start Picking
+														</Button>
+													)}
+
+													{pl.status === "assigned" && (
+														<Button
+															size="sm"
+															onClick={() =>
+																startPickingMutation.mutate({
+																	pickListId: pl.id,
+																})
+															}
+															disabled={startPickingMutation.isPending}
+															className="h-8 bg-slate-900 text-white text-xs hover:bg-slate-800 shadow-sm dark:bg-slate-100 dark:text-slate-900"
 														>
 															Start Picking
 														</Button>
@@ -289,7 +283,7 @@ export default function PickingPage() {
 														<Button
 															size="sm"
 															onClick={() => openPickingModal(pl)}
-															className="h-8 text-xs shadow-sm"
+															className="h-8 bg-blue-600 text-white text-xs hover:bg-blue-700 shadow-sm"
 														>
 															Execute Shelf Pick
 														</Button>
