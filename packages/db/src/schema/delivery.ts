@@ -159,6 +159,20 @@ export const tripCollections = pgTable("trip_collections", {
 	created_at: timestamp("created_at").defaultNow(),
 });
 
+// Driver Support Tickets
+export const driverSupportTickets = pgTable("driver_support_tickets", {
+	id: serial("id").primaryKey(),
+	driver_id: varchar("driver_id", { length: 255 }).notNull(),
+	title: varchar("title", { length: 255 }).notNull(),
+	category: varchar("category", { length: 100 }).notNull(),
+	description: text("description").notNull(),
+	status: varchar("status", { length: 50 }).default("Open"),
+	created_at: timestamp("created_at").defaultNow(),
+	updated_at: timestamp("updated_at")
+		.defaultNow()
+		.$onUpdateFn(() => new Date()),
+});
+
 // Relations
 export const deliveryRoutesRelations = relations(
 	deliveryRoutes,

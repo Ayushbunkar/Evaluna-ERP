@@ -7,13 +7,14 @@ import {
 	CreditCard,
 	FileText,
 	IndianRupee,
+	MapPin,
 	Minus,
 	Package,
+	Phone,
 	Plus,
 	Printer,
 	QrCode,
 	RefreshCw,
-	ShieldAlert,
 	Truck,
 	User,
 } from "lucide-react";
@@ -53,9 +54,72 @@ type OrderItemHandover = {
 	returnReason?: string;
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getStatusVariant(
+	status: string,
+): "default" | "secondary" | "destructive" | "outline" {
+	if (status === "delivered" || status === "completed") return "secondary";
+	if (status === "failed") return "destructive";
+	if (status === "started") return "default";
+	return "outline";
+}
+
+function getStatusLabel(status: string): string {
+	if (status === "delivered" || status === "completed") return "Delivered ✓";
+	if (status === "failed") return "Failed ✗";
+	if (status === "started") return "In Progress";
+	if (status === "partially_delivered") return "Partial";
+	return "Pending";
+}
+
+// ─── Default items (to be replaced with real order items from API) ────────────
+
+const DEFAULT_ITEMS: OrderItemHandover[] = [
+	{
+		id: 1,
+		name: "Whole Wheat Atta 10kg",
+		originalQty: 2,
+		deliveredQty: 2,
+		returnedQty: 0,
+		price: 420,
+	},
+	{
+		id: 2,
+		name: "Refined Soyabean Oil 5L",
+		originalQty: 1,
+		deliveredQty: 1,
+		returnedQty: 0,
+		price: 650,
+	},
+	{
+		id: 3,
+		name: "Basmati Rice Special 5kg",
+		originalQty: 1,
+		deliveredQty: 0,
+		returnedQty: 1,
+		price: 580,
+		returnReason: "Damaged Package",
+	},
+];
+
+const TRUCK_STOCK_ITEMS = [
+	{ id: 101, name: "Sugar 1kg", price: 45 },
+	{ id: 102, name: "Fortune Soyabean Oil 1L", price: 140 },
+	{ id: 103, name: "Taj Mahal Tea 250g", price: 180 },
+	{ id: 104, name: "Amul Pure Ghee 1L", price: 620 },
+	{ id: 105, name: "Tata Salt 1kg", price: 28 },
+];
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function DriverLiveDeliveryPage() {
 	const trpc = useTRPC();
-	const { data: dashboardData, isLoading, refetch } = trpc.driver.getMobileDashboard.useQuery({});
+	const {
+		data: dashboardData,
+		isLoading,
+		refetch,
+	} = trpc.driver.getMobileDashboard.useQuery({});
 	const submitHandover = trpc.driver.submitDeliveryHandover.useMutation({
 		onSuccess: () => {
 			toast.success("Delivery Handover & Payment Settlement recorded successfully!");
@@ -67,28 +131,25 @@ export default function DriverLiveDeliveryPage() {
 		},
 	});
 
-	const [selectedStopId, setSelectedStopId] = useState<number | null>(null);
+	// Phase: null = stops list view, number = handover view for that stop ID
+	const [handoverStopId, setHandoverStopId] = useState<number | null>(null);
+
+	// Handover form state
 	const [cashAmount, setCashAmount] = useState<number>(0);
 	const [onlineAmount, setOnlineAmount] = useState<number>(0);
 	const [notes, setNotes] = useState("");
 	const [billModalOpen, setBillModalOpen] = useState(false);
 	const [extraModalOpen, setExtraModalOpen] = useState(false);
-	const [selectedTruckItems, setSelectedTruckItems] = useState<Record<number, number>>({});
+	const [selectedTruckItems, setSelectedTruckItems] = useState<
+		Record<number, number>
+	>({});
+	const [items, setItems] = useState<OrderItemHandover[]>(DEFAULT_ITEMS);
 
-	// Items handover state per product
-	const [items, setItems] = useState<OrderItemHandover[]>([
-		{ id: 1, name: "Whole Wheat Atta 10kg", originalQty: 2, deliveredQty: 2, returnedQty: 0, price: 420 },
-		{ id: 2, name: "Refined Soyabean Oil 5L", originalQty: 1, deliveredQty: 1, returnedQty: 0, price: 650 },
-		{ id: 3, name: "Basmati Rice Special 5kg", originalQty: 1, deliveredQty: 0, returnedQty: 1, price: 580, returnReason: "Damaged Package" },
-	]);
+	const routeStops = dashboardData?.routeStops ?? [];
+	const activeStop =
+		routeStops.find((s) => s.id === handoverStopId) ?? null;
 
-	const truckStockItems = [
-		{ id: 101, name: "Sugar 1kg", price: 45 },
-		{ id: 102, name: "Fortune Soyabean Oil 1L", price: 140 },
-		{ id: 103, name: "Taj Mahal Tea 250g", price: 180 },
-		{ id: 104, name: "Amul Pure Ghee 1L", price: 620 },
-		{ id: 105, name: "Tata Salt 1kg", price: 28 },
-	];
+	// ── Van stock helpers ──────────────────────────────────────────────────────
 
 	const toggleTruckItem = (id: number) => {
 		setSelectedTruckItems((prev) => {
@@ -114,7 +175,7 @@ export default function DriverLiveDeliveryPage() {
 		const newEntries: OrderItemHandover[] = [];
 		for (const [idStr, qty] of Object.entries(selectedTruckItems)) {
 			const id = Number(idStr);
-			const truckItem = truckStockItems.find((t) => t.id === id);
+			const truckItem = TRUCK_STOCK_ITEMS.find((t) => t.id === id);
 			if (truckItem && qty > 0) {
 				newEntries.push({
 					id: id + Date.now() + Math.random(),
@@ -126,25 +187,26 @@ export default function DriverLiveDeliveryPage() {
 				});
 			}
 		}
-
 		if (newEntries.length === 0) {
 			toast.error("Please select at least one item to add.");
 			return;
 		}
-
 		setItems((prev) => [...prev, ...newEntries]);
 		toast.success(`Added ${newEntries.length} items from Van Stock to customer bill!`);
 		setExtraModalOpen(false);
 		setSelectedTruckItems({});
 	};
 
-	const activeStop = dashboardData?.routeStops?.find((s) => s.id === selectedStopId) || dashboardData?.routeStops?.[0];
+	// ── Item inspection helpers ────────────────────────────────────────────────
 
 	const handleQtyChange = (id: number, delta: number) => {
 		setItems((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
-					const newDelivered = Math.max(0, Math.min(item.originalQty, item.deliveredQty + delta));
+					const newDelivered = Math.max(
+						0,
+						Math.min(item.originalQty, item.deliveredQty + delta),
+					);
 					const newReturned = item.originalQty - newDelivered;
 					return { ...item, deliveredQty: newDelivered, returnedQty: newReturned };
 				}
@@ -159,33 +221,45 @@ export default function DriverLiveDeliveryPage() {
 		);
 	};
 
-	// Bill calculations
-	const subtotal = items.reduce((acc, item) => acc + item.deliveredQty * item.price, 0);
-	const totalReturnedValue = items.reduce((acc, item) => acc + item.returnedQty * item.price, 0);
+	// ── Bill calculations ──────────────────────────────────────────────────────
+
+	const subtotal = items.reduce(
+		(acc, item) => acc + item.deliveredQty * item.price,
+		0,
+	);
+	const totalReturnedValue = items.reduce(
+		(acc, item) => acc + item.returnedQty * item.price,
+		0,
+	);
 	const tax = Math.round(subtotal * 0.05); // 5% GST
 	const finalTotal = subtotal + tax;
 	const remainingBalance = finalTotal - (cashAmount + onlineAmount);
 
-	const handleQuickFillPayment = (type: "fullCash" | "fullOnline" | "halfSplit") => {
+	const handleQuickFillPayment = (
+		type: "fullCash" | "fullOnline" | "halfSplit",
+	) => {
 		if (type === "fullCash") {
 			setCashAmount(finalTotal);
 			setOnlineAmount(0);
 		} else if (type === "fullOnline") {
 			setCashAmount(0);
 			setOnlineAmount(finalTotal);
-		} else if (type === "halfSplit") {
+		} else {
 			const half = Math.round(finalTotal / 2);
 			setCashAmount(half);
 			setOnlineAmount(finalTotal - half);
 		}
 	};
 
+	// ── Submit handover ────────────────────────────────────────────────────────
+
 	const handleSubmitHandover = () => {
 		if (remainingBalance !== 0) {
-			toast.error(`Payment amount does not match bill total of ₹${finalTotal}. Remaining balance: ₹${remainingBalance}`);
+			toast.error(
+				`Payment amount does not match bill total of ₹${finalTotal}. Remaining balance: ₹${remainingBalance}`,
+			);
 			return;
 		}
-
 		submitHandover.mutate({
 			trip_id: 1,
 			stop_id: activeStop?.id || 1,
@@ -203,327 +277,559 @@ export default function DriverLiveDeliveryPage() {
 		});
 	};
 
+	// ── Done: advance to next pending stop or go back to list ─────────────────
+
 	const handleDoneBill = () => {
 		setBillModalOpen(false);
-
-		// Find remaining pending stops excluding the current one
-		const remainingPending = dashboardData?.routeStops?.filter(
-			(s) => s.id !== activeStop?.id && s.status !== "completed" && s.status !== "delivered",
+		const remainingPending = routeStops.filter(
+			(s) =>
+				s.id !== activeStop?.id &&
+				s.status !== "completed" &&
+				s.status !== "delivered",
 		);
-
-		if (remainingPending && remainingPending.length > 0) {
+		if (remainingPending.length > 0) {
 			const nextStop = remainingPending[0];
-			setSelectedStopId(nextStop.id);
+			// Reset form for next stop
 			setCashAmount(0);
 			setOnlineAmount(0);
 			setNotes("");
-			toast.success(`Completed delivery for ${activeStop?.customerName || "Customer"}. Selected next stop: ${nextStop.customerName}!`);
+			setItems(DEFAULT_ITEMS);
+			setHandoverStopId(nextStop.id);
+			toast.success(
+				`Completed delivery for ${activeStop?.customerName || "Customer"}. Opening next stop: ${nextStop.customerName}!`,
+			);
 		} else {
-			toast.success("All customer delivery stops on this trip completed successfully!", {
+			setHandoverStopId(null);
+			toast.success("All delivery stops on this trip completed successfully!", {
 				duration: 5000,
 			});
 		}
 		refetch();
 	};
 
+	// ── Open handover for a stop ───────────────────────────────────────────────
+
+	const handleOpenHandover = (stopId: number) => {
+		// Reset form when opening a new stop
+		setCashAmount(0);
+		setOnlineAmount(0);
+		setNotes("");
+		setItems(DEFAULT_ITEMS);
+		setHandoverStopId(stopId);
+	};
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// RENDER
+	// ─────────────────────────────────────────────────────────────────────────
+
 	return (
 		<div className="min-h-screen bg-gray-50/50 p-4 md:p-6 dark:bg-gray-900">
 			<div className="mx-auto max-w-5xl space-y-6">
-				{/* Top Bar Navigation */}
+				{/* ── Top Bar ─────────────────────────────────────────────────── */}
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex items-center space-x-3">
-						<Link href="/driver">
-							<Button variant="outline" size="icon">
+						{handoverStopId !== null ? (
+							<Button
+								variant="outline"
+								size="icon"
+								onClick={() => setHandoverStopId(null)}
+							>
 								<ArrowLeft className="h-4 w-4" />
 							</Button>
-						</Link>
+						) : (
+							<Link href="/driver">
+								<Button variant="outline" size="icon">
+									<ArrowLeft className="h-4 w-4" />
+								</Button>
+							</Link>
+						)}
 						<div>
 							<h1 className="font-bold text-2xl text-gray-900 tracking-tight dark:text-white">
-								Live Stop Handover & Bill Generation
+								{handoverStopId !== null
+									? "Live Stop Handover & Bill Generation"
+									: "Delivery Stops"}
 							</h1>
 							<p className="text-gray-500 text-sm dark:text-gray-400">
-								Inspect package items, record returns/damage, & settle payment live.
+								{handoverStopId !== null
+									? `Customer: ${activeStop?.customerName || "—"} · Ref #${activeStop?.id ?? "—"}`
+									: "Select a stop to start live handover & billing."}
 							</p>
 						</div>
 					</div>
-					<Badge variant="outline" className="w-fit border-blue-500 bg-blue-50 text-blue-700 py-1.5 px-3">
+					<Badge
+						variant="outline"
+						className="w-fit border-blue-500 bg-blue-50 text-blue-700 py-1.5 px-3"
+					>
 						<Truck className="mr-1.5 h-4 w-4" /> Active Driver Session
 					</Badge>
 				</div>
 
-				{/* Active Stop Selector */}
-				{dashboardData?.routeStops && dashboardData.routeStops.length > 0 && (
-					<Card className="border-blue-100 bg-blue-50/40 dark:border-blue-900 dark:bg-blue-950/20">
-						<CardContent className="p-4">
-							<div className="flex flex-wrap items-center justify-between gap-3">
-								<div className="flex items-center space-x-2">
-									<User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-									<span className="font-semibold text-gray-900 dark:text-white">Select Customer Stop:</span>
+				{/* ══════════════════════════════════════════════════════════════
+				    PHASE 1 — STOPS LIST
+				    ══════════════════════════════════════════════════════════════ */}
+				{handoverStopId === null && (
+					<>
+						{isLoading && (
+							<div className="flex items-center justify-center py-20">
+								<RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
+								<span className="ml-3 text-gray-500">Loading stops…</span>
+							</div>
+						)}
+
+						{!isLoading && routeStops.length === 0 && (
+							<Card className="border-dashed">
+								<CardContent className="flex flex-col items-center justify-center py-16 text-center">
+									<Package className="h-12 w-12 text-gray-300 mb-4" />
+									<h3 className="font-semibold text-gray-700 dark:text-gray-300">
+										No delivery stops assigned
+									</h3>
+									<p className="text-sm text-gray-500 mt-1">
+										Contact dispatch to get your route assigned.
+									</p>
+								</CardContent>
+							</Card>
+						)}
+
+						{!isLoading && routeStops.length > 0 && (
+							<div className="space-y-4">
+								{/* Summary strip */}
+								<div className="flex flex-wrap gap-3">
+									<Badge variant="outline" className="gap-1.5 text-sm py-1 px-3">
+										<Package className="h-3.5 w-3.5" />
+										{routeStops.length} Total Stops
+									</Badge>
+									<Badge
+										variant="outline"
+										className="gap-1.5 text-sm py-1 px-3 border-amber-400 text-amber-700 bg-amber-50"
+									>
+										{
+											routeStops.filter(
+												(s) =>
+													s.status !== "delivered" &&
+													s.status !== "completed" &&
+													s.status !== "failed",
+											).length
+										}{" "}
+										Pending
+									</Badge>
+									<Badge
+										variant="outline"
+										className="gap-1.5 text-sm py-1 px-3 border-emerald-400 text-emerald-700 bg-emerald-50"
+									>
+										<CheckCircle className="h-3.5 w-3.5" />
+										{
+											routeStops.filter(
+												(s) => s.status === "delivered" || s.status === "completed",
+											).length
+										}{" "}
+										Delivered
+									</Badge>
 								</div>
-								<div className="flex flex-wrap gap-2">
-									{dashboardData.routeStops.map((stop) => (
-										<Button
-											key={stop.id}
-											variant={selectedStopId === stop.id || (!selectedStopId && stop === activeStop) ? "default" : "outline"}
-											size="sm"
-											onClick={() => setSelectedStopId(stop.id)}
-											className="gap-1.5"
-										>
-											<span>{stop.customerName}</span>
-											<Badge
-												variant={stop.status === "completed" ? "secondary" : "outline"}
-												className="ml-1 text-[10px]"
+
+								{/* Stop cards */}
+								<div className="grid gap-4 sm:grid-cols-2">
+									{routeStops.map((stop, idx) => {
+										const isDone =
+											stop.status === "delivered" || stop.status === "completed";
+										const isFailed = stop.status === "failed";
+										return (
+											<Card
+												key={stop.id}
+												className={`shadow-sm transition-all ${
+													isDone
+														? "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/20"
+														: isFailed
+															? "border-red-200 bg-red-50/30 dark:border-red-900"
+															: "hover:shadow-md hover:border-blue-200"
+												}`}
 											>
-												{stop.status}
-											</Badge>
-										</Button>
-									))}
+												<CardHeader className="pb-3">
+													<div className="flex items-start justify-between gap-2">
+														<div className="flex items-center gap-2">
+															<span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 text-xs dark:bg-blue-900 dark:text-blue-300">
+																{idx + 1}
+															</span>
+															<CardTitle className="text-base leading-tight">
+																{stop.customerName}
+															</CardTitle>
+														</div>
+														<Badge
+															variant={getStatusVariant(stop.status)}
+															className="shrink-0 text-xs"
+														>
+															{getStatusLabel(stop.status)}
+														</Badge>
+													</div>
+												</CardHeader>
+
+												<CardContent className="space-y-2 text-sm pb-4">
+													{/* Address */}
+													{stop.address && (
+														<div className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
+															<MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+															<span className="text-xs leading-snug">{stop.address}</span>
+														</div>
+													)}
+													{/* Phone */}
+													{stop.phone && (
+														<div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+															<Phone className="h-4 w-4 shrink-0 text-gray-400" />
+															<span className="text-xs">{stop.phone}</span>
+														</div>
+													)}
+													{/* Order Items */}
+													{stop.orderItems && stop.orderItems.length > 0 && (
+														<div className="mt-2 rounded-lg border border-gray-100 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40">
+															<div className="flex items-center gap-1.5 border-b border-gray-100 px-3 py-1.5 dark:border-gray-700">
+																<Package className="h-3.5 w-3.5 text-blue-500" />
+																<span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+																	Order Items ({stop.orderItems.length})
+																</span>
+															</div>
+															<div className="divide-y divide-gray-100 dark:divide-gray-700">
+																{stop.orderItems.map((oi: { id: number; name: string; qty: number; price?: number }, i: number) => (
+																	<div
+																		key={oi.id ?? i}
+																		className="flex items-center justify-between px-3 py-2"
+																	>
+																		<div className="flex items-center gap-2">
+																			<span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+																				{oi.qty}
+																			</span>
+																			<span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
+																				{oi.name}
+																			</span>
+																		</div>
+																		{oi.price != null && (
+																			<span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300 shrink-0 ml-2">
+																				₹{oi.price * oi.qty}
+																			</span>
+																		)}
+																	</div>
+																))}
+															</div>
+														</div>
+													)}
+													{/* Order ref & amount */}
+													<div className="flex items-center justify-between pt-1 border-t">
+														<span className="text-xs text-gray-500 font-mono">
+															Ref #{stop.orderId || stop.id}
+														</span>
+														<span className="font-bold font-mono text-sm flex items-center gap-0.5">
+															<IndianRupee className="h-3.5 w-3.5" />
+															{stop.amountToCollect ?? "—"}
+														</span>
+													</div>
+												</CardContent>
+
+												<CardFooter className="pt-0">
+													{isDone ? (
+														<div className="flex w-full gap-2">
+															<div className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 py-2 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+																<CheckCircle className="h-4 w-4" /> Handover Completed
+															</div>
+															<Button
+																variant="outline"
+																size="sm"
+																className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+																onClick={() => handleOpenHandover(stop.id)}
+															>
+																Edit / View
+															</Button>
+														</div>
+													) : isFailed ? (
+														<div className="flex w-full items-center justify-center gap-1.5 rounded-md border border-red-300 bg-red-50 py-2 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+															Failed / Skipped
+														</div>
+													) : (
+														<Button
+															className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+															onClick={() => handleOpenHandover(stop.id)}
+														>
+															<FileText className="h-4 w-4" />
+															Open Live Handover &amp; Bill
+														</Button>
+													)}
+												</CardFooter>
+											</Card>
+										);
+									})}
 								</div>
 							</div>
-						</CardContent>
-					</Card>
+						)}
+					</>
 				)}
 
-				<div className="grid gap-6 md:grid-cols-12">
-					{/* Left Column: Item Inspection & Return/Damage Entry */}
-					<div className="space-y-6 md:col-span-7">
-						<Card className="shadow-sm">
-							<CardHeader className="border-b bg-gray-50/50 pb-3 dark:bg-gray-800/50">
-								<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-									<div>
-										<CardTitle className="flex items-center gap-2 text-base">
-											<Package className="h-4 w-4 text-blue-600" />
-											Itemized Delivery Verification
-										</CardTitle>
-										<CardDescription>
-											Adjust quantities for items kept vs returned/damaged.
-										</CardDescription>
-									</div>
-									<div className="flex items-center space-x-2">
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="h-8 text-xs gap-1 border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
-											onClick={() => setExtraModalOpen(true)}
-										>
-											<Plus className="h-3.5 w-3.5" /> Add Extra Item (Van Stock)
-										</Button>
-										<Badge variant="secondary" className="font-mono text-xs">
-											{activeStop ? `ORD-${activeStop.orderId || activeStop.id}` : "ORD-LIVE"}
-										</Badge>
-									</div>
-								</div>
-							</CardHeader>
-							<CardContent className="divide-y p-0">
-								{items.map((item) => (
-									<div key={item.id} className="p-4 space-y-3">
-										<div className="flex items-start justify-between">
-											<div>
-												<h4 className="font-semibold text-gray-900 text-sm dark:text-white">
-													{item.name}
-												</h4>
-												<p className="text-gray-500 text-xs dark:text-gray-400">
-													Price: ₹{item.price} / unit | Total Expected: {item.originalQty}
-												</p>
-											</div>
-											<span className="font-bold font-mono text-sm text-gray-900 dark:text-white">
-												₹{item.deliveredQty * item.price}
-											</span>
+				{/* ══════════════════════════════════════════════════════════════
+				    PHASE 2 — HANDOVER & BILL PANEL
+				    ══════════════════════════════════════════════════════════════ */}
+				{handoverStopId !== null && (
+					<div className="grid gap-6 md:grid-cols-12">
+						{/* Left Column: Item Inspection & Return/Damage Entry */}
+						<div className="space-y-6 md:col-span-7">
+							<Card className="shadow-sm">
+								<CardHeader className="border-b bg-gray-50/50 pb-3 dark:bg-gray-800/50">
+									<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+										<div>
+											<CardTitle className="flex items-center gap-2 text-base">
+												<Package className="h-4 w-4 text-blue-600" />
+												Itemized Delivery Verification
+											</CardTitle>
+											<CardDescription>
+												Adjust quantities for items kept vs returned/damaged.
+											</CardDescription>
 										</div>
-
-										<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-800">
-											<div className="flex items-center space-x-2">
-												<span className="text-xs font-medium text-gray-600 dark:text-gray-300">Accepted Qty:</span>
-												<div className="flex items-center space-x-1">
-													<Button
-														variant="outline"
-														size="icon"
-														className="h-7 w-7"
-														onClick={() => handleQtyChange(item.id, -1)}
-													>
-														<Minus className="h-3 w-3" />
-													</Button>
-													<span className="w-8 text-center font-bold text-sm">
-														{item.deliveredQty}
-													</span>
-													<Button
-														variant="outline"
-														size="icon"
-														className="h-7 w-7"
-														onClick={() => handleQtyChange(item.id, 1)}
-													>
-														<Plus className="h-3 w-3" />
-													</Button>
+										<div className="flex items-center space-x-2">
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												className="h-8 text-xs gap-1 border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+												onClick={() => setExtraModalOpen(true)}
+											>
+												<Plus className="h-3.5 w-3.5" /> Add Extra Item (Van Stock)
+											</Button>
+											<Badge variant="secondary" className="font-mono text-xs">
+												{activeStop
+													? `ORD-${activeStop.orderId || activeStop.id}`
+													: "ORD-LIVE"}
+											</Badge>
+										</div>
+									</div>
+								</CardHeader>
+								<CardContent className="divide-y p-0">
+									{items.map((item) => (
+										<div key={item.id} className="p-4 space-y-3">
+											<div className="flex items-start justify-between">
+												<div>
+													<h4 className="font-semibold text-gray-900 text-sm dark:text-white">
+														{item.name}
+													</h4>
+													<p className="text-gray-500 text-xs dark:text-gray-400">
+														Price: ₹{item.price} / unit | Total Expected:{" "}
+														{item.originalQty}
+													</p>
 												</div>
+												<span className="font-bold font-mono text-sm text-gray-900 dark:text-white">
+													₹{item.deliveredQty * item.price}
+												</span>
+											</div>
+
+											<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-800">
+												<div className="flex items-center space-x-2">
+													<span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+														Accepted Qty:
+													</span>
+													<div className="flex items-center space-x-1">
+														<Button
+															variant="outline"
+															size="icon"
+															className="h-7 w-7"
+															onClick={() => handleQtyChange(item.id, -1)}
+														>
+															<Minus className="h-3 w-3" />
+														</Button>
+														<span className="w-8 text-center font-bold text-sm">
+															{item.deliveredQty}
+														</span>
+														<Button
+															variant="outline"
+															size="icon"
+															className="h-7 w-7"
+															onClick={() => handleQtyChange(item.id, 1)}
+														>
+															<Plus className="h-3 w-3" />
+														</Button>
+													</div>
+												</div>
+												{item.returnedQty > 0 && (
+													<Badge variant="destructive" className="gap-1">
+														<AlertTriangle className="h-3 w-3" />
+														{item.returnedQty} Returned / Damaged
+													</Badge>
+												)}
 											</div>
 
 											{item.returnedQty > 0 && (
-												<Badge variant="destructive" className="gap-1">
-													<AlertTriangle className="h-3 w-3" />
-													{item.returnedQty} Returned / Damaged
-												</Badge>
+												<div className="space-y-1 pt-1">
+													<Label className="text-xs text-red-600 dark:text-red-400 font-medium">
+														Reason for Return / Damage:
+													</Label>
+													<Input
+														placeholder="e.g. Damaged seal, customer rejected item..."
+														value={item.returnReason || ""}
+														onChange={(e) =>
+															handleReasonChange(item.id, e.target.value)
+														}
+														className="h-8 text-xs border-red-200 focus:border-red-500"
+													/>
+												</div>
 											)}
 										</div>
+									))}
+								</CardContent>
+							</Card>
 
-										{item.returnedQty > 0 && (
-											<div className="space-y-1 pt-1">
-												<Label className="text-xs text-red-600 dark:text-red-400 font-medium">
-													Reason for Return / Damage:
-												</Label>
-												<Input
-													placeholder="e.g. Damaged seal, customer rejected item..."
-													value={item.returnReason || ""}
-													onChange={(e) => handleReasonChange(item.id, e.target.value)}
-													className="h-8 text-xs border-red-200 focus:border-red-500"
-												/>
+							{/* Delivery Notes */}
+							<Card className="shadow-sm">
+								<CardHeader className="pb-3">
+									<CardTitle className="text-sm">
+										Driver Stop Observations / Remarks
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<Textarea
+										placeholder="Add any specific delivery remarks (e.g. Handed to security guard, cash verified with customer...)"
+										value={notes}
+										onChange={(e) => setNotes(e.target.value)}
+										rows={2}
+										className="text-xs"
+									/>
+								</CardContent>
+							</Card>
+						</div>
+
+						{/* Right Column: Live Bill Summary & Payment Collection */}
+						<div className="space-y-6 md:col-span-5">
+							<Card className="border-2 border-blue-500 shadow-md">
+								<CardHeader className="bg-blue-600 text-white rounded-t-lg">
+									<CardTitle className="flex items-center justify-between text-lg">
+										<span>Live Invoice Summary</span>
+										<FileText className="h-5 w-5 opacity-80" />
+									</CardTitle>
+									<CardDescription className="text-blue-100 text-xs">
+										Customer: {activeStop?.customerName || "Customer"} | Ref: #
+										{activeStop?.id || "STOP-01"}
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="space-y-4 p-5">
+									<div className="space-y-2 text-sm">
+										<div className="flex justify-between text-gray-600 dark:text-gray-300">
+											<span>Items Subtotal</span>
+											<span className="font-mono">₹{subtotal}</span>
+										</div>
+										{totalReturnedValue > 0 && (
+											<div className="flex justify-between text-red-600 dark:text-red-400 font-medium">
+												<span>Return / Damage Deduction</span>
+												<span className="font-mono">-₹{totalReturnedValue}</span>
 											</div>
 										)}
+										<div className="flex justify-between text-gray-600 dark:text-gray-300">
+											<span>Estimated GST (5%)</span>
+											<span className="font-mono">₹{tax}</span>
+										</div>
+										<div className="border-t pt-2 flex justify-between font-bold text-base text-gray-900 dark:text-white">
+											<span>Net Payable Amount</span>
+											<span className="font-mono text-blue-600 dark:text-blue-400">
+												₹{finalTotal}
+											</span>
+										</div>
 									</div>
-								))}
-							</CardContent>
-						</Card>
 
-						{/* Delivery Notes */}
-						<Card className="shadow-sm">
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm">Driver Stop Observations / Remarks</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<Textarea
-									placeholder="Add any specific delivery remarks (e.g. Handed to security guard, cash verified with customer...)"
-									value={notes}
-									onChange={(e) => setNotes(e.target.value)}
-									rows={2}
-									className="text-xs"
-								/>
-							</CardContent>
-						</Card>
+									{/* Payment Collection */}
+									<div className="space-y-3 border-t pt-4">
+										<Label className="font-semibold text-gray-900 text-xs dark:text-white flex items-center justify-between">
+											<span>Payment Collection Mode</span>
+											<span className="text-[10px] text-gray-500 font-normal">
+												Mixed / Full Split
+											</span>
+										</Label>
+
+										<div className="flex gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												className="flex-1 text-xs"
+												onClick={() => handleQuickFillPayment("fullCash")}
+											>
+												<IndianRupee className="mr-1 h-3.5 w-3.5" /> Full Cash
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												className="flex-1 text-xs"
+												onClick={() => handleQuickFillPayment("fullOnline")}
+											>
+												<QrCode className="mr-1 h-3 w-3" /> Full Online
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												className="flex-1 text-xs"
+												onClick={() => handleQuickFillPayment("halfSplit")}
+											>
+												50/50 Split
+											</Button>
+										</div>
+
+										<div className="grid grid-cols-2 gap-3 pt-1">
+											<div className="space-y-1">
+												<Label className="text-xs text-gray-600 dark:text-gray-400">
+													Cash Received (₹)
+												</Label>
+												<Input
+													type="number"
+													value={cashAmount || ""}
+													onChange={(e) => setCashAmount(Number(e.target.value))}
+													placeholder="0"
+													className="font-mono text-sm"
+												/>
+											</div>
+											<div className="space-y-1">
+												<Label className="text-xs text-gray-600 dark:text-gray-400">
+													Online / UPI Received (₹)
+												</Label>
+												<Input
+													type="number"
+													value={onlineAmount || ""}
+													onChange={(e) => setOnlineAmount(Number(e.target.value))}
+													placeholder="0"
+													className="font-mono text-sm"
+												/>
+											</div>
+										</div>
+
+										{/* Balance Status */}
+										<div className="rounded-md bg-gray-100 p-2.5 text-xs font-semibold flex items-center justify-between dark:bg-gray-800">
+											<span>Payment Balance:</span>
+											<span
+												className={
+													remainingBalance === 0
+														? "text-emerald-600"
+														: "text-amber-600 font-bold"
+												}
+											>
+												{remainingBalance === 0
+													? "✓ Paid in Full"
+													: `₹${remainingBalance} Pending`}
+											</span>
+										</div>
+									</div>
+								</CardContent>
+								<CardFooter className="bg-gray-50 border-t p-4 rounded-b-lg dark:bg-gray-800">
+									<Button
+										className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"
+										disabled={submitHandover.isPending}
+										onClick={handleSubmitHandover}
+									>
+										{submitHandover.isPending ? (
+											<RefreshCw className="h-4 w-4 animate-spin" />
+										) : (
+											<CheckCircle className="h-4 w-4" />
+										)}
+										Complete Handover &amp; Issue Bill
+									</Button>
+								</CardFooter>
+							</Card>
+						</div>
 					</div>
-
-					{/* Right Column: Live Bill Summary & Payment Collection */}
-					<div className="space-y-6 md:col-span-5">
-						<Card className="border-2 border-blue-500 shadow-md">
-							<CardHeader className="bg-blue-600 text-white rounded-t-lg">
-								<CardTitle className="flex items-center justify-between text-lg">
-									<span>Live Invoice Summary</span>
-									<FileText className="h-5 w-5 opacity-80" />
-								</CardTitle>
-								<CardDescription className="text-blue-100 text-xs">
-									Customer: {activeStop?.customerName || "Customer"} | Ref: #{activeStop?.id || "STOP-01"}
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="space-y-4 p-5">
-								<div className="space-y-2 text-sm">
-									<div className="flex justify-between text-gray-600 dark:text-gray-300">
-										<span>Items Subtotal</span>
-										<span className="font-mono">₹{subtotal}</span>
-									</div>
-									{totalReturnedValue > 0 && (
-										<div className="flex justify-between text-red-600 dark:text-red-400 font-medium">
-											<span>Return / Damage Deduction</span>
-											<span className="font-mono">-₹{totalReturnedValue}</span>
-										</div>
-									)}
-									<div className="flex justify-between text-gray-600 dark:text-gray-300">
-										<span>Estimated GST (5%)</span>
-										<span className="font-mono">₹{tax}</span>
-									</div>
-									<div className="border-t pt-2 flex justify-between font-bold text-base text-gray-900 dark:text-white">
-										<span>Net Payable Amount</span>
-										<span className="font-mono text-blue-600 dark:text-blue-400">₹{finalTotal}</span>
-									</div>
-								</div>
-
-								{/* Payment Collection Breakdown */}
-								<div className="space-y-3 border-t pt-4">
-									<Label className="font-semibold text-gray-900 text-xs dark:text-white flex items-center justify-between">
-										<span>Payment Collection Mode</span>
-										<span className="text-[10px] text-gray-500 font-normal">Mixed / Full Split</span>
-									</Label>
-
-									<div className="flex gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="flex-1 text-xs"
-											onClick={() => handleQuickFillPayment("fullCash")}
-										>
-											<IndianRupee className="mr-1 h-3.5 w-3.5" /> Full Cash
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="flex-1 text-xs"
-											onClick={() => handleQuickFillPayment("fullOnline")}
-										>
-											<QrCode className="mr-1 h-3 w-3" /> Full Online
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="flex-1 text-xs"
-											onClick={() => handleQuickFillPayment("halfSplit")}
-										>
-											50/50 Split
-										</Button>
-									</div>
-
-									<div className="grid grid-cols-2 gap-3 pt-1">
-										<div className="space-y-1">
-											<Label className="text-xs text-gray-600 dark:text-gray-400">Cash Received (₹)</Label>
-											<Input
-												type="number"
-												value={cashAmount || ""}
-												onChange={(e) => setCashAmount(Number(e.target.value))}
-												placeholder="0"
-												className="font-mono text-sm"
-											/>
-										</div>
-										<div className="space-y-1">
-											<Label className="text-xs text-gray-600 dark:text-gray-400">Online / UPI Received (₹)</Label>
-											<Input
-												type="number"
-												value={onlineAmount || ""}
-												onChange={(e) => setOnlineAmount(Number(e.target.value))}
-												placeholder="0"
-												className="font-mono text-sm"
-											/>
-										</div>
-									</div>
-
-									{/* Balance Status */}
-									<div className="rounded-md bg-gray-100 p-2.5 text-xs font-semibold flex items-center justify-between dark:bg-gray-800">
-										<span>Payment Balance:</span>
-										<span className={remainingBalance === 0 ? "text-emerald-600" : "text-amber-600 font-bold"}>
-											{remainingBalance === 0 ? "✓ Paid in Full" : `₹${remainingBalance} Pending`}
-										</span>
-									</div>
-								</div>
-							</CardContent>
-							<CardFooter className="bg-gray-50 border-t p-4 rounded-b-lg dark:bg-gray-800">
-								<Button
-									className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"
-									disabled={submitHandover.isPending}
-									onClick={handleSubmitHandover}
-								>
-									{submitHandover.isPending ? (
-										<RefreshCw className="h-4 w-4 animate-spin" />
-									) : (
-										<CheckCircle className="h-4 w-4" />
-									)}
-									Complete Handover & Issue Bill
-								</Button>
-							</CardFooter>
-						</Card>
-					</div>
-				</div>
+				)}
 			</div>
 
-			{/* Digital Receipt Bill Modal */}
+			{/* ── Digital Receipt Modal ─────────────────────────────────────────── */}
 			<Dialog open={billModalOpen} onOpenChange={setBillModalOpen}>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
@@ -532,7 +838,8 @@ export default function DriverLiveDeliveryPage() {
 							Digital Delivery Bill Generated
 						</DialogTitle>
 						<DialogDescription>
-							Invoice #INV-DEL-{Date.now().toString().slice(-6)} recorded for Finance Manager.
+							Invoice #INV-DEL-{Date.now().toString().slice(-6)} recorded for Finance
+							Manager.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -545,7 +852,9 @@ export default function DriverLiveDeliveryPage() {
 						<div className="space-y-1">
 							<div className="flex justify-between">
 								<span>Customer:</span>
-								<span className="font-bold">{activeStop?.customerName || "Customer"}</span>
+								<span className="font-bold">
+									{activeStop?.customerName || "Customer"}
+								</span>
 							</div>
 							<div className="flex justify-between">
 								<span>Date/Time:</span>
@@ -556,7 +865,9 @@ export default function DriverLiveDeliveryPage() {
 						<div className="border-t border-b py-2 space-y-1">
 							{items.map((i) => (
 								<div key={i.id} className="flex justify-between">
-									<span>{i.deliveredQty}x {i.name}</span>
+									<span>
+										{i.deliveredQty}x {i.name}
+									</span>
 									<span>₹{i.deliveredQty * i.price}</span>
 								</div>
 							))}
@@ -579,7 +890,11 @@ export default function DriverLiveDeliveryPage() {
 					</div>
 
 					<DialogFooter className="gap-2 sm:gap-0">
-						<Button variant="outline" className="gap-1.5" onClick={() => window.print()}>
+						<Button
+							variant="outline"
+							className="gap-1.5"
+							onClick={() => window.print()}
+						>
 							<Printer className="h-4 w-4" /> Print Receipt
 						</Button>
 						<Button onClick={handleDoneBill}>Done</Button>
@@ -587,7 +902,7 @@ export default function DriverLiveDeliveryPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* Add Extra Van Item Modal (Multi-select) */}
+			{/* ── Add Extra Van Item Modal ──────────────────────────────────────── */}
 			<Dialog open={extraModalOpen} onOpenChange={setExtraModalOpen}>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
@@ -596,7 +911,8 @@ export default function DriverLiveDeliveryPage() {
 							Add On-the-spot Items (Van Stock)
 						</DialogTitle>
 						<DialogDescription className="text-xs">
-							Select one or multiple extra inventory items carried in the truck buffer stock to add to customer's live bill.
+							Select one or multiple extra inventory items carried in the truck buffer
+							stock to add to customer's live bill.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -604,14 +920,15 @@ export default function DriverLiveDeliveryPage() {
 						<div className="space-y-1.5">
 							<div className="flex justify-between items-center text-xs font-semibold text-gray-700 dark:text-gray-300">
 								<span>Available Truck Buffer Items</span>
-								<span className="text-[11px] text-blue-600 font-normal">Check items to include</span>
+								<span className="text-[11px] text-blue-600 font-normal">
+									Check items to include
+								</span>
 							</div>
 
 							<div className="grid gap-2.5 max-h-64 overflow-y-auto border rounded-lg p-2 bg-gray-50/50 dark:bg-gray-900">
-								{truckStockItems.map((truckItem) => {
+								{TRUCK_STOCK_ITEMS.map((truckItem) => {
 									const isSelected = !!selectedTruckItems[truckItem.id];
 									const qty = selectedTruckItems[truckItem.id] || 1;
-
 									return (
 										<div
 											key={truckItem.id}
@@ -640,7 +957,9 @@ export default function DriverLiveDeliveryPage() {
 
 											{isSelected && (
 												<div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700">
-													<span className="text-[11px] text-gray-500">Quantity to add:</span>
+													<span className="text-[11px] text-gray-500">
+														Quantity to add:
+													</span>
 													<div className="flex items-center space-x-1.5">
 														<Button
 															type="button"
@@ -678,17 +997,25 @@ export default function DriverLiveDeliveryPage() {
 								<span>{Object.keys(selectedTruckItems).length} item(s) selected</span>
 								<span className="font-mono text-sm">
 									Subtotal: ₹
-									{Object.entries(selectedTruckItems).reduce((acc, [idStr, qty]) => {
-										const item = truckStockItems.find((t) => t.id === Number(idStr));
-										return acc + (item ? item.price * qty : 0);
-									}, 0)}
+									{Object.entries(selectedTruckItems).reduce(
+										(acc, [idStr, qty]) => {
+											const item = TRUCK_STOCK_ITEMS.find(
+												(t) => t.id === Number(idStr),
+											);
+											return acc + (item ? item.price * qty : 0);
+										},
+										0,
+									)}
 								</span>
 							</div>
 						)}
 					</div>
 
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setExtraModalOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setExtraModalOpen(false)}
+						>
 							Cancel
 						</Button>
 						<Button

@@ -49,6 +49,10 @@ const nextConfig = {
 			"framer-motion",
 			"@react-pdf/renderer",
 			"date-fns",
+			"@tanstack/react-query",
+			"@trpc/client",
+			"@trpc/react-query",
+			"recharts",
 		],
 	},
 	compiler: {

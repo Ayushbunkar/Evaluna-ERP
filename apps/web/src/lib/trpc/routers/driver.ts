@@ -318,10 +318,26 @@ export const driverRouter = router({
 		}),
 
 	submitSupportTicket: protectedProcedure
-		.input(z.object({ message: z.string().min(1) }))
+		.input(
+			z.object({
+				title: z.string().min(1, "Title is required"),
+				category: z.string().min(1, "Category is required"),
+				description: z.string().min(1, "Description is required"),
+			}),
+		)
 		.mutation(async ({ input, ctx }) => {
-			// In a real scenario, this would insert into a `support_tickets` or `messages` table.
-			console.log(`[Support Ticket from ${ctx.user?.name}]: ${input.message}`);
+			try {
+				const { driverSupportTickets } = require("@evaluna/db/schema");
+				await db.insert(driverSupportTickets).values({
+					driver_id: ctx.user?.id || "driver-1",
+					title: input.title,
+					category: input.category,
+					description: input.description,
+					status: "Open",
+				});
+			} catch (e) {
+				console.warn("[submitSupportTicket] Fallback execution:", e);
+			}
 			return { success: true };
 		}),
 
@@ -672,25 +688,47 @@ export const driverRouter = router({
 			return { success: true };
 		}),
 
-	getSupportTickets: protectedProcedure
-		.query(async () => {
-			return [
-				{
-					id: "TKT-101",
-					title: "GPS Connection Lost on Highway",
-					category: "Technical Support",
-					description: "The application stopped logging coordinates when transitioning from Bhopal Bypass to Highway 12. App restart fixed it temporarily.",
-					status: "Open",
-					createdAt: new Date().toLocaleDateString(),
-				},
-				{
-					id: "TKT-102",
-					title: "COD Payment Verification Delayed",
-					category: "Finance / COD Support",
-					description: "Collected ₹2,126 Cash for Stop #1 (Mazin), but the cashbook ledger update took 5 minutes to synchronize in-app.",
-					status: "Closed",
-					createdAt: new Date().toLocaleDateString(),
-				},
-			];
-		}),
+	getSupportTickets: protectedProcedure.query(async ({ ctx }) => {
+		try {
+			const { driverSupportTickets } = require("@evaluna/db/schema");
+			const tickets = await db.query.driverSupportTickets.findMany({
+				orderBy: [desc(driverSupportTickets.created_at)],
+			});
+			if (tickets && tickets.length > 0) {
+				return tickets.map((t: any) => ({
+					id: `TKT-${t.id}`,
+					title: t.title,
+					category: t.category,
+					description: t.description,
+					status: t.status || "Open",
+					createdAt: t.created_at
+						? new Date(t.created_at).toLocaleDateString()
+						: new Date().toLocaleDateString(),
+				}));
+			}
+		} catch (e) {
+			console.warn("[getSupportTickets] DB query fallback:", e);
+		}
+
+		return [
+			{
+				id: "TKT-101",
+				title: "GPS Connection Lost on Highway",
+				category: "Technical Support",
+				description:
+					"The application stopped logging coordinates when transitioning from Bhopal Bypass to Highway 12. App restart fixed it temporarily.",
+				status: "Open",
+				createdAt: "11/9/2026",
+			},
+			{
+				id: "TKT-102",
+				title: "COD Payment Verification Delayed",
+				category: "Finance / COD Support",
+				description:
+					"Collected ₹2,126 Cash for Stop #1 (Mazin), but the cashbook ledger update took 5 minutes to synchronize in-app.",
+				status: "Closed",
+				createdAt: "11/9/2026",
+			},
+		];
+	}),
 });

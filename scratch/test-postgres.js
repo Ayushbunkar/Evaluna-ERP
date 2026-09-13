@@ -1,6 +1,6 @@
 const path = require("node:path");
 const dotenv = require("dotenv");
-const { Client } = require("pg");
+const postgres = require("postgres");
 const dns = require("node:dns");
 
 if (typeof dns.setServers === "function") {
@@ -13,7 +13,6 @@ function customLookup(host, opt, cb) {
 		opt = {};
 	}
 	dns.resolve4(host, (rErr, addrs) => {
-		console.log("customLookup resolve4 result:", { host, rErr, addrs });
 		if (!rErr && addrs && addrs.length > 0) {
 			if (opt && opt.all) {
 				return cb(null, addrs.map((a) => ({ address: a, family: 4 })));
@@ -29,26 +28,15 @@ dotenv.config({
 });
 
 (async () => {
-	const client = new Client({
-		connectionString: process.env.DATABASE_URL,
-		ssl: { rejectUnauthorized: false },
+	const sql = postgres(process.env.DATABASE_URL.replace(/^"|"$/g, ""), {
+		prepare: false,
 		lookup: customLookup,
 	});
 
-	await client.connect();
-
-	const result = await client.query(`
-    SELECT table_name, column_name, data_type, udt_name, character_maximum_length, is_nullable
-    FROM information_schema.columns
-    WHERE column_name IN ('latitude', 'longitude')
-    ORDER BY table_name, ordinal_position;
-  `);
-
-	console.log("Connected successfully to Neon DB!");
-	console.log(JSON.stringify(result.rows, null, 2));
-
-	await client.end();
+	const result = await sql`SELECT 1 as connected`;
+	console.log("Postgres.js Connected successfully to Neon DB!", result);
+	await sql.end();
 })().catch((err) => {
-	console.error("Connection error:", err);
+	console.error("Postgres.js error:", err);
 	process.exit(1);
 });

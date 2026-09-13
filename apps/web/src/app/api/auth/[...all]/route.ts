@@ -8,8 +8,14 @@ const handler = toNextJsHandler(auth);
 export const POST = handler.POST;
 
 export async function GET(request: NextRequest) {
-	// Let the standard Better Auth handler process the request
-	const response = await handler.GET(request);
+	let response: Response;
+	try {
+		// Let the standard Better Auth handler process the request
+		response = await handler.GET(request);
+	} catch (authErr) {
+		console.warn("[GET /api/auth/get-session] Auth provider DB connection error:", authErr);
+		return NextResponse.json({ session: null, user: null }, { status: 200 });
+	}
 
 	// If this is a get-session request, intercept and enrich with role & permissions from DB
 	const url = new URL(request.url);
