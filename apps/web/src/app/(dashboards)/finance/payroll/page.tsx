@@ -32,7 +32,7 @@ import {
 	CalendarCheckIcon,
 	CheckCircle2Icon,
 	CreditCardIcon,
-	DollarSignIcon,
+	IndianRupeeIcon,
 	InfoIcon,
 	Loader2Icon,
 	PlusIcon,
@@ -147,7 +147,7 @@ export default function FinancePayrollPage() {
 						label: "Salary Payroll Runs",
 						icon: CalendarCheckIcon,
 					},
-					{ id: "advances", label: "Employee Advances", icon: DollarSignIcon },
+					{ id: "advances", label: "Employee Advances", icon: IndianRupeeIcon },
 					{ id: "reimbursements", label: "Settlement Desk", icon: InfoIcon },
 				].map((tab) => {
 					const Icon = tab.icon;

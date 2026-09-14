@@ -313,16 +313,51 @@ export const ordersRouter = router({
 
 			// Synchronize associated WMS picklist status with the new order status
 			if (updated.status) {
-				await db
-					.update(pickLists)
-					.set({
-						status: updated.status === "completed" 
-							? "completed" 
-							: updated.status === "cancelled" 
-								? "cancelled" 
-								: "pending"
-					})
-					.where(eq(pickLists.order_id, updated.id));
+				const existingPickList = await db.query.pickLists.findFirst({
+					where: eq(pickLists.order_id, updated.id),
+				});
+
+				if (existingPickList) {
+					await db
+						.update(pickLists)
+						.set({
+							status: updated.status === "completed" 
+								? "pending" 
+								: updated.status === "cancelled" 
+									? "cancelled" 
+									: "pending"
+						})
+						.where(eq(pickLists.order_id, updated.id));
+				} else {
+					// Create Picklist for warehouse picker queue
+					const [pl] = await db
+						.insert(pickLists)
+						.values({
+							order_id: updated.id,
+							reference_type: "sale",
+							reference_id: updated.id,
+							status: "pending",
+							priority: "normal",
+						})
+						.returning();
+
+					const items = await db
+						.select()
+						.from(orderItems)
+						.where(eq(orderItems.order_id, updated.id));
+
+					if (pl && items.length > 0) {
+						await db.insert(pickListItems).values(
+							items.map((it) => ({
+								pick_list_id: pl.id,
+								product_id: it.product_id,
+								quantity_ordered: it.quantity,
+								quantity_picked: 0,
+								status: "pending",
+							})),
+						);
+					}
+				}
 			}
 
 			const customer = updated?.customer_id
@@ -687,7 +722,7 @@ export const ordersRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			return await db.transaction(async (tx) => {
+			const result = await db.transaction(async (tx) => {
 				const existing = await tx.query.orders.findFirst({
 					where: eq(orders.id, input.id),
 				});
@@ -898,6 +933,7 @@ export const ordersRouter = router({
 				return {
 					success: true,
 					orderId: input.id,
+					branchId,
 					invoiceNo: `INV-${input.id}`,
 					total,
 					items: finalItems,
@@ -906,36 +942,58 @@ export const ordersRouter = router({
 
 			try {
 				// ── Create Picking List (Picklist) task for Picker queue OUTSIDE transaction ──────────
-				const [pl] = await db
-					.insert(pickLists)
-					.values({
-						order_id: result.orderId,
-						reference_type: "sale",
-						reference_id: result.orderId,
-						status: "pending",
-						priority: "normal",
-					})
-					.returning();
+				const existingPick = await db.query.pickLists.findFirst({
+					where: eq(pickLists.order_id, result.orderId),
+				});
+
+				let pl = existingPick;
+				if (!pl) {
+					const [newPl] = await db
+						.insert(pickLists)
+						.values({
+							order_id: result.orderId,
+							reference_type: "sale",
+							reference_id: result.orderId,
+							status: "pending",
+							priority: "normal",
+						})
+						.returning();
+					pl = newPl;
+				} else {
+					await db
+						.update(pickLists)
+						.set({ status: "pending" })
+						.where(eq(pickLists.id, pl.id));
+				}
 
 				if (pl && result.items) {
-					await db.insert(pickListItems).values(
-						result.items.map((it) => ({
-							pick_list_id: pl.id,
-							product_id: it.productId,
-							quantity_ordered: it.quantity,
-							quantity_picked: 0,
-							status: "pending",
-						}))
-					);
+					const existingItems = await db
+						.select()
+						.from(pickListItems)
+						.where(eq(pickListItems.pick_list_id, pl.id));
 
-					// ── Send targeted, WMS-scoped in-app notifications to pickers & packers ──
+					if (existingItems.length === 0) {
+						await db.insert(pickListItems).values(
+							result.items.map((it) => ({
+								pick_list_id: pl!.id,
+								product_id: it.productId,
+								quantity_ordered: it.quantity,
+								quantity_picked: 0,
+								status: "pending",
+							}))
+						);
+					}
+				}
+
+				// ── Send targeted, WMS-scoped in-app notifications to pickers & packers ──
+				if (pl) {
 					const activeStaff = await db.select().from(staff);
 					for (const s of activeStaff) {
 						const normalizedRole = s.role ? s.role.toLowerCase() : "";
 						if (normalizedRole === "picker") {
 							await db.insert(notifications).values({
 								user_id: s.id,
-								branch_id: branchId,
+								branch_id: result.branchId,
 								type: "info",
 								channel: "in_app",
 								priority: "high",
@@ -946,7 +1004,7 @@ export const ordersRouter = router({
 						} else if (normalizedRole === "packer" || normalizedRole === "dispatcher" || normalizedRole === "warehouse_supervisor") {
 							await db.insert(notifications).values({
 								user_id: s.id,
-								branch_id: branchId,
+								branch_id: result.branchId,
 								type: "info",
 								channel: "in_app",
 								priority: "normal",
@@ -958,7 +1016,7 @@ export const ordersRouter = router({
 					}
 				}
 			} catch (err) {
-				console.warn("[confirmOrder] Failed to auto-generate WMS pick list (expected in mock test environments):", err);
+				console.warn("[confirmOrder] Failed to auto-generate WMS pick list:", err);
 			}
 
 			return {

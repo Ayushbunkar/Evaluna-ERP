@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -310,13 +310,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 								size="icon"
 								className="shrink-0 overflow-hidden rounded-full"
 							>
-								<Image
-									src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/placeholder-user.jpg`}
-									width={36}
-									height={36}
-									alt="Avatar"
-									className="overflow-hidden rounded-full"
-								/>
+								<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+									<UserIcon className="h-5 w-5" />
+								</div>
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">

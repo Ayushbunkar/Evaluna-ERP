@@ -407,13 +407,9 @@ export function AppLayout({
 								size="icon"
 								className="h-9 w-9 overflow-hidden rounded-full shadow-sm ring-1 ring-border/50 transition-all hover:ring-2 hover:ring-primary/20"
 							>
-								<Image
-									src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/placeholder-user.jpg`}
-									width={36}
-									height={36}
-									alt="Avatar"
-									className="object-cover"
-								/>
+								<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+									<UserIcon className="h-5 w-5" />
+								</div>
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent

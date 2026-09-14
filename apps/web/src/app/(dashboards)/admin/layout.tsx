@@ -1,6 +1,6 @@
 import {
 	Building2,
-	DollarSign,
+	IndianRupee,
 	LayoutDashboard,
 	MapPin,
 	Settings,
@@ -88,7 +88,7 @@ export default function AdminLayout({
 								href="/admin/finance"
 								className="flex w-full items-center rounded-lg px-3 py-3 font-medium text-base text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 							>
-								<DollarSign className="h-5 w-5 text-gray-400" />
+								<IndianRupee className="h-5 w-5 text-gray-400" />
 								<span className="ml-3">Finance</span>
 							</Link>
 

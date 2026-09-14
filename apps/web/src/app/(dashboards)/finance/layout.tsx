@@ -7,6 +7,7 @@ import {
 	ChartNoAxesCombinedIcon,
 	ChevronDownIcon,
 	HexagonIcon,
+	IndianRupeeIcon,
 	LandmarkIcon,
 	LayoutDashboardIcon,
 	LogOutIcon,
@@ -103,7 +104,7 @@ export default function FinanceLayout({
 				{
 					label: "Transactions",
 					href: "/finance/transactions",
-					icon: ReceiptIcon,
+					icon: IndianRupeeIcon,
 				},
 				{ label: "Bank Accounts", href: "/finance/bank", icon: LandmarkIcon },
 			],

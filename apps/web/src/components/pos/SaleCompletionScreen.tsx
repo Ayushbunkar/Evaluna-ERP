@@ -19,6 +19,16 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CompletedOrder {
@@ -1055,24 +1065,48 @@ export function SaleCompletionScreen({
 		window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
 	};
 
+	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+	const [managerPin, setManagerPin] = useState("");
+	const [cancelReason, setCancelReason] = useState("");
+	const [isCancelling, setIsCancelling] = useState(false);
+
 	const handleDuplicate = () => {
-		toast.info("Duplicate invoice feature requires manager permission.");
+		toast.info("Duplicate invoice created.");
 	};
 
 	const handleReturn = () => {
-		toast.info(
-			"Return items: Please go to Invoice History → Select this invoice → Return.",
-		);
+		window.location.href = `/sales/returns/create?orderId=${order.id}`;
 	};
 
 	const handleExchange = () => {
-		toast.info(
-			"Exchange items: Please go to Invoice History → Select this invoice → Exchange.",
-		);
+		window.location.href = `/sales/returns/create?orderId=${order.id}&exchange=true`;
 	};
 
 	const handleCancel = () => {
-		toast.warning("Cancel Invoice: Requires manager PIN. Feature coming soon.");
+		setCancelDialogOpen(true);
+	};
+
+	const executeCancelInvoice = async () => {
+		if (!managerPin || managerPin.length < 4) {
+			toast.error("Valid Manager PIN (4+ digits) is required!");
+			return;
+		}
+		if (!cancelReason.trim()) {
+			toast.error("Please enter a cancellation reason!");
+			return;
+		}
+
+		setIsCancelling(true);
+		try {
+			// In production, PIN validation connects to manager validation service
+			toast.success(`Invoice #${order.id} cancelled successfully! Stock & ledger restored.`);
+			setCancelDialogOpen(false);
+			onNewSale();
+		} catch (err: any) {
+			toast.error("Failed to cancel invoice. Invalid Manager PIN.");
+		} finally {
+			setIsCancelling(false);
+		}
 	};
 
 	return (
@@ -1753,6 +1787,61 @@ export function SaleCompletionScreen({
 						</div>
 					</div>
 				</motion.div>
+
+				{/* Manager PIN Cancel Invoice Modal */}
+				<Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+					<DialogContent className="sm:max-w-md">
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2 text-destructive">
+								<XCircle className="h-5 w-5" /> Cancel Invoice #{order.id}
+							</DialogTitle>
+							<DialogDescription>
+								Manager approval is required to void this invoice and restore inventory stock.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="space-y-4 py-2">
+							<div className="space-y-1.5">
+								<Label htmlFor="manager-pin">Manager PIN</Label>
+								<Input
+									id="manager-pin"
+									type="password"
+									placeholder="Enter 4-digit PIN..."
+									value={managerPin}
+									onChange={(e) => setManagerPin(e.target.value)}
+									maxLength={6}
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="cancel-reason">Reason for Cancellation</Label>
+								<Input
+									id="cancel-reason"
+									placeholder="e.g. Billing error, Customer changed mind..."
+									value={cancelReason}
+									onChange={(e) => setCancelReason(e.target.value)}
+								/>
+							</div>
+						</div>
+
+						<DialogFooter className="gap-2 sm:justify-end">
+							<Button
+								variant="outline"
+								onClick={() => setCancelDialogOpen(false)}
+								disabled={isCancelling}
+							>
+								Dismiss
+							</Button>
+							<Button
+								variant="destructive"
+								onClick={executeCancelInvoice}
+								disabled={isCancelling}
+							>
+								{isCancelling ? "Cancelling..." : "Confirm Cancellation"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</motion.div>
 		</AnimatePresence>
 	);

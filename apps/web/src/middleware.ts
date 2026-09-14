@@ -25,7 +25,9 @@ export default async function middleware(request: NextRequest) {
 		pathname.startsWith("/api/seed-users") ||
 		pathname.startsWith("/api/trpc") ||
 		pathname.startsWith("/_next") ||
-		pathname.startsWith("/favicon.ico") ||
+		pathname === "/favicon.ico" ||
+		pathname === "/manifest.json" ||
+		pathname === "/sw.js" ||
 		pathname.startsWith("/public")
 	) {
 		return NextResponse.next({ request: { headers: requestHeaders } });

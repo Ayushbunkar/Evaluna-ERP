@@ -177,6 +177,9 @@ export default function OrdersPage() {
 	const updateMutation = trpc.orders.update.useMutation({
 		onSuccess: () => {
 			utils.orders.list.invalidate();
+			utils.picker.getPending.invalidate();
+			utils.picker.getDashboardStats.invalidate();
+			utils.warehouse.getPickingQueue.invalidate();
 			toast.success(t("updated"));
 			setIsDialogOpen(false);
 		},

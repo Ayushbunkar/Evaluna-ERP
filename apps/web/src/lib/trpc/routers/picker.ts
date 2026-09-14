@@ -1,5 +1,5 @@
-import { pickListItems, pickLists } from "@evaluna/db/schema";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { orderItems, pickListItems, pickLists } from "@evaluna/db/schema";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -266,7 +266,7 @@ export const pickerRouter = router({
 			const db = ctx.db;
 
 			const lists = await db.query.pickLists.findMany({
-				where: eq(pickLists.status, "pending"),
+				where: inArray(pickLists.status, ["pending", "assigned"]),
 				orderBy: [desc(pickLists.created_at)],
 				limit: 50,
 				with: {
@@ -275,21 +275,33 @@ export const pickerRouter = router({
 				},
 			});
 
-			return lists
-				.filter((r) => r.pickListItems && r.pickListItems.length > 0)
-				.map((r, i) => ({
-					id: r.id,
-					queue_no: i + 1,
-					order_id: `ORD-${r.order_id}`,
-					priority: r.priority ?? "Normal",
-					items: r.pickListItems.reduce(
+			return await Promise.all(
+				lists.map(async (r, i) => {
+					let itemCount = r.pickListItems?.reduce(
 						(acc, item) => acc + (item.quantity_ordered ?? 0),
 						0,
-					),
-					assigned_to: r.assignedTo?.name || "Unassigned",
-					waiting_since: r.created_at?.toLocaleTimeString() || "",
-					expected_by: "N/A",
-				}));
+					) || 0;
+
+					if (itemCount === 0 && r.order_id) {
+						const oItems = await db
+							.select({ count: count() })
+							.from(orderItems)
+							.where(eq(orderItems.order_id, r.order_id));
+						itemCount = oItems[0]?.count || 1;
+					}
+
+					return {
+						id: r.id,
+						queue_no: i + 1,
+						order_id: `ORD-${r.order_id}`,
+						priority: r.priority ?? "Normal",
+						items: itemCount > 0 ? itemCount : 1,
+						assigned_to: r.assignedTo?.name || "Unassigned",
+						waiting_since: r.created_at?.toLocaleTimeString() || "",
+						expected_by: "N/A",
+					};
+				}),
+			);
 		}),
 
 	getReturns: roleProcedure(["admin", "manager", "auditor", "picker"])

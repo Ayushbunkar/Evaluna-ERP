@@ -14,7 +14,7 @@ import {
 	CheckCircle2Icon,
 	ClockIcon,
 	CoinsIcon,
-	DollarSignIcon,
+	IndianRupeeIcon,
 	LayoutDashboardIcon,
 	PackageIcon,
 	ShoppingBagIcon,

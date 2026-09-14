@@ -143,6 +143,9 @@ export default function CustomerOrderReviewPage() {
 			toast.success("Order confirmed! Bill generated successfully.");
 			utils.orders.listPendingReview.invalidate();
 			utils.orders.getPendingCount.invalidate();
+			utils.picker.getPending.invalidate();
+			utils.picker.getDashboardStats.invalidate();
+			utils.warehouse.getPickingQueue.invalidate();
 			setConfirmOpen(false);
 			router.push(`/sales/pos?completedOrderId=${order.id}`);
 		},
