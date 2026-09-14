@@ -1,4 +1,12 @@
-import { user } from "@evaluna/db/schema";
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
