@@ -25,10 +25,12 @@ import {
 	TrendingUpIcon,
 	UsersIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerReportsPage() {
+	const t = useTranslations("picker");
 	const trpc = useTRPC();
 	const {
 		data: reports,
@@ -43,11 +45,10 @@ export default function PickerReportsPage() {
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 					<FileBarChart className="h-7 w-7 text-blue-600" />
-					Picker Performance & Fulfillment Reports
+					{t("pickerReports")}
 				</h1>
 				<p className="text-muted-foreground text-sm">
-					Order picking velocity, items picked metrics, team leaderboards, and
-					accuracy analytics.
+					{t("pickerReportsSub")}
 				</p>
 			</div>
 
@@ -59,7 +60,7 @@ export default function PickerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Total Items Picked
+										{t("totalItemsPicked")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										{stats?.totalItemsPicked ?? 0}
@@ -76,7 +77,7 @@ export default function PickerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
-										Completed Orders
+										{t("completedOrders")}
 									</p>
 									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
 										{stats?.completed ?? 0}
@@ -93,7 +94,7 @@ export default function PickerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-purple-700 text-sm dark:text-purple-400">
-										Pick Accuracy
+										{t("pickAccuracy")}
 									</p>
 									<p className="font-bold text-3xl text-purple-800 dark:text-purple-300">
 										{stats?.pickAccuracy ?? 100}%
@@ -110,7 +111,7 @@ export default function PickerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-sm text-yellow-700 dark:text-yellow-400">
-										Queue Items
+										{t("queueItems")}
 									</p>
 									<p className="font-bold text-3xl text-yellow-800 dark:text-yellow-300">
 										{stats?.pending ?? 0}
@@ -128,17 +129,17 @@ export default function PickerReportsPage() {
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2 text-base">
 						<UsersIcon className="h-4 w-4 text-blue-600" />
-						Picker Staff Performance Leaderboard
+						{t("leaderboardTitle")}
 					</CardTitle>
 					<CardDescription>
-						Individual picking metrics for the last 30 days
+						{t("leaderboardSub")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
 							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
-							Loading reports...
+							{t("loadingReports")}
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -147,18 +148,18 @@ export default function PickerReportsPage() {
 					) : !reports || reports.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
 							<UsersIcon className="h-10 w-10 text-blue-500 opacity-30" />
-							<p>No picker performance logs recorded for this period.</p>
+							<p>{t("noReportsFound")}</p>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>Picker Employee</TableHead>
-										<TableHead>Completed Tasks</TableHead>
-										<TableHead>Total Units Picked</TableHead>
-										<TableHead>Accuracy Rate</TableHead>
-										<TableHead>Evaluation Period</TableHead>
+										<TableHead>{t("pickerEmployee")}</TableHead>
+										<TableHead>{t("completedTasks")}</TableHead>
+										<TableHead>{t("totalUnitsPicked")}</TableHead>
+										<TableHead>{t("accuracyRate")}</TableHead>
+										<TableHead>{t("evaluationPeriod")}</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -168,10 +169,10 @@ export default function PickerReportsPage() {
 												{r.employeeName}
 											</TableCell>
 											<TableCell className="font-medium text-sm">
-												{r.tasksDone} orders
+												{r.tasksDone} {t("ordersCount")}
 											</TableCell>
 											<TableCell className="font-bold text-blue-600 text-sm dark:text-blue-400">
-												{r.totalItemsPicked} units
+												{r.totalItemsPicked} {t("unitsCount")}
 											</TableCell>
 											<TableCell>
 												<span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800 text-xs dark:bg-green-900/30 dark:text-green-400">
@@ -179,7 +180,7 @@ export default function PickerReportsPage() {
 												</span>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
-												{r.period}
+												{r.period === "Last 30 days" ? "पिछले 30 दिन" : r.period}
 											</TableCell>
 										</TableRow>
 									))}

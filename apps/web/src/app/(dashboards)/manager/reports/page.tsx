@@ -11,10 +11,12 @@ import {
 import { DownloadIcon, FileBarChartIcon, Loader2Icon } from "lucide-react";
 import { downloadCsv } from "@/lib/admin/csv";
 import { PageTransition } from "@/lib/animations";
+import { useTranslations } from "next-intl";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ReportsPage() {
 	const trpc = useTRPC();
+	const t = useTranslations("manager");
 
 	// Sourced entirely from live DB stats
 	const { data: performance = [], isLoading } =
@@ -56,11 +58,10 @@ export default function ReportsPage() {
 				<div>
 					<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 						<FileBarChartIcon className="h-6 w-6 text-blue-600" />
-						Manager Reports Center
+						{t("managerReportsHeading")}
 					</h2>
 					<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-						Export, print, and audit detailed team SLA completions, performance
-						parameters, and active task volumes.
+						{t("managerReportsSub")}
 					</p>
 				</div>
 				<Button
@@ -68,19 +69,17 @@ export default function ReportsPage() {
 					onClick={handleExport}
 					disabled={performance.length === 0}
 				>
-					<DownloadIcon className="mr-1.5 h-4 w-4" /> Export Team performance
-					CSV
+					<DownloadIcon className="mr-1.5 h-4 w-4" /> {t("exportTeamPerformanceCSV")}
 				</Button>
 			</div>
 
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Team Performance SLA Auditing
+						{t("teamPerformanceSLAAuditing")}
 					</CardTitle>
 					<CardDescription>
-						Exportable spreadsheet matrix of workforce stats sourced directly
-						from the database
+						{t("exportableSpreadsheetMatrix")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
@@ -93,13 +92,13 @@ export default function ReportsPage() {
 							<table className="w-full text-left text-xs">
 								<thead>
 									<tr className="border-b text-slate-500">
-										<th className="p-3 font-semibold">Employee ID</th>
-										<th className="p-3 font-semibold">Name</th>
-										<th className="p-3 font-semibold">Role</th>
-										<th className="p-3 font-semibold">Tasks Allocated</th>
-										<th className="p-3 font-semibold">Completed</th>
+										<th className="p-3 font-semibold">{t("employeeIdCol")}</th>
+										<th className="p-3 font-semibold">{t("nameCol")}</th>
+										<th className="p-3 font-semibold">{t("systemRoleCol")}</th>
+										<th className="p-3 font-semibold">{t("tasksAllocatedCol")}</th>
+										<th className="p-3 font-semibold">{t("completedCol")}</th>
 										<th className="p-3 text-right font-semibold">
-											Completion Rate (%)
+											{t("completionRateCol")}
 										</th>
 									</tr>
 								</thead>

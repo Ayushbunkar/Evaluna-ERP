@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useLocale } from "next-intl";
+
 import { useEffect, useState } from "react";
 
 const DEMO_HOST = "evaluna-erp.johnenrique.tech";
@@ -17,7 +17,7 @@ const messages = {
 export function CookieConsent() {
 	const [visible, setVisible] = useState(false);
 	const [mounted, setMounted] = useState(false);
-	useLocale();
+
 	const t = messages.en;
 
 	useEffect(() => {

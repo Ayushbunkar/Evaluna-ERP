@@ -36,7 +36,7 @@ import {
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ManagerDashboard() {
-	const t = useTranslations();
+	const t = useTranslations("manager");
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
 
@@ -93,18 +93,18 @@ export default function ManagerDashboard() {
 			<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
 				<div>
 					<h1 className="font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
-						{t("manager.managerControlCenter")}
+						{t("managerControlCenter")}
 					</h1>
 					<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-						Operational overview of workforce, approvals, and team SLA tasks.
+						{t("managerControlSub")}
 					</p>
 				</div>
 				<div className="flex gap-2">
 					<Button variant="outline" size="sm" asChild>
-						<Link href="/manager/activity">{t("manager.teamActivityLog")}</Link>
+						<Link href="/manager/activity">{t("teamActivityLog")}</Link>
 					</Button>
 					<Button size="sm" asChild>
-						<Link href="/manager/tasks">{t("manager.createTeamTask")}</Link>
+						<Link href="/manager/tasks">{t("createTeamTask")}</Link>
 					</Button>
 				</div>
 			</div>
@@ -118,7 +118,7 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								{t("manager.totalTeam")}
+								{t("totalTeam")}
 							</p>
 							<h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
 								{stats?.totalEmployees ?? 0}
@@ -134,7 +134,7 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								{t("manager.presentToday")}
+								{t("presentToday")}
 							</p>
 							<h3 className="font-bold text-green-600 text-lg">
 								{stats?.presentToday ?? 0}
@@ -150,7 +150,7 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								{t("manager.pendingApprovals")}
+								{t("pendingApprovals")}
 							</p>
 							<h3 className="font-bold text-amber-600 text-lg">
 								{stats?.pendingApprovals ?? 0}
@@ -166,7 +166,7 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								{t("manager.driverCashColl")}
+								{t("driverCashColl")}
 							</p>
 							<h3 className="font-bold text-emerald-600 text-lg">
 								₹{(stats?.driverCashCollected ?? 0).toLocaleString("en-IN")}
@@ -182,7 +182,7 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								{t("manager.overdueTasks")}
+								{t("overdueTasks")}
 							</p>
 							<h3 className="font-bold text-lg text-red-600">
 								{stats?.overdueTasks ?? 0}
@@ -201,10 +201,10 @@ export default function ManagerDashboard() {
 							<div>
 								<CardTitle className="flex items-center gap-1.5 font-bold text-sm">
 									<FileCheckIcon className="h-4.5 w-4.5 text-blue-500" />
-									My Action & Approvals Inbox
+									{t("actionApprovalsInbox")}
 								</CardTitle>
 								<CardDescription className="text-xs">
-									Urgent items requiring your manager-level dual sign-off
+									{t("actionApprovalsInboxSub")}
 								</CardDescription>
 							</div>
 							<Button size="sm" variant="ghost" asChild>
@@ -212,7 +212,7 @@ export default function ManagerDashboard() {
 									href="/manager/approvals"
 									className="flex items-center font-semibold text-blue-600 text-xs"
 								>
-									Go to Inbox <ChevronRightIcon className="ml-0.5 h-4 w-4" />
+									{t("goToInbox")} <ChevronRightIcon className="ml-0.5 h-4 w-4" />
 								</Link>
 							</Button>
 						</CardHeader>
@@ -230,11 +230,11 @@ export default function ManagerDashboard() {
 														{app.reference_type}
 													</Badge>
 													<span className="font-bold text-slate-900 text-xs">
-														Request ID #{app.reference_id}
+														{t("requestId", { id: app.reference_id })}
 													</span>
 												</div>
 												<p className="mt-1 text-slate-500 text-xs">
-													Requested by Staff #{app.requested_by}
+													{t("requestedByStaff", { id: app.requested_by })}
 												</p>
 											</div>
 											<div className="flex w-full gap-2 sm:w-auto">
@@ -245,7 +245,7 @@ export default function ManagerDashboard() {
 													disabled={reviewApprovalMutation.isPending}
 													className="h-7 flex-1 border-red-200 text-[11px] text-red-600 hover:bg-red-50 sm:flex-initial"
 												>
-													Reject
+													{t("reject")}
 												</Button>
 												<Button
 													size="sm"
@@ -253,7 +253,7 @@ export default function ManagerDashboard() {
 													disabled={reviewApprovalMutation.isPending}
 													className="h-7 flex-1 bg-blue-600 text-[11px] hover:bg-blue-700 sm:flex-initial"
 												>
-													Approve
+													{t("approve")}
 												</Button>
 											</div>
 										</div>
@@ -262,7 +262,7 @@ export default function ManagerDashboard() {
 							) : (
 								<div className="py-10 text-center text-slate-400 text-xs">
 									<CheckCircle2Icon className="mx-auto mb-2 h-8 w-8 text-green-500" />
-									No pending approvals. Your control inbox is clean!
+									{t("noPendingApprovals")}
 								</div>
 							)}
 						</CardContent>
@@ -274,10 +274,10 @@ export default function ManagerDashboard() {
 							<div>
 								<CardTitle className="flex items-center gap-1.5 font-bold text-sm">
 									<UsersIcon className="h-4.5 w-4.5 text-blue-500" />
-									Team status Overview
+									{t("teamStatusOverview")}
 								</CardTitle>
 								<CardDescription className="text-xs">
-									Real-time status of your active branch workforce
+									{t("teamStatusOverviewSub")}
 								</CardDescription>
 							</div>
 							<Button size="sm" variant="ghost" asChild>
@@ -285,7 +285,7 @@ export default function ManagerDashboard() {
 									href="/manager/team"
 									className="flex items-center font-semibold text-blue-600 text-xs"
 								>
-									Full Team <ChevronRightIcon className="ml-0.5 h-4 w-4" />
+									{t("fullTeam")} <ChevronRightIcon className="ml-0.5 h-4 w-4" />
 								</Link>
 							</Button>
 						</CardHeader>
@@ -294,10 +294,10 @@ export default function ManagerDashboard() {
 								<table className="w-full text-left text-xs">
 									<thead>
 										<tr className="border-b bg-slate-50/50 text-slate-500">
-											<th className="p-3 font-semibold">Name</th>
-											<th className="p-3 font-semibold">System Role</th>
-											<th className="p-3 font-semibold">Workload Profile</th>
-											<th className="p-3 text-right font-semibold">Details</th>
+											<th className="p-3 font-semibold">{t("nameCol")}</th>
+											<th className="p-3 font-semibold">{t("systemRoleCol")}</th>
+											<th className="p-3 font-semibold">{t("workloadProfileCol")}</th>
+											<th className="p-3 text-right font-semibold">{t("detailsCol")}</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y">
@@ -316,18 +316,18 @@ export default function ManagerDashboard() {
 													</td>
 													<td className="p-3">
 														<span className="font-bold text-[11px] text-blue-600">
-															{wl.assigned} tasks
+															{t("tasksCount", { count: wl.assigned })}
 														</span>
 														{wl.overdue > 0 && (
 															<span className="ml-2 font-semibold text-[10px] text-red-600">
-																({wl.overdue} overdue)
+																{t("overdueTasksCount", { count: wl.overdue })}
 															</span>
 														)}
 													</td>
 													<td className="p-3 text-right">
 														<Button size="sm" variant="ghost" asChild>
 															<Link href={`/manager/team?detail=${emp.id}`}>
-																View
+																{t("detailsCol")}
 															</Link>
 														</Button>
 													</td>
@@ -348,10 +348,10 @@ export default function ManagerDashboard() {
 						<CardHeader className="border-b pb-3">
 							<CardTitle className="flex items-center gap-1.5 font-bold text-red-600 text-sm">
 								<AlertTriangleIcon className="h-4.5 w-4.5" />
-								Urgent Exceptions Center
+								{t("urgentExceptionsCenter")}
 							</CardTitle>
 							<CardDescription className="text-xs">
-								Live operational anomalies needing mitigation
+								{t("urgentExceptionsCenterSub")}
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="p-0">
@@ -376,7 +376,7 @@ export default function ManagerDashboard() {
 								</div>
 							) : (
 								<div className="py-8 text-center text-slate-400 text-xs">
-									All systems operating normally.
+									{t("allSystemsNormal")}
 								</div>
 							)}
 						</CardContent>
@@ -387,10 +387,10 @@ export default function ManagerDashboard() {
 						<CardHeader className="border-b pb-3">
 							<CardTitle className="flex items-center gap-1.5 font-bold text-sm">
 								<HistoryIcon className="h-4.5 w-4.5 text-blue-500" />
-								Live Team Timeline
+								{t("liveTeamTimeline")}
 							</CardTitle>
 							<CardDescription className="text-xs">
-								Latest auditable events from database ledger
+								{t("liveTeamTimelineSub")}
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="h-[240px] space-y-3 overflow-y-auto p-4">
@@ -403,7 +403,7 @@ export default function ManagerDashboard() {
 										{act.action}
 									</span>
 									<span className="mt-0.5 block text-slate-600 text-xs">
-										Entity {act.entity_type} #ID {act.entity_id}
+										{t("entityId", { type: act.entity_type, id: act.entity_id })}
 									</span>
 									<span className="mt-0.5 block text-[9px] text-slate-400">
 										{new Date(act.created_at || "").toLocaleString()}
@@ -412,7 +412,7 @@ export default function ManagerDashboard() {
 							))}
 							{activity.length === 0 && (
 								<div className="py-8 text-center text-slate-400 text-xs">
-									No team activity logged.
+									{t("noTeamActivityLogged")}
 								</div>
 							)}
 						</CardContent>

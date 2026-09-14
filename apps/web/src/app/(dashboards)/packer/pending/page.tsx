@@ -35,11 +35,14 @@ import {
 	SearchIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerPendingPage() {
+	const t = useTranslations("packer");
+	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
 	const {
 		data: pendingList,
@@ -213,11 +216,10 @@ export default function PackerPendingPage() {
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 					<PackageIcon className="h-7 w-7 text-blue-600" />
-					Pending Packing Queue
+					{t("pendingPackingQueue")}
 				</h1>
 				<p className="text-muted-foreground text-sm">
-					Picklists that have completed picking and are ready for box packaging,
-					weight recording, and parcel labeling.
+					{t("pendingPackingQueueSub")}
 				</p>
 			</div>
 
@@ -229,7 +231,7 @@ export default function PackerPendingPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Total Pending to Pack
+										{t("totalPendingToPack")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										{pendingList?.length ?? 0}
@@ -247,7 +249,7 @@ export default function PackerPendingPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Picking Verified
+										{t("pickingVerified")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										{pendingList?.length ?? 0}
@@ -265,10 +267,10 @@ export default function PackerPendingPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
-										Station Status
+										{t("stationStatus")}
 									</p>
 									<p className="font-bold text-green-800 text-xl dark:text-green-300">
-										Ready
+										{tCommon("active")}
 									</p>
 								</div>
 								<CheckCircle2Icon className="h-8 w-8 text-green-500" />
@@ -284,10 +286,10 @@ export default function PackerPendingPage() {
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<BoxIcon className="h-5 w-5 text-blue-600" />
-							Pending Pack Queue
+							{t("pendingPackQueue")}
 						</CardTitle>
 						<CardDescription>
-							Orders waiting to be packed into shipping boxes
+							{t("ordersWaitingToPack")}
 						</CardDescription>
 					</div>
 
@@ -295,7 +297,7 @@ export default function PackerPendingPage() {
 						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 						<input
 							type="text"
-							placeholder="Search picklist or order ref..."
+							placeholder={t("searchPicklistOrRef")}
 							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -306,7 +308,7 @@ export default function PackerPendingPage() {
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
 							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
-							Loading queue...
+							{t("loadingQueue")}
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -315,20 +317,20 @@ export default function PackerPendingPage() {
 					) : !filteredList || filteredList.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
 							<CheckCircle2Icon className="h-10 w-10 text-green-500 opacity-30" />
-							<p>No orders currently waiting for packing.</p>
+							<p>{t("noOrdersWaitingToPack")}</p>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>Picklist ID</TableHead>
-										<TableHead>Order Ref</TableHead>
-										<TableHead>Assigned Route</TableHead>
-										<TableHead>Driver & Truck</TableHead>
-										<TableHead>Picking Completion Time</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead className="text-right">Action</TableHead>
+										<TableHead>{t("orderRef")}</TableHead>
+										<TableHead>{t("orderRef")}</TableHead>
+										<TableHead>{t("assignedRoute")}</TableHead>
+										<TableHead>{t("driverAndTruck")}</TableHead>
+										<TableHead>{t("pickingCompletionTime")}</TableHead>
+										<TableHead>{tCommon("status")}</TableHead>
+										<TableHead className="text-right">{tCommon("actions")}</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -352,7 +354,7 @@ export default function PackerPendingPage() {
 											</TableCell>
 											<TableCell>
 												<span className="rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-													Ready to Pack
+													{t("readyToPack")}
 												</span>
 											</TableCell>
 											<TableCell className="text-right">
@@ -361,7 +363,7 @@ export default function PackerPendingPage() {
 													className="h-8 bg-blue-600 text-white hover:bg-blue-700"
 													onClick={() => setSelectedPickList(pl)}
 												>
-													<BoxIcon className="mr-1 h-3.5 w-3.5" /> Pack Parcel
+													<BoxIcon className="mr-1 h-3.5 w-3.5" /> {t("packParcel")}
 												</Button>
 											</TableCell>
 										</TableRow>
@@ -383,11 +385,10 @@ export default function PackerPendingPage() {
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								<BoxIcon className="h-5 w-5 text-blue-600" />
-								Pack Order {selectedPickList.order_ref}
+								{t("packParcel")} {selectedPickList.order_ref}
 							</DialogTitle>
 							<DialogDescription>
-								Record parcel weight and dimensions to create package & generate
-								shipping barcode sticker.
+								{t("recordParcelWeight")}
 							</DialogDescription>
 						</DialogHeader>
 
@@ -397,23 +398,23 @@ export default function PackerPendingPage() {
 									<strong>Picklist:</strong> {selectedPickList.id}
 								</p>
 								<p>
-									<strong>Order Reference:</strong> {selectedPickList.order_ref}
+									<strong>{t("orderRef")}:</strong> {selectedPickList.order_ref}
 								</p>
 								<p>
-									<strong>Status:</strong> Ready for Packaging
+									<strong>{tCommon("status")}:</strong> {t("readyToPack")}
 								</p>
 								<p className="mt-1.5 pt-1.5 border-t border-blue-200/30">
-									<strong>🚚 Load on Truck:</strong> {selectedPickList.vehiclePlate} ({selectedPickList.driverName})
+									<strong>🚚 {t("driverAndTruck")}:</strong> {selectedPickList.vehiclePlate} ({selectedPickList.driverName})
 								</p>
 								<p className="mt-0.5">
-									<strong>📍 Route:</strong> {selectedPickList.routeName}
+									<strong>📍 {t("assignedRoute")}:</strong> {selectedPickList.routeName}
 								</p>
 							</div>
 
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1">
 									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										Parcel Weight (kg)
+										{t("parcelWeight")}
 									</label>
 									<input
 										type="number"
@@ -426,7 +427,7 @@ export default function PackerPendingPage() {
 
 								<div className="space-y-1">
 									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										Box Dimensions
+										{t("boxDimensions")}
 									</label>
 									<input
 										type="text"
@@ -441,7 +442,7 @@ export default function PackerPendingPage() {
 
 						<DialogFooter className="flex justify-end gap-2">
 							<Button variant="ghost" onClick={() => setSelectedPickList(null)}>
-								Cancel
+								{tCommon("cancel")}
 							</Button>
 							<Button
 								disabled={packMutation.isPending}
@@ -451,7 +452,7 @@ export default function PackerPendingPage() {
 								{packMutation.isPending && (
 									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
 								)}
-								Complete Packing & Save Package
+								{t("completePackingAndSave")}
 							</Button>
 						</DialogFooter>
 					</DialogContent>
@@ -468,37 +469,37 @@ export default function PackerPendingPage() {
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2 text-emerald-700 text-lg">
 								<CheckCircle2Icon className="h-6 w-6 text-emerald-600" />
-								Packing & Label Printed Successfully!
+								{t("packingLabelPrinted")}
 							</DialogTitle>
 							<DialogDescription className="text-xs text-muted-foreground">
-								Package <strong>{printPackage.number}</strong> has been packed and printed. Confirm handover to complete dispatch.
+								{t("packagePackedPrintedSub", { number: printPackage.number })}
 							</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-3 py-2 text-sm">
 							<div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3.5 space-y-2 text-xs">
 								<div className="flex justify-between items-center border-b border-emerald-200/50 pb-2">
-									<span className="font-semibold text-gray-700">Package No:</span>
+									<span className="font-semibold text-gray-700">{t("packageNumber")}:</span>
 									<span className="font-mono font-bold text-emerald-800 text-sm">{printPackage.number}</span>
 								</div>
 								<div className="flex justify-between">
-									<span className="text-gray-500">Order Ref:</span>
+									<span className="text-gray-500">{t("orderRef")}:</span>
 									<span className="font-semibold text-gray-900">{printPackage.orderRef}</span>
 								</div>
 								<div className="flex justify-between">
-									<span className="text-gray-500">Customer:</span>
+									<span className="text-gray-500">{tCommon("name")}:</span>
 									<span className="font-medium text-gray-900">{printPackage.customerName}</span>
 								</div>
 								<div className="flex justify-between">
-									<span className="text-gray-500">Assigned Driver:</span>
-									<span className="font-semibold text-blue-700">👤 {printPackage.driverName || "Assigned Driver"}</span>
+									<span className="text-gray-500">{t("assignedPicker")}:</span>
+									<span className="font-semibold text-blue-700">👤 {printPackage.driverName || t("unassigned")}</span>
 								</div>
 								<div className="flex justify-between">
-									<span className="text-gray-500">Truck / Vehicle:</span>
+									<span className="text-gray-500">{t("driverAndTruck")}:</span>
 									<span className="font-mono font-medium text-gray-800">🚛 {printPackage.vehiclePlate || "N/A"}</span>
 								</div>
 								<div className="flex justify-between border-t border-emerald-200/50 pt-1.5 mt-1">
-									<span className="text-gray-500">Parcel Specs:</span>
+									<span className="text-gray-500">{t("boxDimensions")}:</span>
 									<span className="font-medium text-gray-800">{printPackage.weight} kg • {printPackage.dimensions}</span>
 								</div>
 							</div>
@@ -512,7 +513,7 @@ export default function PackerPendingPage() {
 									onClick={() => window.print()}
 								>
 									<PrinterIcon className="mr-1.5 h-3.5 w-3.5 text-gray-600" />
-									Re-Print Packing Slip
+									{t("reprintPackingSlip")}
 								</Button>
 
 								<Button
@@ -526,7 +527,7 @@ export default function PackerPendingPage() {
 									}}
 								>
 									<CheckCircle2Icon className="mr-1.5 h-4 w-4" />
-									Confirm Transfer & Complete
+									{t("confirmTransferAndComplete")}
 								</Button>
 							</div>
 						</div>

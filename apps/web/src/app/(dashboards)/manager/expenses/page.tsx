@@ -9,10 +9,12 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { CreditCardIcon, Loader2Icon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ExpensesPage() {
+	const t = useTranslations("manager");
 	const trpc = useTRPC();
 
 	// Query real employee expenses
@@ -24,21 +26,20 @@ export default function ExpensesPage() {
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<CreditCardIcon className="h-6 w-6 text-blue-600" />
-					Team Expense Claims
+					{t("teamExpenseClaims")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-					Track in-progress, approved, and paid out reimbursement claims
-					submitted by your team.
+					{t("teamExpenseClaimsSub")}
 				</p>
 			</div>
 
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Operational Expense Claims List
+						{t("operationalExpenseClaimsList")}
 					</CardTitle>
 					<CardDescription>
-						Real-time view of claims, categories, and payment statuses
+						{t("operationalExpenseClaimsListSub")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
@@ -51,11 +52,11 @@ export default function ExpensesPage() {
 							<table className="w-full text-left text-xs">
 								<thead>
 									<tr className="border-b text-slate-500">
-										<th className="p-3 font-semibold">Claim ID</th>
-										<th className="p-3 font-semibold">Category</th>
-										<th className="p-3 font-semibold">Amount</th>
-										<th className="p-3 font-semibold">Status</th>
-										<th className="p-3 font-semibold">Created At</th>
+										<th className="p-3 font-semibold">{t("claimIdCol")}</th>
+										<th className="p-3 font-semibold">{t("categoryCol")}</th>
+										<th className="p-3 font-semibold">{t("amountCol")}</th>
+										<th className="p-3 font-semibold">{t("statusHeader")}</th>
+										<th className="p-3 font-semibold">{t("createdAtCol")}</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y">
@@ -93,7 +94,7 @@ export default function ExpensesPage() {
 												colSpan={5}
 												className="py-12 text-center text-slate-400 text-xs"
 											>
-												No team expense claims logged.
+												{t("noTeamExpensesLogged")}
 											</td>
 										</tr>
 									)}

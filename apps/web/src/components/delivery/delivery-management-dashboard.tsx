@@ -2,6 +2,7 @@
 
 import { AlertTriangleIcon, CheckCircle2Icon, ClockIcon, MapPinIcon, PackageIcon, RouteIcon, ShieldCheckIcon, Trash2Icon, TruckIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +48,7 @@ export function DeliveryManagementDashboard({
 	branches,
 	initialTrips,
 }: DeliveryManagementDashboardProps) {
+	const t = useTranslations("manager");
 	const [activeTab, setActiveTab] = useState("overview");
 
 	const { data: routes = initialRoutes, refetch: refetchRoutes } =
@@ -315,11 +317,11 @@ export function DeliveryManagementDashboard({
 	return (
 		<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
 			<TabsList>
-				<TabsTrigger value="overview">Overview</TabsTrigger>
-				<TabsTrigger value="routes">Routes & Trips</TabsTrigger>
-				<TabsTrigger value="tracking">Live Tracking</TabsTrigger>
-				<TabsTrigger value="vehicles">Vehicles</TabsTrigger>
-				<TabsTrigger value="settlements">Settlements</TabsTrigger>
+				<TabsTrigger value="overview">{t("overviewTab")}</TabsTrigger>
+				<TabsTrigger value="routes">{t("routesTab")}</TabsTrigger>
+				<TabsTrigger value="tracking">{t("trackingTab")}</TabsTrigger>
+				<TabsTrigger value="vehicles">{t("vehiclesTab")}</TabsTrigger>
+				<TabsTrigger value="settlements">{t("settlementsTab")}</TabsTrigger>
 			</TabsList>
 
 			<TabsContent value="overview" className="space-y-4">
@@ -327,7 +329,7 @@ export function DeliveryManagementDashboard({
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="font-medium text-sm">
-								Active Trips
+								{t("activeTripsCard")}
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
@@ -337,7 +339,7 @@ export function DeliveryManagementDashboard({
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="font-medium text-sm">
-								Available Vehicles
+								{t("availableVehiclesCard")}
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
@@ -347,7 +349,7 @@ export function DeliveryManagementDashboard({
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="font-medium text-sm">
-								Pending Settlements
+								{t("pendingSettlementsCard")}
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
@@ -362,10 +364,10 @@ export function DeliveryManagementDashboard({
 						<div>
 							<CardTitle className="flex items-center gap-2 font-bold text-lg">
 								<PackageIcon className="h-5 w-5 text-blue-600" />
-								Orders Awaiting Route & Driver Assignment
+								{t("ordersAwaitingAssignment")}
 							</CardTitle>
 							<CardDescription className="text-xs">
-								Select multiple orders to create 1 unified multi-stop delivery trip for a Driver & Vehicle before sending to Packers.
+								{t("selectMultipleOrdersSub")}
 							</CardDescription>
 						</div>
 						{selectedOrderIds.length > 0 && (
@@ -376,7 +378,7 @@ export function DeliveryManagementDashboard({
 									setIsOrderAssignOpen(true);
 								}}
 							>
-								✨ Assign Selected ({selectedOrderIds.length} Orders) to 1 Trip
+								{t("assignSelectedOrdersToTrip", { count: selectedOrderIds.length })}
 							</Button>
 						)}
 					</CardHeader>
@@ -399,12 +401,12 @@ export function DeliveryManagementDashboard({
 												}}
 											/>
 										</th>
-										<th className="px-4 py-3">Order ID</th>
-										<th className="px-4 py-3">Customer Name</th>
-										<th className="px-4 py-3">Total Amount</th>
-										<th className="px-4 py-3">Order Date</th>
-										<th className="px-4 py-3 text-center">Route Status</th>
-										<th className="px-4 py-3 text-center">Action</th>
+										<th className="px-4 py-3">{t("orderIdHeader")}</th>
+										<th className="px-4 py-3">{t("customerNameHeader")}</th>
+										<th className="px-4 py-3">{t("totalAmountHeader")}</th>
+										<th className="px-4 py-3">{t("orderDateHeader")}</th>
+										<th className="px-4 py-3 text-center">{t("routeStatusHeader")}</th>
+										<th className="px-4 py-3 text-center">{t("actionHeader")}</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -434,7 +436,7 @@ export function DeliveryManagementDashboard({
 												</td>
 												<td className="px-4 py-3 text-center">
 													<span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-[11px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-														Unassigned Route
+														{t("unassignedRoute")}
 													</span>
 												</td>
 												<td className="px-4 py-3 text-center">
@@ -448,7 +450,7 @@ export function DeliveryManagementDashboard({
 														}}
 													>
 														<RouteIcon className="mr-1.5 h-3.5 w-3.5" />
-														Assign Route & Driver
+														{t("assignRouteAndDriver")}
 													</Button>
 												</td>
 											</tr>
@@ -458,7 +460,7 @@ export function DeliveryManagementDashboard({
 										<tr>
 											<td colSpan={7} className="py-12 text-center text-muted-foreground">
 												<PackageIcon className="mx-auto mb-3 h-10 w-10 opacity-20" />
-												<p>No orders waiting for route assignment.</p>
+												<p>{t("noOrdersWaitingRouteAssignment")}</p>
 											</td>
 										</tr>
 									)}

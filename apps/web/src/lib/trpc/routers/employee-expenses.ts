@@ -10,7 +10,7 @@ import {
 } from "@/lib/finance/service";
 import { protectedProcedure, roleProcedure, router } from "../init";
 
-const READ_ROLES = ["admin", "manager", "auditor"] as const;
+const READ_ROLES = ["admin", "manager", "auditor", "finance"] as const;
 const REVIEW_ROLES = ["admin", "manager"] as const;
 
 /** Resolve the acting user's staff row (by email) or throw. */
@@ -84,9 +84,17 @@ export const employeeExpensesRouter = router({
 	listMine: protectedProcedure
 		.input(z.object({ status: z.string().optional() }).optional())
 		.query(async ({ ctx, input }) => {
-			const me = await requireStaff(ctx.user.email);
+			const staffRow = await db
+				.select({ id: staff.id })
+				.from(staff)
+				.where(eq(staff.email, ctx.user.email))
+				.limit(1);
+			if (!staffRow[0]) {
+				return [];
+			}
+			const meId = staffRow[0].id;
 			const conds = [
-				eq(employeeExpenses.staff_id, me.id),
+				eq(employeeExpenses.staff_id, meId),
 				eq(employeeExpenses.is_deleted, false),
 			];
 			if (input?.status) conds.push(eq(employeeExpenses.status, input.status));

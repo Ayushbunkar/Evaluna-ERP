@@ -16,10 +16,12 @@ import {
 	ShieldCheckIcon,
 	TrendingUpIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerReportsPage() {
+	const t = useTranslations("packer");
 	const trpc = useTRPC();
 	const {
 		data: reports,
@@ -33,11 +35,10 @@ export default function PackerReportsPage() {
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 					<FileBarChart className="h-7 w-7 text-blue-600" />
-					Packing Efficiency & Performance Reports
+					{t("reportsTitle")}
 				</h1>
 				<p className="text-muted-foreground text-sm">
-					Packing throughput statistics, parcel velocity, error rates, and
-					station efficiency analytics.
+					{t("reportsSub")}
 				</p>
 			</div>
 
@@ -49,7 +50,7 @@ export default function PackerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Total Packed Orders
+										{t("totalPackedOrders")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										{reports?.totalOrders ?? 0}
@@ -66,7 +67,7 @@ export default function PackerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Avg Packing Speed
+										{t("avgPackingSpeed")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										{reports?.avgPackingTime ?? 4.2}m
@@ -83,7 +84,7 @@ export default function PackerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
-										Station Accuracy
+										{t("stationAccuracy")}
 									</p>
 									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
 										{reports?.accuracy ?? 99.8}%
@@ -100,7 +101,7 @@ export default function PackerReportsPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-sm text-yellow-700 dark:text-yellow-400">
-										Packaging Errors
+										{t("packagingErrors")}
 									</p>
 									<p className="font-bold text-3xl text-yellow-800 dark:text-yellow-300">
 										{reports?.totalErrors ?? 0}
@@ -119,38 +120,38 @@ export default function PackerReportsPage() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 text-base">
 							<TrendingUpIcon className="h-4 w-4 text-blue-600" />
-							Station Packing Metrics
+							{t("stationPackingMetrics")}
 						</CardTitle>
-						<CardDescription>Key performance indicators</CardDescription>
+						<CardDescription>{t("keyPerformanceIndicators")}</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex items-center justify-between border-b pb-2">
 							<span className="text-muted-foreground text-sm">
-								Order Throughput
+								{t("orderThroughput")}
 							</span>
 							<span className="font-bold text-sm">
-								{reports?.totalOrders ?? 0} parcels
+								{reports?.totalOrders ?? 0} {t("parcelsCount")}
 							</span>
 						</div>
 						<div className="flex items-center justify-between border-b pb-2">
 							<span className="text-muted-foreground text-sm">
-								Items Boxed & Sealed
+								{t("itemsBoxedAndSealed")}
 							</span>
 							<span className="font-bold text-sm">
-								{reports?.totalItems ?? 0} items
+								{reports?.totalItems ?? 0} {t("itemsCount")}
 							</span>
 						</div>
 						<div className="flex items-center justify-between border-b pb-2">
 							<span className="text-muted-foreground text-sm">
-								Average Pack Duration
+								{t("averagePackDuration")}
 							</span>
 							<span className="font-bold text-green-600 text-sm">
-								{reports?.avgPackingTime ?? 4.2} mins / parcel
+								{reports?.avgPackingTime ?? 4.2} {t("minsPerParcel")}
 							</span>
 						</div>
 						<div className="flex items-center justify-between">
 							<span className="text-muted-foreground text-sm">
-								Logistics Verification Rate
+								{t("logisticsVerificationRate")}
 							</span>
 							<span className="font-bold text-blue-600 text-sm">100%</span>
 						</div>
@@ -161,40 +162,40 @@ export default function PackerReportsPage() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 text-base">
 							<ShieldCheckIcon className="h-4 w-4 text-green-600" />
-							Quality Assurance Summary
+							{t("qualityAssuranceSummary")}
 						</CardTitle>
 						<CardDescription>
-							Parcel integrity and labeling audits
+							{t("parcelIntegrityAudits")}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex items-center justify-between border-b pb-2">
 							<span className="text-muted-foreground text-sm">
-								Shipping Label Scan Rate
+								{t("shippingLabelScanRate")}
 							</span>
 							<span className="font-bold text-green-600 text-sm">
-								100% Verified
+								{t("verified100")}
 							</span>
 						</div>
 						<div className="flex items-center justify-between border-b pb-2">
 							<span className="text-muted-foreground text-sm">
-								Weight Mismatches Flagged
+								{t("weightMismatchesFlagged")}
 							</span>
 							<span className="font-bold text-sm">0</span>
 						</div>
 						<div className="flex items-center justify-between border-b pb-2">
 							<span className="text-muted-foreground text-sm">
-								Box Dimension Compliance
+								{t("boxDimensionCompliance")}
 							</span>
 							<span className="font-bold text-green-600 text-sm">
-								Compliant
+								{t("compliant")}
 							</span>
 						</div>
 						<div className="flex items-center justify-between">
 							<span className="text-muted-foreground text-sm">
-								Dispatch Readiness
+								{t("dispatchReadiness")}
 							</span>
-							<span className="font-bold text-blue-600 text-sm">Immediate</span>
+							<span className="font-bold text-blue-600 text-sm">{t("immediate")}</span>
 						</div>
 					</CardContent>
 				</Card>

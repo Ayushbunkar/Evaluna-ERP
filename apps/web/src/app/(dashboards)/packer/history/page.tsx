@@ -26,10 +26,13 @@ import {
 	TruckIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerHistoryPage() {
+	const t = useTranslations("packer");
+	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
 	const {
 		data: historyList,
@@ -97,11 +100,10 @@ export default function PackerHistoryPage() {
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 					<ArchiveIcon className="h-7 w-7 text-blue-600" />
-					Packing History & Label Repository
+					{t("packingHistoryTitle")}
 				</h1>
 				<p className="text-muted-foreground text-sm">
-					Archive of all packed packages, parcel barcodes, staff attribution,
-					and shipping label re-printing.
+					{t("packingHistorySub")}
 				</p>
 			</div>
 
@@ -113,7 +115,7 @@ export default function PackerHistoryPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Total Packed
+										{t("totalPacked")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										{historyList?.length ?? 0}
@@ -131,7 +133,7 @@ export default function PackerHistoryPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
-										Ready for Dispatch
+										{t("readyForDispatch")}
 									</p>
 									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
 										{historyList?.length ?? 0}
@@ -149,7 +151,7 @@ export default function PackerHistoryPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Quality Accuracy
+										{t("qualityAccuracy")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										100%
@@ -168,10 +170,10 @@ export default function PackerHistoryPage() {
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<ArchiveIcon className="h-5 w-5 text-blue-600" />
-							Package Audit History
+							{t("packageAuditHistory")}
 						</CardTitle>
 						<CardDescription>
-							Full history of completed parcels and shipping barcodes
+							{t("packageAuditHistorySub")}
 						</CardDescription>
 					</div>
 
@@ -179,7 +181,7 @@ export default function PackerHistoryPage() {
 						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 						<input
 							type="text"
-							placeholder="Search package number, order..."
+							placeholder={t("searchPackageOrOrder")}
 							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -190,7 +192,7 @@ export default function PackerHistoryPage() {
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
 							<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
-							Loading history...
+							{t("loadingHistory")}
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
@@ -199,20 +201,20 @@ export default function PackerHistoryPage() {
 					) : !filteredList || filteredList.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
 							<ArchiveIcon className="h-10 w-10 text-blue-500 opacity-30" />
-							<p>No package history found.</p>
+							<p>{t("noPackageHistoryFound")}</p>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>Package Number</TableHead>
-										<TableHead>Order Ref</TableHead>
-										<TableHead>Assigned Driver & Truck</TableHead>
-										<TableHead>Packed By</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead>Packed Date</TableHead>
-										<TableHead className="text-right">Action</TableHead>
+										<TableHead>{t("packageNumber")}</TableHead>
+										<TableHead>{t("orderRef")}</TableHead>
+										<TableHead>{t("assignedDriverAndTruck")}</TableHead>
+										<TableHead>{t("packedBy")}</TableHead>
+										<TableHead>{tCommon("status")}</TableHead>
+										<TableHead>{t("packedDate")}</TableHead>
+										<TableHead className="text-right">{tCommon("actions")}</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -225,7 +227,7 @@ export default function PackerHistoryPage() {
 												{pkg.orderId}
 											</TableCell>
 											<TableCell className="text-xs">
-												<div className="font-medium text-gray-800 dark:text-gray-200">👤 {pkg.driverName || "Unassigned"}</div>
+												<div className="font-medium text-gray-800 dark:text-gray-200">👤 {pkg.driverName || t("unassigned")}</div>
 												<div className="text-muted-foreground text-[10px] mt-0.5 font-mono">🚛 {pkg.vehiclePlate || "N/A"}</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
@@ -233,7 +235,7 @@ export default function PackerHistoryPage() {
 											</TableCell>
 											<TableCell>
 												<span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800 text-xs capitalize dark:bg-green-900/30 dark:text-green-400">
-													{pkg.status}
+													{pkg.status === "Packed" || pkg.status === "packed" ? "पैक किया हुआ" : pkg.status}
 												</span>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
@@ -248,7 +250,7 @@ export default function PackerHistoryPage() {
 														handlePrintLabel(pkg.packageNumber, pkg.orderId)
 													}
 												>
-													<PrinterIcon className="h-3.5 w-3.5" /> Re-print Label
+													<PrinterIcon className="h-3.5 w-3.5" /> {t("reprintLabel")}
 												</Button>
 											</TableCell>
 										</TableRow>

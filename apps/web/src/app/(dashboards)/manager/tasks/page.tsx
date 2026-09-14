@@ -27,11 +27,13 @@ import {
 	UserPlusIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function TasksPage() {
+	const t = useTranslations("manager");
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
 
@@ -110,11 +112,10 @@ export default function TasksPage() {
 				<div>
 					<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 						<CheckSquareIcon className="h-6 w-6 text-blue-600" />
-						Task Operational Control Center
+						{t("taskOperationalTitle")}
 					</h2>
 					<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-						Monitor, assign, reassign, and create SLA-bearing verification &
-						generation work.
+						{t("taskOperationalSub")}
 					</p>
 				</div>
 				<Button
@@ -122,17 +123,17 @@ export default function TasksPage() {
 					onClick={() => setIsCreateOpen(true)}
 					className="bg-blue-600 hover:bg-blue-700"
 				>
-					<PlusIcon className="mr-1.5 h-4 w-4" /> New Operational Task
+					<PlusIcon className="mr-1.5 h-4 w-4" /> {t("newOperationalTask")}
 				</Button>
 			</div>
 
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Workspace Team Tasks Queue
+						{t("workspaceTasksQueue")}
 					</CardTitle>
 					<CardDescription>
-						Interactive overview of unassigned and in-flight tasks
+						{t("workspaceTasksQueueSub")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
@@ -145,11 +146,11 @@ export default function TasksPage() {
 							<table className="w-full text-left text-xs">
 								<thead>
 									<tr className="border-b text-slate-500">
-										<th className="p-3 font-semibold">Task ID</th>
-										<th className="p-3 font-semibold">Type</th>
-										<th className="p-3 font-semibold">Status</th>
-										<th className="p-3 font-semibold">Assigned To</th>
-										<th className="p-3 text-right font-semibold">Actions</th>
+										<th className="p-3 font-semibold">{t("taskIdCol")}</th>
+										<th className="p-3 font-semibold">{t("typeCol")}</th>
+										<th className="p-3 font-semibold">{t("statusCol")}</th>
+										<th className="p-3 font-semibold">{t("assignedToCol")}</th>
+										<th className="p-3 text-right font-semibold">{t("actionsCol")}</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y">
@@ -182,7 +183,7 @@ export default function TasksPage() {
 															className="h-7 border-blue-200 text-[10px] text-blue-600 hover:bg-blue-50"
 														>
 															<UserPlusIcon className="mr-1 h-3.5 w-3.5" />{" "}
-															Assign Team
+															{t("assignTeam")}
 														</Button>
 													)}
 												</td>
@@ -195,7 +196,7 @@ export default function TasksPage() {
 												colSpan={5}
 												className="py-12 text-center text-slate-400 text-xs"
 											>
-												No team tasks logged.
+												{t("noTeamTasksLogged")}
 											</td>
 										</tr>
 									)}

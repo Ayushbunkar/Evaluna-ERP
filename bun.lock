@@ -130,6 +130,7 @@
       "name": "@evaluna/auth",
       "version": "0.0.0",
       "dependencies": {
+        "@evaluna/db": "workspace:*",
         "better-auth": "catalog:",
       },
       "devDependencies": {

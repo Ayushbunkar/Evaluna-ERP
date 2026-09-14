@@ -15,11 +15,13 @@ import {
 	Loader2Icon,
 	XCircleIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function LeavePage() {
+	const t = useTranslations("manager");
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
 
@@ -52,20 +54,20 @@ export default function LeavePage() {
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<CalendarIcon className="h-6 w-6 text-blue-600" />
-					Leave Management Workspace
+					{t("leaveManagementWorkspace")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-					Review, approve, or reject employee leave and time-off requests.
+					{t("leaveManagementSub")}
 				</p>
 			</div>
 
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Time-Off Requests Queue
+						{t("timeOffRequestsQueue")}
 					</CardTitle>
 					<CardDescription>
-						Approved, pending, or rejected leaves across your entire workforce
+						{t("timeOffRequestsQueueSub")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
@@ -78,11 +80,11 @@ export default function LeavePage() {
 							<table className="w-full text-left text-xs">
 								<thead>
 									<tr className="border-b text-slate-500">
-										<th className="p-3 font-semibold">Request ID</th>
-										<th className="p-3 font-semibold">Requested By</th>
-										<th className="p-3 font-semibold">Created At</th>
-										<th className="p-3 font-semibold">Status</th>
-										<th className="p-3 text-right font-semibold">Actions</th>
+										<th className="p-3 font-semibold">{t("requestIdHeader", { id: "" }).replace(" #", "")}</th>
+										<th className="p-3 font-semibold">{t("requestedByCol")}</th>
+										<th className="p-3 font-semibold">{t("createdAtCol")}</th>
+										<th className="p-3 font-semibold">{t("statusHeader")}</th>
+										<th className="p-3 text-right font-semibold">{t("actionsCol")}</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y">
@@ -92,7 +94,7 @@ export default function LeavePage() {
 												LEAVE-#{leave.reference_id}
 											</td>
 											<td className="p-3 font-medium">
-												Staff ID #{leave.requested_by}
+												{t("staffIdRef", { id: leave.requested_by })}
 											</td>
 											<td className="p-3 font-medium">
 												{leave.created_at
@@ -120,7 +122,7 @@ export default function LeavePage() {
 															className="h-7 border-red-200 text-[10px] text-red-600 hover:bg-red-50"
 														>
 															<XCircleIcon className="mr-1 h-3.5 w-3.5" />{" "}
-															Reject
+															{t("reject")}
 														</Button>
 														<Button
 															size="sm"
@@ -129,7 +131,7 @@ export default function LeavePage() {
 															className="h-7 bg-blue-600 text-[10px] hover:bg-blue-700"
 														>
 															<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" />{" "}
-															Approve
+															{t("approve")}
 														</Button>
 													</div>
 												)}
@@ -142,7 +144,7 @@ export default function LeavePage() {
 												colSpan={5}
 												className="py-12 text-center text-slate-400 text-xs"
 											>
-												No leave requests logged.
+												{t("noLeaveRequestsLogged")}
 											</td>
 										</tr>
 									)}

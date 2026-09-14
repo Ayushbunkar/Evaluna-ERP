@@ -15,11 +15,13 @@ import {
 	Loader2Icon,
 	XCircleIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ApprovalsPage() {
+	const t = useTranslations("manager");
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
 
@@ -56,11 +58,10 @@ export default function ApprovalsPage() {
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<FileCheckIcon className="h-6 w-6 text-blue-600" />
-					Manager centralized Approval Inbox
+					{t("approvalInboxTitle")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-					Review and execute dual-signature operational reviews of leaves,
-					expenses, and purchases.
+					{t("approvalInboxSub")}
 				</p>
 			</div>
 
@@ -69,10 +70,10 @@ export default function ApprovalsPage() {
 				<Card className="shadow-sm">
 					<CardHeader className="border-b bg-slate-50/50 pb-3">
 						<CardTitle className="font-bold text-sm">
-							Pending Review ({pending.length})
+							{t("pendingReviewHeader", { count: pending.length })}
 						</CardTitle>
 						<CardDescription className="text-xs">
-							Incoming requests awaiting your authorization
+							{t("pendingReviewSub")}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="p-0">
@@ -94,14 +95,15 @@ export default function ApprovalsPage() {
 												</span>
 											</div>
 											<span className="text-[10px] text-slate-400">
-												Created:{" "}
-												{app.created_at
-													? new Date(app.created_at).toLocaleDateString()
-													: ""}
+												{t("createdLabel", {
+													date: app.created_at
+														? new Date(app.created_at).toLocaleDateString()
+														: ""
+												})}
 											</span>
 										</div>
 										<p className="text-slate-600 text-xs dark:text-slate-400">
-											Requested by Staff Member #{app.requested_by}
+											{t("requestedByStaffMember", { id: app.requested_by })}
 										</p>
 										<div className="flex gap-2">
 											<Button
@@ -111,7 +113,7 @@ export default function ApprovalsPage() {
 												disabled={reviewApprovalMutation.isPending}
 												className="h-7 flex-1 border-red-200 text-[11px] text-red-600 hover:bg-red-50"
 											>
-												<XCircleIcon className="mr-1 h-3.5 w-3.5" /> Reject
+												<XCircleIcon className="mr-1 h-3.5 w-3.5" /> {t("reject")}
 											</Button>
 											<Button
 												size="sm"
@@ -120,7 +122,7 @@ export default function ApprovalsPage() {
 												className="h-7 flex-1 bg-blue-600 text-[11px] hover:bg-blue-700"
 											>
 												<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" />{" "}
-												Approve
+												{t("approve")}
 											</Button>
 										</div>
 									</div>
@@ -128,7 +130,7 @@ export default function ApprovalsPage() {
 							</div>
 						) : (
 							<div className="py-12 text-center text-slate-400 text-xs">
-								No pending requests. Great job!
+								{t("noPendingRequestsGreatJob")}
 							</div>
 						)}
 					</CardContent>
@@ -138,10 +140,10 @@ export default function ApprovalsPage() {
 				<Card className="shadow-sm">
 					<CardHeader className="border-b bg-slate-50/50 pb-3">
 						<CardTitle className="font-bold text-sm">
-							Approved History ({approved.length})
+							{t("approvedHistoryHeader", { count: approved.length })}
 						</CardTitle>
 						<CardDescription className="text-xs">
-							SLA records signed off by your account
+							{t("approvedHistorySub")}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="p-0">
@@ -165,21 +167,22 @@ export default function ApprovalsPage() {
 												</span>
 											</div>
 											<p className="mt-1 text-[10px] text-slate-400">
-												Approved on:{" "}
-												{app.resolved_at
-													? new Date(app.resolved_at).toLocaleDateString()
-													: ""}
+												{t("approvedOnLabel", {
+													date: app.resolved_at
+														? new Date(app.resolved_at).toLocaleDateString()
+														: ""
+												})}
 											</p>
 										</div>
 										<Badge className="border-green-200 bg-green-100 text-[10px] text-green-800 capitalize">
-											Approved
+											{t("approve")}
 										</Badge>
 									</div>
 								))}
 							</div>
 						) : (
 							<div className="py-12 text-center text-slate-400 text-xs">
-								No past approvals found.
+								{t("noPastApprovalsFound")}
 							</div>
 						)}
 					</CardContent>

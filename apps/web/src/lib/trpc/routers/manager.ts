@@ -434,7 +434,7 @@ export const managerRouter = router({
 	// ── 8. Team Performance ─────────────────────────────────────────────────────
 	getPerformance: protectedProcedure.query(async ({ ctx }) => {
 		const [allStaff, allTasks, allAttendance] = await Promise.all([
-			db.select().from(staff),
+			db.select().from(staff).where(eq(staff.email, ctx.user.email)),
 			db.select().from(upcTasks),
 			db.select().from(attendance),
 		]);
@@ -465,7 +465,7 @@ export const managerRouter = router({
 	// ── 9. Team Workload ────────────────────────────────────────────────────────
 	getWorkload: protectedProcedure.query(async ({ ctx }) => {
 		const [allStaff, allTasks] = await Promise.all([
-			db.select().from(staff),
+			db.select().from(staff).where(eq(staff.email, ctx.user.email)),
 			db.select().from(upcTasks),
 		]);
 

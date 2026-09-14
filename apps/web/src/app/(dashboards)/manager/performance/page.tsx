@@ -9,10 +9,12 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { Loader2Icon, TrendingUpIcon, TrophyIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PerformancePage() {
+	const t = useTranslations("manager");
 	const trpc = useTRPC();
 
 	// Query real performance metrics from actual database tasks/attendance activity
@@ -24,11 +26,10 @@ export default function PerformancePage() {
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<TrendingUpIcon className="h-6 w-6 text-blue-600" />
-					Team Performance Workspace
+					{t("teamPerformanceWorkspace")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-					Strictly measured database performance metrics: completed vs overdue
-					tasks and active attendance streaks.
+					{t("teamPerformanceSub")}
 				</p>
 			</div>
 
@@ -38,10 +39,10 @@ export default function PerformancePage() {
 					<Card className="shadow-sm">
 						<CardHeader>
 							<CardTitle className="font-bold text-base">
-								Operational Performance Ledger
+								{t("operationalPerformanceLedger")}
 							</CardTitle>
 							<CardDescription>
-								Directly measured team member completion rates
+								{t("operationalPerformanceSub")}
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="p-0 sm:p-6">
@@ -54,11 +55,11 @@ export default function PerformancePage() {
 									<table className="w-full text-left text-xs">
 										<thead>
 											<tr className="border-b text-slate-500">
-												<th className="p-3 font-semibold">Name</th>
-												<th className="p-3 font-semibold">Tasks Completed</th>
-												<th className="p-3 font-semibold">Completion Rate</th>
+												<th className="p-3 font-semibold">{t("nameCol")}</th>
+												<th className="p-3 font-semibold">{t("tasksCompletedCol")}</th>
+												<th className="p-3 font-semibold">{t("completionRateCol")}</th>
 												<th className="p-3 text-right font-semibold">
-													Attendance Consistency
+													{t("attendanceConsistencyCol")}
 												</th>
 											</tr>
 										</thead>
@@ -83,7 +84,7 @@ export default function PerformancePage() {
 														</span>
 													</td>
 													<td className="p-3 text-right font-semibold text-slate-600">
-														{row.attendanceStreak} days present
+														{t("daysPresent", { count: row.attendanceStreak })}
 													</td>
 												</tr>
 											))}
@@ -100,10 +101,10 @@ export default function PerformancePage() {
 					<CardHeader className="border-b bg-slate-50/50 pb-3">
 						<CardTitle className="flex items-center gap-1.5 font-bold text-sm">
 							<TrophyIcon className="h-4.5 w-4.5 text-yellow-500" />
-							SLA Top Performers
+							{t("slaTopPerformers")}
 						</CardTitle>
 						<CardDescription className="text-xs">
-							Highest task completion efficiency
+							{t("highestTaskEfficiency")}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4 p-4">

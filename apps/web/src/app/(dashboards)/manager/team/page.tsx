@@ -21,10 +21,12 @@ import {
 	XIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function TeamPage() {
+	const t = useTranslations("manager");
 	const trpc = useTRPC();
 	const [search, setSearch] = useState("");
 	const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
@@ -44,17 +46,16 @@ export default function TeamPage() {
 				<div>
 					<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 						<UsersIcon className="h-6 w-6 text-blue-600" />
-						My Team Workspace
+						{t("myTeamWorkspace")}
 					</h2>
 					<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-						Overview, search, and deep-dive audits of your team members'
-						metrics.
+						{t("myTeamWorkspaceSub")}
 					</p>
 				</div>
 				<div className="relative w-full sm:w-72">
 					<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
-						placeholder="Search employee by name..."
+						placeholder={t("searchEmployeePlaceholder")}
 						className="pl-9"
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
@@ -68,11 +69,10 @@ export default function TeamPage() {
 					<Card className="shadow-sm">
 						<CardHeader>
 							<CardTitle className="font-bold text-base">
-								Workforce Register
+								{t("workforceRegister")}
 							</CardTitle>
 							<CardDescription>
-								Click any team member to load their operational timeline and
-								balance history
+								{t("workforceRegisterSub")}
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="p-0">
@@ -115,7 +115,7 @@ export default function TeamPage() {
 									))}
 									{employees.length === 0 && (
 										<div className="py-12 text-center text-slate-400 text-xs">
-											No team members found.
+											{t("noTeamMembersFound")}
 										</div>
 									)}
 								</div>
@@ -132,10 +132,10 @@ export default function TeamPage() {
 								<div>
 									<CardTitle className="flex items-center gap-1.5 font-bold text-base">
 										<UserIcon className="h-4.5 w-4.5 text-blue-600" />
-										Member Profile Audit
+										{t("memberProfileAudit")}
 									</CardTitle>
 									<CardDescription className="text-xs">
-										Sourced directly from active HRMS/Staff tables
+										{t("memberProfileAuditSub")}
 									</CardDescription>
 								</div>
 								<Button
@@ -175,34 +175,34 @@ export default function TeamPage() {
 										{/* Assigned Tasks count */}
 										<div className="space-y-2">
 											<h5 className="flex items-center gap-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
-												<CheckSquareIcon className="h-3.5 w-3.5" /> Tasks Queue
-												({detail.tasks?.length ?? 0})
+												<CheckSquareIcon className="h-3.5 w-3.5" />{" "}
+												{t("tasksQueueHeader", { count: detail.tasks?.length ?? 0 })}
 											</h5>
 											<div className="space-y-1.5">
-												{detail.tasks?.slice(0, 3).map((t: any) => (
+												{detail.tasks?.slice(0, 3).map((tItem: any) => (
 													<div
-														key={t.id}
+														key={tItem.id}
 														className="rounded border bg-white p-2 text-xs dark:bg-transparent"
 													>
 														<span className="font-bold text-slate-800 dark:text-slate-200">
-															Type: {t.task_type}
+															{t("typeLabel", { type: tItem.task_type })}
 														</span>
 														<div className="mt-1 flex items-center justify-between">
 															<Badge
 																variant="outline"
 																className="text-[9px] uppercase"
 															>
-																{t.status}
+																{tItem.status}
 															</Badge>
 															<span className="text-[9px] text-slate-400">
-																Due: {new Date(t.due_at).toLocaleDateString()}
+																{t("dueLabel", { date: new Date(tItem.due_at).toLocaleDateString() })}
 															</span>
 														</div>
 													</div>
 												))}
 												{detail.tasks?.length === 0 && (
 													<p className="py-1 text-slate-400 text-xs">
-														No tasks currently assigned.
+														{t("noTasksAssigned")}
 													</p>
 												)}
 											</div>
@@ -211,8 +211,8 @@ export default function TeamPage() {
 										{/* Active Leaves */}
 										<div className="space-y-2">
 											<h5 className="flex items-center gap-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
-												<CalendarIcon className="h-3.5 w-3.5" /> Approved Leaves
-												({detail.leaves?.length ?? 0})
+												<CalendarIcon className="h-3.5 w-3.5" />{" "}
+												{t("approvedLeavesHeader", { count: detail.leaves?.length ?? 0 })}
 											</h5>
 											<div className="space-y-1.5">
 												{detail.leaves?.slice(0, 3).map((l: any) => (
@@ -221,19 +221,20 @@ export default function TeamPage() {
 														className="rounded border border-slate-100 bg-slate-50/50 p-2 text-xs"
 													>
 														<p className="font-semibold text-slate-800 dark:text-slate-200">
-															Status: {l.status}
+															{t("statusLabel", { status: l.status })}
 														</p>
 														<span className="mt-1 block text-[9px] text-slate-400">
-															Resolved:{" "}
-															{l.resolved_at
-																? new Date(l.resolved_at).toLocaleDateString()
-																: "Pending"}
+															{t("resolvedLabel", {
+																date: l.resolved_at
+																	? new Date(l.resolved_at).toLocaleDateString()
+																	: "Pending"
+															})}
 														</span>
 													</div>
 												))}
 												{detail.leaves?.length === 0 && (
 													<p className="py-1 text-slate-400 text-xs">
-														No leave requests logged.
+														{t("noLeavesLogged")}
 													</p>
 												)}
 											</div>
@@ -242,8 +243,8 @@ export default function TeamPage() {
 										{/* Claimed Expenses */}
 										<div className="space-y-2">
 											<h5 className="flex items-center gap-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
-												<CreditCardIcon className="h-3.5 w-3.5" /> Reimbursement
-												Claims ({detail.expenses?.length ?? 0})
+												<CreditCardIcon className="h-3.5 w-3.5" />{" "}
+												{t("reimbursementClaimsHeader", { count: detail.expenses?.length ?? 0 })}
 											</h5>
 											<div className="space-y-1.5">
 												{detail.expenses?.slice(0, 3).map((e: any) => (
@@ -266,7 +267,7 @@ export default function TeamPage() {
 												))}
 												{detail.expenses?.length === 0 && (
 													<p className="py-1 text-slate-400 text-xs">
-														No expense claims logged.
+														{t("noExpensesLogged")}
 													</p>
 												)}
 											</div>
@@ -278,10 +279,9 @@ export default function TeamPage() {
 					) : (
 						<div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center text-slate-400">
 							<UsersIcon className="mb-2 h-8 w-8 text-slate-300" />
-							<p className="font-bold text-xs">No member selected</p>
+							<p className="font-bold text-xs">{t("noMemberSelected")}</p>
 							<p className="mt-1 text-[10px]">
-								Click any team member on the register to inspect their detailed
-								analytics folder.
+								{t("noMemberSelectedSub")}
 							</p>
 						</div>
 					)}

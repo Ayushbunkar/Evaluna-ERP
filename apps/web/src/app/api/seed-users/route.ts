@@ -1,7 +1,17 @@
-import { account, roles, user, userRoles } from "@evaluna/db/schema";
-import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+
+export async function GET() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+/* Seed route disabled */
+import { NextResponse } from "next/server";
+
+/* Seed route fully disabled */
+
 import { db } from "@/lib/db";
 
 const USERS_TO_SEED = [

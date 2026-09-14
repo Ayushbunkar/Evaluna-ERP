@@ -14,13 +14,15 @@ import { SaveIcon, SettingsIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
+import { useTranslations } from "next-intl";
 
 export default function SettingsPage() {
+	const t = useTranslations("manager");
 	const [prefName, setPrefName] = useState("Main Warehouse Manager Panel");
 	const [prefRefreshInterval, setPrefRefreshInterval] = useState("30");
 
 	const handleSave = () => {
-		toast.success("Preferences saved successfully!");
+		toast.success(t("localPreferencesSaved"));
 	};
 
 	return (
@@ -28,27 +30,26 @@ export default function SettingsPage() {
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<SettingsIcon className="h-6 w-6 text-blue-600" />
-					Manager Preferences Settings
+					{t("managerPreferencesSettings")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-					Configure notification preferences, refresh frequencies, and local
-					team display filters.
+					{t("managerPreferencesSub")}
 				</p>
 			</div>
 
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Preferences Control Folder
+						{t("preferencesControlFolder")}
 					</CardTitle>
 					<CardDescription>
-						Personal display settings authorized for your manager-level account
+						{t("personalDisplaySettings")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
 						<Label className="font-bold text-slate-700 text-xs">
-							Display Label
+							{t("displayLabel")}
 						</Label>
 						<Input
 							value={prefName}
@@ -59,7 +60,7 @@ export default function SettingsPage() {
 
 					<div>
 						<Label className="font-bold text-slate-700 text-xs">
-							SLA Dashboard Auto-Refresh Interval (Seconds)
+							{t("slaDashboardRefreshInterval")}
 						</Label>
 						<Input
 							type="number"
@@ -75,7 +76,7 @@ export default function SettingsPage() {
 							onClick={handleSave}
 							className="bg-blue-600 hover:bg-blue-700"
 						>
-							<SaveIcon className="mr-1.5 h-4 w-4" /> Save Local Preferences
+							<SaveIcon className="mr-1.5 h-4 w-4" /> {t("saveLocalPreferences")}
 						</Button>
 					</div>
 				</CardContent>

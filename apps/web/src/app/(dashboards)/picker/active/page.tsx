@@ -35,6 +35,7 @@ import {
 	PlaySquareIcon,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CameraBarcodeScannerModal } from "@/components/ui/CameraBarcodeScannerModal";
@@ -42,6 +43,8 @@ import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerActivePage() {
+	const t = useTranslations("picker");
+	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -133,11 +136,10 @@ export default function PickerActivePage() {
 				<div className="flex flex-col gap-1">
 					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 						<PlaySquareIcon className="h-7 w-7 text-blue-600" />
-						Active Pick Task Execution
+						{t("activePickTaskExecution")}
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						Scan barcodes using phone camera or barcode gun, confirm item
-						quantities, report missing stock.
+						{t("activePickTaskExecutionSub")}
 					</p>
 				</div>
 
@@ -146,15 +148,14 @@ export default function PickerActivePage() {
 						className="gap-2 bg-blue-600 text-white shadow-md hover:bg-blue-700"
 						onClick={() => setShowCameraScanner(true)}
 					>
-						<CameraIcon className="h-4 w-4" /> Scan Barcode with Phone Camera
+						<CameraIcon className="h-4 w-4" /> {t("scanBarcodePhoneCamera")}
 					</Button>
 				)}
 			</div>
 
 			{isLoading ? (
 				<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-					<Loader2Icon className="h-6 w-6 animate-spin text-blue-600" /> Loading
-					active pick task...
+					<Loader2Icon className="h-6 w-6 animate-spin text-blue-600" /> {t("loadingActiveTask")}
 				</div>
 			) : error ? (
 				<div className="flex h-40 items-center justify-center text-destructive">
@@ -164,16 +165,15 @@ export default function PickerActivePage() {
 				<Card className="border-border/50 py-12 text-center shadow-sm">
 					<CardContent className="flex flex-col items-center gap-3">
 						<PackageIcon className="h-12 w-12 text-muted-foreground opacity-40" />
-						<h3 className="font-bold text-lg">No Active Task in Progress</h3>
+						<h3 className="font-bold text-lg">{t("noActiveTask")}</h3>
 						<p className="max-w-sm text-muted-foreground text-sm">
-							You currently have no picking task assigned to you. Go to Pending
-							Picks to start one.
+							{t("noActiveTaskSub")}
 						</p>
 						<Button
 							className="mt-2 bg-blue-600 text-white hover:bg-blue-700"
 							onClick={() => (window.location.href = "/picker/pending")}
 						>
-							View Pending Picks Queue
+							{t("viewPendingPicksQueue")}
 						</Button>
 					</CardContent>
 				</Card>
@@ -186,10 +186,10 @@ export default function PickerActivePage() {
 								<div>
 									<h2 className="flex items-center gap-2 font-bold text-blue-900 text-xl dark:text-blue-200">
 										<PackageIcon className="h-6 w-6 text-blue-600" />
-										Task {task.id} (Order: {task.order_id})
+										{t("task")} {task.id} ({t("order")}: {task.order_id})
 									</h2>
 									<p className="mt-1 text-blue-700 text-xs dark:text-blue-400">
-										Location Area: {task.area} | Total Items to Pick:{" "}
+										{t("locationArea")}: {task.area} | {t("totalItemsToPick")}:{" "}
 										{task.total_items}
 									</p>
 								</div>
@@ -198,7 +198,7 @@ export default function PickerActivePage() {
 									<div className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm dark:bg-gray-800">
 										<div className="text-right">
 											<p className="text-muted-foreground text-xs">
-												Pick Progress
+												{t("pickProgress")}
 											</p>
 											<p className="font-bold text-blue-600 text-xl dark:text-blue-400">
 												{task.picked_items} / {task.total_items} ({pct}%)
@@ -212,7 +212,7 @@ export default function PickerActivePage() {
 											onClick={handleCompleteTask}
 											disabled={completeMutation.isPending}
 										>
-											{completeMutation.isPending ? "Completing…" : "🏁 Complete Picking"}
+											{completeMutation.isPending ? t("completing") : t("completePicking")}
 										</Button>
 									)}
 								</div>
@@ -235,7 +235,7 @@ export default function PickerActivePage() {
 									<BarcodeIcon className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
 									<input
 										type="text"
-										placeholder="Scan SKU barcode or type item barcode..."
+										placeholder={t("scanPlaceholder")}
 										className="w-full rounded-md border border-input bg-background py-2 pr-3 pl-9 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 										value={scannedBarcode}
 										onChange={(e) => setScannedBarcode(e.target.value)}
@@ -245,7 +245,7 @@ export default function PickerActivePage() {
 									type="submit"
 									className="bg-blue-600 text-white hover:bg-blue-700"
 								>
-									Scan Item
+									{t("scanItem")}
 								</Button>
 								<Button
 									type="button"
@@ -253,7 +253,7 @@ export default function PickerActivePage() {
 									className="gap-1.5 border-blue-600 text-blue-600 hover:bg-blue-50"
 									onClick={() => setShowCameraScanner(true)}
 								>
-									<CameraIcon className="h-4 w-4" /> Camera Scanner
+									<CameraIcon className="h-4 w-4" /> {t("cameraScanner")}
 								</Button>
 							</form>
 						</CardContent>
@@ -264,10 +264,10 @@ export default function PickerActivePage() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2 text-lg">
 								<MapPinIcon className="h-5 w-5 text-blue-600" />
-								Required Pick Items List
+								{t("requiredPickItemsList")}
 							</CardTitle>
 							<CardDescription>
-								Locate items in warehouse bins and verify quantities
+								{t("locateItemsSub")}
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -275,13 +275,13 @@ export default function PickerActivePage() {
 								<Table>
 									<TableHeader>
 										<TableRow>
-											<TableHead>Location</TableHead>
-											<TableHead>Product Name</TableHead>
-											<TableHead>SKU / Barcode</TableHead>
-											<TableHead>Batch</TableHead>
-											<TableHead>Picked / Required</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead className="text-right">Actions</TableHead>
+											<TableHead>{t("location")}</TableHead>
+											<TableHead>{t("productName")}</TableHead>
+											<TableHead>{t("skuBarcode")}</TableHead>
+											<TableHead>{t("batch")}</TableHead>
+											<TableHead>{t("pickedRequired")}</TableHead>
+											<TableHead>{tCommon("status")}</TableHead>
+											<TableHead className="text-right">{tCommon("actions")}</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -322,7 +322,7 @@ export default function PickerActivePage() {
 																		: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
 														}`}
 													>
-														{item.status || "pending"}
+														{item.status ? tCommon(item.status as any) || item.status : tCommon("pending")}
 													</span>
 												</TableCell>
 												<TableCell className="flex items-center justify-end gap-2 text-right">
@@ -336,7 +336,7 @@ export default function PickerActivePage() {
 														}}
 													>
 														<CheckCircle2Icon className="h-3.5 w-3.5 text-green-600" />{" "}
-														Confirm Qty
+														{t("confirmQty")}
 													</Button>
 													{item.status !== "missing" && (
 														<Button
@@ -348,7 +348,7 @@ export default function PickerActivePage() {
 															}
 														>
 															<AlertTriangleIcon className="h-3.5 w-3.5 text-red-500" />{" "}
-															Missing
+															{t("missing")}
 														</Button>
 													)}
 												</TableCell>
@@ -372,24 +372,24 @@ export default function PickerActivePage() {
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								<CheckCircle2Icon className="h-5 w-5 text-green-600" />
-								Confirm Picked Quantity
+								{t("confirmPickedQuantity")}
 							</DialogTitle>
 							<DialogDescription>
-								Confirm picked count for {confirmItem.product}
+								{t("confirmPickedCountFor")} {confirmItem.product}
 							</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-3 py-2 text-sm">
 							<p>
-								<strong>SKU:</strong> {confirmItem.sku}
+								<strong>{t("sku")}:</strong> {confirmItem.sku}
 							</p>
 							<p>
-								<strong>Required Qty:</strong> {confirmItem.qty_required}
+								<strong>{t("requiredQty")}</strong> {confirmItem.qty_required}
 							</p>
 
 							<div className="space-y-1">
 								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-									Actual Quantity Picked:
+									{t("actualQuantityPicked")}
 								</label>
 								<input
 									type="number"
@@ -404,7 +404,7 @@ export default function PickerActivePage() {
 
 						<DialogFooter>
 							<Button variant="ghost" onClick={() => setConfirmItem(null)}>
-								Cancel
+								{tCommon("cancel")}
 							</Button>
 							<Button
 								disabled={confirmMutation.isPending}
@@ -414,7 +414,7 @@ export default function PickerActivePage() {
 								{confirmMutation.isPending && (
 									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
 								)}
-								Save Pick Count
+								{t("savePickCount")}
 							</Button>
 						</DialogFooter>
 					</DialogContent>
@@ -426,8 +426,8 @@ export default function PickerActivePage() {
 				open={showCameraScanner}
 				onOpenChange={setShowCameraScanner}
 				onScan={handleScanCode}
-				title="Picker Phone Camera Barcode Scanner"
-				description="Point your phone camera at the item's barcode to scan and verify picking instantly."
+				title={t("cameraScannerTitle")}
+				description={t("cameraScannerSub")}
 			/>
 
 			{/* Celebratory Completion Success Modal */}
@@ -446,21 +446,21 @@ export default function PickerActivePage() {
 							<CheckCircle2Icon className="h-10 w-10 text-green-600 animate-pulse" />
 						</div>
 						<DialogTitle className="font-bold text-xl text-green-800 dark:text-green-400">
-							Task Completed!
+							{t("taskCompletedTitle")}
 						</DialogTitle>
 						<DialogDescription className="text-muted-foreground text-sm mt-1">
-							Picking checklist has been verified and safely forwarded to the **Packing Station** queue.
+							{t("taskCompletedSub")}
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="py-4 text-sm space-y-2 border-y border-border/50 my-2">
 						<p className="flex justify-between">
-							<span className="text-muted-foreground">Picking Status:</span>
-							<span className="font-bold text-green-600">100% Verified</span>
+							<span className="text-muted-foreground">{t("pickProgress")}:</span>
+							<span className="font-bold text-green-600">{t("pickingStatusVerified")}</span>
 						</p>
 						<p className="flex justify-between">
-							<span className="text-muted-foreground">Routing Step:</span>
-							<span className="font-semibold text-blue-600">Next ➡️ Packer Queue</span>
+							<span className="text-muted-foreground">{t("routingStep")}</span>
+							<span className="font-semibold text-blue-600">{t("nextPackerQueue")}</span>
 						</p>
 					</div>
 
@@ -472,7 +472,7 @@ export default function PickerActivePage() {
 								router.push("/picker/completed");
 							}}
 						>
-							View Completed Picks Archive
+							{t("viewCompletedPicksArchive")}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

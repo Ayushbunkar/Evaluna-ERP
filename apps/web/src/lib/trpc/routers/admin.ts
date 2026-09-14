@@ -573,7 +573,7 @@ export const adminRouter = router({
 				input.department ? eq(staff.department, input.department) : undefined,
 				input.role ? eq(staff.role, input.role) : undefined,
 				input.status ? eq(staff.status, input.status) : undefined,
-				like
+				not(ilike(staff.email, "%seed%")), like
 					? or(
 							ilike(staff.name, like),
 							ilike(staff.staff_code, like),

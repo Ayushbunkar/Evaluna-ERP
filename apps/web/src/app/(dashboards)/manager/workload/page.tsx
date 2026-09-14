@@ -11,9 +11,11 @@ import {
 import { AlertTriangleIcon, BarChart3Icon, Loader2Icon } from "lucide-react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { useTranslations } from "next-intl";
 
 export default function WorkloadPage() {
 	const trpc = useTRPC();
+  const t = useTranslations("manager");
 
 	// Query real workload stats
 	const { data: workload = [], isLoading } =
@@ -24,7 +26,7 @@ export default function WorkloadPage() {
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<BarChart3Icon className="h-6 w-6 text-blue-600" />
-					Team Workload Balancing
+					{t("teamWorkloadBalancing")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
 					Monitor current assigned, in-progress, completed, and overdue tasks to
@@ -35,12 +37,9 @@ export default function WorkloadPage() {
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Workforce Load Balancing Sheet
+						{t("workforceLoadBalancingSheet")}
 					</CardTitle>
-					<CardDescription>
-						Identify over-allocated or under-utilized staff based on open SLA
-						targets
-					</CardDescription>
+					<CardDescription>{t("workforceLoadBalancingSub")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					{isLoading ? (
@@ -52,12 +51,12 @@ export default function WorkloadPage() {
 							<table className="w-full text-left text-xs">
 								<thead>
 									<tr className="border-b text-slate-500">
-										<th className="p-3 font-semibold">Name</th>
-										<th className="p-3 font-semibold">Assigned (Open)</th>
-										<th className="p-3 font-semibold">In Progress</th>
-										<th className="p-3 font-semibold">Overdue Tasks</th>
+										<th className="p-3 font-semibold">{t("nameCol")}</th>
+										<th className="p-3 font-semibold">{t("assignedOpenCol")}</th>
+										<th className="p-3 font-semibold">{t("inProgressCol")}</th>
+										<th className="p-3 font-semibold">{t("overdueTasksCol")}</th>
 										<th className="p-3 text-right font-semibold">
-											Fulfillment Capacity
+											{t("fulfillmentCapacityCol")}
 										</th>
 									</tr>
 								</thead>

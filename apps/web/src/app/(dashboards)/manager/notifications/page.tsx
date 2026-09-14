@@ -12,10 +12,12 @@ import {
 import { BellIcon, CheckCheckIcon, CheckIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
+import { useTranslations } from "next-intl";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function NotificationsPage() {
 	const trpc = useTRPC();
+	const t = useTranslations("manager");
 	const utils = trpc.useUtils();
 
 	// Query notifications scoped to authenticated manager
@@ -63,11 +65,10 @@ export default function NotificationsPage() {
 				<div>
 					<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 						<BellIcon className="h-6 w-6 text-blue-600" />
-						Manager Alerts & Notifications
+						{t("managerAlertsHeading")}
 					</h2>
 					<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-						Access and manage important system updates, shift alerts, and task
-						changes.
+						{t("managerAlertsSub")}
 					</p>
 				</div>
 				{hasUnread && (
@@ -77,7 +78,7 @@ export default function NotificationsPage() {
 						disabled={markAllReadMutation.isPending}
 						className="bg-blue-600 hover:bg-blue-700"
 					>
-						<CheckCheckIcon className="mr-1.5 h-4 w-4" /> Mark All Read
+						<CheckCheckIcon className="mr-1.5 h-4 w-4" /> {t("markAllRead")}
 					</Button>
 				)}
 			</div>
@@ -85,10 +86,10 @@ export default function NotificationsPage() {
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Alert Feed Inbox
+						{t("alertFeedInbox")}
 					</CardTitle>
 					<CardDescription>
-						Chronological inbox targeted directly to your operator account
+						{t("alertFeedInboxSub")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0">
@@ -114,7 +115,7 @@ export default function NotificationsPage() {
 											</span>
 											{!n.is_read && (
 												<Badge className="bg-blue-500 font-bold text-[9px] uppercase tracking-wider">
-													New
+													{t("newBadge")}
 												</Badge>
 											)}
 										</div>
@@ -145,9 +146,9 @@ export default function NotificationsPage() {
 							{notifications.length === 0 && (
 								<div className="py-16 text-center text-slate-400">
 									<BellIcon className="mx-auto mb-2 h-10 w-10 text-slate-300" />
-									<p className="font-bold text-sm">Inbox is empty</p>
+									<p className="font-bold text-sm">{t("inboxIsEmpty")}</p>
 									<p className="mt-1 text-xs">
-										There are no notifications targeted to your account.
+										{t("noNotificationsTargeted")}
 									</p>
 								</div>
 							)}

@@ -9,10 +9,12 @@ import {
 } from "@evaluna/ui/components/card";
 import { HistoryIcon, Loader2Icon } from "lucide-react";
 import { PageTransition } from "@/lib/animations";
+import { useTranslations } from "next-intl";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ActivityPage() {
 	const trpc = useTRPC();
+	const t = useTranslations("manager");
 
 	// Query real audit logs
 	const { data: activity = [], isLoading } =
@@ -23,21 +25,20 @@ export default function ActivityPage() {
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<HistoryIcon className="h-6 w-6 text-blue-600" />
-					Centralized Activity Timeline
+					{t("centralizedActivityTimeline")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-					Audit chronological operational events compiled automatically from
-					database ledgers.
+					{t("centralizedActivityTimelineSub")}
 				</p>
 			</div>
 
 			<Card className="shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Chronological Activity Stream
+						{t("chronologicalActivityStream")}
 					</CardTitle>
 					<CardDescription>
-						Up to 100 latest transactional, logistical, and workflow records
+						{t("chronologicalActivityStreamSub")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-6">
@@ -67,18 +68,17 @@ export default function ActivityPage() {
 											</span>
 										</div>
 										<p className="font-medium text-slate-700 text-xs dark:text-slate-300">
-											Operational shift on {act.entity_type} #ID {act.entity_id}
+											{t("operationalShiftOnEntity", { type: act.entity_type, id: act.entity_id })}
 										</p>
 										<p className="text-[10px] text-slate-400">
-											Captured Operator / Staff:{" "}
-											{act.user_id ?? "System Auto-Trigger"}
+											{t("capturedOperatorStaff", { user: act.user_id ?? t("systemAutoTrigger") })}
 										</p>
 									</div>
 								</div>
 							))}
 							{activity.length === 0 && (
 								<div className="py-12 text-center text-slate-400 text-xs">
-									No activity timelines recorded yet.
+									{t("noActivityTimelinesRecorded")}
 								</div>
 							)}
 						</div>

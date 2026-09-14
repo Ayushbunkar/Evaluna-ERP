@@ -10,21 +10,24 @@ import {
 } from "@evaluna/ui/components/card";
 import { AlertTriangleIcon, Loader2Icon } from "lucide-react";
 import { PageTransition } from "@/lib/animations";
+import { useTranslations } from "next-intl";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ExceptionsPage() {
-	const trpc = useTRPC();
+  const trpc = useTRPC();
+  const t = useTranslations("manager");
 
-	// Query real exceptions/anomalies from actual database
-	const { data: exceptions = [], isLoading } =
-		trpc.manager.getExceptions.useQuery();
+  // Query real exceptions/anomalies from actual database
+  const { data: exceptions = [], isLoading } = trpc.manager.getExceptions.useQuery();
+
+
 
 	return (
 		<PageTransition className="space-y-6">
 			<div>
 				<h2 className="flex items-center gap-2 font-bold text-red-600 text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
 					<AlertTriangleIcon className="h-6 w-6" />
-					Urgent Exceptions Center
+					{t("exceptionsHeading")}
 				</h2>
 				<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
 					Overview and mitigate critical system anomalies, overdue tasks, or
@@ -35,11 +38,10 @@ export default function ExceptionsPage() {
 			<Card className="border-l-4 border-l-red-500 shadow-sm">
 				<CardHeader>
 					<CardTitle className="font-bold text-base">
-						Active System Exceptions Log
+						{t("activeSystemExceptionsLog")}
 					</CardTitle>
 					<CardDescription>
-						Live feed of discrepancies and operational blockages requiring
-						manager intervention
+						{t("activeSystemExceptionsSub")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">

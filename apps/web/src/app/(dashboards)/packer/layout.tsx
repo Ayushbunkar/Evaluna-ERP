@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	ArchiveIcon,
 	FileBarChart,
@@ -6,6 +8,7 @@ import {
 	PackageIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function PackerLayout({
@@ -13,6 +16,8 @@ export default function PackerLayout({
 }: {
 	children: React.ReactNode;
 }) {
+	const t = useTranslations("nav");
+
 	return (
 		<div className="flex h-screen bg-gray-50 dark:bg-gray-900">
 			{/* Sidebar */}
@@ -33,7 +38,7 @@ export default function PackerLayout({
 					{/* Navigation */}
 					<nav className="mt-6 flex-1 px-3">
 						<p className="mb-2 px-3 font-semibold text-gray-400 text-xs uppercase tracking-wider dark:text-gray-500">
-							Packer Workspace
+							{t("packerWorkspace")}
 						</p>
 						<ul className="space-y-1">
 							<li>
@@ -42,7 +47,7 @@ export default function PackerLayout({
 									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
-									Dashboard
+									{t("dashboard")}
 								</Link>
 							</li>
 							<li>
@@ -51,7 +56,7 @@ export default function PackerLayout({
 									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<PackageIcon className="mr-3 h-5 w-5 text-gray-400" />
-									Pending Packing
+									{t("pendingPacking")}
 								</Link>
 							</li>
 							<li>
@@ -60,7 +65,7 @@ export default function PackerLayout({
 									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<ArchiveIcon className="mr-3 h-5 w-5 text-gray-400" />
-									Packing History
+									{t("packingHistory")}
 								</Link>
 							</li>
 							<li>
@@ -69,7 +74,7 @@ export default function PackerLayout({
 									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
 								>
 									<FileBarChart className="mr-3 h-5 w-5 text-gray-400" />
-									Reports
+									{t("reports")}
 								</Link>
 							</li>
 						</ul>

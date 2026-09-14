@@ -31,7 +31,7 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
 	connectionString: process.env.DATABASE_URL,
-	lookup: customLookup as any,
+	...( { lookup: customLookup } as any ),
 });
 
 export const db = drizzle(pool, { schema: { ...schema, ...authSchema } });
