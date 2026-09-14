@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+
 
 export async function GET() {
   return new Response("Seed endpoint disabled", { status: 404 });
@@ -7,9 +7,67 @@ export async function GET() {
 export async function POST() {
   return new Response("Seed endpoint disabled", { status: 404 });
 }
-import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+export async function POST() {
+  return new Response("Seed endpoint disabled", { status: 404 });
+}
+
+
+
 
 export async function GET(req: Request) {
 	try {
