@@ -1,5 +1,5 @@
-﻿import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata } from "next";
+import { Inter, Noto_Sans_Devanagari } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { Toaster } from "sonner";
@@ -8,7 +8,12 @@ import { CookieConsent } from "@/components/cookie-consent";
 import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const notoDevanagari = Noto_Sans_Devanagari({
+	subsets: ["devanagari"],
+	variable: "--font-devanagari",
+	weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
 	title: "Evaluna ERP",
@@ -29,7 +34,10 @@ export default async function RootLayout({
 				<link rel="manifest" href="/manifest.json" />
 				<meta name="theme-color" content="#000000" />
 			</head>
-			<body className={inter.className} suppressHydrationWarning>
+			<body
+				className={`${inter.className} ${notoDevanagari.variable} ${inter.variable}`}
+				suppressHydrationWarning
+			>
 				<NextIntlClientProvider locale={locale} messages={messages}>
 					<TRPCProvider>
 						<SmoothScrollProvider>

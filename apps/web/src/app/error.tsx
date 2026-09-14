@@ -33,10 +33,9 @@ export default function ErrorPage({
 						Try again
 					</Button>
 					<Button
-						onClick={() =>
-							(window.location.href =
-								(process.env.NEXT_PUBLIC_BASE_PATH || "") + "/login")
-						}
+						onClick={() => {
+							window.location.replace("/login");
+						}}
 						variant="outline"
 					>
 						Go to Login

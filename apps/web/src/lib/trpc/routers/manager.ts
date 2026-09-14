@@ -16,6 +16,7 @@ import {
 	staff,
 	stockAudits,
 	upcTasks,
+	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, count, desc, eq, gte, lte, ne, or, sql } from "drizzle-orm";
@@ -91,6 +92,20 @@ export const managerRouter = router({
 				.where(ne(auditFindings.status, "CLOSED"));
 			const openExceptions = openFindings.length;
 
+			// Calculate driver collections (cash vs online)
+			const { tripCollections } = require("@evaluna/db/schema");
+			const collectionsList = await db.select().from(tripCollections);
+			let driverCashCollected = 0;
+			let driverOnlineCollected = 0;
+			for (const col of collectionsList) {
+				const amt = Number(col.amount || 0);
+				if (col.payment_method?.toLowerCase().includes("cash")) {
+					driverCashCollected += amt;
+				} else {
+					driverOnlineCollected += amt;
+				}
+			}
+
 			return {
 				totalEmployees,
 				presentToday,
@@ -100,6 +115,10 @@ export const managerRouter = router({
 				overdueTasks,
 				openExceptions,
 				teamWorkload: overdueTasks + pendingApprovals,
+				driverCashCollected,
+				driverOnlineCollected,
+				totalDriverCollections: driverCashCollected + driverOnlineCollected,
+				pendingSettlements: collectionsList.length,
 			};
 		}),
 
@@ -116,10 +135,47 @@ export const managerRouter = router({
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const query = db.select().from(staff);
+			const [allStaff, allUsers] = await Promise.all([
+				db.select().from(staff),
+				db.select().from(user),
+			]);
 
-			const allStaff = await query;
-			return allStaff
+			// Format real system users into staff format
+			const realUsersFormatted = allUsers.map((u, i) => ({
+				id: 1000 + i + 1,
+				branch_id: 1,
+				staff_code: `USR-${u.id.slice(0, 6).toUpperCase()}`,
+				name: u.name || u.email.split("@")[0],
+				email: u.email,
+				phone: null,
+				role: u.role || "staff",
+				join_date: u.createdAt,
+				salary: "30000",
+			}));
+
+			// Filter out known fake seed staff names like staff1, Scot Farrell, Carleton Zulauf, etc.
+			const isFakeName = (name: string | null) => {
+				if (!name) return true;
+				const n = name.toLowerCase();
+				return (
+					n.startsWith("staff") ||
+					n.includes("scot") ||
+					n.includes("carleton") ||
+					n.includes("wilbur") ||
+					n.includes("linda") ||
+					n.includes("bartoletti") ||
+					n.includes("zulauf") ||
+					n.includes("farrell") ||
+					n.includes("russel")
+				);
+			};
+
+			const cleanStaff = allStaff.filter((s) => !isFakeName(s.name));
+
+			// Real system users come first!
+			const combined = [...realUsersFormatted, ...cleanStaff];
+
+			return combined
 				.filter((s) => {
 					if (
 						input?.search &&

@@ -42,6 +42,7 @@ const orderWithCustomerSchema = z.object({
 	customer_id: z.number().nullable(),
 	total_amount: z.string(),
 	status: z.string().nullable(),
+	finance_status: z.string().nullable().optional(),
 	user_uid: z.string(),
 	created_at: z.coerce.date().nullable(),
 	customer: z.object({ name: z.string() }).nullable(),
@@ -312,7 +313,7 @@ export const ordersRouter = router({
 			}
 
 			// Synchronize associated WMS picklist status with the new order status
-			if (updated.status) {
+			if (updated.status === "completed") {
 				const existingPickList = await db.query.pickLists.findFirst({
 					where: eq(pickLists.order_id, updated.id),
 				});

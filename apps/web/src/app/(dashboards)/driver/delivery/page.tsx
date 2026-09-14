@@ -114,12 +114,26 @@ const TRUCK_STOCK_ITEMS = [
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DriverLiveDeliveryPage() {
+	const t = useTranslations();
 	const trpc = useTRPC();
 	const {
 		data: dashboardData,
-		isLoading,
-		refetch,
+		isLoading: isDashboardLoading,
+		refetch: refetchDashboard,
 	} = trpc.driver.getMobileDashboard.useQuery({});
+
+	const {
+		data: directRouteStops,
+		isLoading: isRouteLoading,
+		refetch: refetchStops,
+	} = trpc.driver.getRouteStops.useQuery();
+
+	const isLoading = isDashboardLoading || isRouteLoading;
+	const refetch = () => {
+		refetchDashboard();
+		refetchStops();
+	};
+
 	const submitHandover = trpc.driver.submitDeliveryHandover.useMutation({
 		onSuccess: () => {
 			toast.success("Delivery Handover & Payment Settlement recorded successfully!");
@@ -145,7 +159,10 @@ export default function DriverLiveDeliveryPage() {
 	>({});
 	const [items, setItems] = useState<OrderItemHandover[]>(DEFAULT_ITEMS);
 
-	const routeStops = dashboardData?.routeStops ?? [];
+	const routeStops =
+		directRouteStops && directRouteStops.length > 0
+			? directRouteStops
+			: (dashboardData?.routeStops ?? []);
 	const activeStop =
 		routeStops.find((s) => s.id === handoverStopId) ?? null;
 
@@ -346,13 +363,13 @@ export default function DriverLiveDeliveryPage() {
 						<div>
 							<h1 className="font-bold text-2xl text-gray-900 tracking-tight dark:text-white">
 								{handoverStopId !== null
-									? "Live Stop Handover & Bill Generation"
-									: "Delivery Stops"}
+									? t("driver.handoverAndLiveBilling")
+									: t("driver.deliveryStops")}
 							</h1>
 							<p className="text-gray-500 text-sm dark:text-gray-400">
 								{handoverStopId !== null
-									? `Customer: ${activeStop?.customerName || "—"} · Ref #${activeStop?.id ?? "—"}`
-									: "Select a stop to start live handover & billing."}
+									? `${t("sales.customerName")}: ${activeStop?.customerName || "—"} · Ref #${activeStop?.id ?? "—"}`
+									: t("driver.selectStopToStartLiveHandoverBilling")}
 							</p>
 						</div>
 					</div>
@@ -360,7 +377,7 @@ export default function DriverLiveDeliveryPage() {
 						variant="outline"
 						className="w-fit border-blue-500 bg-blue-50 text-blue-700 py-1.5 px-3"
 					>
-						<Truck className="mr-1.5 h-4 w-4" /> Active Driver Session
+						<Truck className="mr-1.5 h-4 w-4" /> {t("driver.activeDriverSession")}
 					</Badge>
 				</div>
 
@@ -372,7 +389,7 @@ export default function DriverLiveDeliveryPage() {
 						{isLoading && (
 							<div className="flex items-center justify-center py-20">
 								<RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-								<span className="ml-3 text-gray-500">Loading stops…</span>
+								<span className="ml-3 text-gray-500">{t("common.loading")}</span>
 							</div>
 						)}
 
@@ -381,10 +398,10 @@ export default function DriverLiveDeliveryPage() {
 								<CardContent className="flex flex-col items-center justify-center py-16 text-center">
 									<Package className="h-12 w-12 text-gray-300 mb-4" />
 									<h3 className="font-semibold text-gray-700 dark:text-gray-300">
-										No delivery stops assigned
+										{t("common.noItemFound")}
 									</h3>
 									<p className="text-sm text-gray-500 mt-1">
-										Contact dispatch to get your route assigned.
+										{t("driver.selectStopToStartLiveHandoverBilling")}
 									</p>
 								</CardContent>
 							</Card>
@@ -396,7 +413,7 @@ export default function DriverLiveDeliveryPage() {
 								<div className="flex flex-wrap gap-3">
 									<Badge variant="outline" className="gap-1.5 text-sm py-1 px-3">
 										<Package className="h-3.5 w-3.5" />
-										{routeStops.length} Total Stops
+										{routeStops.length} {t("driver.totalStops")}
 									</Badge>
 									<Badge
 										variant="outline"
@@ -410,7 +427,7 @@ export default function DriverLiveDeliveryPage() {
 													s.status !== "failed",
 											).length
 										}{" "}
-										Pending
+										{t("status.pending")}
 									</Badge>
 									<Badge
 										variant="outline"
@@ -422,7 +439,7 @@ export default function DriverLiveDeliveryPage() {
 												(s) => s.status === "delivered" || s.status === "completed",
 											).length
 										}{" "}
-										Delivered
+										{t("status.delivered")}
 									</Badge>
 								</div>
 
@@ -457,7 +474,7 @@ export default function DriverLiveDeliveryPage() {
 															variant={getStatusVariant(stop.status)}
 															className="shrink-0 text-xs"
 														>
-															{getStatusLabel(stop.status)}
+															{getStatusLabel(stop.status, t)}
 														</Badge>
 													</div>
 												</CardHeader>
@@ -483,7 +500,7 @@ export default function DriverLiveDeliveryPage() {
 															<div className="flex items-center gap-1.5 border-b border-gray-100 px-3 py-1.5 dark:border-gray-700">
 																<Package className="h-3.5 w-3.5 text-blue-500" />
 																<span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-																	Order Items ({stop.orderItems.length})
+																	{t("driver.orderItems")} ({stop.orderItems.length})
 																</span>
 															</div>
 															<div className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -526,7 +543,7 @@ export default function DriverLiveDeliveryPage() {
 													{isDone ? (
 														<div className="flex w-full gap-2">
 															<div className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 py-2 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-																<CheckCircle className="h-4 w-4" /> Handover Completed
+																<CheckCircle className="h-4 w-4" /> {t("driver.handoverCompleted")}
 															</div>
 															<Button
 																variant="outline"
@@ -534,12 +551,12 @@ export default function DriverLiveDeliveryPage() {
 																className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
 																onClick={() => handleOpenHandover(stop.id)}
 															>
-																Edit / View
+																{t("common.edit")} / {t("common.view")}
 															</Button>
 														</div>
 													) : isFailed ? (
 														<div className="flex w-full items-center justify-center gap-1.5 rounded-md border border-red-300 bg-red-50 py-2 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
-															Failed / Skipped
+															{t("status.failed")}
 														</div>
 													) : (
 														<Button
@@ -547,7 +564,7 @@ export default function DriverLiveDeliveryPage() {
 															onClick={() => handleOpenHandover(stop.id)}
 														>
 															<FileText className="h-4 w-4" />
-															Open Live Handover &amp; Bill
+															{t("driver.handoverAndLiveBilling")}
 														</Button>
 													)}
 												</CardFooter>

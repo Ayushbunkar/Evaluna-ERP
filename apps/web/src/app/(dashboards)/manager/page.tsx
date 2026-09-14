@@ -21,8 +21,11 @@ import {
 	PlayIcon,
 	UsersIcon,
 	XCircleIcon,
+	IndianRupeeIcon,
+	TruckIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
 	AnimatedCard,
@@ -33,6 +36,7 @@ import {
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ManagerDashboard() {
+	const t = useTranslations();
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
 
@@ -89,25 +93,24 @@ export default function ManagerDashboard() {
 			<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
 				<div>
 					<h1 className="font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
-						Manager Control Center
+						{t("manager.managerControlCenter")}
 					</h1>
 					<p className="text-slate-500 text-xs sm:text-sm dark:text-slate-400">
-						Operational overview of your branch workforce, approval queues,
-						exception logs, and SLA tasks.
+						Operational overview of workforce, approvals, and team SLA tasks.
 					</p>
 				</div>
 				<div className="flex gap-2">
 					<Button variant="outline" size="sm" asChild>
-						<Link href="/manager/activity">Team Activity Log</Link>
+						<Link href="/manager/activity">{t("manager.teamActivityLog")}</Link>
 					</Button>
 					<Button size="sm" asChild>
-						<Link href="/manager/tasks">Create Team Task</Link>
+						<Link href="/manager/tasks">{t("manager.createTeamTask")}</Link>
 					</Button>
 				</div>
 			</div>
 
 			{/* KPI Cards Grid */}
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+			<div className="grid grid-cols-2 gap-4 md:grid-cols-5">
 				<Card className="shadow-sm">
 					<CardContent className="flex items-center gap-3 p-4">
 						<div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-950/40">
@@ -115,10 +118,10 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								Total Team
+								{t("manager.totalTeam")}
 							</p>
 							<h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
-								{stats?.totalEmployees ?? 0} members
+								{stats?.totalEmployees ?? 0}
 							</h3>
 						</div>
 					</CardContent>
@@ -131,10 +134,10 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								Present Today
+								{t("manager.presentToday")}
 							</p>
 							<h3 className="font-bold text-green-600 text-lg">
-								{stats?.presentToday ?? 0} active
+								{stats?.presentToday ?? 0}
 							</h3>
 						</div>
 					</CardContent>
@@ -147,10 +150,26 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								Pending Approvals
+								{t("manager.pendingApprovals")}
 							</p>
 							<h3 className="font-bold text-amber-600 text-lg">
-								{stats?.pendingApprovals ?? 0} requests
+								{stats?.pendingApprovals ?? 0}
+							</h3>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card className="border-l-4 border-l-emerald-500 shadow-sm">
+					<CardContent className="flex items-center gap-3 p-4">
+						<div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-950/40">
+							<IndianRupeeIcon className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+								{t("manager.driverCashColl")}
+							</p>
+							<h3 className="font-bold text-emerald-600 text-lg">
+								₹{(stats?.driverCashCollected ?? 0).toLocaleString("en-IN")}
 							</h3>
 						</div>
 					</CardContent>
@@ -163,10 +182,10 @@ export default function ManagerDashboard() {
 						</div>
 						<div>
 							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
-								Overdue Tasks
+								{t("manager.overdueTasks")}
 							</p>
 							<h3 className="font-bold text-lg text-red-600">
-								{stats?.overdueTasks ?? 0} delayed
+								{stats?.overdueTasks ?? 0}
 							</h3>
 						</div>
 					</CardContent>

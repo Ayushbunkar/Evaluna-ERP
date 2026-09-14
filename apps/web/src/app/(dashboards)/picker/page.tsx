@@ -28,6 +28,7 @@ import {
 	TrendingUpIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
 	AnimatedCard,
 	motion,
@@ -38,12 +39,16 @@ import {
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerDashboard() {
+	const t = useTranslations();
 	const trpc = useTRPC();
 	const {
 		data: stats,
 		isLoading,
 		error,
-	} = trpc.picker.getDashboardStats.useQuery({});
+	} = trpc.picker.getDashboardStats.useQuery(
+		{},
+		{ refetchInterval: 15000, refetchIntervalInBackground: false },
+	);
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
@@ -51,10 +56,10 @@ export default function PickerDashboard() {
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Picker Dashboard
+						{t("picker.pickerDashboard")}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						Order picking, task management, and warehouse fulfillment
+						{t("picker.orderPickingTaskManagement")}
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
@@ -63,7 +68,7 @@ export default function PickerDashboard() {
 						asChild
 					>
 						<Link href="/picker/active">
-							<PlaySquareIcon className="mr-2 h-4 w-4" /> Start Picking
+							<PlaySquareIcon className="mr-2 h-4 w-4" /> {t("picker.startPicking")}
 						</Link>
 					</Button>
 				</div>
@@ -86,7 +91,7 @@ export default function PickerDashboard() {
 										<ClockIcon className="h-6 w-6 text-blue-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Pending Picks
+										{t("picker.pendingPicks")}
 									</h3>
 									<p className="font-bold text-2xl text-blue-600 dark:text-blue-400">
 										{stats?.pending || 0}
@@ -109,7 +114,7 @@ export default function PickerDashboard() {
 										<CalendarCheckIcon className="h-6 w-6 text-green-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Assigned Today
+										{t("picker.assignedToday")}
 									</h3>
 									<p className="font-bold text-2xl text-green-600 dark:text-green-400">
 										{stats?.assignedToday || 0}
@@ -132,7 +137,7 @@ export default function PickerDashboard() {
 										<CheckSquareIcon className="h-6 w-6 text-purple-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Completed Today
+										{t("picker.completedToday")}
 									</h3>
 									<p className="font-bold text-2xl text-purple-600 dark:text-purple-400">
 										{stats?.completed || 0}
@@ -155,7 +160,7 @@ export default function PickerDashboard() {
 										<TrendingUpIcon className="h-6 w-6 text-yellow-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Total Items Picked
+										{t("picker.totalItemsPicked")}
 									</h3>
 									<p className="font-bold text-2xl text-yellow-600 dark:text-yellow-400">
 										{stats?.totalItemsPicked || 0}
@@ -178,15 +183,15 @@ export default function PickerDashboard() {
 						<div className="space-y-0.5">
 							<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
 								<PackageIcon className="h-5 w-5 text-blue-600" />
-								Recent Picking Tasks
+								{t("picker.recentPickingTasks")}
 							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
-								Latest picking assignments and completions
+								{t("picker.latestAssignmentsCompletions")}
 							</CardDescription>
 						</div>
 						<Button variant="ghost" size="sm" asChild>
 							<Link href="/picker/pending">
-								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
+								{t("picker.viewAll")} <ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>
@@ -194,52 +199,52 @@ export default function PickerDashboard() {
 						{isLoading ? (
 							<div className="flex h-32 items-center justify-center gap-2 text-muted-foreground text-xs">
 								<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
-								Loading task queue...
+								{t("common.loading")}
 							</div>
 						) : error ? (
 							<div className="flex h-32 items-center justify-center text-destructive text-xs">
-								{error.message || "Error loading picking tasks"}
+								{error.message || t("error.somethingWentWrong")}
 							</div>
 						) : !stats?.recentTasks || stats.recentTasks.length === 0 ? (
 							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
 								<PackageIcon className="h-8 w-8 text-blue-500 opacity-30" />
-								<span>No recent picking tasks logged yet</span>
+								<span>{t("common.noItemFound")}</span>
 							</div>
 						) : (
 							<div className="overflow-x-auto">
 								<Table>
 									<TableHeader>
 										<TableRow>
-											<TableHead>Picklist ID</TableHead>
-											<TableHead>Order Ref</TableHead>
-											<TableHead>Total Items</TableHead>
-											<TableHead>Area</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead>Created Time</TableHead>
+											<TableHead>{t("picker.picklistId")}</TableHead>
+											<TableHead>{t("picker.orderId")}</TableHead>
+											<TableHead>{t("picker.totalItems")}</TableHead>
+											<TableHead>{t("picker.area")}</TableHead>
+											<TableHead>{t("common.status")}</TableHead>
+											<TableHead>{t("picker.createdTime")}</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{stats.recentTasks.map((t) => (
-											<TableRow key={t.id} className="hover:bg-muted/50">
+										{stats.recentTasks.map((tItem) => (
+											<TableRow key={tItem.id} className="hover:bg-muted/50">
 												<TableCell className="font-mono font-semibold text-xs">
-													{t.id}
+													{tItem.id}
 												</TableCell>
 												<TableCell className="font-semibold text-sm">
-													{t.order}
+													{tItem.order}
 												</TableCell>
 												<TableCell className="font-medium text-sm">
-													{t.items} items
+													{tItem.items} {t("driver.orderItems")}
 												</TableCell>
 												<TableCell className="text-muted-foreground text-xs">
-													{t.area}
+													{tItem.area}
 												</TableCell>
 												<TableCell>
 													<span className="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs capitalize dark:bg-blue-900/30 dark:text-blue-400">
-														{t.status}
+														{tItem.status}
 													</span>
 												</TableCell>
 												<TableCell className="text-muted-foreground text-xs">
-													{t.time || "Recently"}
+													{tItem.time || "Recently"}
 												</TableCell>
 											</TableRow>
 										))}

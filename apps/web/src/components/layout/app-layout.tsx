@@ -38,7 +38,7 @@ import {
 	RefreshCwIcon,
 	Search,
 	Settings,
-	User,
+	User as UserIcon,
 	WifiOffIcon,
 	XIcon,
 } from "lucide-react";
@@ -494,7 +494,9 @@ export function AppLayout({
 								</>
 							)}
 							<DropdownMenuItem
-								onClick={() => logout()}
+								onClick={() => {
+									window.location.href = "/api/logout";
+								}}
 								className="cursor-pointer rounded-md text-destructive focus:bg-destructive/10 focus:text-destructive"
 							>
 								Logout

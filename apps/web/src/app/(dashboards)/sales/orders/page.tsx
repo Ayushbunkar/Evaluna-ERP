@@ -111,15 +111,15 @@ export default function OrdersPage() {
 		},
 		{
 			key: "finance_status",
-			header: "Payment Status",
+			header: tc("paymentMode") || "Payment Status",
 			sortable: false,
 			render: (row: any) => {
 				const fs = row.finance_status ?? "pending_collection";
 				const map: Record<string, { label: string; cls: string }> = {
-					pending_collection: { label: "Pending Collection", cls: "text-yellow-600" },
-					driver_collected: { label: "Driver Collected", cls: "text-blue-600" },
-					finance_submitted: { label: "Submitted to Finance", cls: "text-purple-600" },
-					reconciled: { label: "Reconciled ✓", cls: "text-emerald-600 font-semibold" },
+					pending_collection: { label: tc("pendingCollection") || "Pending Collection", cls: "text-yellow-600" },
+					driver_collected: { label: tc("driverCollected") || "Driver Collected", cls: "text-blue-600" },
+					finance_submitted: { label: tc("financeSubmitted") || "Submitted to Finance", cls: "text-purple-600" },
+					reconciled: { label: tc("reconciled") || "Reconciled ✓", cls: "text-emerald-600 font-semibold" },
 				};
 				const { label, cls } = map[fs] ?? map.pending_collection;
 				return <span className={`text-xs ${cls}`}>{label}</span>;

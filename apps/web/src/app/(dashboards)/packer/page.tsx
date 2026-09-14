@@ -39,6 +39,7 @@ import {
 	TruckIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
 	AnimatedCard,
@@ -50,6 +51,8 @@ import {
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerDashboard() {
+	const t = useTranslations("packer");
+	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
 	const { data: stats } = trpc.packer.getDashboardStats.useQuery();
 	const {
@@ -138,11 +141,10 @@ export default function PackerDashboard() {
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Packer Workspace & Dispatch Center
+						{t("packerWorkspace")}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						Pack completed picked orders, record box dimensions, print shipping
-						labels & dispatch packages.
+						{t("packerWorkspaceSub")}
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
@@ -151,7 +153,7 @@ export default function PackerDashboard() {
 						asChild
 					>
 						<Link href="/packer/pending">
-							<PackageIcon className="mr-2 h-4 w-4" /> View Pending Packing
+							<PackageIcon className="mr-2 h-4 w-4" /> {t("viewPendingPacking")}
 						</Link>
 					</Button>
 				</div>
@@ -174,7 +176,7 @@ export default function PackerDashboard() {
 										<ClockIcon className="h-6 w-6 text-blue-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Pending to Pack
+										{t("pendingToPack")}
 									</h3>
 									<p className="text-muted-foreground text-xs">
 										{stats?.pendingToPack || 0}
@@ -197,7 +199,7 @@ export default function PackerDashboard() {
 										<ArchiveIcon className="h-6 w-6 text-green-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Packed Today
+										{t("packedToday")}
 									</h3>
 									<p className="text-muted-foreground text-xs">
 										{stats?.packedToday || 0}
@@ -220,7 +222,7 @@ export default function PackerDashboard() {
 										<TrendingUpIcon className="h-6 w-6 text-yellow-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Packing Efficiency
+										{t("packingEfficiency")}
 									</h3>
 									<p className="text-muted-foreground text-xs">
 										{stats?.packingEfficiency?.toFixed(1)}%
@@ -243,10 +245,10 @@ export default function PackerDashboard() {
 										<TruckIcon className="h-6 w-6 text-blue-500" />
 									</div>
 									<h3 className="font-semibold text-base sm:text-lg">
-										Ready for Dispatch
+										{t("readyForDispatch")}
 									</h3>
 									<p className="text-muted-foreground text-xs">
-										{stats?.packedToday || 0} packages
+										{stats?.packedToday || 0}
 									</p>
 								</div>
 							</CardContent>
@@ -266,15 +268,15 @@ export default function PackerDashboard() {
 						<div className="space-y-0.5">
 							<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
 								<BoxIcon className="h-5 w-5 text-blue-600" />
-								Pending Orders Ready for Packing
+								{t("pendingOrdersReadyForPacking")}
 							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
-								Completed picklists waiting for box packaging & shipping labels
+								{t("completedPicklistsWaiting")}
 							</CardDescription>
 						</div>
 						<Button variant="ghost" size="sm" asChild>
 							<Link href="/packer/pending">
-								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
+								{t("viewPendingPacking")} <ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>
@@ -282,23 +284,23 @@ export default function PackerDashboard() {
 						{isLoadingPending ? (
 							<div className="flex h-32 items-center justify-center gap-2 text-muted-foreground text-xs">
 								<Loader2Icon className="h-5 w-5 animate-spin text-blue-600" />{" "}
-								Loading pending pick lists...
+								{tCommon("loading")}
 							</div>
 						) : !pendingPickLists || pendingPickLists.length === 0 ? (
 							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
 								<CheckCircle2Icon className="h-8 w-8 text-green-500 opacity-60" />
-								<span>No pending orders waiting for packing right now!</span>
+								<span>{tCommon("noItemFound")}</span>
 							</div>
 						) : (
 							<div className="overflow-x-auto">
 								<Table>
 									<TableHeader>
 										<TableRow>
-											<TableHead>Picklist ID</TableHead>
-											<TableHead>Order Reference</TableHead>
-											<TableHead>Picking Completed</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead className="text-right">Action</TableHead>
+											<TableHead>{t("orderRef")}</TableHead>
+											<TableHead>{t("orderRef")}</TableHead>
+											<TableHead>{t("packedDate")}</TableHead>
+											<TableHead>{tCommon("status")}</TableHead>
+											<TableHead className="text-right">{tCommon("actions")}</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -315,7 +317,7 @@ export default function PackerDashboard() {
 												</TableCell>
 												<TableCell>
 													<span className="rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-														Ready to Pack
+														{t("pendingPacking")}
 													</span>
 												</TableCell>
 												<TableCell className="text-right">
@@ -324,7 +326,7 @@ export default function PackerDashboard() {
 														className="h-8 bg-blue-600 text-white hover:bg-blue-700"
 														onClick={() => setSelectedPickList(pl)}
 													>
-														<BoxIcon className="mr-1 h-3.5 w-3.5" /> Pack Parcel
+														<BoxIcon className="mr-1 h-3.5 w-3.5" /> {t("packParcel")}
 													</Button>
 												</TableCell>
 											</TableRow>
@@ -348,15 +350,15 @@ export default function PackerDashboard() {
 						<div className="space-y-0.5">
 							<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
 								<ArchiveIcon className="h-5 w-5 text-blue-600" />
-								Recent Packing History & Shipping Labels
+								{t("recentPackingHistory")}
 							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
-								Packages packed and ready for dispatch
+								{t("packagesReadyForDispatch")}
 							</CardDescription>
 						</div>
 						<Button variant="ghost" size="sm" asChild>
 							<Link href="/packer/history">
-								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
+								{t("viewPendingPacking")} <ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>
@@ -364,18 +366,18 @@ export default function PackerDashboard() {
 						{!historyList || historyList.length === 0 ? (
 							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
 								<ArchiveIcon className="h-8 w-8 opacity-30" />
-								<span>No packed packages in history yet.</span>
+								<span>{tCommon("noItemFound")}</span>
 							</div>
 						) : (
 							<div className="overflow-x-auto">
 								<Table>
 									<TableHeader>
 										<TableRow>
-											<TableHead>Package Barcode</TableHead>
-											<TableHead>Order Ref</TableHead>
-											<TableHead>Packed By</TableHead>
-											<TableHead>Packed Date</TableHead>
-											<TableHead className="text-right">Label Action</TableHead>
+											<TableHead>{t("packageBarcode")}</TableHead>
+											<TableHead>{t("orderRef")}</TableHead>
+											<TableHead>{t("packedBy")}</TableHead>
+											<TableHead>{t("packedDate")}</TableHead>
+											<TableHead className="text-right">{t("labelAction")}</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -403,7 +405,7 @@ export default function PackerDashboard() {
 														}
 													>
 														<PrinterIcon className="h-3.5 w-3.5 text-gray-600" />{" "}
-														Print Label
+														{t("printLabel")}
 													</Button>
 												</TableCell>
 											</TableRow>
@@ -426,11 +428,10 @@ export default function PackerDashboard() {
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								<BoxIcon className="h-5 w-5 text-blue-600" />
-								Pack Order {selectedPickList.order_ref}
+								{t("packParcel")} {selectedPickList.order_ref}
 							</DialogTitle>
 							<DialogDescription>
-								Record parcel weight and dimensions to create package & generate
-								shipping barcode sticker.
+								{t("recordParcelWeight")}
 							</DialogDescription>
 						</DialogHeader>
 
@@ -440,17 +441,17 @@ export default function PackerDashboard() {
 									<strong>Picklist:</strong> {selectedPickList.id}
 								</p>
 								<p>
-									<strong>Order Reference:</strong> {selectedPickList.order_ref}
+									<strong>{t("orderRef")}:</strong> {selectedPickList.order_ref}
 								</p>
 								<p>
-									<strong>Status:</strong> Ready for Packaging
+									<strong>{tCommon("status")}:</strong> {t("pendingPacking")}
 								</p>
 							</div>
 
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1">
 									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										Parcel Weight (kg)
+										{t("parcelWeight")}
 									</label>
 									<input
 										type="number"
@@ -463,7 +464,7 @@ export default function PackerDashboard() {
 
 								<div className="space-y-1">
 									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										Box Dimensions
+										{t("boxDimensions")}
 									</label>
 									<input
 										type="text"
@@ -478,7 +479,7 @@ export default function PackerDashboard() {
 
 						<DialogFooter className="flex justify-end gap-2">
 							<Button variant="ghost" onClick={() => setSelectedPickList(null)}>
-								Cancel
+								{tCommon("cancel")}
 							</Button>
 							<Button
 								disabled={packMutation.isPending}
@@ -488,7 +489,7 @@ export default function PackerDashboard() {
 								{packMutation.isPending && (
 									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
 								)}
-								Complete Packing & Save Package
+								{t("completePackingAndSave")}
 							</Button>
 						</DialogFooter>
 					</DialogContent>

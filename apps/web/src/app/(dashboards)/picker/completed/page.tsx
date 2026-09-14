@@ -24,10 +24,12 @@ import {
 	SearchIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PickerCompletedPage() {
+	const t = useTranslations();
 	const trpc = useTRPC();
 	const {
 		data: completedPicks,
@@ -50,11 +52,10 @@ export default function PickerCompletedPage() {
 			<div className="flex flex-col gap-1">
 				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
 					<CheckSquareIcon className="h-7 w-7 text-green-600" />
-					Completed Picking Archive
+					{t("picker.completedPickingArchive")}
 				</h1>
 				<p className="text-muted-foreground text-sm">
-					History of fulfilled picking tasks, item count verifications, and
-					completed order handoffs.
+					{t("picker.completedPickingArchiveSub")}
 				</p>
 			</div>
 
@@ -66,7 +67,7 @@ export default function PickerCompletedPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
-										Total Completed Picks
+										{t("picker.totalCompletedPicks")}
 									</p>
 									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
 										{completedPicks?.length ?? 0}
@@ -84,7 +85,7 @@ export default function PickerCompletedPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
-										Fulfillment Accuracy
+										{t("picker.fulfillmentAccuracy")}
 									</p>
 									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
 										100%
@@ -102,10 +103,10 @@ export default function PickerCompletedPage() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-purple-700 text-sm dark:text-purple-400">
-										Handoff Status
+										{t("picker.handoffStatus")}
 									</p>
 									<p className="font-bold text-purple-800 text-xl dark:text-purple-300">
-										Ready for Packing
+										{t("status.readyForPacking")}
 									</p>
 								</div>
 								<CheckSquareIcon className="h-8 w-8 text-purple-500" />
@@ -121,10 +122,10 @@ export default function PickerCompletedPage() {
 					<div>
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<CheckSquareIcon className="h-5 w-5 text-green-600" />
-							Completed Pick Task History
+							{t("picker.completedPickTaskHistory")}
 						</CardTitle>
 						<CardDescription>
-							Full archive of completed picklists
+							{t("picker.fullArchiveCompletedPicklists")}
 						</CardDescription>
 					</div>
 
@@ -132,7 +133,7 @@ export default function PickerCompletedPage() {
 						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 						<input
 							type="text"
-							placeholder="Search picklist or order ID..."
+							placeholder={t("picker.searchPicklistOrOrderId")}
 							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -143,28 +144,28 @@ export default function PickerCompletedPage() {
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
 							<Loader2Icon className="h-5 w-5 animate-spin text-green-600" />{" "}
-							Loading completed picks...
+							{t("common.loading")}
 						</div>
 					) : error ? (
 						<div className="flex h-40 items-center justify-center text-destructive">
-							{error.message || "Error loading completed picks"}
+							{error.message || t("error.somethingWentWrong")}
 						</div>
 					) : !filteredPicks || filteredPicks.length === 0 ? (
 						<div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
 							<CheckSquareIcon className="h-10 w-10 text-green-500 opacity-30" />
-							<p>No completed pick tasks logged yet.</p>
+							<p>{t("common.noItemFound")}</p>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>Picklist ID</TableHead>
-										<TableHead>Order ID</TableHead>
-										<TableHead>Total Items</TableHead>
-										<TableHead>Completed By</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead>Date</TableHead>
+										<TableHead>{t("picker.picklistId")}</TableHead>
+										<TableHead>{t("picker.orderId")}</TableHead>
+										<TableHead>{t("picker.totalItems")}</TableHead>
+										<TableHead>{t("picker.completedBy")}</TableHead>
+										<TableHead>{t("common.status")}</TableHead>
+										<TableHead>{t("common.date")}</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -177,14 +178,14 @@ export default function PickerCompletedPage() {
 												{pick.order_id}
 											</TableCell>
 											<TableCell className="font-medium text-sm">
-												{pick.items} items
+												{pick.items} {t("driver.orderItems")}
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pick.completed_by}
 											</TableCell>
 											<TableCell>
 												<span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800 text-xs capitalize dark:bg-green-900/30 dark:text-green-400">
-													Completed
+													{t("status.completed")}
 												</span>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">

@@ -62,6 +62,7 @@ export function DeliveryManagementDashboard({
 	const { data: listDriversData } = trpc.delivery.listDrivers.useQuery({});
 	const finalDrivers = listDriversData || drivers || [];
 	const { data: allOrders = [], refetch: refetchOrders } = trpc.orders.list.useQuery();
+	const { data: driverCollections = [] } = trpc.finance.getDriverCollections.useQuery();
 
 	const [assignOrder, setAssignOrder] = useState<any>(null);
 	const [isOrderAssignOpen, setIsOrderAssignOpen] = useState(false);
@@ -1380,15 +1381,63 @@ export function DeliveryManagementDashboard({
 			<TabsContent value="settlements">
 				<Card>
 					<CardHeader>
-						<CardTitle>Cash Settlements</CardTitle>
+						<CardTitle>Cash & Online Settlements</CardTitle>
 						<CardDescription>
-							Verify end-of-day cash and UPI collections from delivery boys.
+							Verify end-of-day collections brought by drivers from customer handovers.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<p className="text-muted-foreground text-sm">
-							No pending settlements.
-						</p>
+						{driverCollections.length === 0 ? (
+							<p className="text-muted-foreground text-sm">
+								No pending or completed driver settlements.
+							</p>
+						) : (
+							<div className="overflow-x-auto">
+								<table className="w-full text-left text-sm">
+									<thead>
+										<tr className="border-b text-muted-foreground">
+											<th className="py-2 px-3 font-medium">Driver</th>
+											<th className="py-2 px-3 font-medium">Method</th>
+											<th className="py-2 px-3 font-medium">Amount</th>
+											<th className="py-2 px-3 font-medium">Ref / Txn ID</th>
+											<th className="py-2 px-3 font-medium">Collected At</th>
+											<th className="py-2 px-3 font-medium">Status</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y">
+										{driverCollections.map((col: any) => (
+											<tr key={col.id} className="hover:bg-muted/50">
+												<td className="py-3 px-3 font-medium">
+													<div>{col.driverName}</div>
+													<div className="text-xs text-muted-foreground">{col.driverEmail}</div>
+												</td>
+												<td className="py-3 px-3 capitalize">
+													<span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+														col.paymentMethod?.toLowerCase() === "cash" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
+													}`}>
+														{col.paymentMethod}
+													</span>
+												</td>
+												<td className="py-3 px-3 font-semibold text-emerald-600">
+													₹{Number(col.amount).toLocaleString('en-IN')}
+												</td>
+												<td className="py-3 px-3 font-mono text-xs">
+													{col.transactionId || col.referenceNumber}
+												</td>
+												<td className="py-3 px-3 text-xs text-muted-foreground">
+													{col.collectedAt}
+												</td>
+												<td className="py-3 px-3">
+													<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+														{col.status}
+													</span>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			</TabsContent>

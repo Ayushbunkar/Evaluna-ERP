@@ -31,7 +31,7 @@ export default function AdminErrorPage({
 	}, [error]);
 
 	const handleGoToLogin = () => {
-		window.location.href = (process.env.NEXT_PUBLIC_BASE_PATH || "") + "/login";
+		window.location.replace("/login");
 	};
 
 	return (

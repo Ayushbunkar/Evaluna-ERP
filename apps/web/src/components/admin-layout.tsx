@@ -38,6 +38,7 @@ import {
 	ShieldCheckIcon,
 	ShoppingBagIcon,
 	ShoppingCartIcon,
+	UserIcon,
 	UsersIcon,
 	WifiOffIcon,
 	XIcon,
@@ -333,10 +334,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
-								onClick={async () => {
-									await authClient.signOut();
-									window.location.href =
-										(process.env.NEXT_PUBLIC_BASE_PATH || "") + "/login";
+								onClick={() => {
+									window.location.href = "/api/logout";
 								}}
 							>
 								{t("logout")}

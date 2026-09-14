@@ -57,38 +57,137 @@ export const inventoryRouter = router({
 			const data = await db
 				.select({
 					id: branchInventory.id,
+					productId: products.id,
 					product: products.name,
 					sku: products.sku,
+					price: products.price,
+					branchId: branchInventory.branch_id,
 					branch: branches.name,
 					qty_on_hand: branchInventory.in_stock,
 					reorder_level: branchInventory.reorder_level,
 					status: sql<string>`
           CASE
-            WHEN ${branchInventory.in_stock} <= 0 THEN 'out_of_stock'
-            WHEN ${branchInventory.in_stock} <= ${branchInventory.reorder_level} THEN 'low_stock'
+            WHEN COALESCE(${branchInventory.in_stock}, 0) <= 0 THEN 'out_of_stock'
+            WHEN COALESCE(${branchInventory.in_stock}, 0) <= COALESCE(${branchInventory.reorder_level}, 10) THEN 'low_stock'
             ELSE 'in_stock'
           END
         `,
 				})
-				.from(branchInventory)
-				.leftJoin(products, eq(branchInventory.product_id, products.id))
+				.from(products)
+				.leftJoin(branchInventory, eq(products.id, branchInventory.product_id))
 				.leftJoin(branches, eq(branchInventory.branch_id, branches.id))
-				.limit(limit || 50)
+				.limit(limit || 100)
 				.offset(offset || 0);
 
 			const countResult = await db
 				.select({ val: count() })
-				.from(branchInventory);
+				.from(products);
 
 			return {
 				items: data.map((d) => ({
 					...d,
+					id: d.id || d.productId,
+					productId: d.productId,
 					product: d.product || "Unknown",
 					sku: d.sku || "N/A",
-					branch: d.branch || "Unknown",
+					price: Number.parseFloat((d.price as string) || "0"),
+					branch: d.branch || "Bhopal Main Warehouse",
+					branchId: d.branchId || 1,
+					qty_on_hand: d.qty_on_hand ?? 0,
+					status: d.status || "in_stock",
 				})),
 				total: Number(countResult[0]?.val) || 0,
 			};
+		}),
+
+	updateStockAndPrice: publicProcedure
+		.input(
+			z.object({
+				inventoryId: z.number().optional().nullable(),
+				productId: z.number().optional().nullable(),
+				branchId: z.number().optional().default(1),
+				qtyOnHand: z.number().min(0),
+				price: z.number().min(0),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			return await ctx.db.transaction(async (tx) => {
+				let prodId = input.productId;
+
+				if (!prodId && input.inventoryId) {
+					const [invRecord] = await tx
+						.select()
+						.from(branchInventory)
+						.where(eq(branchInventory.id, input.inventoryId))
+						.limit(1);
+					if (invRecord?.product_id) {
+						prodId = invRecord.product_id;
+					} else {
+						prodId = input.inventoryId;
+					}
+				}
+
+				if (!prodId) {
+					throw new Error("Product ID could not be determined for this item.");
+				}
+
+				const priceStr = input.price.toFixed(2);
+
+				// 1. Update product price in `products` table (Syncs across Sales & Driver App)
+				await tx
+					.update(products)
+					.set({
+						price: priceStr,
+						base_selling_price: priceStr,
+					})
+					.where(eq(products.id, prodId));
+
+				// 2. Update physical stock in `branchInventory`
+				const existing = input.inventoryId
+					? await tx
+							.select()
+							.from(branchInventory)
+							.where(eq(branchInventory.id, input.inventoryId))
+							.limit(1)
+					: await tx
+							.select()
+							.from(branchInventory)
+							.where(
+								and(
+									eq(branchInventory.product_id, prodId),
+									eq(branchInventory.branch_id, input.branchId),
+								),
+							)
+							.limit(1);
+
+				if (existing && existing.length > 0) {
+					await tx
+						.update(branchInventory)
+						.set({
+							in_stock: input.qtyOnHand,
+						})
+						.where(eq(branchInventory.id, existing[0].id));
+				} else {
+					await tx.insert(branchInventory).values({
+						product_id: prodId,
+						branch_id: input.branchId,
+						in_stock: input.qtyOnHand,
+					});
+				}
+
+				// 3. Log into stock_ledger for audit trailing
+				await tx.insert(stockLedger).values({
+					product_id: prodId,
+					branch_id: input.branchId,
+					transaction_type: "in",
+					quantity: input.qtyOnHand,
+					reference_type: "warehouse_stock_update",
+					unit_cost: priceStr,
+					total_cost: (input.price * input.qtyOnHand).toFixed(2),
+				});
+
+				return { success: true };
+			});
 		}),
 
 	getById: publicProcedure

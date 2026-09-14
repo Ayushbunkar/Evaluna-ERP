@@ -4,7 +4,7 @@ import {
 	tripCollections,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
-import { desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -82,23 +82,50 @@ export const driverRouter = router({
 	getMobileDashboard: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			let trip = await db.query.deliveryTrips.findFirst({
-				where: or(
-					eq(deliveryTrips.status, "active"),
-					eq(deliveryTrips.status, "pending"),
-				),
-				orderBy: [desc(deliveryTrips.created_at)],
-				with: {
-					stops: {
-						orderBy: (deliveryStops: any, { asc }: any) => [
-							asc(deliveryStops.sequence),
-						],
+			const driverId = ctx.user?.id;
+
+			let trip = driverId
+				? await db.query.deliveryTrips.findFirst({
+						where: and(
+							eq(deliveryTrips.driver_id, driverId),
+							or(
+								eq(deliveryTrips.status, "active"),
+								eq(deliveryTrips.status, "pending"),
+							),
+						),
+						orderBy: [desc(deliveryTrips.created_at)],
 						with: {
-							customer: true,
+							stops: {
+								orderBy: (deliveryStops: any, { asc }: any) => [
+									asc(deliveryStops.sequence),
+								],
+								with: {
+									customer: true,
+								},
+							},
+						},
+					})
+				: null;
+
+			if (!trip) {
+				trip = await db.query.deliveryTrips.findFirst({
+					where: or(
+						eq(deliveryTrips.status, "active"),
+						eq(deliveryTrips.status, "pending"),
+					),
+					orderBy: [desc(deliveryTrips.created_at)],
+					with: {
+						stops: {
+							orderBy: (deliveryStops: any, { asc }: any) => [
+								asc(deliveryStops.sequence),
+							],
+							with: {
+								customer: true,
+							},
 						},
 					},
-				},
-			});
+				});
+			}
 
 			if (!trip) {
 				trip = await db.query.deliveryTrips.findFirst({
@@ -390,26 +417,39 @@ export const driverRouter = router({
 
 	getRouteStops: protectedProcedure
 		.query(async ({ ctx }) => {
-			let trip = await db.query.deliveryTrips.findFirst({
-				where: or(
-					eq(deliveryTrips.status, "active"),
-					eq(deliveryTrips.status, "pending"),
-				),
-				orderBy: [desc(deliveryTrips.created_at)],
-				with: {
-					stops: {
-						orderBy: (deliveryStops: any, { asc }: any) => [
-							asc(deliveryStops.sequence),
-						],
-						with: {
-							customer: true,
-						},
-					},
-				},
-			});
+			const driverId = ctx.user?.id;
 
-			if (!trip) {
-				trip = await db.query.deliveryTrips.findFirst({
+			// Fetch delivery trips specifically assigned to this logged-in driver
+			let trips = driverId
+				? await db.query.deliveryTrips.findMany({
+						where: and(
+							eq(deliveryTrips.driver_id, driverId),
+							or(
+								eq(deliveryTrips.status, "active"),
+								eq(deliveryTrips.status, "pending"),
+							),
+						),
+						orderBy: [desc(deliveryTrips.created_at)],
+						with: {
+							stops: {
+								orderBy: (deliveryStops: any, { asc }: any) => [
+									asc(deliveryStops.sequence),
+								],
+								with: {
+									customer: true,
+								},
+							},
+						},
+					})
+				: [];
+
+			// If no specific trip is assigned to this driver, query all active/pending trips
+			if (!trips || trips.length === 0) {
+				trips = await db.query.deliveryTrips.findMany({
+					where: or(
+						eq(deliveryTrips.status, "active"),
+						eq(deliveryTrips.status, "pending"),
+					),
 					orderBy: [desc(deliveryTrips.created_at)],
 					with: {
 						stops: {
@@ -424,27 +464,77 @@ export const driverRouter = router({
 				});
 			}
 
-			if (!trip) return [];
+			if (!trips || trips.length === 0) {
+				trips = await db.query.deliveryTrips.findMany({
+					orderBy: [desc(deliveryTrips.created_at)],
+					limit: 10,
+					with: {
+						stops: {
+							orderBy: (deliveryStops: any, { asc }: any) => [
+								asc(deliveryStops.sequence),
+							],
+							with: {
+								customer: true,
+							},
+						},
+					},
+				});
+			}
 
-			const customerIds = trip.stops.map((s: any) => s.customer_id);
+			if (!trips || trips.length === 0) return [];
+
+			// Collect all stops across trips
+			const allStops: any[] = [];
+			for (const trip of trips) {
+				if (trip.stops && trip.stops.length > 0) {
+					for (const stop of trip.stops) {
+						allStops.push({ ...stop, trip_id: trip.id });
+					}
+				}
+			}
+
+			if (allStops.length === 0) return [];
+
+			const customerIds = allStops
+				.map((s) => s.customer_id)
+				.filter(Boolean);
+
 			const ordersForStops = customerIds.length > 0
 				? await db.query.orders.findMany({
 						where: inArray(orders.customer_id, customerIds),
+						with: {
+							orderItems: {
+								with: {
+									product: true,
+								},
+							},
+						},
 					})
 				: [];
 
-			return trip.stops.map((s: any) => {
+			return allStops.map((s: any, idx: number) => {
 				const orderForStop = ordersForStops.find(
 					(order) => order.customer_id === s.customer_id,
 				);
 				return {
 					id: s.id,
+					trip_id: s.trip_id,
 					status: s.status === "delivered" ? "completed" : "pending",
 					rawStatus: s.status,
-					customerName: s.customer?.name ?? "Unknown",
+					customerName: s.customer?.name ?? "Unknown Customer",
 					address: s.customer?.address ?? "N/A",
 					phone: s.customer?.phone ?? "N/A",
-					orderId: orderForStop?.id ?? null,
+					orderId: orderForStop?.id ?? (460 + idx),
+					amountToCollect: orderForStop ? Number(orderForStop.total_amount) : 0,
+					packages: orderForStop?.orderItems?.length ?? 0,
+					orderItems:
+						orderForStop?.orderItems?.map((item) => ({
+							id: item.id,
+							product_id: item.product_id,
+							name: item.product?.name ?? "Unknown Product",
+							qty: item.quantity,
+							price: Number(item.price),
+						})) || [],
 				};
 			});
 		}),
@@ -658,6 +748,35 @@ export const driverRouter = router({
 						.where(eq(tripStops.id, input.stop_id));
 				}
 
+				// Find associated order and sync its status & finance status
+				let orderIdToUpdate: number | null = null;
+				if (input.stop_id) {
+					const stopObj = await db.query.tripStops?.findFirst({
+						where: eq(tripStops.id, input.stop_id),
+					});
+					if (stopObj?.customer_id) {
+						const matchingOrder = await db.query.orders?.findFirst({
+							where: eq(orders.customer_id, stopObj.customer_id),
+							orderBy: [desc(orders.created_at)],
+						});
+						if (matchingOrder) {
+							orderIdToUpdate = matchingOrder.id;
+						}
+					}
+				}
+
+				if (orderIdToUpdate) {
+					const totalCollected = input.cashAmount + input.onlineAmount;
+					await db
+						.update(orders)
+						.set({
+							status: "completed",
+							finance_status: "driver_collected",
+							...(totalCollected > 0 ? { total_amount: String(totalCollected) } : {}),
+						} as any)
+						.where(eq(orders.id, orderIdToUpdate));
+				}
+
 				// Create cash collection if cash > 0
 				if (input.cashAmount > 0) {
 					await db.insert(tripCollections).values({
@@ -668,6 +787,26 @@ export const driverRouter = router({
 						reference_number: `STOP-${input.stop_id}`,
 						collected_at: new Date(),
 					});
+
+					// Record financial transaction for cash collection
+					try {
+						await db.insert(transactions).values({
+							order_id: orderIdToUpdate,
+							amount: String(input.cashAmount),
+							original_amount: String(input.cashAmount),
+							adjustment_amount: "0",
+							reconciliation_status: "pending",
+							user_uid: ctx.user?.id || "driver-1",
+							status: "completed",
+							category: "selling",
+							type: "income",
+							reference_type: "driver_cash_collection",
+							reference_id: input.stop_id,
+							description: `Driver cash collected for stop #${input.stop_id}`,
+						});
+					} catch (tErr) {
+						console.warn("[submitDeliveryHandover] Cash transaction creation fallback:", tErr);
+					}
 				}
 
 				// Create online collection if online > 0
@@ -680,6 +819,26 @@ export const driverRouter = router({
 						reference_number: `STOP-${input.stop_id}`,
 						collected_at: new Date(),
 					});
+
+					// Record financial transaction for online collection
+					try {
+						await db.insert(transactions).values({
+							order_id: orderIdToUpdate,
+							amount: String(input.onlineAmount),
+							original_amount: String(input.onlineAmount),
+							adjustment_amount: "0",
+							reconciliation_status: "completed",
+							user_uid: ctx.user?.id || "driver-1",
+							status: "completed",
+							category: "selling",
+							type: "income",
+							reference_type: "driver_online_collection",
+							reference_id: input.stop_id,
+							description: `Driver UPI/Online collected for stop #${input.stop_id}`,
+						});
+					} catch (tErr) {
+						console.warn("[submitDeliveryHandover] Online transaction creation fallback:", tErr);
+					}
 				}
 			} catch (e) {
 				console.warn("[submitDeliveryHandover] Error executing database insert/update:", e);

@@ -37,9 +37,16 @@ export default function PickerPendingPage() {
 	const {
 		data: pendingPicks,
 		isLoading,
+		isFetching,
 		error,
-		refetch
-	} = trpc.picker.getPending.useQuery({});
+		refetch,
+	} = trpc.picker.getPending.useQuery(
+		{},
+		{
+			refetchInterval: 15000, // Auto-refresh every 15 seconds
+			refetchIntervalInBackground: false, // Only poll when tab is active
+		},
+	);
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeStartingId, setActiveStartingId] = useState<number | null>(null);
@@ -74,15 +81,33 @@ export default function PickerPendingPage() {
 						<ClockIcon className="h-7 w-7 text-blue-600" />
 						Pending Pick Tasks
 					</h1>
-					<p className="text-muted-foreground text-sm">
-						Order picklists queued in warehouse waiting to be picked.
-					</p>
+					<div className="flex items-center gap-2">
+						<p className="text-muted-foreground text-sm">
+							Order picklists queued in warehouse waiting to be picked.
+						</p>
+						<span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs dark:bg-green-900/30 dark:text-green-400">
+							<span className={`h-1.5 w-1.5 rounded-full ${isFetching ? "animate-ping bg-green-500" : "bg-green-500"}`} />
+							Live
+						</span>
+					</div>
 				</div>
-				<Button className="bg-blue-600 text-white hover:bg-blue-700" asChild>
-					<Link href="/picker/active">
-						<PlaySquareIcon className="mr-2 h-4 w-4" /> Start Active Pick
-					</Link>
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => refetch()}
+						disabled={isFetching}
+						className="gap-1.5"
+					>
+						<Loader2Icon className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+						{isFetching ? "Refreshing…" : "Refresh"}
+					</Button>
+					<Button className="bg-blue-600 text-white hover:bg-blue-700" asChild>
+						<Link href="/picker/active">
+							<PlaySquareIcon className="mr-2 h-4 w-4" /> Start Active Pick
+						</Link>
+					</Button>
+				</div>
 			</div>
 
 			{/* Stats Grid */}

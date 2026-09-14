@@ -105,7 +105,6 @@ export default async function middleware(request: NextRequest) {
 		// Otherwise redirect to login
 		const url = request.nextUrl.clone();
 		url.pathname = "/login";
-		url.searchParams.set("expired", "1");
 		return NextResponse.redirect(url);
 	}
 

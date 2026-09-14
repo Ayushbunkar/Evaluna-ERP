@@ -33,6 +33,7 @@ import {
 	User as UserIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -46,6 +47,7 @@ export function DashboardHeader() {
 	const pathname = usePathname();
 	const locale = "en"; // default; replace with useLocale() once next-intl is confirmed in scope
 	const trpc = useTRPC();
+	const queryClient = useQueryClient();
 
 	// State
 	const [isSyncing, setIsSyncing] = useState(false);
