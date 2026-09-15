@@ -34,6 +34,7 @@ import {
 import { StatusBadge } from "@/components/admin/status-badge";
 import { useAdminTable } from "@/hooks/use-admin-table";
 import { normaliseError } from "@/lib/admin/errors";
+import { useTranslations } from "next-intl";
 import { text } from "@/lib/admin/format";
 import { PageTransition } from "@/lib/animations";
 import { trpc } from "@/lib/trpc/client";
@@ -72,6 +73,7 @@ const fields: FormField[] = [
 ];
 
 export default function SuperAdminCompaniesPage() {
+	const t = useTranslations("admin");
 	const utils = trpc.useUtils();
 	const table = useAdminTable<SortColumn>({
 		defaultSortBy: "name",
@@ -189,8 +191,8 @@ export default function SuperAdminCompaniesPage() {
 	return (
 		<PageTransition className="flex min-w-0 flex-col gap-5">
 			<AdminPageHeader
-				title="Companies"
-				description="Manage all registered companies."
+				title={t("companies")}
+				description={t("companiesSub")}
 				actions={
 					<Button
 						size="sm"
@@ -200,7 +202,7 @@ export default function SuperAdminCompaniesPage() {
 							setCreateOpen(true);
 						}}
 					>
-						<Building2Icon className="mr-2 h-4 w-4" /> Add company
+						<Building2Icon className="mr-2 h-4 w-4" /> {t("addCompany")}
 					</Button>
 				}
 			/>
@@ -208,8 +210,8 @@ export default function SuperAdminCompaniesPage() {
 			<AdminToolbar
 				searchValue={table.searchInput}
 				onSearchChange={table.setSearchInput}
-				searchPlaceholder="Search by name or GST..."
-				entityLabel="companies"
+				searchPlaceholder={t("searchPlaceholder")}
+				entityLabel={t("companies")}
 				total={list.data?.total}
 				isFiltered={table.isFiltered}
 				onClearFilters={table.reset}

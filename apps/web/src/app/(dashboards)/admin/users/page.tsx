@@ -360,134 +360,234 @@ export default function AdminUsersPage() {
 							No users found matching the criteria.
 						</div>
 					) : (
-						<div className="overflow-x-auto rounded-lg">
-							<Table className="w-full">
-								<TableHeader className="bg-muted/40 backdrop-blur">
-									<TableRow>
-										<TableHead>Name</TableHead>
-										<TableHead>Employee ID</TableHead>
-										<TableHead>Email</TableHead>
-										<TableHead>Role</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead>Last Active</TableHead>
-										<TableHead>Created Date</TableHead>
-										<TableHead className="text-right">Actions</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{users.map((u) => (
-										<TableRow key={u.id} className="hover:bg-muted/30">
-											<TableCell className="font-medium">{u.name}</TableCell>
-											<TableCell className="font-mono text-xs">
-												{u.staffCode || "N/A"}
-											</TableCell>
-											<TableCell>{u.email}</TableCell>
-											<TableCell>
-												<Badge variant="default">
-													{(u.role || "user").toUpperCase().replace("_", " ")}
-												</Badge>
-											</TableCell>
-											<TableCell>
-												<StatusBadge status={u.status} />
-											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{u.lastActiveAt
-													? new Date(u.lastActiveAt).toLocaleDateString()
-													: "Never"}
-											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{new Date(u.createdAt).toLocaleDateString()}
-											</TableCell>
-											<TableCell>
-												<div className="flex items-center justify-end gap-1">
-													<Tooltip content="Edit Details">
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8 text-muted-foreground hover:text-foreground"
-															onClick={() => {
-																setSelectedUserId(u.id);
-																setSelectedUserName(u.name);
-																setViewDetailsOpen(true);
-															}}
-														>
-															<EyeIcon className="h-4 w-4" />
-														</Button>
-													</Tooltip>
-
-													{u.status === "ACTIVE" ? (
-														<Tooltip content="Lock Account">
-															<Button
-																variant="ghost"
-																size="icon"
-																className="h-8 w-8 text-yellow-500 hover:bg-yellow-500/10 hover:text-yellow-600"
-																onClick={() => {
-																	setSelectedUserId(u.id);
-																	setSelectedUserName(u.name);
-																	setPendingStatus("LOCKED");
-																	setLockStatusOpen(true);
-																}}
-															>
-																<LockIcon className="h-4 w-4" />
-															</Button>
-														</Tooltip>
-													) : (
-														<Tooltip content="Unlock Account">
-															<Button
-																variant="ghost"
-																size="icon"
-																className="h-8 w-8 text-green-500 hover:bg-green-500/10 hover:text-green-600"
-																onClick={() => {
-																	setSelectedUserId(u.id);
-																	setSelectedUserName(u.name);
-																	setPendingStatus("ACTIVE");
-																	setLockStatusOpen(true);
-																}}
-															>
-																<UnlockIcon className="h-4 w-4" />
-															</Button>
-														</Tooltip>
-													)}
-
-													<Tooltip content="Reset Password">
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8 text-blue-500 hover:bg-blue-500/10 hover:text-blue-600"
-															onClick={() => {
-																setSelectedUserId(u.id);
-																setSelectedUserName(u.name);
-																setResetPasswordOpen(true);
-																setPasswordResetSuccess(false);
-																setNewPasswordVal("");
-															}}
-														>
-															<KeyIcon className="h-4 w-4" />
-														</Button>
-													</Tooltip>
-
-													<Tooltip content="Revoke All Active Sessions">
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8 text-red-500 hover:bg-red-500/10 hover:text-red-600"
-															onClick={() => {
-																setSelectedUserId(u.id);
-																setSelectedUserName(u.name);
-																setRevokeSessionsOpen(true);
-																setRevokeReason("");
-															}}
-														>
-															<UserMinusIcon className="h-4 w-4" />
-														</Button>
-													</Tooltip>
+						<>
+							{/* Mobile Card List (<md) */}
+							<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+								{users.map((u) => (
+									<div
+										key={u.id}
+										className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-3.5 shadow-xs"
+									>
+										<div className="flex items-start justify-between gap-2">
+											<div className="min-w-0 flex-1">
+												<div className="flex items-center gap-2">
+													<span className="font-mono text-[11px] font-semibold text-muted-foreground">
+														{u.staffCode || "N/A"}
+													</span>
+													<StatusBadge status={u.status} />
 												</div>
-											</TableCell>
+												<h3 className="font-bold text-sm text-foreground truncate mt-0.5">
+													{u.name}
+												</h3>
+												<p className="text-xs text-muted-foreground truncate">
+													{u.email}
+												</p>
+											</div>
+											<div className="flex items-center gap-1 shrink-0">
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-7 w-7 text-muted-foreground"
+													onClick={() => {
+														setSelectedUserId(u.id);
+														setSelectedUserName(u.name);
+														setViewDetailsOpen(true);
+													}}
+													title="View Details"
+												>
+													<EyeIcon className="h-3.5 w-3.5" />
+												</Button>
+												{u.status === "ACTIVE" ? (
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-7 w-7 text-yellow-500"
+														onClick={() => {
+															setSelectedUserId(u.id);
+															setSelectedUserName(u.name);
+															setPendingStatus("LOCKED");
+															setLockStatusOpen(true);
+														}}
+														title="Lock Account"
+													>
+														<LockIcon className="h-3.5 w-3.5" />
+													</Button>
+												) : (
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-7 w-7 text-green-500"
+														onClick={() => {
+															setSelectedUserId(u.id);
+															setSelectedUserName(u.name);
+															setPendingStatus("ACTIVE");
+															setLockStatusOpen(true);
+														}}
+														title="Unlock Account"
+													>
+														<UnlockIcon className="h-3.5 w-3.5" />
+													</Button>
+												)}
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-7 w-7 text-blue-500"
+													onClick={() => {
+														setSelectedUserId(u.id);
+														setSelectedUserName(u.name);
+														setResetPasswordOpen(true);
+														setPasswordResetSuccess(false);
+														setNewPasswordVal("");
+													}}
+													title="Reset Password"
+												>
+													<KeyIcon className="h-3.5 w-3.5" />
+												</Button>
+											</div>
+										</div>
+
+										<div className="flex items-center justify-between border-t border-border/40 pt-2 text-xs">
+											<Badge variant="default" className="text-[10px]">
+												{(u.role || "user").toUpperCase().replace("_", " ")}
+											</Badge>
+											<span className="text-[11px] text-muted-foreground">
+												Created: {new Date(u.createdAt).toLocaleDateString()}
+											</span>
+										</div>
+									</div>
+								))}
+							</div>
+
+							{/* Desktop Table (md+) */}
+							<div className="hidden md:block overflow-x-auto rounded-lg">
+								<Table className="w-full">
+									<TableHeader className="bg-muted/40 backdrop-blur">
+										<TableRow>
+											<TableHead>Name</TableHead>
+											<TableHead>Employee ID</TableHead>
+											<TableHead>Email</TableHead>
+											<TableHead>Role</TableHead>
+											<TableHead>Status</TableHead>
+											<TableHead>Last Active</TableHead>
+											<TableHead>Created Date</TableHead>
+											<TableHead className="text-right">Actions</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
+									</TableHeader>
+									<TableBody>
+										{users.map((u) => (
+											<TableRow key={u.id} className="hover:bg-muted/30">
+												<TableCell className="font-medium">{u.name}</TableCell>
+												<TableCell className="font-mono text-xs">
+													{u.staffCode || "N/A"}
+												</TableCell>
+												<TableCell>{u.email}</TableCell>
+												<TableCell>
+													<Badge variant="default">
+														{(u.role || "user").toUpperCase().replace("_", " ")}
+													</Badge>
+												</TableCell>
+												<TableCell>
+													<StatusBadge status={u.status} />
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{u.lastActiveAt
+														? new Date(u.lastActiveAt).toLocaleDateString()
+														: "Never"}
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{new Date(u.createdAt).toLocaleDateString()}
+												</TableCell>
+												<TableCell>
+													<div className="flex items-center justify-end gap-1">
+														<Tooltip content="Edit Details">
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8 text-muted-foreground hover:text-foreground"
+																onClick={() => {
+																	setSelectedUserId(u.id);
+																	setSelectedUserName(u.name);
+																	setViewDetailsOpen(true);
+																}}
+															>
+																<EyeIcon className="h-4 w-4" />
+															</Button>
+														</Tooltip>
+
+														{u.status === "ACTIVE" ? (
+															<Tooltip content="Lock Account">
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-8 w-8 text-yellow-500 hover:bg-yellow-500/10 hover:text-yellow-600"
+																	onClick={() => {
+																		setSelectedUserId(u.id);
+																		setSelectedUserName(u.name);
+																		setPendingStatus("LOCKED");
+																		setLockStatusOpen(true);
+																	}}
+																>
+																	<LockIcon className="h-4 w-4" />
+																</Button>
+															</Tooltip>
+														) : (
+															<Tooltip content="Unlock Account">
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-8 w-8 text-green-500 hover:bg-green-500/10 hover:text-green-600"
+																	onClick={() => {
+																		setSelectedUserId(u.id);
+																		setSelectedUserName(u.name);
+																		setPendingStatus("ACTIVE");
+																		setLockStatusOpen(true);
+																	}}
+																>
+																	<UnlockIcon className="h-4 w-4" />
+																</Button>
+															</Tooltip>
+														)}
+
+														<Tooltip content="Reset Password">
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8 text-blue-500 hover:bg-blue-500/10 hover:text-blue-600"
+																onClick={() => {
+																	setSelectedUserId(u.id);
+																	setSelectedUserName(u.name);
+																	setResetPasswordOpen(true);
+																	setPasswordResetSuccess(false);
+																	setNewPasswordVal("");
+																}}
+															>
+																<KeyIcon className="h-4 w-4" />
+															</Button>
+														</Tooltip>
+
+														<Tooltip content="Revoke All Active Sessions">
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8 text-red-500 hover:bg-red-500/10 hover:text-red-600"
+																onClick={() => {
+																	setSelectedUserId(u.id);
+																	setSelectedUserName(u.name);
+																	setRevokeSessionsOpen(true);
+																	setRevokeReason("");
+																}}
+															>
+																<UserMinusIcon className="h-4 w-4" />
+															</Button>
+														</Tooltip>
+													</div>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						</>
 					)}
 				</CardContent>
 			</Card>

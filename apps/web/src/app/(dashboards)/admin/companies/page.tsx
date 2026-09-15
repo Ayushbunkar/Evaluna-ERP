@@ -34,6 +34,7 @@ import {
 import { StatusBadge } from "@/components/admin/status-badge";
 import { useAdminTable } from "@/hooks/use-admin-table";
 import { normaliseError } from "@/lib/admin/errors";
+import { useTranslations } from "next-intl";
 import { text } from "@/lib/admin/format";
 import { PageTransition } from "@/lib/animations";
 import { trpc } from "@/lib/trpc/client";
@@ -72,6 +73,7 @@ const fields: FormField[] = [
 ];
 
 export default function AdminCompaniesPage() {
+	const t = useTranslations("admin");
 	const utils = trpc.useUtils();
 	const table = useAdminTable<SortColumn>({
 		defaultSortBy: "name",
@@ -189,8 +191,8 @@ export default function AdminCompaniesPage() {
 	return (
 		<PageTransition className="flex min-w-0 flex-col gap-5">
 			<AdminPageHeader
-				title="Companies"
-				description="Manage all registered companies."
+				title={t("companies")}
+				description={t("companiesSub")}
 				actions={
 					<Button
 						size="sm"
@@ -200,7 +202,7 @@ export default function AdminCompaniesPage() {
 							setCreateOpen(true);
 						}}
 					>
-						<Building2Icon className="mr-2 h-4 w-4" /> Add company
+						<Building2Icon className="mr-2 h-4 w-4" /> {t("addCompany")}
 					</Button>
 				}
 			/>
@@ -208,8 +210,8 @@ export default function AdminCompaniesPage() {
 			<AdminToolbar
 				searchValue={table.searchInput}
 				onSearchChange={table.setSearchInput}
-				searchPlaceholder="Search by name or GST..."
-				entityLabel="companies"
+				searchPlaceholder={t("searchPlaceholder")}
+				entityLabel={t("companies")}
 				total={list.data?.total}
 				isFiltered={table.isFiltered}
 				onClearFilters={table.reset}
@@ -253,8 +255,65 @@ export default function AdminCompaniesPage() {
 				)
 			) : (
 				<div className="flex flex-col gap-3">
-					<div className="overflow-x-auto rounded-lg border border-border/50">
-						<Table className="w-full">
+					{/* Mobile Card List (md:hidden) */}
+					<div className="grid grid-cols-1 gap-3 md:hidden">
+						{items.map((company) => (
+							<div
+								key={company.id}
+								className="flex flex-col gap-3 rounded-lg border border-border/50 bg-card/60 p-4 shadow-sm"
+							>
+								<div className="flex items-start justify-between gap-2">
+									<div className="min-w-0 flex-1">
+										<p className="truncate font-semibold text-foreground text-sm">
+											{company.name}
+										</p>
+										<p className="text-muted-foreground text-xs">
+											{text(company.contact)}
+										</p>
+									</div>
+									<StatusBadge status={company.status} />
+								</div>
+
+								<div className="grid grid-cols-2 gap-2 border-border/40 border-t pt-2 text-xs">
+									<div>
+										<span className="text-muted-foreground">GST: </span>
+										<span className="font-mono font-medium">{text(company.gst_number)}</span>
+									</div>
+									<div>
+										<span className="text-muted-foreground">PAN: </span>
+										<span className="font-mono font-medium">{text(company.pan)}</span>
+									</div>
+								</div>
+
+								<div className="flex items-center justify-end gap-1 border-border/40 border-t pt-2">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 gap-1 text-xs"
+										onClick={() => setViewId(company.id)}
+									>
+										<EyeIcon className="h-3.5 w-3.5" /> View
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 gap-1 text-xs"
+										onClick={() => {
+											setFormError(null);
+											setFieldErrors({});
+											setEditId(company.id);
+										}}
+									>
+										<PencilIcon className="h-3.5 w-3.5" /> Edit
+									</Button>
+								</div>
+							</div>
+						))}
+					</div>
+
+					{/* Desktop / Tablet Table (hidden md:block) */}
+					<div className="hidden overflow-x-auto rounded-lg border border-border/50 md:block">
+						<Table className="w-full min-w-[700px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
 									<SortableHead

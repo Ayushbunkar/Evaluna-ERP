@@ -72,14 +72,14 @@ export function FilterSelect({
 }) {
 	const id = useId();
 	return (
-		<div className={className}>
+		<div className={`min-w-0 flex-1 sm:flex-initial ${className ?? ""}`}>
 			<Label htmlFor={id} className="sr-only">
 				{label}
 			</Label>
 			<Select value={value || "all"} onValueChange={onChange}>
 				<SelectTrigger
 					id={id}
-					className="h-9 w-full min-w-[140px] text-xs sm:w-auto"
+					className="h-9 w-full min-w-0 sm:min-w-[130px] text-xs"
 				>
 					<SelectValue placeholder={label} />
 				</SelectTrigger>
@@ -152,48 +152,55 @@ export function AdminToolbar({
 					/>
 				</div>
 
-				<div className="flex flex-wrap items-center gap-2">
-					{filters}
-					{onClearFilters && isFiltered && (
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onClearFilters}
-							title="Clear search and filters"
-						>
-							<FilterXIcon className="mr-1.5 h-4 w-4" /> Clear
-						</Button>
-					)}
-					{onRefresh && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={onRefresh}
-							disabled={refreshing}
-							title="Refresh"
-							aria-label="Refresh data"
-						>
-							<RefreshCwIcon
-								className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-							/>
-						</Button>
-					)}
-					{onExport && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={onExport}
-							disabled={exporting}
-							title="Export the current results to CSV"
-						>
-							{exporting ? (
-								<Loader2Icon className="mr-1.5 h-4 w-4 animate-spin" />
-							) : (
-								<DownloadIcon className="mr-1.5 h-4 w-4" />
-							)}
-							Export
-						</Button>
-					)}
+				<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+					<div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
+						{filters}
+					</div>
+					<div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
+						{onClearFilters && isFiltered && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-9 px-2.5 text-xs"
+								onClick={onClearFilters}
+								title="Clear search and filters"
+							>
+								<FilterXIcon className="mr-1 h-3.5 w-3.5" /> Clear
+							</Button>
+						)}
+						{onRefresh && (
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-9 w-9 p-0"
+								onClick={onRefresh}
+								disabled={refreshing}
+								title="Refresh"
+								aria-label="Refresh data"
+							>
+								<RefreshCwIcon
+									className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+								/>
+							</Button>
+						)}
+						{onExport && (
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-9 gap-1.5 text-xs"
+								onClick={onExport}
+								disabled={exporting}
+								title="Export the current results to CSV"
+							>
+								{exporting ? (
+									<Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+								) : (
+									<DownloadIcon className="h-3.5 w-3.5" />
+								)}
+								<span>Export</span>
+							</Button>
+						)}
+					</div>
 				</div>
 			</div>
 

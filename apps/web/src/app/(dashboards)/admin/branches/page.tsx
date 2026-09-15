@@ -246,8 +246,83 @@ export default function AdminBranchesPage() {
 				)
 			) : (
 				<div className="flex flex-col gap-3">
-					<div className="overflow-x-auto rounded-lg border border-border/50">
-						<Table className="w-full">
+					{/* Mobile Card List (md:hidden) */}
+					<div className="grid grid-cols-1 gap-3 md:hidden">
+						{items.map((b) => (
+							<div
+								key={b.id}
+								className="flex flex-col gap-3 rounded-lg border border-border/50 bg-card/60 p-4 shadow-sm"
+							>
+								<div className="flex items-start justify-between gap-2">
+									<div className="min-w-0 flex-1">
+										<p className="truncate font-semibold text-foreground text-sm">
+											{b.name}
+										</p>
+										<p className="font-mono text-muted-foreground text-xs">
+											{text(b.code)}
+										</p>
+									</div>
+									<span
+										className={`shrink-0 rounded-full px-2 py-0.5 font-medium text-xs ${b.is_headquarters ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"}`}
+									>
+										{b.is_headquarters ? "Headquarters" : "Branch"}
+									</span>
+								</div>
+
+								<div className="grid grid-cols-2 gap-2 border-border/40 border-t pt-2 text-xs">
+									<div>
+										<span className="text-muted-foreground">Phone: </span>
+										<span className="font-medium">{text(b.phone)}</span>
+									</div>
+									<div>
+										<span className="text-muted-foreground">Email: </span>
+										<span className="truncate font-medium">{text(b.email)}</span>
+									</div>
+									{b.address && (
+										<div className="col-span-2">
+											<span className="text-muted-foreground">Address: </span>
+											<span className="font-medium text-muted-foreground">{text(b.address)}</span>
+										</div>
+									)}
+								</div>
+
+								<div className="flex items-center justify-end gap-1 border-border/40 border-t pt-2">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 gap-1 text-xs"
+										onClick={() => setViewId(b.id)}
+									>
+										<EyeIcon className="h-3.5 w-3.5" /> View
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 gap-1 text-xs"
+										onClick={() => {
+											setFormError(null);
+											setFieldErrors({});
+											setEditId(b.id);
+										}}
+									>
+										<PencilIcon className="h-3.5 w-3.5" /> Edit
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 gap-1 text-destructive text-xs hover:bg-destructive/10 hover:text-destructive"
+										onClick={() => setConfirm({ id: b.id, name: b.name })}
+									>
+										<TrashIcon className="h-3.5 w-3.5" /> Delete
+									</Button>
+								</div>
+							</div>
+						))}
+					</div>
+
+					{/* Desktop / Tablet Table (hidden md:block) */}
+					<div className="hidden overflow-x-auto rounded-lg border border-border/50 md:block">
+						<Table className="w-full min-w-[700px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
 									<SortableHead

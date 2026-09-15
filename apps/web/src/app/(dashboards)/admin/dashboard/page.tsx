@@ -17,6 +17,7 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import {
 	AnimatedCard,
 	motion,
@@ -28,8 +29,9 @@ import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
 export default function AdminDashboard() {
+	const t = useTranslations("admin");
 	const trpc = useTRPC();
-	const locale = "en"; // hardcoded — no next-intl provider in admin layout
+	const locale = useLocale();
 	const {
 		data: stats,
 		isLoading: statsLoading,
@@ -56,19 +58,19 @@ export default function AdminDashboard() {
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Admin Dashboard
+						{t("dashboard")}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						Overview of company, employees, and system status
+						{t("dashboardSub")}
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
 					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> Activity Log
+						<ActivityIcon className="mr-2 h-4 w-4" /> {t("activityLog")}
 					</Button>
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
 						<Link href="/admin/settings">
-							<CalendarCheckIcon className="mr-2 h-4 w-4" /> Settings
+							<CalendarCheckIcon className="mr-2 h-4 w-4" /> {t("settings")}
 						</Link>
 					</Button>
 				</div>

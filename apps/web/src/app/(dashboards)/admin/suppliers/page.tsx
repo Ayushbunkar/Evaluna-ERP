@@ -356,9 +356,100 @@ export default function AdminSuppliersPage() {
 					/>
 				)
 			) : (
-				<div className="flex flex-col gap-3">
-					<div className="overflow-x-auto rounded-lg border border-border/50">
-						<Table className="w-full min-w-[880px]">
+				<div className="flex flex-col gap-3 min-w-0">
+					{/* Mobile Card Layout (<md) */}
+					<div className="grid grid-cols-1 gap-3 md:hidden">
+						{items.map((sup) => (
+							<div
+								key={sup.id}
+								className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-card p-3.5 shadow-xs"
+							>
+								<div className="flex items-start justify-between gap-2">
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center gap-2">
+											<span className="font-mono text-[11px] font-semibold text-muted-foreground">
+												{sup.supplier_code}
+											</span>
+											<StatusBadge status={sup.category} tone="info" />
+										</div>
+										<h3 className="font-bold text-sm text-foreground truncate mt-0.5">
+											{sup.name}
+										</h3>
+									</div>
+									<div className="flex items-center gap-1 shrink-0">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7"
+											aria-label={`View ${sup.name}`}
+											onClick={() => setViewId(sup.id)}
+										>
+											<EyeIcon className="h-3.5 w-3.5" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7"
+											aria-label={`Edit ${sup.name}`}
+											onClick={() => {
+												setFormError(null);
+												setFieldErrors({});
+												setEditId(sup.id);
+											}}
+										>
+											<PencilIcon className="h-3.5 w-3.5" />
+										</Button>
+										<RowActions
+											label={`More actions for ${sup.name}`}
+											actions={[
+												{
+													label: "Delete supplier",
+													icon: <Trash2Icon className="h-4 w-4" />,
+													destructive: true,
+													disabledReason:
+														sup.outstanding_balance > 0
+															? "Settle the outstanding payable first."
+															: undefined,
+													onSelect: () =>
+														setDeleteTarget({ id: sup.id, name: sup.name }),
+												},
+											]}
+										/>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 gap-2 border-t border-border/40 pt-2 text-xs">
+									<div>
+										<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+											GSTIN / Tax
+										</span>
+										<span className="font-mono text-[11px] truncate block">
+											{text(sup.gst_number) || "—"}
+										</span>
+									</div>
+									<div>
+										<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+											Outstanding
+										</span>
+										<span className={`font-bold tabular-nums block ${sup.outstanding_balance > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>
+											{inr(sup.outstanding_balance)}
+										</span>
+									</div>
+								</div>
+
+								{(sup.email || sup.phone) && (
+									<div className="border-t border-border/30 pt-1.5 text-[11px] text-muted-foreground truncate">
+										{sup.email && <span className="mr-2">{sup.email}</span>}
+										{sup.phone && <span>{phone(sup.phone)}</span>}
+									</div>
+								)}
+							</div>
+						))}
+					</div>
+
+					{/* Desktop & Tablet Table Layout (md+) */}
+					<div className="hidden md:block overflow-x-auto rounded-lg border border-border/50">
+						<Table className="w-full min-w-[850px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
 									<SortableHead

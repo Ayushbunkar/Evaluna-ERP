@@ -18,7 +18,7 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
 	AnimatedCard,
 	motion,
@@ -30,6 +30,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
 export default function SuperAdminDashboard() {
+	const t = useTranslations("superadmin");
 	const trpc = useTRPC();
 	const locale = useLocale();
 	const { data: stats } = trpc.superadmin.getDashboardStats.useQuery();
@@ -40,10 +41,10 @@ export default function SuperAdminDashboard() {
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Super Admin Dashboard
+						{t("dashboard")}
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						System-wide oversight and control panel
+						{t("dashboardSub")}
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
@@ -53,12 +54,12 @@ export default function SuperAdminDashboard() {
 						asChild
 					>
 						<Link href="/superadmin/activity-log">
-							<ActivityIcon className="mr-2 h-4 w-4" /> System Logs
+							<ActivityIcon className="mr-2 h-4 w-4" /> {t("systemLogs")}
 						</Link>
 					</Button>
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
 						<Link href="/superadmin/settings">
-							<ShieldIcon className="mr-2 h-4 w-4" /> Security
+							<ShieldIcon className="mr-2 h-4 w-4" /> {t("security")}
 						</Link>
 					</Button>
 				</div>

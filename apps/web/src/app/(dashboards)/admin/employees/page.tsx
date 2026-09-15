@@ -52,6 +52,7 @@ import {
 	toCsv,
 } from "@/lib/admin/csv";
 import { normaliseError } from "@/lib/admin/errors";
+import { useTranslations } from "next-intl";
 import { date, dateInputValue, inr, phone, text } from "@/lib/admin/format";
 import { PageTransition } from "@/lib/animations";
 import { ROLES } from "@/lib/permissions";
@@ -161,6 +162,7 @@ function employeeFields(
 }
 
 export default function AdminEmployeesPage() {
+	const t = useTranslations("admin");
 	const utils = trpc.useUtils();
 	const table = useAdminTable<SortColumn>({
 		defaultSortBy: "created_at",
@@ -410,13 +412,13 @@ export default function AdminEmployeesPage() {
 	return (
 		<PageTransition className="flex min-w-0 flex-col gap-5">
 			<AdminPageHeader
-				title="Employees"
-				description="Add, edit and manage every person on the payroll."
+				title={t("employees")}
+				description={t("employeesSub")}
 				actions={
 					<>
 						<Button variant="outline" size="sm" asChild>
 							<Link href="/admin/activity-log?entity_type=staff">
-								<HistoryIcon className="mr-2 h-4 w-4" /> Employee activity
+								<HistoryIcon className="mr-2 h-4 w-4" /> {t("employeeActivity")}
 							</Link>
 						</Button>
 						<Button
@@ -427,7 +429,7 @@ export default function AdminEmployeesPage() {
 								setCreateOpen(true);
 							}}
 						>
-							<UserPlusIcon className="mr-2 h-4 w-4" /> Add employee
+							<UserPlusIcon className="mr-2 h-4 w-4" /> {t("addEmployee")}
 						</Button>
 					</>
 				}
@@ -436,8 +438,8 @@ export default function AdminEmployeesPage() {
 			<AdminToolbar
 				searchValue={table.searchInput}
 				onSearchChange={table.setSearchInput}
-				searchPlaceholder="Search by name, code, email or phone…"
-				entityLabel="employees"
+				searchPlaceholder={t("searchPlaceholder")}
+				entityLabel={t("employees")}
 				total={list.data?.total}
 				isFiltered={table.isFiltered}
 				onClearFilters={table.reset}
@@ -504,9 +506,130 @@ export default function AdminEmployeesPage() {
 					/>
 				)
 			) : (
-				<div className="flex flex-col gap-3">
-					<div className="overflow-x-auto rounded-lg border border-border/50">
-						<Table className="w-full min-w-[900px]">
+				<div className="flex flex-col gap-3 min-w-0">
+					{/* Mobile Card Layout (<md) */}
+					<div className="grid grid-cols-1 gap-3 md:hidden">
+						{items.map((emp) => (
+							<div
+								key={emp.id}
+								className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-card p-3.5 shadow-xs"
+							>
+								<div className="flex items-start justify-between gap-2">
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center gap-2">
+											<span className="font-mono text-[11px] font-semibold text-muted-foreground">
+												{emp.emp_code}
+											</span>
+											<StatusBadge status={emp.status} />
+										</div>
+										<h3 className="font-bold text-sm text-foreground truncate mt-0.5">
+											{emp.name}
+										</h3>
+										{emp.branch_name && (
+											<p className="text-xs text-muted-foreground truncate">
+												{emp.branch_name}
+											</p>
+										)}
+									</div>
+									<div className="flex items-center gap-1 shrink-0">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7"
+											aria-label={`View ${emp.name}`}
+											onClick={() => setViewId(emp.id)}
+										>
+											<EyeIcon className="h-3.5 w-3.5" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7"
+											aria-label={`Edit ${emp.name}`}
+											onClick={() => {
+												setFormError(null);
+												setFieldErrors({});
+												setEditId(emp.id);
+											}}
+										>
+											<PencilIcon className="h-3.5 w-3.5" />
+										</Button>
+										<RowActions
+											label={`More actions for ${emp.name}`}
+											actions={[
+												emp.status === "active"
+													? {
+															label: "Deactivate",
+															icon: <BanIcon className="h-4 w-4" />,
+															onSelect: () =>
+																setConfirm({
+																	kind: "status",
+																	id: emp.id,
+																	name: emp.name,
+																	next: "inactive",
+																}),
+														}
+													: {
+															label: "Reactivate",
+															icon: (
+																<CheckCircle2Icon className="h-4 w-4" />
+															),
+															onSelect: () =>
+																setConfirm({
+																	kind: "status",
+																	id: emp.id,
+																	name: emp.name,
+																	next: "active",
+																}),
+														},
+												{
+													label: "Archive",
+													icon: <ArchiveIcon className="h-4 w-4" />,
+													destructive: true,
+													onSelect: () =>
+														setConfirm({
+															kind: "archive",
+															id: emp.id,
+															name: emp.name,
+														}),
+												},
+											]}
+										/>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 gap-2 border-t border-border/40 pt-2 text-xs">
+									<div>
+										<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+											Role & Dept
+										</span>
+										<span className="font-medium capitalize truncate block">
+											{text(emp.role?.replace(/_/g, " "))} · {text(emp.department)}
+										</span>
+									</div>
+									<div>
+										<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+											Salary
+										</span>
+										<span className="font-bold tabular-nums text-foreground block">
+											{inr(emp.salary)}
+										</span>
+									</div>
+								</div>
+
+								{(emp.email || emp.phone) && (
+									<div className="border-t border-border/30 pt-1.5 text-[11px] text-muted-foreground truncate">
+										{emp.email && <span className="mr-2">{emp.email}</span>}
+										{emp.phone && <span>{phone(emp.phone)}</span>}
+									</div>
+								)}
+							</div>
+						))}
+					</div>
+
+					{/* Desktop & Tablet Table Layout (md+) */}
+					<div className="hidden md:block overflow-x-auto rounded-lg border border-border/50">
+						<Table className="w-full min-w-[850px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>
 									<SortableHead

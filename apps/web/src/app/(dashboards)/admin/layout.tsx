@@ -13,28 +13,30 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Button } from "@evaluna/ui/components/button";
-
-const navItems = [
-	{ href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-	{ href: "/admin/employees", label: "Employees", icon: Users },
-	{ href: "/admin/users", label: "Users", icon: Users },
-	{ href: "/admin/suppliers", label: "Suppliers", icon: Truck },
-	{ href: "/admin/customers", label: "Customers", icon: Users },
-	{ href: "/admin/branches", label: "Branches", icon: MapPin },
-	{ href: "/admin/finance", label: "Finance", icon: IndianRupee },
-	{ href: "/admin/settings", label: "Settings", icon: Settings },
-];
 
 export default function AdminLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
+	const t = useTranslations("nav");
 	const pathname = usePathname();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+	const navItems = [
+		{ href: "/admin/dashboard", label: t("dashboard"), icon: LayoutDashboard },
+		{ href: "/admin/employees", label: t("employees"), icon: Users },
+		{ href: "/admin/users", label: t("users"), icon: Users },
+		{ href: "/admin/suppliers", label: t("suppliers"), icon: Truck },
+		{ href: "/admin/customers", label: t("customers"), icon: Users },
+		{ href: "/admin/branches", label: t("branches"), icon: MapPin },
+		{ href: "/admin/finance", label: t("finance"), icon: IndianRupee },
+		{ href: "/admin/settings", label: t("settings"), icon: Settings },
+	];
 
 	const sidebarContent = (
 		<div className="flex h-full flex-col bg-white dark:bg-gray-800">

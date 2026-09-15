@@ -451,8 +451,114 @@ export default function AdminCustomersPage() {
 					/>
 				)
 			) : (
-				<div className="flex flex-col gap-3">
-					<div className="overflow-x-auto rounded-lg border border-border/50">
+				<div className="flex flex-col gap-3 min-w-0">
+					{/* Mobile Card Layout (<md) */}
+					<div className="grid grid-cols-1 gap-3 md:hidden">
+						{items.map((cust) => {
+							const overLimit =
+								cust.credit_limit > 0 && cust.credit_used > cust.credit_limit;
+							return (
+								<div
+									key={cust.id}
+									className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-card p-3.5 shadow-xs"
+								>
+									<div className="flex items-start justify-between gap-2">
+										<div className="min-w-0 flex-1">
+											<div className="flex flex-wrap items-center gap-1.5">
+												<span className="font-mono text-[11px] font-semibold text-muted-foreground">
+													{cust.customer_code}
+												</span>
+												<StatusBadge status={cust.status} />
+												{cust.credit_hold && (
+													<StatusBadge label="Credit hold" tone="warning" />
+												)}
+											</div>
+											<h3 className="font-bold text-sm text-foreground truncate mt-0.5">
+												{cust.name}
+											</h3>
+											{cust.branch_name && (
+												<p className="text-xs text-muted-foreground truncate">
+													{cust.branch_name}
+												</p>
+											)}
+										</div>
+										<div className="flex items-center gap-1 shrink-0">
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-7 w-7"
+												aria-label={`View ${cust.name}`}
+												onClick={() => setViewId(cust.id)}
+											>
+												<EyeIcon className="h-3.5 w-3.5" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-7 w-7"
+												aria-label={`Edit ${cust.name}`}
+												onClick={() => {
+													setFormError(null);
+													setFieldErrors({});
+													setEditId(cust.id);
+												}}
+											>
+												<PencilIcon className="h-3.5 w-3.5" />
+											</Button>
+											<RowActions
+												label={`More actions for ${cust.name}`}
+												actions={[
+													{
+														label: "Archive customer",
+														icon: <ArchiveIcon className="h-4 w-4" />,
+														destructive: true,
+														disabledReason:
+															cust.credit_used > 0
+																? "Settle the outstanding receivable first."
+																: undefined,
+														onSelect: () =>
+															setArchiveTarget({
+																id: cust.id,
+																name: cust.name,
+															}),
+													},
+												]}
+											/>
+										</div>
+									</div>
+
+									<div className="grid grid-cols-2 gap-2 border-t border-border/40 pt-2 text-xs">
+										<div>
+											<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+												Type / Category
+											</span>
+											<span className="font-medium capitalize truncate block">
+												{text(cust.customer_type)}
+											</span>
+										</div>
+										<div>
+											<span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+												Credit Used / Limit
+											</span>
+											<span className={`font-bold tabular-nums block ${overLimit ? "text-destructive" : "text-foreground"}`}>
+												{inr(cust.credit_used)} <span className="font-normal text-muted-foreground text-[10px]">/ {inr(cust.credit_limit)}</span>
+											</span>
+										</div>
+									</div>
+
+									{(cust.email || cust.phone) && (
+										<div className="border-t border-border/30 pt-1.5 text-[11px] text-muted-foreground truncate">
+											{cust.email && <span className="mr-2">{cust.email}</span>}
+											{cust.phone && <span>{phone(cust.phone)}</span>}
+										</div>
+									)}
+								</div>
+							);
+						})}
+					</div>
+
+					{/* Desktop & Tablet Table Layout (md+) */}
+					<div className="hidden md:block overflow-x-auto rounded-lg border border-border/50">
 						<Table className="w-full min-w-[940px]">
 							<TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
 								<TableRow>

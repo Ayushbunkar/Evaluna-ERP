@@ -454,55 +454,106 @@ export default function SuperAdminBillingPage() {
 							No supplier invoices recorded yet.
 						</div>
 					) : (
-						<Table>
-							<TableHeader className="bg-muted/40 backdrop-blur">
-								<TableRow>
-									<TableHead>Invoice / GRN Ref</TableHead>
-									<TableHead>Supplier / Vendor</TableHead>
-									<TableHead>Amount</TableHead>
-									<TableHead>Payment Status</TableHead>
-									<TableHead>Purchase Date</TableHead>
-									<TableHead className="text-right">Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
+						<>
+							{/* Mobile Card List (md:hidden) */}
+							<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
 								{billingLogs.map((log) => (
-									<TableRow key={log.id} className="hover:bg-muted/30">
-										<TableCell className="font-medium font-mono text-sm">
-											{log.id}
-										</TableCell>
-										<TableCell>{log.company}</TableCell>
-										<TableCell>{log.amount}</TableCell>
-										<TableCell>
+									<div
+										key={log.id}
+										className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/60 p-3 shadow-sm"
+									>
+										<div className="flex items-start justify-between gap-2">
+											<div className="min-w-0 flex-1">
+												<p className="font-mono font-semibold text-foreground text-xs">
+													{log.id}
+												</p>
+												<p className="truncate font-medium text-muted-foreground text-xs">
+													{log.company}
+												</p>
+											</div>
 											<span
-												className={`rounded px-2 py-0.5 font-semibold text-xs ${
+												className={`shrink-0 rounded px-2 py-0.5 font-semibold text-xs ${
 													log.status === "PAID"
-														? "bg-green-500/10 text-green-500"
-														: log.status === "PARTIAL"
-															? "bg-blue-500/10 text-blue-500"
-															: "bg-red-500/10 text-red-500"
-												}`}
+ 														? "bg-green-500/10 text-green-500"
+ 														: log.status === "PARTIAL"
+ 															? "bg-blue-500/10 text-blue-500"
+ 															: "bg-red-500/10 text-red-500"
+ 												}`}
 											>
 												{log.status}
 											</span>
-										</TableCell>
-										<TableCell className="text-muted-foreground text-xs">
-											{log.date}
-										</TableCell>
-										<TableCell className="text-right">
+										</div>
+										<div className="flex items-center justify-between border-border/40 border-t pt-2 text-xs">
+											<div>
+												<span className="font-bold text-foreground">{log.amount}</span>
+												<span className="ml-2 text-muted-foreground text-[10px]">{log.date}</span>
+											</div>
 											<Button
 												variant="ghost"
-												size="icon"
-												className="h-8 w-8"
+												size="sm"
+												className="h-7 gap-1 text-xs"
 												onClick={() => downloadInvoicePDF(log)}
 											>
-												<DownloadIcon className="h-4 w-4" />
+												<DownloadIcon className="h-3.5 w-3.5" /> PDF
 											</Button>
-										</TableCell>
-									</TableRow>
+										</div>
+									</div>
 								))}
-							</TableBody>
-						</Table>
+							</div>
+
+							{/* Desktop / Tablet Table (hidden md:block) */}
+							<div className="hidden overflow-x-auto md:block">
+								<Table className="w-full min-w-[700px]">
+									<TableHeader className="bg-muted/40 backdrop-blur">
+										<TableRow>
+											<TableHead>Invoice / GRN Ref</TableHead>
+											<TableHead>Supplier / Vendor</TableHead>
+											<TableHead>Amount</TableHead>
+											<TableHead>Payment Status</TableHead>
+											<TableHead>Purchase Date</TableHead>
+											<TableHead className="text-right">Actions</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{billingLogs.map((log) => (
+											<TableRow key={log.id} className="hover:bg-muted/30">
+												<TableCell className="font-medium font-mono text-sm">
+													{log.id}
+												</TableCell>
+												<TableCell>{log.company}</TableCell>
+												<TableCell>{log.amount}</TableCell>
+												<TableCell>
+													<span
+														className={`rounded px-2 py-0.5 font-semibold text-xs ${
+															log.status === "PAID"
+																? "bg-green-500/10 text-green-500"
+																: log.status === "PARTIAL"
+																	? "bg-blue-500/10 text-blue-500"
+																	: "bg-red-500/10 text-red-500"
+														}`}
+													>
+														{log.status}
+													</span>
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{log.date}
+												</TableCell>
+												<TableCell className="text-right">
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8"
+														onClick={() => downloadInvoicePDF(log)}
+													>
+														<DownloadIcon className="h-4 w-4" />
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						</>
 					)}
 				</CardContent>
 			</Card>

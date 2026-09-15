@@ -11,25 +11,27 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Button } from "@evaluna/ui/components/button";
-
-const navItems = [
-	{ href: "/superadmin", label: "Dashboard", icon: LayoutDashboard },
-	{ href: "/superadmin/companies", label: "Companies", icon: Building2 },
-	{ href: "/superadmin/users", label: "Users", icon: Users },
-	{ href: "/superadmin/billing", label: "Billing", icon: Circle },
-	{ href: "/superadmin/settings", label: "Settings", icon: Settings },
-];
 
 export default function SuperAdminLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
+	const t = useTranslations("nav");
 	const pathname = usePathname();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+	const navItems = [
+		{ href: "/superadmin", label: t("dashboard"), icon: LayoutDashboard },
+		{ href: "/superadmin/companies", label: t("companies"), icon: Building2 },
+		{ href: "/superadmin/users", label: t("users"), icon: Users },
+		{ href: "/superadmin/billing", label: t("billing"), icon: Circle },
+		{ href: "/superadmin/settings", label: t("settings"), icon: Settings },
+	];
 
 	const sidebarContent = (
 		<div className="flex h-full flex-col bg-white dark:bg-gray-800">

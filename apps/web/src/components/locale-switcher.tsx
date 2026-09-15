@@ -25,10 +25,11 @@ export function LocaleSwitcher() {
 				<Button
 					variant="outline"
 					size="sm"
-					className="h-8 gap-2 rounded-full border-border/50 bg-background font-medium text-xs shadow-sm hover:bg-accent/50"
+					className="h-8 w-8 p-0 sm:w-auto sm:px-3 gap-2 rounded-full border-border/50 bg-background font-medium text-xs shadow-sm hover:bg-accent/50"
+					aria-label="Switch language"
 				>
 					<GlobeIcon className="h-4 w-4 text-muted-foreground" />
-					<span>{locale === "en" ? "English" : "हिंदी"}</span>
+					<span className="hidden sm:inline">{locale === "en" ? "English" : "हिंदी"}</span>
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="rounded-xl shadow-xl">

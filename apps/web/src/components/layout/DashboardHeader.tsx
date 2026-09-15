@@ -40,7 +40,7 @@ import {
 	User as UserIcon,
 	Utensils,
 } from "lucide-react";
-import Link from "next/link";
+import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -53,7 +53,7 @@ import { useTRPC } from "@/lib/trpc/client";
 export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = {}) {
 	const router = useRouter();
 	const pathname = usePathname();
-	const locale = "en"; // default; replace with useLocale() once next-intl is confirmed in scope
+	const locale = useLocale();
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 
@@ -426,12 +426,12 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 							variant="outline"
 							size="sm"
 							onClick={() => setAttendanceOpen(true)}
-							className={`h-8 gap-2 border-slate-200 bg-slate-50/80 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/80 dark:hover:bg-slate-800 ${attendanceColor}`}
+							className={`h-8 w-8 p-0 sm:w-auto sm:px-2.5 sm:gap-2 border-slate-200 bg-slate-50/80 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/80 dark:hover:bg-slate-800 ${attendanceColor}`}
 							aria-label="Attendance status"
 							title="Click to Check In / Check Out"
 						>
 							<Clock className="h-4 w-4" />
-							<span className="font-semibold text-xs">{attendanceLabel}</span>
+							<span className="hidden font-semibold text-xs sm:inline">{attendanceLabel}</span>
 						</Button>
 					</>
 				)}
@@ -479,11 +479,11 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 						<Button
 							variant="outline"
 							size="sm"
-							className="h-8 gap-2 rounded-lg border-slate-200 bg-white px-3 font-medium text-slate-700 text-xs shadow-xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+							className="h-8 w-8 p-0 sm:w-auto sm:px-3 sm:gap-2 rounded-full sm:rounded-lg border-slate-200 bg-white font-medium text-slate-700 text-xs shadow-xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
 							aria-label="Open profile menu"
 						>
 							<UserIcon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
-							<span>Profile</span>
+							<span className="hidden sm:inline">Profile</span>
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="w-[230px]">
