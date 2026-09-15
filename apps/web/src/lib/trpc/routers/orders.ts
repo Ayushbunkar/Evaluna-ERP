@@ -45,7 +45,14 @@ const orderWithCustomerSchema = z.object({
 	finance_status: z.string().nullable().optional(),
 	user_uid: z.string(),
 	created_at: z.coerce.date().nullable(),
-	customer: z.object({ name: z.string() }).nullable(),
+	customer: z
+		.object({
+			id: z.number().optional(),
+			name: z.string(),
+			phone: z.string().nullable().optional(),
+			address: z.string().nullable().optional(),
+		})
+		.nullable(),
 });
 
 const orderDetailSchema = z.object({
@@ -109,22 +116,32 @@ export const ordersRouter = router({
 		.output(z.array(orderWithCustomerSchema))
 		.query(async ({ ctx }) => {
 			const branchId = ctx.user?.branchId ?? null;
+			const role = ctx.user?.role;
+			const isManagerOrAdmin =
+				role === "admin" ||
+				role === "manager" ||
+				role === "auditor" ||
+				role === "superadmin" ||
+				role === "delivery_manager";
+
 			return db.query.orders.findMany({
 				where: and(
 					branchId ? eq(orders.branch_id, branchId) : undefined,
-					or(
-						eq(orders.user_uid, ctx.user.id),
-						and(
-							isNotNull(orders.original_items),
-							notInArray(orders.status, ["pending_review", "under_review"]),
-						),
-					),
+					isManagerOrAdmin && branchId !== null
+						? undefined
+						: or(
+								eq(orders.user_uid, ctx.user.id),
+								and(
+									isNotNull(orders.original_items),
+									notInArray(orders.status, ["pending_review", "under_review"]),
+								),
+							),
 				),
 				orderBy: [desc(orders.created_at)],
 				limit: 200,
 				with: {
 					customer: {
-						columns: { name: true },
+						columns: { id: true, name: true, phone: true, address: true },
 					},
 				},
 			});
@@ -162,7 +179,7 @@ export const ordersRouter = router({
 						customer_id: input.customerId,
 						total_amount: input.total.toString(),
 						user_uid: ctx.user.id,
-						status: "pending",
+						status: "completed",
 					})
 					.returning();
 
@@ -751,13 +768,10 @@ export const ordersRouter = router({
 					currentStatus === "confirmed" ||
 					currentStatus === "completed"
 				) {
-					return {
-						success: true,
-						orderId: existing.id,
-						alreadyConfirmed: true,
-						status: existing.status,
-						total: Number(existing.total_amount ?? 0),
-					};
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Order is already confirmed and cannot be re-confirmed.",
+					});
 				}
 
 				if (!REVIEWABLE_STATUSES.includes(currentStatus)) {
@@ -932,7 +946,6 @@ export const ordersRouter = router({
 					.where(
 						and(
 							eq(orders.id, input.id),
-							inArray(orders.status, ["pending_review", "under_review"]),
 							eq(orders.locked, false),
 						),
 					)

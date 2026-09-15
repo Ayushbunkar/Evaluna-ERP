@@ -23,7 +23,7 @@ import {
 	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, gte, lte, ne, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";

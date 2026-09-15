@@ -677,10 +677,14 @@ export const upcRouter = router({
 						and(
 							eq(upcTasks.product_id, input.productId),
 							eq(upcTasks.task_type, input.taskType),
-							inArray(upcTasks.status, OPEN_TASK_STATES),
+							inArray(upcTasks.status, [
+								"PENDING",
+								"ASSIGNED",
+								"IN_PROGRESS",
+								"VERIFICATION_REQUIRED",
+							]),
 						),
-					)
-					.limit(1);
+					);
 
 				if (open.length > 0) {
 					throw new TRPCError({
@@ -774,6 +778,29 @@ export const upcRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const staffId = await resolveStaffId(ctx.db, ctx.user.email);
+			const open = await ctx.db
+				.select({ id: upcTasks.id })
+				.from(upcTasks)
+				.where(
+					and(
+						eq(upcTasks.product_id, input.productId),
+						eq(upcTasks.task_type, input.taskType),
+						inArray(upcTasks.status, [
+							"PENDING",
+							"ASSIGNED",
+							"IN_PROGRESS",
+							"VERIFICATION_REQUIRED",
+						]),
+					),
+				);
+
+			if (open.length > 0) {
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: `An open "${input.taskType}" task (#${open[0].id}) already exists for product #${input.productId}.`,
+				});
+			}
+
 			const [task] = await ctx.db
 				.insert(upcTasks)
 				.values({
@@ -1430,6 +1457,13 @@ export const upcRouter = router({
 				}
 
 				assertTransition(task.status, ["COMPLETED", "VERIFICATION_REQUIRED"], "UPC task");
+
+				if (staffId && task.assigned_to === staffId) {
+					throw new TRPCError({
+						code: "FORBIDDEN",
+						message: "Separation of duties: you cannot verify a task you completed or were assigned to.",
+					});
+				}
 
 				const [row] = await tx
 					.update(upcTasks)

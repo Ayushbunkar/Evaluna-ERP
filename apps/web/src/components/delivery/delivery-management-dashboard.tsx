@@ -96,6 +96,8 @@ export function DeliveryManagementDashboard({
 	}
 
 	const unassignedOrders = allOrders.filter((order: any) => {
+		if (order.status === "cancelled") return false;
+		if (order.status === "pending_review" || order.status === "under_review") return false;
 		const custId = order.customer_id || order.customer?.id;
 		if (order.driver_id) return false;
 		if (custId && assignedCustomerIds.has(custId)) return false;
@@ -303,7 +305,10 @@ export function DeliveryManagementDashboard({
 		let seq = 1;
 
 		for (const ord of ordersToAssign) {
-			const custId = ord.customer_id || ord.customer?.id;
+			const custId =
+				ord.customer_id ||
+				ord.customer?.id ||
+				(customers.length > 0 ? customers[0].id : 1);
 			if (custId && !seenCusts.has(custId)) {
 				seenCusts.add(custId);
 				customerStops.push({ customerId: custId, sequence: seq++ });

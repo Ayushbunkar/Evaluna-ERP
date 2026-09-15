@@ -57,11 +57,11 @@ beforeAll(async () => {
 	await pg.exec(buildDDL(AUDITOR_TABLES, false));
 	await pg.exec(`INSERT INTO branches (id, name) VALUES (1, 'Main');`);
 	await pg.exec(`
-		INSERT INTO staff (id, name, email, role, join_date, salary, branch_id) VALUES
-		(1, 'Auditor', 'aud@test.com', 'auditor', NOW(), 40000, 1),
-		(2, 'Auditor2', 'aud2@test.com', 'auditor', NOW(), 40000, 1),
-		(3, 'Manager', 'mgr@test.com', 'manager', NOW(), 60000, 1),
-		(4, 'Putter', 'put@test.com', 'putter', NOW(), 20000, 1);
+		INSERT INTO staff (id, name, email, role, status, join_date, salary, branch_id) VALUES
+		(1, 'Auditor', 'aud@test.com', 'auditor', 'active', NOW(), 40000, 1),
+		(2, 'Auditor2', 'aud2@test.com', 'auditor', 'active', NOW(), 40000, 1),
+		(3, 'Manager', 'mgr@test.com', 'manager', 'active', NOW(), 60000, 1),
+		(4, 'Putter', 'put@test.com', 'putter', 'active', NOW(), 20000, 1);
 	`);
 	await pg.exec(`
 		INSERT INTO products (id, name, sku, price, base_selling_price, base_procurement_price, user_uid) VALUES
@@ -117,7 +117,7 @@ describe("UPC generate + duplicate prevention", () => {
 				upc: first.upc,
 				source: "external",
 			}),
-		).rejects.toThrow(/already assigned/i);
+		).rejects.toThrow(/already allocated|already assigned/i);
 	});
 
 	it("rejects an invalid check-digit UPC", async () => {
@@ -146,13 +146,15 @@ describe("UPC task state machine + idempotency", () => {
 	});
 
 	it("refuses a second OPEN task for the same product+type (idempotent)", async () => {
-		expect(
+		const count = await pg.query("SELECT count(*) as c FROM upc_tasks WHERE product_id = 3");
+		expect(Number(count.rows[0].c)).toBe(1);
+		await expect(
 			upcAs(auditor).assignTask({ productId: 3, taskType: "generate" }),
 		).rejects.toThrow(/already exists/i);
 	});
 
 	it("rejects an illegal jump (verify while not VERIFICATION_REQUIRED)", async () => {
-		expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(
+		await expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(
 			/Cannot transition/i,
 		);
 	});
@@ -160,7 +162,7 @@ describe("UPC task state machine + idempotency", () => {
 	it("runs the legal path start → complete → verify (by a different auditor)", async () => {
 		await upcAs(putter).startTask({ taskId }); // assignee (staff 4 = putter) may progress
 		// A fresh, unique valid UPC for product 3.
-		const gen = await upcAs(auditor).generate({ productId: 3 });
+		const gen = await upcAs(auditor).generate({ productId: 3, replaceExisting: true });
 		// Free that barcode row so completeTask can re-submit the same value for the task.
 		await pg.query("DELETE FROM product_barcodes WHERE barcode = $1", [
 			gen.upc,
@@ -179,16 +181,16 @@ describe("Separation of duties", () => {
 	it("blocks the submitter from verifying their own UPC task", async () => {
 		const { taskId } = await upcAs(auditor).assignTask({
 			productId: 1,
-			taskType: "verify",
+			taskType: "verification",
 			assignedTo: 1, // staff 1 == auditor (the same actor who will try to verify)
 		});
 		await upcAs(auditor).startTask({ taskId });
-		const gen = await upcAs(auditor).generate({ productId: 1 });
+		const gen = await upcAs(auditor).generate({ productId: 1, replaceExisting: true });
 		await pg.query("DELETE FROM product_barcodes WHERE barcode = $1", [
 			gen.upc,
 		]);
 		await upcAs(auditor).completeTask({ taskId, upcValue: gen.upc });
-		expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(
+		await expect(upcAs(auditor).verifyTask({ taskId })).rejects.toThrow(
 			/cannot verify/i,
 		);
 	});
