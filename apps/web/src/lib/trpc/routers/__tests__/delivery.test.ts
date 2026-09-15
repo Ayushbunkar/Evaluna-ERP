@@ -32,7 +32,10 @@ const DELIVERY_DDL = buildDDL(
 		schema.routeStops,
 		schema.deliveryTrips,
 		schema.tripStops,
+		schema.deliveryStops,
 		schema.gpsLogs,
+		schema.proofOfDeliveries,
+		schema.tripCollections,
 		schema.customers,
 		schema.orders,
 		schema.orderItems,
@@ -111,6 +114,9 @@ beforeAll(async () => {
 			branch_id: 2,
 		},
 	]);
+	try {
+		await pg.exec(`SELECT setval('customers_id_seq', (SELECT MAX(id) FROM customers));`);
+	} catch (e) {}
 
 	// Setup products
 	await db.insert(schema.products).values([
@@ -548,26 +554,96 @@ describe("delivery router core functionality", () => {
 		});
 	});
 
-	// Authorization tests
-	describe("authorization", () => {
-		// Create a caller with different role for testing
-		const callerSales = createCallerFactory(deliveryRouter)({
-			user: makeUser("sales-user"),
+	describe("deleteTrip and deleteRoute", () => {
+		it("deletes a trip and its associated stops", async () => {
+			// Create a trip to delete
+			const [trip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					driver_id: "driver-1",
+					status: "pending",
+				})
+				.returning();
+
+			await db.insert(schema.tripStops).values([
+				{ trip_id: trip.id, customer_id: 1, sequence: 1 },
+			]);
+
+			const result = await caller.deleteTrip({ tripId: trip.id });
+			expect(result.success).toBe(true);
+
+			const deletedTrip = await db.query.deliveryTrips.findFirst({
+				where: (t, { eq }) => eq(t.id, trip.id),
+			});
+			expect(deletedTrip).toBeUndefined();
 		});
 
-		it("restricts access to delivery manager endpoints for non-delivery roles", async () => {
-			// Note: The delivery router uses roleProcedure with ["admin", "manager", "delivery_manager"]
-			// So sales role should be restricted. However, without proper role setup in test user,
-			// this might pass. For proper testing, we'd need to set up roles correctly.
-			// This test mainly verifies the endpoint exists and responds.
-			try {
-				await callerSales.listRoutes({ branchId: 1 });
-				// If we get here, either the test user has appropriate role or auth is bypassed in test
-				// In a real scenario with proper role setup, this would throw
-			} catch (error) {
-				// Expect authorization error if roles were properly enforced
-				expect(error).toBeDefined();
-			}
+		it("deletes a route and its associated route stops", async () => {
+			const [route] = await db
+				.insert(schema.deliveryRoutes)
+				.values({
+					name: "Route to Delete",
+					branch_id: 1,
+				})
+				.returning();
+
+			await db.insert(schema.routeStops).values([
+				{ route_id: route.id, customer_id: 1, sequence: 1 },
+			]);
+
+			const result = await caller.deleteRoute({ routeId: route.id });
+			expect(result.success).toBe(true);
+
+			const deletedRoute = await db.query.deliveryRoutes.findFirst({
+				where: (r, { eq }) => eq(r.id, route.id),
+			});
+			expect(deletedRoute).toBeUndefined();
+		});
+	});
+
+	describe("createRoute with bulk addresses and phone numbers", () => {
+		it("creates a route and automatically provisions customer stops from bulk input", async () => {
+			const result = await caller.createRoute({
+				name: "Bulk Market Route",
+				description: "Created via bulk address paste",
+				branchId: 1,
+				stops: [
+					{ name: "Super Bakery", phone: "9876543210", address: "Shop 10, Station Road" },
+					{ name: "Apex Electronics", phone: "9123456780", address: "Plot 42, MIDC" },
+				],
+			});
+
+			expect(result).toHaveProperty("id");
+			expect(result.name).toBe("Bulk Market Route");
+
+			const createdStops = await db.query.routeStops.findMany({
+				where: (s, { eq }) => eq(s.route_id, result.id),
+			});
+			expect(createdStops).toHaveLength(2);
+
+			const provisionedCustomer = await db.query.customers.findFirst({
+				where: (c, { eq }) => eq(c.phone, "9876543210"),
+			});
+			expect(provisionedCustomer).toBeDefined();
+			expect(provisionedCustomer.name).toBe("Super Bakery");
+			expect(provisionedCustomer.address).toBe("Shop 10, Station Road");
+		});
+	});
+
+	describe("clearAllRoutesAndTrips", () => {
+		it("clears all routes, trips, and stops from the database", async () => {
+			const result = await caller.clearAllRoutesAndTrips();
+			expect(result.success).toBe(true);
+
+			const allRoutes = await db.query.deliveryRoutes.findMany();
+			const allTrips = await db.query.deliveryTrips.findMany();
+			const allRouteStops = await db.query.routeStops.findMany();
+			const allTripStops = await db.query.tripStops.findMany();
+
+			expect(allRoutes).toHaveLength(0);
+			expect(allTrips).toHaveLength(0);
+			expect(allRouteStops).toHaveLength(0);
+			expect(allTripStops).toHaveLength(0);
 		});
 	});
 });

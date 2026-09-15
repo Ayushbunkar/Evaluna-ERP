@@ -2,6 +2,7 @@ import {
 	auditLogs,
 	branchInventory,
 	customers,
+	deliveryRoutes,
 	deliveryStops,
 	eWayBills,
 	loyaltyHistory,
@@ -15,6 +16,7 @@ import {
 	pickLists,
 	products,
 	proofOfDeliveries,
+	routeStops,
 	salesReturnItems,
 	salesReturns,
 	staff,
@@ -576,6 +578,22 @@ export const ordersRouter = router({
 			});
 			if (!order)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+			let assignedRoute = null;
+			if (order.customer?.id) {
+				const stop = await db.query.routeStops.findFirst({
+					where: eq(routeStops.customer_id, order.customer.id),
+					with: { route: true },
+				});
+				if (stop && stop.route) {
+					assignedRoute = {
+						id: stop.route.id,
+						name: stop.route.name,
+						description: stop.route.description,
+						sequence: stop.sequence,
+					};
+				}
+			}
+
 			return {
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
@@ -584,6 +602,7 @@ export const ordersRouter = router({
 				createdAt: order.created_at,
 				totalAmount: order.total_amount,
 				discountAmount: order.discount_amount,
+				assignedRoute,
 				customer: order.customer
 					? {
 							id: order.customer.id,
@@ -723,6 +742,7 @@ export const ordersRouter = router({
 			z.object({
 				id: z.number(),
 				paymentMethodId: z.number().optional(),
+				routeId: z.number().optional(),
 				// Optional final priced item set; if omitted, the stored items
 				// (already priced via updateReviewItems) are used as-is.
 				items: z
@@ -958,6 +978,30 @@ export const ordersRouter = router({
 					});
 				}
 
+				// Optional Route assignment to customer during order confirmation
+				if (input.routeId && existing.customer_id) {
+					const [existingStop] = await tx
+						.select()
+						.from(routeStops)
+						.where(
+							and(
+								eq(routeStops.route_id, input.routeId),
+								eq(routeStops.customer_id, existing.customer_id),
+							),
+						);
+					if (!existingStop) {
+						const stopsOnRoute = await tx
+							.select()
+							.from(routeStops)
+							.where(eq(routeStops.route_id, input.routeId));
+						await tx.insert(routeStops).values({
+							route_id: input.routeId,
+							customer_id: existing.customer_id,
+							sequence: stopsOnRoute.length + 1,
+						});
+					}
+				}
+
 				// Mark the customer submit-sync row processed (best-effort).
 				await tx
 					.update(pendingSync)
@@ -1070,6 +1114,67 @@ export const ordersRouter = router({
 				orderId: result.orderId,
 				invoiceNo: result.invoiceNo,
 				total: result.total,
+			};
+		}),
+
+	// ── Explicit Route Assignment for Sales / Biller / Manager ───────────────
+	assignRoute: roleProcedure([
+		"admin",
+		"manager",
+		"sales_person",
+		"biller",
+		"delivery_manager",
+	])
+		.input(
+			z.object({
+				orderId: z.number(),
+				routeId: z.number(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const order = await db.query.orders.findFirst({
+				where: eq(orders.id, input.orderId),
+			});
+			if (!order || !order.customer_id) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Order or linked customer record not found",
+				});
+			}
+
+			// Check if stop already exists for this route and customer
+			const [existingStop] = await db
+				.select()
+				.from(routeStops)
+				.where(
+					and(
+						eq(routeStops.route_id, input.routeId),
+						eq(routeStops.customer_id, order.customer_id),
+					),
+				);
+
+			if (!existingStop) {
+				const stopsOnRoute = await db
+					.select()
+					.from(routeStops)
+					.where(eq(routeStops.route_id, input.routeId));
+				await db.insert(routeStops).values({
+					route_id: input.routeId,
+					customer_id: order.customer_id,
+					sequence: stopsOnRoute.length + 1,
+				});
+			}
+
+			const [route] = await db
+				.select()
+				.from(deliveryRoutes)
+				.where(eq(deliveryRoutes.id, input.routeId));
+
+			return {
+				success: true,
+				orderId: input.orderId,
+				routeId: input.routeId,
+				routeName: route?.name || `Route #${input.routeId}`,
 			};
 		}),
 });

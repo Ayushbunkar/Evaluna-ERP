@@ -39,6 +39,14 @@ export default function CustomerDashboard() {
 		suspense: false,
 	});
 
+	// Fetch top products for quick catalog pricing preview
+	const { data: products } = trpc.customer.browseProducts.useQuery(
+		{},
+		{
+			suspense: false,
+		},
+	);
+
 	// Translations Dictionary
 	const t = {
 		title: locale === "hi" ? "ग्राहक सेवा पोर्टल" : "Customer Portal",
@@ -107,6 +115,17 @@ export default function CustomerDashboard() {
 		completedOrdersTitle: locale === "hi" ? "पूर्ण ऑर्डर" : "Completed Orders",
 		completedOrdersDesc:
 			locale === "hi" ? "पूरे किए गए ऑर्डर" : "Fulfilled orders",
+
+		productsPriceCatalog:
+			locale === "hi"
+				? "उपलब्ध उत्पाद और मूल्य कैटलॉग"
+				: "Available Products & Price Catalog",
+		productsPriceCatalogDesc:
+			locale === "hi"
+				? "वेयरहाउस द्वारा प्रबंधित नवीनतम उत्पाद और उनकी कीमतें।"
+				: "Latest warehouse-managed products and their current prices.",
+		viewFullCatalog:
+			locale === "hi" ? "पूर्ण कैटलॉग देखें" : "View Full Catalog",
 	};
 
 	if (isLoading) {
@@ -231,6 +250,73 @@ export default function CustomerDashboard() {
 					</Card>
 				</div>
 			</motion.div>
+
+			{/* Products & Price Catalog Showcase */}
+			{products && products.length > 0 && (
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.5, delay: 0.25 }}
+				>
+					<Card className="border-border/50 bg-card/50 shadow-sm">
+						<CardHeader className="flex flex-row items-center justify-between pb-3">
+							<div>
+								<CardTitle className="text-lg">
+									{t.productsPriceCatalog}
+								</CardTitle>
+								<CardDescription>{t.productsPriceCatalogDesc}</CardDescription>
+							</div>
+							<Button asChild variant="outline" size="sm" className="text-xs">
+								<Link href="/customer/products">
+									{t.viewFullCatalog} <ArrowRightIcon className="ml-1.5 h-3.5 w-3.5" />
+								</Link>
+							</Button>
+						</CardHeader>
+						<CardContent className="p-6 pt-0">
+							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+								{products.slice(0, 4).map((prod) => (
+									<div
+										key={prod.id}
+										className="flex flex-col justify-between rounded-lg border border-border/60 bg-card p-3.5 shadow-sm transition-all hover:border-emerald-500/40"
+									>
+										<div>
+											<div className="flex items-center justify-between gap-2">
+												<span className="rounded-full bg-blue-500/10 p-1.5 text-blue-500">
+													<PackageIcon className="h-4 w-4" />
+												</span>
+												<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
+													{locale === "hi" ? "उपलब्ध" : "Available"}
+												</span>
+											</div>
+											<h4 className="mt-2 line-clamp-1 font-semibold text-foreground text-sm">
+												{prod.name}
+											</h4>
+											{prod.sku && (
+												<p className="font-mono text-[10px] text-muted-foreground">
+													SKU: {prod.sku}
+												</p>
+											)}
+										</div>
+										<div className="mt-3 flex items-baseline justify-between border-border/40 border-t pt-2">
+											<span className="font-bold text-emerald-600 text-base dark:text-emerald-400">
+												₹{Number(prod.price || 0).toLocaleString(undefined, {
+													minimumFractionDigits: 2,
+													maximumFractionDigits: 2,
+												})}
+											</span>
+											{prod.unit && (
+												<span className="text-muted-foreground text-xs">
+													/ {prod.unit}
+												</span>
+											)}
+										</div>
+									</div>
+								))}
+							</div>
+						</CardContent>
+					</Card>
+				</motion.div>
+			)}
 
 			{/* Quick Actions Panel */}
 			<motion.div

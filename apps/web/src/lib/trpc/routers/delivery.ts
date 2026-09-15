@@ -1,5 +1,6 @@
 import {
 	customers,
+	deliveryStops,
 	orderItems,
 	orders,
 	products,
@@ -26,7 +27,13 @@ import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const deliveryRouter = router({
 	// ── Routes ─────────────────────────────────────────────────────────────
-	listRoutes: roleProcedure(["admin", "manager", "delivery_manager"])
+	listRoutes: roleProcedure([
+		"admin",
+		"manager",
+		"delivery_manager",
+		"sales_person",
+		"biller",
+	])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId || 1;
@@ -45,7 +52,13 @@ export const deliveryRouter = router({
 				description: z.string().optional(),
 				branchId: z.number().optional(),
 				stops: z.array(
-					z.object({ customerId: z.number(), sequence: z.number() }),
+					z.object({
+						customerId: z.number().optional(),
+						sequence: z.number().optional(),
+						name: z.string().optional(),
+						phone: z.string().optional(),
+						address: z.string().optional(),
+					}),
 				),
 			}),
 		)
@@ -63,23 +76,63 @@ export const deliveryRouter = router({
 					})
 					.returning();
 
-				// Filter out duplicate stops for the same customer to prevent DB constraint errors
-				const uniqueStops = [];
-				const seenCustomers = new Set();
+				// Process stops, creating new customer entries for bulk/custom address entries where needed
+				const resolvedStops: { customerId: number; sequence: number }[] = [];
+				const seenCustomers = new Set<number>();
 				let currentSequence = 1;
+
 				for (const stop of input.stops) {
-					if (!seenCustomers.has(stop.customerId)) {
-						seenCustomers.add(stop.customerId);
-						uniqueStops.push({
-							...stop,
-							sequence: currentSequence++,
+					let resolvedCustId = stop.customerId;
+
+					if (!resolvedCustId && (stop.name || stop.address || stop.phone)) {
+						const phoneClean = stop.phone?.trim() || "";
+						const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+						const email = phoneClean
+							? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
+							: `cust_${uniqueSuffix}@evaluna.local`;
+
+						// Check if a customer with this phone or email already exists in branch
+						let existingCust = null;
+						if (phoneClean) {
+							existingCust = await tx.query.customers.findFirst({
+								where: and(
+									eq(customers.phone, phoneClean),
+									eq(customers.branch_id, branch),
+								),
+							});
+						}
+
+						if (existingCust) {
+							resolvedCustId = existingCust.id;
+						} else {
+							const [newCust] = await tx
+								.insert(customers)
+								.values({
+									name: stop.name?.trim() || (stop.address ? `Stop: ${stop.address.slice(0, 30)}` : `Customer ${phoneClean}`),
+									email,
+									phone: phoneClean || null,
+									address: stop.address?.trim() || null,
+									branch_id: branch,
+									user_uid: ctx.user?.id || "manager",
+									customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+								})
+								.returning();
+							resolvedCustId = newCust.id;
+						}
+					}
+
+					if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
+						seenCustomers.add(resolvedCustId);
+						resolvedStops.push({
+							customerId: resolvedCustId,
+							sequence: stop.sequence || currentSequence++,
 						});
 					}
 				}
 
-				if (uniqueStops.length > 0) {
+				if (resolvedStops.length > 0) {
 					await tx.insert(routeStops).values(
-						uniqueStops.map((stop) => ({
+						resolvedStops.map((stop) => ({
 							route_id: route.id,
 							customer_id: stop.customerId,
 							sequence: stop.sequence,
@@ -558,6 +611,17 @@ ERROR TABLE: ${err.table}
 	deleteTrip: roleProcedure(["admin", "manager", "delivery_manager"])
 		.input(z.object({ tripId: z.number() }))
 		.mutation(async ({ input }) => {
+			const stops = await db.query.tripStops.findMany({
+				where: eq(tripStops.trip_id, input.tripId),
+			});
+			const stopIds = stops.map((s) => s.id);
+			if (stopIds.length > 0) {
+				await db
+					.delete(proofOfDeliveries)
+					.where(inArray(proofOfDeliveries.trip_stop_id, stopIds));
+			}
+			await db.delete(gpsLogs).where(eq(gpsLogs.trip_id, input.tripId));
+			await db.delete(deliveryStops).where(eq(deliveryStops.trip_id, input.tripId));
 			await db.delete(tripStops).where(eq(tripStops.trip_id, input.tripId));
 			await db
 				.delete(tripCollections)
@@ -578,6 +642,20 @@ ERROR TABLE: ${err.table}
 				.delete(deliveryRoutes)
 				.where(eq(deliveryRoutes.id, input.routeId));
 			return { success: true };
+		}),
+
+	clearAllRoutesAndTrips: roleProcedure(["admin", "manager", "delivery_manager"])
+		.mutation(async () => {
+			// Cascading cleanup of all delivery tracking, proof of deliveries, stops, trips, routes
+			await db.delete(proofOfDeliveries);
+			await db.delete(gpsLogs);
+			await db.delete(tripCollections);
+			await db.delete(deliveryStops);
+			await db.delete(tripStops);
+			await db.delete(deliveryTrips);
+			await db.delete(routeStops);
+			await db.delete(deliveryRoutes);
+			return { success: true, message: "All routes and trips cleared successfully." };
 		}),
 
 	optimizeRouteSequence: roleProcedure(["admin", "manager", "delivery_manager"])
@@ -660,8 +738,11 @@ ERROR TABLE: ${err.table}
 				vehicleId: z.number().optional(),
 				stops: z.array(
 					z.object({
-						customerId: z.number(),
-						sequence: z.number(),
+						customerId: z.number().optional(),
+						sequence: z.number().optional(),
+						name: z.string().optional(),
+						phone: z.string().optional(),
+						address: z.string().optional(),
 						notes: z.string().optional(),
 					}),
 				),
@@ -684,24 +765,63 @@ ERROR TABLE: ${err.table}
 						})
 						.returning();
 
-					// Filter out duplicate stops for the same customer to prevent DB constraint errors
-					const uniqueStops = [];
-					const seenCustomers = new Set();
+					// Process stops and auto-create customers for new address/phone stops
+					const resolvedStops: { customerId: number; sequence: number }[] = [];
+					const seenCustomers = new Set<number>();
 					let currentSequence = 1;
+
 					for (const s of input.stops) {
-						if (!seenCustomers.has(s.customerId)) {
-							seenCustomers.add(s.customerId);
-							uniqueStops.push({
-								...s,
-								sequence: currentSequence++,
+						let resolvedCustId = s.customerId;
+
+						if (!resolvedCustId && (s.name || s.address || s.phone)) {
+							const phoneClean = s.phone?.trim() || "";
+							const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+							const email = phoneClean
+								? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
+								: `cust_${uniqueSuffix}@evaluna.local`;
+
+							let existingCust = null;
+							if (phoneClean) {
+								existingCust = await tx.query.customers.findFirst({
+									where: and(
+										eq(customers.phone, phoneClean),
+										eq(customers.branch_id, branch),
+									),
+								});
+							}
+
+							if (existingCust) {
+								resolvedCustId = existingCust.id;
+							} else {
+								const [newCust] = await tx
+									.insert(customers)
+									.values({
+										name: s.name?.trim() || (s.address ? `Stop: ${s.address.slice(0, 30)}` : `Customer ${phoneClean}`),
+										email,
+										phone: phoneClean || null,
+										address: s.address?.trim() || null,
+										branch_id: branch,
+										user_uid: ctx.user?.id || "manager",
+										customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+									})
+									.returning();
+								resolvedCustId = newCust.id;
+							}
+						}
+
+						if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
+							seenCustomers.add(resolvedCustId);
+							resolvedStops.push({
+								customerId: resolvedCustId,
+								sequence: s.sequence || currentSequence++,
 							});
 						}
 					}
 
 					// 2. Insert route stops
-					if (uniqueStops.length > 0) {
+					if (resolvedStops.length > 0) {
 						await tx.insert(routeStops).values(
-							uniqueStops.map((s) => ({
+							resolvedStops.map((s) => ({
 								route_id: route.id,
 								customer_id: s.customerId,
 								sequence: s.sequence,
@@ -721,9 +841,9 @@ ERROR TABLE: ${err.table}
 						.returning();
 
 					// 4. Create trip stops
-					if (uniqueStops.length > 0) {
+					if (resolvedStops.length > 0) {
 						await tx.insert(tripStops).values(
-							uniqueStops.map((s) => ({
+							resolvedStops.map((s) => ({
 								trip_id: trip.id,
 								customer_id: s.customerId,
 								sequence: s.sequence,

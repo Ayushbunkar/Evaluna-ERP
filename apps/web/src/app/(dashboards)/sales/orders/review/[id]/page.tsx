@@ -28,10 +28,13 @@ import {
 	ArrowLeftIcon,
 	CheckCircle2Icon,
 	MapPinIcon,
+	NavigationIcon,
 	PhoneIcon,
 	PlusIcon,
+	RouteIcon,
 	SaveIcon,
 	Trash2Icon,
+	TruckIcon,
 	UserIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -65,14 +68,16 @@ export default function CustomerOrderReviewPage() {
 		{ enabled: Number.isFinite(id) },
 	);
 	const { data: catalog } = trpc.products.list.useQuery();
+	const { data: routes } = trpc.delivery.listRoutes.useQuery({});
 
 	const [lines, setLines] = useState<Line[]>([]);
 	const [discount, setDiscount] = useState(0);
+	const [selectedRouteId, setSelectedRouteId] = useState<string>("");
 	const [addProductId, setAddProductId] = useState<string>("");
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const seeded = useRef(false);
 
-	// Seed editable lines from the stored order once.
+	// Seed editable lines and route from the stored order once.
 	useEffect(() => {
 		if (order && !seeded.current) {
 			setLines(
@@ -88,6 +93,9 @@ export default function CustomerOrderReviewPage() {
 				})),
 			);
 			setDiscount(Number(order.discountAmount ?? 0));
+			if (order.assignedRoute?.id) {
+				setSelectedRouteId(String(order.assignedRoute.id));
+			}
 			seeded.current = true;
 		}
 	}, [order]);
@@ -138,6 +146,25 @@ export default function CustomerOrderReviewPage() {
 		onError: (e) => toast.error(e.message),
 	});
 
+	const assignRouteMutation = trpc.orders.assignRoute.useMutation({
+		onSuccess: (data) => {
+			toast.success(`Assigned to ${data.routeName}`);
+			utils.orders.getForReview.invalidate({ id });
+			utils.delivery.listRoutes.invalidate();
+		},
+		onError: (e) => toast.error(e.message),
+	});
+
+	const handleRouteChange = (newRouteId: string) => {
+		setSelectedRouteId(newRouteId);
+		if (newRouteId) {
+			assignRouteMutation.mutate({
+				orderId: id,
+				routeId: Number(newRouteId),
+			});
+		}
+	};
+
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
 			toast.success("Order confirmed! Bill generated successfully.");
@@ -147,11 +174,12 @@ export default function CustomerOrderReviewPage() {
 			utils.manager.getDashboardStats.invalidate();
 			utils.manager.getAwaitingDispatchOrders.invalidate();
 			utils.delivery.listAllTrips.invalidate();
+			utils.delivery.listRoutes.invalidate();
 			utils.picker.getPending.invalidate();
 			utils.picker.getDashboardStats.invalidate();
 			utils.warehouse.getPickingQueue.invalidate();
 			setConfirmOpen(false);
-			router.push(`/sales/pos?completedOrderId=${order.id}`);
+			router.push(`/sales/pos?completedOrderId=${order?.id || id}`);
 		},
 		onError: (e) => {
 			setConfirmOpen(false);
@@ -294,6 +322,77 @@ export default function CustomerOrderReviewPage() {
 							</span>
 						</div>
 						<p className="text-muted-foreground text-xs">Delivery Address</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Delivery Route Assignment Card */}
+			<Card className="border-border/50 bg-gradient-to-r from-card via-card to-blue-500/5">
+				<CardHeader className="pb-3">
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<TruckIcon className="h-4 w-4 text-blue-500" />
+							Delivery Route Assignment (वितरण रूट)
+						</CardTitle>
+						{selectedRouteId ? (
+							<Badge className="bg-blue-500/10 font-semibold text-blue-600 dark:text-blue-400">
+								Route Assigned
+							</Badge>
+						) : (
+							<Badge variant="outline" className="text-muted-foreground text-xs">
+								Unassigned
+							</Badge>
+						)}
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+						<div className="flex-1">
+							<Label className="text-muted-foreground text-xs">
+								Assign Manager-Created Delivery Route:
+							</Label>
+							<Select
+								value={selectedRouteId}
+								onValueChange={handleRouteChange}
+								disabled={locked}
+							>
+								<SelectTrigger className="mt-1 h-9 w-full">
+									<SelectValue placeholder="Select Route (Route 1 / Route 2 / Route 3…)" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">-- No Route Assigned --</SelectItem>
+									{(routes ?? []).map((r, idx) => (
+										<SelectItem key={r.id} value={String(r.id)}>
+											<div className="flex items-center gap-2">
+												<span className="font-bold text-primary">
+													Route {idx + 1}:
+												</span>
+												<span>{r.name}</span>
+												<span className="text-[11px] text-muted-foreground">
+													({(r as any).stops?.length || 0} stops)
+												</span>
+											</div>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						{selectedRouteId && selectedRouteId !== "none" && (
+							<div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-2.5 sm:max-w-xs">
+								<p className="font-semibold text-blue-600 text-xs dark:text-blue-400">
+									Active:{" "}
+									{routes?.find((r) => String(r.id) === selectedRouteId)?.name ||
+										`Route #${selectedRouteId}`}
+								</p>
+								<p className="text-[11px] text-muted-foreground">
+									Linked Stops:{" "}
+									{routes?.find((r) => String(r.id) === selectedRouteId)?.stops
+										?.length || 0}{" "}
+									customers
+								</p>
+							</div>
+						)}
 					</div>
 				</CardContent>
 			</Card>
@@ -542,6 +641,18 @@ export default function CustomerOrderReviewPage() {
 								<span>Line Items:</span>
 								<span className="font-semibold">{lines.length} items</span>
 							</div>
+							<div className="flex items-center justify-between border-border/40 border-t pt-1">
+								<span className="flex items-center gap-1 text-muted-foreground">
+									<TruckIcon className="h-3.5 w-3.5 text-blue-500" />
+									Assigned Route:
+								</span>
+								<span className="font-semibold text-blue-600 dark:text-blue-400">
+									{selectedRouteId && selectedRouteId !== "none"
+										? routes?.find((r) => String(r.id) === selectedRouteId)
+												?.name || `Route #${selectedRouteId}`
+										: "No Route Selected (Default)"}
+								</span>
+							</div>
 							<div className="flex justify-between border-border/40 border-t pt-1 font-bold text-foreground text-sm">
 								<span>Total Bill Amount:</span>
 								<span className="font-mono text-emerald-600">
@@ -554,7 +665,7 @@ export default function CustomerOrderReviewPage() {
 							</div>
 						</div>
 						<p className="text-muted-foreground text-xs">
-							This will reserve stock, generate the final bill, and make prices
+							This will reserve stock, assign the delivery route stop, generate the final bill, and make prices
 							visible on the customer portal.
 						</p>
 					</div>

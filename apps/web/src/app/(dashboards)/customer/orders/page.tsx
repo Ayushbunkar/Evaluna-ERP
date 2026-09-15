@@ -40,25 +40,31 @@ import { useTRPC } from "@/lib/trpc/client";
 const getStatusLabel = (status: string, locale: string) => {
 	if (locale === "hi") {
 		const hiLabels: Record<string, string> = {
-			pending_review: "पुष्टि लंबित",
-			under_review: "बिक्री संपर्क जारी",
-			confirmed: "पुष्टि की गई",
-			processing: "प्रसंस्करण में",
-			ready: "तैयार",
-			dispatched: "भेजा गया",
-			delivered: "वितरित",
+			pending_review: "पुष्टि लंबित (सेल्स टीम)",
+			under_review: "बिक्री समीक्षा जारी",
+			confirmed: "सेल्स द्वारा स्वीकृत / बिल तैयार",
+			packing: "पैकिंग जारी (वेयरहाउस)",
+			ready: "पैकिंग पूर्ण - डिस्पैच तैयार",
+			ready_for_dispatch: "पैकिंग पूर्ण - डिस्पैच तैयार",
+			dispatched: "डिलीवरी हेतु रवाना",
+			out_for_delivery: "डिलीवरी हेतु रवाना (रास्ते में)",
+			delivered: "वितरित व पूर्ण",
+			completed: "सफलतापूर्वक वितरित व पूर्ण",
 			cancelled: "रद्द",
 		};
 		return hiLabels[status] ?? status;
 	}
 	const enLabels: Record<string, string> = {
 		pending_review: "Pending Sales Confirmation",
-		under_review: "Sales Contacting",
-		confirmed: "Confirmed",
-		processing: "Processing",
-		ready: "Ready",
-		dispatched: "Dispatched",
-		delivered: "Delivered",
+		under_review: "Sales Reviewing",
+		confirmed: "Sales Confirmed (Bill Generated)",
+		packing: "Packing in Progress",
+		ready: "Packed & Ready for Dispatch",
+		ready_for_dispatch: "Packed & Ready for Dispatch",
+		dispatched: "Out for Delivery",
+		out_for_delivery: "Out for Delivery (On the Way)",
+		delivered: "Delivered & Completed",
+		completed: "Delivered & Completed",
 		cancelled: "Cancelled",
 	};
 	return enLabels[status] ?? status;
@@ -67,10 +73,13 @@ const getStatusLabel = (status: string, locale: string) => {
 const PENDING = ["pending_review", "under_review"];
 const CONFIRMED = [
 	"confirmed",
-	"processing",
+	"packing",
 	"ready",
+	"ready_for_dispatch",
 	"dispatched",
+	"out_for_delivery",
 	"delivered",
+	"completed",
 ];
 
 export default function CustomerOrdersPage() {
@@ -107,11 +116,11 @@ export default function CustomerOrdersPage() {
 
 	const t = {
 		title:
-			locale === "hi" ? "मेरे ऑर्डर और स्टेटस ट्रैकिंग" : "My Orders & Status Tracking",
+			locale === "hi" ? "मेरे ऑर्डर और लाइव ट्रैकिंग" : "My Orders & Live Tracking",
 		subtitle:
 			locale === "hi"
-				? "अपने रखे गए ऑर्डर्स को ट्रैक करें और बिक्री टीम द्वारा आपके अनुरोधों की पुष्टि होने पर अपडेट प्राप्त करें।"
-				: "Track your placed orders and receive updates when sales confirms your requests.",
+				? "अपने सभी ऑर्डर्स की स्थिति, सेल्स पुष्टि, वेयरहाउस पैकिंग और डिलीवरी की लाइव प्रगति देखें।"
+				: "Track your placed orders through sales confirmation, warehouse packing, and live delivery stages.",
 		placeNewOrder: locale === "hi" ? "नया ऑर्डर सबमिट करें" : "Place New Order",
 		allOrders:
 			locale === "hi"
@@ -123,8 +132,8 @@ export default function CustomerOrdersPage() {
 				: (count: number) => `Pending Confirmation (${count})`,
 		confirmed:
 			locale === "hi"
-				? (count: number) => `पुष्टि की गई (${count})`
-				: (count: number) => `Confirmed (${count})`,
+				? (count: number) => `स्वीकृत / इन-डिलीवरी (${count})`
+				: (count: number) => `Confirmed / In-Delivery (${count})`,
 		loadingOrders:
 			locale === "hi" ? "आपके ऑर्डर लोड हो रहे हैं..." : "Loading your orders...",
 		noOrdersFound: locale === "hi" ? "कोई ऑर्डर नहीं मिला।" : "No orders found.",
@@ -153,15 +162,17 @@ export default function CustomerOrdersPage() {
 				: "Loading order details...",
 		orderDate: locale === "hi" ? "ऑर्डर की तारीख" : "Order Date",
 		workflowProgress:
-			locale === "hi" ? "ऑर्डर प्रगति वर्कफ़्लो" : "Order Workflow Progress",
+			locale === "hi" ? "ऑर्डर प्रगति लाइव वर्कफ़्लो" : "Live Order Workflow Progress",
 		stepSubmitted:
 			locale === "hi" ? "1. ऑर्डर सबमिट किया गया" : "1. Order Submitted",
-		stepReviewing:
-			locale === "hi"
-				? "2. बिक्री टीम समीक्षा कर रही है"
-				: "2. Sales Team Reviewing",
-		stepConfirmed:
-			locale === "hi" ? "3. ऑर्डर की पुष्टि की गई" : "3. Order Confirmed",
+		stepSalesConfirmed:
+			locale === "hi" ? "2. सेल्स पुष्टि व बिल तैयार" : "2. Sales Confirmed & Billed",
+		stepPackedReady:
+			locale === "hi" ? "3. वेयरहाउस पैकिंग पूर्ण (डिस्पैच तैयार)" : "3. Packed & Ready for Dispatch",
+		stepOutForDelivery:
+			locale === "hi" ? "4. ड्राइवर को सौंपा गया (वितरण हेतु रवाना)" : "4. Out for Delivery (Assigned to Driver)",
+		stepCompleted:
+			locale === "hi" ? "5. ग्राहक को वितरित व पूर्ण" : "5. Delivered & Payment Completed",
 		orderedProducts:
 			locale === "hi"
 				? "ऑर्डर किए गए उत्पाद और मात्राएँ"
@@ -262,6 +273,7 @@ export default function CustomerOrdersPage() {
 									<TableHead>{t.orderId}</TableHead>
 									<TableHead>{t.placedDate}</TableHead>
 									<TableHead>{t.products}</TableHead>
+									<TableHead>{locale === "hi" ? "कुल राशि" : "Total Amount"}</TableHead>
 									<TableHead>{t.status}</TableHead>
 									<TableHead className="text-right">{t.action}</TableHead>
 								</TableRow>
@@ -269,7 +281,22 @@ export default function CustomerOrdersPage() {
 							<TableBody>
 								{filteredOrders.map((o) => {
 									const isPending = PENDING.includes(o.status ?? "");
-									const isConfirmed = CONFIRMED.includes(o.status ?? "");
+									const isCompleted = o.status === "completed" || o.status === "delivered";
+									const isOutForDelivery = o.status === "out_for_delivery" || o.status === "dispatched";
+									const isReady = o.status === "ready_for_dispatch" || o.status === "ready" || o.status === "packing";
+
+									let badgeClass = "bg-muted text-muted-foreground";
+									if (isCompleted) {
+										badgeClass = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30";
+									} else if (isOutForDelivery) {
+										badgeClass = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30";
+									} else if (isReady) {
+										badgeClass = "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30";
+									} else if (o.status === "confirmed") {
+										badgeClass = "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30";
+									} else if (isPending) {
+										badgeClass = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30";
+									}
 
 									return (
 										<TableRow key={o.id}>
@@ -282,15 +309,15 @@ export default function CustomerOrdersPage() {
 											<TableCell className="font-medium text-xs">
 												{t.productsCount(o.itemsCount)}
 											</TableCell>
+											<TableCell className="font-bold text-foreground text-xs">
+												₹{Number(o.total || 0).toLocaleString(undefined, {
+													minimumFractionDigits: 2,
+													maximumFractionDigits: 2,
+												})}
+											</TableCell>
 											<TableCell>
 												<span
-													className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-medium text-xs ${
-														isConfirmed
-															? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-															: isPending
-																? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-																: "bg-muted text-muted-foreground"
-													}`}
+													className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-medium text-xs ${badgeClass}`}
 												>
 													{getStatusLabel(o.status ?? "", locale)}
 												</span>
@@ -346,44 +373,119 @@ export default function CustomerOrdersPage() {
 								</div>
 								<span
 									className={`rounded-full px-3 py-1 font-semibold text-xs ${
-										CONFIRMED.includes(orderDetail.status ?? "")
-											? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-											: "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+										orderDetail.status === "completed" || orderDetail.status === "delivered"
+											? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+											: orderDetail.status === "out_for_delivery" || orderDetail.status === "dispatched"
+												? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+												: orderDetail.status === "ready_for_dispatch" || orderDetail.status === "packing"
+													? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30"
+													: orderDetail.status === "confirmed"
+														? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30"
+														: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
 									}`}
 								>
 									{getStatusLabel(orderDetail.status ?? "", locale)}
 								</span>
 							</div>
 
-							{/* Status Timeline */}
-							<div className="space-y-2">
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-									{t.workflowProgress}
-								</p>
-								<div className="grid gap-2 border-emerald-500/40 border-l-2 pl-4 text-xs">
-									<div className="flex items-center gap-2">
-										<CheckCircle2Icon className="h-4 w-4 text-emerald-500" />
-										<span className="font-medium">{t.stepSubmitted}</span>
+							{/* 5-Stage Live Status Timeline */}
+							{(() => {
+								const st = orderDetail.status ?? "pending_review";
+								const isSubmittedDone = true;
+								const isConfirmedDone = [
+									"confirmed",
+									"packing",
+									"ready",
+									"ready_for_dispatch",
+									"dispatched",
+									"out_for_delivery",
+									"delivered",
+									"completed",
+								].includes(st);
+								const isPackedDone = [
+									"ready",
+									"ready_for_dispatch",
+									"dispatched",
+									"out_for_delivery",
+									"delivered",
+									"completed",
+								].includes(st);
+								const isOutForDeliveryDone = [
+									"dispatched",
+									"out_for_delivery",
+									"delivered",
+									"completed",
+								].includes(st);
+								const isCompletedDone = [
+									"delivered",
+									"completed",
+								].includes(st);
+
+								return (
+									<div className="space-y-2">
+										<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+											{t.workflowProgress}
+										</p>
+										<div className="grid gap-2.5 border-emerald-500/40 border-l-2 pl-4 text-xs">
+											{/* Step 1 */}
+											<div className="flex items-center gap-2">
+												<CheckCircle2Icon className="h-4 w-4 text-emerald-500 shrink-0" />
+												<span className="font-medium text-foreground">{t.stepSubmitted}</span>
+											</div>
+											{/* Step 2 */}
+											<div className="flex items-center gap-2">
+												{isConfirmedDone ? (
+													<CheckCircle2Icon className="h-4 w-4 text-emerald-500 shrink-0" />
+												) : st === "under_review" ? (
+													<ClockIcon className="h-4 w-4 text-amber-500 shrink-0 animate-pulse" />
+												) : (
+													<ClockIcon className="h-4 w-4 text-amber-500 shrink-0" />
+												)}
+												<span className={isConfirmedDone ? "font-medium text-foreground" : "text-muted-foreground"}>
+													{t.stepSalesConfirmed}
+												</span>
+											</div>
+											{/* Step 3 */}
+											<div className="flex items-center gap-2">
+												{isPackedDone ? (
+													<CheckCircle2Icon className="h-4 w-4 text-emerald-500 shrink-0" />
+												) : st === "packing" ? (
+													<ClockIcon className="h-4 w-4 text-purple-500 shrink-0 animate-pulse" />
+												) : (
+													<ClockIcon className="h-4 w-4 text-muted-foreground opacity-40 shrink-0" />
+												)}
+												<span className={isPackedDone ? "font-medium text-foreground" : "text-muted-foreground"}>
+													{t.stepPackedReady}
+												</span>
+											</div>
+											{/* Step 4 */}
+											<div className="flex items-center gap-2">
+												{isOutForDeliveryDone ? (
+													<CheckCircle2Icon className="h-4 w-4 text-blue-500 shrink-0" />
+												) : isPackedDone ? (
+													<TruckIcon className="h-4 w-4 text-blue-400 shrink-0 animate-pulse" />
+												) : (
+													<TruckIcon className="h-4 w-4 text-muted-foreground opacity-40 shrink-0" />
+												)}
+												<span className={isOutForDeliveryDone ? "font-medium text-foreground" : "text-muted-foreground"}>
+													{t.stepOutForDelivery}
+												</span>
+											</div>
+											{/* Step 5 */}
+											<div className="flex items-center gap-2">
+												{isCompletedDone ? (
+													<CheckCircle2Icon className="h-4 w-4 text-emerald-500 shrink-0" />
+												) : (
+													<ClockIcon className="h-4 w-4 text-muted-foreground opacity-40 shrink-0" />
+												)}
+												<span className={isCompletedDone ? "font-bold text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+													{t.stepCompleted}
+												</span>
+											</div>
+										</div>
 									</div>
-									<div className="flex items-center gap-2">
-										{orderDetail.status === "under_review" ||
-										CONFIRMED.includes(orderDetail.status ?? "") ? (
-											<CheckCircle2Icon className="h-4 w-4 text-emerald-500" />
-										) : (
-											<ClockIcon className="h-4 w-4 text-amber-500" />
-										)}
-										<span className="font-medium">{t.stepReviewing}</span>
-									</div>
-									<div className="flex items-center gap-2">
-										{CONFIRMED.includes(orderDetail.status ?? "") ? (
-											<CheckCircle2Icon className="h-4 w-4 text-emerald-500" />
-										) : (
-											<ClockIcon className="h-4 w-4 text-muted-foreground opacity-40" />
-										)}
-										<span className="font-medium">{t.stepConfirmed}</span>
-									</div>
-								</div>
-							</div>
+								);
+							})()}
 
 							{/* Original Order vs Updated Bill Comparison */}
 							{orderDetail.original_items && (
@@ -497,7 +599,7 @@ export default function CustomerOrdersPage() {
 								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
 									{t.orderedProducts}
 								</p>
-								<div className="max-h-[200px] space-y-2 overflow-y-auto pr-1">
+								<div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
 									{orderDetail.items.map((item) => (
 										<div
 											key={item.id}
@@ -505,15 +607,34 @@ export default function CustomerOrdersPage() {
 										>
 											<div className="flex items-center gap-2">
 												<PackageIcon className="h-4 w-4 text-muted-foreground" />
-												<span className="font-medium text-foreground">
-													{item.name}
-												</span>
+												<div>
+													<span className="font-medium text-foreground">
+														{item.name}
+													</span>
+													<div className="text-[11px] text-muted-foreground">
+														₹{Number(item.price || 0).toFixed(2)}{" "}
+														{item.unit ? `/ ${item.unit}` : ""} · {t.quantityLabel(item.quantity)}
+													</div>
+												</div>
 											</div>
-											<span className="font-semibold text-foreground">
-												{t.quantityLabel(item.quantity)}
+											<span className="font-bold text-foreground">
+												₹{Number(item.lineTotal || (item.price || 0) * item.quantity).toFixed(2)}
 											</span>
 										</div>
 									))}
+								</div>
+
+								{/* Total Summary */}
+								<div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-3 pt-2">
+									<span className="font-bold text-foreground text-xs uppercase tracking-wide">
+										{locale === "hi" ? "कुल ऑर्डर राशि:" : "Total Order Amount:"}
+									</span>
+									<span className="font-bold text-emerald-600 text-sm sm:text-base dark:text-emerald-400">
+										₹{Number(orderDetail.total || 0).toLocaleString(undefined, {
+											minimumFractionDigits: 2,
+											maximumFractionDigits: 2,
+										})}
+									</span>
 								</div>
 							</div>
 						</div>

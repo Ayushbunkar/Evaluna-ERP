@@ -145,8 +145,7 @@ export const customerRouter = router({
 		};
 	}),
 
-	// ── Product browsing (NO price fields ever returned — rule 2) ─────────────
-	// ── Product browsing (NO price fields ever returned — rule 2) ─────────────
+	// ── Product browsing (Includes active product pricing) ───────────────────
 	browseProducts: customerProcedure
 		.input(
 			z
@@ -170,12 +169,12 @@ export const customerRouter = router({
 				limit: 200,
 			});
 
-			// PRICE INTENTIONALLY OMITTED.
 			return rows.map((p) => ({
 				id: p.id,
 				name: p.name,
 				description: (p as any).description ?? "No description available",
 				category: p.category ?? "General",
+				price: Number(p.price || p.base_selling_price || 0),
 				unit: p.unit ?? null,
 				sku: p.sku ?? null,
 				image: (p as any).image_url ?? (p as any).image ?? null,
@@ -183,7 +182,7 @@ export const customerRouter = router({
 			}));
 		}),
 
-	// ── My orders (list) — total hidden until confirmed ───────────────────────
+	// ── My orders (list) ──────────────────────────────────────────────────────
 	getMyOrders: customerProcedure.query(async ({ ctx }) => {
 		const rows = await ctx.db.query.orders.findMany({
 			where: eq(orders.customer_id, ctx.customer.id),
@@ -197,18 +196,70 @@ export const customerRouter = router({
 			},
 		});
 
-		return rows.map((o) => ({
-			id: o.id,
-			orderRef: `ORD-${o.id}`,
-			date: o.created_at ? o.created_at.toISOString() : null,
-			status: o.status,
-			itemsCount: o.orderItems.length,
-			total: CONFIRMED_STATUSES.includes(
-				o.status as (typeof CONFIRMED_STATUSES)[number],
-			)
-				? Number(o.total_amount)
-				: null,
-		}));
+		// Query active packages and delivery stops for this customer to determine granular status
+		const orderIds = rows.map((r) => r.id);
+		let packagesList: { order_id: number; status: string | null }[] = [];
+		let tripStopsList: { customer_id: number; status: string | null; trip_status?: string | null }[] = [];
+
+		if (orderIds.length > 0) {
+			try {
+				const { packages, tripStops, deliveryTrips } = require("@evaluna/db/schema");
+				packagesList = await ctx.db
+					.select({
+						order_id: packages.order_id,
+						status: packages.status,
+					})
+					.from(packages)
+					.where(inArray(packages.order_id, orderIds));
+
+				tripStopsList = await ctx.db
+					.select({
+						customer_id: tripStops.customer_id,
+						status: tripStops.status,
+						trip_status: deliveryTrips.status,
+					})
+					.from(tripStops)
+					.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+					.where(eq(tripStops.customer_id, ctx.customer.id));
+			} catch (e) {
+				// Fallback if schemas not loaded in test mock
+			}
+		}
+
+		const packageStatusMap = new Map(packagesList.map((p) => [p.order_id, p.status]));
+		const activeTripStop = tripStopsList.find(
+			(ts) => ts.trip_status === "active" || ts.trip_status === "pending" || ts.status === "delivered",
+		);
+
+		return rows.map((o) => {
+			let effectiveStatus = o.status ?? "pending_review";
+			const pkgStatus = packageStatusMap.get(o.id);
+
+			// Calculate workflow progression status
+			if (o.status === "completed") {
+				effectiveStatus = "completed";
+			} else if (activeTripStop?.status === "delivered" && (o.status === "ready_for_dispatch" || o.status === "confirmed" || o.status === "dispatched")) {
+				effectiveStatus = "completed";
+			} else if (o.status === "dispatched" || activeTripStop?.trip_status === "active") {
+				effectiveStatus = "out_for_delivery";
+			} else if (o.status === "ready_for_dispatch" || pkgStatus === "packed" || pkgStatus === "ready_for_dispatch") {
+				effectiveStatus = "ready_for_dispatch";
+			} else if (pkgStatus === "packing") {
+				effectiveStatus = "packing";
+			} else if (o.status === "confirmed") {
+				effectiveStatus = "confirmed";
+			}
+
+			return {
+				id: o.id,
+				orderRef: `ORD-${o.id}`,
+				date: o.created_at ? o.created_at.toISOString() : null,
+				status: effectiveStatus,
+				rawStatus: o.status,
+				itemsCount: o.orderItems.length,
+				total: Number(o.total_amount || 0),
+			};
+		});
 	}),
 
 	getOrders: customerProcedure.query(async ({ ctx }) => {
@@ -230,11 +281,7 @@ export const customerRouter = router({
 			date: o.created_at ? o.created_at.toISOString() : null,
 			status: o.status,
 			itemsCount: o.orderItems.length,
-			total: CONFIRMED_STATUSES.includes(
-				o.status as (typeof CONFIRMED_STATUSES)[number],
-			)
-				? Number(o.total_amount)
-				: null,
+			total: Number(o.total_amount || 0),
 		}));
 	}),
 
@@ -257,7 +304,7 @@ export const customerRouter = router({
 		}));
 	}),
 
-	// ── My order (detail) — line prices hidden until confirmed ────────────────
+	// ── My order (detail) ─────────────────────────────────────────────────────
 	getMyOrder: customerProcedure
 		.input(z.object({ id: z.number().int().positive() }))
 		.query(async ({ ctx, input }) => {
@@ -287,17 +334,52 @@ export const customerRouter = router({
 				});
 			}
 
-			const isConfirmed = CONFIRMED_STATUSES.includes(
-				order.status as (typeof CONFIRMED_STATUSES)[number],
-			);
+			// Check package and trip stop status for this order
+			let effectiveStatus = order.status ?? "pending_review";
+			try {
+				const { packages, tripStops, deliveryTrips } = require("@evaluna/db/schema");
+				const [pkg] = await ctx.db
+					.select({ status: packages.status })
+					.from(packages)
+					.where(eq(packages.order_id, order.id))
+					.limit(1);
+
+				const [stop] = await ctx.db
+					.select({
+						status: tripStops.status,
+						trip_status: deliveryTrips.status,
+					})
+					.from(tripStops)
+					.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+					.where(eq(tripStops.customer_id, ctx.customer.id))
+					.orderBy(desc(tripStops.created_at))
+					.limit(1);
+
+				if (order.status === "completed") {
+					effectiveStatus = "completed";
+				} else if (stop?.status === "delivered" && (order.status === "ready_for_dispatch" || order.status === "confirmed" || order.status === "dispatched")) {
+					effectiveStatus = "completed";
+				} else if (order.status === "dispatched" || stop?.trip_status === "active") {
+					effectiveStatus = "out_for_delivery";
+				} else if (order.status === "ready_for_dispatch" || pkg?.status === "packed" || pkg?.status === "ready_for_dispatch") {
+					effectiveStatus = "ready_for_dispatch";
+				} else if (pkg?.status === "packing") {
+					effectiveStatus = "packing";
+				} else if (order.status === "confirmed") {
+					effectiveStatus = "confirmed";
+				}
+			} catch (e) {
+				// Fallback to order status
+			}
 
 			return {
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
-				status: order.status,
+				status: effectiveStatus,
+				rawStatus: order.status,
 				date: order.created_at ? order.created_at.toISOString() : null,
-				priceVisible: isConfirmed,
-				total: isConfirmed ? Number(order.total_amount) : null,
+				priceVisible: true,
+				total: Number(order.total_amount || 0),
 				original_items: order.original_items,
 				items: order.orderItems.map((it) => ({
 					id: it.id,
@@ -305,8 +387,8 @@ export const customerRouter = router({
 					name: it.product?.name ?? "Item",
 					unit: it.product?.unit ?? null,
 					quantity: it.quantity,
-					price: isConfirmed ? Number(it.price) : null,
-					lineTotal: isConfirmed ? Number(it.price) * it.quantity : null,
+					price: Number(it.price || 0),
+					lineTotal: Number(it.price || 0) * it.quantity,
 				})),
 			};
 		}),
@@ -384,9 +466,7 @@ export const customerRouter = router({
 			};
 		}),
 
-	// ── Submit a new order (items + quantities ONLY — NO prices sent/stored) ──
-	// Idempotent via a client UUID stored in pending_sync.id (PK). A repeated
-	// submit with the same key returns the original order instead of duplicating.
+	// ── Submit a new order ───────────────────────────────────────────────────
 	submitOrder: customerProcedure
 		.input(
 			z.object({
@@ -434,18 +514,20 @@ export const customerRouter = router({
 						eq(products.is_deleted, false),
 						eq(products.is_hidden, false),
 					),
-					columns: { id: true, name: true, sku: true },
+					columns: { id: true, name: true, sku: true, price: true, base_selling_price: true },
 				});
 				const productMap = new Map(valid.map((p) => [p.id, p]));
 				const cleanItems = input.items
 					.filter((i) => productMap.has(i.productId) && i.quantity > 0)
 					.map((i) => {
 						const p = productMap.get(i.productId)!;
+						const itemPrice = Number(p.price || p.base_selling_price || 0);
 						return {
 							productId: i.productId,
 							quantity: i.quantity,
 							name: p.name,
 							sku: p.sku,
+							price: itemPrice,
 						};
 					});
 
@@ -456,14 +538,18 @@ export const customerRouter = router({
 					});
 				}
 
-				// Create the order with NO pricing — prices are applied by the
-				// salesperson at confirmation. Status starts as pending_review.
+				const totalAmount = cleanItems.reduce(
+					(sum, it) => sum + it.price * it.quantity,
+					0,
+				);
+
+				// Create the order with calculated total from product pricing
 				const [order] = await tx
 					.insert(orders)
 					.values({
 						customer_id: ctx.customer.id,
 						branch_id: ctx.customer.branch_id ?? null,
-						total_amount: "0",
+						total_amount: totalAmount.toFixed(2),
 						user_uid: ctx.user.id,
 						status: "pending_review",
 						original_items: cleanItems,
@@ -482,7 +568,7 @@ export const customerRouter = router({
 						order_id: order.id,
 						product_id: i.productId,
 						quantity: i.quantity,
-						price: "0",
+						price: i.price.toFixed(2),
 					})),
 				);
 

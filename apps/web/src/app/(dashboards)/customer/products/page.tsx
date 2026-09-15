@@ -45,6 +45,7 @@ type CartItem = {
 	name: string;
 	sku: string | null;
 	unit: string | null;
+	price: number;
 	quantity: number;
 };
 
@@ -81,6 +82,14 @@ export default function CustomerProductsPage() {
 		() => cartItemsList.reduce((sum, item) => sum + item.quantity, 0),
 		[cartItemsList],
 	);
+	const totalCartAmount = useMemo(
+		() =>
+			cartItemsList.reduce(
+				(sum, item) => sum + item.quantity * (item.price || 0),
+				0,
+			),
+		[cartItemsList],
+	);
 
 	const getQty = (pid: number) => quantities[pid] ?? 1;
 
@@ -96,6 +105,7 @@ export default function CustomerProductsPage() {
 		name: string;
 		sku: string | null;
 		unit: string | null;
+		price: number;
 	}) => {
 		const qtyToAdd = getQty(product.id);
 		setCart((prev) => {
@@ -107,6 +117,7 @@ export default function CustomerProductsPage() {
 					name: product.name,
 					sku: product.sku,
 					unit: product.unit,
+					price: product.price || 0,
 					quantity: existingQty + qtyToAdd,
 				},
 			};
@@ -386,15 +397,53 @@ export default function CustomerProductsPage() {
 									</CardDescription>
 								</CardHeader>
 
-								<CardContent className="space-y-2 p-4 pt-0">
+								<CardContent className="space-y-2.5 p-4 pt-0">
 									{product.sku && (
 										<p className="font-mono text-[11px] text-muted-foreground">
 											SKU: {product.sku}
 										</p>
 									)}
 
+									{/* Price & Unit Display */}
+									<div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+										<div className="flex items-baseline justify-between">
+											<div className="flex items-baseline gap-1">
+												<span className="font-bold text-foreground text-lg sm:text-xl">
+													₹{Number(product.price || 0).toLocaleString(undefined, {
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2,
+													})}
+												</span>
+												{product.unit && (
+													<span className="font-medium text-muted-foreground text-xs">
+														/ {product.unit}
+													</span>
+												)}
+											</div>
+											<span className="font-medium text-[10px] text-emerald-600 dark:text-emerald-400">
+												{locale === "hi" ? "मानक मूल्य" : "Standard Price"}
+											</span>
+										</div>
+
+										{currentQty > 1 && (
+											<div className="mt-1 flex items-center justify-between border-border/40 border-t pt-1 text-[11px]">
+												<span className="text-muted-foreground">
+													{locale === "hi" ? "उप-योग:" : "Subtotal:"}
+												</span>
+												<span className="font-bold text-emerald-600 dark:text-emerald-400">
+													₹{(
+														Number(product.price || 0) * currentQty
+													).toLocaleString(undefined, {
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2,
+													})}
+												</span>
+											</div>
+										)}
+									</div>
+
 									{/* Quantity Control */}
-									<div className="flex items-center justify-between gap-2 pt-2">
+									<div className="flex items-center justify-between gap-2 pt-1">
 										<span className="text-muted-foreground text-xs">
 											{t.quantity}
 										</span>
@@ -442,8 +491,8 @@ export default function CustomerProductsPage() {
 
 			{/* Floating Order Cart Bar */}
 			{cartItemsList.length > 0 && (
-				<div className="fixed right-4 bottom-4 left-4 z-40 mx-auto max-w-4xl rounded-xl border border-emerald-500/30 bg-card p-4 shadow-xl backdrop-blur sm:left-auto">
-					<div className="flex items-center justify-between gap-4">
+				<div className="fixed right-4 bottom-4 left-4 z-40 mx-auto max-w-4xl rounded-xl border border-emerald-500/30 bg-card/95 p-4 shadow-xl backdrop-blur sm:left-auto">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<div>
 							<p className="font-bold text-foreground text-sm">
 								{t.floatingCartTitle(cartItemsList.length, totalCartCount)}
@@ -452,23 +501,36 @@ export default function CustomerProductsPage() {
 								{t.floatingCartDesc}
 							</p>
 						</div>
-						<div className="flex items-center gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-xs"
-								onClick={() => setCart({})}
-							>
-								{t.clear}
-							</Button>
-							<Button
-								size="sm"
-								className="bg-emerald-600 text-white text-xs hover:bg-emerald-700"
-								onClick={() => setReviewOpen(true)}
-							>
-								<CheckCircle2Icon className="mr-1.5 h-4 w-4" />{" "}
-								{t.reviewOrderBtnShort}
-							</Button>
+						<div className="flex items-center justify-between gap-4 sm:justify-end">
+							<div className="text-right">
+								<p className="text-[10px] text-muted-foreground">
+									{locale === "hi" ? "कुल अनुमानित मूल्य" : "Est. Total Amount"}
+								</p>
+								<p className="font-bold text-emerald-600 text-sm dark:text-emerald-400">
+									₹{totalCartAmount.toLocaleString(undefined, {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									})}
+								</p>
+							</div>
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									className="text-xs"
+									onClick={() => setCart({})}
+								>
+									{t.clear}
+								</Button>
+								<Button
+									size="sm"
+									className="bg-emerald-600 text-white text-xs hover:bg-emerald-700"
+									onClick={() => setReviewOpen(true)}
+								>
+									<CheckCircle2Icon className="mr-1.5 h-4 w-4" />{" "}
+									{t.reviewOrderBtnShort}
+								</Button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -483,7 +545,7 @@ export default function CustomerProductsPage() {
 					<div className="space-y-4 text-sm">
 						<p className="text-muted-foreground text-xs">{t.reviewOrderDesc}</p>
 
-						<div className="max-h-[300px] space-y-2 overflow-y-auto pr-1">
+						<div className="max-h-[250px] space-y-2 overflow-y-auto pr-1">
 							{cartItemsList.map((item) => (
 								<div
 									key={item.productId}
@@ -491,11 +553,19 @@ export default function CustomerProductsPage() {
 								>
 									<div>
 										<p className="font-semibold text-sm">{item.name}</p>
-										{item.sku && (
-											<p className="font-mono text-[11px] text-muted-foreground">
-												SKU: {item.sku}
-											</p>
-										)}
+										<div className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+											{item.sku && <span>SKU: {item.sku}</span>}
+											<span>•</span>
+											<span className="font-semibold text-foreground">
+												₹{Number(item.price || 0).toFixed(2)}{" "}
+												{item.unit ? `/ ${item.unit}` : ""}
+											</span>
+										</div>
+										<p className="mt-1 font-semibold text-[11px] text-emerald-600 dark:text-emerald-400">
+											{locale === "hi" ? "आइटम योग:" : "Item Total:"} ₹{(
+												Number(item.price || 0) * item.quantity
+											).toFixed(2)}
+										</p>
 									</div>
 									<div className="flex items-center gap-3">
 										<div className="flex items-center rounded-md border border-border">
@@ -534,6 +604,28 @@ export default function CustomerProductsPage() {
 									</div>
 								</div>
 							))}
+						</div>
+
+						{/* Total Estimated Price Card */}
+						<div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5">
+							<div>
+								<p className="font-bold text-foreground text-xs uppercase tracking-wide">
+									{locale === "hi"
+										? "कुल अनुमानित ऑर्डर मूल्य"
+										: "Estimated Order Total"}
+								</p>
+								<p className="text-[10px] text-muted-foreground">
+									{locale === "hi"
+										? "अंतिम चालान में कर और छूट शामिल हो सकते हैं"
+										: "Final billing may reflect taxes or manager discounts"}
+								</p>
+							</div>
+							<p className="font-bold text-emerald-600 text-lg sm:text-xl dark:text-emerald-400">
+								₹{totalCartAmount.toLocaleString(undefined, {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2,
+								})}
+							</p>
 						</div>
 
 						{/* Delivery Information Section */}

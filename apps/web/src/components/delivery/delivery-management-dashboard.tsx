@@ -4,8 +4,12 @@ import {
 	AlertTriangleIcon,
 	CheckCircle2Icon,
 	ClockIcon,
+	FileTextIcon,
+	ListPlusIcon,
 	MapPinIcon,
 	PackageIcon,
+	PhoneIcon,
+	PlusIcon,
 	RouteIcon,
 	ShieldCheckIcon,
 	Trash2Icon,
@@ -42,6 +46,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc/client";
 
 interface DeliveryManagementDashboardProps {
@@ -134,7 +139,15 @@ export function DeliveryManagementDashboard({
 	const [routeName, setRouteName] = useState("");
 	const [routeDesc, setRouteDesc] = useState("");
 	const [routeCustomers, setRouteCustomers] = useState<number[]>([]);
+	const [customRouteStops, setCustomRouteStops] = useState<
+		Array<{ id: string; name: string; phone: string; address: string }>
+	>([]);
+	const [manualStopName, setManualStopName] = useState("");
+	const [manualStopPhone, setManualStopPhone] = useState("");
+	const [manualStopAddress, setManualStopAddress] = useState("");
+	const [bulkAddressesText, setBulkAddressesText] = useState("");
 	const [isRouteOpen, setIsRouteOpen] = useState(false);
+	const [routeCreationMode, setRouteCreationMode] = useState<"existing" | "bulk">("existing");
 
 	const [tripRouteId, setTripRouteId] = useState("");
 	const [tripDriverId, setTripDriverId] = useState("");
@@ -156,19 +169,140 @@ export function DeliveryManagementDashboard({
 		setVehicleReg("");
 	};
 
+	const handleAddManualCustomStop = () => {
+		if (!manualStopAddress && !manualStopName && !manualStopPhone) {
+			toast.error("Please enter a customer address, name, or phone number.");
+			return;
+		}
+		setCustomRouteStops([
+			...customRouteStops,
+			{
+				id: `custom_${Date.now()}_${Math.random()}`,
+				name: manualStopName.trim() || `Customer ${manualStopPhone || customRouteStops.length + 1}`,
+				phone: manualStopPhone.trim(),
+				address: manualStopAddress.trim(),
+			},
+		]);
+		setManualStopName("");
+		setManualStopPhone("");
+		setManualStopAddress("");
+		toast.success("Stop added to route list.");
+	};
+
+	const handleParseBulkAddresses = () => {
+		if (!bulkAddressesText.trim()) {
+			toast.error("Please paste addresses / phone numbers first.");
+			return;
+		}
+
+		const lines = bulkAddressesText
+			.split("\n")
+			.map((l) => l.trim())
+			.filter((l) => l.length > 0);
+
+		const parsed: Array<{ id: string; name: string; phone: string; address: string }> = [];
+
+		for (const line of lines) {
+			// Extract phone if present (10-12 digits)
+			const phoneMatch = line.match(/(?:\+91|91)?[\s-]?[6-9]\d{9}/);
+			const phone = phoneMatch ? phoneMatch[0].replace(/[\s-]/g, "") : "";
+			
+			// Remove phone from line to get rest
+			let remaining = phoneMatch ? line.replace(phoneMatch[0], "").trim() : line;
+			remaining = remaining.replace(/^[,;|-]+|[,;|-]+$/g, "").trim();
+
+			// If line has format: "Name - Address" or "Name, Address"
+			let name = "";
+			let address = remaining;
+
+			if (remaining.includes(" - ")) {
+				const parts = remaining.split(" - ");
+				name = parts[0].trim();
+				address = parts.slice(1).join(" - ").trim();
+			} else if (remaining.includes(",")) {
+				const parts = remaining.split(",");
+				if (parts.length > 1 && parts[0].trim().split(" ").length <= 3) {
+					name = parts[0].trim();
+					address = parts.slice(1).join(", ").trim();
+				}
+			}
+
+			parsed.push({
+				id: `bulk_${Date.now()}_${Math.random()}`,
+				name: name || (address ? `Stop: ${address.slice(0, 25)}` : `Phone: ${phone}`),
+				phone: phone,
+				address: address || (phone ? `Contact: ${phone}` : "Standard Delivery"),
+			});
+		}
+
+		if (parsed.length === 0) {
+			toast.error("Could not parse any valid stops from the input.");
+			return;
+		}
+
+		setCustomRouteStops([...customRouteStops, ...parsed]);
+		setBulkAddressesText("");
+		toast.success(`Successfully parsed & added ${parsed.length} stop(s)!`);
+	};
+
 	const handleCreateRoute = async () => {
-		await createRoute.mutateAsync({
-			name: routeName,
-			description: routeDesc,
-			stops: routeCustomers.map((id, index) => ({
-				customerId: id,
-				sequence: index + 1,
-			})),
-		});
-		setIsRouteOpen(false);
-		setRouteName("");
-		setRouteDesc("");
-		setRouteCustomers([]);
+		if (!routeName.trim()) {
+			toast.error("Please enter a Route Name.");
+			return;
+		}
+
+		const allStops: Array<{
+			customerId?: number;
+			sequence: number;
+			name?: string;
+			phone?: string;
+			address?: string;
+		}> = [];
+
+		let seq = 1;
+
+		// 1. Add existing registered customers
+		for (const custId of routeCustomers) {
+			allStops.push({
+				customerId: custId,
+				sequence: seq++,
+			});
+		}
+
+		// 2. Add custom / bulk address stops
+		for (const cStop of customRouteStops) {
+			allStops.push({
+				name: cStop.name,
+				phone: cStop.phone,
+				address: cStop.address,
+				sequence: seq++,
+			});
+		}
+
+		if (allStops.length === 0) {
+			toast.error("Please add at least one customer stop or address to this route.");
+			return;
+		}
+
+		try {
+			await createRoute.mutateAsync({
+				name: routeName,
+				description: routeDesc,
+				stops: allStops,
+			});
+			toast.success(`Route "${routeName}" created with ${allStops.length} stop(s)!`);
+			setIsRouteOpen(false);
+			setRouteName("");
+			setRouteDesc("");
+			setRouteCustomers([]);
+			setCustomRouteStops([]);
+			setBulkAddressesText("");
+			setManualStopName("");
+			setManualStopPhone("");
+			setManualStopAddress("");
+		} catch (err: any) {
+			toast.error(err.message || "Failed to create route.");
+		}
 	};
 
 	const handleAssignTrip = async () => {
@@ -232,6 +366,15 @@ export function DeliveryManagementDashboard({
 		},
 	});
 
+	const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false);
+	const clearAllMutation = trpc.delivery.clearAllRoutesAndTrips.useMutation({
+		onSuccess: () => {
+			refetchRoutes();
+			refetchTrips();
+			refetchOrders();
+		},
+	});
+
 	const handleConfirmCancelTrip = async () => {
 		if (!tripToCancel) return;
 		try {
@@ -271,6 +414,16 @@ export function DeliveryManagementDashboard({
 			setTripToDelete(null);
 		} catch (err: any) {
 			toast.error(err.message || "Failed to delete trip.");
+		}
+	};
+
+	const handleConfirmClearAll = async () => {
+		try {
+			await clearAllMutation.mutateAsync();
+			toast.success("All routes and trips have been cleared successfully.");
+			setIsClearAllModalOpen(false);
+		} catch (err: any) {
+			toast.error(err.message || "Failed to clear routes and trips.");
 		}
 	};
 
@@ -813,7 +966,17 @@ export function DeliveryManagementDashboard({
 								Manage and optimize delivery routes for your customers.
 							</CardDescription>
 						</div>
-						<div className="flex space-x-2">
+						<div className="flex items-center space-x-2">
+							{(routes.length > 0 || trips.length > 0) && (
+								<Button
+									variant="outline"
+									className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 font-medium"
+									onClick={() => setIsClearAllModalOpen(true)}
+								>
+									<Trash2Icon className="mr-1.5 h-4 w-4" />
+									Clear All Routes & Trips
+								</Button>
+							)}
 							<Dialog open={isQuickTripOpen} onOpenChange={setIsQuickTripOpen}>
 								<DialogTrigger asChild>
 									<Button variant="secondary">Quick Custom Trip</Button>
@@ -960,63 +1123,263 @@ export function DeliveryManagementDashboard({
 												placeholder="Route notes..."
 											/>
 										</div>
-										<div className="space-y-2">
-											<div className="flex items-center justify-between">
-												<Label>Add Customers (Select to add to sequence)</Label>
-												{routeCustomers.length > 1 && (
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={handleOptimizeRoute}
-														disabled={optimizeRouteSequence.isPending}
-														className="h-7 border-emerald-200 bg-emerald-50 font-semibold text-emerald-600 text-xs hover:bg-emerald-100"
-													>
-														✨ Auto-Optimize Route
-													</Button>
-												)}
-											</div>
-											<Select
-												onValueChange={(val) =>
-													setRouteCustomers([...routeCustomers, Number(val)])
-												}
+										{/* Route Creation Mode Selection */}
+										<div className="flex rounded-lg border bg-muted/40 p-1">
+											<button
+												type="button"
+												className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+													routeCreationMode === "existing"
+														? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white"
+														: "text-muted-foreground hover:text-foreground"
+												}`}
+												onClick={() => setRouteCreationMode("existing")}
 											>
-												<SelectTrigger>
-													<SelectValue placeholder="Add a customer..." />
-												</SelectTrigger>
-												<SelectContent>
-													{customers.map((c: any) => (
-														<SelectItem key={c.id} value={c.id.toString()}>
-															{c.name} ({c.phone || "No Phone"})
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-											{routeCustomers.length > 0 && (
-												<div className="mt-2 space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
+												Registered Customers
+											</button>
+											<button
+												type="button"
+												className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+													routeCreationMode === "bulk"
+														? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white"
+														: "text-muted-foreground hover:text-foreground"
+												}`}
+												onClick={() => setRouteCreationMode("bulk")}
+											>
+												<span className="flex items-center justify-center gap-1.5">
+													<ListPlusIcon className="h-3.5 w-3.5 text-primary" />
+													Bulk Addresses & Numbers
+												</span>
+											</button>
+										</div>
+
+										{routeCreationMode === "existing" ? (
+											<div className="space-y-2">
+												<div className="flex items-center justify-between">
+													<Label className="text-xs font-medium">Select Registered Customers</Label>
+													{routeCustomers.length > 1 && (
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={handleOptimizeRoute}
+															disabled={optimizeRouteSequence.isPending}
+															className="h-7 border-emerald-200 bg-emerald-50 font-semibold text-emerald-600 text-xs hover:bg-emerald-100"
+														>
+															✨ Auto-Optimize Route
+														</Button>
+													)}
+												</div>
+												<Select
+													onValueChange={(val) =>
+														setRouteCustomers([...routeCustomers, Number(val)])
+													}
+												>
+													<SelectTrigger>
+														<SelectValue placeholder="Add a customer..." />
+													</SelectTrigger>
+													<SelectContent>
+														{customers.map((c: any) => (
+															<SelectItem key={c.id} value={c.id.toString()}>
+																{c.name} ({c.phone || "No Phone"}) {c.address ? `— ${c.address.slice(0, 30)}` : ""}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+										) : (
+											<div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+												<div className="space-y-1.5">
+													<div className="flex items-center justify-between">
+														<Label className="text-xs font-semibold flex items-center gap-1.5 text-slate-900">
+															<FileTextIcon className="h-4 w-4 text-primary" />
+															Paste Multiple Addresses & Phone Numbers
+														</Label>
+													</div>
+													<Textarea
+														value={bulkAddressesText}
+														onChange={(e) => setBulkAddressesText(e.target.value)}
+														placeholder={`Paste addresses / phone numbers (one per line):\ne.g. Shop 12, MG Road, Pune - 9876543210\ne.g. Rahul Sharma, Flat 402 Galaxy Apt, Bandra 9820112233\ne.g. 9988776655, Sector 18 Noida`}
+														rows={4}
+														className="text-xs font-mono bg-white resize-none"
+													/>
+													<div className="flex justify-between items-center pt-1">
+														<p className="text-[11px] text-muted-foreground">
+															Supports name, address, and 10-digit Indian phone numbers automatically.
+														</p>
+														<Button
+															type="button"
+															size="sm"
+															onClick={handleParseBulkAddresses}
+															className="h-7 text-xs bg-primary text-white hover:bg-primary/90 shadow-sm"
+														>
+															<PlusIcon className="mr-1 h-3.5 w-3.5" />
+															Parse & Add Stops
+														</Button>
+													</div>
+												</div>
+
+												{/* Quick Single Custom Address Input */}
+												<div className="border-t border-primary/10 pt-3 space-y-2">
+													<Label className="text-xs font-semibold text-slate-800">
+														Or Add Single Custom Stop:
+													</Label>
+													<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+														<Input
+															placeholder="Customer/Shop Name"
+															value={manualStopName}
+															onChange={(e) => setManualStopName(e.target.value)}
+															className="h-8 text-xs bg-white"
+														/>
+														<Input
+															placeholder="Phone (e.g. 9876543210)"
+															value={manualStopPhone}
+															onChange={(e) => setManualStopPhone(e.target.value)}
+															className="h-8 text-xs bg-white"
+														/>
+														<Input
+															placeholder="Full Address / Landmark"
+															value={manualStopAddress}
+															onChange={(e) => setManualStopAddress(e.target.value)}
+															className="h-8 text-xs bg-white"
+														/>
+													</div>
+													<div className="flex justify-end">
+														<Button
+															type="button"
+															variant="outline"
+															size="sm"
+															onClick={handleAddManualCustomStop}
+															className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
+														>
+															+ Add Stop
+														</Button>
+													</div>
+												</div>
+											</div>
+										)}
+
+										{/* Combined Stops Preview List */}
+										{(routeCustomers.length > 0 || customRouteStops.length > 0) && (
+											<div className="space-y-2 pt-2">
+												<div className="flex items-center justify-between">
+													<Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+														Stops Sequence ({routeCustomers.length + customRouteStops.length} Total)
+													</Label>
+													<Button
+														type="button"
+														variant="ghost"
+														size="sm"
+														className="h-6 text-[11px] text-red-500 hover:text-red-700 hover:bg-red-50"
+														onClick={() => {
+															setRouteCustomers([]);
+															setCustomRouteStops([]);
+														}}
+													>
+														Clear All Stops
+													</Button>
+												</div>
+
+												<div className="max-h-48 space-y-1.5 overflow-y-auto rounded-lg border bg-muted/20 p-2.5 text-xs">
+													{/* Registered customer stops */}
 													{routeCustomers.map((id, idx) => {
-														const cust = customers.find(
-															(c: any) => c.id === id,
-														);
+														const cust = customers.find((c: any) => c.id === id);
 														return (
 															<div
-																key={idx}
-																className="flex items-center gap-2"
+																key={`reg_${id}_${idx}`}
+																className="flex items-center justify-between rounded-md bg-white p-2 shadow-xs dark:bg-slate-800"
 															>
-																<MapPinIcon className="h-4 w-4 text-primary" />{" "}
-																<strong>Stop {idx + 1}:</strong> {cust?.name}
+																<div className="flex items-center gap-2">
+																	<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
+																		{idx + 1}
+																	</div>
+																	<div>
+																		<span className="font-semibold text-slate-800 dark:text-slate-200">
+																			{cust?.name || `Customer #${id}`}
+																		</span>
+																		{cust?.phone && (
+																			<span className="ml-2 text-slate-500 font-mono text-[11px]">
+																				📞 {cust.phone}
+																			</span>
+																		)}
+																		{cust?.address && (
+																			<p className="text-[11px] text-slate-400">
+																				📍 {cust.address}
+																			</p>
+																		)}
+																	</div>
+																</div>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="icon"
+																	className="h-6 w-6 text-slate-400 hover:text-red-600"
+																	onClick={() =>
+																		setRouteCustomers(
+																			routeCustomers.filter((cid) => cid !== id),
+																		)
+																	}
+																>
+																	×
+																</Button>
 															</div>
 														);
 													})}
+
+													{/* Custom & Bulk parsed stops */}
+													{customRouteStops.map((cStop, idx) => (
+														<div
+															key={cStop.id}
+															className="flex items-center justify-between rounded-md bg-emerald-50/70 border border-emerald-100 p-2 shadow-xs dark:bg-emerald-950/30"
+														>
+															<div className="flex items-center gap-2">
+																<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">
+																	{routeCustomers.length + idx + 1}
+																</div>
+																<div>
+																	<span className="font-semibold text-emerald-950 dark:text-emerald-200">
+																		{cStop.name}
+																	</span>
+																	{cStop.phone && (
+																		<span className="ml-2 text-emerald-700 font-mono text-[11px]">
+																			📞 {cStop.phone}
+																		</span>
+																	)}
+																	{cStop.address && (
+																		<p className="text-[11px] text-emerald-600/90">
+																			📍 {cStop.address}
+																		</p>
+																	)}
+																</div>
+															</div>
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon"
+																className="h-6 w-6 text-emerald-600 hover:text-red-600"
+																onClick={() =>
+																	setCustomRouteStops(
+																		customRouteStops.filter((s) => s.id !== cStop.id),
+																	)
+																}
+															>
+																×
+															</Button>
+														</div>
+													))}
 												</div>
-											)}
-										</div>
+											</div>
+										)}
 									</div>
 									<DialogFooter>
 										<Button
 											onClick={handleCreateRoute}
-											disabled={createRoute.isPending}
+											disabled={
+												createRoute.isPending ||
+												(!routeName.trim()) ||
+												(routeCustomers.length === 0 && customRouteStops.length === 0)
+											}
+											className="font-semibold shadow-sm"
 										>
-											Save Route
+											{createRoute.isPending ? "Creating Route..." : "Save Route with Stops"}
 										</Button>
 									</DialogFooter>
 								</DialogContent>
@@ -1380,6 +1743,64 @@ export function DeliveryManagementDashboard({
 										{cancelTrip.isPending
 											? "Cancelling..."
 											: "Yes, Cancel Trip"}
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
+
+						{/* Clear All Confirmation Modal */}
+						<Dialog
+							open={isClearAllModalOpen}
+							onOpenChange={setIsClearAllModalOpen}
+						>
+							<DialogContent className="max-w-md border-red-200">
+								<DialogHeader>
+									<div className="flex items-center gap-3">
+										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+											<Trash2Icon className="h-5 w-5" />
+										</div>
+										<div>
+											<DialogTitle className="font-bold text-lg text-slate-900">
+												Delete All Routes & Trips?
+											</DialogTitle>
+											<DialogDescription className="text-slate-500 text-xs">
+												This will permanently delete all {routes.length} route(s) and {trips.length} trip(s). All orders will be released back to the unassigned queue.
+											</DialogDescription>
+										</div>
+									</div>
+								</DialogHeader>
+
+								<div className="py-2">
+									<div className="rounded-xl border border-red-200 bg-red-50/70 p-3.5 text-xs text-red-800 space-y-1">
+										<p className="font-semibold flex items-center gap-1.5">
+											<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600" />
+											Warning: This action cannot be undone!
+										</p>
+										<p className="text-red-700/90 leading-relaxed">
+											All route stops, trip stops, and delivery tracking entries will be erased so you can set up fresh routes from scratch.
+										</p>
+									</div>
+								</div>
+
+								<DialogFooter className="gap-2 sm:gap-0">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => setIsClearAllModalOpen(false)}
+										disabled={clearAllMutation.isPending}
+									>
+										Cancel
+									</Button>
+									<Button
+										type="button"
+										variant="destructive"
+										onClick={handleConfirmClearAll}
+										disabled={clearAllMutation.isPending}
+										className="font-semibold shadow-sm"
+									>
+										{clearAllMutation.isPending
+											? "Deleting Everything..."
+											: "Yes, Delete All Routes & Trips"}
 									</Button>
 								</DialogFooter>
 							</DialogContent>

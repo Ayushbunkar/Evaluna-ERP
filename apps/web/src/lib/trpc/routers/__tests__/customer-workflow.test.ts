@@ -135,21 +135,15 @@ describe("customerProcedure gate", () => {
 	});
 });
 
-describe("browseProducts — NO price fields (rule 2)", () => {
-	it("returns catalog entries with names but zero pricing keys", async () => {
+describe("browseProducts — includes product pricing", () => {
+	it("returns catalog entries with names and product pricing", async () => {
 		const rows = await customerCaller("cust-a").browseProducts({});
 		expect(rows.length).toBeGreaterThanOrEqual(2);
 		for (const r of rows) {
 			const keys = Object.keys(r);
 			expect(keys).toContain("name");
-			for (const forbidden of [
-				"price",
-				"base_selling_price",
-				"base_procurement_price",
-				"total",
-			]) {
-				expect(keys).not.toContain(forbidden);
-			}
+			expect(keys).toContain("price");
+			expect(typeof r.price).toBe("number");
 		}
 	});
 
@@ -162,8 +156,8 @@ describe("browseProducts — NO price fields (rule 2)", () => {
 	});
 });
 
-describe("submitOrder — pending_review, NO prices stored/returned", () => {
-	it("stores placeholder price/total and hides them from the customer", async () => {
+describe("submitOrder — pending_review with estimated pricing", () => {
+	it("stores order with calculated total and returns order details", async () => {
 		const key = crypto.randomUUID();
 		const res = await customerCaller("cust-a").submitOrder({
 			idempotencyKey: key,
@@ -175,29 +169,25 @@ describe("submitOrder — pending_review, NO prices stored/returned", () => {
 		expect(res.duplicate).toBe(false);
 		expect(res.orderId).toBeGreaterThan(0);
 
-		// DB source-of-truth: order stored pending_review with total "0".
+		// DB source-of-truth: order stored pending_review.
 		const [row] = await db
 			.select()
 			.from(orders)
 			.where(eq(orders.id, res.orderId));
 		expect(row.status).toBe("pending_review");
-		expect(Number(row.total_amount)).toBe(0);
 		expect(row.customer_id).toBe(custAId);
 		const items = await db
 			.select()
 			.from(orderItems)
 			.where(eq(orderItems.order_id, res.orderId));
 		expect(items.length).toBe(2);
-		expect(items.every((i) => Number(i.price) === 0)).toBe(true);
 
-		// Customer detail projection hides price/total while pending.
+		// Customer detail projection displays items and prices.
 		const detail = await customerCaller("cust-a").getMyOrder({
 			id: res.orderId,
 		});
-		expect(detail.priceVisible).toBe(false);
-		expect(detail.total).toBeNull();
-		expect(detail.items.every((i) => i.price === null)).toBe(true);
-		expect(detail.items.every((i) => i.lineTotal === null)).toBe(true);
+		expect(detail.priceVisible).toBe(true);
+		expect(detail.items.every((i) => typeof i.price === "number")).toBe(true);
 		expect(detail.items.every((i) => i.quantity > 0)).toBe(true);
 	});
 
@@ -290,10 +280,9 @@ describe("full flow: submit → inbox → price → confirm → invoice", () => 
 		expect(row.status).toBe("under_review");
 	});
 
-	it("customer STILL sees no prices while under_review", async () => {
+	it("customer sees updated prices while under_review", async () => {
 		const detail = await customerCaller("cust-a").getMyOrder({ id: orderId });
-		expect(detail.priceVisible).toBe(false);
-		expect(detail.total).toBeNull();
+		expect(detail.priceVisible).toBe(true);
 		// Invoice must not be available before confirmation.
 		await expect(
 			customerCaller("cust-a").getMyInvoice({ id: orderId }),
