@@ -28,22 +28,12 @@ import {
 	DataNoMatches,
 	TableLoading,
 } from "@/components/admin/data-states";
-import type {
-	FormField,
-	FormValues,
+import { DetailDialog } from "@/components/admin/detail-dialog";
+import {
+	EntityFormDialog,
+	type FormField,
+	type FormValues,
 } from "@/components/admin/entity-form-dialog";
-import { lazyLoad } from "@/lib/utils/lazyLoad";
-
-const DetailDialog = lazyLoad(() =>
-	import("@/components/admin/detail-dialog").then((m) => ({
-		default: m.DetailDialog,
-	})),
-);
-const EntityFormDialog = lazyLoad(() =>
-	import("@/components/admin/entity-form-dialog").then((m) => ({
-		default: m.EntityFormDialog,
-	})),
-);
 
 import {
 	AdminPageHeader,
