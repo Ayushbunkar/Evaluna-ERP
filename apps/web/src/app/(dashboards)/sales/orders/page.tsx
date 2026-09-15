@@ -93,19 +93,18 @@ export default function OrdersPage() {
 			header: tc("status"),
 			sortable: true,
 			render: (row) => {
-				const s = row.status ?? "pending";
-				const color =
-					s === "completed"
-						? "text-green-600"
-						: s === "cancelled"
-							? "text-red-600"
-							: "text-yellow-600";
-				const label =
-					s === "completed"
-						? tc("completed")
-						: s === "cancelled"
-							? tc("cancelled")
-							: tc("pending");
+				const s = (row.status ?? "pending").toLowerCase();
+				const isCompleted = s === "completed" || s === "confirmed" || s === "billed";
+				const color = isCompleted
+					? "text-green-600 font-medium"
+					: s === "cancelled"
+						? "text-red-600 font-medium"
+						: "text-yellow-600 font-medium";
+				const label = isCompleted
+					? tc("completed")
+					: s === "cancelled"
+						? tc("cancelled")
+						: tc("pending");
 				return <span className={color}>{label}</span>;
 			},
 		},
@@ -164,7 +163,12 @@ export default function OrdersPage() {
 		{
 			key: "status",
 			header: tc("status"),
-			getValue: (o) => o.status ?? "pending",
+			getValue: (o) => {
+				const s = (o.status ?? "pending").toLowerCase();
+				return s === "completed" || s === "confirmed" || s === "billed"
+					? "completed"
+					: s;
+			},
 		},
 		{
 			key: "date",
@@ -243,11 +247,16 @@ export default function OrdersPage() {
 	const filteredOrders = useMemo(() => {
 		return orders.filter((o) => {
 			const currentStatus = (o.status || "pending").toLowerCase();
-			if (
-				statusFilter !== "all" &&
-				currentStatus !== statusFilter.toLowerCase()
-			)
-				return false;
+			if (statusFilter !== "all") {
+				const isCompleted =
+					currentStatus === "completed" ||
+					currentStatus === "confirmed" ||
+					currentStatus === "billed";
+				if (statusFilter === "completed" && !isCompleted) return false;
+				if (statusFilter === "pending" && isCompleted) return false;
+				if (statusFilter === "cancelled" && currentStatus !== "cancelled")
+					return false;
+			}
 			const q = searchTerm.toLowerCase();
 			return (
 				(o.customer?.name || "Walk-in Customer").toLowerCase().includes(q) ||

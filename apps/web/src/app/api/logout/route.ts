@@ -1,43 +1,85 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { invalidateCachedSession } from "@/lib/session-cache";
 
 /**
- * GET /api/logout
+ * /api/logout (GET & POST)
  *
- * Server-side logout handler. This is the ONLY reliable way to clear
- * HttpOnly session cookies set by Better Auth. JavaScript cannot clear
- * HttpOnly cookies — only the server can via Set-Cookie headers.
+ * Server-side logout handler that returns 200 OK properly.
+ * Clears HttpOnly session cookies, invalidates in-memory session cache,
+ * and calls Better Auth server-side signOut.
  *
- * Usage: window.location.href = "/api/logout"
+ * - Returns 200 OK with HTML auto-redirect for browser GET navigations.
+ * - Returns 200 OK with JSON for fetch/API calls.
  */
-export async function GET(request: NextRequest) {
+
+const COOKIE_NAMES = [
+	"evaluna.session_token",
+	"__Secure-evaluna.session_token",
+	"evaluna.session_data",
+	"__Secure-evaluna.session_data",
+	"evaluna.dont_remember",
+	"better-auth.session_token",
+	"__Secure-better-auth.session_token",
+];
+
+async function handleLogout(request: NextRequest) {
+	// 1. Invalidate in-memory session cache if token exists
 	try {
-		// Call Better Auth's server-side signOut to invalidate the session in the DB
-		// and get back the Set-Cookie headers that clear the browser cookie.
+		for (const name of COOKIE_NAMES) {
+			const token = request.cookies.get(name)?.value;
+			if (token) {
+				invalidateCachedSession(token);
+			}
+		}
+	} catch (cacheErr) {
+		console.warn("[/api/logout] Cache invalidation warning:", cacheErr);
+	}
+
+	// 2. Call Better Auth's server-side signOut to invalidate DB session
+	try {
 		await auth.api.signOut({
 			headers: request.headers,
 		});
 	} catch (err) {
-		// Even if sign-out fails (e.g. session already expired), we still redirect.
 		console.error("[/api/logout] signOut error:", err);
 	}
 
-	// Build the redirect response to /login
-	const loginUrl = new URL("/login", request.url);
-	const response = NextResponse.redirect(loginUrl, { status: 302 });
+	const acceptsHtml = request.headers.get("accept")?.includes("text/html");
+	let response: NextResponse;
 
-	// Explicitly expire all known Better Auth cookies as a safety net.
-	// This covers cases where auth.api.signOut() didn't set the headers.
-	const cookieNames = [
-		"evaluna.session_token",
-		"__Secure-evaluna.session_token",
-		"evaluna.session_data",
-		"__Secure-evaluna.session_data",
-		"better-auth.session_token",
-		"__Secure-better-auth.session_token",
-	];
+	if (acceptsHtml && request.method === "GET") {
+		const html = `<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="refresh" content="0;url=/login">
+	<title>Logging out...</title>
+	<script>window.location.replace("/login");</script>
+</head>
+<body style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f8fafc;">
+	<p>Logging out... <a href="/login" style="color:#38bdf8;">Click here to return to login</a></p>
+</body>
+</html>`;
+		response = new NextResponse(html, {
+			status: 200,
+			headers: {
+				"Content-Type": "text/html; charset=utf-8",
+			},
+		});
+	} else {
+		response = NextResponse.json(
+			{
+				success: true,
+				message: "Logged out successfully",
+				redirectUrl: "/login",
+			},
+			{ status: 200 },
+		);
+	}
 
-	for (const name of cookieNames) {
+	// 3. Explicitly expire all known Better Auth cookies as a safety net
+	for (const name of COOKIE_NAMES) {
 		response.cookies.set(name, "", {
 			expires: new Date(0),
 			path: "/",
@@ -47,5 +89,21 @@ export async function GET(request: NextRequest) {
 		});
 	}
 
+	// 4. Prevent caching
+	response.headers.set(
+		"Cache-Control",
+		"no-store, no-cache, must-revalidate, proxy-revalidate",
+	);
+	response.headers.set("Pragma", "no-cache");
+	response.headers.set("Expires", "0");
+
 	return response;
+}
+
+export async function GET(request: NextRequest) {
+	return handleLogout(request);
+}
+
+export async function POST(request: NextRequest) {
+	return handleLogout(request);
 }

@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -55,7 +55,7 @@ export default async function PublicLayout({
 					<TRPCProvider>
 						<SmoothScrollProvider>
 							<main className="public-website">{children}</main>
-							<Toaster richColors position="bottom-right" />
+							<Toaster richColors position="top-right" />
 							<CookieConsent />
 						</SmoothScrollProvider>
 					</TRPCProvider>

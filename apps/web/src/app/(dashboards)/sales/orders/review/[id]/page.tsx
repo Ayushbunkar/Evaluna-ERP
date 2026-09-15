@@ -232,6 +232,10 @@ export default function CustomerOrderReviewPage() {
 				price: l.price,
 			})),
 			discountAmount: discount,
+			routeId:
+				selectedRouteId && selectedRouteId !== "none"
+					? Number(selectedRouteId)
+					: undefined,
 		});
 
 	return (
@@ -641,18 +645,6 @@ export default function CustomerOrderReviewPage() {
 								<span>Line Items:</span>
 								<span className="font-semibold">{lines.length} items</span>
 							</div>
-							<div className="flex items-center justify-between border-border/40 border-t pt-1">
-								<span className="flex items-center gap-1 text-muted-foreground">
-									<TruckIcon className="h-3.5 w-3.5 text-blue-500" />
-									Assigned Route:
-								</span>
-								<span className="font-semibold text-blue-600 dark:text-blue-400">
-									{selectedRouteId && selectedRouteId !== "none"
-										? routes?.find((r) => String(r.id) === selectedRouteId)
-												?.name || `Route #${selectedRouteId}`
-										: "No Route Selected (Default)"}
-								</span>
-							</div>
 							<div className="flex justify-between border-border/40 border-t pt-1 font-bold text-foreground text-sm">
 								<span>Total Bill Amount:</span>
 								<span className="font-mono text-emerald-600">
@@ -664,6 +656,60 @@ export default function CustomerOrderReviewPage() {
 								</span>
 							</div>
 						</div>
+
+						{/* Route Selection Dropdown */}
+						<div className="space-y-1.5 rounded-lg border border-border/70 bg-card p-3 shadow-xs">
+							<Label className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
+								<TruckIcon className="h-4 w-4 text-blue-500" />
+								Choose Delivery Route (वितरण रूट चुनें):
+							</Label>
+							<Select
+								value={selectedRouteId || "none"}
+								onValueChange={handleRouteChange}
+							>
+								<SelectTrigger className="h-9 w-full bg-background font-medium text-xs">
+									<SelectValue placeholder="Select Route (Route 1 / Route 2…)" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">
+										<span className="text-muted-foreground">-- No Route (Default Dispatch) --</span>
+									</SelectItem>
+									{(routes ?? []).map((r, idx) => (
+										<SelectItem key={r.id} value={String(r.id)}>
+											<div className="flex items-center gap-2">
+												<span className="font-bold text-primary">
+													Route {idx + 1}:
+												</span>
+												<span>{r.name}</span>
+												<span className="text-[11px] text-muted-foreground">
+													({(r as any).stops?.length || 0} stops)
+												</span>
+											</div>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							{selectedRouteId && selectedRouteId !== "none" ? (
+								<p className="flex items-center gap-1 font-medium text-[11px] text-blue-600 dark:text-blue-400">
+									<NavigationIcon className="h-3 w-3 shrink-0" />
+									<span>
+										Selected:{" "}
+										<strong>
+											{routes?.find((r) => String(r.id) === selectedRouteId)?.name ||
+												`Route #${selectedRouteId}`}
+										</strong>
+										{routes?.find((r) => String(r.id) === selectedRouteId)?.description
+											? ` • ${routes?.find((r) => String(r.id) === selectedRouteId)?.description}`
+											: ""}
+									</span>
+								</p>
+							) : (
+								<p className="text-[11px] text-muted-foreground">
+									Assign a delivery route so the order automatically links to the driver's trip stops.
+								</p>
+							)}
+						</div>
+
 						<p className="text-muted-foreground text-xs">
 							This will reserve stock, assign the delivery route stop, generate the final bill, and make prices
 							visible on the customer portal.

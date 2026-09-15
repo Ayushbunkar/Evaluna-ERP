@@ -61,8 +61,7 @@ export const posRouter = router({
 				const discount = Number.parseFloat(input.discountAmount || "0");
 				const extra = Number.parseFloat(input.otherCharges || "0");
 				const total = subtotal - discount + extra;
-
-				const status = "pending";
+				const status = "completed";
 
 				// 1. Create Order
 				const [order] = await tx
@@ -79,6 +78,7 @@ export const posRouter = router({
 						user_uid: ctx.user.id,
 						branch_id: ctx.user.branchId,
 						status,
+						finance_status: "reconciled",
 					})
 					.returning();
 

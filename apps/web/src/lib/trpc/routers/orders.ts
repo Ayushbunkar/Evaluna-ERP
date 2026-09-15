@@ -953,7 +953,7 @@ export const ordersRouter = router({
 				const confirmed = await tx
 					.update(orders)
 					.set({
-						status: "confirmed",
+						status: "completed",
 						locked: true,
 						total_amount: total.toString(),
 						discount_amount: discount.toString(),

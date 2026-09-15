@@ -42,7 +42,7 @@ export default async function RootLayout({
 					<TRPCProvider>
 						<SmoothScrollProvider>
 							<main>{children}</main>
-							<Toaster richColors position="bottom-right" />
+							<Toaster richColors position="top-right" />
 							<CookieConsent />
 						</SmoothScrollProvider>
 					</TRPCProvider>
