@@ -40,6 +40,7 @@ import {
 	User as UserIcon,
 	Utensils,
 } from "lucide-react";
+import Link from "next/link";
 import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
