@@ -733,13 +733,37 @@ export const ordersRouter = router({
 						code: "NOT_FOUND",
 						message: "Order not found",
 					});
+				const REVIEWABLE_STATUSES = [
+					"pending_review",
+					"under_review",
+					"pending",
+					"draft",
+					"created",
+					"placed",
+					"review",
+					"submitted",
+					"",
+				];
+				const currentStatus = (existing.status ?? "").toLowerCase();
+
 				if (
 					existing.locked ||
-					!["pending_review", "under_review"].includes(existing.status ?? "")
+					currentStatus === "confirmed" ||
+					currentStatus === "completed"
 				) {
+					return {
+						success: true,
+						orderId: existing.id,
+						alreadyConfirmed: true,
+						status: existing.status,
+						total: Number(existing.total_amount ?? 0),
+					};
+				}
+
+				if (!REVIEWABLE_STATUSES.includes(currentStatus)) {
 					throw new TRPCError({
 						code: "CONFLICT",
-						message: "Order is not in a reviewable state (already confirmed?).",
+						message: `Order #${existing.id} is in "${existing.status}" status and cannot be confirmed.`,
 					});
 				}
 

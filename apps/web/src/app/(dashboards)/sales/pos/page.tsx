@@ -11,10 +11,11 @@ import {
 	Trash2,
 	Wifi,
 	WifiOff,
+	Loader2,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PaymentModal } from "@/components/pos/payment-modal";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
@@ -80,67 +81,69 @@ export function getLocalizedProductName(name: string, locale: string): string {
 	return name;
 }
 
-export default function POSPage() {
+function POSContent() {
 	const locale = useLocale();
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const utils = trpc.useUtils();
+
+	// State declarations (all unconditional at top)
 	const [cart, setCart] = useState<any[]>([]);
 	const [search, setSearch] = useState("");
 	const [isOffline, setIsOffline] = useState(false);
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
-	const [resumeId, setResumeId] = useState<string | null>(null);
 	const [customerDetails, setCustomerDetails] = useState<{
 		customerName?: string;
 		customerPhone?: string;
 		shopName?: string;
 	}>({});
+	const [couponCode, setCouponCode] = useState("");
+	const [couponModalOpen, setCouponModalOpen] = useState(false);
+	const [lastPayments, setLastPayments] = useState<any[]>([]);
+	const [appliedCoupon, setAppliedCoupon] = useState<{
+		id: number;
+		code: string;
+		discount: number;
+	} | null>(null);
+	const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">("catalog");
 
+	// URL Params
 	const completedOrderIdParam = searchParams.get("completedOrderId");
 	const completedOrderId = completedOrderIdParam
 		? Number.parseInt(completedOrderIdParam, 10)
 		: null;
+	const resumeId = searchParams.get("resume");
 
+	// Queries
 	const { data: fetchedCompletedOrder } = trpc.orders.get.useQuery(
 		{ id: completedOrderId ?? 0 },
 		{ enabled: !!completedOrderId },
 	);
 
-	useEffect(() => {
-		if (
-			fetchedCompletedOrder &&
-			(!lastCompletedOrder ||
-				lastCompletedOrder.id !== fetchedCompletedOrder.id)
-		) {
-			setLastCompletedOrder({
-				id: fetchedCompletedOrder.id,
-				createdAt: fetchedCompletedOrder.created_at
-					? new Date(fetchedCompletedOrder.created_at).toISOString()
-					: new Date().toISOString(),
-				items:
-					fetchedCompletedOrder.orderItems?.map((item: any) => ({
-						id: item.id,
-						name: item.product?.name || "Item",
-						qty: item.quantity,
-						price: Number(item.price).toFixed(2),
-					})) || [],
-				total: Number(fetchedCompletedOrder.total_amount),
-				subtotal: Number(fetchedCompletedOrder.total_amount),
-				discount: Number(fetchedCompletedOrder.discount_amount || 0),
-				cashierName: "Counter 1",
-				customerName:
-					fetchedCompletedOrder.customer?.name || "Walk-in Customer",
-				customerPhone: fetchedCompletedOrder.customer?.phone || "",
-				shopName: "",
-				payments: [
-					{
-						methodId: fetchedCompletedOrder.payment_method_id || 1,
-						amount: Number(fetchedCompletedOrder.total_amount).toFixed(2),
-					},
-				],
-			});
-		}
-	}, [fetchedCompletedOrder, lastCompletedOrder]);
+	const { data: resumeOrder } = trpc.orders.get.useQuery(
+		{ id: Number(resumeId) },
+		{ enabled: !!resumeId },
+	);
+
+	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
+		staleTime: 1000 * 60 * 60,
+	});
+
+	// Mutations
+	const deleteHoldBillMutation = trpc.orders.delete.useMutation();
+
+	// Calculations
+	const subtotal = useMemo(
+		() =>
+			cart.reduce(
+				(acc, item) => acc + Number.parseFloat(item.price) * item.qty,
+				0,
+			),
+		[cart],
+	);
+	const discount = appliedCoupon?.discount || 0;
+	const total = Math.max(0, subtotal - discount);
 
 	// Translations Dictionary
 	const t = {
@@ -183,50 +186,6 @@ export default function POSPage() {
 		close: locale === "hi" ? "बंद करें" : "Close",
 	};
 
-	useEffect(() => {
-		if (typeof window !== "undefined") {
-			const params = new URLSearchParams(window.location.search);
-			setResumeId(params.get("resume"));
-		}
-	}, []);
-
-	const { data: resumeOrder } = trpc.orders.get.useQuery(
-		{ id: Number(resumeId) },
-		{ enabled: !!resumeId },
-	);
-
-	useEffect(() => {
-		if (resumeOrder && resumeOrder.orderItems && cart.length === 0) {
-			const restoredCart = resumeOrder.orderItems.map((item: any) => ({
-				id: item.product?.id || item.product_id,
-				name: item.product?.name || `Item #${item.product_id}`,
-				price: item.price,
-				qty: item.quantity,
-			}));
-			setCart(restoredCart);
-			if (typeof window !== "undefined") {
-				window.history.replaceState({}, "", window.location.pathname);
-			}
-		}
-	}, [resumeOrder]);
-
-	const [couponCode, setCouponCode] = useState("");
-	const [couponModalOpen, setCouponModalOpen] = useState(false);
-	const [lastPayments, setLastPayments] = useState<any[]>([]);
-	const [appliedCoupon, setAppliedCoupon] = useState<{
-		id: number;
-		code: string;
-		discount: number;
-	} | null>(null);
-
-	const utils = trpc.useUtils();
-
-	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
-		staleTime: 1000 * 60 * 60,
-	});
-
-	const deleteHoldBillMutation = trpc.orders.delete.useMutation();
-
 	const checkoutMutation = trpc.pos.checkout.useMutation({
 		onSuccess: (data) => {
 			toast.success(t.successMsg);
@@ -250,11 +209,10 @@ export default function POSPage() {
 
 			if (resumeId) {
 				deleteHoldBillMutation.mutate({ id: Number(resumeId) });
-				setResumeId(null);
 			}
 		},
 		onError: (err) => {
-			toast.error(`${t.failMsg} ${err.message}`);
+			toast.error(`${t.failMsg}: ${err.message}`);
 		},
 	});
 
@@ -269,25 +227,6 @@ export default function POSPage() {
 			toast.error(`Hold bill failed: ${err.message}`);
 		},
 	});
-
-	useEffect(() => {
-		const handleOnline = () => setIsOffline(false);
-		const handleOffline = () => setIsOffline(true);
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-		setIsOffline(!navigator.onLine);
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, []);
-
-	const subtotal = cart.reduce(
-		(acc, item) => acc + Number.parseFloat(item.price) * item.qty,
-		0,
-	);
-	const discount = appliedCoupon?.discount || 0;
-	const total = Math.max(0, subtotal - discount);
 
 	const validateCouponMutation = trpc.marketing.validateCoupon.useMutation({
 		onSuccess: (data) => {
@@ -305,19 +244,72 @@ export default function POSPage() {
 		},
 	});
 
-	const handleApplyCoupon = () => {
-		if (!couponCode) return;
-		validateCouponMutation.mutate({
-			code: couponCode,
-			cartTotal: subtotal,
-		} as any);
-	};
+	// Effects
+	useEffect(() => {
+		if (
+			fetchedCompletedOrder &&
+			(!lastCompletedOrder ||
+				lastCompletedOrder.id !== fetchedCompletedOrder.id)
+		) {
+			setLastCompletedOrder({
+				id: fetchedCompletedOrder.id,
+				createdAt: fetchedCompletedOrder.created_at
+					? new Date(fetchedCompletedOrder.created_at).toISOString()
+					: new Date().toISOString(),
+				items:
+					fetchedCompletedOrder.orderItems?.map((item: any) => ({
+						id: item.id,
+						name: item.product?.name || "Item",
+						qty: item.quantity,
+						price: Number(item.price).toFixed(2),
+					})) || [],
+				total: Number(fetchedCompletedOrder.total_amount),
+				subtotal: Number(fetchedCompletedOrder.total_amount),
+				discount: Number(fetchedCompletedOrder.discount_amount || 0),
+				cashierName: "Counter 1",
+				customerName:
+					fetchedCompletedOrder.customer?.name || "Walk-in Customer",
+				customerPhone: fetchedCompletedOrder.customer?.phone || "",
+				shopName: "",
+				payments: [
+					{
+						methodId: fetchedCompletedOrder.payment_method_id || 1,
+						amount: Number(fetchedCompletedOrder.total_amount).toFixed(2),
+					},
+				],
+			});
+		}
+	}, [fetchedCompletedOrder, lastCompletedOrder]);
 
-	const removeCoupon = () => {
-		setAppliedCoupon(null);
-	};
+	useEffect(() => {
+		if (resumeOrder && resumeOrder.orderItems && cart.length === 0) {
+			const restoredCart = resumeOrder.orderItems.map((item: any) => ({
+				id: item.product?.id || item.product_id,
+				name: item.product?.name || `Item #${item.product_id}`,
+				price: item.price,
+				qty: item.quantity,
+			}));
+			setCart(restoredCart);
+			if (typeof window !== "undefined") {
+				window.history.replaceState({}, "", window.location.pathname);
+			}
+		}
+	}, [resumeOrder, cart.length]);
 
-	const addToCart = (product: any, qty = 1) => {
+	useEffect(() => {
+		const handleOnline = () => setIsOffline(false);
+		const handleOffline = () => setIsOffline(true);
+		window.addEventListener("online", handleOnline);
+		window.addEventListener("offline", handleOffline);
+		setIsOffline(!navigator.onLine);
+		return () => {
+			window.removeEventListener("online", handleOnline);
+			window.removeEventListener("offline", handleOffline);
+		};
+	}, []);
+
+	// Callbacks
+	const addToCart = useCallback((product: any, qty = 1) => {
 		setCart((prev) => {
 			const existing = prev.find((item) => item.id === product.id);
 			if (existing) {
@@ -327,7 +319,7 @@ export default function POSPage() {
 			}
 			return [...prev, { ...product, qty: qty }];
 		});
-	};
+	}, []);
 
 	useEffect(() => {
 		let barcode = "";
@@ -352,7 +344,7 @@ export default function POSPage() {
 							if (product.is_weighted) {
 								addToCart(product, qty);
 								toast.success(
-									`Added ${getLocalizedProductName(product.name, locale)}`,
+									`Added ${getLocalizedProductName(product.name, locale)} (${qty.toFixed(3)}kg)`,
 								);
 							} else {
 								addToCart(product, 1);
@@ -371,7 +363,7 @@ export default function POSPage() {
 								const qty = price / Number.parseFloat(product.price);
 								addToCart(product, qty);
 								toast.success(
-									`Added ${getLocalizedProductName(product.name, locale)}`,
+									`Added ${getLocalizedProductName(product.name, locale)} (${qty.toFixed(3)}kg)`,
 								);
 							} else {
 								addToCart(product, 1);
@@ -409,7 +401,7 @@ export default function POSPage() {
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [catalog, addToCart]);
+	}, [catalog, addToCart, locale]);
 
 	const updateQty = (id: number, delta: number) => {
 		setCart((prev) =>
@@ -465,6 +457,18 @@ export default function POSPage() {
 		} as any);
 	};
 
+	const handleApplyCoupon = () => {
+		if (!couponCode) return;
+		validateCouponMutation.mutate({
+			code: couponCode,
+			cartTotal: subtotal,
+		} as any);
+	};
+
+	const removeCoupon = () => {
+		setAppliedCoupon(null);
+	};
+
 	const filteredCatalog = catalog?.filter(
 		(p) =>
 			p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -482,8 +486,6 @@ export default function POSPage() {
 			/>
 		);
 	}
-
-	const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">("catalog");
 
 	return (
 		<PageTransition className="flex h-[calc(100vh-64px)] flex-col overflow-hidden bg-muted/40 md:flex-row">
@@ -604,7 +606,7 @@ export default function POSPage() {
 			{/* Right Pane - Cart */}
 			<div
 				className={`z-10 min-h-0 w-full shrink-0 flex-col bg-background p-3 shadow-xl sm:p-4 md:w-[350px] lg:w-[400px] ${
-					activeMobileTab === "cart" ? "flex flex-1" : "hidden md:flex"
+					activeMobileTab === "cart" ? "flex" : "hidden md:flex"
 				}`}
 			>
 				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
@@ -818,5 +820,19 @@ export default function POSPage() {
 				</DialogContent>
 			</Dialog>
 		</PageTransition>
+	);
+}
+
+export default function POSPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="flex h-[calc(100vh-64px)] w-full items-center justify-center">
+					<Loader2 className="h-8 w-8 animate-spin text-primary" />
+				</div>
+			}
+		>
+			<POSContent />
+		</Suspense>
 	);
 }

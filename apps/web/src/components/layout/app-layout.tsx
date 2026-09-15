@@ -185,14 +185,7 @@ function NotificationBell({ role }: { role?: string }) {
 	);
 
 	const unreadCount = notifications?.length || 0;
-	const notificationPath =
-		role === "admin"
-			? "/admin/notifications"
-			: role === "superadmin"
-				? "/superadmin/notifications"
-				: role
-					? `/${role}/notifications`
-					: "/sales/notifications";
+	const notificationPath = "/notifications";
 
 	return (
 		<TooltipProvider>

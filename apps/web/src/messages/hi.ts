@@ -55,6 +55,11 @@ const messages: Messages = {
 		remove: "निकालें",
 		view: "देखें",
 		loading: "लोड हो रहा है...",
+		paymentMode: "भुगतान स्थिति",
+		pendingCollection: "लंबित वसूली",
+		driverCollected: "ड्राइवर द्वारा प्राप्त",
+		financeSubmitted: "वित्त को प्रस्तुत",
+		reconciled: "समाधानित ✓",
 	},
 	nav: {
 		dashboard: "डैशबोर्ड",

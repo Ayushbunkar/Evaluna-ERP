@@ -53,6 +53,11 @@ const messages = {
 		remove: "Remove",
 		view: "View",
 		loading: "Loading...",
+		paymentMode: "Payment Mode",
+		pendingCollection: "Pending Collection",
+		driverCollected: "Driver Collected",
+		financeSubmitted: "Submitted to Finance",
+		reconciled: "Reconciled",
 	},
 	nav: {
 		dashboard: "Dashboard",

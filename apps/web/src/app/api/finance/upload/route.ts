@@ -30,7 +30,7 @@ const ALLOWED_ENTITY = new Set(["payment", "employee_expense"]);
 function uploadRoot(): string {
 	return (
 		process.env.FINANCE_UPLOAD_DIR ||
-		path.join(process.cwd(), "uploads", "finance")
+		path.join(/*turbopackIgnore: true*/ process.cwd(), "uploads", "finance")
 	);
 }
 

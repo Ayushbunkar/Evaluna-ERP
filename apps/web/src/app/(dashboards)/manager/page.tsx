@@ -110,7 +110,7 @@ export default function ManagerDashboard() {
 			</div>
 
 			{/* KPI Cards Grid */}
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+			<div className="grid grid-cols-2 gap-4 md:grid-cols-6">
 				<Card className="shadow-sm">
 					<CardContent className="flex items-center gap-3 p-4">
 						<div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-950/40">
@@ -142,6 +142,25 @@ export default function ManagerDashboard() {
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* NEW: Confirmed Orders Awaiting Route Dispatch */}
+				<Link href="/manager/dispatch" className="block">
+					<Card className="border-l-4 border-l-blue-500 shadow-sm transition-all hover:shadow-md">
+						<CardContent className="flex items-center gap-3 p-4">
+							<div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-950/40">
+								<TruckIcon className="h-5 w-5" />
+							</div>
+							<div>
+								<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+									Dispatch Queue
+								</p>
+								<h3 className="font-bold text-blue-600 text-lg">
+									{(stats as any)?.pendingRoutesCount ?? 0}
+								</h3>
+							</div>
+						</CardContent>
+					</Card>
+				</Link>
 
 				<Card className="border-l-4 border-l-amber-500 shadow-sm">
 					<CardContent className="flex items-center gap-3 p-4">
@@ -195,6 +214,32 @@ export default function ManagerDashboard() {
 			<div className="grid gap-6 md:grid-cols-3">
 				{/* Left / Main operational area */}
 				<div className="space-y-6 md:col-span-2">
+					{/* Route & Driver Assignment Highlight Banner */}
+					{((stats as any)?.pendingRoutesCount ?? 0) > 0 && (
+						<Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50/30 shadow-sm dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
+							<CardContent className="flex flex-col items-start justify-between gap-4 p-4 sm:flex-row sm:items-center">
+								<div className="flex items-center gap-3">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+										<TruckIcon className="h-5 w-5" />
+									</div>
+									<div>
+										<h4 className="font-bold text-blue-950 text-sm dark:text-blue-200">
+											{(stats as any)?.pendingRoutesCount} Confirmed Order(s) Awaiting Driver & Route
+										</h4>
+										<p className="text-blue-700 text-xs dark:text-blue-300">
+											Assign driver and vehicle now to dispatch orders to the Picker & Packer queue.
+										</p>
+									</div>
+								</div>
+								<Button size="sm" className="bg-blue-600 text-white shadow hover:bg-blue-700" asChild>
+									<Link href="/manager/dispatch">
+										Assign Route & Driver <ChevronRightIcon className="ml-1 h-4 w-4" />
+									</Link>
+								</Button>
+							</CardContent>
+						</Card>
+					)}
+
 					{/* Action Queue approvals */}
 					<Card className="shadow-sm">
 						<CardHeader className="flex flex-row items-center justify-between border-b pb-3">

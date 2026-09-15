@@ -111,6 +111,34 @@ export const managerRouter = router({
 				}
 			}
 
+			// Calculate pending confirmed orders awaiting route/driver dispatch
+			const { tripStops, deliveryTrips } = require("@evaluna/db/schema");
+			const assignedTrips = await db
+				.select({ custId: tripStops.customer_id })
+				.from(tripStops)
+				.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+				.where(inArray(deliveryTrips.status, ["pending", "active"]));
+			const assignedCustIds = new Set(
+				assignedTrips.map((t) => t.custId).filter(Boolean),
+			);
+
+			const confirmedOrders = await db
+				.select({ id: orders.id, customer_id: orders.customer_id, status: orders.status })
+				.from(orders)
+				.where(
+					inArray(orders.status, [
+						"confirmed",
+						"completed",
+						"processing",
+						"ready_for_dispatch",
+						"pending_review",
+						"under_review",
+					]),
+				);
+			const pendingRoutesCount = confirmedOrders.filter(
+				(o) => !o.customer_id || !assignedCustIds.has(o.customer_id),
+			).length;
+
 			return {
 				totalEmployees,
 				presentToday,
@@ -120,6 +148,7 @@ export const managerRouter = router({
 				overdueTasks,
 				openExceptions,
 				teamWorkload: overdueTasks + pendingApprovals,
+				pendingRoutesCount,
 				driverCashCollected,
 				driverOnlineCollected,
 				totalDriverCollections: driverCashCollected + driverOnlineCollected,
@@ -675,12 +704,37 @@ export const managerRouter = router({
 		}));
 	}),
 
-	// ── 11. Activity Log Timeline ───────────────────────────────────────────────
-	getActivity: protectedProcedure.query(async ({ ctx }) => {
-		return await db
-			.select()
-			.from(auditLogs)
-			.orderBy(desc(auditLogs.created_at))
+	// ── 12. Orders Awaiting Route/Driver Assignment ────────────────────────────
+	getAwaitingDispatchOrders: protectedProcedure.query(async ({ ctx }) => {
+		const { tripStops, deliveryTrips, customers } = require("@evaluna/db/schema");
+
+		const assignedTrips = await db
+			.select({ custId: tripStops.customer_id })
+			.from(tripStops)
+			.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+			.where(inArray(deliveryTrips.status, ["pending", "active"]));
+		const assignedCustIds = new Set(
+			assignedTrips.map((t) => t.custId).filter(Boolean),
+		);
+
+		const allOrdersList = await db
+			.select({
+				id: orders.id,
+				customer_id: orders.customer_id,
+				total_amount: orders.total_amount,
+				status: orders.status,
+				created_at: orders.created_at,
+				customerName: customers.name,
+				customerPhone: customers.phone,
+				customerAddress: customers.address,
+			})
+			.from(orders)
+			.leftJoin(customers, eq(orders.customer_id, customers.id))
+			.orderBy(desc(orders.created_at))
 			.limit(100);
+
+		return allOrdersList.filter(
+			(ord) => !ord.customer_id || !assignedCustIds.has(ord.customer_id),
+		);
 	}),
 });

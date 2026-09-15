@@ -33,7 +33,7 @@ export const ATTENDANCE_ENTITY = {
 export function attendanceUploadRoot(): string {
 	return (
 		process.env.ATTENDANCE_UPLOAD_DIR ||
-		path.join(process.cwd(), "uploads", "attendance")
+		path.join(/*turbopackIgnore: true*/ process.cwd(), "uploads", "attendance")
 	);
 }
 

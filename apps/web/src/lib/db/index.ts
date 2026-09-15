@@ -12,7 +12,10 @@ if (DATABASE_URL.startsWith('"') && DATABASE_URL.endsWith('"')) {
 	console.warn("DATABASE_URL has quotes, stripping them");
 }
 
-const cleanUrl = DATABASE_URL.replace(/^"|"$/g, "");
+const cleanUrl = DATABASE_URL.replace(/^"|"$/g, "").replace(
+	/sslmode=(require|prefer|verify-ca)/g,
+	"sslmode=verify-full",
+);
 
 // DNS lookup fallback helper to bypass ISP/router DNS blocking (e.g. JioFiber query refused)
 function customLookup(host: string, opt: any, cb: any) {

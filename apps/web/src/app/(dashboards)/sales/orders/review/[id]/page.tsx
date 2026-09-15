@@ -141,8 +141,12 @@ export default function CustomerOrderReviewPage() {
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
 			toast.success("Order confirmed! Bill generated successfully.");
+			utils.orders.list.invalidate();
 			utils.orders.listPendingReview.invalidate();
 			utils.orders.getPendingCount.invalidate();
+			utils.manager.getDashboardStats.invalidate();
+			utils.manager.getAwaitingDispatchOrders.invalidate();
+			utils.delivery.listAllTrips.invalidate();
 			utils.picker.getPending.invalidate();
 			utils.picker.getDashboardStats.invalidate();
 			utils.warehouse.getPickingQueue.invalidate();
@@ -218,9 +222,21 @@ export default function CustomerOrderReviewPage() {
 							{order.orderRef}
 						</h1>
 						{locked ? (
-							<Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
-								Confirmed & Invoiced
-							</Badge>
+							<div className="flex items-center gap-2">
+								<Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
+									Confirmed & Invoiced
+								</Badge>
+								<Button
+									asChild
+									size="sm"
+									variant="outline"
+									className="border-emerald-500/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+								>
+									<Link href={`/sales/pos?completedOrderId=${order.id}`}>
+										View Bill in POS / Print Invoice
+									</Link>
+								</Button>
+							</div>
 						) : (
 							<Badge
 								variant="outline"
