@@ -779,4 +779,74 @@ export const inventoryRouter = router({
 				return { success: true };
 			});
 		}),
+
+	// ── Add New Item to Warehouse Stock ───────────────────────────────────────
+	addItem: publicProcedure
+		.input(
+			z.object({
+				name: z.string().min(2, "Item name must be at least 2 characters."),
+				sku: z.string().optional(),
+				price: z.number().min(0, "Price must be non-negative."),
+				costPrice: z.number().optional(),
+				unit: z.string().default("Pcs"),
+				initialStock: z.number().min(0, "Initial stock cannot be negative.").default(0),
+				binLocation: z.string().optional(),
+				branchId: z.number().default(1),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const generatedSku =
+				input.sku && input.sku.trim().length > 0
+					? input.sku.trim()
+					: `SKU-${Date.now().toString().slice(-6)}`;
+
+			return await db.transaction(async (tx) => {
+				// 1. Create product record
+				const [newProd] = await tx
+					.insert(products)
+					.values({
+						name: input.name.trim(),
+						sku: generatedSku,
+						price: input.price.toString(),
+						user_uid: ctx.user.id,
+						unit: input.unit || "Pcs",
+					})
+					.returning();
+
+				if (!newProd) {
+					throw new Error("Failed to create product record.");
+				}
+
+				// 2. Initialize stock balance in branchInventory
+				const [newInv] = await tx
+					.insert(branchInventory)
+					.values({
+						branch_id: input.branchId,
+						product_id: newProd.id,
+						in_stock: input.initialStock,
+						reorder_level: 10,
+					})
+					.returning();
+
+				// 3. Record initial stock ledger entry if stock > 0
+				if (input.initialStock > 0) {
+					await tx.insert(stockLedger).values({
+						product_id: newProd.id,
+						transaction_type: "in",
+						quantity: input.initialStock,
+						reference_type: "initial_stock",
+						branch_id: input.branchId,
+						unit_cost: (input.costPrice ?? input.price).toString(),
+						total_cost: ((input.costPrice ?? input.price) * input.initialStock).toString(),
+					});
+				}
+
+				return {
+					success: true,
+					product: newProd,
+					inventory: newInv,
+				};
+			});
+		}),
 });

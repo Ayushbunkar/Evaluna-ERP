@@ -25,6 +25,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function FinanceLayout({
@@ -248,122 +249,7 @@ export default function FinanceLayout({
 			{/* Main Right Area */}
 			<div className="flex flex-1 flex-col overflow-hidden">
 				{/* Top ERP Header */}
-				<header className="z-30 flex h-16 flex-shrink-0 items-center justify-between border-b bg-white px-4 shadow-sm md:px-6 dark:bg-gray-800">
-					<div className="flex items-center gap-4">
-						{/* Burger Trigger */}
-						<Button
-							variant="ghost"
-							size="icon"
-							className="md:hidden"
-							onClick={() => setMobileOpen(true)}
-						>
-							<MenuIcon className="h-5 w-5" />
-						</Button>
-						{/* Collapse Trigger for Desktop */}
-						<Button
-							variant="ghost"
-							size="icon"
-							className="hidden md:flex"
-							onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-						>
-							<MenuIcon className="h-5 w-5" />
-						</Button>
-
-						{/* Breadcrumbs */}
-						<nav className="hidden items-center space-x-2 font-medium text-gray-500 text-sm sm:flex">
-							<span className="text-gray-400">Finance</span>
-							{getBreadcrumbs().map((b, i) => (
-								<div key={i} className="flex items-center space-x-2">
-									<span className="text-gray-300">/</span>
-									{b.isLast ? (
-										<span className="font-semibold text-gray-800 dark:text-gray-100">
-											{b.label}
-										</span>
-									) : (
-										<Link
-											href={b.href}
-											className="transition-colors hover:text-gray-800 dark:hover:text-gray-100"
-										>
-											{b.label}
-										</Link>
-									)}
-								</div>
-							))}
-						</nav>
-					</div>
-
-					{/* Right Header Controls */}
-					<div className="flex items-center gap-2 sm:gap-4">
-						{/* Global live sync status */}
-						<div className="hidden items-center gap-2 rounded-full border bg-gray-50 px-3 py-1 font-semibold text-[11px] text-gray-500 shadow-inner lg:flex dark:bg-gray-700 dark:text-gray-300">
-							<span className="h-2 w-2 animate-ping rounded-full bg-green-500" />
-							<span>LIVE</span>
-							<span className="text-gray-300">|</span>
-							<span className="font-medium text-gray-400">
-								SYNCED {syncTime}
-							</span>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="ml-1 h-4 w-4 p-0 hover:bg-transparent"
-								onClick={handleManualSync}
-								disabled={isSyncing}
-							>
-								<RefreshCwIcon
-									className={`h-3 w-3 ${isSyncing ? "animate-spin text-blue-500" : ""}`}
-								/>
-							</Button>
-						</div>
-
-						{/* Global Selector */}
-						<div className="relative">
-							<div className="flex cursor-pointer items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 font-semibold text-xs shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600">
-								<span className="text-blue-600 dark:text-blue-400">
-									Bhopal Main Warehouse
-								</span>
-								<ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" />
-							</div>
-						</div>
-
-						{/* Notifications icon */}
-						<Button
-							variant="ghost"
-							size="icon"
-							className="relative rounded-full"
-						>
-							<BellIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-							{stats?.unpaidInvoicesCount !== undefined &&
-								stats.unpaidInvoicesCount > 0 && (
-									<span className="absolute top-1 right-1 h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
-								)}
-						</Button>
-
-						{/* Profile & Logout triggers */}
-						<div className="flex items-center gap-1 rounded-lg border bg-slate-50 p-1 shadow-inner dark:bg-slate-700">
-							<Link href="/profile">
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-7 gap-1.5 px-2 font-semibold text-xs hover:bg-white dark:hover:bg-slate-600"
-								>
-									<UserIcon className="h-3.5 w-3.5 text-gray-500" />
-									<span className="hidden sm:inline">Profile</span>
-								</Button>
-							</Link>
-							<span className="text-gray-300">|</span>
-							<a href="/api/logout">
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-7 gap-1.5 px-2 font-semibold text-red-600 text-xs hover:bg-red-50 dark:hover:bg-red-950/25"
-								>
-									<LogOutIcon className="h-3.5 w-3.5" />
-									<span className="hidden sm:inline">Logout</span>
-								</Button>
-							</a>
-						</div>
-					</div>
-				</header>
+				<DashboardHeader />
 
 				{/* Content Container (Scrollable) */}
 				<main className="flex-1 overflow-y-auto bg-gray-50 focus:outline-none dark:bg-gray-900">

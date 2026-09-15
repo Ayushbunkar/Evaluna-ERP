@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -8,13 +8,19 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import {
+	ArrowLeft,
+	Camera,
 	CheckCircle2,
 	Clock,
 	History,
+	LayoutDashboard,
 	LogIn,
 	LogOut,
+	MapPin,
+	ShieldCheck,
 	User,
 } from "lucide-react";
+import Link from "next/link";
 import {
 	AnimatedCard,
 	PageTransition,
@@ -22,6 +28,8 @@ import {
 	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { useSession } from "@/hooks/use-session";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function StaffProfilePage() {
 	const trpc = useTRPC();
@@ -74,15 +82,55 @@ export default function StaffProfilePage() {
 		);
 	}
 
+	const sessionData = useSession();
+	const userRole = sessionData.session?.user?.role || staffMember?.role || "sales_person";
+
+	const dashboardRouteMap: Record<string, string> = {
+		super_admin: "/superadmin",
+		admin: "/admin",
+		manager: "/manager",
+		auditor: "/auditor",
+		hr: "/hr",
+		finance: "/finance",
+		marketing: "/marketing",
+		warehouse_supervisor: "/warehouse",
+		putter: "/putter",
+		picker: "/picker",
+		packer: "/packer",
+		dispatcher: "/packing-dispatch",
+		procurement: "/procurement",
+		driver: "/driver",
+		biller: "/biller",
+		sales_person: "/sales",
+		sales: "/sales",
+		delivery_manager: "/manager",
+		delivery_boy: "/driver",
+		customer: "/customer",
+	};
+
+	const userDashboardRoute = dashboardRouteMap[userRole] || "/sales";
+
 	return (
-		<PageTransition>
-			<div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
-				<div>
-					<h1 className="font-bold text-3xl tracking-tight">Staff Portal</h1>
-					<p className="text-muted-foreground">
-						Manage your attendance and profile
-					</p>
-				</div>
+		<div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+			<DashboardHeader />
+			<PageTransition>
+				<div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<h1 className="font-bold text-3xl tracking-tight">Staff Portal</h1>
+							<p className="text-muted-foreground text-sm">
+								Manage your attendance, live GPS & camera verification, and profile
+							</p>
+						</div>
+
+						<Link href={userDashboardRoute}>
+							<Button variant="outline" className="gap-2 text-xs font-semibold shadow-sm">
+								<ArrowLeft className="h-4 w-4" />
+								<LayoutDashboard className="h-4 w-4 text-blue-600" />
+								Back to My Dashboard
+							</Button>
+						</Link>
+					</div>
 
 				<div className="grid gap-6 md:grid-cols-2">
 					<AnimatedCard>
@@ -163,29 +211,22 @@ export default function StaffProfilePage() {
 									</p>
 								)}
 
-								<div className="flex w-full justify-center gap-4">
-									{!activeShift ? (
+								<div className="flex flex-col w-full justify-center items-center gap-3">
+									<Link href="/attendance" className="w-full max-w-[280px]">
 										<Button
 											size="lg"
-											className="w-full max-w-[200px] gap-2 bg-blue-600 text-white shadow-blue-500/20 shadow-md transition-all hover:scale-105 hover:bg-blue-700"
-											onClick={() => clockIn.mutate({})}
-											disabled={clockIn.isPending}
+											className="w-full gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-500/20 shadow-md transition-all hover:scale-105"
 										>
-											<LogIn className="h-5 w-5" />
-											{clockIn.isPending ? "Clocking In..." : "Clock In"}
+											<Camera className="h-5 w-5" />
+											<MapPin className="h-4 w-4" />
+											Live GPS & Camera Attendance
 										</Button>
-									) : (
-										<Button
-											size="lg"
-											variant="destructive"
-											className="w-full max-w-[200px] gap-2 shadow-md shadow-red-500/20 transition-all hover:scale-105"
-											onClick={() => clockOut.mutate({})}
-											disabled={clockOut.isPending}
-										>
-											<LogOut className="h-5 w-5" />
-											{clockOut.isPending ? "Clocking Out..." : "Clock Out"}
-										</Button>
-									)}
+									</Link>
+
+									<p className="text-xs text-muted-foreground text-center flex items-center gap-1.5 mt-1 font-medium">
+										<ShieldCheck className="h-4 w-4 text-green-600 inline" />
+										Captures live photo & verifies GPS location against branch geofence.
+									</p>
 								</div>
 							</CardContent>
 						</Card>
@@ -220,49 +261,45 @@ export default function StaffProfilePage() {
 										</tr>
 									</thead>
 									<tbody>
-										<StaggerList>
-											{history.map((record: any) => (
-												<StaggerItem key={record.id}>
-													<tr className="border-border/30 border-b transition-colors hover:bg-muted/30">
-														<td className="px-4 py-3 font-medium">
-															{record.date}
-														</td>
-														<td className="px-4 py-3">
-															{new Date(
-																record.clock_in_time,
+										{history.map((record: any) => (
+											<tr key={record.id} className="border-border/30 border-b transition-colors hover:bg-muted/30">
+												<td className="px-4 py-3 font-medium">
+													{record.date}
+												</td>
+												<td className="px-4 py-3">
+													{new Date(
+														record.clock_in_time,
+													).toLocaleTimeString([], {
+														hour: "2-digit",
+														minute: "2-digit",
+													})}
+												</td>
+												<td className="px-4 py-3">
+													{record.clock_out_time
+														? new Date(
+																record.clock_out_time,
 															).toLocaleTimeString([], {
 																hour: "2-digit",
 																minute: "2-digit",
-															})}
-														</td>
-														<td className="px-4 py-3">
-															{record.clock_out_time
-																? new Date(
-																		record.clock_out_time,
-																	).toLocaleTimeString([], {
-																		hour: "2-digit",
-																		minute: "2-digit",
-																	})
-																: "-"}
-														</td>
-														<td className="px-4 py-3">
-															<span
-																className={`inline-flex items-center rounded px-2 py-0.5 font-medium text-xs ${
-																	record.shift_status === "active"
-																		? "bg-green-500/20 text-green-500"
-																		: "bg-muted text-muted-foreground"
-																}`}
-															>
-																{record.shift_status}
-															</span>
-														</td>
-														<td className="px-4 py-3 text-muted-foreground capitalize">
-															{record.work_type}
-														</td>
-													</tr>
-												</StaggerItem>
-											))}
-										</StaggerList>
+															})
+														: "-"}
+												</td>
+												<td className="px-4 py-3">
+													<span
+														className={`inline-flex items-center rounded px-2 py-0.5 font-medium text-xs ${
+															record.shift_status === "active"
+																? "bg-green-500/20 text-green-500"
+																: "bg-muted text-muted-foreground"
+														}`}
+													>
+														{record.shift_status}
+													</span>
+												</td>
+												<td className="px-4 py-3 text-muted-foreground capitalize">
+													{record.work_type}
+												</td>
+											</tr>
+										))}
 									</tbody>
 								</table>
 							</div>
@@ -271,5 +308,6 @@ export default function StaffProfilePage() {
 				</Card>
 			</div>
 		</PageTransition>
+		</div>
 	);
 }

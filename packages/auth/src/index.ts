@@ -41,11 +41,18 @@ export function createAuth({
 			},
 		},
 
-		// ── Email & Password ────────────────────────────────────────────────────
 		emailAndPassword: {
 			enabled: true,
 			requireEmailVerification: false, // Enforce in ERP context via admin activation
 			minPasswordLength: 8,
+			async hash(password: string) {
+				const { hashPassword } = await import("@evaluna/db");
+				return hashPassword(password);
+			},
+			async verify({ password, hash }: { password: string; hash: string }) {
+				const { comparePassword } = await import("@evaluna/db");
+				return comparePassword(password, hash);
+			},
 			hooks: {
 				onSuccess: async ({ userId }: { userId: string }) => {
 					// Load the full security profile, which includes role, status, permissions, and dashboard route (Requirement 5)

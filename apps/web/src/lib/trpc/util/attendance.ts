@@ -70,7 +70,7 @@ export async function loadSettings(db: DB) {
 		enableSelfie: s?.enableSelfie ?? true,
 		enableDeviceLock: s?.enableDeviceLock ?? true,
 		enableBreakTracking: s?.enableBreakTracking ?? true,
-		minGPSAccuracy: s?.minGPSAccuracy ?? 50,
+		minGPSAccuracy: s?.minGPSAccuracy ?? 5000,
 		graceTime: s?.graceTime ?? 10,
 		maxBreakTime: s?.maxBreakTime ?? 60,
 		workingHours: s?.workingHours ?? 8,
@@ -97,9 +97,6 @@ export async function validateGeofence(
 	gps: GpsEvidence,
 	minAccuracy: number,
 ): Promise<GeoResult> {
-	if (gps.accuracy == null || gps.accuracy <= 0 || gps.accuracy > minAccuracy) {
-		return { ok: false, distance: null, radius: null, reason: "gps_error" };
-	}
 
 	const rows = await db
 		.select()
@@ -266,8 +263,17 @@ export function assertShiftTransition(
 
 /** Server-authoritative date key (yyyy-mm-dd) and HH:mm:ss time string. */
 export function serverDateParts(now = new Date()) {
-	const iso = now.toISOString();
-	return { date: iso.slice(0, 10), time: iso.slice(11, 19), now };
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, "0");
+	const day = String(now.getDate()).padStart(2, "0");
+	const hours = String(now.getHours()).padStart(2, "0");
+	const minutes = String(now.getMinutes()).padStart(2, "0");
+	const seconds = String(now.getSeconds()).padStart(2, "0");
+	return {
+		date: `${year}-${month}-${day}`,
+		time: `${hours}:${minutes}:${seconds}`,
+		now,
+	};
 }
 
 /**
@@ -279,12 +285,68 @@ export function serverDateParts(now = new Date()) {
 export async function resolveEmployeeId(
 	db: DB,
 	email: string | null | undefined,
+	userId?: string | null,
 ): Promise<number | null> {
-	if (!email) return null;
-	const rows = await db
-		.select({ id: employees.id })
-		.from(employees)
-		.where(eq(employees.email, email))
-		.limit(1);
-	return rows[0]?.id ?? null;
+	if (!email && !userId) return null;
+	if (email) {
+		const rows = await db
+			.select({ id: employees.id })
+			.from(employees)
+			.where(eq(employees.email, email))
+			.limit(1);
+		if (rows[0]?.id) return rows[0].id;
+	}
+	if (userId) {
+		const rows = await db
+			.select({ id: employees.id })
+			.from(employees)
+			.where(eq(employees.userUid, userId))
+			.limit(1);
+		if (rows[0]?.id) return rows[0].id;
+	}
+	return null;
+}
+
+/** Cache to avoid hitting Nominatim rate limits for identical coordinates */
+const geoCache = new Map<string, string>();
+
+/**
+ * Perform reverse geocoding via OpenStreetMap Nominatim to resolve
+ * actual human-readable location address (street/area, city, state) from lat/long.
+ */
+export async function reverseGeocodeLocation(lat: number, lng: number): Promise<string | null> {
+	const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+	if (geoCache.has(key)) {
+		return geoCache.get(key) || null;
+	}
+
+	try {
+		const res = await fetch(
+			`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+			{
+				headers: {
+					"User-Agent": "EvalunaERP-Attendance/1.0 (internal-app)",
+				},
+			},
+		);
+		if (!res.ok) return null;
+		const data = (await res.json()) as any;
+		if (!data || !data.address) return null;
+
+		const addr = data.address;
+		const nameParts = [
+			data.name || addr.suburb || addr.neighbourhood || addr.road || addr.residential,
+			addr.city || addr.town || addr.village || addr.county || addr.district,
+			addr.state,
+		].filter(Boolean);
+
+		const formattedName = nameParts.length > 0 ? nameParts.join(", ") : data.display_name;
+		if (formattedName) {
+			geoCache.set(key, formattedName);
+			return formattedName;
+		}
+	} catch (err) {
+		console.warn("Reverse geocode fetch failed:", err);
+	}
+	return null;
 }

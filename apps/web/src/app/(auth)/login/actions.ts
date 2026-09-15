@@ -11,6 +11,9 @@ import { db } from "@/lib/db";
 import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
 import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
 import { invalidateCachedSession } from "@/lib/session-cache";
+// DB tables for auto-profile creation
+import { staff as staffTable } from "@evaluna/db/schema";
+import { employees as employeesTable } from "@evaluna/db/schema/hrms";
 
 export async function login(formData: FormData) {
 	const email = formData.get("email") as string;
@@ -25,6 +28,10 @@ export async function login(formData: FormData) {
 		"checker@evaluna.com": "checker",
 		"putter@evaluna.com": "putter",
 		"driver@evaluna.com": "driver",
+		"sunil.driver@evaluna.com": "driver",
+		"vikram.driver@evaluna.com": "driver",
+		"amit.driver@evaluna.com": "driver",
+		"rajesh.driver@evaluna.com": "driver",
 		"admin@evaluna.com": "admin",
 		"hr@evaluna.com": "hr",
 		"auditor@evaluna.com": "auditor",
@@ -49,8 +56,29 @@ export async function login(formData: FormData) {
 			// Ignore - no active session to sign out
 		}
 
-		// Auto-signup logic for test accounts
-		if (predefinedAccounts[email] && password === "Password@123") {
+		const resolvedRole =
+			predefinedAccounts[email] ||
+			(email.includes("driver")
+				? "driver"
+				: email.includes("manager")
+					? "manager"
+					: email.includes("picker")
+						? "picker"
+						: email.includes("packer")
+							? "packer"
+							: email.includes("checker")
+								? "checker"
+								: email.includes("admin")
+									? "admin"
+									: "staff");
+
+		const isEvalunaAccount =
+			predefinedAccounts[email] ||
+			email.endsWith("@evaluna.com") ||
+			email.endsWith("@evaluna.dev");
+
+		// Auto-signup logic for test / organization accounts
+		if (isEvalunaAccount && password === "Password@123") {
 			try {
 				// Try to login first
 				const res = await auth.api.signInEmail({
@@ -59,12 +87,12 @@ export async function login(formData: FormData) {
 				});
 				user = res.user;
 			} catch (err: any) {
-				// If login fails (user doesn't exist), sign them up
+				// If login fails (user credential account missing), sign them up in Better Auth
 				const res = await auth.api.signUpEmail({
 					body: {
 						email,
 						password,
-						name: predefinedAccounts[email].toUpperCase(),
+						name: (email.split("@")[0] || "USER").toUpperCase(),
 					},
 					headers: await headers(),
 				});
@@ -75,19 +103,17 @@ export async function login(formData: FormData) {
 			await db
 				.update(userTable)
 				.set({
-					role: predefinedAccounts[email],
+					role: resolvedRole,
+					status: "ACTIVE",
 					is_superadmin:
-						predefinedAccounts[email] === "superadmin" ||
-						predefinedAccounts[email] === "super_admin",
+						resolvedRole === "superadmin" || resolvedRole === "super_admin",
 				} as any)
 				.where(eq(userTable.email, email));
 
 			// Sync with RBAC tables to ensure Next.js middleware and auth-guard resolve the role successfully
 			if (user) {
 				const assignedRole =
-					predefinedAccounts[email] === "superadmin"
-						? "super_admin"
-						: predefinedAccounts[email];
+					resolvedRole === "superadmin" ? "super_admin" : resolvedRole;
 
 				// 1. Find or create the role record
 				let [roleRecord] = await db
@@ -125,6 +151,62 @@ export async function login(formData: FormData) {
 						user_id: user.id,
 						role_id: roleRecord.id,
 					});
+				}
+
+				// 3. Ensure staff record exists and user.staff_id is linked
+				let [staffRecord] = await db
+					.select()
+					.from(staffTable)
+					.where(eq(staffTable.email, email))
+					.limit(1);
+
+				if (!staffRecord) {
+					const [newStaff] = await db
+						.insert(staffTable)
+						.values({
+							name: user.name || email.split("@")[0].toUpperCase(),
+							staff_code: `STAFF-${user.id.slice(0, 6).toUpperCase()}`,
+							email: email,
+							branch_id: 1,
+							role: assignedRole,
+							department: "General",
+							join_date: new Date(),
+							salary: "0.00",
+						})
+						.returning();
+					staffRecord = newStaff;
+				}
+
+				if (staffRecord) {
+					await db
+						.update(userTable)
+						.set({ staff_id: staffRecord.id } as any)
+						.where(eq(userTable.id, user.id));
+				}
+
+				// 4. Ensure HRMS employees record exists (used by resolveEmployeeId for attendance)
+				const [empRecord] = await db
+					.select()
+					.from(employeesTable)
+					.where(eq(employeesTable.email, email))
+					.limit(1);
+
+				if (!empRecord) {
+					const nameParts = (user.name || email.split("@")[0]).trim().split(/\s+/);
+					const firstName = nameParts[0] || "User";
+					const lastName = nameParts.slice(1).join(" ") || "Employee";
+					await db
+						.insert(employeesTable)
+						.values({
+							employeeCode: `EMP-${user.id.slice(0, 6).toUpperCase()}`,
+							firstName,
+							lastName,
+							email,
+							hireDate: new Date().toISOString().split("T")[0] as string,
+							status: "active",
+							userUid: user.id,
+						})
+						.onConflictDoNothing();
 				}
 			}
 		} else {

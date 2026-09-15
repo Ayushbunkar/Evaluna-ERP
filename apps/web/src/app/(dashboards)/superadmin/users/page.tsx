@@ -58,6 +58,7 @@ import {
 	PlusIcon,
 	RefreshCwIcon,
 	ShieldAlertIcon,
+	Trash2Icon,
 	UnlockIcon,
 	UserMinusIcon,
 	UserPlusIcon,
@@ -135,6 +136,9 @@ export default function SuperAdminUsersPage() {
 	const [revokeSessionsOpen, setRevokeSessionsOpen] = useState(false);
 	const [revokeReason, setRevokeReason] = useState("");
 
+	// Delete User Modal
+	const [deleteUserOpen, setDeleteUserOpen] = useState(false);
+
 	// Fetch users list with real TRPC hook (Super Admin global view)
 	const { data, isLoading, refetch, isFetching } = trpc.users.list.useQuery({
 		page,
@@ -152,6 +156,16 @@ export default function SuperAdminUsersPage() {
 		);
 
 	// Mutations
+	const deleteUser = trpc.users.delete.useMutation({
+		onSuccess: () => {
+			toast.success("User account deleted successfully.");
+			setDeleteUserOpen(false);
+			void utils.users.list.invalidate();
+		},
+		onError: (err) => {
+			toast.error(`Failed to delete user: ${err.message}`);
+		},
+	});
 	const updateStatus = trpc.users.updateStatus.useMutation({
 		onSuccess: () => {
 			toast.success("User status updated successfully.");
@@ -375,8 +389,8 @@ export default function SuperAdminUsersPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{users.map((u) => (
-										<TableRow key={u.id} className="hover:bg-muted/30">
+									{users.map((u, idx) => (
+										<TableRow key={`${u.id}-${u.email}-${idx}`} className="hover:bg-muted/30">
 											<TableCell className="font-medium">{u.name}</TableCell>
 											<TableCell className="font-mono text-xs">
 												{u.staffCode || "N/A"}
@@ -470,7 +484,7 @@ export default function SuperAdminUsersPage() {
 														<Button
 															variant="ghost"
 															size="icon"
-															className="h-8 w-8 text-red-500 hover:bg-red-500/10 hover:text-red-600"
+															className="h-8 w-8 text-amber-500 hover:bg-amber-500/10 hover:text-amber-600"
 															onClick={() => {
 																setSelectedUserId(u.id);
 																setSelectedUserName(u.name);
@@ -479,6 +493,21 @@ export default function SuperAdminUsersPage() {
 															}}
 														>
 															<UserMinusIcon className="h-4 w-4" />
+														</Button>
+													</Tooltip>
+
+													<Tooltip content="Delete User Account">
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8 text-red-600 hover:bg-red-600/10 hover:text-red-700"
+															onClick={() => {
+																setSelectedUserId(u.id);
+																setSelectedUserName(u.name);
+																setDeleteUserOpen(true);
+															}}
+														>
+															<Trash2Icon className="h-4 w-4" />
 														</Button>
 													</Tooltip>
 												</div>
@@ -1186,6 +1215,41 @@ export default function SuperAdminUsersPage() {
 							}}
 						>
 							{revokeSessions.isPending ? "Revoking..." : "Confirm Revocation"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete User Account Dialog Modal */}
+			<Dialog open={deleteUserOpen} onOpenChange={setDeleteUserOpen}>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="text-red-600">Delete User Account</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to permanently delete the account for{" "}
+							<strong className="text-foreground">{selectedUserName}</strong>? This action will terminate all active sessions, remove role permissions, and soft-delete their staff profile.
+						</DialogDescription>
+					</DialogHeader>
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setDeleteUserOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							disabled={deleteUser.isPending}
+							onClick={() => {
+								deleteUser.mutate({
+									userId: selectedUserId || "",
+								});
+							}}
+						>
+							{deleteUser.isPending ? "Deleting..." : "Permanently Delete Account"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -23,6 +23,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function WarehouseWMSLayout({
@@ -366,6 +367,9 @@ export default function WarehouseWMSLayout({
 								<ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" />
 							</div>
 						</div>
+
+						{/* Hindi / English Language Switcher */}
+						<LocaleSwitcher />
 
 						{/* Notifications icon */}
 						<Button

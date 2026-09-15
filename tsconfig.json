@@ -1,3 +1,13 @@
 {
-	"extends": "@evaluna/config/tsconfig.base.json"
+	"extends": "@evaluna/config/tsconfig.base.json",
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"paths": {
+			"@/*": ["./packages/ui/src/*"],
+			"@evaluna/ui/*": ["./packages/ui/src/*"]
+		}
+	},
+	"exclude": ["scratch", "scripts", "seed-test-customer.ts"],
+	"include": ["packages/ui/src/**/*.ts", "packages/ui/src/**/*.tsx"]
 }

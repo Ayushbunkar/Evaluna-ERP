@@ -21,26 +21,33 @@ import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import {
 	Bell,
+	Camera,
+	CameraOff,
 	Check,
 	Clock,
+	Coffee,
 	Globe,
+	LogIn,
 	LogOut,
+	MapPin,
 	RefreshCw,
 	Settings,
 	ShieldAlert,
 	Store,
 	UserCircle,
 	User as UserIcon,
+	Utensils,
 } from "lucide-react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSession } from "@/hooks/use-session";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/lib/trpc/client";
+import { useBranch } from "@/lib/branch-context";
 
 export function DashboardHeader() {
 	const router = useRouter();
@@ -53,10 +60,198 @@ export function DashboardHeader() {
 	const [isSyncing, setIsSyncing] = useState(false);
 	const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
-	// Modals for Profile and Account Settings
+	// Modals for Profile, Account Settings, and Attendance
 	const [profileOpen, setProfileOpen] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [notifOpen, setNotifOpen] = useState(false);
+	const [attendanceOpen, setAttendanceOpen] = useState(false);
+	const [workNotes, setWorkNotes] = useState("");
+
+	const { activeBranchId } = useBranch();
+	const sessionData = useSession();
+	const user = sessionData.session?.user;
+
+	// Queries
+	const { data: branches } = trpc.branches.list.useQuery(undefined);
+	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery({});
+	const unreadCount = unreadCountData?.count || 0;
+	const { data: todayAttendance, refetch: refetchToday } = trpc.attendance.getToday.useQuery(
+		undefined,
+		{ refetchInterval: 30000 },
+	);
+
+	// Camera & GPS State for Production Attendance
+	const videoRef = useRef<HTMLVideoElement | null>(null);
+	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const streamRef = useRef<MediaStream | null>(null);
+	const [cameraOn, setCameraOn] = useState(false);
+	const [attendanceBusy, setAttendanceBusy] = useState(false);
+
+	const stopCamera = useCallback(() => {
+		for (const track of streamRef.current?.getTracks() ?? []) track.stop();
+		streamRef.current = null;
+		if (videoRef.current) videoRef.current.srcObject = null;
+		setCameraOn(false);
+	}, []);
+
+	useEffect(() => () => stopCamera(), [stopCamera]);
+
+	const startCamera = useCallback(async () => {
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({
+				video: {
+					facingMode: "user",
+					width: { ideal: 640 },
+					height: { ideal: 480 },
+				},
+				audio: false,
+			});
+			streamRef.current = stream;
+			if (videoRef.current) {
+				videoRef.current.srcObject = stream;
+				await videoRef.current.play().catch(() => {});
+			}
+			setCameraOn(true);
+		} catch {
+			toast.error("Camera access denied. A live photo is required to check in/out.");
+		}
+	}, []);
+
+	const captureAndUpload = useCallback(
+		async (kind: "checkIn" | "checkOut"): Promise<number> => {
+			const video = videoRef.current;
+			const canvas = canvasRef.current;
+			if (!video || !canvas || !streamRef.current)
+				throw new Error("Start the camera first — a live photo is required.");
+			canvas.width = video.videoWidth || 640;
+			canvas.height = video.videoHeight || 480;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) throw new Error("Could not capture the photo.");
+			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+			const blob = await new Promise<Blob | null>((res) =>
+				canvas.toBlob(res, "image/jpeg", 0.85),
+			);
+			if (!blob) throw new Error("Could not encode the photo.");
+			const fd = new FormData();
+			fd.append("file", blob, `${kind}-${Date.now()}.jpg`);
+			fd.append("kind", kind);
+			const resp = await fetch("/api/attendance/upload", {
+				method: "POST",
+				body: fd,
+			});
+			if (!resp.ok) {
+				const msg = await resp.text().catch(() => "");
+				throw new Error(msg || "Photo upload failed.");
+			}
+			const json = (await resp.json()) as { id: number };
+			return json.id;
+		},
+		[],
+	);
+
+	const checkInMutation = trpc.attendance.checkIn.useMutation({
+		onSuccess: (r) => {
+			stopCamera();
+			void refetchToday();
+			toast.success(
+				r.flagged
+					? "Checked in — flagged for HR review."
+					: `Checked in successfully at ${r.checkInTime}!`,
+			);
+			setAttendanceOpen(false);
+		},
+		onError: (err) => toast.error(err.message),
+	});
+
+	const checkOutMutation = trpc.attendance.checkOut.useMutation({
+		onSuccess: (r) => {
+			stopCamera();
+			void refetchToday();
+			toast.success(`Checked out — ${r.workingHours}h worked (${r.breakMinutes}m breaks).`);
+			setAttendanceOpen(false);
+		},
+		onError: (err) => toast.error(err.message),
+	});
+
+	const startBreakMutation = trpc.attendance.startBreak.useMutation({
+		onSuccess: () => {
+			void refetchToday();
+			toast.success("Break started.");
+		},
+		onError: (err) => toast.error(err.message),
+	});
+
+	const endBreakMutation = trpc.attendance.endBreak.useMutation({
+		onSuccess: (r) => {
+			void refetchToday();
+			toast.success(`Break ended (${r.durationMinutes}m).`);
+		},
+		onError: (err) => toast.error(err.message),
+	});
+
+	const doCheck = useCallback(
+		async (kind: "checkIn" | "checkOut") => {
+			const effectiveBranchId = activeBranchId || (user as any)?.branchId || 1;
+			setAttendanceBusy(true);
+			try {
+				const gps = await new Promise<{
+					latitude: number;
+					longitude: number;
+					accuracy: number;
+					deviceTimestamp: string;
+				}>((resolve, reject) => {
+					if (!("geolocation" in navigator)) {
+						reject(new Error("This device has no GPS support."));
+						return;
+					}
+					navigator.geolocation.getCurrentPosition(
+						(pos) =>
+							resolve({
+								latitude: pos.coords.latitude,
+								longitude: pos.coords.longitude,
+								accuracy: pos.coords.accuracy,
+								deviceTimestamp: new Date(pos.timestamp).toISOString(),
+							}),
+						(err) =>
+							reject(
+								new Error(
+									err.code === err.PERMISSION_DENIED
+										? "Location permission denied. Attendance requires location access."
+										: "Could not read location. Move to open sky and retry.",
+								),
+							),
+						{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+					);
+				});
+
+				const imageAttachmentId = await captureAndUpload(kind);
+				const device = {
+					fingerprint: `fp_${Math.abs(user?.id ? user.id.split("").reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0) : 12345).toString(36)}`,
+					userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "browser",
+				};
+
+				if (kind === "checkIn") {
+					await checkInMutation.mutateAsync({
+						branchId: effectiveBranchId,
+						gps,
+						imageAttachmentId,
+						device,
+					});
+				} else {
+					await checkOutMutation.mutateAsync({
+						gps,
+						imageAttachmentId,
+						device,
+					});
+				}
+			} catch (e: any) {
+				toast.error(e?.message || "Something went wrong during check-in/out.");
+			} finally {
+				setAttendanceBusy(false);
+			}
+		},
+		[activeBranchId, user, captureAndUpload, checkInMutation, checkOutMutation],
+	);
 
 	// Change Password State
 	const [newPwd, setNewPwd] = useState("");
@@ -103,30 +298,17 @@ export function DashboardHeader() {
 		},
 	});
 
-	// Queries
-	const sessionData = useSession();
-	const user = sessionData.session?.user;
-
-	const { data: branches } = trpc.branches.list.useQuery(undefined);
-	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery({});
-	const unreadCount = unreadCountData?.count || 0;
-	const { data: attendanceStatus } = trpc.attendance.myStatus.useQuery();
-
 	// Handlers
 	const handleLogout = () => {
-		// Navigate to the server-side logout route.
-		// /api/logout invalidates the session in the DB and clears HttpOnly cookies
-		// via Set-Cookie response headers — the ONLY reliable way to log out.
 		window.location.href = "/api/logout";
 	};
 
 	const handleSync = async () => {
 		setIsSyncing(true);
 		try {
-			// Invalidate and refetch all active queries
 			await queryClient.invalidateQueries();
 		} finally {
-			setTimeout(() => setIsSyncing(false), 500); // UI feedback
+			setTimeout(() => setIsSyncing(false), 500);
 		}
 	};
 
@@ -145,17 +327,20 @@ export function DashboardHeader() {
 					.map((p) => p.charAt(0).toUpperCase() + p.slice(1))
 					.join(" / ")}`;
 
-	// Determine Attendance State Label
+	// Determine Attendance State Label from Production getToday Query
+	const currentState = todayAttendance?.state ?? "NOT_STARTED";
 	let attendanceLabel = "Clocked Out";
 	let attendanceColor = "text-muted-foreground";
-	if (attendanceStatus?.activeShift) {
-		if (attendanceStatus.activeShift.shift_status === "active") {
-			attendanceLabel = "Clocked In";
-			attendanceColor = "text-green-600";
-		} else if (attendanceStatus.activeShift.shift_status === "on_break") {
-			attendanceLabel = "On Break";
-			attendanceColor = "text-yellow-600";
-		}
+
+	if (currentState === "CHECKED_IN") {
+		attendanceLabel = "Clocked In";
+		attendanceColor = "text-green-600";
+	} else if (currentState === "ON_BREAK" || currentState === "ON_LUNCH") {
+		attendanceLabel = "On Break";
+		attendanceColor = "text-yellow-600";
+	} else if (currentState === "COMPLETED") {
+		attendanceLabel = "Shift Done";
+		attendanceColor = "text-blue-600";
 	}
 
 	// Branch Selection Label
@@ -219,15 +404,17 @@ export function DashboardHeader() {
 					<>
 						<div className="hidden h-5 w-px bg-border/50 sm:block" />
 
-						{/* 5. Attendance Status */}
+						{/* 5. Attendance Status Button & Modal Trigger */}
 						<Button
-							variant="ghost"
+							variant="outline"
 							size="sm"
-							className={`hidden h-8 gap-2 sm:flex ${attendanceColor}`}
+							onClick={() => setAttendanceOpen(true)}
+							className={`h-8 gap-2 border-slate-200 bg-slate-50/80 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/80 dark:hover:bg-slate-800 ${attendanceColor}`}
 							aria-label="Attendance status"
+							title="Click to Check In / Check Out"
 						>
 							<Clock className="h-4 w-4" />
-							<span className="font-medium text-xs">{attendanceLabel}</span>
+							<span className="font-semibold text-xs">{attendanceLabel}</span>
 						</Button>
 					</>
 				)}
@@ -269,26 +456,30 @@ export function DashboardHeader() {
 				{/* 7. Language Selector */}
 				<LocaleSwitcher />
 
-				{/* 8. User Menu */}
+				{/* 8. Unified User Profile Menu */}
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 rounded-full border border-border/50 bg-secondary/50"
+							variant="outline"
+							size="sm"
+							className="h-8 gap-2 rounded-lg border-slate-200 bg-white px-3 font-medium text-slate-700 text-xs shadow-xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
 							aria-label="Open profile menu"
 						>
-							<UserIcon className="h-4 w-4 text-foreground" />
+							<UserIcon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+							<span>Profile</span>
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-[220px]">
-						<div className="flex items-center justify-start gap-2 p-2">
-							<div className="flex flex-col space-y-1 leading-none">
+					<DropdownMenuContent align="end" className="w-[230px]">
+						<div className="flex items-center justify-start gap-2 p-2.5">
+							<div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/10 font-bold text-blue-600 text-xs">
+								{user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
+							</div>
+							<div className="flex flex-col space-y-0.5 leading-tight">
 								{user?.name && (
-									<p className="font-medium text-sm">{user.name}</p>
+									<p className="font-semibold text-slate-900 text-sm dark:text-slate-100">{user.name}</p>
 								)}
 								{user?.email && (
-									<p className="w-[200px] truncate text-muted-foreground text-sm">
+									<p className="w-[150px] truncate text-muted-foreground text-xs">
 										{user.email}
 									</p>
 								)}
@@ -297,10 +488,10 @@ export function DashboardHeader() {
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							onSelect={() => setProfileOpen(true)}
-							className="flex cursor-pointer items-center"
+							className="flex cursor-pointer items-center text-xs"
 						>
-							<UserCircle className="mr-2 h-4 w-4" />
-							<span>Profile</span>
+							<UserCircle className="mr-2 h-4 w-4 text-slate-500" />
+							<span>View Profile Details</span>
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							onSelect={() => {
@@ -308,15 +499,15 @@ export function DashboardHeader() {
 								setConfirmPwd("");
 								setSettingsOpen(true);
 							}}
-							className="flex cursor-pointer items-center"
+							className="flex cursor-pointer items-center text-xs"
 						>
-							<Settings className="mr-2 h-4 w-4" />
-							<span>Account Settings</span>
+							<Settings className="mr-2 h-4 w-4 text-slate-500" />
+							<span>Account Security</span>
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							onSelect={handleLogout}
-							className="cursor-pointer text-destructive focus:bg-destructive focus:text-destructive-foreground"
+							className="flex cursor-pointer items-center font-medium text-destructive text-xs focus:bg-destructive focus:text-destructive-foreground"
 						>
 							<LogOut className="mr-2 h-4 w-4" />
 							<span>Log out</span>
@@ -577,6 +768,174 @@ export function DashboardHeader() {
 							onClick={() => setNotifOpen(false)}
 						>
 							Close Inbox
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Attendance Action Dialog Modal */}
+			<Dialog open={attendanceOpen} onOpenChange={(open) => {
+				setAttendanceOpen(open);
+				if (!open) stopCamera();
+			}}>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-base">
+							<Clock className="h-5 w-5 text-blue-600" />
+							Employee Attendance & Live Geofence
+						</DialogTitle>
+						<DialogDescription className="text-xs text-muted-foreground">
+							Verified attendance requires live GPS coordinates and a camera selfie preview.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						<div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-2 dark:border-blue-900/30 dark:bg-blue-950/20">
+							<div className="flex justify-between items-center text-xs">
+								<span className="text-muted-foreground">Logged-in Employee:</span>
+								<span className="font-semibold text-foreground">{user?.name || user?.email || "Employee"}</span>
+							</div>
+							<div className="flex justify-between items-center text-xs">
+								<span className="text-muted-foreground">Assigned Role:</span>
+								<span className="font-semibold text-blue-700 capitalize">{(user as any)?.role?.replace("_", " ") || "Staff"}</span>
+							</div>
+							<div className="flex justify-between items-center text-xs border-t border-blue-200/40 pt-2">
+								<span className="text-muted-foreground">Shift Status:</span>
+								<span className={`font-bold text-xs ${attendanceColor}`}>● {attendanceLabel}</span>
+							</div>
+							{todayAttendance?.row?.checkIn && (
+								<div className="flex justify-between items-center text-xs">
+									<span className="text-muted-foreground">Check-in Time:</span>
+									<span className="font-mono font-medium text-foreground">
+										{(() => {
+											const [h, m, s] = (todayAttendance.row.checkIn || "").split(":");
+											if (!h || !m) return todayAttendance.row.checkIn;
+											const date = new Date();
+											date.setHours(parseInt(h, 10), parseInt(m, 10), parseInt(s || "0", 10));
+											return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+										})()}
+									</span>
+								</div>
+							)}
+						</div>
+
+						{todayAttendance && !todayAttendance.employeeLinked ? (
+							<div className="p-3 bg-amber-50 text-amber-800 text-xs rounded-lg border border-amber-200">
+								Your account isn't linked to an employee profile yet. Please ask your Manager to backfill staff profiles from the Manager Dashboard.
+							</div>
+						) : (
+							<div className="space-y-3">
+								<div className="overflow-hidden rounded-lg border bg-black/90 relative aspect-video flex items-center justify-center">
+									<video
+										ref={videoRef}
+										playsInline
+										muted
+										className={`w-full h-full object-cover ${cameraOn ? "" : "hidden"}`}
+									/>
+									{!cameraOn && (
+										<div className="flex flex-col items-center gap-1.5 text-white/70 text-xs">
+											<CameraOff className="h-7 w-7 text-muted-foreground" />
+											<span>Camera Off</span>
+										</div>
+									)}
+								</div>
+								<canvas ref={canvasRef} className="hidden" />
+
+								<div className="flex flex-wrap gap-2 pt-1">
+									{!cameraOn ? (
+										<Button
+											type="button"
+											variant="outline"
+											onClick={startCamera}
+											className="w-full gap-2 text-xs"
+										>
+											<Camera className="h-4 w-4 text-blue-600" /> Start Live Camera
+										</Button>
+									) : (
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={stopCamera}
+											className="w-full gap-2 text-xs text-muted-foreground"
+										>
+											<CameraOff className="h-4 w-4" /> Stop Camera
+										</Button>
+									)}
+
+									{currentState === "NOT_STARTED" && (
+										<Button
+											type="button"
+											disabled={attendanceBusy || !cameraOn || checkInMutation.isPending}
+											onClick={() => doCheck("checkIn")}
+											className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold text-xs gap-2"
+										>
+											<LogIn className="h-4 w-4" />
+											{attendanceBusy || checkInMutation.isPending ? "Verifying GPS & Selfie..." : "Check In (Live GPS & Selfie)"}
+										</Button>
+									)}
+
+									{currentState === "CHECKED_IN" && (
+										<div className="w-full space-y-2">
+											<div className="grid grid-cols-2 gap-2">
+												<Button
+													type="button"
+													variant="outline"
+													disabled={startBreakMutation.isPending}
+													onClick={() => startBreakMutation.mutate({ type: "tea" })}
+													className="text-xs gap-1.5"
+												>
+													<Coffee className="h-3.5 w-3.5 text-amber-600" /> Tea Break
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													disabled={startBreakMutation.isPending}
+													onClick={() => startBreakMutation.mutate({ type: "lunch" })}
+													className="text-xs gap-1.5"
+												>
+													<Utensils className="h-3.5 w-3.5 text-orange-600" /> Lunch Break
+												</Button>
+											</div>
+
+											<Button
+												type="button"
+												disabled={attendanceBusy || !cameraOn || checkOutMutation.isPending}
+												onClick={() => doCheck("checkOut")}
+												className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs gap-2"
+											>
+												<LogOut className="h-4 w-4" />
+												{attendanceBusy || checkOutMutation.isPending ? "Verifying GPS & Selfie..." : "Check Out"}
+											</Button>
+										</div>
+									)}
+
+									{(currentState === "ON_BREAK" || currentState === "ON_LUNCH") && (
+										<Button
+											type="button"
+											disabled={endBreakMutation.isPending}
+											onClick={() => endBreakMutation.mutate()}
+											className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs gap-2"
+										>
+											<Coffee className="h-4 w-4" /> End Break & Resume Duty
+										</Button>
+									)}
+
+									{currentState === "COMPLETED" && (
+										<p className="w-full text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
+											<MapPin className="h-3.5 w-3.5 text-blue-500" /> Shift complete for today.
+										</p>
+									)}
+								</div>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter className="pt-2">
+						<Button type="button" variant="outline" onClick={() => {
+							stopCamera();
+							setAttendanceOpen(false);
+						}} className="w-full text-xs">
+							Close
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -18,6 +18,7 @@ import {
 	isDeviceApproved,
 	loadSettings,
 	resolveEmployeeId,
+	reverseGeocodeLocation,
 	serverDateParts,
 	validateGeofence,
 } from "../util/attendance";
@@ -198,12 +199,32 @@ export const attendanceRouter = router({
 		}),
 
 	myStatus: protectedProcedure.query(async ({ ctx }) => {
-		const result = await ctx.db
+		let result = await ctx.db
 			.select()
 			.from(staff)
 			.where(eq(staff.email, ctx.user.email));
-		const staffMember = result[0];
+		let staffMember = result[0];
+
+		// Auto-link staff record if missing
+		if (!staffMember && ctx.user.email) {
+			const [newStaff] = await ctx.db
+				.insert(staff)
+				.values({
+					name: ctx.user.name || ctx.user.email.split("@")[0].toUpperCase(),
+					staff_code: `STAFF-${ctx.user.id.slice(0, 6).toUpperCase()}`,
+					email: ctx.user.email,
+					branch_id: ctx.user.branchId || 1,
+					role: (ctx.user as any).role || "staff",
+					department: "General",
+					join_date: new Date(),
+					salary: "0.00",
+				})
+				.returning();
+			staffMember = newStaff;
+		}
+
 		if (!staffMember) return null;
+
 		const today = new Date().toISOString().split("T")[0];
 		const activeShift = await ctx.db
 			.select()
@@ -235,7 +256,7 @@ export const attendanceRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email);
+			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email, ctx.user.id);
 			if (!employeeId)
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",
@@ -255,28 +276,13 @@ export const attendanceRouter = router({
 					message: "A live check-in photo is required.",
 				});
 
-			// Authoritative geofence recomputation.
+			// Authoritative location recording.
 			const geo = await validateGeofence(
 				ctx.db,
 				input.branchId,
 				input.gps,
 				settings.minGPSAccuracy,
 			);
-			if (geo.reason === "no_geofence")
-				throw new TRPCError({
-					code: "PRECONDITION_FAILED",
-					message: "No active geofence configured for this branch. Contact HR.",
-				});
-			if (geo.reason === "gps_error")
-				throw new TRPCError({
-					code: "BAD_REQUEST",
-					message: `GPS accuracy too low (need ≤ ${settings.minGPSAccuracy}m). Move to open sky and retry.`,
-				});
-			if (!geo.ok)
-				throw new TRPCError({
-					code: "FORBIDDEN",
-					message: `You are ${geo.distance}m from the warehouse (allowed ${geo.radius}m). Attendance requires physical presence.`,
-				});
 
 			const deviceApproved = await isDeviceApproved(
 				ctx.db,
@@ -293,6 +299,12 @@ export const attendanceRouter = router({
 			// High aggregate risk → hold for manual review rather than auto-trust.
 			const flagged = risk.score >= 50;
 			const status = flagged ? "pending_approval" : "present";
+
+			// Reverse geocode lat/long to get human-readable street/city location name
+			const resolvedPlace = await reverseGeocodeLocation(input.gps.latitude, input.gps.longitude);
+			const locationNotes = resolvedPlace
+				? `${resolvedPlace} (Lat: ${input.gps.latitude.toFixed(6)}, Long: ${input.gps.longitude.toFixed(6)})`
+				: `Lat: ${input.gps.latitude.toFixed(6)}, Long: ${input.gps.longitude.toFixed(6)} (Accuracy: ${Math.round(input.gps.accuracy)}m)`;
 
 			try {
 				return await ctx.db.transaction(async (tx: any) => {
@@ -326,6 +338,7 @@ export const attendanceRouter = router({
 								: null,
 							distanceFromOffice:
 								geo.distance != null ? String(geo.distance) : null,
+							notes: locationNotes,
 							status,
 							riskScore: risk.score,
 							riskReasons: risk.reasons,
@@ -392,7 +405,7 @@ export const attendanceRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email);
+			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email, ctx.user.id);
 			if (!employeeId)
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",
@@ -424,7 +437,7 @@ export const attendanceRouter = router({
 
 	// ── Self-service: END BREAK / LUNCH ───────────────────────────────────────
 	endBreak: permProcedure("attendance", "write").mutation(async ({ ctx }) => {
-		const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email);
+		const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email, ctx.user.id);
 		if (!employeeId)
 			throw new TRPCError({
 				code: "PRECONDITION_FAILED",
@@ -476,7 +489,7 @@ export const attendanceRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email);
+			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email, ctx.user.id);
 			if (!employeeId)
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",
@@ -591,7 +604,7 @@ export const attendanceRouter = router({
 
 	// ── Self-service reads ────────────────────────────────────────────────────
 	getToday: permProcedure("attendance", "read").query(async ({ ctx }) => {
-		const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email);
+		const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email, ctx.user.id);
 		if (!employeeId)
 			return {
 				employeeLinked: false,
@@ -614,7 +627,7 @@ export const attendanceRouter = router({
 	getMonthly: permProcedure("attendance", "read")
 		.input(z.object({ year: z.number(), month: z.number().min(1).max(12) }))
 		.query(async ({ ctx, input }) => {
-			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email);
+			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email, ctx.user.id);
 			if (!employeeId) return [];
 			const mm = String(input.month).padStart(2, "0");
 			const from = `${input.year}-${mm}-01`;
@@ -642,7 +655,7 @@ export const attendanceRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email);
+			const employeeId = await resolveEmployeeId(ctx.db, ctx.user.email, ctx.user.id);
 			if (!employeeId)
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",

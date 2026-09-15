@@ -84,7 +84,7 @@ export const driverRouter = router({
 		.query(async ({ input, ctx }) => {
 			const driverId = ctx.user?.id;
 
-			let trip = driverId
+			const trip = driverId
 				? await db.query.deliveryTrips.findFirst({
 						where: and(
 							eq(deliveryTrips.driver_id, driverId),
@@ -106,42 +106,6 @@ export const driverRouter = router({
 						},
 					})
 				: null;
-
-			if (!trip) {
-				trip = await db.query.deliveryTrips.findFirst({
-					where: or(
-						eq(deliveryTrips.status, "active"),
-						eq(deliveryTrips.status, "pending"),
-					),
-					orderBy: [desc(deliveryTrips.created_at)],
-					with: {
-						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
-							with: {
-								customer: true,
-							},
-						},
-					},
-				});
-			}
-
-			if (!trip) {
-				trip = await db.query.deliveryTrips.findFirst({
-					orderBy: [desc(deliveryTrips.created_at)],
-					with: {
-						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
-							with: {
-								customer: true,
-							},
-						},
-					},
-				});
-			}
 
 			if (!trip) {
 				return {
@@ -420,7 +384,7 @@ export const driverRouter = router({
 			const driverId = ctx.user?.id;
 
 			// Fetch delivery trips specifically assigned to this logged-in driver
-			let trips = driverId
+			const trips = driverId
 				? await db.query.deliveryTrips.findMany({
 						where: and(
 							eq(deliveryTrips.driver_id, driverId),
@@ -442,44 +406,6 @@ export const driverRouter = router({
 						},
 					})
 				: [];
-
-			// If no specific trip is assigned to this driver, query all active/pending trips
-			if (!trips || trips.length === 0) {
-				trips = await db.query.deliveryTrips.findMany({
-					where: or(
-						eq(deliveryTrips.status, "active"),
-						eq(deliveryTrips.status, "pending"),
-					),
-					orderBy: [desc(deliveryTrips.created_at)],
-					with: {
-						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
-							with: {
-								customer: true,
-							},
-						},
-					},
-				});
-			}
-
-			if (!trips || trips.length === 0) {
-				trips = await db.query.deliveryTrips.findMany({
-					orderBy: [desc(deliveryTrips.created_at)],
-					limit: 10,
-					with: {
-						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
-							with: {
-								customer: true,
-							},
-						},
-					},
-				});
-			}
 
 			if (!trips || trips.length === 0) return [];
 
@@ -540,21 +466,25 @@ export const driverRouter = router({
 		}),
 
 	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {
-		const trips = await db.query.deliveryTrips.findMany({
-			orderBy: [desc(deliveryTrips.created_at)],
-			limit: 25,
-			with: {
-				route: true,
-				vehicle: true,
-				driver: true,
-				stops: {
+		const driverId = ctx.user?.id;
+		const trips = driverId
+			? await db.query.deliveryTrips.findMany({
+					where: eq(deliveryTrips.driver_id, driverId),
+					orderBy: [desc(deliveryTrips.created_at)],
+					limit: 25,
 					with: {
-						customer: true,
+						route: true,
+						vehicle: true,
+						driver: true,
+						stops: {
+							with: {
+								customer: true,
+							},
+						},
+						collections: true,
 					},
-				},
-				collections: true,
-			},
-		});
+				})
+			: [];
 
 		if (!trips || trips.length === 0) return [];
 

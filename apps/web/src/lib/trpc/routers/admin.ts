@@ -45,21 +45,6 @@ import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
 
-	count,
-	desc,
-	eq,
-	gte,
-	ilike,
-	lte,
-	ne,
-	not,
-
-	or,
-	sql,
-} from "drizzle-orm";
-import { z } from "zod";
-import { roleProcedure, router } from "../init";
-
 // ── Access tiers ─────────────────────────────────────────────────────────────
 // `super_admin` is not a value of user.role — it is the is_superadmin flag —
 // but roleProcedure() already bypasses the list for superadmins. It is kept in

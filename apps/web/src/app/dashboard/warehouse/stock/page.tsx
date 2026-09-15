@@ -35,6 +35,7 @@ import {
 	IndianRupeeIcon,
 	Loader2Icon,
 	PencilIcon,
+	PlusIcon,
 	RefreshCwIcon,
 	SaveIcon,
 	SearchIcon,
@@ -52,6 +53,18 @@ export default function StockPage() {
 	const [editItem, setEditItem] = useState<any>(null);
 	const [editStockQty, setEditStockQty] = useState<string>("");
 	const [editPrice, setEditPrice] = useState<string>("");
+
+	// Add New Item Modal States
+	const [addItemOpen, setAddItemOpen] = useState(false);
+	const [newItem, setNewItem] = useState({
+		name: "",
+		sku: "",
+		price: "",
+		costPrice: "",
+		unit: "Pcs",
+		initialStock: "10",
+		binLocation: "Aisle A - Bin A101",
+	});
 
 	// Query actual inventory balances using the existing inventory list API
 	const {
@@ -72,6 +85,26 @@ export default function StockPage() {
 		},
 		onError: (err) => {
 			toast.error(`Failed: ${err.message}`);
+		},
+	});
+
+	const addItemMutation = trpc.inventory.addItem.useMutation({
+		onSuccess: () => {
+			toast.success("New item added to warehouse stock & synchronized across all dashboards!");
+			refetch();
+			setAddItemOpen(false);
+			setNewItem({
+				name: "",
+				sku: "",
+				price: "",
+				costPrice: "",
+				unit: "Pcs",
+				initialStock: "10",
+				binLocation: "Aisle A - Bin A101",
+			});
+		},
+		onError: (err) => {
+			toast.error(`Failed to add item: ${err.message}`);
 		},
 	});
 
@@ -147,6 +180,14 @@ export default function StockPage() {
 					>
 						<RefreshCwIcon className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
 						{isFetching ? t("common.loading") : t("common.update")}
+					</Button>
+					<Button
+						size="sm"
+						onClick={() => setAddItemOpen(true)}
+						className="shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
+					>
+						<PlusIcon className="h-4 w-4" />
+						<span>+ Add New Item</span>
 					</Button>
 				</div>
 			</div>
@@ -399,6 +440,195 @@ export default function StockPage() {
 								<>
 									<SaveIcon className="h-4 w-4" />
 									{t("common.save")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Add New Item Dialog Modal */}
+			<Dialog open={addItemOpen} onOpenChange={setAddItemOpen}>
+				<DialogContent className="sm:max-w-lg">
+					<DialogHeader>
+						<DialogTitle className="font-bold text-lg text-emerald-700 dark:text-emerald-400">
+							+ Add New Item to Warehouse Stock / नया आइटम जोड़ें
+						</DialogTitle>
+						<DialogDescription>
+							Create a new product line in the inventory. It will be immediately synced across Sales, Driver, and Warehouse dashboards.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="grid gap-4 py-2">
+						{/* Item Name */}
+						<div className="space-y-1.5">
+							<Label htmlFor="newItemName" className="font-semibold text-sm">
+								Item Name / उत्पाद का नाम <span className="text-red-500">*</span>
+							</Label>
+							<Input
+								id="newItemName"
+								placeholder="e.g. Sprite (600 ml) or Fortune Refined Oil (1 L)"
+								value={newItem.name}
+								onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+								className="font-medium"
+							/>
+						</div>
+
+						{/* SKU & Unit of Measure */}
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<Label htmlFor="newItemSku" className="font-semibold text-sm">
+									SKU Code / एसकेयू (Optional)
+								</Label>
+								<Input
+									id="newItemSku"
+									placeholder="e.g. SPR-600ML"
+									value={newItem.sku}
+									onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
+									className="font-mono text-xs uppercase"
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="newItemUnit" className="font-semibold text-sm">
+									Unit of Measure / इकाई <span className="text-red-500">*</span>
+								</Label>
+								<select
+									id="newItemUnit"
+									value={newItem.unit}
+									onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+									className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								>
+									<option value="ml">Liquid (ml)</option>
+									<option value="L">Liquid (L)</option>
+									<option value="kg">Weight (kg)</option>
+									<option value="g">Weight (g)</option>
+									<option value="Pcs">Pieces (Pcs)</option>
+									<option value="Box">Box / कार्टन</option>
+									<option value="Crate">Crate / क्रेट</option>
+									<option value="Bottle">Bottle / बोतल</option>
+									<option value="Pack">Pack / पैकेट</option>
+									<option value="Can">Can / कैन</option>
+									<option value="Jar">Jar / जार</option>
+								</select>
+							</div>
+						</div>
+
+						{/* Selling Price & Cost Price */}
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<Label htmlFor="newItemPrice" className="font-semibold text-sm">
+									Selling Price / बिक्री मूल्य (₹) <span className="text-red-500">*</span>
+								</Label>
+								<div className="relative">
+									<span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">₹</span>
+									<Input
+										id="newItemPrice"
+										type="number"
+										step="0.01"
+										min="0"
+										placeholder="e.g. 40.00"
+										value={newItem.price}
+										onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+										className="pl-7 font-mono text-sm font-bold text-emerald-700"
+									/>
+								</div>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="newItemCost" className="font-semibold text-sm">
+									Cost Price / लागत मूल्य (₹)
+								</Label>
+								<div className="relative">
+									<span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">₹</span>
+									<Input
+										id="newItemCost"
+										type="number"
+										step="0.01"
+										min="0"
+										placeholder="e.g. 32.00"
+										value={newItem.costPrice}
+										onChange={(e) => setNewItem({ ...newItem, costPrice: e.target.value })}
+										className="pl-7 font-mono text-sm"
+									/>
+								</div>
+							</div>
+						</div>
+
+						{/* Initial Stock & Bin Location */}
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<Label htmlFor="newItemStock" className="font-semibold text-sm">
+									Initial Stock Qty / प्रारंभिक स्टॉक <span className="text-red-500">*</span>
+								</Label>
+								<Input
+									id="newItemStock"
+									type="number"
+									min="0"
+									placeholder="e.g. 50"
+									value={newItem.initialStock}
+									onChange={(e) => setNewItem({ ...newItem, initialStock: e.target.value })}
+									className="font-mono text-sm font-bold"
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="newItemBin" className="font-semibold text-sm">
+									Bin Location / लेआउट (Optional)
+								</Label>
+								<Input
+									id="newItemBin"
+									placeholder="e.g. Aisle B - Bin B202"
+									value={newItem.binLocation}
+									onChange={(e) => setNewItem({ ...newItem, binLocation: e.target.value })}
+									className="text-xs"
+								/>
+							</div>
+						</div>
+					</div>
+
+					<DialogFooter className="gap-2 pt-2">
+						<Button
+							variant="outline"
+							onClick={() => setAddItemOpen(false)}
+							disabled={addItemMutation.isPending}
+						>
+							{t("common.cancel")}
+						</Button>
+						<Button
+							disabled={addItemMutation.isPending || !newItem.name.trim() || !newItem.price}
+							onClick={() => {
+								const parsedPrice = Number.parseFloat(newItem.price);
+								const parsedCost = newItem.costPrice ? Number.parseFloat(newItem.costPrice) : undefined;
+								const parsedStock = Number.parseInt(newItem.initialStock, 10) || 0;
+
+								if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+									toast.error("Please enter a valid positive selling price.");
+									return;
+								}
+
+								addItemMutation.mutate({
+									name: newItem.name,
+									sku: newItem.sku,
+									price: parsedPrice,
+									costPrice: parsedCost,
+									unit: newItem.unit,
+									initialStock: parsedStock,
+									binLocation: newItem.binLocation,
+									branchId: 1,
+								});
+							}}
+							className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+						>
+							{addItemMutation.isPending ? (
+								<>
+									<Loader2Icon className="h-4 w-4 animate-spin" />
+									Adding Item...
+								</>
+							) : (
+								<>
+									<PlusIcon className="h-4 w-4" />
+									Add Item to Stock
 								</>
 							)}
 						</Button>

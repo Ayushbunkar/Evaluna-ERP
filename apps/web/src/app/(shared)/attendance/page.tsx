@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 /**
- * Self-service attendance â€” geofenced, backend-authoritative.
+ * Self-service attendance — geofenced, backend-authoritative.
  *
  * The browser only gathers *evidence*: raw GPS (lat/long/accuracy) from the
  * Geolocation API and a LIVE camera frame (never a gallery upload). The server
- * recomputes presence against the branch geofence and decides â€” this page never
+ * recomputes presence against the branch geofence and decides — this page never
  * sends a "isInside"/"valid" boolean. Server time is the authoritative clock.
  */
 import { Badge } from "@evaluna/ui/components/badge";
@@ -23,6 +23,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useBranch } from "@/lib/branch-context";
+import { useSession } from "@/hooks/use-session";
 import { trpc } from "@/lib/trpc/client";
 
 type Gps = {
@@ -199,7 +200,7 @@ export default function MyAttendancePage() {
 			utils.attendance.getToday.invalidate();
 			toast.success(
 				r.flagged
-					? "Checked in â€” flagged for HR review (verification pending)."
+					? "Checked in — flagged for HR review (verification pending)."
 					: `Checked in at ${r.checkInTime} (${r.distance ?? 0}m from site).`,
 			);
 		},
@@ -210,7 +211,7 @@ export default function MyAttendancePage() {
 			stopCamera();
 			utils.attendance.getToday.invalidate();
 			toast.success(
-				`Checked out â€” ${r.workingHours}h worked (${r.breakMinutes}m breaks).`,
+				`Checked out — ${r.workingHours}h worked (${r.breakMinutes}m breaks).`,
 			);
 		},
 		onError: (e) => toast.error(e.message),
@@ -230,12 +231,12 @@ export default function MyAttendancePage() {
 		onError: (e) => toast.error(e.message),
 	});
 
+	const sessionData = useSession();
+	const sessionBranchId = (sessionData?.session?.user as any)?.branchId || 1;
+
 	const doCheck = useCallback(
 		async (kind: "checkIn" | "checkOut") => {
-			if (kind === "checkIn" && !activeBranchId) {
-				toast.error("Select your branch first.");
-				return;
-			}
+			const effectiveBranchId = activeBranchId || sessionBranchId || 1;
 			setBusy(true);
 			try {
 				const gps = await captureGps();
@@ -243,7 +244,7 @@ export default function MyAttendancePage() {
 				const device = deviceFingerprint();
 				if (kind === "checkIn")
 					await checkIn.mutateAsync({
-						branchId: activeBranchId as number,
+						branchId: effectiveBranchId,
 						gps,
 						imageAttachmentId,
 						device,
@@ -255,7 +256,7 @@ export default function MyAttendancePage() {
 				setBusy(false);
 			}
 		},
-		[activeBranchId, captureAndUpload, checkIn, checkOut],
+		[activeBranchId, sessionBranchId, captureAndUpload, checkIn, checkOut],
 	);
 
 	const state = today?.state ?? "NOT_STARTED";
@@ -263,8 +264,8 @@ export default function MyAttendancePage() {
 	const label = STATE_LABEL[state] ?? STATE_LABEL.NOT_STARTED;
 	const pending = busy || checkIn.isPending || checkOut.isPending;
 
-	// Server-authoritative check-in timestamp â†’ display-only elapsed clock.
-	let elapsed = "â€”";
+	// Server-authoritative check-in timestamp -> display-only elapsed clock.
+	let elapsed = "—";
 	if (row?.checkIn && !row?.checkOut) {
 		const startMs = new Date(`${row.date}T${row.checkIn}Z`).getTime();
 		const secs = Math.max(0, Math.floor((nowTick - startMs) / 1000));
@@ -285,7 +286,7 @@ export default function MyAttendancePage() {
 				<h2 className="font-bold text-3xl tracking-tight">My Attendance</h2>
 				<p className="mt-1 text-muted-foreground">
 					Check in from the warehouse. Your location and a live photo are
-					verified by the server â€” presence cannot be faked from the app.
+					verified by the server — presence cannot be faked from the app.
 				</p>
 			</div>
 
@@ -354,7 +355,7 @@ export default function MyAttendancePage() {
 									className="gap-2 bg-green-600 text-white hover:bg-green-700"
 								>
 									<LogInIcon className="h-4 w-4" />
-									{pending ? "Verifyingâ€¦" : "Check in"}
+									{pending ? "Verifying..." : "Check in"}
 								</Button>
 							)}
 
@@ -382,7 +383,7 @@ export default function MyAttendancePage() {
 										className="gap-2 bg-orange-600 text-white hover:bg-orange-700"
 									>
 										<LogOutIcon className="h-4 w-4" />
-										{pending ? "Verifyingâ€¦" : "Check out"}
+										{pending ? "Verifying..." : "Check out"}
 									</Button>
 								</>
 							)}

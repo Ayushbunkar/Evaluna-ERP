@@ -6,6 +6,7 @@ import {
 	UserManagement,
 	type UserStatus,
 } from "@evaluna/db";
+import { staff, user } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -327,6 +328,123 @@ export const usersRouter = router({
 				throw new TRPCError({
 					code: "BAD_REQUEST",
 					message: error.message || "Failed to revoke sessions.",
+				});
+			}
+		}),
+
+	// ── Delete User Account ──────────────────────────────────────────────────
+	delete: roleProcedure(["super_admin"])
+		.input(z.object({ userId: z.string() }))
+		.mutation(async ({ ctx, input }) => {
+			if (input.userId === ctx.user.id) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "You cannot delete your own active account.",
+				});
+			}
+
+			try {
+				await UserManagement.deleteUser(input.userId, ctx.user.id);
+				return { success: true };
+			} catch (error: any) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: error.message || "Failed to delete user.",
+				});
+			}
+		}),
+
+	// ── Backfill Staff & HRMS Employee Profiles for Unlinked Accounts ───────
+	ensureProfiles: roleProcedure(["admin", "super_admin", "manager"])
+		.mutation(async ({ ctx }) => {
+			try {
+				const { employees } = await import("@evaluna/db/schema/hrms");
+				const allUsers = await ctx.db.query.user.findMany();
+				let fixedCount = 0;
+
+				for (const u of allUsers) {
+					if (!u.email) continue;
+
+					try {
+						// 1. Ensure staff row exists
+						let [staffRow] = await ctx.db
+							.select()
+							.from(staff)
+							.where(eq(staff.email, u.email))
+							.limit(1);
+
+						if (!staffRow) {
+							const [newStaff] = await ctx.db
+								.insert(staff)
+								.values({
+									name: u.name || u.email.split("@")[0].toUpperCase(),
+									staff_code: `STAFF-${u.id.slice(0, 6).toUpperCase()}`,
+									email: u.email,
+									branch_id: u.branch_id || 1,
+									role: (u as any).role || "staff",
+									department: "General",
+									join_date: new Date(),
+									salary: "0.00",
+								})
+								.onConflictDoNothing()
+								.returning();
+							if (newStaff) {
+								staffRow = newStaff;
+								fixedCount++;
+							} else {
+								const [existing] = await ctx.db
+									.select()
+									.from(staff)
+									.where(eq(staff.email, u.email))
+									.limit(1);
+								staffRow = existing;
+							}
+						}
+
+						if (staffRow && u.staff_id !== staffRow.id) {
+							await ctx.db
+								.update(user)
+								.set({ staff_id: staffRow.id } as any)
+								.where(eq(user.id, u.id));
+						}
+
+						// 2. Ensure HRMS employees row exists
+						const [empRow] = await ctx.db
+							.select()
+							.from(employees)
+							.where(eq(employees.email, u.email))
+							.limit(1);
+
+						if (!empRow) {
+							const nameParts = (u.name || u.email.split("@")[0]).trim().split(/\s+/);
+							const firstName = nameParts[0] || "User";
+							const lastName = nameParts.slice(1).join(" ") || "Employee";
+
+							await ctx.db
+								.insert(employees)
+								.values({
+									employeeCode: `EMP-${u.id.slice(0, 6).toUpperCase()}`,
+									firstName,
+									lastName,
+									email: u.email,
+									hireDate: new Date().toISOString().split("T")[0] as string,
+									status: "active",
+									userUid: u.id,
+								})
+								.onConflictDoNothing();
+							fixedCount++;
+						}
+					} catch (userError) {
+						console.error(`Failed backfill for user ${u.email}:`, userError);
+					}
+				}
+
+				return { success: true, fixedCount };
+			} catch (err: any) {
+				console.error("ensureProfiles Mutation Error:", err);
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: err?.message || "Failed to synchronize profiles.",
 				});
 			}
 		}),

@@ -24,6 +24,7 @@ import {
 	user,
 	userRoles,
 } from "./schema";
+import { employees } from "./schema/hrms";
 
 // =============================================================================
 // TYPES
@@ -199,8 +200,8 @@ export class UserManagementRepository {
 			// We will insert a local provider account.
 			await tx.insert(account).values({
 				id: crypto.randomUUID(),
-				accountId: email, // Use email as account ID for local provider
-				providerId: "evaluna_local",
+				accountId: email, // Use email as account ID for credential provider
+				providerId: "credential",
 				userId: newUserId,
 				password: hashedPassword,
 			});
@@ -219,6 +220,25 @@ export class UserManagementRepository {
 				description: `User ${fullName} created with role ${roleName}`,
 				reason: "Super Admin action",
 			});
+
+			// F. Create HRMS employees record so the production attendance layer
+			//    (resolveEmployeeId → employees table) can find this user.
+			//    Uses userUid to bridge employees ↔ user (UUID) without FK changes.
+			const nameParts = fullName.trim().split(/\s+/);
+			const firstName = nameParts[0] ?? fullName;
+			const lastName = nameParts.slice(1).join(" ") || "Employee";
+			await tx
+				.insert(employees)
+				.values({
+					employeeCode: `EMP-${employeeId}`,
+					firstName,
+					lastName,
+					email,
+					hireDate: new Date().toISOString().split("T")[0] as string,
+					status: "active",
+					userUid: newUserId,
+				})
+				.onConflictDoNothing(); // idempotent — safe on re-run
 
 			return { userId: newUserId, staffId: newStaff.id, role: roleName };
 		});
@@ -310,7 +330,7 @@ export class UserManagementRepository {
 					.where(
 						and(
 							eq(account.userId, targetUserId),
-							eq(account.providerId, "evaluna_local"),
+							eq(account.providerId, "credential"),
 						),
 					)
 					.limit(1);
@@ -734,6 +754,54 @@ export class UserManagementRepository {
 			});
 
 			return { userId: targetUserId, roleName: roleRecord.name };
+		});
+	}
+
+	/**
+	 * Deletes a user account and soft deletes any associated staff record.
+	 */
+	async deleteUser(targetUserId: string, actorId: string) {
+		return await db.transaction(async (tx) => {
+			const [targetUser] = await tx
+				.select()
+				.from(user)
+				.where(eq(user.id, targetUserId))
+				.limit(1);
+
+			if (!targetUser) {
+				throw new Error("User not found.");
+			}
+
+			// Revoke sessions & remove role associations & accounts
+			await tx.delete(session).where(eq(session.userId, targetUserId));
+			await tx.delete(userRoles).where(eq(userRoles.user_id, targetUserId));
+			await tx.delete(account).where(eq(account.userId, targetUserId));
+
+			// Soft delete staff record if present
+			if (targetUser.staff_id) {
+				await tx
+					.update(staff)
+					.set({
+						is_deleted: true,
+						deleted_at: new Date(),
+						status: "inactive",
+					})
+					.where(eq(staff.id, targetUser.staff_id));
+			}
+
+			// Audit log
+			await tx.insert(securityAuditLog).values({
+				actor_id: actorId,
+				target_user_id: targetUserId,
+				action: "USER_DELETED_MANUAL",
+				description: `Account ${targetUser.email} deleted by super admin.`,
+				reason: "Super Admin manual account deletion.",
+			});
+
+			// Delete user row
+			await tx.delete(user).where(eq(user.id, targetUserId));
+
+			return { success: true };
 		});
 	}
 }

@@ -16,11 +16,11 @@ import {
 	Settings,
 	TrendingUp,
 	Truck,
+	UserCheck,
 	Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function ManagerLayout({
@@ -29,24 +29,23 @@ export default function ManagerLayout({
 	children: React.ReactNode;
 }) {
 	const pathname = usePathname();
-	const t = useTranslations("nav");
-
 	const navItems = [
-		{ href: "/manager", label: t("dashboard"), icon: LayoutDashboard },
-		{ href: "/manager/dispatch", label: t("assignRoute"), icon: Truck },
-		{ href: "/manager/team", label: t("myTeam"), icon: Users },
-		{ href: "/manager/tasks", label: t("tasks"), icon: CheckSquare },
-		{ href: "/manager/approvals", label: t("approvals"), icon: FileCheck },
-		{ href: "/manager/attendance", label: t("attendance"), icon: Clock },
-		{ href: "/manager/leave", label: t("leave"), icon: Calendar },
-		{ href: "/manager/expenses", label: t("expenses"), icon: CreditCard },
-		{ href: "/manager/performance", label: t("performance"), icon: TrendingUp },
-		{ href: "/manager/workload", label: t("workload"), icon: BarChart3 },
-		{ href: "/manager/exceptions", label: t("exceptions"), icon: AlertTriangle },
-		{ href: "/manager/activity", label: t("activity"), icon: History },
-		{ href: "/manager/notifications", label: t("notifications"), icon: Bell },
-		{ href: "/manager/reports", label: t("reports"), icon: FileBarChart },
-		{ href: "/manager/settings", label: t("settings"), icon: Settings },
+		{ href: "/manager", label: "Dashboard", icon: LayoutDashboard },
+		{ href: "/manager/dispatch", label: "Assign Route", icon: Truck },
+		{ href: "/manager/team", label: "My Team", icon: Users },
+		{ href: "/manager/staff-profiles", label: "Staff Profiles", icon: UserCheck },
+		{ href: "/manager/tasks", label: "Tasks", icon: CheckSquare },
+		{ href: "/manager/approvals", label: "Approvals", icon: FileCheck },
+		{ href: "/manager/attendance", label: "Attendance", icon: Clock },
+		{ href: "/manager/leave", label: "Leave Requests", icon: Calendar },
+		{ href: "/manager/expenses", label: "Expenses", icon: CreditCard },
+		{ href: "/manager/performance", label: "Performance", icon: TrendingUp },
+		{ href: "/manager/workload", label: "Workload Analytics", icon: BarChart3 },
+		{ href: "/manager/exceptions", label: "Audit Exceptions", icon: AlertTriangle },
+		{ href: "/manager/activity", label: "Activity Log", icon: History },
+		{ href: "/manager/notifications", label: "Notifications", icon: Bell },
+		{ href: "/manager/reports", label: "Reports", icon: FileBarChart },
+		{ href: "/manager/settings", label: "Settings", icon: Settings },
 	];
 
 	return (
