@@ -20,8 +20,8 @@ import {
 	UsersIcon,
 	XIcon,
 } from "lucide-react";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -71,9 +71,7 @@ export default function TeamPage() {
 							<CardTitle className="font-bold text-base">
 								{t("workforceRegister")}
 							</CardTitle>
-							<CardDescription>
-								{t("workforceRegisterSub")}
-							</CardDescription>
+							<CardDescription>{t("workforceRegisterSub")}</CardDescription>
 						</CardHeader>
 						<CardContent className="p-0">
 							{isLoading ? (
@@ -176,7 +174,9 @@ export default function TeamPage() {
 										<div className="space-y-2">
 											<h5 className="flex items-center gap-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
 												<CheckSquareIcon className="h-3.5 w-3.5" />{" "}
-												{t("tasksQueueHeader", { count: detail.tasks?.length ?? 0 })}
+												{t("tasksQueueHeader", {
+													count: detail.tasks?.length ?? 0,
+												})}
 											</h5>
 											<div className="space-y-1.5">
 												{detail.tasks?.slice(0, 3).map((tItem: any) => (
@@ -195,7 +195,11 @@ export default function TeamPage() {
 																{tItem.status}
 															</Badge>
 															<span className="text-[9px] text-slate-400">
-																{t("dueLabel", { date: new Date(tItem.due_at).toLocaleDateString() })}
+																{t("dueLabel", {
+																	date: new Date(
+																		tItem.due_at,
+																	).toLocaleDateString(),
+																})}
 															</span>
 														</div>
 													</div>
@@ -212,7 +216,9 @@ export default function TeamPage() {
 										<div className="space-y-2">
 											<h5 className="flex items-center gap-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
 												<CalendarIcon className="h-3.5 w-3.5" />{" "}
-												{t("approvedLeavesHeader", { count: detail.leaves?.length ?? 0 })}
+												{t("approvedLeavesHeader", {
+													count: detail.leaves?.length ?? 0,
+												})}
 											</h5>
 											<div className="space-y-1.5">
 												{detail.leaves?.slice(0, 3).map((l: any) => (
@@ -227,7 +233,7 @@ export default function TeamPage() {
 															{t("resolvedLabel", {
 																date: l.resolved_at
 																	? new Date(l.resolved_at).toLocaleDateString()
-																	: "Pending"
+																	: "Pending",
 															})}
 														</span>
 													</div>
@@ -244,7 +250,9 @@ export default function TeamPage() {
 										<div className="space-y-2">
 											<h5 className="flex items-center gap-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
 												<CreditCardIcon className="h-3.5 w-3.5" />{" "}
-												{t("reimbursementClaimsHeader", { count: detail.expenses?.length ?? 0 })}
+												{t("reimbursementClaimsHeader", {
+													count: detail.expenses?.length ?? 0,
+												})}
 											</h5>
 											<div className="space-y-1.5">
 												{detail.expenses?.slice(0, 3).map((e: any) => (
@@ -280,9 +288,7 @@ export default function TeamPage() {
 						<div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center text-slate-400">
 							<UsersIcon className="mb-2 h-8 w-8 text-slate-300" />
 							<p className="font-bold text-xs">{t("noMemberSelected")}</p>
-							<p className="mt-1 text-[10px]">
-								{t("noMemberSelectedSub")}
-							</p>
+							<p className="mt-1 text-[10px]">{t("noMemberSelectedSub")}</p>
 						</div>
 					)}
 				</div>

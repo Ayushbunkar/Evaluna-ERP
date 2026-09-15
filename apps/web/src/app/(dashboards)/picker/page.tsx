@@ -68,7 +68,8 @@ export default function PickerDashboard() {
 						asChild
 					>
 						<Link href="/picker/active">
-							<PlaySquareIcon className="mr-2 h-4 w-4" /> {t("picker.startPicking")}
+							<PlaySquareIcon className="mr-2 h-4 w-4" />{" "}
+							{t("picker.startPicking")}
 						</Link>
 					</Button>
 				</div>
@@ -191,7 +192,8 @@ export default function PickerDashboard() {
 						</div>
 						<Button variant="ghost" size="sm" asChild>
 							<Link href="/picker/pending">
-								{t("picker.viewAll")} <ArrowRightIcon className="ml-2 h-4 w-4" />
+								{t("picker.viewAll")}{" "}
+								<ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>

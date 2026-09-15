@@ -98,7 +98,7 @@ export default function ApprovalsPage() {
 												{t("createdLabel", {
 													date: app.created_at
 														? new Date(app.created_at).toLocaleDateString()
-														: ""
+														: "",
 												})}
 											</span>
 										</div>
@@ -113,7 +113,8 @@ export default function ApprovalsPage() {
 												disabled={reviewApprovalMutation.isPending}
 												className="h-7 flex-1 border-red-200 text-[11px] text-red-600 hover:bg-red-50"
 											>
-												<XCircleIcon className="mr-1 h-3.5 w-3.5" /> {t("reject")}
+												<XCircleIcon className="mr-1 h-3.5 w-3.5" />{" "}
+												{t("reject")}
 											</Button>
 											<Button
 												size="sm"
@@ -170,7 +171,7 @@ export default function ApprovalsPage() {
 												{t("approvedOnLabel", {
 													date: app.resolved_at
 														? new Date(app.resolved_at).toLocaleDateString()
-														: ""
+														: "",
 												})}
 											</p>
 										</div>

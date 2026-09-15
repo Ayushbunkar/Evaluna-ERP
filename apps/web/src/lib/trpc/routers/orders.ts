@@ -322,11 +322,12 @@ export const ordersRouter = router({
 					await db
 						.update(pickLists)
 						.set({
-							status: updated.status === "completed" 
-								? "pending" 
-								: updated.status === "cancelled" 
-									? "cancelled" 
-									: "pending"
+							status:
+								updated.status === "completed"
+									? "pending"
+									: updated.status === "cancelled"
+										? "cancelled"
+										: "pending",
 						})
 						.where(eq(pickLists.order_id, updated.id));
 				} else {
@@ -981,7 +982,7 @@ export const ordersRouter = router({
 								quantity_ordered: it.quantity,
 								quantity_picked: 0,
 								status: "pending",
-							}))
+							})),
 						);
 					}
 				}
@@ -1002,7 +1003,11 @@ export const ordersRouter = router({
 								message: `Picklist PL-${pl.id} (Order ORD-${result.orderId}) is ready for picking. Please assign yourself and start picking immediately.`,
 								status: "pending",
 							});
-						} else if (normalizedRole === "packer" || normalizedRole === "dispatcher" || normalizedRole === "warehouse_supervisor") {
+						} else if (
+							normalizedRole === "packer" ||
+							normalizedRole === "dispatcher" ||
+							normalizedRole === "warehouse_supervisor"
+						) {
 							await db.insert(notifications).values({
 								user_id: s.id,
 								branch_id: result.branchId,
@@ -1017,7 +1022,10 @@ export const ordersRouter = router({
 					}
 				}
 			} catch (err) {
-				console.warn("[confirmOrder] Failed to auto-generate WMS pick list:", err);
+				console.warn(
+					"[confirmOrder] Failed to auto-generate WMS pick list:",
+					err,
+				);
 			}
 
 			return {

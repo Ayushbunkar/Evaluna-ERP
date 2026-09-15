@@ -11,6 +11,8 @@ import {
 	employeeExpenses,
 	employees,
 	enhancedAttendance,
+	leaveApplications,
+	leaveTypes,
 	orders,
 	packages,
 	pickLists,
@@ -377,6 +379,14 @@ export const managerRouter = router({
 						.where(eq(purchases.id, approval.reference_id));
 				}
 
+				if (approval.reference_type === "leave") {
+					await tx
+						.update(leaveApplications)
+						.set({ managerApproved: true })
+						.where(eq(leaveApplications.id, approval.reference_id))
+						.returning();
+				}
+
 				// 2. Write compliance audit logs
 				await logAudit(tx, {
 					userId: staffId,
@@ -393,7 +403,8 @@ export const managerRouter = router({
 	getAttendance: protectedProcedure
 		.input(z.object({ date: z.string().optional() }).optional())
 		.query(async ({ ctx, input }) => {
-			const targetDateStr = input?.date || new Date().toISOString().split("T")[0];
+			const targetDateStr =
+				input?.date || new Date().toISOString().split("T")[0];
 
 			// 1. Query production enhancedAttendance records with Employee details & Branch Location
 			const enhancedRows = await db
@@ -415,8 +426,13 @@ export const managerRouter = router({
 			// Map production enhancedAttendance records for Manager roll
 			const formattedEnhanced = await Promise.all(
 				enhancedRows.map(async ({ att, emp, usr, br }) => {
-					const breaksForAtt = allBreaks.filter((b) => b.attendanceId === att.id);
-					const totalBreakMinutes = breaksForAtt.reduce((sum, b) => sum + (b.durationMinutes || 0), 0);
+					const breaksForAtt = allBreaks.filter(
+						(b) => b.attendanceId === att.id,
+					);
+					const totalBreakMinutes = breaksForAtt.reduce(
+						(sum, b) => sum + (b.durationMinutes || 0),
+						0,
+					);
 					const activeBreak = breaksForAtt.find((b) => !b.endTime);
 
 					const employeeName = emp
@@ -430,8 +446,16 @@ export const managerRouter = router({
 					let locationFormatted = rawNotes;
 					const gpsObj = att.checkInGPS as any;
 
-					const lat = gpsObj?.latitude ?? (rawNotes.match(/Lat:\s*([0-9.-]+)/)?.[1] ? parseFloat(rawNotes.match(/Lat:\s*([0-9.-]+)/)![1]) : null);
-					const lng = gpsObj?.longitude ?? (rawNotes.match(/Long:\s*([0-9.-]+)/)?.[1] ? parseFloat(rawNotes.match(/Long:\s*([0-9.-]+)/)![1]) : null);
+					const lat =
+						gpsObj?.latitude ??
+						(rawNotes.match(/Lat:\s*([0-9.-]+)/)?.[1]
+							? Number.parseFloat(rawNotes.match(/Lat:\s*([0-9.-]+)/)![1])
+							: null);
+					const lng =
+						gpsObj?.longitude ??
+						(rawNotes.match(/Long:\s*([0-9.-]+)/)?.[1]
+							? Number.parseFloat(rawNotes.match(/Long:\s*([0-9.-]+)/)![1])
+							: null);
 
 					if (lat != null && lng != null) {
 						const resolvedPlace = await reverseGeocodeLocation(lat, lng);
@@ -455,12 +479,14 @@ export const managerRouter = router({
 								? new Date(`${datePart}T${att.checkOut}`)
 								: new Date();
 
-							let diffMs = endTime.getTime() - startTime.getTime();
+							const diffMs = endTime.getTime() - startTime.getTime();
 							if (diffMs > 0) {
 								const breakMs = totalBreakMinutes * 60 * 1000;
 								const netMs = Math.max(0, diffMs - breakMs);
 								const hours = Math.floor(netMs / (1000 * 60 * 60));
-								const mins = Math.floor((netMs % (1000 * 60 * 60)) / (1000 * 60));
+								const mins = Math.floor(
+									(netMs % (1000 * 60 * 60)) / (1000 * 60),
+								);
 								workHoursStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 							}
 						} catch {
@@ -470,8 +496,34 @@ export const managerRouter = router({
 
 					const checkInSelfieObj = att.checkInSelfie as any;
 					const checkOutSelfieObj = att.checkOutSelfie as any;
-					const selfieAttachmentId = checkInSelfieObj?.attachmentId || null;
-					const checkOutSelfieAttachmentId = checkOutSelfieObj?.attachmentId || null;
+
+					let selfieAttachmentId = null;
+					if (
+						typeof checkInSelfieObj === "object" &&
+						checkInSelfieObj !== null
+					) {
+						selfieAttachmentId =
+							checkInSelfieObj.attachmentId || checkInSelfieObj.id || null;
+					} else if (
+						typeof checkInSelfieObj === "number" ||
+						typeof checkInSelfieObj === "string"
+					) {
+						selfieAttachmentId = Number(checkInSelfieObj) || null;
+					}
+
+					let checkOutSelfieAttachmentId = null;
+					if (
+						typeof checkOutSelfieObj === "object" &&
+						checkOutSelfieObj !== null
+					) {
+						checkOutSelfieAttachmentId =
+							checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null;
+					} else if (
+						typeof checkOutSelfieObj === "number" ||
+						typeof checkOutSelfieObj === "string"
+					) {
+						checkOutSelfieAttachmentId = Number(checkOutSelfieObj) || null;
+					}
 
 					return {
 						id: att.id,
@@ -481,7 +533,9 @@ export const managerRouter = router({
 						employeeCode,
 						checkIn: att.checkIn,
 						checkOut: att.checkOut,
-						status: activeBreak ? `On Break (${activeBreak.type})` : (att.status || "present"),
+						status: activeBreak
+							? `On Break (${activeBreak.type})`
+							: att.status || "present",
 						breakMinutes: totalBreakMinutes,
 						breakCount: breaksForAtt.length,
 						workHours: workHoursStr,
@@ -502,8 +556,12 @@ export const managerRouter = router({
 				employeeName: `Staff #${l.employeeId}`,
 				employeeEmail: "",
 				employeeCode: `STAFF-${l.employeeId}`,
-				checkIn: l.checkInTime ? new Date(l.checkInTime).toLocaleTimeString() : null,
-				checkOut: l.checkOutTime ? new Date(l.checkOutTime).toLocaleTimeString() : null,
+				checkIn: l.checkInTime
+					? new Date(l.checkInTime).toLocaleTimeString()
+					: null,
+				checkOut: l.checkOutTime
+					? new Date(l.checkOutTime).toLocaleTimeString()
+					: null,
 				status: l.status || "present",
 				breakMinutes: 0,
 				breakCount: 0,
@@ -518,8 +576,25 @@ export const managerRouter = router({
 	// ── 6. Leave Balance & Management ───────────────────────────────────────────
 	getLeaveRequests: protectedProcedure.query(async ({ ctx }) => {
 		return await db
-			.select()
+			.select({
+				id: approvals.id,
+				reference_id: approvals.reference_id,
+				requested_by: approvals.requested_by,
+				emp_name: staff.name,
+				status: approvals.status,
+				created_at: approvals.created_at,
+				reason: leaveApplications.reason,
+				start_date: leaveApplications.startDate,
+				end_date: leaveApplications.endDate,
+				leave_type: leaveTypes.name,
+			})
 			.from(approvals)
+			.leftJoin(staff, eq(approvals.requested_by, staff.id))
+			.leftJoin(
+				leaveApplications,
+				eq(approvals.reference_id, leaveApplications.id),
+			)
+			.leftJoin(leaveTypes, eq(leaveApplications.leaveTypeId, leaveTypes.id))
 			.where(eq(approvals.reference_type, "leave"));
 	}),
 

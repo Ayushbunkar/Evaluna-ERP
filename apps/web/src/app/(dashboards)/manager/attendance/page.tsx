@@ -15,16 +15,26 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@evaluna/ui/components/dialog";
-import { CameraIcon, CoffeeIcon, ClockIcon, Loader2Icon, MapPinIcon, UserIcon } from "lucide-react";
-import { useState } from "react";
+import {
+	CameraIcon,
+	ClockIcon,
+	CoffeeIcon,
+	Loader2Icon,
+	MapPinIcon,
+	UserIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AttendancePage() {
 	const t = useTranslations("manager");
 	const trpc = useTRPC();
-	const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
+	const [selectedImage, setSelectedImage] = useState<{
+		url: string;
+		title: string;
+	} | null>(null);
 
 	// Query real attendance records
 	const { data: attendanceList = [], isLoading } =
@@ -47,9 +57,7 @@ export default function AttendancePage() {
 					<CardTitle className="font-bold text-base">
 						{t("todaysAttendanceRoll")}
 					</CardTitle>
-					<CardDescription>
-						{t("todaysAttendanceRollSub")}
-					</CardDescription>
+					<CardDescription>{t("todaysAttendanceRollSub")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					{isLoading ? (
@@ -60,15 +68,22 @@ export default function AttendancePage() {
 						<div className="overflow-x-auto">
 							<table className="w-full text-left text-xs">
 								<thead>
-									<tr className="border-b text-slate-500 bg-slate-50/50">
+									<tr className="border-b bg-slate-50/50 text-slate-500">
 										<th className="p-3 font-semibold">Employee / User</th>
-										<th className="p-3 font-semibold">Live Selfie</th>
-										<th className="p-3 font-semibold">{t("checkInTimeHeader")}</th>
-										<th className="p-3 font-semibold">{t("checkOutTimeHeader")}</th>
+										<th className="p-3 font-semibold">Check-In Selfie</th>
+										<th className="p-3 font-semibold">Check-Out Selfie</th>
+										<th className="p-3 font-semibold">
+											{t("checkInTimeHeader")}
+										</th>
+										<th className="p-3 font-semibold">
+											{t("checkOutTimeHeader")}
+										</th>
 										<th className="p-3 font-semibold">Work Duration</th>
 										<th className="p-3 font-semibold">Break Duration</th>
 										<th className="p-3 font-semibold">{t("statusHeader")}</th>
-										<th className="p-3 font-semibold">{t("geofenceStatusHeader")}</th>
+										<th className="p-3 font-semibold">
+											{t("geofenceStatusHeader")}
+										</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y">
@@ -76,10 +91,17 @@ export default function AttendancePage() {
 										<tr key={att.id} className="hover:bg-slate-50/40">
 											<td className="p-3 font-bold text-slate-900 dark:text-slate-100">
 												<div>
-													<p className="font-bold text-slate-900 dark:text-slate-100">{att.employeeName || `Staff #${att.employeeId}`}</p>
-													<p className="font-mono text-[10px] text-slate-500 font-normal">{att.employeeEmail ? `${att.employeeCode} (${att.employeeEmail})` : att.employeeCode}</p>
+													<p className="font-bold text-slate-900 dark:text-slate-100">
+														{att.employeeName || `Staff #${att.employeeId}`}
+													</p>
+													<p className="font-mono font-normal text-[10px] text-slate-500">
+														{att.employeeEmail
+															? `${att.employeeCode} (${att.employeeEmail})`
+															: att.employeeCode}
+													</p>
 												</div>
 											</td>
+											{/* Check-In Selfie Thumbnail */}
 											<td className="p-3">
 												{att.selfieAttachmentId ? (
 													<button
@@ -87,15 +109,15 @@ export default function AttendancePage() {
 														onClick={() =>
 															setSelectedImage({
 																url: `/api/attendance/attachments/${att.selfieAttachmentId}`,
-																title: `Live Check-in Selfie — ${att.employeeName}`,
+																title: `Check-In Selfie — ${att.employeeName}`,
 															})
 														}
-														className="group relative flex h-10 w-10 overflow-hidden rounded-full border border-blue-200 bg-blue-50 shadow-xs hover:ring-2 hover:ring-blue-500"
-														title="Click to view full photo"
+														className="group relative flex h-10 w-10 overflow-hidden rounded-full border-2 border-green-500 bg-green-50 shadow-xs hover:ring-2 hover:ring-green-600"
+														title="Click to view Check-In Selfie"
 													>
 														<img
 															src={`/api/attendance/attachments/${att.selfieAttachmentId}`}
-															alt={att.employeeName}
+															alt={`Check-in selfie of ${att.employeeName}`}
 															className="h-full w-full object-cover"
 														/>
 														<div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -103,27 +125,71 @@ export default function AttendancePage() {
 														</div>
 													</button>
 												) : (
-													<div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-400" title="No photo uploaded">
+													<div
+														className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-400"
+														title="No check-in selfie"
+													>
+														<UserIcon className="h-4 w-4" />
+													</div>
+												)}
+											</td>
+											{/* Check-Out Selfie Thumbnail */}
+											<td className="p-3">
+												{att.checkOutSelfieAttachmentId ? (
+													<button
+														type="button"
+														onClick={() =>
+															setSelectedImage({
+																url: `/api/attendance/attachments/${att.checkOutSelfieAttachmentId}`,
+																title: `Check-Out Selfie — ${att.employeeName}`,
+															})
+														}
+														className="group relative flex h-10 w-10 overflow-hidden rounded-full border-2 border-orange-500 bg-orange-50 shadow-xs hover:ring-2 hover:ring-orange-600"
+														title="Click to view Check-Out Selfie"
+													>
+														<img
+															src={`/api/attendance/attachments/${att.checkOutSelfieAttachmentId}`}
+															alt={`Check-out selfie of ${att.employeeName}`}
+															className="h-full w-full object-cover"
+														/>
+														<div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+															<CameraIcon className="h-4 w-4 text-white" />
+														</div>
+													</button>
+												) : (
+													<div
+														className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-400"
+														title="No check-out selfie yet"
+													>
 														<UserIcon className="h-4 w-4" />
 													</div>
 												)}
 											</td>
 											<td className="p-3 font-medium font-mono text-green-600">
-												{att.checkIn || (att.createdAt ? new Date(att.createdAt).toLocaleTimeString() : "N/A")}
+												{att.checkIn ||
+													(att.createdAt
+														? new Date(att.createdAt).toLocaleTimeString()
+														: "N/A")}
 											</td>
 											<td className="p-3 font-medium font-mono">
-												{att.checkOut || (att.status?.includes("present") || att.status?.includes("Break") ? t("activeLabel") : "-")}
+												{att.checkOut ||
+													(att.status?.includes("present") ||
+													att.status?.includes("Break")
+														? t("activeLabel")
+														: "-")}
 											</td>
 											<td className="p-3">
-												<span className="inline-flex items-center gap-1 font-semibold text-blue-600 font-mono text-xs">
+												<span className="inline-flex items-center gap-1 font-mono font-semibold text-blue-600 text-xs">
 													<ClockIcon className="h-3.5 w-3.5 text-blue-500" />
 													{att.workHours || "-"}
 												</span>
 											</td>
 											<td className="p-3">
-												<span className="inline-flex items-center gap-1 text-slate-700 font-mono text-[11px]">
+												<span className="inline-flex items-center gap-1 font-mono text-[11px] text-slate-700">
 													<CoffeeIcon className="h-3.5 w-3.5 text-amber-500" />
-													{att.breakMinutes > 0 ? `${att.breakMinutes} mins (${att.breakCount} break)` : "0 mins"}
+													{att.breakMinutes > 0
+														? `${att.breakMinutes} mins (${att.breakCount} break)`
+														: "0 mins"}
 												</span>
 											</td>
 											<td className="p-3">
@@ -138,7 +204,7 @@ export default function AttendancePage() {
 											</td>
 											<td className="p-3 text-slate-600">
 												<div className="flex items-center gap-1">
-													<MapPinIcon className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+													<MapPinIcon className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
 													<span className="font-medium text-[11px]">
 														{att.notes || t("authorizedGeofence")}
 													</span>
@@ -149,7 +215,7 @@ export default function AttendancePage() {
 									{attendanceList.length === 0 && (
 										<tr>
 											<td
-												colSpan={8}
+												colSpan={9}
 												className="py-12 text-center text-slate-400 text-xs"
 											>
 												{t("noTeamCheckinsLoggedToday")}
@@ -164,10 +230,13 @@ export default function AttendancePage() {
 			</Card>
 
 			{/* Modal Preview for Live Selfie Image */}
-			<Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+			<Dialog
+				open={!!selectedImage}
+				onOpenChange={() => setSelectedImage(null)}
+			>
 				<DialogContent className="max-w-lg">
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2 text-base font-bold">
+						<DialogTitle className="flex items-center gap-2 font-bold text-base">
 							<CameraIcon className="h-5 w-5 text-blue-600" />
 							{selectedImage?.title}
 						</DialogTitle>

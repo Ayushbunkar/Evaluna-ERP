@@ -1,4 +1,5 @@
 import {
+	approvals,
 	branches,
 	employees,
 	enhancedAttendance,
@@ -7,9 +8,22 @@ import {
 	payroll,
 	staff,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import {
+	aliasedTable,
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	lte,
+	ne,
+	not,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
-import { roleProcedure, router } from "../init";
 
 export const hrRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "auditor", "hr"])
@@ -38,7 +52,8 @@ export const hrRouter = router({
 				db
 					.select({ count: count() })
 					.from(enhancedAttendance)
-					.innerJoin(staff, eq(enhancedAttendance.employeeId, staff.id))
+					.innerJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
+					.innerJoin(staff, eq(employees.email, staff.email))
 					.where(
 						and(
 							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
@@ -50,7 +65,8 @@ export const hrRouter = router({
 				db
 					.select({ count: count() })
 					.from(enhancedAttendance)
-					.innerJoin(staff, eq(enhancedAttendance.employeeId, staff.id))
+					.innerJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
+					.innerJoin(staff, eq(employees.email, staff.email))
 					.where(
 						and(
 							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
@@ -118,185 +134,230 @@ export const hrRouter = router({
 
 	getEmployees: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(
-			z.object({
-				branch_id: z.number().optional(),
-				search: z.string().optional(),
-			}),
+			z
+				.object({
+					branch_id: z.number().optional(),
+					search: z.string().optional(),
+				})
+				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db.select().from(staff).where(eq(staff.is_deleted, false));
+			try {
+				let query = db.select().from(staff).where(eq(staff.is_deleted, false));
 
-			if (input.branch_id) {
-				query = query.where(eq(staff.branch_id, input.branch_id));
-			} else {
-				// Use the authenticated user's branch if no branch_id is provided
-				query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				if (input?.branch_id) {
+					query = query.where(eq(staff.branch_id, input.branch_id));
+				} else if (ctx.user.branchId) {
+					// Use the authenticated user's branch if no branch_id is provided
+					query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				}
+
+				if (input?.search) {
+					const searchTerm = `%${input.search}%`;
+					query = query.where(
+						and(
+							ilike(staff.name, searchTerm),
+							ilike(staff.staff_code, searchTerm),
+						),
+					);
+				}
+
+				const results = await query.orderBy(desc(staff.created_at)).limit(100);
+
+				return results.map((r) => ({
+					id: r.id,
+					emp_code: r.staff_code || `EMP-${r.id}`,
+					name: r.name,
+					department: r.department || "General",
+					role: r.role || "Staff",
+					phone: r.phone || "N/A",
+					email: r.email || "N/A",
+					join_date: r.join_date
+						? new Date(r.join_date).toLocaleDateString()
+						: "",
+					salary: Number(r.salary) || 0,
+					status: r.status === "active" ? "Active" : "Inactive",
+				}));
+			} catch (err) {
+				console.error("Error in getEmployees:", err);
+				return [];
 			}
-
-			if (input.search) {
-				const searchTerm = `%${input.search}%`;
-				query = query.where(
-					and(
-						ilike(staff.name, searchTerm),
-						ilike(staff.staff_code, searchTerm),
-					),
-				);
-			}
-
-			const results = await query.orderBy(desc(staff.created_at)).limit(100);
-
-			return results.map((r) => ({
-				id: r.id,
-				emp_code: r.staff_code || `EMP-${r.id}`,
-				name: r.name,
-				department: r.department || "General",
-				role: r.role || "Staff",
-				phone: r.phone || "N/A",
-				email: r.email || "N/A",
-				join_date: r.join_date?.toLocaleDateString() || "",
-				salary: Number(r.salary) || 0,
-				status: r.status === "active" ? "Active" : "Inactive",
-			}));
 		}),
 
 	getLeaveRequests: roleProcedure(["admin", "manager", "auditor", "hr"])
-		.input(z.object({ branch_id: z.number().optional() }))
+		.input(z.object({ branch_id: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db
-				.select({
-					id: leaveApplications.id,
-					employeeName: sql<string>`${employees.firstName} || ' ' || ${employees.lastName}`,
-					leaveType: leaveTypes.name,
-					startDate: leaveApplications.startDate,
-					endDate: leaveApplications.endDate,
-					reason: leaveApplications.reason,
-					status: leaveApplications.status,
-					appliedAt: leaveApplications.appliedAt,
-					approvedAt: leaveApplications.approvedAt,
-					approvedBy: sql<string>`${employees_approved.firstName} || ' ' || ${employees_approved.lastName}`,
-				})
-				.from(leaveApplications)
-				.innerJoin(employees, eq(leaveApplications.employeeId, employees.id))
-				.innerJoin(leaveTypes, eq(leaveApplications.leaveTypeId, leaveTypes.id))
-				.leftJoin(
-					employees as employees_approved,
-					eq(leaveApplications.approvedBy, employees_approved.id),
-				)
-				.where(eq(employees.status, "active"));
+			try {
+				const employeesApproved = aliasedTable(employees, "employees_approved");
 
-			if (input.branch_id) {
-				query = query.where(eq(employees.branchId, input.branch_id));
-			} else {
-				// Use the authenticated user's branch if no branch_id is provided
-				query = query.where(eq(employees.branchId, ctx.user.branchId));
+				let query = db
+					.select({
+						id: leaveApplications.id,
+						employeeName: sql<string>`${employees.firstName} || ' ' || ${employees.lastName}`,
+						leaveType: leaveTypes.name,
+						startDate: leaveApplications.startDate,
+						endDate: leaveApplications.endDate,
+						reason: leaveApplications.reason,
+						status: leaveApplications.status,
+						appliedAt: leaveApplications.createdAt,
+						approvedAt: leaveApplications.approvedAt,
+						approvedBy: sql<string>`COALESCE(${employeesApproved.firstName} || ' ' || ${employeesApproved.lastName}, 'N/A')`,
+					})
+					.from(leaveApplications)
+					.leftJoin(employees, eq(leaveApplications.employeeId, employees.id))
+					.leftJoin(
+						leaveTypes,
+						eq(leaveApplications.leaveTypeId, leaveTypes.id),
+					)
+					.leftJoin(
+						employeesApproved,
+						eq(leaveApplications.approvedBy, employeesApproved.id),
+					)
+					.leftJoin(staff, eq(employees.email, staff.email));
+
+				if (input?.branch_id) {
+					query = query.where(eq(staff.branch_id, input.branch_id));
+				} else if (ctx.user.branchId) {
+					query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				}
+
+				const results = await query
+					.orderBy(desc(leaveApplications.createdAt))
+					.limit(50);
+
+				return results.map((r) => ({
+					id: r.id,
+					emp_name: r.employeeName || "Unknown",
+					leave_type: r.leaveType || "General Leave",
+					start_date: r.startDate
+						? new Date(r.startDate).toLocaleDateString()
+						: "",
+					end_date: r.endDate ? new Date(r.endDate).toLocaleDateString() : "",
+					reason: r.reason || "",
+					status: r.status || "pending",
+					applied_at: r.appliedAt
+						? new Date(r.appliedAt).toLocaleDateString()
+						: "",
+					approved_at: r.approvedAt
+						? new Date(r.approvedAt).toLocaleDateString()
+						: "",
+					approved_by: r.approvedBy || "N/A",
+				}));
+			} catch (err) {
+				console.error("Error fetching leave requests:", err);
+				return [];
 			}
-
-			const results = await query
-				.orderBy(desc(leaveApplications.createdAt))
-				.limit(50);
-
-			return results.map((r) => ({
-				id: r.id,
-				emp_name: r.employeeName || "Unknown",
-				leave_type: r.leaveType || "Unknown",
-				start_date: r.startDate?.toLocaleDateString() || "",
-				end_date: r.endDate?.toLocaleDateString() || "",
-				reason: r.reason || "",
-				status: r.status,
-				applied_at: r.appliedAt?.toLocaleDateString() || "",
-				approved_at: r.approvedAt?.toLocaleDateString() || "",
-				approved_by: r.approvedBy || "Unknown",
-			}));
 		}),
+
+	getLeaveTypes: roleProcedure(["admin", "manager", "auditor", "hr"]).query(
+		async ({ ctx }) => {
+			const db = ctx.db;
+			let types = await db.select().from(leaveTypes);
+			if (types.length === 0) {
+				// Seed default leave types if table is empty
+				await db.insert(leaveTypes).values([
+					{ name: "Casual Leave", code: "CL", maxDays: 12, isPaid: true },
+					{ name: "Sick Leave", code: "SL", maxDays: 10, isPaid: true },
+					{
+						name: "Earned / Annual Leave",
+						code: "EL",
+						maxDays: 15,
+						isPaid: true,
+					},
+					{
+						name: "Maternity / Paternity Leave",
+						code: "ML",
+						maxDays: 90,
+						isPaid: true,
+					},
+					{
+						name: "Unpaid / Loss of Pay",
+						code: "LOP",
+						maxDays: 30,
+						isPaid: false,
+					},
+				]);
+				types = await db.select().from(leaveTypes);
+			}
+			return types;
+		},
+	),
 
 	createLeaveRequest: roleProcedure(["admin", "manager", "hr"])
 		.input(
 			z.object({
 				employeeId: z.number(),
 				leaveTypeId: z.number(),
-				startDate: z.date(),
-				endDate: z.date(),
+				startDate: z.string(), // YYYY-MM-DD
+				endDate: z.string(), // YYYY-MM-DD
 				reason: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const startDateObj = new Date(input.startDate);
+			const endDateObj = new Date(input.endDate);
 
-			// Validate that the employee exists and is active
-			const employee = await db
-				.select()
-				.from(employees)
-				.where(
-					and(
-						eq(employees.id, input.employeeId),
-						eq(employees.status, "active"),
-					),
-				)
-				.limit(1);
-
-			if (!employee.length) {
-				throw new Error("Employee not found or inactive");
-			}
-
-			// Validate that the leave type exists
-			const leaveType = await db
-				.select()
-				.from(leaveTypes)
-				.where(eq(leaveTypes.id, input.leaveTypeId))
-				.limit(1);
-
-			if (!leaveType.length) {
-				throw new Error("Leave type not found");
-			}
-
-			// Validate dates
-			if (input.startDate > input.endDate) {
+			if (startDateObj > endDateObj) {
 				throw new Error("Start date must be before or equal to end date");
 			}
 
-			// Check for overlapping leave requests
-			const overlappingLeave = await db
-				.select({ count: count() })
-				.from(leaveApplications)
-				.where(
-					and(
-						eq(leaveApplications.employeeId, input.employeeId),
-						eq(leaveApplications.status, "pending"), // Only check pending leaves
-						or(
-							and(
-								gte(leaveApplications.startDate, input.startDate),
-								lte(leaveApplications.startDate, input.endDate),
-							),
-							and(
-								gte(leaveApplications.endDate, input.startDate),
-								lte(leaveApplications.endDate, input.endDate),
-							),
-							and(
-								lte(leaveApplications.startDate, input.startDate),
-								gte(leaveApplications.endDate, input.endDate),
-							),
-						),
-					),
-				);
+			// Sync staff -> employee to satisfy foreign keys
+			const [staffRecord] = await db
+				.select()
+				.from(staff)
+				.where(eq(staff.id, input.employeeId))
+				.limit(1);
 
-			if (overlappingLeave[0]?.count > 0) {
-				throw new Error("Leave request overlaps with existing pending leave");
+			if (!staffRecord) throw new Error("Staff not found");
+
+			let [employeeRecord] = await db
+				.select()
+				.from(employees)
+				.where(eq(employees.email, staffRecord.email))
+				.limit(1);
+
+			if (!employeeRecord) {
+				[employeeRecord] = await db
+					.insert(employees)
+					.values({
+						employeeCode: staffRecord.staff_code || `EMP-${Date.now()}`,
+						firstName: staffRecord.name.split(" ")[0] || "Unknown",
+						lastName:
+							staffRecord.name.split(" ").slice(1).join(" ") || "Employee",
+						email: staffRecord.email,
+						hireDate: staffRecord.join_date
+							? new Date(staffRecord.join_date).toISOString().split("T")[0]
+							: new Date().toISOString().split("T")[0],
+						status: staffRecord.status === "active" ? "active" : "inactive",
+						userUid: `sync-${staffRecord.id}`,
+					})
+					.returning();
 			}
 
-			// Create the leave request
+			// Create the leave request in leave_applications
 			const [result] = await db
 				.insert(leaveApplications)
 				.values({
-					employeeId: input.employeeId,
+					employeeId: employeeRecord.id,
 					leaveTypeId: input.leaveTypeId,
 					startDate: input.startDate,
 					endDate: input.endDate,
-					reason: input.reason,
+					reason: input.reason || "Applied via HR System",
 					status: "pending",
 				})
 				.returning();
+
+			// Also create pending entry in approvals table for manager/HR inbox visibility
+			await db.insert(approvals).values({
+				reference_type: "leave",
+				reference_id: result.id,
+				requested_by: staffRecord.id, // approvals likely uses staff id
+				status: "pending",
+				created_at: new Date(),
+			});
 
 			return {
 				id: result.id,
@@ -309,7 +370,7 @@ export const hrRouter = router({
 			z.object({
 				leaveId: z.number(),
 				status: z.enum(["approved", "rejected", "cancelled"]),
-				approvedBy: z.number(), // ID of the approver (HR/manager)
+				approvedBy: z.number().optional(), // ID of the approver (HR/manager)
 				approvedAt: z.date().optional(),
 			}),
 		)
@@ -322,6 +383,7 @@ export const hrRouter = router({
 					id: leaveApplications.id,
 					employeeId: leaveApplications.employeeId,
 					status: leaveApplications.status,
+					managerApproved: leaveApplications.managerApproved,
 					startDate: leaveApplications.startDate,
 					endDate: leaveApplications.endDate,
 				})
@@ -335,25 +397,58 @@ export const hrRouter = router({
 
 			const leave = leaveRequest[0];
 
+			// Ensure manager has approved before HR can approve
+			if (input.status === "approved" && !leave.managerApproved) {
+				throw new TRPCError({
+					code: "PRECONDITION_FAILED",
+					message:
+						"Manager approval required before HR can approve this leave request.",
+				});
+			}
+
 			// Validate that the leave request is in a state that can be updated
 			if (leave.status !== "pending") {
 				throw new Error("Only pending leave requests can be updated");
 			}
 
-			// Validate that the approver exists and is active
-			const approver = await db
-				.select()
-				.from(employees)
-				.where(
-					and(
-						eq(employees.id, input.approvedBy),
-						eq(employees.status, "active"),
-					),
-				)
-				.limit(1);
+			let approverId = input.approvedBy;
+			if (!approverId) {
+				// Find staff record for current user
+				const [staffMember] = await db
+					.select()
+					.from(staff)
+					.where(eq(staff.email, ctx.user.email))
+					.limit(1);
 
-			if (!approver.length) {
-				throw new Error("Approver not found or inactive");
+				if (staffMember) {
+					// Get or sync employee record for this staff
+					let [employeeRecord] = await db
+						.select()
+						.from(employees)
+						.where(eq(employees.email, staffMember.email))
+						.limit(1);
+
+					if (!employeeRecord) {
+						[employeeRecord] = await db
+							.insert(employees)
+							.values({
+								employeeCode: staffMember.staff_code || `EMP-${Date.now()}`,
+								firstName: staffMember.name.split(" ")[0] || "Unknown",
+								lastName:
+									staffMember.name.split(" ").slice(1).join(" ") || "Employee",
+								email: staffMember.email,
+								hireDate: staffMember.join_date
+									? new Date(staffMember.join_date).toISOString().split("T")[0]
+									: new Date().toISOString().split("T")[0],
+								status: staffMember.status === "active" ? "active" : "inactive",
+								userUid: `sync-${staffMember.id}`,
+							})
+							.returning();
+					}
+					approverId = employeeRecord.id;
+				} else {
+					approverId = 1; // Fallback
+				}
 			}
 
 			// Update the leave request
@@ -361,7 +456,7 @@ export const hrRouter = router({
 				.update(leaveApplications)
 				.set({
 					status: input.status,
-					approvedBy: input.approvedBy,
+					approvedBy: approverId,
 					approvedAt: input.approvedAt ?? new Date(),
 				})
 				.where(eq(leaveApplications.id, input.leaveId))
@@ -418,65 +513,272 @@ export const hrRouter = router({
 
 	getPayroll: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(
-			z.object({
-				branch_id: z.number().optional(),
-				month: z.string().optional(),
-			}),
+			z
+				.object({
+					branch_id: z.number().optional(),
+					month: z.string().optional(),
+				})
+				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db
-				.select({
-					id: payroll.id,
-					employeeName: sql<string>`${staff.name}`,
-					month: payroll.month,
-					baseSalary: payroll.base_salary,
-					overtimePay: payroll.overtime_pay,
-					bonus: payroll.bonus,
-					deductions: payroll.deductions,
-					advanceDeduction: payroll.advance_deduction,
-					netPayable: payroll.net_payable,
-					status: payroll.status,
-					paymentDate: payroll.payment_date,
-				})
-				.from(payroll)
-				.innerJoin(staff, eq(payroll.staff_id, staff.id))
-				.where(eq(staff.is_deleted, false));
+			try {
+				let query = db
+					.select({
+						id: payroll.id,
+						employeeName: sql<string>`${staff.name}`,
+						month: payroll.month,
+						baseSalary: payroll.base_salary,
+						overtimePay: payroll.overtime_pay,
+						bonus: payroll.bonus,
+						deductions: payroll.deductions,
+						advanceDeduction: payroll.advance_deduction,
+						netPayable: payroll.net_payable,
+						status: payroll.status,
+						paymentDate: payroll.payment_date,
+					})
+					.from(payroll)
+					.innerJoin(staff, eq(payroll.staff_id, staff.id))
+					.where(eq(staff.is_deleted, false));
 
-			if (input.branch_id) {
-				query = query.where(eq(staff.branch_id, input.branch_id));
-			} else {
-				// Use the authenticated user's branch if no branch_id is provided
-				query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				if (input?.branch_id) {
+					query = query.where(eq(staff.branch_id, input.branch_id));
+				} else if (ctx.user.branchId) {
+					// Use the authenticated user's branch if no branch_id is provided
+					query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				}
+
+				if (input?.month) {
+					query = query.where(eq(payroll.month, input.month));
+				}
+
+				const results = await query.orderBy(desc(payroll.created_at)).limit(50);
+
+				return results.map((r) => ({
+					id: r.id,
+					employee_name: r.employeeName || "Unknown",
+					month: r.month,
+					base_salary: Number(r.baseSalary) || 0,
+					overtime_pay: Number(r.overtimePay) || 0,
+					bonus: Number(r.bonus) || 0,
+					deductions: Number(r.deductions) || 0,
+					advance_deduction: Number(r.advanceDeduction) || 0,
+					net_payable: Number(r.netPayable) || 0,
+					status: r.status,
+					payment_date: r.paymentDate
+						? new Date(r.paymentDate).toLocaleDateString()
+						: "",
+				}));
+			} catch (err) {
+				console.error("Error in getPayroll:", err);
+				return [];
 			}
-
-			if (input.month) {
-				query = query.where(eq(payroll.month, input.month));
-			} else {
-				// Default to current month if no month is provided
-				query = query.where(
-					eq(payroll.month, sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`),
-				);
-			}
-
-			const results = await query.orderBy(desc(payroll.createdAt)).limit(50);
-
-			return results.map((r) => ({
-				id: r.id,
-				employee_name: r.employeeName || "Unknown",
-				month: r.month,
-				base_salary: Number(r.baseSalary) || 0,
-				overtime_pay: Number(r.overtimePay) || 0,
-				bonus: Number(r.bonus) || 0,
-				deductions: Number(r.deductions) || 0,
-				advance_deduction: Number(r.advanceDeduction) || 0,
-				net_payable: Number(r.netPayable) || 0,
-				status: r.status,
-				payment_date: r.paymentDate?.toLocaleDateString() || "",
-			}));
 		}),
 
-	// TODO: Add payroll processing procedures in a follow-up implementation
+	getAttendanceRecords: roleProcedure(["admin", "manager", "auditor", "hr"])
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			try {
+				let query = db
+					.select({
+						id: enhancedAttendance.id,
+						date: enhancedAttendance.date,
+						checkIn: enhancedAttendance.checkIn,
+						checkOut: enhancedAttendance.checkOut,
+						status: enhancedAttendance.status,
+						notes: enhancedAttendance.notes,
+						empFirstName: employees.firstName,
+						empLastName: employees.lastName,
+						staffName: staff.name,
+					})
+					.from(enhancedAttendance)
+					.leftJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
+					.leftJoin(staff, eq(employees.email, staff.email));
+
+				if (input?.branch_id) {
+					query = query.where(
+						or(
+							eq(enhancedAttendance.branchId, input.branch_id),
+							eq(staff.branch_id, input.branch_id),
+						),
+					);
+				} else if (ctx.user.branchId) {
+					query = query.where(
+						or(
+							eq(enhancedAttendance.branchId, ctx.user.branchId),
+							eq(staff.branch_id, ctx.user.branchId),
+						),
+					);
+				}
+
+				if (input?.date) {
+					query = query.where(eq(enhancedAttendance.date, input.date));
+				}
+
+				const results = await query
+					.orderBy(desc(enhancedAttendance.date), desc(enhancedAttendance.id))
+					.limit(100);
+
+				return results.map((r) => {
+					let checkInStr = "N/A";
+					let checkOutStr = "N/A";
+
+					if (r.checkIn) {
+						try {
+							const d = r.date || new Date().toISOString().split("T")[0];
+							const dt = new Date(`${d}T${r.checkIn}`);
+							if (!isNaN(dt.getTime())) {
+								checkInStr = dt.toLocaleTimeString([], {
+									hour: "2-digit",
+									minute: "2-digit",
+								});
+							} else {
+								checkInStr = String(r.checkIn);
+							}
+						} catch {
+							checkInStr = String(r.checkIn);
+						}
+					}
+
+					if (r.checkOut) {
+						try {
+							const d = r.date || new Date().toISOString().split("T")[0];
+							const dt = new Date(`${d}T${r.checkOut}`);
+							if (!isNaN(dt.getTime())) {
+								checkOutStr = dt.toLocaleTimeString([], {
+									hour: "2-digit",
+									minute: "2-digit",
+								});
+							} else {
+								checkOutStr = String(r.checkOut);
+							}
+						} catch {
+							checkOutStr = String(r.checkOut);
+						}
+					}
+
+					const empName =
+						[r.empFirstName, r.empLastName].filter(Boolean).join(" ") ||
+						r.staffName ||
+						`Staff Member #${r.id}`;
+
+					return {
+						id: r.id,
+						date: r.date
+							? new Date(r.date).toLocaleDateString()
+							: new Date().toLocaleDateString(),
+						employee_name: empName,
+						check_in: checkInStr,
+						check_out: checkOutStr,
+						status: r.status || "present",
+					};
+				});
+			} catch (err) {
+				console.error("Error in getAttendanceRecords:", err);
+				return [];
+			}
+		}),
+
+	markEmployeeOff: roleProcedure(["admin", "manager", "hr"])
+		.input(
+			z.object({
+				employeeId: z.number(),
+				date: z.string(), // YYYY-MM-DD
+				status: z
+					.enum(["leave", "holiday", "absent", "week_off"])
+					.default("leave"),
+				reason: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+
+			// Sync staff -> employee to satisfy foreign keys
+			const [staffRecord] = await db
+				.select()
+				.from(staff)
+				.where(eq(staff.id, input.employeeId))
+				.limit(1);
+
+			if (!staffRecord) throw new Error("Staff not found");
+
+			let [employeeRecord] = await db
+				.select()
+				.from(employees)
+				.where(eq(employees.email, staffRecord.email))
+				.limit(1);
+
+			if (!employeeRecord) {
+				[employeeRecord] = await db
+					.insert(employees)
+					.values({
+						employeeCode: staffRecord.staff_code || `EMP-${Date.now()}`,
+						firstName: staffRecord.name.split(" ")[0] || "Unknown",
+						lastName:
+							staffRecord.name.split(" ").slice(1).join(" ") || "Employee",
+						email: staffRecord.email,
+						hireDate: staffRecord.join_date
+							? new Date(staffRecord.join_date).toISOString().split("T")[0]
+							: new Date().toISOString().split("T")[0],
+						status: staffRecord.status === "active" ? "active" : "inactive",
+						userUid: `sync-${staffRecord.id}`,
+					})
+					.returning();
+			}
+
+			const realEmployeeId = employeeRecord.id;
+
+			const existing = await db
+				.select()
+				.from(enhancedAttendance)
+				.where(
+					and(
+						eq(enhancedAttendance.employeeId, realEmployeeId),
+						eq(enhancedAttendance.date, input.date),
+					),
+				)
+				.limit(1);
+
+			if (existing.length > 0) {
+				const [updated] = await db
+					.update(enhancedAttendance)
+					.set({
+						status: input.status,
+						notes: input.reason || `Marked ${input.status} by HR`,
+						isApproved: true,
+					})
+					.where(eq(enhancedAttendance.id, existing[0].id))
+					.returning();
+				return updated;
+			}
+			const [inserted] = await db
+				.insert(enhancedAttendance)
+				.values({
+					employeeId: realEmployeeId,
+					date: input.date,
+					status: input.status,
+					notes: input.reason || `Marked ${input.status} by HR`,
+					checkIn: null,
+					checkOut: null,
+					workingHours: 0,
+					breakHours: 0,
+					lateMinutes: 0,
+					earlyExitMinutes: 0,
+					overtimeMinutes: 0,
+					riskScore: 0,
+					isApproved: true,
+				})
+				.returning();
+			return inserted;
+		}),
 });
 
 /**

@@ -25,8 +25,8 @@ import {
 	SearchIcon,
 	TruckIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -172,9 +172,7 @@ export default function PackerHistoryPage() {
 							<ArchiveIcon className="h-5 w-5 text-blue-600" />
 							{t("packageAuditHistory")}
 						</CardTitle>
-						<CardDescription>
-							{t("packageAuditHistorySub")}
-						</CardDescription>
+						<CardDescription>{t("packageAuditHistorySub")}</CardDescription>
 					</div>
 
 					<div className="relative w-full sm:w-64">
@@ -214,7 +212,9 @@ export default function PackerHistoryPage() {
 										<TableHead>{t("packedBy")}</TableHead>
 										<TableHead>{tCommon("status")}</TableHead>
 										<TableHead>{t("packedDate")}</TableHead>
-										<TableHead className="text-right">{tCommon("actions")}</TableHead>
+										<TableHead className="text-right">
+											{tCommon("actions")}
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -227,15 +227,21 @@ export default function PackerHistoryPage() {
 												{pkg.orderId}
 											</TableCell>
 											<TableCell className="text-xs">
-												<div className="font-medium text-gray-800 dark:text-gray-200">👤 {pkg.driverName || t("unassigned")}</div>
-												<div className="text-muted-foreground text-[10px] mt-0.5 font-mono">🚛 {pkg.vehiclePlate || "N/A"}</div>
+												<div className="font-medium text-gray-800 dark:text-gray-200">
+													👤 {pkg.driverName || t("unassigned")}
+												</div>
+												<div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+													🚛 {pkg.vehiclePlate || "N/A"}
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pkg.packedBy}
 											</TableCell>
 											<TableCell>
 												<span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800 text-xs capitalize dark:bg-green-900/30 dark:text-green-400">
-													{pkg.status === "Packed" || pkg.status === "packed" ? "पैक किया हुआ" : pkg.status}
+													{pkg.status === "Packed" || pkg.status === "packed"
+														? "पैक किया हुआ"
+														: pkg.status}
 												</span>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
@@ -250,7 +256,8 @@ export default function PackerHistoryPage() {
 														handlePrintLabel(pkg.packageNumber, pkg.orderId)
 													}
 												>
-													<PrinterIcon className="h-3.5 w-3.5" /> {t("reprintLabel")}
+													<PrinterIcon className="h-3.5 w-3.5" />{" "}
+													{t("reprintLabel")}
 												</Button>
 											</TableCell>
 										</TableRow>

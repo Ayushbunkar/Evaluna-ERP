@@ -483,69 +483,109 @@ export default function POSPage() {
 		);
 	}
 
+	const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">("catalog");
+
 	return (
-		<PageTransition className="flex h-[calc(100vh-64px)] overflow-hidden bg-muted/40">
+		<PageTransition className="flex h-[calc(100vh-64px)] flex-col overflow-hidden bg-muted/40 md:flex-row">
+			{/* Mobile View Mode Switcher */}
+			<div className="flex shrink-0 items-center justify-between border-b bg-background p-2 md:hidden">
+				<div className="flex w-full rounded-lg bg-muted p-1">
+					<button
+						type="button"
+						onClick={() => setActiveMobileTab("catalog")}
+						className={`flex-1 rounded-md py-1.5 font-semibold text-xs transition-all ${
+							activeMobileTab === "catalog"
+								? "bg-background text-foreground shadow-sm"
+								: "text-muted-foreground hover:text-foreground"
+						}`}
+					>
+						{t.posTitle}
+					</button>
+					<button
+						type="button"
+						onClick={() => setActiveMobileTab("cart")}
+						className={`relative flex-1 rounded-md py-1.5 font-semibold text-xs transition-all ${
+							activeMobileTab === "cart"
+								? "bg-background text-foreground shadow-sm"
+								: "text-muted-foreground hover:text-foreground"
+						}`}
+					>
+						{t.currentOrder} ({cart.reduce((acc, item) => acc + (item.qty || 1), 0)})
+						{cart.length > 0 && (
+							<span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-primary" />
+						)}
+					</button>
+				</div>
+			</div>
+
 			{/* Left Pane - Catalog */}
-			<div className="flex min-h-0 flex-1 flex-col border-r p-4">
-				<div className="mb-4 flex shrink-0 items-center justify-between">
-					<h1 className="font-bold text-2xl">{t.posTitle}</h1>
+			<div
+				className={`min-h-0 flex-1 flex-col border-r p-3 sm:p-4 ${
+					activeMobileTab === "catalog" ? "flex" : "hidden md:flex"
+				}`}
+			>
+				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
+					<h1 className="font-bold text-xl sm:text-2xl">{t.posTitle}</h1>
 					<div className="flex items-center gap-2">
 						{isOffline ? (
-							<span className="flex items-center gap-2 font-semibold text-destructive">
+							<span className="flex items-center gap-1.5 font-semibold text-destructive text-xs sm:text-sm">
 								<WifiOff className="h-4 w-4" /> {t.offline}
 							</span>
 						) : (
-							<span className="flex items-center gap-2 font-semibold text-primary">
+							<span className="flex items-center gap-1.5 font-semibold text-primary text-xs sm:text-sm">
 								<Wifi className="h-4 w-4" /> {t.online}
 							</span>
 						)}
 					</div>
 				</div>
 
-				<div className="relative mb-4 shrink-0">
-					<Search className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
+				<div className="relative mb-3 shrink-0 sm:mb-4">
+					<Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground sm:top-3" />
 					<Input
 						type="text"
 						suppressHydrationWarning
 						placeholder={t.searchPlaceholder}
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
-						className="bg-background pl-9"
+						className="h-9 bg-background pl-9 text-xs sm:h-10 sm:text-sm"
 					/>
 				</div>
 
 				<ScrollArea className="min-h-0 flex-1">
 					{isLoading ? (
-						<div className="grid grid-cols-2 gap-4 p-2 md:grid-cols-3 lg:grid-cols-4">
+						<div className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4">
 							{[1, 2, 3, 4, 5, 6].map((n) => (
 								<div
 									key={n}
-									className="h-32 animate-pulse rounded-xl bg-muted"
+									className="h-28 animate-pulse rounded-xl bg-muted sm:h-32"
 								/>
 							))}
 						</div>
 					) : (
-						<StaggerList className="grid grid-cols-2 gap-4 p-2 md:grid-cols-3 lg:grid-cols-4">
+						<StaggerList className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4">
 							{filteredCatalog?.map((product) => (
 								<StaggerItem key={product.id}>
 									<AnimatedCard>
 										<Card
 											className="flex h-full cursor-pointer flex-col justify-between border-transparent shadow-sm transition-colors hover:border-primary/50"
-											onClick={() => addToCart(product)}
+											onClick={() => {
+												addToCart(product);
+												toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
+											}}
 										>
-											<CardHeader className="p-4 pb-2">
+											<CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
 												<CardTitle
-													className="truncate font-semibold text-sm"
+													className="truncate font-semibold text-xs sm:text-sm"
 													title={getLocalizedProductName(product.name, locale)}
 												>
 													{getLocalizedProductName(product.name, locale)}
 												</CardTitle>
 											</CardHeader>
-											<CardContent className="flex flex-col justify-end p-4 pt-0">
-												<div className="font-bold text-lg text-primary">
+											<CardContent className="flex flex-col justify-end p-3 pt-0 sm:p-4 sm:pt-0">
+												<div className="font-bold text-base text-primary sm:text-lg">
 													₹{Number.parseFloat(product.price).toFixed(2)}
 												</div>
-												<div className="mt-1 line-clamp-2 min-h-[32px] text-muted-foreground text-xs">
+												<div className="mt-1 line-clamp-2 min-h-[28px] text-muted-foreground text-[11px] sm:min-h-[32px] sm:text-xs">
 													{getLocalizedProductName(
 														product.description || "",
 														locale,
@@ -562,9 +602,13 @@ export default function POSPage() {
 			</div>
 
 			{/* Right Pane - Cart */}
-			<div className="z-10 flex min-h-0 w-[350px] shrink-0 flex-col bg-background p-4 shadow-xl lg:w-[400px]">
-				<div className="mb-4 flex shrink-0 items-center justify-between">
-					<h2 className="flex items-center gap-2 font-bold text-xl">
+			<div
+				className={`z-10 min-h-0 w-full shrink-0 flex-col bg-background p-3 shadow-xl sm:p-4 md:w-[350px] lg:w-[400px] ${
+					activeMobileTab === "cart" ? "flex flex-1" : "hidden md:flex"
+				}`}
+			>
+				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
+					<h2 className="flex items-center gap-2 font-bold text-lg sm:text-xl">
 						<ShoppingCart className="h-5 w-5" /> {t.currentOrder}
 					</h2>
 					<Button

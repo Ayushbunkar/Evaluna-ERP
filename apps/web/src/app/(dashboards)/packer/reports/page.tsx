@@ -37,9 +37,7 @@ export default function PackerReportsPage() {
 					<FileBarChart className="h-7 w-7 text-blue-600" />
 					{t("reportsTitle")}
 				</h1>
-				<p className="text-muted-foreground text-sm">
-					{t("reportsSub")}
-				</p>
+				<p className="text-muted-foreground text-sm">{t("reportsSub")}</p>
 			</div>
 
 			{/* Summary Stat Cards */}
@@ -164,9 +162,7 @@ export default function PackerReportsPage() {
 							<ShieldCheckIcon className="h-4 w-4 text-green-600" />
 							{t("qualityAssuranceSummary")}
 						</CardTitle>
-						<CardDescription>
-							{t("parcelIntegrityAudits")}
-						</CardDescription>
+						<CardDescription>{t("parcelIntegrityAudits")}</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex items-center justify-between border-b pb-2">
@@ -195,7 +191,9 @@ export default function PackerReportsPage() {
 							<span className="text-muted-foreground text-sm">
 								{t("dispatchReadiness")}
 							</span>
-							<span className="font-bold text-blue-600 text-sm">{t("immediate")}</span>
+							<span className="font-bold text-blue-600 text-sm">
+								{t("immediate")}
+							</span>
 						</div>
 					</CardContent>
 				</Card>

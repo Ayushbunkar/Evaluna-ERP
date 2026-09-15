@@ -55,7 +55,9 @@ export default function PickerPendingPage() {
 
 	const startTaskMutation = trpc.warehouse.startPickingTask.useMutation({
 		onSuccess: (_, variables) => {
-			toast.success("Picking task started successfully! Taking you to execution screen...");
+			toast.success(
+				"Picking task started successfully! Taking you to execution screen...",
+			);
 			router.push(`/picker/active?id=${variables.pickListId}`);
 		},
 		onError: (err) => {
@@ -88,7 +90,9 @@ export default function PickerPendingPage() {
 							{t("orderPicklistsQueued")}
 						</p>
 						<span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs dark:bg-green-900/30 dark:text-green-400">
-							<span className={`h-1.5 w-1.5 rounded-full ${isFetching ? "animate-ping bg-green-500" : "bg-green-500"}`} />
+							<span
+								className={`h-1.5 w-1.5 rounded-full ${isFetching ? "animate-ping bg-green-500" : "bg-green-500"}`}
+							/>
 							{t("live")}
 						</span>
 					</div>
@@ -101,7 +105,9 @@ export default function PickerPendingPage() {
 						disabled={isFetching}
 						className="gap-1.5"
 					>
-						<Loader2Icon className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+						<Loader2Icon
+							className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+						/>
 						{isFetching ? t("refreshing") : t("refresh")}
 					</Button>
 					<Button className="bg-blue-600 text-white hover:bg-blue-700" asChild>
@@ -221,7 +227,9 @@ export default function PickerPendingPage() {
 										<TableHead>{t("totalItems")}</TableHead>
 										<TableHead>{t("assignedPicker")}</TableHead>
 										<TableHead>{t("waitingSince")}</TableHead>
-										<TableHead className="text-right">{t("startPick")}</TableHead>
+										<TableHead className="text-right">
+											{t("startPick")}
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -263,7 +271,9 @@ export default function PickerPendingPage() {
 													disabled={startTaskMutation.isPending}
 												>
 													<PlaySquareIcon className="mr-1 h-3.5 w-3.5" />{" "}
-													{startTaskMutation.isPending ? t("starting") : t("startPick")}
+													{startTaskMutation.isPending
+														? t("starting")
+														: t("startPick")}
 												</Button>
 											</TableCell>
 										</TableRow>

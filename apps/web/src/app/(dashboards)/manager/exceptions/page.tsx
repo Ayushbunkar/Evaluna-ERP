@@ -9,18 +9,17 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { AlertTriangleIcon, Loader2Icon } from "lucide-react";
-import { PageTransition } from "@/lib/animations";
 import { useTranslations } from "next-intl";
+import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ExceptionsPage() {
-  const trpc = useTRPC();
-  const t = useTranslations("manager");
+	const trpc = useTRPC();
+	const t = useTranslations("manager");
 
-  // Query real exceptions/anomalies from actual database
-  const { data: exceptions = [], isLoading } = trpc.manager.getExceptions.useQuery();
-
-
+	// Query real exceptions/anomalies from actual database
+	const { data: exceptions = [], isLoading } =
+		trpc.manager.getExceptions.useQuery();
 
 	return (
 		<PageTransition className="space-y-6">
@@ -40,9 +39,7 @@ export default function ExceptionsPage() {
 					<CardTitle className="font-bold text-base">
 						{t("activeSystemExceptionsLog")}
 					</CardTitle>
-					<CardDescription>
-						{t("activeSystemExceptionsSub")}
-					</CardDescription>
+					<CardDescription>{t("activeSystemExceptionsSub")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					{isLoading ? (

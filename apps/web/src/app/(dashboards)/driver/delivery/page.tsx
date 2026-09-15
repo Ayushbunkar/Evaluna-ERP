@@ -1,28 +1,5 @@
 "use client";
 
-import {
-	AlertTriangle,
-	ArrowLeft,
-	CheckCircle,
-	CreditCard,
-	FileText,
-	IndianRupee,
-	MapPin,
-	Minus,
-	Package,
-	Phone,
-	Plus,
-	Printer,
-	QrCode,
-	RefreshCw,
-	Truck,
-	User,
-} from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-import { useTRPC } from "@/lib/trpc/client";
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -44,6 +21,29 @@ import {
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { Textarea } from "@evaluna/ui/components/textarea";
+import {
+	AlertTriangle,
+	ArrowLeft,
+	CheckCircle,
+	CreditCard,
+	FileText,
+	IndianRupee,
+	MapPin,
+	Minus,
+	Package,
+	Phone,
+	Plus,
+	Printer,
+	QrCode,
+	RefreshCw,
+	Truck,
+	User,
+} from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useTRPC } from "@/lib/trpc/client";
 
 type OrderItemHandover = {
 	id: number;
@@ -137,7 +137,9 @@ export default function DriverLiveDeliveryPage() {
 
 	const submitHandover = trpc.driver.submitDeliveryHandover.useMutation({
 		onSuccess: () => {
-			toast.success("Delivery Handover & Payment Settlement recorded successfully!");
+			toast.success(
+				"Delivery Handover & Payment Settlement recorded successfully!",
+			);
 			setBillModalOpen(true);
 			refetch();
 		},
@@ -164,8 +166,7 @@ export default function DriverLiveDeliveryPage() {
 		directRouteStops && directRouteStops.length > 0
 			? directRouteStops
 			: (dashboardData?.routeStops ?? []);
-	const activeStop =
-		routeStops.find((s) => s.id === handoverStopId) ?? null;
+	const activeStop = routeStops.find((s) => s.id === handoverStopId) ?? null;
 
 	// ── Van stock helpers ──────────────────────────────────────────────────────
 
@@ -210,7 +211,9 @@ export default function DriverLiveDeliveryPage() {
 			return;
 		}
 		setItems((prev) => [...prev, ...newEntries]);
-		toast.success(`Added ${newEntries.length} items from Van Stock to customer bill!`);
+		toast.success(
+			`Added ${newEntries.length} items from Van Stock to customer bill!`,
+		);
 		setExtraModalOpen(false);
 		setSelectedTruckItems({});
 	};
@@ -226,7 +229,11 @@ export default function DriverLiveDeliveryPage() {
 						Math.min(item.originalQty, item.deliveredQty + delta),
 					);
 					const newReturned = item.originalQty - newDelivered;
-					return { ...item, deliveredQty: newDelivered, returnedQty: newReturned };
+					return {
+						...item,
+						deliveredQty: newDelivered,
+						returnedQty: newReturned,
+					};
 				}
 				return item;
 			}),
@@ -235,7 +242,9 @@ export default function DriverLiveDeliveryPage() {
 
 	const handleReasonChange = (id: number, reason: string) => {
 		setItems((prev) =>
-			prev.map((item) => (item.id === id ? { ...item, returnReason: reason } : item)),
+			prev.map((item) =>
+				item.id === id ? { ...item, returnReason: reason } : item,
+			),
 		);
 	};
 
@@ -376,9 +385,10 @@ export default function DriverLiveDeliveryPage() {
 					</div>
 					<Badge
 						variant="outline"
-						className="w-fit border-blue-500 bg-blue-50 text-blue-700 py-1.5 px-3"
+						className="w-fit border-blue-500 bg-blue-50 px-3 py-1.5 text-blue-700"
 					>
-						<Truck className="mr-1.5 h-4 w-4" /> {t("driver.activeDriverSession")}
+						<Truck className="mr-1.5 h-4 w-4" />{" "}
+						{t("driver.activeDriverSession")}
 					</Badge>
 				</div>
 
@@ -390,18 +400,20 @@ export default function DriverLiveDeliveryPage() {
 						{isLoading && (
 							<div className="flex items-center justify-center py-20">
 								<RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-								<span className="ml-3 text-gray-500">{t("common.loading")}</span>
+								<span className="ml-3 text-gray-500">
+									{t("common.loading")}
+								</span>
 							</div>
 						)}
 
 						{!isLoading && routeStops.length === 0 && (
 							<Card className="border-dashed">
 								<CardContent className="flex flex-col items-center justify-center py-16 text-center">
-									<Package className="h-12 w-12 text-gray-300 mb-4" />
+									<Package className="mb-4 h-12 w-12 text-gray-300" />
 									<h3 className="font-semibold text-gray-700 dark:text-gray-300">
 										{t("common.noItemFound")}
 									</h3>
-									<p className="text-sm text-gray-500 mt-1">
+									<p className="mt-1 text-gray-500 text-sm">
 										{t("driver.selectStopToStartLiveHandoverBilling")}
 									</p>
 								</CardContent>
@@ -412,13 +424,16 @@ export default function DriverLiveDeliveryPage() {
 							<div className="space-y-4">
 								{/* Summary strip */}
 								<div className="flex flex-wrap gap-3">
-									<Badge variant="outline" className="gap-1.5 text-sm py-1 px-3">
+									<Badge
+										variant="outline"
+										className="gap-1.5 px-3 py-1 text-sm"
+									>
 										<Package className="h-3.5 w-3.5" />
 										{routeStops.length} {t("driver.totalStops")}
 									</Badge>
 									<Badge
 										variant="outline"
-										className="gap-1.5 text-sm py-1 px-3 border-amber-400 text-amber-700 bg-amber-50"
+										className="gap-1.5 border-amber-400 bg-amber-50 px-3 py-1 text-amber-700 text-sm"
 									>
 										{
 											routeStops.filter(
@@ -432,12 +447,13 @@ export default function DriverLiveDeliveryPage() {
 									</Badge>
 									<Badge
 										variant="outline"
-										className="gap-1.5 text-sm py-1 px-3 border-emerald-400 text-emerald-700 bg-emerald-50"
+										className="gap-1.5 border-emerald-400 bg-emerald-50 px-3 py-1 text-emerald-700 text-sm"
 									>
 										<CheckCircle className="h-3.5 w-3.5" />
 										{
 											routeStops.filter(
-												(s) => s.status === "delivered" || s.status === "completed",
+												(s) =>
+													s.status === "delivered" || s.status === "completed",
 											).length
 										}{" "}
 										{t("status.delivered")}
@@ -448,7 +464,8 @@ export default function DriverLiveDeliveryPage() {
 								<div className="grid gap-4 sm:grid-cols-2">
 									{routeStops.map((stop, idx) => {
 										const isDone =
-											stop.status === "delivered" || stop.status === "completed";
+											stop.status === "delivered" ||
+											stop.status === "completed";
 										const isFailed = stop.status === "failed";
 										return (
 											<Card
@@ -458,7 +475,7 @@ export default function DriverLiveDeliveryPage() {
 														? "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/20"
 														: isFailed
 															? "border-red-200 bg-red-50/30 dark:border-red-900"
-															: "hover:shadow-md hover:border-blue-200"
+															: "hover:border-blue-200 hover:shadow-md"
 												}`}
 											>
 												<CardHeader className="pb-3">
@@ -480,12 +497,14 @@ export default function DriverLiveDeliveryPage() {
 													</div>
 												</CardHeader>
 
-												<CardContent className="space-y-2 text-sm pb-4">
+												<CardContent className="space-y-2 pb-4 text-sm">
 													{/* Address */}
 													{stop.address && (
 														<div className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
 															<MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-															<span className="text-xs leading-snug">{stop.address}</span>
+															<span className="text-xs leading-snug">
+																{stop.address}
+															</span>
 														</div>
 													)}
 													{/* Phone */}
@@ -498,42 +517,53 @@ export default function DriverLiveDeliveryPage() {
 													{/* Order Items */}
 													{stop.orderItems && stop.orderItems.length > 0 && (
 														<div className="mt-2 rounded-lg border border-gray-100 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40">
-															<div className="flex items-center gap-1.5 border-b border-gray-100 px-3 py-1.5 dark:border-gray-700">
+															<div className="flex items-center gap-1.5 border-gray-100 border-b px-3 py-1.5 dark:border-gray-700">
 																<Package className="h-3.5 w-3.5 text-blue-500" />
-																<span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-																	{t("driver.orderItems")} ({stop.orderItems.length})
+																<span className="font-semibold text-[11px] text-gray-600 uppercase tracking-wide dark:text-gray-400">
+																	{t("driver.orderItems")} (
+																	{stop.orderItems.length})
 																</span>
 															</div>
 															<div className="divide-y divide-gray-100 dark:divide-gray-700">
-																{stop.orderItems.map((oi: { id: number; name: string; qty: number; price?: number }, i: number) => (
-																	<div
-																		key={oi.id ?? i}
-																		className="flex items-center justify-between px-3 py-2"
-																	>
-																		<div className="flex items-center gap-2">
-																			<span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-																				{oi.qty}
-																			</span>
-																			<span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
-																				{oi.name}
-																			</span>
+																{stop.orderItems.map(
+																	(
+																		oi: {
+																			id: number;
+																			name: string;
+																			qty: number;
+																			price?: number;
+																		},
+																		i: number,
+																	) => (
+																		<div
+																			key={oi.id ?? i}
+																			className="flex items-center justify-between px-3 py-2"
+																		>
+																			<div className="flex items-center gap-2">
+																				<span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 font-bold text-[10px] text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+																					{oi.qty}
+																				</span>
+																				<span className="text-gray-700 text-xs leading-tight dark:text-gray-300">
+																					{oi.name}
+																				</span>
+																			</div>
+																			{oi.price != null && (
+																				<span className="ml-2 shrink-0 font-mono font-semibold text-gray-700 text-xs dark:text-gray-300">
+																					₹{oi.price * oi.qty}
+																				</span>
+																			)}
 																		</div>
-																		{oi.price != null && (
-																			<span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300 shrink-0 ml-2">
-																				₹{oi.price * oi.qty}
-																			</span>
-																		)}
-																	</div>
-																))}
+																	),
+																)}
 															</div>
 														</div>
 													)}
 													{/* Order ref & amount */}
-													<div className="flex items-center justify-between pt-1 border-t">
-														<span className="text-xs text-gray-500 font-mono">
+													<div className="flex items-center justify-between border-t pt-1">
+														<span className="font-mono text-gray-500 text-xs">
 															Ref #{stop.orderId || stop.id}
 														</span>
-														<span className="font-bold font-mono text-sm flex items-center gap-0.5">
+														<span className="flex items-center gap-0.5 font-bold font-mono text-sm">
 															<IndianRupee className="h-3.5 w-3.5" />
 															{stop.amountToCollect ?? "—"}
 														</span>
@@ -543,25 +573,26 @@ export default function DriverLiveDeliveryPage() {
 												<CardFooter className="pt-0">
 													{isDone ? (
 														<div className="flex w-full gap-2">
-															<div className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 py-2 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-																<CheckCircle className="h-4 w-4" /> {t("driver.handoverCompleted")}
+															<div className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 py-2 font-semibold text-emerald-700 text-xs dark:bg-emerald-950/40 dark:text-emerald-300">
+																<CheckCircle className="h-4 w-4" />{" "}
+																{t("driver.handoverCompleted")}
 															</div>
 															<Button
 																variant="outline"
 																size="sm"
-																className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+																className="border-emerald-300 text-emerald-700 text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
 																onClick={() => handleOpenHandover(stop.id)}
 															>
 																{t("common.edit")} / {t("common.view")}
 															</Button>
 														</div>
 													) : isFailed ? (
-														<div className="flex w-full items-center justify-center gap-1.5 rounded-md border border-red-300 bg-red-50 py-2 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+														<div className="flex w-full items-center justify-center gap-1.5 rounded-md border border-red-300 bg-red-50 py-2 font-semibold text-red-700 text-xs dark:bg-red-950/40 dark:text-red-300">
 															{t("status.failed")}
 														</div>
 													) : (
 														<Button
-															className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+															className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700"
 															onClick={() => handleOpenHandover(stop.id)}
 														>
 															<FileText className="h-4 w-4" />
@@ -587,7 +618,7 @@ export default function DriverLiveDeliveryPage() {
 						<div className="space-y-6 md:col-span-7">
 							<Card className="shadow-sm">
 								<CardHeader className="border-b bg-gray-50/50 pb-3 dark:bg-gray-800/50">
-									<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+									<div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
 										<div>
 											<CardTitle className="flex items-center gap-2 text-base">
 												<Package className="h-4 w-4 text-blue-600" />
@@ -602,10 +633,11 @@ export default function DriverLiveDeliveryPage() {
 												type="button"
 												variant="outline"
 												size="sm"
-												className="h-8 text-xs gap-1 border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+												className="h-8 gap-1 border-blue-300 bg-blue-50 text-blue-700 text-xs hover:bg-blue-100"
 												onClick={() => setExtraModalOpen(true)}
 											>
-												<Plus className="h-3.5 w-3.5" /> Add Extra Item (Van Stock)
+												<Plus className="h-3.5 w-3.5" /> Add Extra Item (Van
+												Stock)
 											</Button>
 											<Badge variant="secondary" className="font-mono text-xs">
 												{activeStop
@@ -617,7 +649,7 @@ export default function DriverLiveDeliveryPage() {
 								</CardHeader>
 								<CardContent className="divide-y p-0">
 									{items.map((item) => (
-										<div key={item.id} className="p-4 space-y-3">
+										<div key={item.id} className="space-y-3 p-4">
 											<div className="flex items-start justify-between">
 												<div>
 													<h4 className="font-semibold text-gray-900 text-sm dark:text-white">
@@ -628,14 +660,14 @@ export default function DriverLiveDeliveryPage() {
 														{item.originalQty}
 													</p>
 												</div>
-												<span className="font-bold font-mono text-sm text-gray-900 dark:text-white">
+												<span className="font-bold font-mono text-gray-900 text-sm dark:text-white">
 													₹{item.deliveredQty * item.price}
 												</span>
 											</div>
 
 											<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-800">
 												<div className="flex items-center space-x-2">
-													<span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+													<span className="font-medium text-gray-600 text-xs dark:text-gray-300">
 														Accepted Qty:
 													</span>
 													<div className="flex items-center space-x-1">
@@ -670,7 +702,7 @@ export default function DriverLiveDeliveryPage() {
 
 											{item.returnedQty > 0 && (
 												<div className="space-y-1 pt-1">
-													<Label className="text-xs text-red-600 dark:text-red-400 font-medium">
+													<Label className="font-medium text-red-600 text-xs dark:text-red-400">
 														Reason for Return / Damage:
 													</Label>
 													<Input
@@ -679,7 +711,7 @@ export default function DriverLiveDeliveryPage() {
 														onChange={(e) =>
 															handleReasonChange(item.id, e.target.value)
 														}
-														className="h-8 text-xs border-red-200 focus:border-red-500"
+														className="h-8 border-red-200 text-xs focus:border-red-500"
 													/>
 												</div>
 											)}
@@ -710,7 +742,7 @@ export default function DriverLiveDeliveryPage() {
 						{/* Right Column: Live Bill Summary & Payment Collection */}
 						<div className="space-y-6 md:col-span-5">
 							<Card className="border-2 border-blue-500 shadow-md">
-								<CardHeader className="bg-blue-600 text-white rounded-t-lg">
+								<CardHeader className="rounded-t-lg bg-blue-600 text-white">
 									<CardTitle className="flex items-center justify-between text-lg">
 										<span>Live Invoice Summary</span>
 										<FileText className="h-5 w-5 opacity-80" />
@@ -727,16 +759,18 @@ export default function DriverLiveDeliveryPage() {
 											<span className="font-mono">₹{subtotal}</span>
 										</div>
 										{totalReturnedValue > 0 && (
-											<div className="flex justify-between text-red-600 dark:text-red-400 font-medium">
+											<div className="flex justify-between font-medium text-red-600 dark:text-red-400">
 												<span>Return / Damage Deduction</span>
-												<span className="font-mono">-₹{totalReturnedValue}</span>
+												<span className="font-mono">
+													-₹{totalReturnedValue}
+												</span>
 											</div>
 										)}
 										<div className="flex justify-between text-gray-600 dark:text-gray-300">
 											<span>Estimated GST (5%)</span>
 											<span className="font-mono">₹{tax}</span>
 										</div>
-										<div className="border-t pt-2 flex justify-between font-bold text-base text-gray-900 dark:text-white">
+										<div className="flex justify-between border-t pt-2 font-bold text-base text-gray-900 dark:text-white">
 											<span>Net Payable Amount</span>
 											<span className="font-mono text-blue-600 dark:text-blue-400">
 												₹{finalTotal}
@@ -746,9 +780,9 @@ export default function DriverLiveDeliveryPage() {
 
 									{/* Payment Collection */}
 									<div className="space-y-3 border-t pt-4">
-										<Label className="font-semibold text-gray-900 text-xs dark:text-white flex items-center justify-between">
+										<Label className="flex items-center justify-between font-semibold text-gray-900 text-xs dark:text-white">
 											<span>Payment Collection Mode</span>
-											<span className="text-[10px] text-gray-500 font-normal">
+											<span className="font-normal text-[10px] text-gray-500">
 												Mixed / Full Split
 											</span>
 										</Label>
@@ -785,25 +819,29 @@ export default function DriverLiveDeliveryPage() {
 
 										<div className="grid grid-cols-2 gap-3 pt-1">
 											<div className="space-y-1">
-												<Label className="text-xs text-gray-600 dark:text-gray-400">
+												<Label className="text-gray-600 text-xs dark:text-gray-400">
 													Cash Received (₹)
 												</Label>
 												<Input
 													type="number"
 													value={cashAmount || ""}
-													onChange={(e) => setCashAmount(Number(e.target.value))}
+													onChange={(e) =>
+														setCashAmount(Number(e.target.value))
+													}
 													placeholder="0"
 													className="font-mono text-sm"
 												/>
 											</div>
 											<div className="space-y-1">
-												<Label className="text-xs text-gray-600 dark:text-gray-400">
+												<Label className="text-gray-600 text-xs dark:text-gray-400">
 													Online / UPI Received (₹)
 												</Label>
 												<Input
 													type="number"
 													value={onlineAmount || ""}
-													onChange={(e) => setOnlineAmount(Number(e.target.value))}
+													onChange={(e) =>
+														setOnlineAmount(Number(e.target.value))
+													}
 													placeholder="0"
 													className="font-mono text-sm"
 												/>
@@ -811,13 +849,13 @@ export default function DriverLiveDeliveryPage() {
 										</div>
 
 										{/* Balance Status */}
-										<div className="rounded-md bg-gray-100 p-2.5 text-xs font-semibold flex items-center justify-between dark:bg-gray-800">
+										<div className="flex items-center justify-between rounded-md bg-gray-100 p-2.5 font-semibold text-xs dark:bg-gray-800">
 											<span>Payment Balance:</span>
 											<span
 												className={
 													remainingBalance === 0
 														? "text-emerald-600"
-														: "text-amber-600 font-bold"
+														: "font-bold text-amber-600"
 												}
 											>
 												{remainingBalance === 0
@@ -827,9 +865,9 @@ export default function DriverLiveDeliveryPage() {
 										</div>
 									</div>
 								</CardContent>
-								<CardFooter className="bg-gray-50 border-t p-4 rounded-b-lg dark:bg-gray-800">
+								<CardFooter className="rounded-b-lg border-t bg-gray-50 p-4 dark:bg-gray-800">
 									<Button
-										className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"
+										className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700"
 										disabled={submitHandover.isPending}
 										onClick={handleSubmitHandover}
 									>
@@ -856,13 +894,13 @@ export default function DriverLiveDeliveryPage() {
 							Digital Delivery Bill Generated
 						</DialogTitle>
 						<DialogDescription>
-							Invoice #INV-DEL-{Date.now().toString().slice(-6)} recorded for Finance
-							Manager.
+							Invoice #INV-DEL-{Date.now().toString().slice(-6)} recorded for
+							Finance Manager.
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="rounded-lg border p-4 space-y-3 bg-white font-mono text-xs text-gray-800 dark:bg-gray-950 dark:text-gray-200">
-						<div className="text-center border-b pb-2">
+					<div className="space-y-3 rounded-lg border bg-white p-4 font-mono text-gray-800 text-xs dark:bg-gray-950 dark:text-gray-200">
+						<div className="border-b pb-2 text-center">
 							<h3 className="font-bold text-sm">EVALUNA ERP LOGISTICS</h3>
 							<p className="text-[10px] text-gray-500">Live Delivery Receipt</p>
 						</div>
@@ -880,7 +918,7 @@ export default function DriverLiveDeliveryPage() {
 							</div>
 						</div>
 
-						<div className="border-t border-b py-2 space-y-1">
+						<div className="space-y-1 border-t border-b py-2">
 							{items.map((i) => (
 								<div key={i.id} className="flex justify-between">
 									<span>
@@ -929,35 +967,35 @@ export default function DriverLiveDeliveryPage() {
 							Add On-the-spot Items (Van Stock)
 						</DialogTitle>
 						<DialogDescription className="text-xs">
-							Select one or multiple extra inventory items carried in the truck buffer
-							stock to add to customer's live bill.
+							Select one or multiple extra inventory items carried in the truck
+							buffer stock to add to customer's live bill.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-2">
 						<div className="space-y-1.5">
-							<div className="flex justify-between items-center text-xs font-semibold text-gray-700 dark:text-gray-300">
+							<div className="flex items-center justify-between font-semibold text-gray-700 text-xs dark:text-gray-300">
 								<span>Available Truck Buffer Items</span>
-								<span className="text-[11px] text-blue-600 font-normal">
+								<span className="font-normal text-[11px] text-blue-600">
 									Check items to include
 								</span>
 							</div>
 
-							<div className="grid gap-2.5 max-h-64 overflow-y-auto border rounded-lg p-2 bg-gray-50/50 dark:bg-gray-900">
+							<div className="grid max-h-64 gap-2.5 overflow-y-auto rounded-lg border bg-gray-50/50 p-2 dark:bg-gray-900">
 								{TRUCK_STOCK_ITEMS.map((truckItem) => {
 									const isSelected = !!selectedTruckItems[truckItem.id];
 									const qty = selectedTruckItems[truckItem.id] || 1;
 									return (
 										<div
 											key={truckItem.id}
-											className={`p-3 rounded-lg text-xs border transition-all space-y-2 ${
+											className={`space-y-2 rounded-lg border p-3 text-xs transition-all ${
 												isSelected
-													? "border-blue-500 bg-white dark:bg-gray-800 shadow-sm"
-													: "border-gray-200 bg-white/60 dark:bg-gray-800/60 hover:border-gray-300"
+													? "border-blue-500 bg-white shadow-sm dark:bg-gray-800"
+													: "border-gray-200 bg-white/60 hover:border-gray-300 dark:bg-gray-800/60"
 											}`}
 										>
 											<div className="flex items-center justify-between">
-												<label className="flex items-center space-x-2.5 cursor-pointer flex-1">
+												<label className="flex flex-1 cursor-pointer items-center space-x-2.5">
 													<input
 														type="checkbox"
 														checked={isSelected}
@@ -968,13 +1006,13 @@ export default function DriverLiveDeliveryPage() {
 														{truckItem.name}
 													</span>
 												</label>
-												<span className="font-mono font-bold text-gray-900 dark:text-white">
+												<span className="font-bold font-mono text-gray-900 dark:text-white">
 													₹{truckItem.price} / unit
 												</span>
 											</div>
 
 											{isSelected && (
-												<div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700">
+												<div className="flex items-center justify-between border-gray-100 border-t pt-1 dark:border-gray-700">
 													<span className="text-[11px] text-gray-500">
 														Quantity to add:
 													</span>
@@ -984,11 +1022,13 @@ export default function DriverLiveDeliveryPage() {
 															variant="outline"
 															size="icon"
 															className="h-6 w-6"
-															onClick={() => updateTruckItemQty(truckItem.id, -1)}
+															onClick={() =>
+																updateTruckItemQty(truckItem.id, -1)
+															}
 														>
 															<Minus className="h-3 w-3" />
 														</Button>
-														<span className="w-7 text-center font-bold text-xs font-mono">
+														<span className="w-7 text-center font-bold font-mono text-xs">
 															{qty}
 														</span>
 														<Button
@@ -996,7 +1036,9 @@ export default function DriverLiveDeliveryPage() {
 															variant="outline"
 															size="icon"
 															className="h-6 w-6"
-															onClick={() => updateTruckItemQty(truckItem.id, 1)}
+															onClick={() =>
+																updateTruckItemQty(truckItem.id, 1)
+															}
 														>
 															<Plus className="h-3 w-3" />
 														</Button>
@@ -1011,8 +1053,10 @@ export default function DriverLiveDeliveryPage() {
 
 						{/* Selection Summary */}
 						{Object.keys(selectedTruckItems).length > 0 && (
-							<div className="rounded-lg bg-blue-50 p-3 text-xs font-semibold text-blue-900 flex justify-between items-center dark:bg-blue-950/40 dark:text-blue-100 border border-blue-200">
-								<span>{Object.keys(selectedTruckItems).length} item(s) selected</span>
+							<div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 font-semibold text-blue-900 text-xs dark:bg-blue-950/40 dark:text-blue-100">
+								<span>
+									{Object.keys(selectedTruckItems).length} item(s) selected
+								</span>
 								<span className="font-mono text-sm">
 									Subtotal: ₹
 									{Object.entries(selectedTruckItems).reduce(
@@ -1030,18 +1074,16 @@ export default function DriverLiveDeliveryPage() {
 					</div>
 
 					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setExtraModalOpen(false)}
-						>
+						<Button variant="outline" onClick={() => setExtraModalOpen(false)}>
 							Cancel
 						</Button>
 						<Button
 							disabled={Object.keys(selectedTruckItems).length === 0}
 							onClick={handleAddMultipleTruckItemsToBill}
-							className="bg-blue-600 text-white hover:bg-blue-700 gap-1.5"
+							className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
 						>
-							Add Selected ({Object.keys(selectedTruckItems).length}) to Live Bill
+							Add Selected ({Object.keys(selectedTruckItems).length}) to Live
+							Bill
 						</Button>
 					</DialogFooter>
 				</DialogContent>

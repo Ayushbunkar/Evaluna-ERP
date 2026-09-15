@@ -9,7 +9,14 @@ import { AlertCircle, Loader2, MountainIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Suspense, useRef, useState, FormEvent, useEffect, useMemo } from "react";
+import {
+	type FormEvent,
+	Suspense,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { login } from "./actions";
 
@@ -25,24 +32,24 @@ function LoginForm() {
 		searchParams.get("error"),
 	);
 
-async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-  e.preventDefault();
-  setIsPending(true);
-  setLocalError(null);
-  const formData = new FormData(e.currentTarget);
-  const res = await login(formData);
-  if (res && !res.success) {
-    setLocalError(res.error || "invalid-credentials");
-    setIsPending(false);
-  } else if (res && res.success && res.redirectUrl) {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    let target = res.redirectUrl;
-    if (basePath && target.startsWith("/") && !target.startsWith(basePath)) {
-      target = basePath + target;
-    }
-    window.location.href = target;
-  }
-}
+	async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+		e.preventDefault();
+		setIsPending(true);
+		setLocalError(null);
+		const formData = new FormData(e.currentTarget);
+		const res = await login(formData);
+		if (res && !res.success) {
+			setLocalError(res.error || "invalid-credentials");
+			setIsPending(false);
+		} else if (res && res.success && res.redirectUrl) {
+			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+			let target = res.redirectUrl;
+			if (basePath && target.startsWith("/") && !target.startsWith(basePath)) {
+				target = basePath + target;
+			}
+			window.location.href = target;
+		}
+	}
 
 	return (
 		<form onSubmit={handleSubmit}>

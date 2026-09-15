@@ -271,11 +271,14 @@ export default function CashBookPage() {
 							</thead>
 							<tbody>
 								{ledger?.items?.map((tx) => {
-									const originalAmt = tx.original_amount ? Number(tx.original_amount) : Number(tx.amount);
+									const originalAmt = tx.original_amount
+										? Number(tx.original_amount)
+										: Number(tx.amount);
 									const finalAmt = Number(tx.amount);
 									const adjustment = Number(tx.adjustment_amount || 0);
 									const hasAdjustment = adjustment !== 0;
-									const isReconciled = tx.reconciliation_status === "reconciled";
+									const isReconciled =
+										tx.reconciliation_status === "reconciled";
 
 									return (
 										<tr
@@ -301,17 +304,23 @@ export default function CashBookPage() {
 											<td className="text-right text-muted-foreground">
 												₹{originalAmt.toFixed(2)}
 											</td>
-											<td className={`text-right font-medium ${hasAdjustment ? (adjustment < 0 ? "text-red-500" : "text-emerald-500") : "text-muted-foreground"}`}>
-												{hasAdjustment ? (adjustment >= 0 ? "+" : "") + `₹${adjustment.toFixed(2)}` : "—"}
+											<td
+												className={`text-right font-medium ${hasAdjustment ? (adjustment < 0 ? "text-red-500" : "text-emerald-500") : "text-muted-foreground"}`}
+											>
+												{hasAdjustment
+													? (adjustment >= 0 ? "+" : "") +
+														`₹${adjustment.toFixed(2)}`
+													: "—"}
 											</td>
 											<td
 												className={`text-right font-bold ${tx.type === "in" ? "text-emerald-600" : "text-red-600"}`}
 											>
-												{tx.type === "in" ? "+" : "-"}₹
-												{finalAmt.toFixed(2)}
+												{tx.type === "in" ? "+" : "-"}₹{finalAmt.toFixed(2)}
 											</td>
 											<td className="text-center">
-												<span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${isReconciled ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"}`}>
+												<span
+													className={`rounded-full px-2 py-0.5 font-semibold text-[10px] uppercase ${isReconciled ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"}`}
+												>
 													{isReconciled ? "Reconciled" : "Pending"}
 												</span>
 											</td>
@@ -337,4 +346,3 @@ export default function CashBookPage() {
 		</PageTransition>
 	);
 }
-

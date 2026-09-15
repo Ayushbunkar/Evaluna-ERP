@@ -247,13 +247,15 @@ export default function FinanceLayout({
 			)}
 
 			{/* Main Right Area */}
-			<div className="flex flex-1 flex-col overflow-hidden">
+			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 				{/* Top ERP Header */}
-				<DashboardHeader />
+				<DashboardHeader onMenuClick={() => setMobileOpen(true)} />
 
 				{/* Content Container (Scrollable) */}
 				<main className="flex-1 overflow-y-auto bg-gray-50 focus:outline-none dark:bg-gray-900">
-					{children}
+					<div className="mx-auto w-full max-w-7xl min-w-0 p-3 sm:p-6">
+						{children}
+					</div>
 				</main>
 			</div>
 		</div>

@@ -16,7 +16,10 @@ function customLookup(host, opt, cb) {
 		console.log("customLookup resolve4 result:", { host, rErr, addrs });
 		if (!rErr && addrs && addrs.length > 0) {
 			if (opt && opt.all) {
-				return cb(null, addrs.map((a) => ({ address: a, family: 4 })));
+				return cb(
+					null,
+					addrs.map((a) => ({ address: a, family: 4 })),
+				);
 			}
 			return cb(null, addrs[0], 4);
 		}

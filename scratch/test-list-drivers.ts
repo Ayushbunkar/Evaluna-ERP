@@ -1,6 +1,6 @@
-import { db } from "../packages/db/src/index";
-import { user, staff } from "../packages/db/src/schema";
 import { eq, or } from "drizzle-orm";
+import { db } from "../packages/db/src/index";
+import { staff, user } from "../packages/db/src/schema";
 
 async function run() {
 	console.log("TESTING LIST DRIVERS QUERY...");
@@ -60,7 +60,9 @@ async function run() {
 	const finalResult = Array.from(merged.values());
 	console.log(`\nMerged Distinct Drivers Count: ${finalResult.length}`);
 	for (const r of finalResult) {
-		console.log(`- Driver: ${r.name} (${r.email}), ID: ${r.id}, Role: ${r.role}`);
+		console.log(
+			`- Driver: ${r.name} (${r.email}), ID: ${r.id}, Role: ${r.role}`,
+		);
 	}
 
 	process.exit(0);

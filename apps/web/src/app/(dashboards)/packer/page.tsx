@@ -276,7 +276,8 @@ export default function PackerDashboard() {
 						</div>
 						<Button variant="ghost" size="sm" asChild>
 							<Link href="/packer/pending">
-								{t("viewPendingPacking")} <ArrowRightIcon className="ml-2 h-4 w-4" />
+								{t("viewPendingPacking")}{" "}
+								<ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>
@@ -300,7 +301,9 @@ export default function PackerDashboard() {
 											<TableHead>{t("orderRef")}</TableHead>
 											<TableHead>{t("packedDate")}</TableHead>
 											<TableHead>{tCommon("status")}</TableHead>
-											<TableHead className="text-right">{tCommon("actions")}</TableHead>
+											<TableHead className="text-right">
+												{tCommon("actions")}
+											</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -326,7 +329,8 @@ export default function PackerDashboard() {
 														className="h-8 bg-blue-600 text-white hover:bg-blue-700"
 														onClick={() => setSelectedPickList(pl)}
 													>
-														<BoxIcon className="mr-1 h-3.5 w-3.5" /> {t("packParcel")}
+														<BoxIcon className="mr-1 h-3.5 w-3.5" />{" "}
+														{t("packParcel")}
 													</Button>
 												</TableCell>
 											</TableRow>
@@ -358,7 +362,8 @@ export default function PackerDashboard() {
 						</div>
 						<Button variant="ghost" size="sm" asChild>
 							<Link href="/packer/history">
-								{t("viewPendingPacking")} <ArrowRightIcon className="ml-2 h-4 w-4" />
+								{t("viewPendingPacking")}{" "}
+								<ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>
@@ -377,7 +382,9 @@ export default function PackerDashboard() {
 											<TableHead>{t("orderRef")}</TableHead>
 											<TableHead>{t("packedBy")}</TableHead>
 											<TableHead>{t("packedDate")}</TableHead>
-											<TableHead className="text-right">{t("labelAction")}</TableHead>
+											<TableHead className="text-right">
+												{t("labelAction")}
+											</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -430,9 +437,7 @@ export default function PackerDashboard() {
 								<BoxIcon className="h-5 w-5 text-blue-600" />
 								{t("packParcel")} {selectedPickList.order_ref}
 							</DialogTitle>
-							<DialogDescription>
-								{t("recordParcelWeight")}
-							</DialogDescription>
+							<DialogDescription>{t("recordParcelWeight")}</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-4 py-2 text-sm">

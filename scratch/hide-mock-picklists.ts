@@ -1,6 +1,6 @@
+import { eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../packages/db/src/index";
 import { orders, pickLists } from "../packages/db/src/schema";
-import { isNull, inArray, eq } from "drizzle-orm";
 
 async function run() {
 	console.log("--- CLEANING UP PICKER DASHBOARD TASK QUEUE (SAFE UPDATE) ---");
@@ -26,8 +26,12 @@ async function run() {
 		.set({ status: "completed" }) // Marks them completed, clearing the pending queue instantly!
 		.where(inArray(pickLists.order_id, mockOrderIds));
 
-	console.log(`\nSuccess! Cleaned up the Picker queue. All mock order picking tasks have been cleared!`);
-	console.log(`Only real, customer-submitted orders will now show in the Pending Picking Queue.`);
+	console.log(
+		"\nSuccess! Cleaned up the Picker queue. All mock order picking tasks have been cleared!",
+	);
+	console.log(
+		"Only real, customer-submitted orders will now show in the Pending Picking Queue.",
+	);
 	process.exit(0);
 }
 

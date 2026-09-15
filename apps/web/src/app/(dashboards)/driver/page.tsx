@@ -272,11 +272,13 @@ export default function DriverDashboard() {
 											{stop.status === "completed" ? (
 												<CheckCircleIcon className="h-4 w-4 text-green-600" />
 											) : stop.status === "next" ? (
-												<ArrowRightIcon className="h-4 w-4 text-blue-600 animate-pulse" />
+												<ArrowRightIcon className="h-4 w-4 animate-pulse text-blue-600" />
 											) : (
 												<ClockIcon className="h-4 w-4 text-amber-500" />
 											)}
-											<span className="text-gray-500 text-xs font-mono">{stop.time || "--:--"}</span>
+											<span className="font-mono text-gray-500 text-xs">
+												{stop.time || "--:--"}
+											</span>
 										</div>
 									</div>
 								))}

@@ -1,9 +1,11 @@
-import { db } from "../packages/db/src/index";
-import { staff, user, userRoles, roles } from "../packages/db/src/schema";
 import { eq } from "drizzle-orm";
+import { db } from "../packages/db/src/index";
+import { roles, staff, user, userRoles } from "../packages/db/src/schema";
 
 async function run() {
-	console.log("--- SEEDING 5 REAL DELIVERY DRIVERS WITH ATTACHED SYSTEM ROLES ---");
+	console.log(
+		"--- SEEDING 5 REAL DELIVERY DRIVERS WITH ATTACHED SYSTEM ROLES ---",
+	);
 
 	// 1. Find or insert the "driver" role in the 'roles' table first
 	let [driverRole] = await db
@@ -26,11 +28,31 @@ async function run() {
 	}
 
 	const driversList = [
-		{ name: "Driver / Delivery", email: "driver@evaluna.com", phone: "+91 98765 43210" },
-		{ name: "Rajesh Kumar", email: "rajesh.driver@evaluna.com", phone: "+91 98234 56781" },
-		{ name: "Amit Singh", email: "amit.driver@evaluna.com", phone: "+91 97654 32109" },
-		{ name: "Vikram Rathore", email: "vikram.driver@evaluna.com", phone: "+91 91234 56789" },
-		{ name: "Sunil Sharma", email: "sunil.driver@evaluna.com", phone: "+91 99887 76655" },
+		{
+			name: "Driver / Delivery",
+			email: "driver@evaluna.com",
+			phone: "+91 98765 43210",
+		},
+		{
+			name: "Rajesh Kumar",
+			email: "rajesh.driver@evaluna.com",
+			phone: "+91 98234 56781",
+		},
+		{
+			name: "Amit Singh",
+			email: "amit.driver@evaluna.com",
+			phone: "+91 97654 32109",
+		},
+		{
+			name: "Vikram Rathore",
+			email: "vikram.driver@evaluna.com",
+			phone: "+91 91234 56789",
+		},
+		{
+			name: "Sunil Sharma",
+			email: "sunil.driver@evaluna.com",
+			phone: "+91 99887 76655",
+		},
 	];
 
 	let seedCount = 0;
@@ -48,17 +70,23 @@ async function run() {
 		if (!existingUser) {
 			console.log(`Seeding User: ${dr.name} (${dr.email})...`);
 			const customId = `usr-drv-${Math.floor(100000 + Math.random() * 900000)}`;
-			const [inserted] = await db.insert(user).values({
-				id: customId,
-				name: dr.name,
-				email: dr.email,
-				role: "driver",
-				emailVerified: true,
-			}).returning();
+			const [inserted] = await db
+				.insert(user)
+				.values({
+					id: customId,
+					name: dr.name,
+					email: dr.email,
+					role: "driver",
+					emailVerified: true,
+				})
+				.returning();
 			activeUserId = inserted.id;
 		} else {
 			activeUserId = existingUser.id;
-			await db.update(user).set({ role: "driver" }).where(eq(user.id, activeUserId));
+			await db
+				.update(user)
+				.set({ role: "driver" })
+				.where(eq(user.id, activeUserId));
 		}
 
 		// 3. Ensure they have a record in the 'user_roles' table!
@@ -70,7 +98,9 @@ async function run() {
 				.limit(1);
 
 			if (!existingUserRole) {
-				console.log(`Linking role_id ${driverRole.id} to user ID: ${activeUserId}...`);
+				console.log(
+					`Linking role_id ${driverRole.id} to user ID: ${activeUserId}...`,
+				);
 				await db.insert(userRoles).values({
 					user_id: activeUserId,
 					role_id: driverRole.id,
@@ -101,7 +131,9 @@ async function run() {
 		}
 	}
 
-	console.log(`\nRole Syncing Complete! Successfully seeded and linked 5 drivers with WMS & Auth Roles!`);
+	console.log(
+		"\nRole Syncing Complete! Successfully seeded and linked 5 drivers with WMS & Auth Roles!",
+	);
 	process.exit(0);
 }
 

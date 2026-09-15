@@ -17,12 +17,12 @@ import {
 	ClockIcon,
 	FileCheckIcon,
 	HistoryIcon,
+	IndianRupeeIcon,
 	Loader2Icon,
 	PlayIcon,
+	TruckIcon,
 	UsersIcon,
 	XCircleIcon,
-	IndianRupeeIcon,
-	TruckIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -212,7 +212,8 @@ export default function ManagerDashboard() {
 									href="/manager/approvals"
 									className="flex items-center font-semibold text-blue-600 text-xs"
 								>
-									{t("goToInbox")} <ChevronRightIcon className="ml-0.5 h-4 w-4" />
+									{t("goToInbox")}{" "}
+									<ChevronRightIcon className="ml-0.5 h-4 w-4" />
 								</Link>
 							</Button>
 						</CardHeader>
@@ -285,7 +286,8 @@ export default function ManagerDashboard() {
 									href="/manager/team"
 									className="flex items-center font-semibold text-blue-600 text-xs"
 								>
-									{t("fullTeam")} <ChevronRightIcon className="ml-0.5 h-4 w-4" />
+									{t("fullTeam")}{" "}
+									<ChevronRightIcon className="ml-0.5 h-4 w-4" />
 								</Link>
 							</Button>
 						</CardHeader>
@@ -295,9 +297,15 @@ export default function ManagerDashboard() {
 									<thead>
 										<tr className="border-b bg-slate-50/50 text-slate-500">
 											<th className="p-3 font-semibold">{t("nameCol")}</th>
-											<th className="p-3 font-semibold">{t("systemRoleCol")}</th>
-											<th className="p-3 font-semibold">{t("workloadProfileCol")}</th>
-											<th className="p-3 text-right font-semibold">{t("detailsCol")}</th>
+											<th className="p-3 font-semibold">
+												{t("systemRoleCol")}
+											</th>
+											<th className="p-3 font-semibold">
+												{t("workloadProfileCol")}
+											</th>
+											<th className="p-3 text-right font-semibold">
+												{t("detailsCol")}
+											</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y">
@@ -403,7 +411,10 @@ export default function ManagerDashboard() {
 										{act.action}
 									</span>
 									<span className="mt-0.5 block text-slate-600 text-xs">
-										{t("entityId", { type: act.entity_type, id: act.entity_id })}
+										{t("entityId", {
+											type: act.entity_type,
+											id: act.entity_id,
+										})}
 									</span>
 									<span className="mt-0.5 block text-[9px] text-slate-400">
 										{new Date(act.created_at || "").toLocaleString()}

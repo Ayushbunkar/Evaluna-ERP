@@ -137,12 +137,12 @@ export default function BillerPOSPage() {
 	return (
 		<div className="container mx-auto space-y-6 p-6">
 			{/* Page Header */}
-			<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="font-bold text-3xl tracking-tight">
+					<h1 className="font-bold text-2xl tracking-tight sm:text-3xl">
 						Billing & POS Terminal
 					</h1>
-					<p className="text-muted-foreground text-sm">
+					<p className="text-muted-foreground text-xs sm:text-sm">
 						Point of sale checkout terminal with camera barcode scanning &
 						customer billing
 					</p>
@@ -150,7 +150,7 @@ export default function BillerPOSPage() {
 
 				<div className="flex items-center gap-2">
 					<Button
-						className="gap-2 bg-blue-600 text-white shadow-md hover:bg-blue-700"
+						className="w-full gap-2 bg-blue-600 text-white shadow-md hover:bg-blue-700 sm:w-auto"
 						onClick={() => setShowCameraScanner(true)}
 					>
 						<CameraIcon className="h-4 w-4" /> Scan Barcode with Camera
@@ -159,17 +159,17 @@ export default function BillerPOSPage() {
 			</div>
 
 			{/* Quick Barcode Scan Bar */}
-			<form onSubmit={handleManualBarcodeSubmit} className="flex gap-2">
+			<form onSubmit={handleManualBarcodeSubmit} className="flex flex-col gap-2 sm:flex-row">
 				<div className="relative flex-1">
 					<BarcodeIcon className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
 					<Input
 						placeholder="Scan barcode or type EAN/SKU number for instant billing..."
-						className="pl-9 text-sm"
+						className="pl-9 text-xs sm:text-sm"
 						value={barcodeInput}
 						onChange={(e) => setBarcodeInput(e.target.value)}
 					/>
 				</div>
-				<Button type="submit" disabled={isSearchingBarcode} variant="secondary">
+				<Button type="submit" disabled={isSearchingBarcode} variant="secondary" className="w-full sm:w-auto">
 					{isSearchingBarcode ? (
 						<Loader2Icon className="h-4 w-4 animate-spin" />
 					) : (
@@ -182,13 +182,13 @@ export default function BillerPOSPage() {
 				{/* Customer Section */}
 				<Card className="border-border/50 shadow-sm lg:col-span-1">
 					<CardHeader>
-						<CardTitle>Customer Details</CardTitle>
+						<CardTitle className="text-base sm:text-lg">Customer Details</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-4">
 							{customer ? (
-								<div className="rounded-lg border bg-muted/30 p-4">
-									<div className="font-semibold text-base">{customer.name}</div>
+								<div className="rounded-lg border bg-muted/30 p-3 sm:p-4">
+									<div className="font-semibold text-sm sm:text-base">{customer.name}</div>
 									<div className="mt-0.5 text-muted-foreground text-xs">
 										ID: #{customer.id}
 									</div>
@@ -216,18 +216,18 @@ export default function BillerPOSPage() {
 				{/* Cart Section */}
 				<Card className="border-border/50 shadow-sm lg:col-span-2">
 					<CardHeader className="flex flex-row items-center justify-between">
-						<CardTitle className="text-lg">
+						<CardTitle className="text-base sm:text-lg">
 							Cart ({cart.length} items)
 						</CardTitle>
-						<div className="font-bold text-blue-600 text-xl dark:text-blue-400">
+						<div className="font-bold text-blue-600 text-lg sm:text-xl dark:text-blue-400">
 							{formatCurrency(total, "en")}
 						</div>
 					</CardHeader>
 					<CardContent>
 						{cart.length === 0 ? (
-							<div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
-								<BarcodeIcon className="h-10 w-10 text-blue-500 opacity-30" />
-								<p className="font-medium text-base">
+							<div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground sm:py-12">
+								<BarcodeIcon className="h-8 w-8 text-blue-500 opacity-30 sm:h-10 sm:w-10" />
+								<p className="font-medium text-sm sm:text-base">
 									Your billing cart is empty
 								</p>
 								<p className="text-muted-foreground text-xs">
@@ -239,15 +239,15 @@ export default function BillerPOSPage() {
 								{cart.map((item) => (
 									<div
 										key={item.id}
-										className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/30"
+										className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:p-4"
 									>
-										<div className="flex-1">
-											<div className="font-semibold text-base">{item.name}</div>
+										<div className="min-w-0 flex-1">
+											<div className="truncate font-semibold text-sm sm:text-base">{item.name}</div>
 											<div className="mt-0.5 text-muted-foreground text-xs">
 												{formatCurrency(item.price, "en")} × {item.cartQuantity}
 											</div>
 										</div>
-										<div className="flex items-center space-x-2">
+										<div className="flex items-center justify-between gap-2 sm:justify-end">
 											<Input
 												type="number"
 												min="1"
@@ -259,11 +259,12 @@ export default function BillerPOSPage() {
 														Number.parseInt(e.target.value) || 1,
 													)
 												}
-												className="w-16 text-center"
+												className="h-8 w-16 text-center text-xs"
 											/>
 											<Button
 												variant="outline"
 												size="sm"
+												className="h-8 text-xs text-destructive hover:bg-destructive/10"
 												onClick={() => handleRemoveFromCart(item.id)}
 											>
 												Remove
@@ -273,19 +274,19 @@ export default function BillerPOSPage() {
 								))}
 
 								<div className="space-y-2 border-t pt-4">
-									<div className="flex justify-between text-sm">
+									<div className="flex justify-between text-xs sm:text-sm">
 										<span>Subtotal:</span>
 										<span className="font-medium">
 											{formatCurrency(subtotal, "en")}
 										</span>
 									</div>
-									<div className="flex justify-between text-sm">
+									<div className="flex justify-between text-xs sm:text-sm">
 										<span>Tax (10%):</span>
 										<span className="font-medium">
 											{formatCurrency(tax, "en")}
 										</span>
 									</div>
-									<div className="flex justify-between border-t pt-2 font-bold text-lg">
+									<div className="flex justify-between border-t pt-2 font-bold text-base sm:text-lg">
 										<span>Total Payable:</span>
 										<span className="text-blue-600 dark:text-blue-400">
 											{formatCurrency(total, "en")}
@@ -294,7 +295,7 @@ export default function BillerPOSPage() {
 								</div>
 
 								<Button
-									className="mt-4 w-full bg-green-600 text-base text-white shadow-md hover:bg-green-700"
+									className="mt-4 w-full bg-green-600 text-sm font-semibold text-white shadow-md hover:bg-green-700 sm:text-base"
 									size="lg"
 									onClick={() => setShowCheckoutDialog(true)}
 									disabled={!customer}
@@ -310,17 +311,20 @@ export default function BillerPOSPage() {
 			</div>
 
 			{/* Action Buttons */}
-			<div className="flex justify-between gap-4">
-				<div className="flex gap-2">
+			<div className="flex flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+				<div className="flex flex-wrap gap-2">
 					<Button
 						variant="outline"
+						size="sm"
+						className="flex-1 text-xs sm:flex-initial sm:text-sm"
 						onClick={() => setShowInventoryDialog(true)}
 					>
 						Search Inventory Catalog
 					</Button>
 					<Button
 						variant="outline"
-						className="gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+						size="sm"
+						className="flex-1 gap-2 border-blue-600 text-xs text-blue-600 hover:bg-blue-50 sm:flex-initial sm:text-sm"
 						onClick={() => setShowCameraScanner(true)}
 					>
 						<CameraIcon className="h-4 w-4" /> Phone Camera Scanner
@@ -329,7 +333,8 @@ export default function BillerPOSPage() {
 
 				<Button
 					variant="outline"
-					className="border-destructive/30 text-destructive"
+					size="sm"
+					className="border-destructive/30 text-xs text-destructive hover:bg-destructive/10 sm:text-sm"
 					onClick={() => {
 						setCart([]);
 						setCustomer(null);

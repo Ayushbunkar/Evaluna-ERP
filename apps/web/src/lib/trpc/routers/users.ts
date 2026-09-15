@@ -355,8 +355,8 @@ export const usersRouter = router({
 		}),
 
 	// ── Backfill Staff & HRMS Employee Profiles for Unlinked Accounts ───────
-	ensureProfiles: roleProcedure(["admin", "super_admin", "manager"])
-		.mutation(async ({ ctx }) => {
+	ensureProfiles: roleProcedure(["admin", "super_admin", "manager"]).mutation(
+		async ({ ctx }) => {
 			try {
 				const { employees } = await import("@evaluna/db/schema/hrms");
 				const allUsers = await ctx.db.query.user.findMany();
@@ -416,7 +416,9 @@ export const usersRouter = router({
 							.limit(1);
 
 						if (!empRow) {
-							const nameParts = (u.name || u.email.split("@")[0]).trim().split(/\s+/);
+							const nameParts = (u.name || u.email.split("@")[0])
+								.trim()
+								.split(/\s+/);
 							const firstName = nameParts[0] || "User";
 							const lastName = nameParts.slice(1).join(" ") || "Employee";
 
@@ -447,5 +449,6 @@ export const usersRouter = router({
 					message: err?.message || "Failed to synchronize profiles.",
 				});
 			}
-		}),
+		},
+	),
 });

@@ -1,8 +1,10 @@
-import { db } from "../packages/db/src/index";
 import { sql } from "drizzle-orm";
+import { db } from "../packages/db/src/index";
 
 async function run() {
-	console.log("INSPECTING UNIQUE INDEXES AND CONSTRAINTS ON 'trip_stops' TABLE...");
+	console.log(
+		"INSPECTING UNIQUE INDEXES AND CONSTRAINTS ON 'trip_stops' TABLE...",
+	);
 
 	const result = await db.execute(sql`
 		SELECT 

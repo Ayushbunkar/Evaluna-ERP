@@ -155,7 +155,8 @@ export default function PickerActivePage() {
 
 			{isLoading ? (
 				<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
-					<Loader2Icon className="h-6 w-6 animate-spin text-blue-600" /> {t("loadingActiveTask")}
+					<Loader2Icon className="h-6 w-6 animate-spin text-blue-600" />{" "}
+					{t("loadingActiveTask")}
 				</div>
 			) : error ? (
 				<div className="flex h-40 items-center justify-center text-destructive">
@@ -208,11 +209,13 @@ export default function PickerActivePage() {
 
 									{pct === 100 && (
 										<Button
-											className="bg-green-600 hover:bg-green-700 text-white font-bold h-14 px-6 shadow-md transition-all animate-bounce"
+											className="h-14 animate-bounce bg-green-600 px-6 font-bold text-white shadow-md transition-all hover:bg-green-700"
 											onClick={handleCompleteTask}
 											disabled={completeMutation.isPending}
 										>
-											{completeMutation.isPending ? t("completing") : t("completePicking")}
+											{completeMutation.isPending
+												? t("completing")
+												: t("completePicking")}
 										</Button>
 									)}
 								</div>
@@ -266,9 +269,7 @@ export default function PickerActivePage() {
 								<MapPinIcon className="h-5 w-5 text-blue-600" />
 								{t("requiredPickItemsList")}
 							</CardTitle>
-							<CardDescription>
-								{t("locateItemsSub")}
-							</CardDescription>
+							<CardDescription>{t("locateItemsSub")}</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div className="overflow-x-auto">
@@ -281,7 +282,9 @@ export default function PickerActivePage() {
 											<TableHead>{t("batch")}</TableHead>
 											<TableHead>{t("pickedRequired")}</TableHead>
 											<TableHead>{tCommon("status")}</TableHead>
-											<TableHead className="text-right">{tCommon("actions")}</TableHead>
+											<TableHead className="text-right">
+												{tCommon("actions")}
+											</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -322,7 +325,9 @@ export default function PickerActivePage() {
 																		: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
 														}`}
 													>
-														{item.status ? tCommon(item.status as any) || item.status : tCommon("pending")}
+														{item.status
+															? tCommon(item.status as any) || item.status
+															: tCommon("pending")}
 													</span>
 												</TableCell>
 												<TableCell className="flex items-center justify-end gap-2 text-right">
@@ -440,31 +445,37 @@ export default function PickerActivePage() {
 					}
 				}}
 			>
-				<DialogContent className="sm:max-w-[420px] text-center">
+				<DialogContent className="text-center sm:max-w-[420px]">
 					<DialogHeader className="flex flex-col items-center justify-center pt-4">
-						<div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 mb-2">
-							<CheckCircle2Icon className="h-10 w-10 text-green-600 animate-pulse" />
+						<div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+							<CheckCircle2Icon className="h-10 w-10 animate-pulse text-green-600" />
 						</div>
-						<DialogTitle className="font-bold text-xl text-green-800 dark:text-green-400">
+						<DialogTitle className="font-bold text-green-800 text-xl dark:text-green-400">
 							{t("taskCompletedTitle")}
 						</DialogTitle>
-						<DialogDescription className="text-muted-foreground text-sm mt-1">
+						<DialogDescription className="mt-1 text-muted-foreground text-sm">
 							{t("taskCompletedSub")}
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="py-4 text-sm space-y-2 border-y border-border/50 my-2">
+					<div className="my-2 space-y-2 border-border/50 border-y py-4 text-sm">
 						<p className="flex justify-between">
-							<span className="text-muted-foreground">{t("pickProgress")}:</span>
-							<span className="font-bold text-green-600">{t("pickingStatusVerified")}</span>
+							<span className="text-muted-foreground">
+								{t("pickProgress")}:
+							</span>
+							<span className="font-bold text-green-600">
+								{t("pickingStatusVerified")}
+							</span>
 						</p>
 						<p className="flex justify-between">
 							<span className="text-muted-foreground">{t("routingStep")}</span>
-							<span className="font-semibold text-blue-600">{t("nextPackerQueue")}</span>
+							<span className="font-semibold text-blue-600">
+								{t("nextPackerQueue")}
+							</span>
 						</p>
 					</div>
 
-					<DialogFooter className="flex sm:justify-center pt-2">
+					<DialogFooter className="flex pt-2 sm:justify-center">
 						<Button
 							className="w-full bg-blue-600 text-white hover:bg-blue-700"
 							onClick={() => {

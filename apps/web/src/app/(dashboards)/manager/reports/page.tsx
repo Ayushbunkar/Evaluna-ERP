@@ -9,9 +9,9 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { DownloadIcon, FileBarChartIcon, Loader2Icon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { downloadCsv } from "@/lib/admin/csv";
 import { PageTransition } from "@/lib/animations";
-import { useTranslations } from "next-intl";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ReportsPage() {
@@ -69,7 +69,8 @@ export default function ReportsPage() {
 					onClick={handleExport}
 					disabled={performance.length === 0}
 				>
-					<DownloadIcon className="mr-1.5 h-4 w-4" /> {t("exportTeamPerformanceCSV")}
+					<DownloadIcon className="mr-1.5 h-4 w-4" />{" "}
+					{t("exportTeamPerformanceCSV")}
 				</Button>
 			</div>
 
@@ -78,9 +79,7 @@ export default function ReportsPage() {
 					<CardTitle className="font-bold text-base">
 						{t("teamPerformanceSLAAuditing")}
 					</CardTitle>
-					<CardDescription>
-						{t("exportableSpreadsheetMatrix")}
-					</CardDescription>
+					<CardDescription>{t("exportableSpreadsheetMatrix")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					{isLoading ? (
@@ -95,7 +94,9 @@ export default function ReportsPage() {
 										<th className="p-3 font-semibold">{t("employeeIdCol")}</th>
 										<th className="p-3 font-semibold">{t("nameCol")}</th>
 										<th className="p-3 font-semibold">{t("systemRoleCol")}</th>
-										<th className="p-3 font-semibold">{t("tasksAllocatedCol")}</th>
+										<th className="p-3 font-semibold">
+											{t("tasksAllocatedCol")}
+										</th>
 										<th className="p-3 font-semibold">{t("completedCol")}</th>
 										<th className="p-3 text-right font-semibold">
 											{t("completionRateCol")}

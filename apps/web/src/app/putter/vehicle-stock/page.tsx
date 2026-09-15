@@ -1,22 +1,5 @@
 "use client";
 
-import {
-	AlertCircle,
-	ArrowLeft,
-	Box,
-	CheckCircle,
-	PackagePlus,
-	Plus,
-	RefreshCw,
-	Search,
-	ShieldCheck,
-	Truck,
-	User,
-} from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { toast } from "sonner";
-import { useTRPC } from "@/lib/trpc/client";
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
@@ -37,6 +20,23 @@ import {
 } from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
+import {
+	AlertCircle,
+	ArrowLeft,
+	Box,
+	CheckCircle,
+	PackagePlus,
+	Plus,
+	RefreshCw,
+	Search,
+	ShieldCheck,
+	Truck,
+	User,
+} from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useTRPC } from "@/lib/trpc/client";
 
 type AvailableWarehouseItem = {
 	id: number;
@@ -48,7 +48,11 @@ type AvailableWarehouseItem = {
 
 export default function PutterVehicleStockPage() {
 	const trpc = useTRPC();
-	const { data: vehicleList, isLoading, refetch } = trpc.putter.getVehicleStockList.useQuery();
+	const {
+		data: vehicleList,
+		isLoading,
+		refetch,
+	} = trpc.putter.getVehicleStockList.useQuery();
 	const allocateStock = trpc.putter.allocateVehicleStock.useMutation({
 		onSuccess: () => {
 			toast.success("Extra buffer inventory successfully loaded into vehicle!");
@@ -63,18 +67,51 @@ export default function PutterVehicleStockPage() {
 	const [selectedVehicleId, setSelectedVehicleId] = useState<number>(1);
 	const [addModalOpen, setAddModalOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [selectedItemToLoad, setSelectedItemToLoad] = useState<AvailableWarehouseItem | null>(null);
+	const [selectedItemToLoad, setSelectedItemToLoad] =
+		useState<AvailableWarehouseItem | null>(null);
 	const [qtyToLoad, setQtyToLoad] = useState<number>(5);
 
 	const availableWarehouseItems: AvailableWarehouseItem[] = [
-		{ id: 101, name: "Sugar 1kg", sku: "SUG-1KG", price: 45, warehouseStock: 120 },
-		{ id: 102, name: "Fortune Soyabean Oil 1L", sku: "OIL-1L", price: 140, warehouseStock: 85 },
-		{ id: 103, name: "Taj Mahal Tea 250g", sku: "TEA-250G", price: 180, warehouseStock: 40 },
-		{ id: 104, name: "Amul Pure Ghee 1L", sku: "GHEE-1L", price: 620, warehouseStock: 30 },
-		{ id: 105, name: "Tata Salt 1kg", sku: "SALT-1KG", price: 28, warehouseStock: 200 },
+		{
+			id: 101,
+			name: "Sugar 1kg",
+			sku: "SUG-1KG",
+			price: 45,
+			warehouseStock: 120,
+		},
+		{
+			id: 102,
+			name: "Fortune Soyabean Oil 1L",
+			sku: "OIL-1L",
+			price: 140,
+			warehouseStock: 85,
+		},
+		{
+			id: 103,
+			name: "Taj Mahal Tea 250g",
+			sku: "TEA-250G",
+			price: 180,
+			warehouseStock: 40,
+		},
+		{
+			id: 104,
+			name: "Amul Pure Ghee 1L",
+			sku: "GHEE-1L",
+			price: 620,
+			warehouseStock: 30,
+		},
+		{
+			id: 105,
+			name: "Tata Salt 1kg",
+			sku: "SALT-1KG",
+			price: 28,
+			warehouseStock: 200,
+		},
 	];
 
-	const activeVehicle = vehicleList?.find((v) => v.vehicleId === selectedVehicleId) || vehicleList?.[0];
+	const activeVehicle =
+		vehicleList?.find((v) => v.vehicleId === selectedVehicleId) ||
+		vehicleList?.[0];
 
 	const filteredWarehouseItems = availableWarehouseItems.filter(
 		(item) =>
@@ -117,13 +154,14 @@ export default function PutterVehicleStockPage() {
 								Vehicle Buffer Stock & Truck Loading
 							</h1>
 							<p className="text-gray-500 text-sm dark:text-gray-400">
-								Manage extra items loaded in delivery vehicles for live customer add-ons.
+								Manage extra items loaded in delivery vehicles for live customer
+								add-ons.
 							</p>
 						</div>
 					</div>
 					<Button
 						onClick={() => setAddModalOpen(true)}
-						className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+						className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
 					>
 						<PackagePlus className="h-4 w-4" /> Load Extra Stock to Vehicle
 					</Button>
@@ -135,29 +173,38 @@ export default function PutterVehicleStockPage() {
 						<Card
 							key={vehicle.vehicleId}
 							onClick={() => setSelectedVehicleId(vehicle.vehicleId)}
-							className={`cursor-pointer transition-all border-2 ${
-								(selectedVehicleId === vehicle.vehicleId || (!selectedVehicleId && vehicle === activeVehicle))
-									? "border-blue-600 bg-blue-50/30 dark:border-blue-500 dark:bg-blue-950/20 shadow-md"
+							className={`cursor-pointer border-2 transition-all ${
+								selectedVehicleId === vehicle.vehicleId ||
+								(!selectedVehicleId && vehicle === activeVehicle)
+									? "border-blue-600 bg-blue-50/30 shadow-md dark:border-blue-500 dark:bg-blue-950/20"
 									: "hover:border-gray-300"
 							}`}
 						>
 							<CardHeader className="p-4 pb-2">
 								<div className="flex items-center justify-between">
-									<Badge variant="outline" className="font-mono text-xs border-blue-400 bg-blue-50 text-blue-700">
+									<Badge
+										variant="outline"
+										className="border-blue-400 bg-blue-50 font-mono text-blue-700 text-xs"
+									>
 										<Truck className="mr-1 h-3 w-3" /> {vehicle.vehiclePlate}
 									</Badge>
 									<Badge variant="secondary" className="text-[10px]">
 										Active Route
 									</Badge>
 								</div>
-								<CardTitle className="text-base mt-2 flex items-center gap-1.5">
-									<User className="h-4 w-4 text-gray-500" /> {vehicle.driverName}
+								<CardTitle className="mt-2 flex items-center gap-1.5 text-base">
+									<User className="h-4 w-4 text-gray-500" />{" "}
+									{vehicle.driverName}
 								</CardTitle>
 							</CardHeader>
-							<CardContent className="p-4 pt-1 text-xs text-gray-500 flex justify-between">
+							<CardContent className="flex justify-between p-4 pt-1 text-gray-500 text-xs">
 								<span>Buffer Stock Loaded:</span>
 								<span className="font-bold font-mono text-gray-900 dark:text-white">
-									{vehicle.allocatedItems.reduce((acc, i) => acc + i.loadedQty, 0)} Items
+									{vehicle.allocatedItems.reduce(
+										(acc, i) => acc + i.loadedQty,
+										0,
+									)}{" "}
+									Items
 								</span>
 							</CardContent>
 						</Card>
@@ -168,18 +215,24 @@ export default function PutterVehicleStockPage() {
 				{activeVehicle && (
 					<Card className="shadow-sm">
 						<CardHeader className="border-b bg-gray-50/50 pb-4 dark:bg-gray-800/50">
-							<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+							<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 								<div>
-									<CardTitle className="text-base flex items-center gap-2">
+									<CardTitle className="flex items-center gap-2 text-base">
 										<Box className="h-5 w-5 text-blue-600" />
-										Current Van Inventory in {activeVehicle.vehiclePlate} ({activeVehicle.driverName})
+										Current Van Inventory in {activeVehicle.vehiclePlate} (
+										{activeVehicle.driverName})
 									</CardTitle>
 									<CardDescription className="text-xs">
-										Real-time stock carried by the driver for on-the-spot customer sales.
+										Real-time stock carried by the driver for on-the-spot
+										customer sales.
 									</CardDescription>
 								</div>
-								<Badge variant="outline" className="w-fit text-xs bg-emerald-50 text-emerald-700 border-emerald-300">
-									<ShieldCheck className="mr-1 h-3.5 w-3.5" /> Warehouse Stock Deducted
+								<Badge
+									variant="outline"
+									className="w-fit border-emerald-300 bg-emerald-50 text-emerald-700 text-xs"
+								>
+									<ShieldCheck className="mr-1 h-3.5 w-3.5" /> Warehouse Stock
+									Deducted
 								</Badge>
 							</div>
 						</CardHeader>
@@ -187,7 +240,7 @@ export default function PutterVehicleStockPage() {
 						<CardContent className="p-0">
 							<div className="overflow-x-auto">
 								<table className="w-full text-left text-sm">
-									<thead className="border-b bg-gray-100/50 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+									<thead className="border-b bg-gray-100/50 font-semibold text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300">
 										<tr>
 											<th className="p-3 pl-4">Item & SKU</th>
 											<th className="p-3">Unit Price</th>
@@ -201,25 +254,40 @@ export default function PutterVehicleStockPage() {
 										{activeVehicle.allocatedItems.map((item) => {
 											const soldQty = item.loadedQty - item.remainingQty;
 											return (
-												<tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
+												<tr
+													key={item.id}
+													className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+												>
 													<td className="p-3 pl-4">
-														<div className="font-medium text-gray-900 dark:text-white">{item.name}</div>
-														<div className="font-mono text-[11px] text-gray-500">{item.sku}</div>
+														<div className="font-medium text-gray-900 dark:text-white">
+															{item.name}
+														</div>
+														<div className="font-mono text-[11px] text-gray-500">
+															{item.sku}
+														</div>
 													</td>
 													<td className="p-3 font-mono">₹{item.price}</td>
-													<td className="p-3 font-mono font-semibold">{item.loadedQty} units</td>
-													<td className="p-3 font-mono font-bold text-blue-600 dark:text-blue-400">
+													<td className="p-3 font-mono font-semibold">
+														{item.loadedQty} units
+													</td>
+													<td className="p-3 font-bold font-mono text-blue-600 dark:text-blue-400">
 														{item.remainingQty} units
 													</td>
-													<td className="p-3 font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+													<td className="p-3 font-medium font-mono text-emerald-600 dark:text-emerald-400">
 														{soldQty > 0 ? `${soldQty} sold` : "0 sold"}
 													</td>
 													<td className="p-3 pr-4 text-right">
 														<Badge
-															variant={item.remainingQty > 0 ? "secondary" : "destructive"}
+															variant={
+																item.remainingQty > 0
+																	? "secondary"
+																	: "destructive"
+															}
 															className="text-[10px]"
 														>
-															{item.remainingQty > 0 ? "Available in Van" : "Out of Stock"}
+															{item.remainingQty > 0
+																? "Available in Van"
+																: "Out of Stock"}
 														</Badge>
 													</td>
 												</tr>
@@ -239,17 +307,19 @@ export default function PutterVehicleStockPage() {
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<PackagePlus className="h-5 w-5 text-blue-600" />
-							Load Stock into {activeVehicle?.vehiclePlate} ({activeVehicle?.driverName})
+							Load Stock into {activeVehicle?.vehiclePlate} (
+							{activeVehicle?.driverName})
 						</DialogTitle>
 						<DialogDescription className="text-xs">
-							Select items from main warehouse inventory to allocate as truck buffer stock.
+							Select items from main warehouse inventory to allocate as truck
+							buffer stock.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-2">
 						{/* Search Bar */}
 						<div className="relative">
-							<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+							<Search className="absolute top-2.5 left-2.5 h-4 w-4 text-gray-400" />
 							<Input
 								placeholder="Search warehouse stock by name or SKU..."
 								value={searchTerm}
@@ -259,20 +329,22 @@ export default function PutterVehicleStockPage() {
 						</div>
 
 						{/* Available Items List */}
-						<div className="max-h-52 overflow-y-auto border rounded-md divide-y">
+						<div className="max-h-52 divide-y overflow-y-auto rounded-md border">
 							{filteredWarehouseItems.map((item) => (
 								<div
 									key={item.id}
 									onClick={() => setSelectedItemToLoad(item)}
-									className={`p-3 text-xs flex items-center justify-between cursor-pointer transition-colors ${
+									className={`flex cursor-pointer items-center justify-between p-3 text-xs transition-colors ${
 										selectedItemToLoad?.id === item.id
-											? "bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100 font-semibold"
+											? "bg-blue-50 font-semibold text-blue-900 dark:bg-blue-950/40 dark:text-blue-100"
 											: "hover:bg-gray-50 dark:hover:bg-gray-800"
 									}`}
 								>
 									<div>
 										<div className="font-medium">{item.name}</div>
-										<div className="text-gray-500 text-[10px] font-mono">{item.sku} | ₹{item.price}</div>
+										<div className="font-mono text-[10px] text-gray-500">
+											{item.sku} | ₹{item.price}
+										</div>
 									</div>
 									<Badge variant="outline" className="font-mono text-[10px]">
 										Available: {item.warehouseStock} units
@@ -282,20 +354,24 @@ export default function PutterVehicleStockPage() {
 						</div>
 
 						{selectedItemToLoad && (
-							<div className="rounded-lg bg-blue-50/50 p-3 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-900 space-y-2">
-								<div className="flex justify-between items-center text-xs font-semibold">
+							<div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+								<div className="flex items-center justify-between font-semibold text-xs">
 									<span>Selected: {selectedItemToLoad.name}</span>
-									<span className="font-mono text-blue-600">₹{selectedItemToLoad.price} / unit</span>
+									<span className="font-mono text-blue-600">
+										₹{selectedItemToLoad.price} / unit
+									</span>
 								</div>
 								<div className="flex items-center space-x-3">
-									<Label className="text-xs text-gray-600 dark:text-gray-300">Quantity to Load into Van:</Label>
+									<Label className="text-gray-600 text-xs dark:text-gray-300">
+										Quantity to Load into Van:
+									</Label>
 									<Input
 										type="number"
 										min={1}
 										max={selectedItemToLoad.warehouseStock}
 										value={qtyToLoad}
 										onChange={(e) => setQtyToLoad(Number(e.target.value))}
-										className="w-24 h-8 text-xs font-mono"
+										className="h-8 w-24 font-mono text-xs"
 									/>
 								</div>
 							</div>
@@ -309,9 +385,11 @@ export default function PutterVehicleStockPage() {
 						<Button
 							onClick={handleConfirmLoad}
 							disabled={allocateStock.isPending || !selectedItemToLoad}
-							className="bg-blue-600 hover:bg-blue-700 text-white"
+							className="bg-blue-600 text-white hover:bg-blue-700"
 						>
-							{allocateStock.isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : null}
+							{allocateStock.isPending ? (
+								<RefreshCw className="mr-1 h-4 w-4 animate-spin" />
+							) : null}
 							Confirm & Load Stock
 						</Button>
 					</DialogFooter>

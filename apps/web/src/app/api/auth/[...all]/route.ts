@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
 		// Let the standard Better Auth handler process the request
 		response = await handler.GET(request);
 	} catch (authErr) {
-		console.warn("[GET /api/auth/get-session] Auth provider DB connection error:", authErr);
+		console.warn(
+			"[GET /api/auth/get-session] Auth provider DB connection error:",
+			authErr,
+		);
 		return NextResponse.json({ session: null, user: null }, { status: 200 });
 	}
 
@@ -41,11 +44,18 @@ export async function GET(request: NextRequest) {
 						}
 					}
 				} catch (dbErr) {
-					console.warn("[GET /api/auth/get-session Interceptor] DB profile lookup fallback:", dbErr);
+					console.warn(
+						"[GET /api/auth/get-session Interceptor] DB profile lookup fallback:",
+						dbErr,
+					);
 				}
 
 				// Email-based role fallback if role is missing or customer
-				if (!resolvedRole || resolvedRole === "customer" || resolvedRole === "user") {
+				if (
+					!resolvedRole ||
+					resolvedRole === "customer" ||
+					resolvedRole === "user"
+				) {
 					const email = (data?.user?.email || "").toLowerCase();
 					if (email.includes("driver")) resolvedRole = "driver";
 					else if (email.includes("finance")) resolvedRole = "finance";

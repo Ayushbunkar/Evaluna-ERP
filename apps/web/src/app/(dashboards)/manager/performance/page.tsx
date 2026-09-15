@@ -56,8 +56,12 @@ export default function PerformancePage() {
 										<thead>
 											<tr className="border-b text-slate-500">
 												<th className="p-3 font-semibold">{t("nameCol")}</th>
-												<th className="p-3 font-semibold">{t("tasksCompletedCol")}</th>
-												<th className="p-3 font-semibold">{t("completionRateCol")}</th>
+												<th className="p-3 font-semibold">
+													{t("tasksCompletedCol")}
+												</th>
+												<th className="p-3 font-semibold">
+													{t("completionRateCol")}
+												</th>
 												<th className="p-3 text-right font-semibold">
 													{t("attendanceConsistencyCol")}
 												</th>

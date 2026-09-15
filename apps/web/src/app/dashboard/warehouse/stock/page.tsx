@@ -9,6 +9,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import {
@@ -19,14 +27,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@evaluna/ui/components/dialog";
 import {
 	AlertTriangleIcon,
 	BoxesIcon,
@@ -40,8 +40,8 @@ import {
 	SaveIcon,
 	SearchIcon,
 } from "lucide-react";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -90,7 +90,9 @@ export default function StockPage() {
 
 	const addItemMutation = trpc.inventory.addItem.useMutation({
 		onSuccess: () => {
-			toast.success("New item added to warehouse stock & synchronized across all dashboards!");
+			toast.success(
+				"New item added to warehouse stock & synchronized across all dashboards!",
+			);
 			refetch();
 			setAddItemOpen(false);
 			setNewItem({
@@ -161,7 +163,7 @@ export default function StockPage() {
 						{t("warehouse.realTimeStockSpreadsheet")}
 					</p>
 				</div>
-				<div className="flex items-center gap-2 w-full sm:w-auto">
+				<div className="flex w-full items-center gap-2 sm:w-auto">
 					<div className="relative w-full sm:w-72">
 						<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 						<Input
@@ -178,13 +180,15 @@ export default function StockPage() {
 						disabled={isFetching}
 						className="shrink-0 gap-1.5"
 					>
-						<RefreshCwIcon className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+						<RefreshCwIcon
+							className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+						/>
 						{isFetching ? t("common.loading") : t("common.update")}
 					</Button>
 					<Button
 						size="sm"
 						onClick={() => setAddItemOpen(true)}
-						className="shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
+						className="shrink-0 gap-1.5 bg-emerald-600 font-semibold text-white shadow-sm hover:bg-emerald-700"
 					>
 						<PlusIcon className="h-4 w-4" />
 						<span>+ Add New Item</span>
@@ -201,8 +205,11 @@ export default function StockPage() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-2xl text-slate-900 dark:text-slate-100 font-mono">
-							₹{totalValuation.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+						<div className="font-bold font-mono text-2xl text-slate-900 dark:text-slate-100">
+							₹
+							{totalValuation.toLocaleString("en-IN", {
+								minimumFractionDigits: 2,
+							})}
 						</div>
 					</CardContent>
 				</Card>
@@ -215,7 +222,7 @@ export default function StockPage() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-2xl text-slate-900 dark:text-slate-100 font-mono">
+						<div className="font-bold font-mono text-2xl text-slate-900 dark:text-slate-100">
 							{invLoading
 								? "..."
 								: filteredItems.reduce(
@@ -234,8 +241,12 @@ export default function StockPage() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-2xl text-amber-600 font-mono">
-							{filteredItems.filter((i) => i.status === "low_stock" || (i.qty_on_hand || 0) <= 10).length}
+						<div className="font-bold font-mono text-2xl text-amber-600">
+							{
+								filteredItems.filter(
+									(i) => i.status === "low_stock" || (i.qty_on_hand || 0) <= 10,
+								).length
+							}
 						</div>
 					</CardContent>
 				</Card>
@@ -248,7 +259,7 @@ export default function StockPage() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-2xl text-red-500 font-mono">
+						<div className="font-bold font-mono text-2xl text-red-500">
 							{filteredItems.filter((i) => (i.qty_on_hand || 0) <= 0).length}
 						</div>
 					</CardContent>
@@ -280,7 +291,9 @@ export default function StockPage() {
 										<TableHead>{t("warehouse.binLayout")}</TableHead>
 										<TableHead>{t("products.stock")}</TableHead>
 										<TableHead>{t("common.status")}</TableHead>
-										<TableHead className="text-right">{t("common.actions")}</TableHead>
+										<TableHead className="text-right">
+											{t("common.actions")}
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -289,16 +302,19 @@ export default function StockPage() {
 											<TableCell className="font-bold text-slate-900 dark:text-slate-100">
 												{item.product}
 											</TableCell>
-											<TableCell className="font-semibold text-slate-500 text-xs font-mono">
+											<TableCell className="font-mono font-semibold text-slate-500 text-xs">
 												{item.sku}
 											</TableCell>
-											<TableCell className="font-bold text-emerald-600 font-mono text-sm">
-												₹{Number(item.price || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+											<TableCell className="font-bold font-mono text-emerald-600 text-sm">
+												₹
+												{Number(item.price || 0).toLocaleString("en-IN", {
+													minimumFractionDigits: 2,
+												})}
 											</TableCell>
 											<TableCell className="font-medium text-slate-600 text-xs">
 												Aisle B - Bin B202
 											</TableCell>
-											<TableCell className="font-bold text-sm font-mono">
+											<TableCell className="font-bold font-mono text-sm">
 												{item.qty_on_hand}
 											</TableCell>
 											<TableCell>
@@ -311,7 +327,8 @@ export default function StockPage() {
 																: "destructive"
 													}
 													className={
-														(item.qty_on_hand || 0) <= 10 && (item.qty_on_hand || 0) > 0
+														(item.qty_on_hand || 0) <= 10 &&
+														(item.qty_on_hand || 0) > 0
 															? "border-amber-200 bg-amber-50 text-amber-700"
 															: ""
 													}
@@ -357,28 +374,37 @@ export default function StockPage() {
 			</Card>
 
 			{/* Edit Stock Quantity & Unit Price Dialog */}
-			<Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
+			<Dialog
+				open={!!editItem}
+				onOpenChange={(open) => !open && setEditItem(null)}
+			>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2 text-lg">
 							<Edit3Icon className="h-5 w-5 text-blue-600" />
 							{t("warehouse.adjustStockAndUnitPrice")}
 						</DialogTitle>
-						<DialogDescription>
-							{editItem?.product}
-						</DialogDescription>
+						<DialogDescription>{editItem?.product}</DialogDescription>
 					</DialogHeader>
 
 					{editItem && (
 						<div className="space-y-4 py-3">
-							<div className="grid grid-cols-2 gap-3 bg-muted/40 p-3 rounded-md border text-xs">
+							<div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/40 p-3 text-xs">
 								<div>
-									<span className="text-muted-foreground block">{t("common.name")}</span>
-									<span className="font-bold text-foreground">{editItem.product}</span>
+									<span className="block text-muted-foreground">
+										{t("common.name")}
+									</span>
+									<span className="font-bold text-foreground">
+										{editItem.product}
+									</span>
 								</div>
 								<div>
-									<span className="text-muted-foreground block">{t("warehouse.skuReference")}</span>
-									<span className="font-mono font-semibold text-foreground">{editItem.sku}</span>
+									<span className="block text-muted-foreground">
+										{t("warehouse.skuReference")}
+									</span>
+									<span className="font-mono font-semibold text-foreground">
+										{editItem.sku}
+									</span>
 								</div>
 							</div>
 
@@ -393,7 +419,7 @@ export default function StockPage() {
 									placeholder="e.g. 50"
 									value={editStockQty}
 									onChange={(e) => setEditStockQty(e.target.value)}
-									className="font-mono text-base font-bold"
+									className="font-bold font-mono text-base"
 								/>
 							</div>
 
@@ -402,7 +428,9 @@ export default function StockPage() {
 									{t("warehouse.sellingPrice")}
 								</Label>
 								<div className="relative">
-									<span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">₹</span>
+									<span className="absolute top-1/2 left-3 -translate-y-1/2 font-bold text-muted-foreground">
+										₹
+									</span>
 									<Input
 										id="price"
 										type="number"
@@ -411,7 +439,7 @@ export default function StockPage() {
 										placeholder="e.g. 25.00"
 										value={editPrice}
 										onChange={(e) => setEditPrice(e.target.value)}
-										className="pl-8 font-mono text-base font-bold text-emerald-700"
+										className="pl-8 font-bold font-mono text-base text-emerald-700"
 									/>
 								</div>
 							</div>
@@ -429,7 +457,7 @@ export default function StockPage() {
 						<Button
 							onClick={handleSave}
 							disabled={updateMutation.isPending}
-							className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+							className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
 						>
 							{updateMutation.isPending ? (
 								<>
@@ -451,11 +479,12 @@ export default function StockPage() {
 			<Dialog open={addItemOpen} onOpenChange={setAddItemOpen}>
 				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
-						<DialogTitle className="font-bold text-lg text-emerald-700 dark:text-emerald-400">
+						<DialogTitle className="font-bold text-emerald-700 text-lg dark:text-emerald-400">
 							+ Add New Item to Warehouse Stock / नया आइटम जोड़ें
 						</DialogTitle>
 						<DialogDescription>
-							Create a new product line in the inventory. It will be immediately synced across Sales, Driver, and Warehouse dashboards.
+							Create a new product line in the inventory. It will be immediately
+							synced across Sales, Driver, and Warehouse dashboards.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -469,7 +498,9 @@ export default function StockPage() {
 								id="newItemName"
 								placeholder="e.g. Sprite (600 ml) or Fortune Refined Oil (1 L)"
 								value={newItem.name}
-								onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+								onChange={(e) =>
+									setNewItem({ ...newItem, name: e.target.value })
+								}
 								className="font-medium"
 							/>
 						</div>
@@ -484,7 +515,9 @@ export default function StockPage() {
 									id="newItemSku"
 									placeholder="e.g. SPR-600ML"
 									value={newItem.sku}
-									onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
+									onChange={(e) =>
+										setNewItem({ ...newItem, sku: e.target.value })
+									}
 									className="font-mono text-xs uppercase"
 								/>
 							</div>
@@ -496,7 +529,9 @@ export default function StockPage() {
 								<select
 									id="newItemUnit"
 									value={newItem.unit}
-									onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+									onChange={(e) =>
+										setNewItem({ ...newItem, unit: e.target.value })
+									}
 									className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 								>
 									<option value="ml">Liquid (ml)</option>
@@ -518,10 +553,13 @@ export default function StockPage() {
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
 								<Label htmlFor="newItemPrice" className="font-semibold text-sm">
-									Selling Price / बिक्री मूल्य (₹) <span className="text-red-500">*</span>
+									Selling Price / बिक्री मूल्य (₹){" "}
+									<span className="text-red-500">*</span>
 								</Label>
 								<div className="relative">
-									<span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">₹</span>
+									<span className="absolute top-1/2 left-3 -translate-y-1/2 font-bold text-muted-foreground text-xs">
+										₹
+									</span>
 									<Input
 										id="newItemPrice"
 										type="number"
@@ -529,8 +567,10 @@ export default function StockPage() {
 										min="0"
 										placeholder="e.g. 40.00"
 										value={newItem.price}
-										onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-										className="pl-7 font-mono text-sm font-bold text-emerald-700"
+										onChange={(e) =>
+											setNewItem({ ...newItem, price: e.target.value })
+										}
+										className="pl-7 font-bold font-mono text-emerald-700 text-sm"
 									/>
 								</div>
 							</div>
@@ -540,7 +580,9 @@ export default function StockPage() {
 									Cost Price / लागत मूल्य (₹)
 								</Label>
 								<div className="relative">
-									<span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">₹</span>
+									<span className="absolute top-1/2 left-3 -translate-y-1/2 font-bold text-muted-foreground text-xs">
+										₹
+									</span>
 									<Input
 										id="newItemCost"
 										type="number"
@@ -548,7 +590,9 @@ export default function StockPage() {
 										min="0"
 										placeholder="e.g. 32.00"
 										value={newItem.costPrice}
-										onChange={(e) => setNewItem({ ...newItem, costPrice: e.target.value })}
+										onChange={(e) =>
+											setNewItem({ ...newItem, costPrice: e.target.value })
+										}
 										className="pl-7 font-mono text-sm"
 									/>
 								</div>
@@ -559,7 +603,8 @@ export default function StockPage() {
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
 								<Label htmlFor="newItemStock" className="font-semibold text-sm">
-									Initial Stock Qty / प्रारंभिक स्टॉक <span className="text-red-500">*</span>
+									Initial Stock Qty / प्रारंभिक स्टॉक{" "}
+									<span className="text-red-500">*</span>
 								</Label>
 								<Input
 									id="newItemStock"
@@ -567,8 +612,10 @@ export default function StockPage() {
 									min="0"
 									placeholder="e.g. 50"
 									value={newItem.initialStock}
-									onChange={(e) => setNewItem({ ...newItem, initialStock: e.target.value })}
-									className="font-mono text-sm font-bold"
+									onChange={(e) =>
+										setNewItem({ ...newItem, initialStock: e.target.value })
+									}
+									className="font-bold font-mono text-sm"
 								/>
 							</div>
 
@@ -580,7 +627,9 @@ export default function StockPage() {
 									id="newItemBin"
 									placeholder="e.g. Aisle B - Bin B202"
 									value={newItem.binLocation}
-									onChange={(e) => setNewItem({ ...newItem, binLocation: e.target.value })}
+									onChange={(e) =>
+										setNewItem({ ...newItem, binLocation: e.target.value })
+									}
 									className="text-xs"
 								/>
 							</div>
@@ -596,11 +645,18 @@ export default function StockPage() {
 							{t("common.cancel")}
 						</Button>
 						<Button
-							disabled={addItemMutation.isPending || !newItem.name.trim() || !newItem.price}
+							disabled={
+								addItemMutation.isPending ||
+								!newItem.name.trim() ||
+								!newItem.price
+							}
 							onClick={() => {
 								const parsedPrice = Number.parseFloat(newItem.price);
-								const parsedCost = newItem.costPrice ? Number.parseFloat(newItem.costPrice) : undefined;
-								const parsedStock = Number.parseInt(newItem.initialStock, 10) || 0;
+								const parsedCost = newItem.costPrice
+									? Number.parseFloat(newItem.costPrice)
+									: undefined;
+								const parsedStock =
+									Number.parseInt(newItem.initialStock, 10) || 0;
 
 								if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
 									toast.error("Please enter a valid positive selling price.");
@@ -618,7 +674,7 @@ export default function StockPage() {
 									branchId: 1,
 								});
 							}}
-							className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+							className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
 						>
 							{addItemMutation.isPending ? (
 								<>

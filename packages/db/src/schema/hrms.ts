@@ -155,6 +155,7 @@ export const leaveApplications = pgTable("leave_applications", {
 	endDate: date("end_date").notNull(),
 	reason: text("reason"),
 	status: leaveStatusEnum("status").default("pending"),
+	managerApproved: boolean("manager_approved").notNull().default(false),
 	approvedBy: integer("approved_by").references(() => employees.id),
 	approvedAt: timestamp("approved_at"),
 	createdAt: timestamp("created_at").defaultNow(),

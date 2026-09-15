@@ -8,8 +8,8 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { HistoryIcon, Loader2Icon } from "lucide-react";
-import { PageTransition } from "@/lib/animations";
 import { useTranslations } from "next-intl";
+import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function ActivityPage() {
@@ -68,10 +68,15 @@ export default function ActivityPage() {
 											</span>
 										</div>
 										<p className="font-medium text-slate-700 text-xs dark:text-slate-300">
-											{t("operationalShiftOnEntity", { type: act.entity_type, id: act.entity_id })}
+											{t("operationalShiftOnEntity", {
+												type: act.entity_type,
+												id: act.entity_id,
+											})}
 										</p>
 										<p className="text-[10px] text-slate-400">
-											{t("capturedOperatorStaff", { user: act.user_id ?? t("systemAutoTrigger") })}
+											{t("capturedOperatorStaff", {
+												user: act.user_id ?? t("systemAutoTrigger"),
+											})}
 										</p>
 									</div>
 								</div>

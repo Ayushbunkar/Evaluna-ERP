@@ -34,9 +34,9 @@ import {
 	PrinterIcon,
 	SearchIcon,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -140,62 +140,107 @@ export default function PackerPendingPage() {
 			{/* Printable A4-Optimized Unified Packing Slip & Shipping Label */}
 			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:block print:bg-white print:p-8">
 				{printPackage && (
-					<div className="mx-auto max-w-[650px] border-2 border-dashed border-gray-400 p-6 font-sans text-black">
+					<div className="mx-auto max-w-[650px] border-2 border-gray-400 border-dashed p-6 font-sans text-black">
 						{/* Header */}
-						<div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+						<div className="mb-4 flex items-start justify-between border-black border-b-2 pb-4">
 							<div>
-								<h1 className="font-bold text-2xl tracking-tight">EVALUNA LOGISTICS</h1>
-								<p className="text-xs text-gray-500">Fast, Verified & Reliable Warehouse Delivery</p>
+								<h1 className="font-bold text-2xl tracking-tight">
+									EVALUNA LOGISTICS
+								</h1>
+								<p className="text-gray-500 text-xs">
+									Fast, Verified & Reliable Warehouse Delivery
+								</p>
 							</div>
 							<div className="text-right">
-								<p className="font-bold text-sm bg-black text-white px-2 py-1 inline-block">PACKING SLIP</p>
-								<p className="text-xs font-mono mt-1">Ref: {printPackage.orderRef}</p>
+								<p className="inline-block bg-black px-2 py-1 font-bold text-sm text-white">
+									PACKING SLIP
+								</p>
+								<p className="mt-1 font-mono text-xs">
+									Ref: {printPackage.orderRef}
+								</p>
 							</div>
 						</div>
 
 						{/* Grid for details */}
-						<div className="grid grid-cols-2 gap-4 text-xs mb-6">
-							<div className="border border-gray-300 p-3 rounded">
-								<p className="font-bold border-b border-gray-200 pb-1 mb-1 text-gray-700">🚚 SHIP TO:</p>
+						<div className="mb-6 grid grid-cols-2 gap-4 text-xs">
+							<div className="rounded border border-gray-300 p-3">
+								<p className="mb-1 border-gray-200 border-b pb-1 font-bold text-gray-700">
+									🚚 SHIP TO:
+								</p>
 								<p className="font-bold text-sm">{printPackage.customerName}</p>
 								<p className="mt-1">📞 {printPackage.customerPhone}</p>
-								<p className="mt-1 text-gray-600 leading-tight">📍 {printPackage.customerAddress}</p>
+								<p className="mt-1 text-gray-600 leading-tight">
+									📍 {printPackage.customerAddress}
+								</p>
 							</div>
 
-							<div className="border border-gray-300 p-3 rounded">
-								<p className="font-bold border-b border-gray-200 pb-1 mb-1 text-gray-700">📦 PARCEL SPECS:</p>
-								<p><strong>Pkg No:</strong> {printPackage.number}</p>
-								<p className="mt-1"><strong>Weight:</strong> {printPackage.weight} kg</p>
-								<p className="mt-1"><strong>Box Size:</strong> {printPackage.dimensions}</p>
-								<p className="mt-1"><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+							<div className="rounded border border-gray-300 p-3">
+								<p className="mb-1 border-gray-200 border-b pb-1 font-bold text-gray-700">
+									📦 PARCEL SPECS:
+								</p>
+								<p>
+									<strong>Pkg No:</strong> {printPackage.number}
+								</p>
+								<p className="mt-1">
+									<strong>Weight:</strong> {printPackage.weight} kg
+								</p>
+								<p className="mt-1">
+									<strong>Box Size:</strong> {printPackage.dimensions}
+								</p>
+								<p className="mt-1">
+									<strong>Date:</strong> {new Date().toLocaleDateString()}
+								</p>
 							</div>
 						</div>
 
 						{/* Itemized list */}
 						<div className="mb-6">
-							<p className="font-bold text-xs text-gray-700 mb-2 uppercase tracking-wide">📋 Itemized Product Checklist</p>
+							<p className="mb-2 font-bold text-gray-700 text-xs uppercase tracking-wide">
+								📋 Itemized Product Checklist
+							</p>
 							<table className="w-full border-collapse text-xs">
 								<thead>
-									<tr className="bg-gray-100 border-b border-gray-300">
-										<th className="border border-gray-300 px-3 py-1.5 text-left">Product Name</th>
-										<th className="border border-gray-300 px-3 py-1.5 text-left">SKU</th>
-										<th className="border border-gray-300 px-3 py-1.5 text-center w-20">Qty Ordered</th>
-										<th className="border border-gray-300 px-3 py-1.5 text-center w-20">Status</th>
+									<tr className="border-gray-300 border-b bg-gray-100">
+										<th className="border border-gray-300 px-3 py-1.5 text-left">
+											Product Name
+										</th>
+										<th className="border border-gray-300 px-3 py-1.5 text-left">
+											SKU
+										</th>
+										<th className="w-20 border border-gray-300 px-3 py-1.5 text-center">
+											Qty Ordered
+										</th>
+										<th className="w-20 border border-gray-300 px-3 py-1.5 text-center">
+											Status
+										</th>
 									</tr>
 								</thead>
 								<tbody>
 									{printPackage.items && printPackage.items.length > 0 ? (
 										printPackage.items.map((it, idx) => (
-											<tr key={idx} className="border-b border-gray-200">
-												<td className="border border-gray-300 px-3 py-1.5 font-bold">{it.productName}</td>
-												<td className="border border-gray-300 px-3 py-1.5 font-mono">{it.sku}</td>
-												<td className="border border-gray-300 px-3 py-1.5 text-center font-bold">{it.quantity}</td>
-												<td className="border border-gray-300 px-3 py-1.5 text-center text-green-600 font-bold">✓ Packed</td>
+											<tr key={idx} className="border-gray-200 border-b">
+												<td className="border border-gray-300 px-3 py-1.5 font-bold">
+													{it.productName}
+												</td>
+												<td className="border border-gray-300 px-3 py-1.5 font-mono">
+													{it.sku}
+												</td>
+												<td className="border border-gray-300 px-3 py-1.5 text-center font-bold">
+													{it.quantity}
+												</td>
+												<td className="border border-gray-300 px-3 py-1.5 text-center font-bold text-green-600">
+													✓ Packed
+												</td>
 											</tr>
 										))
 									) : (
 										<tr>
-											<td colSpan={4} className="border border-gray-300 px-3 py-4 text-center text-gray-500">No items registered.</td>
+											<td
+												colSpan={4}
+												className="border border-gray-300 px-3 py-4 text-center text-gray-500"
+											>
+												No items registered.
+											</td>
 										</tr>
 									)}
 								</tbody>
@@ -203,10 +248,14 @@ export default function PackerPendingPage() {
 						</div>
 
 						{/* Barcode Shipment Sticker */}
-						<div className="flex flex-col items-center justify-center border-t-2 border-black pt-4">
-							<p className="font-bold text-[10px] tracking-widest text-gray-500 mb-1">SCAN TO CONFIRM LOADING / DELIVERY</p>
+						<div className="flex flex-col items-center justify-center border-black border-t-2 pt-4">
+							<p className="mb-1 font-bold text-[10px] text-gray-500 tracking-widest">
+								SCAN TO CONFIRM LOADING / DELIVERY
+							</p>
 							<svg ref={printSvgRef} className="my-1" />
-							<p className="text-[9px] text-gray-400 mt-1">PACKED & VERIFIED BY EVALUNA LOGISTICS</p>
+							<p className="mt-1 text-[9px] text-gray-400">
+								PACKED & VERIFIED BY EVALUNA LOGISTICS
+							</p>
 						</div>
 					</div>
 				)}
@@ -288,9 +337,7 @@ export default function PackerPendingPage() {
 							<BoxIcon className="h-5 w-5 text-blue-600" />
 							{t("pendingPackQueue")}
 						</CardTitle>
-						<CardDescription>
-							{t("ordersWaitingToPack")}
-						</CardDescription>
+						<CardDescription>{t("ordersWaitingToPack")}</CardDescription>
 					</div>
 
 					<div className="relative w-full sm:w-64">
@@ -330,7 +377,9 @@ export default function PackerPendingPage() {
 										<TableHead>{t("driverAndTruck")}</TableHead>
 										<TableHead>{t("pickingCompletionTime")}</TableHead>
 										<TableHead>{tCommon("status")}</TableHead>
-										<TableHead className="text-right">{tCommon("actions")}</TableHead>
+										<TableHead className="text-right">
+											{tCommon("actions")}
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -342,12 +391,16 @@ export default function PackerPendingPage() {
 											<TableCell className="font-semibold text-sm">
 												{pl.order_ref}
 											</TableCell>
-											<TableCell className="font-semibold text-xs text-blue-600 dark:text-blue-400">
+											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
 												📍 {pl.routeName}
 											</TableCell>
 											<TableCell className="text-xs">
-												<div className="font-medium text-gray-800 dark:text-gray-200">👤 {pl.driverName}</div>
-												<div className="text-muted-foreground text-[10px] mt-0.5 font-mono">🚛 {pl.vehiclePlate}</div>
+												<div className="font-medium text-gray-800 dark:text-gray-200">
+													👤 {pl.driverName}
+												</div>
+												<div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+													🚛 {pl.vehiclePlate}
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pl.completed_at}
@@ -363,7 +416,8 @@ export default function PackerPendingPage() {
 													className="h-8 bg-blue-600 text-white hover:bg-blue-700"
 													onClick={() => setSelectedPickList(pl)}
 												>
-													<BoxIcon className="mr-1 h-3.5 w-3.5" /> {t("packParcel")}
+													<BoxIcon className="mr-1 h-3.5 w-3.5" />{" "}
+													{t("packParcel")}
 												</Button>
 											</TableCell>
 										</TableRow>
@@ -387,9 +441,7 @@ export default function PackerPendingPage() {
 								<BoxIcon className="h-5 w-5 text-blue-600" />
 								{t("packParcel")} {selectedPickList.order_ref}
 							</DialogTitle>
-							<DialogDescription>
-								{t("recordParcelWeight")}
-							</DialogDescription>
+							<DialogDescription>{t("recordParcelWeight")}</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-4 py-2 text-sm">
@@ -403,11 +455,14 @@ export default function PackerPendingPage() {
 								<p>
 									<strong>{tCommon("status")}:</strong> {t("readyToPack")}
 								</p>
-								<p className="mt-1.5 pt-1.5 border-t border-blue-200/30">
-									<strong>🚚 {t("driverAndTruck")}:</strong> {selectedPickList.vehiclePlate} ({selectedPickList.driverName})
+								<p className="mt-1.5 border-blue-200/30 border-t pt-1.5">
+									<strong>🚚 {t("driverAndTruck")}:</strong>{" "}
+									{selectedPickList.vehiclePlate} ({selectedPickList.driverName}
+									)
 								</p>
 								<p className="mt-0.5">
-									<strong>📍 {t("assignedRoute")}:</strong> {selectedPickList.routeName}
+									<strong>📍 {t("assignedRoute")}:</strong>{" "}
+									{selectedPickList.routeName}
 								</p>
 							</div>
 
@@ -465,42 +520,56 @@ export default function PackerPendingPage() {
 					open={!!printPackage}
 					onOpenChange={(open) => !open && setPrintPackage(null)}
 				>
-					<DialogContent className="sm:max-w-[460px] border-emerald-200">
+					<DialogContent className="border-emerald-200 sm:max-w-[460px]">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2 text-emerald-700 text-lg">
 								<CheckCircle2Icon className="h-6 w-6 text-emerald-600" />
 								{t("packingLabelPrinted")}
 							</DialogTitle>
-							<DialogDescription className="text-xs text-muted-foreground">
+							<DialogDescription className="text-muted-foreground text-xs">
 								{t("packagePackedPrintedSub", { number: printPackage.number })}
 							</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-3 py-2 text-sm">
-							<div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3.5 space-y-2 text-xs">
-								<div className="flex justify-between items-center border-b border-emerald-200/50 pb-2">
-									<span className="font-semibold text-gray-700">{t("packageNumber")}:</span>
-									<span className="font-mono font-bold text-emerald-800 text-sm">{printPackage.number}</span>
+							<div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3.5 text-xs">
+								<div className="flex items-center justify-between border-emerald-200/50 border-b pb-2">
+									<span className="font-semibold text-gray-700">
+										{t("packageNumber")}:
+									</span>
+									<span className="font-bold font-mono text-emerald-800 text-sm">
+										{printPackage.number}
+									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-gray-500">{t("orderRef")}:</span>
-									<span className="font-semibold text-gray-900">{printPackage.orderRef}</span>
+									<span className="font-semibold text-gray-900">
+										{printPackage.orderRef}
+									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-gray-500">{tCommon("name")}:</span>
-									<span className="font-medium text-gray-900">{printPackage.customerName}</span>
+									<span className="font-medium text-gray-900">
+										{printPackage.customerName}
+									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-gray-500">{t("assignedPicker")}:</span>
-									<span className="font-semibold text-blue-700">👤 {printPackage.driverName || t("unassigned")}</span>
+									<span className="font-semibold text-blue-700">
+										👤 {printPackage.driverName || t("unassigned")}
+									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-gray-500">{t("driverAndTruck")}:</span>
-									<span className="font-mono font-medium text-gray-800">🚛 {printPackage.vehiclePlate || "N/A"}</span>
+									<span className="font-medium font-mono text-gray-800">
+										🚛 {printPackage.vehiclePlate || "N/A"}
+									</span>
 								</div>
-								<div className="flex justify-between border-t border-emerald-200/50 pt-1.5 mt-1">
+								<div className="mt-1 flex justify-between border-emerald-200/50 border-t pt-1.5">
 									<span className="text-gray-500">{t("boxDimensions")}:</span>
-									<span className="font-medium text-gray-800">{printPackage.weight} kg • {printPackage.dimensions}</span>
+									<span className="font-medium text-gray-800">
+										{printPackage.weight} kg • {printPackage.dimensions}
+									</span>
 								</div>
 							</div>
 
@@ -509,7 +578,7 @@ export default function PackerPendingPage() {
 									type="button"
 									variant="outline"
 									size="sm"
-									className="text-xs border-gray-300 shadow-sm"
+									className="border-gray-300 text-xs shadow-sm"
 									onClick={() => window.print()}
 								>
 									<PrinterIcon className="mr-1.5 h-3.5 w-3.5 text-gray-600" />
@@ -519,9 +588,11 @@ export default function PackerPendingPage() {
 								<Button
 									type="button"
 									size="sm"
-									className="bg-emerald-600 text-white hover:bg-emerald-700 font-semibold shadow-sm text-xs"
+									className="bg-emerald-600 font-semibold text-white text-xs shadow-sm hover:bg-emerald-700"
 									onClick={() => {
-										toast.success(`Package ${printPackage.number} confirmed & handed over to driver!`);
+										toast.success(
+											`Package ${printPackage.number} confirmed & handed over to driver!`,
+										);
 										setPrintPackage(null);
 										refetch();
 									}}

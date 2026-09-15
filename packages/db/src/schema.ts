@@ -200,12 +200,22 @@ export const orders = pgTable(
 		delivery_time: timestamp("delivery_time"),
 		locked: boolean("locked").default(false),
 		original_items: jsonb("original_items"),
-		driver_collected_amount: decimal("driver_collected_amount", { precision: 10, scale: 2 }),
-		finance_verified_amount: decimal("finance_verified_amount", { precision: 10, scale: 2 }),
-		finance_status: varchar("finance_status", { length: 50 }).default("pending_collection"),
+		driver_collected_amount: decimal("driver_collected_amount", {
+			precision: 10,
+			scale: 2,
+		}),
+		finance_verified_amount: decimal("finance_verified_amount", {
+			precision: 10,
+			scale: 2,
+		}),
+		finance_status: varchar("finance_status", { length: 50 }).default(
+			"pending_collection",
+		),
 		driver_id: integer("driver_id").references(() => staff.id),
 		driver_collected_at: timestamp("driver_collected_at"),
-		finance_verified_by: integer("finance_verified_by").references(() => staff.id),
+		finance_verified_by: integer("finance_verified_by").references(
+			() => staff.id,
+		),
 		finance_verified_at: timestamp("finance_verified_at"),
 		finance_notes: text("finance_notes"),
 		created_at: timestamp("created_at").defaultNow(),
@@ -279,8 +289,13 @@ export const transactions = pgTable(
 		reference_id: integer("reference_id"), // Polymorphic relation ID
 		reference_type: varchar("reference_type", { length: 50 }), // 'order', 'expense', 'purchase', 'manual'
 		original_amount: decimal("original_amount", { precision: 10, scale: 2 }),
-		adjustment_amount: decimal("adjustment_amount", { precision: 10, scale: 2 }).default("0"),
-		reconciliation_status: varchar("reconciliation_status", { length: 20 }).default("pending"),
+		adjustment_amount: decimal("adjustment_amount", {
+			precision: 10,
+			scale: 2,
+		}).default("0"),
+		reconciliation_status: varchar("reconciliation_status", {
+			length: 20,
+		}).default("pending"),
 		created_at: timestamp("created_at").defaultNow(),
 	},
 	(table) => ({

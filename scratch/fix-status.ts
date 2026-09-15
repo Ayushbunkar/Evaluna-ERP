@@ -1,16 +1,18 @@
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../packages/db/src/index";
-import { orders, customers } from "../packages/db/src/schema";
-import { inArray, eq } from "drizzle-orm";
+import { customers, orders } from "../packages/db/src/schema";
 
 async function run() {
-	console.log("--- SYNCHRONIZING SEEDED VILLAGE ORDER STATUS TO 'PENDING_REVIEW' ---");
+	console.log(
+		"--- SYNCHRONIZING SEEDED VILLAGE ORDER STATUS TO 'PENDING_REVIEW' ---",
+	);
 
 	const allowedEmails = [
 		"verma.berasia@gmail.com",
 		"patel.lalariya@gmail.com",
 		"sharma.runaha@gmail.com",
 		"choudhary.gunga@gmail.com",
-		"bundela.harrakheda@gmail.com"
+		"bundela.harrakheda@gmail.com",
 	];
 
 	// Fetch our 5 seeded Berasia customers
@@ -31,13 +33,12 @@ async function run() {
 		.update(orders)
 		.set({ status: "pending_review" }) // Moves them cleanly to the Salesperson review inbox!
 		.where(
-			and(
-				inArray(orders.customer_id, custIds),
-				eq(orders.status, "pending")
-			)
+			and(inArray(orders.customer_id, custIds), eq(orders.status, "pending")),
 		);
 
-	console.log("\nSuccess! All 10 seeded customer orders are now marked as 'pending_review' and are live in the Salesperson review queue!");
+	console.log(
+		"\nSuccess! All 10 seeded customer orders are now marked as 'pending_review' and are live in the Salesperson review queue!",
+	);
 	process.exit(0);
 }
 

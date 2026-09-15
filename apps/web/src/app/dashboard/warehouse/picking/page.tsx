@@ -258,7 +258,7 @@ export default function PickingPage() {
 																})
 															}
 															disabled={startPickingMutation.isPending}
-															className="h-8 bg-slate-900 text-white text-xs hover:bg-slate-800 shadow-sm dark:bg-slate-100 dark:text-slate-900"
+															className="h-8 bg-slate-900 text-white text-xs shadow-sm hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
 														>
 															Start Picking
 														</Button>
@@ -273,7 +273,7 @@ export default function PickingPage() {
 																})
 															}
 															disabled={startPickingMutation.isPending}
-															className="h-8 bg-slate-900 text-white text-xs hover:bg-slate-800 shadow-sm dark:bg-slate-100 dark:text-slate-900"
+															className="h-8 bg-slate-900 text-white text-xs shadow-sm hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
 														>
 															Start Picking
 														</Button>
@@ -283,7 +283,7 @@ export default function PickingPage() {
 														<Button
 															size="sm"
 															onClick={() => openPickingModal(pl)}
-															className="h-8 bg-blue-600 text-white text-xs hover:bg-blue-700 shadow-sm"
+															className="h-8 bg-blue-600 text-white text-xs shadow-sm hover:bg-blue-700"
 														>
 															Execute Shelf Pick
 														</Button>

@@ -390,7 +390,10 @@ export default function SuperAdminUsersPage() {
 								</TableHeader>
 								<TableBody>
 									{users.map((u, idx) => (
-										<TableRow key={`${u.id}-${u.email}-${idx}`} className="hover:bg-muted/30">
+										<TableRow
+											key={`${u.id}-${u.email}-${idx}`}
+											className="hover:bg-muted/30"
+										>
 											<TableCell className="font-medium">{u.name}</TableCell>
 											<TableCell className="font-mono text-xs">
 												{u.staffCode || "N/A"}
@@ -1224,10 +1227,14 @@ export default function SuperAdminUsersPage() {
 			<Dialog open={deleteUserOpen} onOpenChange={setDeleteUserOpen}>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle className="text-red-600">Delete User Account</DialogTitle>
+						<DialogTitle className="text-red-600">
+							Delete User Account
+						</DialogTitle>
 						<DialogDescription>
 							Are you sure you want to permanently delete the account for{" "}
-							<strong className="text-foreground">{selectedUserName}</strong>? This action will terminate all active sessions, remove role permissions, and soft-delete their staff profile.
+							<strong className="text-foreground">{selectedUserName}</strong>?
+							This action will terminate all active sessions, remove role
+							permissions, and soft-delete their staff profile.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -1249,7 +1256,9 @@ export default function SuperAdminUsersPage() {
 								});
 							}}
 						>
-							{deleteUser.isPending ? "Deleting..." : "Permanently Delete Account"}
+							{deleteUser.isPending
+								? "Deleting..."
+								: "Permanently Delete Account"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

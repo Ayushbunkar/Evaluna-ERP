@@ -1,9 +1,11 @@
+import { sql } from "drizzle-orm";
 import { db } from "../packages/db/src/index";
 import { deliveryTrips, tripStops } from "../packages/db/src/schema/delivery";
-import { sql } from "drizzle-orm";
 
 async function run() {
-	console.log("SIMULATING TRANSACTIONAL TRIP CREATION TO CAPTURE DEEP POSTGRES EXCEPTION...");
+	console.log(
+		"SIMULATING TRANSACTIONAL TRIP CREATION TO CAPTURE DEEP POSTGRES EXCEPTION...",
+	);
 
 	try {
 		await db.transaction(async (tx) => {
@@ -20,14 +22,12 @@ async function run() {
 			console.log(`Generated Trip ID inside transaction: ${trip.id}`);
 
 			// 2. Try to insert the 4 stops that failed
-			await tx
-				.insert(tripStops)
-				.values([
-					{ trip_id: trip.id, customer_id: 59, sequence: 1, status: "pending" },
-					{ trip_id: trip.id, customer_id: 72, sequence: 2, status: "pending" },
-					{ trip_id: trip.id, customer_id: 68, sequence: 3, status: "pending" },
-					{ trip_id: trip.id, customer_id: 69, sequence: 4, status: "pending" },
-				]);
+			await tx.insert(tripStops).values([
+				{ trip_id: trip.id, customer_id: 59, sequence: 1, status: "pending" },
+				{ trip_id: trip.id, customer_id: 72, sequence: 2, status: "pending" },
+				{ trip_id: trip.id, customer_id: 68, sequence: 3, status: "pending" },
+				{ trip_id: trip.id, customer_id: 69, sequence: 4, status: "pending" },
+			]);
 
 			console.log("Transaction insert succeeded programmatically!");
 		});

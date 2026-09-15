@@ -148,9 +148,8 @@ console.log("6. Checking package dependencies...");
 const packageJsonPath = path.join(__dirname, "apps/web/package.json");
 if (fs.existsSync(packageJsonPath)) {
 	const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-	const hasBetterAuth =
-		packageJson.dependencies && packageJson.dependencies["better-auth"];
-	const hasNext = packageJson.dependencies && packageJson.dependencies["next"];
+	const hasBetterAuth = packageJson.dependencies?.["better-auth"];
+	const hasNext = packageJson.dependencies?.["next"];
 
 	if (hasBetterAuth && hasNext) {
 		checks.passed.push(

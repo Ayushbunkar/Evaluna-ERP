@@ -1,5 +1,15 @@
 "use client";
 
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	ArrowLeftRight,
@@ -19,16 +29,6 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@evaluna/ui/components/dialog";
-import { Input } from "@evaluna/ui/components/input";
-import { Label } from "@evaluna/ui/components/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CompletedOrder {
@@ -1099,7 +1099,9 @@ export function SaleCompletionScreen({
 		setIsCancelling(true);
 		try {
 			// In production, PIN validation connects to manager validation service
-			toast.success(`Invoice #${order.id} cancelled successfully! Stock & ledger restored.`);
+			toast.success(
+				`Invoice #${order.id} cancelled successfully! Stock & ledger restored.`,
+			);
 			setCancelDialogOpen(false);
 			onNewSale();
 		} catch (err: any) {
@@ -1796,7 +1798,8 @@ export function SaleCompletionScreen({
 								<XCircle className="h-5 w-5" /> Cancel Invoice #{order.id}
 							</DialogTitle>
 							<DialogDescription>
-								Manager approval is required to void this invoice and restore inventory stock.
+								Manager approval is required to void this invoice and restore
+								inventory stock.
 							</DialogDescription>
 						</DialogHeader>
 

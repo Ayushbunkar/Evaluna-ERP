@@ -37,8 +37,8 @@ export const packerRouter = router({
 					.where(
 						and(
 							eq(tripStops.customer_id, pl.customer_id),
-							inArray(deliveryTrips.status, ["pending", "active"])
-						)
+							inArray(deliveryTrips.status, ["pending", "active"]),
+						),
 					)
 					.limit(1);
 				if (trip) pendingCount++;
@@ -63,7 +63,14 @@ export const packerRouter = router({
 			const packedPackages = await ctx.db
 				.select({ pick_list_id: packages.pick_list_id })
 				.from(packages)
-				.where(inArray(packages.status, ["packed", "ready_for_dispatch", "dispatched", "completed"]));
+				.where(
+					inArray(packages.status, [
+						"packed",
+						"ready_for_dispatch",
+						"dispatched",
+						"completed",
+					]),
+				);
 
 			const packedPickListIds = new Set(
 				packedPackages.map((p) => p.pick_list_id).filter(Boolean),
@@ -100,10 +107,21 @@ export const packerRouter = router({
 				})
 				.from(pickListItems)
 				.leftJoin(products, eq(pickListItems.product_id, products.id))
-				.where(inArray(pickListItems.pick_list_id, results.map((r) => r.id)));
+				.where(
+					inArray(
+						pickListItems.pick_list_id,
+						results.map((r) => r.id),
+					),
+				);
 
 			// Import delivery schema tables
-			const { tripStops, deliveryTrips, vehicles, user, deliveryRoutes } = require("@evaluna/db/schema");
+			const {
+				tripStops,
+				deliveryTrips,
+				vehicles,
+				user,
+				deliveryRoutes,
+			} = require("@evaluna/db/schema");
 			const { db } = require("@/lib/db");
 
 			const enrichedResults = [];
@@ -126,14 +144,17 @@ export const packerRouter = router({
 							})
 							.from(tripStops)
 							.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-							.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
+							.leftJoin(
+								deliveryRoutes,
+								eq(deliveryRoutes.id, deliveryTrips.route_id),
+							)
 							.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 							.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
 							.where(
 								and(
 									eq(tripStops.customer_id, r.customer_id),
-									inArray(deliveryTrips.status, ["pending", "active"])
-								)
+									inArray(deliveryTrips.status, ["pending", "active"]),
+								),
 							)
 							.limit(1);
 
@@ -212,8 +233,8 @@ export const packerRouter = router({
 				.where(
 					and(
 						eq(pickLists.status, "completed"),
-						inArray(pickLists.id, packingPickListIds)
-					)
+						inArray(pickLists.id, packingPickListIds),
+					),
 				)
 				.orderBy(desc(pickLists.completed_at))
 				.limit(50);
@@ -315,11 +336,17 @@ export const packerRouter = router({
 							if (createdOrder) {
 								validOrderId = createdOrder.id;
 							} else {
-								const [anyOrder] = await ctx.db.select({ id: orders.id }).from(orders).limit(1);
+								const [anyOrder] = await ctx.db
+									.select({ id: orders.id })
+									.from(orders)
+									.limit(1);
 								if (anyOrder) validOrderId = anyOrder.id;
 							}
 						} catch (e) {
-							const [anyOrder] = await ctx.db.select({ id: orders.id }).from(orders).limit(1);
+							const [anyOrder] = await ctx.db
+								.select({ id: orders.id })
+								.from(orders)
+								.limit(1);
 							if (anyOrder) validOrderId = anyOrder.id;
 						}
 					}
@@ -378,7 +405,8 @@ export const packerRouter = router({
 
 				return {
 					success: true,
-					package_number: finalPackage?.package_number || `PKG-${input.order_id}`,
+					package_number:
+						finalPackage?.package_number || `PKG-${input.order_id}`,
 				};
 			} catch (err: any) {
 				console.error("[packOrder] Failure:", err);
@@ -418,7 +446,13 @@ export const packerRouter = router({
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
 				.orderBy(desc(packages.packed_at));
 
-			const { tripStops, deliveryTrips, vehicles, user, deliveryRoutes } = require("@evaluna/db/schema");
+			const {
+				tripStops,
+				deliveryTrips,
+				vehicles,
+				user,
+				deliveryRoutes,
+			} = require("@evaluna/db/schema");
 
 			const historyItems = [];
 			for (const item of results) {
@@ -436,7 +470,10 @@ export const packerRouter = router({
 							})
 							.from(tripStops)
 							.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-							.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
+							.leftJoin(
+								deliveryRoutes,
+								eq(deliveryRoutes.id, deliveryTrips.route_id),
+							)
 							.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 							.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
 							.where(eq(tripStops.customer_id, item.customerId))

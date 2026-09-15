@@ -66,9 +66,7 @@ export default function LeavePage() {
 					<CardTitle className="font-bold text-base">
 						{t("timeOffRequestsQueue")}
 					</CardTitle>
-					<CardDescription>
-						{t("timeOffRequestsQueueSub")}
-					</CardDescription>
+					<CardDescription>{t("timeOffRequestsQueueSub")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					{isLoading ? (
@@ -80,26 +78,53 @@ export default function LeavePage() {
 							<table className="w-full text-left text-xs">
 								<thead>
 									<tr className="border-b text-slate-500">
-										<th className="p-3 font-semibold">{t("requestIdHeader", { id: "" }).replace(" #", "")}</th>
-										<th className="p-3 font-semibold">{t("requestedByCol")}</th>
-										<th className="p-3 font-semibold">{t("createdAtCol")}</th>
+										<th className="p-3 font-semibold">
+											{t("requestIdHeader", { id: "" }).replace(" #", "")}
+										</th>
+										<th className="p-3 font-semibold">Employee</th>
+										<th className="p-3 font-semibold">Leave Details</th>
+										<th className="p-3 font-semibold">Reason</th>
 										<th className="p-3 font-semibold">{t("statusHeader")}</th>
-										<th className="p-3 text-right font-semibold">{t("actionsCol")}</th>
+										<th className="p-3 text-right font-semibold">
+											{t("actionsCol")}
+										</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y">
-									{leavesList.map((leave) => (
+									{leavesList.map((leave: any) => (
 										<tr key={leave.id} className="hover:bg-slate-50/40">
 											<td className="p-3 font-bold text-slate-900">
 												LEAVE-#{leave.reference_id}
 											</td>
 											<td className="p-3 font-medium">
-												{t("staffIdRef", { id: leave.requested_by })}
+												<div className="flex flex-col">
+													<span>{leave.emp_name || "Unknown"}</span>
+													<span className="text-muted-foreground text-xs">
+														{t("staffIdRef", { id: leave.requested_by })}
+													</span>
+												</div>
 											</td>
 											<td className="p-3 font-medium">
-												{leave.created_at
-													? new Date(leave.created_at).toLocaleDateString()
-													: ""}
+												<div className="flex flex-col gap-1">
+													<Badge
+														variant="outline"
+														className="w-fit text-[10px]"
+													>
+														{leave.leave_type || "N/A"}
+													</Badge>
+													<span className="text-muted-foreground text-xs">
+														{leave.start_date
+															? new Date(leave.start_date).toLocaleDateString()
+															: ""}{" "}
+														-{" "}
+														{leave.end_date
+															? new Date(leave.end_date).toLocaleDateString()
+															: ""}
+													</span>
+												</div>
+											</td>
+											<td className="max-w-[200px] truncate p-3 text-muted-foreground">
+												{leave.reason || "N/A"}
 											</td>
 											<td className="p-3">
 												<Badge

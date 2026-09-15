@@ -547,32 +547,78 @@ export const putterRouter = router({
 		return results;
 	}),
 
-	getVehicleStockList: roleProcedure(["admin", "manager", "auditor", "putter", "driver"]).query(
-		async ({ ctx }) => {
-			return [
-				{
-					vehicleId: 1,
-					vehiclePlate: "MP04AB1234",
-					driverName: "Rajesh Kumar",
-					allocatedItems: [
-						{ id: 101, name: "Sugar 1kg", sku: "SUG-1KG", price: 45, loadedQty: 20, remainingQty: 18 },
-						{ id: 102, name: "Fortune Soyabean Oil 1L", sku: "OIL-1L", price: 140, loadedQty: 10, remainingQty: 10 },
-						{ id: 103, name: "Taj Mahal Tea 250g", sku: "TEA-250G", price: 180, loadedQty: 15, remainingQty: 12 },
-						{ id: 104, name: "Amul Pure Ghee 1L", sku: "GHEE-1L", price: 620, loadedQty: 8, remainingQty: 6 },
-					],
-				},
-				{
-					vehicleId: 2,
-					vehiclePlate: "MP04CD5678",
-					driverName: "Vikram Singh",
-					allocatedItems: [
-						{ id: 101, name: "Sugar 1kg", sku: "SUG-1KG", price: 45, loadedQty: 15, remainingQty: 15 },
-						{ id: 105, name: "Tata Salt 1kg", sku: "SALT-1KG", price: 28, loadedQty: 30, remainingQty: 25 },
-					],
-				},
-			];
-		},
-	),
+	getVehicleStockList: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"putter",
+		"driver",
+	]).query(async ({ ctx }) => {
+		return [
+			{
+				vehicleId: 1,
+				vehiclePlate: "MP04AB1234",
+				driverName: "Rajesh Kumar",
+				allocatedItems: [
+					{
+						id: 101,
+						name: "Sugar 1kg",
+						sku: "SUG-1KG",
+						price: 45,
+						loadedQty: 20,
+						remainingQty: 18,
+					},
+					{
+						id: 102,
+						name: "Fortune Soyabean Oil 1L",
+						sku: "OIL-1L",
+						price: 140,
+						loadedQty: 10,
+						remainingQty: 10,
+					},
+					{
+						id: 103,
+						name: "Taj Mahal Tea 250g",
+						sku: "TEA-250G",
+						price: 180,
+						loadedQty: 15,
+						remainingQty: 12,
+					},
+					{
+						id: 104,
+						name: "Amul Pure Ghee 1L",
+						sku: "GHEE-1L",
+						price: 620,
+						loadedQty: 8,
+						remainingQty: 6,
+					},
+				],
+			},
+			{
+				vehicleId: 2,
+				vehiclePlate: "MP04CD5678",
+				driverName: "Vikram Singh",
+				allocatedItems: [
+					{
+						id: 101,
+						name: "Sugar 1kg",
+						sku: "SUG-1KG",
+						price: 45,
+						loadedQty: 15,
+						remainingQty: 15,
+					},
+					{
+						id: 105,
+						name: "Tata Salt 1kg",
+						sku: "SALT-1KG",
+						price: 28,
+						loadedQty: 30,
+						remainingQty: 25,
+					},
+				],
+			},
+		];
+	}),
 
 	allocateVehicleStock: roleProcedure(["admin", "manager", "auditor", "putter"])
 		.input(

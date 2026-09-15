@@ -47,9 +47,7 @@ export default function PickerReportsPage() {
 					<FileBarChart className="h-7 w-7 text-blue-600" />
 					{t("pickerReports")}
 				</h1>
-				<p className="text-muted-foreground text-sm">
-					{t("pickerReportsSub")}
-				</p>
+				<p className="text-muted-foreground text-sm">{t("pickerReportsSub")}</p>
 			</div>
 
 			{/* Summary Stat Cards */}
@@ -131,9 +129,7 @@ export default function PickerReportsPage() {
 						<UsersIcon className="h-4 w-4 text-blue-600" />
 						{t("leaderboardTitle")}
 					</CardTitle>
-					<CardDescription>
-						{t("leaderboardSub")}
-					</CardDescription>
+					<CardDescription>{t("leaderboardSub")}</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (

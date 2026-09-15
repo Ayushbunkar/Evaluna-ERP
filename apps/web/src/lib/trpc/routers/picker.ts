@@ -277,10 +277,11 @@ export const pickerRouter = router({
 
 			return await Promise.all(
 				lists.map(async (r, i) => {
-					let itemCount = r.pickListItems?.reduce(
-						(acc, item) => acc + (item.quantity_ordered ?? 0),
-						0,
-					) || 0;
+					let itemCount =
+						r.pickListItems?.reduce(
+							(acc, item) => acc + (item.quantity_ordered ?? 0),
+							0,
+						) || 0;
 
 					if (itemCount === 0 && r.order_id) {
 						const oItems = await db

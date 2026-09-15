@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useEffect, useState } from "react";
 
 const DEMO_HOST = "evaluna-erp.johnenrique.tech";

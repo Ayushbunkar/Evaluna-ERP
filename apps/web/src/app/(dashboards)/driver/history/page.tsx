@@ -63,11 +63,23 @@ export default function DriverHistoryPage() {
 	);
 
 	// Cumulative financial aggregates across all trips
-	const completedTripsCount = deliveryHistory?.filter((t: any) => t.status === "Completed").length ?? 0;
-	const inProgressTripsCount = deliveryHistory?.filter((t: any) => t.status === "In Progress" || t.status === "Active").length ?? 0;
+	const completedTripsCount =
+		deliveryHistory?.filter((t: any) => t.status === "Completed").length ?? 0;
+	const inProgressTripsCount =
+		deliveryHistory?.filter(
+			(t: any) => t.status === "In Progress" || t.status === "Active",
+		).length ?? 0;
 
-	const aggregateCash = deliveryHistory?.reduce((acc: number, t: any) => acc + (t.totalCashCollected || 0), 0) || 0;
-	const aggregateOnline = deliveryHistory?.reduce((acc: number, t: any) => acc + (t.totalOnlineCollected || 0), 0) || 0;
+	const aggregateCash =
+		deliveryHistory?.reduce(
+			(acc: number, t: any) => acc + (t.totalCashCollected || 0),
+			0,
+		) || 0;
+	const aggregateOnline =
+		deliveryHistory?.reduce(
+			(acc: number, t: any) => acc + (t.totalOnlineCollected || 0),
+			0,
+		) || 0;
 	const aggregateTotal = aggregateCash + aggregateOnline;
 
 	if (isLoading)
@@ -79,9 +91,11 @@ export default function DriverHistoryPage() {
 		);
 	if (error)
 		return (
-			<div className="flex h-[220px] flex-col items-center justify-center gap-2 text-destructive text-sm p-4 text-center">
+			<div className="flex h-[220px] flex-col items-center justify-center gap-2 p-4 text-center text-destructive text-sm">
 				<p className="font-semibold">Error loading delivery history</p>
-				<p className="text-xs text-muted-foreground">{error.message || "Failed to query trip history from server."}</p>
+				<p className="text-muted-foreground text-xs">
+					{error.message || "Failed to query trip history from server."}
+				</p>
 			</div>
 		);
 
@@ -90,12 +104,13 @@ export default function DriverHistoryPage() {
 			{/* Page Header */}
 			<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="flex items-center gap-2 font-bold text-2xl tracking-tight text-slate-900 dark:text-slate-100">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-slate-900 tracking-tight dark:text-slate-100">
 						<HistoryIcon className="h-7 w-7 text-blue-600" />
 						Delivery History & Financial Settlement
 					</h1>
 					<p className="text-slate-500 text-sm">
-						Trip-by-trip delivery records, itemized customer stops, and Cash vs Online payment breakdowns.
+						Trip-by-trip delivery records, itemized customer stops, and Cash vs
+						Online payment breakdowns.
 					</p>
 				</div>
 			</div>
@@ -113,7 +128,7 @@ export default function DriverHistoryPage() {
 									<p className="font-bold text-3xl text-blue-900 dark:text-blue-200">
 										{completedTripsCount}
 									</p>
-									<p className="text-[11px] text-blue-600 mt-0.5">
+									<p className="mt-0.5 text-[11px] text-blue-600">
 										{inProgressTripsCount} trip(s) in progress
 									</p>
 								</div>
@@ -131,7 +146,7 @@ export default function DriverHistoryPage() {
 									<p className="font-semibold text-emerald-700 text-xs uppercase tracking-wider dark:text-emerald-400">
 										Total Cash Collected
 									</p>
-									<p className="font-mono font-bold text-2xl text-emerald-800 dark:text-emerald-300">
+									<p className="font-bold font-mono text-2xl text-emerald-800 dark:text-emerald-300">
 										₹{aggregateCash.toFixed(2)}
 									</p>
 								</div>
@@ -149,7 +164,7 @@ export default function DriverHistoryPage() {
 									<p className="font-semibold text-purple-700 text-xs uppercase tracking-wider dark:text-purple-400">
 										Total Online / UPI
 									</p>
-									<p className="font-mono font-bold text-2xl text-purple-900 dark:text-purple-200">
+									<p className="font-bold font-mono text-2xl text-purple-900 dark:text-purple-200">
 										₹{aggregateOnline.toFixed(2)}
 									</p>
 								</div>
@@ -167,7 +182,7 @@ export default function DriverHistoryPage() {
 									<p className="font-semibold text-amber-700 text-xs uppercase tracking-wider dark:text-amber-400">
 										Combined Total Handover
 									</p>
-									<p className="font-mono font-bold text-2xl text-amber-900 dark:text-amber-200">
+									<p className="font-bold font-mono text-2xl text-amber-900 dark:text-amber-200">
 										₹{aggregateTotal.toFixed(2)}
 									</p>
 								</div>
@@ -182,12 +197,13 @@ export default function DriverHistoryPage() {
 			<Card className="border-border/60 shadow-sm">
 				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
-						<CardTitle className="flex items-center gap-2 text-lg font-bold">
+						<CardTitle className="flex items-center gap-2 font-bold text-lg">
 							<TruckIcon className="h-5 w-5 text-blue-600" />
 							Trip Delivery Log & Collections
 						</CardTitle>
 						<CardDescription className="text-xs">
-							Click on any trip to view detailed customer stops and Cash/Online collection breakdown.
+							Click on any trip to view detailed customer stops and Cash/Online
+							collection breakdown.
 						</CardDescription>
 					</div>
 
@@ -213,50 +229,78 @@ export default function DriverHistoryPage() {
 							<Table>
 								<TableHeader>
 									<TableRow className="bg-muted/30">
-										<TableHead className="font-semibold text-xs">Trip Ref</TableHead>
-										<TableHead className="font-semibold text-xs">Route Name</TableHead>
-										<TableHead className="font-semibold text-xs">Date</TableHead>
-										<TableHead className="font-semibold text-xs">Driver & Vehicle</TableHead>
-										<TableHead className="font-semibold text-xs">Stops Delivered</TableHead>
-										<TableHead className="font-semibold text-xs">Cash Collection</TableHead>
-										<TableHead className="font-semibold text-xs">Online Collection</TableHead>
-										<TableHead className="font-semibold text-xs">Total Collection</TableHead>
-										<TableHead className="text-right font-semibold text-xs">Action</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Trip Ref
+										</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Route Name
+										</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Date
+										</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Driver & Vehicle
+										</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Stops Delivered
+										</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Cash Collection
+										</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Online Collection
+										</TableHead>
+										<TableHead className="font-semibold text-xs">
+											Total Collection
+										</TableHead>
+										<TableHead className="text-right font-semibold text-xs">
+											Action
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{filteredList.map((t: any) => (
-										<TableRow key={t.id} className="hover:bg-muted/40 transition-colors">
+										<TableRow
+											key={t.id}
+											className="transition-colors hover:bg-muted/40"
+										>
 											<TableCell className="font-bold font-mono text-blue-600 text-xs">
 												{t.tripNumber}
 											</TableCell>
 											<TableCell className="font-semibold text-sm">
 												📍 {t.routeName}
 											</TableCell>
-											<TableCell className="text-xs text-muted-foreground">
+											<TableCell className="text-muted-foreground text-xs">
 												{t.date}
 											</TableCell>
 											<TableCell className="text-xs">
-												<div className="font-medium text-slate-800 dark:text-slate-200">👤 {t.driverName}</div>
-												<div className="text-muted-foreground text-[10px] font-mono mt-0.5">🚛 {t.vehiclePlate}</div>
+												<div className="font-medium text-slate-800 dark:text-slate-200">
+													👤 {t.driverName}
+												</div>
+												<div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+													🚛 {t.vehiclePlate}
+												</div>
 											</TableCell>
 											<TableCell className="text-xs">
-												<span className="font-bold text-slate-800">{t.completedStops}</span> / {t.totalStops} Stops
+												<span className="font-bold text-slate-800">
+													{t.completedStops}
+												</span>{" "}
+												/ {t.totalStops} Stops
 											</TableCell>
-											<TableCell className="font-mono text-xs font-semibold text-emerald-700">
+											<TableCell className="font-mono font-semibold text-emerald-700 text-xs">
 												₹{t.totalCashCollected.toFixed(2)}
 											</TableCell>
-											<TableCell className="font-mono text-xs font-semibold text-purple-700">
+											<TableCell className="font-mono font-semibold text-purple-700 text-xs">
 												₹{t.totalOnlineCollected.toFixed(2)}
 											</TableCell>
-											<TableCell className="font-mono text-xs font-bold text-slate-900">
+											<TableCell className="font-bold font-mono text-slate-900 text-xs">
 												₹{t.totalCollected.toFixed(2)}
 											</TableCell>
 											<TableCell className="text-right">
 												<Button
 													size="sm"
 													variant="outline"
-													className="h-8 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 font-medium"
+													className="h-8 border-blue-200 font-medium text-blue-700 text-xs hover:bg-blue-50"
 													onClick={() => setSelectedTrip(t)}
 												>
 													<EyeIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -274,92 +318,150 @@ export default function DriverHistoryPage() {
 
 			{/* Trip Details & Financial Settlement Modal */}
 			{selectedTrip && (
-				<Dialog open={!!selectedTrip} onOpenChange={(open) => !open && setSelectedTrip(null)}>
+				<Dialog
+					open={!!selectedTrip}
+					onOpenChange={(open) => !open && setSelectedTrip(null)}
+				>
 					<DialogContent className="sm:max-w-[700px]">
 						<DialogHeader>
-							<DialogTitle className="flex items-center justify-between font-bold text-xl text-slate-900">
+							<DialogTitle className="flex items-center justify-between font-bold text-slate-900 text-xl">
 								<div className="flex items-center gap-2">
 									<TruckIcon className="h-6 w-6 text-blue-600" />
-									<span>Trip Details & Financial Settlement ({selectedTrip.tripNumber})</span>
+									<span>
+										Trip Details & Financial Settlement (
+										{selectedTrip.tripNumber})
+									</span>
 								</div>
 							</DialogTitle>
-							<DialogDescription className="text-xs text-slate-500">
-								Complete breakdown of customer stops, Cash vs Online payment collections, and delivery status.
+							<DialogDescription className="text-slate-500 text-xs">
+								Complete breakdown of customer stops, Cash vs Online payment
+								collections, and delivery status.
 							</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-4 py-2 text-sm">
 							{/* Summary Header Card */}
-							<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs">
+							<div className="grid grid-cols-2 gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs sm:grid-cols-4">
 								<div>
-									<span className="text-slate-500 block">Route Name:</span>
-									<span className="font-bold text-slate-900 text-sm">📍 {selectedTrip.routeName}</span>
+									<span className="block text-slate-500">Route Name:</span>
+									<span className="font-bold text-slate-900 text-sm">
+										📍 {selectedTrip.routeName}
+									</span>
 								</div>
 								<div>
-									<span className="text-slate-500 block">Assigned Driver:</span>
-									<span className="font-medium text-slate-800">👤 {selectedTrip.driverName}</span>
+									<span className="block text-slate-500">Assigned Driver:</span>
+									<span className="font-medium text-slate-800">
+										👤 {selectedTrip.driverName}
+									</span>
 								</div>
 								<div>
-									<span className="text-slate-500 block">Truck / Vehicle:</span>
-									<span className="font-mono font-medium text-slate-800">🚛 {selectedTrip.vehiclePlate}</span>
+									<span className="block text-slate-500">Truck / Vehicle:</span>
+									<span className="font-medium font-mono text-slate-800">
+										🚛 {selectedTrip.vehiclePlate}
+									</span>
 								</div>
 								<div>
-									<span className="text-slate-500 block">Date & Status:</span>
-									<span className="font-bold text-emerald-700">{selectedTrip.date} ({selectedTrip.status})</span>
+									<span className="block text-slate-500">Date & Status:</span>
+									<span className="font-bold text-emerald-700">
+										{selectedTrip.date} ({selectedTrip.status})
+									</span>
 								</div>
 							</div>
 
 							{/* Financial Ledger Summary Cards */}
 							<div className="grid grid-cols-3 gap-3">
 								<div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs">
-									<span className="text-emerald-700 font-semibold uppercase tracking-wider text-[10px]">💵 Cash Collected</span>
-									<p className="font-mono font-bold text-lg text-emerald-900 mt-1">₹{selectedTrip.totalCashCollected.toFixed(2)}</p>
+									<span className="font-semibold text-[10px] text-emerald-700 uppercase tracking-wider">
+										💵 Cash Collected
+									</span>
+									<p className="mt-1 font-bold font-mono text-emerald-900 text-lg">
+										₹{selectedTrip.totalCashCollected.toFixed(2)}
+									</p>
 								</div>
 								<div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 text-xs">
-									<span className="text-purple-700 font-semibold uppercase tracking-wider text-[10px]">💳 Online / UPI / QR</span>
-									<p className="font-mono font-bold text-lg text-purple-900 mt-1">₹{selectedTrip.totalOnlineCollected.toFixed(2)}</p>
+									<span className="font-semibold text-[10px] text-purple-700 uppercase tracking-wider">
+										💳 Online / UPI / QR
+									</span>
+									<p className="mt-1 font-bold font-mono text-lg text-purple-900">
+										₹{selectedTrip.totalOnlineCollected.toFixed(2)}
+									</p>
 								</div>
 								<div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs">
-									<span className="text-amber-700 font-semibold uppercase tracking-wider text-[10px]">💰 Total Handover</span>
-									<p className="font-mono font-bold text-lg text-amber-900 mt-1">₹{selectedTrip.totalCollected.toFixed(2)}</p>
+									<span className="font-semibold text-[10px] text-amber-700 uppercase tracking-wider">
+										💰 Total Handover
+									</span>
+									<p className="mt-1 font-bold font-mono text-amber-900 text-lg">
+										₹{selectedTrip.totalCollected.toFixed(2)}
+									</p>
 								</div>
 							</div>
 
 							{/* Itemized Customer Stops Breakdown */}
 							<div className="space-y-2">
-								<h4 className="font-bold text-xs uppercase tracking-wider text-slate-700">Itemized Customer Stop Ledger</h4>
+								<h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+									Itemized Customer Stop Ledger
+								</h4>
 								<div className="overflow-x-auto rounded-lg border border-slate-200">
 									<Table className="w-full text-xs">
 										<TableHeader className="bg-slate-100">
 											<TableRow>
-												<TableHead className="font-semibold text-xs">#</TableHead>
-												<TableHead className="font-semibold text-xs">Customer Name</TableHead>
-												<TableHead className="font-semibold text-xs">Order Ref</TableHead>
-												<TableHead className="font-semibold text-xs text-emerald-800">Cash (₹)</TableHead>
-												<TableHead className="font-semibold text-xs text-purple-800">Online (₹)</TableHead>
-												<TableHead className="font-semibold text-xs">Handover Status</TableHead>
+												<TableHead className="font-semibold text-xs">
+													#
+												</TableHead>
+												<TableHead className="font-semibold text-xs">
+													Customer Name
+												</TableHead>
+												<TableHead className="font-semibold text-xs">
+													Order Ref
+												</TableHead>
+												<TableHead className="font-semibold text-emerald-800 text-xs">
+													Cash (₹)
+												</TableHead>
+												<TableHead className="font-semibold text-purple-800 text-xs">
+													Online (₹)
+												</TableHead>
+												<TableHead className="font-semibold text-xs">
+													Handover Status
+												</TableHead>
 											</TableRow>
 										</TableHeader>
 										<TableBody>
 											{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
 												selectedTrip.stops.map((st: any) => (
-													<TableRow key={st.stopId} className="hover:bg-slate-50">
-														<TableCell className="font-bold font-mono">#{st.sequence}</TableCell>
+													<TableRow
+														key={st.stopId}
+														className="hover:bg-slate-50"
+													>
+														<TableCell className="font-bold font-mono">
+															#{st.sequence}
+														</TableCell>
 														<TableCell className="font-semibold text-slate-900">
 															{st.customerName}
-															<div className="text-[10px] font-normal text-slate-500">📍 {st.address}</div>
+															<div className="font-normal text-[10px] text-slate-500">
+																📍 {st.address}
+															</div>
 														</TableCell>
-														<TableCell className="font-mono font-semibold text-blue-600">{st.orderRef}</TableCell>
-														<TableCell className="font-mono font-bold text-emerald-700">
-															{st.cashCollected > 0 ? `₹${st.cashCollected.toFixed(2)}` : "—"}
+														<TableCell className="font-mono font-semibold text-blue-600">
+															{st.orderRef}
 														</TableCell>
-														<TableCell className="font-mono font-bold text-purple-700">
-															{st.onlineCollected > 0 ? `₹${st.onlineCollected.toFixed(2)}` : "—"}
+														<TableCell className="font-bold font-mono text-emerald-700">
+															{st.cashCollected > 0
+																? `₹${st.cashCollected.toFixed(2)}`
+																: "—"}
+														</TableCell>
+														<TableCell className="font-bold font-mono text-purple-700">
+															{st.onlineCollected > 0
+																? `₹${st.onlineCollected.toFixed(2)}`
+																: "—"}
 														</TableCell>
 														<TableCell>
-															<span className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
-																st.status === "Delivered" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-															}`}>
+															<span
+																className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
+																	st.status === "Delivered"
+																		? "bg-emerald-100 text-emerald-800"
+																		: "bg-amber-100 text-amber-800"
+																}`}
+															>
 																✓ {st.status} ({st.deliveredAt})
 															</span>
 														</TableCell>
@@ -367,7 +469,10 @@ export default function DriverHistoryPage() {
 												))
 											) : (
 												<TableRow>
-													<TableCell colSpan={6} className="text-center py-4 text-slate-400">
+													<TableCell
+														colSpan={6}
+														className="py-4 text-center text-slate-400"
+													>
 														No customer stops recorded for this trip.
 													</TableCell>
 												</TableRow>
@@ -379,7 +484,10 @@ export default function DriverHistoryPage() {
 						</div>
 
 						<DialogFooter>
-							<Button onClick={() => setSelectedTrip(null)} className="w-full bg-slate-900 text-white hover:bg-slate-800 font-semibold">
+							<Button
+								onClick={() => setSelectedTrip(null)}
+								className="w-full bg-slate-900 font-semibold text-white hover:bg-slate-800"
+							>
 								Close Financial Settlement View
 							</Button>
 						</DialogFooter>

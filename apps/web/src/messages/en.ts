@@ -349,7 +349,8 @@ const messages = {
 	},
 	driver: {
 		deliveryStops: "Delivery Stops",
-		selectStopToStartLiveHandoverBilling: "Select a stop to start live handover & billing",
+		selectStopToStartLiveHandoverBilling:
+			"Select a stop to start live handover & billing",
 		activeDriverSession: "Active Driver Session",
 		totalStops: "Total Stops",
 		orderItems: "Order Items",
@@ -391,7 +392,8 @@ const messages = {
 	},
 	picker: {
 		completedPickingArchive: "Completed Picking Archive",
-		completedPickingArchiveSub: "History of fulfilled picking tasks, item count verifications, and completed order handoffs",
+		completedPickingArchiveSub:
+			"History of fulfilled picking tasks, item count verifications, and completed order handoffs",
 		totalCompletedPicks: "Total Completed Picks",
 		fulfillmentAccuracy: "Fulfillment Accuracy",
 		handoffStatus: "Handoff Status",
@@ -414,7 +416,8 @@ const messages = {
 		markPickComplete: "Mark Pick Complete",
 		pickSuccess: "Items picked successfully!",
 		pickerDashboard: "Picker Dashboard",
-		orderPickingTaskManagement: "Order picking, task management, and warehouse fulfillment",
+		orderPickingTaskManagement:
+			"Order picking, task management, and warehouse fulfillment",
 		startPicking: "Start Picking",
 		assignedToday: "Assigned Today",
 		completedToday: "Completed Today",
@@ -425,11 +428,13 @@ const messages = {
 		area: "Area",
 		createdTime: "Created Time",
 		activePickTaskExecution: "Active Pick Task Execution",
-		activePickTaskExecutionSub: "Scan barcodes using phone camera or barcode gun, confirm item quantities, report missing stock.",
+		activePickTaskExecutionSub:
+			"Scan barcodes using phone camera or barcode gun, confirm item quantities, report missing stock.",
 		scanBarcodePhoneCamera: "Scan Barcode with Phone Camera",
 		loadingActiveTask: "Loading active pick task...",
 		noActiveTask: "No Active Task in Progress",
-		noActiveTaskSub: "You currently have no picking task assigned to you. Go to Pending Picks to start one.",
+		noActiveTaskSub:
+			"You currently have no picking task assigned to you. Go to Pending Picks to start one.",
 		viewPendingPicksQueue: "View Pending Picks Queue",
 		task: "Task",
 		order: "Order",
@@ -456,15 +461,18 @@ const messages = {
 		actualQuantityPicked: "Actual Quantity Picked:",
 		savePickCount: "Save Pick Count",
 		cameraScannerTitle: "Picker Phone Camera Barcode Scanner",
-		cameraScannerSub: "Point your phone camera at the item's barcode to scan and verify picking instantly.",
+		cameraScannerSub:
+			"Point your phone camera at the item's barcode to scan and verify picking instantly.",
 		taskCompletedTitle: "Task Completed!",
-		taskCompletedSub: "Picking checklist has been verified and safely forwarded to the Packing Station queue.",
+		taskCompletedSub:
+			"Picking checklist has been verified and safely forwarded to the Packing Station queue.",
 		pickingStatusVerified: "100% Verified",
 		routingStep: "Routing Step:",
 		nextPackerQueue: "Next ➡️ Packer Queue",
 		viewCompletedPicksArchive: "View Completed Picks Archive",
 		pendingPickTasks: "Pending Pick Tasks",
-		orderPicklistsQueued: "Order picklists queued in warehouse waiting to be picked.",
+		orderPicklistsQueued:
+			"Order picklists queued in warehouse waiting to be picked.",
 		live: "Live",
 		refreshing: "Refreshing…",
 		refresh: "Refresh",
@@ -474,7 +482,8 @@ const messages = {
 		queueStatus: "Queue Status",
 		activeQueue: "Active Queue",
 		pendingPickTaskQueue: "Pending Pick Task Queue",
-		allPickingAssignmentsQueued: "All picking assignments queued for fulfillment",
+		allPickingAssignmentsQueued:
+			"All picking assignments queued for fulfillment",
 		searchOrderOrStaff: "Search order or assigned staff...",
 		loadingPendingPicks: "Loading pending picks...",
 		noPendingPicksFound: "No pending picks found in queue right now.",
@@ -485,7 +494,8 @@ const messages = {
 		starting: "Starting…",
 		startPick: "Start Pick",
 		pickerReports: "Picker Performance & Fulfillment Reports",
-		pickerReportsSub: "Order picking velocity, items picked metrics, team leaderboards, and accuracy analytics.",
+		pickerReportsSub:
+			"Order picking velocity, items picked metrics, team leaderboards, and accuracy analytics.",
 		completedOrders: "Completed Orders",
 		pickAccuracy: "Pick Accuracy",
 		queueItems: "Queue Items",
@@ -515,14 +525,16 @@ const messages = {
 		verifyItems: "Verify Items",
 		confirmPacking: "Confirm Packing",
 		packerWorkspace: "Packer Workspace & Dispatch Center",
-		packerWorkspaceSub: "Pack completed picked orders, record box dimensions, print shipping labels & dispatch packages.",
+		packerWorkspaceSub:
+			"Pack completed picked orders, record box dimensions, print shipping labels & dispatch packages.",
 		viewPendingPacking: "View Pending Packing",
 		pendingToPack: "Pending to Pack",
 		packedToday: "Packed Today",
 		packingEfficiency: "Packing Efficiency",
 		readyForDispatch: "Ready for Dispatch",
 		pendingOrdersReadyForPacking: "Pending Orders Ready for Packing",
-		completedPicklistsWaiting: "Completed picklists waiting for box packaging & shipping labels",
+		completedPicklistsWaiting:
+			"Completed picklists waiting for box packaging & shipping labels",
 		packParcel: "Pack Parcel",
 		recentPackingHistory: "Recent Packing History & Shipping Labels",
 		packagesReadyForDispatch: "Packages packed and ready for dispatch",
@@ -532,15 +544,18 @@ const messages = {
 		packedDate: "Packed Date",
 		labelAction: "Label Action",
 		printLabel: "Print Label",
-		recordParcelWeight: "Record parcel weight and dimensions to create package & generate shipping barcode sticker.",
+		recordParcelWeight:
+			"Record parcel weight and dimensions to create package & generate shipping barcode sticker.",
 		parcelWeight: "Parcel Weight (kg)",
 		completePackingAndSave: "Complete Packing & Save Package",
 		packingHistoryTitle: "Packing History & Label Repository",
-		packingHistorySub: "Archive of all packed packages, parcel barcodes, staff attribution, and shipping label re-printing.",
+		packingHistorySub:
+			"Archive of all packed packages, parcel barcodes, staff attribution, and shipping label re-printing.",
 		totalPacked: "Total Packed",
 		qualityAccuracy: "Quality Accuracy",
 		packageAuditHistory: "Package Audit History",
-		packageAuditHistorySub: "Full history of completed parcels and shipping barcodes",
+		packageAuditHistorySub:
+			"Full history of completed parcels and shipping barcodes",
 		searchPackageOrOrder: "Search package number, order...",
 		loadingHistory: "Loading history...",
 		noPackageHistoryFound: "No package history found.",
@@ -549,7 +564,8 @@ const messages = {
 		reprintLabel: "Re-print Label",
 		unassigned: "Unassigned",
 		pendingPackingQueue: "Pending Packing Queue",
-		pendingPackingQueueSub: "Picklists that have completed picking and are ready for box packaging, weight recording, and parcel labeling.",
+		pendingPackingQueueSub:
+			"Picklists that have completed picking and are ready for box packaging, weight recording, and parcel labeling.",
 		totalPendingToPack: "Total Pending to Pack",
 		pickingVerified: "Picking Verified",
 		stationStatus: "Station Status",
@@ -563,11 +579,13 @@ const messages = {
 		pickingCompletionTime: "Picking Completion Time",
 		readyToPack: "Ready to Pack",
 		packingLabelPrinted: "Packing & Label Printed Successfully!",
-		packagePackedPrintedSub: "Package {number} has been packed and printed. Confirm handover to complete dispatch.",
+		packagePackedPrintedSub:
+			"Package {number} has been packed and printed. Confirm handover to complete dispatch.",
 		reprintPackingSlip: "Re-Print Packing Slip",
 		confirmTransferAndComplete: "Confirm Transfer & Complete",
 		reportsTitle: "Packing Efficiency & Performance Reports",
-		reportsSub: "Packing throughput statistics, parcel velocity, error rates, and station efficiency analytics.",
+		reportsSub:
+			"Packing throughput statistics, parcel velocity, error rates, and station efficiency analytics.",
 		totalPackedOrders: "Total Packed Orders",
 		avgPackingSpeed: "Avg Packing Speed",
 		stationAccuracy: "Station Accuracy",
@@ -649,7 +667,8 @@ const messages = {
 		lowStockLines: "Low Stock Lines",
 		outOfStockLines: "Out of Stock Lines",
 		adjustStockAndUnitPrice: "Adjust Stock & Unit Selling Price",
-		updateStockSuccess: "Stock level and unit price updated successfully across ERP!",
+		updateStockSuccess:
+			"Stock level and unit price updated successfully across ERP!",
 	},
 	manager: {
 		managerControlCenter: "Manager Control Center",
@@ -662,13 +681,16 @@ const messages = {
 		createTeamTask: "Create Team Task",
 		leaveRequests: "Leave Requests",
 		dispatchControlTitle: "Route Assignment & Dispatch Control",
-		dispatchControlSub: "Create delivery routes, assign drivers to vehicles, configure sequences, and dispatch trips.",
+		dispatchControlSub:
+			"Create delivery routes, assign drivers to vehicles, configure sequences, and dispatch trips.",
 		ordersAwaitingAssignment: "Orders Awaiting Route & Driver Assignment",
-		selectMultipleOrdersSub: "Select multiple orders to create 1 unified multi-stop delivery trip for a Driver & Vehicle before sending to Packers.",
+		selectMultipleOrdersSub:
+			"Select multiple orders to create 1 unified multi-stop delivery trip for a Driver & Vehicle before sending to Packers.",
 		assignSelectedOrdersToTrip: "✨ Assign Selected ({count} Orders) to 1 Trip",
 		unassignedRoute: "Unassigned Route",
 		assignRouteAndDriver: "Assign Route & Driver",
 		noOrdersWaitingRouteAssignment: "No orders waiting for route assignment.",
+		requestIdHeader: "Request ID {id}",
 		orderIdHeader: "Order ID",
 		customerNameHeader: "Customer Name",
 		totalAmountHeader: "Total Amount",
@@ -683,9 +705,11 @@ const messages = {
 		activeTripsCard: "Active Trips",
 		availableVehiclesCard: "Available Vehicles",
 		pendingSettlementsCard: "Pending Settlements",
-		managerControlSub: "Operational overview of workforce, approvals, and team SLA tasks.",
+		managerControlSub:
+			"Operational overview of workforce, approvals, and team SLA tasks.",
 		actionApprovalsInbox: "My Action & Approvals Inbox",
-		actionApprovalsInboxSub: "Urgent items requiring your manager-level dual sign-off",
+		actionApprovalsInboxSub:
+			"Urgent items requiring your manager-level dual sign-off",
 		goToInbox: "Go to Inbox",
 		requestId: "Request ID #{id}",
 		requestedByStaff: "Requested by Staff #{id}",
@@ -705,7 +729,8 @@ const messages = {
 		urgentExceptionsCenterSub: "Live operational anomalies needing mitigation",
 		exceptionsHeading: "Urgent Exceptions Center",
 		activeSystemExceptionsLog: "Active System Exceptions Log",
-		activeSystemExceptionsSub: "Live feed of discrepancies and operational blockages requiring manager intervention",
+		activeSystemExceptionsSub:
+			"Live feed of discrepancies and operational blockages requiring manager intervention",
 		allSystemsNormal: "All systems operating normally.",
 
 		liveTeamTimeline: "Live Team Timeline",
@@ -713,10 +738,12 @@ const messages = {
 		entityId: "Entity {type} #ID {id}",
 		noTeamActivityLogged: "No team activity logged.",
 		myTeamWorkspace: "My Team Workspace",
-		myTeamWorkspaceSub: "Overview, search, and deep-dive audits of your team members' metrics.",
+		myTeamWorkspaceSub:
+			"Overview, search, and deep-dive audits of your team members' metrics.",
 		searchEmployeePlaceholder: "Search employee by name...",
 		workforceRegister: "Workforce Register",
-		workforceRegisterSub: "Click any team member to load their operational timeline and balance history",
+		workforceRegisterSub:
+			"Click any team member to load their operational timeline and balance history",
 		noTeamMembersFound: "No team members found.",
 		memberProfileAudit: "Member Profile Audit",
 		memberProfileAuditSub: "Sourced directly from active HRMS/Staff tables",
@@ -727,16 +754,19 @@ const messages = {
 		noLeavesLogged: "No leave requests logged.",
 		noExpensesLogged: "No expense claims logged.",
 		noMemberSelected: "No member selected",
-		noMemberSelectedSub: "Click any team member on the register to inspect their detailed analytics folder.",
+		noMemberSelectedSub:
+			"Click any team member on the register to inspect their detailed analytics folder.",
 		dueLabel: "Due: {date}",
 		resolvedLabel: "Resolved: {date}",
 		statusLabel: "Status: {status}",
 		typeLabel: "Type: {type}",
 		taskOperationalTitle: "Task Operational Control Center",
-		taskOperationalSub: "Monitor, assign, reassign, and create SLA-bearing verification & generation work.",
+		taskOperationalSub:
+			"Monitor, assign, reassign, and create SLA-bearing verification & generation work.",
 		newOperationalTask: "New Operational Task",
 		workspaceTasksQueue: "Workspace Team Tasks Queue",
-		workspaceTasksQueueSub: "Interactive overview of unassigned and in-flight tasks",
+		workspaceTasksQueueSub:
+			"Interactive overview of unassigned and in-flight tasks",
 		taskIdCol: "Task ID",
 		typeCol: "Type",
 		statusCol: "Status",
@@ -745,7 +775,8 @@ const messages = {
 		assignTeam: "Assign Team",
 		noTeamTasksLogged: "No team tasks logged.",
 		approvalInboxTitle: "Manager Centralized Approval Inbox",
-		approvalInboxSub: "Review and execute dual-signature operational reviews of leaves, expenses, and purchases.",
+		approvalInboxSub:
+			"Review and execute dual-signature operational reviews of leaves, expenses, and purchases.",
 		pendingReviewHeader: "Pending Review ({count})",
 		pendingReviewSub: "Incoming requests awaiting your authorization",
 		approvedHistoryHeader: "Approved History ({count})",
@@ -756,9 +787,11 @@ const messages = {
 		noPastApprovalsFound: "No past approvals found.",
 		approvedOnLabel: "Approved on: {date}",
 		attendanceTitle: "Team Attendance Monitoring",
-		attendanceSub: "Track today's live check-ins, breaks, location geo-verifications, and working hours.",
+		attendanceSub:
+			"Track today's live check-ins, breaks, location geo-verifications, and working hours.",
 		todaysAttendanceRoll: "Today's Attendance Roll",
-		todaysAttendanceRollSub: "Live database records of active workforce check-ins",
+		todaysAttendanceRollSub:
+			"Live database records of active workforce check-ins",
 		userReferenceIdHeader: "User Reference ID",
 		checkInTimeHeader: "Check-In Time",
 		checkOutTimeHeader: "Check-Out Time",
@@ -769,22 +802,27 @@ const messages = {
 		authorizedGeofence: "Authorized Geofence",
 		noTeamCheckinsLoggedToday: "No team check-ins logged today.",
 		leaveManagementWorkspace: "Leave Management Workspace",
-		leaveManagementSub: "Review, approve, or reject employee leave and time-off requests.",
+		leaveManagementSub:
+			"Review, approve, or reject employee leave and time-off requests.",
 		timeOffRequestsQueue: "Time-Off Requests Queue",
-		timeOffRequestsQueueSub: "Approved, pending, or rejected leaves across your entire workforce",
+		timeOffRequestsQueueSub:
+			"Approved, pending, or rejected leaves across your entire workforce",
 		requestedByCol: "Requested By",
 		createdAtCol: "Created At",
 		noLeaveRequestsLogged: "No leave requests logged.",
 		teamExpenseClaims: "Team Expense Claims",
-		teamExpenseClaimsSub: "Track in-progress, approved, and paid out reimbursement claims submitted by your team.",
+		teamExpenseClaimsSub:
+			"Track in-progress, approved, and paid out reimbursement claims submitted by your team.",
 		operationalExpenseClaimsList: "Operational Expense Claims List",
-		operationalExpenseClaimsListSub: "Real-time view of claims, categories, and payment statuses",
+		operationalExpenseClaimsListSub:
+			"Real-time view of claims, categories, and payment statuses",
 		claimIdCol: "Claim ID",
 		categoryCol: "Category",
 		amountCol: "Amount",
 		noTeamExpensesLogged: "No team expense claims logged.",
 		teamPerformanceWorkspace: "Team Performance Workspace",
-		teamPerformanceSub: "Strictly measured database performance metrics: completed vs overdue tasks and active attendance streaks.",
+		teamPerformanceSub:
+			"Strictly measured database performance metrics: completed vs overdue tasks and active attendance streaks.",
 		operationalPerformanceLedger: "Operational Performance Ledger",
 		operationalPerformanceSub: "Directly measured team member completion rates",
 		tasksCompletedCol: "Tasks Completed",
@@ -794,9 +832,11 @@ const messages = {
 		slaTopPerformers: "SLA Top Performers",
 		highestTaskEfficiency: "Highest task completion efficiency",
 		teamWorkloadBalancing: "Team Workload Balancing",
-		teamWorkloadSub: "Monitor current assigned, in-progress, completed, and overdue tasks to balance employee work utilization.",
+		teamWorkloadSub:
+			"Monitor current assigned, in-progress, completed, and overdue tasks to balance employee work utilization.",
 		workforceLoadBalancingSheet: "Workforce Load Balancing Sheet",
-		workforceLoadBalancingSub: "Identify over-allocated or under-utilized staff based on open SLA targets",
+		workforceLoadBalancingSub:
+			"Identify over-allocated or under-utilized staff based on open SLA targets",
 		assignedOpenCol: "Assigned (Open)",
 		inProgressCol: "In Progress",
 		overdueTasksCol: "Overdue Tasks",
@@ -804,39 +844,46 @@ const messages = {
 		overloaded: "Overloaded",
 		optimal: "Optimal",
 		underutilized: "Underutilized",
-		activeSystemExceptionsLog: "Active System Exceptions Log",
-		activeSystemExceptionsSub: "Live feed of discrepancies and operational blockages requiring manager intervention",
 		anomalyIdCol: "Anomaly ID",
 		titleCol: "Title",
 		descriptionCol: "Description",
 		severityCol: "Severity",
-		allWorkflowsClear: "All operational workflows are clear! No exceptions flagged.",
+		allWorkflowsClear:
+			"All operational workflows are clear! No exceptions flagged.",
 		managerAlertsHeading: "Manager Alerts & Notifications",
-		managerAlertsSub: "Access and manage important system updates, shift alerts, and task changes.",
+		managerAlertsSub:
+			"Access and manage important system updates, shift alerts, and task changes.",
 		markAllRead: "Mark All Read",
 		alertFeedInbox: "Alert Feed Inbox",
-		alertFeedInboxSub: "Chronological inbox targeted directly to your operator account",
+		alertFeedInboxSub:
+			"Chronological inbox targeted directly to your operator account",
 		inboxIsEmpty: "Inbox is empty",
-		noNotificationsTargeted: "There are no notifications targeted to your account.",
+		noNotificationsTargeted:
+			"There are no notifications targeted to your account.",
 		newBadge: "New",
 		managerReportsHeading: "Manager Reports Center",
-		managerReportsSub: "Export, print, and audit detailed team SLA completions, performance parameters, and active task volumes.",
+		managerReportsSub:
+			"Export, print, and audit detailed team SLA completions, performance parameters, and active task volumes.",
 		exportTeamPerformanceCSV: "Export Team performance CSV",
 		teamPerformanceSLAAuditing: "Team Performance SLA Auditing",
-		exportableSpreadsheetMatrix: "Exportable spreadsheet matrix of workforce stats sourced directly from the database",
+		exportableSpreadsheetMatrix:
+			"Exportable spreadsheet matrix of workforce stats sourced directly from the database",
 		managerPreferencesSettings: "Manager Preferences Settings",
-		managerPreferencesSub: "Configure notification preferences, refresh frequencies, and local team display filters.",
+		managerPreferencesSub:
+			"Configure notification preferences, refresh frequencies, and local team display filters.",
 		preferencesControlFolder: "Preferences Control Folder",
-		personalDisplaySettings: "Personal display settings authorized for your manager-level account",
+		personalDisplaySettings:
+			"Personal display settings authorized for your manager-level account",
 		displayLabel: "Display Label",
 		employeeIdCol: "Employee ID",
 		tasksAllocatedCol: "Tasks Allocated",
 		completedCol: "Completed",
-		systemRoleCol: "Role",
-				centralizedActivityTimeline: "Centralized Activity Timeline",
-		centralizedActivityTimelineSub: "Audit chronological operational events compiled automatically from database ledgers.",
+		centralizedActivityTimeline: "Centralized Activity Timeline",
+		centralizedActivityTimelineSub:
+			"Audit chronological operational events compiled automatically from database ledgers.",
 		chronologicalActivityStream: "Chronological Activity Stream",
-		chronologicalActivityStreamSub: "Up to 100 latest transactional, logistical, and workflow records",
+		chronologicalActivityStreamSub:
+			"Up to 100 latest transactional, logistical, and workflow records",
 		operationalShiftOnEntity: "Operational shift on {type} #ID {id}",
 		capturedOperatorStaff: "Captured Operator / Staff: {user}",
 		systemAutoTrigger: "System Auto-Trigger",

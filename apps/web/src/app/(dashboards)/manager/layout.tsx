@@ -18,10 +18,13 @@ import {
 	Truck,
 	UserCheck,
 	Users,
+	X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { Button } from "@evaluna/ui/components/button";
 
 export default function ManagerLayout({
 	children,
@@ -29,11 +32,17 @@ export default function ManagerLayout({
 	children: React.ReactNode;
 }) {
 	const pathname = usePathname();
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
 	const navItems = [
 		{ href: "/manager", label: "Dashboard", icon: LayoutDashboard },
 		{ href: "/manager/dispatch", label: "Assign Route", icon: Truck },
 		{ href: "/manager/team", label: "My Team", icon: Users },
-		{ href: "/manager/staff-profiles", label: "Staff Profiles", icon: UserCheck },
+		{
+			href: "/manager/staff-profiles",
+			label: "Staff Profiles",
+			icon: UserCheck,
+		},
 		{ href: "/manager/tasks", label: "Tasks", icon: CheckSquare },
 		{ href: "/manager/approvals", label: "Approvals", icon: FileCheck },
 		{ href: "/manager/attendance", label: "Attendance", icon: Clock },
@@ -41,65 +50,101 @@ export default function ManagerLayout({
 		{ href: "/manager/expenses", label: "Expenses", icon: CreditCard },
 		{ href: "/manager/performance", label: "Performance", icon: TrendingUp },
 		{ href: "/manager/workload", label: "Workload Analytics", icon: BarChart3 },
-		{ href: "/manager/exceptions", label: "Audit Exceptions", icon: AlertTriangle },
+		{
+			href: "/manager/exceptions",
+			label: "Audit Exceptions",
+			icon: AlertTriangle,
+		},
 		{ href: "/manager/activity", label: "Activity Log", icon: History },
 		{ href: "/manager/notifications", label: "Notifications", icon: Bell },
 		{ href: "/manager/reports", label: "Reports", icon: FileBarChart },
 		{ href: "/manager/settings", label: "Settings", icon: Settings },
 	];
 
+	const sidebarContent = (
+		<div className="flex h-full flex-col bg-white dark:bg-slate-950">
+			{/* Brand */}
+			<div className="flex h-14 flex-shrink-0 items-center justify-between border-slate-100 border-b px-6 dark:border-slate-900">
+				<Link href="/" className="flex items-center space-x-3">
+					<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
+						<Hexagon className="h-5 w-5 text-blue-600" />
+					</span>
+					<span className="font-bold text-base text-slate-900 dark:text-slate-100">
+						Evaluna Manager
+					</span>
+				</Link>
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8 text-slate-400 hover:text-slate-600 md:hidden"
+					onClick={() => setMobileMenuOpen(false)}
+					aria-label="Close sidebar"
+				>
+					<X className="h-5 w-5" />
+				</Button>
+			</div>
+
+			{/* Scrollable Navigation */}
+			<nav className="flex-1 overflow-y-auto py-3">
+				<ul className="space-y-1 px-3">
+					{navItems.map((item) => {
+						const Icon = item.icon;
+						const isActive = pathname === item.href;
+						return (
+							<li key={item.href}>
+								<Link
+									href={item.href}
+									onClick={() => setMobileMenuOpen(false)}
+									className={`flex items-center rounded-lg px-3 py-2.5 font-semibold text-sm transition-all ${
+										isActive
+											? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
+											: "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900/40"
+									}`}
+								>
+									<Icon
+										className={`mr-3 h-4 w-4 shrink-0 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`}
+									/>
+									<span className="truncate">{item.label}</span>
+								</Link>
+							</li>
+						);
+					})}
+				</ul>
+			</nav>
+		</div>
+	);
+
 	return (
 		<div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-900">
-			{/* Sidebar */}
-			<aside className="flex h-full w-64 flex-shrink-0 flex-col border-slate-200 border-r bg-white dark:border-slate-800 dark:bg-slate-950">
-				{/* Brand */}
-				<div className="flex-shrink-0 border-slate-100 border-b px-6 py-5 dark:border-slate-900">
-					<Link href="/" className="flex items-center space-x-3">
-						<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
-							<Hexagon className="h-5 w-5 text-blue-600" />
-						</span>
-						<span className="font-bold text-base text-slate-900 dark:text-slate-100">
-							Evaluna Manager
-						</span>
-					</Link>
-				</div>
-
-				{/* Scrollable Navigation */}
-				<nav className="flex-1 overflow-y-auto py-4">
-					<ul className="space-y-1 px-3">
-						{navItems.map((item) => {
-							const Icon = item.icon;
-							const isActive = pathname === item.href;
-							return (
-								<li key={item.href}>
-									<Link
-										href={item.href}
-										className={`flex items-center rounded-lg px-3 py-2.5 font-semibold text-sm transition-all ${
-											isActive
-												? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
-												: "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900/40"
-										}`}
-									>
-										<Icon
-											className={`mr-3 h-4 w-4 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`}
-										/>
-										<span>{item.label}</span>
-									</Link>
-								</li>
-							);
-						})}
-					</ul>
-				</nav>
+			{/* Desktop Persistent Sidebar */}
+			<aside className="hidden h-full w-64 flex-shrink-0 flex-col border-slate-200 border-r bg-white md:flex dark:border-slate-800 dark:bg-slate-950">
+				{sidebarContent}
 			</aside>
+
+			{/* Mobile Drawer Overlay */}
+			{mobileMenuOpen && (
+				<div className="fixed inset-0 z-50 flex bg-slate-950/60 backdrop-blur-sm md:hidden">
+					<div className="h-full w-72 max-w-[85vw] border-slate-800 border-r bg-white shadow-2xl dark:bg-slate-950">
+						{sidebarContent}
+					</div>
+					<div
+						className="flex-1"
+						onClick={() => setMobileMenuOpen(false)}
+						aria-label="Close backdrop"
+					/>
+				</div>
+			)}
 
 			{/* Main Content Area */}
 			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 				{/* Header */}
-				<DashboardHeader />
+				<DashboardHeader onMenuClick={() => setMobileMenuOpen(true)} />
 
 				{/* Scrollable Workspace Viewport */}
-				<main className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 dark:bg-slate-900">
-					{children}
+				<main className="flex-1 overflow-y-auto bg-slate-50 p-3 sm:p-6 dark:bg-slate-900">
+					<div className="mx-auto w-full max-w-7xl min-w-0">
+						{children}
+					</div>
 				</main>
 			</div>
 		</div>

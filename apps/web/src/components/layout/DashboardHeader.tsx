@@ -19,6 +19,7 @@ import {
 } from "@evaluna/ui/components/dropdown-menu";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	Bell,
 	Camera,
@@ -30,6 +31,7 @@ import {
 	LogIn,
 	LogOut,
 	MapPin,
+	Menu,
 	RefreshCw,
 	Settings,
 	ShieldAlert,
@@ -39,17 +41,16 @@ import {
 	Utensils,
 } from "lucide-react";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSession } from "@/hooks/use-session";
 import { authClient } from "@/lib/auth-client";
-import { useTRPC } from "@/lib/trpc/client";
 import { useBranch } from "@/lib/branch-context";
+import { useTRPC } from "@/lib/trpc/client";
 
-export function DashboardHeader() {
+export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = {}) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const locale = "en"; // default; replace with useLocale() once next-intl is confirmed in scope
@@ -75,10 +76,8 @@ export function DashboardHeader() {
 	const { data: branches } = trpc.branches.list.useQuery(undefined);
 	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery({});
 	const unreadCount = unreadCountData?.count || 0;
-	const { data: todayAttendance, refetch: refetchToday } = trpc.attendance.getToday.useQuery(
-		undefined,
-		{ refetchInterval: 30000 },
-	);
+	const { data: todayAttendance, refetch: refetchToday } =
+		trpc.attendance.getToday.useQuery(undefined, { refetchInterval: 30000 });
 
 	// Camera & GPS State for Production Attendance
 	const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -113,7 +112,9 @@ export function DashboardHeader() {
 			}
 			setCameraOn(true);
 		} catch {
-			toast.error("Camera access denied. A live photo is required to check in/out.");
+			toast.error(
+				"Camera access denied. A live photo is required to check in/out.",
+			);
 		}
 	}, []);
 
@@ -167,7 +168,9 @@ export function DashboardHeader() {
 		onSuccess: (r) => {
 			stopCamera();
 			void refetchToday();
-			toast.success(`Checked out — ${r.workingHours}h worked (${r.breakMinutes}m breaks).`);
+			toast.success(
+				`Checked out — ${r.workingHours}h worked (${r.breakMinutes}m breaks).`,
+			);
 			setAttendanceOpen(false);
 		},
 		onError: (err) => toast.error(err.message),
@@ -227,7 +230,8 @@ export function DashboardHeader() {
 				const imageAttachmentId = await captureAndUpload(kind);
 				const device = {
 					fingerprint: `fp_${Math.abs(user?.id ? user.id.split("").reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0) : 12345).toString(36)}`,
-					userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "browser",
+					userAgent:
+						typeof navigator !== "undefined" ? navigator.userAgent : "browser",
 				};
 
 				if (kind === "checkIn") {
@@ -349,14 +353,27 @@ export function DashboardHeader() {
 		"All Branches";
 
 	return (
-		<header className="sticky top-0 z-40 flex h-14 w-full shrink-0 items-center gap-4 border-border/50 border-b bg-white/80 px-4 shadow-sm backdrop-blur-md sm:px-6 dark:bg-gray-900/80">
+		<header className="sticky top-0 z-40 flex h-14 w-full shrink-0 items-center gap-2 border-border/50 border-b bg-white/80 px-3 shadow-sm backdrop-blur-md sm:gap-4 sm:px-6 dark:bg-gray-900/80">
+			{/* Mobile Hamburger Button */}
+			{onMenuClick && (
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-9 w-9 shrink-0 md:hidden"
+					onClick={onMenuClick}
+					aria-label="Toggle Navigation Menu"
+				>
+					<Menu className="h-5 w-5 text-gray-700 dark:text-gray-200" />
+				</Button>
+			)}
+
 			{/* 1. Branding (Hidden on desktop to avoid duplication with sidebar) */}
-			<div className="flex lg:hidden items-center gap-2">
-				<Link href="/admin" className="flex items-center gap-2">
+			<div className="flex items-center gap-2 md:hidden">
+				<Link href="/" className="flex items-center gap-2">
 					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10">
 						<ShieldAlert className="h-5 w-5 text-blue-600" />
 					</div>
-					<span className="hidden font-bold text-foreground text-lg tracking-tight sm:inline-block">
+					<span className="hidden font-bold text-foreground text-base tracking-tight sm:inline-block">
 						Evaluna ERP
 					</span>
 				</Link>
@@ -476,7 +493,9 @@ export function DashboardHeader() {
 							</div>
 							<div className="flex flex-col space-y-0.5 leading-tight">
 								{user?.name && (
-									<p className="font-semibold text-slate-900 text-sm dark:text-slate-100">{user.name}</p>
+									<p className="font-semibold text-slate-900 text-sm dark:text-slate-100">
+										{user.name}
+									</p>
 								)}
 								{user?.email && (
 									<p className="w-[150px] truncate text-muted-foreground text-xs">
@@ -772,47 +791,68 @@ export function DashboardHeader() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-
 			{/* Attendance Action Dialog Modal */}
-			<Dialog open={attendanceOpen} onOpenChange={(open) => {
-				setAttendanceOpen(open);
-				if (!open) stopCamera();
-			}}>
+			<Dialog
+				open={attendanceOpen}
+				onOpenChange={(open) => {
+					setAttendanceOpen(open);
+					if (!open) stopCamera();
+				}}
+			>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2 text-base">
 							<Clock className="h-5 w-5 text-blue-600" />
 							Employee Attendance & Live Geofence
 						</DialogTitle>
-						<DialogDescription className="text-xs text-muted-foreground">
-							Verified attendance requires live GPS coordinates and a camera selfie preview.
+						<DialogDescription className="text-muted-foreground text-xs">
+							Verified attendance requires live GPS coordinates and a camera
+							selfie preview.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-2">
-						<div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-2 dark:border-blue-900/30 dark:bg-blue-950/20">
-							<div className="flex justify-between items-center text-xs">
-								<span className="text-muted-foreground">Logged-in Employee:</span>
-								<span className="font-semibold text-foreground">{user?.name || user?.email || "Employee"}</span>
+						<div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/30 dark:bg-blue-950/20">
+							<div className="flex items-center justify-between text-xs">
+								<span className="text-muted-foreground">
+									Logged-in Employee:
+								</span>
+								<span className="font-semibold text-foreground">
+									{user?.name || user?.email || "Employee"}
+								</span>
 							</div>
-							<div className="flex justify-between items-center text-xs">
+							<div className="flex items-center justify-between text-xs">
 								<span className="text-muted-foreground">Assigned Role:</span>
-								<span className="font-semibold text-blue-700 capitalize">{(user as any)?.role?.replace("_", " ") || "Staff"}</span>
+								<span className="font-semibold text-blue-700 capitalize">
+									{(user as any)?.role?.replace("_", " ") || "Staff"}
+								</span>
 							</div>
-							<div className="flex justify-between items-center text-xs border-t border-blue-200/40 pt-2">
+							<div className="flex items-center justify-between border-blue-200/40 border-t pt-2 text-xs">
 								<span className="text-muted-foreground">Shift Status:</span>
-								<span className={`font-bold text-xs ${attendanceColor}`}>● {attendanceLabel}</span>
+								<span className={`font-bold text-xs ${attendanceColor}`}>
+									● {attendanceLabel}
+								</span>
 							</div>
 							{todayAttendance?.row?.checkIn && (
-								<div className="flex justify-between items-center text-xs">
+								<div className="flex items-center justify-between text-xs">
 									<span className="text-muted-foreground">Check-in Time:</span>
-									<span className="font-mono font-medium text-foreground">
+									<span className="font-medium font-mono text-foreground">
 										{(() => {
-											const [h, m, s] = (todayAttendance.row.checkIn || "").split(":");
+											const [h, m, s] = (
+												todayAttendance.row.checkIn || ""
+											).split(":");
 											if (!h || !m) return todayAttendance.row.checkIn;
 											const date = new Date();
-											date.setHours(parseInt(h, 10), parseInt(m, 10), parseInt(s || "0", 10));
-											return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+											date.setHours(
+												Number.parseInt(h, 10),
+												Number.parseInt(m, 10),
+												Number.parseInt(s || "0", 10),
+											);
+											return date.toLocaleTimeString([], {
+												hour: "2-digit",
+												minute: "2-digit",
+												second: "2-digit",
+											});
 										})()}
 									</span>
 								</div>
@@ -820,17 +860,19 @@ export function DashboardHeader() {
 						</div>
 
 						{todayAttendance && !todayAttendance.employeeLinked ? (
-							<div className="p-3 bg-amber-50 text-amber-800 text-xs rounded-lg border border-amber-200">
-								Your account isn't linked to an employee profile yet. Please ask your Manager to backfill staff profiles from the Manager Dashboard.
+							<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800 text-xs">
+								Your account isn't linked to an employee profile yet. Please ask
+								your Manager to backfill staff profiles from the Manager
+								Dashboard.
 							</div>
 						) : (
 							<div className="space-y-3">
-								<div className="overflow-hidden rounded-lg border bg-black/90 relative aspect-video flex items-center justify-center">
+								<div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg border bg-black/90">
 									<video
 										ref={videoRef}
 										playsInline
 										muted
-										className={`w-full h-full object-cover ${cameraOn ? "" : "hidden"}`}
+										className={`h-full w-full object-cover ${cameraOn ? "" : "hidden"}`}
 									/>
 									{!cameraOn && (
 										<div className="flex flex-col items-center gap-1.5 text-white/70 text-xs">
@@ -849,14 +891,15 @@ export function DashboardHeader() {
 											onClick={startCamera}
 											className="w-full gap-2 text-xs"
 										>
-											<Camera className="h-4 w-4 text-blue-600" /> Start Live Camera
+											<Camera className="h-4 w-4 text-blue-600" /> Start Live
+											Camera
 										</Button>
 									) : (
 										<Button
 											type="button"
 											variant="ghost"
 											onClick={stopCamera}
-											className="w-full gap-2 text-xs text-muted-foreground"
+											className="w-full gap-2 text-muted-foreground text-xs"
 										>
 											<CameraOff className="h-4 w-4" /> Stop Camera
 										</Button>
@@ -865,12 +908,16 @@ export function DashboardHeader() {
 									{currentState === "NOT_STARTED" && (
 										<Button
 											type="button"
-											disabled={attendanceBusy || !cameraOn || checkInMutation.isPending}
+											disabled={
+												attendanceBusy || !cameraOn || checkInMutation.isPending
+											}
 											onClick={() => doCheck("checkIn")}
-											className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold text-xs gap-2"
+											className="w-full gap-2 bg-green-600 font-semibold text-white text-xs hover:bg-green-700"
 										>
 											<LogIn className="h-4 w-4" />
-											{attendanceBusy || checkInMutation.isPending ? "Verifying GPS & Selfie..." : "Check In (Live GPS & Selfie)"}
+											{attendanceBusy || checkInMutation.isPending
+												? "Verifying GPS & Check-In Selfie..."
+												: "Take Check-In Selfie & Check In"}
 										</Button>
 									)}
 
@@ -881,48 +928,62 @@ export function DashboardHeader() {
 													type="button"
 													variant="outline"
 													disabled={startBreakMutation.isPending}
-													onClick={() => startBreakMutation.mutate({ type: "tea" })}
-													className="text-xs gap-1.5"
+													onClick={() =>
+														startBreakMutation.mutate({ type: "tea" })
+													}
+													className="gap-1.5 text-xs"
 												>
-													<Coffee className="h-3.5 w-3.5 text-amber-600" /> Tea Break
+													<Coffee className="h-3.5 w-3.5 text-amber-600" /> Tea
+													Break
 												</Button>
 												<Button
 													type="button"
 													variant="outline"
 													disabled={startBreakMutation.isPending}
-													onClick={() => startBreakMutation.mutate({ type: "lunch" })}
-													className="text-xs gap-1.5"
+													onClick={() =>
+														startBreakMutation.mutate({ type: "lunch" })
+													}
+													className="gap-1.5 text-xs"
 												>
-													<Utensils className="h-3.5 w-3.5 text-orange-600" /> Lunch Break
+													<Utensils className="h-3.5 w-3.5 text-orange-600" />{" "}
+													Lunch Break
 												</Button>
 											</div>
 
 											<Button
 												type="button"
-												disabled={attendanceBusy || !cameraOn || checkOutMutation.isPending}
+												disabled={
+													attendanceBusy ||
+													!cameraOn ||
+													checkOutMutation.isPending
+												}
 												onClick={() => doCheck("checkOut")}
-												className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs gap-2"
+												className="w-full gap-2 bg-orange-600 font-semibold text-white text-xs hover:bg-orange-700"
 											>
 												<LogOut className="h-4 w-4" />
-												{attendanceBusy || checkOutMutation.isPending ? "Verifying GPS & Selfie..." : "Check Out"}
+												{attendanceBusy || checkOutMutation.isPending
+													? "Verifying GPS & Check-Out Selfie..."
+													: "Take Check-Out Selfie & Check Out"}
 											</Button>
 										</div>
 									)}
 
-									{(currentState === "ON_BREAK" || currentState === "ON_LUNCH") && (
+									{(currentState === "ON_BREAK" ||
+										currentState === "ON_LUNCH") && (
 										<Button
 											type="button"
 											disabled={endBreakMutation.isPending}
 											onClick={() => endBreakMutation.mutate()}
-											className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs gap-2"
+											className="w-full gap-2 bg-amber-600 font-semibold text-white text-xs hover:bg-amber-700"
 										>
 											<Coffee className="h-4 w-4" /> End Break & Resume Duty
 										</Button>
 									)}
 
 									{currentState === "COMPLETED" && (
-										<p className="w-full text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
-											<MapPin className="h-3.5 w-3.5 text-blue-500" /> Shift complete for today.
+										<p className="flex w-full items-center justify-center gap-1 text-center text-muted-foreground text-xs">
+											<MapPin className="h-3.5 w-3.5 text-blue-500" /> Shift
+											complete for today.
 										</p>
 									)}
 								</div>
@@ -931,10 +992,15 @@ export function DashboardHeader() {
 					</div>
 
 					<DialogFooter className="pt-2">
-						<Button type="button" variant="outline" onClick={() => {
-							stopCamera();
-							setAttendanceOpen(false);
-						}} className="w-full text-xs">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => {
+								stopCamera();
+								setAttendanceOpen(false);
+							}}
+							className="w-full text-xs"
+						>
 							Close
 						</Button>
 					</DialogFooter>

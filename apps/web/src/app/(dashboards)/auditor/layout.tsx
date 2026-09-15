@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	ActivityIcon,
 	CalendarCheckIcon,
@@ -6,105 +8,123 @@ import {
 	LayoutDashboard,
 	ShieldIcon,
 	UsersIcon,
+	X,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { Button } from "@evaluna/ui/components/button";
+
+const navItems = [
+	{ href: "/auditor", label: "Dashboard", icon: LayoutDashboard },
+	{ href: "/auditor/findings", label: "Audit Findings", icon: ShieldIcon },
+	{ href: "/auditor/upc", label: "UPC Tasks", icon: CalendarCheckIcon },
+	{ href: "/auditor/receiving", label: "Receiving Inspections", icon: ActivityIcon },
+	{ href: "/auditor/placement", label: "Placement Verification", icon: UsersIcon },
+	{ href: "/auditor/reports", label: "Reports", icon: FileBarChart },
+];
 
 export default function AuditorLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
-	return (
-		<div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-			{/* Sidebar */}
-			<aside className="w-64 border-gray-200 border-r bg-white dark:border-gray-700 dark:bg-gray-800">
-				<div className="flex h-full flex-col">
-					{/* Brand */}
-					<div className="flex-shrink-0 px-6 py-4">
-						<Link href="/" className="flex items-center space-x-3">
-							<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
-								<Hexagon className="h-5 w-5 text-blue-600" />
-							</span>
-							<span className="font-semibold text-gray-900 text-lg dark:text-gray-100">
-								Evaluna Auditor
-							</span>
-						</Link>
-					</div>
+	const pathname = usePathname();
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-					{/* Navigation */}
-					<nav className="mt-6 flex-1 px-3">
-						<p className="mb-2 px-3 font-semibold text-gray-400 text-xs uppercase tracking-wider dark:text-gray-500">
-							Menu
-						</p>
-						<ul className="space-y-1">
-							<li>
+	const sidebarContent = (
+		<div className="flex h-full flex-col bg-white dark:bg-gray-800">
+			{/* Brand */}
+			<div className="flex h-14 flex-shrink-0 items-center justify-between border-gray-200 border-b px-6 dark:border-gray-700">
+				<Link href="/" className="flex items-center space-x-3">
+					<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
+						<Hexagon className="h-5 w-5 text-blue-600" />
+					</span>
+					<span className="font-semibold text-gray-900 text-lg dark:text-gray-100">
+						Evaluna Auditor
+					</span>
+				</Link>
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8 text-gray-400 hover:text-gray-600 md:hidden"
+					onClick={() => setMobileMenuOpen(false)}
+					aria-label="Close sidebar"
+				>
+					<X className="h-5 w-5" />
+				</Button>
+			</div>
+
+			{/* Navigation */}
+			<nav className="mt-4 flex-1 overflow-y-auto px-3 py-2">
+				<p className="mb-2 px-3 font-semibold text-gray-400 text-xs uppercase tracking-wider dark:text-gray-500">
+					Menu
+				</p>
+				<ul className="space-y-1">
+					{navItems.map((item) => {
+						const Icon = item.icon;
+						const isActive =
+							pathname === item.href ||
+							(item.href !== "/auditor" && pathname.startsWith(item.href));
+						return (
+							<li key={item.href}>
 								<Link
-									href="/auditor"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									href={item.href}
+									onClick={() => setMobileMenuOpen(false)}
+									className={`flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors ${
+										isActive
+											? "bg-blue-50 font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+											: "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+									}`}
 								>
-									<LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
-									Dashboard
+									<Icon
+										className={`mr-3 h-5 w-5 shrink-0 ${
+											isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-400"
+										}`}
+									/>
+									<span className="truncate">{item.label}</span>
 								</Link>
 							</li>
-							<li>
-								<Link
-									href="/auditor/findings"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
-								>
-									<ShieldIcon className="mr-3 h-5 w-5 text-gray-400" />
-									Audit Findings
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/auditor/upc"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
-								>
-									<CalendarCheckIcon className="mr-3 h-5 w-5 text-gray-400" />
-									UPC Tasks
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/auditor/receiving"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
-								>
-									<ActivityIcon className="mr-3 h-5 w-5 text-gray-400" />
-									Receiving Inspections
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/auditor/placement"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
-								>
-									<UsersIcon className="mr-3 h-5 w-5 text-gray-400" />
-									Placement Verification
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/auditor/reports"
-									className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
-								>
-									<FileBarChart className="mr-3 h-5 w-5 text-gray-400" />
-									Reports
-								</Link>
-							</li>
-						</ul>
-					</nav>
-				</div>
+						);
+					})}
+				</ul>
+			</nav>
+		</div>
+	);
+
+	return (
+		<div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+			{/* Desktop Persistent Sidebar */}
+			<aside className="hidden w-64 flex-shrink-0 border-gray-200 border-r bg-white md:block dark:border-gray-700 dark:bg-gray-800">
+				{sidebarContent}
 			</aside>
 
-			{/* Main Content */}
-			<main className="flex-1 overflow-hidden">
-				<div className="flex h-full flex-col">
-					<DashboardHeader />
-					{/* Content */}
-					<div className="flex-1 overflow-y-auto p-6">{children}</div>
+			{/* Mobile Drawer Overlay */}
+			{mobileMenuOpen && (
+				<div className="fixed inset-0 z-50 flex bg-gray-900/60 backdrop-blur-sm md:hidden">
+					<div className="h-full w-72 max-w-[85vw] border-gray-200 border-r bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+						{sidebarContent}
+					</div>
+					<div
+						className="flex-1"
+						onClick={() => setMobileMenuOpen(false)}
+						aria-label="Close backdrop"
+					/>
 				</div>
-			</main>
+			)}
+
+			{/* Main Content Area */}
+			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<DashboardHeader onMenuClick={() => setMobileMenuOpen(true)} />
+
+				{/* Scrollable Content */}
+				<main className="flex-1 overflow-y-auto p-3 sm:p-6">
+					<div className="mx-auto w-full max-w-7xl min-w-0">
+						{children}
+					</div>
+				</main>
+			</div>
 		</div>
 	);
 }

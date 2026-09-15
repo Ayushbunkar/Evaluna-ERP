@@ -10,9 +10,9 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { BellIcon, CheckCheckIcon, CheckIcon, Loader2Icon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
-import { useTranslations } from "next-intl";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function NotificationsPage() {
@@ -88,9 +88,7 @@ export default function NotificationsPage() {
 					<CardTitle className="font-bold text-base">
 						{t("alertFeedInbox")}
 					</CardTitle>
-					<CardDescription>
-						{t("alertFeedInboxSub")}
-					</CardDescription>
+					<CardDescription>{t("alertFeedInboxSub")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0">
 					{isLoading ? (
@@ -147,9 +145,7 @@ export default function NotificationsPage() {
 								<div className="py-16 text-center text-slate-400">
 									<BellIcon className="mx-auto mb-2 h-10 w-10 text-slate-300" />
 									<p className="font-bold text-sm">{t("inboxIsEmpty")}</p>
-									<p className="mt-1 text-xs">
-										{t("noNotificationsTargeted")}
-									</p>
+									<p className="mt-1 text-xs">{t("noNotificationsTargeted")}</p>
 								</div>
 							)}
 						</div>

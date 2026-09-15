@@ -5,20 +5,24 @@ import { orders, transactions } from "@/lib/db/schema";
 import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const financeReconciliationRouter = router({
-	getPendingReconciliations: roleProcedure(["admin", "finance", "manager", "auditor"])
-		.query(async () => {
-			return await db.query.orders.findMany({
-				where: not(eq(orders.finance_status, "reconciled")),
-				orderBy: [desc(orders.created_at)],
-				with: {
-					customer: true,
-					paymentMethod: true,
-				},
-			});
-		}),
+	getPendingReconciliations: roleProcedure([
+		"admin",
+		"finance",
+		"manager",
+		"auditor",
+	]).query(async () => {
+		return await db.query.orders.findMany({
+			where: not(eq(orders.finance_status, "reconciled")),
+			orderBy: [desc(orders.created_at)],
+			with: {
+				customer: true,
+				paymentMethod: true,
+			},
+		});
+	}),
 
-	getAllOrders: roleProcedure(["admin", "finance", "manager", "auditor"])
-		.query(async () => {
+	getAllOrders: roleProcedure(["admin", "finance", "manager", "auditor"]).query(
+		async () => {
 			return await db.query.orders.findMany({
 				orderBy: [desc(orders.created_at)],
 				limit: 200,
@@ -27,7 +31,8 @@ export const financeReconciliationRouter = router({
 					paymentMethod: true,
 				},
 			});
-		}),
+		},
+	),
 
 	driverSubmitCollection: roleProcedure(["driver", "admin", "manager"])
 		.input(
@@ -65,8 +70,8 @@ export const financeReconciliationRouter = router({
 
 			if (!order) throw new Error("Order not found");
 
-			const originalAmount = parseFloat(order.total_amount);
-			const verifiedAmount = parseFloat(input.verifiedAmount);
+			const originalAmount = Number.parseFloat(order.total_amount);
+			const verifiedAmount = Number.parseFloat(input.verifiedAmount);
 			const diff = verifiedAmount - originalAmount;
 
 			// Update Order with finance verification

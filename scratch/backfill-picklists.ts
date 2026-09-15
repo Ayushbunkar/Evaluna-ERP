@@ -1,6 +1,11 @@
+import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { db } from "../packages/db/src/index";
-import { orders, orderItems, pickLists, pickListItems } from "../packages/db/src/schema";
-import { and, eq, notInArray, isNull, inArray } from "drizzle-orm";
+import {
+	orderItems,
+	orders,
+	pickListItems,
+	pickLists,
+} from "../packages/db/src/schema";
 
 async function run() {
 	console.log("--- BACKFILLING MISSING PICKLISTS FOR CONFIRMED ORDERS ---");
@@ -13,7 +18,9 @@ async function run() {
 		},
 	});
 
-	console.log(`Found ${confirmedOrders.length} confirmed/completed orders in total.`);
+	console.log(
+		`Found ${confirmedOrders.length} confirmed/completed orders in total.`,
+	);
 
 	let backfillCount = 0;
 
@@ -27,7 +34,7 @@ async function run() {
 
 		if (!existing) {
 			console.log(`Backfilling picklist for Order #${order.id}...`);
-			
+
 			// Insert pending picklist
 			const [pl] = await db
 				.insert(pickLists)
@@ -48,14 +55,16 @@ async function run() {
 						quantity_ordered: it.quantity,
 						quantity_picked: 0,
 						status: "pending",
-					}))
+					})),
 				);
 			}
 			backfillCount++;
 		}
 	}
 
-	console.log(`\nBackfill Complete! Generated ${backfillCount} missing picklists.`);
+	console.log(
+		`\nBackfill Complete! Generated ${backfillCount} missing picklists.`,
+	);
 	process.exit(0);
 }
 

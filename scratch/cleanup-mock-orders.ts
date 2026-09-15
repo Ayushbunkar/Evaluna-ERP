@@ -1,25 +1,27 @@
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../packages/db/src/index";
-import { 
-	customers, 
-	orders, 
-	orderItems, 
-	pickLists, 
-	pickListItems, 
-	transactions, 
-	orderAudits, 
-	deliveryStops, 
-	pendingSync,
-	packages,
+import {
+	customers,
+	deliveryStops,
+	orderAudits,
+	orderItems,
+	orders,
 	packageItems,
+	packages,
+	pendingSync,
+	pickListItems,
+	pickLists,
 	routeStops,
+	transactions,
 	tripStops,
-	user
+	user,
 } from "../packages/db/src/schema";
 import { payments } from "../packages/db/src/schema/finance";
-import { inArray, sql, eq } from "drizzle-orm";
 
 async function run() {
-	console.log("--- CLEANING UP THE 7 MOCK ENGLISH CUSTOMERS AND DEPENDENTS ---");
+	console.log(
+		"--- CLEANING UP THE 7 MOCK ENGLISH CUSTOMERS AND DEPENDENTS ---",
+	);
 
 	const mockNames = [
 		"Foster Marks",
@@ -28,7 +30,7 @@ async function run() {
 		"Stanford Borer",
 		"Luke Cummerata",
 		"Kayla Predovic",
-		"Paulette Haley"
+		"Paulette Haley",
 	];
 
 	// Find the IDs of these mock customers
@@ -45,7 +47,9 @@ async function run() {
 	}
 
 	const mockCustIds = mockCusts.map((c) => c.id);
-	const mockUserUids = mockCusts.map((c) => c.user_uid).filter(Boolean) as string[];
+	const mockUserUids = mockCusts
+		.map((c) => c.user_uid)
+		.filter(Boolean) as string[];
 
 	// Find orders belonging to these customers
 	const mockOrdersRes = await db
@@ -54,7 +58,9 @@ async function run() {
 		.where(inArray(orders.customer_id, mockCustIds));
 	const mockOrderIds = mockOrdersRes.map((o) => o.id);
 
-	console.log(`Found ${mockOrderIds.length} orders linked to these mock customers.`);
+	console.log(
+		`Found ${mockOrderIds.length} orders linked to these mock customers.`,
+	);
 
 	// 1. Cascading deletes for dependent transactions & financial items
 	if (mockOrderIds.length > 0) {
@@ -65,10 +71,14 @@ async function run() {
 
 		if (associatedTx.length > 0) {
 			const txIds = associatedTx.map((t) => t.id);
-			console.log(`Deleting ${txIds.length} financial payments and transactions...`);
+			console.log(
+				`Deleting ${txIds.length} financial payments and transactions...`,
+			);
 			try {
 				// Clear payments first to satisfy key constraints
-				await db.delete(payments).where(inArray(payments.transaction_id, txIds));
+				await db
+					.delete(payments)
+					.where(inArray(payments.transaction_id, txIds));
 				await db.delete(transactions).where(inArray(transactions.id, txIds));
 			} catch (e: any) {
 				console.warn("Payment bypass (safe constraint skip):", e.message);
@@ -83,7 +93,9 @@ async function run() {
 
 		if (associatedPackages.length > 0) {
 			const pkgIds = associatedPackages.map((p) => p.id);
-			await db.delete(packageItems).where(inArray(packageItems.package_id, pkgIds));
+			await db
+				.delete(packageItems)
+				.where(inArray(packageItems.package_id, pkgIds));
 			await db.delete(packages).where(inArray(packages.id, pkgIds));
 		}
 
@@ -95,20 +107,30 @@ async function run() {
 
 		if (associatedPickLists.length > 0) {
 			const plIds = associatedPickLists.map((p) => p.id);
-			await db.delete(pickListItems).where(inArray(pickListItems.pick_list_id, plIds));
+			await db
+				.delete(pickListItems)
+				.where(inArray(pickListItems.pick_list_id, plIds));
 			await db.delete(pickLists).where(inArray(pickLists.id, plIds));
 		}
 
 		// Delete delivery_stops
-		await db.delete(deliveryStops).where(inArray(deliveryStops.order_id, mockOrderIds));
-		await db.delete(orderAudits).where(inArray(orderAudits.order_id, mockOrderIds));
-		await db.delete(orderItems).where(inArray(orderItems.order_id, mockOrderIds));
+		await db
+			.delete(deliveryStops)
+			.where(inArray(deliveryStops.order_id, mockOrderIds));
+		await db
+			.delete(orderAudits)
+			.where(inArray(orderAudits.order_id, mockOrderIds));
+		await db
+			.delete(orderItems)
+			.where(inArray(orderItems.order_id, mockOrderIds));
 		await db.delete(orders).where(inArray(orders.id, mockOrderIds));
 	}
 
 	// 2. Delete from route_stops & trip_stops referencing these customer IDs
 	console.log("Deleting route_stops, trip_stops references...");
-	await db.delete(routeStops).where(inArray(routeStops.customer_id, mockCustIds));
+	await db
+		.delete(routeStops)
+		.where(inArray(routeStops.customer_id, mockCustIds));
 	await db.delete(tripStops).where(inArray(tripStops.customer_id, mockCustIds));
 
 	// 3. Delete the customers themselves!
@@ -121,7 +143,9 @@ async function run() {
 		await db.delete(user).where(inArray(user.id, mockUserUids));
 	}
 
-	console.log("\nPurge Complete! Mock English customer data successfully cleared from your database!");
+	console.log(
+		"\nPurge Complete! Mock English customer data successfully cleared from your database!",
+	);
 	process.exit(0);
 }
 

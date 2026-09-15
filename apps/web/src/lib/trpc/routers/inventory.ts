@@ -79,9 +79,7 @@ export const inventoryRouter = router({
 				.limit(limit || 100)
 				.offset(offset || 0);
 
-			const countResult = await db
-				.select({ val: count() })
-				.from(products);
+			const countResult = await db.select({ val: count() }).from(products);
 
 			return {
 				items: data.map((d) => ({
@@ -789,7 +787,10 @@ export const inventoryRouter = router({
 				price: z.number().min(0, "Price must be non-negative."),
 				costPrice: z.number().optional(),
 				unit: z.string().default("Pcs"),
-				initialStock: z.number().min(0, "Initial stock cannot be negative.").default(0),
+				initialStock: z
+					.number()
+					.min(0, "Initial stock cannot be negative.")
+					.default(0),
 				binLocation: z.string().optional(),
 				branchId: z.number().default(1),
 			}),
@@ -838,7 +839,9 @@ export const inventoryRouter = router({
 						reference_type: "initial_stock",
 						branch_id: input.branchId,
 						unit_cost: (input.costPrice ?? input.price).toString(),
-						total_cost: ((input.costPrice ?? input.price) * input.initialStock).toString(),
+						total_cost: (
+							(input.costPrice ?? input.price) * input.initialStock
+						).toString(),
 					});
 				}
 

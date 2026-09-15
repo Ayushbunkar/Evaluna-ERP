@@ -34,7 +34,11 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function DriverVehiclePage() {
 	const trpc = useTRPC();
-	const { data: dashboard, isLoading, refetch } = trpc.driver.getMobileDashboard.useQuery({});
+	const {
+		data: dashboard,
+		isLoading,
+		refetch,
+	} = trpc.driver.getMobileDashboard.useQuery({});
 
 	const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 	const [issueCategory, setIssueCategory] = useState("Tyre / Brakes");
@@ -56,17 +60,18 @@ export default function DriverVehiclePage() {
 			{/* Page Header */}
 			<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="flex items-center gap-2 font-bold text-2xl tracking-tight text-slate-900 dark:text-slate-100">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-slate-900 tracking-tight dark:text-slate-100">
 						<TruckIcon className="h-7 w-7 text-blue-600" />
 						Assigned Vehicle Status & Fleet Inspection
 					</h1>
 					<p className="text-slate-500 text-sm">
-						Monitor vehicle health, report maintenance issues, and record daily pre-trip inspections.
+						Monitor vehicle health, report maintenance issues, and record daily
+						pre-trip inspections.
 					</p>
 				</div>
 				<Button
 					onClick={() => setIsReportModalOpen(true)}
-					className="bg-amber-600 text-white hover:bg-amber-700 font-semibold shadow-sm text-xs sm:text-sm"
+					className="bg-amber-600 font-semibold text-white text-xs shadow-sm hover:bg-amber-700 sm:text-sm"
 				>
 					<WrenchIcon className="mr-2 h-4 w-4" />
 					Report Vehicle Issue
@@ -83,7 +88,7 @@ export default function DriverVehiclePage() {
 									<p className="font-semibold text-blue-700 text-xs uppercase tracking-wider dark:text-blue-400">
 										Assigned Truck
 									</p>
-									<p className="font-mono font-bold text-2xl text-blue-900 dark:text-blue-200">
+									<p className="font-bold font-mono text-2xl text-blue-900 dark:text-blue-200">
 										MP04AB1234
 									</p>
 								</div>
@@ -101,7 +106,7 @@ export default function DriverVehiclePage() {
 									<p className="font-semibold text-emerald-700 text-xs uppercase tracking-wider dark:text-emerald-400">
 										Pre-Trip Inspection
 									</p>
-									<p className="font-bold text-xl text-emerald-800 dark:text-emerald-300">
+									<p className="font-bold text-emerald-800 text-xl dark:text-emerald-300">
 										Verified & Clear
 									</p>
 								</div>
@@ -119,7 +124,7 @@ export default function DriverVehiclePage() {
 									<p className="font-semibold text-slate-600 text-xs uppercase tracking-wider dark:text-slate-400">
 										Odometer Reading
 									</p>
-									<p className="font-mono font-bold text-xl text-slate-800 dark:text-slate-200">
+									<p className="font-bold font-mono text-slate-800 text-xl dark:text-slate-200">
 										{odometerInput}
 									</p>
 								</div>
@@ -135,7 +140,7 @@ export default function DriverVehiclePage() {
 				{/* Vehicle Specifications */}
 				<Card className="border-border/60 shadow-sm">
 					<CardHeader>
-						<CardTitle className="flex items-center gap-2 text-lg font-bold">
+						<CardTitle className="flex items-center gap-2 font-bold text-lg">
 							<FileTextIcon className="h-5 w-5 text-blue-600" />
 							Vehicle Specifications
 						</CardTitle>
@@ -146,11 +151,15 @@ export default function DriverVehiclePage() {
 					<CardContent className="space-y-3 text-sm">
 						<div className="flex justify-between border-b pb-2">
 							<span className="text-slate-500">Fleet Name:</span>
-							<span className="font-semibold">Bhopal Cargo Delivery Truck 01</span>
+							<span className="font-semibold">
+								Bhopal Cargo Delivery Truck 01
+							</span>
 						</div>
 						<div className="flex justify-between border-b pb-2">
 							<span className="text-slate-500">Registration Number:</span>
-							<span className="font-mono font-bold text-blue-600">MP04AB1234</span>
+							<span className="font-bold font-mono text-blue-600">
+								MP04AB1234
+							</span>
 						</div>
 						<div className="flex justify-between border-b pb-2">
 							<span className="text-slate-500">Vehicle Type:</span>
@@ -162,7 +171,7 @@ export default function DriverVehiclePage() {
 						</div>
 						<div className="flex justify-between">
 							<span className="text-slate-500">Service Status:</span>
-							<span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-bold text-xs text-emerald-800">
+							<span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-bold text-emerald-800 text-xs">
 								Available & Active
 							</span>
 						</div>
@@ -172,7 +181,7 @@ export default function DriverVehiclePage() {
 				{/* Pre-Trip Safety Checklist */}
 				<Card className="border-border/60 shadow-sm">
 					<CardHeader>
-						<CardTitle className="flex items-center gap-2 text-lg font-bold">
+						<CardTitle className="flex items-center gap-2 font-bold text-lg">
 							<ShieldCheckIcon className="h-5 w-5 text-emerald-600" />
 							Pre-Trip Safety Inspection
 						</CardTitle>
@@ -188,11 +197,14 @@ export default function DriverVehiclePage() {
 							{ label: "Fuel & Engine Oil Levels", status: "Passed" },
 							{ label: "Cargo Bay Latch & Lock", status: "Passed" },
 						].map((chk, idx) => (
-							<div key={idx} className="flex items-center justify-between border-b pb-2 last:border-0">
-								<span className="font-medium text-slate-700 dark:text-slate-300 text-xs">
+							<div
+								key={idx}
+								className="flex items-center justify-between border-b pb-2 last:border-0"
+							>
+								<span className="font-medium text-slate-700 text-xs dark:text-slate-300">
 									{chk.label}
 								</span>
-								<span className="flex items-center gap-1 font-bold text-xs text-emerald-600">
+								<span className="flex items-center gap-1 font-bold text-emerald-600 text-xs">
 									<CheckCircle2Icon className="h-4 w-4 text-emerald-500" />
 									{chk.status}
 								</span>
@@ -206,18 +218,21 @@ export default function DriverVehiclePage() {
 			<Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
 				<DialogContent className="sm:max-w-[450px]">
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2 font-bold text-lg text-amber-700">
+						<DialogTitle className="flex items-center gap-2 font-bold text-amber-700 text-lg">
 							<AlertTriangleIcon className="h-5 w-5 text-amber-600" />
 							Report Vehicle Issue
 						</DialogTitle>
-						<DialogDescription className="text-xs text-slate-500">
-							Notify dispatch and maintenance regarding any mechanical or safety issues.
+						<DialogDescription className="text-slate-500 text-xs">
+							Notify dispatch and maintenance regarding any mechanical or safety
+							issues.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-3">
 						<div className="space-y-1.5">
-							<Label className="font-semibold text-xs text-slate-700">Issue Category</Label>
+							<Label className="font-semibold text-slate-700 text-xs">
+								Issue Category
+							</Label>
 							<select
 								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
 								value={issueCategory}
@@ -232,7 +247,9 @@ export default function DriverVehiclePage() {
 						</div>
 
 						<div className="space-y-1.5">
-							<Label className="font-semibold text-xs text-slate-700">Issue Description</Label>
+							<Label className="font-semibold text-slate-700 text-xs">
+								Issue Description
+							</Label>
 							<textarea
 								rows={3}
 								placeholder="Describe the issue in detail..."
@@ -244,10 +261,16 @@ export default function DriverVehiclePage() {
 					</div>
 
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsReportModalOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setIsReportModalOpen(false)}
+						>
 							Cancel
 						</Button>
-						<Button onClick={handleReportIssue} className="bg-amber-600 text-white hover:bg-amber-700 font-semibold">
+						<Button
+							onClick={handleReportIssue}
+							className="bg-amber-600 font-semibold text-white hover:bg-amber-700"
+						>
 							Submit Issue Report
 						</Button>
 					</DialogFooter>

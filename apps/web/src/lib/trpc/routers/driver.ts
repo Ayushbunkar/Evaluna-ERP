@@ -206,18 +206,19 @@ export const driverRouter = router({
 			}
 
 			const customerIds = trip.stops.map((s: any) => s.customer_id);
-			const ordersForStops = customerIds.length > 0
-				? await db.query.orders.findMany({
-						where: inArray(orders.customer_id, customerIds),
-						with: {
-							orderItems: {
-								with: {
-									product: true,
+			const ordersForStops =
+				customerIds.length > 0
+					? await db.query.orders.findMany({
+							where: inArray(orders.customer_id, customerIds),
+							with: {
+								orderItems: {
+									with: {
+										product: true,
+									},
 								},
 							},
-						},
-					})
-				: [];
+						})
+					: [];
 
 			// Build route stops safely using only data already loaded from the trip query
 			const routeStops = trip.stops.map((s: any) => {
@@ -379,53 +380,51 @@ export const driverRouter = router({
 			return { success: true };
 		}),
 
-	getRouteStops: protectedProcedure
-		.query(async ({ ctx }) => {
-			const driverId = ctx.user?.id;
+	getRouteStops: protectedProcedure.query(async ({ ctx }) => {
+		const driverId = ctx.user?.id;
 
-			// Fetch delivery trips specifically assigned to this logged-in driver
-			const trips = driverId
-				? await db.query.deliveryTrips.findMany({
-						where: and(
-							eq(deliveryTrips.driver_id, driverId),
-							or(
-								eq(deliveryTrips.status, "active"),
-								eq(deliveryTrips.status, "pending"),
-							),
+		// Fetch delivery trips specifically assigned to this logged-in driver
+		const trips = driverId
+			? await db.query.deliveryTrips.findMany({
+					where: and(
+						eq(deliveryTrips.driver_id, driverId),
+						or(
+							eq(deliveryTrips.status, "active"),
+							eq(deliveryTrips.status, "pending"),
 						),
-						orderBy: [desc(deliveryTrips.created_at)],
-						with: {
-							stops: {
-								orderBy: (deliveryStops: any, { asc }: any) => [
-									asc(deliveryStops.sequence),
-								],
-								with: {
-									customer: true,
-								},
+					),
+					orderBy: [desc(deliveryTrips.created_at)],
+					with: {
+						stops: {
+							orderBy: (deliveryStops: any, { asc }: any) => [
+								asc(deliveryStops.sequence),
+							],
+							with: {
+								customer: true,
 							},
 						},
-					})
-				: [];
+					},
+				})
+			: [];
 
-			if (!trips || trips.length === 0) return [];
+		if (!trips || trips.length === 0) return [];
 
-			// Collect all stops across trips
-			const allStops: any[] = [];
-			for (const trip of trips) {
-				if (trip.stops && trip.stops.length > 0) {
-					for (const stop of trip.stops) {
-						allStops.push({ ...stop, trip_id: trip.id });
-					}
+		// Collect all stops across trips
+		const allStops: any[] = [];
+		for (const trip of trips) {
+			if (trip.stops && trip.stops.length > 0) {
+				for (const stop of trip.stops) {
+					allStops.push({ ...stop, trip_id: trip.id });
 				}
 			}
+		}
 
-			if (allStops.length === 0) return [];
+		if (allStops.length === 0) return [];
 
-			const customerIds = allStops
-				.map((s) => s.customer_id)
-				.filter(Boolean);
+		const customerIds = allStops.map((s) => s.customer_id).filter(Boolean);
 
-			const ordersForStops = customerIds.length > 0
+		const ordersForStops =
+			customerIds.length > 0
 				? await db.query.orders.findMany({
 						where: inArray(orders.customer_id, customerIds),
 						with: {
@@ -438,32 +437,32 @@ export const driverRouter = router({
 					})
 				: [];
 
-			return allStops.map((s: any, idx: number) => {
-				const orderForStop = ordersForStops.find(
-					(order) => order.customer_id === s.customer_id,
-				);
-				return {
-					id: s.id,
-					trip_id: s.trip_id,
-					status: s.status === "delivered" ? "completed" : "pending",
-					rawStatus: s.status,
-					customerName: s.customer?.name ?? "Unknown Customer",
-					address: s.customer?.address ?? "N/A",
-					phone: s.customer?.phone ?? "N/A",
-					orderId: orderForStop?.id ?? (460 + idx),
-					amountToCollect: orderForStop ? Number(orderForStop.total_amount) : 0,
-					packages: orderForStop?.orderItems?.length ?? 0,
-					orderItems:
-						orderForStop?.orderItems?.map((item) => ({
-							id: item.id,
-							product_id: item.product_id,
-							name: item.product?.name ?? "Unknown Product",
-							qty: item.quantity,
-							price: Number(item.price),
-						})) || [],
-				};
-			});
-		}),
+		return allStops.map((s: any, idx: number) => {
+			const orderForStop = ordersForStops.find(
+				(order) => order.customer_id === s.customer_id,
+			);
+			return {
+				id: s.id,
+				trip_id: s.trip_id,
+				status: s.status === "delivered" ? "completed" : "pending",
+				rawStatus: s.status,
+				customerName: s.customer?.name ?? "Unknown Customer",
+				address: s.customer?.address ?? "N/A",
+				phone: s.customer?.phone ?? "N/A",
+				orderId: orderForStop?.id ?? 460 + idx,
+				amountToCollect: orderForStop ? Number(orderForStop.total_amount) : 0,
+				packages: orderForStop?.orderItems?.length ?? 0,
+				orderItems:
+					orderForStop?.orderItems?.map((item) => ({
+						id: item.id,
+						product_id: item.product_id,
+						name: item.product?.name ?? "Unknown Product",
+						qty: item.quantity,
+						price: Number(item.price),
+					})) || [],
+			};
+		});
+	}),
 
 	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {
 		const driverId = ctx.user?.id;
@@ -504,7 +503,9 @@ export const driverRouter = router({
 			}
 
 			const stops = (t.stops || []).map((s: any, idx: number) => {
-				const stopCollections = (t.collections || []).filter((c: any) => c.trip_id === t.id);
+				const stopCollections = (t.collections || []).filter(
+					(c: any) => c.trip_id === t.id,
+				);
 				let cash = 0;
 				let online = 0;
 				for (const col of stopCollections) {
@@ -516,7 +517,8 @@ export const driverRouter = router({
 					}
 				}
 
-				const isDelivered = s.status === "delivered" || s.status === "completed";
+				const isDelivered =
+					s.status === "delivered" || s.status === "completed";
 
 				return {
 					stopId: s.id,
@@ -525,19 +527,37 @@ export const driverRouter = router({
 					customerPhone: s.customer?.phone || "N/A",
 					address: s.customer?.address || "N/A",
 					orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
-					status: isDelivered ? "Delivered" : s.status === "failed" ? "Failed" : "Pending",
+					status: isDelivered
+						? "Delivered"
+						: s.status === "failed"
+							? "Failed"
+							: "Pending",
 					cashCollected: cash,
 					onlineCollected: online,
-					deliveredAt: isDelivered ? (s.resolved_at ? new Date(s.resolved_at).toLocaleTimeString() : new Date().toLocaleTimeString()) : "—",
+					deliveredAt: isDelivered
+						? s.resolved_at
+							? new Date(s.resolved_at).toLocaleTimeString()
+							: new Date().toLocaleTimeString()
+						: "—",
 				};
 			});
 
-			const completedStops = stops.filter((s: any) => s.status === "Delivered").length;
+			const completedStops = stops.filter(
+				(s: any) => s.status === "Delivered",
+			).length;
 			const totalStops = stops.length;
-			const isTripCompleted = (completedStops === totalStops && totalStops > 0) || t.status === "completed";
+			const isTripCompleted =
+				(completedStops === totalStops && totalStops > 0) ||
+				t.status === "completed";
 
-			totalCash = stops.reduce((acc: number, st: any) => acc + st.cashCollected, 0);
-			totalOnline = stops.reduce((acc: number, st: any) => acc + st.onlineCollected, 0);
+			totalCash = stops.reduce(
+				(acc: number, st: any) => acc + st.cashCollected,
+				0,
+			);
+			totalOnline = stops.reduce(
+				(acc: number, st: any) => acc + st.onlineCollected,
+				0,
+			);
 
 			return {
 				id: t.id,
@@ -545,8 +565,14 @@ export const driverRouter = router({
 				routeName: t.route?.name || `Route #${t.id}`,
 				vehiclePlate: t.vehicle?.registration_number || "MP04AB1234",
 				driverName: t.driver?.name || ctx.user?.name || "Rajesh Kumar",
-				status: isTripCompleted ? "Completed" : t.status === "cancelled" ? "Cancelled" : "In Progress",
-				date: t.created_at ? new Date(t.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+				status: isTripCompleted
+					? "Completed"
+					: t.status === "cancelled"
+						? "Cancelled"
+						: "In Progress",
+				date: t.created_at
+					? new Date(t.created_at).toLocaleDateString()
+					: new Date().toLocaleDateString(),
 				totalStops,
 				completedStops,
 				totalCashCollected: totalCash,
@@ -608,19 +634,25 @@ export const driverRouter = router({
 				cashAmount: z.number(),
 				onlineAmount: z.number(),
 				deliveryNotes: z.string().optional(),
-				damagedOrReturnedItems: z.array(
-					z.object({
-						id: z.number(),
-						name: z.string(),
-						qty: z.number(),
-						reason: z.string(),
-					}),
-				).optional(),
+				damagedOrReturnedItems: z
+					.array(
+						z.object({
+							id: z.number(),
+							name: z.string(),
+							qty: z.number(),
+							reason: z.string(),
+						}),
+					)
+					.optional(),
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
 			try {
-				const { tripStops, tripCollections, deliveryTrips } = require("@evaluna/db/schema");
+				const {
+					tripStops,
+					tripCollections,
+					deliveryTrips,
+				} = require("@evaluna/db/schema");
 
 				let targetTripId: number | null = null;
 
@@ -672,7 +704,8 @@ export const driverRouter = router({
 						.update(tripStops)
 						.set({
 							status: "delivered",
-							comments: input.deliveryNotes || "Delivered live at customer stop",
+							comments:
+								input.deliveryNotes || "Delivered live at customer stop",
 							resolved_at: new Date(),
 						})
 						.where(eq(tripStops.id, input.stop_id));
@@ -702,7 +735,9 @@ export const driverRouter = router({
 						.set({
 							status: "completed",
 							finance_status: "driver_collected",
-							...(totalCollected > 0 ? { total_amount: String(totalCollected) } : {}),
+							...(totalCollected > 0
+								? { total_amount: String(totalCollected) }
+								: {}),
 						} as any)
 						.where(eq(orders.id, orderIdToUpdate));
 				}
@@ -735,7 +770,10 @@ export const driverRouter = router({
 							description: `Driver cash collected for stop #${input.stop_id}`,
 						});
 					} catch (tErr) {
-						console.warn("[submitDeliveryHandover] Cash transaction creation fallback:", tErr);
+						console.warn(
+							"[submitDeliveryHandover] Cash transaction creation fallback:",
+							tErr,
+						);
 					}
 				}
 
@@ -767,11 +805,17 @@ export const driverRouter = router({
 							description: `Driver UPI/Online collected for stop #${input.stop_id}`,
 						});
 					} catch (tErr) {
-						console.warn("[submitDeliveryHandover] Online transaction creation fallback:", tErr);
+						console.warn(
+							"[submitDeliveryHandover] Online transaction creation fallback:",
+							tErr,
+						);
 					}
 				}
 			} catch (e) {
-				console.warn("[submitDeliveryHandover] Error executing database insert/update:", e);
+				console.warn(
+					"[submitDeliveryHandover] Error executing database insert/update:",
+					e,
+				);
 			}
 
 			return { success: true };

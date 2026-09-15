@@ -157,7 +157,10 @@ ERROR CONSTRAINT: ${err.constraint}
 ERROR TABLE: ${err.table}
 =========================================
 `;
-				fs.appendFileSync(path.join(process.cwd(), "scratch/error-details.txt"), errorLog);
+				fs.appendFileSync(
+					path.join(process.cwd(), "scratch/error-details.txt"),
+					errorLog,
+				);
 				throw err;
 			}
 		}),
@@ -476,7 +479,7 @@ ERROR TABLE: ${err.table}
 						eq(roles.name, "delivery"),
 						eq(roles.name, "driver"),
 						eq(roles.name, "delivery_boy"),
-					)
+					),
 				);
 
 			const staffMembers = await db.query.staff.findMany({
@@ -556,7 +559,9 @@ ERROR TABLE: ${err.table}
 		.input(z.object({ tripId: z.number() }))
 		.mutation(async ({ input }) => {
 			await db.delete(tripStops).where(eq(tripStops.trip_id, input.tripId));
-			await db.delete(tripCollections).where(eq(tripCollections.trip_id, input.tripId));
+			await db
+				.delete(tripCollections)
+				.where(eq(tripCollections.trip_id, input.tripId));
 			await db.delete(deliveryTrips).where(eq(deliveryTrips.id, input.tripId));
 			return { success: true };
 		}),
@@ -565,8 +570,13 @@ ERROR TABLE: ${err.table}
 		.input(z.object({ routeId: z.number() }))
 		.mutation(async ({ input }) => {
 			await db.delete(routeStops).where(eq(routeStops.route_id, input.routeId));
-			await db.update(deliveryTrips).set({ route_id: null }).where(eq(deliveryTrips.route_id, input.routeId));
-			await db.delete(deliveryRoutes).where(eq(deliveryRoutes.id, input.routeId));
+			await db
+				.update(deliveryTrips)
+				.set({ route_id: null })
+				.where(eq(deliveryTrips.route_id, input.routeId));
+			await db
+				.delete(deliveryRoutes)
+				.where(eq(deliveryRoutes.id, input.routeId));
 			return { success: true };
 		}),
 
@@ -737,7 +747,10 @@ ERROR CONSTRAINT: ${err.constraint}
 ERROR TABLE: ${err.table}
 =========================================
 `;
-				fs.appendFileSync(path.join(process.cwd(), "scratch/error-details.txt"), errorLog);
+				fs.appendFileSync(
+					path.join(process.cwd(), "scratch/error-details.txt"),
+					errorLog,
+				);
 				throw err;
 			}
 		}),

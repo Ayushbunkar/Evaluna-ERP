@@ -28,22 +28,21 @@ import {
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  ilike,
-  lte,
-  ne,
-  not,
-  or,
-  sql,
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	lte,
+	ne,
+	not,
+	or,
+	sql,
 } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
-
 
 // ── Access tiers ─────────────────────────────────────────────────────────────
 // `super_admin` is not a value of user.role — it is the is_superadmin flag —
@@ -575,7 +574,8 @@ export const adminRouter = router({
 				input.department ? eq(staff.department, input.department) : undefined,
 				input.role ? eq(staff.role, input.role) : undefined,
 				input.status ? eq(staff.status, input.status) : undefined,
-				not(ilike(staff.email, "%seed%")), like
+				not(ilike(staff.email, "%seed%")),
+				like
 					? or(
 							ilike(staff.name, like),
 							ilike(staff.staff_code, like),

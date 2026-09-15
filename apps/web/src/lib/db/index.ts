@@ -29,7 +29,10 @@ function customLookup(host: string, opt: any, cb: any) {
 	dns.resolve4(host, (rErr: any, addrs: any) => {
 		if (!rErr && addrs && addrs.length > 0) {
 			if (opt && opt.all) {
-				return cb(null, addrs.map((a: string) => ({ address: a, family: 4 })));
+				return cb(
+					null,
+					addrs.map((a: string) => ({ address: a, family: 4 })),
+				);
 			}
 			return cb(null, addrs[0], 4);
 		}

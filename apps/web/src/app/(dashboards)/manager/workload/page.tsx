@@ -9,13 +9,13 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { AlertTriangleIcon, BarChart3Icon, Loader2Icon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { useTranslations } from "next-intl";
 
 export default function WorkloadPage() {
 	const trpc = useTRPC();
-  const t = useTranslations("manager");
+	const t = useTranslations("manager");
 
 	// Query real workload stats
 	const { data: workload = [], isLoading } =
@@ -52,9 +52,13 @@ export default function WorkloadPage() {
 								<thead>
 									<tr className="border-b text-slate-500">
 										<th className="p-3 font-semibold">{t("nameCol")}</th>
-										<th className="p-3 font-semibold">{t("assignedOpenCol")}</th>
+										<th className="p-3 font-semibold">
+											{t("assignedOpenCol")}
+										</th>
 										<th className="p-3 font-semibold">{t("inProgressCol")}</th>
-										<th className="p-3 font-semibold">{t("overdueTasksCol")}</th>
+										<th className="p-3 font-semibold">
+											{t("overdueTasksCol")}
+										</th>
 										<th className="p-3 text-right font-semibold">
 											{t("fulfillmentCapacityCol")}
 										</th>

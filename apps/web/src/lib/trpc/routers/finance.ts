@@ -623,90 +623,103 @@ export const financeRouter = router({
 			};
 		}),
 
-	getDriverCollections: roleProcedure(["admin", "manager", "auditor", "finance"])
-		.query(async ({ ctx }) => {
-			const { tripCollections, orders } = require("@evaluna/db/schema");
-			const collections = await ctx.db.query.tripCollections?.findMany({
-				orderBy: [desc(tripCollections.collected_at)],
-				limit: 100,
-				with: {
-					trip: {
-						with: {
-							driver: true,
-							stops: {
-								with: {
-									customer: true,
-								},
+	getDriverCollections: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"finance",
+	]).query(async ({ ctx }) => {
+		const { tripCollections, orders } = require("@evaluna/db/schema");
+		const collections = await ctx.db.query.tripCollections?.findMany({
+			orderBy: [desc(tripCollections.collected_at)],
+			limit: 100,
+			with: {
+				trip: {
+					with: {
+						driver: true,
+						stops: {
+							with: {
+								customer: true,
 							},
 						},
 					},
 				},
-			});
+			},
+		});
 
-			if (!collections || collections.length === 0) return [];
+		if (!collections || collections.length === 0) return [];
 
-			const allCustomerIds = Array.from(
-				new Set(
-					collections.flatMap((col: any) =>
-						(col.trip?.stops || []).map((s: any) => s.customer_id).filter(Boolean)
-					)
-				)
-			);
+		const allCustomerIds = Array.from(
+			new Set(
+				collections.flatMap((col: any) =>
+					(col.trip?.stops || [])
+						.map((s: any) => s.customer_id)
+						.filter(Boolean),
+				),
+			),
+		);
 
-			let dbOrders: any[] = [];
-			if (allCustomerIds.length > 0) {
-				dbOrders = await ctx.db.query.orders.findMany({
-					where: inArray(orders.customer_id, allCustomerIds),
-					with: {
-						customer: true,
-						orderItems: {
-							with: {
-								product: true,
-							},
+		let dbOrders: any[] = [];
+		if (allCustomerIds.length > 0) {
+			dbOrders = await ctx.db.query.orders.findMany({
+				where: inArray(orders.customer_id, allCustomerIds),
+				with: {
+					customer: true,
+					orderItems: {
+						with: {
+							product: true,
 						},
 					},
-				});
-			}
-
-			return collections.map((col: any) => {
-				const stops = col.trip?.stops || [];
-				const stopCustomer = stops[0]?.customer || null;
-				const linkedOrders = dbOrders.filter((o: any) =>
-					stops.some((s: any) => s.customer_id === o.customer_id)
-				);
-
-				return {
-					id: col.id,
-					tripId: col.trip_id,
-					paymentMethod: col.payment_method || "Cash",
-					amount: Number(col.amount || 0),
-					transactionId: col.transaction_id || `COL-${col.id}`,
-					referenceNumber: col.reference_number || `REF-${col.id}`,
-					collectedAt: col.collected_at
-						? new Date(col.collected_at).toLocaleString("en-IN")
-						: new Date().toLocaleString("en-IN"),
-					driverName: col.trip?.driver?.name || "Driver Staff",
-					driverEmail: col.trip?.driver?.email || "driver@evaluna.com",
-					status: "Verified",
-					customerName: stopCustomer?.name || (linkedOrders[0]?.customer?.name ?? "Customer"),
-					customerPhone: stopCustomer?.phone || linkedOrders[0]?.customer?.phone || "N/A",
-					customerAddress: stopCustomer?.address || linkedOrders[0]?.customer?.address || "On-Route Delivery Address",
-					orders: linkedOrders.map((o: any) => ({
-						id: o.id,
-						totalAmount: Number(o.total_amount || 0),
-						status: o.status || "completed",
-						financeStatus: o.finance_status || "driver_collected",
-						createdAt: o.created_at ? new Date(o.created_at).toLocaleString("en-IN") : "N/A",
-						items: (o.orderItems || []).map((it: any) => ({
-							id: it.id,
-							productName: it.product?.name || `Item #${it.product_id || it.id}`,
-							category: it.product?.category || "General",
-							quantity: Number(it.quantity || 1),
-							unitPrice: Number(it.unit_price || 0),
-							totalPrice: Number(it.unit_price || 0) * Number(it.quantity || 1),
-						})),
-					})),
-				};
+				},
 			});
-		}),
+		}
+
+		return collections.map((col: any) => {
+			const stops = col.trip?.stops || [];
+			const stopCustomer = stops[0]?.customer || null;
+			const linkedOrders = dbOrders.filter((o: any) =>
+				stops.some((s: any) => s.customer_id === o.customer_id),
+			);
+
+			return {
+				id: col.id,
+				tripId: col.trip_id,
+				paymentMethod: col.payment_method || "Cash",
+				amount: Number(col.amount || 0),
+				transactionId: col.transaction_id || `COL-${col.id}`,
+				referenceNumber: col.reference_number || `REF-${col.id}`,
+				collectedAt: col.collected_at
+					? new Date(col.collected_at).toLocaleString("en-IN")
+					: new Date().toLocaleString("en-IN"),
+				driverName: col.trip?.driver?.name || "Driver Staff",
+				driverEmail: col.trip?.driver?.email || "driver@evaluna.com",
+				status: "Verified",
+				customerName:
+					stopCustomer?.name || (linkedOrders[0]?.customer?.name ?? "Customer"),
+				customerPhone:
+					stopCustomer?.phone || linkedOrders[0]?.customer?.phone || "N/A",
+				customerAddress:
+					stopCustomer?.address ||
+					linkedOrders[0]?.customer?.address ||
+					"On-Route Delivery Address",
+				orders: linkedOrders.map((o: any) => ({
+					id: o.id,
+					totalAmount: Number(o.total_amount || 0),
+					status: o.status || "completed",
+					financeStatus: o.finance_status || "driver_collected",
+					createdAt: o.created_at
+						? new Date(o.created_at).toLocaleString("en-IN")
+						: "N/A",
+					items: (o.orderItems || []).map((it: any) => ({
+						id: it.id,
+						productName: it.product?.name || `Item #${it.product_id || it.id}`,
+						category: it.product?.category || "General",
+						quantity: Number(it.quantity || 1),
+						unitPrice: Number(it.unit_price || 0),
+						totalPrice: Number(it.unit_price || 0) * Number(it.quantity || 1),
+					})),
+				})),
+			};
+		});
+	}),
 });

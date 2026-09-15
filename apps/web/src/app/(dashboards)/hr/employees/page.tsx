@@ -2,11 +2,11 @@
 
 import { Button } from "@evaluna/ui/components/button";
 import {
-	Header,
 	Table,
 	TableBody,
 	TableCell,
 	TableHead,
+	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
 import { ActivityIcon, UsersIcon } from "lucide-react";
@@ -28,8 +28,8 @@ export default function HREmployeesPage() {
 		);
 	if (error)
 		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Error loading employees
+			<div className="flex h-[200px] items-center justify-center text-muted-foreground text-sm">
+				Failed to load employees.
 			</div>
 		);
 
@@ -57,19 +57,19 @@ export default function HREmployeesPage() {
 			</div>
 
 			{!employees || employees.length === 0 ? (
-				<div className="flex h-[200px] items-center justify-center text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
+				<div className="mt-6 flex h-[200px] items-center justify-center rounded-lg border text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
 					No employees found
 				</div>
 			) : (
-				<div className="overflow-x-auto">
+				<div className="mt-6 overflow-x-auto rounded-lg border">
 					<Table className="w-full">
 						<TableHeader>
 							<TableRow>
-								<TableHeader className="text-left">ID</TableHeader>
-								<TableHeader className="text-left">Name</TableHeader>
-								<TableHeader className="text-left">Role</TableHeader>
-								<TableHeader className="text-left">Status</TableHeader>
-								<TableHeader className="text-left">Actions</TableHeader>
+								<TableHead className="text-left">ID</TableHead>
+								<TableHead className="text-left">Name</TableHead>
+								<TableHead className="text-left">Role</TableHead>
+								<TableHead className="text-left">Status</TableHead>
+								<TableHead className="text-left">Actions</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>

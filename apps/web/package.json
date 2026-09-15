@@ -59,6 +59,7 @@
 		"html5-qrcode": "^2.3.8",
 		"jsbarcode": "^3.12.3",
 		"jspdf": "^2.5.1",
+		"jspdf-autotable": "^5.0.8",
 		"leaflet": "^1.9.4",
 		"lucide-react": "catalog:",
 		"million": "^3.0.6",

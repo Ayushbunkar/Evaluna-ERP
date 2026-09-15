@@ -1,8 +1,19 @@
 "use client";
 
-import { AlertTriangleIcon, CheckCircle2Icon, ClockIcon, MapPinIcon, PackageIcon, RouteIcon, ShieldCheckIcon, Trash2Icon, TruckIcon, UserIcon } from "lucide-react";
-import { useState } from "react";
+import {
+	AlertTriangleIcon,
+	CheckCircle2Icon,
+	ClockIcon,
+	MapPinIcon,
+	PackageIcon,
+	RouteIcon,
+	ShieldCheckIcon,
+	Trash2Icon,
+	TruckIcon,
+	UserIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,8 +74,10 @@ export function DeliveryManagementDashboard({
 
 	const { data: listDriversData } = trpc.delivery.listDrivers.useQuery({});
 	const finalDrivers = listDriversData || drivers || [];
-	const { data: allOrders = [], refetch: refetchOrders } = trpc.orders.list.useQuery();
-	const { data: driverCollections = [] } = trpc.finance.getDriverCollections.useQuery();
+	const { data: allOrders = [], refetch: refetchOrders } =
+		trpc.orders.list.useQuery();
+	const { data: driverCollections = [] } =
+		trpc.finance.getDriverCollections.useQuery();
 
 	const [assignOrder, setAssignOrder] = useState<any>(null);
 	const [isOrderAssignOpen, setIsOrderAssignOpen] = useState(false);
@@ -221,7 +234,9 @@ export function DeliveryManagementDashboard({
 		if (!tripToCancel) return;
 		try {
 			await cancelTrip.mutateAsync({ tripId: tripToCancel.id });
-			toast.success(`Trip #${tripToCancel.id} has been cancelled successfully.`);
+			toast.success(
+				`Trip #${tripToCancel.id} has been cancelled successfully.`,
+			);
 			setIsCancelModalOpen(false);
 			setTripToCancel(null);
 			setCancelReason("");
@@ -271,9 +286,12 @@ export function DeliveryManagementDashboard({
 			return;
 		}
 
-		const ordersToAssign = selectedOrderIds.length > 0
-			? unassignedOrders.filter((o: any) => selectedOrderIds.includes(o.id))
-			: assignOrder ? [assignOrder] : [];
+		const ordersToAssign =
+			selectedOrderIds.length > 0
+				? unassignedOrders.filter((o: any) => selectedOrderIds.includes(o.id))
+				: assignOrder
+					? [assignOrder]
+					: [];
 
 		if (ordersToAssign.length === 0) {
 			toast.error("No orders selected for trip assignment.");
@@ -303,7 +321,9 @@ export function DeliveryManagementDashboard({
 			stops: customerStops,
 		});
 
-		toast.success(`Dispatched 1 Trip with ${customerStops.length} Stop(s) for ${ordersToAssign.length} order(s)! Sent to Packer Queue.`);
+		toast.success(
+			`Dispatched 1 Trip with ${customerStops.length} Stop(s) for ${ordersToAssign.length} order(s)! Sent to Packer Queue.`,
+		);
 		setIsOrderAssignOpen(false);
 		setAssignOrder(null);
 		setSelectedOrderIds([]);
@@ -372,13 +392,15 @@ export function DeliveryManagementDashboard({
 						</div>
 						{selectedOrderIds.length > 0 && (
 							<Button
-								className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md"
+								className="bg-emerald-600 font-semibold text-white text-xs shadow-md hover:bg-emerald-700"
 								onClick={() => {
 									setAssignOrder(null);
 									setIsOrderAssignOpen(true);
 								}}
 							>
-								{t("assignSelectedOrdersToTrip", { count: selectedOrderIds.length })}
+								{t("assignSelectedOrdersToTrip", {
+									count: selectedOrderIds.length,
+								})}
 							</Button>
 						)}
 					</CardHeader>
@@ -386,15 +408,20 @@ export function DeliveryManagementDashboard({
 						<div className="overflow-x-auto">
 							<table className="w-full text-left text-sm">
 								<thead>
-									<tr className="border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-										<th className="px-4 py-3 w-10 text-center">
+									<tr className="border-b bg-muted/30 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+										<th className="w-10 px-4 py-3 text-center">
 											<input
 												type="checkbox"
 												className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-												checked={unassignedOrders.length > 0 && selectedOrderIds.length === unassignedOrders.length}
+												checked={
+													unassignedOrders.length > 0 &&
+													selectedOrderIds.length === unassignedOrders.length
+												}
 												onChange={(e) => {
 													if (e.target.checked) {
-														setSelectedOrderIds(unassignedOrders.map((o: any) => o.id));
+														setSelectedOrderIds(
+															unassignedOrders.map((o: any) => o.id),
+														);
 													} else {
 														setSelectedOrderIds([]);
 													}
@@ -405,15 +432,22 @@ export function DeliveryManagementDashboard({
 										<th className="px-4 py-3">{t("customerNameHeader")}</th>
 										<th className="px-4 py-3">{t("totalAmountHeader")}</th>
 										<th className="px-4 py-3">{t("orderDateHeader")}</th>
-										<th className="px-4 py-3 text-center">{t("routeStatusHeader")}</th>
-										<th className="px-4 py-3 text-center">{t("actionHeader")}</th>
+										<th className="px-4 py-3 text-center">
+											{t("routeStatusHeader")}
+										</th>
+										<th className="px-4 py-3 text-center">
+											{t("actionHeader")}
+										</th>
 									</tr>
 								</thead>
 								<tbody>
 									{unassignedOrders.map((order: any) => {
 										const isSelected = selectedOrderIds.includes(order.id);
 										return (
-											<tr key={order.id} className={`border-b transition-colors hover:bg-muted/20 last:border-0 ${isSelected ? "bg-blue-50/50 dark:bg-blue-950/20" : ""}`}>
+											<tr
+												key={order.id}
+												className={`border-b transition-colors last:border-0 hover:bg-muted/20 ${isSelected ? "bg-blue-50/50 dark:bg-blue-950/20" : ""}`}
+											>
 												<td className="px-4 py-3 text-center">
 													<input
 														type="checkbox"
@@ -421,18 +455,33 @@ export function DeliveryManagementDashboard({
 														checked={isSelected}
 														onChange={(e) => {
 															if (e.target.checked) {
-																setSelectedOrderIds([...selectedOrderIds, order.id]);
+																setSelectedOrderIds([
+																	...selectedOrderIds,
+																	order.id,
+																]);
 															} else {
-																setSelectedOrderIds(selectedOrderIds.filter((id) => id !== order.id));
+																setSelectedOrderIds(
+																	selectedOrderIds.filter(
+																		(id) => id !== order.id,
+																	),
+																);
 															}
 														}}
 													/>
 												</td>
-												<td className="px-4 py-3 font-mono font-bold text-blue-600">ORD-{order.id}</td>
-												<td className="px-4 py-3 font-medium">{order.customer?.name || "Walk-in Customer"}</td>
-												<td className="px-4 py-3 font-semibold">₹{Number(order.total_amount || 0).toFixed(2)}</td>
+												<td className="px-4 py-3 font-bold font-mono text-blue-600">
+													ORD-{order.id}
+												</td>
+												<td className="px-4 py-3 font-medium">
+													{order.customer?.name || "Walk-in Customer"}
+												</td>
+												<td className="px-4 py-3 font-semibold">
+													₹{Number(order.total_amount || 0).toFixed(2)}
+												</td>
 												<td className="px-4 py-3 text-muted-foreground text-xs">
-													{order.created_at ? new Date(order.created_at).toLocaleDateString() : "—"}
+													{order.created_at
+														? new Date(order.created_at).toLocaleDateString()
+														: "—"}
 												</td>
 												<td className="px-4 py-3 text-center">
 													<span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-[11px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
@@ -442,7 +491,7 @@ export function DeliveryManagementDashboard({
 												<td className="px-4 py-3 text-center">
 													<Button
 														size="sm"
-														className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-sm"
+														className="h-8 bg-blue-600 font-medium text-white text-xs shadow-sm hover:bg-blue-700"
 														onClick={() => {
 															setSelectedOrderIds([order.id]);
 															setAssignOrder(order);
@@ -458,7 +507,10 @@ export function DeliveryManagementDashboard({
 									})}
 									{(!unassignedOrders || unassignedOrders.length === 0) && (
 										<tr>
-											<td colSpan={7} className="py-12 text-center text-muted-foreground">
+											<td
+												colSpan={7}
+												className="py-12 text-center text-muted-foreground"
+											>
 												<PackageIcon className="mx-auto mb-3 h-10 w-10 opacity-20" />
 												<p>{t("noOrdersWaitingRouteAssignment")}</p>
 											</td>
@@ -479,22 +531,30 @@ export function DeliveryManagementDashboard({
 								Assign Route & Driver
 							</DialogTitle>
 							<DialogDescription>
-								Select a driver and vehicle for Order ORD-{assignOrder?.id} ({assignOrder?.customer?.name || "Customer"}) to dispatch it to the Packer Queue.
+								Select a driver and vehicle for Order ORD-{assignOrder?.id} (
+								{assignOrder?.customer?.name || "Customer"}) to dispatch it to
+								the Packer Queue.
 							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-4 py-4">
-							<div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+							<div className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm">
 								<div className="flex justify-between">
 									<span className="text-muted-foreground">Order Ref:</span>
-									<span className="font-mono font-bold text-blue-600">ORD-{assignOrder?.id}</span>
+									<span className="font-bold font-mono text-blue-600">
+										ORD-{assignOrder?.id}
+									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-muted-foreground">Customer:</span>
-									<span className="font-medium">{assignOrder?.customer?.name || "Walk-in Customer"}</span>
+									<span className="font-medium">
+										{assignOrder?.customer?.name || "Walk-in Customer"}
+									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-muted-foreground">Amount:</span>
-									<span className="font-semibold">₹{Number(assignOrder?.total_amount || 0).toFixed(2)}</span>
+									<span className="font-semibold">
+										₹{Number(assignOrder?.total_amount || 0).toFixed(2)}
+									</span>
 								</div>
 							</div>
 
@@ -515,8 +575,13 @@ export function DeliveryManagementDashboard({
 							</div>
 
 							<div className="space-y-2">
-								<Label className="font-medium text-xs">Assign Vehicle / Truck</Label>
-								<Select value={orderVehicleId} onValueChange={setOrderVehicleId}>
+								<Label className="font-medium text-xs">
+									Assign Vehicle / Truck
+								</Label>
+								<Select
+									value={orderVehicleId}
+									onValueChange={setOrderVehicleId}
+								>
 									<SelectTrigger>
 										<SelectValue placeholder="Select Vehicle..." />
 									</SelectTrigger>
@@ -531,22 +596,30 @@ export function DeliveryManagementDashboard({
 							</div>
 						</div>
 						<DialogFooter>
-							<Button variant="outline" onClick={() => setIsOrderAssignOpen(false)}>
+							<Button
+								variant="outline"
+								onClick={() => setIsOrderAssignOpen(false)}
+							>
 								Cancel
 							</Button>
 							<Button
-								className="bg-blue-600 hover:bg-blue-700 text-white"
+								className="bg-blue-600 text-white hover:bg-blue-700"
 								disabled={createTripDirect.isPending || !orderDriverId}
 								onClick={handleAssignOrderRoute}
 							>
-								{createTripDirect.isPending ? "Assigning..." : "Assign & Send to Packer"}
+								{createTripDirect.isPending
+									? "Assigning..."
+									: "Assign & Send to Packer"}
 							</Button>
 						</DialogFooter>
-						</DialogContent>
+					</DialogContent>
 				</Dialog>
 
 				{/* Delete Route Confirmation Modal */}
-				<Dialog open={isDeleteRouteModalOpen} onOpenChange={setIsDeleteRouteModalOpen}>
+				<Dialog
+					open={isDeleteRouteModalOpen}
+					onOpenChange={setIsDeleteRouteModalOpen}
+				>
 					<DialogContent className="max-w-md border-red-200">
 						<DialogHeader>
 							<div className="flex items-center gap-3">
@@ -558,7 +631,8 @@ export function DeliveryManagementDashboard({
 										Delete Delivery Route?
 									</DialogTitle>
 									<DialogDescription className="text-slate-500 text-xs">
-										This will permanently delete the route and all its stops. Active trips using this route will be unlinked.
+										This will permanently delete the route and all its stops.
+										Active trips using this route will be unlinked.
 									</DialogDescription>
 								</div>
 							</div>
@@ -574,20 +648,29 @@ export function DeliveryManagementDashboard({
 										</span>
 									</div>
 									{routeToDelete.description && (
-										<p className="text-slate-500 text-xs">{routeToDelete.description}</p>
+										<p className="text-slate-500 text-xs">
+											{routeToDelete.description}
+										</p>
 									)}
 									{routeToDelete.stops?.length > 0 && (
 										<div className="space-y-1 pt-1">
-											{routeToDelete.stops.slice(0, 4).map((stop: any, idx: number) => (
-												<div key={stop.id} className="flex items-center gap-2 text-xs text-slate-600">
-													<div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[9px] text-primary">
-														{idx + 1}
+											{routeToDelete.stops
+												.slice(0, 4)
+												.map((stop: any, idx: number) => (
+													<div
+														key={stop.id}
+														className="flex items-center gap-2 text-slate-600 text-xs"
+													>
+														<div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[9px] text-primary">
+															{idx + 1}
+														</div>
+														{stop.customer?.name}
 													</div>
-													{stop.customer?.name}
-												</div>
-											))}
+												))}
 											{routeToDelete.stops.length > 4 && (
-												<p className="text-slate-400 text-xs pl-6">+{routeToDelete.stops.length - 4} more stop(s)…</p>
+												<p className="pl-6 text-slate-400 text-xs">
+													+{routeToDelete.stops.length - 4} more stop(s)…
+												</p>
 											)}
 										</div>
 									)}
@@ -614,14 +697,19 @@ export function DeliveryManagementDashboard({
 								disabled={deleteRouteMutation.isPending}
 								className="font-semibold shadow-sm"
 							>
-								{deleteRouteMutation.isPending ? "Deleting..." : "Yes, Delete Route"}
+								{deleteRouteMutation.isPending
+									? "Deleting..."
+									: "Yes, Delete Route"}
 							</Button>
 						</DialogFooter>
 					</DialogContent>
 				</Dialog>
 
 				{/* Delete Trip Confirmation Modal */}
-				<Dialog open={isDeleteTripModalOpen} onOpenChange={setIsDeleteTripModalOpen}>
+				<Dialog
+					open={isDeleteTripModalOpen}
+					onOpenChange={setIsDeleteTripModalOpen}
+				>
 					<DialogContent className="max-w-md border-red-200">
 						<DialogHeader>
 							<div className="flex items-center gap-3">
@@ -633,7 +721,8 @@ export function DeliveryManagementDashboard({
 										Delete Delivery Trip?
 									</DialogTitle>
 									<DialogDescription className="text-slate-500 text-xs">
-										This will permanently remove the trip and all its stops. Orders will be released back to the dispatch queue.
+										This will permanently remove the trip and all its stops.
+										Orders will be released back to the dispatch queue.
 									</DialogDescription>
 								</div>
 							</div>
@@ -643,29 +732,39 @@ export function DeliveryManagementDashboard({
 							<div className="py-2">
 								<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
 									<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-										<span>{tripToDelete.route?.name || `Trip #${tripToDelete.id}`}</span>
-										<span className={`rounded px-2 py-0.5 font-bold text-[10px] uppercase ${
-											tripToDelete.status === "cancelled"
-												? "bg-red-100 text-red-700"
-												: tripToDelete.status === "completed"
-												? "bg-emerald-100 text-emerald-700"
-												: "bg-blue-100 text-blue-700"
-										}`}>
+										<span>
+											{tripToDelete.route?.name || `Trip #${tripToDelete.id}`}
+										</span>
+										<span
+											className={`rounded px-2 py-0.5 font-bold text-[10px] uppercase ${
+												tripToDelete.status === "cancelled"
+													? "bg-red-100 text-red-700"
+													: tripToDelete.status === "completed"
+														? "bg-emerald-100 text-emerald-700"
+														: "bg-blue-100 text-blue-700"
+											}`}
+										>
 											{tripToDelete.status}
 										</span>
 									</div>
-									<div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+									<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
 										<div>
 											<span className="text-slate-400">Driver:</span>{" "}
-											<span className="font-medium text-slate-800">{tripToDelete.driver?.name || "Unassigned"}</span>
+											<span className="font-medium text-slate-800">
+												{tripToDelete.driver?.name || "Unassigned"}
+											</span>
 										</div>
 										<div>
 											<span className="text-slate-400">Vehicle:</span>{" "}
-											<span className="font-medium text-slate-800">{tripToDelete.vehicle?.name || "N/A"}</span>
+											<span className="font-medium text-slate-800">
+												{tripToDelete.vehicle?.name || "N/A"}
+											</span>
 										</div>
 										<div className="col-span-2">
 											<span className="text-slate-400">Total Stops:</span>{" "}
-											<span className="font-medium text-slate-800">{tripToDelete.stops?.length || 0} Stop(s)</span>
+											<span className="font-medium text-slate-800">
+												{tripToDelete.stops?.length || 0} Stop(s)
+											</span>
 										</div>
 									</div>
 								</div>
@@ -691,7 +790,9 @@ export function DeliveryManagementDashboard({
 								disabled={deleteTripMutation.isPending}
 								className="font-semibold shadow-sm"
 							>
-								{deleteTripMutation.isPending ? "Deleting..." : "Yes, Delete Trip"}
+								{deleteTripMutation.isPending
+									? "Deleting..."
+									: "Yes, Delete Trip"}
 							</Button>
 						</DialogFooter>
 					</DialogContent>
@@ -1014,12 +1115,14 @@ export function DeliveryManagementDashboard({
 											className="group relative overflow-hidden rounded-md border p-4 shadow-sm"
 										>
 											<div className="absolute top-0 left-0 h-full w-1 bg-primary" />
-											<div className="flex items-start justify-between mb-1">
-												<h4 className="font-semibold text-base leading-tight">{route.name}</h4>
+											<div className="mb-1 flex items-start justify-between">
+												<h4 className="font-semibold text-base leading-tight">
+													{route.name}
+												</h4>
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600 rounded-md transition-colors"
+													className="h-7 w-7 shrink-0 rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
 													onClick={() => {
 														setRouteToDelete(route);
 														setIsDeleteRouteModalOpen(true);
@@ -1133,7 +1236,7 @@ export function DeliveryManagementDashboard({
 													<Button
 														variant="destructive"
 														size="sm"
-														className="flex-1 font-semibold shadow-sm hover:bg-red-700 transition-all"
+														className="flex-1 font-semibold shadow-sm transition-all hover:bg-red-700"
 														onClick={() => {
 															setTripToCancel(trip);
 															setIsCancelModalOpen(true);
@@ -1145,7 +1248,7 @@ export function DeliveryManagementDashboard({
 												<Button
 													variant="outline"
 													size="sm"
-													className="shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+													className="shrink-0 border-red-200 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50"
 													onClick={() => {
 														setTripToDelete(trip);
 														setIsDeleteTripModalOpen(true);
@@ -1161,7 +1264,10 @@ export function DeliveryManagementDashboard({
 						</div>
 
 						{/* Trip Cancellation Confirmation Modal */}
-						<Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
+						<Dialog
+							open={isCancelModalOpen}
+							onOpenChange={setIsCancelModalOpen}
+						>
 							<DialogContent className="max-w-md border-red-200">
 								<DialogHeader>
 									<div className="flex items-center gap-3">
@@ -1173,7 +1279,8 @@ export function DeliveryManagementDashboard({
 												Cancel Delivery Trip?
 											</DialogTitle>
 											<DialogDescription className="text-slate-500 text-xs">
-												Are you sure you want to cancel this trip? Assigned orders will be released back to dispatch.
+												Are you sure you want to cancel this trip? Assigned
+												orders will be released back to dispatch.
 											</DialogDescription>
 										</div>
 									</div>
@@ -1183,39 +1290,63 @@ export function DeliveryManagementDashboard({
 									<div className="space-y-4 py-2">
 										<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
 											<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-												<span>{tripToCancel.route?.name || `Trip #${tripToCancel.id}`}</span>
+												<span>
+													{tripToCancel.route?.name ||
+														`Trip #${tripToCancel.id}`}
+												</span>
 												<span className="rounded bg-red-100 px-2 py-0.5 font-bold text-[10px] text-red-700 uppercase">
 													{tripToCancel.status}
 												</span>
 											</div>
-											<div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+											<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
 												<div>
 													<span className="text-slate-400">Driver:</span>{" "}
-													<span className="font-medium text-slate-800">{tripToCancel.driver?.name || "Unassigned"}</span>
+													<span className="font-medium text-slate-800">
+														{tripToCancel.driver?.name || "Unassigned"}
+													</span>
 												</div>
 												<div>
 													<span className="text-slate-400">Vehicle:</span>{" "}
-													<span className="font-medium text-slate-800">{tripToCancel.vehicle?.name || "N/A"}</span>
+													<span className="font-medium text-slate-800">
+														{tripToCancel.vehicle?.name || "N/A"}
+													</span>
 												</div>
 												<div className="col-span-2">
 													<span className="text-slate-400">Total Stops:</span>{" "}
-													<span className="font-medium text-slate-800">{tripToCancel.stops?.length || 0} Stop(s)</span>
+													<span className="font-medium text-slate-800">
+														{tripToCancel.stops?.length || 0} Stop(s)
+													</span>
 												</div>
 											</div>
 										</div>
 
 										<div className="space-y-1.5">
-											<Label className="font-semibold text-slate-700 text-xs">Reason for Cancellation (Optional)</Label>
-											<Select value={cancelReason} onValueChange={setCancelReason}>
+											<Label className="font-semibold text-slate-700 text-xs">
+												Reason for Cancellation (Optional)
+											</Label>
+											<Select
+												value={cancelReason}
+												onValueChange={setCancelReason}
+											>
 												<SelectTrigger className="h-9 text-xs">
 													<SelectValue placeholder="Select cancellation reason..." />
 												</SelectTrigger>
 												<SelectContent>
-													<SelectItem value="driver_unavailable">Driver Unavailable</SelectItem>
-													<SelectItem value="vehicle_breakdown">Vehicle Breakdown / Maintenance</SelectItem>
-													<SelectItem value="route_reorganization">Route Reorganization</SelectItem>
-													<SelectItem value="customer_reschedule">Customer Rescheduled</SelectItem>
-													<SelectItem value="other">Other Operational Reason</SelectItem>
+													<SelectItem value="driver_unavailable">
+														Driver Unavailable
+													</SelectItem>
+													<SelectItem value="vehicle_breakdown">
+														Vehicle Breakdown / Maintenance
+													</SelectItem>
+													<SelectItem value="route_reorganization">
+														Route Reorganization
+													</SelectItem>
+													<SelectItem value="customer_reschedule">
+														Customer Rescheduled
+													</SelectItem>
+													<SelectItem value="other">
+														Other Operational Reason
+													</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>
@@ -1241,7 +1372,9 @@ export function DeliveryManagementDashboard({
 										disabled={cancelTrip.isPending}
 										className="font-semibold shadow-sm"
 									>
-										{cancelTrip.isPending ? "Cancelling..." : "Yes, Cancel Trip"}
+										{cancelTrip.isPending
+											? "Cancelling..."
+											: "Yes, Cancel Trip"}
 									</Button>
 								</DialogFooter>
 							</DialogContent>
@@ -1385,7 +1518,8 @@ export function DeliveryManagementDashboard({
 					<CardHeader>
 						<CardTitle>Cash & Online Settlements</CardTitle>
 						<CardDescription>
-							Verify end-of-day collections brought by drivers from customer handovers.
+							Verify end-of-day collections brought by drivers from customer
+							handovers.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -1398,39 +1532,45 @@ export function DeliveryManagementDashboard({
 								<table className="w-full text-left text-sm">
 									<thead>
 										<tr className="border-b text-muted-foreground">
-											<th className="py-2 px-3 font-medium">Driver</th>
-											<th className="py-2 px-3 font-medium">Method</th>
-											<th className="py-2 px-3 font-medium">Amount</th>
-											<th className="py-2 px-3 font-medium">Ref / Txn ID</th>
-											<th className="py-2 px-3 font-medium">Collected At</th>
-											<th className="py-2 px-3 font-medium">Status</th>
+											<th className="px-3 py-2 font-medium">Driver</th>
+											<th className="px-3 py-2 font-medium">Method</th>
+											<th className="px-3 py-2 font-medium">Amount</th>
+											<th className="px-3 py-2 font-medium">Ref / Txn ID</th>
+											<th className="px-3 py-2 font-medium">Collected At</th>
+											<th className="px-3 py-2 font-medium">Status</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y">
 										{driverCollections.map((col: any) => (
 											<tr key={col.id} className="hover:bg-muted/50">
-												<td className="py-3 px-3 font-medium">
+												<td className="px-3 py-3 font-medium">
 													<div>{col.driverName}</div>
-													<div className="text-xs text-muted-foreground">{col.driverEmail}</div>
+													<div className="text-muted-foreground text-xs">
+														{col.driverEmail}
+													</div>
 												</td>
-												<td className="py-3 px-3 capitalize">
-													<span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-														col.paymentMethod?.toLowerCase() === "cash" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
-													}`}>
+												<td className="px-3 py-3 capitalize">
+													<span
+														className={`inline-flex items-center rounded px-2 py-0.5 font-medium text-xs ${
+															col.paymentMethod?.toLowerCase() === "cash"
+																? "bg-amber-100 text-amber-800"
+																: "bg-blue-100 text-blue-800"
+														}`}
+													>
 														{col.paymentMethod}
 													</span>
 												</td>
-												<td className="py-3 px-3 font-semibold text-emerald-600">
-													₹{Number(col.amount).toLocaleString('en-IN')}
+												<td className="px-3 py-3 font-semibold text-emerald-600">
+													₹{Number(col.amount).toLocaleString("en-IN")}
 												</td>
-												<td className="py-3 px-3 font-mono text-xs">
+												<td className="px-3 py-3 font-mono text-xs">
 													{col.transactionId || col.referenceNumber}
 												</td>
-												<td className="py-3 px-3 text-xs text-muted-foreground">
+												<td className="px-3 py-3 text-muted-foreground text-xs">
 													{col.collectedAt}
 												</td>
-												<td className="py-3 px-3">
-													<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+												<td className="px-3 py-3">
+													<span className="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs">
 														{col.status}
 													</span>
 												</td>

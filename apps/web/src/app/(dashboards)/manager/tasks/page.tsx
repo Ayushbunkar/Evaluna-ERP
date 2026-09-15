@@ -26,8 +26,8 @@ import {
 	SearchIcon,
 	UserPlusIcon,
 } from "lucide-react";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -132,9 +132,7 @@ export default function TasksPage() {
 					<CardTitle className="font-bold text-base">
 						{t("workspaceTasksQueue")}
 					</CardTitle>
-					<CardDescription>
-						{t("workspaceTasksQueueSub")}
-					</CardDescription>
+					<CardDescription>{t("workspaceTasksQueueSub")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					{tasksLoading ? (
@@ -150,7 +148,9 @@ export default function TasksPage() {
 										<th className="p-3 font-semibold">{t("typeCol")}</th>
 										<th className="p-3 font-semibold">{t("statusCol")}</th>
 										<th className="p-3 font-semibold">{t("assignedToCol")}</th>
-										<th className="p-3 text-right font-semibold">{t("actionsCol")}</th>
+										<th className="p-3 text-right font-semibold">
+											{t("actionsCol")}
+										</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y">

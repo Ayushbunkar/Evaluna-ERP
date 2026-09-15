@@ -2,11 +2,11 @@
 
 import { Button } from "@evaluna/ui/components/button";
 import {
-	Header,
 	Table,
 	TableBody,
 	TableCell,
 	TableHead,
+	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
 import { ActivityIcon, BanknoteIcon } from "lucide-react";
@@ -15,6 +15,13 @@ import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
+function formatCurrency(amount: number) {
+	return new Intl.NumberFormat("en-IN", {
+		style: "currency",
+		currency: "INR",
+	}).format(amount);
+}
+
 export default function HRPayrollPage() {
 	const trpc = useTRPC();
 	const locale = useLocale();
@@ -22,7 +29,7 @@ export default function HRPayrollPage() {
 		data: payrollRecords,
 		isLoading,
 		error,
-	} = trpc.hr.getPayrollRecords.useQuery();
+	} = trpc.hr.getPayroll.useQuery();
 
 	if (isLoading)
 		return (
@@ -32,8 +39,8 @@ export default function HRPayrollPage() {
 		);
 	if (error)
 		return (
-			<div className="flex h-[200px] items-center justify-center">
-				Error loading payroll
+			<div className="flex h-[200px] items-center justify-center text-muted-foreground text-sm">
+				Failed to load payroll.
 			</div>
 		);
 
@@ -56,20 +63,20 @@ export default function HRPayrollPage() {
 			</div>
 
 			{!payrollRecords || payrollRecords.length === 0 ? (
-				<div className="flex h-[200px] items-center justify-center text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
+				<div className="mt-6 flex h-[200px] items-center justify-center rounded-lg border text-muted-foreground text-xs sm:h-[250px] sm:text-sm">
 					No payroll records found
 				</div>
 			) : (
-				<div className="overflow-x-auto">
+				<div className="mt-6 overflow-x-auto rounded-lg border">
 					<Table className="w-full">
 						<TableHeader>
 							<TableRow>
-								<TableHeader className="text-left">ID</TableHeader>
-								<TableHeader className="text-left">Employee</TableHeader>
-								<TableHeader className="text-left">Month</TableHeader>
-								<TableHeader className="text-left">Amount</TableHeader>
-								<TableHeader className="text-left">Status</TableHeader>
-								<TableHeader className="text-left">Actions</TableHeader>
+								<TableHead className="text-left">ID</TableHead>
+								<TableHead className="text-left">Employee</TableHead>
+								<TableHead className="text-left">Month</TableHead>
+								<TableHead className="text-left">Amount</TableHead>
+								<TableHead className="text-left">Status</TableHead>
+								<TableHead className="text-left">Actions</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -79,7 +86,7 @@ export default function HRPayrollPage() {
 									<TableCell>{rec.employee_name}</TableCell>
 									<TableCell>{rec.month}</TableCell>
 									<TableCell>
-										{formatCurrency(Number(rec.amount), locale)}
+										{formatCurrency(Number(rec.net_payable))}
 									</TableCell>
 									<TableCell>
 										<span

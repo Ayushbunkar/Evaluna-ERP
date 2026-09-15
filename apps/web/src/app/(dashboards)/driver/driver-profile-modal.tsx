@@ -1,8 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { useTRPC } from "@/lib/trpc/client";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Dialog,
@@ -14,6 +11,9 @@ import {
 } from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useTRPC } from "@/lib/trpc/client";
 
 export function DriverProfileModal({
 	open,
@@ -41,7 +41,9 @@ export function DriverProfileModal({
 
 	const updateProfileMutation = trpc.staff.update.useMutation({
 		onSuccess: () => {
-			toast.success("Profile information updated successfully! Refreshing session...");
+			toast.success(
+				"Profile information updated successfully! Refreshing session...",
+			);
 			onOpenChange(false);
 			refetchMe();
 			setTimeout(() => {
@@ -67,15 +69,21 @@ export function DriverProfileModal({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[425px]">
 				<DialogHeader>
-					<DialogTitle className="font-bold text-lg">Update Profile Info</DialogTitle>
-					<DialogDescription className="text-xs text-muted-foreground">
-						Edit your personal logistics records here. Click save to commit changes.
+					<DialogTitle className="font-bold text-lg">
+						Update Profile Info
+					</DialogTitle>
+					<DialogDescription className="text-muted-foreground text-xs">
+						Edit your personal logistics records here. Click save to commit
+						changes.
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4 py-4">
 					<div className="space-y-1.5">
-						<Label htmlFor="driver-name" className="font-semibold text-xs text-gray-700 dark:text-gray-300">
+						<Label
+							htmlFor="driver-name"
+							className="font-semibold text-gray-700 text-xs dark:text-gray-300"
+						>
 							Full Name
 						</Label>
 						<Input
@@ -87,7 +95,10 @@ export function DriverProfileModal({
 					</div>
 
 					<div className="space-y-1.5">
-						<Label htmlFor="driver-phone" className="font-semibold text-xs text-gray-700 dark:text-gray-300">
+						<Label
+							htmlFor="driver-phone"
+							className="font-semibold text-gray-700 text-xs dark:text-gray-300"
+						>
 							Contact Phone Number
 						</Label>
 						<Input
@@ -99,7 +110,10 @@ export function DriverProfileModal({
 					</div>
 
 					<div className="space-y-1.5">
-						<Label htmlFor="driver-address" className="font-semibold text-xs text-gray-700 dark:text-gray-300">
+						<Label
+							htmlFor="driver-address"
+							className="font-semibold text-gray-700 text-xs dark:text-gray-300"
+						>
 							Residential Address
 						</Label>
 						<Input

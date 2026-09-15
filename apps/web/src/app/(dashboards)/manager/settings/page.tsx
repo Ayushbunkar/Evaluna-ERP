@@ -11,10 +11,10 @@ import {
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { SaveIcon, SettingsIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
-import { useTranslations } from "next-intl";
 
 export default function SettingsPage() {
 	const t = useTranslations("manager");
@@ -42,9 +42,7 @@ export default function SettingsPage() {
 					<CardTitle className="font-bold text-base">
 						{t("preferencesControlFolder")}
 					</CardTitle>
-					<CardDescription>
-						{t("personalDisplaySettings")}
-					</CardDescription>
+					<CardDescription>{t("personalDisplaySettings")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
@@ -76,7 +74,8 @@ export default function SettingsPage() {
 							onClick={handleSave}
 							className="bg-blue-600 hover:bg-blue-700"
 						>
-							<SaveIcon className="mr-1.5 h-4 w-4" /> {t("saveLocalPreferences")}
+							<SaveIcon className="mr-1.5 h-4 w-4" />{" "}
+							{t("saveLocalPreferences")}
 						</Button>
 					</div>
 				</CardContent>

@@ -97,7 +97,6 @@ export async function validateGeofence(
 	gps: GpsEvidence,
 	minAccuracy: number,
 ): Promise<GeoResult> {
-
 	const rows = await db
 		.select()
 		.from(branchGeofences)
@@ -314,7 +313,10 @@ const geoCache = new Map<string, string>();
  * Perform reverse geocoding via OpenStreetMap Nominatim to resolve
  * actual human-readable location address (street/area, city, state) from lat/long.
  */
-export async function reverseGeocodeLocation(lat: number, lng: number): Promise<string | null> {
+export async function reverseGeocodeLocation(
+	lat: number,
+	lng: number,
+): Promise<string | null> {
 	const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
 	if (geoCache.has(key)) {
 		return geoCache.get(key) || null;
@@ -335,12 +337,17 @@ export async function reverseGeocodeLocation(lat: number, lng: number): Promise<
 
 		const addr = data.address;
 		const nameParts = [
-			data.name || addr.suburb || addr.neighbourhood || addr.road || addr.residential,
+			data.name ||
+				addr.suburb ||
+				addr.neighbourhood ||
+				addr.road ||
+				addr.residential,
 			addr.city || addr.town || addr.village || addr.county || addr.district,
 			addr.state,
 		].filter(Boolean);
 
-		const formattedName = nameParts.length > 0 ? nameParts.join(", ") : data.display_name;
+		const formattedName =
+			nameParts.length > 0 ? nameParts.join(", ") : data.display_name;
 		if (formattedName) {
 			geoCache.set(key, formattedName);
 			return formattedName;

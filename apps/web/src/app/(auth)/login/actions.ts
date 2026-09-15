@@ -1,7 +1,14 @@
 "use server";
 
 import { UserManagement } from "@evaluna/db";
-import { roles, userRoles, user as userTable } from "@evaluna/db/schema";
+// DB tables for auto-profile creation
+import {
+	roles,
+	staff as staffTable,
+	userRoles,
+	user as userTable,
+} from "@evaluna/db/schema";
+import { employees as employeesTable } from "@evaluna/db/schema/hrms";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
@@ -11,9 +18,6 @@ import { db } from "@/lib/db";
 import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
 import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
 import { invalidateCachedSession } from "@/lib/session-cache";
-// DB tables for auto-profile creation
-import { staff as staffTable } from "@evaluna/db/schema";
-import { employees as employeesTable } from "@evaluna/db/schema/hrms";
 
 export async function login(formData: FormData) {
 	const email = formData.get("email") as string;
@@ -192,7 +196,9 @@ export async function login(formData: FormData) {
 					.limit(1);
 
 				if (!empRecord) {
-					const nameParts = (user.name || email.split("@")[0]).trim().split(/\s+/);
+					const nameParts = (user.name || email.split("@")[0])
+						.trim()
+						.split(/\s+/);
 					const firstName = nameParts[0] || "User";
 					const lastName = nameParts.slice(1).join(" ") || "Employee";
 					await db
