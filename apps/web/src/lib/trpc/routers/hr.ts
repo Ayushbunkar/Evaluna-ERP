@@ -24,6 +24,7 @@ import {
 	sql,
 } from "drizzle-orm";
 import { z } from "zod";
+import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const hrRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "auditor", "hr"])
