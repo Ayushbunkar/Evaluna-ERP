@@ -294,10 +294,10 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 	{ domain: "audit", action: "write", minRole: "auditor" },
 	{ domain: "audit", action: "approve", minRole: "auditor" },
 
-	// UPC verification / generation / task assignment
-	{ domain: "upc", action: "read", minRole: "auditor" },
-	{ domain: "upc", action: "write", minRole: "auditor" },
-	{ domain: "upc", action: "approve", minRole: "auditor" },
+	// UPC verification / generation / task assignment (Warehouse Manager / Supervisor & Field Staff)
+	{ domain: "upc", action: "read", minRole: "picker" },
+	{ domain: "upc", action: "write", minRole: "warehouse_supervisor" },
+	{ domain: "upc", action: "approve", minRole: "warehouse_supervisor" },
 
 	// Stock placement verification
 	{ domain: "placement", action: "read", minRole: "auditor" },

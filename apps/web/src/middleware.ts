@@ -39,9 +39,17 @@ export default async function middleware(request: NextRequest) {
 		"/about",
 		"/features",
 		"/solutions",
+		"/product",
+		"/pricing",
+		"/careers",
+		"/blog",
 		"/resources",
 		"/contact",
-		"/careers",
+		"/privacy",
+		"/terms",
+		"/status",
+		"/docs",
+		"/demo",
 	];
 
 	if (

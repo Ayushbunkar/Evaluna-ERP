@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { motion } from "framer-motion";
@@ -37,9 +37,9 @@ export function Footer() {
 	];
 
 	const legalLinks = [
-		{ name: "Privacy Policy", href: "/legal/privacy" },
-		{ name: "Terms of Service", href: "/legal/terms" },
-		{ name: "Cookie Policy", href: "/legal/cookies" },
+		{ name: "Privacy Policy", href: "/privacy" },
+		{ name: "Terms of Service", href: "/terms" },
+		{ name: "Cookie Policy", href: "/privacy" },
 	];
 
 	return (

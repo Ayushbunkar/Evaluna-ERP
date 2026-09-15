@@ -12,6 +12,7 @@ import {
 	LogOutIcon,
 	MenuIcon,
 	PackageIcon,
+	QrCodeIcon,
 	RefreshCwIcon,
 	TruckIcon,
 	UserIcon,
@@ -125,12 +126,17 @@ export default function WarehouseWMSLayout({
 			],
 		},
 		{
-			title: "Inventory",
+			title: "Inventory & Barcodes",
 			items: [
 				{
 					label: "Warehouse Stock",
 					href: "/dashboard/warehouse/stock",
 					icon: BoxesIcon,
+				},
+				{
+					label: "UPC Generator",
+					href: "/dashboard/warehouse/upc-generator",
+					icon: QrCodeIcon,
 				},
 			],
 		},

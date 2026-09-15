@@ -39,6 +39,8 @@ export default function TasksPage() {
 		trpc.warehouse.getPickingQueue.useQuery();
 	const { data: putAwayQueue, isLoading: putAwayLoading } =
 		trpc.warehouse.getPutAwayQueue.useQuery();
+	const { data: upcTasksData, isLoading: upcTasksLoading } =
+		trpc.upc.listTasks.useQuery({ pageSize: 50 });
 
 	const combinedTasks: any[] = [];
 
@@ -70,6 +72,20 @@ export default function TasksPage() {
 		});
 	}
 
+	if (upcTasksData?.tasks) {
+		upcTasksData.tasks.forEach((ut) => {
+			combinedTasks.push({
+				id: `UPC-${ut.id}`,
+				type: `UPC ${ut.task_type.toUpperCase()}`,
+				reference: ut.product_name ? `${ut.product_name} (${ut.sku || "N/A"})` : (ut.upc_value || "UPC Task"),
+				status: ut.status,
+				operator: ut.assigned_to_name || "Unassigned",
+				priority: ut.priority || "MEDIUM",
+				created_at: ut.created_at ? new Date(ut.created_at).toLocaleDateString() : "—",
+			});
+		});
+	}
+
 	const filteredTasks = combinedTasks.filter((t) => {
 		const matchesSearch =
 			t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -81,15 +97,18 @@ export default function TasksPage() {
 			statusFilter === "all" ||
 			(statusFilter === "pending" &&
 				(t.status === "pending" ||
+					t.status === "PENDING" ||
+					t.status === "ASSIGNED" ||
+					t.status === "IN_PROGRESS" ||
 					t.status === "AWAITING_PLACEMENT" ||
 					t.status === "assigned")) ||
 			(statusFilter === "completed" &&
-				(t.status === "completed" || t.status === "VERIFIED"));
+				(t.status === "completed" || t.status === "COMPLETED" || t.status === "VERIFIED"));
 
 		return matchesSearch && matchesStatus;
 	});
 
-	const isLoading = pickingLoading || putAwayLoading;
+	const isLoading = pickingLoading || putAwayLoading || upcTasksLoading;
 
 	return (
 		<PageTransition className="space-y-6 p-4 sm:p-6">

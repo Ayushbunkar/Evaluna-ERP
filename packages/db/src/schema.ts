@@ -2435,6 +2435,8 @@ export const upcTasks = pgTable(
 		verified_by: integer("verified_by").references(() => staff.id),
 		upc_value: varchar("upc_value", { length: 64 }),
 		upc_source: varchar("upc_source", { length: 20 }), // internal, external
+		priority: varchar("priority", { length: 20 }).default("MEDIUM"), // LOW, MEDIUM, HIGH, URGENT
+		instructions: text("instructions"),
 		due_at: timestamp("due_at"),
 		notes: text("notes"),
 		created_at: timestamp("created_at").defaultNow(),
