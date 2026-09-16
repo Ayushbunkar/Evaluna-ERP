@@ -13,6 +13,7 @@ async function main() {
       ALTER TABLE "customers" 
       ADD COLUMN IF NOT EXISTS "latitude" varchar(50),
       ADD COLUMN IF NOT EXISTS "longitude" varchar(50);
+      ALTER TABLE "customers" ALTER COLUMN "email" DROP NOT NULL;
     `);
 		console.log(
 			"Successfully added latitude and longitude to customers table.",

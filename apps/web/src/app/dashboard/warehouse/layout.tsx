@@ -9,6 +9,7 @@ import {
 	CheckSquareIcon,
 	ChevronDownIcon,
 	ClipboardListIcon,
+	IndianRupeeIcon,
 	LogOutIcon,
 	MenuIcon,
 	PackageIcon,
@@ -132,6 +133,11 @@ export default function WarehouseWMSLayout({
 					label: "Warehouse Stock",
 					href: "/dashboard/warehouse/stock",
 					icon: BoxesIcon,
+				},
+				{
+					label: "Cash Book",
+					href: "/dashboard/warehouse/cashbook",
+					icon: IndianRupeeIcon,
 				},
 				{
 					label: "UPC Generator",

@@ -53,7 +53,7 @@ export const createTRPCContext = async (opts?: {
 				status: user.status,
 				forcePasswordChange: user.forcePasswordChange,
 				isSuperadmin: user.isSuperadmin,
-				branchId: user.branchId,
+				branchId: user.branchId ?? user.staff?.branchId ?? null,
 				warehouseId: user.warehouseId,
 				staff: user.staff,
 				primaryRole: user.primaryRole

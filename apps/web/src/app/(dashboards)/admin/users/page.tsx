@@ -363,9 +363,9 @@ export default function AdminUsersPage() {
 						<>
 							{/* Mobile Card List (<md) */}
 							<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
-								{users.map((u) => (
+								{users.map((u, idx) => (
 									<div
-										key={u.id}
+										key={`${u.id}-${idx}`}
 										className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-3.5 shadow-xs"
 									>
 										<div className="flex items-start justify-between gap-2">
@@ -474,8 +474,8 @@ export default function AdminUsersPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{users.map((u) => (
-											<TableRow key={u.id} className="hover:bg-muted/30">
+										{users.map((u, idx) => (
+											<TableRow key={`${u.id}-${idx}`} className="hover:bg-muted/30">
 												<TableCell className="font-medium">{u.name}</TableCell>
 												<TableCell className="font-mono text-xs">
 													{u.staffCode || "N/A"}

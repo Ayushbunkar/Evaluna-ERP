@@ -289,7 +289,7 @@ export async function getAuthUser(
 		status: dbUser.status as CachedSession["status"],
 		forcePasswordChange: dbUser.force_password_change ?? false,
 		isSuperadmin: dbUser.is_superadmin ?? false,
-		branchId: dbUser.branch_id ?? null,
+		branchId: dbUser.branch_id ?? dbUser.staff?.branch_id ?? null,
 		warehouseId: dbUser.warehouse_id ?? null,
 		staff: dbUser.staff
 			? {

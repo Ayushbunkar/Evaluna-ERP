@@ -33,11 +33,18 @@ export const usersRouter = router({
 				})
 				.default({}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ ctx, input }) => {
+			const isSuperAdmin = Boolean(ctx.user.isSuperadmin || ctx.user.role === "super_admin");
+			const effectiveBranchId = isSuperAdmin
+				? input.branchId
+				: ctx.user.branchId
+					? Number(ctx.user.branchId)
+					: input.branchId;
+
 			const result = await UserManagement.listUsers(input.page, input.limit, {
 				roleName: input.roleName as Role | undefined,
 				status: input.status as UserStatus | undefined,
-				branchId: input.branchId,
+				branchId: effectiveBranchId,
 				warehouseId: input.warehouseId,
 				search: input.search,
 			});
@@ -109,13 +116,22 @@ export const usersRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			const isSuperAdmin = Boolean(ctx.user.isSuperadmin || ctx.user.role === "super_admin");
+
 			// Privilege Escalation Prevention (Requirement 17)
-			if (input.roleName === "super_admin" && !ctx.user.isSuperadmin) {
+			if (input.roleName === "super_admin" && !isSuperAdmin) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
 					message: "Only a Super Admin can create a Super Admin account.",
 				});
 			}
+
+			// Branch Admin can only create users for their assigned branch
+			const targetBranchId = isSuperAdmin
+				? input.branchId
+				: ctx.user.branchId
+					? Number(ctx.user.branchId)
+					: input.branchId;
 
 			try {
 				const result = await UserManagement.createUserWithStaffAndRole({
@@ -123,7 +139,7 @@ export const usersRouter = router({
 					employeeId: input.employeeId,
 					email: input.email,
 					roleName: input.roleName as Role,
-					branchId: input.branchId,
+					branchId: targetBranchId,
 					warehouseId: input.warehouseId,
 					initialPassword: input.initialPassword,
 					forcePasswordChange: input.forcePasswordChange,

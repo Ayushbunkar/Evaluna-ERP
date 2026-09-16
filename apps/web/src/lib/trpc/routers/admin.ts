@@ -1477,7 +1477,13 @@ export const adminRouter = router({
 		.input(
 			z.object({
 				name: z.string().trim().min(2).max(255),
-				email: z.string().trim().toLowerCase().email(),
+				email: z
+					.string()
+					.trim()
+					.toLowerCase()
+					.email()
+					.optional()
+					.or(z.literal("")),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
 				gst_number: z
@@ -1510,7 +1516,7 @@ export const adminRouter = router({
 						.insert(customers)
 						.values({
 							name: input.name,
-							email: input.email,
+							email: blank(input.email),
 							phone: blank(input.phone),
 							address: blank(input.address),
 							gst_number: blank(input.gst_number),
@@ -1554,7 +1560,13 @@ export const adminRouter = router({
 			z.object({
 				id: z.number().int(),
 				name: z.string().trim().min(2).max(255).optional(),
-				email: z.string().trim().toLowerCase().email().optional(),
+				email: z
+					.string()
+					.trim()
+					.toLowerCase()
+					.email()
+					.optional()
+					.or(z.literal("")),
 				phone: z.string().trim().max(20).optional().or(z.literal("")),
 				address: z.string().trim().max(500).optional().or(z.literal("")),
 				gst_number: z

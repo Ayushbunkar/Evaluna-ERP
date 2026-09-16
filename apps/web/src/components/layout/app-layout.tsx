@@ -98,6 +98,11 @@ const ROLE_CONFIG: Record<
 		color: "text-cyan-700 dark:text-cyan-300",
 		bg: "bg-cyan-100 dark:bg-cyan-900/40",
 	},
+	packer: {
+		label: "Packer",
+		color: "text-amber-700 dark:text-amber-300",
+		bg: "bg-amber-100 dark:bg-amber-900/40",
+	},
 	customer: {
 		label: "Customer",
 		color: "text-emerald-700 dark:text-emerald-300",

@@ -100,7 +100,7 @@ export function createTestDb() {
 	return { pg, db };
 }
 
-export function makeUser(id: string) {
+export function makeUser(id: string, overrides?: Partial<{ role: string; branchId: number | null; isSuperadmin: boolean }>) {
 	return {
 		id,
 		name: "Test",
@@ -108,9 +108,9 @@ export function makeUser(id: string) {
 		// BaseUser fields the current procedures authorize against. Default to an
 		// active admin so protectedProcedure/roleProcedure pass; tests that assert
 		// isolation do so at the data layer (user_uid / branch filters), not role.
-		role: "admin",
-		branchId: null,
-		isSuperadmin: false,
+		role: overrides?.role ?? "admin",
+		branchId: overrides?.branchId ?? null,
+		isSuperadmin: overrides?.isSuperadmin ?? false,
 		isActive: true,
 		permissions: [] as string[],
 		// Legacy Better-Auth fields kept for any test that still reads them.

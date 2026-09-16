@@ -457,9 +457,19 @@ export default function CustomerProductsPage() {
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<span className="w-8 text-center font-semibold text-xs">
-												{currentQty}
-											</span>
+											<Input
+												type="number"
+												min={1}
+												value={currentQty}
+												onChange={(e) => {
+													const val = parseInt(e.target.value, 10);
+													if (!isNaN(val) && val >= 1) {
+														setQty(product.id, val);
+													}
+												}}
+												className="h-7 w-12 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+												disabled={!isAvailable}
+											/>
 											<Button
 												variant="ghost"
 												size="icon"
@@ -579,9 +589,18 @@ export default function CustomerProductsPage() {
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<span className="w-8 text-center font-semibold text-xs">
-												{item.quantity}
-											</span>
+											<Input
+												type="number"
+												min={1}
+												value={item.quantity}
+												onChange={(e) => {
+													const val = parseInt(e.target.value, 10);
+													if (!isNaN(val) && val >= 1) {
+														updateCartQty(item.productId, val);
+													}
+												}}
+												className="h-6 w-12 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+											/>
 											<Button
 												variant="ghost"
 												size="icon"

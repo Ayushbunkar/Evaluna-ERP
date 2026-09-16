@@ -67,8 +67,9 @@ export default function OrdersPage() {
 
 	const statusFilterOptions: FilterOption[] = [
 		{ label: tc("all"), value: "all" },
-		{ label: tc("completed"), value: "completed", variant: "success" },
-		{ label: tc("pending"), value: "pending", variant: "warning" },
+		{ label: "Confirmed / Active", value: "confirmed", variant: "primary" },
+		{ label: "Pending Review", value: "pending_review", variant: "warning" },
+		{ label: "Delivered / Completed", value: "completed", variant: "success" },
 		{ label: tc("cancelled"), value: "cancelled", variant: "danger" },
 	];
 
@@ -94,18 +95,67 @@ export default function OrdersPage() {
 			sortable: true,
 			render: (row) => {
 				const s = (row.status ?? "pending").toLowerCase();
-				const isCompleted = s === "completed" || s === "confirmed" || s === "billed";
-				const color = isCompleted
-					? "text-green-600 font-medium"
-					: s === "cancelled"
-						? "text-red-600 font-medium"
-						: "text-yellow-600 font-medium";
-				const label = isCompleted
-					? tc("completed")
-					: s === "cancelled"
-						? tc("cancelled")
-						: tc("pending");
-				return <span className={color}>{label}</span>;
+				const statusConfig: Record<string, { label: string; cls: string; bg: string }> = {
+					confirmed: {
+						label: "Confirmed (In Processing)",
+						cls: "text-blue-700 dark:text-blue-400 font-semibold",
+						bg: "bg-blue-500/10 border border-blue-500/20",
+					},
+					completed: {
+						label: "Delivered / Completed",
+						cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
+						bg: "bg-emerald-500/10 border border-emerald-500/20",
+					},
+					delivered: {
+						label: "Delivered",
+						cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
+						bg: "bg-emerald-500/10 border border-emerald-500/20",
+					},
+					billed: {
+						label: "Billed",
+						cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
+						bg: "bg-emerald-500/10 border border-emerald-500/20",
+					},
+					ready_for_dispatch: {
+						label: "Packed & Ready",
+						cls: "text-indigo-700 dark:text-indigo-400 font-semibold",
+						bg: "bg-indigo-500/10 border border-indigo-500/20",
+					},
+					in_transit: {
+						label: "Out for Delivery",
+						cls: "text-amber-700 dark:text-amber-400 font-semibold",
+						bg: "bg-amber-500/10 border border-amber-500/20",
+					},
+					pending_review: {
+						label: "Pending Review",
+						cls: "text-yellow-700 dark:text-yellow-400 font-semibold",
+						bg: "bg-yellow-500/10 border border-yellow-500/20",
+					},
+					under_review: {
+						label: "Under Review",
+						cls: "text-amber-700 dark:text-amber-400 font-semibold",
+						bg: "bg-amber-500/10 border border-amber-500/20",
+					},
+					cancelled: {
+						label: "Cancelled",
+						cls: "text-red-700 dark:text-red-400 font-semibold",
+						bg: "bg-red-500/10 border border-red-500/20",
+					},
+				};
+
+				const config = statusConfig[s] ?? {
+					label: s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+					cls: "text-muted-foreground",
+					bg: "bg-muted border border-border/50",
+				};
+
+				return (
+					<span
+						className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs ${config.cls} ${config.bg}`}
+					>
+						{config.label}
+					</span>
+				);
 			},
 		},
 		{
@@ -114,26 +164,36 @@ export default function OrdersPage() {
 			sortable: false,
 			render: (row: any) => {
 				const fs = row.finance_status ?? "pending_collection";
-				const map: Record<string, { label: string; cls: string }> = {
+				const map: Record<string, { label: string; cls: string; bg: string }> = {
 					pending_collection: {
-						label: tc("pendingCollection") || "Pending Collection",
-						cls: "text-yellow-600",
+						label: "Pending Driver Collection",
+						cls: "text-yellow-700 dark:text-yellow-400 font-medium",
+						bg: "bg-yellow-500/10 border border-yellow-500/20",
 					},
 					driver_collected: {
-						label: tc("driverCollected") || "Driver Collected",
-						cls: "text-blue-600",
+						label: "Driver Collected ✓",
+						cls: "text-blue-700 dark:text-blue-400 font-medium",
+						bg: "bg-blue-500/10 border border-blue-500/20",
 					},
 					finance_submitted: {
-						label: tc("financeSubmitted") || "Submitted to Finance",
-						cls: "text-purple-600",
+						label: "Submitted to Finance",
+						cls: "text-purple-700 dark:text-purple-400 font-medium",
+						bg: "bg-purple-500/10 border border-purple-500/20",
 					},
 					reconciled: {
-						label: tc("reconciled") || "Reconciled ✓",
-						cls: "text-emerald-600 font-semibold",
+						label: "Reconciled (Completed) ✓",
+						cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
+						bg: "bg-emerald-500/10 border border-emerald-500/20",
 					},
 				};
-				const { label, cls } = map[fs] ?? map.pending_collection;
-				return <span className={`text-xs ${cls}`}>{label}</span>;
+				const { label, cls, bg } = map[fs] ?? map.pending_collection;
+				return (
+					<span
+						className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${cls} ${bg}`}
+					>
+						{label}
+					</span>
+				);
 			},
 		},
 		{
@@ -248,14 +308,18 @@ export default function OrdersPage() {
 		return orders.filter((o) => {
 			const currentStatus = (o.status || "pending").toLowerCase();
 			if (statusFilter !== "all") {
-				const isCompleted =
-					currentStatus === "completed" ||
-					currentStatus === "confirmed" ||
-					currentStatus === "billed";
-				if (statusFilter === "completed" && !isCompleted) return false;
-				if (statusFilter === "pending" && isCompleted) return false;
-				if (statusFilter === "cancelled" && currentStatus !== "cancelled")
-					return false;
+				if (statusFilter === "confirmed") {
+					if (!["confirmed", "billed", "ready_for_dispatch", "in_transit"].includes(currentStatus))
+						return false;
+				} else if (statusFilter === "pending_review") {
+					if (!["pending", "pending_review", "under_review"].includes(currentStatus))
+						return false;
+				} else if (statusFilter === "completed") {
+					if (!["completed", "delivered"].includes(currentStatus))
+						return false;
+				} else if (statusFilter === "cancelled") {
+					if (currentStatus !== "cancelled") return false;
+				}
 			}
 			const q = searchTerm.toLowerCase();
 			return (

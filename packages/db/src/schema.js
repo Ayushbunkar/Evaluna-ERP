@@ -49,7 +49,7 @@ export const customers = pgTable("customers", {
 	id: serial("id").primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
 	email: varchar("email", { length: 255 }).notNull().unique(),
-	phone: varchar("phone", { length: 20 }),
+	phone: varchar("phone", { length: 100 }),
 	user_uid: varchar("user_uid", { length: 255 }).notNull(),
 	status: varchar("status", { length: 20 }),
 	gstin: varchar("gstin", { length: 15 }),

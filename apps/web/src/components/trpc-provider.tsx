@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
@@ -13,9 +13,10 @@ export function TRPCReactProvider({ children }: { children: React.ReactNode }) {
 			new QueryClient({
 				defaultOptions: {
 					queries: {
-						staleTime: 5 * 60 * 1000, // 5 minutes default stale time
+						staleTime: 3 * 1000, // 3 seconds stale time for real-time reactivity
 						gcTime: 24 * 60 * 60 * 1000, // 24 hours garbage collection time (offline friendly)
-						refetchOnWindowFocus: false, // Prevent aggressive refetches
+						refetchOnWindowFocus: true, // Automatically sync data whenever user switches back to the tab
+						refetchInterval: 5000, // Global real-time poll every 5s across all role dashboards (Sales, Customer, Picker, Packer, Manager, Driver)
 						retry: 2, // Retry failed requests twice
 					},
 				},

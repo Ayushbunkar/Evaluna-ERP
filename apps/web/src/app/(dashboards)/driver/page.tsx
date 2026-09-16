@@ -136,10 +136,32 @@ export default function DriverDashboard() {
 						{dashboard?.nextDelivery ? (
 							<div className="space-y-4">
 								<div className="flex items-center justify-between border-border/50 p-3">
-									<div className="flex flex-col">
-										<p className="font-medium text-sm">
-											Order {dashboard.nextDelivery.orderId}
-										</p>
+									<div className="flex flex-col gap-1">
+										<div className="flex flex-wrap items-center gap-1.5">
+											{dashboard.nextDelivery.orders &&
+											dashboard.nextDelivery.orders.length > 0 ? (
+												dashboard.nextDelivery.orders.map((ord: any) => (
+													<span
+														key={ord.id}
+														className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+													>
+														ORD-{ord.id}
+													</span>
+												))
+											) : (
+												<p className="font-semibold text-sm">
+													{dashboard.nextDelivery.orderId.startsWith("ORD-")
+														? dashboard.nextDelivery.orderId
+														: `ORD-${dashboard.nextDelivery.orderId}`}
+												</p>
+											)}
+											{dashboard.nextDelivery.ordersCount &&
+												dashboard.nextDelivery.ordersCount > 1 && (
+													<span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+														{dashboard.nextDelivery.ordersCount} Orders
+													</span>
+												)}
+										</div>
 										<p className="text-muted-foreground text-xs">
 											{dashboard.nextDelivery.customerName}
 										</p>

@@ -105,7 +105,7 @@ export const ordersRouter = router({
 			return result ?? null;
 		}),
 
-	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+	list: roleProcedure(["admin", "manager", "auditor", "sales_person", "biller"])
 		.meta({
 			openapi: {
 				method: "GET",
@@ -118,29 +118,34 @@ export const ordersRouter = router({
 		.output(z.array(orderWithCustomerSchema))
 		.query(async ({ ctx }) => {
 			const branchId = ctx.user?.branchId ?? null;
-			const role = ctx.user?.role;
-			const isManagerOrAdmin =
-				role === "admin" ||
-				role === "manager" ||
-				role === "auditor" ||
-				role === "superadmin" ||
-				role === "delivery_manager";
+			const privilegedRoles = [
+				"admin",
+				"manager",
+				"finance",
+				"warehouse_manager",
+				"accountant",
+				"sales_person",
+				"salesperson",
+				"sales",
+				"biller",
+			];
+			const isPrivileged =
+				ctx.user?.isSuperadmin ||
+				(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
 
 			return db.query.orders.findMany({
-				where: and(
-					branchId ? eq(orders.branch_id, branchId) : undefined,
-					isManagerOrAdmin && branchId !== null
+				where: branchId
+					? isPrivileged
+						? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
+						: and(
+								eq(orders.branch_id, branchId),
+								eq(orders.user_uid, ctx.user?.id),
+							)
+					: isPrivileged
 						? undefined
-						: or(
-								eq(orders.user_uid, ctx.user.id),
-								and(
-									isNotNull(orders.original_items),
-									notInArray(orders.status, ["pending_review", "under_review"]),
-								),
-							),
-				),
+						: eq(orders.user_uid, ctx.user?.id),
 				orderBy: [desc(orders.created_at)],
-				limit: 200,
+				limit: 300,
 				with: {
 					customer: {
 						columns: { id: true, name: true, phone: true, address: true },
@@ -499,22 +504,24 @@ export const ordersRouter = router({
 		"manager",
 		"sales_person",
 		"biller",
+		"sales",
 	])
 		.input(z.void())
 		.query(async ({ ctx }) => {
 			const branchId = ctx.user?.branchId ?? null;
+
 			const rows = await db.query.orders.findMany({
-				where: branchId
-					? and(
-							inArray(orders.status, ["pending_review", "under_review"]),
-							eq(orders.branch_id, branchId),
-						)
-					: inArray(orders.status, ["pending_review", "under_review"]),
+				where: and(
+					inArray(orders.status, ["pending_review", "under_review"]),
+					branchId
+						? or(eq(orders.branch_id, branchId), sql`${orders.branch_id} IS NULL`)
+						: undefined,
+				),
 				orderBy: [desc(orders.created_at)],
-				limit: 200,
+				limit: 300,
 				with: {
 					customer: {
-						columns: { name: true, phone: true, customer_code: true },
+						columns: { id: true, name: true, phone: true, customer_code: true },
 					},
 					orderItems: { columns: { id: true } },
 				},
@@ -530,7 +537,13 @@ export const ordersRouter = router({
 				createdAt: o.created_at,
 			}));
 		}),
-	getPendingCount: roleProcedure(["admin", "manager", "sales_person", "biller"])
+	getPendingCount: roleProcedure([
+		"admin",
+		"manager",
+		"sales_person",
+		"biller",
+		"sales",
+	])
 		.input(z.void())
 		.query(async ({ ctx }) => {
 			const branchId = ctx.user?.branchId ?? null;
@@ -541,7 +554,10 @@ export const ordersRouter = router({
 					branchId
 						? and(
 								inArray(orders.status, ["pending_review", "under_review"]),
-								eq(orders.branch_id, branchId),
+								or(
+									eq(orders.branch_id, branchId),
+									sql`${orders.branch_id} IS NULL`,
+								),
 							)
 						: inArray(orders.status, ["pending_review", "under_review"]),
 				);
@@ -953,7 +969,7 @@ export const ordersRouter = router({
 				const confirmed = await tx
 					.update(orders)
 					.set({
-						status: "completed",
+						status: "confirmed",
 						locked: true,
 						total_amount: total.toString(),
 						discount_amount: discount.toString(),

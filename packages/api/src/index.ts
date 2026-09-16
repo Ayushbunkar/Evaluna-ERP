@@ -1,6 +1,7 @@
 import type { Role } from "@evaluna/db";
 import { customers } from "@evaluna/db/schema";
 import { initTRPC, TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import superjson from "superjson";
 
 // Context type
@@ -151,15 +152,27 @@ export const customerProcedure = protectedProcedure.use(
 		}
 
 		let customer = await ctx.db.query.customers.findFirst({
-			where: (c: any, { eq, and, or }: any) =>
+			where: (c: any, { eq, and, or, ilike }: any) =>
 				and(
 					or(
 						eq(c.user_uid, ctx.user.id),
 						ctx.user.email ? eq(c.email, ctx.user.email) : undefined,
+						(ctx.user as any).phone ? eq(c.phone, (ctx.user as any).phone) : undefined,
+						ctx.user.name ? ilike(c.name, ctx.user.name) : undefined,
 					),
 					eq(c.is_deleted, false),
 				),
 		});
+
+		// Auto-link user_uid if found by email/name/phone
+		if (customer && !customer.user_uid && ctx.user.id) {
+			try {
+				await ctx.db
+					.update(customers)
+					.set({ user_uid: ctx.user.id })
+					.where(eq(customers.id, customer.id));
+			} catch (_e) {}
+		}
 
 		if (!customer && ctx.user.email) {
 			const roleName = (

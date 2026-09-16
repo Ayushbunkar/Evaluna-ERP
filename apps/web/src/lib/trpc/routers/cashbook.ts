@@ -14,9 +14,19 @@ export const cashbookRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const userId = ctx.user?.id;
+			const roleName = ctx.user?.primaryRole?.name?.toLowerCase() || "";
+			const isPrivileged =
+				ctx.user?.isSuperadmin ||
+				["admin", "superadmin", "manager", "finance", "warehouse_manager", "accountant"].includes(roleName);
+
+			const whereClause = isPrivileged
+				? undefined
+				: ctx.user?.id
+					? eq(transactions.user_uid, ctx.user.id)
+					: undefined;
+
 			const items = await db.query.transactions.findMany({
-				where: userId ? eq(transactions.user_uid, userId) : undefined,
+				where: whereClause,
 				orderBy: [desc(transactions.created_at)],
 				limit: input.limit,
 				offset: input.offset,
@@ -60,15 +70,22 @@ export const cashbookRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const userId = ctx.user?.id;
+			const roleName = ctx.user?.primaryRole?.name?.toLowerCase() || "";
+			const isPrivileged =
+				ctx.user?.isSuperadmin ||
+				["admin", "superadmin", "manager", "finance", "warehouse_manager", "accountant"].includes(roleName);
+
+			const userFilter = isPrivileged
+				? undefined
+				: ctx.user?.id
+					? eq(transactions.user_uid, ctx.user.id)
+					: undefined;
+
 			let targetDate = input.date ? new Date(input.date) : new Date();
 
 			if (!input.date) {
-				const whereClause = userId
-					? and(eq(transactions.user_uid, userId))
-					: undefined;
 				const latestTx = await db.query.transactions.findFirst({
-					where: whereClause,
+					where: userFilter,
 					orderBy: [desc(transactions.created_at)],
 				});
 				if (latestTx?.created_at) {
@@ -78,8 +95,6 @@ export const cashbookRouter = router({
 
 			const start = startOfDay(targetDate);
 			const end = endOfDay(targetDate);
-
-			const userFilter = userId ? eq(transactions.user_uid, userId) : undefined;
 
 			const dailyTx = await db.query.transactions.findMany({
 				where: and(

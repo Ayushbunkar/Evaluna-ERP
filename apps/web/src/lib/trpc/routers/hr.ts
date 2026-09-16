@@ -145,26 +145,38 @@ export const hrRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			try {
-				let query = db.select().from(staff).where(eq(staff.is_deleted, false));
+				const isSuperAdmin = Boolean(
+					ctx.user.isSuperadmin || ctx.user.role === "super_admin",
+				);
+				const effectiveBranchId = isSuperAdmin
+					? input?.branch_id
+					: ctx.user.branchId
+						? Number(ctx.user.branchId)
+						: input?.branch_id;
 
-				if (input?.branch_id) {
-					query = query.where(eq(staff.branch_id, input.branch_id));
-				} else if (ctx.user.branchId) {
-					// Use the authenticated user's branch if no branch_id is provided
-					query = query.where(eq(staff.branch_id, ctx.user.branchId));
+				const conditions = [eq(staff.is_deleted, false)];
+				if (effectiveBranchId !== undefined && effectiveBranchId !== null) {
+					conditions.push(eq(staff.branch_id, effectiveBranchId));
 				}
 
-				if (input?.search) {
-					const searchTerm = `%${input.search}%`;
-					query = query.where(
-						and(
+				if (input?.search?.trim()) {
+					const searchTerm = `%${input.search.trim()}%`;
+					conditions.push(
+						or(
 							ilike(staff.name, searchTerm),
 							ilike(staff.staff_code, searchTerm),
-						),
+							ilike(staff.email, searchTerm),
+							ilike(staff.phone, searchTerm),
+						)!,
 					);
 				}
 
-				const results = await query.orderBy(desc(staff.created_at)).limit(100);
+				const results = await db
+					.select()
+					.from(staff)
+					.where(and(...conditions))
+					.orderBy(desc(staff.created_at))
+					.limit(100);
 
 				return results.map((r) => ({
 					id: r.id,
@@ -178,11 +190,15 @@ export const hrRouter = router({
 						? new Date(r.join_date).toLocaleDateString()
 						: "",
 					salary: Number(r.salary) || 0,
-					status: r.status === "active" ? "Active" : "Inactive",
+					status: r.status || "active",
+					branch_id: r.branch_id,
 				}));
-			} catch (err) {
+			} catch (err: any) {
 				console.error("Error in getEmployees:", err);
-				return [];
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Failed to fetch employees",
+				});
 			}
 		}),
 

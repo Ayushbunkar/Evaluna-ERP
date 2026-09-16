@@ -3,7 +3,10 @@
 import { format } from "date-fns";
 import {
 	ArrowLeft,
+	Check,
+	Copy,
 	Gift,
+	KeyRound,
 	Mail,
 	MapPin,
 	Phone,
@@ -24,6 +27,7 @@ import {
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
@@ -47,6 +51,31 @@ export default function CustomerProfilePage() {
 	const [ledgerType, setLedgerType] = useState<"points" | "credit">("credit");
 	const [ledgerAmount, setLedgerAmount] = useState("");
 	const [ledgerReason, setLedgerReason] = useState("");
+
+	// Customer Portal Provisioning State
+	const [provisionOpen, setProvisionOpen] = useState(false);
+	const [provisionEmail, setProvisionEmail] = useState("");
+	const [provisionResult, setProvisionResult] = useState<{
+		email: string;
+		linked: boolean;
+		temporaryPassword: string | null;
+	} | null>(null);
+	const [hasCopied, setHasCopied] = useState(false);
+
+	const provisionMutation = trpc.customers.provisionLogin.useMutation({
+		onSuccess: (res) => {
+			utils.customers.getById.invalidate();
+			setProvisionResult(res);
+			toast.success(
+				res.linked
+					? "Customer portal account linked"
+					: "Customer portal login created successfully",
+			);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to create portal account");
+		},
+	});
 
 	const _updateCustomer = trpc.customers.update.useMutation({
 		onSuccess: () => {
@@ -101,6 +130,20 @@ export default function CustomerProfilePage() {
 					</p>
 				</div>
 				<div className="ml-auto flex items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => {
+							setProvisionEmail(customer.email || "");
+							setProvisionResult(null);
+							setHasCopied(false);
+							setProvisionOpen(true);
+						}}
+						className="gap-1.5"
+					>
+						<KeyRound className="h-4 w-4 text-primary" />
+						Portal Login
+					</Button>
 					<span
 						className={`rounded-full px-3 py-1 font-semibold text-sm capitalize ${customer.loyalty_tier === "gold" ? "bg-yellow-100 text-yellow-800" : customer.loyalty_tier === "silver" ? "bg-gray-200 text-gray-800" : "bg-orange-100 text-orange-800"}`}
 					>
@@ -112,13 +155,13 @@ export default function CustomerProfilePage() {
 			<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
 				{/* Left Sidebar */}
 				<Card className="h-fit md:col-span-1">
-					<CardHeader>
+					<CardHeader className="flex flex-row items-center justify-between">
 						<CardTitle>Profile Info</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex items-center gap-3">
 							<Mail className="h-4 w-4 text-muted-foreground" />
-							<span>{customer.email}</span>
+							<span>{customer.email || <span className="text-muted-foreground italic">No email</span>}</span>
 						</div>
 						<div className="flex items-center gap-3">
 							<Phone className="h-4 w-4 text-muted-foreground" />
@@ -134,6 +177,22 @@ export default function CustomerProfilePage() {
 								Marketing:{" "}
 								{customer.marketing_opt_in ? "Opted In" : "Opted Out"}
 							</span>
+						</div>
+						<div className="pt-2">
+							<Button
+								variant="secondary"
+								size="sm"
+								className="w-full gap-2 text-xs"
+								onClick={() => {
+									setProvisionEmail(customer.email || "");
+									setProvisionResult(null);
+									setHasCopied(false);
+									setProvisionOpen(true);
+								}}
+							>
+								<KeyRound className="h-3.5 w-3.5" />
+								{customer.email ? "Manage Portal Account" : "Create Portal Account"}
+							</Button>
 						</div>
 					</CardContent>
 				</Card>
@@ -340,6 +399,156 @@ export default function CustomerProfilePage() {
 					</Tabs>
 				</div>
 			</div>
+
+			{/* Customer Portal Account Modal */}
+			<Dialog
+				open={provisionOpen}
+				onOpenChange={(open) => {
+					setProvisionOpen(open);
+					if (!open) {
+						setProvisionResult(null);
+					}
+				}}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<KeyRound className="h-5 w-5 text-primary" />
+							Customer Portal Access
+						</DialogTitle>
+					</DialogHeader>
+
+					{provisionResult ? (
+						<div className="space-y-4 py-2">
+							<div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 text-sm">
+								<p className="font-semibold text-green-700 dark:text-green-400">
+									{provisionResult.linked
+										? "Account linked to Customer Portal!"
+										: "Customer Portal Account created successfully!"}
+								</p>
+								<p className="text-muted-foreground mt-1 text-xs">
+									Guide the customer to sign in at{" "}
+									<span className="font-mono font-medium text-foreground">/login</span> with these details:
+								</p>
+							</div>
+
+							<div className="space-y-3 rounded-md bg-muted/60 p-4 font-mono text-sm border">
+								<div>
+									<span className="text-xs text-muted-foreground block">Email:</span>
+									<span className="font-medium text-foreground">{provisionResult.email}</span>
+								</div>
+								{provisionResult.temporaryPassword ? (
+									<div>
+										<span className="text-xs text-muted-foreground block">Temporary Password:</span>
+										<span className="font-semibold text-primary select-all">
+											{provisionResult.temporaryPassword}
+										</span>
+									</div>
+								) : (
+									<div>
+										<span className="text-xs text-muted-foreground block">Password:</span>
+										<span className="italic text-muted-foreground text-xs">
+											Existing password maintained. Customer can sign in directly.
+										</span>
+									</div>
+								)}
+							</div>
+
+							<div className="flex justify-between items-center gap-2 pt-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										const text = provisionResult.temporaryPassword
+											? `Evaluna Customer Portal Login:\nEmail: ${provisionResult.email}\nTemporary Password: ${provisionResult.temporaryPassword}\nLogin at: /login`
+											: `Evaluna Customer Portal Login:\nEmail: ${provisionResult.email}\nLogin at: /login`;
+										navigator.clipboard.writeText(text);
+										setHasCopied(true);
+										toast.success("Copied credentials to clipboard!");
+										setTimeout(() => setHasCopied(false), 2000);
+									}}
+								>
+									{hasCopied ? (
+										<>
+											<Check className="mr-2 h-4 w-4 text-green-500" />
+											Copied!
+										</>
+									) : (
+										<>
+											<Copy className="mr-2 h-4 w-4" />
+											Copy Credentials
+										</>
+									)}
+								</Button>
+								<Button
+									size="sm"
+									onClick={() => {
+										setProvisionOpen(false);
+										setProvisionResult(null);
+									}}
+								>
+									Done
+								</Button>
+							</div>
+						</div>
+					) : (
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								const emailToUse = provisionEmail.trim() || customer.email;
+								if (!emailToUse) {
+									toast.error("Please enter a valid email address");
+									return;
+								}
+								provisionMutation.mutate({
+									id: customerId,
+									email: emailToUse,
+								});
+							}}
+							className="space-y-4 py-2"
+						>
+							<p className="text-sm text-muted-foreground">
+								Set up customer self-service access for <strong>{customer.name}</strong>.
+								They can check their orders, download invoices, and view loyalty balance.
+							</p>
+
+							<div className="space-y-2">
+								<Label htmlFor="cust-portal-email">Customer Email Address</Label>
+								<Input
+									id="cust-portal-email"
+									type="email"
+									value={provisionEmail}
+									onChange={(e) => setProvisionEmail(e.target.value)}
+									placeholder="customer@example.com"
+									required
+									autoFocus
+								/>
+								{!customer.email && (
+									<p className="text-xs text-amber-600 dark:text-amber-400">
+										This customer has no email yet. Providing an email will save it to their profile and generate their login.
+									</p>
+								)}
+							</div>
+
+							<DialogFooter className="pt-2">
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => setProvisionOpen(false)}
+								>
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									disabled={provisionMutation.isPending || !provisionEmail.trim()}
+								>
+									{provisionMutation.isPending ? "Generating..." : "Generate Portal Login"}
+								</Button>
+							</DialogFooter>
+						</form>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

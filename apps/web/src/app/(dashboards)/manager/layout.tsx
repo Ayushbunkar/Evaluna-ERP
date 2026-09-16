@@ -12,6 +12,7 @@ import {
 	FileCheck,
 	Hexagon,
 	History,
+	IndianRupee,
 	LayoutDashboard,
 	Settings,
 	TrendingUp,
@@ -48,6 +49,7 @@ export default function ManagerLayout({
 		{ href: "/manager/attendance", label: "Attendance", icon: Clock },
 		{ href: "/manager/leave", label: "Leave Requests", icon: Calendar },
 		{ href: "/manager/expenses", label: "Expenses", icon: CreditCard },
+		{ href: "/manager/cashbook", label: "Cash Book", icon: IndianRupee },
 		{ href: "/manager/performance", label: "Performance", icon: TrendingUp },
 		{ href: "/manager/workload", label: "Workload Analytics", icon: BarChart3 },
 		{

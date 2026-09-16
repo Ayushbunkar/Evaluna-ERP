@@ -2,12 +2,15 @@
 
 import {
 	AlertTriangleIcon,
+	ArrowDownIcon,
+	ArrowUpIcon,
 	CheckCircle2Icon,
 	ClockIcon,
 	FileTextIcon,
 	ListPlusIcon,
 	MapPinIcon,
 	PackageIcon,
+	PencilIcon,
 	PhoneIcon,
 	PlusIcon,
 	RouteIcon,
@@ -149,10 +152,142 @@ export function DeliveryManagementDashboard({
 	const [isRouteOpen, setIsRouteOpen] = useState(false);
 	const [routeCreationMode, setRouteCreationMode] = useState<"existing" | "bulk">("existing");
 
+	interface TripModalStop {
+		tempId: string;
+		customerId?: number;
+		name: string;
+		phone: string;
+		address: string;
+		included: boolean;
+	}
+
 	const [tripRouteId, setTripRouteId] = useState("");
 	const [tripDriverId, setTripDriverId] = useState("");
 	const [tripVehicleId, setTripVehicleId] = useState("");
+	const [tripStopsList, setTripStopsList] = useState<TripModalStop[]>([]);
+	const [tripStopSearchText, setTripStopSearchText] = useState("");
 	const [isTripOpen, setIsTripOpen] = useState(false);
+	const [isAddStopDrawerOpen, setIsAddStopDrawerOpen] = useState(false);
+	const [addStopMode, setAddStopMode] = useState<"registered" | "custom">("registered");
+	const [selectedAddCustomerId, setSelectedAddCustomerId] = useState("");
+	const [newStopName, setNewStopName] = useState("");
+	const [newStopPhone, setNewStopPhone] = useState("");
+	const [newStopAddress, setNewStopAddress] = useState("");
+
+	const openDispatchForRoute = (route: any) => {
+		setTripRouteId(route.id.toString());
+		const initialStops: TripModalStop[] = (route.stops || []).map(
+			(s: any, idx: number) => ({
+				tempId: `stop_${s.id || idx}_${Date.now()}_${Math.random()}`,
+				customerId: s.customer_id || s.customer?.id,
+				name: s.customer?.name || "Customer",
+				phone: s.customer?.phone || "",
+				address: s.customer?.address || "",
+				included: true,
+			}),
+		);
+		setTripStopsList(initialStops);
+		setTripStopSearchText("");
+		setIsAddStopDrawerOpen(false);
+		setIsTripOpen(true);
+	};
+
+	const handleSelectTripRoute = (val: string) => {
+		setTripRouteId(val);
+		const found = routes.find((r: any) => r.id.toString() === val);
+		if (found && found.stops) {
+			const initialStops: TripModalStop[] = found.stops.map(
+				(s: any, idx: number) => ({
+					tempId: `stop_${s.id || idx}_${Date.now()}_${Math.random()}`,
+					customerId: s.customer_id || s.customer?.id,
+					name: s.customer?.name || "Customer",
+					phone: s.customer?.phone || "",
+					address: s.customer?.address || "",
+					included: true,
+				}),
+			);
+			setTripStopsList(initialStops);
+		} else {
+			setTripStopsList([]);
+		}
+		setIsAddStopDrawerOpen(false);
+	};
+
+	const handleAddCustomerToTrip = () => {
+		if (addStopMode === "registered") {
+			if (!selectedAddCustomerId) {
+				toast.error("Please select a customer from the dropdown.");
+				return;
+			}
+			const cust = customers.find(
+				(c: any) => c.id.toString() === selectedAddCustomerId,
+			);
+			if (!cust) return;
+
+			if (tripStopsList.some((s) => s.customerId === cust.id)) {
+				toast.error(`${cust.name} is already in the stops list.`);
+				return;
+			}
+
+			setTripStopsList((prev) => [
+				...prev,
+				{
+					tempId: `cust_${cust.id}_${Date.now()}`,
+					customerId: cust.id,
+					name: cust.name,
+					phone: cust.phone || "",
+					address: cust.address || "",
+					included: true,
+				},
+			]);
+			setSelectedAddCustomerId("");
+			toast.success(`Added ${cust.name} to this trip.`);
+		} else {
+			if (!newStopName.trim() && !newStopPhone.trim() && !newStopAddress.trim()) {
+				toast.error("Please enter a customer name, phone, or address.");
+				return;
+			}
+			setTripStopsList((prev) => [
+				...prev,
+				{
+					tempId: `custom_${Date.now()}_${Math.random()}`,
+					name:
+						newStopName.trim() ||
+						(newStopPhone
+							? `Customer ${newStopPhone}`
+							: `Stop: ${newStopAddress.slice(0, 25)}`),
+					phone: newStopPhone.trim(),
+					address: newStopAddress.trim(),
+					included: true,
+				},
+			]);
+			setNewStopName("");
+			setNewStopPhone("");
+			setNewStopAddress("");
+			toast.success("Added new stop to this trip.");
+		}
+	};
+
+	const handleDeleteStopFromTrip = (tempId: string) => {
+		setTripStopsList((prev) => prev.filter((s) => s.tempId !== tempId));
+		toast.success("Stop removed from trip.");
+	};
+
+	const handleToggleStop = (tempId: string) => {
+		setTripStopsList((prev) =>
+			prev.map((s) =>
+				s.tempId === tempId ? { ...s, included: !s.included } : s,
+			),
+		);
+	};
+
+	const handleSelectAllStops = () => {
+		setTripStopsList((prev) => prev.map((s) => ({ ...s, included: true })));
+	};
+
+	const handleDeselectAllStops = () => {
+		setTripStopsList((prev) => prev.map((s) => ({ ...s, included: false })));
+	};
 
 	// Quick Trip States
 	const [quickTripCustomers, setQuickTripCustomers] = useState<number[]>([]);
@@ -306,15 +441,54 @@ export function DeliveryManagementDashboard({
 	};
 
 	const handleAssignTrip = async () => {
-		await assignTrip.mutateAsync({
-			routeId: Number(tripRouteId),
-			driverId: tripDriverId,
-			vehicleId: Number(tripVehicleId),
-		});
-		setIsTripOpen(false);
-		setTripRouteId("");
-		setTripDriverId("");
-		setTripVehicleId("");
+		if (!tripRouteId) {
+			toast.error("Please select a Route.");
+			return;
+		}
+		if (!tripDriverId) {
+			toast.error("Please select a Driver.");
+			return;
+		}
+		if (!tripVehicleId) {
+			toast.error("Please select a Vehicle.");
+			return;
+		}
+
+		const includedStops = tripStopsList.filter((s) => s.included);
+		if (includedStops.length === 0) {
+			toast.error("Please include at least one customer stop for this trip.");
+			return;
+		}
+
+		try {
+			await assignTrip.mutateAsync({
+				routeId: Number(tripRouteId),
+				driverId: tripDriverId,
+				vehicleId: Number(tripVehicleId),
+				stops: includedStops.map((s, idx) => ({
+					customerId: s.customerId,
+					name: s.name,
+					phone: s.phone,
+					address: s.address,
+					sequence: idx + 1,
+				})),
+			});
+			toast.success(
+				`Dispatched Trip with ${includedStops.length} Stop(s) to Driver & Packer queue!`,
+			);
+			setIsTripOpen(false);
+			setTripRouteId("");
+			setTripDriverId("");
+			setTripVehicleId("");
+			setTripStopsList([]);
+			setTripStopSearchText("");
+			setIsAddStopDrawerOpen(false);
+			refetchTrips();
+			refetchRoutes();
+			refetchOrders();
+		} catch (err: any) {
+			toast.error(err.message || "Failed to dispatch trip.");
+		}
 	};
 
 	const handleCreateQuickTrip = async () => {
@@ -356,6 +530,119 @@ export function DeliveryManagementDashboard({
 			refetchTrips();
 		},
 	});
+
+	// Edit Route States & Handlers
+	const [routeToEdit, setRouteToEdit] = useState<any>(null);
+	const [isEditRouteOpen, setIsEditRouteOpen] = useState(false);
+	const [editRouteName, setEditRouteName] = useState("");
+	const [editRouteDesc, setEditRouteDesc] = useState("");
+	const [editVillageStops, setEditVillageStops] = useState<string[]>([]);
+	const [newVillageInput, setNewVillageInput] = useState("");
+
+	const updateRouteMutation = trpc.delivery.updateRoute.useMutation({
+		onSuccess: () => {
+			refetchRoutes();
+			refetchTrips();
+		},
+	});
+
+	const openEditRouteModal = (route: any) => {
+		setRouteToEdit(route);
+		setEditRouteName(route.name || "");
+		setEditRouteDesc(route.description || "");
+
+		// Extract current villages from description or stops
+		let villages: string[] = [];
+		if (route.description && route.description.includes("->")) {
+			villages = route.description
+				.split("->")
+				.map((v: string) => v.trim())
+				.filter(Boolean);
+		} else if (route.description && route.description.includes(",")) {
+			villages = route.description
+				.split(",")
+				.map((v: string) => v.trim())
+				.filter(Boolean);
+		} else {
+			const seen = new Set<string>();
+			for (const s of route.stops || []) {
+				const vName =
+					s.customer?.address?.trim() ||
+					(s.customer?.name?.startsWith("Stop:")
+						? s.customer.name.replace(/^Stop:\s*/, "")
+						: s.customer?.name) ||
+					`Stop ${s.sequence}`;
+				if (vName && !seen.has(vName.toLowerCase())) {
+					seen.add(vName.toLowerCase());
+					villages.push(vName);
+				}
+			}
+		}
+
+		setEditVillageStops(villages);
+		setNewVillageInput("");
+		setIsEditRouteOpen(true);
+	};
+
+	const handleAddVillageToEdit = () => {
+		if (!newVillageInput.trim()) return;
+		const updated = [...editVillageStops, newVillageInput.trim()];
+		setEditVillageStops(updated);
+		setEditRouteDesc(updated.join(" -> "));
+		setNewVillageInput("");
+	};
+
+	const handleRemoveVillageFromEdit = (index: number) => {
+		const updated = editVillageStops.filter((_, idx) => idx !== index);
+		setEditVillageStops(updated);
+		setEditRouteDesc(updated.join(" -> "));
+	};
+
+	const handleMoveVillage = (index: number, direction: "up" | "down") => {
+		if (
+			(direction === "up" && index === 0) ||
+			(direction === "down" && index === editVillageStops.length - 1)
+		) {
+			return;
+		}
+		const updated = [...editVillageStops];
+		const targetIdx = direction === "up" ? index - 1 : index + 1;
+		const temp = updated[index];
+		updated[index] = updated[targetIdx];
+		updated[targetIdx] = temp;
+		setEditVillageStops(updated);
+		setEditRouteDesc(updated.join(" -> "));
+	};
+
+	const handleSaveEditRoute = async () => {
+		if (!routeToEdit) return;
+		if (!editRouteName.trim()) {
+			toast.error("Please enter a route name.");
+			return;
+		}
+		if (editVillageStops.length === 0) {
+			toast.error("Please have at least one village stop on this route.");
+			return;
+		}
+
+		try {
+			await updateRouteMutation.mutateAsync({
+				id: routeToEdit.id,
+				name: editRouteName.trim(),
+				description: editRouteDesc.trim() || editVillageStops.join(" -> "),
+				stops: editVillageStops.map((vName, idx) => ({
+					name: vName,
+					address: vName,
+					sequence: idx + 1,
+				})),
+			});
+			toast.success(`Route "${editRouteName}" updated successfully!`);
+			setIsEditRouteOpen(false);
+			setRouteToEdit(null);
+		} catch (err: any) {
+			toast.error(err.message || "Failed to update route.");
+		}
+	};
 
 	const [tripToDelete, setTripToDelete] = useState<any>(null);
 	const [isDeleteTripModalOpen, setIsDeleteTripModalOpen] = useState(false);
@@ -493,7 +780,8 @@ export function DeliveryManagementDashboard({
 	};
 
 	return (
-		<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+		<>
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
 			<TabsList>
 				<TabsTrigger value="overview">{t("overviewTab")}</TabsTrigger>
 				<TabsTrigger value="routes">{t("routesTab")}</TabsTrigger>
@@ -502,7 +790,7 @@ export function DeliveryManagementDashboard({
 				<TabsTrigger value="settlements">{t("settlementsTab")}</TabsTrigger>
 			</TabsList>
 
-			<TabsContent value="overview" className="space-y-4">
+			<TabsContent value="overview" className="space-y-6">
 				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -511,7 +799,19 @@ export function DeliveryManagementDashboard({
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="font-bold text-2xl">0</div>
+							<div className="font-bold text-2xl">
+								{trips.filter((t: any) => t.status === "active" || t.status === "pending").length}
+							</div>
+						</CardContent>
+					</Card>
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="font-medium text-sm">
+								Saved Delivery Routes
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className="font-bold text-2xl text-blue-600">{routes.length}</div>
 						</CardContent>
 					</Card>
 					<Card>
@@ -531,10 +831,86 @@ export function DeliveryManagementDashboard({
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="font-bold text-2xl">0</div>
+							<div className="font-bold text-2xl">
+								{driverCollections.filter((c: any) => c.status === "pending").length}
+							</div>
 						</CardContent>
 					</Card>
 				</div>
+
+				{/* Quick Route Trip Dispatch Panel */}
+				{routes.length > 0 && (
+					<Card className="border-border/60 bg-gradient-to-br from-slate-50/70 to-blue-50/30 shadow-sm dark:from-slate-900/40 dark:to-blue-950/20">
+						<CardHeader className="flex flex-row items-center justify-between pb-3">
+							<div>
+								<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
+									<RouteIcon className="h-5 w-5 text-primary" />
+									Saved Delivery Routes & Quick Trip Dispatch
+								</CardTitle>
+								<CardDescription className="text-xs text-slate-500">
+									Select a route to assign a vehicle trip. You can customize customer stops before dispatching.
+								</CardDescription>
+							</div>
+							<Button
+								size="sm"
+								className="bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary/90"
+								onClick={() => {
+									if (routes.length > 0) openDispatchForRoute(routes[0]);
+								}}
+							>
+								<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+								Dispatch Trip
+							</Button>
+						</CardHeader>
+						<CardContent>
+							<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+								{routes.map((route: any) => (
+									<div
+										key={route.id}
+										className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"
+									>
+										<div className="space-y-1.5">
+											<div className="flex items-center justify-between">
+												<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+													{route.name}
+												</h4>
+											</div>
+											{route.description && (
+												<p className="line-clamp-2 text-slate-500 text-xs leading-relaxed">
+													{route.description}
+												</p>
+											)}
+										</div>
+										<div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-800">
+											<span className="text-[11px] text-muted-foreground">
+												Seq: 1 → {route.stops?.length || 0}
+											</span>
+											<div className="flex items-center gap-1.5">
+												<Button
+													size="sm"
+													variant="outline"
+													className="h-7 border-slate-200 px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
+													onClick={() => openEditRouteModal(route)}
+												>
+													<PencilIcon className="mr-1 h-3 w-3 text-slate-500" />
+													Edit
+												</Button>
+												<Button
+													size="sm"
+													className="h-7 bg-primary px-3 text-xs font-semibold text-white shadow-xs hover:bg-primary/90"
+													onClick={() => openDispatchForRoute(route)}
+												>
+													<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+													Assign Trip
+												</Button>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						</CardContent>
+					</Card>
+				)}
 
 				{/* Orders Awaiting Route & Driver Assignment Panel */}
 				<Card className="border-border/50 shadow-sm">
@@ -630,8 +1006,23 @@ export function DeliveryManagementDashboard({
 												<td className="px-4 py-3 font-bold font-mono text-blue-600">
 													ORD-{order.id}
 												</td>
-												<td className="px-4 py-3 font-medium">
-													{order.customer?.name || "Walk-in Customer"}
+												<td className="px-4 py-3">
+													<div className="font-semibold text-slate-900 dark:text-slate-100">
+														{order.customer?.name || "Walk-in Customer"}
+													</div>
+													{(order.customer?.address || order.shipping_address) && (
+														<div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+															<MapPinIcon className="h-3 w-3 text-emerald-600 shrink-0" />
+															<span className="truncate max-w-[220px]">
+																{order.customer?.address || order.shipping_address}
+															</span>
+														</div>
+													)}
+													{order.customer?.phone && (
+														<div className="text-[10px] text-slate-500 font-mono">
+															📞 {order.customer.phone}
+														</div>
+													)}
 												</td>
 												<td className="px-4 py-3 font-semibold">
 													₹{Number(order.total_amount || 0).toFixed(2)}
@@ -679,282 +1070,6 @@ export function DeliveryManagementDashboard({
 						</div>
 					</CardContent>
 				</Card>
-
-				{/* Assign Order Route & Driver Modal */}
-				<Dialog open={isOrderAssignOpen} onOpenChange={setIsOrderAssignOpen}>
-					<DialogContent className="max-w-md">
-						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2">
-								<TruckIcon className="h-5 w-5 text-blue-600" />
-								Assign Route & Driver
-							</DialogTitle>
-							<DialogDescription>
-								Select a driver and vehicle for Order ORD-{assignOrder?.id} (
-								{assignOrder?.customer?.name || "Customer"}) to dispatch it to
-								the Packer Queue.
-							</DialogDescription>
-						</DialogHeader>
-						<div className="space-y-4 py-4">
-							<div className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm">
-								<div className="flex justify-between">
-									<span className="text-muted-foreground">Order Ref:</span>
-									<span className="font-bold font-mono text-blue-600">
-										ORD-{assignOrder?.id}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-muted-foreground">Customer:</span>
-									<span className="font-medium">
-										{assignOrder?.customer?.name || "Walk-in Customer"}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-muted-foreground">Amount:</span>
-									<span className="font-semibold">
-										₹{Number(assignOrder?.total_amount || 0).toFixed(2)}
-									</span>
-								</div>
-							</div>
-
-							<div className="space-y-2">
-								<Label className="font-medium text-xs">Assign Driver *</Label>
-								<Select value={orderDriverId} onValueChange={setOrderDriverId}>
-									<SelectTrigger>
-										<SelectValue placeholder="Select Driver..." />
-									</SelectTrigger>
-									<SelectContent>
-										{finalDrivers.map((d: any) => (
-											<SelectItem key={d.id} value={d.id}>
-												👤 {d.name} ({d.email || "Driver"})
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-2">
-								<Label className="font-medium text-xs">
-									Assign Vehicle / Truck
-								</Label>
-								<Select
-									value={orderVehicleId}
-									onValueChange={setOrderVehicleId}
-								>
-									<SelectTrigger>
-										<SelectValue placeholder="Select Vehicle..." />
-									</SelectTrigger>
-									<SelectContent>
-										{vehicles.map((v: any) => (
-											<SelectItem key={v.id} value={v.id.toString()}>
-												🚚 {v.name} ({v.registration_number})
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-						<DialogFooter>
-							<Button
-								variant="outline"
-								onClick={() => setIsOrderAssignOpen(false)}
-							>
-								Cancel
-							</Button>
-							<Button
-								className="bg-blue-600 text-white hover:bg-blue-700"
-								disabled={createTripDirect.isPending || !orderDriverId}
-								onClick={handleAssignOrderRoute}
-							>
-								{createTripDirect.isPending
-									? "Assigning..."
-									: "Assign & Send to Packer"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-
-				{/* Delete Route Confirmation Modal */}
-				<Dialog
-					open={isDeleteRouteModalOpen}
-					onOpenChange={setIsDeleteRouteModalOpen}
-				>
-					<DialogContent className="max-w-md border-red-200">
-						<DialogHeader>
-							<div className="flex items-center gap-3">
-								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-									<Trash2Icon className="h-5 w-5" />
-								</div>
-								<div>
-									<DialogTitle className="font-bold text-lg text-slate-900">
-										Delete Delivery Route?
-									</DialogTitle>
-									<DialogDescription className="text-slate-500 text-xs">
-										This will permanently delete the route and all its stops.
-										Active trips using this route will be unlinked.
-									</DialogDescription>
-								</div>
-							</div>
-						</DialogHeader>
-
-						{routeToDelete && (
-							<div className="py-2">
-								<div className="space-y-2 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
-									<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-										<span>{routeToDelete.name}</span>
-										<span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-[10px] text-slate-600">
-											{routeToDelete.stops?.length || 0} Stop(s)
-										</span>
-									</div>
-									{routeToDelete.description && (
-										<p className="text-slate-500 text-xs">
-											{routeToDelete.description}
-										</p>
-									)}
-									{routeToDelete.stops?.length > 0 && (
-										<div className="space-y-1 pt-1">
-											{routeToDelete.stops
-												.slice(0, 4)
-												.map((stop: any, idx: number) => (
-													<div
-														key={stop.id}
-														className="flex items-center gap-2 text-slate-600 text-xs"
-													>
-														<div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[9px] text-primary">
-															{idx + 1}
-														</div>
-														{stop.customer?.name}
-													</div>
-												))}
-											{routeToDelete.stops.length > 4 && (
-												<p className="pl-6 text-slate-400 text-xs">
-													+{routeToDelete.stops.length - 4} more stop(s)…
-												</p>
-											)}
-										</div>
-									)}
-								</div>
-							</div>
-						)}
-
-						<DialogFooter className="gap-2 sm:gap-0">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setIsDeleteRouteModalOpen(false);
-									setRouteToDelete(null);
-								}}
-								disabled={deleteRouteMutation.isPending}
-							>
-								Keep Route
-							</Button>
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={handleConfirmDeleteRoute}
-								disabled={deleteRouteMutation.isPending}
-								className="font-semibold shadow-sm"
-							>
-								{deleteRouteMutation.isPending
-									? "Deleting..."
-									: "Yes, Delete Route"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-
-				{/* Delete Trip Confirmation Modal */}
-				<Dialog
-					open={isDeleteTripModalOpen}
-					onOpenChange={setIsDeleteTripModalOpen}
-				>
-					<DialogContent className="max-w-md border-red-200">
-						<DialogHeader>
-							<div className="flex items-center gap-3">
-								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-									<Trash2Icon className="h-5 w-5" />
-								</div>
-								<div>
-									<DialogTitle className="font-bold text-lg text-slate-900">
-										Delete Delivery Trip?
-									</DialogTitle>
-									<DialogDescription className="text-slate-500 text-xs">
-										This will permanently remove the trip and all its stops.
-										Orders will be released back to the dispatch queue.
-									</DialogDescription>
-								</div>
-							</div>
-						</DialogHeader>
-
-						{tripToDelete && (
-							<div className="py-2">
-								<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
-									<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-										<span>
-											{tripToDelete.route?.name || `Trip #${tripToDelete.id}`}
-										</span>
-										<span
-											className={`rounded px-2 py-0.5 font-bold text-[10px] uppercase ${
-												tripToDelete.status === "cancelled"
-													? "bg-red-100 text-red-700"
-													: tripToDelete.status === "completed"
-														? "bg-emerald-100 text-emerald-700"
-														: "bg-blue-100 text-blue-700"
-											}`}
-										>
-											{tripToDelete.status}
-										</span>
-									</div>
-									<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
-										<div>
-											<span className="text-slate-400">Driver:</span>{" "}
-											<span className="font-medium text-slate-800">
-												{tripToDelete.driver?.name || "Unassigned"}
-											</span>
-										</div>
-										<div>
-											<span className="text-slate-400">Vehicle:</span>{" "}
-											<span className="font-medium text-slate-800">
-												{tripToDelete.vehicle?.name || "N/A"}
-											</span>
-										</div>
-										<div className="col-span-2">
-											<span className="text-slate-400">Total Stops:</span>{" "}
-											<span className="font-medium text-slate-800">
-												{tripToDelete.stops?.length || 0} Stop(s)
-											</span>
-										</div>
-									</div>
-								</div>
-							</div>
-						)}
-
-						<DialogFooter className="gap-2 sm:gap-0">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setIsDeleteTripModalOpen(false);
-									setTripToDelete(null);
-								}}
-								disabled={deleteTripMutation.isPending}
-							>
-								Keep Trip
-							</Button>
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={handleConfirmDeleteTrip}
-								disabled={deleteTripMutation.isPending}
-								className="font-semibold shadow-sm"
-							>
-								{deleteTripMutation.isPending
-									? "Deleting..."
-									: "Yes, Delete Trip"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
 			</TabsContent>
 
 			<TabsContent value="routes">
@@ -1103,7 +1218,7 @@ export function DeliveryManagementDashboard({
 									<DialogHeader>
 										<DialogTitle>Create Delivery Route</DialogTitle>
 										<DialogDescription>
-											Define a route and assign customer stops.
+											Define a route and assign villages.
 										</DialogDescription>
 									</DialogHeader>
 									<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
@@ -1123,39 +1238,9 @@ export function DeliveryManagementDashboard({
 												placeholder="Route notes..."
 											/>
 										</div>
-										{/* Route Creation Mode Selection */}
-										<div className="flex rounded-lg border bg-muted/40 p-1">
-											<button
-												type="button"
-												className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
-													routeCreationMode === "existing"
-														? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white"
-														: "text-muted-foreground hover:text-foreground"
-												}`}
-												onClick={() => setRouteCreationMode("existing")}
-											>
-												Registered Customers
-											</button>
-											<button
-												type="button"
-												className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
-													routeCreationMode === "bulk"
-														? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white"
-														: "text-muted-foreground hover:text-foreground"
-												}`}
-												onClick={() => setRouteCreationMode("bulk")}
-											>
-												<span className="flex items-center justify-center gap-1.5">
-													<ListPlusIcon className="h-3.5 w-3.5 text-primary" />
-													Bulk Addresses & Numbers
-												</span>
-											</button>
-										</div>
-
-										{routeCreationMode === "existing" ? (
-											<div className="space-y-2">
+										<div className="space-y-2">
 												<div className="flex items-center justify-between">
-													<Label className="text-xs font-medium">Select Registered Customers</Label>
+													<Label className="text-xs font-medium">Select Registered Villages</Label>
 													{routeCustomers.length > 1 && (
 														<Button
 															variant="outline"
@@ -1168,101 +1253,40 @@ export function DeliveryManagementDashboard({
 														</Button>
 													)}
 												</div>
-												<Select
-													onValueChange={(val) =>
-														setRouteCustomers([...routeCustomers, Number(val)])
-													}
-												>
-													<SelectTrigger>
-														<SelectValue placeholder="Add a customer..." />
-													</SelectTrigger>
-													<SelectContent>
-														{customers.map((c: any) => (
-															<SelectItem key={c.id} value={c.id.toString()}>
-																{c.name} ({c.phone || "No Phone"}) {c.address ? `— ${c.address.slice(0, 30)}` : ""}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-										) : (
-											<div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
-												<div className="space-y-1.5">
-													<div className="flex items-center justify-between">
-														<Label className="text-xs font-semibold flex items-center gap-1.5 text-slate-900">
-															<FileTextIcon className="h-4 w-4 text-primary" />
-															Paste Multiple Addresses & Phone Numbers
-														</Label>
-													</div>
-													<Textarea
-														value={bulkAddressesText}
-														onChange={(e) => setBulkAddressesText(e.target.value)}
-														placeholder={`Paste addresses / phone numbers (one per line):\ne.g. Shop 12, MG Road, Pune - 9876543210\ne.g. Rahul Sharma, Flat 402 Galaxy Apt, Bandra 9820112233\ne.g. 9988776655, Sector 18 Noida`}
-														rows={4}
-														className="text-xs font-mono bg-white resize-none"
-													/>
-													<div className="flex justify-between items-center pt-1">
-														<p className="text-[11px] text-muted-foreground">
-															Supports name, address, and 10-digit Indian phone numbers automatically.
-														</p>
-														<Button
-															type="button"
-															size="sm"
-															onClick={handleParseBulkAddresses}
-															className="h-7 text-xs bg-primary text-white hover:bg-primary/90 shadow-sm"
-														>
-															<PlusIcon className="mr-1 h-3.5 w-3.5" />
-															Parse & Add Stops
-														</Button>
-													</div>
-												</div>
-
-												{/* Quick Single Custom Address Input */}
-												<div className="border-t border-primary/10 pt-3 space-y-2">
-													<Label className="text-xs font-semibold text-slate-800">
-														Or Add Single Custom Stop:
-													</Label>
-													<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+													<div className="flex gap-2">
 														<Input
-															placeholder="Customer/Shop Name"
 															value={manualStopName}
 															onChange={(e) => setManualStopName(e.target.value)}
-															className="h-8 text-xs bg-white"
+															placeholder="Type a village name..."
+															onKeyDown={(e) => {
+																if (e.key === "Enter" && manualStopName.trim()) {
+																	e.preventDefault();
+																	setCustomRouteStops([...customRouteStops, { id: `v_${Date.now()}`, name: manualStopName.trim(), phone: "", address: "" }]);
+																	setManualStopName("");
+																}
+															}}
 														/>
-														<Input
-															placeholder="Phone (e.g. 9876543210)"
-															value={manualStopPhone}
-															onChange={(e) => setManualStopPhone(e.target.value)}
-															className="h-8 text-xs bg-white"
-														/>
-														<Input
-															placeholder="Full Address / Landmark"
-															value={manualStopAddress}
-															onChange={(e) => setManualStopAddress(e.target.value)}
-															className="h-8 text-xs bg-white"
-														/>
-													</div>
-													<div className="flex justify-end">
 														<Button
 															type="button"
-															variant="outline"
-															size="sm"
-															onClick={handleAddManualCustomStop}
-															className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
+															onClick={() => {
+																if (manualStopName.trim()) {
+																	setCustomRouteStops([...customRouteStops, { id: `v_${Date.now()}`, name: manualStopName.trim(), phone: "", address: "" }]);
+																	setManualStopName("");
+																}
+															}}
 														>
-															+ Add Stop
+															Add
 														</Button>
 													</div>
-												</div>
 											</div>
-										)}
+
 
 										{/* Combined Stops Preview List */}
 										{(routeCustomers.length > 0 || customRouteStops.length > 0) && (
 											<div className="space-y-2 pt-2">
 												<div className="flex items-center justify-between">
 													<Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-														Stops Sequence ({routeCustomers.length + customRouteStops.length} Total)
+														Villages Sequence ({routeCustomers.length + customRouteStops.length} Total)
 													</Label>
 													<Button
 														type="button"
@@ -1274,7 +1298,7 @@ export function DeliveryManagementDashboard({
 															setCustomRouteStops([]);
 														}}
 													>
-														Clear All Stops
+														Clear All Villages
 													</Button>
 												</div>
 
@@ -1293,7 +1317,7 @@ export function DeliveryManagementDashboard({
 																	</div>
 																	<div>
 																		<span className="font-semibold text-slate-800 dark:text-slate-200">
-																			{cust?.name || `Customer #${id}`}
+																			{cust?.name || `Village #${id}`}
 																		</span>
 																		{cust?.phone && (
 																			<span className="ml-2 text-slate-500 font-mono text-[11px]">
@@ -1338,31 +1362,55 @@ export function DeliveryManagementDashboard({
 																	<span className="font-semibold text-emerald-950 dark:text-emerald-200">
 																		{cStop.name}
 																	</span>
-																	{cStop.phone && (
-																		<span className="ml-2 text-emerald-700 font-mono text-[11px]">
-																			📞 {cStop.phone}
-																		</span>
-																	)}
-																	{cStop.address && (
-																		<p className="text-[11px] text-emerald-600/90">
-																			📍 {cStop.address}
-																		</p>
-																	)}
 																</div>
 															</div>
-															<Button
-																type="button"
-																variant="ghost"
-																size="icon"
-																className="h-6 w-6 text-emerald-600 hover:text-red-600"
-																onClick={() =>
-																	setCustomRouteStops(
-																		customRouteStops.filter((s) => s.id !== cStop.id),
-																	)
-																}
-															>
-																×
-															</Button>
+															<div className="flex items-center gap-1">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="icon"
+																	className="h-6 w-6 text-slate-500 hover:text-emerald-600"
+																	disabled={idx === 0}
+																	onClick={() => {
+																		const newStops = [...customRouteStops];
+																		const temp = newStops[idx - 1];
+																		newStops[idx - 1] = newStops[idx];
+																		newStops[idx] = temp;
+																		setCustomRouteStops(newStops);
+																	}}
+																>
+																	<ArrowUpIcon className="h-3 w-3" />
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="icon"
+																	className="h-6 w-6 text-slate-500 hover:text-emerald-600"
+																	disabled={idx === customRouteStops.length - 1}
+																	onClick={() => {
+																		const newStops = [...customRouteStops];
+																		const temp = newStops[idx + 1];
+																		newStops[idx + 1] = newStops[idx];
+																		newStops[idx] = temp;
+																		setCustomRouteStops(newStops);
+																	}}
+																>
+																	<ArrowDownIcon className="h-3 w-3" />
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="icon"
+																	className="h-6 w-6 text-emerald-600 hover:text-red-600 ml-1"
+																	onClick={() =>
+																		setCustomRouteStops(
+																			customRouteStops.filter((s) => s.id !== cStop.id),
+																		)
+																	}
+																>
+																	×
+																</Button>
+															</div>
 														</div>
 													))}
 												</div>
@@ -1379,7 +1427,7 @@ export function DeliveryManagementDashboard({
 											}
 											className="font-semibold shadow-sm"
 										>
-											{createRoute.isPending ? "Creating Route..." : "Save Route with Stops"}
+											{createRoute.isPending ? "Creating Route..." : "Save Route with Villages"}
 										</Button>
 									</DialogFooter>
 								</DialogContent>
@@ -1389,80 +1437,339 @@ export function DeliveryManagementDashboard({
 								<DialogTrigger asChild>
 									<Button>Dispatch Trip</Button>
 								</DialogTrigger>
-								<DialogContent>
+								<DialogContent className="max-w-2xl">
 									<DialogHeader>
-										<DialogTitle>Dispatch Delivery Trip</DialogTitle>
+										<DialogTitle className="flex items-center gap-2">
+											<TruckIcon className="h-5 w-5 text-primary" />
+											Dispatch Vehicle Trip
+										</DialogTitle>
 										<DialogDescription>
-											Assign a route to a driver and vehicle.
+											Assign a route to a driver and vehicle. Uncheck any customers not ordering on this trip.
 										</DialogDescription>
 									</DialogHeader>
-									<div className="space-y-4 py-4">
-										<div className="space-y-2">
-											<Label>Select Route</Label>
-											<Select
-												value={tripRouteId}
-												onValueChange={setTripRouteId}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Select Route" />
-												</SelectTrigger>
-												<SelectContent>
-													{routes.map((r: any) => (
-														<SelectItem key={r.id} value={r.id.toString()}>
-															{r.name} ({r.stops?.length || 0} stops)
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
+									<div className="max-h-[70vh] space-y-4 overflow-y-auto py-2 pr-1">
+										<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+											<div className="space-y-1.5">
+												<Label className="text-xs font-semibold">Select Route *</Label>
+												<Select
+													value={tripRouteId}
+													onValueChange={handleSelectTripRoute}
+												>
+													<SelectTrigger className="h-9 text-xs">
+														<SelectValue placeholder="Select Route" />
+													</SelectTrigger>
+													<SelectContent>
+														{routes.map((r: any) => (
+															<SelectItem key={r.id} value={r.id.toString()}>
+																{r.name} ({r.stops?.length || 0} stops)
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+											<div className="space-y-1.5">
+												<Label className="text-xs font-semibold">Select Driver *</Label>
+												<Select
+													value={tripDriverId}
+													onValueChange={setTripDriverId}
+												>
+													<SelectTrigger className="h-9 text-xs">
+														<SelectValue placeholder="Select Driver" />
+													</SelectTrigger>
+													<SelectContent>
+														{finalDrivers.map((d: any) => (
+															<SelectItem key={d.id} value={d.id}>
+																👤 {d.name} ({d.email || "Driver"})
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+											<div className="space-y-1.5">
+												<Label className="text-xs font-semibold">Select Vehicle *</Label>
+												<Select
+													value={tripVehicleId}
+													onValueChange={setTripVehicleId}
+												>
+													<SelectTrigger className="h-9 text-xs">
+														<SelectValue placeholder="Select Vehicle" />
+													</SelectTrigger>
+													<SelectContent>
+														{vehicles.map((v: any) => (
+															<SelectItem key={v.id} value={v.id.toString()}>
+																🚚 {v.name} ({v.registration_number})
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
 										</div>
-										<div className="space-y-2">
-											<Label>Select Driver</Label>
-											<Select
-												value={tripDriverId}
-												onValueChange={setTripDriverId}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Select Driver" />
-												</SelectTrigger>
-												<SelectContent>
-													{finalDrivers.map((d: any) => (
-														<SelectItem key={d.id} value={d.id}>
-															{d.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="space-y-2">
-											<Label>Select Vehicle</Label>
-											<Select
-												value={tripVehicleId}
-												onValueChange={setTripVehicleId}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Select Vehicle" />
-												</SelectTrigger>
-												<SelectContent>
-													{vehicles.map((v: any) => (
-														<SelectItem key={v.id} value={v.id.toString()}>
-															{v.name} - {v.registration_number}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
+
+										{/* Stops Selector for this Trip */}
+										{(() => {
+											const filteredStops = tripStopsList.filter((s) => {
+												if (!tripStopSearchText.trim()) return true;
+												const q = tripStopSearchText.toLowerCase();
+												const name = (s.name || "").toLowerCase();
+												const phone = s.phone || "";
+												const addr = (s.address || "").toLowerCase();
+												return name.includes(q) || phone.includes(q) || addr.includes(q);
+											});
+											const includedCount = tripStopsList.filter((s) => s.included).length;
+
+											if (!tripRouteId && tripStopsList.length === 0) {
+												return (
+													<div className="rounded-xl border border-dashed p-6 text-center text-slate-400 text-xs">
+														Please select a Route above or add customers to build this trip.
+													</div>
+												);
+											}
+
+											return (
+												<div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/50">
+													<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5 dark:border-slate-800">
+														<div>
+															<div className="flex items-center gap-2">
+																<span className="font-bold text-xs text-slate-900 dark:text-slate-100">
+																	Trip Customer Stops
+																</span>
+																<span className="rounded-full bg-primary/10 px-2 py-0.5 font-bold text-[11px] text-primary">
+																	{includedCount} of {tripStopsList.length} Selected
+																</span>
+															</div>
+															<p className="text-[11px] text-slate-500">
+																Checked customers will be loaded into this vehicle trip. You can also add or delete stops.
+															</p>
+														</div>
+														<div className="flex items-center gap-1.5 flex-wrap">
+															<Button
+																type="button"
+																variant="outline"
+																size="sm"
+																className={`h-7 text-xs font-semibold ${
+																	isAddStopDrawerOpen
+																		? "border-primary bg-primary text-white hover:bg-primary/90 hover:text-white"
+																		: "border-primary/30 text-primary hover:bg-primary/10"
+																}`}
+																onClick={() => setIsAddStopDrawerOpen(!isAddStopDrawerOpen)}
+															>
+																<PlusIcon className="mr-1 h-3.5 w-3.5" />
+																{isAddStopDrawerOpen ? "Close Add Panel" : "Add Customer"}
+															</Button>
+															<Button
+																type="button"
+																variant="outline"
+																size="sm"
+																className="h-7 text-xs"
+																onClick={handleSelectAllStops}
+															>
+																Select All
+															</Button>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																className="h-7 text-xs text-slate-500 hover:text-slate-800"
+																onClick={handleDeselectAllStops}
+															>
+																Deselect All
+															</Button>
+														</div>
+													</div>
+
+													{/* Add Customer / Stop Drawer */}
+													{isAddStopDrawerOpen && (
+														<div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3 dark:bg-primary/10">
+															<div className="flex items-center justify-between">
+																<div className="flex rounded-md border bg-white p-0.5 dark:bg-slate-800">
+																	<button
+																		type="button"
+																		className={`rounded px-2.5 py-1 text-xs font-semibold transition-all ${
+																			addStopMode === "registered"
+																				? "bg-primary text-white shadow-xs"
+																				: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+																		}`}
+																		onClick={() => setAddStopMode("registered")}
+																	>
+																		Registered Customer
+																	</button>
+																	<button
+																		type="button"
+																		className={`rounded px-2.5 py-1 text-xs font-semibold transition-all ${
+																			addStopMode === "custom"
+																				? "bg-primary text-white shadow-xs"
+																				: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+																		}`}
+																		onClick={() => setAddStopMode("custom")}
+																	>
+																		New Custom Stop
+																	</button>
+																</div>
+															</div>
+
+															{addStopMode === "registered" ? (
+																<div className="flex flex-col sm:flex-row gap-2 items-center">
+																	<div className="flex-1 w-full">
+																		<Select
+																			value={selectedAddCustomerId}
+																			onValueChange={setSelectedAddCustomerId}
+																		>
+																			<SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-800">
+																				<SelectValue placeholder="Choose a registered customer..." />
+																			</SelectTrigger>
+																			<SelectContent className="max-h-56">
+																				{customers.map((c: any) => (
+																					<SelectItem key={c.id} value={c.id.toString()}>
+																						{c.name} {c.phone ? `(${c.phone})` : ""} {c.address ? `— ${c.address.slice(0, 25)}` : ""}
+																					</SelectItem>
+																				))}
+																			</SelectContent>
+																		</Select>
+																	</div>
+																	<Button
+																		type="button"
+																		size="sm"
+																		className="h-8 text-xs bg-primary text-white font-semibold hover:bg-primary/90 shrink-0 w-full sm:w-auto"
+																		onClick={handleAddCustomerToTrip}
+																	>
+																		<PlusIcon className="mr-1 h-3.5 w-3.5" />
+																		Add to Trip
+																	</Button>
+																</div>
+															) : (
+																<div className="space-y-2">
+																	<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+																		<Input
+																			placeholder="Customer Name"
+																			value={newStopName}
+																			onChange={(e) => setNewStopName(e.target.value)}
+																			className="h-8 text-xs bg-white dark:bg-slate-800"
+																		/>
+																		<Input
+																			placeholder="Phone (e.g. 9876543210)"
+																			value={newStopPhone}
+																			onChange={(e) => setNewStopPhone(e.target.value)}
+																			className="h-8 text-xs bg-white dark:bg-slate-800"
+																		/>
+																		<Input
+																			placeholder="Village / Address"
+																			value={newStopAddress}
+																			onChange={(e) => setNewStopAddress(e.target.value)}
+																			className="h-8 text-xs bg-white dark:bg-slate-800"
+																		/>
+																	</div>
+																	<div className="flex justify-end">
+																		<Button
+																			type="button"
+																			size="sm"
+																			className="h-7 text-xs bg-primary text-white font-semibold hover:bg-primary/90"
+																			onClick={handleAddCustomerToTrip}
+																		>
+																			<PlusIcon className="mr-1 h-3.5 w-3.5" />
+																			Add Stop
+																		</Button>
+																	</div>
+																</div>
+															)}
+														</div>
+													)}
+
+													<Input
+														placeholder="Filter stops by customer name, village or mobile number..."
+														value={tripStopSearchText}
+														onChange={(e) => setTripStopSearchText(e.target.value)}
+														className="h-8 text-xs bg-white dark:bg-slate-800"
+													/>
+
+													<div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+														{filteredStops.map((stop, idx) => (
+															<div
+																key={stop.tempId}
+																className={`flex items-start gap-2.5 rounded-lg border p-2 text-xs transition-all ${
+																	stop.included
+																		? "border-primary/30 bg-white shadow-xs dark:bg-slate-800"
+																		: "border-transparent bg-slate-100/70 opacity-50 dark:bg-slate-900"
+																}`}
+															>
+																<input
+																	type="checkbox"
+																	className="mt-1 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+																	checked={stop.included}
+																	onChange={() => handleToggleStop(stop.tempId)}
+																/>
+																<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
+																	{idx + 1}
+																</div>
+																<div
+																	className="flex-1 min-w-0 cursor-pointer"
+																	onClick={() => handleToggleStop(stop.tempId)}
+																>
+																	<div className="flex items-center justify-between gap-2">
+																		<span className="font-semibold text-slate-900 truncate dark:text-slate-100">
+																			{stop.name}
+																		</span>
+																		{stop.phone && (
+																			<span className="text-[11px] text-slate-500 font-mono shrink-0">
+																				📞 {stop.phone}
+																			</span>
+																		)}
+																	</div>
+																	{stop.address && (
+																		<p className="text-[11px] text-slate-500 truncate mt-0.5">
+																			📍 {stop.address}
+																		</p>
+																	)}
+																</div>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="icon"
+																	title="Remove stop from trip"
+																	className="h-6 w-6 shrink-0 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+																	onClick={() => handleDeleteStopFromTrip(stop.tempId)}
+																>
+																	<Trash2Icon className="h-3.5 w-3.5" />
+																</Button>
+															</div>
+														))}
+														{filteredStops.length === 0 && (
+															<p className="py-4 text-center text-slate-400 text-xs">
+																{tripStopsList.length === 0
+																	? "No customer stops in this trip. Click '+ Add Customer' to add stops."
+																	: "No stops match your filter query."}
+															</p>
+														)}
+													</div>
+												</div>
+											);
+										})()}
 									</div>
 									<DialogFooter>
+										<Button
+											variant="outline"
+											onClick={() => setIsTripOpen(false)}
+										>
+											Cancel
+										</Button>
 										<Button
 											onClick={handleAssignTrip}
 											disabled={
 												assignTrip.isPending ||
 												!tripRouteId ||
 												!tripDriverId ||
-												!tripVehicleId
+												!tripVehicleId ||
+												tripStopsList.filter((s) => s.included).length === 0
 											}
+											className="bg-primary text-white font-semibold shadow-sm hover:bg-primary/90"
 										>
-											Dispatch Trip
+											{assignTrip.isPending ? (
+												"Dispatching..."
+											) : (
+												<>
+													<TruckIcon className="mr-1.5 h-4 w-4" />
+													Dispatch Trip ({tripStopsList.filter((s) => s.included).length} Stops)
+												</>
+											)}
 										</Button>
 									</DialogFooter>
 								</DialogContent>
@@ -1487,37 +1794,96 @@ export function DeliveryManagementDashboard({
 												<h4 className="font-semibold text-base leading-tight">
 													{route.name}
 												</h4>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-7 w-7 shrink-0 rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
-													onClick={() => {
-														setRouteToDelete(route);
-														setIsDeleteRouteModalOpen(true);
-													}}
-												>
-													<Trash2Icon className="h-4 w-4" />
-												</Button>
+												<div className="flex items-center gap-1">
+													<Button
+														size="sm"
+														variant="outline"
+														className="h-7 border-slate-200 px-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
+														onClick={() => openEditRouteModal(route)}
+													>
+														<PencilIcon className="mr-1 h-3.5 w-3.5 text-slate-500" />
+														Edit
+													</Button>
+													<Button
+														size="sm"
+														className="h-7 bg-primary px-2.5 text-xs font-semibold text-white shadow-xs hover:bg-primary/90"
+														onClick={() => openDispatchForRoute(route)}
+													>
+														<TruckIcon className="mr-1 h-3.5 w-3.5" />
+														Dispatch
+													</Button>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-7 w-7 shrink-0 rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+														onClick={() => {
+															setRouteToDelete(route);
+															setIsDeleteRouteModalOpen(true);
+														}}
+													>
+														<Trash2Icon className="h-4 w-4" />
+													</Button>
+												</div>
 											</div>
 											<p className="mb-3 text-muted-foreground text-sm">
 												{route.description || "No description"}
 											</p>
-											<div className="space-y-1">
-												<div className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-													Stops Sequence
-												</div>
-												{route.stops?.map((stop: any) => (
-													<div
-														key={stop.id}
-														className="flex items-center gap-2 text-sm"
-													>
-														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
-															{stop.sequence}
+											{(() => {
+												let villageList: string[] = [];
+												if (route.description && route.description.includes("->")) {
+													villageList = route.description
+														.split("->")
+														.map((v: string) => v.trim())
+														.filter(Boolean);
+												} else if (route.description && route.description.includes(",")) {
+													villageList = route.description
+														.split(",")
+														.map((v: string) => v.trim())
+														.filter(Boolean);
+												} else {
+													const seen = new Set<string>();
+													for (const stop of route.stops || []) {
+														const vName =
+															stop.customer?.address?.trim() ||
+															(stop.customer?.name?.startsWith("Stop:")
+																? stop.customer.name.replace(/^Stop:\s*/, "")
+																: stop.customer?.name) ||
+															`Stop ${stop.sequence}`;
+														if (vName && !seen.has(vName.toLowerCase())) {
+															seen.add(vName.toLowerCase());
+															villageList.push(vName);
+														}
+													}
+												}
+
+												return (
+													<div className="space-y-2 border-t pt-2 mt-2">
+														<div className="flex items-center justify-between font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+															<span>Village Stops Sequence ({villageList.length})</span>
 														</div>
-														{stop.customer?.name}
+														<div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+															{villageList.map((village: string, idx: number) => (
+																<div
+																	key={`${route.id}_v_${idx}`}
+																	className="flex items-center gap-2 rounded-md bg-slate-50/80 p-1.5 text-xs transition-colors dark:bg-slate-900/50"
+																>
+																	<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+																		{idx + 1}
+																	</div>
+																	<span className="truncate font-semibold text-slate-800 dark:text-slate-200">
+																		{village}
+																	</span>
+																</div>
+															))}
+															{villageList.length === 0 && (
+																<p className="text-xs text-muted-foreground">
+																	No village stops defined.
+																</p>
+															)}
+														</div>
 													</div>
-												))}
-											</div>
+												);
+											})()}
 										</div>
 									))}
 								</div>
@@ -1630,181 +1996,6 @@ export function DeliveryManagementDashboard({
 								</div>
 							)}
 						</div>
-
-						{/* Trip Cancellation Confirmation Modal */}
-						<Dialog
-							open={isCancelModalOpen}
-							onOpenChange={setIsCancelModalOpen}
-						>
-							<DialogContent className="max-w-md border-red-200">
-								<DialogHeader>
-									<div className="flex items-center gap-3">
-										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-											<AlertTriangleIcon className="h-5 w-5" />
-										</div>
-										<div>
-											<DialogTitle className="font-bold text-lg text-slate-900">
-												Cancel Delivery Trip?
-											</DialogTitle>
-											<DialogDescription className="text-slate-500 text-xs">
-												Are you sure you want to cancel this trip? Assigned
-												orders will be released back to dispatch.
-											</DialogDescription>
-										</div>
-									</div>
-								</DialogHeader>
-
-								{tripToCancel && (
-									<div className="space-y-4 py-2">
-										<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
-											<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-												<span>
-													{tripToCancel.route?.name ||
-														`Trip #${tripToCancel.id}`}
-												</span>
-												<span className="rounded bg-red-100 px-2 py-0.5 font-bold text-[10px] text-red-700 uppercase">
-													{tripToCancel.status}
-												</span>
-											</div>
-											<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
-												<div>
-													<span className="text-slate-400">Driver:</span>{" "}
-													<span className="font-medium text-slate-800">
-														{tripToCancel.driver?.name || "Unassigned"}
-													</span>
-												</div>
-												<div>
-													<span className="text-slate-400">Vehicle:</span>{" "}
-													<span className="font-medium text-slate-800">
-														{tripToCancel.vehicle?.name || "N/A"}
-													</span>
-												</div>
-												<div className="col-span-2">
-													<span className="text-slate-400">Total Stops:</span>{" "}
-													<span className="font-medium text-slate-800">
-														{tripToCancel.stops?.length || 0} Stop(s)
-													</span>
-												</div>
-											</div>
-										</div>
-
-										<div className="space-y-1.5">
-											<Label className="font-semibold text-slate-700 text-xs">
-												Reason for Cancellation (Optional)
-											</Label>
-											<Select
-												value={cancelReason}
-												onValueChange={setCancelReason}
-											>
-												<SelectTrigger className="h-9 text-xs">
-													<SelectValue placeholder="Select cancellation reason..." />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="driver_unavailable">
-														Driver Unavailable
-													</SelectItem>
-													<SelectItem value="vehicle_breakdown">
-														Vehicle Breakdown / Maintenance
-													</SelectItem>
-													<SelectItem value="route_reorganization">
-														Route Reorganization
-													</SelectItem>
-													<SelectItem value="customer_reschedule">
-														Customer Rescheduled
-													</SelectItem>
-													<SelectItem value="other">
-														Other Operational Reason
-													</SelectItem>
-												</SelectContent>
-											</Select>
-										</div>
-									</div>
-								)}
-
-								<DialogFooter className="gap-2 sm:gap-0">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => {
-											setIsCancelModalOpen(false);
-											setTripToCancel(null);
-										}}
-										disabled={cancelTrip.isPending}
-									>
-										Keep Trip
-									</Button>
-									<Button
-										type="button"
-										variant="destructive"
-										onClick={handleConfirmCancelTrip}
-										disabled={cancelTrip.isPending}
-										className="font-semibold shadow-sm"
-									>
-										{cancelTrip.isPending
-											? "Cancelling..."
-											: "Yes, Cancel Trip"}
-									</Button>
-								</DialogFooter>
-							</DialogContent>
-						</Dialog>
-
-						{/* Clear All Confirmation Modal */}
-						<Dialog
-							open={isClearAllModalOpen}
-							onOpenChange={setIsClearAllModalOpen}
-						>
-							<DialogContent className="max-w-md border-red-200">
-								<DialogHeader>
-									<div className="flex items-center gap-3">
-										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-											<Trash2Icon className="h-5 w-5" />
-										</div>
-										<div>
-											<DialogTitle className="font-bold text-lg text-slate-900">
-												Delete All Routes & Trips?
-											</DialogTitle>
-											<DialogDescription className="text-slate-500 text-xs">
-												This will permanently delete all {routes.length} route(s) and {trips.length} trip(s). All orders will be released back to the unassigned queue.
-											</DialogDescription>
-										</div>
-									</div>
-								</DialogHeader>
-
-								<div className="py-2">
-									<div className="rounded-xl border border-red-200 bg-red-50/70 p-3.5 text-xs text-red-800 space-y-1">
-										<p className="font-semibold flex items-center gap-1.5">
-											<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600" />
-											Warning: This action cannot be undone!
-										</p>
-										<p className="text-red-700/90 leading-relaxed">
-											All route stops, trip stops, and delivery tracking entries will be erased so you can set up fresh routes from scratch.
-										</p>
-									</div>
-								</div>
-
-								<DialogFooter className="gap-2 sm:gap-0">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setIsClearAllModalOpen(false)}
-										disabled={clearAllMutation.isPending}
-									>
-										Cancel
-									</Button>
-									<Button
-										type="button"
-										variant="destructive"
-										onClick={handleConfirmClearAll}
-										disabled={clearAllMutation.isPending}
-										className="font-semibold shadow-sm"
-									>
-										{clearAllMutation.isPending
-											? "Deleting Everything..."
-											: "Yes, Delete All Routes & Trips"}
-									</Button>
-								</DialogFooter>
-							</DialogContent>
-						</Dialog>
 					</CardContent>
 				</Card>
 			</TabsContent>
@@ -1967,41 +2158,77 @@ export function DeliveryManagementDashboard({
 										</tr>
 									</thead>
 									<tbody className="divide-y">
-										{driverCollections.map((col: any) => (
-											<tr key={col.id} className="hover:bg-muted/50">
-												<td className="px-3 py-3 font-medium">
-													<div>{col.driverName}</div>
-													<div className="text-muted-foreground text-xs">
-														{col.driverEmail}
-													</div>
-												</td>
-												<td className="px-3 py-3 capitalize">
-													<span
-														className={`inline-flex items-center rounded px-2 py-0.5 font-medium text-xs ${
-															col.paymentMethod?.toLowerCase() === "cash"
-																? "bg-amber-100 text-amber-800"
-																: "bg-blue-100 text-blue-800"
-														}`}
-													>
-														{col.paymentMethod}
-													</span>
-												</td>
-												<td className="px-3 py-3 font-semibold text-emerald-600">
-													₹{Number(col.amount).toLocaleString("en-IN")}
-												</td>
-												<td className="px-3 py-3 font-mono text-xs">
-													{col.transactionId || col.referenceNumber}
-												</td>
-												<td className="px-3 py-3 text-muted-foreground text-xs">
-													{col.collectedAt}
-												</td>
-												<td className="px-3 py-3">
-													<span className="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs">
-														{col.status}
-													</span>
-												</td>
-											</tr>
-										))}
+										{(() => {
+											const grouped = Object.values(
+												driverCollections.reduce((acc: any, col: any) => {
+													const key = `${col.driverName}_${col.collectedAt}`;
+													if (!acc[key]) {
+														acc[key] = {
+															...col,
+															amount: Number(col.amount),
+															methods: [col.paymentMethod],
+															breakdown: { [col.paymentMethod]: Number(col.amount) },
+															transactionId: col.transactionId || col.referenceNumber || "",
+														};
+													} else {
+														acc[key].amount += Number(col.amount);
+														if (!acc[key].methods.includes(col.paymentMethod)) {
+															acc[key].methods.push(col.paymentMethod);
+														}
+														acc[key].breakdown[col.paymentMethod] = (acc[key].breakdown[col.paymentMethod] || 0) + Number(col.amount);
+														if (col.transactionId || col.referenceNumber) {
+															acc[key].transactionId = acc[key].transactionId ? `${acc[key].transactionId}, ${col.transactionId || col.referenceNumber}` : (col.transactionId || col.referenceNumber);
+														}
+													}
+													return acc;
+												}, {})
+											);
+
+											return (grouped as any[]).map((col: any) => (
+												<tr key={col.id} className="hover:bg-muted/50">
+													<td className="px-3 py-3 font-medium">
+														<div>{col.driverName}</div>
+														<div className="text-muted-foreground text-xs">
+															{col.driverEmail}
+														</div>
+													</td>
+													<td className="px-3 py-3 capitalize">
+														<span
+															className={`inline-flex items-center rounded px-2 py-0.5 font-medium text-xs ${
+																col.methods.length > 1
+																	? "bg-purple-100 text-purple-800"
+																	: col.methods[0]?.toLowerCase() === "cash"
+																		? "bg-amber-100 text-amber-800"
+																		: "bg-blue-100 text-blue-800"
+															}`}
+														>
+															{col.methods.join(" & ")}
+														</span>
+													</td>
+													<td className="px-3 py-3">
+														<div className="font-semibold text-emerald-600">
+															₹{col.amount.toLocaleString("en-IN")}
+														</div>
+														{col.methods.length > 1 && (
+															<div className="text-[10px] text-muted-foreground mt-0.5">
+																{Object.entries(col.breakdown).map(([m, a]: any) => `${m}: ₹${a.toLocaleString("en-IN")}`).join(", ")}
+															</div>
+														)}
+													</td>
+													<td className="px-3 py-3 font-mono text-xs max-w-[200px] truncate" title={col.transactionId}>
+														{col.transactionId}
+													</td>
+													<td className="px-3 py-3 text-muted-foreground text-xs">
+														{col.collectedAt}
+													</td>
+													<td className="px-3 py-3">
+														<span className="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs">
+															{col.status}
+														</span>
+													</td>
+												</tr>
+											));
+										})()}
 									</tbody>
 								</table>
 							</div>
@@ -2010,5 +2237,689 @@ export function DeliveryManagementDashboard({
 				</Card>
 			</TabsContent>
 		</Tabs>
+
+		{/* ── Global Action & Confirmation Dialogs ────────────────────────────── */}
+
+		{/* Assign Order Route & Driver Modal */}
+		<Dialog open={isOrderAssignOpen} onOpenChange={setIsOrderAssignOpen}>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<TruckIcon className="h-5 w-5 text-blue-600" />
+						Assign Route & Driver
+					</DialogTitle>
+					<DialogDescription>
+						{selectedOrderIds.length > 1
+							? `Dispatch ${selectedOrderIds.length} selected orders to a driver & vehicle.`
+							: `Dispatch Order ORD-${assignOrder?.id} (${assignOrder?.customer?.name || "Customer"}) to a driver & vehicle.`}
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-4 py-4">
+					{(() => {
+						const ordersToDisplay =
+							selectedOrderIds.length > 0
+								? unassignedOrders.filter((o: any) =>
+										selectedOrderIds.includes(o.id),
+									)
+								: assignOrder
+									? [assignOrder]
+									: [];
+						const totalAmt = ordersToDisplay.reduce(
+							(sum: number, o: any) => sum + Number(o.total_amount || 0),
+							0,
+						);
+
+						return (
+							<div className="space-y-2">
+								<div className="flex items-center justify-between rounded-lg bg-blue-50/60 p-2.5 text-xs dark:bg-blue-950/40">
+									<span className="font-semibold text-blue-900 dark:text-blue-200">
+										{ordersToDisplay.length} Order(s) Selected
+									</span>
+									<span className="font-bold text-blue-900 dark:text-blue-100">
+										Total: ₹{totalAmt.toFixed(2)}
+									</span>
+								</div>
+								<div className="max-h-36 space-y-1.5 overflow-y-auto pr-1">
+									{ordersToDisplay.map((ord: any, idx: number) => (
+										<div
+											key={ord.id}
+											className="flex items-center justify-between rounded-md border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40"
+										>
+											<div className="min-w-0 flex-1 pr-2">
+												<div className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+													<span className="font-mono text-[11px] text-blue-600">
+														ORD-{ord.id}
+													</span>
+													<span>•</span>
+													<span className="truncate">
+														{ord.customer?.name || "Walk-in Customer"}
+													</span>
+												</div>
+												{(ord.customer?.address || ord.shipping_address) && (
+													<p className="truncate text-[11px] text-emerald-700 dark:text-emerald-400">
+														📍 {ord.customer?.address || ord.shipping_address}
+													</p>
+												)}
+											</div>
+											<span className="shrink-0 font-medium">
+												₹{Number(ord.total_amount || 0).toFixed(2)}
+											</span>
+										</div>
+									))}
+								</div>
+							</div>
+						);
+					})()}
+
+					<div className="space-y-2">
+						<Label className="font-medium text-xs">Assign Driver *</Label>
+						<Select value={orderDriverId} onValueChange={setOrderDriverId}>
+							<SelectTrigger>
+								<SelectValue placeholder="Select Driver..." />
+							</SelectTrigger>
+							<SelectContent>
+								{finalDrivers.map((d: any) => (
+									<SelectItem key={d.id} value={d.id}>
+										👤 {d.name} ({d.email || "Driver"})
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div className="space-y-2">
+						<Label className="font-medium text-xs">
+							Assign Vehicle / Truck
+						</Label>
+						<Select
+							value={orderVehicleId}
+							onValueChange={setOrderVehicleId}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="Select Vehicle..." />
+							</SelectTrigger>
+							<SelectContent>
+								{vehicles.map((v: any) => (
+									<SelectItem key={v.id} value={v.id.toString()}>
+										🚚 {v.name} ({v.registration_number})
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+				<DialogFooter>
+					<Button
+						variant="outline"
+						onClick={() => setIsOrderAssignOpen(false)}
+					>
+						Cancel
+					</Button>
+					<Button
+						className="bg-blue-600 text-white hover:bg-blue-700"
+						disabled={createTripDirect.isPending || !orderDriverId}
+						onClick={handleAssignOrderRoute}
+					>
+						{createTripDirect.isPending
+							? "Assigning..."
+							: "Assign & Send to Packer"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* Delete Route Confirmation Modal */}
+		<Dialog
+			open={isDeleteRouteModalOpen}
+			onOpenChange={setIsDeleteRouteModalOpen}
+		>
+			<DialogContent className="max-w-md border-red-200">
+				<DialogHeader>
+					<div className="flex items-center gap-3">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+							<Trash2Icon className="h-5 w-5" />
+						</div>
+						<div>
+							<DialogTitle className="font-bold text-lg text-slate-900">
+								Delete Delivery Route?
+							</DialogTitle>
+							<DialogDescription className="text-slate-500 text-xs">
+								This will permanently delete the route and all its stops.
+								Active trips using this route will be unlinked.
+							</DialogDescription>
+						</div>
+					</div>
+				</DialogHeader>
+
+				{routeToDelete && (
+					<div className="py-2">
+						<div className="space-y-2 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
+							<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
+								<span>{routeToDelete.name}</span>
+								<span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-[10px] text-slate-600">
+									{routeToDelete.stops?.length || 0} Stop(s)
+								</span>
+							</div>
+							{routeToDelete.description && (
+								<p className="text-slate-500 text-xs">
+									{routeToDelete.description}
+								</p>
+							)}
+							{routeToDelete.stops?.length > 0 && (
+								<div className="space-y-1 pt-1">
+									{routeToDelete.stops
+										.slice(0, 4)
+										.map((stop: any, idx: number) => (
+											<div
+												key={stop.id}
+												className="flex items-center gap-2 text-slate-600 text-xs"
+											>
+												<div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[9px] text-primary">
+													{idx + 1}
+												</div>
+												{stop.customer?.name}
+											</div>
+										))}
+									{routeToDelete.stops.length > 4 && (
+										<p className="pl-6 text-slate-400 text-xs">
+											+{routeToDelete.stops.length - 4} more stop(s)…
+										</p>
+									)}
+								</div>
+							)}
+						</div>
+					</div>
+				)}
+
+				<DialogFooter className="gap-2 sm:gap-0">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => {
+							setIsDeleteRouteModalOpen(false);
+							setRouteToDelete(null);
+						}}
+						disabled={deleteRouteMutation.isPending}
+					>
+						Keep Route
+					</Button>
+					<Button
+						type="button"
+						variant="destructive"
+						onClick={handleConfirmDeleteRoute}
+						disabled={deleteRouteMutation.isPending}
+						className="font-semibold shadow-sm"
+					>
+						{deleteRouteMutation.isPending
+							? "Deleting..."
+							: "Yes, Delete Route"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* Delete Trip Confirmation Modal */}
+		<Dialog
+			open={isDeleteTripModalOpen}
+			onOpenChange={setIsDeleteTripModalOpen}
+		>
+			<DialogContent className="max-w-md border-red-200">
+				<DialogHeader>
+					<div className="flex items-center gap-3">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+							<Trash2Icon className="h-5 w-5" />
+						</div>
+						<div>
+							<DialogTitle className="font-bold text-lg text-slate-900">
+								Delete Delivery Trip?
+							</DialogTitle>
+							<DialogDescription className="text-slate-500 text-xs">
+								This will permanently remove the trip and all its stops.
+								Orders will be released back to the dispatch queue.
+							</DialogDescription>
+						</div>
+					</div>
+				</DialogHeader>
+
+				{tripToDelete && (
+					<div className="py-2">
+						<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
+							<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
+								<span>
+									{tripToDelete.route?.name || `Trip #${tripToDelete.id}`}
+								</span>
+								<span
+									className={`rounded px-2 py-0.5 font-bold text-[10px] uppercase ${
+										tripToDelete.status === "cancelled"
+											? "bg-red-100 text-red-700"
+											: tripToDelete.status === "completed"
+												? "bg-emerald-100 text-emerald-700"
+												: "bg-blue-100 text-blue-700"
+									}`}
+								>
+									{tripToDelete.status}
+								</span>
+							</div>
+							<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
+								<div>
+									<span className="text-slate-400">Driver:</span>{" "}
+									<span className="font-medium text-slate-800">
+										{tripToDelete.driver?.name || "Unassigned"}
+									</span>
+								</div>
+								<div>
+									<span className="text-slate-400">Vehicle:</span>{" "}
+									<span className="font-medium text-slate-800">
+										{tripToDelete.vehicle?.name || "N/A"}
+									</span>
+								</div>
+								<div className="col-span-2">
+									<span className="text-slate-400">Total Stops:</span>{" "}
+									<span className="font-medium text-slate-800">
+										{tripToDelete.stops?.length || 0} Stop(s)
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+				<DialogFooter className="gap-2 sm:gap-0">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => {
+							setIsDeleteTripModalOpen(false);
+							setTripToDelete(null);
+						}}
+						disabled={deleteTripMutation.isPending}
+					>
+						Keep Trip
+					</Button>
+					<Button
+						type="button"
+						variant="destructive"
+						onClick={handleConfirmDeleteTrip}
+						disabled={deleteTripMutation.isPending}
+						className="font-semibold shadow-sm"
+					>
+						{deleteTripMutation.isPending
+							? "Deleting..."
+							: "Yes, Delete Trip"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* Trip Cancellation Confirmation Modal */}
+		<Dialog
+			open={isCancelModalOpen}
+			onOpenChange={setIsCancelModalOpen}
+		>
+			<DialogContent className="max-w-md border-red-200">
+				<DialogHeader>
+					<div className="flex items-center gap-3">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+							<AlertTriangleIcon className="h-5 w-5" />
+						</div>
+						<div>
+							<DialogTitle className="font-bold text-lg text-slate-900">
+								Cancel Delivery Trip?
+							</DialogTitle>
+							<DialogDescription className="text-slate-500 text-xs">
+								Are you sure you want to cancel this trip? Assigned
+								orders will be released back to dispatch.
+							</DialogDescription>
+						</div>
+					</div>
+				</DialogHeader>
+
+				{tripToCancel && (
+					<div className="space-y-4 py-2">
+						<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
+							<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
+								<span>
+									{tripToCancel.route?.name ||
+										`Trip #${tripToCancel.id}`}
+								</span>
+								<span className="rounded bg-red-100 px-2 py-0.5 font-bold text-[10px] text-red-700 uppercase">
+									{tripToCancel.status}
+								</span>
+							</div>
+							<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
+								<div>
+									<span className="text-slate-400">Driver:</span>{" "}
+									<span className="font-medium text-slate-800">
+										{tripToCancel.driver?.name || "Unassigned"}
+									</span>
+								</div>
+								<div>
+									<span className="text-slate-400">Vehicle:</span>{" "}
+									<span className="font-medium text-slate-800">
+										{tripToCancel.vehicle?.name || "N/A"}
+									</span>
+								</div>
+								<div className="col-span-2">
+									<span className="text-slate-400">Total Stops:</span>{" "}
+									<span className="font-medium text-slate-800">
+										{tripToCancel.stops?.length || 0} Stop(s)
+									</span>
+								</div>
+							</div>
+						</div>
+
+						<div className="space-y-1.5">
+							<Label className="font-semibold text-slate-700 text-xs">
+								Reason for Cancellation (Optional)
+							</Label>
+							<Select
+								value={cancelReason}
+								onValueChange={setCancelReason}
+							>
+								<SelectTrigger className="h-9 text-xs">
+									<SelectValue placeholder="Select cancellation reason..." />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="driver_unavailable">
+										Driver Unavailable
+									</SelectItem>
+									<SelectItem value="vehicle_breakdown">
+										Vehicle Breakdown / Maintenance
+									</SelectItem>
+									<SelectItem value="route_reorganization">
+										Route Reorganization
+									</SelectItem>
+									<SelectItem value="customer_reschedule">
+										Customer Rescheduled
+									</SelectItem>
+									<SelectItem value="other">
+										Other Operational Reason
+									</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+				)}
+
+				<DialogFooter className="gap-2 sm:gap-0">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => {
+							setIsCancelModalOpen(false);
+							setTripToCancel(null);
+						}}
+						disabled={cancelTrip.isPending}
+					>
+						Keep Trip
+					</Button>
+					<Button
+						type="button"
+						variant="destructive"
+						onClick={handleConfirmCancelTrip}
+						disabled={cancelTrip.isPending}
+						className="font-semibold shadow-sm"
+					>
+						{cancelTrip.isPending
+							? "Cancelling..."
+							: "Yes, Cancel Trip"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* Clear All Confirmation Modal */}
+		<Dialog
+			open={isClearAllModalOpen}
+			onOpenChange={setIsClearAllModalOpen}
+		>
+			<DialogContent className="max-w-md border-red-200">
+				<DialogHeader>
+					<div className="flex items-center gap-3">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+							<Trash2Icon className="h-5 w-5" />
+						</div>
+						<div>
+							<DialogTitle className="font-bold text-lg text-slate-900">
+								Delete All Routes & Trips?
+							</DialogTitle>
+							<DialogDescription className="text-slate-500 text-xs">
+								This will permanently delete all {routes.length} route(s) and {trips.length} trip(s). All orders will be released back to the unassigned queue.
+							</DialogDescription>
+						</div>
+					</div>
+				</DialogHeader>
+
+				<div className="py-2">
+					<div className="rounded-xl border border-red-200 bg-red-50/70 p-3.5 text-xs text-red-800 space-y-1">
+						<p className="font-semibold flex items-center gap-1.5">
+							<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600" />
+							Warning: This action cannot be undone!
+						</p>
+						<p className="text-red-700/90 leading-relaxed">
+							All route stops, trip stops, and delivery tracking entries will be erased so you can set up fresh routes from scratch.
+						</p>
+					</div>
+				</div>
+
+				<DialogFooter className="gap-2 sm:gap-0">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => setIsClearAllModalOpen(false)}
+						disabled={clearAllMutation.isPending}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="button"
+						variant="destructive"
+						onClick={handleConfirmClearAll}
+						disabled={clearAllMutation.isPending}
+						className="font-semibold shadow-sm"
+					>
+						{clearAllMutation.isPending
+							? "Deleting Everything..."
+							: "Yes, Delete All Routes & Trips"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* Edit Route & Village Stops Modal */}
+		<Dialog open={isEditRouteOpen} onOpenChange={setIsEditRouteOpen}>
+			<DialogContent className="max-w-xl">
+				<DialogHeader>
+					<div className="flex items-center gap-2.5">
+						<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+							<RouteIcon className="h-5 w-5" />
+						</div>
+						<div>
+							<DialogTitle className="font-bold text-lg">
+								Edit Route & Village Stops
+							</DialogTitle>
+							<DialogDescription className="text-xs">
+								Add, reorder, rename, or delete villages for this delivery route.
+							</DialogDescription>
+						</div>
+					</div>
+				</DialogHeader>
+
+				<div className="max-h-[65vh] space-y-4 overflow-y-auto py-3 pr-1 text-xs">
+					<div className="space-y-1.5">
+						<Label className="font-semibold text-xs text-slate-800 dark:text-slate-200">
+							Route Name *
+						</Label>
+						<Input
+							value={editRouteName}
+							onChange={(e) => setEditRouteName(e.target.value)}
+							placeholder="e.g. Runaha Route"
+							className="h-9 text-xs"
+						/>
+					</div>
+
+					{/* Add Village Input */}
+					<div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-3 dark:border-primary/30 dark:bg-primary/10">
+						<Label className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+							<MapPinIcon className="h-3.5 w-3.5 text-primary" />
+							Add New Village / Stop
+						</Label>
+						<div className="flex gap-2">
+							<Input
+								value={newVillageInput}
+								onChange={(e) => setNewVillageInput(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										handleAddVillageToEdit();
+									}
+								}}
+								placeholder="Type village name (e.g. Bhamoni, Sukha, Runaha)..."
+								className="h-8 text-xs bg-white dark:bg-slate-900"
+							/>
+							<Button
+								type="button"
+								size="sm"
+								className="h-8 px-3 text-xs bg-primary text-white font-semibold hover:bg-primary/90 shadow-sm"
+								onClick={handleAddVillageToEdit}
+								disabled={!newVillageInput.trim()}
+							>
+								<PlusIcon className="mr-1 h-3.5 w-3.5" />
+								Add
+							</Button>
+						</div>
+					</div>
+
+					{/* Village List */}
+					<div className="space-y-2">
+						<div className="flex items-center justify-between">
+							<Label className="font-semibold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+								Villages in Route Sequence ({editVillageStops.length})
+							</Label>
+							{editVillageStops.length > 0 && (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="h-6 text-[11px] text-red-500 hover:text-red-700 hover:bg-red-50"
+									onClick={() => {
+										setEditVillageStops([]);
+										setEditRouteDesc("");
+									}}
+								>
+									Clear All
+								</Button>
+							)}
+						</div>
+
+						<div className="max-h-56 space-y-1.5 overflow-y-auto rounded-xl border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40">
+							{editVillageStops.map((village, idx) => (
+								<div
+									key={`edit_v_${idx}`}
+									className="flex items-center justify-between gap-2 rounded-lg border bg-white p-2 shadow-xs transition-colors hover:border-primary/30 dark:bg-slate-800"
+								>
+									<div className="flex items-center gap-2 min-w-0 flex-1">
+										<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+											{idx + 1}
+										</div>
+										<Input
+											value={village}
+											onChange={(e) => {
+												const val = e.target.value;
+												const updated = [...editVillageStops];
+												updated[idx] = val;
+												setEditVillageStops(updated);
+												setEditRouteDesc(updated.join(" -> "));
+											}}
+											className="h-7 text-xs font-semibold text-slate-800 border-none bg-transparent focus-visible:ring-1 focus-visible:ring-primary dark:text-slate-200"
+										/>
+									</div>
+									<div className="flex items-center gap-1 shrink-0">
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											title="Move Up"
+											className="h-6 w-6 text-slate-400 hover:text-slate-700"
+											disabled={idx === 0}
+											onClick={() => handleMoveVillage(idx, "up")}
+										>
+											<ArrowUpIcon className="h-3.5 w-3.5" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											title="Move Down"
+											className="h-6 w-6 text-slate-400 hover:text-slate-700"
+											disabled={idx === editVillageStops.length - 1}
+											onClick={() => handleMoveVillage(idx, "down")}
+										>
+											<ArrowDownIcon className="h-3.5 w-3.5" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											title="Delete Village"
+											className="h-6 w-6 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+											onClick={() => handleRemoveVillageFromEdit(idx)}
+										>
+											<Trash2Icon className="h-3.5 w-3.5" />
+										</Button>
+									</div>
+								</div>
+							))}
+							{editVillageStops.length === 0 && (
+								<p className="py-6 text-center text-slate-400 text-xs">
+									No villages left. Add villages using the input above.
+								</p>
+							)}
+						</div>
+					</div>
+
+					{/* Route Description Preview */}
+					<div className="space-y-1">
+						<Label className="text-[11px] text-muted-foreground">
+							Route Summary Preview:
+						</Label>
+						<p className="rounded-lg bg-slate-100/70 p-2.5 text-[11px] font-mono text-slate-600 leading-relaxed dark:bg-slate-900/60 dark:text-slate-400">
+							{editVillageStops.length > 0
+								? editVillageStops.join(" → ")
+								: "No village stops"}
+						</p>
+					</div>
+				</div>
+
+				<DialogFooter className="gap-2 sm:gap-0">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => {
+							setIsEditRouteOpen(false);
+							setRouteToEdit(null);
+						}}
+						disabled={updateRouteMutation.isPending}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="button"
+						className="bg-primary text-white font-semibold shadow-sm hover:bg-primary/90"
+						onClick={handleSaveEditRoute}
+						disabled={
+							updateRouteMutation.isPending ||
+							!editRouteName.trim() ||
+							editVillageStops.length === 0
+						}
+					>
+						{updateRouteMutation.isPending
+							? "Saving Changes..."
+							: "Save Route & Villages"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+		</>
 	);
 }

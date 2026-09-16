@@ -166,9 +166,38 @@ export default function DriverRoutePage() {
 							{routeStops.map((stop: any, index: number) => (
 								<TableRow key={`${stop.id}-${index}`}>
 									<TableCell>{index + 1}</TableCell>
-									<TableCell>{stop.customerName}</TableCell>
-									<TableCell>{stop.address}</TableCell>
-									<TableCell>{stop.orderId}</TableCell>
+									<TableCell className="font-medium text-slate-900 dark:text-slate-100">
+										{stop.customerName}
+									</TableCell>
+									<TableCell className="max-w-[200px] truncate text-slate-600 dark:text-slate-400">
+										{stop.address}
+									</TableCell>
+									<TableCell>
+										<div className="flex flex-wrap items-center gap-1.5">
+											{stop.orders && stop.orders.length > 0 ? (
+												stop.orders.map((ord: any) => (
+													<span
+														key={ord.id}
+														className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+													>
+														ORD-{ord.id}
+													</span>
+												))
+											) : (
+												<span className="font-mono text-xs font-semibold text-blue-700 dark:text-blue-300">
+													{typeof stop.orderId === "string" &&
+													stop.orderId.startsWith("ORD-")
+														? stop.orderId
+														: `ORD-${stop.orderId || stop.id}`}
+												</span>
+											)}
+											{stop.ordersCount && stop.ordersCount > 1 ? (
+												<span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+													{stop.ordersCount} Orders
+												</span>
+											) : null}
+										</div>
+									</TableCell>
 									<TableCell>
 										<span
 											className={`rounded-full px-2 py-0.5 text-xs ${stop.status === "completed" ? "bg-green-100 text-green-800" : stop.status === "next" ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"}`}
@@ -273,13 +302,27 @@ export default function DriverRoutePage() {
 										📍 {activeStartStop.address}
 									</span>
 								</div>
-								<div className="flex justify-between">
+								<div className="flex justify-between items-center">
 									<span className="text-slate-500">Order Reference:</span>
-									<span className="font-bold font-mono text-blue-700">
-										{activeStartStop.orderId
-											? `ORD-${activeStartStop.orderId}`
-											: `ORD-${activeStartStop.id}`}
-									</span>
+									<div className="flex flex-wrap justify-end gap-1">
+										{activeStartStop.orders && activeStartStop.orders.length > 0 ? (
+											activeStartStop.orders.map((ord: any) => (
+												<span
+													key={ord.id}
+													className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 font-bold font-mono text-[11px] text-blue-800"
+												>
+													ORD-{ord.id}
+												</span>
+											))
+										) : (
+											<span className="font-bold font-mono text-blue-700">
+												{typeof activeStartStop.orderId === "string" &&
+												activeStartStop.orderId.startsWith("ORD-")
+													? activeStartStop.orderId
+													: `ORD-${activeStartStop.orderId || activeStartStop.id}`}
+											</span>
+										)}
+									</div>
 								</div>
 							</div>
 						</div>
@@ -327,13 +370,28 @@ export default function DriverRoutePage() {
 										{activeCompleteStop.customerName}
 									</span>
 								</div>
-								<div className="flex justify-between">
+								<div className="flex justify-between items-center">
 									<span className="text-slate-500">Order Ref:</span>
-									<span className="font-bold font-mono text-emerald-700">
-										{activeCompleteStop.orderId
-											? `ORD-${activeCompleteStop.orderId}`
-											: `ORD-${activeCompleteStop.id}`}
-									</span>
+									<div className="flex flex-wrap justify-end gap-1">
+										{activeCompleteStop.orders &&
+										activeCompleteStop.orders.length > 0 ? (
+											activeCompleteStop.orders.map((ord: any) => (
+												<span
+													key={ord.id}
+													className="inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 font-bold font-mono text-[11px] text-emerald-800"
+												>
+													ORD-{ord.id}
+												</span>
+											))
+										) : (
+											<span className="font-bold font-mono text-emerald-700">
+												{typeof activeCompleteStop.orderId === "string" &&
+												activeCompleteStop.orderId.startsWith("ORD-")
+													? activeCompleteStop.orderId
+													: `ORD-${activeCompleteStop.orderId || activeCompleteStop.id}`}
+											</span>
+										)}
+									</div>
 								</div>
 							</div>
 
@@ -458,13 +516,27 @@ export default function DriverRoutePage() {
 										{activePodStop.customerName}
 									</span>
 								</div>
-								<div className="flex justify-between border-b pb-2">
+								<div className="flex justify-between items-center border-b pb-2">
 									<span className="text-slate-500">Order Ref:</span>
-									<span className="font-bold font-mono text-blue-600">
-										{activePodStop.orderId
-											? `ORD-${activePodStop.orderId}`
-											: `ORD-${activePodStop.id}`}
-									</span>
+									<div className="flex flex-wrap justify-end gap-1">
+										{activePodStop.orders && activePodStop.orders.length > 0 ? (
+											activePodStop.orders.map((ord: any) => (
+												<span
+													key={ord.id}
+													className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 font-bold font-mono text-[11px] text-blue-800"
+												>
+													ORD-{ord.id}
+												</span>
+											))
+										) : (
+											<span className="font-bold font-mono text-blue-600">
+												{typeof activePodStop.orderId === "string" &&
+												activePodStop.orderId.startsWith("ORD-")
+													? activePodStop.orderId
+													: `ORD-${activePodStop.orderId || activePodStop.id}`}
+											</span>
+										)}
+									</div>
 								</div>
 								<div className="flex justify-between border-b pb-2">
 									<span className="text-slate-500">Handover Status:</span>

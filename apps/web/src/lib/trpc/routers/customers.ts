@@ -11,7 +11,7 @@ const customerSchema = z
 		id: z.number(),
 		customer_code: z.string().nullable(),
 		name: z.string(),
-		email: z.string(),
+		email: z.string().nullable().optional(),
 		phone: z.string().nullable(),
 		address: z.string().nullable(),
 		status: z.string().nullable(),
@@ -102,7 +102,7 @@ export const customersRouter = router({
 		.input(
 			z.object({
 				name: z.string().min(1),
-				email: z.string().email(),
+				email: z.string().email().optional().or(z.literal("")),
 				phone: z.string().optional(),
 				address: z.string().optional(),
 				status: z.enum(["active", "inactive"]).optional(),
@@ -113,10 +113,12 @@ export const customersRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			try {
 				const code = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
+				const cleanEmail = input.email && input.email.trim().length > 0 ? input.email.trim().toLowerCase() : null;
 				const [data] = await db
 					.insert(customers)
 					.values({
 						...input,
+						email: cleanEmail as any,
 						customer_code: code,
 						user_uid: ctx.user.id,
 						branch_id: ctx.user.branchId ?? null,
@@ -147,7 +149,7 @@ export const customersRouter = router({
 			z.object({
 				id: z.number(),
 				name: z.string().min(1).optional(),
-				email: z.string().email().optional(),
+				email: z.string().email().optional().or(z.literal("")),
 				phone: z.string().optional(),
 				address: z.string().optional(),
 				status: z.enum(["active", "inactive"]).optional(),
@@ -160,9 +162,13 @@ export const customersRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			try {
 				const { id, ...data } = input;
+				const patch: any = { ...data, user_uid: ctx.user.id };
+				if (data.email !== undefined) {
+					patch.email = data.email && data.email.trim().length > 0 ? data.email.trim().toLowerCase() : null;
+				}
 				const [updated] = await db
 					.update(customers)
-					.set({ ...data, user_uid: ctx.user.id })
+					.set(patch)
 					.where(
 						and(
 							eq(customers.id, id),
@@ -270,7 +276,12 @@ export const customersRouter = router({
 	// it is (re)linked to role="customer" instead of erroring. The temporary
 	// password is returned ONCE for the staff member to hand to the customer.
 	provisionLogin: roleProcedure(["admin", "manager", "sales_person"])
-		.input(z.object({ id: z.number() }))
+		.input(
+			z.object({
+				id: z.number(),
+				email: z.string().trim().toLowerCase().email().optional(),
+			}),
+		)
 		.mutation(async ({ ctx, input }) => {
 			const customer = await db.query.customers.findFirst({
 				where: and(
@@ -285,16 +296,38 @@ export const customersRouter = router({
 					code: "NOT_FOUND",
 					message: "Customer not found",
 				});
-			if (!customer.email)
+
+			let targetEmail = customer.email;
+			if (!targetEmail && input.email) {
+				const existingWithEmail = await db.query.customers.findFirst({
+					where: and(
+						eq(customers.email, input.email),
+						ne(customers.id, input.id),
+					),
+				});
+				if (existingWithEmail) {
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "This email is already associated with another customer",
+					});
+				}
+				await db
+					.update(customers)
+					.set({ email: input.email })
+					.where(eq(customers.id, input.id));
+				targetEmail = input.email;
+			}
+
+			if (!targetEmail)
 				throw new TRPCError({
 					code: "BAD_REQUEST",
-					message: "Customer has no email — add one before creating a login.",
+					message: "Customer has no email — please provide an email to create a login.",
 				});
 
 			const existing = await db
 				.select({ id: user.id })
 				.from(user)
-				.where(eq(user.email, customer.email))
+				.where(eq(user.email, targetEmail))
 				.limit(1);
 
 			// Already has a login → just (re)link it to the customer role + branch.
@@ -306,9 +339,9 @@ export const customersRouter = router({
 						branch_id: customer.branch_id ?? null,
 						is_active: true,
 					} as any)
-					.where(eq(user.email, customer.email));
+					.where(eq(user.email, targetEmail));
 				return {
-					email: customer.email,
+					email: targetEmail,
 					linked: true,
 					temporaryPassword: null as string | null,
 				};
@@ -318,7 +351,7 @@ export const customersRouter = router({
 			const temporaryPassword = `Ev-${crypto.randomUUID().slice(0, 8)}A9!`;
 			const result = await auth.api.signUpEmail({
 				body: {
-					email: customer.email,
+					email: targetEmail,
 					password: temporaryPassword,
 					name: customer.name,
 				},
@@ -336,8 +369,8 @@ export const customersRouter = router({
 					branch_id: customer.branch_id ?? null,
 					is_active: true,
 				} as any)
-				.where(eq(user.email, customer.email));
+				.where(eq(user.email, targetEmail));
 
-			return { email: customer.email, linked: false, temporaryPassword };
+			return { email: targetEmail, linked: false, temporaryPassword };
 		}),
 });

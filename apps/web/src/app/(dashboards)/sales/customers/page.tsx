@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
@@ -34,10 +34,14 @@ import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+	Check,
+	Copy,
 	EyeIcon,
 	FilePenIcon,
+	KeyRound,
 	PlusCircle,
 	TrashIcon,
+	UserCheck,
 	UsersIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -68,7 +72,7 @@ export default function CustomersPage() {
 
 	const customerFormSchema = z.object({
 		name: z.string().min(1, t("nameRequired")),
-		email: z.string().email(t("invalidEmail")),
+		email: z.string().email(t("invalidEmail")).optional().or(z.literal("")),
 		phone: z.string().optional(),
 		address: z.string().optional(),
 		status: z.enum(["active", "inactive"]),
@@ -168,8 +172,61 @@ export default function CustomersPage() {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 
+	// Customer Portal Account Provisioning Modal State
+	const [provisionTarget, setProvisionTarget] = useState<Customer | null>(null);
+	const [provisionEmail, setProvisionEmail] = useState("");
+	const [provisionResult, setProvisionResult] = useState<{
+		email: string;
+		linked: boolean;
+		temporaryPassword: string | null;
+	} | null>(null);
+	const [hasCopied, setHasCopied] = useState(false);
+
 	const isEditing = editingId !== null;
 	const invalidateKeys = [["customers", "list"]];
+
+	const provisionMutation = trpc.customers.provisionLogin.useMutation({
+		onSuccess: (data) => {
+			utils.customers.list.invalidate();
+			setProvisionResult(data);
+			toast.success(
+				data.linked
+					? "Customer portal account linked"
+					: "Customer portal login created successfully",
+			);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to create portal account");
+		},
+	});
+
+	const openProvisionDialog = (customer: Customer) => {
+		setProvisionTarget(customer);
+		setProvisionEmail(customer.email || "");
+		setProvisionResult(null);
+		setHasCopied(false);
+	};
+
+	const handleProvisionSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!provisionTarget) return;
+		const emailToUse = provisionEmail.trim() || provisionTarget.email;
+		if (!emailToUse) {
+			toast.error("Please enter a valid email address");
+			return;
+		}
+		provisionMutation.mutate({
+			id: provisionTarget.id,
+			email: emailToUse,
+		});
+	};
+
+	const copyToClipboard = (text: string) => {
+		navigator.clipboard.writeText(text);
+		setHasCopied(true);
+		toast.success("Copied credentials to clipboard!");
+		setTimeout(() => setHasCopied(false), 2000);
+	};
 
 	const createMutation = trpc.customers.create.useMutation({
 		onSuccess: () => {
@@ -275,6 +332,11 @@ export default function CustomersPage() {
 		header: tc("actions"),
 		render: (row) => (
 			<TableActions>
+				<TableActionButton
+					onClick={() => openProvisionDialog(row)}
+					icon={<KeyRound className="h-4 w-4 text-primary" />}
+					label="Portal Account"
+				/>
 				<TableActionButton
 					onClick={() => router.push(`/sales/customers/${row.id}`)}
 					icon={<EyeIcon className="h-4 w-4" />}
@@ -512,6 +574,139 @@ export default function CustomersPage() {
 					onConfirm={handleDelete}
 					isDeleting={deleteMutation.isPending}
 				/>
+
+				{/* Customer Portal Account Modal */}
+				<Dialog
+					open={provisionTarget !== null}
+					onOpenChange={(open) => {
+						if (!open) {
+							setProvisionTarget(null);
+							setProvisionResult(null);
+						}
+					}}
+				>
+					<DialogContent className="max-w-md">
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2">
+								<KeyRound className="h-5 w-5 text-primary" />
+								Customer Portal Account
+							</DialogTitle>
+						</DialogHeader>
+
+						{provisionResult ? (
+							<div className="space-y-4 py-2">
+								<div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 text-sm">
+									<p className="font-semibold text-green-700 dark:text-green-400">
+										{provisionResult.linked
+											? "Account linked to Customer Portal!"
+											: "Customer Portal Account created successfully!"}
+									</p>
+									<p className="text-muted-foreground mt-1 text-xs">
+										Guide the customer to sign in at{" "}
+										<span className="font-mono font-medium text-foreground">/login</span> with these details:
+									</p>
+								</div>
+
+								<div className="space-y-3 rounded-md bg-muted/60 p-4 font-mono text-sm border">
+									<div>
+										<span className="text-xs text-muted-foreground block">Email:</span>
+										<span className="font-medium text-foreground">{provisionResult.email}</span>
+									</div>
+									{provisionResult.temporaryPassword ? (
+										<div>
+											<span className="text-xs text-muted-foreground block">Temporary Password:</span>
+											<span className="font-semibold text-primary select-all">
+												{provisionResult.temporaryPassword}
+											</span>
+										</div>
+									) : (
+										<div>
+											<span className="text-xs text-muted-foreground block">Password:</span>
+											<span className="italic text-muted-foreground text-xs">
+												Existing password maintained. Customer can sign in directly.
+											</span>
+										</div>
+									)}
+								</div>
+
+								<div className="flex justify-between items-center gap-2 pt-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => {
+											const text = provisionResult.temporaryPassword
+												? `Evaluna Customer Portal Login:\nEmail: ${provisionResult.email}\nTemporary Password: ${provisionResult.temporaryPassword}\nLogin at: /login`
+												: `Evaluna Customer Portal Login:\nEmail: ${provisionResult.email}\nLogin at: /login`;
+											copyToClipboard(text);
+										}}
+									>
+										{hasCopied ? (
+											<>
+												<Check className="mr-2 h-4 w-4 text-green-500" />
+												Copied!
+											</>
+										) : (
+											<>
+												<Copy className="mr-2 h-4 w-4" />
+												Copy Credentials
+											</>
+										)}
+									</Button>
+									<Button
+										size="sm"
+										onClick={() => {
+											setProvisionTarget(null);
+											setProvisionResult(null);
+										}}
+									>
+										Done
+									</Button>
+								</div>
+							</div>
+						) : (
+							<form onSubmit={handleProvisionSubmit} className="space-y-4 py-2">
+								<p className="text-sm text-muted-foreground">
+									Set up self-service access for <strong>{provisionTarget?.name}</strong>.
+									The customer will be able to log in, view orders, and manage loyalty points.
+								</p>
+
+								<div className="space-y-2">
+									<Label htmlFor="provision-email">Customer Email Address</Label>
+									<Input
+										id="provision-email"
+										type="email"
+										value={provisionEmail}
+										onChange={(e) => setProvisionEmail(e.target.value)}
+										placeholder="customer@example.com"
+										required
+										autoFocus
+									/>
+									{!provisionTarget?.email && (
+										<p className="text-xs text-amber-600 dark:text-amber-400">
+											This customer has no email yet. Adding an email here will save it to their profile and generate their login.
+										</p>
+									)}
+								</div>
+
+								<DialogFooter className="pt-2">
+									<Button
+										type="button"
+										variant="secondary"
+										onClick={() => setProvisionTarget(null)}
+									>
+										Cancel
+									</Button>
+									<Button
+										type="submit"
+										disabled={provisionMutation.isPending || !provisionEmail.trim()}
+									>
+										{provisionMutation.isPending ? "Generating..." : "Generate Portal Login"}
+									</Button>
+								</DialogFooter>
+							</form>
+						)}
+					</DialogContent>
+				</Dialog>
 			</Card>
 		</PageTransition>
 	);

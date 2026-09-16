@@ -27,12 +27,14 @@ import {
 	AlertCircleIcon,
 	ArrowLeftIcon,
 	CheckCircle2Icon,
+	LockIcon,
 	MapPinIcon,
 	NavigationIcon,
 	PhoneIcon,
 	PlusIcon,
 	RouteIcon,
 	SaveIcon,
+	SearchIcon,
 	Trash2Icon,
 	TruckIcon,
 	UserIcon,
@@ -41,6 +43,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
 import { Badge } from "@/components/ui/badge";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -74,8 +77,21 @@ export default function CustomerOrderReviewPage() {
 	const [discount, setDiscount] = useState(0);
 	const [selectedRouteId, setSelectedRouteId] = useState<string>("");
 	const [addProductId, setAddProductId] = useState<string>("");
+	const [productSearch, setProductSearch] = useState<string>("");
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const seeded = useRef(false);
+
+	const filteredCatalog = useMemo(() => {
+		const list = (catalog ?? []).filter((p) => p.status === "active");
+		if (!productSearch.trim()) return list;
+		const query = productSearch.toLowerCase().trim();
+		return list.filter(
+			(p) =>
+				p.name.toLowerCase().includes(query) ||
+				(p.sku && p.sku.toLowerCase().includes(query)) ||
+				(p.category && p.category.toLowerCase().includes(query)),
+		);
+	}, [catalog, productSearch]);
 
 	// Seed editable lines and route from the stored order once.
 	useEffect(() => {
@@ -165,6 +181,8 @@ export default function CustomerOrderReviewPage() {
 		}
 	};
 
+	const [completedOrder, setCompletedOrder] = useState<any>(null);
+
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
 			toast.success("Order confirmed! Bill generated successfully.");
@@ -179,13 +197,46 @@ export default function CustomerOrderReviewPage() {
 			utils.picker.getDashboardStats.invalidate();
 			utils.warehouse.getPickingQueue.invalidate();
 			setConfirmOpen(false);
-			router.push(`/sales/pos?completedOrderId=${order?.id || id}`);
+
+			// Populate CompletedOrder for the bill invoice screen
+			const sub = lines.reduce((a, l) => a + l.price * l.quantity, 0);
+			const tot = Math.max(0, sub - discount);
+			setCompletedOrder({
+				id: id,
+				createdAt: new Date().toISOString(),
+				customerName: order?.customer?.name || "Customer",
+				customerPhone: order?.customer?.phone || "",
+				shopName: order?.customer?.address || "",
+				address: order?.customer?.address || "",
+				subtotal: sub,
+				discount: discount,
+				total: tot,
+				items: lines.map((l) => ({
+					id: l.productId,
+					name: l.name,
+					qty: l.quantity,
+					price: l.price.toString(),
+				})),
+				payments: [{ methodId: 1, amount: tot.toString() }],
+			});
 		},
 		onError: (e) => {
 			setConfirmOpen(false);
 			toast.error(e.message);
 		},
 	});
+
+	if (completedOrder) {
+		return (
+			<SaleCompletionScreen
+				order={completedOrder}
+				onNewSale={() => {
+					setCompletedOrder(null);
+					router.push("/sales/orders/review");
+				}}
+			/>
+		);
+	}
 
 	if (isLoading)
 		return (
@@ -421,7 +472,7 @@ export default function CustomerOrderReviewPage() {
 					<div className="hidden rounded-lg bg-muted/50 px-4 py-2 font-medium text-muted-foreground text-xs sm:grid sm:grid-cols-[1fr_100px_140px_120px_40px] sm:gap-4">
 						<span>Product</span>
 						<span>Quantity</span>
-						<span>Unit Price (₹)</span>
+						<span>Unit Price (MRP)</span>
 						<span className="text-right">Line Total</span>
 						<span className="sr-only">Actions</span>
 					</div>
@@ -462,21 +513,23 @@ export default function CustomerOrderReviewPage() {
 							</div>
 
 							<div>
-								<Label className="text-xs sm:sr-only">Price (₹)</Label>
-								<Input
-									type="number"
-									min={0}
-									step="0.01"
-									value={l.price}
-									disabled={locked}
-									placeholder="Enter price"
-									onChange={(e) =>
-										setLine(l.productId, {
-											price: Math.max(0, Number(e.target.value) || 0),
-										})
-									}
-									className={`h-9 ${l.price <= 0 ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/20" : ""}`}
-								/>
+								<Label className="text-xs sm:sr-only">Unit Price (₹)</Label>
+								<div
+									className={`flex h-9 items-center justify-between gap-1.5 rounded-md border border-border/50 bg-muted/30 px-3 text-sm ${l.price <= 0 ? "border-amber-400 bg-amber-50/50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-200" : "text-foreground"}`}
+									title="MRP is locked and managed exclusively by Warehouse Manager"
+								>
+									<span className="font-medium">
+										₹
+										{Number(l.price).toLocaleString("en-IN", {
+											minimumFractionDigits: 2,
+											maximumFractionDigits: 2,
+										})}
+									</span>
+									<span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+										<LockIcon className="h-2.5 w-2.5" />
+										MRP
+									</span>
+								</div>
 							</div>
 
 							<div className="flex items-center justify-between sm:justify-end">
@@ -508,27 +561,72 @@ export default function CustomerOrderReviewPage() {
 					{/* Add Extra Item Row */}
 					{!locked && (
 						<div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center">
-							<Select value={addProductId} onValueChange={setAddProductId}>
-								<SelectTrigger className="h-9 flex-1">
-									<SelectValue placeholder="Add another product to order…" />
-								</SelectTrigger>
-								<SelectContent>
-									{(catalog ?? []).map((p) => (
-										<SelectItem key={p.id} value={String(p.id)}>
-											{p.name}{" "}
-											{p.baseSellingPrice
-												? `(Base: ₹${p.baseSellingPrice})`
-												: ""}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<div className="relative flex-1">
+								<Select
+									value={addProductId}
+									onValueChange={(val) => {
+										setAddProductId(val);
+									}}
+								>
+									<SelectTrigger className="h-10 flex-1">
+										<SelectValue placeholder="🔍 Search or select product to add…" />
+									</SelectTrigger>
+									<SelectContent className="max-h-80 w-[420px] p-2">
+										<div className="sticky top-0 z-10 mb-2 bg-popover pb-1">
+											<div className="relative">
+												<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+												<Input
+													placeholder="Search by product name, SKU or category..."
+													value={productSearch}
+													onChange={(e) => setProductSearch(e.target.value)}
+													onKeyDown={(e) => e.stopPropagation()}
+													className="h-9 pl-8 text-xs"
+													autoFocus
+												/>
+											</div>
+										</div>
+										<div className="max-h-60 overflow-y-auto">
+											{filteredCatalog.length === 0 ? (
+												<div className="p-3 text-center text-muted-foreground text-xs">
+													No matching products found.
+												</div>
+											) : (
+												filteredCatalog.map((p) => (
+													<SelectItem
+														key={p.id}
+														value={String(p.id)}
+														className="cursor-pointer py-2 text-xs"
+													>
+														<div className="flex w-full items-center justify-between gap-4">
+															<span className="font-medium text-foreground">
+																{p.name}
+																{p.baseSellingPrice
+																	? ` (₹${p.baseSellingPrice})`
+																	: ""}
+															</span>
+															<span
+																className={`shrink-0 rounded px-1.5 py-0.5 font-bold font-mono text-[10px] ${
+																	(p.stock ?? 0) > 0
+																		? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+																		: "bg-red-500/15 text-red-700 dark:text-red-400"
+																}`}
+															>
+																Stock: {p.stock ?? 0}
+															</span>
+														</div>
+													</SelectItem>
+												))
+											)}
+										</div>
+									</SelectContent>
+								</Select>
+							</div>
 							<Button
 								variant="outline"
-								size="sm"
+								size="default"
 								onClick={addProduct}
 								disabled={!addProductId}
-								className="gap-1 sm:w-auto"
+								className="gap-1.5 sm:w-auto"
 							>
 								<PlusIcon className="h-4 w-4" /> Add Item
 							</Button>

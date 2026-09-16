@@ -419,16 +419,8 @@ export const warehouseRouter = router({
 							),
 						})
 						.from(pickListItems)
-						.innerJoin(pickLists, eq(pickListItems.pickListId, pickLists.id))
-						.where(
-							and(
-								eq(pickLists.assignedToId, w.id),
-								eq(pickLists.is_deleted, false),
-								input.branch_id
-									? eq(pickLists.branch_id, input.branch_id)
-									: undefined,
-							),
-						);
+						.innerJoin(pickLists, eq(pickListItems.pick_list_id, pickLists.id))
+						.where(eq(pickLists.assigned_to, w.id));
 
 					const totalPicked = pickingStats[0]?.totalPicked || 0;
 					const totalOrdered = pickingStats[0]?.totalOrdered || 0;

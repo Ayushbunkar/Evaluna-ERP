@@ -18,9 +18,9 @@ const {
 	branchInventory,
 } = schema;
 
-const caller = createCallerFactory(ordersRouter)({ user: makeUser("user-1") });
-const callerAs = (uid: string) =>
-	createCallerFactory(ordersRouter)({ user: makeUser(uid) });
+const caller = createCallerFactory(ordersRouter)({ user: makeUser("user-1", { role: "admin" }) });
+const callerAs = (uid: string, role = "sales_person") =>
+	createCallerFactory(ordersRouter)({ user: makeUser(uid, { role }) });
 
 let customerId: number;
 let productId: number;
@@ -123,13 +123,14 @@ describe("orders.list", () => {
 		expect(order.user_uid).toBe("user-1");
 	});
 
-	it("filters by user_uid — other user sees nothing", async () => {
-		const other = callerAs("outsider");
+	it("filters by user_uid / branch — other branch user sees nothing", async () => {
+		const other = createCallerFactory(ordersRouter)({
+			user: makeUser("outsider", { role: "sales_person", branchId: 999 }),
+		});
 		const otherList = await other.list();
 		expect(otherList.length).toBe(0);
 
 		const myList = await caller.list();
-		expect(myList.every((o) => o.user_uid === "user-1")).toBe(true);
 		expect(myList.length).toBeGreaterThanOrEqual(1);
 	});
 });
@@ -279,5 +280,38 @@ describe("orders.delete", () => {
 		expect(result.success).toBe(true);
 		const after = await caller.list();
 		expect(after.length).toBe(before.length);
+	});
+});
+
+describe("orders.listPendingReview and getPendingCount", () => {
+	it("returns customer orders in pending_review status to sales staff", async () => {
+		// Insert a customer-submitted order (user_uid is customer's uid)
+		const [custOrder] = await db
+			.insert(schema.orders)
+			.values({
+				customer_id: customerId,
+				total_amount: "1500.00",
+				user_uid: "customer-uid-123",
+				status: "pending_review",
+				branch_id: 1,
+			})
+			.returning();
+
+		await db.insert(schema.orderItems).values({
+			order_id: custOrder.id,
+			product_id: productId,
+			quantity: 3,
+			price: "500.00",
+		});
+
+		const salesCaller = callerAs("sales-user-1", "sales_person");
+		const pendingList = await salesCaller.listPendingReview();
+		expect(pendingList.length).toBeGreaterThanOrEqual(1);
+		const found = pendingList.find((o) => o.id === custOrder.id);
+		expect(found).toBeDefined();
+		expect(found?.customerName).toBe("Test Customer");
+
+		const count = await salesCaller.getPendingCount();
+		expect(count).toBeGreaterThanOrEqual(1);
 	});
 });

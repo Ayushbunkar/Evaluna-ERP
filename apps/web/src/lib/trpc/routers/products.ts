@@ -55,15 +55,21 @@ export const productsRouter = router({
 			.from(products)
 			.where(eq(products.is_deleted, false));
 
-		// Get total stock per product from branchInventory
+		// Get stock per product from branchInventory (scoped to user's branch if set)
+		const branchId = ctx.user?.branchId ?? null;
 		const stockMap = new Map<number, number>();
-		const stockResults = await db
+		const stockQuery = db
 			.select({
 				productId: branchInventory.product_id,
 				totalStock: sum(branchInventory.in_stock),
 			})
-			.from(branchInventory)
-			.groupBy(branchInventory.product_id);
+			.from(branchInventory);
+
+		const stockResults = branchId
+			? await stockQuery
+					.where(eq(branchInventory.branch_id, branchId))
+					.groupBy(branchInventory.product_id)
+			: await stockQuery.groupBy(branchInventory.product_id);
 
 		stockResults.forEach((row) => {
 			stockMap.set(row.productId, Number(row.totalStock) || 0);

@@ -227,17 +227,12 @@ export const pickerRouter = router({
 		}),
 
 	getCompleted: roleProcedure(["admin", "manager", "auditor", "picker"])
-		.input(z.object({ branch_id: z.number().optional() }))
+		.input(z.object({ branch_id: z.number().optional() }).optional())
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
 
 			const lists = await db.query.pickLists.findMany({
-				where: and(
-					eq(pickLists.status, "completed"),
-					ctx.user.branchId
-						? eq(pickLists.branch_id, ctx.user.branchId)
-						: undefined,
-				),
+				where: eq(pickLists.status, "completed"),
 				orderBy: [desc(pickLists.created_at)],
 				limit: 50,
 				with: {

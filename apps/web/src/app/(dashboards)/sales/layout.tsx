@@ -29,7 +29,7 @@ export default function Layout({
 		{ refetchInterval: 15000 },
 	);
 
-	const pendingCount = pendingData?.count ?? 0;
+	const pendingCount = typeof pendingData === "number" ? pendingData : (pendingData?.count ?? 0);
 
 	const salesNavItems: NavItem[] = [
 		{ href: "/sales", labelKey: "dashboard", icon: LayoutDashboardIcon },
@@ -44,7 +44,6 @@ export default function Layout({
 		{ href: "/sales/shortages", labelKey: "shortages", icon: AlertCircleIcon },
 		{ href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
 		{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },
-		{ href: "/sales/cashbook", labelKey: "cashbook", icon: IndianRupeeIcon },
 		{ href: "/sales/hold-bills", labelKey: "holdBills", icon: PauseCircleIcon },
 		{ href: "/sales/targets", labelKey: "targets", icon: TargetIcon },
 		{ href: "/sales/settings", labelKey: "settings", icon: SettingsIcon },

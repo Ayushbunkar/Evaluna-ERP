@@ -88,8 +88,8 @@ function customerFields(
 			name: "email",
 			label: "Email",
 			kind: "email",
-			required: true,
-			help: "Must be unique across all customers.",
+			required: false,
+			help: "Optional. Must be unique across all customers if provided.",
 		},
 		{ name: "phone", label: "Phone", kind: "tel", placeholder: "98765 43210" },
 		{

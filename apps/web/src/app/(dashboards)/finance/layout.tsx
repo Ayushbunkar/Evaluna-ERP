@@ -104,6 +104,11 @@ export default function FinanceLayout({
 			title: "Accounting",
 			items: [
 				{
+					label: "Cash Book",
+					href: "/finance/cashbook",
+					icon: WalletCardsIcon,
+				},
+				{
 					label: "Transactions",
 					href: "/finance/transactions",
 					icon: IndianRupeeIcon,

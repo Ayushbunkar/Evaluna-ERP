@@ -102,6 +102,22 @@ describe("customers.create", () => {
 		).rejects.toThrow();
 	});
 
+	it("creates customer without email (optional/empty)", async () => {
+		const c1 = await caller.create({ name: "Rajesh Kumar", phone: "9876543210" });
+		expect(c1.name).toBe("Rajesh Kumar");
+		expect(c1.email).toBeNull();
+		expect(c1.phone).toBe("9876543210");
+
+		// Creating a second customer with no email should not conflict
+		const c2 = await caller.create({ name: "Suresh Sharma", email: "", phone: "9876543211" });
+		expect(c2.name).toBe("Suresh Sharma");
+		expect(c2.email).toBeNull();
+
+		const list = await caller.list();
+		expect(list.some((c) => c.name === "Rajesh Kumar" && c.email === null)).toBe(true);
+		expect(list.some((c) => c.name === "Suresh Sharma" && c.email === null)).toBe(true);
+	});
+
 	it("rejects duplicate email at DB level — first record intact", async () => {
 		const email = "dup@unique.com";
 		const first = await caller.create({ name: "First", email });

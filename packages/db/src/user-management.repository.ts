@@ -685,20 +685,34 @@ export class UserManagementRepository {
 			.limit(limit)
 			.offset(offset);
 
-		// NOTE: Role filtering is complex due to the left join, we'll implement it in application logic for simplicity.
+		// Deduplicate users by ID in case of multiple user_roles / joins
+		const userMap = new Map<string, typeof usersData[0]>();
+		for (const u of usersData) {
+			if (!userMap.has(u.id)) {
+				userMap.set(u.id, u);
+			} else {
+				const existing = userMap.get(u.id)!;
+				if (!existing.roleName && u.roleName) {
+					userMap.set(u.id, u);
+				}
+			}
+		}
+		const uniqueUsers = Array.from(userMap.values());
+
+		// NOTE: Role filtering
 		const filteredUsers = filters.roleName
-			? usersData.filter(
+			? uniqueUsers.filter(
 					(u) =>
 						u.roleName === filters.roleName ||
 						(u.isSuperAdmin && filters.roleName === "super_admin"),
 				)
-			: usersData;
+			: uniqueUsers;
 
 		// Total count query
 		const [totalCountResult] = await db
 			.select({ count: count() })
 			.from(user)
-			.where(and(...(whereClauses.filter(Boolean) as SQL<unknown>[]))); // Re-use where clauses for count
+			.where(and(...(whereClauses.filter(Boolean) as SQL<unknown>[])));
 
 		const totalUsers = totalCountResult?.count ?? 0;
 

@@ -186,15 +186,15 @@ export default function SalesDashboard() {
 					<AnimatedCard>
 						<Card
 							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/sales/cashbook")}
+							onClick={() => (window.location.href = "/sales/orders/review")}
 						>
 							<CardContent className="p-6">
 								<div className="flex flex-col items-center gap-2 text-center">
 									<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 transition-transform group-hover:scale-110">
-										<BanknoteIcon className="h-6 w-6 text-emerald-500" />
+										<ClipboardListIcon className="h-6 w-6 text-emerald-500" />
 									</div>
-									<h3 className="font-semibold text-lg">{t.tillTitle}</h3>
-									<p className="text-muted-foreground text-xs">{t.tillDesc}</p>
+									<h3 className="font-semibold text-lg">{t.customerOrdersTitle || "Customer Orders"}</h3>
+									<p className="text-muted-foreground text-xs">{t.customerOrdersDesc || "Review and price incoming orders"}</p>
 								</div>
 							</CardContent>
 						</Card>

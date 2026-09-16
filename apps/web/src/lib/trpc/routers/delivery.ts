@@ -150,9 +150,23 @@ export const deliveryRouter = router({
 				routeId: z.number(),
 				driverId: z.string(),
 				vehicleId: z.number(),
+				customerIds: z.array(z.number()).optional(),
+				stops: z
+					.array(
+						z.object({
+							customerId: z.number().optional(),
+							sequence: z.number().optional(),
+							name: z.string().optional(),
+							phone: z.string().optional(),
+							address: z.string().optional(),
+						}),
+					)
+					.optional(),
+				branchId: z.number().optional(),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ input, ctx }) => {
+			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
 				return await db.transaction(async (tx) => {
 					// 1. Create Trip
@@ -166,30 +180,91 @@ export const deliveryRouter = router({
 						})
 						.returning();
 
-					// 2. Fetch Route Stops to mirror them into Trip Stops
-					const stops = await tx.query.routeStops.findMany({
-						where: eq(routeStops.route_id, input.routeId),
-					});
-
-					// Filter duplicate route stops with same customer_id to protect trip_stops unique constraint on older routes
-					const uniqueStops = [];
-					const seenCustomers = new Set();
+					// 2. Resolve stops: either from input.stops or from routeStops filtered by input.customerIds
+					const resolvedStops: { customerId: number; sequence: number }[] = [];
+					const seenCustomers = new Set<number>();
 					let currentSequence = 1;
-					for (const s of stops) {
-						if (!seenCustomers.has(s.customer_id)) {
-							seenCustomers.add(s.customer_id);
-							uniqueStops.push({
-								...s,
-								sequence: currentSequence++,
-							});
+
+					if (input.stops && input.stops.length > 0) {
+						for (const stop of input.stops) {
+							let resolvedCustId = stop.customerId;
+
+							if (!resolvedCustId && (stop.name || stop.address || stop.phone)) {
+								const phoneClean = stop.phone?.trim() || "";
+								const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+								const email = phoneClean
+									? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
+									: `cust_${uniqueSuffix}@evaluna.local`;
+
+								let existingCust = null;
+								if (phoneClean) {
+									existingCust = await tx.query.customers.findFirst({
+										where: and(
+											eq(customers.phone, phoneClean),
+											eq(customers.branch_id, branch),
+										),
+									});
+								}
+
+								if (existingCust) {
+									resolvedCustId = existingCust.id;
+								} else {
+									const [newCust] = await tx
+										.insert(customers)
+										.values({
+											name:
+												stop.name?.trim() ||
+												(stop.address
+													? `Stop: ${stop.address.slice(0, 30)}`
+													: `Customer ${phoneClean}`),
+											email,
+											phone: phoneClean || null,
+											address: stop.address?.trim() || null,
+											branch_id: branch,
+											user_uid: ctx.user?.id || "manager",
+											customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+										})
+										.returning();
+									resolvedCustId = newCust.id;
+								}
+							}
+
+							if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
+								seenCustomers.add(resolvedCustId);
+								resolvedStops.push({
+									customerId: resolvedCustId,
+									sequence: stop.sequence || currentSequence++,
+								});
+							}
+						}
+					} else {
+						const stops = await tx.query.routeStops.findMany({
+							where: eq(routeStops.route_id, input.routeId),
+							orderBy: (s, { asc }) => [asc(s.sequence)],
+						});
+
+						let targetStops = stops;
+						if (input.customerIds && input.customerIds.length > 0) {
+							const selectedSet = new Set(input.customerIds);
+							targetStops = stops.filter((s) => selectedSet.has(s.customer_id));
+						}
+
+						for (const s of targetStops) {
+							if (!seenCustomers.has(s.customer_id)) {
+								seenCustomers.add(s.customer_id);
+								resolvedStops.push({
+									customerId: s.customer_id,
+									sequence: currentSequence++,
+								});
+							}
 						}
 					}
 
-					if (uniqueStops.length > 0) {
+					if (resolvedStops.length > 0) {
 						await tx.insert(tripStops).values(
-							uniqueStops.map((s) => ({
+							resolvedStops.map((s) => ({
 								trip_id: trip.id,
-								customer_id: s.customer_id,
+								customer_id: s.customerId,
 								sequence: s.sequence,
 								status: "pending",
 							})),
@@ -642,6 +717,113 @@ ERROR TABLE: ${err.table}
 				.delete(deliveryRoutes)
 				.where(eq(deliveryRoutes.id, input.routeId));
 			return { success: true };
+		}),
+
+	updateRoute: roleProcedure(["admin", "manager", "delivery_manager"])
+		.input(
+			z.object({
+				id: z.number(),
+				name: z.string().min(1, "Route name is required"),
+				description: z.string().optional(),
+				branchId: z.number().optional(),
+				stops: z.array(
+					z.object({
+						customerId: z.number().optional(),
+						sequence: z.number().optional(),
+						name: z.string().optional(),
+						phone: z.string().optional(),
+						address: z.string().optional(),
+					}),
+				),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const branch = input.branchId || ctx.user?.branchId || 1;
+			return await db.transaction(async (tx) => {
+				// 1. Update route name and description
+				const [updatedRoute] = await tx
+					.update(deliveryRoutes)
+					.set({
+						name: input.name,
+						description: input.description,
+					})
+					.where(eq(deliveryRoutes.id, input.id))
+					.returning();
+
+				// 2. Delete existing route stops for this route
+				await tx
+					.delete(routeStops)
+					.where(eq(routeStops.route_id, input.id));
+
+				// 3. Resolve and re-insert stops
+				const resolvedStops: { customerId: number; sequence: number }[] = [];
+				const seenCustomers = new Set<number>();
+				let currentSequence = 1;
+
+				for (const stop of input.stops) {
+					let resolvedCustId = stop.customerId;
+
+					if (!resolvedCustId && (stop.name || stop.address || stop.phone)) {
+						const phoneClean = stop.phone?.trim() || "";
+						const uniqueSuffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+						const email = phoneClean
+							? `cust_${phoneClean.replace(/\D/g, "") || uniqueSuffix}@evaluna.local`
+							: `cust_${uniqueSuffix}@evaluna.local`;
+
+						let existingCust = null;
+						if (phoneClean) {
+							existingCust = await tx.query.customers.findFirst({
+								where: and(
+									eq(customers.phone, phoneClean),
+									eq(customers.branch_id, branch),
+								),
+							});
+						}
+
+						if (existingCust) {
+							resolvedCustId = existingCust.id;
+						} else {
+							const [newCust] = await tx
+								.insert(customers)
+								.values({
+									name:
+										stop.name?.trim() ||
+										(stop.address
+											? `Stop: ${stop.address.slice(0, 30)}`
+											: `Customer ${phoneClean}`),
+									email,
+									phone: phoneClean || null,
+									address: stop.address?.trim() || null,
+									branch_id: branch,
+									user_uid: ctx.user?.id || "manager",
+									customer_code: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+								})
+								.returning();
+							resolvedCustId = newCust.id;
+						}
+					}
+
+					if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
+						seenCustomers.add(resolvedCustId);
+						resolvedStops.push({
+							customerId: resolvedCustId,
+							sequence: stop.sequence || currentSequence++,
+						});
+					}
+				}
+
+				if (resolvedStops.length > 0) {
+					await tx.insert(routeStops).values(
+						resolvedStops.map((stop) => ({
+							route_id: input.id,
+							customer_id: stop.customerId,
+							sequence: stop.sequence,
+						})),
+					);
+				}
+
+				return updatedRoute;
+			});
 		}),
 
 	clearAllRoutesAndTrips: roleProcedure(["admin", "manager", "delivery_manager"])

@@ -560,9 +560,30 @@ export default function DriverLiveDeliveryPage() {
 													)}
 													{/* Order ref & amount */}
 													<div className="flex items-center justify-between border-t pt-1">
-														<span className="font-mono text-gray-500 text-xs">
-															Ref #{stop.orderId || stop.id}
-														</span>
+														<div className="flex flex-wrap items-center gap-1">
+															{stop.orders && stop.orders.length > 0 ? (
+																stop.orders.map((ord: any) => (
+																	<span
+																		key={ord.id}
+																		className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+																	>
+																		ORD-{ord.id}
+																	</span>
+																))
+															) : (
+																<span className="font-mono text-gray-500 text-xs">
+																	{typeof stop.orderId === "string" &&
+																	stop.orderId.startsWith("ORD-")
+																		? stop.orderId
+																		: `ORD-${stop.orderId || stop.id}`}
+																</span>
+															)}
+															{stop.ordersCount && stop.ordersCount > 1 && (
+																<span className="inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+																	{stop.ordersCount} Orders
+																</span>
+															)}
+														</div>
 														<span className="flex items-center gap-0.5 font-bold font-mono text-sm">
 															<IndianRupee className="h-3.5 w-3.5" />
 															{stop.amountToCollect ?? "—"}

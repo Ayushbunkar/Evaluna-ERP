@@ -325,9 +325,15 @@ export default function PickerActivePage() {
 																		: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
 														}`}
 													>
-														{item.status
-															? tCommon(item.status as any) || item.status
-															: tCommon("pending")}
+														{item.status === "picked"
+															? tCommon("picked")
+															: item.status === "missing"
+																? tCommon("missing")
+																: item.status === "partial"
+																	? tCommon("partial")
+																	: item.status === "completed"
+																		? tCommon("completed")
+																		: tCommon("pending")}
 													</span>
 												</TableCell>
 												<TableCell className="flex items-center justify-end gap-2 text-right">

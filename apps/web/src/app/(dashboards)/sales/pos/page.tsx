@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PaymentModal } from "@/components/pos/payment-modal";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
@@ -244,13 +244,18 @@ function POSContent() {
 		},
 	});
 
+	const consumedOrderRef = useRef<number | null>(null);
+
 	// Effects
 	useEffect(() => {
 		if (
 			fetchedCompletedOrder &&
-			(!lastCompletedOrder ||
-				lastCompletedOrder.id !== fetchedCompletedOrder.id)
+			consumedOrderRef.current !== fetchedCompletedOrder.id
 		) {
+			consumedOrderRef.current = fetchedCompletedOrder.id;
+			if (typeof window !== "undefined") {
+				window.history.replaceState({}, "", "/sales/pos");
+			}
 			setLastCompletedOrder({
 				id: fetchedCompletedOrder.id,
 				createdAt: fetchedCompletedOrder.created_at
@@ -279,7 +284,7 @@ function POSContent() {
 				],
 			});
 		}
-	}, [fetchedCompletedOrder, lastCompletedOrder]);
+	}, [fetchedCompletedOrder]);
 
 	useEffect(() => {
 		if (resumeOrder && resumeOrder.orderItems && cart.length === 0) {
@@ -415,6 +420,18 @@ function POSContent() {
 		);
 	};
 
+	const setDirectQty = (id: number, val: number) => {
+		if (isNaN(val) || val <= 0) return;
+		setCart((prev) =>
+			prev.map((item) => {
+				if (item.id === id) {
+					return { ...item, qty: val };
+				}
+				return item;
+			}),
+		);
+	};
+
 	const removeFromCart = (id: number) => {
 		setCart((prev) => prev.filter((item) => item.id !== id));
 	};
@@ -427,9 +444,11 @@ function POSContent() {
 	const finalizeOrder = (
 		payments: any[],
 		customer?: {
+			customerId?: number;
 			customerName?: string;
 			customerPhone?: string;
 			shopName?: string;
+			address?: string;
 		},
 	) => {
 		if (customer) setCustomerDetails(customer);
@@ -443,6 +462,7 @@ function POSContent() {
 
 		setLastPayments(payments);
 		checkoutMutation.mutate({
+			customerId: customer?.customerId,
 			items: cart.map((c) => ({
 				productId: c.id,
 				quantity: c.qty,
@@ -481,6 +501,9 @@ function POSContent() {
 				order={lastCompletedOrder}
 				onNewSale={() => {
 					setLastCompletedOrder(null);
+					if (typeof window !== "undefined") {
+						window.history.replaceState({}, "", "/sales/pos");
+					}
 					router.replace("/sales/pos");
 				}}
 			/>
@@ -669,11 +692,20 @@ function POSContent() {
 												>
 													<Minus className="h-3 w-3" />
 												</Button>
-												<span className="w-12 text-center font-semibold text-sm">
-													{Number.isInteger(item.qty)
-														? item.qty
-														: item.qty.toFixed(3)}
-												</span>
+												<Input
+													type="number"
+													min={1}
+													step="any"
+													value={item.qty}
+													onChange={(e) => {
+														const val = parseFloat(e.target.value);
+														if (!isNaN(val) && val > 0) {
+															setDirectQty(item.id, val);
+														}
+													}}
+													className="h-8 w-14 border-0 p-0 text-center font-semibold text-sm focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+													disabled={checkoutMutation.isPending}
+												/>
 												<Button
 													variant="ghost"
 													size="icon"
