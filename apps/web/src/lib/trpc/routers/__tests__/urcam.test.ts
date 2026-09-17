@@ -28,12 +28,16 @@ const URCAM_TABLES = [
 	schema.roles,
 	schema.userRoles,
 	schema.securityAuditLog,
+	schema.employees,
 ];
 
 const URCAM_SCHEMA_DDL = buildDDL(URCAM_TABLES, false);
 
 beforeAll(async () => {
 	// Initialize in-memory database schema
+	await pg.exec(`
+		CREATE TYPE employee_status AS ENUM ('active','inactive','on_leave','terminated');
+	`);
 	await pg.exec(URCAM_SCHEMA_DDL);
 
 	// Insert default branches

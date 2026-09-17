@@ -22,14 +22,10 @@ export const ROLES = [
 	"warehouse_supervisor", // Consolidated role
 	"putter",
 	"picker",
-	"packer", // New role
-	"dispatcher", // New role
+	"packer", // Consolidated role
 	"procurement",
 	"driver",
-	"biller",
 	"sales_person",
-	"delivery_manager",
-	"delivery_boy",
 	"customer",
 ] as const;
 
@@ -52,13 +48,9 @@ export const ROLE_LEVEL: Record<Role, number> = {
 	putter: 7,
 	picker: 7,
 	packer: 7,
-	dispatcher: 7,
 	procurement: 8,
 	driver: 9,
-	biller: 10,
-	sales_person: 11,
-	delivery_manager: 12,
-	delivery_boy: 13,
+	sales_person: 10,
 	// Customer self-service login. Bottom of the hierarchy.
 	customer: 99,
 };
@@ -77,13 +69,9 @@ export const ROLE_DASHBOARD_MAP: Record<Role, string> = {
 	putter: "/putter",
 	picker: "/picker",
 	packer: "/packer",
-	dispatcher: "/packing-dispatch",
 	procurement: "/procurement",
 	driver: "/driver",
-	biller: "/biller",
 	sales_person: "/sales",
-	delivery_manager: "/manager",
-	delivery_boy: "/driver",
 	customer: "/customer",
 };
 
@@ -145,7 +133,7 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 	// ── POS ──────────────────────────────────────────────────────────────────
 	{ domain: "pos", action: "read", minRole: "sales_person" },
 	{ domain: "pos", action: "write", minRole: "sales_person" },
-	{ domain: "pos", action: "delete", minRole: "biller" },
+	{ domain: "pos", action: "delete", minRole: "sales_person" },
 	{ domain: "pos", action: "approve", minRole: "manager" },
 
 	// ── Inventory ─────────────────────────────────────────────────────────────
@@ -168,7 +156,7 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 
 	// ── Customers ─────────────────────────────────────────────────────────────
 	{ domain: "customers", action: "read", minRole: "sales_person" },
-	{ domain: "customers", action: "write", minRole: "biller" },
+	{ domain: "customers", action: "write", minRole: "sales_person" },
 	{ domain: "customers", action: "delete", minRole: "manager" },
 	{ domain: "customers", action: "approve", minRole: "manager" },
 
@@ -272,8 +260,8 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 	{ domain: "imports", action: "approve", minRole: "admin" },
 
 	// ── Loyalty ───────────────────────────────────────────────────────────────
-	{ domain: "loyalty", action: "read", minRole: "biller" },
-	{ domain: "loyalty", action: "write", minRole: "biller" },
+	{ domain: "loyalty", action: "read", minRole: "sales_person" },
+	{ domain: "loyalty", action: "write", minRole: "sales_person" },
 	{ domain: "loyalty", action: "delete", minRole: "manager" },
 	{ domain: "loyalty", action: "approve", minRole: "manager" },
 
@@ -318,11 +306,11 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 
 	// ══ Attendance & workforce tracking ═════════════════════════════════════
 	// Self-service check-in/out/break is available to EVERY staff role
-	// (delivery_boy is the lowest staff level; customer is excluded by design).
+	// (sales_person is the lowest staff level; customer is excluded by design).
 	// Row-level scoping ("own record only") is enforced in the procedures, not
 	// here — the matrix only grants the capability.
-	{ domain: "attendance", action: "read", minRole: "delivery_boy" },
-	{ domain: "attendance", action: "write", minRole: "delivery_boy" },
+	{ domain: "attendance", action: "read", minRole: "sales_person" },
+	{ domain: "attendance", action: "write", minRole: "sales_person" },
 	// Verification, manual correction, device approval, geofence & settings
 	// config — HR and above (hr, auditor, manager, admin via inheritance).
 	{ domain: "attendance", action: "approve", minRole: "hr" },
@@ -336,13 +324,51 @@ function normalizeRole(r: string): Role {
 	const lower = r.trim().replace(/_/g, " ").toLowerCase();
 	if (lower === "superadmin" || lower === "super admin")
 		return "super_admin" as Role;
-	if (lower === "salesperson" || lower === "sales person" || lower === "sales")
+	if (
+		lower === "salesperson" ||
+		lower === "sales person" ||
+		lower === "sales" ||
+		lower === "cashier" ||
+		lower === "billing" ||
+		lower === "biller"
+	)
 		return "sales_person" as Role;
-	if (lower === "delivery boy") return "delivery_boy" as Role;
-	if (lower === "delivery manager") return "delivery_manager" as Role;
-	if (lower === "warehouse supervisor") return "warehouse_supervisor" as Role;
-	if (lower === "warehouse operations" || lower === "warehouse")
+	if (
+		lower === "delivery boy" ||
+		lower === "deliveryboy" ||
+		lower === "delivery" ||
+		lower === "delivery agent" ||
+		lower === "delivery person" ||
+		lower === "driver"
+	)
+		return "driver" as Role;
+	if (lower === "delivery manager" || lower === "deliverymanager")
+		return "manager" as Role;
+	if (
+		lower === "warehouse supervisor" ||
+		lower === "warehousesupervisor" ||
+		lower === "warehouse manager" ||
+		lower === "warehouse operations" ||
+		lower === "warehouse ops" ||
+		lower === "warehouse"
+	)
 		return "warehouse_supervisor" as Role;
+	if (lower === "accounts" || lower === "accountant") return "finance" as Role;
+	if (lower === "purchases" || lower === "purchase" || lower === "purchasing")
+		return "procurement" as Role;
+	if (
+		lower === "dispatch" ||
+		lower === "dispatcher" ||
+		lower === "packing dispatch" ||
+		lower === "packing and dispatch"
+	)
+		return "packer" as Role;
+	if (lower === "staff" || lower === "employee") return "putter" as Role;
+
+	const snake = lower.replace(/\s+/g, "_") as Role;
+	if (snake in ROLE_LEVEL) {
+		return snake;
+	}
 	return lower as Role;
 }
 
@@ -437,7 +463,7 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/settings", minRole: "sales_person" }, // Fine-grained inside
 	{ path: "/profile", minRole: "sales_person" },
 	{ path: "/notifications", minRole: "sales_person" },
-	{ path: "/attendance", minRole: "delivery_boy" }, // self-service; all staff, not customers
+	{ path: "/attendance", minRole: "sales_person" }, // self-service; all staff, not customers
 	{ path: "/sync", minRole: "sales_person" },
 
 	// Role Dashboards
@@ -451,9 +477,7 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/putter", minRole: "putter" },
 	{ path: "/picker", minRole: "picker" },
 	{ path: "/packer", minRole: "packer" },
-	{ path: "/dispatcher", minRole: "dispatcher" },
 	{ path: "/driver", minRole: "driver" },
-	{ path: "/biller", minRole: "biller" },
 	{ path: "/sales", minRole: "sales_person" },
 	{ path: "/customer", minRole: "customer" },
 	{ path: "/procurement", minRole: "procurement" },

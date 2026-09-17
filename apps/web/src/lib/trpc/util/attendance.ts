@@ -70,7 +70,7 @@ export async function loadSettings(db: DB) {
 		enableSelfie: s?.enableSelfie ?? true,
 		enableDeviceLock: s?.enableDeviceLock ?? true,
 		enableBreakTracking: s?.enableBreakTracking ?? true,
-		minGPSAccuracy: s?.minGPSAccuracy ?? 5000,
+		minGPSAccuracy: s?.minGPSAccuracy ?? 200,
 		graceTime: s?.graceTime ?? 10,
 		maxBreakTime: s?.maxBreakTime ?? 60,
 		workingHours: s?.workingHours ?? 8,

@@ -84,6 +84,21 @@ const USER_STATUSES = [
 	"SUSPENDED",
 ] as const;
 
+function formatRole(role?: string) {
+	if (!role) return "USER";
+	const normalized = role.toLowerCase().replace(/_/g, " ").trim();
+	if (normalized === "delivery boy" || normalized === "delivery") return "DRIVER";
+	if (normalized === "delivery manager" || normalized === "deliverymanager") return "MANAGER";
+	if (normalized === "dispatcher" || normalized === "dispatch") return "PACKER";
+	if (
+		normalized === "biller" ||
+		normalized === "billing" ||
+		normalized === "cashier"
+	)
+		return "SALES PERSON";
+	return normalized.toUpperCase();
+}
+
 export default function SuperAdminUsersPage() {
 	const utils = trpc.useUtils();
 	const [page, setPage] = useState(1);
@@ -402,7 +417,7 @@ export default function SuperAdminUsersPage() {
 											<div>
 												<span className="text-muted-foreground">Role: </span>
 												<Badge variant="default" className="text-[10px]">
-													{(u.role || "user").toUpperCase().replace("_", " ")}
+													{formatRole(u.role)}
 												</Badge>
 											</div>
 											<div>
@@ -545,7 +560,7 @@ export default function SuperAdminUsersPage() {
 												<TableCell>{u.email}</TableCell>
 												<TableCell>
 													<Badge variant="default">
-														{(u.role || "user").toUpperCase().replace("_", " ")}
+														{formatRole(u.role)}
 													</Badge>
 												</TableCell>
 												<TableCell>
@@ -986,9 +1001,7 @@ export default function SuperAdminUsersPage() {
 									</span>
 									<span className="text-sm">
 										<Badge variant="outline" className="capitalize">
-											{(userDetails.profile?.role || "N/A")
-												.toUpperCase()
-												.replace("_", " ")}
+											{formatRole(userDetails.profile?.role)}
 										</Badge>
 									</span>
 								</div>

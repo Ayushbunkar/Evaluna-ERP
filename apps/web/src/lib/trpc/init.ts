@@ -13,6 +13,7 @@ import {
 } from "@evaluna/api";
 import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
+import { getPermissionsForRole } from "@/lib/permissions";
 
 export type { TRPCContext };
 export {
@@ -44,6 +45,11 @@ export const createTRPCContext = async (opts?: {
 		: user?.primaryRole?.name ||
 			(user?.isSuperadmin ? "super_admin" : "customer");
 
+	const resolvedPermissions =
+		user?.permissions && user.permissions.length > 0
+			? user.permissions
+			: (getPermissionsForRole(resolvedRole as any) as string[]);
+
 	// Transform CachedSession to match TRPCContext user interface
 	const baseUser = user
 		? {
@@ -64,10 +70,10 @@ export const createTRPCContext = async (opts?: {
 					: {
 							name: user.isSuperadmin ? "super_admin" : "customer",
 							dashboardRoute: user.canonicalDashboardRoute ?? "/customer",
-							permissions: user.permissions ?? [],
+							permissions: resolvedPermissions,
 						},
 				roles: user.roles ?? [],
-				permissions: user.permissions ?? [],
+				permissions: resolvedPermissions,
 				canonicalDashboardRoute: user.canonicalDashboardRoute ?? "/customer",
 				role: resolvedRole,
 			}

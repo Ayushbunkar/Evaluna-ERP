@@ -10,19 +10,16 @@ export const ROLE_NAMES = [
 	"Manager",
 	"HR",
 	"Finance",
+	"Marketing",
 	"Procurement",
 	"Warehouse Supervisor",
 	"Putter",
 	"Picker",
 	"Packer",
-	"Dispatcher",
 	"Auditor",
 	"Salesperson",
 	"Customer",
 	"Driver",
-	"Biller",
-	"Delivery Manager",
-	"Delivery Boy",
 ] as const;
 
 export type RoleName = (typeof ROLE_NAMES)[number];
@@ -36,19 +33,16 @@ export const ROLE_DASHBOARD_MAP: Record<RoleName, string> = {
 	Manager: "/manager",
 	HR: "/hr",
 	Finance: "/finance",
+	Marketing: "/marketing",
 	Procurement: "/procurement",
 	"Warehouse Supervisor": "/warehouse",
 	Putter: "/putter",
 	Picker: "/picker",
 	Packer: "/packer",
-	Dispatcher: "/packing-dispatch",
 	Auditor: "/auditor",
 	Salesperson: "/sales",
 	Customer: "/customer",
 	Driver: "/driver",
-	Biller: "/biller",
-	"Delivery Manager": "/manager",
-	"Delivery Boy": "/driver",
 };
 
 /**
@@ -73,10 +67,14 @@ export function getCanonicalDashboardRoute(roleName: string): string {
 		picker: "/picker",
 		driver: "/driver",
 		"delivery boy": "/driver",
-		biller: "/biller",
-		billing: "/biller",
+		deliveryboy: "/driver",
+		biller: "/sales",
+		billing: "/sales",
+		cashier: "/sales",
 		checker: "/checker",
 		packer: "/packer",
+		dispatcher: "/packer",
+		dispatch: "/packer",
 		salesperson: "/sales",
 		sales: "/sales",
 		"sales person": "/sales",
@@ -90,3 +88,4 @@ export function getCanonicalDashboardRoute(roleName: string): string {
 
 	return roleDashboardMap[normalized] ?? "/customer";
 }
+

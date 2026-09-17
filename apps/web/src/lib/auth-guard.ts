@@ -217,6 +217,7 @@ export async function getAuthUser(
 					name: true,
 					staff_code: true,
 					branch_id: true,
+					role: true,
 				},
 			},
 			userRoles: {
@@ -254,6 +255,23 @@ export async function getAuthUser(
 	}
 
 	// 5. Resolve Roles, Permissions, and Dashboard Route (Requirements 4, 5, 8)
+	let linkedStaff = dbUser.staff;
+	if (!linkedStaff && dbUser.email) {
+		const fallbackStaff = await db.query.staff.findFirst({
+			where: eq(staffTable.email, dbUser.email),
+			columns: {
+				id: true,
+				name: true,
+				staff_code: true,
+				branch_id: true,
+				role: true,
+			},
+		});
+		if (fallbackStaff) {
+			linkedStaff = fallbackStaff;
+		}
+	}
+
 	const rolesList =
 		(dbUser.userRoles || [])
 			.filter((ur) => ur && ur.role)
@@ -262,6 +280,15 @@ export async function getAuthUser(
 				permissions: getPermissionsForRole(ur.role.name as any) as string[],
 				dashboardRoute: getCanonicalDashboardRoute(ur.role.name),
 			})) ?? [];
+
+	// Fallback to linked staff role if no explicit userRoles exist
+	if (rolesList.length === 0 && linkedStaff?.role) {
+		rolesList.push({
+			name: linkedStaff.role as RoleName,
+			permissions: getPermissionsForRole(linkedStaff.role as any) as string[],
+			dashboardRoute: getCanonicalDashboardRoute(linkedStaff.role),
+		});
+	}
 
 	// Use a Set to aggregate unique permissions
 	const aggregatedPermissions = new Set<string>();

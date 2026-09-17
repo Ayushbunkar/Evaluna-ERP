@@ -16,22 +16,20 @@ import { getPermissionsForRole, ROLE_LEVEL, ROLES } from "@/lib/permissions";
 const ROLE_DESCRIPTIONS: Record<string, string> = {
 	super_admin: "Unrestricted access to all modules and data.",
 	admin: "Full access to all admin modules and settings.",
-	manager: "Branch oversight, staff and financial management.",
+	manager: "Branch oversight, fleet, routes, staff and financial management.",
 	hr: "Human resources, payroll and attendance.",
 	auditor: "Inventory auditing and compliance.",
 	marketing: "Marketing campaigns and promotions.",
 	finance: "Financial records and reporting.",
-	sales_person: "Sales operations and customer management.",
-	biller: "Point-of-sale and billing.",
+	sales_person: "Sales operations, point-of-sale, billing and customer management.",
 	picker: "Warehouse picking and fulfillment.",
 	putter: "Warehouse put-away and receiving.",
-	delivery_boy: "Last-mile delivery operations.",
-	route_manager: "Delivery route planning and management.",
-	driver: "Vehicle and delivery tracking.",
+	packer: "Packaging, staging and dispatch operations.",
+	procurement: "Purchasing and supplier order management.",
+	driver: "Last-mile vehicle dispatch and delivery operations.",
 	supplier: "Supplier self-service portal.",
 	customer: "Customer self-service portal.",
 	checker: "Quality control and inspection.",
-	packer: "Packaging and dispatch.",
 };
 
 export default function AdminSettingsRolesPage() {

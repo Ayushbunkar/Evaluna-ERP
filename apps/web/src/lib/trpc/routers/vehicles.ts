@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";
 
 export const vehiclesRouter = router({
-	list: roleProcedure(["admin", "manager", "delivery_manager"])
+	list: roleProcedure(["admin", "manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId || 1;
@@ -16,7 +16,7 @@ export const vehiclesRouter = router({
 			});
 		}),
 
-	create: roleProcedure(["admin", "manager", "delivery_manager"])
+	create: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
 				name: z.string(),
@@ -42,7 +42,7 @@ export const vehiclesRouter = router({
 			return vehicle;
 		}),
 
-	updateStatus: roleProcedure(["admin", "manager", "delivery_manager"])
+	updateStatus: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
 				id: z.number(),

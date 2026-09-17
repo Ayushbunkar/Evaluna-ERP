@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
 	CreditCardIcon,
@@ -33,7 +33,7 @@ export default function Layout({
 		<AppLayoutWithBranch
 			navItems={billerNavItems}
 			namespace="nav"
-			role="biller"
+			role="sales"
 		>
 			{children}
 		</AppLayoutWithBranch>

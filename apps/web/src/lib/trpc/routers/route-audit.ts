@@ -79,7 +79,6 @@ export const routeAuditRouter = router({
 	getDashboardStats: roleProcedure([
 		"admin",
 		"manager",
-		"delivery_manager",
 	]).query(async ({ ctx }) => {
 		const rows = await ctx.db
 			.select()

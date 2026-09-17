@@ -280,6 +280,12 @@ export const attendanceRouter = router({
 					message: "A live check-in photo is required.",
 				});
 
+			if (input.gps.accuracy > settings.minGPSAccuracy)
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "GPS accuracy too low; retry.",
+				});
+
 			// Authoritative location recording.
 			const geo = await validateGeofence(
 				ctx.db,
@@ -287,6 +293,16 @@ export const attendanceRouter = router({
 				input.gps,
 				settings.minGPSAccuracy,
 			);
+			if (geo.reason === "no_geofence")
+				throw new TRPCError({
+					code: "PRECONDITION_FAILED",
+					message: "Branch has no active geofence.",
+				});
+			if (geo.reason === "outside_geofence")
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "No verified physical presence at branch geofence.",
+				});
 
 			const deviceApproved = await isDeviceApproved(
 				ctx.db,

@@ -30,9 +30,7 @@ export const deliveryRouter = router({
 	listRoutes: roleProcedure([
 		"admin",
 		"manager",
-		"delivery_manager",
 		"sales_person",
-		"biller",
 	])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
@@ -45,7 +43,7 @@ export const deliveryRouter = router({
 			});
 		}),
 
-	createRoute: roleProcedure(["admin", "manager", "delivery_manager"])
+	createRoute: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
 				name: z.string(),
@@ -144,7 +142,7 @@ export const deliveryRouter = router({
 		}),
 
 	// ── Trips ──────────────────────────────────────────────────────────────
-	assignTrip: roleProcedure(["admin", "manager", "delivery_manager"])
+	assignTrip: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
 				routeId: z.number(),
@@ -309,7 +307,7 @@ ERROR TABLE: ${err.table}
 	}),
 
 	// ── Live Execution ─────────────────────────────────────────────────────
-	activeTrips: roleProcedure(["admin", "manager", "delivery_manager"]).query(
+	activeTrips: roleProcedure(["admin", "manager"]).query(
 		async () => {
 			const activeTripsList = await db.query.deliveryTrips.findMany({
 				where: eq(deliveryTrips.status, "active"),
@@ -588,7 +586,7 @@ ERROR TABLE: ${err.table}
 		}),
 
 	// ── Dispatcher Panel ────────────────────────────────────────────────────
-	listDrivers: roleProcedure(["admin", "manager", "delivery_manager"])
+	listDrivers: roleProcedure(["admin", "manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			const usersWithRole = await db
@@ -645,7 +643,7 @@ ERROR TABLE: ${err.table}
 			return Array.from(merged.values());
 		}),
 
-	listAllTrips: roleProcedure(["admin", "manager", "delivery_manager"])
+	listAllTrips: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
 				branchId: z.number().optional(),
@@ -673,7 +671,7 @@ ERROR TABLE: ${err.table}
 			});
 		}),
 
-	cancelTrip: roleProcedure(["admin", "manager", "delivery_manager"])
+	cancelTrip: roleProcedure(["admin", "manager"])
 		.input(z.object({ tripId: z.number() }))
 		.mutation(async ({ input }) => {
 			await db
@@ -683,7 +681,7 @@ ERROR TABLE: ${err.table}
 			return { success: true };
 		}),
 
-	deleteTrip: roleProcedure(["admin", "manager", "delivery_manager"])
+	deleteTrip: roleProcedure(["admin", "manager"])
 		.input(z.object({ tripId: z.number() }))
 		.mutation(async ({ input }) => {
 			const stops = await db.query.tripStops.findMany({
@@ -705,7 +703,7 @@ ERROR TABLE: ${err.table}
 			return { success: true };
 		}),
 
-	deleteRoute: roleProcedure(["admin", "manager", "delivery_manager"])
+	deleteRoute: roleProcedure(["admin", "manager"])
 		.input(z.object({ routeId: z.number() }))
 		.mutation(async ({ input }) => {
 			await db.delete(routeStops).where(eq(routeStops.route_id, input.routeId));
@@ -719,7 +717,7 @@ ERROR TABLE: ${err.table}
 			return { success: true };
 		}),
 
-	updateRoute: roleProcedure(["admin", "manager", "delivery_manager"])
+	updateRoute: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
 				id: z.number(),
@@ -826,7 +824,7 @@ ERROR TABLE: ${err.table}
 			});
 		}),
 
-	clearAllRoutesAndTrips: roleProcedure(["admin", "manager", "delivery_manager"])
+	clearAllRoutesAndTrips: roleProcedure(["admin", "manager"])
 		.mutation(async () => {
 			// Cascading cleanup of all delivery tracking, proof of deliveries, stops, trips, routes
 			await db.delete(proofOfDeliveries);
@@ -840,7 +838,7 @@ ERROR TABLE: ${err.table}
 			return { success: true, message: "All routes and trips cleared successfully." };
 		}),
 
-	optimizeRouteSequence: roleProcedure(["admin", "manager", "delivery_manager"])
+	optimizeRouteSequence: roleProcedure(["admin", "manager"])
 		.input(z.object({ customerIds: z.array(z.number()) }))
 		.mutation(async ({ input }) => {
 			if (input.customerIds.length <= 1) return input.customerIds;
@@ -913,7 +911,7 @@ ERROR TABLE: ${err.table}
 			return optimizedIds;
 		}),
 
-	createTripDirect: roleProcedure(["admin", "manager", "delivery_manager"])
+	createTripDirect: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
 				driverId: z.string(),

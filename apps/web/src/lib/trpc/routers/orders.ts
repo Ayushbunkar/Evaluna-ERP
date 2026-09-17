@@ -106,7 +106,7 @@ export const ordersRouter = router({
 			return result ?? null;
 		}),
 
-	list: roleProcedure(["admin", "manager", "auditor", "sales_person", "biller"])
+	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])
 		.meta({
 			openapi: {
 				method: "GET",
@@ -128,7 +128,6 @@ export const ordersRouter = router({
 				"sales_person",
 				"salesperson",
 				"sales",
-				"biller",
 			];
 			const isPrivileged =
 				ctx.user?.isSuperadmin ||
@@ -517,7 +516,6 @@ export const ordersRouter = router({
 		"admin",
 		"manager",
 		"sales_person",
-		"biller",
 		"sales",
 	])
 		.input(z.void())
@@ -555,7 +553,6 @@ export const ordersRouter = router({
 		"admin",
 		"manager",
 		"sales_person",
-		"biller",
 		"sales",
 	])
 		.input(z.void())
@@ -582,7 +579,7 @@ export const ordersRouter = router({
 
 	// Full detail for the review screen — includes customer contact + ERP price
 	// suggestions so the salesperson can quote. Staff-only, so pricing is fine here.
-	getForReview: roleProcedure(["admin", "manager", "sales_person", "biller"])
+	getForReview: roleProcedure(["admin", "manager", "sales_person"])
 		.input(z.object({ id: z.number() }))
 		.query(async ({ ctx, input }) => {
 			const order = await db.query.orders.findFirst({
@@ -598,7 +595,7 @@ export const ordersRouter = router({
 									category: true,
 									unit: true,
 									sku: true,
-									base_selling_price: true,
+									buying_price: true,
 									price: true,
 								},
 							},
@@ -608,53 +605,37 @@ export const ordersRouter = router({
 			});
 			if (!order)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
-			let assignedRoute = null;
-			if (order.customer?.id) {
-				const stop = await db.query.routeStops.findFirst({
-					where: eq(routeStops.customer_id, order.customer.id),
-					with: { route: true },
-				});
-				if (stop && stop.route) {
-					assignedRoute = {
-						id: stop.route.id,
-						name: stop.route.name,
-						description: stop.route.description,
-						sequence: stop.sequence,
-					};
-				}
-			}
 
 			return {
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
 				status: order.status,
-				locked: order.locked ?? false,
 				createdAt: order.created_at,
-				totalAmount: order.total_amount,
-				discountAmount: order.discount_amount,
-				assignedRoute,
-				customer: order.customer
-					? {
-							id: order.customer.id,
-							name: order.customer.name,
-							phone: order.customer.phone,
-							email: order.customer.email,
-							address: order.customer.address,
-							customerCode: order.customer.customer_code,
-						}
-					: null,
-				items: order.orderItems.map((it) => ({
+				branchId: order.branch_id,
+				totalAmount: Number(order.total_amount ?? 0),
+				discountAmount: Number(order.discount_amount ?? 0),
+				deliveryAddress: order.shipping_address,
+				customerNotes: order.notes,
+				customer: {
+					id: order.customer?.id ?? 0,
+					name: order.customer?.name ?? "Guest",
+					phone: order.customer?.phone ?? null,
+					email: order.customer?.email ?? null,
+					address: order.customer?.address ?? null,
+					customerCode: order.customer?.customer_code ?? null,
+				},
+				items: (order.orderItems ?? []).map((it) => ({
 					id: it.id,
 					productId: it.product_id,
-					name: it.product?.name ?? "Item",
-					category: it.product?.category ?? null,
-					unit: it.product?.unit ?? null,
-					sku: it.product?.sku ?? null,
+					productName: it.product?.name ?? "Unknown",
+					sku: it.product?.sku ?? "—",
+					unit: it.product?.unit ?? "pcs",
 					quantity: it.quantity,
-					price: it.price,
-					// ERP-suggested unit price to help the salesperson quote.
-					suggestedPrice:
-						it.product?.base_selling_price ?? it.product?.price ?? null,
+					// Stored order-item price (already numeric string) or fallback to catalog price
+					price: Number(it.price || it.product?.price || 0),
+					// Base unit cost (for salesperson margin awareness)
+					basePrice: Number(it.product?.buying_price ?? 0),
+					catalogPrice: Number(it.product?.price ?? 0),
 				})),
 			};
 		}),
@@ -669,7 +650,6 @@ export const ordersRouter = router({
 		"admin",
 		"manager",
 		"sales_person",
-		"biller",
 	])
 		.input(
 			z.object({
@@ -767,7 +747,7 @@ export const ordersRouter = router({
 	// concurrency-guarded UPDATE so two racing confirms can NEVER double-invoice.
 	// Any throw rolls the whole thing back — the order stays reviewable, never a
 	// false "completed". The invoice is the confirmed order (INV-{id} convention).
-	confirmOrder: roleProcedure(["admin", "manager", "sales_person", "biller"])
+	confirmOrder: roleProcedure(["admin", "manager", "sales_person"])
 		.input(
 			z.object({
 				id: z.number(),
@@ -1157,7 +1137,6 @@ export const ordersRouter = router({
 							});
 						} else if (
 							normalizedRole === "packer" ||
-							normalizedRole === "dispatcher" ||
 							normalizedRole === "warehouse_supervisor"
 						) {
 							notificationBatch.push({
@@ -1191,12 +1170,11 @@ export const ordersRouter = router({
 			};
 		}),
 
-	// ── Explicit Route Assignment for Sales / Biller / Manager ───────────────
+	// ── Explicit Route Assignment for Sales / Manager ─────────────────────────
 	assignRoute: roleProcedure([
 		"admin",
 		"manager",
 		"sales_person",
-		"biller",
 		"delivery_manager",
 	])
 		.input(

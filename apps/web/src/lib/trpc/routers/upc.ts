@@ -275,7 +275,6 @@ export const upcRouter = router({
 			"picker",
 			"packer",
 			"putter",
-			"dispatcher",
 			"warehouse_supervisor",
 			"manager",
 			"admin",
