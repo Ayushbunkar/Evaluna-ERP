@@ -9,7 +9,6 @@ import {
 } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	ActivityIcon,
 	CheckCircle2,
@@ -22,19 +21,18 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function AdminSettingsGeneralPage() {
 	const trpc = useTRPC();
-	const queryClient = useQueryClient();
 	const [success, setSuccess] = useState(false);
 	const [localSettings, setLocalSettings] = useState<Record<string, string>>(
 		{},
 	);
 	const [initialized, setInitialized] = useState(false);
 
-	const settingsQueryOptions = trpc.settings.getAll.queryOptions();
 	const {
 		data: settingsData,
 		isLoading,
 		error,
-	} = useQuery(settingsQueryOptions);
+		refetch,
+	} = trpc.settings.getAll.useQuery();
 
 	React.useEffect(() => {
 		if (settingsData?.data && !initialized) {
@@ -43,17 +41,13 @@ export default function AdminSettingsGeneralPage() {
 		}
 	}, [settingsData, initialized]);
 
-	const updateMutation = useMutation(
-		trpc.settings.setMany.mutationOptions({
-			onSuccess: () => {
-				setSuccess(true);
-				queryClient.invalidateQueries({
-					queryKey: settingsQueryOptions.queryKey,
-				});
-				setTimeout(() => setSuccess(false), 3000);
-			},
-		}),
-	);
+	const updateMutation = trpc.settings.setMany.useMutation({
+		onSuccess: () => {
+			setSuccess(true);
+			refetch();
+			setTimeout(() => setSuccess(false), 3000);
+		},
+	});
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();

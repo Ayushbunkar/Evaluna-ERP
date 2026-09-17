@@ -1436,8 +1436,12 @@ export const stockAudits = pgTable("stock_audits", {
 	branch_id: integer("branch_id")
 		.references(() => branches.id)
 		.notNull(),
-	status: varchar("status", { length: 20 }).default("planned"), // planned, in_progress, completed, escalated
+	status: varchar("status", { length: 20 }).default("planned"), // planned, in_progress, submitted, completed, escalated, cancelled
 	auditor_id: integer("auditor_id").references(() => staff.id),
+	audit_type: varchar("audit_type", { length: 50 }).default("physical_count"),
+	location_name: varchar("location_name", { length: 255 }),
+	due_date: timestamp("due_date"),
+	notes: text("notes"),
 	created_at: timestamp("created_at").defaultNow(),
 	completed_at: timestamp("completed_at"),
 });
@@ -1467,6 +1471,8 @@ export const stockAuditItems = pgTable("stock_audit_items", {
 	expected_qty: integer("expected_qty").notNull(),
 	counted_qty: integer("counted_qty"),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, match, mismatch, recounted, accepted, escalated
+	discrepancy_reason: varchar("discrepancy_reason", { length: 100 }),
+	remarks: text("remarks"),
 	created_at: timestamp("created_at").defaultNow(),
 });
 

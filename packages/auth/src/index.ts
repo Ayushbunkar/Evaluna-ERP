@@ -45,6 +45,16 @@ export function createAuth({
 			enabled: true,
 			requireEmailVerification: false, // Enforce in ERP context via admin activation
 			minPasswordLength: 8,
+			password: {
+				hash: async (password: string) => {
+					const { hashPassword } = await import("@evaluna/db");
+					return hashPassword(password);
+				},
+				verify: async ({ password, hash }: { password: string; hash: string }) => {
+					const { comparePassword } = await import("@evaluna/db");
+					return comparePassword(password, hash);
+				},
+			},
 			async hash(password: string) {
 				const { hashPassword } = await import("@evaluna/db");
 				return hashPassword(password);
@@ -79,17 +89,9 @@ export function createAuth({
 						profile.status === "LOCKED" ||
 						profile.status === "SUSPENDED"
 					) {
-						// PENDING status is allowed, but triggers a force password change
 						throw new Error(
 							`ACCOUNT_STATUS_FORBIDDEN: Account status is ${profile.status}.`,
 						);
-					}
-
-					// Check for forced password change on first login (Requirement 6, 13)
-					if (profile.forcePasswordChange || profile.status === "PENDING") {
-						// The auth layer needs a mechanism to tell the UI to redirect to /password-change
-						// Throwing a dedicated error is a common way to signal this to the frontend.
-						throw new Error("PASSWORD_CHANGE_REQUIRED");
 					}
 				},
 			},

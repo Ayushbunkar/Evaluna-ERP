@@ -6,6 +6,9 @@ import { Toaster } from "sonner";
 import TRPCProvider from "@/app/_trpc/provider";
 import { CookieConsent } from "@/components/cookie-consent";
 import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
+import enMessages from "@/messages/en";
+import hiMessages from "@/messages/hi";
+import { defaultLocale, type Locale } from "@/i18n/config";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -14,6 +17,11 @@ const notoDevanagari = Noto_Sans_Devanagari({
 	variable: "--font-devanagari",
 	weight: ["400", "500", "600", "700"],
 });
+
+const fallbackMessages: Record<Locale, any> = {
+	en: enMessages,
+	hi: hiMessages,
+};
 
 export const metadata: Metadata = {
 	title: "Evaluna ERP",
@@ -25,8 +33,22 @@ export default async function RootLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	const locale = await getLocale();
-	const messages = await getMessages();
+	let locale: Locale = defaultLocale;
+	let messages: any = enMessages;
+
+	try {
+		const resolvedLocale = await getLocale();
+		if (resolvedLocale === "hi" || resolvedLocale === "en") {
+			locale = resolvedLocale as Locale;
+		}
+		messages = await getMessages();
+	} catch {
+		messages = fallbackMessages[locale] || enMessages;
+	}
+
+	if (!messages || Object.keys(messages).length === 0) {
+		messages = fallbackMessages[locale] || enMessages;
+	}
 
 	return (
 		<html lang={locale} suppressHydrationWarning>

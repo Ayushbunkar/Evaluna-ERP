@@ -1,5 +1,10 @@
 "use client";
 
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@evaluna/ui/components/alert";
 import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@evaluna/ui/components/card";

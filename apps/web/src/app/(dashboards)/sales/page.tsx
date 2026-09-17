@@ -11,6 +11,7 @@ import {
 import {
 	ArrowRightIcon,
 	BanknoteIcon,
+	ClipboardListIcon,
 	ReceiptTextIcon,
 	SearchIcon,
 	ShoppingCart,

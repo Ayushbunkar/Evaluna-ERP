@@ -113,6 +113,11 @@ const ROLE_CONFIG: Record<
 		color: "text-teal-700 dark:text-teal-300",
 		bg: "bg-teal-100 dark:bg-teal-900/40",
 	},
+	procurement: {
+		label: "Procurement",
+		color: "text-indigo-700 dark:text-indigo-300",
+		bg: "bg-indigo-100 dark:bg-indigo-900/40",
+	},
 };
 
 function BranchSwitcher({ isSuperadmin }: { isSuperadmin: boolean }) {
@@ -288,13 +293,15 @@ export function AppLayout({
 
 	const formatNavLabel = (key: string) => {
 		try {
-			const translated = t(key as any);
-			if (
-				translated &&
-				typeof translated === "string" &&
-				!translated.startsWith("nav.")
-			) {
-				return translated;
+			if (t && typeof (t as any).has === "function" && (t as any).has(key)) {
+				const translated = t(key as any);
+				if (
+					translated &&
+					typeof translated === "string" &&
+					!translated.startsWith("nav.")
+				) {
+					return translated;
+				}
 			}
 		} catch (_e) {}
 		if (key === "productsPlaceOrder") return "Products / Place Order";

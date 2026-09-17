@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -9,314 +10,299 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import {
-	ActivityIcon,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@evaluna/ui/components/table";
+import {
+	AlertTriangleIcon,
 	ArrowRightIcon,
-	BanknoteIcon,
-	ChartLineIcon,
+	BarChart3Icon,
+	BoxesIcon,
 	ClipboardListIcon,
+	InfoIcon,
+	PlusIcon,
+	TrendingUpIcon,
 	TruckIcon,
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import {
 	AnimatedCard,
-	motion,
 	PageTransition,
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
 
-export default function ProcurementDashboard() {
+export default function ProcurementDashboardOverview() {
 	const trpc = useTRPC();
-	const locale = useLocale();
-	const { data: stats } = trpc.purchases.getDashboardStats.useQuery();
+
+	// Queries
+	const { data: pos, isLoading: posLoading } =
+		trpc.warehouse.getReceivingPOs.useQuery();
+	const { data: suppliersList, isLoading: suppliersLoading } =
+		trpc.suppliers.list.useQuery();
+	const { data: invData, isLoading: invLoading } = trpc.inventory.list.useQuery(
+		{ limit: 100 },
+	);
+
+	// Calculate dynamic KPIs from DB
+	const activeSuppliersCount = suppliersList?.length || 0;
+	const openPOsCount = pos?.filter((p) => p.status === "pending").length || 0;
+	const receivedPOsCount =
+		pos?.filter((p) => p.status === "received" || p.status === "completed")
+			.length || 0;
+
+	const totalSpend =
+		pos?.reduce((acc, curr) => acc + Number(curr.total_amount), 0) || 0;
+	const totalOutstandingBalance =
+		suppliersList?.reduce(
+			(acc, curr) => acc + Number(curr.outstanding_balance || 0),
+			0,
+		) || 0;
+
+	// Filter low stock items requiring immediate procurement
+	const lowStockItems =
+		invData?.items?.filter(
+			(item) => item.status === "low_stock" || item.qty_on_hand <= 5,
+		) || [];
+
+	const kpis = [
+		{
+			title: "Total Purchase Spend",
+			value: `₹${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+			desc: "Accumulated procurement volume",
+			icon: TrendingUpIcon,
+			color: "border-l-blue-500",
+			iconColor: "text-blue-500",
+		},
+		{
+			title: "Open Purchase Orders",
+			value: openPOsCount,
+			desc: "Expected inbound PO shipments",
+			icon: TruckIcon,
+			color: "border-l-yellow-500",
+			iconColor: "text-yellow-500",
+		},
+		{
+			title: "Outstanding Balance",
+			value: `₹${totalOutstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+			desc: "Due to suppliers ledger",
+			icon: ClipboardListIcon,
+			color: "border-l-red-500",
+			iconColor: "text-red-500",
+		},
+		{
+			title: "Active Suppliers",
+			value: activeSuppliersCount,
+			desc: "Partners in directory",
+			icon: UsersIcon,
+			color: "border-l-green-500",
+			iconColor: "text-green-500",
+		},
+	];
 
 	return (
-		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
-			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-				<div className="flex flex-col gap-1">
-					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Procurement Dashboard
-					</h1>
-					<p className="text-muted-foreground text-xs sm:text-sm">
-						Purchase orders, supplier management, and incoming inventory
+		<PageTransition className="space-y-6 p-4 sm:p-6">
+			{/* Supervisor banner */}
+			<div className="flex flex-col items-start justify-between gap-4 rounded-xl border bg-white p-6 shadow-sm md:flex-row md:items-center dark:bg-slate-800">
+				<div className="space-y-1">
+					<h2 className="font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
+						Procurement & Suppliers Dashboard
+					</h2>
+					<p className="text-muted-foreground text-sm">
+						Manage bulk purchases, supplier outstanding balances, low stock
+						reorders, and procurement trends.
 					</p>
 				</div>
-				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> Procurement Activities
+				<div className="flex flex-wrap items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						asChild
+						className="h-9 font-semibold text-xs shadow-xs"
+					>
+						<Link href="/procurement/analytics">
+							<BarChart3Icon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
+							Procurement Analytics
+						</Link>
 					</Button>
-					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/purchases/pending">
-							<ClipboardListIcon className="mr-2 h-4 w-4" /> View Pending Orders
+					<Button
+						variant="outline"
+						size="sm"
+						asChild
+						className="h-9 font-semibold text-xs shadow-xs"
+					>
+						<Link href="/procurement/incoming">
+							<TruckIcon className="mr-1.5 h-3.5 w-3.5 text-purple-600" />
+							Inbound Shipments
+						</Link>
+					</Button>
+					<Button
+						size="sm"
+						asChild
+						className="h-9 bg-blue-600 font-bold text-white text-xs shadow-sm hover:bg-blue-700"
+					>
+						<Link href="/procurement/purchase-orders">
+							<PlusIcon className="mr-1.5 h-4 w-4" />
+							New Purchase Order
 						</Link>
 					</Button>
 				</div>
 			</div>
 
-			{/* Stats Grid */}
-			<StaggerList
-				className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
-				slow
-			>
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/purchases")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<ActivityIcon className="h-6 w-6 text-blue-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Purchase Orders Today
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.posToday ?? 0} orders
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/purchases/pending")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<ChartLineIcon className="h-6 w-6 text-green-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Pending PO Approval
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.pendingApproval ?? 0} orders
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/suppliers")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<TruckIcon className="h-6 w-6 text-purple-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Incoming Inventory
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.incomingInventory ?? 0} units
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/suppliers")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<UsersIcon className="h-6 w-6 text-orange-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Supplier Contacts
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.supplierContacts ?? 0} active
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
+			{/* KPIs Row */}
+			<StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" slow>
+				{kpis.map((kpi, idx) => {
+					const Icon = kpi.icon;
+					return (
+						<StaggerItem key={idx}>
+							<AnimatedCard>
+								<Card
+									className={`border-l-4 ${kpi.color} bg-white shadow-sm dark:bg-slate-800`}
+								>
+									<CardHeader className="flex flex-row items-center justify-between pb-2">
+										<CardTitle className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+											{kpi.title}
+										</CardTitle>
+										<Icon className={`h-4 w-4 ${kpi.iconColor}`} />
+									</CardHeader>
+									<CardContent>
+										<div className="font-bold text-slate-900 text-xl sm:text-2xl dark:text-slate-100">
+											{posLoading || suppliersLoading ? "..." : kpi.value}
+										</div>
+										<p className="mt-1 text-[10px] text-muted-foreground">
+											{kpi.desc}
+										</p>
+									</CardContent>
+								</Card>
+							</AnimatedCard>
+						</StaggerItem>
+					);
+				})}
 			</StaggerList>
 
-			{/* Purchase Trend Chart */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.3 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Purchase Trend (6 Months)
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Monthly purchase volume and spending
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/purchases">
-								View Details <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{/* Placeholder for purchase trend chart */}
-						<div className="flex h-[200px] items-center justify-center text-muted-foreground text-sm">
-							Purchase trend chart would be displayed here
-						</div>
-					</CardContent>
-				</Card>
-			</motion.div>
+			{/* Two-Column Workspace */}
+			<div className="grid gap-6 lg:grid-cols-3">
+				{/* Left Column: Low Stock Procurement Advisor */}
+				<div className="space-y-6 lg:col-span-2">
+					<Card className="shadow-sm">
+						<CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+							<div>
+								<CardTitle className="font-bold text-base">
+									Low-Stock Procurement Advisor
+								</CardTitle>
+								<CardDescription>
+									Live catalog lines falling below reorder thresholds. Order
+									replenishment immediately.
+								</CardDescription>
+							</div>
+							<Badge variant="destructive" className="animate-pulse">
+								{lowStockItems.length} Warnings
+							</Badge>
+						</CardHeader>
+						<CardContent className="p-0">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Product Material</TableHead>
+										<TableHead>SKU</TableHead>
+										<TableHead>Current Stock</TableHead>
+										<TableHead>Reorder Level</TableHead>
+										<TableHead className="text-right">Actions</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{lowStockItems.map((item) => (
+										<TableRow key={item.id}>
+											<TableCell className="font-bold text-xs">
+												{item.product}
+											</TableCell>
+											<TableCell className="font-semibold text-slate-500 text-xs">
+												{item.sku}
+											</TableCell>
+											<TableCell className="font-bold text-red-600 text-xs">
+												{item.qty_on_hand} units
+											</TableCell>
+											<TableCell className="font-semibold text-xs">
+												{item.reorder_level} units
+											</TableCell>
+											<TableCell className="text-right">
+												<Button size="sm" asChild>
+													<Link href="/procurement/purchase-orders">
+														Replenish
+													</Link>
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+									{lowStockItems.length === 0 && (
+										<TableRow>
+											<TableCell
+												colSpan={5}
+												className="py-12 text-center text-muted-foreground"
+											>
+												<BoxesIcon className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+												<p className="font-bold text-sm">
+													No products currently require replenishment.
+												</p>
+											</TableCell>
+										</TableRow>
+									)}
+								</TableBody>
+							</Table>
+						</CardContent>
+					</Card>
+				</div>
 
-			{/* Supplier Performance */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.4 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Supplier Performance
+				{/* Right Column: Inbound Purchases Overview */}
+				<div className="space-y-6">
+					<Card className="shadow-sm">
+						<CardHeader className="border-b pb-3">
+							<CardTitle className="font-bold text-sm">
+								Inbound Purchase Track
 							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Top suppliers by purchase volume
+							<CardDescription>
+								Status and progression of expected procurement lots
 							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/suppliers">
-								View Details <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{/* Placeholder for supplier performance data */}
-						<div className="space-y-3">
-							<div className="flex items-center justify-between border-border/50 p-4">
-								<div className="flex flex-col">
-									<p className="font-medium text-sm">Supplier A</p>
-									<p className="text-muted-foreground text-xs">12 POs</p>
-								</div>
-								<div className="flex items-center gap-2 text-right">
-									<span className="font-bold text-sm">
-										{formatCurrency(12500, locale)}
-									</span>
-								</div>
+						</CardHeader>
+						<CardContent className="space-y-4 pt-4">
+							<div className="flex items-center justify-between border-b pb-2 text-xs">
+								<span>Completed / Received Purchases</span>
+								<span className="font-bold text-green-600">
+									{receivedPOsCount} POs
+								</span>
 							</div>
-							<div className="flex items-center justify-between border-border/50 p-4">
-								<div className="flex flex-col">
-									<p className="font-medium text-sm">Supplier B</p>
-									<p className="text-muted-foreground text-xs">8 POs</p>
-								</div>
-								<div className="flex items-center gap-2 text-right">
-									<span className="font-bold text-sm">
-										{formatCurrency(8750, locale)}
-									</span>
-								</div>
+							<div className="flex items-center justify-between border-b pb-2 text-xs">
+								<span>Pending expected receipts</span>
+								<span className="font-bold text-yellow-600">
+									{openPOsCount} POs
+								</span>
 							</div>
-							<div className="flex items-center justify-between border-border/50 p-4">
-								<div className="flex flex-col">
-									<p className="font-medium text-sm">Supplier C</p>
-									<p className="text-muted-foreground text-xs">5 POs</p>
-								</div>
-								<div className="flex items-center gap-2 text-right">
-									<span className="font-bold text-sm">
-										{formatCurrency(4200, locale)}
-									</span>
-								</div>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			</motion.div>
 
-			{/* Recent Purchase Activity */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.5 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Recent Purchase Activity
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Latest purchase orders and supplier activities
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/purchases">
-								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{/* Placeholder for recent purchase activity */}
-						<div className="space-y-3">
-							<div className="flex items-start gap-3 border-border/50 border-b pb-3">
-								<div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-									<TruckIcon className="h-4 w-4" />
+							{openPOsCount > 0 && (
+								<div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+									<AlertTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+									<div>
+										<h5 className="font-bold text-amber-800 text-xs">
+											Pending Goods Received Note (GRN)
+										</h5>
+										<p className="mt-1 text-[11px] text-amber-700">
+											{openPOsCount} purchase orders are currently awaiting
+											check-in at the dock gates. Ensure coordination with WMS
+											team.
+										</p>
+									</div>
 								</div>
-								<div className="flex flex-1 flex-col gap-1">
-									<p className="font-medium text-xs sm:text-sm">
-										PO #PO-2026-0891
-									</p>
-									<p className="text-muted-foreground text-xs">
-										Approved - Awaiting Delivery
-									</p>
-								</div>
-							</div>
-							<div className="flex items-start gap-3 border-border/50 border-b pb-3">
-								<div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-									<ActivityIcon className="h-4 w-4" />
-								</div>
-								<div className="flex flex-1 flex-col gap-1">
-									<p className="font-medium text-xs sm:text-sm">
-										New Supplier Added
-									</p>
-									<p className="text-muted-foreground text-xs">
-										Global Parts Inc.
-									</p>
-								</div>
-							</div>
-							<div className="flex items-start gap-3 border-border/50 border-b pb-3">
-								<div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-									<ChartLineIcon className="h-4 w-4" />
-								</div>
-								<div className="flex flex-1 flex-col gap-1">
-									<p className="font-medium text-xs sm:text-sm">
-										PO #PO-2026-0885
-									</p>
-									<p className="text-muted-foreground text-xs">
-										Received - 85% Complete
-									</p>
-								</div>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			</motion.div>
+							)}
+						</CardContent>
+					</Card>
+				</div>
+			</div>
 		</PageTransition>
 	);
 }

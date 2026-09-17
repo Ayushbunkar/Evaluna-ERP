@@ -1,5 +1,27 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import {
+	ActivityIcon,
+	AlertTriangleIcon,
+	ArrowRightIcon,
+	BarcodeIcon,
+	CheckCircle2Icon,
+	ClipboardCheckIcon,
+	ClipboardListIcon,
+	ClockIcon,
+	EyeIcon,
+	FileBarChartIcon,
+	PackageIcon,
+	PlayIcon,
+	PlusIcon,
+	RefreshCwIcon,
+	ShieldAlertIcon,
+	ShieldCheckIcon,
+	ShieldIcon,
+	TrendingUpIcon,
+} from "lucide-react";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -8,400 +30,400 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import { Badge } from "@evaluna/ui/components/badge";
 import {
-	ActivityIcon,
-	ArrowRightIcon,
-	CalendarCheckIcon,
-	ChartLineIcon,
-	ClipboardIcon,
-	ShieldIcon,
-	TrendingUpIcon,
-	UsersIcon,
-} from "lucide-react";
-import Link from "next/link";
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@evaluna/ui/components/table";
 import {
 	AnimatedCard,
-	AnimatePresence,
-	motion,
 	PageTransition,
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
 
 export default function AuditorDashboard() {
 	const trpc = useTRPC();
-	const { data: stats } = trpc.auditor.getDashboardStats.useQuery({});
+	const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>(undefined);
+
+	// Load KPI stats
+	const {
+		data: stats,
+		isLoading: statsLoading,
+		refetch: refetchStats,
+	} = trpc.audit.getDashboardStats.useQuery(
+		{ branchId: selectedBranchId },
+		{ refetchInterval: 30000 },
+	);
+
+	// Load active / recent audits
+	const {
+		data: audits,
+		isLoading: auditsLoading,
+		refetch: refetchAudits,
+	} = trpc.audit.listAudits.useQuery({
+		branchId: selectedBranchId,
+	});
+
+	const pendingCount = stats?.pendingAudits ?? 0;
+	const inProgressCount = stats?.inProgress ?? 0;
+	const completedCount = stats?.completedAudits ?? 0;
+	const varianceCount = stats?.varianceFound ?? 0;
+	const accuracyRate = stats?.accuracyRate ?? 100;
 
 	return (
-		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
-			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-				<div className="flex flex-col gap-1">
-					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						Auditor Dashboard
-					</h1>
-					<p className="text-muted-foreground text-xs sm:text-sm">
-						Audit oversight, compliance monitoring, and quality control
+		<PageTransition className="space-y-6">
+			{/* Header */}
+			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+				<div>
+					<div className="flex items-center gap-2">
+						<span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+							<ShieldIcon className="h-5 w-5" />
+						</span>
+						<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
+							Auditor Dashboard
+						</h1>
+					</div>
+					<p className="mt-1 text-muted-foreground text-xs sm:text-sm">
+						Inventory oversight, physical count verification, and discrepancy auditing
 					</p>
 				</div>
-				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> Audit Activities
+				<div className="flex flex-wrap items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => {
+							refetchStats();
+							refetchAudits();
+						}}
+						className="text-xs"
+					>
+						<RefreshCwIcon className="mr-1.5 h-3.5 w-3.5" /> Refresh
 					</Button>
-					<Button className="text-xs shadow-sm sm:text-sm" asChild>
-						<Link href="/auditor/findings">
-							<ClipboardIcon className="mr-2 h-4 w-4" /> View Findings
+					<Button size="sm" asChild className="text-xs bg-blue-600 hover:bg-blue-700">
+						<Link href="/auditor/tasks">
+							<ClipboardListIcon className="mr-1.5 h-3.5 w-3.5" /> View All Tasks
 						</Link>
 					</Button>
 				</div>
 			</div>
 
-			{/* Stats Grid */}
-			<StaggerList
-				className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
-				slow
-			>
+			{/* 4 Primary KPI Cards Required by Prompt */}
+			<StaggerList className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+				{/* 1. Pending Audits */}
 				<StaggerItem>
 					<AnimatedCard>
-						<Card
-							className="group cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl transition-all hover:shadow-md"
-							onClick={() => (window.location.href = "/auditor/findings")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 transition-transform group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<ShieldIcon className="h-6 w-6 text-blue-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Open Findings
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.openFindings || 0}
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/auditor/upc")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<CalendarCheckIcon className="h-6 w-6 text-green-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Pending UPC Tasks
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.openUpcTasks || 0}
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/auditor/receiving")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<ActivityIcon className="h-6 w-6 text-red-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Pending Receiving
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.pendingReceiving || 0}
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/auditor/placement")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<UsersIcon className="h-6 w-6 text-yellow-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Awaiting Placement
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.awaitingPlacement || 0}
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				<StaggerItem>
-					<AnimatedCard>
-						<Card
-							className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-							onClick={() => (window.location.href = "/auditor/reports")}
-						>
-							<CardContent className="p-4 sm:p-6">
-								<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-									<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-										<ChartLineIcon className="h-6 w-6 text-purple-500" />
-									</div>
-									<h3 className="font-semibold text-base sm:text-lg">
-										Completed Audits
-									</h3>
-									<p className="text-muted-foreground text-xs">
-										{stats?.completedAudits || 0}
-									</p>
-								</div>
-							</CardContent>
-						</Card>
-					</AnimatedCard>
-				</StaggerItem>
-
-				{/* Additional stats if needed */}
-				{stats?.stockAccuracy !== null && (
-					<StaggerItem>
-						<AnimatedCard>
-							<Card
-								className="group transition_all cursor-pointer border-border/50 bg-card/80 shadow-sm backdrop-blur-xl hover:shadow-md"
-								onClick={() => (window.location.href = "/auditor/findings")}
-							>
-								<CardContent className="p-4 sm:p-6">
-									<div className="flex flex-col items-center gap-1 text-center sm:gap-2">
-										<div className="transition_transform mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 group-hover:scale-110 sm:mb-2 sm:h-12 sm:w-12">
-											<TrendingUpIcon className="h-6 w-6 text-orange-500" />
-										</div>
-										<h3 className="font-semibold text-base sm:text-lg">
-											Stock Accuracy
-										</h3>
-										<p className="text-muted-foreground text-xs">
-											{stats?.stockAccuracy?.toFixed(1)}%
+						<Card className="border-border/60 bg-card shadow-sm transition-all hover:border-blue-300 dark:hover:border-blue-700">
+							<CardContent className="p-4 sm:p-5">
+								<div className="flex items-center justify-between">
+									<div>
+										<p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+											Pending Audits
+										</p>
+										<p className="mt-1 font-bold text-2xl sm:text-3xl text-foreground">
+											{statsLoading ? "..." : pendingCount}
+										</p>
+										<p className="mt-1 text-[11px] text-muted-foreground">
+											Awaiting physical count
 										</p>
 									</div>
-								</CardContent>
-							</Card>
-						</AnimatedCard>
-					</StaggerItem>
-				)}
+									<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+										<ClockIcon className="h-6 w-6" />
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</AnimatedCard>
+				</StaggerItem>
+
+				{/* 2. In Progress */}
+				<StaggerItem>
+					<AnimatedCard>
+						<Card className="border-border/60 bg-card shadow-sm transition-all hover:border-blue-300 dark:hover:border-blue-700">
+							<CardContent className="p-4 sm:p-5">
+								<div className="flex items-center justify-between">
+									<div>
+										<p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+											In Progress
+										</p>
+										<p className="mt-1 font-bold text-2xl sm:text-3xl text-blue-600 dark:text-blue-400">
+											{statsLoading ? "..." : inProgressCount}
+										</p>
+										<p className="mt-1 text-[11px] text-muted-foreground">
+											Actively being counted
+										</p>
+									</div>
+									<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+										<ActivityIcon className="h-6 w-6" />
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</AnimatedCard>
+				</StaggerItem>
+
+				{/* 3. Completed */}
+				<StaggerItem>
+					<AnimatedCard>
+						<Card className="border-border/60 bg-card shadow-sm transition-all hover:border-blue-300 dark:hover:border-blue-700">
+							<CardContent className="p-4 sm:p-5">
+								<div className="flex items-center justify-between">
+									<div>
+										<p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+											Completed Audits
+										</p>
+										<p className="mt-1 font-bold text-2xl sm:text-3xl text-emerald-600 dark:text-emerald-400">
+											{statsLoading ? "..." : completedCount}
+										</p>
+										<p className="mt-1 text-[11px] text-muted-foreground">
+											Reconciled & finalized
+										</p>
+									</div>
+									<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+										<CheckCircle2Icon className="h-6 w-6" />
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</AnimatedCard>
+				</StaggerItem>
+
+				{/* 4. Variance Found */}
+				<StaggerItem>
+					<AnimatedCard>
+						<Card className="border-border/60 bg-card shadow-sm transition-all hover:border-blue-300 dark:hover:border-blue-700">
+							<CardContent className="p-4 sm:p-5">
+								<div className="flex items-center justify-between">
+									<div>
+										<p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+											Variance Found
+										</p>
+										<p className="mt-1 font-bold text-2xl sm:text-3xl text-rose-600 dark:text-rose-400">
+											{statsLoading ? "..." : varianceCount}
+										</p>
+										<p className="mt-1 text-[11px] text-muted-foreground">
+											Requires reconciliation
+										</p>
+									</div>
+									<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+										<AlertTriangleIcon className="h-6 w-6" />
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</AnimatedCard>
+				</StaggerItem>
 			</StaggerList>
 
-			{/* Recent Audit Findings */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.3 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Recent Audit Findings
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Latest audit findings and issues
-							</CardDescription>
+			{/* Accuracy Banner & Quick Action Shortcuts */}
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+				<Card className="border-border/60 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-purple-500/5 p-5">
+					<div className="flex items-start justify-between">
+						<div>
+							<span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+								Overall Stock Health
+							</span>
+							<h3 className="mt-1 text-2xl font-bold text-foreground">
+								{accuracyRate}% Accuracy
+							</h3>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Based on {stats?.totalAudits ?? 0} audited records across all warehouse locations.
+							</p>
 						</div>
-						<Button variant="ghost" size="sm" asChild>
+						<div className="rounded-full bg-blue-100 p-3 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
+							<TrendingUpIcon className="h-6 w-6" />
+						</div>
+					</div>
+					<div className="mt-4 flex gap-2">
+						<Button size="sm" variant="outline" asChild className="text-xs flex-1">
 							<Link href="/auditor/findings">
-								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
+								<ShieldAlertIcon className="mr-1 h-3.5 w-3.5 text-rose-500" /> View Discrepancies
 							</Link>
 						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{stats?.recentFindings?.length > 0 ? (
-							<div className="space-y-3">
-								{stats.recentFindings.map((finding) => (
-									<div
-										key={finding.id}
-										className="flex items-center justify-between border-border/50 border-b pb-2 last:border-0 last:pb-0"
-									>
-										<div className="flex flex-col">
-											<p className="font-medium text-sm">{finding.title}</p>
-											<p className="truncate text-muted-foreground text-xs">
-												{finding.type} â€¢ {finding.severity}
-											</p>
-										</div>
-										<div className="flex items-center gap-2 text-right">
-											<span
-												className={`rounded-full px-2 py-0.5 text-xs ${
-													finding.severity === "critical"
-														? "bg-red-100 text-red-800"
-														: finding.severity === "high"
-															? "bg-orange-100 text-orange-800"
-															: finding.severity === "medium"
-																? "bg-yellow-100 text-yellow-800"
-																: finding.severity === "low"
-																	? "bg-green-100 text-green-800"
-																	: "bg-gray-100 text-gray-800"
-												}`}
-											>
-												{finding.severity.charAt(0).toUpperCase() +
-													finding.severity.slice(1)}
-											</span>
-											<span
-												className={`text-xs ${
-													finding.status === "open"
-														? "text-red-600"
-														: finding.status === "under_review"
-															? "text-yellow-600"
-															: finding.status === "corrective_action_required"
-																? "text-orange-600"
-																: "text-gray-600"
-												}`}
-											>
-												{finding.status
-													.split("_")
-													.map(
-														(word) =>
-															word.charAt(0).toUpperCase() + word.slice(1),
-													)
-													.join(" ")}
-											</span>
-										</div>
-									</div>
-								))}
-							</div>
-						) : (
-							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
-								No recent audit findings
-							</div>
-						)}
-					</CardContent>
+						<Button size="sm" variant="outline" asChild className="text-xs flex-1">
+							<Link href="/auditor/history">
+								<FileBarChartIcon className="mr-1 h-3.5 w-3.5 text-indigo-500" /> Audit History
+							</Link>
+						</Button>
+					</div>
 				</Card>
-			</motion.div>
 
-			{/* Audit Queue / Pending Actions */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.4 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Audit Queue
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Pending audits, UPC tasks, and inspections
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/auditor/dashboard">
-								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						<div className="grid gap-4 sm:grid-cols-2">
-							<div className="border-border/50 p-3">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Pending Audits
-								</p>
-								<p className="font-bold text-2xl">
-									{stats?.pendingAudits || 0}
-								</p>
-							</div>
-							<div className="border-border/50 p-3">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Pending UPC Tasks
-								</p>
-								<p className="font-bold text-2xl">{stats?.openUpcTasks || 0}</p>
-							</div>
-							<div className="border-border/50 p-3">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Pending Receiving
-								</p>
-								<p className="font-bold text-2xl">
-									{stats?.pendingReceiving || 0}
-								</p>
-							</div>
-							<div className="border-border/50 p-3">
-								<p className="mb-1 font-medium text-muted-foreground text-xs">
-									Awaiting Placement
-								</p>
-								<p className="font-bold text-2xl">
-									{stats?.awaitingPlacement || 0}
-								</p>
-							</div>
-						</div>
-					</CardContent>
+				<Card className="border-border/60 bg-card p-5 lg:col-span-2">
+					<h3 className="text-sm font-semibold text-foreground">Quick Action Workspaces</h3>
+					<p className="text-xs text-muted-foreground">
+						Jump into specific warehouse verification tasks
+					</p>
+					<div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+						<Link
+							href="/auditor/tasks"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-3 text-center transition-all hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
+						>
+							<ClipboardListIcon className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1.5 text-xs font-medium text-foreground">Stock Count Tasks</span>
+						</Link>
+						<Link
+							href="/auditor/upc"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-3 text-center transition-all hover:bg-green-50 hover:border-green-300 dark:hover:bg-green-900/20"
+						>
+							<BarcodeIcon className="h-5 w-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1.5 text-xs font-medium text-foreground">UPC Verification</span>
+						</Link>
+						<Link
+							href="/auditor/receiving"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-3 text-center transition-all hover:bg-purple-50 hover:border-purple-300 dark:hover:bg-purple-900/20"
+						>
+							<PackageIcon className="h-5 w-5 text-purple-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1.5 text-xs font-medium text-foreground">Receiving Inspection</span>
+						</Link>
+					</div>
 				</Card>
-			</motion.div>
+			</div>
 
-			{/* Warehouse Issues Chart Placeholder */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, delay: 0.5 }}
-			>
-				<Card className="border-border/50 bg-card/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2">
-						<div className="space-y-0.5">
-							<CardTitle className="text-base sm:text-lg">
-								Warehouse Issues
-							</CardTitle>
-							<CardDescription className="text-xs sm:text-sm">
-								Damage, expiry, and mismatch tracking
-							</CardDescription>
+			{/* Active & Pending Audits Table */}
+			<Card className="border-border/60 bg-card shadow-sm">
+				<CardHeader className="flex flex-row items-center justify-between pb-3">
+					<div>
+						<CardTitle className="text-base sm:text-lg">Active & Pending Stock Audits</CardTitle>
+						<CardDescription className="text-xs">
+							Current inventory count assignments requiring auditor verification
+						</CardDescription>
+					</div>
+					<Button variant="ghost" size="sm" asChild className="text-xs">
+						<Link href="/auditor/tasks">
+							View All ({audits?.length ?? 0}) <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
+						</Link>
+					</Button>
+				</CardHeader>
+				<CardContent className="p-0">
+					{auditsLoading ? (
+						<div className="py-12 text-center text-sm text-muted-foreground">
+							Loading audit tasks...
 						</div>
-						<Button variant="ghost" size="sm" asChild>
-							<Link href="/auditor/findings">
-								View Details <ArrowRightIcon className="ml-2 h-4 w-4" />
-							</Link>
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-1 sm:pt-2">
-						{stats?.warehouseIssues?.length > 0 ? (
-							<div className="grid gap-4 sm:grid-cols-3">
-								{stats.warehouseIssues.map((issue) => (
-									<div
-										key={issue.name}
-										className="flex flex-col items-center justify-center border-border/50 p-3"
-									>
-										<div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
-											{issue.name === "Damage" && (
-												<ActivityIcon className="h-5 w-5 text-red-500" />
-											)}
-											{issue.name === "Expiry" && (
-												<CalendarCheckIcon className="h-5 w-5 text-orange-500" />
-											)}
-											{issue.name === "Missing" && (
-												<ShieldIcon className="h-5 w-5 text-yellow-500" />
-											)}
-										</div>
-										<p className="mt-2 font-medium text-sm">{issue.name}</p>
-										<p className="mt-1 font-bold text-2xl">{issue.value}</p>
-									</div>
-								))}
-							</div>
-						) : (
-							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
-								No warehouse issues data
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			</motion.div>
+					) : !audits || audits.length === 0 ? (
+						<div className="py-12 text-center text-sm text-muted-foreground">
+							<ClipboardCheckIcon className="mx-auto h-8 w-8 text-muted-foreground/60 mb-2" />
+							No active audit tasks found. All inventory locations are up to date!
+						</div>
+					) : (
+						<div className="overflow-x-auto">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="w-[80px]">Audit #</TableHead>
+										<TableHead>Location / Type</TableHead>
+										<TableHead>Branch / Warehouse</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead>Items Progress</TableHead>
+										<TableHead>Discrepancies</TableHead>
+										<TableHead className="text-right">Action</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{audits.slice(0, 6).map((audit) => {
+										const totalItems = audit.totalItemsCount ?? 0;
+										const countedItems = audit.countedItemsCount ?? 0;
+										const progressPct = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
+										const hasVariance = (audit.varianceItemsCount ?? 0) > 0;
+
+										return (
+											<TableRow key={audit.id} className="hover:bg-muted/50">
+												<TableCell className="font-mono font-medium text-xs">
+													#{audit.id}
+												</TableCell>
+												<TableCell>
+													<div className="font-medium text-xs text-foreground">
+														{audit.location_name || "Whole Warehouse"}
+													</div>
+													<div className="text-[11px] text-muted-foreground capitalize">
+														{audit.audit_type?.replace("_", " ") || "Full Count"}
+													</div>
+												</TableCell>
+												<TableCell className="text-xs text-muted-foreground">
+													{audit.branch?.name ?? `Branch #${audit.branch_id}`}
+												</TableCell>
+												<TableCell>
+													<Badge
+														variant={
+															audit.status === "completed" || audit.status === "approved"
+																? "default"
+																: audit.status === "in_progress"
+																	? "secondary"
+																	: audit.status === "discrepancy_review" || audit.status === "submitted"
+																		? "outline"
+																		: "outline"
+														}
+														className={
+															audit.status === "completed" || audit.status === "approved"
+																? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200"
+																: audit.status === "in_progress"
+																	? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200"
+																	: audit.status === "discrepancy_review" || audit.status === "submitted"
+																		? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200"
+																		: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+														}
+													>
+														{audit.status?.replace("_", " ")}
+													</Badge>
+												</TableCell>
+												<TableCell>
+													<div className="w-32">
+														<div className="flex justify-between text-[11px] text-muted-foreground mb-1">
+															<span>{countedItems} / {totalItems}</span>
+															<span>{progressPct}%</span>
+														</div>
+														<div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+															<div
+																className={`h-full transition-all ${
+																	progressPct === 100 ? "bg-emerald-500" : "bg-blue-500"
+																}`}
+																style={{ width: `${progressPct}%` }}
+															/>
+														</div>
+													</div>
+												</TableCell>
+												<TableCell>
+													{hasVariance ? (
+														<span className="inline-flex items-center text-xs font-medium text-rose-600 dark:text-rose-400">
+															<AlertTriangleIcon className="mr-1 h-3.5 w-3.5" />
+															{audit.varianceItemsCount} items
+														</span>
+													) : (
+														<span className="inline-flex items-center text-xs text-muted-foreground">
+															<ShieldCheckIcon className="mr-1 h-3.5 w-3.5 text-emerald-500" />
+															None
+														</span>
+													)}
+												</TableCell>
+												<TableCell className="text-right">
+													{audit.status === "completed" || audit.status === "approved" ? (
+														<Button size="sm" variant="ghost" asChild className="h-7 text-xs">
+															<Link href={`/auditor/tasks/${audit.id}`}>
+																<EyeIcon className="mr-1 h-3 w-3" /> View Summary
+															</Link>
+														</Button>
+													) : (
+														<Button size="sm" asChild className="h-7 text-xs bg-blue-600 hover:bg-blue-700">
+															<Link href={`/auditor/tasks/${audit.id}`}>
+																<PlayIcon className="mr-1 h-3 w-3" />
+																{audit.status === "in_progress" ? "Continue Count" : "Start Count"}
+															</Link>
+														</Button>
+													)}
+												</TableCell>
+											</TableRow>
+										);
+									})}
+								</TableBody>
+							</Table>
+						</div>
+					)}
+				</CardContent>
+			</Card>
 		</PageTransition>
 	);
 }

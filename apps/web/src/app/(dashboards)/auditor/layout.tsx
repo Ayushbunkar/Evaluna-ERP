@@ -3,8 +3,10 @@
 import {
 	ActivityIcon,
 	CalendarCheckIcon,
+	ClipboardList,
 	FileBarChart,
 	Hexagon,
+	History,
 	LayoutDashboard,
 	ShieldIcon,
 	UsersIcon,
@@ -18,7 +20,9 @@ import { Button } from "@evaluna/ui/components/button";
 
 const navItems = [
 	{ href: "/auditor", label: "Dashboard", icon: LayoutDashboard },
+	{ href: "/auditor/tasks", label: "Audit Tasks", icon: ClipboardList },
 	{ href: "/auditor/findings", label: "Audit Findings", icon: ShieldIcon },
+	{ href: "/auditor/history", label: "Audit History", icon: History },
 	{ href: "/auditor/upc", label: "UPC Tasks", icon: CalendarCheckIcon },
 	{ href: "/auditor/receiving", label: "Receiving Inspections", icon: ActivityIcon },
 	{ href: "/auditor/placement", label: "Placement Verification", icon: UsersIcon },

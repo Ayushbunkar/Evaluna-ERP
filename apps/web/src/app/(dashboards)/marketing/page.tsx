@@ -10,14 +10,21 @@ import {
 } from "@evaluna/ui/components/card";
 import {
 	ActivityIcon,
+	ArrowRightIcon,
 	BanknoteIcon,
 	ChartLineIcon,
 	ClipboardListIcon,
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { useLocale } from "next-intl";
-import { PageTransition } from "@/lib/animations";
+import {
+	AnimatedCard,
+	PageTransition,
+	StaggerItem,
+	StaggerList,
+} from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 

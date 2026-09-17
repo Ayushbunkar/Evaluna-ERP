@@ -15,6 +15,7 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 

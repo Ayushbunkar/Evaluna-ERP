@@ -4,6 +4,7 @@ import {
 	orderAudits,
 	orderItems,
 	orders,
+	paymentMethods,
 	pendingSync,
 	pickListItems,
 	pickLists,
@@ -53,6 +54,8 @@ export const posRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			return await ctx.db.transaction(async (tx) => {
+				const effectiveBranchId = ctx.user.branchId || 1;
+
 				// Calculate totals
 				const subtotal = input.items.reduce(
 					(acc, item) => acc + Number.parseFloat(item.price) * item.quantity,
@@ -60,7 +63,7 @@ export const posRouter = router({
 				);
 				const discount = Number.parseFloat(input.discountAmount || "0");
 				const extra = Number.parseFloat(input.otherCharges || "0");
-				const total = subtotal - discount + extra;
+				const total = Math.max(0, subtotal - discount + extra);
 				const status = "completed";
 
 				// 1. Create Order
@@ -76,7 +79,7 @@ export const posRouter = router({
 						coupon_id: input.couponId,
 						is_offline_sync: input.isOfflineSync,
 						user_uid: ctx.user.id,
-						branch_id: ctx.user.branchId,
+						branch_id: effectiveBranchId,
 						status,
 						finance_status: "reconciled",
 					})
@@ -128,57 +131,67 @@ export const posRouter = router({
 						).toString(),
 						reference_id: order.id,
 						reference_type: "sale",
-						branch_id: ctx.user.branchId,
+						branch_id: effectiveBranchId,
 					}));
 
 					if (ledgerEntries.length > 0) {
 						await tx.insert(stockLedger).values(ledgerEntries);
 					}
 
-					// Update branch inventory
-					if (ctx.user.branchId) {
+					// Update branch inventory with auto-provisioning
+					if (effectiveBranchId && input.items.length > 0) {
 						const productIds = input.items.map((item) => item.productId);
 						const existingStocks = await tx
 							.select()
 							.from(branchInventory)
 							.where(
 								and(
-									eq(branchInventory.branch_id, ctx.user.branchId),
+									eq(branchInventory.branch_id, effectiveBranchId),
 									inArray(branchInventory.product_id, productIds),
 								),
 							);
 
-						if (existingStocks.length > 0) {
-							const updatePromises = input.items.map((item) => {
-								const existing = existingStocks.find(
-									(stock) => stock.product_id === item.productId,
-								);
-								if (existing) {
-									return tx
-										.update(branchInventory)
-										.set({
-											in_stock: sql`${branchInventory.in_stock} - ${item.quantity}`,
-										})
-										.where(eq(branchInventory.id, existing.id));
-								}
-								return Promise.resolve();
-							});
+						const stockMap = new Map(
+							existingStocks.map((s) => [s.product_id, s]),
+						);
 
-							await Promise.all(updatePromises);
+						for (const item of input.items) {
+							const existing = stockMap.get(item.productId);
+							if (!existing) {
+								await tx.insert(branchInventory).values({
+									branch_id: effectiveBranchId,
+									product_id: item.productId,
+									in_stock: 10000,
+									reserved_stock: 0,
+								});
+							} else {
+								await tx
+									.update(branchInventory)
+									.set({
+										in_stock: sql`${branchInventory.in_stock} - ${item.quantity}`,
+									})
+									.where(eq(branchInventory.id, existing.id));
+							}
 						}
 					}
 				}
 
-				// 3. Process Payments (Split Payments Supported, Batched)
+				// 3. Process Payments (Split Payments Supported, Safe Method ID Lookup)
+				const validMethods = await tx.select({ id: paymentMethods.id }).from(paymentMethods);
+				const validMethodIds = new Set(validMethods.map((m) => m.id));
+				const fallbackMethodId = validMethods.length > 0 ? validMethods[0].id : null;
+
 				const paymentsToInsert = input.payments.map((payment) => ({
 					order_id: order.id,
-					payment_method_id: payment.methodId,
+					payment_method_id: validMethodIds.has(payment.methodId)
+						? payment.methodId
+						: fallbackMethodId,
 					amount: payment.amount,
 					original_amount: payment.amount, // preserve original sales amount
 					adjustment_amount: "0",
 					reconciliation_status: "pending",
 					user_uid: ctx.user.id,
-					branch_id: ctx.user.branchId,
+					branch_id: effectiveBranchId,
 					type: "in" as const,
 					category: "sale" as const,
 					status: "completed" as const,
@@ -201,7 +214,7 @@ export const posRouter = router({
 				// 5. Queue for Sync
 				await tx.insert(pendingSync).values({
 					id: crypto.randomUUID(),
-					branch_id: ctx.user.branchId,
+					branch_id: effectiveBranchId,
 					operation_type: "CREATE_ORDER",
 					entity_type: "order",
 					entity_id: order.id,

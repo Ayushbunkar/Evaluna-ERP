@@ -11,6 +11,7 @@ import {
 import {
 	ActivityIcon,
 	AlertTriangleIcon,
+	ArrowRightIcon,
 	CalendarIcon,
 	CheckCircleIcon,
 	ClockIcon,
@@ -21,8 +22,9 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { useLocale } from "next-intl";
-import { motion, PageTransition } from "@/lib/animations";
+import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 

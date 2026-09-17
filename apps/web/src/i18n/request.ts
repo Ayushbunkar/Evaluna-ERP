@@ -2,20 +2,34 @@ import { cookies } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 import { defaultLocale, type Locale, locales } from "./config";
 
-const messageImports = {
-	en: () => import("../messages/en"),
-	hi: () => import("../messages/hi"),
-} as const;
+export default getRequestConfig(async ({ requestLocale }) => {
+	let locale: Locale = defaultLocale;
 
-export default getRequestConfig(async () => {
-	const cookieStore = await cookies();
-	const cookieLocale = cookieStore.get("locale")?.value;
-	const locale: Locale =
-		cookieLocale && locales.includes(cookieLocale as Locale)
-			? (cookieLocale as Locale)
-			: defaultLocale;
+	try {
+		const reqLocale = await requestLocale;
+		if (reqLocale && locales.includes(reqLocale as Locale)) {
+			locale = reqLocale as Locale;
+		} else {
+			const cookieStore = await cookies();
+			const cookieLocale = cookieStore.get("locale")?.value;
+			if (cookieLocale && locales.includes(cookieLocale as Locale)) {
+				locale = cookieLocale as Locale;
+			}
+		}
+	} catch {
+		locale = defaultLocale;
+	}
 
-	const messages = (await messageImports[locale]()).default;
+	let messages: any;
+	try {
+		if (locale === "hi") {
+			messages = (await import("../messages/hi")).default;
+		} else {
+			messages = (await import("../messages/en")).default;
+		}
+	} catch {
+		messages = (await import("../messages/en")).default;
+	}
 
 	return {
 		locale,
