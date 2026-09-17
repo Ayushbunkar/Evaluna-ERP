@@ -1,17 +1,66 @@
 import { staff, user } from "@evaluna/db/schema";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../init";
 
 export const staffRouter = router({
 	list: protectedProcedure
-		.input(z.object({ branch_id: z.number().optional() }).optional())
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					role: z.string().optional(),
+					status: z.string().optional(),
+					search: z.string().optional(),
+					limit: z.number().min(1).max(100).default(50),
+					page: z.number().min(1).default(1),
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
 			const branchId = input?.branch_id ?? ctx.user.branchId;
+			const limit = input?.limit ?? 50;
+			const page = input?.page ?? 1;
+			const offset = (page - 1) * limit;
+
+			const conds = [];
 			if (branchId) {
-				return ctx.db.select().from(staff).where(eq(staff.branch_id, branchId));
+				conds.push(eq(staff.branch_id, branchId));
 			}
-			return ctx.db.select().from(staff);
+			if (input?.role) {
+				conds.push(eq(staff.role, input.role));
+			}
+			if (input?.status) {
+				conds.push(eq(staff.status, input.status));
+			}
+			if (input?.search) {
+				const q = `%${input.search}%`;
+				conds.push(
+					sql`(${staff.name} ILIKE ${q} OR ${staff.email} ILIKE ${q} OR ${staff.staff_code} ILIKE ${q})`,
+				);
+			}
+
+			const whereClause = conds.length > 0 ? and(...conds) : undefined;
+
+			return ctx.db
+				.select({
+					id: staff.id,
+					staff_code: staff.staff_code,
+					name: staff.name,
+					email: staff.email,
+					phone: staff.phone,
+					role: staff.role,
+					department: staff.department,
+					join_date: staff.join_date,
+					status: staff.status,
+					branch_id: staff.branch_id,
+					created_at: staff.created_at,
+				})
+				.from(staff)
+				.where(whereClause)
+				.orderBy(asc(staff.id))
+				.limit(limit)
+				.offset(offset);
 		}),
 
 	me: protectedProcedure.query(async ({ ctx }) => {

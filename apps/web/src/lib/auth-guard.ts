@@ -210,6 +210,17 @@ export async function getAuthUser(
 	// 3. Resolve user details, linked staff record, and roles in a single query
 	const dbUser = await db.query.user.findFirst({
 		where: eq(userTable.id, authSession.user.id),
+		columns: {
+			id: true,
+			email: true,
+			name: true,
+			status: true,
+			force_password_change: true,
+			is_superadmin: true,
+			branch_id: true,
+			warehouse_id: true,
+			locked_until: true,
+		},
 		with: {
 			staff: {
 				columns: {

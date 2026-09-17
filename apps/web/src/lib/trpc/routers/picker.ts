@@ -10,55 +10,49 @@ export const pickerRouter = router({
 			const db = ctx.db;
 
 			const [
-				assignedCount,
-				completedCount,
-				pendingCount,
-				itemsPickedResult,
+				[counts],
 				recent,
 			] = await Promise.all([
-				db
-					.select({ count: count() })
-					.from(pickLists)
-					.where(eq(pickLists.status, "assigned")),
-				db
-					.select({ count: count() })
-					.from(pickLists)
-					.where(eq(pickLists.status, "completed")),
-				db
-					.select({ count: count() })
-					.from(pickLists)
-					.where(eq(pickLists.status, "pending")),
+				db.execute<{
+					assigned_count: number;
+					completed_count: number;
+					pending_count: number;
+					total_items_picked: string;
+				}>(sql`
+					SELECT
+						(SELECT coalesce(count(*), 0)::int FROM pick_lists WHERE status = 'assigned') AS assigned_count,
+						(SELECT coalesce(count(*), 0)::int FROM pick_lists WHERE status = 'completed') AS completed_count,
+						(SELECT coalesce(count(*), 0)::int FROM pick_lists WHERE status = 'pending') AS pending_count,
+						(SELECT coalesce(sum(quantity_picked), 0) FROM pick_list_items WHERE status = 'picked') AS total_items_picked
+				`),
 				db
 					.select({
-						total: sql<number>`SUM(${pickListItems.quantity_picked})`,
+						id: pickLists.id,
+						order_id: pickLists.order_id,
+						status: pickLists.status,
+						created_at: pickLists.created_at,
+						items_count: sql<number>`coalesce(sum(${pickListItems.quantity_ordered}), 0)::int`,
 					})
-					.from(pickListItems)
-					.where(eq(pickListItems.status, "picked")),
-				db.query.pickLists.findMany({
-					orderBy: [desc(pickLists.created_at)],
-					limit: 5,
-					with: {
-						pickListItems: true,
-					},
-				}),
+					.from(pickLists)
+					.leftJoin(pickListItems, eq(pickLists.id, pickListItems.pick_list_id))
+					.groupBy(pickLists.id, pickLists.order_id, pickLists.status, pickLists.created_at)
+					.orderBy(desc(pickLists.created_at))
+					.limit(5),
 			]);
 
-			const totalItemsPicked = Number(itemsPickedResult[0]?.total || 0);
+			const totalItemsPicked = Number(counts?.total_items_picked || 0);
 
 			return {
-				assignedToday: assignedCount[0]?.count || 0,
-				completed: completedCount[0]?.count || 0,
-				pending: pendingCount[0]?.count || 0,
+				assignedToday: Number(counts?.assigned_count || 0),
+				completed: Number(counts?.completed_count || 0),
+				pending: Number(counts?.pending_count || 0),
 				exceptions: 0,
 				totalItemsPicked,
 				pickAccuracy: 100,
 				recentTasks: recent.map((r) => ({
 					id: `PL-${r.id}`,
 					order: `ORD-${r.order_id}`,
-					items: r.pickListItems.reduce(
-						(acc, item) => acc + (item.quantity_ordered ?? 0),
-						0,
-					),
+					items: Number(r.items_count || 0),
 					area: "Warehouse",
 					status: r.status ?? "pending",
 					time: r.created_at?.toLocaleTimeString() || "",
@@ -270,34 +264,48 @@ export const pickerRouter = router({
 				},
 			});
 
-			return await Promise.all(
-				lists.map(async (r, i) => {
-					let itemCount =
-						r.pickListItems?.reduce(
-							(acc, item) => acc + (item.quantity_ordered ?? 0),
-							0,
-						) || 0;
+			const missingOrderIds = lists
+				.filter(
+					(r) =>
+						(!r.pickListItems || r.pickListItems.length === 0) && r.order_id,
+				)
+				.map((r) => r.order_id!);
 
-					if (itemCount === 0 && r.order_id) {
-						const oItems = await db
-							.select({ count: count() })
-							.from(orderItems)
-							.where(eq(orderItems.order_id, r.order_id));
-						itemCount = oItems[0]?.count || 1;
-					}
+			let orderItemCounts = new Map<number, number>();
+			if (missingOrderIds.length > 0) {
+				const oItems = await db
+					.select({
+						orderId: orderItems.order_id,
+						count: count(),
+					})
+					.from(orderItems)
+					.where(inArray(orderItems.order_id, missingOrderIds))
+					.groupBy(orderItems.order_id);
+				orderItemCounts = new Map(oItems.map((o) => [o.orderId, o.count]));
+			}
 
-					return {
-						id: r.id,
-						queue_no: i + 1,
-						order_id: `ORD-${r.order_id}`,
-						priority: r.priority ?? "Normal",
-						items: itemCount > 0 ? itemCount : 1,
-						assigned_to: r.assignedTo?.name || "Unassigned",
-						waiting_since: r.created_at?.toLocaleTimeString() || "",
-						expected_by: "N/A",
-					};
-				}),
-			);
+			return lists.map((r, i) => {
+				let itemCount =
+					r.pickListItems?.reduce(
+						(acc, item) => acc + (item.quantity_ordered ?? 0),
+						0,
+					) || 0;
+
+				if (itemCount === 0 && r.order_id) {
+					itemCount = orderItemCounts.get(r.order_id) || 1;
+				}
+
+				return {
+					id: r.id,
+					queue_no: i + 1,
+					order_id: `ORD-${r.order_id}`,
+					priority: r.priority ?? "Normal",
+					items: itemCount > 0 ? itemCount : 1,
+					assigned_to: r.assignedTo?.name || "Unassigned",
+					waiting_since: r.created_at?.toLocaleTimeString() || "",
+					expected_by: "N/A",
+				};
+			});
 		}),
 
 	getReturns: roleProcedure(["admin", "manager", "auditor", "picker"])

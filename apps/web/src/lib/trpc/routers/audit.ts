@@ -28,58 +28,43 @@ export const auditRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const branchCond = input?.branchId ? eq(stockAudits.branch_id, input.branchId) : undefined;
+			const branchWhere = input?.branchId
+				? sql`WHERE branch_id = ${input.branchId}`
+				: sql``;
 
-			const allAudits = await db
-				.select({
-					id: stockAudits.id,
-					status: stockAudits.status,
-				})
-				.from(stockAudits)
-				.where(branchCond);
+			const [stats] = await db.execute<{
+				total_audits: number;
+				pending_audits: number;
+				in_progress: number;
+				completed_audits: number;
+				variance_found: number;
+				total_items: number;
+				matched_items: number;
+			}>(sql`
+				SELECT
+					(SELECT coalesce(count(*), 0)::int FROM stock_audits ${branchWhere}) AS total_audits,
+					(SELECT coalesce(count(*) filter (WHERE status IN ('planned', 'pending')), 0)::int FROM stock_audits ${branchWhere}) AS pending_audits,
+					(SELECT coalesce(count(*) filter (WHERE status = 'in_progress'), 0)::int FROM stock_audits ${branchWhere}) AS in_progress,
+					(SELECT coalesce(count(*) filter (WHERE status IN ('completed', 'approved')), 0)::int FROM stock_audits ${branchWhere}) AS completed_audits,
+					(SELECT coalesce(count(*) filter (WHERE resolution_status = 'pending'), 0)::int FROM audit_discrepancies) AS variance_found,
+					(SELECT coalesce(count(*), 0)::int FROM stock_audit_items) AS total_items,
+					(SELECT coalesce(count(*) filter (WHERE status = 'match'), 0)::int FROM stock_audit_items) AS matched_items
+			`);
 
-			const pendingAudits = allAudits.filter(
-				(a) => a.status === "planned" || a.status === "pending",
-			).length;
-			const inProgress = allAudits.filter(
-				(a) => a.status === "in_progress",
-			).length;
-			const completedAudits = allAudits.filter(
-				(a) => a.status === "completed" || a.status === "approved",
-			).length;
-
-			const discrepancies = await db
-				.select({
-					id: auditDiscrepancies.id,
-					status: auditDiscrepancies.resolution_status,
-				})
-				.from(auditDiscrepancies);
-
-			const varianceFound = discrepancies.filter(
-				(d) => d.status === "pending",
-			).length;
-
-			// Accuracy rate
-			const auditItemStats = await db
-				.select({
-					status: stockAuditItems.status,
-				})
-				.from(stockAuditItems);
-
-			const totalItemsCounted = auditItemStats.length;
-			const matchedItems = auditItemStats.filter((i) => i.status === "match").length;
+			const totalItemsCounted = Number(stats?.total_items || 0);
+			const matchedItems = Number(stats?.matched_items || 0);
 			const accuracyRate = totalItemsCounted > 0
 				? Math.round((matchedItems / totalItemsCounted) * 100)
 				: 100;
 
 			return {
-				pendingAudits,
-				inProgress,
-				completedAudits,
-				varianceFound,
-				totalAudits: allAudits.length,
+				pendingAudits: Number(stats?.pending_audits || 0),
+				inProgress: Number(stats?.in_progress || 0),
+				completedAudits: Number(stats?.completed_audits || 0),
+				varianceFound: Number(stats?.variance_found || 0),
+				totalAudits: Number(stats?.total_audits || 0),
 				accuracyRate,
-				criticalVariances: discrepancies.filter((d) => d.status === "pending").length,
+				criticalVariances: Number(stats?.variance_found || 0),
 			};
 		}),
 
@@ -96,23 +81,30 @@ export const auditRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const conds = [];
+			if (input?.status) conds.push(eq(stockAudits.status, input.status));
+			if (input?.branchId) conds.push(eq(stockAudits.branch_id, input.branchId));
+			if (input?.auditorId) conds.push(eq(stockAudits.auditor_id, input.auditorId));
+
 			const rows = await db
-				.select()
+				.select({
+					id: stockAudits.id,
+					branch_id: stockAudits.branch_id,
+					status: stockAudits.status,
+					auditor_id: stockAudits.auditor_id,
+					created_at: stockAudits.created_at,
+					completed_at: stockAudits.completed_at,
+				})
 				.from(stockAudits)
-				.orderBy(desc(stockAudits.created_at));
+				.where(conds.length > 0 ? and(...conds) : undefined)
+				.orderBy(desc(stockAudits.created_at))
+				.limit(100);
 
-			const filtered = rows.filter((r) => {
-				if (input?.status && r.status !== input.status) return false;
-				if (input?.branchId && r.branch_id !== input.branchId) return false;
-				if (input?.auditorId && r.auditor_id !== input.auditorId) return false;
-				return true;
-			});
+			if (rows.length === 0) return [];
 
-			if (filtered.length === 0) return [];
-
-			const branchIds = Array.from(new Set(filtered.map((a) => a.branch_id).filter(Boolean)));
-			const auditorIds = Array.from(new Set(filtered.map((a) => a.auditor_id).filter(Boolean)));
-			const auditIds = filtered.map((a) => a.id);
+			const branchIds = Array.from(new Set(rows.map((a) => a.branch_id).filter(Boolean)));
+			const auditorIds = Array.from(new Set(rows.map((a) => a.auditor_id).filter(Boolean)));
+			const auditIds = rows.map((a) => a.id);
 
 			let branchMap = new Map();
 			if (branchIds.length > 0) {
@@ -136,13 +128,13 @@ export const auditRouter = router({
 				}
 			}
 
-			return filtered.map((audit) => {
+			return rows.map((audit) => {
 				const items = itemsMap.get(audit.id) || [];
 				const totalItemsCount = items.length;
 				const countedItemsCount = items.filter((i) => i.counted_qty !== null).length;
 				const matchedItemsCount = items.filter((i) => i.status === "match").length;
 				const varianceItemsCount = items.filter(
-					(i) => i.status === "mismatch" || (i.counted_qty !== null && i.counted_qty !== i.expected_qty),
+					(i) => i.status === "mismatch" || (i.counted_qty !== null && i.counted_qty !== (i.expected_qty ?? 0)),
 				).length;
 
 				return {

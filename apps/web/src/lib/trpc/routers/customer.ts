@@ -183,126 +183,171 @@ export const customerRouter = router({
 		}),
 
 	// ── My orders (list) ──────────────────────────────────────────────────────
-	getMyOrders: customerProcedure.query(async ({ ctx }) => {
-		const rows = await ctx.db.query.orders.findMany({
-			where: eq(orders.customer_id, ctx.customer.id),
-			orderBy: [desc(orders.created_at)],
-			with: {
-				orderItems: {
-					columns: {
-						id: true,
+	getMyOrders: customerProcedure
+		.input(
+			z
+				.object({
+					limit: z.number().min(1).max(100).default(20),
+					page: z.number().min(1).default(1),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const limit = input?.limit ?? 20;
+			const page = input?.page ?? 1;
+			const offset = (page - 1) * limit;
+
+			const rows = await ctx.db.query.orders.findMany({
+				where: eq(orders.customer_id, ctx.customer.id),
+				orderBy: [desc(orders.created_at)],
+				limit,
+				offset,
+				with: {
+					orderItems: {
+						columns: {
+							id: true,
+						},
 					},
 				},
-			},
-		});
+			});
 
-		// Query active packages and delivery stops for this customer to determine granular status
-		const orderIds = rows.map((r) => r.id);
-		let packagesList: { order_id: number; status: string | null }[] = [];
-		let tripStopsList: { customer_id: number; status: string | null; trip_status?: string | null }[] = [];
+			// Query active packages and delivery stops for this customer to determine granular status
+			const orderIds = rows.map((r) => r.id);
+			let packagesList: { order_id: number; status: string | null }[] = [];
+			let tripStopsList: { customer_id: number; status: string | null; trip_status?: string | null }[] = [];
 
-		if (orderIds.length > 0) {
-			try {
-				const { packages, tripStops, deliveryTrips } = require("@evaluna/db/schema");
-				packagesList = await ctx.db
-					.select({
-						order_id: packages.order_id,
-						status: packages.status,
-					})
-					.from(packages)
-					.where(inArray(packages.order_id, orderIds));
+			if (orderIds.length > 0) {
+				try {
+					const { packages, tripStops, deliveryTrips } = require("@evaluna/db/schema");
+					packagesList = await ctx.db
+						.select({
+							order_id: packages.order_id,
+							status: packages.status,
+						})
+						.from(packages)
+						.where(inArray(packages.order_id, orderIds));
 
-				tripStopsList = await ctx.db
-					.select({
-						customer_id: tripStops.customer_id,
-						status: tripStops.status,
-						trip_status: deliveryTrips.status,
-					})
-					.from(tripStops)
-					.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-					.where(eq(tripStops.customer_id, ctx.customer.id));
-			} catch (e) {
-				// Fallback if schemas not loaded in test mock
-			}
-		}
-
-		const packageStatusMap = new Map(packagesList.map((p) => [p.order_id, p.status]));
-		const activeTripStop = tripStopsList.find(
-			(ts) => ts.trip_status === "active" || ts.trip_status === "pending" || ts.status === "delivered",
-		);
-
-		return rows.map((o) => {
-			let effectiveStatus = o.status ?? "pending_review";
-			const pkgStatus = packageStatusMap.get(o.id);
-
-			// Calculate workflow progression status
-			if (o.status === "completed") {
-				effectiveStatus = "completed";
-			} else if (activeTripStop?.status === "delivered" && (o.status === "ready_for_dispatch" || o.status === "confirmed" || o.status === "dispatched")) {
-				effectiveStatus = "completed";
-			} else if (o.status === "dispatched" || activeTripStop?.trip_status === "active") {
-				effectiveStatus = "out_for_delivery";
-			} else if (o.status === "ready_for_dispatch" || pkgStatus === "packed" || pkgStatus === "ready_for_dispatch") {
-				effectiveStatus = "ready_for_dispatch";
-			} else if (pkgStatus === "packing") {
-				effectiveStatus = "packing";
-			} else if (o.status === "confirmed") {
-				effectiveStatus = "confirmed";
+					tripStopsList = await ctx.db
+						.select({
+							customer_id: tripStops.customer_id,
+							status: tripStops.status,
+							trip_status: deliveryTrips.status,
+						})
+						.from(tripStops)
+						.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+						.where(eq(tripStops.customer_id, ctx.customer.id));
+				} catch (e) {
+					// Fallback if schemas not loaded in test mock
+				}
 			}
 
-			return {
+			const packageStatusMap = new Map(packagesList.map((p) => [p.order_id, p.status]));
+			const activeTripStop = tripStopsList.find(
+				(ts) => ts.trip_status === "active" || ts.trip_status === "pending" || ts.status === "delivered",
+			);
+
+			return rows.map((o) => {
+				let effectiveStatus = o.status ?? "pending_review";
+				const pkgStatus = packageStatusMap.get(o.id);
+
+				// Calculate workflow progression status
+				if (o.status === "completed") {
+					effectiveStatus = "completed";
+				} else if (activeTripStop?.status === "delivered" && (o.status === "ready_for_dispatch" || o.status === "confirmed" || o.status === "dispatched")) {
+					effectiveStatus = "completed";
+				} else if (o.status === "dispatched" || activeTripStop?.trip_status === "active") {
+					effectiveStatus = "out_for_delivery";
+				} else if (o.status === "ready_for_dispatch" || pkgStatus === "packed" || pkgStatus === "ready_for_dispatch") {
+					effectiveStatus = "ready_for_dispatch";
+				} else if (pkgStatus === "packing") {
+					effectiveStatus = "packing";
+				} else if (o.status === "confirmed") {
+					effectiveStatus = "confirmed";
+				}
+
+				return {
+					id: o.id,
+					orderRef: `ORD-${o.id}`,
+					date: o.created_at ? o.created_at.toISOString() : null,
+					status: effectiveStatus,
+					rawStatus: o.status,
+					itemsCount: o.orderItems.length,
+					total: Number(o.total_amount || 0),
+				};
+			});
+		}),
+
+	getOrders: customerProcedure
+		.input(
+			z
+				.object({
+					limit: z.number().min(1).max(100).default(20),
+					page: z.number().min(1).default(1),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const limit = input?.limit ?? 20;
+			const page = input?.page ?? 1;
+			const offset = (page - 1) * limit;
+
+			const rows = await ctx.db.query.orders.findMany({
+				where: eq(orders.customer_id, ctx.customer.id),
+				orderBy: [desc(orders.created_at)],
+				limit,
+				offset,
+				with: {
+					orderItems: {
+						columns: {
+							id: true,
+						},
+					},
+				},
+			});
+
+			return rows.map((o) => ({
 				id: o.id,
 				orderRef: `ORD-${o.id}`,
 				date: o.created_at ? o.created_at.toISOString() : null,
-				status: effectiveStatus,
-				rawStatus: o.status,
+				status: o.status,
 				itemsCount: o.orderItems.length,
 				total: Number(o.total_amount || 0),
-			};
-		});
-	}),
+			}));
+		}),
 
-	getOrders: customerProcedure.query(async ({ ctx }) => {
-		const rows = await ctx.db.query.orders.findMany({
-			where: eq(orders.customer_id, ctx.customer.id),
-			orderBy: [desc(orders.created_at)],
-			with: {
-				orderItems: {
-					columns: {
-						id: true,
-					},
-				},
-			},
-		});
+	getPayments: customerProcedure
+		.input(
+			z
+				.object({
+					limit: z.number().min(1).max(100).default(20),
+					page: z.number().min(1).default(1),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const cid = ctx.customer.id;
+			const limit = input?.limit ?? 20;
+			const page = input?.page ?? 1;
+			const offset = (page - 1) * limit;
 
-		return rows.map((o) => ({
-			id: o.id,
-			orderRef: `ORD-${o.id}`,
-			date: o.created_at ? o.created_at.toISOString() : null,
-			status: o.status,
-			itemsCount: o.orderItems.length,
-			total: Number(o.total_amount || 0),
-		}));
-	}),
-
-	getPayments: customerProcedure.query(async ({ ctx }) => {
-		const cid = ctx.customer.id;
-		const rows = await ctx.db.query.orders.findMany({
-			where: and(
-				eq(orders.customer_id, cid),
-				inArray(orders.status, ["confirmed", "completed"]),
-			),
-			orderBy: [desc(orders.created_at)],
-		});
-		return rows.map((o) => ({
-			id: o.id,
-			paymentRef: `PAY-${o.id}`,
-			orderRef: `ORD-${o.id}`,
-			date: o.created_at ? o.created_at.toISOString() : null,
-			status: o.status === "completed" ? "Completed" : "Confirmed",
-			amount: Number(o.total_amount),
-		}));
-	}),
+			const rows = await ctx.db.query.orders.findMany({
+				where: and(
+					eq(orders.customer_id, cid),
+					inArray(orders.status, ["confirmed", "completed"]),
+				),
+				orderBy: [desc(orders.created_at)],
+				limit,
+				offset,
+			});
+			return rows.map((o) => ({
+				id: o.id,
+				paymentRef: `PAY-${o.id}`,
+				orderRef: `ORD-${o.id}`,
+				date: o.created_at ? o.created_at.toISOString() : null,
+				status: o.status === "completed" ? "Completed" : "Confirmed",
+				amount: Number(o.total_amount),
+			}));
+		}),
 
 	// ── My order (detail) ─────────────────────────────────────────────────────
 	getMyOrder: customerProcedure

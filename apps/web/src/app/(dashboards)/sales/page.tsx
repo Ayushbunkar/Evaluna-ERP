@@ -32,22 +32,12 @@ import { formatCurrency } from "@/lib/utils";
 export default function SalesDashboard() {
 	const trpc = useTRPC();
 	const locale = useLocale();
-	const { data: orders } = trpc.orders.list.useQuery();
+	const { data: summary } = trpc.orders.getDashboardSummary.useQuery();
 
-	const recentOrders = orders?.slice(0, 5) || [];
-	const dailyGoal = 50000;
-	const todaySales =
-		orders?.reduce((acc, order) => {
-			if (
-				new Date(order.created_at || new Date()).toDateString() ===
-				new Date().toDateString()
-			) {
-				return acc + Number(order.total_amount || 0);
-			}
-			return acc;
-		}, 0) || 0;
-
-	const progress = Math.min(Math.round((todaySales / dailyGoal) * 100), 100);
+	const recentOrders = summary?.recentOrders || [];
+	const dailyGoal = summary?.dailyGoal ?? 50000;
+	const todaySales = summary?.todaySales ?? 0;
+	const progress = summary?.progress ?? 0;
 
 	// Multi-Language Translation Dictionary
 	const t = {

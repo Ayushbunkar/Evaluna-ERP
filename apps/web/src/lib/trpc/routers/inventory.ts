@@ -460,80 +460,107 @@ export const inventoryRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const branchFilter = input.branch_id
-				? eq(branchInventory.branch_id, input.branch_id)
-				: undefined;
+			const branchId = input.branch_id;
+			const branchFilter = branchId ? sql`WHERE bi.branch_id = ${branchId}` : sql``;
 
-			const totalProds = await db.select({ count: count() }).from(products);
+			const [
+				[scalarStats],
+				branchStockList,
+				categoryDistRaw,
+				recentMv,
+				topMovingRaw,
+				inventoryTrendRaw,
+			] = await Promise.all([
+				// 1. Consolidated scalar metrics in 1 single query
+				db.execute<{
+					total_products: number;
+					inventory_value: number;
+					low_stock_items: number;
+					dead_stock: number;
+					expiring_soon: number;
+				}>(sql`
+					SELECT
+						(SELECT coalesce(count(*), 0)::int FROM products) AS total_products,
+						coalesce(sum(bi.in_stock * p.price), 0)::numeric AS inventory_value,
+						coalesce(count(*) filter (WHERE bi.in_stock > 0 AND bi.in_stock <= bi.reorder_level), 0)::int AS low_stock_items,
+						coalesce(count(*) filter (WHERE bi.in_stock = 0), 0)::int AS dead_stock,
+						(SELECT coalesce(count(*), 0)::int FROM product_batches WHERE expiry_date <= NOW() + INTERVAL '30 days') AS expiring_soon
+					FROM branch_inventory bi
+					LEFT JOIN products p ON bi.product_id = p.id
+					${branchFilter}
+				`),
 
-			const invStats = await db
-				.select({
-					value: sum(sql`${branchInventory.in_stock} * ${products.price}`),
-				})
-				.from(branchInventory)
-				.leftJoin(products, eq(branchInventory.product_id, products.id))
-				.where(branchFilter);
+				// 2. Branch distribution
+				db
+					.select({
+						name: branches.name,
+						stock: sum(branchInventory.in_stock),
+						value: sum(sql`${branchInventory.in_stock} * ${products.price}`),
+					})
+					.from(branchInventory)
+					.leftJoin(branches, eq(branchInventory.branch_id, branches.id))
+					.leftJoin(products, eq(branchInventory.product_id, products.id))
+					.groupBy(branches.id, branches.name)
+					.limit(8),
 
-			const lowStock = await db
-				.select({ count: count() })
-				.from(branchInventory)
-				.where(
-					and(
-						sql`${branchInventory.in_stock} > 0 AND ${branchInventory.in_stock} <= ${branchInventory.reorder_level}`,
-						branchFilter,
-					),
-				);
+				// 3. Category distribution
+				db
+					.select({
+						name: products.category,
+						count: count(),
+						value: sum(sql`${branchInventory.in_stock} * ${products.price}`),
+					})
+					.from(branchInventory)
+					.leftJoin(products, eq(branchInventory.product_id, products.id))
+					.where(branchId ? eq(branchInventory.branch_id, branchId) : undefined)
+					.groupBy(products.category)
+					.orderBy(desc(count()))
+					.limit(6),
 
-			const expDate = new Date();
-			expDate.setDate(expDate.getDate() + 30);
-			const expiring = await db
-				.select({ count: count() })
-				.from(productBatches)
-				.where(lte(productBatches.expiry_date, expDate));
+				// 4. Recent movements
+				db
+					.select({
+						id: stockLedger.id,
+						type: stockLedger.transaction_type,
+						product: products.name,
+						qty: stockLedger.quantity,
+						time: stockLedger.created_at,
+					})
+					.from(stockLedger)
+					.leftJoin(products, eq(stockLedger.product_id, products.id))
+					.orderBy(desc(stockLedger.created_at))
+					.limit(5),
 
-			const deadStock = await db
-				.select({ count: count() })
-				.from(branchInventory)
-				.where(and(eq(branchInventory.in_stock, 0), branchFilter));
+				// 5. Top moving items
+				db
+					.select({
+						product_id: stockLedger.product_id,
+						name: products.name,
+						category: products.category,
+						totalOut: sql<string>`ABS(COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'out' THEN ${stockLedger.quantity} ELSE 0 END), 0))`,
+					})
+					.from(stockLedger)
+					.leftJoin(products, eq(stockLedger.product_id, products.id))
+					.groupBy(stockLedger.product_id, products.name, products.category)
+					.orderBy(
+						sql`ABS(COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'out' THEN ${stockLedger.quantity} ELSE 0 END), 0)) DESC`,
+					)
+					.limit(5),
 
-			const branchStockList = await db
-				.select({
-					name: branches.name,
-					stock: sum(branchInventory.in_stock),
-					value: sum(sql`${branchInventory.in_stock} * ${products.price}`),
-				})
-				.from(branchInventory)
-				.leftJoin(branches, eq(branchInventory.branch_id, branches.id))
-				.leftJoin(products, eq(branchInventory.product_id, products.id))
-				.groupBy(branches.id, branches.name)
-				.limit(8);
+				// 6. Inventory trend
+				db
+					.select({
+						month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${stockLedger.created_at}), 'Mon')`,
+						value: sql<string>`COALESCE(SUM(${stockLedger.total_cost}), 0)`,
+					})
+					.from(stockLedger)
+					.where(sql`${stockLedger.created_at} >= NOW() - INTERVAL '6 months'`)
+					.groupBy(sql`DATE_TRUNC('month', ${stockLedger.created_at})`)
+					.orderBy(sql`DATE_TRUNC('month', ${stockLedger.created_at})`),
+			]);
 
-			const recentMv = await db
-				.select({
-					id: stockLedger.id,
-					type: stockLedger.transaction_type,
-					product: products.name,
-					qty: stockLedger.quantity,
-					time: stockLedger.created_at,
-				})
-				.from(stockLedger)
-				.leftJoin(products, eq(stockLedger.product_id, products.id))
-				.orderBy(desc(stockLedger.created_at))
-				.limit(5);
-
-			// ── Category Distribution: group by product category ──────────────
-			const categoryDistRaw = await db
-				.select({
-					name: products.category,
-					count: count(),
-					value: sum(sql`${branchInventory.in_stock} * ${products.price}`),
-				})
-				.from(branchInventory)
-				.leftJoin(products, eq(branchInventory.product_id, products.id))
-				.where(branchFilter)
-				.groupBy(products.category)
-				.orderBy(desc(count()))
-				.limit(6);
+			const totalInvValue = Number(scalarStats?.inventory_value) || 1;
+			const totalProductsCount = Number(scalarStats?.total_products) || 0;
 
 			const categoryDistribution = categoryDistRaw
 				.filter((c) => c.name)
@@ -543,47 +570,26 @@ export const inventoryRouter = router({
 					count: Number(c.count) || 0,
 				}));
 
-			// ── ABC Analysis: classify by value ───────────────────────────────
-			// A = top 20% items by value (80% of total value)
-			// B = next 30% items (15% of total value)
-			// C = bottom 50% items (5% of total value)
-			const totalInvValue = Number(invStats[0]?.value) || 1;
 			const abcAnalysis = [
 				{
 					class: "A",
 					value: Math.round((totalInvValue * 0.8) / 1000) / 10,
 					percentage: 80,
-					items: Math.round((totalProds[0]?.count || 0) * 0.2),
+					items: Math.round(totalProductsCount * 0.2),
 				},
 				{
 					class: "B",
 					value: Math.round((totalInvValue * 0.15) / 1000) / 10,
 					percentage: 15,
-					items: Math.round((totalProds[0]?.count || 0) * 0.3),
+					items: Math.round(totalProductsCount * 0.3),
 				},
 				{
 					class: "C",
 					value: Math.round((totalInvValue * 0.05) / 1000) / 10,
 					percentage: 5,
-					items: Math.round((totalProds[0]?.count || 0) * 0.5),
+					items: Math.round(totalProductsCount * 0.5),
 				},
 			];
-
-			// ── Top Moving Items: products with most stock ledger OUT movements ─
-			const topMovingRaw = await db
-				.select({
-					product_id: stockLedger.product_id,
-					name: products.name,
-					category: products.category,
-					totalOut: sql<string>`ABS(COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'out' THEN ${stockLedger.quantity} ELSE 0 END), 0))`,
-				})
-				.from(stockLedger)
-				.leftJoin(products, eq(stockLedger.product_id, products.id))
-				.groupBy(stockLedger.product_id, products.name, products.category)
-				.orderBy(
-					sql`ABS(COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'out' THEN ${stockLedger.quantity} ELSE 0 END), 0)) DESC`,
-				)
-				.limit(5);
 
 			const topMovingItems = topMovingRaw.map((t) => ({
 				name: t.name || "Unknown",
@@ -591,30 +597,18 @@ export const inventoryRouter = router({
 				turns: Number(t.totalOut) || 0,
 			}));
 
-			// ── Inventory Trend: last 6 months snapshot (approximation) ───────
-			// We approximate by grouping stock ledger entries by month
-			const inventoryTrendRaw = await db
-				.select({
-					month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${stockLedger.created_at}), 'Mon')`,
-					value: sql<string>`COALESCE(SUM(${stockLedger.total_cost}), 0)`,
-				})
-				.from(stockLedger)
-				.where(sql`${stockLedger.created_at} >= NOW() - INTERVAL '6 months'`)
-				.groupBy(sql`DATE_TRUNC('month', ${stockLedger.created_at})`)
-				.orderBy(sql`DATE_TRUNC('month', ${stockLedger.created_at})`);
-
 			const inventoryTrend = inventoryTrendRaw.map((t) => ({
 				month: t.month,
 				value: Math.abs(Number(t.value)) || 0,
 			}));
 
 			return {
-				inventoryValue: Number(invStats[0]?.value) || 0,
-				totalProducts: totalProds[0]?.count || 0,
-				lowStockItems: lowStock[0]?.count || 0,
-				expiringSoon: expiring[0]?.count || 0,
-				deadStock: deadStock[0]?.count || 0,
-				stockAccuracy: totalProds[0]?.count ? 100 : 0, // Default to 100% if products exist, else 0. Requires audit module for real calculation.
+				inventoryValue: Number(scalarStats?.inventory_value) || 0,
+				totalProducts: totalProductsCount,
+				lowStockItems: Number(scalarStats?.low_stock_items) || 0,
+				expiringSoon: Number(scalarStats?.expiring_soon) || 0,
+				deadStock: Number(scalarStats?.dead_stock) || 0,
+				stockAccuracy: totalProductsCount ? 100 : 0, // Default to 100% if products exist, else 0. Requires audit module for real calculation.
 				averageStockDays: 0, // Requires COGS history to calculate properly
 
 				inventoryTrend,

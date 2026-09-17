@@ -30,7 +30,10 @@ import { formatCurrency } from "@/lib/utils";
 export default function DriverDashboard() {
 	const trpc = useTRPC();
 	const locale = useLocale();
-	const { data: dashboard } = trpc.driver.getMobileDashboard.useQuery({});
+	const { data: dashboard } = trpc.driver.getMobileDashboard.useQuery(
+		{},
+		{ refetchInterval: 15000 },
+	);
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">

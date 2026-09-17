@@ -13,10 +13,9 @@ export function TRPCReactProvider({ children }: { children: React.ReactNode }) {
 			new QueryClient({
 				defaultOptions: {
 					queries: {
-						staleTime: 3 * 1000, // 3 seconds stale time for real-time reactivity
+						staleTime: 30 * 1000, // 30 seconds stale time (prevents aggressive redundant network queries)
 						gcTime: 24 * 60 * 60 * 1000, // 24 hours garbage collection time (offline friendly)
 						refetchOnWindowFocus: true, // Automatically sync data whenever user switches back to the tab
-						refetchInterval: 5000, // Global real-time poll every 5s across all role dashboards (Sales, Customer, Picker, Packer, Manager, Driver)
 						retry: 2, // Retry failed requests twice
 					},
 				},

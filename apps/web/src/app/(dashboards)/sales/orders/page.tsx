@@ -55,7 +55,21 @@ type OrderStatus = "completed" | "pending" | "cancelled";
 export default function OrdersPage() {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
-	const { data: orders = [], isLoading, error } = trpc.orders.list.useQuery();
+	const [searchTerm, setSearchTerm] = useState("");
+	const [statusFilter, setStatusFilter] = useState("all");
+	const [page, setPage] = useState(1);
+	const pageSize = 50;
+
+	const {
+		data: orders = [],
+		isLoading,
+		error,
+	} = trpc.orders.list.useQuery({
+		page,
+		limit: pageSize,
+		search: searchTerm.trim() || undefined,
+		status: statusFilter !== "all" ? statusFilter : undefined,
+	});
 	const t = useTranslations("orders");
 	const tc = useTranslations("common");
 	const locale = useLocale();
@@ -242,8 +256,6 @@ export default function OrdersPage() {
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [editingId, setEditingId] = useState<number | null>(null);
 	const [deleteId, setDeleteId] = useState<number | null>(null);
-	const [searchTerm, setSearchTerm] = useState("");
-	const [statusFilter, setStatusFilter] = useState("all");
 	const [editCustomerName, setEditCustomerName] = useState("");
 	const [statusChangeReason, setStatusChangeReason] = useState("");
 	const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending");
@@ -303,31 +315,6 @@ export default function OrdersPage() {
 			}
 		},
 	});
-
-	const filteredOrders = useMemo(() => {
-		return orders.filter((o) => {
-			const currentStatus = (o.status || "pending").toLowerCase();
-			if (statusFilter !== "all") {
-				if (statusFilter === "confirmed") {
-					if (!["confirmed", "billed", "ready_for_dispatch", "in_transit"].includes(currentStatus))
-						return false;
-				} else if (statusFilter === "pending_review") {
-					if (!["pending", "pending_review", "under_review"].includes(currentStatus))
-						return false;
-				} else if (statusFilter === "completed") {
-					if (!["completed", "delivered"].includes(currentStatus))
-						return false;
-				} else if (statusFilter === "cancelled") {
-					if (currentStatus !== "cancelled") return false;
-				}
-			}
-			const q = searchTerm.toLowerCase();
-			return (
-				(o.customer?.name || "Walk-in Customer").toLowerCase().includes(q) ||
-				o.id.toString().includes(searchTerm)
-			);
-		});
-	}, [orders, statusFilter, searchTerm]);
 
 	const openEdit = (o: Order) => {
 		setEditingId(o.id);
@@ -414,20 +401,26 @@ export default function OrdersPage() {
 			<CardHeader className="p-0">
 				<SearchFilter
 					search={searchTerm}
-					onSearchChange={setSearchTerm}
+					onSearchChange={(val) => {
+						setSearchTerm(val);
+						setPage(1);
+					}}
 					searchPlaceholder={t("searchPlaceholder")}
 					filters={[
 						{
 							options: statusFilterOptions,
 							value: statusFilter,
-							onChange: setStatusFilter,
+							onChange: (val) => {
+								setStatusFilter(val);
+								setPage(1);
+							},
 						},
 					]}
 				/>
 			</CardHeader>
-			<CardContent className="p-0">
+			<CardContent className="space-y-4 p-0">
 				<DataTable
-					data={filteredOrders}
+					data={orders}
 					columns={[...tableColumns, actionsColumn]}
 					exportColumns={exportColumns}
 					exportFilename="orders"
@@ -435,6 +428,32 @@ export default function OrdersPage() {
 					emptyIcon={<ShoppingCartIcon className="h-8 w-8" />}
 					defaultSort={[{ id: "created_at", desc: true }]}
 				/>
+				<div className="flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
+					<span>
+						{orders.length === pageSize
+							? `Showing ${(page - 1) * pageSize + 1} - ${page * pageSize}`
+							: `Showing ${(page - 1) * pageSize + 1} - ${(page - 1) * pageSize + orders.length}`}
+					</span>
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setPage((p) => Math.max(1, p - 1))}
+							disabled={page === 1 || isLoading}
+						>
+							{tc("previous") || "Previous"}
+						</Button>
+						<span className="font-medium text-foreground px-2">Page {page}</span>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setPage((p) => p + 1)}
+							disabled={orders.length < pageSize || isLoading}
+						>
+							{tc("next") || "Next"}
+						</Button>
+					</div>
+				</div>
 			</CardContent>
 
 			<Dialog

@@ -42,7 +42,9 @@ export default function DriverRoutePage() {
 		isLoading,
 		error,
 		refetch,
-	} = trpc.driver.getRouteStops.useQuery();
+	} = trpc.driver.getRouteStops.useQuery(undefined, {
+		refetchInterval: 15000,
+	});
 
 	// Modal States
 	const [activeStartStop, setActiveStartStop] = useState<any | null>(null);

@@ -59,7 +59,10 @@ export default function PackerDashboard() {
 		data: pendingPickLists,
 		isLoading: isLoadingPending,
 		refetch: refetchPending,
-	} = trpc.packer.getPendingToPack.useQuery();
+	} = trpc.packer.getPendingToPack.useQuery(undefined, {
+		refetchInterval: 15000,
+		refetchIntervalInBackground: false,
+	});
 	const { data: historyList } = trpc.packer.getPackingHistory.useQuery({});
 
 	const packMutation = trpc.packer.packOrder.useMutation({

@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
 	boolean,
+	index,
 	integer,
 	pgEnum,
 	pgTable,
@@ -91,7 +92,10 @@ export const rolePermissions = pgTable("role_permissions", {
 	permissionId: integer("permission_id").references(() => permissions.id),
 	createdAt: timestamp("created_at").defaultNow(),
 	updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+	roleIdIdx: index("idx_role_permissions_role_id").on(table.roleId),
+	permissionIdIdx: index("idx_role_permissions_permission_id").on(table.permissionId),
+}));
 
 // User Roles (Many-to-Many)
 export const userRoles = pgTable("user_roles", {
@@ -99,7 +103,10 @@ export const userRoles = pgTable("user_roles", {
 	roleId: integer("role_id").references(() => roles.id),
 	assignedBy: varchar("assigned_by", { length: 100 }),
 	assignedAt: timestamp("assigned_at").defaultNow(),
-});
+}, (table) => ({
+	userIdIdx: index("idx_user_roles_user_id_rbac").on(table.userId),
+	roleIdIdx: index("idx_user_roles_role_id_rbac").on(table.roleId),
+}));
 
 // Relations
 export const rolesRelations = relations(roles, ({ many }) => ({

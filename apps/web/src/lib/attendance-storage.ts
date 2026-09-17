@@ -31,10 +31,13 @@ export const ATTENDANCE_ENTITY = {
 } as const;
 
 export function attendanceUploadRoot(): string {
-	return (
-		process.env.ATTENDANCE_UPLOAD_DIR ||
-		path.join(/*turbopackIgnore: true*/ process.cwd(), "uploads", "attendance")
-	);
+	if (process.env.ATTENDANCE_UPLOAD_DIR) {
+		return process.env.ATTENDANCE_UPLOAD_DIR;
+	}
+	if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+		return path.join("/tmp", "uploads", "attendance");
+	}
+	return path.join(/*turbopackIgnore: true*/ process.cwd(), "uploads", "attendance");
 }
 
 export function retentionDays(): number {

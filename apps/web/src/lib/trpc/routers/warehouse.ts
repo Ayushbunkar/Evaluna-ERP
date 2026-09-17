@@ -335,41 +335,20 @@ export const warehouseRouter = router({
 			const sixtyDaysAgo = new Date(now);
 			sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
-			const [freshBatches, recentBatches, oldBatches, veryOldBatches] =
-				await Promise.all([
-					db
-						.select({ count: count() })
-						.from(productBatches)
-						.where(gte(productBatches.created_at, fifteenDaysAgo)),
-					db
-						.select({ count: count() })
-						.from(productBatches)
-						.where(
-							and(
-								gte(productBatches.created_at, thirtyDaysAgo),
-								lte(productBatches.created_at, fifteenDaysAgo),
-							),
-						),
-					db
-						.select({ count: count() })
-						.from(productBatches)
-						.where(
-							and(
-								gte(productBatches.created_at, sixtyDaysAgo),
-								lte(productBatches.created_at, thirtyDaysAgo),
-							),
-						),
-					db
-						.select({ count: count() })
-						.from(productBatches)
-						.where(lte(productBatches.created_at, sixtyDaysAgo)),
-				]);
+			const [fifoData] = await db
+				.select({
+					fresh: sql<number>`count(*) filter (where ${productBatches.created_at} >= ${fifteenDaysAgo})`,
+					recent: sql<number>`count(*) filter (where ${productBatches.created_at} >= ${thirtyDaysAgo} and ${productBatches.created_at} <= ${fifteenDaysAgo})`,
+					old: sql<number>`count(*) filter (where ${productBatches.created_at} >= ${sixtyDaysAgo} and ${productBatches.created_at} <= ${thirtyDaysAgo})`,
+					veryOld: sql<number>`count(*) filter (where ${productBatches.created_at} <= ${sixtyDaysAgo})`,
+				})
+				.from(productBatches);
 
 			const fifoStatus = [
-				{ age: "0-15 days", value: freshBatches[0]?.count || 0 },
-				{ age: "16-30 days", value: recentBatches[0]?.count || 0 },
-				{ age: "31-60 days", value: oldBatches[0]?.count || 0 },
-				{ age: "60+ days", value: veryOldBatches[0]?.count || 0 },
+				{ age: "0-15 days", value: Number(fifoData?.fresh) || 0 },
+				{ age: "16-30 days", value: Number(fifoData?.recent) || 0 },
+				{ age: "31-60 days", value: Number(fifoData?.old) || 0 },
+				{ age: "60+ days", value: Number(fifoData?.veryOld) || 0 },
 			].filter((f) => f.value > 0);
 
 			// ── Activity from stock ledger with product names ─────────────────
@@ -387,7 +366,6 @@ export const warehouseRouter = router({
 				.limit(6);
 
 			// ── Worker Performance from staff (warehouse pickers/putters) ─────
-			// Get warehouse staff (pickers, putters, warehouse)
 			const warehouseStaff = await db
 				.select({
 					id: staff.id,
@@ -405,25 +383,40 @@ export const warehouseRouter = router({
 				)
 				.limit(5);
 
-			// Get picking performance for each staff member from pickListItems
-			const workerPerformance = await Promise.all(
-				warehouseStaff.map(async (w) => {
-					// Get total quantity picked and total quantity ordered for this staff member
-					const [pickingStats] = await db
-						.select({
-							totalPicked: sum(pickListItems.quantity_picked).map(
-								(val) => Number(val) || 0,
-							),
-							totalOrdered: sum(pickListItems.quantity_ordered).map(
-								(val) => Number(val) || 0,
-							),
-						})
-						.from(pickListItems)
-						.innerJoin(pickLists, eq(pickListItems.pick_list_id, pickLists.id))
-						.where(eq(pickLists.assigned_to, w.id));
+			let workerPerformance: {
+				name: string;
+				role: string;
+				items: number;
+				accuracy: number;
+			}[] = [];
 
-					const totalPicked = pickingStats[0]?.totalPicked || 0;
-					const totalOrdered = pickingStats[0]?.totalOrdered || 0;
+			if (warehouseStaff.length > 0) {
+				const staffIds = warehouseStaff.map((s) => s.id);
+				const staffStatsRows = await db
+					.select({
+						assignedTo: pickLists.assigned_to,
+						totalPicked: sql<number>`coalesce(sum(${pickListItems.quantity_picked}), 0)`,
+						totalOrdered: sql<number>`coalesce(sum(${pickListItems.quantity_ordered}), 0)`,
+					})
+					.from(pickListItems)
+					.innerJoin(pickLists, eq(pickListItems.pick_list_id, pickLists.id))
+					.where(inArray(pickLists.assigned_to, staffIds))
+					.groupBy(pickLists.assigned_to);
+
+				const statsMap = new Map(
+					staffStatsRows.map((r) => [
+						r.assignedTo,
+						{
+							totalPicked: Number(r.totalPicked) || 0,
+							totalOrdered: Number(r.totalOrdered) || 0,
+						},
+					]),
+				);
+
+				workerPerformance = warehouseStaff.map((w) => {
+					const s = statsMap.get(w.id);
+					const totalPicked = s?.totalPicked || 0;
+					const totalOrdered = s?.totalOrdered || 0;
 					const accuracy =
 						totalOrdered > 0
 							? Math.round((totalPicked / totalOrdered) * 100)
@@ -432,11 +425,11 @@ export const warehouseRouter = router({
 					return {
 						name: w.name,
 						role: w.role,
-						items: totalPicked, // Total quantity picked
-						accuracy: accuracy, // Accuracy percentage
+						items: totalPicked,
+						accuracy,
 					};
-				}),
-			);
+				});
+			}
 
 			// ── Inventory Alerts: low stock items ─────────────────────────────
 			const lowStockItems = await db
@@ -538,143 +531,86 @@ export const warehouseRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			const branchId = input.branch_id ?? ctx.user.branchId;
-
-			const [ordersWaiting] = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(and(eq(pickLists.status, "pending")));
-
-			const [receivingQueue] = await db
-				.select({ count: count() })
-				.from(purchases)
-				.where(and(eq(purchases.status, "pending")));
-
-			const [putAwayQueue] = await db
-				.select({ count: count() })
-				.from(placementVerifications)
-				.where(
-					and(
-						inArray(placementVerifications.status, [
-							"AWAITING_PLACEMENT",
-							"VERIFICATION_REQUIRED",
-						]),
-					),
-				);
-
-			const [pickingQueue] = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(and(inArray(pickLists.status, ["assigned", "picking"])));
-
-			const [packingQueue] = await db
-				.select({ count: count() })
-				.from(packages)
-				.where(and(eq(packages.status, "packing")));
-
-			const [dispatchReady] = await db
-				.select({ count: count() })
-				.from(packages)
-				.where(
-					and(
-						inArray(packages.status, [
-							"packed",
-							"ready_for_dispatch",
-							"checked",
-						]),
-					),
-				);
-
 			const todayStart = new Date();
 			todayStart.setHours(0, 0, 0, 0);
+			const twoHoursAgo = new Date(Date.now() - 2 * 3600000);
 
-			const [completedPickLists] = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(
-					and(
-						eq(pickLists.status, "completed"),
-						gte(pickLists.completed_at, todayStart),
-					),
-				);
+			const [
+				[pickListsStats],
+				[purchasesStats],
+				[placementStats],
+				[packagesStats],
+				[capacityData],
+			] = await Promise.all([
+				// 1. PickLists aggregations
+				db
+					.select({
+						ordersWaiting: sql<number>`count(*) filter (where ${pickLists.status} = 'pending')`,
+						pickingQueue: sql<number>`count(*) filter (where ${pickLists.status} in ('assigned', 'picking'))`,
+						completedToday: sql<number>`count(*) filter (where ${pickLists.status} = 'completed' and ${pickLists.completed_at} >= ${todayStart})`,
+						tasksInProgress: sql<number>`count(*) filter (where ${pickLists.status} = 'picking')`,
+						delayed: sql<number>`count(*) filter (where ${pickLists.status} not in ('completed', 'cancelled') and ${pickLists.created_at} <= ${twoHoursAgo})`,
+					})
+					.from(pickLists),
 
-			const [completedPackages] = await db
-				.select({ count: count() })
-				.from(packages)
-				.where(
-					and(
-						inArray(packages.status, [
-							"packed",
-							"ready_for_dispatch",
-							"checked",
-							"dispatched",
-						]),
-						gte(packages.packed_at, todayStart),
-					),
-				);
+				// 2. Purchases aggregations
+				db
+					.select({
+						receivingQueue: sql<number>`count(*) filter (where ${purchases.status} = 'pending')`,
+						delayed: sql<number>`count(*) filter (where ${purchases.status} not in ('completed', 'received', 'cancelled') and ${purchases.created_at} <= ${twoHoursAgo})`,
+					})
+					.from(purchases),
+
+				// 3. Placement verifications aggregations
+				db
+					.select({
+						putAwayQueue: sql<number>`count(*) filter (where ${placementVerifications.status} in ('AWAITING_PLACEMENT', 'VERIFICATION_REQUIRED'))`,
+						tasksInProgress: sql<number>`count(*) filter (where ${placementVerifications.status} = 'VERIFICATION_REQUIRED')`,
+					})
+					.from(placementVerifications),
+
+				// 4. Packages aggregations
+				db
+					.select({
+						packingQueue: sql<number>`count(*) filter (where ${packages.status} = 'packing')`,
+						dispatchReady: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked'))`,
+						completedToday: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked', 'dispatched') and ${packages.packed_at} >= ${todayStart})`,
+					})
+					.from(packages),
+
+				// 5. Capacity aggregations
+				db
+					.select({
+						cap: sum(branchLocations.capacity),
+						used: sum(branchLocations.current_stock),
+					})
+					.from(branchLocations)
+					.where(branchId ? eq(branchLocations.branch_id, branchId) : undefined),
+			]);
 
 			const completedToday =
-				(completedPickLists?.count || 0) + (completedPackages?.count || 0);
-
-			const [tasksInProgressPick] = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(and(eq(pickLists.status, "picking")));
-
-			const [tasksInProgressPut] = await db
-				.select({ count: count() })
-				.from(placementVerifications)
-				.where(and(eq(placementVerifications.status, "VERIFICATION_REQUIRED")));
+				(Number(pickListsStats?.completedToday) || 0) +
+				(Number(packagesStats?.completedToday) || 0);
 
 			const tasksInProgress =
-				(tasksInProgressPick?.count || 0) + (tasksInProgressPut?.count || 0);
-
-			const twoHoursAgo = new Date(Date.now() - 2 * 3600000);
-			const [delayedPickLists] = await db
-				.select({ count: count() })
-				.from(pickLists)
-				.where(
-					and(
-						notInArray(pickLists.status, ["completed", "cancelled"]),
-						lte(pickLists.created_at, twoHoursAgo),
-					),
-				);
-
-			const [delayedPurchases] = await db
-				.select({ count: count() })
-				.from(purchases)
-				.where(
-					and(
-						notInArray(purchases.status, [
-							"completed",
-							"received",
-							"cancelled",
-						]),
-						lte(purchases.created_at, twoHoursAgo),
-					),
-				);
+				(Number(pickListsStats?.tasksInProgress) || 0) +
+				(Number(placementStats?.tasksInProgress) || 0);
 
 			const delayedTasks =
-				(delayedPickLists?.count || 0) + (delayedPurchases?.count || 0);
+				(Number(pickListsStats?.delayed) || 0) +
+				(Number(purchasesStats?.delayed) || 0);
 
-			const capacityData = await db
-				.select({
-					cap: sum(branchLocations.capacity),
-					used: sum(branchLocations.current_stock),
-				})
-				.from(branchLocations)
-				.where(branchId ? eq(branchLocations.branch_id, branchId) : undefined);
-
-			const capVal = Number(capacityData[0]?.cap) || 1000;
-			const usedVal = Number(capacityData[0]?.used) || 0;
+			const capVal = Number(capacityData?.cap) || 1000;
+			const usedVal = Number(capacityData?.used) || 0;
 			const warehouseUtilization = Math.round((usedVal / capVal) * 100);
 
 			return {
-				ordersWaiting: ordersWaiting?.count || 0,
-				receivingQueue: receivingQueue?.count || 0,
-				putAwayQueue: putAwayQueue?.count || 0,
-				pickingQueue: pickingQueue?.count || 0,
-				packingQueue: packingQueue?.count || 0,
-				dispatchReady: dispatchReady?.count || 0,
+				ordersWaiting: Number(pickListsStats?.ordersWaiting) || 0,
+				receivingQueue: Number(purchasesStats?.receivingQueue) || 0,
+				putAwayQueue: Number(placementStats?.putAwayQueue) || 0,
+				pickingQueue: Number(pickListsStats?.pickingQueue) || 0,
+				packingQueue: Number(packagesStats?.packingQueue) || 0,
+				dispatchReady: Number(packagesStats?.dispatchReady) || 0,
 				completedToday,
 				tasksInProgress,
 				delayedTasks,

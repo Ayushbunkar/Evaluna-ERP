@@ -30,8 +30,11 @@ import {
 	count,
 	desc,
 	eq,
+	gte,
+	ilike,
 	inArray,
 	isNotNull,
+	lte,
 	notInArray,
 	or,
 	sql,
@@ -56,6 +59,25 @@ const orderWithCustomerSchema = z.object({
 			address: z.string().nullable().optional(),
 		})
 		.nullable(),
+});
+
+const salesDashboardSummarySchema = z.object({
+	todaySales: z.number(),
+	dailyGoal: z.number(),
+	progress: z.number(),
+	recentOrders: z.array(
+		z.object({
+			id: z.number(),
+			total_amount: z.string(),
+			status: z.string().nullable(),
+			created_at: z.coerce.date().nullable(),
+			customer: z
+				.object({
+					name: z.string(),
+				})
+				.nullable(),
+		}),
+	),
 });
 
 const orderDetailSchema = z.object({
@@ -106,17 +128,24 @@ export const ordersRouter = router({
 			return result ?? null;
 		}),
 
-	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+	getDashboardSummary: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"sales_person",
+		"salesperson",
+		"sales",
+	])
 		.meta({
 			openapi: {
 				method: "GET",
-				path: "/orders",
+				path: "/orders/dashboard-summary",
 				tags: ["Orders"],
-				summary: "List all orders",
+				summary: "Get lightweight sales dashboard summary",
 			},
 		})
 		.input(z.void())
-		.output(z.array(orderWithCustomerSchema))
+		.output(salesDashboardSummarySchema)
 		.query(async ({ ctx }) => {
 			const branchId = ctx.user?.branchId ?? null;
 			const privilegedRoles = [
@@ -133,25 +162,201 @@ export const ordersRouter = router({
 				ctx.user?.isSuperadmin ||
 				(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
 
-			return db.query.orders.findMany({
-				where: branchId
-					? isPrivileged
-						? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
-						: and(
-								eq(orders.branch_id, branchId),
-								eq(orders.user_uid, ctx.user?.id),
-							)
-					: isPrivileged
-						? undefined
-						: eq(orders.user_uid, ctx.user?.id),
-				orderBy: [desc(orders.created_at)],
-				limit: 300,
-				with: {
-					customer: {
-						columns: { id: true, name: true, phone: true, address: true },
+			const baseScope = branchId
+				? isPrivileged
+					? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
+					: and(
+							eq(orders.branch_id, branchId),
+							eq(orders.user_uid, ctx.user?.id),
+						)
+				: isPrivileged
+					? undefined
+					: eq(orders.user_uid, ctx.user?.id);
+
+			const startOfToday = new Date();
+			startOfToday.setHours(0, 0, 0, 0);
+
+			const endOfToday = new Date();
+			endOfToday.setHours(23, 59, 59, 999);
+
+			const dailyGoal = 50000;
+
+			const [[salesAgg], recentOrdersList] = await Promise.all([
+				db
+					.select({
+						todayTotal: sql<string>`coalesce(sum(${orders.total_amount}), 0)`,
+					})
+					.from(orders)
+					.where(
+						and(
+							baseScope,
+							gte(orders.created_at, startOfToday),
+							lte(orders.created_at, endOfToday),
+						),
+					),
+				db.query.orders.findMany({
+					where: baseScope,
+					orderBy: [desc(orders.created_at)],
+					limit: 5,
+					columns: {
+						id: true,
+						total_amount: true,
+						status: true,
+						created_at: true,
 					},
-				},
-			});
+					with: {
+						customer: {
+							columns: {
+								name: true,
+							},
+						},
+					},
+				}),
+			]);
+
+			const todaySales = Number(salesAgg?.todayTotal) || 0;
+			const progress = Math.min(Math.round((todaySales / dailyGoal) * 100), 100);
+
+			return {
+				todaySales,
+				dailyGoal,
+				progress,
+				recentOrders: recentOrdersList,
+			};
+		}),
+
+	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+		.meta({
+			openapi: {
+				method: "GET",
+				path: "/orders",
+				tags: ["Orders"],
+				summary: "List all orders",
+			},
+		})
+		.input(
+			z
+				.object({
+					page: z.number().int().min(1).optional(),
+					limit: z.number().int().min(1).max(500).optional(),
+					search: z.string().optional(),
+					status: z.string().optional(),
+				})
+				.optional(),
+		)
+		.output(z.array(orderWithCustomerSchema))
+		.query(async ({ ctx, input }) => {
+			const branchId = ctx.user?.branchId ?? null;
+			const privilegedRoles = [
+				"admin",
+				"manager",
+				"finance",
+				"warehouse_manager",
+				"accountant",
+				"sales_person",
+				"salesperson",
+				"sales",
+			];
+			const isPrivileged =
+				ctx.user?.isSuperadmin ||
+				(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+
+			const baseScope = branchId
+				? isPrivileged
+					? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
+					: and(
+							eq(orders.branch_id, branchId),
+							eq(orders.user_uid, ctx.user?.id),
+						)
+				: isPrivileged
+					? undefined
+					: eq(orders.user_uid, ctx.user?.id);
+
+			const { page = 1, limit = 50, search, status } = input || {};
+			const conditions = [];
+			if (baseScope) conditions.push(baseScope);
+
+			// Server-side status filter
+			if (status && status !== "all") {
+				if (status === "confirmed") {
+					conditions.push(
+						inArray(orders.status, [
+							"confirmed",
+							"billed",
+							"ready_for_dispatch",
+							"in_transit",
+						]),
+					);
+				} else if (status === "pending_review") {
+					conditions.push(
+						inArray(orders.status, [
+							"pending",
+							"pending_review",
+							"under_review",
+						]),
+					);
+				} else if (status === "completed") {
+					conditions.push(
+						inArray(orders.status, ["completed", "delivered"]),
+					);
+				} else if (status === "cancelled") {
+					conditions.push(eq(orders.status, "cancelled"));
+				} else {
+					conditions.push(eq(orders.status, status));
+				}
+			}
+
+			// Server-side search filter (order ID or customer name)
+			if (search?.trim()) {
+				const term = `%${search.trim().toLowerCase()}%`;
+				conditions.push(
+					or(
+						ilike(customers.name, term),
+						sql`${orders.id}::text ILIKE ${term}`,
+					)!,
+				);
+			}
+
+			const offset = (page - 1) * limit;
+
+			const rows = await db
+				.select({
+					id: orders.id,
+					customer_id: orders.customer_id,
+					total_amount: orders.total_amount,
+					status: orders.status,
+					finance_status: orders.finance_status,
+					user_uid: orders.user_uid,
+					created_at: orders.created_at,
+					customer_id_val: customers.id,
+					customer_name: customers.name,
+					customer_phone: customers.phone,
+					customer_address: customers.address,
+				})
+				.from(orders)
+				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.where(conditions.length > 0 ? and(...conditions) : undefined)
+				.orderBy(desc(orders.created_at), desc(orders.id))
+				.limit(limit)
+				.offset(offset);
+
+			return rows.map((r) => ({
+				id: r.id,
+				customer_id: r.customer_id,
+				total_amount: r.total_amount,
+				status: r.status,
+				finance_status: r.finance_status ?? undefined,
+				user_uid: r.user_uid,
+				created_at: r.created_at,
+				customer: r.customer_name
+					? {
+							id: r.customer_id_val ?? undefined,
+							name: r.customer_name,
+							phone: r.customer_phone ?? null,
+							address: r.customer_address ?? null,
+						}
+					: null,
+			}));
 		}),
 
 	create: roleProcedure(["admin", "manager", "auditor", "sales_person"])

@@ -3,6 +3,7 @@ import {
 	boolean,
 	date,
 	decimal,
+	index,
 	integer,
 	jsonb,
 	pgEnum,
@@ -124,7 +125,11 @@ export const enhancedAttendance = pgTable("enhanced_attendance", {
 	notes: text("notes"),
 	createdAt: timestamp("created_at").defaultNow(),
 	updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+	dateIdx: index("idx_enhanced_attendance_date").on(table.date),
+	branchDateIdx: index("idx_enhanced_attendance_branch_date").on(table.branchId, table.date),
+	employeeDateIdx: index("idx_enhanced_attendance_employee_date").on(table.employeeId, table.date),
+}));
 
 // Attendance Breaks Table
 export const attendanceBreaks = pgTable("attendance_breaks", {

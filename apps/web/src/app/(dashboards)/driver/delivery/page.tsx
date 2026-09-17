@@ -121,13 +121,15 @@ export default function DriverLiveDeliveryPage() {
 		data: dashboardData,
 		isLoading: isDashboardLoading,
 		refetch: refetchDashboard,
-	} = trpc.driver.getMobileDashboard.useQuery({});
+	} = trpc.driver.getMobileDashboard.useQuery({}, { refetchInterval: 15000 });
 
 	const {
 		data: directRouteStops,
 		isLoading: isRouteLoading,
 		refetch: refetchStops,
-	} = trpc.driver.getRouteStops.useQuery();
+	} = trpc.driver.getRouteStops.useQuery(undefined, {
+		refetchInterval: 15000,
+	});
 
 	const isLoading = isDashboardLoading || isRouteLoading;
 	const refetch = () => {

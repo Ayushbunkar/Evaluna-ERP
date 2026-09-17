@@ -3,6 +3,7 @@ import {
 	boolean,
 	date,
 	decimal,
+	index,
 	integer,
 	pgEnum,
 	pgTable,
@@ -179,7 +180,11 @@ export const attendance = pgTable("attendance", {
 	deviceInfo: text("device_info"),
 	notes: text("notes"),
 	createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+	dateIdx: index("idx_attendance_date").on(table.date),
+	employeeIdIdx: index("idx_attendance_employee_id").on(table.employeeId),
+	statusCreatedAtIdx: index("idx_attendance_status_created_at").on(table.status, table.createdAt),
+}));
 
 // Overtime Table
 export const overtime = pgTable("overtime", {

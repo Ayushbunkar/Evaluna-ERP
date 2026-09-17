@@ -19,11 +19,13 @@ import {
 	purchases,
 	staff,
 	stockAudits,
+	tripCollections,
+	tripStops,
 	upcTasks,
 	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, gte, inArray, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -31,7 +33,7 @@ import { reverseGeocodeLocation } from "../util/attendance";
 import { logAudit, resolveStaffId } from "../util/audit";
 
 export const managerRouter = router({
-	// ── 1. Centralized Dashboard Stats ──────────────────────────────────────────
+	// ── 1. Centralized Dashboard Stats (Optimized SQL Aggregation) ─────────────
 	getDashboardStats: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
@@ -40,104 +42,56 @@ export const managerRouter = router({
 			const todayEnd = new Date();
 			todayEnd.setHours(23, 59, 59, 999);
 
-			// Query core numbers
-			const staffList = await db.select().from(staff);
-			const todayAttendance = await db
-				.select()
-				.from(attendance)
-				.where(
-					and(
-						gte(attendance.createdAt, todayStart),
-						lte(attendance.createdAt, todayEnd),
-					),
-				);
+			const [res] = await db.execute<{
+				total_employees: number;
+				present_today: number;
+				pending_approvals: number;
+				on_leave_today: number;
+				overdue_tasks: number;
+				open_exceptions: number;
+				cash_collected: number;
+				online_collected: number;
+				collections_count: number;
+				pending_routes_count: number;
+			}>(sql`
+				SELECT
+					(SELECT coalesce(count(*), 0)::int FROM staff) AS total_employees,
+					(SELECT coalesce(count(*), 0)::int FROM attendance WHERE status = 'present' AND created_at >= ${todayStart.toISOString()} AND created_at <= ${todayEnd.toISOString()}) AS present_today,
+					(SELECT coalesce(count(*) filter (WHERE status = 'pending'), 0)::int FROM approvals) AS pending_approvals,
+					(SELECT coalesce(count(*) filter (WHERE reference_type = 'leave' AND status = 'approved'), 0)::int FROM approvals) AS on_leave_today,
+					(SELECT coalesce(count(*), 0)::int FROM upc_tasks WHERE status != 'VERIFIED' AND due_at <= NOW()) AS overdue_tasks,
+					(SELECT coalesce(count(*), 0)::int FROM audit_findings WHERE status != 'CLOSED') AS open_exceptions,
+					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS cash_collected,
+					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) NOT LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS online_collected,
+					(SELECT coalesce(count(*), 0)::int FROM trip_collections) AS collections_count,
+					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status IN ('confirmed', 'completed', 'processing', 'ready_for_dispatch', 'pending_review', 'under_review')
+						AND (customer_id IS NULL OR customer_id NOT IN (
+							SELECT ts.customer_id FROM trip_stops ts
+							INNER JOIN delivery_trips dt ON dt.id = ts.trip_id
+							WHERE dt.status IN ('pending', 'active') AND ts.customer_id IS NOT NULL
+						))
+					) AS pending_routes_count
+			`);
 
-			const pendingApprovalsList = await db
-				.select()
-				.from(approvals)
-				.where(eq(approvals.status, "pending"));
-
-			const activeLeaves = await db
-				.select()
-				.from(approvals)
-				.where(
-					and(
-						eq(approvals.reference_type, "leave"),
-						eq(approvals.status, "approved"),
-					),
-				);
-
-			const totalEmployees = staffList.length;
-			const presentToday = todayAttendance.filter(
-				(a) => a.status === "present",
-			).length;
-			const onLeaveToday = activeLeaves.length;
+			const totalEmployees = Number(res?.total_employees || 0);
+			const presentToday = Number(res?.present_today || 0);
+			const onLeaveToday = Number(res?.on_leave_today || 0);
+			const pendingApprovals = Number(res?.pending_approvals || 0);
 			const absentToday = Math.max(
 				totalEmployees - presentToday - onLeaveToday,
 				0,
 			);
-			const pendingApprovals = pendingApprovalsList.length;
 
-			// Overdue UPC Tasks count
-			const openUpc = await db
-				.select()
-				.from(upcTasks)
-				.where(
-					and(
-						ne(upcTasks.status, "VERIFIED"),
-						lte(upcTasks.due_at, new Date()),
-					),
-				);
-			const overdueTasks = openUpc.length;
+			const overdueTasks = Number(res?.overdue_tasks || 0);
+			const openExceptions = Number(res?.open_exceptions || 0);
 
-			// Exceptions count from open audit findings
-			const openFindings = await db
-				.select()
-				.from(auditFindings)
-				.where(ne(auditFindings.status, "CLOSED"));
-			const openExceptions = openFindings.length;
+			const driverCashCollected = Number(res?.cash_collected || 0);
+			const driverOnlineCollected = Number(res?.online_collected || 0);
+			const totalDriverCollections =
+				driverCashCollected + driverOnlineCollected;
+			const pendingSettlements = Number(res?.collections_count || 0);
 
-			// Calculate driver collections (cash vs online)
-			const { tripCollections } = require("@evaluna/db/schema");
-			const collectionsList = await db.select().from(tripCollections);
-			let driverCashCollected = 0;
-			let driverOnlineCollected = 0;
-			for (const col of collectionsList) {
-				const amt = Number(col.amount || 0);
-				if (col.payment_method?.toLowerCase().includes("cash")) {
-					driverCashCollected += amt;
-				} else {
-					driverOnlineCollected += amt;
-				}
-			}
-
-			// Calculate pending confirmed orders awaiting route/driver dispatch
-			const { tripStops, deliveryTrips } = require("@evaluna/db/schema");
-			const assignedTrips = await db
-				.select({ custId: tripStops.customer_id })
-				.from(tripStops)
-				.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-				.where(inArray(deliveryTrips.status, ["pending", "active"]));
-			const assignedCustIds = new Set(
-				assignedTrips.map((t) => t.custId).filter(Boolean),
-			);
-
-			const confirmedOrders = await db
-				.select({ id: orders.id, customer_id: orders.customer_id, status: orders.status })
-				.from(orders)
-				.where(
-					inArray(orders.status, [
-						"confirmed",
-						"completed",
-						"processing",
-						"ready_for_dispatch",
-						"pending_review",
-						"under_review",
-					]),
-				);
-			const pendingRoutesCount = confirmedOrders.filter(
-				(o) => !o.customer_id || !assignedCustIds.has(o.customer_id),
-			).length;
+			const pendingRoutesCount = Number(res?.pending_routes_count || 0);
 
 			return {
 				totalEmployees,
@@ -151,12 +105,12 @@ export const managerRouter = router({
 				pendingRoutesCount,
 				driverCashCollected,
 				driverOnlineCollected,
-				totalDriverCollections: driverCashCollected + driverOnlineCollected,
-				pendingSettlements: collectionsList.length,
+				totalDriverCollections,
+				pendingSettlements,
 			};
 		}),
 
-	// ── 2. My Team Section ──────────────────────────────────────────────────────
+	// ── 2. My Team Section (Optimized DB Query) ────────────────────────────────
 	getEmployees: protectedProcedure
 		.input(
 			z
@@ -169,60 +123,52 @@ export const managerRouter = router({
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const [allStaff, allUsers] = await Promise.all([
-				db.select().from(staff),
-				db.select().from(user),
-			]);
+			const searchPattern = input?.search?.trim()
+				? `%${input.search.trim().toLowerCase()}%`
+				: undefined;
 
-			// Format real system users into staff format
-			const realUsersFormatted = allUsers.map((u, i) => ({
-				id: 1000 + i + 1,
-				branch_id: 1,
-				staff_code: `USR-${u.id.slice(0, 6).toUpperCase()}`,
-				name: u.name || u.email.split("@")[0],
-				email: u.email,
-				phone: null,
-				role: u.role || "staff",
-				join_date: u.createdAt,
-				salary: "30000",
-			}));
-
-			// Filter out known fake seed staff names like staff1, Scot Farrell, Carleton Zulauf, etc.
-			const isFakeName = (name: string | null) => {
-				if (!name) return true;
-				const n = name.toLowerCase();
-				return (
-					n.startsWith("staff") ||
-					n.includes("scot") ||
-					n.includes("carleton") ||
-					n.includes("wilbur") ||
-					n.includes("linda") ||
-					n.includes("bartoletti") ||
-					n.includes("zulauf") ||
-					n.includes("farrell") ||
-					n.includes("russel")
-				);
-			};
-
-			const cleanStaff = allStaff.filter((s) => !isFakeName(s.name));
-
-			// Real system users come first!
-			const combined = [...realUsersFormatted, ...cleanStaff];
-
-			return combined
-				.filter((s) => {
-					if (
-						input?.search &&
-						!s.name?.toLowerCase().includes(input.search.toLowerCase())
-					) {
-						return false;
-					}
-					if (input?.role && s.role !== input.role) {
-						return false;
-					}
-					return true;
+			// Query real staff from DB with server-side filters and limits
+			const staffRows = await db
+				.select({
+					id: staff.id,
+					branch_id: staff.branch_id,
+					staff_code: staff.staff_code,
+					name: staff.name,
+					email: staff.email,
+					phone: staff.phone,
+					role: staff.role,
+					join_date: staff.join_date,
+					salary: staff.salary,
 				})
-				.slice(0, input?.limit ?? 50);
+				.from(staff)
+				.where(
+					and(
+						eq(staff.is_deleted, false),
+						input?.status ? eq(staff.status, input.status) : undefined,
+						input?.role ? eq(staff.role, input.role) : undefined,
+						not(ilike(staff.email, "%seed%")),
+						not(ilike(staff.name, "%staff%")),
+						not(ilike(staff.name, "%scot%")),
+						not(ilike(staff.name, "%carleton%")),
+						not(ilike(staff.name, "%wilbur%")),
+						not(ilike(staff.name, "%linda%")),
+						not(ilike(staff.name, "%bartoletti%")),
+						not(ilike(staff.name, "%zulauf%")),
+						not(ilike(staff.name, "%farrell%")),
+						not(ilike(staff.name, "%russel%")),
+						searchPattern
+							? or(
+									ilike(staff.name, searchPattern),
+									ilike(staff.email, searchPattern),
+									ilike(staff.staff_code, searchPattern),
+								)
+							: undefined,
+					),
+				)
+				.orderBy(asc(staff.name))
+				.limit(input?.limit ?? 50);
+
+			return staffRows;
 		}),
 
 	getEmployeeDetail: protectedProcedure
@@ -435,150 +381,197 @@ export const managerRouter = router({
 			const targetDateStr =
 				input?.date || new Date().toISOString().split("T")[0];
 
-			// 1. Query production enhancedAttendance records with Employee details & Branch Location
-			const enhancedRows = await db
-				.select({
-					att: enhancedAttendance,
-					emp: employees,
-					usr: user,
-					br: branches,
-				})
-				.from(enhancedAttendance)
-				.leftJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
-				.leftJoin(user, eq(employees.userUid, user.id))
-				.leftJoin(branches, eq(enhancedAttendance.branchId, branches.id))
-				.where(eq(enhancedAttendance.date, targetDateStr as string));
+			// 1. Fetch enhanced attendance, breaks, and legacy records concurrently
+			const [enhancedRows, allBreaks, legacyRows] = await Promise.all([
+				db
+					.select({
+						att: enhancedAttendance,
+						emp: employees,
+						usr: user,
+						br: branches,
+					})
+					.from(enhancedAttendance)
+					.leftJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
+					.leftJoin(user, eq(employees.userUid, user.id))
+					.leftJoin(branches, eq(enhancedAttendance.branchId, branches.id))
+					.where(eq(enhancedAttendance.date, targetDateStr as string)),
+				db.select().from(attendanceBreaks),
+				db.select().from(attendance),
+			]);
 
-			// 2. Query all breaks for calculate break duration
-			const allBreaks = await db.select().from(attendanceBreaks);
+			// 2. Extract and deduplicate all unique GPS coordinates across all rows
+			const uniqueCoords = new Map<string, { lat: number; lng: number }>();
+			for (const { att } of enhancedRows) {
+				const rawNotes = att.notes || "";
+				const gpsObj = att.checkInGPS as any;
 
-			// Map production enhancedAttendance records for Manager roll
-			const formattedEnhanced = await Promise.all(
-				enhancedRows.map(async ({ att, emp, usr, br }) => {
-					const breaksForAtt = allBreaks.filter(
-						(b) => b.attendanceId === att.id,
-					);
-					const totalBreakMinutes = breaksForAtt.reduce(
-						(sum, b) => sum + (b.durationMinutes || 0),
-						0,
-					);
-					const activeBreak = breaksForAtt.find((b) => !b.endTime);
+				const lat =
+					gpsObj?.latitude ??
+					(rawNotes.match(/Lat:\s*([0-9.-]+)/)?.[1]
+						? Number.parseFloat(rawNotes.match(/Lat:\s*([0-9.-]+)/)![1])
+						: null);
+				const lng =
+					gpsObj?.longitude ??
+					(rawNotes.match(/Long:\s*([0-9.-]+)/)?.[1]
+						? Number.parseFloat(rawNotes.match(/Long:\s*([0-9.-]+)/)![1])
+						: null);
 
-					const employeeName = emp
-						? `${emp.firstName} ${emp.lastName}`.trim()
-						: usr?.name || `Staff #${att.employeeId}`;
-					const employeeEmail = emp?.email || usr?.email || "";
-					const employeeCode = emp?.employeeCode || `STAFF-${att.employeeId}`;
-
-					// Extract GPS coordinates if available in notes or checkInGPS
-					const rawNotes = att.notes || "";
-					let locationFormatted = rawNotes;
-					const gpsObj = att.checkInGPS as any;
-
-					const lat =
-						gpsObj?.latitude ??
-						(rawNotes.match(/Lat:\s*([0-9.-]+)/)?.[1]
-							? Number.parseFloat(rawNotes.match(/Lat:\s*([0-9.-]+)/)![1])
-							: null);
-					const lng =
-						gpsObj?.longitude ??
-						(rawNotes.match(/Long:\s*([0-9.-]+)/)?.[1]
-							? Number.parseFloat(rawNotes.match(/Long:\s*([0-9.-]+)/)![1])
-							: null);
-
-					if (lat != null && lng != null) {
-						const resolvedPlace = await reverseGeocodeLocation(lat, lng);
-						if (resolvedPlace) {
-							locationFormatted = `${resolvedPlace} (Lat: ${lat.toFixed(6)}, Long: ${lng.toFixed(6)})`;
-						} else {
-							const branchLocationName = br ? br.name : "Selected Branch";
-							locationFormatted = `${branchLocationName} — Lat: ${lat.toFixed(6)}, Long: ${lng.toFixed(6)}`;
-						}
-					} else if (!locationFormatted) {
-						locationFormatted = br ? br.name : "Authorized Location";
+				if (
+					lat != null &&
+					lng != null &&
+					!Number.isNaN(lat) &&
+					!Number.isNaN(lng)
+				) {
+					const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+					if (!uniqueCoords.has(key)) {
+						uniqueCoords.set(key, { lat, lng });
 					}
+				}
+			}
 
-					// Work Hours Calculation (checkIn to checkOut or current time, minus break time)
-					let workHoursStr = "-";
-					if (att.checkIn) {
-						try {
-							const datePart = att.date || targetDateStr;
-							const startTime = new Date(`${datePart}T${att.checkIn}`);
-							const endTime = att.checkOut
-								? new Date(`${datePart}T${att.checkOut}`)
-								: new Date();
-
-							const diffMs = endTime.getTime() - startTime.getTime();
-							if (diffMs > 0) {
-								const breakMs = totalBreakMinutes * 60 * 1000;
-								const netMs = Math.max(0, diffMs - breakMs);
-								const hours = Math.floor(netMs / (1000 * 60 * 60));
-								const mins = Math.floor(
-									(netMs % (1000 * 60 * 60)) / (1000 * 60),
-								);
-								workHoursStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-							}
-						} catch {
-							workHoursStr = "-";
-						}
+			// 3. Resolve reverse-geocoding for unique coordinates concurrently
+			const resolvedPlaces = new Map<string, string | null>();
+			await Promise.all(
+				Array.from(uniqueCoords.entries()).map(async ([key, { lat, lng }]) => {
+					try {
+						const place = await reverseGeocodeLocation(lat, lng);
+						resolvedPlaces.set(key, place);
+					} catch {
+						resolvedPlaces.set(key, null);
 					}
-
-					const checkInSelfieObj = att.checkInSelfie as any;
-					const checkOutSelfieObj = att.checkOutSelfie as any;
-
-					let selfieAttachmentId = null;
-					if (
-						typeof checkInSelfieObj === "object" &&
-						checkInSelfieObj !== null
-					) {
-						selfieAttachmentId =
-							checkInSelfieObj.attachmentId || checkInSelfieObj.id || null;
-					} else if (
-						typeof checkInSelfieObj === "number" ||
-						typeof checkInSelfieObj === "string"
-					) {
-						selfieAttachmentId = Number(checkInSelfieObj) || null;
-					}
-
-					let checkOutSelfieAttachmentId = null;
-					if (
-						typeof checkOutSelfieObj === "object" &&
-						checkOutSelfieObj !== null
-					) {
-						checkOutSelfieAttachmentId =
-							checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null;
-					} else if (
-						typeof checkOutSelfieObj === "number" ||
-						typeof checkOutSelfieObj === "string"
-					) {
-						checkOutSelfieAttachmentId = Number(checkOutSelfieObj) || null;
-					}
-
-					return {
-						id: att.id,
-						employeeId: att.employeeId || 1,
-						employeeName,
-						employeeEmail,
-						employeeCode,
-						checkIn: att.checkIn,
-						checkOut: att.checkOut,
-						status: activeBreak
-							? `On Break (${activeBreak.type})`
-							: att.status || "present",
-						breakMinutes: totalBreakMinutes,
-						breakCount: breaksForAtt.length,
-						workHours: workHoursStr,
-						notes: locationFormatted,
-						selfieAttachmentId,
-						checkOutSelfieAttachmentId,
-						createdAt: att.createdAt,
-						distance: att.distanceFromOffice,
-					};
 				}),
 			);
 
-			// Map legacy records if any exist
-			const legacyRows = await db.select().from(attendance);
+			// 4. Map production enhancedAttendance records synchronously
+			const formattedEnhanced = enhancedRows.map(({ att, emp, usr, br }) => {
+				const breaksForAtt = allBreaks.filter(
+					(b) => b.attendanceId === att.id,
+				);
+				const totalBreakMinutes = breaksForAtt.reduce(
+					(sum, b) => sum + (b.durationMinutes || 0),
+					0,
+				);
+				const activeBreak = breaksForAtt.find((b) => !b.endTime);
+
+				const employeeName = emp
+					? `${emp.firstName} ${emp.lastName}`.trim()
+					: usr?.name || `Staff #${att.employeeId}`;
+				const employeeEmail = emp?.email || usr?.email || "";
+				const employeeCode = emp?.employeeCode || `STAFF-${att.employeeId}`;
+
+				// Extract GPS coordinates if available in notes or checkInGPS
+				const rawNotes = att.notes || "";
+				let locationFormatted = rawNotes;
+				const gpsObj = att.checkInGPS as any;
+
+				const lat =
+					gpsObj?.latitude ??
+					(rawNotes.match(/Lat:\s*([0-9.-]+)/)?.[1]
+						? Number.parseFloat(rawNotes.match(/Lat:\s*([0-9.-]+)/)![1])
+						: null);
+				const lng =
+					gpsObj?.longitude ??
+					(rawNotes.match(/Long:\s*([0-9.-]+)/)?.[1]
+						? Number.parseFloat(rawNotes.match(/Long:\s*([0-9.-]+)/)![1])
+						: null);
+
+				if (
+					lat != null &&
+					lng != null &&
+					!Number.isNaN(lat) &&
+					!Number.isNaN(lng)
+				) {
+					const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+					const resolvedPlace = resolvedPlaces.get(key);
+					if (resolvedPlace) {
+						locationFormatted = `${resolvedPlace} (Lat: ${lat.toFixed(6)}, Long: ${lng.toFixed(6)})`;
+					} else {
+						const branchLocationName = br ? br.name : "Selected Branch";
+						locationFormatted = `${branchLocationName} — Lat: ${lat.toFixed(6)}, Long: ${lng.toFixed(6)}`;
+					}
+				} else if (!locationFormatted) {
+					locationFormatted = br ? br.name : "Authorized Location";
+				}
+
+				// Work Hours Calculation (checkIn to checkOut or current time, minus break time)
+				let workHoursStr = "-";
+				if (att.checkIn) {
+					try {
+						const datePart = att.date || targetDateStr;
+						const startTime = new Date(`${datePart}T${att.checkIn}`);
+						const endTime = att.checkOut
+							? new Date(`${datePart}T${att.checkOut}`)
+							: new Date();
+
+						const diffMs = endTime.getTime() - startTime.getTime();
+						if (diffMs > 0) {
+							const breakMs = totalBreakMinutes * 60 * 1000;
+							const netMs = Math.max(0, diffMs - breakMs);
+							const hours = Math.floor(netMs / (1000 * 60 * 60));
+							const mins = Math.floor(
+								(netMs % (1000 * 60 * 60)) / (1000 * 60),
+							);
+							workHoursStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+						}
+					} catch {
+						workHoursStr = "-";
+					}
+				}
+
+				const checkInSelfieObj = att.checkInSelfie as any;
+				const checkOutSelfieObj = att.checkOutSelfie as any;
+
+				let selfieAttachmentId = null;
+				if (
+					typeof checkInSelfieObj === "object" &&
+					checkInSelfieObj !== null
+				) {
+					selfieAttachmentId =
+						checkInSelfieObj.attachmentId || checkInSelfieObj.id || null;
+				} else if (
+					typeof checkInSelfieObj === "number" ||
+					typeof checkInSelfieObj === "string"
+				) {
+					selfieAttachmentId = Number(checkInSelfieObj) || null;
+				}
+
+				let checkOutSelfieAttachmentId = null;
+				if (
+					typeof checkOutSelfieObj === "object" &&
+					checkOutSelfieObj !== null
+				) {
+					checkOutSelfieAttachmentId =
+						checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null;
+				} else if (
+					typeof checkOutSelfieObj === "number" ||
+					typeof checkOutSelfieObj === "string"
+				) {
+					checkOutSelfieAttachmentId = Number(checkOutSelfieObj) || null;
+				}
+
+				return {
+					id: att.id,
+					employeeId: att.employeeId || 1,
+					employeeName,
+					employeeEmail,
+					employeeCode,
+					checkIn: att.checkIn,
+					checkOut: att.checkOut,
+					status: activeBreak
+						? `On Break (${activeBreak.type})`
+						: att.status || "present",
+					breakMinutes: totalBreakMinutes,
+					breakCount: breaksForAtt.length,
+					workHours: workHoursStr,
+					notes: locationFormatted,
+					selfieAttachmentId,
+					checkOutSelfieAttachmentId,
+					createdAt: att.createdAt,
+					distance: att.distanceFromOffice,
+				};
+			});
+
+			// 5. Map legacy records if any exist
 			const formattedLegacy = legacyRows.map((l) => ({
 				id: 10000 + l.id,
 				employeeId: l.employeeId || 1,

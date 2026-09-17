@@ -307,53 +307,81 @@ export async function resolveEmployeeId(
 }
 
 /** Cache to avoid hitting Nominatim rate limits for identical coordinates */
+/** Cache to avoid hitting Nominatim rate limits for identical coordinates */
 const geoCache = new Map<string, string>();
+const inFlightGeoRequests = new Map<string, Promise<string | null>>();
 
 /**
  * Perform reverse geocoding via OpenStreetMap Nominatim to resolve
  * actual human-readable location address (street/area, city, state) from lat/long.
+ * Includes timeout and coordinate deduplication.
  */
 export async function reverseGeocodeLocation(
 	lat: number,
 	lng: number,
 ): Promise<string | null> {
+	if (
+		lat == null ||
+		lng == null ||
+		Number.isNaN(lat) ||
+		Number.isNaN(lng) ||
+		lat < -90 ||
+		lat > 90 ||
+		lng < -180 ||
+		lng > 180
+	) {
+		return null;
+	}
+
 	const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
 	if (geoCache.has(key)) {
 		return geoCache.get(key) || null;
 	}
 
-	try {
-		const res = await fetch(
-			`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-			{
-				headers: {
-					"User-Agent": "EvalunaERP-Attendance/1.0 (internal-app)",
-				},
-			},
-		);
-		if (!res.ok) return null;
-		const data = (await res.json()) as any;
-		if (!data || !data.address) return null;
-
-		const addr = data.address;
-		const nameParts = [
-			data.name ||
-				addr.suburb ||
-				addr.neighbourhood ||
-				addr.road ||
-				addr.residential,
-			addr.city || addr.town || addr.village || addr.county || addr.district,
-			addr.state,
-		].filter(Boolean);
-
-		const formattedName =
-			nameParts.length > 0 ? nameParts.join(", ") : data.display_name;
-		if (formattedName) {
-			geoCache.set(key, formattedName);
-			return formattedName;
-		}
-	} catch (err) {
-		console.warn("Reverse geocode fetch failed:", err);
+	if (inFlightGeoRequests.has(key)) {
+		return inFlightGeoRequests.get(key)!;
 	}
-	return null;
+
+	const requestPromise = (async () => {
+		try {
+			const res = await fetch(
+				`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+				{
+					headers: {
+						"User-Agent": "EvalunaERP-Attendance/1.0 (internal-app)",
+					},
+					signal: AbortSignal.timeout(1500), // 1.5s max timeout to prevent page blocking
+				},
+			);
+			if (!res.ok) return null;
+			const data = (await res.json()) as any;
+			if (!data || !data.address) return null;
+
+			const addr = data.address;
+			const nameParts = [
+				data.name ||
+					addr.suburb ||
+					addr.neighbourhood ||
+					addr.road ||
+					addr.residential,
+				addr.city || addr.town || addr.village || addr.county || addr.district,
+				addr.state,
+			].filter(Boolean);
+
+			const formattedName =
+				nameParts.length > 0 ? nameParts.join(", ") : data.display_name;
+			if (formattedName) {
+				geoCache.set(key, formattedName);
+				return formattedName;
+			}
+		} catch (err) {
+			// Fail silently and return null; will use branch/default coordinate fallback
+		} finally {
+			inFlightGeoRequests.delete(key);
+		}
+		return null;
+	})();
+
+	inFlightGeoRequests.set(key, requestPromise);
+	return requestPromise;
 }

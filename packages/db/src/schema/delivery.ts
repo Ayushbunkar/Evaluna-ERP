@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import {
 	boolean,
 	decimal,
+	index,
 	integer,
 	pgEnum,
 	pgTable,
@@ -157,7 +158,10 @@ export const tripCollections = pgTable("trip_collections", {
 	collected_by: integer("collected_by").references(() => staff.id),
 	collected_at: timestamp("collected_at"),
 	created_at: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+	tripIdIdx: index("idx_trip_collections_trip_id").on(table.trip_id),
+	paymentMethodIdx: index("idx_trip_collections_payment_method").on(table.payment_method),
+}));
 
 // Driver Support Tickets
 export const driverSupportTickets = pgTable("driver_support_tickets", {

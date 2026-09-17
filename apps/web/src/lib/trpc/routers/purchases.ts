@@ -227,69 +227,82 @@ export const purchasesRouter = router({
 		const todayStart = new Date();
 		todayStart.setHours(0, 0, 0, 0);
 
-		const [allPurchases, allSuppliers] = await Promise.all([
-			ctx.db.query.purchases.findMany({
-				with: {
-					purchaseItems: true,
-				},
-			}),
-			ctx.db.query.suppliers.findMany(),
-		]);
+		const res: any = await ctx.db.execute(sql`
+			SELECT
+				COUNT(*) FILTER (WHERE created_at >= ${todayStart.toISOString()}::timestamp)::int AS pos_today,
+				COUNT(*) FILTER (WHERE status IN ('pending', 'pending_approval'))::int AS pending_approval,
+				COALESCE((
+					SELECT SUM(pi.quantity)::int
+					FROM purchase_items pi
+					JOIN purchases p2 ON pi.purchase_id = p2.id
+					WHERE p2.status IN ('pending', 'pending_approval')
+				), 0)::int AS incoming_inventory,
+				(SELECT COUNT(*)::int FROM suppliers) AS supplier_contacts
+			FROM purchases
+		`);
 
-		const posToday = allPurchases.filter(
-			(p) => p.created_at && new Date(p.created_at) >= todayStart,
-		).length;
-
-		const pendingApproval = allPurchases.filter(
-			(p) => p.status === "pending" || p.status === "pending_approval",
-		).length;
-
-		const incomingInventory = allPurchases
-			.filter((p) => p.status === "pending" || p.status === "pending_approval")
-			.reduce((acc, p) => {
-				const itemsCount =
-					p.purchaseItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-				return acc + itemsCount;
-			}, 0);
-
-		const supplierContacts = allSuppliers.length;
+		const row = Array.isArray(res) ? res[0] : res.rows?.[0];
 
 		return {
-			posToday,
-			pendingApproval,
-			incomingInventory,
-			supplierContacts,
+			posToday: Number(row?.pos_today || 0),
+			pendingApproval: Number(row?.pending_approval || 0),
+			incomingInventory: Number(row?.incoming_inventory || 0),
+			supplierContacts: Number(row?.supplier_contacts || 0),
 		};
 	}),
 
 	getAnalytics: protectedProcedure.query(async ({ ctx }) => {
-		const [allPurchases, allSuppliers, inspections, lowStockItems] =
+		const [activePurchases, suppliersCountRes, inspections, lowStockItems] =
 			await Promise.all([
 				ctx.db.query.purchases.findMany({
+					columns: {
+						id: true,
+						supplier_id: true,
+						total_amount: true,
+						status: true,
+						created_at: true,
+					},
 					with: {
-						purchaseItems: true,
-						supplier: true,
+						supplier: {
+							columns: {
+								id: true,
+								name: true,
+							},
+						},
 					},
 					orderBy: (p, { asc }) => [asc(p.created_at)],
 				}),
-				ctx.db.query.suppliers.findMany(),
-				ctx.db.query.receivingInspections.findMany(),
+				ctx.db.select({ count: sql<number>`count(*)::int` }).from(suppliers),
+				ctx.db.query.receivingInspections.findMany({
+					columns: {
+						purchase_id: true,
+						created_at: true,
+					},
+				}),
 				ctx.db.query.branchInventory.findMany({
 					where: sql`${branchInventory.in_stock} <= 10`,
+					columns: {
+						in_stock: true,
+					},
 					with: {
-						product: true,
+						product: {
+							columns: {
+								name: true,
+								sku: true,
+							},
+						},
 					},
 				}),
 			]);
 
-		const activePurchases = allPurchases.filter(
+		const nonCancelledPurchases = activePurchases.filter(
 			(p) => p.status !== "cancelled",
 		);
-		const totalSpend = activePurchases.reduce(
+		const totalSpend = nonCancelledPurchases.reduce(
 			(acc, p) => acc + Number(p.total_amount || 0),
 			0,
 		);
-		const openPOsCount = activePurchases.filter(
+		const openPOsCount = nonCancelledPurchases.filter(
 			(p) => p.status === "pending" || p.status === "pending_approval",
 		).length;
 
@@ -297,7 +310,7 @@ export const purchasesRouter = router({
 		let totalLeadTimeMs = 0;
 		let leadTimeCount = 0;
 		for (const insp of inspections) {
-			const purchase = allPurchases.find((p) => p.id === insp.purchase_id);
+			const purchase = activePurchases.find((p) => p.id === insp.purchase_id);
 			if (purchase && purchase.created_at && insp.created_at) {
 				const diff =
 					new Date(insp.created_at).getTime() -
@@ -345,7 +358,7 @@ export const purchasesRouter = router({
 			last6Months.push({ monthKey, label, amount: 0 });
 		}
 
-		for (const p of activePurchases) {
+		for (const p of nonCancelledPurchases) {
 			if (p.created_at) {
 				const d = new Date(p.created_at);
 				const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -365,7 +378,7 @@ export const purchasesRouter = router({
 			number,
 			{ name: string; spend: number; poCount: number }
 		> = {};
-		for (const p of activePurchases) {
+		for (const p of nonCancelledPurchases) {
 			const sId = p.supplier_id;
 			if (sId) {
 				if (!supplierSpendMap[sId]) {
@@ -391,15 +404,15 @@ export const purchasesRouter = router({
 			.slice(0, 5);
 
 		const onTimeRate =
-			activePurchases.length > 0
+			nonCancelledPurchases.length > 0
 				? Number(
-						((inspections.length / activePurchases.length) * 100).toFixed(1),
+						((inspections.length / nonCancelledPurchases.length) * 100).toFixed(1),
 					)
 				: 100;
 
 		return {
 			totalSpend,
-			activeSuppliersCount: allSuppliers.length,
+			activeSuppliersCount: Number(suppliersCountRes[0]?.count || 0),
 			openPOsCount,
 			avgLeadTimeDays,
 			outlayTrend,

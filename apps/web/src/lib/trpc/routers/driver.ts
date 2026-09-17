@@ -159,15 +159,55 @@ export const driverRouter = router({
 				(s: any) => s.status === "partially_delivered" || s.status === "failed",
 			).length;
 
-			let collections: any[] = [];
-			try {
-				collections = await db
+			const nextStop = trip.stops.find((s: any) => s.status === "pending");
+			const customerIds = trip.stops.map((s: any) => s.customer_id).filter(Boolean);
+
+			const [collections, ordersForStops, vehicle] = await Promise.all([
+				db
 					.select({ amount: tripCollections.amount })
 					.from(tripCollections)
-					.where(eq(tripCollections.trip_id, trip.id));
-			} catch (error) {
-				console.warn("Failed to fetch trip collections:", error);
-			}
+					.where(eq(tripCollections.trip_id, trip.id))
+					.catch((error) => {
+						console.warn("Failed to fetch trip collections:", error);
+						return [];
+					}),
+				customerIds.length > 0
+					? db.query.orders.findMany({
+							where: inArray(orders.customer_id, customerIds),
+							orderBy: [desc(orders.created_at)],
+							columns: {
+								id: true,
+								customer_id: true,
+								total_amount: true,
+								status: true,
+							},
+							with: {
+								orderItems: {
+									columns: {
+										id: true,
+										order_id: true,
+										product_id: true,
+										quantity: true,
+										price: true,
+									},
+									with: {
+										product: {
+											columns: {
+												id: true,
+												name: true,
+											},
+										},
+									},
+								},
+							},
+						})
+					: [],
+				trip.vehicle_id
+					? db.query.vehicles.findFirst({
+							where: eq(vehicles.id, trip.vehicle_id),
+						})
+					: null,
+			]);
 
 			const codCollected = collections.reduce(
 				(acc, curr) => acc + Number(curr.amount || 0),
@@ -175,21 +215,11 @@ export const driverRouter = router({
 			);
 			const successfulCollections = collections.length;
 
-			const nextStop = trip.stops.find((s: any) => s.status === "pending");
-
 			let nextDelivery: NextDelivery | null = null;
 			if (nextStop) {
-				const activeOrders = await db.query.orders.findMany({
-					where: eq(orders.customer_id, nextStop.customer_id),
-					orderBy: [desc(orders.created_at)],
-					with: {
-						orderItems: {
-							with: {
-								product: true,
-							},
-						},
-					},
-				});
+				const activeOrders = ordersForStops.filter(
+					(o) => o.customer_id === nextStop.customer_id,
+				);
 
 				const activeOrder = activeOrders[0];
 				const orderIdList = activeOrders.map((o) => o.id);
@@ -240,21 +270,6 @@ export const driverRouter = router({
 						})) || [],
 				};
 			}
-
-			const customerIds = trip.stops.map((s: any) => s.customer_id);
-			const ordersForStops =
-				customerIds.length > 0
-					? await db.query.orders.findMany({
-							where: inArray(orders.customer_id, customerIds),
-							with: {
-								orderItems: {
-									with: {
-										product: true,
-									},
-								},
-							},
-						})
-					: [];
 
 			// Build route stops safely using only data already loaded from the trip query
 			const routeStops = trip.stops.map((s: any, idx: number) => {
@@ -308,19 +323,13 @@ export const driverRouter = router({
 			});
 
 			// Vehicle status for the active trip (if a vehicle is assigned)
-			let vehicleStatus: VehicleStatus | null = null;
-			if (trip.vehicle_id) {
-				const vehicle = await db.query.vehicles.findFirst({
-					where: eq(vehicles.id, trip.vehicle_id),
-				});
-				if (vehicle) {
-					vehicleStatus = {
+			const vehicleStatus: VehicleStatus | null = vehicle
+				? {
 						fuelLevel: null,
 						odometer: null,
 						maintenanceDue: vehicle.status === "maintenance",
-					};
-				}
-			}
+					}
+				: null;
 
 			return {
 				driverName: ctx.user?.name ?? "Driver",
@@ -480,10 +489,28 @@ export const driverRouter = router({
 			customerIds.length > 0
 				? await db.query.orders.findMany({
 						where: inArray(orders.customer_id, customerIds),
+						columns: {
+							id: true,
+							customer_id: true,
+							total_amount: true,
+							status: true,
+						},
 						with: {
 							orderItems: {
+								columns: {
+									id: true,
+									order_id: true,
+									product_id: true,
+									quantity: true,
+									price: true,
+								},
 								with: {
-									product: true,
+									product: {
+										columns: {
+											id: true,
+											name: true,
+										},
+									},
 								},
 							},
 						},

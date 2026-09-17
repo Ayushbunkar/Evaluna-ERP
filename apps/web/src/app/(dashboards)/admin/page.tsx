@@ -36,20 +36,30 @@ export default function AdminDashboard() {
 		error: statsError,
 	} = trpc.admin.getDashboardStats.useQuery();
 	const {
-		data: employees,
+		data: employeesData,
 		isLoading: employeesLoading,
 		error: employeesError,
-	} = trpc.admin.getEmployees.useQuery();
+	} = trpc.admin.getEmployees.useQuery({ pageSize: 5 });
 	const {
-		data: suppliers,
+		data: suppliersData,
 		isLoading: suppliersLoading,
 		error: suppliersError,
-	} = trpc.admin.getSuppliers.useQuery();
+	} = trpc.admin.getSuppliers.useQuery({ pageSize: 5 });
 	const {
-		data: customers,
+		data: customersData,
 		isLoading: customersLoading,
 		error: customersError,
-	} = trpc.admin.getCustomers.useQuery();
+	} = trpc.admin.getCustomers.useQuery({ pageSize: 5 });
+
+	const employees = Array.isArray(employeesData)
+		? employeesData
+		: employeesData?.items || [];
+	const suppliers = Array.isArray(suppliersData)
+		? suppliersData
+		: suppliersData?.items || [];
+	const customers = Array.isArray(customersData)
+		? customersData
+		: customersData?.items || [];
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">

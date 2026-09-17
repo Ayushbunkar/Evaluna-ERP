@@ -299,176 +299,86 @@ export const adminRouter = router({
 			const inBranch = (column: any) =>
 				branchId !== null ? eq(column, branchId) : undefined;
 
-			const [
-				totalCompanies,
-				activeCompanies,
-				totalUsers,
-				activeUsers,
-				totalEmployees,
-				activeEmployees,
-				presentToday,
-				onLeaveCount,
-				payrollPendingCount,
-				newHiresThisMonth,
-				totalSuppliers,
-				totalCustomers,
-				activeCustomers,
-				totalBranches,
-				monthlyRevenue,
-				monthlyExpenses,
-				receivables,
-				payables,
-			] = await Promise.all([
-				db.select({ count: count() }).from(companies),
-				db
-					.select({ count: count() })
-					.from(companies)
-					.where(eq(companies.status, "active")),
-				db.select({ count: count() }).from(user),
-				db
-					.select({ count: count() })
-					.from(user)
-					.where(eq(user.is_active, true)),
-				db
-					.select({ count: count() })
-					.from(staff)
-					.where(and(eq(staff.is_deleted, false), inBranch(staff.branch_id))),
-				db
-					.select({ count: count() })
-					.from(staff)
-					.where(
-						and(
-							eq(staff.is_deleted, false),
-							eq(staff.status, "active"),
-							inBranch(staff.branch_id),
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(enhancedAttendance)
-					.innerJoin(staff, eq(enhancedAttendance.employeeId, staff.id))
-					.where(
-						and(
-							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
-							eq(enhancedAttendance.status, "present"),
-							eq(staff.is_deleted, false),
-							inBranch(staff.branch_id),
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(enhancedAttendance)
-					.innerJoin(staff, eq(enhancedAttendance.employeeId, staff.id))
-					.where(
-						and(
-							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
-							eq(enhancedAttendance.status, "leave"),
-							eq(staff.is_deleted, false),
-							inBranch(staff.branch_id),
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(payroll)
-					.where(
-						and(
-							eq(payroll.month, sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`),
-							ne(payroll.status, "paid"),
-							inBranch(payroll.branch_id),
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(staff)
-					.where(
-						and(
-							eq(staff.is_deleted, false),
-							sql`${staff.join_date} >= DATE_TRUNC('month', CURRENT_DATE)`,
-							sql`${staff.join_date} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`,
-							inBranch(staff.branch_id),
-						),
-					),
-				db.select({ count: count() }).from(suppliers),
-				db
-					.select({ count: count() })
-					.from(customers)
-					.where(
-						and(eq(customers.is_deleted, false), inBranch(customers.branch_id)),
-					),
-				db
-					.select({ count: count() })
-					.from(customers)
-					.where(
-						and(
-							eq(customers.is_deleted, false),
-							eq(customers.status, "active"),
-							inBranch(customers.branch_id),
-						),
-					),
-				db.select({ count: count() }).from(branches),
-				db
-					.select({
-						total: sql<string>`COALESCE(SUM(${transactions.amount}), 0)`,
-					})
-					.from(transactions)
-					.where(
-						and(
-							eq(transactions.type, "in"),
-							gte(
-								transactions.created_at,
-								sql`DATE_TRUNC('month', CURRENT_DATE)`,
-							),
-							inBranch(transactions.branch_id),
-						),
-					),
-				db
-					.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
-					.from(expenses)
-					.where(
-						and(
-							gte(expenses.created_at, sql`DATE_TRUNC('month', CURRENT_DATE)`),
-							inBranch(expenses.branch_id),
-						),
-					),
-				db
-					.select({
-						total: sql<string>`COALESCE(SUM(${customers.credit_used}), 0)`,
-					})
-					.from(customers)
-					.where(
-						and(eq(customers.is_deleted, false), inBranch(customers.branch_id)),
-					),
-				db
-					.select({
-						total: sql<string>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
-					})
-					.from(suppliers),
-			]);
+			const todayDateStr = new Date().toISOString().split("T")[0];
 
-			const monthlyRev = toNumber(monthlyRevenue[0]?.total);
-			const monthlyExp = toNumber(monthlyExpenses[0]?.total);
+			const staffBranchCond =
+				branchId !== null ? sql`AND branch_id = ${branchId}` : sql``;
+			const custBranchCond =
+				branchId !== null ? sql`AND branch_id = ${branchId}` : sql``;
+			const payBranchCond =
+				branchId !== null ? sql`AND branch_id = ${branchId}` : sql``;
+			const txBranchCond =
+				branchId !== null ? sql`AND branch_id = ${branchId}` : sql``;
+			const expBranchCond =
+				branchId !== null ? sql`AND branch_id = ${branchId}` : sql``;
+			const attBranchCond =
+				branchId !== null ? sql`AND s.branch_id = ${branchId}` : sql``;
+
+			const [optRow] = await db.execute<{
+				total_companies: number;
+				active_companies: number;
+				total_users: number;
+				active_users: number;
+				total_employees: number;
+				active_employees: number;
+				new_hires: number;
+				present_today: number;
+				on_leave: number;
+				payroll_pending: number;
+				total_suppliers: number;
+				total_payables: string;
+				total_customers: number;
+				active_customers: number;
+				total_receivables: string;
+				total_branches: number;
+				monthly_revenue: string;
+				monthly_expenses: string;
+			}>(sql`
+				SELECT
+					(SELECT count(*)::int FROM companies) AS total_companies,
+					(SELECT coalesce(count(*) filter (WHERE status = 'active'), 0)::int FROM companies) AS active_companies,
+					(SELECT count(*)::int FROM "user") AS total_users,
+					(SELECT coalesce(count(*) filter (WHERE lower(status) = 'active'), 0)::int FROM "user") AS active_users,
+					(SELECT count(*)::int FROM staff WHERE is_deleted = false ${staffBranchCond}) AS total_employees,
+					(SELECT coalesce(count(*) filter (WHERE status = 'active'), 0)::int FROM staff WHERE is_deleted = false ${staffBranchCond}) AS active_employees,
+					(SELECT coalesce(count(*) filter (WHERE join_date >= DATE_TRUNC('month', CURRENT_DATE) AND join_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'), 0)::int FROM staff WHERE is_deleted = false ${staffBranchCond}) AS new_hires,
+					(SELECT coalesce(count(*) filter (WHERE ea.status = 'present'), 0)::int FROM enhanced_attendance ea INNER JOIN staff s ON ea.employee_id = s.id WHERE (ea.date = ${todayDateStr} OR ea.date = CURRENT_DATE) AND s.is_deleted = false ${attBranchCond}) AS present_today,
+					(SELECT coalesce(count(*) filter (WHERE ea.status = 'leave'), 0)::int FROM enhanced_attendance ea INNER JOIN staff s ON ea.employee_id = s.id WHERE (ea.date = ${todayDateStr} OR ea.date = CURRENT_DATE) AND s.is_deleted = false ${attBranchCond}) AS on_leave,
+					(SELECT count(*)::int FROM payroll WHERE month = TO_CHAR(CURRENT_DATE, 'YYYY-MM') AND status != 'paid' ${payBranchCond}) AS payroll_pending,
+					(SELECT count(*)::int FROM suppliers) AS total_suppliers,
+					(SELECT coalesce(sum(outstanding_balance), 0)::text FROM suppliers) AS total_payables,
+					(SELECT count(*)::int FROM customers WHERE is_deleted = false ${custBranchCond}) AS total_customers,
+					(SELECT coalesce(count(*) filter (WHERE status = 'active'), 0)::int FROM customers WHERE is_deleted = false ${custBranchCond}) AS active_customers,
+					(SELECT coalesce(sum(credit_used), 0)::text FROM customers WHERE is_deleted = false ${custBranchCond}) AS total_receivables,
+					(SELECT count(*)::int FROM branches) AS total_branches,
+					(SELECT coalesce(sum(amount), 0)::text FROM transactions WHERE type = 'in' AND created_at >= DATE_TRUNC('month', CURRENT_DATE) ${txBranchCond}) AS monthly_revenue,
+					(SELECT coalesce(sum(amount), 0)::text FROM expenses WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE) ${expBranchCond}) AS monthly_expenses
+			`);
+
+			const monthlyRev = toNumber(optRow?.monthly_revenue);
+			const monthlyExp = toNumber(optRow?.monthly_expenses);
 
 			return {
 				branchScope: branchId,
-				totalCompanies: totalCompanies[0]?.count ?? 0,
-				activeCompanies: activeCompanies[0]?.count ?? 0,
-				totalUsers: totalUsers[0]?.count ?? 0,
-				activeUsers: activeUsers[0]?.count ?? 0,
-				totalEmployees: totalEmployees[0]?.count ?? 0,
-				activeEmployees: activeEmployees[0]?.count ?? 0,
-				presentToday: presentToday[0]?.count ?? 0,
-				onLeave: onLeaveCount[0]?.count ?? 0,
-				payrollPending: payrollPendingCount[0]?.count ?? 0,
-				newHiresThisMonth: newHiresThisMonth[0]?.count ?? 0,
-				totalSuppliers: totalSuppliers[0]?.count ?? 0,
-				totalCustomers: totalCustomers[0]?.count ?? 0,
-				activeCustomers: activeCustomers[0]?.count ?? 0,
-				totalBranches: totalBranches[0]?.count ?? 0,
+				totalCompanies: Number(optRow?.total_companies ?? 0),
+				activeCompanies: Number(optRow?.active_companies ?? 0),
+				totalUsers: Number(optRow?.total_users ?? 0),
+				activeUsers: Number(optRow?.active_users ?? 0),
+				totalEmployees: Number(optRow?.total_employees ?? 0),
+				activeEmployees: Number(optRow?.active_employees ?? 0),
+				presentToday: Number(optRow?.present_today ?? 0),
+				onLeave: Number(optRow?.on_leave ?? 0),
+				payrollPending: Number(optRow?.payroll_pending ?? 0),
+				newHiresThisMonth: Number(optRow?.new_hires ?? 0),
+				totalSuppliers: Number(optRow?.total_suppliers ?? 0),
+				totalCustomers: Number(optRow?.total_customers ?? 0),
+				activeCustomers: Number(optRow?.active_customers ?? 0),
+				totalBranches: Number(optRow?.total_branches ?? 0),
 				monthlyRevenue: monthlyRev,
 				monthlyExpenses: monthlyExp,
 				netProfit: monthlyRev - monthlyExp,
-				totalReceivables: toNumber(receivables[0]?.total),
-				totalPayables: toNumber(payables[0]?.total),
+				totalReceivables: toNumber(optRow?.total_receivables),
+				totalPayables: toNumber(optRow?.total_payables),
 			};
 		}),
 

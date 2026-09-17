@@ -1,5 +1,6 @@
 import {
 	customers,
+	deliveryTrips,
 	orders,
 	packageItems,
 	packages,
@@ -7,51 +8,44 @@ import {
 	pickLists,
 	products,
 	staff,
+	tripStops,
 } from "@evaluna/db/schema";
-import { and, desc, eq, gte, inArray, lte, notInArray } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
 export const packerRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "packer"]).query(
 		async ({ ctx }) => {
-			const { tripStops, deliveryTrips } = require("@evaluna/db/schema");
-
 			// Count picklists where the customer has an active/pending trip (= ready to pack)
-			const allPicklists = await ctx.db
-				.select({
-					id: pickLists.id,
-					customer_id: orders.customer_id,
-				})
-				.from(pickLists)
-				.leftJoin(orders, eq(pickLists.order_id, orders.id))
-				.limit(200);
-
-			let pendingCount = 0;
-			for (const pl of allPicklists) {
-				if (!pl.customer_id) continue;
-				const [trip] = await ctx.db
-					.select({ id: tripStops.id })
-					.from(tripStops)
+			// Replaced 1+N loop with consolidated SQL COUNT(DISTINCT pick_lists.id)
+			const [pendingResult, packedTodayResult] = await Promise.all([
+				ctx.db
+					.select({
+						pendingCount: countDistinct(pickLists.id),
+					})
+					.from(pickLists)
+					.innerJoin(orders, eq(pickLists.order_id, orders.id))
+					.innerJoin(tripStops, eq(tripStops.customer_id, orders.customer_id))
 					.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
 					.where(
 						and(
-							eq(tripStops.customer_id, pl.customer_id),
+							isNotNull(orders.customer_id),
 							inArray(deliveryTrips.status, ["pending", "active"]),
 						),
-					)
-					.limit(1);
-				if (trip) pendingCount++;
-			}
+					),
+				ctx.db
+					.select({ count: count() })
+					.from(packages)
+					.where(eq(packages.status, "packed")),
+			]);
 
-			const packedToday = await ctx.db
-				.select()
-				.from(packages)
-				.where(eq(packages.status, "packed"));
+			const pendingCount = Number(pendingResult[0]?.pendingCount ?? 0);
+			const packedToday = Number(packedTodayResult[0]?.count ?? 0);
 
 			return {
 				pendingToPack: pendingCount,
-				packedToday: packedToday.length,
+				packedToday,
 				packingEfficiency: 95.5,
 			};
 		},

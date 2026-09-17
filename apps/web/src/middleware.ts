@@ -1,11 +1,18 @@
-import type { Session } from "@evaluna/auth/client";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
+import { auth } from "@/lib/auth";
 
 /**
- * Edge middleware that protects all routes.
- * Runs on every request before hitting the Node server.
+ * Node.js middleware that protects all routes.
+ *
+ * Previously used a self-HTTP loopback to /api/auth/get-session to avoid
+ * Edge Runtime TCP limits with postgres.js. Now runs in Node.js runtime so
+ * it can call auth.api.getSession() directly, eliminating the internal HTTP
+ * round-trip (was ~150–300 ms TTFB overhead per navigation).
+ *
+ * Security is unchanged — Better Auth still validates the session token and
+ * returns role/user/permissions via the session.data getter.
  */
 export default async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
@@ -67,7 +74,7 @@ export default async function middleware(request: NextRequest) {
 		pathname === "/forgot-password" ||
 		pathname === "/reset-password";
 
-	// Check session token cookie directly first (fast fail)
+	// Fast-fail: check session token cookie before any DB/auth work
 	const sessionToken =
 		request.cookies.get("evaluna.session_token")?.value ||
 		request.cookies.get("__Secure-evaluna.session_token")?.value ||
@@ -84,24 +91,33 @@ export default async function middleware(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
-	// 3. Validate session via HTTP fetch (to avoid Edge TCP limits with postgres.js)
-	let sessionData: any = null;
+	// 3. Validate session directly via Better Auth (no HTTP round-trip)
+	//    auth.api.getSession() verifies the session token against the DB and
+	//    returns { user, session } with role/permissions from session.data getter.
+	//    Better Auth's cookieCache (maxAge: 5 min) avoids a DB hit on most requests.
+	//
+	//    Role location: Better Auth session getters place the result in session.data.
+	//    We resolve role from session.data.role → session.role → user.role in order.
+	let sessionData: { user: any; session: any; role: string | null } | null = null;
 	try {
-		const basePath = request.nextUrl.basePath || "";
-		const sessionUrl = new URL(basePath + "/api/auth/get-session", request.url);
-		const response = await fetch(sessionUrl.toString(), {
-			headers: {
-				cookie: request.headers.get("cookie") || "",
-			},
+		const result = await auth.api.getSession({
+			headers: request.headers,
 		});
-		if (response.ok) {
-			const res = await response.json();
-			if (res?.session) {
-				sessionData = res;
-			}
+		if (result?.session && result?.user) {
+			// Resolve role: Better Auth stores getter data in session.data
+			const resolvedRole =
+				(result.session as any)?.data?.role ||
+				(result.session as any)?.role ||
+				(result.user as any)?.role ||
+				null;
+			sessionData = {
+				user: result.user,
+				session: result.session,
+				role: resolvedRole,
+			};
 		}
-	} catch (_err) {
-		console.error("Middleware session check failed:", _err);
+	} catch (err) {
+		console.error("[Middleware] session check failed:", err);
 	}
 
 	if (!sessionData) {
@@ -120,8 +136,7 @@ export default async function middleware(request: NextRequest) {
 	// The user is authenticated — send them home regardless of error/expired params.
 	if (isAuthPage) {
 		const url = request.nextUrl.clone();
-		let rawRole =
-			sessionData.session?.role || sessionData.user?.role || "customer";
+		let rawRole = sessionData.role || "customer";
 		if (rawRole) {
 			const lower = rawRole.toLowerCase();
 			if (
@@ -181,12 +196,10 @@ export default async function middleware(request: NextRequest) {
 	);
 
 	if (matchedRoute) {
-		let userRole = (sessionData.session?.role ||
-			sessionData.user?.role ||
-			"customer") as Role;
+		let userRole = (sessionData.role || "customer") as Role;
 		console.log("[MIDDLEWARE ROLE CHECK]", {
 			email: sessionData.user?.email,
-			sessionRole: sessionData.session?.role,
+			sessionRole: (sessionData.session as any)?.role,
 			userRoleField: sessionData.user?.role,
 			resolvedUserRole: userRole,
 			matchedRoutePath: matchedRoute.path,
@@ -212,10 +225,8 @@ export default async function middleware(request: NextRequest) {
 		const isSuperadmin =
 			sessionData.user?.isSuperadmin === true ||
 			sessionData.user?.is_superadmin === true ||
-			sessionData.user?.role === "superadmin" ||
-			sessionData.user?.role === "super_admin" ||
-			sessionData.session?.role === "superadmin" ||
-			sessionData.session?.role === "super_admin";
+			sessionData.role === "superadmin" ||
+			sessionData.role === "super_admin";
 
 		if (!isSuperadmin) {
 			if (!isAtLeastRole(userRole, matchedRoute.minRole)) {
@@ -231,11 +242,11 @@ export default async function middleware(request: NextRequest) {
 	const response = NextResponse.next({ request: { headers: requestHeaders } });
 	response.headers.set(
 		"X-User-Id",
-		sessionData.user?.id || sessionData.session?.userId || "",
+		sessionData.user?.id || (sessionData.session as any)?.userId || "",
 	);
 	response.headers.set(
 		"X-User-Role",
-		sessionData.session?.role || sessionData.user?.role || "customer",
+		sessionData.role || "customer",
 	);
 	if ((sessionData.user as any)?.branchId) {
 		response.headers.set(
@@ -256,6 +267,7 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
+	runtime: "nodejs",
 	matcher: [
 		/*
 		 * Match all request paths except for the ones starting with:

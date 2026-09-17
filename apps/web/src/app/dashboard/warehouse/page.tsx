@@ -40,14 +40,6 @@ export default function WMSDashboardOverview() {
 	// Queries
 	const { data: stats, isLoading: statsLoading } =
 		trpc.warehouse.getOverviewStats.useQuery({});
-	const { data: pos, isLoading: posLoading } =
-		trpc.warehouse.getReceivingPOs.useQuery();
-	const { data: putAwayQueue, isLoading: putAwayLoading } =
-		trpc.warehouse.getPutAwayQueue.useQuery();
-	const { data: pickingQueue, isLoading: pickingLoading } =
-		trpc.warehouse.getPickingQueue.useQuery();
-	const { data: packingQueue, isLoading: packingLoading } =
-		trpc.warehouse.getPackingQueue.useQuery();
 
 	// Load general warehouse stats for the activity feed & capacity alerts
 	const { data: genStats } = trpc.warehouse.getStats.useQuery({
@@ -195,9 +187,9 @@ export default function WMSDashboardOverview() {
 											Inbound POs Awaiting Receipt
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
-											{posLoading
+											{statsLoading
 												? "..."
-												: `${pos?.filter((po) => po.status === "pending").length || 0} purchase orders pending inspection`}
+												: `${stats?.receivingQueue || 0} purchase orders pending inspection`}
 										</p>
 									</div>
 								</div>
@@ -225,9 +217,9 @@ export default function WMSDashboardOverview() {
 											Storage Bins Allocation (Put-Away)
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
-											{putAwayLoading
+											{statsLoading
 												? "..."
-												: `${putAwayQueue?.filter((t) => t.status === "AWAITING_PLACEMENT").length || 0} active placement tasks unverified`}
+												: `${stats?.putAwayQueue || 0} active placement tasks unverified`}
 										</p>
 									</div>
 								</div>
@@ -255,9 +247,9 @@ export default function WMSDashboardOverview() {
 											Active Picking Lists
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
-											{pickingLoading
+											{statsLoading
 												? "..."
-												: `${pickingQueue?.filter((pl) => pl.status === "picking").length || 0} picks currently executing on shelves`}
+												: `${stats?.pickingQueue || 0} picks currently executing on shelves`}
 										</p>
 									</div>
 								</div>
@@ -285,9 +277,9 @@ export default function WMSDashboardOverview() {
 											Packing Queue Hand-off
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
-											{packingLoading
+											{statsLoading
 												? "..."
-												: `${packingQueue?.filter((p) => p.status === "packing").length || 0} packages sealed & awaiting fleet loader`}
+												: `${stats?.packingQueue || 0} packages sealed & awaiting fleet loader`}
 										</p>
 									</div>
 								</div>

@@ -518,7 +518,10 @@ export const userRoles = pgTable("user_roles", {
 		.notNull(),
 	assigned_at: timestamp("assigned_at").defaultNow(),
 	created_at: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+	userIdIdx: index("idx_user_roles_user_id").on(table.user_id),
+	roleIdIdx: index("idx_user_roles_role_id").on(table.role_id),
+}));
 
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
 	user: one(user, {
@@ -832,7 +835,12 @@ export const purchases = pgTable("purchases", {
 	amount_paid: decimal("amount_paid", { precision: 10, scale: 2 }).default("0"),
 	payment_status: varchar("payment_status", { length: 20 }).default("unpaid"), // unpaid, partial, paid
 	created_at: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+	branchIdIdx: index("idx_purchases_branch_id").on(table.branch_id),
+	supplierIdIdx: index("idx_purchases_supplier_id").on(table.supplier_id),
+	statusIdx: index("idx_purchases_status").on(table.status),
+	createdAtIdx: index("idx_purchases_created_at").on(table.created_at),
+}));
 
 export const purchasesRelations = relations(purchases, ({ one, many }) => ({
 	supplier: one(suppliers, {
@@ -1045,7 +1053,11 @@ export const stockLedger = pgTable("stock_ledger", {
 	reference_id: integer("reference_id"), // order_id, purchase_id, adjustment_id
 	reference_type: varchar("reference_type", { length: 50 }),
 	created_at: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+	txTypeBranchIdx: index("idx_stock_ledger_type_branch").on(table.transaction_type, table.branch_id),
+	productIdIdx: index("idx_stock_ledger_product_id").on(table.product_id),
+	createdAtIdx: index("idx_stock_ledger_created_at").on(table.created_at),
+}));
 
 export const stockLedgerRelations = relations(stockLedger, ({ one }) => ({
 	product: one(products, {
@@ -1228,7 +1240,11 @@ export const packages = pgTable("packages", {
 	dimensions: varchar("dimensions", { length: 100 }), // L x W x H
 	notes: text("notes"),
 	created_at: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+	statusIdx: index("idx_packages_status").on(table.status),
+	orderIdIdx: index("idx_packages_order_id").on(table.order_id),
+	packedAtIdx: index("idx_packages_packed_at").on(table.packed_at),
+}));
 
 export const packagesRelations = relations(packages, ({ one, many }) => ({
 	order: one(orders, {
@@ -2397,7 +2413,11 @@ export const approvals = pgTable("approvals", {
 	comments: text("comments"),
 	created_at: timestamp("created_at").defaultNow(),
 	resolved_at: timestamp("resolved_at"),
-});
+}, (table) => ({
+	statusIdx: index("idx_approvals_status").on(table.status),
+	requestedByIdx: index("idx_approvals_requested_by").on(table.requested_by),
+	refTypeStatusIdx: index("idx_approvals_ref_type_status").on(table.reference_type, table.status),
+}));
 
 export const approvalsRelations = relations(approvals, ({ one }) => ({
 	requestedBy: one(staff, {

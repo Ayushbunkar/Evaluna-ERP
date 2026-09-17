@@ -1,6 +1,7 @@
 import {
 	and,
 	count,
+	desc,
 	eq,
 	type InferInsertModel,
 	ilike,
@@ -659,6 +660,14 @@ export class UserManagementRepository {
 			);
 		}
 
+		if (filters.roleName) {
+			if (filters.roleName === "super_admin") {
+				whereClauses.push(eq(user.is_superadmin, true));
+			} else {
+				whereClauses.push(eq(roles.name, filters.roleName));
+			}
+		}
+
 		// Base query with joins
 		const userQuery = db
 			.select({
@@ -682,6 +691,7 @@ export class UserManagementRepository {
 
 		const usersData = await userQuery
 			.where(and(...(whereClauses.filter(Boolean) as SQL<unknown>[])))
+			.orderBy(desc(user.createdAt))
 			.limit(limit)
 			.offset(offset);
 
@@ -699,25 +709,21 @@ export class UserManagementRepository {
 		}
 		const uniqueUsers = Array.from(userMap.values());
 
-		// NOTE: Role filtering
-		const filteredUsers = filters.roleName
-			? uniqueUsers.filter(
-					(u) =>
-						u.roleName === filters.roleName ||
-						(u.isSuperAdmin && filters.roleName === "super_admin"),
-				)
-			: uniqueUsers;
-
 		// Total count query
-		const [totalCountResult] = await db
-			.select({ count: count() })
+		const countQuery = db
+			.select({ count: count(user.id) })
 			.from(user)
+			.leftJoin(staff, eq(user.staff_id, staff.id))
+			.leftJoin(userRoles, eq(user.id, userRoles.user_id))
+			.leftJoin(roles, eq(userRoles.role_id, roles.id));
+
+		const [totalCountResult] = await countQuery
 			.where(and(...(whereClauses.filter(Boolean) as SQL<unknown>[])));
 
 		const totalUsers = totalCountResult?.count ?? 0;
 
 		return {
-			users: filteredUsers.map((u) => ({
+			users: uniqueUsers.map((u) => ({
 				...u,
 				// Resolve final role for display
 				role: u.isSuperAdmin ? "super_admin" : (u.roleName as Role),

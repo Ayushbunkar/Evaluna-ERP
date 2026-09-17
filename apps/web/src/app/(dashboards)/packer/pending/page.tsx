@@ -60,7 +60,10 @@ export default function PackerPendingPage() {
 		isLoading,
 		error,
 		refetch,
-	} = trpc.packer.getPendingToPack.useQuery();
+	} = trpc.packer.getPendingToPack.useQuery(undefined, {
+		refetchInterval: 15000,
+		refetchIntervalInBackground: false,
+	});
 
 	const [printPackage, setPrintPackage] = useState<{
 		number: string;

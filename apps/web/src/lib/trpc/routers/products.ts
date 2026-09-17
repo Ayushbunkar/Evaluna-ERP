@@ -3,7 +3,7 @@ import {
 	priceChangeHistory,
 	products,
 } from "@evaluna/db/schema";
-import { eq, inArray, sum } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, isNotNull, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
@@ -12,92 +12,143 @@ import { permProcedure } from "../util/auditor-procedures";
 
 export const productsRouter = router({
 	getDashboardStats: protectedProcedure.query(async ({ ctx }) => {
-		const [allProducts, stockResults] = await Promise.all([
-			db.select().from(products).where(eq(products.is_deleted, false)),
+		// Run consolidated SQL aggregations directly in the database
+		const [[productAgg], [lowStockAgg]] = await Promise.all([
 			db
 				.select({
-					productId: branchInventory.product_id,
-					totalStock: sum(branchInventory.in_stock),
+					totalProducts: count(),
+					activeProducts: sql<number>`coalesce(count(*) filter (where ${products.is_hidden} = false), 0)::int`,
+					productsWithBarcodes: sql<number>`coalesce(count(*) filter (where ${products.barcode} is not null and trim(${products.barcode}) != ''), 0)::int`,
 				})
-				.from(branchInventory)
-				.groupBy(branchInventory.product_id),
+				.from(products)
+				.where(eq(products.is_deleted, false)),
+
+			db
+				.select({
+					count: count(),
+				})
+				.from(
+					db
+						.select({
+							id: products.id,
+							totalStock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)`,
+						})
+						.from(products)
+						.leftJoin(branchInventory, eq(products.id, branchInventory.product_id))
+						.where(eq(products.is_deleted, false))
+						.groupBy(products.id)
+						.having(sql`coalesce(sum(${branchInventory.in_stock}), 0) <= 10`)
+						.as("low_stock_subquery"),
+				),
 		]);
 
-		const totalProducts = allProducts.length;
-		const activeProducts = allProducts.filter((p) => !p.is_hidden).length;
-		const productsWithBarcodes = allProducts.filter(
-			(p) => p.barcode && p.barcode.trim() !== "",
-		).length;
-
-		const stockMap = new Map<number, number>();
-		stockResults.forEach((row) => {
-			stockMap.set(row.productId, Number(row.totalStock) || 0);
-		});
-
-		const lowStockProducts = allProducts.filter((p) => {
-			const stock = stockMap.get(p.id) ?? 0;
-			return stock <= 10;
-		}).length;
-
 		return {
-			totalProducts,
-			activeProducts,
-			productsWithBarcodes,
-			lowStockProducts,
+			totalProducts: Number(productAgg?.totalProducts ?? 0),
+			activeProducts: Number(productAgg?.activeProducts ?? 0),
+			productsWithBarcodes: Number(productAgg?.productsWithBarcodes ?? 0),
+			lowStockProducts: Number(lowStockAgg?.count ?? 0),
 		};
 	}),
 
-	list: protectedProcedure.query(async ({ ctx }) => {
-		// Basic RBAC: If not admin, maybe filter by visibility. For now, fetch all active products.
-		// In a full implementation, we would check ctx.user.role here.
-		const allProducts = await db
-			.select()
-			.from(products)
-			.where(eq(products.is_deleted, false));
+	list: protectedProcedure
+		.input(
+			z
+				.object({
+					search: z.string().optional(),
+					category: z.string().optional(),
+					status: z.string().optional(),
+					limit: z.number().int().min(1).max(500).optional(),
+					offset: z.number().int().min(0).optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = ctx.user?.branchId ?? null;
+			const { search, category, status, limit, offset } = input || {};
 
-		// Get stock per product from branchInventory (scoped to user's branch if set)
-		const branchId = ctx.user?.branchId ?? null;
-		const stockMap = new Map<number, number>();
-		const stockQuery = db
-			.select({
-				productId: branchInventory.product_id,
-				totalStock: sum(branchInventory.in_stock),
-			})
-			.from(branchInventory);
+			const conditions = [eq(products.is_deleted, false)];
 
-		const stockResults = branchId
-			? await stockQuery
-					.where(eq(branchInventory.branch_id, branchId))
-					.groupBy(branchInventory.product_id)
-			: await stockQuery.groupBy(branchInventory.product_id);
+			if (status === "active") {
+				conditions.push(eq(products.is_hidden, false));
+			} else if (status === "inactive") {
+				conditions.push(eq(products.is_hidden, true));
+			}
 
-		stockResults.forEach((row) => {
-			stockMap.set(row.productId, Number(row.totalStock) || 0);
-		});
+			if (category && category !== "all") {
+				conditions.push(eq(products.category, category));
+			}
 
-		// Map to the format the UI expects, ensuring numbers are correctly parsed from decimals
-		return allProducts.map((p: any) => ({
-			id: p.id,
-			name: p.name,
-			sku: p.sku || "",
-			category: p.category || "General",
-			baseProcurementPrice:
-				Number.parseFloat(p.base_procurement_price as string) || 0,
-			baseSellingPrice: Number.parseFloat(p.base_selling_price as string) || 0,
-			margin:
-				p.base_procurement_price && p.base_selling_price
-					? Math.round(
-							((Number.parseFloat(p.base_selling_price as string) -
-								Number.parseFloat(p.base_procurement_price as string)) /
-								Number.parseFloat(p.base_selling_price as string)) *
-								100,
-						)
-					: 0,
-			visibilityLevel: p.visibility_level || "global",
-			status: p.is_hidden ? "inactive" : "active",
-			stock: stockMap.get(p.id) ?? 0, // Pull from inventory stock view
-		}));
-	}),
+			if (search?.trim()) {
+				const term = `%${search.trim().toLowerCase()}%`;
+				conditions.push(
+					or(
+						ilike(products.name, term),
+						ilike(products.sku, term),
+						ilike(products.barcode, term),
+					)!,
+				);
+			}
+
+			const inventoryJoinCondition = branchId
+				? and(
+						eq(products.id, branchInventory.product_id),
+						eq(branchInventory.branch_id, branchId),
+					)
+				: eq(products.id, branchInventory.product_id);
+
+			let query = db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+					category: products.category,
+					baseProcurementPrice: products.base_procurement_price,
+					baseSellingPrice: products.base_selling_price,
+					visibilityLevel: products.visibility_level,
+					isHidden: products.is_hidden,
+					stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::int`,
+				})
+				.from(products)
+				.leftJoin(branchInventory, inventoryJoinCondition)
+				.where(and(...conditions))
+				.groupBy(
+					products.id,
+					products.name,
+					products.sku,
+					products.category,
+					products.base_procurement_price,
+					products.base_selling_price,
+					products.visibility_level,
+					products.is_hidden,
+				)
+				.orderBy(asc(products.name));
+
+			if (limit !== undefined) {
+				query = query.limit(limit) as any;
+			}
+			if (offset !== undefined) {
+				query = query.offset(offset) as any;
+			}
+
+			const rows = await query;
+
+			return rows.map((p) => {
+				const bp = Number.parseFloat((p.baseProcurementPrice as string) || "0");
+				const sp = Number.parseFloat((p.baseSellingPrice as string) || "0");
+				return {
+					id: p.id,
+					name: p.name,
+					sku: p.sku || "",
+					category: p.category || "General",
+					baseProcurementPrice: bp,
+					baseSellingPrice: sp,
+					margin: bp && sp ? Math.round(((sp - bp) / sp) * 100) : 0,
+					visibilityLevel: p.visibilityLevel || "global",
+					status: p.isHidden ? "inactive" : "active",
+					stock: Number(p.stock) || 0,
+				};
+			});
+		}),
 
 	create: protectedProcedure
 		.input(

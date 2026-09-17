@@ -32,168 +32,105 @@ export const auditorRouter = router({
 
 			const expDate = new Date();
 			expDate.setDate(expDate.getDate() + 30);
+			const expDateStr = expDate.toISOString();
 
 			const sixMonthsAgo = new Date();
 			sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+			const sixMonthsAgoStr = sixMonthsAgo.toISOString();
 
-			// Real queries executed in parallel
-			const [
-				adjustments,
-				expiring,
-				recentAudits,
-				damageTimelineRaw,
-				expiryTimelineRaw,
-			] = await Promise.all([
-				db
-					.select({
-						type: stockAdjustments.adjustment_type,
-						count: count(stockAdjustments.id),
-					})
-					.from(stockAdjustments)
-					.groupBy(stockAdjustments.adjustment_type),
-				db
-					.select({ count: count() })
-					.from(productBatches)
-					.where(lte(productBatches.expiry_date, expDate)),
-				db
-					.select({
-						id: stockAdjustments.id,
-						reason: stockAdjustments.reason,
-						staff: staff.name,
-					})
-					.from(stockAdjustments)
-					.leftJoin(staff, eq(stockAdjustments.created_by, staff.id))
-					.orderBy(desc(stockAdjustments.created_at))
-					.limit(3),
-				// Damage timeline: monthly count of damage adjustments
-				db
-					.select({
-						month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${stockAdjustments.created_at}), 'Mon YYYY')`,
-						count: count(),
-					})
-					.from(stockAdjustments)
-					.where(
-						and(
-							eq(stockAdjustments.adjustment_type, "damage"),
-							gte(stockAdjustments.created_at, sixMonthsAgo),
-						),
-					)
-					.groupBy(sql`DATE_TRUNC('month', ${stockAdjustments.created_at})`)
-					.orderBy(sql`DATE_TRUNC('month', ${stockAdjustments.created_at})`),
-				// Expiry timeline: monthly count of expiring batches
-				db
-					.select({
-						month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${productBatches.expiry_date}), 'Mon YYYY')`,
-						count: count(),
-					})
-					.from(productBatches)
-					.where(
-						and(
-							gte(productBatches.expiry_date, sixMonthsAgo),
-							lte(productBatches.expiry_date, expDate),
-						),
-					)
-					.groupBy(sql`DATE_TRUNC('month', ${productBatches.expiry_date})`)
-					.orderBy(sql`DATE_TRUNC('month', ${productBatches.expiry_date})`),
-			]);
+			// Consolidated scalar metrics, timelines, breakdowns, and recent items in 1 single SQL query
+			const rawRes: any = await db.execute(sql`
+				SELECT
+					(SELECT coalesce(count(*) filter (WHERE adjustment_type = 'mismatch'), 0)::int FROM stock_adjustments) AS mismatch_count,
+					(SELECT coalesce(count(*) filter (WHERE adjustment_type = 'damage'), 0)::int FROM stock_adjustments) AS damage_count,
+					(SELECT coalesce(count(*) filter (WHERE expiry_date <= ${expDateStr}::timestamp), 0)::int FROM product_batches) AS expiry_count,
+					(SELECT coalesce(count(*) filter (WHERE status IN ('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'VERIFICATION_REQUIRED')), 0)::int FROM upc_tasks) AS open_upc_tasks,
+					(SELECT coalesce(count(*) filter (WHERE status = 'VERIFIED'), 0)::int FROM upc_tasks) AS completed_upc_tasks,
+					(SELECT coalesce(count(*) filter (WHERE status IN ('OPEN', 'UNDER_REVIEW', 'CORRECTIVE_ACTION_REQUIRED')), 0)::int FROM audit_findings) AS open_findings,
+					(SELECT coalesce(count(*) filter (WHERE status = 'PENDING'), 0)::int FROM receiving_inspections) AS pending_receiving,
+					(SELECT coalesce(count(*) filter (WHERE status IN ('AWAITING_PLACEMENT', 'VERIFICATION_REQUIRED')), 0)::int FROM placement_verifications) AS awaiting_placement,
+					(SELECT coalesce(count(*) filter (WHERE status IN ('planned', 'in_progress', 'escalated')), 0)::int FROM stock_audits) AS pending_audits,
+					(SELECT coalesce(count(*) filter (WHERE status = 'completed'), 0)::int FROM stock_audits) AS completed_audits,
+					(SELECT coalesce(count(*) filter (WHERE status = 'match'), 0)::int FROM stock_audit_items) AS matched_items,
+					(SELECT coalesce(count(*), 0)::int FROM stock_audit_items) AS total_items,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YYYY') as month, count(*)::int as count
+							FROM stock_adjustments
+							WHERE adjustment_type = 'damage' AND created_at >= ${sixMonthsAgoStr}::timestamp
+							GROUP BY DATE_TRUNC('month', created_at)
+							ORDER BY DATE_TRUNC('month', created_at)
+						) t
+					) AS damage_timeline,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT TO_CHAR(DATE_TRUNC('month', expiry_date), 'Mon YYYY') as month, count(*)::int as count
+							FROM product_batches
+							WHERE expiry_date >= ${sixMonthsAgoStr}::timestamp AND expiry_date <= ${expDateStr}::timestamp
+							GROUP BY DATE_TRUNC('month', expiry_date)
+							ORDER BY DATE_TRUNC('month', expiry_date)
+						) t
+					) AS expiry_timeline,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT severity, count(*)::int as count
+							FROM audit_findings
+							WHERE status IN ('OPEN', 'UNDER_REVIEW', 'CORRECTIVE_ACTION_REQUIRED')
+							GROUP BY severity
+						) t
+					) AS findings_by_severity,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT f.id, f.title, f.finding_type as type, f.severity, f.status, f.created_at
+							FROM audit_findings f
+							ORDER BY f.created_at DESC
+							LIMIT 10
+						) t
+					) AS recent_findings,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT sa.id, sa.reason, s.name as staff
+							FROM stock_adjustments sa
+							LEFT JOIN staff s ON sa.created_by = s.id
+							ORDER BY sa.created_at DESC
+							LIMIT 3
+						) t
+					) AS recent_audits
+			`);
 
-			let mismatchCount = 0;
-			let damageCount = 0;
+			const counts = Array.isArray(rawRes) ? rawRes[0] : rawRes?.rows?.[0];
 
-			adjustments.forEach((a) => {
-				if (a.type === "mismatch") mismatchCount += Number(a.count);
-				if (a.type === "damage") damageCount += Number(a.count);
-			});
-
-			const expiryCount = Number(expiring[0]?.count) || 0;
-
-			// ── Auditor-specific aggregates (real data from the new tables) ──────
-			const [
-				openUpcTasks,
-				completedUpcTasks,
-				openFindings,
-				findingsBySeverity,
-				pendingReceiving,
-				awaitingPlacement,
-				plannedAudits,
-				completedAuditsRows,
-				recentFindings,
-				auditItemStatus,
-			] = await Promise.all([
-				db
-					.select({ c: count() })
-					.from(upcTasks)
-					.where(inArray(upcTasks.status, UPC_OPEN)),
-				db
-					.select({ c: count() })
-					.from(upcTasks)
-					.where(eq(upcTasks.status, "VERIFIED")),
-				db
-					.select({ c: count() })
-					.from(auditFindings)
-					.where(inArray(auditFindings.status, FINDING_OPEN)),
-				db
-					.select({ severity: auditFindings.severity, c: count() })
-					.from(auditFindings)
-					.where(inArray(auditFindings.status, FINDING_OPEN))
-					.groupBy(auditFindings.severity),
-				db
-					.select({ c: count() })
-					.from(receivingInspections)
-					.where(eq(receivingInspections.status, "PENDING")),
-				db
-					.select({ c: count() })
-					.from(placementVerifications)
-					.where(
-						inArray(placementVerifications.status, [
-							"AWAITING_PLACEMENT",
-							"VERIFICATION_REQUIRED",
-						]),
-					),
-				db
-					.select({ c: count() })
-					.from(stockAudits)
-					.where(
-						inArray(stockAudits.status, [
-							"planned",
-							"in_progress",
-							"escalated",
-						]),
-					),
-				db
-					.select({ c: count() })
-					.from(stockAudits)
-					.where(eq(stockAudits.status, "completed")),
-				db
-					.select({
-						id: auditFindings.id,
-						title: auditFindings.title,
-						type: auditFindings.finding_type,
-						severity: auditFindings.severity,
-						status: auditFindings.status,
-						created_at: auditFindings.created_at,
-					})
-					.from(auditFindings)
-					.orderBy(desc(auditFindings.created_at))
-					.limit(10),
-				db
-					.select({ status: stockAuditItems.status, c: count() })
-					.from(stockAuditItems)
-					.groupBy(stockAuditItems.status),
-			]);
-
-			const pendingAudits = Number(plannedAudits[0]?.c) || 0;
-			const completedAudits = Number(completedAuditsRows[0]?.c) || 0;
-			// Stock accuracy = matched count items / total counted items (null when none).
-			let matched = 0;
-			let totalItems = 0;
-			for (const row of auditItemStatus) {
-				const n = Number(row.c);
-				totalItems += n;
-				if (row.status === "match") matched += n;
-			}
+			const mismatchCount = Number(counts?.mismatch_count || 0);
+			const damageCount = Number(counts?.damage_count || 0);
+			const expiryCount = Number(counts?.expiry_count || 0);
+			const pendingAudits = Number(counts?.pending_audits || 0);
+			const completedAudits = Number(counts?.completed_audits || 0);
+			const matched = Number(counts?.matched_items || 0);
+			const totalItems = Number(counts?.total_items || 0);
 			const stockAccuracy =
 				totalItems > 0 ? Math.round((matched / totalItems) * 1000) / 10 : null;
+
+			const damageTimelineRaw = (counts?.damage_timeline || []) as Array<{ month: string; count: number }>;
+			const expiryTimelineRaw = (counts?.expiry_timeline || []) as Array<{ month: string; count: number }>;
+			const findingsBySeverity = (counts?.findings_by_severity || []) as Array<{ severity: string; count: number }>;
+			const recentFindings = (counts?.recent_findings || []) as Array<{
+				id: number;
+				title: string;
+				type: string;
+				severity: string;
+				status: string;
+				created_at: string | Date;
+			}>;
+			const recentAudits = (counts?.recent_audits || []) as Array<{
+				id: number;
+				reason: string | null;
+				staff: string | null;
+			}>;
 
 			return {
 				// KPIs
@@ -203,14 +140,14 @@ export const auditorRouter = router({
 				damageCount,
 				expiryCount,
 				stockAccuracy,
-				openUpcTasks: Number(openUpcTasks[0]?.c) || 0,
-				completedUpcTasks: Number(completedUpcTasks[0]?.c) || 0,
-				openFindings: Number(openFindings[0]?.c) || 0,
-				pendingReceiving: Number(pendingReceiving[0]?.c) || 0,
-				awaitingPlacement: Number(awaitingPlacement[0]?.c) || 0,
+				openUpcTasks: Number(counts?.open_upc_tasks || 0),
+				completedUpcTasks: Number(counts?.completed_upc_tasks || 0),
+				openFindings: Number(counts?.open_findings || 0),
+				pendingReceiving: Number(counts?.pending_receiving || 0),
+				awaitingPlacement: Number(counts?.awaiting_placement || 0),
 				findingsBySeverity: findingsBySeverity.map((f) => ({
 					severity: f.severity,
-					count: Number(f.c),
+					count: Number(f.count),
 				})),
 
 				// Charts

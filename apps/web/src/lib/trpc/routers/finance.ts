@@ -5,6 +5,7 @@ import {
 	orders,
 	suppliers,
 	transactions,
+	tripCollections,
 } from "@evaluna/db/schema";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -300,33 +301,31 @@ export const financeRouter = router({
 		.query(async ({ ctx, input }) => {
 			const branchId = ctx.user.branchId ?? null;
 
-			// Revenue
-			const revenueRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
-				})
-				.from(orders)
-				.where(branchId != null ? eq(orders.branch_id, branchId) : undefined);
+			const rawRes: any = await ctx.db.execute(sql`
+				SELECT
+					(SELECT coalesce(sum(total_amount), 0) FROM orders ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}) AS revenue,
+					(SELECT coalesce(sum(outstanding_balance), 0) FROM suppliers) AS purchases,
+					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('in', 'credit') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_in,
+					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('out', 'debit') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_out,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT expense_category as category, COALESCE(SUM(amount), 0)::numeric as total
+							FROM expenses
+							${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
+							GROUP BY expense_category
+						) t
+					) AS expense_breakdown
+			`);
 
-			// Purchases/COGS
-			const purchasesRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
-				}) // Simplified mock for purchases
-				.from(suppliers);
+			const totalsRes = Array.isArray(rawRes) ? rawRes[0] : rawRes?.rows?.[0];
+			const expensesRes = (totalsRes?.expense_breakdown || []) as Array<{
+				category: string | null;
+				total: number | string;
+			}>;
 
-			// Operational Expenses
-			const expensesRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
-					category: expenses.expense_category,
-				})
-				.from(expenses)
-				.where(branchId != null ? eq(expenses.branch_id, branchId) : undefined)
-				.groupBy(expenses.expense_category);
-
-			const totalRevenue = Number(revenueRes[0]?.total || 0);
-			const totalPurchases = Number(purchasesRes[0]?.total || 0);
+			const totalRevenue = Number(totalsRes?.revenue || 0);
+			const totalPurchases = Number(totalsRes?.purchases || 0);
 			const totalExpenses = expensesRes.reduce(
 				(acc: number, exp: any) => acc + Number(exp.total),
 				0,
@@ -334,30 +333,8 @@ export const financeRouter = router({
 
 			const grossProfit = totalRevenue - totalPurchases;
 			const netProfit = grossProfit - totalExpenses;
-
-			const cashInRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-				})
-				.from(transactions)
-				.where(
-					and(
-						sql`${transactions.type} IN ('in', 'credit')`,
-						branchId != null ? eq(transactions.branch_id, branchId) : undefined,
-					),
-				);
-
-			const cashOutRes = await ctx.db
-				.select({
-					total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-				})
-				.from(transactions)
-				.where(
-					and(
-						sql`${transactions.type} IN ('out', 'debit')`,
-						branchId != null ? eq(transactions.branch_id, branchId) : undefined,
-					),
-				);
+			const cashIn = Number(totalsRes?.cash_in || 0);
+			const cashOut = Number(totalsRes?.cash_out || 0);
 
 			return {
 				profitAndLoss: {
@@ -372,11 +349,9 @@ export const financeRouter = router({
 					amount: Number(e.total),
 				})),
 				cashFlow: {
-					inflows: Number(cashInRes[0]?.total || 0),
-					outflows: Number(cashOutRes[0]?.total || 0),
-					net:
-						Number(cashInRes[0]?.total || 0) -
-						Number(cashOutRes[0]?.total || 0),
+					inflows: cashIn,
+					outflows: cashOut,
+					net: cashIn - cashOut,
 				},
 			};
 		}),
@@ -386,169 +361,148 @@ export const financeRouter = router({
 		.query(async ({ ctx, input }) => {
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
+			const todayStr = today.toISOString();
 			const firstDayOfMonth = new Date(
 				today.getFullYear(),
 				today.getMonth(),
 				1,
 			);
+			const firstDayOfMonthStr = firstDayOfMonth.toISOString();
+			const sixMonthsAgo = new Date(
+				today.getFullYear(),
+				today.getMonth() - 5,
+				1,
+			);
+			const sixMonthsAgoStr = sixMonthsAgo.toISOString();
 			const sevenDaysAgo = new Date(today);
 			sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+			const sevenDaysAgoStr = sevenDaysAgo.toISOString();
 
 			// Tenant isolation: scoped users see only their branch; superadmin (null) sees all.
 			const branchId = ctx.user.branchId ?? null;
-			const txBranch =
-				branchId != null ? eq(transactions.branch_id, branchId) : undefined;
-			const orderBranch =
-				branchId != null ? eq(orders.branch_id, branchId) : undefined;
-			const expBranch =
-				branchId != null ? eq(expenses.branch_id, branchId) : undefined;
 
-			const [
-				todaysCashRes,
-				monthlyRevRes,
-				totalExpRes,
-				receivablesRes,
-				payablesRes,
-				profitChartRes,
-				expenseBreakdownRes,
-				recentTx,
-				outCust,
-				cashFlowRes,
-				bankBalancesRes,
-				unpaidOrdersRes,
-				unpaidPurchasesRes,
-			] = await Promise.all([
-				ctx.db
-					.select({
-						total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-					})
-					.from(transactions)
-					.where(
-						and(
-							txBranch,
-							gte(transactions.created_at, today),
-							sql`${transactions.type} IN ('in', 'credit')`,
-						),
-					),
-				ctx.db
-					.select({
-						total: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
-					})
-					.from(orders)
-					.where(and(orderBranch, gte(orders.created_at, firstDayOfMonth))),
-				ctx.db
-					.select({
-						total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
-					})
-					.from(expenses)
-					.where(and(expBranch, gte(expenses.created_at, firstDayOfMonth))),
-				ctx.db
-					.select({
-						total: sql<number>`COALESCE(SUM(${customers.credit_used}), 0)`,
-					})
-					.from(customers),
-				ctx.db
-					.select({
-						total: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`,
-					})
-					.from(suppliers),
-				ctx.db
-					.select({
-						month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${orders.created_at}), 'Mon YYYY')`,
-						monthSort: sql<string>`DATE_TRUNC('month', ${orders.created_at})`,
-						revenue: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
-					})
-					.from(orders)
-					.where(
-						gte(
-							orders.created_at,
-							new Date(today.getFullYear(), today.getMonth() - 5, 1),
-						),
-					)
-					.groupBy(sql`DATE_TRUNC('month', ${orders.created_at})`)
-					.orderBy(sql`DATE_TRUNC('month', ${orders.created_at})`),
-				ctx.db
-					.select({
-						category: expenses.expense_category,
-						amount: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
-					})
-					.from(expenses)
-					.groupBy(expenses.expense_category),
-				ctx.db.query.transactions.findMany({
-					orderBy: [desc(transactions.created_at)],
-					limit: 10,
-				}),
-				ctx.db
-					.select({
-						id: customers.id,
-						name: customers.name,
-						amount: customers.credit_used,
-					})
-					.from(customers)
-					.where(sql`${customers.credit_used} > 0`)
-					.limit(5),
-				// Cash flow: last 7 days (inflow vs outflow per day)
-				ctx.db
-					.select({
-						date: sql<string>`TO_CHAR(CAST(${transactions.created_at} AS DATE), 'DD Mon')`,
-						dateSort: sql<string>`CAST(${transactions.created_at} AS DATE)`,
-						inflow: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'in' THEN ${transactions.amount} ELSE 0 END), 0)`,
-						outflow: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'out' THEN ${transactions.amount} ELSE 0 END), 0)`,
-					})
-					.from(transactions)
-					.where(gte(transactions.created_at, sevenDaysAgo))
-					.groupBy(sql`CAST(${transactions.created_at} AS DATE)`)
-					.orderBy(sql`CAST(${transactions.created_at} AS DATE)`),
-				// Real bank/cash balances from the finance module's accounts.
-				ctx.db
-					.select({
-						id: bankAccounts.id,
-						bank: bankAccounts.account_name,
-						type: bankAccounts.account_type,
-						balance: bankAccounts.current_balance,
-					})
-					.from(bankAccounts)
-					.where(
-						and(
-							eq(bankAccounts.is_deleted, false),
-							eq(bankAccounts.status, "active"),
-							branchId != null
-								? eq(bankAccounts.branch_id, branchId)
-								: undefined,
-						),
-					)
-					.orderBy(bankAccounts.account_name),
-				// Unpaid / Overdue Orders (assuming pending means unpaid and older than 30 days is overdue)
-				ctx.db
-					.select({
-						count: sql<number>`COUNT(*)`,
-						amount: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
-						overdueAmount: sql<number>`COALESCE(SUM(CASE WHEN ${orders.created_at} < NOW() - INTERVAL '30 days' THEN ${orders.total_amount} ELSE 0 END), 0)`,
-					})
-					.from(orders)
-					.where(and(eq(orders.status, "pending"), orderBranch)),
-				// Unpaid / Overdue Purchases
-				ctx.db
-					.select({
-						count: sql<number>`COUNT(*)`,
-						amount: sql<number>`COALESCE(SUM(${suppliers.outstanding_balance}), 0)`, // Simplified
-					})
-					.from(suppliers),
-			]);
+			const rawRes: any = await ctx.db.execute(sql`
+				SELECT
+					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('in', 'credit') AND created_at >= ${todayStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS todays_cash,
+					(SELECT coalesce(sum(total_amount), 0) FROM orders WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS monthly_revenue,
+					(SELECT coalesce(sum(amount), 0) FROM expenses WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS total_expenses,
+					(SELECT coalesce(sum(credit_used), 0) FROM customers) AS receivables,
+					(SELECT coalesce(sum(outstanding_balance), 0) FROM suppliers) AS payables,
+					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS unpaid_invoices_count,
+					(SELECT coalesce(sum(CASE WHEN created_at < NOW() - INTERVAL '30 days' THEN total_amount ELSE 0 END), 0) FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS overdue_receivables,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YYYY') as month,
+							       COALESCE(SUM(total_amount), 0)::numeric as revenue
+							FROM orders
+							WHERE created_at >= ${sixMonthsAgoStr}::timestamp
+							${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+							GROUP BY DATE_TRUNC('month', created_at)
+							ORDER BY DATE_TRUNC('month', created_at)
+						) t
+					) AS profit_chart,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT expense_category as category, COALESCE(SUM(amount), 0)::numeric as amount
+							FROM expenses
+							${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
+							GROUP BY expense_category
+						) t
+					) AS expense_breakdown,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT id, created_at, description, type, amount, status
+							FROM transactions
+							${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
+							ORDER BY created_at DESC
+							LIMIT 10
+						) t
+					) AS recent_transactions,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT id, name, credit_used as amount
+							FROM customers
+							WHERE credit_used > 0
+							LIMIT 5
+						) t
+					) AS outstanding_customers,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT TO_CHAR(CAST(created_at AS DATE), 'DD Mon') as date,
+							       COALESCE(SUM(CASE WHEN type IN ('in', 'credit') THEN amount ELSE 0 END), 0)::numeric as inflow,
+							       COALESCE(SUM(CASE WHEN type IN ('out', 'debit') THEN amount ELSE 0 END), 0)::numeric as outflow
+							FROM transactions
+							WHERE created_at >= ${sevenDaysAgoStr}::timestamp
+							${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+							GROUP BY CAST(created_at AS DATE)
+							ORDER BY CAST(created_at AS DATE)
+						) t
+					) AS cash_flow_data,
+					(
+						SELECT coalesce(json_agg(t), '[]'::json)
+						FROM (
+							SELECT id, account_name as bank, account_type as type, current_balance as balance
+							FROM bank_accounts
+							WHERE is_deleted = false AND status = 'active'
+							${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+							ORDER BY account_name
+						) t
+					) AS bank_balances
+			`);
 
-			const todaysCash = Number(todaysCashRes[0]?.total || 0);
-			const monthlyRevenue = Number(monthlyRevRes[0]?.total || 0);
-			const totalExpenses = Number(totalExpRes[0]?.total || 0);
+			const scalarRes = Array.isArray(rawRes) ? rawRes[0] : rawRes?.rows?.[0];
+
+			const todaysCash = Number(scalarRes?.todays_cash || 0);
+			const monthlyRevenue = Number(scalarRes?.monthly_revenue || 0);
+			const totalExpenses = Number(scalarRes?.total_expenses || 0);
 			const netProfit = monthlyRevenue - totalExpenses;
 			const grossProfit = monthlyRevenue; // Simplified assuming COGS is not fully tracked
 			const gstLiability = monthlyRevenue * 0.18;
-			const totalReceivables = Number(receivablesRes[0]?.total || 0);
-			const totalPayables = Number(payablesRes[0]?.total || 0);
+			const totalReceivables = Number(scalarRes?.receivables || 0);
+			const totalPayables = Number(scalarRes?.payables || 0);
 			const cashFlow = todaysCash - totalExpenses;
 
-			const unpaidInvoicesCount = Number(unpaidOrdersRes[0]?.count || 0);
-			const overdueReceivables = Number(unpaidOrdersRes[0]?.overdueAmount || 0);
+			const unpaidInvoicesCount = Number(scalarRes?.unpaid_invoices_count || 0);
+			const overdueReceivables = Number(scalarRes?.overdue_receivables || 0);
 			const overduePayables = totalPayables * 0.2; // Mocked portion since due date not explicit in schema
+
+			const recentTx = (scalarRes?.recent_transactions || []) as Array<{
+				id: number;
+				created_at: string | Date;
+				description: string | null;
+				type: string | null;
+				amount: number | string | null;
+				status: string | null;
+			}>;
+			const outCust = (scalarRes?.outstanding_customers || []) as Array<{
+				id: number;
+				name: string;
+				amount: number | string | null;
+			}>;
+			const cashFlowRes = (scalarRes?.cash_flow_data || []) as Array<{
+				date: string;
+				inflow: number | string;
+				outflow: number | string;
+			}>;
+			const profitChartRes = (scalarRes?.profit_chart || []) as Array<{
+				month: string;
+				revenue: number | string;
+			}>;
+			const expenseBreakdownRes = (scalarRes?.expense_breakdown || []) as Array<{
+				category: string | null;
+				amount: number | string;
+			}>;
+			const bankBalancesRes = (scalarRes?.bank_balances || []) as Array<{
+				id: number;
+				bank: string;
+				type: string;
+				balance: number | string | null;
+			}>;
 
 			const recentTransactions = recentTx.map((tx: any) => ({
 				id: `TX-${tx.id}`,
@@ -629,7 +583,6 @@ export const financeRouter = router({
 		"auditor",
 		"finance",
 	]).query(async ({ ctx }) => {
-		const { tripCollections, orders } = require("@evaluna/db/schema");
 		const collections = await ctx.db.query.tripCollections?.findMany({
 			orderBy: [desc(tripCollections.collected_at)],
 			limit: 100,

@@ -33,92 +33,37 @@ export const hrRouter = router({
 			const db = ctx.db;
 			const branchId = ctx.user.branchId; // Use authenticated user's branch for scoping
 
-			const [
-				totalEmployees,
-				presentToday,
-				onLeaveCount,
-				payrollPendingCount,
-				newHiresThisMonth,
-				avgSalaryData,
-			] = await Promise.all([
-				db
-					.select({ count: count() })
-					.from(staff)
-					.where(
-						and(
-							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined,
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(enhancedAttendance)
-					.innerJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
-					.innerJoin(staff, eq(employees.email, staff.email))
-					.where(
-						and(
-							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
-							eq(enhancedAttendance.status, "present"),
-							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined,
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(enhancedAttendance)
-					.innerJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
-					.innerJoin(staff, eq(employees.email, staff.email))
-					.where(
-						and(
-							eq(enhancedAttendance.date, sql`CURRENT_DATE`),
-							eq(enhancedAttendance.status, "leave"),
-							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined,
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(payroll)
-					.where(
-						and(
-							eq(payroll.month, sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`),
-							not(eq(payroll.status, "paid")),
-							branchId ? eq(payroll.branch_id, branchId) : undefined,
-						),
-					),
-				db
-					.select({ count: count() })
-					.from(staff)
-					.where(
-						and(
-							eq(staff.is_deleted, false),
-							sql`${staff.join_date} >= DATE_TRUNC('month', CURRENT_DATE)`,
-							sql`${staff.join_date} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`,
-							branchId ? eq(staff.branch_id, branchId) : undefined,
-						),
-					),
-				db
-					.select({ avg: sql<number>`AVG(${staff.salary})` })
-					.from(staff)
-					.where(
-						and(
-							eq(staff.is_deleted, false),
-							branchId ? eq(staff.branch_id, branchId) : undefined,
-						),
-					),
-			]);
+			const [counts] = await db.execute<{
+				total_employees: number;
+				present_today: number;
+				on_leave: number;
+				payroll_pending: number;
+				new_hires: number;
+				avg_salary: string;
+			}>(sql`
+				SELECT
+					(SELECT coalesce(count(*), 0)::int FROM staff WHERE is_deleted = false ${branchId ? sql`AND branch_id = ${branchId}` : sql``}) AS total_employees,
+					(SELECT coalesce(count(*), 0)::int FROM enhanced_attendance ea
+					 INNER JOIN employees e ON ea.employee_id = e.id
+					 INNER JOIN staff s ON e.email = s.email
+					 WHERE ea.date = CURRENT_DATE AND ea.status = 'present' AND s.is_deleted = false ${branchId ? sql`AND s.branch_id = ${branchId}` : sql``}) AS present_today,
+					(SELECT coalesce(count(*), 0)::int FROM enhanced_attendance ea
+					 INNER JOIN employees e ON ea.employee_id = e.id
+					 INNER JOIN staff s ON e.email = s.email
+					 WHERE ea.date = CURRENT_DATE AND ea.status = 'leave' AND s.is_deleted = false ${branchId ? sql`AND s.branch_id = ${branchId}` : sql``}) AS on_leave,
+					(SELECT coalesce(count(*), 0)::int FROM payroll WHERE month = TO_CHAR(CURRENT_DATE, 'YYYY-MM') AND status != 'paid' ${branchId ? sql`AND branch_id = ${branchId}` : sql``}) AS payroll_pending,
+					(SELECT coalesce(count(*), 0)::int FROM staff WHERE is_deleted = false AND join_date >= DATE_TRUNC('month', CURRENT_DATE) AND join_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' ${branchId ? sql`AND branch_id = ${branchId}` : sql``}) AS new_hires,
+					(SELECT coalesce(avg(salary), 0) FROM staff WHERE is_deleted = false ${branchId ? sql`AND branch_id = ${branchId}` : sql``}) AS avg_salary
+			`);
 
-			const totalEmp = totalEmployees[0]?.count || 0;
-			const present = presentToday[0]?.count || 0;
-			const onLeave = onLeaveCount[0]?.count || 0;
-			const payrollPending = payrollPendingCount[0]?.count || 0;
-			const newHires = newHiresThisMonth[0]?.count || 0;
-			const avgSalary = avgSalaryData[0]?.avg || 0;
+			const totalEmp = Number(counts?.total_employees || 0);
+			const present = Number(counts?.present_today || 0);
+			const onLeave = Number(counts?.on_leave || 0);
+			const payrollPending = Number(counts?.payroll_pending || 0);
+			const newHires = Number(counts?.new_hires || 0);
+			const avgSalary = Number(counts?.avg_salary || 0);
 
-			// Attrition rate: we don't have historical termination data, so set to 0
-			// In a real system, we would calculate based on terminations over a period
 			const attritionRate = 0;
-			// Open positions: we don't have a job openings table, so set to 0
 			const openPositions = 0;
 
 			return {
@@ -129,7 +74,7 @@ export const hrRouter = router({
 				newHiresThisMonth: newHires,
 				attritionRate,
 				openPositions,
-				avgSalary: Number(avgSalary),
+				avgSalary,
 			};
 		}),
 
