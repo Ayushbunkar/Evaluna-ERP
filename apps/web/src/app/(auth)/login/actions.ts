@@ -52,10 +52,17 @@ export async function login(formData: FormData) {
 		| Awaited<ReturnType<typeof auth.api.signInEmail>>["user"]
 		| undefined;
 
+	let reqHeaders: Headers | undefined;
+	try {
+		reqHeaders = await headers();
+	} catch {
+		reqHeaders = undefined;
+	}
+
 	try {
 		// Sign out any existing session first to avoid stale session redirect loops
 		try {
-			await auth.api.signOut({ headers: await headers() });
+			await auth.api.signOut({ headers: reqHeaders });
 		} catch {
 			// Ignore - no active session to sign out
 		}
@@ -87,20 +94,30 @@ export async function login(formData: FormData) {
 				// Try to login first
 				const res = await auth.api.signInEmail({
 					body: { email, password, rememberMe },
-					headers: await headers(),
+					headers: reqHeaders,
 				});
 				user = res.user;
 			} catch (err: any) {
-				// If login fails (user credential account missing), sign them up in Better Auth
-				const res = await auth.api.signUpEmail({
-					body: {
-						email,
-						password,
-						name: (email.split("@")[0] || "USER").toUpperCase(),
-					},
-					headers: await headers(),
-				});
-				user = res.user;
+				// Check if user already exists before attempting signup
+				const [existingUser] = await db
+					.select()
+					.from(userTable)
+					.where(eq(userTable.email, email))
+					.limit(1);
+
+				if (!existingUser) {
+					const res = await auth.api.signUpEmail({
+						body: {
+							email,
+							password,
+							name: (email.split("@")[0] || "USER").toUpperCase(),
+						},
+						headers: reqHeaders,
+					});
+					user = res.user;
+				} else {
+					throw err;
+				}
 			}
 
 			// Force their role in DB
@@ -219,7 +236,7 @@ export async function login(formData: FormData) {
 			// Normal login for regular users
 			const res = await auth.api.signInEmail({
 				body: { email, password, rememberMe },
-				headers: await headers(),
+				headers: reqHeaders,
 			});
 			user = res.user;
 		}
@@ -259,7 +276,9 @@ export async function login(formData: FormData) {
 	}
 
 	const destination = getCanonicalDashboardRoute(role);
-	revalidatePath(destination, "layout");
+	try {
+		revalidatePath(destination, "layout");
+	} catch {}
 	return { success: true, redirectUrl: destination };
 }
 
@@ -279,10 +298,14 @@ export async function logout() {
 		console.error("Failed to invalidate cached session on logout:", err);
 	}
 
-	await auth.api.signOut({
-		headers: await headers(),
-	});
+	try {
+		await auth.api.signOut({
+			headers: await headers(),
+		});
+	} catch {}
 
-	revalidatePath("/", "layout");
+	try {
+		revalidatePath("/", "layout");
+	} catch {}
 	redirect("/");
 }
