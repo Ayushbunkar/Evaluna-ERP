@@ -2,6 +2,9 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { session as sessionTable } from "@evaluna/db/schema";
+import { and, eq, gte, or } from "drizzle-orm";
 
 /**
  * Node.js middleware that protects all routes.
@@ -118,6 +121,32 @@ export default async function middleware(request: NextRequest) {
 		}
 	} catch (err) {
 		console.error("[Middleware] session check failed:", err);
+	}
+
+	// Direct DB fallback if auth.api.getSession failed or returned null but cookie exists
+	if (!sessionData && sessionToken) {
+		try {
+			const tokenOnly = sessionToken.split(".")[0];
+			const dbSession = await db.query.session.findFirst({
+				where: and(
+					or(eq(sessionTable.token, sessionToken), eq(sessionTable.token, tokenOnly)),
+					gte(sessionTable.expiresAt, new Date()),
+				),
+				with: {
+					user: true,
+				},
+			});
+			if (dbSession?.user) {
+				const resolvedRole = dbSession.user.role || ((dbSession.user as any)?.is_superadmin ? "super_admin" : "customer");
+				sessionData = {
+					user: dbSession.user,
+					session: dbSession,
+					role: resolvedRole,
+				};
+			}
+		} catch (err) {
+			console.error("[Middleware] DB session fallback failed:", err);
+		}
 	}
 
 	if (!sessionData) {

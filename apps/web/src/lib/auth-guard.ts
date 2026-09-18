@@ -6,7 +6,7 @@ import {
 	userRoles as userRolesTable,
 	user as userTable,
 } from "@evaluna/db/schema";
-import { and, desc, eq, get, gte, isNotNull } from "drizzle-orm";
+import { and, desc, eq, get, gte, isNotNull, or } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { auth } from "./auth";
 import { db } from "./db";
@@ -178,9 +178,10 @@ export async function getAuthUser(
 
 	// Direct DB lookup fallback for production environments (e.g. Vercel serverless)
 	if (!authSession?.user || !authSession?.session) {
+		const tokenOnly = token.split(".")[0];
 		const dbSession = await db.query.session.findFirst({
 			where: and(
-				eq(sessionTable.token, token),
+				or(eq(sessionTable.token, token), eq(sessionTable.token, tokenOnly)),
 				gte(sessionTable.expiresAt, new Date()),
 			),
 			with: {

@@ -26,7 +26,14 @@ export function createAuth({
 			process.env.BETTER_AUTH_SECRET ||
 			"evaluna_super_secret_fallback_key_1234567890",
 		baseURL,
-		trustedOrigins,
+		trustedOrigins: [
+			"http://localhost:3000",
+			"http://localhost:3001",
+			"http://127.0.0.1:3000",
+			"http://127.0.0.1:3001",
+			"https://evaluna-erp.com",
+			...(trustedOrigins || []),
+		],
 		database: drizzleAdapter(db, { provider: "pg" }),
 
 		// ── User ────────────────────────────────────────────────────────────────
