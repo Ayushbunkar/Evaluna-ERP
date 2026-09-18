@@ -152,19 +152,18 @@ export const customerProcedure = protectedProcedure.use(
 		}
 
 		let customer = await ctx.db.query.customers.findFirst({
-			where: (c: any, { eq, and, or, ilike }: any) =>
+			where: (c: any, { eq, and, or }: any) =>
 				and(
 					or(
 						eq(c.user_uid, ctx.user.id),
 						ctx.user.email ? eq(c.email, ctx.user.email) : undefined,
 						(ctx.user as any).phone ? eq(c.phone, (ctx.user as any).phone) : undefined,
-						ctx.user.name ? ilike(c.name, ctx.user.name) : undefined,
 					),
 					eq(c.is_deleted, false),
 				),
 		});
 
-		// Auto-link user_uid if found by email/name/phone
+		// Auto-link user_uid if found by email/phone
 		if (customer && !customer.user_uid && ctx.user.id) {
 			try {
 				await ctx.db
@@ -174,44 +173,35 @@ export const customerProcedure = protectedProcedure.use(
 			} catch (_e) {}
 		}
 
-		if (!customer && ctx.user.email) {
-			const roleName = (
-				(ctx.user as any).role ||
-				ctx.user.primaryRole?.name ||
-				""
-			).toLowerCase();
-			if (
-				!roleName ||
-				roleName === "customer" ||
-				roleName === "customer representative" ||
-				roleName.includes("customer")
-			) {
-				const customerCode = `CUST-${Date.now()}`;
-				try {
-					const [newCustomer] = await ctx.db
-						.insert(customers)
-						.values({
-							name: ctx.user.name || "Customer",
-							email: ctx.user.email,
-							user_uid: ctx.user.id,
-							customer_code: customerCode,
-							status: "active",
-							is_deleted: false,
-							branch_id: ctx.user.branchId ?? 1,
-						})
-						.onConflictDoNothing()
-						.returning();
+		const roleName = ((ctx.user.primaryRole?.name || (ctx.user as any).role || "") as string).toLowerCase();
+		const isCustomerRole = roleName === "customer" || roleName === "client";
 
-					customer =
-						newCustomer ||
-						(await ctx.db.query.customers.findFirst({
-							where: (c: any, { eq }: any) => eq(c.email, ctx.user.email),
-						}));
-				} catch (_err) {
-					customer = await ctx.db.query.customers.findFirst({
+		if (!customer && isCustomerRole && ctx.user.email) {
+			const customerCode = `CUST-${Date.now()}`;
+			try {
+				const [newCustomer] = await ctx.db
+					.insert(customers)
+					.values({
+						name: ctx.user.name || "Customer",
+						email: ctx.user.email,
+						user_uid: ctx.user.id,
+						customer_code: customerCode,
+						status: "active",
+						is_deleted: false,
+						branch_id: ctx.user.branchId ?? 1,
+					})
+					.onConflictDoNothing()
+					.returning();
+
+				customer =
+					newCustomer ||
+					(await ctx.db.query.customers.findFirst({
 						where: (c: any, { eq }: any) => eq(c.email, ctx.user.email),
-					});
-				}
+					}));
+			} catch (_err) {
+				customer = await ctx.db.query.customers.findFirst({
+					where: (c: any, { eq }: any) => eq(c.email, ctx.user.email),
+				});
 			}
 		}
 
