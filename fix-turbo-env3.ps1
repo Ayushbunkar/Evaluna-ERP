@@ -17,3 +17,5 @@ $newLines = @(
 )
 $lines = $lines[0..5] + $newLines + $lines[12..($lines.Length-1)]
 [System.IO.File]::WriteAllLines($path, $lines)
+
+//fg
