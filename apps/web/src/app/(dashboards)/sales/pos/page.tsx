@@ -2,12 +2,13 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
+	Edit3,
 	Minus,
+	Percent,
 	Plus,
+	PlusCircle,
 	Search,
 	ShoppingCart,
-	Tag,
-	Ticket,
 	Trash2,
 	Wifi,
 	WifiOff,
@@ -30,6 +31,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	AnimatedButton,
@@ -81,13 +83,32 @@ export function getLocalizedProductName(name: string, locale: string): string {
 	return name;
 }
 
+const DISCOUNT_PRESET_REASONS = [
+	"Loyal Customer Discount (नियमित ग्राहक)",
+	"Bulk Quantity Purchase (थोक खरीद छूट)",
+	"Special Scheme / Festive Offer (विशेष स्कीम / ऑफर)",
+	"Manager Approved Discount (मैनेजर अनुमति)",
+	"Damaged / Defective Packaging (पैकेजिंग क्षति)",
+	"Round-off / Price Adjustment (राउंड-ऑफ छूट)",
+	"Custom / Other Reason",
+];
+
+const EXTRA_CHARGES_PRESET_REASONS = [
+	"Delivery / Transport Charge (होम डिलीवरी / भाड़ा)",
+	"Carton & Packaging Fee (पैकिंग एवं बॉक्स शुल्क)",
+	"Loading & Unloading Handling (लोडिंग / अनलोडिंग शुल्क)",
+	"Urgent / Night Dispatch (तत्काल डिस्पैच शुल्क)",
+	"Cold Storage & Special Care (कोल्ड स्टोरेज शुल्क)",
+	"Custom / Other Charge",
+];
+
 function POSContent() {
 	const locale = useLocale();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const utils = trpc.useUtils();
 
-	// State declarations (all unconditional at top)
+	// State declarations
 	const [cart, setCart] = useState<any[]>([]);
 	const [search, setSearch] = useState("");
 	const [isOffline, setIsOffline] = useState(false);
@@ -98,15 +119,30 @@ function POSContent() {
 		customerPhone?: string;
 		shopName?: string;
 	}>({});
-	const [couponCode, setCouponCode] = useState("");
-	const [couponModalOpen, setCouponModalOpen] = useState(false);
 	const [lastPayments, setLastPayments] = useState<any[]>([]);
-	const [appliedCoupon, setAppliedCoupon] = useState<{
-		id: number;
-		code: string;
-		discount: number;
-	} | null>(null);
 	const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">("catalog");
+
+	// Discount state
+	const [discountAmount, setDiscountAmount] = useState<number>(0);
+	const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
+	const [discountReason, setDiscountReason] = useState<string>("");
+	const [discountModalOpen, setDiscountModalOpen] = useState(false);
+
+	// Temp state in Discount modal
+	const [tempDiscountVal, setTempDiscountVal] = useState<string>("");
+	const [tempDiscountType, setTempDiscountType] = useState<"fixed" | "percent">("fixed");
+	const [tempDiscountReason, setTempDiscountReason] = useState<string>("");
+	const [tempCustomDiscountReason, setTempCustomDiscountReason] = useState<string>("");
+
+	// Extra charges state
+	const [extraChargesAmount, setExtraChargesAmount] = useState<number>(0);
+	const [extraChargesReason, setExtraChargesReason] = useState<string>("");
+	const [extraChargesModalOpen, setExtraChargesModalOpen] = useState(false);
+
+	// Temp state in Extra charges modal
+	const [tempExtraVal, setTempExtraVal] = useState<string>("");
+	const [tempExtraReason, setTempExtraReason] = useState<string>("");
+	const [tempCustomExtraReason, setTempCustomExtraReason] = useState<string>("");
 
 	// URL Params
 	const completedOrderIdParam = searchParams.get("completedOrderId");
@@ -142,8 +178,20 @@ function POSContent() {
 			),
 		[cart],
 	);
-	const discount = appliedCoupon?.discount || 0;
-	const total = Math.max(0, subtotal - discount);
+
+	const discountValue = useMemo(() => {
+		if (!discountAmount || discountAmount <= 0) return 0;
+		if (discountType === "percent") {
+			return Math.min(subtotal, (subtotal * discountAmount) / 100);
+		}
+		return Math.min(subtotal, discountAmount);
+	}, [subtotal, discountAmount, discountType]);
+
+	const extraChargesValue = useMemo(() => {
+		return Math.max(0, extraChargesAmount || 0);
+	}, [extraChargesAmount]);
+
+	const total = Math.max(0, subtotal - discountValue + extraChargesValue);
 
 	// Translations Dictionary
 	const t = {
@@ -164,7 +212,9 @@ function POSContent() {
 		unitLabel: locale === "hi" ? "प्रति इकाई" : "/ unit",
 		subtotal: locale === "hi" ? "उप-योग (Subtotal)" : "Subtotal",
 		discount: locale === "hi" ? "छूट (Discount)" : "Discount",
-		addCoupon: locale === "hi" ? "कूपन जोड़ें" : "Add Coupon",
+		editDiscount: locale === "hi" ? "छूट जोड़ें / बदलें" : "Edit Discount",
+		extraCharges: locale === "hi" ? "अतिरिक्त शुल्क (Extra Charges)" : "Extra Charges",
+		addExtraCharges: locale === "hi" ? "+ अतिरिक्त शुल्क जोड़ें" : "+ Add Extra Charge",
 		total: locale === "hi" ? "कुल राशि (Total)" : "Total",
 		holdBill: locale === "hi" ? "बिल होल्ड करें" : "Hold Bill",
 		holding: locale === "hi" ? "होल्ड हो रहा है..." : "Holding...",
@@ -175,14 +225,6 @@ function POSContent() {
 				? "ऑर्डर सफलतापूर्वक संसाधित किया गया!"
 				: "Order processed successfully!",
 		failMsg: locale === "hi" ? "चेकआउट विफल रहा:" : "Checkout failed:",
-		couponTitle: locale === "hi" ? "कूपन जोड़ें" : "Apply Coupon Code",
-		couponDesc:
-			locale === "hi"
-				? "डिस्काउंट लागू करने के लिए सक्रिय प्रोमो कूपन कोड दर्ज करें।"
-				: "Enter an active promo coupon code to apply structural discount.",
-		couponInput: locale === "hi" ? "कूपन कोड" : "Coupon Code",
-		couponSuccess:
-			locale === "hi" ? "कूपन सफलतापूर्वक लागू हुआ!" : "Coupon applied!",
 		close: locale === "hi" ? "बंद करें" : "Close",
 	};
 
@@ -195,13 +237,18 @@ function POSContent() {
 				items: cart,
 				total: total,
 				subtotal: subtotal,
-				discount: discount,
-				couponCode: appliedCoupon?.code,
+				discount: discountValue,
+				discountReason: discountReason || undefined,
+				otherCharges: extraChargesValue,
+				otherChargesReason: extraChargesReason || undefined,
 				payments: lastPayments,
 				...customerDetails,
 			});
 			setCart([]);
-			setAppliedCoupon(null);
+			setDiscountAmount(0);
+			setDiscountReason("");
+			setExtraChargesAmount(0);
+			setExtraChargesReason("");
 
 			utils.orders.list.invalidate();
 			utils.cashbook.getLedger.invalidate();
@@ -220,27 +267,14 @@ function POSContent() {
 		onSuccess: () => {
 			toast.success("Bill put on hold!");
 			setCart([]);
-			setAppliedCoupon(null);
+			setDiscountAmount(0);
+			setDiscountReason("");
+			setExtraChargesAmount(0);
+			setExtraChargesReason("");
 			utils.orders.list.invalidate();
 		},
 		onError: (err) => {
 			toast.error(`Hold bill failed: ${err.message}`);
-		},
-	});
-
-	const validateCouponMutation = trpc.marketing.validateCoupon.useMutation({
-		onSuccess: (data) => {
-			setAppliedCoupon({
-				id: (data as any).id || (data as any).couponId,
-				code: data.code,
-				discount: data.discountAmount,
-			});
-			toast.success(t.couponSuccess);
-			setCouponCode("");
-		},
-		onError: (error) => {
-			toast.error(error.message);
-			setAppliedCoupon(null);
 		},
 	});
 
@@ -271,6 +305,9 @@ function POSContent() {
 				total: Number(fetchedCompletedOrder.total_amount),
 				subtotal: Number(fetchedCompletedOrder.total_amount),
 				discount: Number(fetchedCompletedOrder.discount_amount || 0),
+				discountReason: fetchedCompletedOrder.discount_reason || undefined,
+				otherCharges: Number(fetchedCompletedOrder.other_charges || 0),
+				otherChargesReason: fetchedCompletedOrder.other_charges_reason || undefined,
 				cashierName: "Counter 1",
 				customerName:
 					fetchedCompletedOrder.customer?.name || "Walk-in Customer",
@@ -295,6 +332,15 @@ function POSContent() {
 				qty: item.quantity,
 			}));
 			setCart(restoredCart);
+			if (resumeOrder.discount_amount && Number(resumeOrder.discount_amount) > 0) {
+				setDiscountAmount(Number(resumeOrder.discount_amount));
+				setDiscountType("fixed");
+				setDiscountReason(resumeOrder.discount_reason || "");
+			}
+			if (resumeOrder.other_charges && Number(resumeOrder.other_charges) > 0) {
+				setExtraChargesAmount(Number(resumeOrder.other_charges));
+				setExtraChargesReason(resumeOrder.other_charges_reason || "");
+			}
 			if (typeof window !== "undefined") {
 				window.history.replaceState({}, "", window.location.pathname);
 			}
@@ -435,6 +481,90 @@ function POSContent() {
 		setCart((prev) => prev.filter((item) => item.id !== id));
 	};
 
+	// Discount Dialog Handlers
+	const openDiscountDialog = () => {
+		setTempDiscountVal(discountAmount > 0 ? String(discountAmount) : "");
+		setTempDiscountType(discountType);
+		setTempDiscountReason(discountReason);
+		setTempCustomDiscountReason(
+			DISCOUNT_PRESET_REASONS.includes(discountReason) ? "" : discountReason,
+		);
+		setDiscountModalOpen(true);
+	};
+
+	const applyDiscount = () => {
+		const parsedVal = parseFloat(tempDiscountVal);
+		if (isNaN(parsedVal) || parsedVal <= 0) {
+			setDiscountAmount(0);
+			setDiscountReason("");
+			setDiscountModalOpen(false);
+			toast.info(locale === "hi" ? "छूट हटा दी गई" : "Discount removed");
+			return;
+		}
+
+		const finalReason =
+			tempDiscountReason === "Custom / Other Reason" || !tempDiscountReason
+				? tempCustomDiscountReason.trim() || (locale === "hi" ? "विशेष छूट" : "Special Discount")
+				: tempDiscountReason;
+
+		setDiscountAmount(parsedVal);
+		setDiscountType(tempDiscountType);
+		setDiscountReason(finalReason);
+		setDiscountModalOpen(false);
+		toast.success(locale === "hi" ? "छूट सफलतापूर्वक लागू की गई!" : "Discount applied!");
+	};
+
+	const clearDiscount = () => {
+		setDiscountAmount(0);
+		setDiscountReason("");
+		setTempDiscountVal("");
+		setTempDiscountReason("");
+		setTempCustomDiscountReason("");
+		setDiscountModalOpen(false);
+		toast.info(locale === "hi" ? "छूट हटा दी गई" : "Discount removed");
+	};
+
+	// Extra Charges Dialog Handlers
+	const openExtraChargesDialog = () => {
+		setTempExtraVal(extraChargesAmount > 0 ? String(extraChargesAmount) : "");
+		setTempExtraReason(extraChargesReason);
+		setTempCustomExtraReason(
+			EXTRA_CHARGES_PRESET_REASONS.includes(extraChargesReason) ? "" : extraChargesReason,
+		);
+		setExtraChargesModalOpen(true);
+	};
+
+	const applyExtraCharges = () => {
+		const parsedVal = parseFloat(tempExtraVal);
+		if (isNaN(parsedVal) || parsedVal <= 0) {
+			setExtraChargesAmount(0);
+			setExtraChargesReason("");
+			setExtraChargesModalOpen(false);
+			toast.info(locale === "hi" ? "अतिरिक्त शुल्क हटा दिया गया" : "Extra charges removed");
+			return;
+		}
+
+		const finalReason =
+			tempExtraReason === "Custom / Other Charge" || !tempExtraReason
+				? tempCustomExtraReason.trim() || (locale === "hi" ? "अतिरिक्त शुल्क" : "Extra Charge")
+				: tempExtraReason;
+
+		setExtraChargesAmount(parsedVal);
+		setExtraChargesReason(finalReason);
+		setExtraChargesModalOpen(false);
+		toast.success(locale === "hi" ? "अतिरिक्त शुल्क जोड़ा गया!" : "Extra charges added!");
+	};
+
+	const clearExtraCharges = () => {
+		setExtraChargesAmount(0);
+		setExtraChargesReason("");
+		setTempExtraVal("");
+		setTempExtraReason("");
+		setTempCustomExtraReason("");
+		setExtraChargesModalOpen(false);
+		toast.info(locale === "hi" ? "अतिरिक्त शुल्क हटा दिया गया" : "Extra charges removed");
+	};
+
 	const handleCheckout = () => {
 		if (cart.length === 0) return toast.error(t.emptyCart);
 		setPaymentModalOpen(true);
@@ -455,7 +585,10 @@ function POSContent() {
 		if (isOffline) {
 			toast.info("Saved offline bill. Will sync when online.");
 			setCart([]);
-			setAppliedCoupon(null);
+			setDiscountAmount(0);
+			setDiscountReason("");
+			setExtraChargesAmount(0);
+			setExtraChargesReason("");
 			return;
 		}
 
@@ -469,23 +602,11 @@ function POSContent() {
 			})),
 			payments: payments,
 			isOfflineSync: false,
-			couponId: appliedCoupon?.id,
-			discountAmount: appliedCoupon?.discount
-				? String(appliedCoupon.discount)
-				: undefined,
+			discountAmount: discountValue > 0 ? String(discountValue) : undefined,
+			discountReason: discountReason || undefined,
+			otherCharges: extraChargesValue > 0 ? String(extraChargesValue) : undefined,
+			otherChargesReason: extraChargesReason || undefined,
 		} as any);
-	};
-
-	const handleApplyCoupon = () => {
-		if (!couponCode) return;
-		validateCouponMutation.mutate({
-			code: couponCode,
-			cartTotal: subtotal,
-		} as any);
-	};
-
-	const removeCoupon = () => {
-		setAppliedCoupon(null);
 	};
 
 	const filteredCatalog = catalog?.filter(
@@ -740,50 +861,112 @@ function POSContent() {
 					</AnimatePresence>
 				</ScrollArea>
 
-				<div className="mt-4 shrink-0 space-y-3 border-t pt-4">
+				<div className="mt-4 shrink-0 space-y-2.5 border-t p-4 pt-3">
 					{/* Subtotal row */}
 					<div className="flex items-center justify-between text-muted-foreground text-sm">
 						<span>{t.subtotal}</span>
-						<span>₹{subtotal.toFixed(2)}</span>
+						<span className="font-medium text-foreground">₹{subtotal.toFixed(2)}</span>
 					</div>
 
-					{/* Coupon row */}
-					<div className="flex items-center justify-between text-muted-foreground text-sm">
-						<div className="flex items-center gap-2">
-							<span>{t.discount}</span>
-							{appliedCoupon ? (
-								<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 text-xs">
-									<Ticket className="h-3 w-3" />
-									{appliedCoupon.code}
+					{/* Discount row */}
+					<div className="flex items-center justify-between text-sm">
+						<div className="flex flex-wrap items-center gap-1.5">
+							<span className="text-muted-foreground">{t.discount}</span>
+							{discountValue > 0 ? (
+								<div className="flex items-center gap-1">
 									<button
 										type="button"
-										className="ml-1 text-green-500 hover:text-red-500"
-										onClick={removeCoupon}
-										title="Remove coupon"
+										onClick={openDiscountDialog}
+										className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs hover:bg-emerald-200 transition-colors"
+										title={discountReason || "Discount reason"}
+									>
+										<span>{discountType === "percent" ? `${discountAmount}%` : `₹${discountAmount}`}</span>
+										{discountReason && (
+											<span className="max-w-[100px] truncate opacity-80">
+												({discountReason.split(" (")[0]})
+											</span>
+										)}
+										<Edit3 className="h-2.5 w-2.5 ml-0.5" />
+									</button>
+									<button
+										type="button"
+										className="h-4 w-4 rounded-full flex items-center justify-center text-emerald-700 hover:text-red-600 hover:bg-red-50 text-xs font-bold"
+										onClick={clearDiscount}
+										title="Remove discount"
 									>
 										×
 									</button>
-								</span>
+								</div>
 							) : (
 								<Button
 									variant="outline"
 									size="sm"
-									className="h-6 gap-1 px-2 text-xs"
-									onClick={() => setCouponModalOpen(true)}
+									className="h-6 gap-1 px-2 text-xs border-dashed text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 border-emerald-300"
+									onClick={openDiscountDialog}
 									disabled={cart.length === 0}
 								>
-									<Ticket className="h-3 w-3" /> {t.addCoupon}
+									<Percent className="h-3 w-3" /> {t.editDiscount}
 								</Button>
 							)}
 						</div>
-						<span className="text-green-600">− ₹{discount.toFixed(2)}</span>
+						<span className="font-medium text-emerald-600">
+							{discountValue > 0 ? `− ₹${discountValue.toFixed(2)}` : "− ₹0.00"}
+						</span>
 					</div>
+
+					{/* Extra Charges row */}
+					<div className="flex items-center justify-between text-sm">
+						<div className="flex flex-wrap items-center gap-1.5">
+							<span className="text-muted-foreground">{t.extraCharges}</span>
+							{extraChargesValue > 0 ? (
+								<div className="flex items-center gap-1">
+									<button
+										type="button"
+										onClick={openExtraChargesDialog}
+										className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs hover:bg-blue-200 transition-colors"
+										title={extraChargesReason || "Extra charge reason"}
+									>
+										<span>₹{extraChargesValue.toFixed(2)}</span>
+										{extraChargesReason && (
+											<span className="max-w-[100px] truncate opacity-80">
+												({extraChargesReason.split(" (")[0]})
+											</span>
+										)}
+										<Edit3 className="h-2.5 w-2.5 ml-0.5" />
+									</button>
+									<button
+										type="button"
+										className="h-4 w-4 rounded-full flex items-center justify-center text-blue-700 hover:text-red-600 hover:bg-red-50 text-xs font-bold"
+										onClick={clearExtraCharges}
+										title="Remove extra charges"
+									>
+										×
+									</button>
+								</div>
+							) : (
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-6 gap-1 px-2 text-xs border-dashed text-blue-700 hover:bg-blue-50 hover:text-blue-800 border-blue-300"
+									onClick={openExtraChargesDialog}
+									disabled={cart.length === 0}
+								>
+									<PlusCircle className="h-3 w-3" /> {t.addExtraCharges}
+								</Button>
+							)}
+						</div>
+						<span className="font-medium text-blue-600">
+							{extraChargesValue > 0 ? `+ ₹${extraChargesValue.toFixed(2)}` : "+ ₹0.00"}
+						</span>
+					</div>
+
+					{/* Total row */}
 					<div className="flex items-center justify-between border-t pt-2 font-bold text-2xl">
 						<span>{t.total}</span>
 						<span>₹{total.toFixed(2)}</span>
 					</div>
 
-					<div className="grid grid-cols-2 gap-2 pt-4">
+					<div className="grid grid-cols-2 gap-2 pt-2">
 						<Button
 							variant="secondary"
 							size="lg"
@@ -792,7 +975,11 @@ function POSContent() {
 								suspendMutation.mutate({
 									items: cart,
 									total: total.toString(),
-								});
+									discountAmount: discountValue > 0 ? String(discountValue) : undefined,
+									discountReason: discountReason || undefined,
+									otherCharges: extraChargesValue > 0 ? String(extraChargesValue) : undefined,
+									otherChargesReason: extraChargesReason || undefined,
+								} as any);
 							}}
 							disabled={cart.length === 0 || suspendMutation.isPending}
 						>
@@ -820,32 +1007,287 @@ function POSContent() {
 				/>
 			)}
 
-			{/* Coupon Dialog Modal */}
-			<Dialog open={couponModalOpen} onOpenChange={setCouponModalOpen}>
-				<DialogContent className="max-w-sm">
+			{/* Discount Dialog Modal */}
+			<Dialog open={discountModalOpen} onOpenChange={setDiscountModalOpen}>
+				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle>{t.couponTitle}</DialogTitle>
-						<DialogDescription>{t.couponDesc}</DialogDescription>
+						<DialogTitle className="flex items-center gap-2 text-lg">
+							<Percent className="h-5 w-5 text-emerald-600" />
+							{locale === "hi" ? "छूट एवं कारण (Discount & Reason)" : "Discount & Reason"}
+						</DialogTitle>
+						<DialogDescription>
+							{locale === "hi"
+								? "छूट राशि / प्रतिशत दर्ज करें और अधिकृत कारण का चयन करें।"
+								: "Enter the discount value and specify the authorized reason."}
+						</DialogDescription>
 					</DialogHeader>
-					<div className="py-2">
-						<Input
-							type="text"
-							placeholder={t.couponInput}
-							value={couponCode}
-							onChange={(e) => setCouponCode(e.target.value)}
-						/>
+
+					<div className="space-y-4 py-2">
+						{/* Mode Toggle & Input */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold">
+								{locale === "hi" ? "छूट का प्रकार एवं मान" : "Discount Type & Value"}
+							</Label>
+							<div className="flex gap-2">
+								<div className="flex rounded-md border p-0.5 bg-muted">
+									<button
+										type="button"
+										onClick={() => setTempDiscountType("fixed")}
+										className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+											tempDiscountType === "fixed"
+												? "bg-background text-foreground shadow-sm"
+												: "text-muted-foreground hover:text-foreground"
+										}`}
+									>
+										₹ {locale === "hi" ? "राशि" : "Amount"}
+									</button>
+									<button
+										type="button"
+										onClick={() => setTempDiscountType("percent")}
+										className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+											tempDiscountType === "percent"
+												? "bg-background text-foreground shadow-sm"
+												: "text-muted-foreground hover:text-foreground"
+										}`}
+									>
+										% {locale === "hi" ? "प्रतिशत" : "Percent"}
+									</button>
+								</div>
+								<div className="relative flex-1">
+									<span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-bold">
+										{tempDiscountType === "fixed" ? "₹" : "%"}
+									</span>
+									<Input
+										type="number"
+										min="0"
+										step="any"
+										placeholder={tempDiscountType === "fixed" ? "0.00" : "0%"}
+										value={tempDiscountVal}
+										onChange={(e) => setTempDiscountVal(e.target.value)}
+										className="pl-7 font-semibold"
+										autoFocus
+									/>
+								</div>
+							</div>
+							{/* Live preview */}
+							{tempDiscountVal && parseFloat(tempDiscountVal) > 0 && (
+								<div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-800 flex justify-between">
+									<span>
+										{locale === "hi" ? "लागू छूट:" : "Effective Discount:"}{" "}
+										<strong>
+											₹
+											{(tempDiscountType === "percent"
+												? Math.min(subtotal, (subtotal * parseFloat(tempDiscountVal || "0")) / 100)
+												: Math.min(subtotal, parseFloat(tempDiscountVal || "0"))
+											).toFixed(2)}
+										</strong>
+									</span>
+									<span>
+										{locale === "hi" ? "नया योग:" : "New Total:"}{" "}
+										<strong>
+											₹
+											{Math.max(
+												0,
+												subtotal -
+													(tempDiscountType === "percent"
+														? (subtotal * parseFloat(tempDiscountVal || "0")) / 100
+														: parseFloat(tempDiscountVal || "0")) +
+													extraChargesValue,
+											).toFixed(2)}
+										</strong>
+									</span>
+								</div>
+							)}
+						</div>
+
+						{/* Predefined Reasons */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold">
+								{locale === "hi" ? "छूट का कारण (Reason)" : "Discount Reason"}
+							</Label>
+							<div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 max-h-44 overflow-y-auto pr-1">
+								{DISCOUNT_PRESET_REASONS.map((r) => (
+									<button
+										key={r}
+										type="button"
+										onClick={() => {
+											setTempDiscountReason(r);
+											if (r !== "Custom / Other Reason") {
+												setTempCustomDiscountReason("");
+											}
+										}}
+										className={`text-left text-xs p-2 rounded-md border transition-all ${
+											tempDiscountReason === r
+												? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-900"
+												: "border-border hover:bg-muted/50 text-foreground"
+										}`}
+									>
+										{r}
+									</button>
+								))}
+							</div>
+						</div>
+
+						{/* Custom Reason Text */}
+						<div className="space-y-1">
+							<Label className="text-xs text-muted-foreground">
+								{locale === "hi" ? "अतिरिक्त विवरण / टिप्पणी (वैकल्पिक)" : "Custom Note / Details (Optional)"}
+							</Label>
+							<Input
+								type="text"
+								placeholder={
+									locale === "hi"
+										? "जैसे: मैनेजर रोहन द्वारा स्वीकृत"
+										: "e.g. Approved by Store Manager Rohan"
+								}
+								value={tempCustomDiscountReason}
+								onChange={(e) => {
+									setTempCustomDiscountReason(e.target.value);
+									if (tempDiscountReason !== "Custom / Other Reason") {
+										setTempDiscountReason("Custom / Other Reason");
+									}
+								}}
+								className="text-xs"
+							/>
+						</div>
 					</div>
+
 					<DialogFooter className="gap-2 sm:gap-0">
-						<Button variant="outline" onClick={() => setCouponModalOpen(false)}>
+						{discountAmount > 0 && (
+							<Button variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={clearDiscount}>
+								{locale === "hi" ? "छूट हटाएं" : "Remove Discount"}
+							</Button>
+						)}
+						<Button variant="outline" onClick={() => setDiscountModalOpen(false)}>
 							{t.close}
 						</Button>
-						<Button
-							onClick={() => {
-								handleApplyCoupon();
-								setCouponModalOpen(false);
-							}}
-						>
-							{t.addCoupon}
+						<Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={applyDiscount}>
+							{locale === "hi" ? "छूट लागू करें" : "Apply Discount"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Extra Charges Dialog Modal */}
+			<Dialog open={extraChargesModalOpen} onOpenChange={setExtraChargesModalOpen}>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-lg">
+							<PlusCircle className="h-5 w-5 text-blue-600" />
+							{locale === "hi" ? "अतिरिक्त शुल्क एवं कारण (Extra Charges)" : "Extra Charges & Reason"}
+						</DialogTitle>
+						<DialogDescription>
+							{locale === "hi"
+								? "डिलीवरी, पैकेजिंग या अन्य अतिरिक्त शुल्क और उसका कारण जोड़ें।"
+								: "Add delivery, packaging, or handling charges with a specified reason."}
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						{/* Extra Amount Input */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold">
+								{locale === "hi" ? "अतिरिक्त शुल्क राशि (₹)" : "Extra Charge Amount (₹)"}
+							</Label>
+							<div className="relative">
+								<span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-bold">
+									₹
+								</span>
+								<Input
+									type="number"
+									min="0"
+									step="any"
+									placeholder="0.00"
+									value={tempExtraVal}
+									onChange={(e) => setTempExtraVal(e.target.value)}
+									className="pl-7 font-semibold"
+									autoFocus
+								/>
+							</div>
+							{/* Live preview */}
+							{tempExtraVal && parseFloat(tempExtraVal) > 0 && (
+								<div className="rounded-md bg-blue-50 p-2 text-xs text-blue-800 flex justify-between">
+									<span>
+										{locale === "hi" ? "अतिरिक्त शुल्क:" : "Extra Charges:"}{" "}
+										<strong>+₹{parseFloat(tempExtraVal || "0").toFixed(2)}</strong>
+									</span>
+									<span>
+										{locale === "hi" ? "नया योग:" : "New Total:"}{" "}
+										<strong>
+											₹
+											{Math.max(
+												0,
+												subtotal - discountValue + parseFloat(tempExtraVal || "0"),
+											).toFixed(2)}
+										</strong>
+									</span>
+								</div>
+							)}
+						</div>
+
+						{/* Predefined Reasons */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold">
+								{locale === "hi" ? "शुल्क का कारण (Category / Reason)" : "Charge Category / Reason"}
+							</Label>
+							<div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 max-h-44 overflow-y-auto pr-1">
+								{EXTRA_CHARGES_PRESET_REASONS.map((r) => (
+									<button
+										key={r}
+										type="button"
+										onClick={() => {
+											setTempExtraReason(r);
+											if (r !== "Custom / Other Charge") {
+												setTempCustomExtraReason("");
+											}
+										}}
+										className={`text-left text-xs p-2 rounded-md border transition-all ${
+											tempExtraReason === r
+												? "border-blue-500 bg-blue-50 font-semibold text-blue-900"
+												: "border-border hover:bg-muted/50 text-foreground"
+										}`}
+									>
+										{r}
+									</button>
+								))}
+							</div>
+						</div>
+
+						{/* Custom Reason Text */}
+						<div className="space-y-1">
+							<Label className="text-xs text-muted-foreground">
+								{locale === "hi" ? "अतिरिक्त विवरण / टिप्पणी (वैकल्पिक)" : "Custom Note / Details (Optional)"}
+							</Label>
+							<Input
+								type="text"
+								placeholder={
+									locale === "hi"
+										? "जैसे: 5 किमी दूर विशेष डिलीवरी"
+										: "e.g. 5km special express delivery"
+								}
+								value={tempCustomExtraReason}
+								onChange={(e) => {
+									setTempCustomExtraReason(e.target.value);
+									if (tempExtraReason !== "Custom / Other Charge") {
+										setTempExtraReason("Custom / Other Charge");
+									}
+								}}
+								className="text-xs"
+							/>
+						</div>
+					</div>
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						{extraChargesAmount > 0 && (
+							<Button variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={clearExtraCharges}>
+								{locale === "hi" ? "शुल्क हटाएं" : "Remove Charges"}
+							</Button>
+						)}
+						<Button variant="outline" onClick={() => setExtraChargesModalOpen(false)}>
+							{t.close}
+						</Button>
+						<Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={applyExtraCharges}>
+							{locale === "hi" ? "शुल्क जोड़ें" : "Apply Charges"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -45,6 +45,9 @@ interface CompletedOrder {
 	total: number;
 	subtotal: number;
 	discount: number;
+	discountReason?: string;
+	otherCharges?: number;
+	otherChargesReason?: string;
 	payments: Array<{ methodId: number; amount: string }>;
 	cashierName?: string;
 	customerName?: string;
@@ -833,9 +836,21 @@ export function SaleCompletionScreen({
 								</View>
 								{order.discount > 0 ? (
 									<View style={styles.row}>
-										<Text style={styles.tdText}>Discount:</Text>
+										<Text style={styles.tdText}>
+											Discount{order.discountReason ? ` (${order.discountReason})` : ""}:
+										</Text>
 										<Text style={styles.tdText}>
 											-Rs.{order.discount.toFixed(2)}
+										</Text>
+									</View>
+								) : null}
+								{order.otherCharges && order.otherCharges > 0 ? (
+									<View style={styles.row}>
+										<Text style={styles.tdText}>
+											Extra Charges{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
+										</Text>
+										<Text style={styles.tdText}>
+											+Rs.{Number(order.otherCharges).toFixed(2)}
 										</Text>
 									</View>
 								) : null}
@@ -1501,11 +1516,24 @@ export function SaleCompletionScreen({
 														<div className="flex justify-between font-medium text-green-600 print:text-black">
 															<span>
 																Discount{" "}
-																{order.couponCode
-																	? `(${order.couponCode})`
-																	: ""}
+																{order.discountReason
+																	? `(${order.discountReason})`
+																	: order.couponCode
+																		? `(${order.couponCode})`
+																		: ""}
 															</span>
 															<span>− ₹{order.discount.toFixed(2)}</span>
+														</div>
+													)}
+													{order.otherCharges && order.otherCharges > 0 && (
+														<div className="flex justify-between font-medium text-blue-600 print:text-black">
+															<span>
+																Extra Charges{" "}
+																{order.otherChargesReason
+																	? `(${order.otherChargesReason})`
+																	: ""}
+															</span>
+															<span>+ ₹{Number(order.otherCharges).toFixed(2)}</span>
 														</div>
 													)}
 													{roundOff !== 0 && (
@@ -1650,8 +1678,18 @@ export function SaleCompletionScreen({
 												</div>
 												{order.discount > 0 && (
 													<div className="flex justify-between">
-														<span>DISCOUNT:</span>
+														<span>
+															DISCOUNT{order.discountReason ? ` (${order.discountReason})` : ""}:
+														</span>
 														<span>-Rs.{order.discount.toFixed(2)}</span>
+													</div>
+												)}
+												{order.otherCharges && order.otherCharges > 0 && (
+													<div className="flex justify-between">
+														<span>
+															EXTRA CHG{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
+														</span>
+														<span>+Rs.{Number(order.otherCharges).toFixed(2)}</span>
 													</div>
 												)}
 												{roundOff !== 0 && (
