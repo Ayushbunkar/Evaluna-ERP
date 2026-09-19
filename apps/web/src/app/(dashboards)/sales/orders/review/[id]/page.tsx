@@ -25,8 +25,10 @@ import {
 } from "@evaluna/ui/components/select";
 import {
 	AlertCircleIcon,
+	AlertTriangleIcon,
 	ArrowLeftIcon,
 	CheckCircle2Icon,
+	Loader2Icon,
 	LockIcon,
 	MapPinIcon,
 	NavigationIcon,
@@ -38,6 +40,7 @@ import {
 	Trash2Icon,
 	TruckIcon,
 	UserIcon,
+	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -182,6 +185,47 @@ export default function CustomerOrderReviewPage() {
 	};
 
 	const [completedOrder, setCompletedOrder] = useState<any>(null);
+	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+	const [selectedCancelReason, setSelectedCancelReason] = useState<string>(
+		"Customer Refused / Changed Mind (ग्राहक ने मना कर दिया)",
+	);
+	const [customCancelReason, setCustomCancelReason] = useState<string>("");
+	const [cancelNotes, setCancelNotes] = useState<string>("");
+
+	const cancelMutation = trpc.orders.cancelOrder.useMutation({
+		onSuccess: () => {
+			toast.success(
+				`Order ORD-${id} has been cancelled and archived under Cancelled Orders.`,
+			);
+			utils.orders.listPendingReview.invalidate();
+			utils.orders.getPendingCount.invalidate();
+			utils.orders.listCancelledOrders.invalidate();
+			utils.orders.list.invalidate();
+			setCancelDialogOpen(false);
+			router.push("/sales/orders/review");
+		},
+		onError: (err) => {
+			toast.error(`Failed to cancel order: ${err.message}`);
+		},
+	});
+
+	const handleCancelSubmit = () => {
+		const finalReason =
+			selectedCancelReason === "Custom / Other Reason"
+				? customCancelReason.trim()
+				: selectedCancelReason;
+
+		if (!finalReason) {
+			toast.error("Please provide a reason for cancelling this order.");
+			return;
+		}
+
+		cancelMutation.mutate({
+			id,
+			reason: finalReason,
+			notes: cancelNotes.trim() || undefined,
+		});
+	};
 
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
@@ -698,27 +742,156 @@ export default function CustomerOrderReviewPage() {
 
 			{/* Bottom Action Bar */}
 			{!locked && (
-				<div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+				<div className="flex flex-wrap items-center justify-between gap-3 pt-2">
 					<Button
 						variant="outline"
-						onClick={handleSave}
-						disabled={saveDraft.isPending || lines.length === 0}
-						className="gap-2"
+						type="button"
+						onClick={() => setCancelDialogOpen(true)}
+						className="gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/50"
 					>
-						<SaveIcon className="h-4 w-4" />
-						{saveDraft.isPending ? "Saving Draft…" : "Save Draft"}
+						<XCircleIcon className="h-4 w-4" />
+						Cancel Order (ग्राहक ने मना किया)
 					</Button>
 
-					<Button
-						onClick={() => setConfirmOpen(true)}
-						disabled={!canConfirm}
-						className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
-					>
-						<CheckCircle2Icon className="h-4 w-4" />
-						Confirm & Generate Bill
-					</Button>
+					<div className="flex flex-wrap items-center gap-3">
+						<Button
+							variant="outline"
+							onClick={handleSave}
+							disabled={saveDraft.isPending || lines.length === 0}
+							className="gap-2"
+						>
+							<SaveIcon className="h-4 w-4" />
+							{saveDraft.isPending ? "Saving Draft…" : "Save Draft"}
+						</Button>
+
+						<Button
+							onClick={() => setConfirmOpen(true)}
+							disabled={!canConfirm}
+							className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+						>
+							<CheckCircle2Icon className="h-4 w-4" />
+							Confirm & Generate Bill
+						</Button>
+					</div>
 				</div>
 			)}
+
+			{/* Cancel Customer Order Reason Modal */}
+			<Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-destructive text-lg">
+							<AlertTriangleIcon className="h-5 w-5" />
+							Cancel Customer Order ({order?.orderRef})
+						</DialogTitle>
+						<DialogDescription>
+							This order will be removed from the active queue and archived under{" "}
+							<span className="font-semibold text-foreground">Cancelled Orders</span> with full customer and item details preserved.
+						</DialogDescription>
+					</DialogHeader>
+
+					{order && (
+						<div className="space-y-4 py-2 text-xs">
+							<div className="rounded-lg border bg-muted/40 p-3">
+								<div className="font-bold text-foreground text-sm">
+									{order.customer?.name}
+								</div>
+								{order.customer?.phone && (
+									<div className="text-muted-foreground">
+										Phone: {order.customer?.phone}
+									</div>
+								)}
+								<div className="mt-1 text-muted-foreground text-[11px]">
+									Items: {lines.length} line item(s)
+								</div>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="detailCancelReasonSelect" className="font-semibold text-xs">
+									Cancellation Reason (कारण) *
+								</Label>
+								<select
+									id="detailCancelReasonSelect"
+									value={selectedCancelReason}
+									onChange={(e) => setSelectedCancelReason(e.target.value)}
+									className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 font-medium text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								>
+									<option value="Customer Refused / Changed Mind (ग्राहक ने मना कर दिया)">
+										Customer Refused / Changed Mind (ग्राहक ने मना कर दिया)
+									</option>
+									<option value="Customer Cancelled on Phone Call (फ़ोन पर ग्राहक द्वारा निरस्त)">
+										Customer Cancelled on Phone Call (फ़ोन पर ग्राहक द्वारा निरस्त)
+									</option>
+									<option value="Ordered by Mistake / Duplicate Order (गलती से ऑर्डर / डुप्लीकेट)">
+										Ordered by Mistake / Duplicate Order (गलती से ऑर्डर / डुप्लीकेट)
+									</option>
+									<option value="Item Price / Rate Mismatch (कीमत पर असहमति)">
+										Item Price / Rate Mismatch (कीमत पर असहमति)
+									</option>
+									<option value="Out of Stock / Delivery Delayed (स्टॉक अनुपलब्ध / देरी)">
+										Out of Stock / Delivery Delayed (स्टॉक अनुपलब्ध / देरी)
+									</option>
+									<option value="Customer Unreachable / Wrong Number (ग्राहक से संपर्क नहीं हो पाया)">
+										Customer Unreachable / Wrong Number (ग्राहक से संपर्क नहीं हो पाया)
+									</option>
+									<option value="Custom / Other Reason">Custom / Other Reason</option>
+								</select>
+							</div>
+
+							{selectedCancelReason === "Custom / Other Reason" && (
+								<div className="space-y-1.5">
+									<Label htmlFor="detailCustomCancelReason" className="font-semibold text-xs">
+										Specify Custom Reason *
+									</Label>
+									<Input
+										id="detailCustomCancelReason"
+										placeholder="e.g. Customer cancelled due to change in store requirement"
+										value={customCancelReason}
+										onChange={(e) => setCustomCancelReason(e.target.value)}
+										className="text-xs"
+									/>
+								</div>
+							)}
+
+							<div className="space-y-1.5">
+								<Label htmlFor="detailCancelNotes" className="font-semibold text-xs text-muted-foreground">
+									Additional Comments (Optional)
+								</Label>
+								<Input
+									id="detailCancelNotes"
+									placeholder="e.g. Customer informed on phone call"
+									value={cancelNotes}
+									onChange={(e) => setCancelNotes(e.target.value)}
+									className="text-xs"
+								/>
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							variant="outline"
+							onClick={() => setCancelDialogOpen(false)}
+							className="text-xs"
+						>
+							Go Back
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleCancelSubmit}
+							disabled={cancelMutation.isPending}
+							className="gap-1.5 text-xs"
+						>
+							{cancelMutation.isPending ? (
+								<Loader2Icon className="h-4 w-4 animate-spin" />
+							) : (
+								<XCircleIcon className="h-4 w-4" />
+							)}
+							Confirm Cancellation
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* Confirm Order Dialog */}
 			<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

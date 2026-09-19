@@ -1454,4 +1454,149 @@ export const ordersRouter = router({
 				routeName: route?.name || `Route #${input.routeId}`,
 			};
 		}),
+
+	// ── Cancel Order with Reason (Salesperson / Manager / Admin) ──────────────
+	cancelOrder: roleProcedure(["admin", "manager", "sales_person", "sales"])
+		.input(
+			z.object({
+				id: z.number(),
+				reason: z.string().min(2, "Cancellation reason is required"),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const existing = await db.query.orders.findFirst({
+				where: eq(orders.id, input.id),
+			});
+			if (!existing) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Order not found",
+				});
+			}
+
+			let changedBy: number | null = null;
+			if (ctx.user?.email) {
+				const staffRec = await db.query.staff.findFirst({
+					where: eq(staff.email, ctx.user.email),
+				});
+				changedBy = staffRec?.id ?? null;
+			}
+
+			await db.transaction(async (tx) => {
+				// Record in orderAudits
+				await tx.insert(orderAudits).values({
+					order_id: input.id,
+					action: "cancel",
+					reason: `[Cancelled by Customer/Sales] ${input.reason}${input.notes ? ` - ${input.notes}` : ""}`,
+					previous_state: existing,
+					changed_by: changedBy,
+				});
+
+				// Update order status to cancelled
+				await tx
+					.update(orders)
+					.set({
+						status: "cancelled",
+						locked: true,
+					})
+					.where(eq(orders.id, input.id));
+			});
+
+			return { success: true, orderId: input.id };
+		}),
+
+	// ── List Cancelled Orders with full details and audit reasons ──────────────
+	listCancelledOrders: roleProcedure([
+		"admin",
+		"manager",
+		"sales_person",
+		"sales",
+	])
+		.input(
+			z
+				.object({
+					search: z.string().optional(),
+					limit: z.number().optional().default(100),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = ctx.user?.branchId ?? null;
+			const search = input?.search?.trim()?.toLowerCase();
+
+			const rows = await db.query.orders.findMany({
+				where: and(
+					eq(orders.status, "cancelled"),
+					branchId
+						? or(eq(orders.branch_id, branchId), sql`${orders.branch_id} IS NULL`)
+						: undefined,
+				),
+				orderBy: [desc(orders.created_at)],
+				limit: input?.limit ?? 100,
+				with: {
+					customer: true,
+					orderItems: {
+						with: {
+							product: true,
+						},
+					},
+					orderAudits: {
+						orderBy: [desc(orderAudits.created_at)],
+						with: {
+							changedBy: true,
+						},
+					},
+				},
+			});
+
+			return rows
+				.filter((o) => {
+					if (!search) return true;
+					const ref = `ORD-${o.id}`.toLowerCase();
+					const cust = (o.customer?.name ?? "").toLowerCase();
+					const phone = (o.customer?.phone ?? "").toLowerCase();
+					return (
+						ref.includes(search) ||
+						cust.includes(search) ||
+						phone.includes(search)
+					);
+				})
+				.map((o) => {
+					const cancelAudit = o.orderAudits?.find(
+						(a: any) => a.action === "cancel" || a.action === "cancelled",
+					);
+
+					return {
+						id: o.id,
+						orderRef: `ORD-${o.id}`,
+						status: "cancelled",
+						createdAt: o.created_at,
+						totalAmount: Number(o.total_amount || 0),
+						discountAmount: Number(o.discount_amount || 0),
+						customer: o.customer
+							? {
+									id: o.customer.id,
+									name: o.customer.name,
+									phone: o.customer.phone,
+									address: o.customer.address,
+									customerCode: o.customer.customer_code,
+								}
+							: null,
+						items: (o.orderItems || []).map((it: any) => ({
+							id: it.id,
+							productId: it.product_id,
+							name: it.product?.name || `Item #${it.product_id}`,
+							sku: it.product?.sku || "—",
+							quantity: it.quantity,
+							price: Number(it.price || it.product?.price || 0),
+							unit: it.product?.unit || "Pcs",
+						})),
+						cancelReason: cancelAudit?.reason || "Customer requested cancellation",
+						cancelledBy: cancelAudit?.changedBy?.name || "Sales Team",
+						cancelledAt: cancelAudit?.created_at || o.created_at,
+					};
+				});
+		}),
 });
+

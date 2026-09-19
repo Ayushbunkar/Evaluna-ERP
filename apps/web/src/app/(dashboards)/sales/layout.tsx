@@ -12,6 +12,7 @@ import {
 	ShoppingCartIcon,
 	TargetIcon,
 	UsersIcon,
+	XCircleIcon,
 } from "lucide-react";
 import {
 	AppLayoutWithBranch,
@@ -41,6 +42,7 @@ export default function Layout({
 			icon: ClipboardListIcon,
 			badge: pendingCount > 0 ? pendingCount : undefined,
 		},
+		{ href: "/sales/orders/cancelled", labelKey: "cancelledOrders", icon: XCircleIcon },
 		{ href: "/sales/shortages", labelKey: "shortages", icon: AlertCircleIcon },
 		{ href: "/sales/customers", labelKey: "customers", icon: UsersIcon },
 		{ href: "/sales/returns", labelKey: "salesReturns", icon: ReceiptTextIcon },

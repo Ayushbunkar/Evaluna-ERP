@@ -9,14 +9,28 @@ import {
 } from "@evaluna/ui/components/card";
 import {
 	AlertCircleIcon,
+	AlertTriangleIcon,
 	ArrowRightIcon,
 	CheckCircle2Icon,
 	ClipboardListIcon,
 	ClockIcon,
+	Loader2Icon,
 	PhoneIcon,
+	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
 import { Badge } from "@/components/ui/badge";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -32,6 +46,16 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
 			"bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-900",
 	},
 };
+
+const PRESET_CANCEL_REASONS = [
+	"Customer Refused / Changed Mind (ग्राहक ने मना कर दिया)",
+	"Customer Cancelled on Phone Call (फ़ोन पर ग्राहक द्वारा निरस्त)",
+	"Ordered by Mistake / Duplicate Order (गलती से ऑर्डर / डुप्लीकेट)",
+	"Item Price / Rate Mismatch (कीमत पर असहमति)",
+	"Out of Stock / Delivery Delayed (स्टॉक अनुपलब्ध / देरी)",
+	"Customer Unreachable / Wrong Number (ग्राहक से संपर्क नहीं हो पाया)",
+	"Custom / Other Reason",
+];
 
 function formatPendingDuration(createdAt: Date | string | null): string {
 	if (!createdAt) return "Just now";
@@ -53,13 +77,60 @@ function formatPendingDuration(createdAt: Date | string | null): string {
 
 export default function CustomerOrderInboxPage() {
 	const trpc = useTRPC();
+	const utils = trpc.useUtils();
+
+	const [cancellingOrder, setCancellingOrder] = useState<any>(null);
+	const [selectedReason, setSelectedReason] = useState<string>(PRESET_CANCEL_REASONS[0]);
+	const [customReason, setCustomReason] = useState<string>("");
+	const [cancelNotes, setCancelNotes] = useState<string>("");
+
 	const {
 		data: orders,
 		isLoading,
 		error,
+		refetch,
 	} = trpc.orders.listPendingReview.useQuery(undefined, {
 		refetchInterval: 15000,
 	});
+
+	const cancelMutation = trpc.orders.cancelOrder.useMutation({
+		onSuccess: () => {
+			toast.success(
+				`Order ORD-${cancellingOrder?.id} cancelled and moved to Cancelled Orders archive.`,
+			);
+			utils.orders.listPendingReview.invalidate();
+			utils.orders.getPendingCount.invalidate();
+			utils.orders.listCancelledOrders.invalidate();
+			utils.orders.list.invalidate();
+			refetch();
+			setCancellingOrder(null);
+			setSelectedReason(PRESET_CANCEL_REASONS[0]);
+			setCustomReason("");
+			setCancelNotes("");
+		},
+		onError: (err) => {
+			toast.error(`Failed to cancel order: ${err.message}`);
+		},
+	});
+
+	const handleCancelSubmit = () => {
+		if (!cancellingOrder) return;
+		const reasonFinal =
+			selectedReason === "Custom / Other Reason"
+				? customReason.trim()
+				: selectedReason;
+
+		if (!reasonFinal) {
+			toast.error("Please provide a reason for cancelling this order.");
+			return;
+		}
+
+		cancelMutation.mutate({
+			id: cancellingOrder.id,
+			reason: reasonFinal,
+			notes: cancelNotes.trim() || undefined,
+		});
+	};
 
 	// Sort orders oldest-first so sales team prioritizes long-waiting customers
 	const sortedOrders = useMemo(() => {
@@ -234,6 +305,16 @@ export default function CustomerOrderInboxPage() {
 											</Button>
 										)}
 
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setCancellingOrder(o)}
+											className="gap-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/50"
+										>
+											<XCircleIcon className="h-3.5 w-3.5" />
+											Cancel Order
+										</Button>
+
 										<Button size="sm" asChild className="gap-1.5">
 											<Link href={`/sales/orders/review/${o.id}`}>
 												Review Order
@@ -247,6 +328,117 @@ export default function CustomerOrderInboxPage() {
 					})}
 				</div>
 			)}
+
+			{/* Cancel Customer Order Reason Modal */}
+			<Dialog
+				open={!!cancellingOrder}
+				onOpenChange={(open) => !open && setCancellingOrder(null)}
+			>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-destructive text-lg">
+							<AlertTriangleIcon className="h-5 w-5" />
+							Cancel Customer Order ({cancellingOrder?.orderRef})
+						</DialogTitle>
+						<DialogDescription>
+							This order will be removed from the active review queue and archived
+							under <span className="font-semibold text-foreground">Cancelled Orders</span> with full customer and item details preserved.
+						</DialogDescription>
+					</DialogHeader>
+
+					{cancellingOrder && (
+						<div className="space-y-4 py-2 text-xs">
+							{/* Customer Summary */}
+							<div className="rounded-lg border bg-muted/40 p-3">
+								<div className="font-bold text-foreground text-sm">
+									{cancellingOrder.customerName}
+								</div>
+								{cancellingOrder.customerPhone && (
+									<div className="text-muted-foreground">
+										Phone: {cancellingOrder.customerPhone}
+									</div>
+								)}
+								<div className="mt-1 text-muted-foreground text-[11px]">
+									Items: {cancellingOrder.itemsCount} line items
+								</div>
+							</div>
+
+							{/* Cancellation Reason Select */}
+							<div className="space-y-1.5">
+								<Label htmlFor="cancelReasonSelect" className="font-semibold text-xs">
+									Cancellation Reason (कारण) *
+								</Label>
+								<select
+									id="cancelReasonSelect"
+									value={selectedReason}
+									onChange={(e) => setSelectedReason(e.target.value)}
+									className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 font-medium text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								>
+									{PRESET_CANCEL_REASONS.map((r) => (
+										<option key={r} value={r}>
+											{r}
+										</option>
+									))}
+								</select>
+							</div>
+
+							{/* Custom Reason input */}
+							{selectedReason === "Custom / Other Reason" && (
+								<div className="space-y-1.5">
+									<Label htmlFor="customCancelReason" className="font-semibold text-xs">
+										Specify Custom Reason *
+									</Label>
+									<Input
+										id="customCancelReason"
+										placeholder="e.g. Customer cancelled due to change in store requirement"
+										value={customReason}
+										onChange={(e) => setCustomReason(e.target.value)}
+										className="text-xs"
+									/>
+								</div>
+							)}
+
+							{/* Additional notes */}
+							<div className="space-y-1.5">
+								<Label htmlFor="cancelNotes" className="font-semibold text-xs text-muted-foreground">
+									Additional Comments (Optional)
+								</Label>
+								<Input
+									id="cancelNotes"
+									placeholder="e.g. Customer informed on 9:30 PM call"
+									value={cancelNotes}
+									onChange={(e) => setCancelNotes(e.target.value)}
+									className="text-xs"
+								/>
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							variant="outline"
+							onClick={() => setCancellingOrder(null)}
+							className="text-xs"
+						>
+							Go Back
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleCancelSubmit}
+							disabled={cancelMutation.isPending}
+							className="gap-1.5 text-xs"
+						>
+							{cancelMutation.isPending ? (
+								<Loader2Icon className="h-4 w-4 animate-spin" />
+							) : (
+								<XCircleIcon className="h-4 w-4" />
+							)}
+							Confirm Cancellation
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
+
