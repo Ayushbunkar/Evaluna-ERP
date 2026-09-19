@@ -6,16 +6,22 @@ import {
 	auditLogs,
 	branches,
 	correctiveActions,
+	customers,
 	deliveryTrips,
 	departments,
+	eWayBills,
 	employeeExpenses,
 	employees,
 	enhancedAttendance,
 	leaveApplications,
 	leaveTypes,
+	orderItems,
 	orders,
 	packages,
+	payroll,
 	pickLists,
+	priceChangeHistory,
+	products,
 	purchases,
 	staff,
 	stockAudits,
@@ -31,6 +37,7 @@ import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
 import { reverseGeocodeLocation } from "../util/attendance";
 import { logAudit, resolveStaffId } from "../util/audit";
+
 
 export const managerRouter = router({
 	// ── 1. Centralized Dashboard Stats (Optimized SQL Aggregation) ─────────────
@@ -724,4 +731,611 @@ export const managerRouter = router({
 			(ord) => !ord.customer_id || !assignedCustIds.has(ord.customer_id),
 		);
 	}),
+
+	// ── 13. E-Way Bills Management ──────────────────────────────────────────
+	getEWayBills: protectedProcedure
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					search: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const rows = await db
+				.select({
+					id: eWayBills.id,
+					order_id: eWayBills.order_id,
+					e_way_bill_no: eWayBills.e_way_bill_no,
+					vehicle_no: eWayBills.vehicle_no,
+					mode_of_transport: eWayBills.mode_of_transport,
+					transporter_name: eWayBills.transporter_name,
+					status: eWayBills.status,
+					valid_until: eWayBills.valid_until,
+					created_at: eWayBills.created_at,
+					cancelled_at: eWayBills.cancelled_at,
+					cancellation_reason: eWayBills.cancellation_reason,
+					order_total: orders.total_amount,
+					customer_name: customers.name,
+					creator_name: staff.name,
+				})
+				.from(eWayBills)
+				.leftJoin(orders, eq(eWayBills.order_id, orders.id))
+				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.leftJoin(staff, eq(eWayBills.created_by, staff.id))
+				.orderBy(desc(eWayBills.created_at));
+
+			return rows.filter((r) => {
+				if (input?.status && input.status !== "all" && r.status !== input.status) {
+					return false;
+				}
+				if (input?.search) {
+					const q = input.search.toLowerCase();
+					return (
+						r.e_way_bill_no.toLowerCase().includes(q) ||
+						(r.vehicle_no && r.vehicle_no.toLowerCase().includes(q)) ||
+						(r.customer_name && r.customer_name.toLowerCase().includes(q)) ||
+						(r.transporter_name && r.transporter_name.toLowerCase().includes(q))
+					);
+				}
+				return true;
+			});
+		}),
+
+	generateEWayBill: protectedProcedure
+		.input(
+			z.object({
+				orderId: z.number(),
+				vehicleNo: z.string().min(4),
+				modeOfTransport: z.enum(["road", "rail", "air", "ship"]).default("road"),
+				transporterName: z.string().optional(),
+				transporterId: z.string().optional(),
+				approxDistanceKm: z.number().default(50),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const [order] = await db
+				.select()
+				.from(orders)
+				.where(eq(orders.id, input.orderId))
+				.limit(1);
+
+			if (!order) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `Order #${input.orderId} not found.`,
+				});
+			}
+
+			const ewbNo = `EWB-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+			const validUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+			const [bill] = await db
+				.insert(eWayBills)
+				.values({
+					order_id: order.id,
+					e_way_bill_no: ewbNo,
+					vehicle_no: input.vehicleNo.toUpperCase().trim(),
+					mode_of_transport: input.modeOfTransport,
+					transporter_name: input.transporterName || "Self Delivery",
+					transporter_id: input.transporterId,
+					status: "generated",
+					valid_until: validUntil,
+					created_by: staffId ?? 1,
+					created_at: new Date(),
+				})
+				.returning();
+
+			// Update order reference
+			await db
+				.update(orders)
+				.set({ e_way_bill_no: ewbNo })
+				.where(eq(orders.id, order.id));
+
+			await logAudit(db, {
+				userId: staffId,
+				action: "EWAY_BILL_GENERATED",
+				entityType: "orders",
+				entityId: order.id,
+			});
+
+			return bill;
+		}),
+
+	cancelEWayBill: protectedProcedure
+		.input(
+			z.object({
+				eWayBillId: z.number(),
+				reason: z.string().min(5),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const [updated] = await db
+				.update(eWayBills)
+				.set({
+					status: "cancelled",
+					cancelled_at: new Date(),
+					cancellation_reason: input.reason,
+				})
+				.where(eq(eWayBills.id, input.eWayBillId))
+				.returning();
+
+			if (!updated) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "E-Way bill not found.",
+				});
+			}
+
+			await logAudit(db, {
+				userId: staffId,
+				action: "EWAY_BILL_CANCELLED",
+				entityType: "e_way_bills",
+				entityId: input.eWayBillId,
+			});
+
+			return updated;
+		}),
+
+	// ── 14. Sales & Driver Commissions ──────────────────────────────────────
+	getCommissions: protectedProcedure
+		.input(
+			z
+				.object({
+					role: z.string().optional(),
+					month: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const staffList = await db
+				.select({
+					id: staff.id,
+					name: staff.name,
+					role: staff.role,
+					email: staff.email,
+					salary: staff.salary,
+				})
+				.from(staff)
+				.where(eq(staff.is_deleted, false));
+
+			const [orderRows, tripCollRows] = await Promise.all([
+				db
+					.select({
+						id: orders.id,
+						driver_id: orders.driver_id,
+						total_amount: orders.total_amount,
+						created_at: orders.created_at,
+						status: orders.status,
+					})
+					.from(orders)
+					.where(eq(orders.status, "completed")),
+				db
+					.select({
+						id: tripCollections.id,
+						collected_by: tripCollections.collected_by,
+						amount: tripCollections.amount,
+						collected_at: tripCollections.collected_at,
+					})
+					.from(tripCollections),
+			]);
+
+			return staffList.map((st) => {
+				const isDriver = st.role?.toLowerCase().includes("driver");
+				const isSales =
+					st.role?.toLowerCase().includes("sales") ||
+					st.role?.toLowerCase().includes("manager");
+
+				let salesVolume = 0;
+				let commissionRate = isSales ? 2.5 : isDriver ? 1.0 : 0.5; // percentage
+
+				if (isDriver) {
+					const staffCollections = tripCollRows.filter(
+						(c) => c.collected_by === st.id,
+					);
+					salesVolume = staffCollections.reduce(
+						(acc, c) => acc + Number(c.amount || 0),
+						0,
+					);
+				} else {
+					// Attributed sales
+					salesVolume = orderRows.reduce(
+						(acc, o) => acc + Number(o.total_amount || 0),
+						0,
+					) / (staffList.length || 1);
+				}
+
+				const earnedCommission = Math.round((salesVolume * commissionRate) / 100);
+
+				return {
+					staffId: st.id,
+					name: st.name,
+					role: st.role,
+					email: st.email,
+					baseSalary: Number(st.salary || 25000),
+					salesVolume: Math.round(salesVolume),
+					commissionRate,
+					earnedCommission,
+					totalPayout: Number(st.salary || 25000) + earnedCommission,
+					status: earnedCommission > 0 ? "Pending Payout" : "Settled",
+				};
+			});
+		}),
+
+	// ── 15. Customer Credit Limits & Credit Holds ───────────────────────────
+	getCreditLimits: protectedProcedure
+		.input(
+			z
+				.object({
+					search: z.string().optional(),
+					onlyHeld: z.boolean().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const customerRows = await db
+				.select({
+					id: customers.id,
+					name: customers.name,
+					customer_code: customers.customer_code,
+					phone: customers.phone,
+					email: customers.email,
+					credit_limit: customers.credit_limit,
+					credit_used: customers.credit_used,
+					credit_hold: customers.credit_hold,
+					payment_terms: customers.payment_terms,
+					customer_type: customers.customer_type,
+					status: customers.status,
+				})
+				.from(customers)
+				.where(eq(customers.is_deleted, false))
+				.orderBy(desc(customers.credit_hold), asc(customers.name));
+
+			return customerRows.filter((c) => {
+				if (input?.onlyHeld && !c.credit_hold) return false;
+				if (input?.search) {
+					const q = input.search.toLowerCase();
+					return (
+						c.name.toLowerCase().includes(q) ||
+						(c.customer_code && c.customer_code.toLowerCase().includes(q)) ||
+						(c.phone && c.phone.toLowerCase().includes(q))
+					);
+				}
+				return true;
+			});
+		}),
+
+	updateCreditLimit: protectedProcedure
+		.input(
+			z.object({
+				customerId: z.number(),
+				creditLimit: z.number().min(0),
+				creditHold: z.boolean(),
+				paymentTerms: z.number().min(0).max(365),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const [updated] = await db
+				.update(customers)
+				.set({
+					credit_limit: input.creditLimit.toString(),
+					credit_hold: input.creditHold,
+					payment_terms: input.paymentTerms,
+				})
+				.where(eq(customers.id, input.customerId))
+				.returning();
+
+			if (!updated) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Customer not found.",
+				});
+			}
+
+			await logAudit(db, {
+				userId: staffId,
+				action: "CUSTOMER_CREDIT_LIMIT_UPDATED",
+				entityType: "customers",
+				entityId: input.customerId,
+			});
+
+			return updated;
+		}),
+
+	// ── 16. Price Change Audit & Approval ───────────────────────────────────
+	getPriceReviews: protectedProcedure
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const rows = await db
+				.select({
+					id: priceChangeHistory.id,
+					product_id: priceChangeHistory.product_id,
+					product_name: products.name,
+					sku: products.sku,
+					price_field: priceChangeHistory.price_field,
+					old_price: priceChangeHistory.old_price,
+					new_price: priceChangeHistory.new_price,
+					changed_by: staff.name,
+					reason: priceChangeHistory.reason,
+					approval_ref: priceChangeHistory.approval_ref,
+					source: priceChangeHistory.source,
+					created_at: priceChangeHistory.created_at,
+				})
+				.from(priceChangeHistory)
+				.leftJoin(products, eq(priceChangeHistory.product_id, products.id))
+				.leftJoin(staff, eq(priceChangeHistory.changed_by, staff.id))
+				.orderBy(desc(priceChangeHistory.created_at))
+				.limit(100);
+
+			return rows;
+		}),
+
+	logPriceReview: protectedProcedure
+		.input(
+			z.object({
+				productId: z.number(),
+				priceField: z.enum(["price", "base_selling_price", "base_procurement_price"]),
+				oldPrice: z.number(),
+				newPrice: z.number(),
+				reason: z.string().min(3),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const [logged] = await db
+				.insert(priceChangeHistory)
+				.values({
+					product_id: input.productId,
+					price_field: input.priceField,
+					old_price: input.oldPrice.toString(),
+					new_price: input.newPrice.toString(),
+					changed_by: staffId ?? 1,
+					reason: input.reason,
+					source: "manager_review",
+					created_at: new Date(),
+				})
+				.returning();
+
+			// Update product price
+			const updateData: Record<string, string> = {};
+			updateData[input.priceField] = input.newPrice.toString();
+			await db.update(products).set(updateData).where(eq(products.id, input.productId));
+
+			await logAudit(db, {
+				userId: staffId,
+				action: "PRICE_CHANGE_LOGGED",
+				entityType: "products",
+				entityId: input.productId,
+			});
+
+			return logged;
+		}),
+
+	// ── 17. Escalations & Hold Bills Management ──────────────────────────────
+	getEscalations: protectedProcedure.query(async ({ ctx }) => {
+		const [findings, heldOrders] = await Promise.all([
+			db
+				.select({
+					id: auditFindings.id,
+					severity: auditFindings.severity,
+					title: auditFindings.title,
+					description: auditFindings.description,
+					status: auditFindings.status,
+					finding_type: auditFindings.finding_type,
+					created_at: auditFindings.created_at,
+				})
+				.from(auditFindings)
+				.orderBy(desc(auditFindings.created_at)),
+			db
+				.select({
+					id: orders.id,
+					customer_name: customers.name,
+					customer_phone: customers.phone,
+					total_amount: orders.total_amount,
+					status: orders.status,
+					created_at: orders.created_at,
+					discount_reason: orders.discount_reason,
+				})
+				.from(orders)
+				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.where(or(eq(orders.status, "suspended"), eq(orders.status, "pending")))
+				.orderBy(desc(orders.created_at)),
+		]);
+
+		return {
+			findings,
+			heldOrders,
+		};
+	}),
+
+	resolveEscalation: protectedProcedure
+		.input(
+			z.object({
+				findingId: z.number(),
+				resolution: z.string().min(3),
+				status: z.enum(["RESOLVED", "CLOSED", "UNDER_REVIEW"]),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const [updated] = await db
+				.update(auditFindings)
+				.set({
+					status: input.status,
+					resolved_by: staffId ?? 1,
+					resolved_at: new Date(),
+					description: sql`concat(${auditFindings.description}, ' [Resolution: ', ${input.resolution}, ']')`,
+				})
+				.where(eq(auditFindings.id, input.findingId))
+				.returning();
+
+			return updated;
+		}),
+
+	releaseHoldOrder: protectedProcedure
+		.input(
+			z.object({
+				orderId: z.number(),
+				action: z.enum(["approve", "cancel"]),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const [order] = await db
+				.update(orders)
+				.set({
+					status: input.action === "approve" ? "confirmed" : "cancelled",
+				})
+				.where(eq(orders.id, input.orderId))
+				.returning();
+
+			await logAudit(db, {
+				userId: staffId,
+				action: `HOLD_ORDER_${input.action.toUpperCase()}`,
+				entityType: "orders",
+				entityId: input.orderId,
+			});
+
+			return order;
+		}),
+
+	// ── 18. Payroll Approvals ───────────────────────────────────────────────
+	getPayrollApprovals: protectedProcedure
+		.input(
+			z
+				.object({
+					month: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const currentMonth =
+				input?.month || new Date().toISOString().substring(0, 7);
+
+			const [staffMembers, payrollRows] = await Promise.all([
+				db
+					.select({
+						id: staff.id,
+						name: staff.name,
+						staff_code: staff.staff_code,
+						role: staff.role,
+						salary: staff.salary,
+						join_date: staff.join_date,
+					})
+					.from(staff)
+					.where(eq(staff.is_deleted, false)),
+				db
+					.select()
+					.from(payroll)
+					.where(eq(payroll.month, currentMonth)),
+			]);
+
+			return staffMembers.map((s) => {
+				const pr = payrollRows.find((p) => p.staff_id === s.id);
+				const base = Number(pr?.base_salary || s.salary || 25000);
+				const ot = Number(pr?.overtime_pay || 0);
+				const bonus = Number(pr?.bonus || 0);
+				const ded = Number(pr?.deductions || 0);
+				const net = Number(pr?.net_payable || base + ot + bonus - ded);
+				const status = pr?.status || "pending_approval";
+
+				return {
+					id: pr?.id ?? null,
+					staffId: s.id,
+					name: s.name,
+					staffCode: s.staff_code,
+					role: s.role,
+					month: currentMonth,
+					baseSalary: base,
+					overtimePay: ot,
+					bonus,
+					deductions: ded,
+					netPayable: net,
+					status,
+					paymentDate: pr?.payment_date,
+				};
+			});
+		}),
+
+	approvePayroll: protectedProcedure
+		.input(
+			z.object({
+				staffId: z.number(),
+				month: z.string(),
+				baseSalary: z.number(),
+				overtimePay: z.number().default(0),
+				bonus: z.number().default(0),
+				deductions: z.number().default(0),
+				decision: z.enum(["approved", "rejected", "paid"]),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const net = input.baseSalary + input.overtimePay + input.bonus - input.deductions;
+
+			const existing = await db
+				.select()
+				.from(payroll)
+				.where(
+					and(
+						eq(payroll.staff_id, input.staffId),
+						eq(payroll.month, input.month),
+					),
+				)
+				.limit(1);
+
+			if (existing.length > 0) {
+				const [updated] = await db
+					.update(payroll)
+					.set({
+						base_salary: input.baseSalary.toString(),
+						overtime_pay: input.overtimePay.toString(),
+						bonus: input.bonus.toString(),
+						deductions: input.deductions.toString(),
+						net_payable: net.toString(),
+						status: input.decision,
+						payment_date: input.decision === "paid" ? new Date() : undefined,
+						updated_at: new Date(),
+					})
+					.where(eq(payroll.id, existing[0].id))
+					.returning();
+				return updated;
+			}
+
+			const [created] = await db
+				.insert(payroll)
+				.values({
+					staff_id: input.staffId,
+					month: input.month,
+					base_salary: input.baseSalary.toString(),
+					overtime_pay: input.overtimePay.toString(),
+					bonus: input.bonus.toString(),
+					deductions: input.deductions.toString(),
+					net_payable: net.toString(),
+					status: input.decision,
+					payment_date: input.decision === "paid" ? new Date() : undefined,
+					created_at: new Date(),
+				})
+				.returning();
+
+			await logAudit(db, {
+				userId: staffId,
+				action: `PAYROLL_${input.decision.toUpperCase()}`,
+				entityType: "payroll",
+				entityId: created.id,
+			});
+
+			return created;
+		}),
 });
+

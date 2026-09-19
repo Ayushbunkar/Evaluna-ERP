@@ -693,11 +693,18 @@ export const eWayBills = pgTable("e_way_bills", {
 		.references(() => orders.id)
 		.notNull(),
 	e_way_bill_no: varchar("e_way_bill_no", { length: 50 }).notNull().unique(),
+	vehicle_no: varchar("vehicle_no", { length: 50 }),
+	mode_of_transport: varchar("mode_of_transport", { length: 20 }).default("road"),
+	transporter_name: varchar("transporter_name", { length: 255 }),
+	transporter_id: varchar("transporter_id", { length: 100 }),
 	generated_at: timestamp("generated_at").defaultNow(),
 	expires_at: timestamp("expires_at"),
+	valid_until: timestamp("valid_until"),
 	status: varchar("status", { length: 20 }).default("active"),
 	created_by: integer("created_by").references(() => staff.id),
 	created_at: timestamp("created_at").defaultNow(),
+	cancelled_at: timestamp("cancelled_at"),
+	cancellation_reason: text("cancellation_reason"),
 });
 
 export const eWayBillsRelations = relations(eWayBills, ({ one }) => ({
@@ -2678,3 +2685,5 @@ export * from "./schema/delivery";
 export * from "./schema/finance";
 export * from "./schema/hrms";
 export * from "./schema/salary";
+
+

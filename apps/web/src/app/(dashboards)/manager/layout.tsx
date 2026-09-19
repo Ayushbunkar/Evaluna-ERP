@@ -56,7 +56,7 @@ export default function ManagerLayout({
 			icon: IndianRupee,
 		},
 		{
-			href: "/manager/leaves",
+			href: "/manager/leave",
 			label: "Leave Approvals",
 			icon: Calendar,
 		},
