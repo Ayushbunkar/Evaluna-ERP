@@ -256,20 +256,24 @@ export const driverRouter = router({
 					);
 				}
 
-				const trip =
+				const allowedStatuses = [
+					"active",
+					"out_for_delivery",
+					"loaded",
+					"ready_for_loading",
+					"pending",
+					"in_progress",
+					"dispatched",
+					"assigned",
+					"ready_for_dispatch",
+				];
+
+				let trip =
 					tripSqlConditions.length > 0
 						? await db.query.deliveryTrips.findFirst({
 								where: and(
 									or(...tripSqlConditions),
-									inArray(deliveryTrips.status, [
-										"active",
-										"out_for_delivery",
-										"pending",
-										"in_progress",
-										"dispatched",
-										"assigned",
-										"ready_for_dispatch",
-									]),
+									inArray(deliveryTrips.status, allowedStatuses),
 								),
 								orderBy: [desc(deliveryTrips.created_at)],
 								with: {
@@ -285,6 +289,24 @@ export const driverRouter = router({
 							})
 						: null;
 
+				// Fallback: If no driver-specific trip was matched, check recent active/dispatched trip
+				if (!trip) {
+					trip = await db.query.deliveryTrips.findFirst({
+						where: inArray(deliveryTrips.status, ["active", "out_for_delivery", "loaded", "in_progress", "dispatched"]),
+						orderBy: [desc(deliveryTrips.created_at)],
+						with: {
+							stops: {
+								orderBy: (deliveryStops: any, { asc }: any) => [
+									asc(deliveryStops.sequence),
+								],
+								with: {
+									customer: true,
+								},
+							},
+						},
+					});
+				}
+
 				// Fallback: Check directly assigned orders if no trip with stops is found
 				if (!trip || !trip.stops || trip.stops.length === 0) {
 					const assignedOrdersConditions = [];
@@ -297,10 +319,10 @@ export const driverRouter = router({
 						assignedOrdersConditions.push(inArray(orders.user_uid, driverIds));
 					}
 
-					const directOrders =
-						assignedOrdersConditions.length > 0
-							? await db.query.orders.findMany({
-									where: and(
+					const directOrders = await db.query.orders.findMany({
+						where:
+							assignedOrdersConditions.length > 0
+								? and(
 										or(...assignedOrdersConditions),
 										inArray(orders.status, [
 											"pending",
@@ -314,18 +336,24 @@ export const driverRouter = router({
 											"assigned",
 											"in_transit",
 										]),
-									),
-									orderBy: [desc(orders.created_at)],
-									with: {
-										customer: true,
-										orderItems: {
-											with: {
-												product: true,
-											},
-										},
-									},
-								})
-							: [];
+									)
+								: inArray(orders.status, [
+										"out_for_delivery",
+										"dispatched",
+										"ready_for_dispatch",
+										"packed",
+										"in_transit",
+									]),
+						orderBy: [desc(orders.created_at)],
+						with: {
+							customer: true,
+							orderItems: {
+								with: {
+									product: true,
+								},
+							},
+						},
+					});
 
 					if (directOrders.length > 0) {
 						// Group orders by customer
@@ -849,54 +877,74 @@ export const driverRouter = router({
 			// First try: inArray match on all known driver identifiers
 			let trips: any[] = [];
 
+			// Build a direct SQL condition: driver_id matches UUID, email, or name
+			const userEmail = ctx.user?.email;
+			const userName = ctx.user?.name;
+
+			const sqlConditions = [];
 			if (driverIds.length > 0) {
-				// Build a direct SQL condition: driver_id matches UUID, email, or name
-				const userEmail = ctx.user?.email;
-				const userName = ctx.user?.name;
+				sqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
+			}
+			if (userEmail) {
+				sqlConditions.push(
+					sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userEmail}))`,
+				);
+			}
+			if (userName) {
+				sqlConditions.push(
+					sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
+				);
+			}
 
-				const sqlConditions = [];
-				// Include all known identifiers for maximum match
-				if (driverIds.length > 0) {
-					sqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
-				}
-				// Also match by email stored directly as driver_id (some legacy entries)
-				if (userEmail) {
-					sqlConditions.push(
-						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userEmail}))`,
-					);
-				}
-				// Also match by name stored directly as driver_id
-				if (userName) {
-					sqlConditions.push(
-						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
-					);
-				}
+			const allowedStatuses = [
+				"active",
+				"out_for_delivery",
+				"loaded",
+				"ready_for_loading",
+				"pending",
+				"in_progress",
+				"dispatched",
+				"assigned",
+				"ready_for_dispatch",
+			];
 
-				trips = await db.query.deliveryTrips.findMany({
-						where: and(
-							or(...sqlConditions),
-							inArray(deliveryTrips.status, [
-								"active",
-								"out_for_delivery",
-								"pending",
-								"in_progress",
-								"dispatched",
-								"assigned",
-								"ready_for_dispatch",
-							]),
-						),
-						orderBy: [desc(deliveryTrips.created_at)],
-						with: {
-							stops: {
-								orderBy: (deliveryStops: any, { asc }: any) => [
-									asc(deliveryStops.sequence),
-								],
-								with: {
-									customer: true,
+			trips =
+				sqlConditions.length > 0
+					? await db.query.deliveryTrips.findMany({
+							where: and(
+								or(...sqlConditions),
+								inArray(deliveryTrips.status, allowedStatuses),
+							),
+							orderBy: [desc(deliveryTrips.created_at)],
+							with: {
+								stops: {
+									orderBy: (deliveryStops: any, { asc }: any) => [
+										asc(deliveryStops.sequence),
+									],
+									with: {
+										customer: true,
+									},
 								},
 							},
+						})
+					: [];
+
+			// Fallback: If no driver-specific trips matched, check recent active/dispatched trips
+			if (trips.length === 0) {
+				trips = await db.query.deliveryTrips.findMany({
+					where: inArray(deliveryTrips.status, ["active", "out_for_delivery", "loaded", "in_progress", "dispatched"]),
+					orderBy: [desc(deliveryTrips.created_at)],
+					with: {
+						stops: {
+							orderBy: (deliveryStops: any, { asc }: any) => [
+								asc(deliveryStops.sequence),
+							],
+							with: {
+								customer: true,
+							},
 						},
-					});
+					},
+				});
 			}
 
 			// Collect all stops across trips
@@ -921,10 +969,10 @@ export const driverRouter = router({
 					assignedOrdersConditions.push(inArray(orders.user_uid, driverIds));
 				}
 
-				const directOrders =
-					assignedOrdersConditions.length > 0
-						? await db.query.orders.findMany({
-								where: and(
+				const directOrders = await db.query.orders.findMany({
+					where:
+						assignedOrdersConditions.length > 0
+							? and(
 									or(...assignedOrdersConditions),
 									inArray(orders.status, [
 										"pending",
@@ -938,18 +986,24 @@ export const driverRouter = router({
 										"processing",
 										"confirmed",
 									]),
-								),
-								orderBy: [desc(orders.created_at)],
-								with: {
-									customer: true,
-									orderItems: {
-										with: {
-											product: true,
-										},
-									},
-								},
-							})
-						: [];
+								)
+							: inArray(orders.status, [
+									"out_for_delivery",
+									"dispatched",
+									"ready_for_dispatch",
+									"packed",
+									"in_transit",
+								]),
+					orderBy: [desc(orders.created_at)],
+					with: {
+						customer: true,
+						orderItems: {
+							with: {
+								product: true,
+							},
+						},
+					},
+				});
 
 				if (directOrders.length === 0) return [];
 

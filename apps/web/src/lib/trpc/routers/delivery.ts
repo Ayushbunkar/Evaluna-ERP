@@ -1831,7 +1831,7 @@ ERROR TABLE: ${err.table}
 					.where(
 						and(
 							inArray(orders.customer_id, customerIds),
-							inArray(orders.status, ["loaded", "ready_for_loading", "packed"]),
+							notInArray(orders.status, ["delivered", "cancelled"]),
 						),
 					);
 			}
