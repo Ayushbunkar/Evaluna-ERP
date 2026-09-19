@@ -1,6 +1,7 @@
 import {
 	branchInventory,
 	coupons,
+	dailyProductDiscounts,
 	orderAudits,
 	orderItems,
 	orders,
@@ -8,6 +9,7 @@ import {
 	pendingSync,
 	pickListItems,
 	pickLists,
+	products,
 	staff,
 	stockLedger,
 	transactions,
@@ -18,13 +20,55 @@ import { protectedProcedure, router } from "@/lib/trpc/init";
 
 export const posRouter = router({
 	catalog: protectedProcedure.query(async ({ ctx }) => {
-		// Highly cached, lightweight product listing for offline sync
-		const catalog = await ctx.db.query.products.findMany({
-			with: {
-				productBatches: true,
-			},
+		const todayStr = new Date().toISOString().split("T")[0];
+
+		// Lightweight product listing for offline sync with today's active daily discount offers
+		const [catalog, activeDiscounts] = await Promise.all([
+			ctx.db.query.products.findMany({
+				where: eq(products.is_deleted, false),
+				with: {
+					productBatches: true,
+				},
+			}),
+			ctx.db
+				.select()
+				.from(dailyProductDiscounts)
+				.where(
+					and(
+						eq(dailyProductDiscounts.effective_date, todayStr),
+						eq(dailyProductDiscounts.is_active, true),
+					),
+				),
+		]);
+
+		const discountMap = new Map<number, (typeof activeDiscounts)[0]>();
+		for (const d of activeDiscounts) {
+			discountMap.set(d.product_id, d);
+		}
+
+		return catalog.map((item) => {
+			const activeOffer = discountMap.get(item.id);
+			const originalPrice = Number.parseFloat(item.price || "0");
+			const hasOffer = !!activeOffer && activeOffer.is_active;
+			const offerPrice = hasOffer
+				? Number.parseFloat(activeOffer.discounted_price || "0")
+				: originalPrice;
+
+			return {
+				...item,
+				originalPrice: originalPrice.toFixed(2),
+				offerPrice: offerPrice.toFixed(2),
+				hasDailyOffer: hasOffer,
+				dailyOfferReason: activeOffer?.reason || null,
+				dailyOfferPercent: activeOffer?.discount_percent
+					? Number.parseFloat(activeOffer.discount_percent)
+					: hasOffer && originalPrice > 0
+						? Number.parseFloat(
+								(((originalPrice - offerPrice) / originalPrice) * 100).toFixed(1),
+							)
+						: 0,
+			};
 		});
-		return catalog;
 	}),
 
 	checkout: protectedProcedure

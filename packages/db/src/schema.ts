@@ -1630,6 +1630,55 @@ export const couponsRelations = relations(coupons, ({ one, many }) => ({
 	orders: many(orders),
 }));
 
+// ── Daily Product Discounts (Warehouse Daily Offers) ──────────────────────────
+export const dailyProductDiscounts = pgTable(
+	"daily_product_discounts",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		original_price: decimal("original_price", { precision: 10, scale: 2 }).notNull(),
+		discounted_price: decimal("discounted_price", { precision: 10, scale: 2 }).notNull(),
+		discount_percent: decimal("discount_percent", { precision: 5, scale: 2 }),
+		discount_type: varchar("discount_type", { length: 20 }).default("fixed_price"), // fixed_price, percentage, flat_off
+		discount_value: decimal("discount_value", { precision: 10, scale: 2 }),
+		effective_date: date("effective_date").notNull(), // 'YYYY-MM-DD'
+		end_date: date("end_date"), // optional range
+		reason: text("reason").notNull(),
+		notes: text("notes"),
+		is_active: boolean("is_active").default(true),
+		created_by_uid: varchar("created_by_uid", { length: 255 }),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(t) => ({
+		idx_daily_disc_prod_date: index("idx_daily_disc_prod_date").on(
+			t.product_id,
+			t.effective_date,
+			t.is_active,
+		),
+	}),
+);
+
+export const dailyProductDiscountsRelations = relations(
+	dailyProductDiscounts,
+	({ one }) => ({
+		product: one(products, {
+			fields: [dailyProductDiscounts.product_id],
+			references: [products.id],
+		}),
+		branch: one(branches, {
+			fields: [dailyProductDiscounts.branch_id],
+			references: [branches.id],
+		}),
+	}),
+);
+
+
 // ── Balance Snapshots (Phase 12) ──────────────────────────────────────────────────
 export const balanceSnapshots = pgTable("balance_snapshots", {
 	id: serial("id").primaryKey(),

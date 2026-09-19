@@ -13,8 +13,10 @@ import {
 	LogOutIcon,
 	MenuIcon,
 	PackageIcon,
+	PercentIcon,
 	QrCodeIcon,
 	RefreshCwIcon,
+	TagIcon,
 	TruckIcon,
 	UserIcon,
 	UsersIcon,
@@ -133,6 +135,11 @@ export default function WarehouseWMSLayout({
 					label: "Warehouse Stock",
 					href: "/dashboard/warehouse/stock",
 					icon: BoxesIcon,
+				},
+				{
+					label: "Discount Offers",
+					href: "/dashboard/warehouse/discounts",
+					icon: TagIcon,
 				},
 				{
 					label: "Cash Book",

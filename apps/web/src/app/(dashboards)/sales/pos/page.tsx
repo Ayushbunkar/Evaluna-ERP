@@ -9,6 +9,8 @@ import {
 	PlusCircle,
 	Search,
 	ShoppingCart,
+	Sparkles,
+	Tag,
 	Trash2,
 	Wifi,
 	WifiOff,
@@ -361,13 +363,17 @@ function POSContent() {
 
 	// Callbacks
 	const addToCart = useCallback((product: any, qty = 1) => {
+		const effectivePrice = product.hasDailyOffer && product.offerPrice
+			? product.offerPrice
+			: product.price;
+
 		setCart((prev) => {
 			const existing = prev.find((item) => item.id === product.id);
 			if (existing) {
 				const updatedItem = { ...existing, qty: existing.qty + qty };
 				return [updatedItem, ...prev.filter((item) => item.id !== product.id)];
 			}
-			return [{ ...product, qty: qty }, ...prev];
+			return [{ ...product, price: effectivePrice, qty: qty }, ...prev];
 		});
 	}, []);
 
@@ -727,9 +733,33 @@ function POSContent() {
 												</CardTitle>
 											</CardHeader>
 											<CardContent className="flex flex-col justify-end p-3 pt-0 sm:p-4 sm:pt-0">
-												<div className="font-bold text-base text-primary sm:text-lg">
-													₹{Number.parseFloat(product.price).toFixed(2)}
-												</div>
+												{product.hasDailyOffer ? (
+													<div className="space-y-0.5">
+														<div className="flex items-center gap-1.5">
+															<span className="font-semibold text-muted-foreground line-through text-xs sm:text-sm">
+																₹{Number.parseFloat(product.originalPrice || product.price).toFixed(2)}
+															</span>
+															<span className="font-extrabold text-base text-rose-600 dark:text-rose-400 sm:text-lg">
+																₹{Number.parseFloat(product.offerPrice).toFixed(2)}
+															</span>
+														</div>
+														<div className="flex items-center gap-1">
+															<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-1.5 py-0.5 font-bold text-[10px] text-rose-600 dark:text-rose-400">
+																<Tag className="h-2.5 w-2.5" />
+																{product.dailyOfferPercent}% OFF
+															</span>
+															{product.dailyOfferReason && (
+																<span className="truncate text-[10px] text-muted-foreground" title={product.dailyOfferReason}>
+																	• {product.dailyOfferReason.split("(")[0].trim()}
+																</span>
+															)}
+														</div>
+													</div>
+												) : (
+													<div className="font-bold text-base text-primary sm:text-lg">
+														₹{Number.parseFloat(product.price).toFixed(2)}
+													</div>
+												)}
 												<div className="mt-1 line-clamp-2 min-h-[28px] text-muted-foreground text-[11px] sm:min-h-[32px] sm:text-xs">
 													{getLocalizedProductName(
 														product.description || "",
