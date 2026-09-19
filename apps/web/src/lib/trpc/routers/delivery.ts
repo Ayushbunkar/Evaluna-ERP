@@ -283,41 +283,43 @@ export const deliveryRouter = router({
 						});
 						if (staffRow) {
 							driverStaffId = staffRow.id;
-						} else if (!isNaN(Number(input.driverId))) {
+						} else if (!isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
 							driverStaffId = Number(input.driverId);
 						}
 					} catch (e) {
-						if (!isNaN(Number(input.driverId))) {
+						if (!isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
 							driverStaffId = Number(input.driverId);
 						}
 					}
 
-					if (input.orderIds && input.orderIds.length > 0) {
-						await tx
-							.update(orders)
-							.set({
-								driver_id: driverStaffId,
-								status: "ready_for_dispatch",
-							})
-							.where(inArray(orders.id, input.orderIds));
-					} else if (resolvedStops.length > 0) {
-						const custIds = resolvedStops.map((s) => s.customerId);
-						await tx
-							.update(orders)
-							.set({
-								driver_id: driverStaffId,
-								status: "ready_for_dispatch",
-							})
-							.where(
-								and(
-									inArray(orders.customer_id, custIds),
-									inArray(orders.status, [
-										"confirmed",
-										"processing",
-										"ready_for_dispatch",
-									]),
-								),
-							);
+					if (driverStaffId !== null) {
+						if (input.orderIds && input.orderIds.length > 0) {
+							await tx
+								.update(orders)
+								.set({
+									driver_id: driverStaffId,
+									status: "ready_for_dispatch",
+								})
+								.where(inArray(orders.id, input.orderIds));
+						} else if (resolvedStops.length > 0) {
+							const custIds = resolvedStops.map((s) => s.customerId);
+							await tx
+								.update(orders)
+								.set({
+									driver_id: driverStaffId,
+									status: "ready_for_dispatch",
+								})
+								.where(
+									and(
+										inArray(orders.customer_id, custIds),
+										inArray(orders.status, [
+											"confirmed",
+											"processing",
+											"ready_for_dispatch",
+										]),
+									),
+								);
+						}
 					}
 
 					return trip;
@@ -1098,41 +1100,43 @@ ERROR TABLE: ${err.table}
 						});
 						if (staffRow) {
 							driverStaffId = staffRow.id;
-						} else if (!isNaN(Number(input.driverId))) {
+						} else if (!isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
 							driverStaffId = Number(input.driverId);
 						}
 					} catch (e) {
-						if (!isNaN(Number(input.driverId))) {
+						if (!isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
 							driverStaffId = Number(input.driverId);
 						}
 					}
 
-					if (input.orderIds && input.orderIds.length > 0) {
-						await tx
-							.update(orders)
-							.set({
-								driver_id: driverStaffId,
-								status: "ready_for_dispatch",
-							})
-							.where(inArray(orders.id, input.orderIds));
-					} else if (resolvedStops.length > 0) {
-						const custIds = resolvedStops.map((s) => s.customerId);
-						await tx
-							.update(orders)
-							.set({
-								driver_id: driverStaffId,
-								status: "ready_for_dispatch",
-							})
-							.where(
-								and(
-									inArray(orders.customer_id, custIds),
-									inArray(orders.status, [
-										"confirmed",
-										"processing",
-										"ready_for_dispatch",
-									]),
-								),
-							);
+					if (driverStaffId !== null) {
+						if (input.orderIds && input.orderIds.length > 0) {
+							await tx
+								.update(orders)
+								.set({
+									driver_id: driverStaffId,
+									status: "ready_for_dispatch",
+								})
+								.where(inArray(orders.id, input.orderIds));
+						} else if (resolvedStops.length > 0) {
+							const custIds = resolvedStops.map((s) => s.customerId);
+							await tx
+								.update(orders)
+								.set({
+									driver_id: driverStaffId,
+									status: "ready_for_dispatch",
+								})
+								.where(
+									and(
+										inArray(orders.customer_id, custIds),
+										inArray(orders.status, [
+											"confirmed",
+											"processing",
+											"ready_for_dispatch",
+										]),
+									),
+								);
+						}
 					}
 
 					return trip;
