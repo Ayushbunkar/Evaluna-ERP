@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { UserManagement } from "@evaluna/db";
 import { session as sessionTable } from "@evaluna/db/schema";
 import { and, eq, gte, or } from "drizzle-orm";
 
@@ -159,6 +160,22 @@ export default async function middleware(request: NextRequest) {
 		const url = request.nextUrl.clone();
 		url.pathname = "/login";
 		return NextResponse.redirect(url);
+	}
+
+	// Enrich role from security profile if not explicitly populated by session getter
+	if (sessionData.user?.id) {
+		try {
+			const profile = await UserManagement.getSecurityProfileByUserId(sessionData.user.id);
+			if (profile?.role) {
+				sessionData.role = profile.role;
+			}
+			if (profile?.isSuperAdmin || (sessionData.user as any)?.is_superadmin) {
+				(sessionData.user as any).is_superadmin = true;
+				(sessionData.user as any).isSuperadmin = true;
+			}
+		} catch (err) {
+			console.error("[Middleware] Security profile fetch error:", err);
+		}
 	}
 
 	// 4. If logged in and hitting an auth page, always redirect to their dashboard.
