@@ -165,9 +165,10 @@ export const deliveryRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			const database = ctx.db || db;
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
-				return await db.transaction(async (tx) => {
+				return await database.transaction(async (tx) => {
 					// 1. Create Trip
 					const [trip] = await tx
 						.insert(deliveryTrips)
@@ -346,7 +347,8 @@ ERROR TABLE: ${err.table}
 		}),
 
 	myTrips: protectedProcedure.query(async ({ ctx }) => {
-		return await db.query.deliveryTrips.findMany({
+		const database = ctx.db || db;
+		return await database.query.deliveryTrips.findMany({
 			where: eq(deliveryTrips.driver_id, ctx.user.id),
 			with: {
 				route: true,
@@ -986,9 +988,10 @@ ERROR TABLE: ${err.table}
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			const database = ctx.db || db;
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
-				return await db.transaction(async (tx) => {
+				return await database.transaction(async (tx) => {
 					// 1. Create a route for this trip
 					const [route] = await tx
 						.insert(deliveryRoutes)
