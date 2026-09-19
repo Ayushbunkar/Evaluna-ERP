@@ -446,34 +446,32 @@ export const deliveryRouter = router({
 							driverStaffId = Number(input.driverId);
 						}
 
-						if (driverStaffId !== null) {
-							if (input.orderIds && input.orderIds.length > 0) {
-								await tx
-									.update(orders)
-									.set({
-										driver_id: driverStaffId,
-										status: "ready_for_dispatch",
-									})
-									.where(inArray(orders.id, input.orderIds));
-							} else if (resolvedStops.length > 0) {
-								const custIds = resolvedStops.map((s) => s.customerId);
-								await tx
-									.update(orders)
-									.set({
-										driver_id: driverStaffId,
-										status: "ready_for_dispatch",
-									})
-									.where(
-										and(
-											inArray(orders.customer_id, custIds),
-											inArray(orders.status, [
-												"confirmed",
-												"processing",
-												"ready_for_dispatch",
-											]),
-										),
-									);
-							}
+						if (input.orderIds && input.orderIds.length > 0) {
+							await tx
+								.update(orders)
+								.set({
+									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
+									status: "ready_for_dispatch",
+								})
+								.where(inArray(orders.id, input.orderIds));
+						} else if (resolvedStops.length > 0) {
+							const custIds = resolvedStops.map((s) => s.customerId);
+							await tx
+								.update(orders)
+								.set({
+									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
+									status: "ready_for_dispatch",
+								})
+								.where(
+									and(
+										inArray(orders.customer_id, custIds),
+										inArray(orders.status, [
+											"confirmed",
+											"processing",
+											"ready_for_dispatch",
+										]),
+									),
+								);
 						}
 					} catch (e) {
 						// Non-critical background sync
@@ -974,16 +972,45 @@ ERROR TABLE: ${err.table}
 	cancelTrip: roleProcedure(["admin", "manager"])
 		.input(z.object({ tripId: z.number() }))
 		.mutation(async ({ input }) => {
+			const trip = await db.query.deliveryTrips.findFirst({
+				where: eq(deliveryTrips.id, input.tripId),
+				with: { stops: true },
+			});
+
 			await db
 				.update(deliveryTrips)
 				.set({ status: "cancelled" })
 				.where(eq(deliveryTrips.id, input.tripId));
+
+			if (trip && trip.stops && trip.stops.length > 0) {
+				const custIds = trip.stops.map((s) => s.customer_id).filter(Boolean);
+				if (custIds.length > 0) {
+					await db
+						.update(orders)
+						.set({
+							driver_id: null,
+							status: "confirmed",
+						})
+						.where(
+							and(
+								inArray(orders.customer_id, custIds),
+								inArray(orders.status, ["ready_for_dispatch", "out_for_delivery"]),
+							),
+						);
+				}
+			}
+
 			return { success: true };
 		}),
 
 	deleteTrip: roleProcedure(["admin", "manager"])
 		.input(z.object({ tripId: z.number() }))
 		.mutation(async ({ input }) => {
+			const trip = await db.query.deliveryTrips.findFirst({
+				where: eq(deliveryTrips.id, input.tripId),
+				with: { stops: true },
+			});
+
 			const stops = await db.query.tripStops.findMany({
 				where: eq(tripStops.trip_id, input.tripId),
 			});
@@ -1000,6 +1027,25 @@ ERROR TABLE: ${err.table}
 				.delete(tripCollections)
 				.where(eq(tripCollections.trip_id, input.tripId));
 			await db.delete(deliveryTrips).where(eq(deliveryTrips.id, input.tripId));
+
+			if (trip && trip.stops && trip.stops.length > 0) {
+				const custIds = trip.stops.map((s) => s.customer_id).filter(Boolean);
+				if (custIds.length > 0) {
+					await db
+						.update(orders)
+						.set({
+							driver_id: null,
+							status: "confirmed",
+						})
+						.where(
+							and(
+								inArray(orders.customer_id, custIds),
+								inArray(orders.status, ["ready_for_dispatch", "out_for_delivery"]),
+							),
+						);
+				}
+			}
+
 			return { success: true };
 		}),
 
@@ -1377,34 +1423,32 @@ ERROR TABLE: ${err.table}
 							driverStaffId = Number(input.driverId);
 						}
 
-						if (driverStaffId !== null) {
-							if (input.orderIds && input.orderIds.length > 0) {
-								await tx
-									.update(orders)
-									.set({
-										driver_id: driverStaffId,
-										status: "ready_for_dispatch",
-									})
-									.where(inArray(orders.id, input.orderIds));
-							} else if (resolvedStops.length > 0) {
-								const custIds = resolvedStops.map((s) => s.customerId);
-								await tx
-									.update(orders)
-									.set({
-										driver_id: driverStaffId,
-										status: "ready_for_dispatch",
-									})
-									.where(
-										and(
-											inArray(orders.customer_id, custIds),
-											inArray(orders.status, [
-												"confirmed",
-												"processing",
-												"ready_for_dispatch",
-											]),
-										),
-									);
-							}
+						if (input.orderIds && input.orderIds.length > 0) {
+							await tx
+								.update(orders)
+								.set({
+									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
+									status: "ready_for_dispatch",
+								})
+								.where(inArray(orders.id, input.orderIds));
+						} else if (resolvedStops.length > 0) {
+							const custIds = resolvedStops.map((s) => s.customerId);
+							await tx
+								.update(orders)
+								.set({
+									...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
+									status: "ready_for_dispatch",
+								})
+								.where(
+									and(
+										inArray(orders.customer_id, custIds),
+										inArray(orders.status, [
+											"confirmed",
+											"processing",
+											"ready_for_dispatch",
+										]),
+									),
+								);
 						}
 					} catch (e) {
 						// Non-critical background sync

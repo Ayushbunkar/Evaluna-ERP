@@ -103,11 +103,34 @@ export function DeliveryManagementDashboard({
 	>("all");
 	const [tripSearchQuery, setTripSearchQuery] = useState("");
 
+	const assignedCustomerIdsInActiveTrips = new Set(
+		(trips || [])
+			.filter(
+				(t: any) => t.status !== "cancelled" && t.status !== "completed",
+			)
+			.flatMap((t: any) => (t.stops || []).map((s: any) => s.customer_id))
+			.filter(Boolean),
+	);
+
 	const unassignedOrders = allOrders.filter((order: any) => {
 		if (order.status === "cancelled") return false;
 		if (order.status === "delivered" || order.status === "completed") return false;
 		if (order.status === "pending_review" || order.status === "under_review") return false;
+		if (
+			order.status === "ready_for_dispatch" ||
+			order.status === "out_for_delivery" ||
+			order.status === "dispatched" ||
+			order.status === "packed"
+		) {
+			return false;
+		}
 		if (order.driver_id) return false;
+		if (
+			order.customer_id &&
+			assignedCustomerIdsInActiveTrips.has(order.customer_id)
+		) {
+			return false;
+		}
 		return true;
 	});
 
@@ -118,15 +141,24 @@ export function DeliveryManagementDashboard({
 		onSuccess: () => refetchRoutes(),
 	});
 	const assignTrip = trpc.delivery.assignTrip.useMutation({
-		onSuccess: () => refetchTrips(),
+		onSuccess: () => {
+			refetchTrips();
+			refetchRoutes();
+			refetchOrders();
+		},
 	});
 	const cancelTrip = trpc.delivery.cancelTrip.useMutation({
-		onSuccess: () => refetchTrips(),
+		onSuccess: () => {
+			refetchTrips();
+			refetchOrders();
+			refetchRoutes();
+		},
 	});
 	const createTripDirect = trpc.delivery.createTripDirect.useMutation({
 		onSuccess: () => {
 			refetchRoutes();
 			refetchTrips();
+			refetchOrders();
 		},
 	});
 	const updateTripStatus = trpc.delivery.updateTripStatus.useMutation({
