@@ -1461,7 +1461,7 @@ export function DeliveryManagementDashboard({
 													<SelectContent>
 														{routes.map((r: any) => (
 															<SelectItem key={r.id} value={r.id.toString()}>
-																{r.name} ({r.stops?.length || 0} stops)
+																{r.name}
 															</SelectItem>
 														))}
 													</SelectContent>

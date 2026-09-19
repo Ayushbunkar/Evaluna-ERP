@@ -427,9 +427,6 @@ export default function CustomerOrderReviewPage() {
 													Route {idx + 1}:
 												</span>
 												<span>{r.name}</span>
-												<span className="text-[11px] text-muted-foreground">
-													({(r as any).stops?.length || 0} stops)
-												</span>
 											</div>
 										</SelectItem>
 									))}
@@ -783,9 +780,6 @@ export default function CustomerOrderReviewPage() {
 													Route {idx + 1}:
 												</span>
 												<span>{r.name}</span>
-												<span className="text-[11px] text-muted-foreground">
-													({(r as any).stops?.length || 0} stops)
-												</span>
 											</div>
 										</SelectItem>
 									))}
