@@ -95,18 +95,62 @@ type VehicleStatus = {
 	maintenanceDue: boolean;
 };
 
+async function getDriverIdentifiers(ctx: any): Promise<string[]> {
+	const user = ctx.user;
+	if (!user) return [];
+
+	const ids = new Set<string>();
+	if (user.id) ids.add(String(user.id));
+	if (user.email) ids.add(user.email.toLowerCase());
+	if (user.staffId) ids.add(String(user.staffId));
+	if (user.name) ids.add(user.name.toLowerCase());
+
+	try {
+		const { staff } = require("@evaluna/db/schema");
+		if (user.email) {
+			const staffByEmail = await db.query.staff?.findFirst({
+				where: eq(staff.email, user.email.toLowerCase()),
+			});
+			if (staffByEmail) {
+				ids.add(String(staffByEmail.id));
+				if (staffByEmail.staff_code) ids.add(staffByEmail.staff_code);
+				if (staffByEmail.email) ids.add(staffByEmail.email.toLowerCase());
+			}
+		}
+		if (user.name) {
+			const staffByName = await db.query.staff?.findFirst({
+				where: eq(staff.name, user.name),
+			});
+			if (staffByName) {
+				ids.add(String(staffByName.id));
+				if (staffByName.staff_code) ids.add(staffByName.staff_code);
+			}
+		}
+	} catch (e) {
+		console.warn("[getDriverIdentifiers] lookup fallback:", e);
+	}
+
+	return Array.from(ids).filter(Boolean);
+}
+
 export const driverRouter = router({
 	getMobileDashboard: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			try {
-				const driverId = ctx.user?.id;
+				const driverIds = await getDriverIdentifiers(ctx);
 
-				const trip = driverId
+				const trip = driverIds.length > 0
 					? await db.query.deliveryTrips.findFirst({
 							where: and(
-								eq(deliveryTrips.driver_id, driverId),
-								eq(deliveryTrips.status, "active"),
+								inArray(deliveryTrips.driver_id, driverIds),
+								inArray(deliveryTrips.status, [
+									"active",
+									"out_for_delivery",
+									"pending",
+									"in_progress",
+									"dispatched",
+								]),
 							),
 							orderBy: [desc(deliveryTrips.created_at)],
 							with: {
@@ -425,12 +469,20 @@ export const driverRouter = router({
 		}),
 
 	reportVehicleBreakdown: protectedProcedure.mutation(async ({ ctx }) => {
-		const driverId = ctx.user?.id;
+		const driverIds = await getDriverIdentifiers(ctx);
 		// Find the active trip for this driver
 		const trip = await db.query.deliveryTrips.findFirst({
 			where: and(
-				driverId ? eq(deliveryTrips.driver_id, driverId) : undefined,
-				eq(deliveryTrips.status, "active"),
+				driverIds.length > 0
+					? inArray(deliveryTrips.driver_id, driverIds)
+					: undefined,
+				inArray(deliveryTrips.status, [
+					"active",
+					"out_for_delivery",
+					"pending",
+					"in_progress",
+					"dispatched",
+				]),
 			),
 			orderBy: [desc(deliveryTrips.created_at)],
 		});
@@ -474,14 +526,20 @@ export const driverRouter = router({
 
 	getRouteStops: protectedProcedure.query(async ({ ctx }) => {
 		try {
-			const driverId = ctx.user?.id;
+			const driverIds = await getDriverIdentifiers(ctx);
 
 			// Fetch delivery trips specifically assigned to this logged-in driver
-			const trips = driverId
+			const trips = driverIds.length > 0
 				? await db.query.deliveryTrips.findMany({
 						where: and(
-							eq(deliveryTrips.driver_id, driverId),
-							eq(deliveryTrips.status, "active"),
+							inArray(deliveryTrips.driver_id, driverIds),
+							inArray(deliveryTrips.status, [
+								"active",
+								"out_for_delivery",
+								"pending",
+								"in_progress",
+								"dispatched",
+							]),
 						),
 						orderBy: [desc(deliveryTrips.created_at)],
 						with: {
@@ -596,10 +654,10 @@ export const driverRouter = router({
 	}),
 
 	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {
-		const driverId = ctx.user?.id;
-		const trips = driverId
+		const driverIds = await getDriverIdentifiers(ctx);
+		const trips = driverIds.length > 0
 			? await db.query.deliveryTrips.findMany({
-					where: eq(deliveryTrips.driver_id, driverId),
+					where: inArray(deliveryTrips.driver_id, driverIds),
 					orderBy: [desc(deliveryTrips.created_at)],
 					limit: 25,
 					with: {
@@ -809,10 +867,19 @@ export const driverRouter = router({
 
 				// Fallback to active trip for this driver
 				if (!targetTripId) {
+					const driverIds = await getDriverIdentifiers(ctx);
 					const fallbackTrip = await db.query.deliveryTrips?.findFirst({
 						where: and(
-							ctx.user?.id ? eq(deliveryTrips.driver_id, ctx.user.id) : undefined,
-							eq(deliveryTrips.status, "active"),
+							driverIds.length > 0
+								? inArray(deliveryTrips.driver_id, driverIds)
+								: undefined,
+							inArray(deliveryTrips.status, [
+								"active",
+								"out_for_delivery",
+								"pending",
+								"in_progress",
+								"dispatched",
+							]),
 						),
 						orderBy: [desc(deliveryTrips.created_at)],
 					});

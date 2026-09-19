@@ -12,6 +12,7 @@ import {
 	routeStops,
 	salesReturnItems,
 	salesReturns,
+	staff,
 	tripCollections,
 	tripStops,
 	user,
@@ -24,6 +25,43 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
 import { protectedProcedure, roleProcedure, router } from "../init";
+
+async function getDriverIdentifiers(ctx: any): Promise<string[]> {
+	const userObj = ctx.user;
+	if (!userObj) return [];
+
+	const ids = new Set<string>();
+	if (userObj.id) ids.add(String(userObj.id));
+	if (userObj.email) ids.add(userObj.email.toLowerCase());
+	if (userObj.staffId) ids.add(String(userObj.staffId));
+	if (userObj.name) ids.add(userObj.name.toLowerCase());
+
+	try {
+		if (userObj.email) {
+			const staffByEmail = await db.query.staff?.findFirst({
+				where: eq(staff.email, userObj.email.toLowerCase()),
+			});
+			if (staffByEmail) {
+				ids.add(String(staffByEmail.id));
+				if (staffByEmail.staff_code) ids.add(staffByEmail.staff_code);
+				if (staffByEmail.email) ids.add(staffByEmail.email.toLowerCase());
+			}
+		}
+		if (userObj.name) {
+			const staffByName = await db.query.staff?.findFirst({
+				where: eq(staff.name, userObj.name),
+			});
+			if (staffByName) {
+				ids.add(String(staffByName.id));
+				if (staffByName.staff_code) ids.add(staffByName.staff_code);
+			}
+		}
+	} catch (e) {
+		console.warn("[delivery.getDriverIdentifiers] lookup fallback:", e);
+	}
+
+	return Array.from(ids).filter(Boolean);
+}
 
 export const deliveryRouter = router({
 	// ── Routes ─────────────────────────────────────────────────────────────
@@ -381,8 +419,12 @@ ERROR TABLE: ${err.table}
 
 	myTrips: protectedProcedure.query(async ({ ctx }) => {
 		const database = ctx.db || db;
+		const driverIds = await getDriverIdentifiers(ctx);
 		return await database.query.deliveryTrips.findMany({
-			where: eq(deliveryTrips.driver_id, ctx.user.id),
+			where:
+				driverIds.length > 0
+					? inArray(deliveryTrips.driver_id, driverIds)
+					: eq(deliveryTrips.driver_id, ctx.user.id),
 			with: {
 				route: true,
 				stops: {
@@ -740,8 +782,12 @@ ERROR TABLE: ${err.table}
 	getTrips: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
+			const driverIds = await getDriverIdentifiers(ctx);
 			return await db.query.deliveryTrips.findMany({
-				where: eq(deliveryTrips.driver_id, ctx.user.id),
+				where:
+					driverIds.length > 0
+						? inArray(deliveryTrips.driver_id, driverIds)
+						: eq(deliveryTrips.driver_id, ctx.user.id),
 				with: {
 					route: true,
 					stops: {
