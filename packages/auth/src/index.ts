@@ -55,18 +55,24 @@ export function createAuth({
 			enabled: true,
 			requireEmailVerification: false, // Enforce in ERP context via admin activation
 			minPasswordLength: 8,
-			async verify({ password, hash }: { password: string; hash: string }) {
-				if (!password || !hash) return false;
-				if (
-					hash.startsWith("$2a$") ||
-					hash.startsWith("$2b$") ||
-					hash.startsWith("$2y$")
-				) {
-					const { comparePassword } = await import("@evaluna/db");
-					return comparePassword(password, hash);
-				}
-				const { verifyPassword } = await import("better-auth/crypto");
-				return verifyPassword({ password, hash });
+			password: {
+				hash: async (password: string) => {
+					const { hashPassword } = await import("@evaluna/db");
+					return hashPassword(password);
+				},
+				verify: async ({ password, hash }: { password: string; hash: string }) => {
+					if (!password || !hash) return false;
+					if (
+						hash.startsWith("$2a$") ||
+						hash.startsWith("$2b$") ||
+						hash.startsWith("$2y$")
+					) {
+						const { comparePassword } = await import("@evaluna/db");
+						return comparePassword(password, hash);
+					}
+					const { verifyPassword } = await import("better-auth/crypto");
+					return verifyPassword({ password, hash });
+				},
 			},
 			hooks: {
 				onSuccess: async ({ userId }: { userId: string }) => {
