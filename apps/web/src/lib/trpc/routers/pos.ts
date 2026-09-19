@@ -14,7 +14,7 @@ import {
 	stockLedger,
 	transactions,
 } from "@evaluna/db/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
@@ -22,14 +22,27 @@ export const posRouter = router({
 	catalog: protectedProcedure.query(async ({ ctx }) => {
 		const todayStr = new Date().toISOString().split("T")[0];
 
-		// Lightweight product listing for offline sync with today's active daily discount offers
+		// Fetch full products catalog (up to 1000 items) with today's active daily discounts
 		const [catalog, activeDiscounts] = await Promise.all([
-			ctx.db.query.products.findMany({
-				where: eq(products.is_deleted, false),
-				with: {
-					productBatches: true,
-				},
-			}),
+			ctx.db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+					category: products.category,
+					unit: products.unit,
+					barcode: products.barcode,
+					price: products.price,
+					baseSellingPrice: products.base_selling_price,
+					description: products.description,
+					is_weighted: products.is_weighted,
+					is_taxable: products.is_taxable,
+					tax_rate: products.tax_rate,
+				})
+				.from(products)
+				.where(eq(products.is_deleted, false))
+				.orderBy(asc(products.name))
+				.limit(1000),
 			ctx.db
 				.select()
 				.from(dailyProductDiscounts)

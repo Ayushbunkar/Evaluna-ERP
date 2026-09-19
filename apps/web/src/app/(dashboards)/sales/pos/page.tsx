@@ -113,6 +113,7 @@ function POSContent() {
 	// State declarations
 	const [cart, setCart] = useState<any[]>([]);
 	const [search, setSearch] = useState("");
+	const [selectedCategory, setSelectedCategory] = useState<string>("all");
 	const [isOffline, setIsOffline] = useState(false);
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
@@ -615,11 +616,35 @@ function POSContent() {
 		} as any);
 	};
 
-	const filteredCatalog = catalog?.filter(
-		(p) =>
-			p.name.toLowerCase().includes(search.toLowerCase()) ||
-			p.barcode?.includes(search),
-	);
+	const categories = useMemo(() => {
+		if (!catalog) return [];
+		const cats = new Set<string>();
+		for (const p of catalog) {
+			if (p.category && p.category.trim()) {
+				cats.add(p.category.trim());
+			}
+		}
+		return Array.from(cats).sort();
+	}, [catalog]);
+
+	const filteredCatalog = useMemo(() => {
+		if (!catalog) return [];
+		let result = catalog;
+		if (selectedCategory !== "all") {
+			result = result.filter((p) => p.category === selectedCategory);
+		}
+		if (search.trim()) {
+			const q = search.toLowerCase().trim();
+			result = result.filter(
+				(p) =>
+					p.name?.toLowerCase().includes(q) ||
+					p.sku?.toLowerCase().includes(q) ||
+					p.barcode?.toLowerCase().includes(q) ||
+					p.category?.toLowerCase().includes(q),
+			);
+		}
+		return result;
+	}, [catalog, search, selectedCategory]);
 
 	if (lastCompletedOrder) {
 		return (
@@ -676,7 +701,14 @@ function POSContent() {
 				}`}
 			>
 				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
-					<h1 className="font-bold text-xl sm:text-2xl">{t.posTitle}</h1>
+					<div className="flex items-center gap-2">
+						<h1 className="font-bold text-xl sm:text-2xl">{t.posTitle}</h1>
+						{catalog && catalog.length > 0 && (
+							<span className="rounded-md border bg-muted px-2 py-0.5 font-semibold text-xs text-muted-foreground">
+								{catalog.length} Products
+							</span>
+						)}
+					</div>
 					<div className="flex items-center gap-2">
 						{isOffline ? (
 							<span className="flex items-center gap-1.5 font-semibold text-destructive text-xs sm:text-sm">
@@ -690,31 +722,76 @@ function POSContent() {
 					</div>
 				</div>
 
-				<div className="relative mb-3 shrink-0 sm:mb-4">
-					<Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground sm:top-3" />
-					<Input
-						type="text"
-						suppressHydrationWarning
-						placeholder={t.searchPlaceholder}
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						className="h-9 bg-background pl-9 text-xs sm:h-10 sm:text-sm"
-					/>
+				{/* Search & Category Pills */}
+				<div className="mb-3 flex flex-col gap-2 shrink-0 sm:mb-4">
+					<div className="relative">
+						<Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground sm:top-3" />
+						<Input
+							type="text"
+							suppressHydrationWarning
+							placeholder={t.searchPlaceholder}
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+							className="h-9 bg-background pl-9 text-xs sm:h-10 sm:text-sm"
+						/>
+					</div>
+
+					{/* Category Quick Filter Chips */}
+					{categories.length > 0 && (
+						<div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-thin">
+							<button
+								type="button"
+								onClick={() => setSelectedCategory("all")}
+								className={`shrink-0 rounded-full px-2.5 py-1 font-medium transition-all ${
+									selectedCategory === "all"
+										? "bg-primary font-bold text-primary-foreground shadow-xs"
+										: "bg-muted text-muted-foreground hover:bg-muted/80"
+								}`}
+							>
+								All ({catalog?.length || 0})
+							</button>
+							{categories.map((c) => {
+								const count = catalog?.filter((p) => p.category === c).length || 0;
+								return (
+									<button
+										key={c}
+										type="button"
+										onClick={() => setSelectedCategory(c)}
+										className={`shrink-0 rounded-full px-2.5 py-1 font-medium transition-all ${
+											selectedCategory === c
+												? "bg-primary font-bold text-primary-foreground shadow-xs"
+												: "bg-muted text-muted-foreground hover:bg-muted/80"
+										}`}
+									>
+										{c} ({count})
+									</button>
+								);
+							})}
+						</div>
+					)}
 				</div>
 
 				<ScrollArea className="min-h-0 flex-1">
 					{isLoading ? (
 						<div className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4">
-							{[1, 2, 3, 4, 5, 6].map((n) => (
+							{[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
 								<div
 									key={n}
 									className="h-28 animate-pulse rounded-xl bg-muted sm:h-32"
 								/>
 							))}
 						</div>
+					) : filteredCatalog.length === 0 ? (
+						<div className="flex h-64 flex-col items-center justify-center text-center text-muted-foreground">
+							<Search className="mb-2 h-10 w-10 text-muted-foreground/30" />
+							<p className="font-semibold text-sm">No products found</p>
+							<p className="mt-1 text-xs">
+								Try clearing your search query or switching to "All" categories.
+							</p>
+						</div>
 					) : (
 						<StaggerList className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4">
-							{filteredCatalog?.map((product) => (
+							{filteredCatalog.map((product) => (
 								<StaggerItem key={product.id}>
 									<AnimatedCard>
 										<Card

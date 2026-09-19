@@ -1,5 +1,5 @@
 import { customers, orderItems, orders, pickListItems, pickLists } from "@evaluna/db/schema";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifyPickComplete } from "@/lib/notification-service";
@@ -10,23 +10,27 @@ export const pickerRouter = router({
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
+			const todayStart = new Date();
+			todayStart.setHours(0, 0, 0, 0);
 
 			const [
 				[counts],
+				[itemsPickedRow],
 				recent,
 			] = await Promise.all([
-				db.execute<{
-					assigned_count: number;
-					completed_count: number;
-					pending_count: number;
-					total_items_picked: string;
-				}>(sql`
-					SELECT
-						(SELECT coalesce(count(*), 0)::int FROM pick_lists WHERE status = 'assigned') AS assigned_count,
-						(SELECT coalesce(count(*), 0)::int FROM pick_lists WHERE status = 'completed') AS completed_count,
-						(SELECT coalesce(count(*), 0)::int FROM pick_lists WHERE status = 'pending') AS pending_count,
-						(SELECT coalesce(sum(quantity_picked), 0) FROM pick_list_items WHERE status = 'picked') AS total_items_picked
-				`),
+				db
+					.select({
+						assignedCount: sql<number>`coalesce(count(*) filter (where ${pickLists.status} in ('assigned', 'picking', 'in_progress') or (${pickLists.assigned_to} is not null and (${pickLists.created_at} >= ${todayStart} or ${pickLists.completed_at} >= ${todayStart})) or (${pickLists.created_at} >= ${todayStart} and ${pickLists.status} != 'pending')), 0)::int`,
+						completedCount: sql<number>`coalesce(count(*) filter (where ${pickLists.status} = 'completed' and (${pickLists.completed_at} >= ${todayStart} or ${pickLists.created_at} >= ${todayStart})), 0)::int`,
+						pendingCount: sql<number>`coalesce(count(*) filter (where ${pickLists.status} in ('pending', 'unassigned') or ${pickLists.status} is null), 0)::int`,
+					})
+					.from(pickLists),
+				db
+					.select({
+						total: sql<number>`coalesce(sum(${pickListItems.quantity_picked}), 0)::int`,
+					})
+					.from(pickListItems)
+					.where(or(eq(pickListItems.status, "picked"), gte(pickListItems.quantity_picked, 1))),
 				db
 					.select({
 						id: pickLists.id,
@@ -42,12 +46,12 @@ export const pickerRouter = router({
 					.limit(5),
 			]);
 
-			const totalItemsPicked = Number(counts?.total_items_picked || 0);
+			const totalItemsPicked = Number(itemsPickedRow?.total || 0);
 
 			return {
-				assignedToday: Number(counts?.assigned_count || 0),
-				completed: Number(counts?.completed_count || 0),
-				pending: Number(counts?.pending_count || 0),
+				assignedToday: Number(counts?.assignedCount || 0),
+				completed: Number(counts?.completedCount || 0),
+				pending: Number(counts?.pendingCount || 0),
 				exceptions: 0,
 				totalItemsPicked,
 				pickAccuracy: 100,
@@ -57,7 +61,7 @@ export const pickerRouter = router({
 					items: Number(r.items_count || 0),
 					area: "Warehouse",
 					status: r.status ?? "pending",
-					time: r.created_at?.toLocaleTimeString() || "",
+					time: r.created_at ? new Date(r.created_at).toLocaleTimeString() : "",
 				})),
 			};
 		}),

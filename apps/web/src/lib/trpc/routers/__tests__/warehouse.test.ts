@@ -7,6 +7,7 @@ const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const { warehouseRouter } = await import("../warehouse");
+const { pickerRouter } = await import("../picker");
 const { createCallerFactory } = await import("../../init");
 
 const warehouseTables = [
@@ -248,5 +249,15 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 		);
 		expect(adjRows.rows[0].adjustment_type).toBe("damage");
 		expect(adjRows.rows[0].reason).toBe("Water damage to widgets in rack A");
+	});
+
+	it("pickerRouter.getDashboardStats calculates assignedToday, completed, and pending accurately", async () => {
+		const pickerCaller = createCallerFactory(pickerRouter)({ user: staffWorker, db });
+		const stats = await pickerCaller.getDashboardStats({});
+		expect(stats).toBeDefined();
+		expect(typeof stats.assignedToday).toBe("number");
+		expect(typeof stats.completed).toBe("number");
+		expect(typeof stats.pending).toBe("number");
+		expect(Array.isArray(stats.recentTasks)).toBe(true);
 	});
 });
