@@ -20,7 +20,7 @@ import {
 	tripStops,
 } from "@evaluna/db/schema/delivery";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, roleProcedure, router } from "../init";
@@ -238,10 +238,11 @@ export const deliveryRouter = router({
 							}
 						}
 					} else {
-						const stops = await tx.query.routeStops.findMany({
-							where: eq(routeStops.route_id, input.routeId),
-							orderBy: (s, { asc }) => [asc(s.sequence)],
-						});
+						const stops = await tx
+							.select()
+							.from(routeStops)
+							.where(eq(routeStops.route_id, input.routeId))
+							.orderBy(asc(routeStops.sequence));
 
 						let targetStops = stops;
 						if (input.customerIds && input.customerIds.length > 0) {
