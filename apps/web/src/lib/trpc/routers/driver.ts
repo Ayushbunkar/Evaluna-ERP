@@ -99,53 +99,54 @@ export const driverRouter = router({
 	getMobileDashboard: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			const driverId = ctx.user?.id;
+			try {
+				const driverId = ctx.user?.id;
 
-			const trip = driverId
-				? await db.query.deliveryTrips.findFirst({
-						where: and(
-							eq(deliveryTrips.driver_id, driverId),
-							eq(deliveryTrips.status, "active"),
-						),
-						orderBy: [desc(deliveryTrips.created_at)],
-						with: {
-							stops: {
-								orderBy: (deliveryStops: any, { asc }: any) => [
-									asc(deliveryStops.sequence),
-								],
-								with: {
-									customer: true,
+				const trip = driverId
+					? await db.query.deliveryTrips.findFirst({
+							where: and(
+								eq(deliveryTrips.driver_id, driverId),
+								eq(deliveryTrips.status, "active"),
+							),
+							orderBy: [desc(deliveryTrips.created_at)],
+							with: {
+								stops: {
+									orderBy: (deliveryStops: any, { asc }: any) => [
+										asc(deliveryStops.sequence),
+									],
+									with: {
+										customer: true,
+									},
 								},
 							},
-						},
-					})
-				: null;
+						})
+					: null;
 
-			if (!trip) {
-				return {
-					driverName: ctx.user?.name ?? "Driver",
-					status: "Offline",
-					batteryLevel: null as number | null,
-					currentLocation: null as string | null,
-					assignedOrders: 0,
-					delivered: 0,
-					pending: 0,
-					codCollected: 0,
-					successfulCollections: 0,
-					returnsProcessed: 0,
-					returnRate: 0,
-					customerRating: 0,
-					positiveReviews: 0,
-					distanceCovered: "0 km" as string | null,
-					rating: 0,
-					nextDelivery: null as NextDelivery | null,
-					routeStops: [] as RouteStop[],
-					deliveryHistory: [] as DeliveryHistoryEntry[],
-					returnHistory: [] as ReturnHistoryEntry[],
-					notifications: [] as DriverNotification[],
-					vehicleStatus: null as VehicleStatus | null,
-				};
-			}
+				if (!trip) {
+					return {
+						driverName: ctx.user?.name ?? "Driver",
+						status: "Offline",
+						batteryLevel: null as number | null,
+						currentLocation: null as string | null,
+						assignedOrders: 0,
+						delivered: 0,
+						pending: 0,
+						codCollected: 0,
+						successfulCollections: 0,
+						returnsProcessed: 0,
+						returnRate: 0,
+						customerRating: 0,
+						positiveReviews: 0,
+						distanceCovered: "0 km" as string | null,
+						rating: 0,
+						nextDelivery: null as NextDelivery | null,
+						routeStops: [] as RouteStop[],
+						deliveryHistory: [] as DeliveryHistoryEntry[],
+						returnHistory: [] as ReturnHistoryEntry[],
+						notifications: [] as DriverNotification[],
+						vehicleStatus: null as VehicleStatus | null,
+					};
+				}
 
 			const assignedOrders = trip.stops.length;
 			const delivered = trip.stops.filter(
@@ -359,7 +360,33 @@ export const driverRouter = router({
 				notifications: [] as DriverNotification[],
 				vehicleStatus,
 			};
-		}),
+		} catch (error) {
+			console.warn("[getMobileDashboard] Fallback on query error:", error);
+			return {
+				driverName: ctx.user?.name ?? "Driver",
+				status: "Offline",
+				batteryLevel: null as number | null,
+				currentLocation: null as string | null,
+				assignedOrders: 0,
+				delivered: 0,
+				pending: 0,
+				codCollected: 0,
+				successfulCollections: 0,
+				returnsProcessed: 0,
+				returnRate: 0,
+				customerRating: 0,
+				positiveReviews: 0,
+				distanceCovered: "0 km" as string | null,
+				rating: 0,
+				nextDelivery: null as NextDelivery | null,
+				routeStops: [] as RouteStop[],
+				deliveryHistory: [] as DeliveryHistoryEntry[],
+				returnHistory: [] as ReturnHistoryEntry[],
+				notifications: [] as DriverNotification[],
+				vehicleStatus: null as VehicleStatus | null,
+			};
+		}
+	}),
 
 	getSupportInfo: protectedProcedure
 		.input(z.object({ branch_id: z.number().optional() }))
@@ -446,121 +473,126 @@ export const driverRouter = router({
 		}),
 
 	getRouteStops: protectedProcedure.query(async ({ ctx }) => {
-		const driverId = ctx.user?.id;
+		try {
+			const driverId = ctx.user?.id;
 
-		// Fetch delivery trips specifically assigned to this logged-in driver
-		const trips = driverId
-			? await db.query.deliveryTrips.findMany({
-					where: and(
-						eq(deliveryTrips.driver_id, driverId),
-						eq(deliveryTrips.status, "active"),
-					),
-					orderBy: [desc(deliveryTrips.created_at)],
-					with: {
-						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
-							with: {
-								customer: true,
-							},
-						},
-					},
-				})
-			: [];
-
-		if (!trips || trips.length === 0) return [];
-
-		// Collect all stops across trips
-		const allStops: any[] = [];
-		for (const trip of trips) {
-			if (trip.stops && trip.stops.length > 0) {
-				for (const stop of trip.stops) {
-					allStops.push({ ...stop, trip_id: trip.id });
-				}
-			}
-		}
-
-		if (allStops.length === 0) return [];
-
-		const customerIds = allStops.map((s) => s.customer_id).filter(Boolean);
-
-		const ordersForStops =
-			customerIds.length > 0
-				? await db.query.orders.findMany({
-						where: inArray(orders.customer_id, customerIds),
-						columns: {
-							id: true,
-							customer_id: true,
-							total_amount: true,
-							status: true,
-						},
+			// Fetch delivery trips specifically assigned to this logged-in driver
+			const trips = driverId
+				? await db.query.deliveryTrips.findMany({
+						where: and(
+							eq(deliveryTrips.driver_id, driverId),
+							eq(deliveryTrips.status, "active"),
+						),
+						orderBy: [desc(deliveryTrips.created_at)],
 						with: {
-							orderItems: {
-								columns: {
-									id: true,
-									order_id: true,
-									product_id: true,
-									quantity: true,
-									price: true,
-								},
+							stops: {
+								orderBy: (deliveryStops: any, { asc }: any) => [
+									asc(deliveryStops.sequence),
+								],
 								with: {
-									product: {
-										columns: {
-											id: true,
-											name: true,
-										},
-									},
+									customer: true,
 								},
 							},
 						},
 					})
 				: [];
 
-		return allStops.map((s: any, idx: number) => {
-			const matchingOrders = ordersForStops.filter(
-				(order) => order.customer_id === s.customer_id,
-			);
-			const orderIdList = matchingOrders.map((o) => o.id);
-			const formattedOrderIds =
-				orderIdList.length > 0
-					? orderIdList.map((id) => `ORD-${id}`).join(", ")
-					: `ORD-${s.order_id || 460 + idx}`;
-			const totalAmount = matchingOrders.reduce(
-				(sum, o) => sum + Number(o.total_amount || 0),
-				0,
-			);
-			const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+			if (!trips || trips.length === 0) return [];
 
-			return {
-				id: s.id,
-				trip_id: s.trip_id,
-				status: s.status === "delivered" ? "completed" : "pending",
-				rawStatus: s.status,
-				customerName: s.customer?.name ?? "Unknown Customer",
-				address: s.customer?.address ?? "N/A",
-				phone: s.customer?.phone ?? "N/A",
-				orderId: formattedOrderIds,
-				orderIds: orderIdList,
-				ordersCount: matchingOrders.length,
-				orders: matchingOrders.map((o) => ({
-					id: o.id,
-					total_amount: Number(o.total_amount || 0),
-					status: o.status,
-					itemsCount: o.orderItems?.length || 0,
-				})),
-				amountToCollect: totalAmount,
-				packages: allItems.length,
-				orderItems:
-					allItems.map((item) => ({
-						id: item.id,
-						product_id: item.product_id,
-						name: item.product?.name ?? "Unknown Product",
-						qty: item.quantity,
-						price: Number(item.price),
-					})) || [],
-			};
-		});
+			// Collect all stops across trips
+			const allStops: any[] = [];
+			for (const trip of trips) {
+				if (trip.stops && trip.stops.length > 0) {
+					for (const stop of trip.stops) {
+						allStops.push({ ...stop, trip_id: trip.id });
+					}
+				}
+			}
+
+			if (allStops.length === 0) return [];
+
+			const customerIds = allStops.map((s) => s.customer_id).filter(Boolean);
+
+			const ordersForStops =
+				customerIds.length > 0
+					? await db.query.orders.findMany({
+							where: inArray(orders.customer_id, customerIds),
+							columns: {
+								id: true,
+								customer_id: true,
+								total_amount: true,
+								status: true,
+							},
+							with: {
+								orderItems: {
+									columns: {
+										id: true,
+										order_id: true,
+										product_id: true,
+										quantity: true,
+										price: true,
+									},
+									with: {
+										product: {
+											columns: {
+												id: true,
+												name: true,
+											},
+										},
+									},
+								},
+							},
+						})
+					: [];
+
+			return allStops.map((s: any, idx: number) => {
+				const matchingOrders = ordersForStops.filter(
+					(order) => order.customer_id === s.customer_id,
+				);
+				const orderIdList = matchingOrders.map((o) => o.id);
+				const formattedOrderIds =
+					orderIdList.length > 0
+						? orderIdList.map((id) => `ORD-${id}`).join(", ")
+						: `ORD-${s.order_id || 460 + idx}`;
+				const totalAmount = matchingOrders.reduce(
+					(sum, o) => sum + Number(o.total_amount || 0),
+					0,
+				);
+				const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+
+				return {
+					id: s.id,
+					trip_id: s.trip_id,
+					status: s.status === "delivered" ? "completed" : "pending",
+					rawStatus: s.status,
+					customerName: s.customer?.name ?? "Unknown Customer",
+					address: s.customer?.address ?? "N/A",
+					phone: s.customer?.phone ?? "N/A",
+					orderId: formattedOrderIds,
+					orderIds: orderIdList,
+					ordersCount: matchingOrders.length,
+					orders: matchingOrders.map((o) => ({
+						id: o.id,
+						total_amount: Number(o.total_amount || 0),
+						status: o.status,
+						itemsCount: o.orderItems?.length || 0,
+					})),
+					amountToCollect: totalAmount,
+					packages: allItems.length,
+					orderItems:
+						allItems.map((item) => ({
+							id: item.id,
+							product_id: item.product_id,
+							name: item.product?.name ?? "Unknown Product",
+							qty: item.quantity,
+							price: Number(item.price),
+						})) || [],
+				};
+			});
+		} catch (error) {
+			console.warn("[getRouteStops] Safe fallback on error:", error);
+			return [];
+		}
 	}),
 
 	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {

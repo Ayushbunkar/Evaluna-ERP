@@ -409,15 +409,33 @@ export default function DriverLiveDeliveryPage() {
 						)}
 
 						{!isLoading && routeStops.length === 0 && (
-							<Card className="border-dashed">
-								<CardContent className="flex flex-col items-center justify-center py-16 text-center">
-									<Package className="mb-4 h-12 w-12 text-gray-300" />
-									<h3 className="font-semibold text-gray-700 dark:text-gray-300">
-										{t("common.noItemFound")}
+							<Card className="border-dashed border-border/80 bg-gradient-to-b from-card via-card to-muted/20 shadow-sm">
+								<CardContent className="flex flex-col items-center justify-center py-14 px-6 text-center">
+									<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-6 ring-blue-50/50 dark:bg-blue-950/50 dark:text-blue-400 dark:ring-blue-900/20">
+										<Package className="h-8 w-8" />
+									</div>
+									<h3 className="font-bold text-foreground text-lg sm:text-xl">
+										No Active Delivery Stops
 									</h3>
-									<p className="mt-1 text-gray-500 text-sm">
-										{t("driver.selectStopToStartLiveHandoverBilling")}
+									<p className="mt-1.5 max-w-md text-muted-foreground text-xs leading-relaxed sm:text-sm">
+										Your delivery manager has not assigned any active customer stops to you yet.
+										Once your route is dispatched, your customer orders and handover verification tools will appear here.
 									</p>
+									<div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={refetch}
+											className="gap-2 text-xs"
+										>
+											<RefreshCw className="h-3.5 w-3.5" /> Check for New Route
+										</Button>
+										<Button size="sm" asChild className="gap-2 text-xs">
+											<Link href="/driver/route">
+												<MapPin className="h-3.5 w-3.5" /> View Route Dashboard
+											</Link>
+										</Button>
+									</div>
 								</CardContent>
 							</Card>
 						)}
