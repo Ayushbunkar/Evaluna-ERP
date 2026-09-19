@@ -12,6 +12,7 @@ const schema = await import("@/lib/db/schema");
 
 const caller = createCallerFactory(deliveryRouter)({
 	user: makeUser("user-1"),
+	db,
 });
 
 const driverCaller = createCallerFactory(deliveryRouter)({
@@ -21,6 +22,7 @@ const driverCaller = createCallerFactory(deliveryRouter)({
 		email: "driver1@test.com",
 		role: "driver",
 	},
+	db,
 });
 
 // Delivery-focused test DDL - tables used by delivery router
