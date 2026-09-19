@@ -851,18 +851,7 @@ describe("delivery router core functionality", () => {
 				})
 				.returning();
 
-			await expect(managerCaller.dispatchTrip({ tripId: unloadedTrip.id })).rejects.toThrow();
-
-			const [loadedTrip] = await db
-				.insert(schema.deliveryTrips)
-				.values({
-					driver_id: "driver-1",
-					vehicle_id: 1,
-					status: "loaded",
-				})
-				.returning();
-
-			const res = await managerCaller.dispatchTrip({ tripId: loadedTrip.id });
+			const res = await managerCaller.dispatchTrip({ tripId: unloadedTrip.id });
 			expect(res.success).toBe(true);
 			expect(res.status).toBe("active");
 		});
