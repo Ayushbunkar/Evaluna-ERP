@@ -224,11 +224,28 @@ export const driverRouter = router({
 				const { ids: driverIds, numericStaffIds } =
 					await getDriverIdentifiers(ctx);
 
+				const userEmail = ctx.user?.email;
+				const userName = ctx.user?.name;
+				const tripSqlConditions: any[] = [];
+				if (driverIds.length > 0) {
+					tripSqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
+				}
+				if (userEmail) {
+					tripSqlConditions.push(
+						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userEmail}))`,
+					);
+				}
+				if (userName) {
+					tripSqlConditions.push(
+						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
+					);
+				}
+
 				const trip =
-					driverIds.length > 0
+					tripSqlConditions.length > 0
 						? await db.query.deliveryTrips.findFirst({
 								where: and(
-									inArray(deliveryTrips.driver_id, driverIds),
+									or(...tripSqlConditions),
 									inArray(deliveryTrips.status, [
 										"active",
 										"out_for_delivery",
@@ -814,34 +831,58 @@ export const driverRouter = router({
 				await getDriverIdentifiers(ctx);
 
 			// Fetch delivery trips specifically assigned to this logged-in driver
-			const trips =
-				driverIds.length > 0
-					? await db.query.deliveryTrips.findMany({
-							where: and(
-								inArray(deliveryTrips.driver_id, driverIds),
-								inArray(deliveryTrips.status, [
-									"active",
-									"out_for_delivery",
-									"pending",
-									"in_progress",
-									"dispatched",
-									"assigned",
-									"ready_for_dispatch",
-								]),
-							),
-							orderBy: [desc(deliveryTrips.created_at)],
-							with: {
-								stops: {
-									orderBy: (deliveryStops: any, { asc }: any) => [
-										asc(deliveryStops.sequence),
-									],
-									with: {
-										customer: true,
-									},
+			// First try: inArray match on all known driver identifiers
+			let trips: any[] = [];
+
+			if (driverIds.length > 0) {
+				// Build a direct SQL condition: driver_id matches UUID, email, or name
+				const userEmail = ctx.user?.email;
+				const userName = ctx.user?.name;
+
+				const sqlConditions = [];
+				// Include all known identifiers for maximum match
+				if (driverIds.length > 0) {
+					sqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
+				}
+				// Also match by email stored directly as driver_id (some legacy entries)
+				if (userEmail) {
+					sqlConditions.push(
+						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userEmail}))`,
+					);
+				}
+				// Also match by name stored directly as driver_id
+				if (userName) {
+					sqlConditions.push(
+						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
+					);
+				}
+
+				trips = await db.query.deliveryTrips.findMany({
+						where: and(
+							or(...sqlConditions),
+							inArray(deliveryTrips.status, [
+								"active",
+								"out_for_delivery",
+								"pending",
+								"in_progress",
+								"dispatched",
+								"assigned",
+								"ready_for_dispatch",
+							]),
+						),
+						orderBy: [desc(deliveryTrips.created_at)],
+						with: {
+							stops: {
+								orderBy: (deliveryStops: any, { asc }: any) => [
+									asc(deliveryStops.sequence),
+								],
+								with: {
+									customer: true,
 								},
 							},
-						})
-					: [];
+						},
+					});
+			}
 
 			// Collect all stops across trips
 			const allStops: any[] = [];

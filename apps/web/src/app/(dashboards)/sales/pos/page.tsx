@@ -166,7 +166,7 @@ function POSContent() {
 	);
 
 	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
-		staleTime: 1000 * 60 * 60,
+		staleTime: 1000 * 60 * 5, // 5 minutes
 	});
 
 	// Mutations

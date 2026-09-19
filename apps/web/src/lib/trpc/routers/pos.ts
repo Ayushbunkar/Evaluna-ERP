@@ -51,7 +51,8 @@ export const posRouter = router({
 						eq(dailyProductDiscounts.effective_date, todayStr),
 						eq(dailyProductDiscounts.is_active, true),
 					),
-				),
+				)
+				.catch(() => [] as { product_id: number; is_active: boolean; discounted_price: string | null; reason: string; discount_percent: string | null }[]),
 		]);
 
 		const discountMap = new Map<number, (typeof activeDiscounts)[0]>();
