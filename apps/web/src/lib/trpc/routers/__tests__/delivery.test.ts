@@ -7,6 +7,7 @@ const { pg, db } = createTestDb();
 mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const { deliveryRouter } = await import("../delivery");
+const { driverRouter } = await import("../driver");
 const { createCallerFactory } = await import("../../init");
 const schema = await import("@/lib/db/schema");
 
@@ -16,6 +17,16 @@ const caller = createCallerFactory(deliveryRouter)({
 });
 
 const driverCaller = createCallerFactory(deliveryRouter)({
+	user: {
+		...makeUser("driver-1"),
+		id: "driver-1",
+		email: "driver1@test.com",
+		role: "driver",
+	},
+	db,
+});
+
+const driverAppCaller = createCallerFactory(driverRouter)({
 	user: {
 		...makeUser("driver-1"),
 		id: "driver-1",
@@ -705,6 +716,30 @@ describe("delivery router core functionality", () => {
 			expect(allTrips).toHaveLength(0);
 			expect(allRouteStops).toHaveLength(0);
 			expect(allTripStops).toHaveLength(0);
+		});
+	});
+
+	describe("driverRouter Driver App Endpoints", () => {
+		it("getMobileDashboard returns Online and handles fallback orders when assigned directly", async () => {
+			// Insert order assigned directly to driver-1
+			await db.insert(schema.orders).values([
+				{
+					id: 991,
+					customer_id: 1,
+					user_uid: "driver-1",
+					total_amount: "500",
+					status: "ready_for_dispatch",
+					branch_id: 1,
+				},
+			]);
+
+			const dashboard = await driverAppCaller.getMobileDashboard({});
+			expect(dashboard.status).toBe("Online");
+			expect(dashboard.assignedOrders).toBeGreaterThanOrEqual(1);
+			expect(dashboard.routeStops.length).toBeGreaterThanOrEqual(1);
+
+			const routeStops = await driverAppCaller.getRouteStops();
+			expect(routeStops.length).toBeGreaterThanOrEqual(1);
 		});
 	});
 });

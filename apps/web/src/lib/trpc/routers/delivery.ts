@@ -20,7 +20,7 @@ import {
 	vehicles,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
@@ -31,29 +31,90 @@ async function getDriverIdentifiers(ctx: any): Promise<string[]> {
 	if (!userObj) return [];
 
 	const ids = new Set<string>();
-	if (userObj.id) ids.add(String(userObj.id));
-	if (userObj.email) ids.add(userObj.email.toLowerCase());
-	if (userObj.staffId) ids.add(String(userObj.staffId));
-	if (userObj.name) ids.add(userObj.name.toLowerCase());
+
+	const addSafe = (val: any) => {
+		if (val !== undefined && val !== null && String(val).trim()) {
+			const str = String(val).trim();
+			ids.add(str);
+			ids.add(str.toLowerCase());
+		}
+	};
+
+	addSafe(userObj.id);
+	addSafe(userObj.userId);
+	addSafe(userObj.email);
+	addSafe(userObj.name);
+	addSafe(userObj.staffId);
+
+	if (userObj.staff) {
+		addSafe(userObj.staff.id);
+		addSafe(userObj.staff.staff_code);
+		addSafe(userObj.staff.staffCode);
+		addSafe(userObj.staff.name);
+		addSafe(userObj.staff.email);
+	}
 
 	try {
+		const staffConditions = [];
 		if (userObj.email) {
-			const staffByEmail = await db.query.staff?.findFirst({
-				where: eq(staff.email, userObj.email.toLowerCase()),
-			});
-			if (staffByEmail) {
-				ids.add(String(staffByEmail.id));
-				if (staffByEmail.staff_code) ids.add(staffByEmail.staff_code);
-				if (staffByEmail.email) ids.add(staffByEmail.email.toLowerCase());
-			}
+			staffConditions.push(
+				sql`LOWER(TRIM(${staff.email})) = LOWER(TRIM(${userObj.email}))`,
+			);
 		}
 		if (userObj.name) {
-			const staffByName = await db.query.staff?.findFirst({
-				where: eq(staff.name, userObj.name),
+			staffConditions.push(
+				sql`LOWER(TRIM(${staff.name})) = LOWER(TRIM(${userObj.name}))`,
+			);
+			staffConditions.push(
+				sql`LOWER(${staff.name}) LIKE LOWER(${`%${userObj.name.trim()}%`})`,
+			);
+		}
+		if (userObj.staffId) {
+			staffConditions.push(eq(staff.id, Number(userObj.staffId)));
+		}
+		if (userObj.staff?.id) {
+			staffConditions.push(eq(staff.id, Number(userObj.staff.id)));
+		}
+
+		if (staffConditions.length > 0) {
+			const staffList = await db.query.staff?.findMany({
+				where: or(...staffConditions),
 			});
-			if (staffByName) {
-				ids.add(String(staffByName.id));
-				if (staffByName.staff_code) ids.add(staffByName.staff_code);
+			if (staffList && staffList.length > 0) {
+				for (const s of staffList) {
+					addSafe(s.id);
+					addSafe(s.staff_code);
+					addSafe(s.email);
+					addSafe(s.name);
+				}
+			}
+		}
+
+		const userConditions = [];
+		if (userObj.id) {
+			userConditions.push(eq(user.id, userObj.id));
+		}
+		if (userObj.email) {
+			userConditions.push(
+				sql`LOWER(TRIM(${user.email})) = LOWER(TRIM(${userObj.email}))`,
+			);
+		}
+		if (userObj.name) {
+			userConditions.push(
+				sql`LOWER(TRIM(${user.name})) = LOWER(TRIM(${userObj.name}))`,
+			);
+		}
+
+		if (userConditions.length > 0) {
+			const usersList = await db.query.user?.findMany({
+				where: or(...userConditions),
+			});
+			if (usersList && usersList.length > 0) {
+				for (const u of usersList) {
+					addSafe(u.id);
+					addSafe(u.email);
+					addSafe(u.name);
+				}
 			}
 		}
 	} catch (e) {
@@ -350,11 +411,35 @@ export const deliveryRouter = router({
 								where: (s: any, { eq, or }: any) =>
 									or(
 										eq(s.email, input.driverId),
+										sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${input.driverId}))`,
 										eq(s.staff_code, input.driverId),
+										sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${input.driverId}))`,
 									),
 							});
 							if (staffRow) {
 								driverStaffId = staffRow.id;
+							}
+						}
+						if (driverStaffId === null && tx.query && (tx.query as any).user) {
+							const userRow = await (tx.query as any).user.findFirst({
+								where: (u: any, { eq, or }: any) =>
+									or(
+										eq(u.id, input.driverId),
+										sql`LOWER(TRIM(${u.email})) = LOWER(TRIM(${input.driverId}))`,
+									),
+							});
+							if (userRow && (tx.query as any).staff) {
+								const staffMatch = await (tx.query as any).staff.findFirst({
+									where: (s: any, { eq, or }: any) =>
+										or(
+											eq(s.email, userRow.email),
+											sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${userRow.email}))`,
+											sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${userRow.name}))`,
+										),
+								});
+								if (staffMatch) {
+									driverStaffId = staffMatch.id;
+								}
 							}
 						}
 						if (driverStaffId === null && !isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
@@ -1257,11 +1342,35 @@ ERROR TABLE: ${err.table}
 								where: (s: any, { eq, or }: any) =>
 									or(
 										eq(s.email, input.driverId),
+										sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${input.driverId}))`,
 										eq(s.staff_code, input.driverId),
+										sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${input.driverId}))`,
 									),
 							});
 							if (staffRow) {
 								driverStaffId = staffRow.id;
+							}
+						}
+						if (driverStaffId === null && tx.query && (tx.query as any).user) {
+							const userRow = await (tx.query as any).user.findFirst({
+								where: (u: any, { eq, or }: any) =>
+									or(
+										eq(u.id, input.driverId),
+										sql`LOWER(TRIM(${u.email})) = LOWER(TRIM(${input.driverId}))`,
+									),
+							});
+							if (userRow && (tx.query as any).staff) {
+								const staffMatch = await (tx.query as any).staff.findFirst({
+									where: (s: any, { eq, or }: any) =>
+										or(
+											eq(s.email, userRow.email),
+											sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${userRow.email}))`,
+											sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${userRow.name}))`,
+										),
+								});
+								if (staffMatch) {
+									driverStaffId = staffMatch.id;
+								}
 							}
 						}
 						if (driverStaffId === null && !isNaN(Number(input.driverId)) && Number(input.driverId) > 0) {
