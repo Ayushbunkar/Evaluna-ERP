@@ -14,7 +14,7 @@ import {
 	stockLedger,
 	transactions,
 } from "@evaluna/db/schema";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
@@ -36,11 +36,15 @@ export const posRouter = router({
 					baseSellingPrice: products.base_selling_price,
 					description: products.description,
 					is_weighted: products.is_weighted,
-					is_taxable: products.is_taxable,
-					tax_rate: products.tax_rate,
+					is_taxable: products.taxable,
 				})
 				.from(products)
-				.where(eq(products.is_deleted, false))
+				.where(
+					and(
+						or(eq(products.is_deleted, false), isNull(products.is_deleted)),
+						or(eq(products.is_hidden, false), isNull(products.is_hidden)),
+					),
+				)
 				.orderBy(asc(products.name))
 				.limit(1000),
 			ctx.db
@@ -62,7 +66,8 @@ export const posRouter = router({
 
 		return catalog.map((item) => {
 			const activeOffer = discountMap.get(item.id);
-			const originalPrice = Number.parseFloat(item.price || "0");
+			const rawPriceStr = item.price || item.baseSellingPrice || "0";
+			const originalPrice = Number.parseFloat(rawPriceStr);
 			const hasOffer = !!activeOffer && activeOffer.is_active;
 			const offerPrice = hasOffer
 				? Number.parseFloat(activeOffer.discounted_price || "0")
@@ -70,6 +75,7 @@ export const posRouter = router({
 
 			return {
 				...item,
+				price: originalPrice.toFixed(2),
 				originalPrice: originalPrice.toFixed(2),
 				offerPrice: offerPrice.toFixed(2),
 				hasDailyOffer: hasOffer,
