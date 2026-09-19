@@ -70,7 +70,7 @@ export async function loadSettings(db: DB) {
 		enableSelfie: s?.enableSelfie ?? true,
 		enableDeviceLock: s?.enableDeviceLock ?? true,
 		enableBreakTracking: s?.enableBreakTracking ?? true,
-		minGPSAccuracy: s?.minGPSAccuracy ?? 200,
+		minGPSAccuracy: s?.minGPSAccuracy ?? 500,
 		graceTime: s?.graceTime ?? 10,
 		maxBreakTime: s?.maxBreakTime ?? 60,
 		workingHours: s?.workingHours ?? 8,
@@ -118,12 +118,13 @@ export async function validateGeofence(
 		Number(fence.latitude),
 		Number(fence.longitude),
 	);
-	const radius = fence.radius ?? 100;
+	const radius = (fence.radius ?? 100) + Math.min(gps.accuracy || 0, 50);
+	const isInside = distance <= radius;
 	return {
-		ok: distance <= radius,
+		ok: isInside,
 		distance: Math.round(distance * 100) / 100,
-		radius,
-		reason: distance <= radius ? undefined : "outside_geofence",
+		radius: fence.radius ?? 100,
+		reason: isInside ? undefined : "outside_geofence",
 	};
 }
 

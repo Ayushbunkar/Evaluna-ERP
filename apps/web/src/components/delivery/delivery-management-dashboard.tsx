@@ -14,6 +14,7 @@ import {
 	PhoneIcon,
 	PlusIcon,
 	RouteIcon,
+	SearchIcon,
 	ShieldCheckIcon,
 	Trash2Icon,
 	TruckIcon,
@@ -91,6 +92,16 @@ export function DeliveryManagementDashboard({
 	const [isOrderAssignOpen, setIsOrderAssignOpen] = useState(false);
 	const [orderDriverId, setOrderDriverId] = useState("");
 	const [orderVehicleId, setOrderVehicleId] = useState("");
+
+	const realRoutes = (routes || []).filter(
+		(r: any) =>
+			!r.name?.startsWith("Trip ") && !r.name?.startsWith("Quick Trip "),
+	);
+
+	const [tripFilterStatus, setTripFilterStatus] = useState<
+		"all" | "pending" | "active" | "completed" | "cancelled"
+	>("all");
+	const [tripSearchQuery, setTripSearchQuery] = useState("");
 
 	const unassignedOrders = allOrders.filter((order: any) => {
 		if (order.status === "cancelled") return false;
@@ -779,7 +790,8 @@ export function DeliveryManagementDashboard({
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
 			<TabsList>
 				<TabsTrigger value="overview">{t("overviewTab")}</TabsTrigger>
-				<TabsTrigger value="routes">{t("routesTab")}</TabsTrigger>
+				<TabsTrigger value="routes">Saved Routes ({realRoutes.length})</TabsTrigger>
+				<TabsTrigger value="trips">Delivery Trips ({trips.length})</TabsTrigger>
 				<TabsTrigger value="tracking">{t("trackingTab")}</TabsTrigger>
 				<TabsTrigger value="vehicles">{t("vehiclesTab")}</TabsTrigger>
 				<TabsTrigger value="settlements">{t("settlementsTab")}</TabsTrigger>
@@ -806,7 +818,7 @@ export function DeliveryManagementDashboard({
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="font-bold text-2xl text-blue-600">{routes.length}</div>
+							<div className="font-bold text-2xl text-blue-600">{realRoutes.length}</div>
 						</CardContent>
 					</Card>
 					<Card>
@@ -834,7 +846,7 @@ export function DeliveryManagementDashboard({
 				</div>
 
 				{/* Quick Route Trip Dispatch Panel */}
-				{routes.length > 0 && (
+				{realRoutes.length > 0 && (
 					<Card className="border-border/60 bg-gradient-to-br from-slate-50/70 to-blue-50/30 shadow-sm dark:from-slate-900/40 dark:to-blue-950/20">
 						<CardHeader className="flex flex-row items-center justify-between pb-3">
 							<div>
@@ -850,7 +862,7 @@ export function DeliveryManagementDashboard({
 								size="sm"
 								className="bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary/90"
 								onClick={() => {
-									if (routes.length > 0) openDispatchForRoute(routes[0]);
+									if (realRoutes.length > 0) openDispatchForRoute(realRoutes[0]);
 								}}
 							>
 								<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -859,7 +871,7 @@ export function DeliveryManagementDashboard({
 						</CardHeader>
 						<CardContent>
 							<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-								{routes.map((route: any) => (
+								{realRoutes.map((route: any) => (
 									<div
 										key={route.id}
 										className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"
@@ -1921,13 +1933,13 @@ export function DeliveryManagementDashboard({
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-4">
-							{routes.length === 0 ? (
+							{realRoutes.length === 0 ? (
 								<p className="text-muted-foreground text-sm">
 									No routes found.
 								</p>
 							) : (
 								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-									{routes.map((route: any) => (
+									{realRoutes.map((route: any) => (
 										<div
 											key={route.id}
 											className="group relative overflow-hidden rounded-md border p-4 shadow-sm"
@@ -2033,82 +2045,205 @@ export function DeliveryManagementDashboard({
 							)}
 						</div>
 
-						{/* Trips Section */}
-						<div className="mt-8 space-y-4">
-							<div className="flex items-center justify-between border-b pb-2">
-								<h3 className="font-bold text-xl">Assigned Trips</h3>
+					</CardContent>
+				</Card>
+			</TabsContent>
+
+			<TabsContent value="trips">
+				<Card>
+					<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+						<div>
+							<CardTitle className="flex items-center gap-2">
+								<TruckIcon className="h-5 w-5 text-primary" />
+								Delivery Trips & Driver Dispatch
+							</CardTitle>
+							<CardDescription>
+								Manage all vehicle trips assigned to drivers. Dispatch pending trips, monitor active deliveries, and review completed runs.
+							</CardDescription>
+						</div>
+						<div className="flex items-center gap-2">
+							<Button
+								className="bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary/90"
+								onClick={() => setIsQuickTripOpen(true)}
+							>
+								<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+								Quick Custom Trip
+							</Button>
+						</div>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						{/* Status Filters & Search Bar */}
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+							<div className="flex flex-wrap items-center gap-1.5">
+								<Button
+									size="sm"
+									variant={tripFilterStatus === "all" ? "default" : "outline"}
+									className="h-8 text-xs font-semibold rounded-lg"
+									onClick={() => setTripFilterStatus("all")}
+								>
+									All ({trips.length})
+								</Button>
+								<Button
+									size="sm"
+									variant={tripFilterStatus === "pending" ? "default" : "outline"}
+									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "pending" ? "border-blue-200 text-blue-700 hover:bg-blue-50" : ""}`}
+									onClick={() => setTripFilterStatus("pending")}
+								>
+									Pending Dispatch ({trips.filter((t: any) => t.status === "pending").length})
+								</Button>
+								<Button
+									size="sm"
+									variant={tripFilterStatus === "active" ? "default" : "outline"}
+									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "active" ? "border-amber-200 text-amber-700 hover:bg-amber-50" : ""}`}
+									onClick={() => setTripFilterStatus("active")}
+								>
+									Active / On Route ({trips.filter((t: any) => t.status === "active").length})
+								</Button>
+								<Button
+									size="sm"
+									variant={tripFilterStatus === "completed" ? "default" : "outline"}
+									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "completed" ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : ""}`}
+									onClick={() => setTripFilterStatus("completed")}
+								>
+									Completed ({trips.filter((t: any) => t.status === "completed").length})
+								</Button>
+								<Button
+									size="sm"
+									variant={tripFilterStatus === "cancelled" ? "default" : "outline"}
+									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "cancelled" ? "border-red-200 text-red-700 hover:bg-red-50" : ""}`}
+									onClick={() => setTripFilterStatus("cancelled")}
+								>
+									Cancelled ({trips.filter((t: any) => t.status === "cancelled").length})
+								</Button>
 							</div>
 
-							{trips.length === 0 ? (
-								<p className="text-muted-foreground text-sm">
-									No trips assigned yet.
-								</p>
-							) : (
+							<div className="relative w-full sm:w-64">
+								<SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+								<Input
+									type="text"
+									placeholder="Search driver, vehicle, route..."
+									value={tripSearchQuery}
+									onChange={(e) => setTripSearchQuery(e.target.value)}
+									className="h-8 pl-8 text-xs rounded-lg"
+								/>
+							</div>
+						</div>
+
+						{/* Trips Cards Grid */}
+						{(() => {
+							const filteredTrips = trips.filter((trip: any) => {
+								if (tripFilterStatus !== "all" && trip.status !== tripFilterStatus) {
+									return false;
+								}
+								if (tripSearchQuery.trim()) {
+									const query = tripSearchQuery.toLowerCase();
+									const driverName = trip.driver?.name?.toLowerCase() || "";
+									const vehicleName = trip.vehicle?.name?.toLowerCase() || "";
+									const routeName = trip.route?.name?.toLowerCase() || "";
+									const tripId = String(trip.id);
+									return (
+										driverName.includes(query) ||
+										vehicleName.includes(query) ||
+										routeName.includes(query) ||
+										tripId.includes(query)
+									);
+								}
+								return true;
+							});
+
+							if (filteredTrips.length === 0) {
+								return (
+									<div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+										<TruckIcon className="h-10 w-10 text-slate-300 dark:text-slate-700 mb-2" />
+										<p className="font-semibold text-sm">No delivery trips match your selection.</p>
+										<p className="text-xs mt-0.5">Change status filters or click "Quick Custom Trip" to assign a new run.</p>
+									</div>
+								);
+							}
+
+							return (
 								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-									{trips.map((trip: any) => (
+									{filteredTrips.map((trip: any) => (
 										<div
 											key={trip.id}
-											className="group relative overflow-hidden rounded-md border p-4 shadow-sm"
+											className="group relative overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
 										>
 											<div
-												className={`absolute top-0 left-0 h-full w-1 ${
+												className={`absolute top-0 left-0 h-full w-1.5 ${
 													trip.status === "completed"
 														? "bg-emerald-500"
 														: trip.status === "active"
-															? "bg-amber-500"
+															? "bg-amber-500 animate-pulse"
 															: trip.status === "cancelled"
 																? "bg-red-500"
-																: "bg-primary"
+																: "bg-blue-500"
 												}`}
 											/>
 											<div className="flex items-start justify-between">
-												<h4 className="font-semibold text-lg">
-													{trip.route?.name || "Custom Trip"}
-												</h4>
+												<div>
+													<div className="flex items-center gap-2">
+														<span className="font-mono text-xs font-bold text-slate-500">
+															Trip #{trip.id}
+														</span>
+														{trip.route?.name && (
+															<span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+																{trip.route.name}
+															</span>
+														)}
+													</div>
+													<h4 className="font-bold text-base text-slate-900 dark:text-slate-100 mt-0.5">
+														{trip.route?.name || "Direct Custom Trip"}
+													</h4>
+												</div>
 												<span
-													className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
+													className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-wider ${
 														trip.status === "completed"
-															? "bg-emerald-100 text-emerald-700"
+															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
 															: trip.status === "active"
-																? "bg-amber-100 text-amber-700"
+																? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
 																: trip.status === "cancelled"
-																	? "bg-red-100 text-red-700"
-																	: "bg-blue-100 text-blue-700"
+																	? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+																	: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 													}`}
 												>
-													{trip.status}
+													{trip.status === "active" && (
+														<span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+													)}
+													{trip.status === "active" ? "Out for Delivery" : trip.status}
 												</span>
 											</div>
-											<div className="mt-3 space-y-2 text-muted-foreground text-sm">
+
+											<div className="mt-3.5 space-y-2 text-xs text-muted-foreground">
 												<div className="flex items-center gap-2">
-													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
 														<PackageIcon className="h-3 w-3" />
 													</div>
 													Driver:{" "}
-													<span className="font-medium text-foreground">
-														{trip.driver?.name}
+													<span className="font-semibold text-slate-900 dark:text-slate-100">
+														{trip.driver?.name || "Unassigned"}
 													</span>
 												</div>
 												<div className="flex items-center gap-2">
-													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
 														<TruckIcon className="h-3 w-3" />
 													</div>
 													Vehicle:{" "}
-													<span className="font-medium text-foreground">
-														{trip.vehicle?.name || "N/A"}
+													<span className="font-semibold text-slate-900 dark:text-slate-100">
+														{trip.vehicle?.name || trip.vehicle?.registration_number || "N/A"}
 													</span>
 												</div>
 												<div className="flex items-center gap-2">
-													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
 														<RouteIcon className="h-3 w-3" />
 													</div>
 													Stops:{" "}
-													<span className="font-medium text-foreground">
-														{trip.stops?.length || 0}
+													<span className="font-semibold text-slate-900 dark:text-slate-100">
+														{trip.stops?.length || 0} customer stops
 													</span>
 												</div>
 											</div>
-											<div className="mt-4 flex items-center gap-2">
+
+											<div className="mt-4 flex items-center gap-2 border-t pt-3 border-slate-100 dark:border-slate-800">
 												{trip.status === "pending" && (
 													<Button
 														size="sm"
@@ -2163,8 +2298,8 @@ export function DeliveryManagementDashboard({
 										</div>
 									))}
 								</div>
-							)}
-						</div>
+							);
+						})()}
 					</CardContent>
 				</Card>
 			</TabsContent>

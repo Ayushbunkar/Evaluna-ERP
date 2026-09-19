@@ -213,7 +213,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 							resolve({
 								latitude: pos.coords.latitude,
 								longitude: pos.coords.longitude,
-								accuracy: pos.coords.accuracy,
+								accuracy: Math.min(pos.coords.accuracy || 20, 200),
 								deviceTimestamp: new Date(pos.timestamp).toISOString(),
 							}),
 						(err) =>

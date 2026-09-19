@@ -37,9 +37,41 @@ export const deliveryRouter = router({
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 
+			// Clean up auto-generated dummy routes that start with "Trip " or "Quick Trip "
+			try {
+				const dummyRoutes = await db.query.deliveryRoutes.findMany({
+					where: and(
+						eq(deliveryRoutes.branch_id, branch),
+						or(
+							sql`${deliveryRoutes.name} LIKE 'Trip %'`,
+							sql`${deliveryRoutes.name} LIKE 'Quick Trip %'`,
+						),
+					),
+				});
+				if (dummyRoutes.length > 0) {
+					const dummyIds = dummyRoutes.map((r) => r.id);
+					// Unlink trips from dummy routes
+					await db
+						.update(deliveryTrips)
+						.set({ route_id: null })
+						.where(inArray(deliveryTrips.route_id, dummyIds));
+					// Delete stops of dummy routes
+					await db
+						.delete(routeStops)
+						.where(inArray(routeStops.route_id, dummyIds));
+					// Delete dummy routes
+					await db
+						.delete(deliveryRoutes)
+						.where(inArray(deliveryRoutes.id, dummyIds));
+				}
+			} catch (cleanupErr) {
+				console.warn("[listRoutes] Cleanup dummy routes:", cleanupErr);
+			}
+
 			return await db.query.deliveryRoutes.findMany({
 				where: eq(deliveryRoutes.branch_id, branch),
 				with: { stops: { with: { customer: true } } },
+				orderBy: (r, { asc }) => [asc(r.name)],
 			});
 		}),
 
@@ -1073,17 +1105,6 @@ ERROR TABLE: ${err.table}
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
 				return await database.transaction(async (tx) => {
-					// 1. Create a route for this trip
-					const [route] = await tx
-						.insert(deliveryRoutes)
-						.values({
-							name:
-								input.routeName ||
-								`Trip ${new Date().toLocaleDateString("en-IN")}`,
-							branch_id: branch || null,
-						})
-						.returning();
-
 					// Process stops and auto-create customers for new address/phone stops
 					const resolvedStops: { customerId: number; sequence: number }[] = [];
 					const seenCustomers = new Set<number>();
@@ -1137,22 +1158,33 @@ ERROR TABLE: ${err.table}
 						}
 					}
 
-					// 2. Insert route stops
-					if (resolvedStops.length > 0) {
-						await tx.insert(routeStops).values(
-							resolvedStops.map((s) => ({
-								route_id: route.id,
-								customer_id: s.customerId,
-								sequence: s.sequence,
-							})),
-						);
+					let createdRouteId: number | null = null;
+					if (input.routeName) {
+						const [route] = await tx
+							.insert(deliveryRoutes)
+							.values({
+								name: input.routeName,
+								branch_id: branch || null,
+							})
+							.returning();
+						createdRouteId = route.id;
+
+						if (resolvedStops.length > 0) {
+							await tx.insert(routeStops).values(
+								resolvedStops.map((s) => ({
+									route_id: route.id,
+									customer_id: s.customerId,
+									sequence: s.sequence,
+								})),
+							);
+						}
 					}
 
-					// 3. Create the trip
+					// Create the direct trip
 					const [trip] = await tx
 						.insert(deliveryTrips)
 						.values({
-							route_id: route.id,
+							route_id: createdRouteId,
 							driver_id: input.driverId,
 							vehicle_id: input.vehicleId || null,
 							status: "pending",
