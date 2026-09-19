@@ -1,6 +1,8 @@
-import { orderItems, pickListItems, pickLists } from "@evaluna/db/schema";
+import { customers, orderItems, orders, pickListItems, pickLists } from "@evaluna/db/schema";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import { db } from "@/lib/db";
+import { notifyPickComplete } from "@/lib/notification-service";
 import { roleProcedure, router } from "../init";
 
 export const pickerRouter = router({

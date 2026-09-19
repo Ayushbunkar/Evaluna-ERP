@@ -305,6 +305,222 @@ export async function triggerSaleAlert(opts: {
 	});
 }
 
+// ── Bilingual Helper ──────────────────────────────────────────────────────────
+/**
+ * Compose a bilingual message: "EN | HI" format stored in notification.message.
+ * Client renders both or only one based on locale.
+ */
+export function bilingual(en: string, hi: string): string {
+	return `${en} | ${hi}`;
+}
+
+// ── Workflow Flow-Event Notification Helpers ──────────────────────────────────
+
+/** Notify Picker that a new order was created and needs picking. (orders.create) */
+export async function notifyOrderCreated(opts: {
+	orderId: number;
+	customerName: string;
+	branchId: number;
+	staffId?: number | null;
+}): Promise<void> {
+	await dispatchNotification({
+		type: "info",
+		priority: "high",
+		title: `📦 New Order ORD-${opts.orderId}`,
+		message: bilingual(
+			`New order ORD-${opts.orderId} for ${opts.customerName} has been placed. Please pick the items.`,
+			`नया ऑर्डर ORD-${opts.orderId} (${opts.customerName}) आया है। कृपया आइटम पिक करें।`,
+		),
+		branchId: opts.branchId,
+		userId: opts.staffId ?? undefined,
+		referenceType: "orders",
+		referenceId: opts.orderId,
+		channels: ["in_app"],
+		metadata: { order_id: opts.orderId, customer_name: opts.customerName, flow_event: "order_created" },
+	});
+}
+
+/** Notify Packer that picking is done — ready to pack. (picker.completePickList) */
+export async function notifyPickComplete(opts: {
+	orderId: number;
+	customerName: string;
+	branchId: number;
+	staffId?: number | null;
+}): Promise<void> {
+	await dispatchNotification({
+		type: "info",
+		priority: "high",
+		title: `✅ Picking Done — ORD-${opts.orderId}`,
+		message: bilingual(
+			`Order ORD-${opts.orderId} (${opts.customerName}) has been fully picked. Please pack it now.`,
+			`ऑर्डर ORD-${opts.orderId} (${opts.customerName}) की पिकिंग पूरी हो गई। अब पैकिंग करें।`,
+		),
+		branchId: opts.branchId,
+		userId: opts.staffId ?? undefined,
+		referenceType: "orders",
+		referenceId: opts.orderId,
+		channels: ["in_app"],
+		metadata: { order_id: opts.orderId, customer_name: opts.customerName, flow_event: "pick_complete" },
+	});
+}
+
+/** Notify Manager that packing is done — order ready for dispatch. (packer.packOrder) */
+export async function notifyPackComplete(opts: {
+	orderId: number;
+	customerName: string;
+	packageNumber: string;
+	packerName: string;
+	branchId: number;
+	staffId?: number | null;
+}): Promise<void> {
+	await dispatchNotification({
+		type: "info",
+		priority: "high",
+		title: `📦 Packed — ORD-${opts.orderId}`,
+		message: bilingual(
+			`Order ORD-${opts.orderId} (${opts.customerName}) packed by ${opts.packerName} [Pkg: ${opts.packageNumber}]. Ready for driver dispatch.`,
+			`ऑर्डर ORD-${opts.orderId} (${opts.customerName}) ${opts.packerName} ने पैक कर दिया [Pkg: ${opts.packageNumber}]। ड्राइवर को डिस्पैच करें।`,
+		),
+		branchId: opts.branchId,
+		userId: opts.staffId ?? undefined,
+		referenceType: "orders",
+		referenceId: opts.orderId,
+		channels: ["in_app"],
+		metadata: {
+			order_id: opts.orderId,
+			customer_name: opts.customerName,
+			package_number: opts.packageNumber,
+			packer_name: opts.packerName,
+			flow_event: "pack_complete",
+		},
+	});
+}
+
+/** Notify Driver that a trip has been assigned. (delivery.createTripDirect) */
+export async function notifyTripAssigned(opts: {
+	tripId: number;
+	driverName: string;
+	stopsCount: number;
+	branchId: number;
+	staffId?: number | null;
+}): Promise<void> {
+	await dispatchNotification({
+		type: "info",
+		priority: "high",
+		title: `🚚 Trip #${opts.tripId} Assigned to You`,
+		message: bilingual(
+			`Trip #${opts.tripId} with ${opts.stopsCount} stop(s) has been assigned to you. Prepare for delivery.`,
+			`ट्रिप #${opts.tripId} में ${opts.stopsCount} स्टॉप आपको असाइन हुए हैं। डिलीवरी की तैयारी करें।`,
+		),
+		branchId: opts.branchId,
+		userId: opts.staffId ?? undefined,
+		referenceType: "trips",
+		referenceId: opts.tripId,
+		channels: ["in_app"],
+		metadata: { trip_id: opts.tripId, driver_name: opts.driverName, stops_count: opts.stopsCount, flow_event: "trip_assigned" },
+	});
+}
+
+/** Notify Driver that manager dispatched their trip — go deliver! (delivery.updateTripStatus → active) */
+export async function notifyTripDispatched(opts: {
+	tripId: number;
+	driverName: string;
+	stopsCount: number;
+	routeName: string;
+	branchId: number;
+	staffId?: number | null;
+}): Promise<void> {
+	await dispatchNotification({
+		type: "info",
+		priority: "critical",
+		title: `🟢 Start Delivery — Trip #${opts.tripId}`,
+		message: bilingual(
+			`Manager dispatched Trip #${opts.tripId} (${opts.routeName}) with ${opts.stopsCount} stop(s). All stops are now in your app!`,
+			`मैनेजर ने ट्रिप #${opts.tripId} (${opts.routeName}) डिस्पैच किया है। ${opts.stopsCount} स्टॉप आपके ऐप में दिख रहे हैं।`,
+		),
+		branchId: opts.branchId,
+		userId: opts.staffId ?? undefined,
+		referenceType: "trips",
+		referenceId: opts.tripId,
+		channels: ["in_app"],
+		metadata: {
+			trip_id: opts.tripId,
+			driver_name: opts.driverName,
+			stops_count: opts.stopsCount,
+			route_name: opts.routeName,
+			flow_event: "trip_dispatched",
+		},
+	});
+}
+
+/** Notify Finance that driver collected payment from a customer stop. (driver.submitDeliveryHandover) */
+export async function notifyDriverCollected(opts: {
+	orderId: number | null;
+	stopId: number;
+	cashAmount: number;
+	onlineAmount: number;
+	driverName: string;
+	customerName: string;
+	branchId: number;
+	staffId?: number | null;
+}): Promise<void> {
+	const total = opts.cashAmount + opts.onlineAmount;
+	const methods: string[] = [];
+	if (opts.cashAmount > 0) methods.push(`Cash ₹${opts.cashAmount}`);
+	if (opts.onlineAmount > 0) methods.push(`Online ₹${opts.onlineAmount}`);
+	const methodStr = methods.join(" + ") || "₹0";
+
+	await dispatchNotification({
+		type: "sale",
+		priority: "high",
+		title: `💰 ₹${total} Collected — ${opts.customerName}`,
+		message: bilingual(
+			`Driver ${opts.driverName} collected ${methodStr} from ${opts.customerName}${opts.orderId ? ` (ORD-${opts.orderId})` : ""}. Awaiting reconciliation.`,
+			`ड्राइवर ${opts.driverName} ने ${opts.customerName}${opts.orderId ? ` (ORD-${opts.orderId})` : ""} से ${methodStr} लिया। रिकंसिलिएशन बाकी है।`,
+		),
+		branchId: opts.branchId,
+		userId: opts.staffId ?? undefined,
+		referenceType: "orders",
+		referenceId: opts.orderId ?? undefined,
+		channels: ["in_app"],
+		metadata: {
+			order_id: opts.orderId,
+			stop_id: opts.stopId,
+			cash_amount: opts.cashAmount,
+			online_amount: opts.onlineAmount,
+			total,
+			driver_name: opts.driverName,
+			customer_name: opts.customerName,
+			flow_event: "driver_collected",
+		},
+	});
+}
+
+/** Notify Manager that a trip is fully complete. (driver.submitDeliveryHandover — last stop) */
+export async function notifyTripCompleted(opts: {
+	tripId: number;
+	driverName: string;
+	totalCollected: number;
+	branchId: number;
+	staffId?: number | null;
+}): Promise<void> {
+	await dispatchNotification({
+		type: "info",
+		priority: "high",
+		title: `✅ Trip #${opts.tripId} Complete`,
+		message: bilingual(
+			`Driver ${opts.driverName} completed all deliveries for Trip #${opts.tripId}. Total collected: ₹${opts.totalCollected}.`,
+			`ड्राइवर ${opts.driverName} ने ट्रिप #${opts.tripId} की सभी डिलीवरी पूरी की। कुल कलेक्शन: ₹${opts.totalCollected}।`,
+		),
+		branchId: opts.branchId,
+		userId: opts.staffId ?? undefined,
+		referenceType: "trips",
+		referenceId: opts.tripId,
+		channels: ["in_app"],
+		metadata: { trip_id: opts.tripId, driver_name: opts.driverName, total_collected: opts.totalCollected, flow_event: "trip_completed" },
+	});
+}
+
 // ── Queue Processor (Retry Engine) ────────────────────────────────────────────
 /**
  * Process pending/failed items in the notification_queue.

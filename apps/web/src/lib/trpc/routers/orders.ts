@@ -41,6 +41,7 @@ import {
 } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db } from "@/lib/db";
+import { notifyOrderCreated } from "@/lib/notification-service";
 import { roleProcedure, router } from "../init";
 
 const orderWithCustomerSchema = z.object({
@@ -522,6 +523,21 @@ export const ordersRouter = router({
 
 				return { ...orderData, customer: customer ?? null };
 			});
+
+			// Fire-and-forget: notify pickers in the branch about the new order
+			try {
+				const branchId = ctx.user?.branchId || 1;
+				const customerName = (result as any).customer?.name || "Customer";
+				void notifyOrderCreated({
+					orderId: (result as any).id,
+					customerName,
+					branchId,
+				});
+			} catch (notifErr) {
+				console.warn("[orders.create] Picker notification error:", notifErr);
+			}
+
+			return result;
 		}),
 
 	update: roleProcedure(["admin", "manager", "auditor", "sales_person"])
