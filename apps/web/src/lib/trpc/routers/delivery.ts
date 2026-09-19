@@ -1,24 +1,23 @@
 import {
 	customers,
+	deliveryRoutes,
 	deliveryStops,
+	deliveryTrips,
+	gpsLogs,
 	orderItems,
 	orders,
 	products,
+	proofOfDeliveries,
 	roles,
+	routeStops,
 	salesReturnItems,
 	salesReturns,
-	user,
-	userRoles,
-} from "@evaluna/db/schema";
-import {
-	deliveryRoutes,
-	deliveryTrips,
-	gpsLogs,
-	proofOfDeliveries,
-	routeStops,
 	tripCollections,
 	tripStops,
-} from "@evaluna/db/schema/delivery";
+	user,
+	userRoles,
+	vehicles,
+} from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
