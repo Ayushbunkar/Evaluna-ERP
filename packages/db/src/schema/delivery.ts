@@ -93,7 +93,13 @@ export const deliveryTrips = pgTable("delivery_trips", {
 		scale: 2,
 	}),
 	expected_stops: integer("expected_stops"),
-	completed_stops: integer("completed_stops"),
+	loader_id: varchar("loader_id", { length: 255 }),
+	released_at: timestamp("released_at"),
+	released_by_id: varchar("released_by_id", { length: 255 }),
+	loaded_at: timestamp("loaded_at"),
+	loaded_by_id: varchar("loaded_by_id", { length: 255 }),
+	dispatched_at: timestamp("dispatched_at"),
+	dispatched_by_id: varchar("dispatched_by_id", { length: 255 }),
 	created_at: timestamp("created_at").defaultNow(),
 	updated_at: timestamp("updated_at")
 		.defaultNow()

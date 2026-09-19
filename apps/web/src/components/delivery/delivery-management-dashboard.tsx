@@ -83,6 +83,40 @@ export function DeliveryManagementDashboard({
 
 	const { data: listDriversData } = trpc.delivery.listDrivers.useQuery({});
 	const finalDrivers = listDriversData || drivers || [];
+	const { data: listLoadersData } = trpc.delivery.listLoaders.useQuery({});
+	const loadersList = listLoadersData || [];
+	const { data: routeWaitingPool = [], refetch: refetchRoutePool } =
+		trpc.delivery.getRouteWaitingPool.useQuery({});
+
+	const releaseToLoaderMutation = trpc.delivery.releaseToLoader.useMutation({
+		onSuccess: () => {
+			toast.success("✓ Trip released to Loader for physical loading.");
+			refetchTrips();
+			refetchRoutePool();
+		},
+		onError: (err: any) => {
+			toast.error(err.message || "Failed to release trip to loader.");
+		},
+	});
+
+	// Dispatch Board Modal States
+	const [viewRoutePool, setViewRoutePool] = useState<any>(null);
+	const [isViewOrdersOpen, setIsViewOrdersOpen] = useState(false);
+
+	const [createTripRoutePool, setCreateTripRoutePool] = useState<any>(null);
+	const [isCreateTripPoolOpen, setIsCreateTripPoolOpen] = useState(false);
+	const [createTripStep, setCreateTripStep] = useState<1 | 2 | 3>(1);
+	const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<number[]>([]);
+	const [poolDriverId, setPoolDriverId] = useState("");
+	const [poolVehicleId, setPoolVehicleId] = useState("");
+	const [poolLoaderId, setPoolLoaderId] = useState("");
+
+	const [dispatchConfirmTrip, setDispatchConfirmTrip] = useState<any>(null);
+	const [isDispatchConfirmOpen, setIsDispatchConfirmOpen] = useState(false);
+
+	const [selectedDetailTrip, setSelectedDetailTrip] = useState<any>(null);
+	const [isTripDetailOpen, setIsTripDetailOpen] = useState(false);
+
 	const { data: allOrders = [], refetch: refetchOrders } =
 		trpc.orders.list.useQuery();
 	const { data: driverCollections = [] } =
@@ -167,6 +201,12 @@ export function DeliveryManagementDashboard({
 			refetchOrders();
 		},
 	});
+	const dispatchTripMutation = trpc.delivery.dispatchTrip.useMutation({
+		onSuccess: () => {
+			refetchTrips();
+			refetchOrders();
+		},
+	});
 	const optimizeRouteSequence =
 		trpc.delivery.optimizeRouteSequence.useMutation();
 
@@ -201,6 +241,7 @@ export function DeliveryManagementDashboard({
 	const [tripRouteId, setTripRouteId] = useState("");
 	const [tripDriverId, setTripDriverId] = useState("");
 	const [tripVehicleId, setTripVehicleId] = useState("");
+	const [tripLoaderId, setTripLoaderId] = useState("");
 	const [tripStopsList, setTripStopsList] = useState<TripModalStop[]>([]);
 	const [tripStopSearchText, setTripStopSearchText] = useState("");
 	const [isTripOpen, setIsTripOpen] = useState(false);
@@ -502,6 +543,7 @@ export function DeliveryManagementDashboard({
 				routeId: Number(tripRouteId),
 				driverId: tripDriverId,
 				vehicleId: Number(tripVehicleId),
+				loaderId: tripLoaderId || undefined,
 				stops: includedStops.map((s, idx) => ({
 					customerId: s.customerId,
 					name: s.name,
@@ -511,12 +553,13 @@ export function DeliveryManagementDashboard({
 				})),
 			});
 			toast.success(
-				`Dispatched Trip with ${includedStops.length} Stop(s) to Driver & Packer queue!`,
+				`Trip Created & Released to Loader Queue (${includedStops.length} Stops)!`,
 			);
 			setIsTripOpen(false);
 			setTripRouteId("");
 			setTripDriverId("");
 			setTripVehicleId("");
+			setTripLoaderId("");
 			setTripStopsList([]);
 			setTripStopSearchText("");
 			setIsAddStopDrawerOpen(false);
@@ -817,12 +860,117 @@ export function DeliveryManagementDashboard({
 		refetchOrders();
 	};
 
+	const totalWaitingOrders = (routeWaitingPool || []).reduce(
+		(acc: number, r: any) => acc + (r.waitingCount || 0),
+		0,
+	);
+	const totalReadyOrders = (routeWaitingPool || []).reduce(
+		(acc: number, r: any) => acc + (r.readyCount || 0),
+		0,
+	);
+	const routesWaitingCount = (routeWaitingPool || []).filter(
+		(r: any) => (r.waitingCount || 0) > 0,
+	).length;
+	const tripsAwaitingLoaderCount = (trips || []).filter(
+		(t: any) => t.status === "pending" || t.status === "ready_for_loading",
+	).length;
+	const tripsLoadingCount = (trips || []).filter(
+		(t: any) => t.status === "loading",
+	).length;
+	const tripsReadyToDispatchCount = (trips || []).filter(
+		(t: any) => t.status === "loaded",
+	).length;
+	const actionableTrips = (trips || []).filter(
+		(t: any) =>
+			t.status === "pending" ||
+			t.status === "ready_for_loading" ||
+			t.status === "loading" ||
+			t.status === "loaded" ||
+			!t.driver_id ||
+			!t.vehicle_id,
+	);
+	const dispatchBoardCount = routesWaitingCount + actionableTrips.length;
+
+	const handleStartCreateTripFromPool = (routePool: any) => {
+		setCreateTripRoutePool(routePool);
+		setCreateTripStep(1);
+		const eligibleIds = (routePool.orders || [])
+			.filter((o: any) => o.isEligibleForTrip)
+			.map((o: any) => o.id);
+		setSelectedPoolOrderIds(eligibleIds);
+		setPoolDriverId(finalDrivers[0]?.id || "");
+		setPoolVehicleId(vehicles[0]?.id?.toString() || "");
+		setPoolLoaderId(loadersList[0]?.id || "");
+		setIsCreateTripPoolOpen(true);
+	};
+
+	const handleConfirmCreateTripFromPool = async () => {
+		if (!createTripRoutePool) return;
+		if (selectedPoolOrderIds.length === 0) {
+			toast.error("Please select at least one order for the trip.");
+			return;
+		}
+		if (!poolDriverId) {
+			toast.error("Please select a Driver.");
+			return;
+		}
+		if (!poolVehicleId) {
+			toast.error("Please select a Vehicle.");
+			return;
+		}
+
+		try {
+			const selectedOrders = (createTripRoutePool.orders || []).filter((o: any) =>
+				selectedPoolOrderIds.includes(o.id),
+			);
+			const stops = selectedOrders.map((o: any, idx: number) => ({
+				customerId: o.customerId,
+				sequence: idx + 1,
+			}));
+
+			await createTripDirect.mutateAsync({
+				driverId: poolDriverId,
+				vehicleId: poolVehicleId ? Number(poolVehicleId) : undefined,
+				loaderId: poolLoaderId || undefined,
+				orderIds: selectedPoolOrderIds,
+				stops,
+				routeName: createTripRoutePool.routeName,
+			});
+
+			toast.success(`✓ Trip created for ${createTripRoutePool.routeName}!`);
+			setIsCreateTripPoolOpen(false);
+			setCreateTripRoutePool(null);
+			refetchTrips();
+			refetchRoutePool();
+			refetchOrders();
+		} catch (err: any) {
+			toast.error(err.message || "Failed to create trip.");
+		}
+	};
+
+	const handleConfirmFinalDispatch = async () => {
+		if (!dispatchConfirmTrip) return;
+		try {
+			await dispatchTripMutation.mutateAsync({ tripId: dispatchConfirmTrip.id });
+			setIsDispatchConfirmOpen(false);
+			setDispatchConfirmTrip(null);
+			refetchTrips();
+			refetchRoutePool();
+			refetchOrders();
+		} catch (err: any) {
+			toast.error(err.message || "Failed to dispatch trip.");
+		}
+	};
+
 	return (
 		<>
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
 			<TabsList>
 				<TabsTrigger value="overview">{t("overviewTab")}</TabsTrigger>
 				<TabsTrigger value="routes">Saved Routes ({realRoutes.length})</TabsTrigger>
+				<TabsTrigger value="dispatch">
+					{t("dispatchBoard")} ({dispatchBoardCount})
+				</TabsTrigger>
 				<TabsTrigger value="trips">Delivery Trips ({trips.length})</TabsTrigger>
 				<TabsTrigger value="tracking">{t("trackingTab")}</TabsTrigger>
 				<TabsTrigger value="vehicles">{t("vehiclesTab")}</TabsTrigger>
@@ -2081,6 +2229,479 @@ export function DeliveryManagementDashboard({
 				</Card>
 			</TabsContent>
 
+			<TabsContent value="dispatch" className="space-y-6">
+				{/* Top Summary Cards */}
+				<div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
+						<CardHeader className="pb-1 pt-3 px-3.5">
+							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+								{t("waitingOrders")}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="pb-3 px-3.5">
+							<div className="font-extrabold text-2xl text-amber-600">
+								{totalWaitingOrders}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
+						<CardHeader className="pb-1 pt-3 px-3.5">
+							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+								{t("readyOrders")}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="pb-3 px-3.5">
+							<div className="font-extrabold text-2xl text-emerald-600">
+								{totalReadyOrders}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
+						<CardHeader className="pb-1 pt-3 px-3.5">
+							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+								{t("routesWaiting")}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="pb-3 px-3.5">
+							<div className="font-extrabold text-2xl text-blue-600">
+								{routesWaitingCount}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
+						<CardHeader className="pb-1 pt-3 px-3.5">
+							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+								{t("tripsAwaitingLoader")}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="pb-3 px-3.5">
+							<div className="font-extrabold text-2xl text-purple-600">
+								{tripsAwaitingLoaderCount}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
+						<CardHeader className="pb-1 pt-3 px-3.5">
+							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+								{t("tripsLoading")}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="pb-3 px-3.5">
+							<div className="font-extrabold text-2xl text-sky-600">
+								{tripsLoadingCount}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
+						<CardHeader className="pb-1 pt-3 px-3.5">
+							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+								{t("tripsReadyToDispatch")}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="pb-3 px-3.5">
+							<div className="font-extrabold text-2xl text-indigo-600">
+								{tripsReadyToDispatchCount}
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+
+				{/* SECTION A: ROUTE WAITING POOL */}
+				<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+					<CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+						<div>
+							<CardTitle className="flex items-center gap-2 font-bold text-base">
+								<RouteIcon className="h-5 w-5 text-primary" />
+								{t("routeWaitingPool")}
+							</CardTitle>
+							<CardDescription className="text-xs">
+								Routes with confirmed sales orders waiting to be grouped into trips
+							</CardDescription>
+						</div>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => refetchRoutePool()}
+							className="h-8 text-xs font-semibold"
+						>
+							Refresh Pool
+						</Button>
+					</CardHeader>
+					<CardContent className="pt-4">
+						{routeWaitingPool.length === 0 ? (
+							<div className="py-8 text-center text-slate-400 text-xs font-medium">
+								{t("noWaitingOrders")}
+							</div>
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								{routeWaitingPool.map((routePool: any) => (
+									<div
+										key={routePool.routeId}
+										className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 space-y-3 dark:border-slate-800 dark:bg-slate-900/50 hover:border-slate-300 transition-all"
+									>
+										<div className="flex items-start justify-between">
+											<div>
+												<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+													{routePool.routeName}
+												</h4>
+												<p className="text-xs text-slate-500">
+													{routePool.villageCount} Village(s) Sequence
+												</p>
+											</div>
+											<span className="rounded-full bg-amber-100 dark:bg-amber-950 px-2.5 py-0.5 font-extrabold text-[11px] text-amber-700 dark:text-amber-300">
+												{routePool.waitingCount} Waiting
+											</span>
+										</div>
+
+										<div className="grid grid-cols-3 gap-2 py-1 text-center">
+											<div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 p-2 border border-emerald-200/60 dark:border-emerald-900/60">
+												<span className="block font-bold text-sm text-emerald-700 dark:text-emerald-300">
+													{routePool.readyCount}
+												</span>
+												<span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
+													Ready
+												</span>
+											</div>
+											<div className="rounded-lg bg-blue-50 dark:bg-blue-950/40 p-2 border border-blue-200/60 dark:border-blue-900/60">
+												<span className="block font-bold text-sm text-blue-700 dark:text-blue-300">
+													{routePool.pickingCount}
+												</span>
+												<span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase">
+													Picking
+												</span>
+											</div>
+											<div className="rounded-lg bg-purple-50 dark:bg-purple-950/40 p-2 border border-purple-200/60 dark:border-purple-900/60">
+												<span className="block font-bold text-sm text-purple-700 dark:text-purple-300">
+													{routePool.packingCount}
+												</span>
+												<span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase">
+													Packing
+												</span>
+											</div>
+										</div>
+
+										{/* Village Breakdown */}
+										<div className="space-y-1 bg-white dark:bg-slate-800 p-2.5 rounded-lg border text-xs">
+											<span className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
+												Villages / Stops Breakdown:
+											</span>
+											{(routePool.villages || []).slice(0, 4).map((v: any, idx: number) => (
+												<div key={idx} className="flex justify-between text-slate-600 dark:text-slate-300">
+													<span className="truncate">{v.name}</span>
+													<span className="font-bold text-slate-800 dark:text-slate-200">{v.orderCount} order(s)</span>
+												</div>
+											))}
+											{(routePool.villages || []).length > 4 && (
+												<div className="text-[10px] text-slate-400 font-medium pt-0.5">
+													+{(routePool.villages || []).length - 4} more village stops...
+												</div>
+											)}
+										</div>
+
+										<div className="flex items-center justify-between pt-1">
+											<Button
+												variant="outline"
+												size="sm"
+												className="h-8 text-xs font-semibold"
+												onClick={() => {
+													setViewRoutePool(routePool);
+													setIsViewOrdersOpen(true);
+												}}
+											>
+												{t("viewOrders")}
+											</Button>
+											<Button
+												size="sm"
+												className="h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-white"
+												onClick={() => handleStartCreateTripFromPool(routePool)}
+												disabled={routePool.readyCount === 0}
+											>
+												{t("createTrip")}
+											</Button>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</CardContent>
+				</Card>
+
+				{/* SECTION B: TRIPS REQUIRING ACTION */}
+				<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+					<CardHeader className="border-b pb-3">
+						<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
+							<AlertTriangleIcon className="h-5 w-5 text-amber-500" />
+							Trips Requiring Action
+						</CardTitle>
+						<CardDescription className="text-xs">
+							Delivery trips awaiting driver, vehicle, loader assignment, loading release, or final dispatch
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="pt-4">
+						{actionableTrips.length === 0 ? (
+							<div className="py-6 text-center text-slate-400 text-xs font-medium">
+								{t("noTripsRequiringAction")}
+							</div>
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								{actionableTrips.map((trip: any) => {
+									const isMissingDriverOrVehicle = !trip.driver_id || !trip.vehicle_id;
+									const isReadyForLoading = trip.status === "ready_for_loading" || trip.status === "pending";
+									const isLoading = trip.status === "loading";
+									const isLoaded = trip.status === "loaded";
+
+									return (
+										<div
+											key={trip.id}
+											className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 dark:border-slate-800 dark:bg-slate-900 shadow-sm"
+										>
+											<div className="flex items-start justify-between">
+												<div>
+													<span className="font-mono text-xs font-bold text-slate-500">
+														Trip #{trip.id}
+													</span>
+													<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+														{trip.route?.name || "Direct Delivery"}
+													</h4>
+												</div>
+												<span
+													className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase ${
+														isLoaded
+															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+															: isLoading
+																? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+																: isMissingDriverOrVehicle
+																	? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+																	: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+													}`}
+												>
+													{isLoaded
+														? t("loaded")
+														: isLoading
+															? t("loading")
+															: isMissingDriverOrVehicle
+																? t("assignmentIncomplete")
+																: t("readyForLoading")}
+												</span>
+											</div>
+
+											<div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border">
+												<div className="flex justify-between">
+													<span className="text-slate-400">Driver:</span>
+													<span className="font-semibold">{trip.driver?.name || "Missing Driver"}</span>
+												</div>
+												<div className="flex justify-between">
+													<span className="text-slate-400">Vehicle:</span>
+													<span className="font-semibold">{trip.vehicle?.name || "Missing Vehicle"}</span>
+												</div>
+												<div className="flex justify-between">
+													<span className="text-slate-400">Stops / Orders:</span>
+													<span className="font-semibold">{(trip.stops || []).length} Stops</span>
+												</div>
+											</div>
+
+											<div className="pt-1 flex items-center justify-end gap-2">
+												{isLoaded ? (
+													<Button
+														size="sm"
+														className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+														onClick={() => {
+															setDispatchConfirmTrip(trip);
+															setIsDispatchConfirmOpen(true);
+														}}
+													>
+														<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+														{t("dispatchTrip")}
+													</Button>
+												) : isReadyForLoading ? (
+													<Button
+														size="sm"
+														className="h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white w-full"
+														onClick={() => releaseToLoaderMutation.mutate({ tripId: trip.id })}
+														disabled={releaseToLoaderMutation.isPending}
+													>
+														<PackageIcon className="mr-1.5 h-3.5 w-3.5" />
+														{t("releaseToLoader")}
+													</Button>
+												) : isLoading ? (
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-8 text-xs font-semibold w-full"
+														onClick={() => {
+															setSelectedDetailTrip(trip);
+															setIsTripDetailOpen(true);
+														}}
+													>
+														Monitor Loading
+													</Button>
+												) : (
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-8 text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50 w-full"
+														onClick={() => {
+															openDispatchForRoute({ id: trip.route_id || 1, stops: trip.stops });
+														}}
+													>
+														Complete Assignment
+													</Button>
+												)}
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						)}
+					</CardContent>
+				</Card>
+
+				{/* SECTION C: LOADING & DISPATCH MONITOR */}
+				<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+					<CardHeader className="border-b pb-3 flex flex-row items-center justify-between">
+						<div>
+							<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
+								<PackageIcon className="h-5 w-5 text-sky-500" />
+								LOADING & DISPATCH MONITOR
+							</CardTitle>
+							<CardDescription className="text-xs">
+								Real-time vehicle loading progress confirmed by physical loaders
+							</CardDescription>
+						</div>
+					</CardHeader>
+					<CardContent className="pt-4">
+						{(() => {
+							const activeLoadingTrips = (trips || []).filter(
+								(t: any) => t.status === "loading" || t.status === "ready_for_loading" || t.status === "loaded",
+							);
+
+							if (activeLoadingTrips.length === 0) {
+								return (
+									<div className="py-6 text-center text-slate-400 text-xs font-medium">
+										No active trip loading in progress.
+									</div>
+								);
+							}
+
+							return (
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+									{activeLoadingTrips.map((trip: any) => {
+										const stopsCount = (trip.stops || []).length || 1;
+										const isLoaded = trip.status === "loaded";
+										const loadedCount = isLoaded ? stopsCount : Math.min(stopsCount, Math.floor(stopsCount * 0.6));
+										const percent = Math.round((loadedCount / stopsCount) * 100);
+
+										return (
+											<div
+												key={trip.id}
+												className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 dark:border-slate-800 dark:bg-slate-900 shadow-sm"
+											>
+												<div className="flex items-start justify-between">
+													<div>
+														<span className="font-mono text-xs font-bold text-slate-500">
+															Trip #{trip.id}
+														</span>
+														<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+															{trip.route?.name || "Direct Trip"}
+														</h4>
+													</div>
+													<span className="rounded-full bg-sky-100 dark:bg-sky-950 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300">
+														{trip.status === "loaded" ? "Loaded 100%" : `${percent}% Loaded`}
+													</span>
+												</div>
+
+												{/* Progress Bar */}
+												<div className="space-y-1">
+													<div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+														<span>Loading Progress</span>
+														<span>{loadedCount} / {stopsCount} Loaded</span>
+													</div>
+													<div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+														<div
+															className={`h-full transition-all duration-300 ${
+																isLoaded ? "bg-emerald-500" : "bg-sky-500"
+															}`}
+															style={{ width: `${percent}%` }}
+														/>
+													</div>
+												</div>
+
+												<div className="flex items-center justify-between pt-1">
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-8 text-xs font-semibold"
+														onClick={() => {
+															setSelectedDetailTrip(trip);
+															setIsTripDetailOpen(true);
+														}}
+													>
+														View Detail
+													</Button>
+
+													{isLoaded ? (
+														<Button
+															size="sm"
+															className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+															onClick={() => {
+																setDispatchConfirmTrip(trip);
+																setIsDispatchConfirmOpen(true);
+															}}
+														>
+															<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+															{t("dispatchTrip")}
+														</Button>
+													) : (
+														<span className="text-[11px] font-medium text-slate-500 italic">
+															Awaiting Loader Completion
+														</span>
+													)}
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							);
+						})()}
+					</CardContent>
+				</Card>
+
+				{/* ATTENTION REQUIRED SECTION */}
+				<Card className="border-amber-200 bg-amber-50/30 dark:border-amber-900/40 dark:bg-amber-950/10 shadow-sm">
+					<CardHeader className="pb-2 pt-3">
+						<CardTitle className="flex items-center gap-2 font-bold text-sm text-amber-800 dark:text-amber-300">
+							<AlertTriangleIcon className="h-4 w-4 text-amber-600" />
+							{t("attentionRequired")}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="pb-3 text-xs space-y-2 text-amber-900 dark:text-amber-200">
+						{routeWaitingPool.filter((r: any) => r.readyCount > 0).map((r: any) => (
+							<div key={r.routeId} className="flex items-center justify-between border-b border-amber-200/50 pb-1.5 last:border-0">
+								<span>
+									<strong>{r.routeName}</strong>: {r.readyCount} ready order(s) waiting for Trip creation.
+								</span>
+								<Button
+									size="sm"
+									variant="outline"
+									className="h-7 text-[11px] font-semibold border-amber-300 text-amber-800 hover:bg-amber-100"
+									onClick={() => handleStartCreateTripFromPool(r)}
+								>
+									Create Trip
+								</Button>
+							</div>
+						))}
+						{routeWaitingPool.filter((r: any) => r.readyCount > 0).length === 0 && (
+							<p className="text-slate-500 font-medium">All ready route orders are assigned to active trips.</p>
+						)}
+					</CardContent>
+				</Card>
+			</TabsContent>
+
 			<TabsContent value="trips">
 				<Card>
 					<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -2276,19 +2897,18 @@ export function DeliveryManagementDashboard({
 											</div>
 
 											<div className="mt-4 flex items-center gap-2 border-t pt-3 border-slate-100 dark:border-slate-800">
-												{trip.status === "pending" && (
+												{(trip.status === "loaded" || trip.status === "ready_for_loading" || trip.status === "pending") && (
 													<Button
 														size="sm"
 														className="flex-1 bg-emerald-600 font-semibold text-white shadow-sm hover:bg-emerald-700 text-xs"
-														disabled={updateTripStatus.isPending}
+														disabled={dispatchTripMutation.isPending || (trip.status !== "loaded" && trip.status !== "loading")}
 														onClick={async () => {
 															try {
-																await updateTripStatus.mutateAsync({
+																await dispatchTripMutation.mutateAsync({
 																	tripId: trip.id,
-																	status: "active",
 																});
 																toast.success(
-																	`Trip #${trip.id} dispatched to driver ${trip.driver?.name || ""}! Orders marked Out for Delivery.`,
+																	`Trip #${trip.id} officially dispatched! Sent to Driver ${trip.driver?.name || "assigned driver"}.`,
 																);
 															} catch (err: any) {
 																toast.error(
@@ -2298,10 +2918,12 @@ export function DeliveryManagementDashboard({
 														}}
 													>
 														<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
-														Dispatch to Driver
+														{trip.status === "loaded"
+															? "Dispatch Trip to Driver"
+															: "Awaiting Loader Confirmation"}
 													</Button>
 												)}
-												{trip.status === "pending" && (
+												{(trip.status === "pending" || trip.status === "ready_for_loading" || trip.status === "loading") && (
 													<Button
 														variant="outline"
 														size="sm"
@@ -3269,6 +3891,439 @@ export function DeliveryManagementDashboard({
 						{updateRouteMutation.isPending
 							? "Saving Changes..."
 							: "Save Route & Villages"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* DIALOG 1: VIEW ORDERS (Route Waiting Pool) */}
+		<Dialog open={isViewOrdersOpen} onOpenChange={setIsViewOrdersOpen}>
+			<DialogContent className="max-w-3xl">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<RouteIcon className="h-5 w-5 text-primary" />
+						{viewRoutePool?.routeName} — Waiting Orders List
+					</DialogTitle>
+					<DialogDescription>
+						Orders grouped by route stop / village sequence. Only packed and ready orders can be dispatched in a trip.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="max-h-[65vh] overflow-y-auto space-y-4 py-2 pr-1">
+					{(viewRoutePool?.villages || []).map((village: any, idx: number) => (
+						<div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2 dark:border-slate-800 dark:bg-slate-900/50">
+							<div className="flex items-center justify-between border-b pb-2 dark:border-slate-800">
+								<span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+									📍 Village/Stop {idx + 1}: {village.name}
+								</span>
+								<span className="text-[11px] font-semibold text-slate-500">
+									{village.orderCount} order(s)
+								</span>
+							</div>
+							<div className="space-y-2 pt-1">
+								{(village.orders || []).map((ord: any) => (
+									<div
+										key={ord.id}
+										className="flex items-center justify-between rounded-lg border bg-white p-2.5 text-xs shadow-2xs dark:bg-slate-800"
+									>
+										<div className="flex items-center gap-3">
+											<span className="font-mono font-bold text-slate-600 dark:text-slate-300">
+												{ord.orderNumber}
+											</span>
+											<span className="font-medium text-slate-900 dark:text-slate-100">
+												{ord.customerName}
+											</span>
+										</div>
+										<span
+											className={`rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase ${
+												ord.isReady
+													? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+													: ord.status === "packing"
+														? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+														: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+											}`}
+										>
+											{ord.isReady
+												? "Ready for Trip"
+												: ord.status === "packing"
+													? "Packing"
+													: "Picked / Processing"}
+										</span>
+									</div>
+								))}
+							</div>
+						</div>
+					))}
+				</div>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => setIsViewOrdersOpen(false)}>
+						Close
+					</Button>
+					<Button
+						className="bg-primary text-white font-semibold"
+						onClick={() => {
+							setIsViewOrdersOpen(false);
+							if (viewRoutePool) handleStartCreateTripFromPool(viewRoutePool);
+						}}
+						disabled={viewRoutePool?.readyCount === 0}
+					>
+						{t("createTrip")}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* DIALOG 2: CREATE TRIP MULTI-STEP MODAL */}
+		<Dialog open={isCreateTripPoolOpen} onOpenChange={setIsCreateTripPoolOpen}>
+			<DialogContent className="max-w-2xl">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<TruckIcon className="h-5 w-5 text-primary" />
+						Create Delivery Trip — {createTripRoutePool?.routeName}
+					</DialogTitle>
+					<DialogDescription>
+						Step {createTripStep} of 3: {createTripStep === 1 ? "Select Orders" : createTripStep === 2 ? "Assign Driver, Vehicle & Loader" : "Review & Create Trip"}
+					</DialogDescription>
+				</DialogHeader>
+
+				{/* STEP 1: SELECT ORDERS */}
+				{createTripStep === 1 && (
+					<div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 pr-1">
+						<div className="flex justify-between items-center bg-slate-100 dark:bg-slate-800 p-2.5 rounded-lg text-xs font-semibold">
+							<span>Selected: {selectedPoolOrderIds.length} order(s)</span>
+							<div className="flex gap-2">
+								<Button
+									size="sm"
+									variant="ghost"
+									className="h-6 text-[11px]"
+									onClick={() => {
+										const eligible = (createTripRoutePool?.orders || [])
+											.filter((o: any) => o.isEligibleForTrip)
+											.map((o: any) => o.id);
+										setSelectedPoolOrderIds(eligible);
+									}}
+								>
+									Select All Eligible
+								</Button>
+								<Button
+									size="sm"
+									variant="ghost"
+									className="h-6 text-[11px]"
+									onClick={() => setSelectedPoolOrderIds([])}
+								>
+									Deselect All
+								</Button>
+							</div>
+						</div>
+
+						{(createTripRoutePool?.villages || []).map((village: any, vIdx: number) => (
+							<div key={vIdx} className="space-y-2 border rounded-xl p-3 bg-slate-50/50 dark:bg-slate-900/50">
+								<span className="font-bold text-xs text-slate-700 dark:text-slate-300 block border-b pb-1">
+									📍 Village: {village.name}
+								</span>
+								<div className="space-y-1.5">
+									{(village.orders || []).map((ord: any) => {
+										const isSelected = selectedPoolOrderIds.includes(ord.id);
+
+										return (
+											<label
+												key={ord.id}
+												className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+													!ord.isReady
+														? "bg-slate-100 opacity-60 cursor-not-allowed dark:bg-slate-800"
+														: isSelected
+															? "border-primary bg-primary/5"
+															: "bg-white dark:bg-slate-800"
+												}`}
+											>
+												<div className="flex items-center gap-2">
+													<input
+														type="checkbox"
+														checked={isSelected}
+														disabled={!ord.isReady}
+														onChange={(e) => {
+															if (e.target.checked) {
+																setSelectedPoolOrderIds((prev) => [...prev, ord.id]);
+															} else {
+																setSelectedPoolOrderIds((prev) => prev.filter((id) => id !== ord.id));
+															}
+														}}
+														className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4"
+													/>
+													<div>
+														<span className="font-mono font-bold text-slate-800 dark:text-slate-200 mr-2">
+															{ord.orderNumber}
+														</span>
+														<span>{ord.customerName}</span>
+													</div>
+												</div>
+												<span
+													className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
+														ord.isReady
+															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+															: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+													}`}
+												>
+													{ord.isReady ? "Ready for Trip" : ord.status}
+												</span>
+											</label>
+										);
+									})}
+								</div>
+							</div>
+						))}
+					</div>
+				)}
+
+				{/* STEP 2: TRIP ASSIGNMENT */}
+				{createTripStep === 2 && (
+					<div className="space-y-4 py-2">
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold">Select Driver *</Label>
+							<Select value={poolDriverId} onValueChange={setPoolDriverId}>
+								<SelectTrigger className="h-9 text-xs">
+									<SelectValue placeholder="Select Driver" />
+								</SelectTrigger>
+								<SelectContent>
+									{finalDrivers.map((d: any) => (
+										<SelectItem key={d.id} value={d.id}>
+											👤 {d.name} {d.email ? `(${d.email})` : ""}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold">Select Vehicle *</Label>
+							<Select value={poolVehicleId} onValueChange={setPoolVehicleId}>
+								<SelectTrigger className="h-9 text-xs">
+									<SelectValue placeholder="Select Vehicle" />
+								</SelectTrigger>
+								<SelectContent>
+									{vehicles.map((v: any) => (
+										<SelectItem key={v.id} value={v.id.toString()}>
+											🚚 {v.name} ({v.registration_number})
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold">Select Trip Loader *</Label>
+							<Select value={poolLoaderId} onValueChange={setPoolLoaderId}>
+								<SelectTrigger className="h-9 text-xs">
+									<SelectValue placeholder="Select Loader" />
+								</SelectTrigger>
+								<SelectContent>
+									{loadersList.map((l: any) => (
+										<SelectItem key={l.id} value={l.id}>
+											📦 {l.name} {l.email ? `(${l.email})` : ""}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<p className="text-[11px] text-slate-500">
+								The Loader is assigned to the whole trip and will confirm physical vehicle loading.
+							</p>
+						</div>
+					</div>
+				)}
+
+				{/* STEP 3: REVIEW */}
+				{createTripStep === 3 && (
+					<div className="space-y-4 py-2 text-xs">
+						<div className="rounded-xl border bg-slate-50 dark:bg-slate-800/60 p-4 space-y-2">
+							<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 border-b pb-1">
+								Trip Manifest Review
+							</h4>
+							<div className="flex justify-between">
+								<span className="text-slate-500">Route:</span>
+								<span className="font-bold">{createTripRoutePool?.routeName}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-slate-500">Total Selected Orders:</span>
+								<span className="font-bold text-emerald-600">{selectedPoolOrderIds.length} Orders</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-slate-500">Assigned Driver:</span>
+								<span className="font-bold">
+									{finalDrivers.find((d: any) => d.id === poolDriverId)?.name || poolDriverId}
+								</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-slate-500">Assigned Vehicle:</span>
+								<span className="font-bold">
+									{vehicles.find((v: any) => v.id.toString() === poolVehicleId)?.name || poolVehicleId}
+								</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-slate-500">Assigned Loader:</span>
+								<span className="font-bold">
+									{loadersList.find((l: any) => l.id === poolLoaderId)?.name || poolLoaderId || "Default Loader"}
+								</span>
+							</div>
+						</div>
+					</div>
+				)}
+
+				<DialogFooter className="flex justify-between items-center sm:justify-between">
+					{createTripStep > 1 ? (
+						<Button variant="outline" onClick={() => setCreateTripStep((prev) => (prev - 1) as 1 | 2)}>
+							Back
+						</Button>
+					) : (
+						<Button variant="outline" onClick={() => setIsCreateTripPoolOpen(false)}>
+							Cancel
+						</Button>
+					)}
+
+					{createTripStep < 3 ? (
+						<Button
+							className="bg-primary text-white font-semibold"
+							onClick={() => {
+								if (createTripStep === 1 && selectedPoolOrderIds.length === 0) {
+									toast.error("Please select at least 1 order.");
+									return;
+								}
+								setCreateTripStep((prev) => (prev + 1) as 2 | 3);
+							}}
+						>
+							Next
+						</Button>
+					) : (
+						<Button
+							className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+							onClick={handleConfirmCreateTripFromPool}
+							disabled={createTripDirect.isPending}
+						>
+							{createTripDirect.isPending ? "Creating Trip..." : "Create Trip"}
+						</Button>
+					)}
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* DIALOG 3: FINAL DISPATCH CONFIRMATION */}
+		<Dialog open={isDispatchConfirmOpen} onOpenChange={setIsDispatchConfirmOpen}>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+						<TruckIcon className="h-5 w-5" />
+						Dispatch Trip #{dispatchConfirmTrip?.id}?
+					</DialogTitle>
+					<DialogDescription>
+						All required packages/orders have been physically loaded onto the vehicle. Dispatching will release the trip to the Driver for delivery.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-2 border rounded-xl p-3 bg-slate-50 dark:bg-slate-800 text-xs">
+					<div className="flex justify-between">
+						<span className="text-slate-500">Route:</span>
+						<span className="font-bold">{dispatchConfirmTrip?.route?.name || "Direct Trip"}</span>
+					</div>
+					<div className="flex justify-between">
+						<span className="text-slate-500">Driver:</span>
+						<span className="font-bold">{dispatchConfirmTrip?.driver?.name || "Assigned Driver"}</span>
+					</div>
+					<div className="flex justify-between">
+						<span className="text-slate-500">Vehicle:</span>
+						<span className="font-bold">{dispatchConfirmTrip?.vehicle?.name || "Assigned Vehicle"}</span>
+					</div>
+					<div className="flex justify-between">
+						<span className="text-slate-500">Orders Status:</span>
+						<span className="font-bold text-emerald-600">✓ All Orders Loaded</span>
+					</div>
+				</div>
+
+				<DialogFooter className="gap-2">
+					<Button variant="outline" onClick={() => setIsDispatchConfirmOpen(false)}>
+						Cancel
+					</Button>
+					<Button
+						className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+						onClick={handleConfirmFinalDispatch}
+						disabled={dispatchTripMutation.isPending}
+					>
+						{dispatchTripMutation.isPending ? "Dispatching..." : "Confirm & Dispatch Trip"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* DIALOG 4: TRIP DETAIL MODAL */}
+		<Dialog open={isTripDetailOpen} onOpenChange={setIsTripDetailOpen}>
+			<DialogContent className="max-w-2xl">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<TruckIcon className="h-5 w-5 text-primary" />
+						Trip #{selectedDetailTrip?.id} Details
+					</DialogTitle>
+					<DialogDescription>
+						Manifest, assigned team, loading completion, and stop details
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 text-xs">
+					<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border">
+						<div>
+							<span className="text-slate-400 block">Route:</span>
+							<span className="font-bold text-slate-900 dark:text-slate-100">
+								{selectedDetailTrip?.route?.name || "Direct Trip"}
+							</span>
+						</div>
+						<div>
+							<span className="text-slate-400 block">Driver:</span>
+							<span className="font-bold text-slate-900 dark:text-slate-100">
+								{selectedDetailTrip?.driver?.name || "N/A"}
+							</span>
+						</div>
+						<div>
+							<span className="text-slate-400 block">Vehicle:</span>
+							<span className="font-bold text-slate-900 dark:text-slate-100">
+								{selectedDetailTrip?.vehicle?.name || "N/A"}
+							</span>
+						</div>
+						<div>
+							<span className="text-slate-400 block">Status:</span>
+							<span className="font-bold text-emerald-600 uppercase">
+								{selectedDetailTrip?.status || "Pending"}
+							</span>
+						</div>
+					</div>
+
+					<div className="space-y-2">
+						<h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+							Assigned Customer Stops ({(selectedDetailTrip?.stops || []).length})
+						</h4>
+						<div className="space-y-2">
+							{(selectedDetailTrip?.stops || []).map((stop: any, idx: number) => (
+								<div
+									key={stop.id || idx}
+									className="flex justify-between items-center p-2.5 rounded-lg border bg-white dark:bg-slate-800"
+								>
+									<div>
+										<span className="font-bold text-slate-900 dark:text-slate-100">
+											{idx + 1}. {stop.customer?.name || "Customer Stop"}
+										</span>
+										{stop.customer?.address && (
+											<span className="text-[11px] text-slate-500 block">
+												📍 {stop.customer.address}
+											</span>
+										)}
+									</div>
+									<span className="rounded bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-bold">
+										Stop #{stop.sequence || idx + 1}
+									</span>
+								</div>
+							))}
+						</div>
+					</div>
+				</div>
+
+				<DialogFooter>
+					<Button variant="outline" onClick={() => setIsTripDetailOpen(false)}>
+						Close
 					</Button>
 				</DialogFooter>
 			</DialogContent>

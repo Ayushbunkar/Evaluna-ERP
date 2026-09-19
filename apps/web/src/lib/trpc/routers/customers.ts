@@ -1,6 +1,6 @@
-import { customerLedger, customers, orders, user } from "@evaluna/db/schema";
+import { customerLedger, customers, deliveryRoutes, orders, routeStops, user } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod/v4";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -70,7 +70,14 @@ export const customersRouter = router({
 				with: {
 					orders: {
 						orderBy: [desc(orders.created_at)],
-						limit: 50,
+						limit: 20,
+						with: {
+							orderItems: {
+								with: {
+									product: true,
+								},
+							},
+						},
 					},
 				},
 			});
@@ -84,10 +91,72 @@ export const customersRouter = router({
 				return {
 					customer: null,
 					ledger: [],
+					lastOrderItems: [],
+					route: null,
 				};
 			}
 
-			return { customer, ledger };
+			// Get assigned route stop if any
+			let route = null;
+			try {
+				const existingStops = await db
+					.select()
+					.from(routeStops)
+					.where(eq(routeStops.customer_id, input.id))
+					.limit(1);
+
+				if (existingStops.length > 0 && existingStops[0].route_id) {
+					const r = await db.query.deliveryRoutes.findFirst({
+						where: eq(deliveryRoutes.id, existingStops[0].route_id),
+					});
+					if (r) {
+						route = { id: r.id, name: r.name };
+					}
+				}
+			} catch (e) {
+				console.warn("[getById] Failed to query customer route:", e);
+			}
+
+			// Extract distinct last ordered items
+			const lastOrderItemsMap = new Map<
+				number,
+				{
+					id: number;
+					productId: number;
+					name: string;
+					price: string;
+					barcode?: string | null;
+				}
+			>();
+
+			if (customer.orders) {
+				for (const ord of customer.orders as any[]) {
+					if (ord.orderItems) {
+						for (const item of ord.orderItems) {
+							if (item.product && !lastOrderItemsMap.has(item.product.id)) {
+								lastOrderItemsMap.set(item.product.id, {
+									id: item.product.id,
+									productId: item.product.id,
+									name: item.product.name,
+									price: String(item.product.price || item.price || "0"),
+									barcode: item.product.barcode,
+								});
+							}
+						}
+					}
+				}
+			}
+
+			return {
+				customer: {
+					...customer,
+					route_id: route?.id || null,
+					route_name: route?.name || null,
+				},
+				ledger,
+				lastOrderItems: Array.from(lastOrderItemsMap.values()),
+				route,
+			};
 		}),
 
 	create: roleProcedure(["admin", "manager", "auditor", "sales_person"])
@@ -107,24 +176,42 @@ export const customersRouter = router({
 				address: z.string().optional(),
 				status: z.enum(["active", "inactive"]).optional(),
 				marketing_opt_in: z.boolean().optional(),
+				route_id: z.number().nullable().optional(),
 			}),
 		)
 		.output(customerSchema)
 		.mutation(async ({ ctx, input }) => {
 			try {
+				const { route_id, ...customerData } = input;
 				const code = `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
-				const cleanEmail = input.email && input.email.trim().length > 0 ? input.email.trim().toLowerCase() : null;
+				const cleanEmail =
+					customerData.email && customerData.email.trim().length > 0
+						? customerData.email.trim().toLowerCase()
+						: null;
 				const [data] = await db
 					.insert(customers)
 					.values({
-						...input,
+						...customerData,
 						email: cleanEmail as any,
 						customer_code: code,
 						user_uid: ctx.user.id,
 						branch_id: ctx.user.branchId ?? null,
 					})
 					.returning();
-				return data;
+
+				if (route_id && data?.id) {
+					try {
+						await db.insert(routeStops).values({
+							route_id: route_id,
+							customer_id: data.id,
+							sequence: 1,
+						});
+					} catch (routeErr) {
+						console.warn("[customers.create] Failed to assign route:", routeErr);
+					}
+				}
+
+				return { ...data, route_id: route_id || null };
 			} catch (error: any) {
 				if (
 					error?.code === "23505" &&
@@ -156,15 +243,19 @@ export const customersRouter = router({
 				loyalty_tier: z.string().optional(),
 				tier_override: z.boolean().optional(),
 				marketing_opt_in: z.boolean().optional(),
+				route_id: z.number().nullable().optional(),
 			}),
 		)
 		.output(customerSchema)
 		.mutation(async ({ ctx, input }) => {
 			try {
-				const { id, ...data } = input;
+				const { id, route_id, ...data } = input;
 				const patch: any = { ...data, user_uid: ctx.user.id };
 				if (data.email !== undefined) {
-					patch.email = data.email && data.email.trim().length > 0 ? data.email.trim().toLowerCase() : null;
+					patch.email =
+						data.email && data.email.trim().length > 0
+							? data.email.trim().toLowerCase()
+							: null;
 				}
 				const [updated] = await db
 					.update(customers)
@@ -178,7 +269,39 @@ export const customersRouter = router({
 						),
 					)
 					.returning();
-				return updated;
+
+				if (route_id !== undefined && id) {
+					try {
+						const existingStops = await db
+							.select()
+							.from(routeStops)
+							.where(eq(routeStops.customer_id, id))
+							.limit(1);
+
+						if (route_id) {
+							if (existingStops.length > 0) {
+								await db
+									.update(routeStops)
+									.set({ route_id: route_id })
+									.where(eq(routeStops.id, existingStops[0].id));
+							} else {
+								await db.insert(routeStops).values({
+									route_id: route_id,
+									customer_id: id,
+									sequence: 1,
+								});
+							}
+						} else if (existingStops.length > 0) {
+							await db
+								.delete(routeStops)
+								.where(eq(routeStops.id, existingStops[0].id));
+						}
+					} catch (routeErr) {
+						console.warn("[customers.update] Failed to update route:", routeErr);
+					}
+				}
+
+				return { ...updated, route_id: route_id || null };
 			} catch (error: any) {
 				if (
 					error?.code === "23505" &&

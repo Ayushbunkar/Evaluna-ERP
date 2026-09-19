@@ -44,33 +44,14 @@ export const packerRouter = router({
 				packedPackages.map((p) => p.pick_list_id).filter(Boolean),
 			);
 
-			// Count pick lists awaiting packing
+			// Count pick lists awaiting packing (MUST be picking completed)
 			const pickListRows = await ctx.db
 				.select({ id: pickLists.id, order_id: pickLists.order_id })
 				.from(pickLists)
-				.where(inArray(pickLists.status, ["pending", "assigned", "picking", "completed"]));
+				.where(eq(pickLists.status, "completed"));
 
 			const pendingPickListCount = pickListRows.filter(
 				(p) => !packedPickListIds.has(p.id) && (!p.order_id || !packedOrderIds.has(p.order_id)),
-			).length;
-
-			// Count assigned orders awaiting packing
-			const assignedOrderRows = await ctx.db
-				.select({ id: orders.id })
-				.from(orders)
-				.where(
-					and(
-						inArray(orders.status, [
-							"ready_for_dispatch",
-							"confirmed",
-							"processing",
-							"packing",
-						]),
-					),
-				);
-
-			const pendingOrderCount = assignedOrderRows.filter(
-				(o) => !packedOrderIds.has(o.id),
 			).length;
 
 			const [packedTodayResult] = await Promise.all([
@@ -80,7 +61,7 @@ export const packerRouter = router({
 					.where(eq(packages.status, "packed")),
 			]);
 
-			const pendingCount = Math.max(pendingPickListCount, pendingOrderCount);
+			const pendingCount = pendingPickListCount;
 			const packedToday = Number(packedTodayResult[0]?.count ?? 0);
 
 			return {
@@ -134,6 +115,7 @@ export const packerRouter = router({
 				.from(pickLists)
 				.leftJoin(orders, eq(pickLists.order_id, orders.id))
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.where(eq(pickLists.status, "completed"))
 				.orderBy(desc(pickLists.created_at))
 				.limit(100);
 
@@ -184,6 +166,19 @@ export const packerRouter = router({
 								if (stop.driverName) driverName = stop.driverName;
 								if (stop.routeName) routeName = stop.routeName;
 								if (stop.vehiclePlate) vehiclePlate = stop.vehiclePlate;
+							}
+
+							// If routeName was not resolved from tripStops (trip not yet created), fallback to routeStops assignment
+							if (routeName === "Delivery Route") {
+								const [rStop] = await ctx.db
+									.select({ routeName: deliveryRoutes.name })
+									.from(routeStops)
+									.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+									.where(eq(routeStops.customer_id, r.customer_id))
+									.limit(1);
+								if (rStop?.routeName) {
+									routeName = rStop.routeName;
+								}
 							}
 						} catch (e) {
 							// Trip lookup fallback
@@ -243,8 +238,6 @@ export const packerRouter = router({
 				.where(
 					and(
 						inArray(orders.status, [
-							"ready_for_dispatch",
-							"confirmed",
 							"processing",
 							"packing",
 						]),
@@ -298,6 +291,19 @@ export const packerRouter = router({
 							if (stop.driverName) driverName = stop.driverName;
 							if (stop.routeName) routeName = stop.routeName;
 							if (stop.vehiclePlate) vehiclePlate = stop.vehiclePlate;
+						}
+
+						// If routeName was not resolved from tripStops (trip not yet created), fallback to routeStops assignment
+						if (routeName === "Delivery Route") {
+							const [rStop] = await ctx.db
+								.select({ routeName: deliveryRoutes.name })
+								.from(routeStops)
+								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+								.where(eq(routeStops.customer_id, ord.customer_id))
+								.limit(1);
+							if (rStop?.routeName) {
+								routeName = rStop.routeName;
+							}
 						}
 					} catch (e) {
 						// Fallback

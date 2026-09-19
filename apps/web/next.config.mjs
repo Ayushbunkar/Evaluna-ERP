@@ -48,7 +48,7 @@ const nextConfig = {
 		],
 		unoptimized: true,
 	},
-	serverExternalPackages: ["@electric-sql/pglite", "postgres"],
+	serverExternalPackages: ["@electric-sql/pglite", "postgres", "bcryptjs"],
 	experimental: {
 		optimizePackageImports: [
 			"lucide-react",

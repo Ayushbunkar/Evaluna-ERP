@@ -1,5 +1,3 @@
-import * as bcrypt from "bcryptjs";
-
 // Hashing configuration
 const SALT_ROUNDS = 10;
 
@@ -12,6 +10,7 @@ export async function hashPassword(password: string): Promise<string> {
 	if (!password) {
 		throw new Error("Password cannot be empty.");
 	}
+	const bcrypt = await import("bcryptjs");
 	const salt = await bcrypt.genSalt(SALT_ROUNDS);
 	const hash = await bcrypt.hash(password, salt);
 	return hash;
@@ -20,7 +19,6 @@ export async function hashPassword(password: string): Promise<string> {
 /**
  * Compares a plaintext password with a hash using bcrypt.
  * @param password The plaintext password string.
- * @param hash The stored hash string.
  * @returns True if the password matches the hash, false otherwise.
  */
 export async function comparePassword(
@@ -29,6 +27,7 @@ export async function comparePassword(
 ): Promise<boolean> {
 	if (!password || !hash) return false;
 	try {
+		const bcrypt = await import("bcryptjs");
 		return await bcrypt.compare(password, hash);
 	} catch {
 		return false;

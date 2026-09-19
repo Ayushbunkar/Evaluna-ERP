@@ -29,6 +29,7 @@ const ROLE_MAPPINGS: Record<string, string> = {
 	"auditor@evaluna.com": "auditor",
 	"hr@evaluna.com": "hr",
 	"driver@evaluna.com": "driver",
+	"loader@evaluna.com": "loader",
 	"marketing@evaluna.com": "marketing",
 };
 
@@ -65,6 +66,7 @@ const STANDARD_ROLES = [
 	{ name: "putter", description: "Warehouse Putter executing stock placement" },
 	{ name: "picker", description: "Warehouse Picker executing stock selection" },
 	{ name: "packer", description: "Warehouse Packer executing parcel boxing" },
+	{ name: "loader", description: "Warehouse Loader verifying trips and loading parcels" },
 	{
 		name: "dispatcher",
 		description: "Warehouse Dispatcher executing courier handoff",

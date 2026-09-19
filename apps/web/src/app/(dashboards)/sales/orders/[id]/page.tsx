@@ -41,9 +41,63 @@ export default function OrderDetailPage({
 	const { data: order, isLoading } = trpc.orders.get.useQuery({
 		id: orderId,
 	}) as { data: any; isLoading: boolean };
-	const t = useTranslations("orders");
-	const tc = useTranslations("common");
+	let tRaw: any = null;
+	let tcRaw: any = null;
+	try {
+		tRaw = useTranslations("orders");
+	} catch (e) {}
+	try {
+		tcRaw = useTranslations("common");
+	} catch (e) {}
 	const locale = useLocale();
+
+	const commonDict: Record<string, { en: string; hi: string }> = {
+		completed: { en: "Completed", hi: "पूरा हुआ" },
+		pending: { en: "Pending", hi: "लंबित" },
+		cancelled: { en: "Cancelled", hi: "निरस्त" },
+		total: { en: "Total Amount", hi: "कुल राशि" },
+		category: { en: "Category", hi: "श्रेणी" },
+		orderDetails: { en: "Order Details", hi: "ऑर्डर विवरण" },
+		orderNotFound: { en: "Order not found", hi: "ऑर्डर नहीं मिला" },
+	};
+
+	const tc = (key: string) => {
+		try {
+			if (tcRaw) {
+				const val = tcRaw(key);
+				if (
+					val &&
+					typeof val === "string" &&
+					!val.includes("MISSING_MESSAGE") &&
+					!val.includes("Could not resolve")
+				) {
+					return val;
+				}
+			}
+		} catch (e) {}
+		const entry = commonDict[key];
+		if (entry) return locale === "hi" ? entry.hi : entry.en;
+		return key.charAt(0).toUpperCase() + key.slice(1);
+	};
+
+	const t = (key: string) => {
+		try {
+			if (tRaw) {
+				const val = tRaw(key);
+				if (
+					val &&
+					typeof val === "string" &&
+					!val.includes("MISSING_MESSAGE") &&
+					!val.includes("Could not resolve")
+				) {
+					return val;
+				}
+			}
+		} catch (e) {}
+		const entry = commonDict[key];
+		if (entry) return locale === "hi" ? entry.hi : entry.en;
+		return key.charAt(0).toUpperCase() + key.slice(1);
+	};
 
 	if (isLoading) {
 		return (
@@ -138,33 +192,43 @@ export default function OrderDetailPage({
 					<dl className="grid gap-3 text-sm sm:grid-cols-2">
 						<div>
 							<dt className="text-muted-foreground">{t("customer")}</dt>
-							<dd className="font-bold text-foreground text-sm">
-								{order.customer?.name || "Walk-in Customer"}
+							<dd className="font-bold text-foreground text-sm flex items-center gap-2">
+								<span>{order.customer?.name || "Walk-in Customer"}</span>
 							</dd>
 							{order.customer?.phone && (
-								<p className="pt-0.5 font-mono text-muted-foreground text-xs">
-									📞 {order.customer.phone}
+								<p className="pt-0.5 font-mono text-muted-foreground text-xs flex items-center gap-1.5">
+									<span>📞</span> {order.customer.phone}
 								</p>
 							)}
 							{order.customer?.address && (
-								<p className="pt-1 text-muted-foreground text-xs leading-relaxed">
-									📍 {order.customer.address}
+								<p className="pt-1 text-muted-foreground text-xs leading-relaxed flex items-center gap-1.5">
+									<span>📍</span> <span className="font-medium text-foreground/80">{order.customer.address}</span>
 								</p>
 							)}
+							{order.route && (
+								<div className="mt-2 pt-1 border-t border-border/50">
+									<dt className="text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Delivery Route</dt>
+									<dd className="mt-0.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold">
+										<span>🚚</span> {order.route.name} {order.route.code ? `(${order.route.code})` : ""}
+									</dd>
+								</div>
+							)}
 						</div>
-						<div>
-							<dt className="text-muted-foreground">{tc("total")}</dt>
-							<dd className="font-bold text-lg">
-								{formatCurrency(order.total_amount, locale)}
-							</dd>
-						</div>
-						<div>
-							<dt className="text-muted-foreground">{t("createdAt")}</dt>
-							<dd>
-								{order.created_at
-									? new Date(order.created_at).toLocaleString()
-									: "—"}
-							</dd>
+						<div className="space-y-3">
+							<div>
+								<dt className="text-muted-foreground">{tc("total")}</dt>
+								<dd className="font-bold text-lg text-emerald-600 dark:text-emerald-400">
+									{formatCurrency(order.total_amount, locale)}
+								</dd>
+							</div>
+							<div>
+								<dt className="text-muted-foreground">{t("createdAt")}</dt>
+								<dd className="text-sm font-medium">
+									{order.created_at
+										? new Date(order.created_at).toLocaleString()
+										: "—"}
+								</dd>
+							</div>
 						</div>
 					</dl>
 				</CardContent>

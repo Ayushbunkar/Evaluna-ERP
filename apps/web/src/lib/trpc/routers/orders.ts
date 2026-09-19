@@ -89,7 +89,21 @@ const orderDetailSchema = z.object({
 	status: z.string().nullable(),
 	user_uid: z.string(),
 	created_at: z.coerce.date().nullable(),
-	customer: z.object({ name: z.string() }).nullable(),
+	customer: z
+		.object({
+			name: z.string(),
+			phone: z.string().nullable().optional(),
+			address: z.string().nullable().optional(),
+		})
+		.nullable(),
+	route: z
+		.object({
+			id: z.number(),
+			name: z.string(),
+			code: z.string().nullable().optional(),
+		})
+		.nullable()
+		.optional(),
 	orderItems: z.array(
 		z.object({
 			id: z.number(),
@@ -127,7 +141,33 @@ export const ordersRouter = router({
 					},
 				},
 			});
-			return result ?? null;
+
+			if (!result) return null;
+
+			let route = null;
+			if (result.customer_id) {
+				try {
+					const existingStops = await db
+						.select()
+						.from(routeStops)
+						.where(eq(routeStops.customer_id, result.customer_id))
+						.limit(1);
+
+					if (existingStops.length > 0 && existingStops[0].route_id) {
+						const r = await db.query.deliveryRoutes.findFirst({
+							where: eq(deliveryRoutes.id, existingStops[0].route_id),
+						});
+						if (r) {
+							route = { id: r.id, name: r.name, code: r.code };
+						}
+					}
+				} catch (e) {}
+			}
+
+			return {
+				...result,
+				route,
+			};
 		}),
 
 	getDashboardSummary: roleProcedure([

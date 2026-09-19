@@ -207,17 +207,28 @@ export default function PickerActivePage() {
 										</div>
 									</div>
 
-									{pct === 100 && (
-										<Button
-											className="h-14 animate-bounce bg-green-600 px-6 font-bold text-white shadow-md transition-all hover:bg-green-700"
-											onClick={handleCompleteTask}
-											disabled={completeMutation.isPending}
-										>
-											{completeMutation.isPending
-												? t("completing")
-												: t("completePicking")}
-										</Button>
-									)}
+									<Button
+										className={`h-14 px-6 font-bold text-white shadow-md transition-all ${
+											pct === 100
+												? "animate-bounce bg-green-600 hover:bg-green-700"
+												: "bg-gray-400 cursor-not-allowed opacity-70"
+										}`}
+										onClick={() => {
+											if (pct < 100) {
+												const pendingCount = totalCount - pickedCount;
+												toast.error(
+													`Picking cannot be completed. ${pendingCount} item(s) are still pending.`,
+												);
+												return;
+											}
+											handleCompleteTask();
+										}}
+										disabled={completeMutation.isPending}
+									>
+										{completeMutation.isPending
+											? t("completing")
+											: t("completePicking")}
+									</Button>
 								</div>
 							</div>
 

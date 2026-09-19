@@ -29,6 +29,7 @@ export async function login(formData: FormData) {
 		"manager@evaluna.com": "manager",
 		"picker@evaluna.com": "picker",
 		"packer@evaluna.com": "packer",
+		"loader@evaluna.com": "loader",
 		"checker@evaluna.com": "checker",
 		"putter@evaluna.com": "putter",
 		"driver@evaluna.com": "driver",

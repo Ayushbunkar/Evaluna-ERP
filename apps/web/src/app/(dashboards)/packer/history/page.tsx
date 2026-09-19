@@ -208,7 +208,7 @@ export default function PackerHistoryPage() {
 									<TableRow>
 										<TableHead>{t("packageNumber")}</TableHead>
 										<TableHead>{t("orderRef")}</TableHead>
-										<TableHead>{t("assignedDriverAndTruck")}</TableHead>
+										<TableHead>{t("assignedRoute")}</TableHead>
 										<TableHead>{t("packedBy")}</TableHead>
 										<TableHead>{tCommon("status")}</TableHead>
 										<TableHead>{t("packedDate")}</TableHead>
@@ -226,13 +226,8 @@ export default function PackerHistoryPage() {
 											<TableCell className="font-semibold text-sm">
 												{pkg.orderId}
 											</TableCell>
-											<TableCell className="text-xs">
-												<div className="font-medium text-gray-800 dark:text-gray-200">
-													👤 {pkg.driverName || t("unassigned")}
-												</div>
-												<div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-													🚛 {pkg.vehiclePlate || "N/A"}
-												</div>
+											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
+												📍 {pkg.routeName || "Delivery Route"}
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pkg.packedBy}

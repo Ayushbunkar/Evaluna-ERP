@@ -234,7 +234,7 @@ describe("delivery router core functionality", () => {
 			expect(result.route_id).toBe(route2.id);
 			expect(result.driver_id).toBe("driver-1");
 			expect(result.vehicle_id).toBe(1);
-			expect(result.status).toBe("pending");
+			expect(result.status).toBe("ready_for_loading");
 
 			// Verify trip stops were created
 			const tripStops = await db.query.tripStops.findMany({
@@ -796,6 +796,75 @@ describe("delivery router core functionality", () => {
 			expect(dashboard.status).toBe("Online");
 			expect(dashboard.assignedOrders).toBeGreaterThanOrEqual(1);
 			expect(dashboard.routeStops.length).toBeGreaterThanOrEqual(1);
+		});
+	});
+
+	describe("Manager Dispatch Control Center Procedures", () => {
+		it("getRouteWaitingPool returns route-wise waiting orders", async () => {
+			const managerCaller = createCallerFactory(deliveryRouter)({
+				user: { id: "manager-1", role: "manager" },
+				db,
+			});
+
+			const pool = await managerCaller.getRouteWaitingPool({ branchId: 1 });
+			expect(Array.isArray(pool)).toBe(true);
+		});
+
+		it("releaseToLoader transitions trip status to ready_for_loading when driver & vehicle assigned", async () => {
+			const managerCaller = createCallerFactory(deliveryRouter)({
+				user: { id: "manager-1", role: "manager" },
+				db,
+			});
+
+			const [trip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					driver_id: "driver-1",
+					vehicle_id: 1,
+					status: "pending",
+				})
+				.returning();
+
+			const res = await managerCaller.releaseToLoader({ tripId: trip.id });
+			expect(res.success).toBe(true);
+			expect(res.status).toBe("ready_for_loading");
+
+			const [updated] = await db
+				.select()
+				.from(schema.deliveryTrips)
+				.where(eq(schema.deliveryTrips.id, trip.id));
+			expect(updated.status).toBe("ready_for_loading");
+		});
+
+		it("dispatchTrip requires loaded status before dispatching", async () => {
+			const managerCaller = createCallerFactory(deliveryRouter)({
+				user: { id: "manager-1", role: "manager" },
+				db,
+			});
+
+			const [unloadedTrip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					driver_id: "driver-1",
+					vehicle_id: 1,
+					status: "pending",
+				})
+				.returning();
+
+			await expect(managerCaller.dispatchTrip({ tripId: unloadedTrip.id })).rejects.toThrow();
+
+			const [loadedTrip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					driver_id: "driver-1",
+					vehicle_id: 1,
+					status: "loaded",
+				})
+				.returning();
+
+			const res = await managerCaller.dispatchTrip({ tripId: loadedTrip.id });
+			expect(res.success).toBe(true);
+			expect(res.status).toBe("active");
 		});
 	});
 });

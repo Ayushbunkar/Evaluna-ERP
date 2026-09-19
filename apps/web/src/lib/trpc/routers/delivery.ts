@@ -20,7 +20,7 @@ import {
 	vehicles,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, not, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
@@ -299,6 +299,7 @@ export const deliveryRouter = router({
 				routeId: z.number(),
 				driverId: z.string(),
 				vehicleId: z.number(),
+				loaderId: z.string().optional(),
 				customerIds: z.array(z.number()).optional(),
 				orderIds: z.array(z.number()).optional(),
 				stops: z
@@ -327,7 +328,8 @@ export const deliveryRouter = router({
 							route_id: input.routeId,
 							driver_id: input.driverId,
 							vehicle_id: input.vehicleId,
-							status: "pending",
+							loader_id: input.loaderId || null,
+							status: "ready_for_loading",
 						})
 						.returning();
 
@@ -961,6 +963,244 @@ ERROR TABLE: ${err.table}
 			return Array.from(merged.values());
 		}),
 
+	listLoaders: roleProcedure(["admin", "manager"])
+		.input(z.object({ branchId: z.number().optional() }))
+		.query(async ({ input, ctx }) => {
+			const usersWithRole = await db
+				.select({
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					role: roles.name,
+					image: user.image,
+				})
+				.from(user)
+				.innerJoin(userRoles, eq(userRoles.user_id, user.id))
+				.innerJoin(roles, eq(userRoles.role_id, roles.id))
+				.where(eq(roles.name, "loader"));
+
+			const staffMembers = await db.query.staff.findMany({
+				where: (s, { eq }) => eq(s.role, "loader"),
+				columns: { id: true, name: true, email: true, role: true },
+			});
+
+			const merged = new Map();
+			for (const u of usersWithRole) {
+				merged.set(u.email.toLowerCase(), {
+					id: u.id,
+					name: u.name,
+					email: u.email,
+					role: u.role,
+					image: u.image,
+				});
+			}
+			for (const s of staffMembers) {
+				if (s.email && !merged.has(s.email.toLowerCase())) {
+					merged.set(s.email.toLowerCase(), {
+						id: String(s.id),
+						name: s.name,
+						email: s.email,
+						role: s.role,
+						image: null,
+					});
+				}
+			}
+
+			let list = Array.from(merged.values());
+			if (list.length === 0) {
+				const allUsers = await db.query.user.findMany({
+					limit: 20,
+					columns: { id: true, name: true, email: true, image: true },
+				});
+				list = allUsers.map((u) => ({
+					id: u.id,
+					name: u.name,
+					email: u.email,
+					role: "loader",
+					image: u.image,
+				}));
+			}
+
+			return list;
+		}),
+
+	releaseToLoader: roleProcedure(["admin", "manager"])
+		.input(z.object({ tripId: z.number() }))
+		.mutation(async ({ input, ctx }) => {
+			const database = (ctx as any).db || db;
+			const [trip] = await database
+				.select()
+				.from(deliveryTrips)
+				.where(eq(deliveryTrips.id, input.tripId));
+
+			if (!trip) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `Trip #${input.tripId} not found`,
+				});
+			}
+
+			if (!trip.driver_id) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Driver must be assigned before releasing trip to loader.",
+				});
+			}
+
+			if (!trip.vehicle_id) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Vehicle must be assigned before releasing trip to loader.",
+				});
+			}
+
+			await database
+				.update(deliveryTrips)
+				.set({
+					status: "ready_for_loading",
+					released_at: new Date(),
+					released_by_id: ctx.user?.id || "manager",
+					updated_at: new Date(),
+				})
+				.where(eq(deliveryTrips.id, input.tripId));
+
+			try {
+				await dispatchNotification({
+					type: "info",
+					priority: "high",
+					title: `📦 Loading Task Assigned - Trip #${input.tripId}`,
+					message: `Trip #${input.tripId} has been released for loading.`,
+					branchId: (ctx.user?.branchId as number) || 1,
+					channels: ["in_app"],
+					referenceType: "trips",
+					referenceId: input.tripId,
+				});
+			} catch (e) {
+				// Non-critical notification fallback
+			}
+
+			return { success: true, tripId: input.tripId, status: "ready_for_loading" };
+		}),
+
+	getRouteWaitingPool: roleProcedure(["admin", "manager"])
+		.input(z.object({ branchId: z.number().optional() }))
+		.query(async ({ input, ctx }) => {
+			const branch = input.branchId || ctx.user?.branchId || 1;
+
+			const routes = await db.query.deliveryRoutes.findMany({
+				where: eq(deliveryRoutes.branch_id, branch),
+				with: {
+					stops: {
+						with: {
+							customer: true,
+						},
+						orderBy: (s, { asc }) => [asc(s.sequence)],
+					},
+				},
+				orderBy: (r, { asc }) => [asc(r.name)],
+			});
+
+			const realRoutes = routes.filter(
+				(r) => !r.name?.startsWith("Trip ") && !r.name?.startsWith("Quick Trip "),
+			);
+
+			const activeTrips = await db.query.deliveryTrips.findMany({
+				where: notInArray(deliveryTrips.status, ["cancelled", "completed"]),
+				with: {
+					stops: true,
+				},
+			});
+
+			const customerIdsInActiveTrips = new Set(
+				activeTrips.flatMap((t) => t.stops.map((s) => s.customer_id)).filter(Boolean),
+			);
+
+			const allOrders = await db.query.orders.findMany({
+				where: notInArray(orders.status, ["cancelled", "completed", "delivered", "dispatched", "out_for_delivery"]),
+				with: {
+					customer: true,
+				},
+				orderBy: (o, { desc }) => [desc(o.created_at)],
+			});
+
+			return realRoutes.map((route) => {
+				const routeCustIds = new Set(route.stops.map((s) => s.customer_id));
+
+				const routeOrders = allOrders.filter((order) => {
+					if (!order.customer_id || !routeCustIds.has(order.customer_id)) return false;
+					if (customerIdsInActiveTrips.has(order.customer_id)) return false;
+					return true;
+				});
+
+				const waitingCount = routeOrders.length;
+				const readyCount = routeOrders.filter(
+					(o) => o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
+				).length;
+				const pickingCount = routeOrders.filter(
+					(o) => o.status === "confirmed" || o.status === "processing" || o.status === "picking",
+				).length;
+				const packingCount = routeOrders.filter(
+					(o) => o.status === "ready_for_packing" || o.status === "packing",
+				).length;
+
+				const villageMap = new Map<string, any[]>();
+				for (const stop of route.stops) {
+					const cust = stop.customer;
+					const villageName = cust?.address ? cust.address.split(",")[0].trim() : `Stop ${stop.sequence}`;
+					if (!villageMap.has(villageName)) {
+						villageMap.set(villageName, []);
+					}
+				}
+
+				for (const order of routeOrders) {
+					const cust = order.customer;
+					const villageName = cust?.address ? cust.address.split(",")[0].trim() : "Default Stop";
+					if (!villageMap.has(villageName)) {
+						villageMap.set(villageName, []);
+					}
+					villageMap.get(villageName)?.push({
+						id: order.id,
+						orderNumber: order.order_number || `ORD-${order.id}`,
+						customerName: cust?.name || "Customer",
+						status: order.status,
+						createdAt: order.created_at,
+						isReady: order.status === "packed" || order.status === "ready_for_loading" || order.status === "ready_for_dispatch",
+					});
+				}
+
+				const villages = Array.from(villageMap.entries()).map(([villageName, ordersList]) => ({
+					name: villageName,
+					orderCount: ordersList.length,
+					orders: ordersList,
+				}));
+
+				const latestOrder = routeOrders[0]?.created_at || null;
+
+				return {
+					routeId: route.id,
+					routeName: route.name,
+					description: route.description,
+					waitingCount,
+					readyCount,
+					pickingCount,
+					packingCount,
+					villageCount: villages.length,
+					villages,
+					latestOrderTime: latestOrder,
+					orders: routeOrders.map((o) => ({
+						id: o.id,
+						orderNumber: o.order_number || `ORD-${o.id}`,
+						customerId: o.customer_id,
+						customerName: o.customer?.name || "Customer",
+						village: o.customer?.address ? o.customer.address.split(",")[0].trim() : "Stop",
+						status: o.status,
+						createdAt: o.created_at,
+						isEligibleForTrip: o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
+					})),
+				};
+			});
+		}),
+
 	listAllTrips: roleProcedure(["admin", "manager"])
 		.input(
 			z.object({
@@ -1294,6 +1534,7 @@ ERROR TABLE: ${err.table}
 					}),
 				),
 				routeName: z.string().optional(),
+				loaderId: z.string().optional(),
 				branchId: z.number().optional(),
 			}),
 		)
@@ -1384,6 +1625,7 @@ ERROR TABLE: ${err.table}
 							route_id: createdRouteId,
 							driver_id: input.driverId,
 							vehicle_id: input.vehicleId || null,
+							loader_id: input.loaderId || null,
 							status: "pending",
 						})
 						.returning();
@@ -1539,5 +1781,77 @@ ERROR TABLE: ${err.table}
 				.where(eq(orders.id, orderId));
 
 			return { success: true, newTotal };
+		}),
+
+	dispatchTrip: roleProcedure(["admin", "manager"])
+		.input(z.object({ tripId: z.number() }))
+		.mutation(async ({ input, ctx }) => {
+			const database = (ctx as any).db || db;
+			const [trip] = await database
+				.select()
+				.from(deliveryTrips)
+				.where(eq(deliveryTrips.id, input.tripId));
+
+			if (!trip) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `Trip #${input.tripId} not found`,
+				});
+			}
+
+			if (trip.status !== "loaded" && trip.status !== "loading") {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: `Trip #${input.tripId} cannot be dispatched until loading is completed by the Loader.`,
+				});
+			}
+
+			// Update trip status to active (dispatched)
+			await database
+				.update(deliveryTrips)
+				.set({
+					status: "active",
+					start_time: new Date(),
+					updated_at: new Date(),
+				})
+				.where(eq(deliveryTrips.id, input.tripId));
+
+			// Update assigned orders to out_for_delivery
+			const stops = await database
+				.select({ customerId: tripStops.customer_id })
+				.from(tripStops)
+				.where(eq(tripStops.trip_id, input.tripId));
+
+			const customerIds = stops.map((s: any) => s.customerId).filter(Boolean);
+
+			if (customerIds.length > 0) {
+				await database
+					.update(orders)
+					.set({ status: "out_for_delivery" })
+					.where(
+						and(
+							inArray(orders.customer_id, customerIds),
+							inArray(orders.status, ["loaded", "ready_for_loading", "packed"]),
+						),
+					);
+			}
+
+			// Dispatch notification to Driver
+			try {
+				await dispatchNotification({
+					type: "info",
+					priority: "high",
+					title: `🚚 Trip #${input.tripId} Dispatched`,
+					message: `Manager has dispatched Trip #${input.tripId}. Ready for delivery!`,
+					branchId: (ctx.user?.branchId as number) || 1,
+					channels: ["in_app"],
+					referenceType: "trips",
+					referenceId: input.tripId,
+				});
+			} catch (e) {
+				// Notification fallback
+			}
+
+			return { success: true, tripId: input.tripId, status: "active" };
 		}),
 });

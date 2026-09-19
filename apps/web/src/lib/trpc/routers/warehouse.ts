@@ -1033,6 +1033,34 @@ export const warehouseRouter = router({
 
 				if (!pl) throw new Error("Pick list not found");
 
+				if (pl.status === "completed") {
+					throw new Error("Picking task is already completed.");
+				}
+
+				// Check that ALL items/quantities are fully picked
+				const items = await tx
+					.select()
+					.from(pickListItems)
+					.where(eq(pickListItems.pick_list_id, input.pickListId));
+
+				if (items.length === 0) {
+					throw new Error("Cannot complete picking for empty picklist.");
+				}
+
+				const unpicked = items.filter(
+					(i) => (i.quantity_picked ?? 0) < i.quantity_ordered,
+				);
+
+				if (unpicked.length > 0) {
+					const totalPending = unpicked.reduce(
+						(acc, i) => acc + (i.quantity_ordered - (i.quantity_picked ?? 0)),
+						0,
+					);
+					throw new Error(
+						`Picking cannot be completed. ${unpicked.length} item(s) (${totalPending} units) are still pending.`,
+					);
+				}
+
 				await tx
 					.update(pickLists)
 					.set({

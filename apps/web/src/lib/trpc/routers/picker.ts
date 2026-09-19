@@ -1,5 +1,5 @@
 import { customers, orderItems, orders, pickListItems, pickLists } from "@evaluna/db/schema";
-import { and, count, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifyPickComplete } from "@/lib/notification-service";
@@ -13,57 +13,120 @@ export const pickerRouter = router({
 			const todayStart = new Date();
 			todayStart.setHours(0, 0, 0, 0);
 
-			const [
-				[counts],
-				[itemsPickedRow],
-				recent,
-			] = await Promise.all([
-				db
-					.select({
-						assignedCount: sql<number>`coalesce(count(*) filter (where ${pickLists.status} in ('assigned', 'picking', 'in_progress') or (${pickLists.assigned_to} is not null and (${pickLists.created_at} >= ${todayStart} or ${pickLists.completed_at} >= ${todayStart})) or (${pickLists.created_at} >= ${todayStart} and ${pickLists.status} != 'pending')), 0)::int`,
-						completedCount: sql<number>`coalesce(count(*) filter (where ${pickLists.status} = 'completed' and (${pickLists.completed_at} >= ${todayStart} or ${pickLists.created_at} >= ${todayStart})), 0)::int`,
-						pendingCount: sql<number>`coalesce(count(*) filter (where ${pickLists.status} in ('pending', 'unassigned') or ${pickLists.status} is null), 0)::int`,
-					})
-					.from(pickLists),
-				db
-					.select({
-						total: sql<number>`coalesce(sum(${pickListItems.quantity_picked}), 0)::int`,
-					})
-					.from(pickListItems)
-					.where(or(eq(pickListItems.status, "picked"), gte(pickListItems.quantity_picked, 1))),
-				db
-					.select({
-						id: pickLists.id,
-						order_id: pickLists.order_id,
-						status: pickLists.status,
-						created_at: pickLists.created_at,
-						items_count: sql<number>`coalesce(sum(${pickListItems.quantity_ordered}), 0)::int`,
-					})
-					.from(pickLists)
-					.leftJoin(pickListItems, eq(pickLists.id, pickListItems.pick_list_id))
-					.groupBy(pickLists.id, pickLists.order_id, pickLists.status, pickLists.created_at)
-					.orderBy(desc(pickLists.created_at))
-					.limit(5),
-			]);
+			try {
+				const [
+					[assignedRow],
+					[completedRow],
+					[pendingRow],
+					[itemsPickedRow],
+					recent,
+				] = await Promise.all([
+					db
+						.select({ count: count() })
+						.from(pickLists)
+						.where(
+							or(
+								inArray(pickLists.status, ["assigned", "picking", "in_progress"]),
+								and(
+									isNotNull(pickLists.assigned_to),
+									or(
+										gte(pickLists.created_at, todayStart),
+										gte(pickLists.completed_at, todayStart),
+									),
+								),
+								and(
+									gte(pickLists.created_at, todayStart),
+									sql`${pickLists.status} != 'pending'`,
+								),
+							),
+						),
+					db
+						.select({ count: count() })
+						.from(pickLists)
+						.where(
+							and(
+								eq(pickLists.status, "completed"),
+								or(
+									gte(pickLists.completed_at, todayStart),
+									gte(pickLists.created_at, todayStart),
+								),
+							),
+						),
+					db
+						.select({ count: count() })
+						.from(pickLists)
+						.where(
+							or(
+								inArray(pickLists.status, ["pending", "unassigned"]),
+								sql`${pickLists.status} is null`,
+							),
+						),
+					db
+						.select({
+							total: sql<number>`coalesce(sum(${pickListItems.quantity_picked}), 0)::int`,
+						})
+						.from(pickListItems)
+						.where(
+							or(
+								eq(pickListItems.status, "picked"),
+								gte(pickListItems.quantity_picked, 1),
+							),
+						),
+					db
+						.select({
+							id: pickLists.id,
+							order_id: pickLists.order_id,
+							status: pickLists.status,
+							created_at: pickLists.created_at,
+							items_count: sql<number>`coalesce(sum(${pickListItems.quantity_ordered}), 0)::int`,
+						})
+						.from(pickLists)
+						.leftJoin(
+							pickListItems,
+							eq(pickLists.id, pickListItems.pick_list_id),
+						)
+						.groupBy(
+							pickLists.id,
+							pickLists.order_id,
+							pickLists.status,
+							pickLists.created_at,
+						)
+						.orderBy(desc(pickLists.created_at))
+						.limit(5),
+				]);
 
-			const totalItemsPicked = Number(itemsPickedRow?.total || 0);
+				const totalItemsPicked = Number(itemsPickedRow?.total || 0);
 
-			return {
-				assignedToday: Number(counts?.assignedCount || 0),
-				completed: Number(counts?.completedCount || 0),
-				pending: Number(counts?.pendingCount || 0),
-				exceptions: 0,
-				totalItemsPicked,
-				pickAccuracy: 100,
-				recentTasks: recent.map((r) => ({
-					id: `PL-${r.id}`,
-					order: `ORD-${r.order_id}`,
-					items: Number(r.items_count || 0),
-					area: "Warehouse",
-					status: r.status ?? "pending",
-					time: r.created_at ? new Date(r.created_at).toLocaleTimeString() : "",
-				})),
-			};
+				return {
+					assignedToday: Number(assignedRow?.count || 0),
+					completed: Number(completedRow?.count || 0),
+					pending: Number(pendingRow?.count || 0),
+					exceptions: 0,
+					totalItemsPicked,
+					pickAccuracy: 100,
+					recentTasks: (recent || []).map((r) => ({
+						id: `PL-${r.id}`,
+						order: `ORD-${r.order_id}`,
+						items: Number(r.items_count || 0),
+						area: "Warehouse",
+						status: r.status ?? "pending",
+						time: r.created_at
+							? new Date(r.created_at).toLocaleTimeString()
+							: "",
+					})),
+				};
+			} catch (err) {
+				console.warn("[pickerRouter.getDashboardStats] Error fetching stats:", err);
+				return {
+					assignedToday: 0,
+					completed: 0,
+					pending: 0,
+					exceptions: 0,
+					totalItemsPicked: 0,
+					pickAccuracy: 100,
+					recentTasks: [],
+				};
+			}
 		}),
 
 	getPickLists: roleProcedure(["admin", "manager", "auditor", "picker"])

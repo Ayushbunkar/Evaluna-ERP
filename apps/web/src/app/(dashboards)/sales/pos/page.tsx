@@ -3,18 +3,21 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	Edit3,
+	Loader2,
+	MapPin,
 	Minus,
 	Percent,
 	Plus,
 	PlusCircle,
+	Route,
 	Search,
 	ShoppingCart,
 	Sparkles,
 	Tag,
 	Trash2,
+	User,
 	Wifi,
 	WifiOff,
-	Loader2,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -115,12 +118,17 @@ function POSContent() {
 	const [search, setSearch] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState<string>("all");
 	const [isOffline, setIsOffline] = useState(false);
+	const [customerModalOpen, setCustomerModalOpen] = useState(true);
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
 	const [customerDetails, setCustomerDetails] = useState<{
+		customerId?: number;
 		customerName?: string;
 		customerPhone?: string;
 		shopName?: string;
+		address?: string;
+		routeId?: number;
+		routeName?: string;
 	}>({});
 	const [lastPayments, setLastPayments] = useState<any[]>([]);
 	const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">("catalog");
@@ -616,6 +624,40 @@ function POSContent() {
 		} as any);
 	};
 
+	const handleAddItemsFromHistory = useCallback(
+		(items: any[]) => {
+			if (!items || items.length === 0) return;
+			let addedCount = 0;
+			for (const item of items) {
+				const matchedProduct = catalog?.find(
+					(p) => p.id === item.productId || p.id === item.id,
+				);
+				if (matchedProduct) {
+					addToCart(matchedProduct, 1);
+					addedCount++;
+				} else {
+					addToCart(
+						{
+							id: item.productId || item.id,
+							name: item.name,
+							price: item.price,
+						},
+						1,
+					);
+					addedCount++;
+				}
+			}
+			if (addedCount > 0) {
+				toast.success(
+					locale === "hi"
+						? `${addedCount} सामान कार्ट में जोड़े गए!`
+						: `${addedCount} item(s) added to cart!`,
+				);
+			}
+		},
+		[catalog, addToCart, locale],
+	);
+
 	const categories = useMemo(() => {
 		if (!catalog) return [];
 		const cats = new Set<string>();
@@ -710,6 +752,24 @@ function POSContent() {
 						)}
 					</div>
 					<div className="flex items-center gap-2">
+						{/* Customer / Route Action Button */}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => setPaymentModalOpen(true)}
+							className="h-8 gap-1.5 text-xs font-semibold border-emerald-500/40 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+						>
+							<User className="h-3.5 w-3.5 text-emerald-600" />
+							{customerDetails?.customerName ? (
+								<span className="truncate max-w-[140px] font-bold">
+									{customerDetails.customerName}
+								</span>
+							) : (
+								<span>{locale === "hi" ? "ग्राहक / रूट चुनें" : "Customer / Route"}</span>
+							)}
+						</Button>
+
 						{isOffline ? (
 							<span className="flex items-center gap-1.5 font-semibold text-destructive text-xs sm:text-sm">
 								<WifiOff className="h-4 w-4" /> {t.offline}
@@ -798,7 +858,6 @@ function POSContent() {
 											className="flex h-full cursor-pointer flex-col justify-between border-transparent shadow-sm transition-colors hover:border-primary/50"
 											onClick={() => {
 												addToCart(product);
-												toast.success(`Added ${getLocalizedProductName(product.name, locale)}`);
 											}}
 										>
 											<CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
@@ -871,6 +930,28 @@ function POSContent() {
 					>
 						{t.clear}
 					</Button>
+				</div>
+
+				{/* Active Customer & Route Banner */}
+				<div
+					onClick={() => setCustomerModalOpen(true)}
+					className="mb-3 flex cursor-pointer items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-50/80 p-2.5 text-xs transition-colors hover:bg-emerald-100/80 dark:bg-emerald-950/50 dark:border-emerald-800"
+				>
+					<div className="flex items-center gap-1.5 truncate">
+						<User className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+						<span className="font-bold text-emerald-900 dark:text-emerald-200 truncate">
+							{customerDetails?.customerName || (locale === "hi" ? "वाक-इन ग्राहक" : "Walk-in Customer")}
+						</span>
+						{customerDetails?.routeName && (
+							<span className="shrink-0 rounded bg-emerald-200/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 flex items-center gap-1">
+								<Route className="h-3 w-3 text-emerald-600" />
+								{customerDetails.routeName}
+							</span>
+						)}
+					</div>
+					<span className="text-[10px] font-bold text-emerald-700 underline shrink-0 ml-2">
+						{locale === "hi" ? "बदलें" : "Change"}
+					</span>
 				</div>
 				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 bg-muted/20 p-4">
 					<AnimatePresence>
@@ -1104,13 +1185,30 @@ function POSContent() {
 				</div>
 			</div>
 
-			{/* Payment Modal */}
+			{/* Initial Customer Selection Modal (Page Entry or Manual Trigger) */}
+			{customerModalOpen && (
+				<PaymentModal
+					open={customerModalOpen}
+					onOpenChange={setCustomerModalOpen}
+					isInitialSelection={true}
+					initialCustomerDetails={customerDetails}
+					onConfirmCustomer={(cust: any) => {
+						setCustomerDetails(cust);
+						setCustomerModalOpen(false);
+					}}
+					onAddItemsToCart={handleAddItemsFromHistory}
+				/>
+			)}
+
+			{/* Checkout Payment Modal */}
 			{paymentModalOpen && (
 				<PaymentModal
 					open={paymentModalOpen}
 					onOpenChange={setPaymentModalOpen}
 					totalAmount={total}
+					initialCustomerDetails={customerDetails}
 					onConfirm={finalizeOrder}
+					onAddItemsToCart={handleAddItemsFromHistory}
 				/>
 			)}
 

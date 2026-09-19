@@ -390,10 +390,9 @@ export default function PackerPendingPage() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>{t("orderRef")}</TableHead>
+										<TableHead>Picklist Ref</TableHead>
 										<TableHead>{t("orderRef")}</TableHead>
 										<TableHead>{t("assignedRoute")}</TableHead>
-										<TableHead>{t("driverAndTruck")}</TableHead>
 										<TableHead>{t("pickingCompletionTime")}</TableHead>
 										<TableHead>{tCommon("status")}</TableHead>
 										<TableHead className="text-right">
@@ -412,14 +411,6 @@ export default function PackerPendingPage() {
 											</TableCell>
 											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
 												📍 {pl.routeName}
-											</TableCell>
-											<TableCell className="text-xs">
-												<div className="font-medium text-gray-800 dark:text-gray-200">
-													👤 {pl.driverName}
-												</div>
-												<div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-													🚛 {pl.vehiclePlate}
-												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pl.completed_at}
@@ -471,15 +462,7 @@ export default function PackerPendingPage() {
 								<p>
 									<strong>{t("orderRef")}:</strong> {selectedPickList.order_ref}
 								</p>
-								<p>
-									<strong>{tCommon("status")}:</strong> {t("readyToPack")}
-								</p>
 								<p className="mt-1.5 border-blue-200/30 border-t pt-1.5">
-									<strong>🚚 {t("driverAndTruck")}:</strong>{" "}
-									{selectedPickList.vehiclePlate} ({selectedPickList.driverName}
-									)
-								</p>
-								<p className="mt-0.5">
 									<strong>📍 {t("assignedRoute")}:</strong>{" "}
 									{selectedPickList.routeName}
 								</p>
@@ -573,17 +556,10 @@ export default function PackerPendingPage() {
 									</span>
 								</div>
 								<div className="flex justify-between">
-									<span className="text-gray-500">{t("assignedPicker")}:</span>
+									<span className="text-gray-500">{t("assignedRoute")}:</span>
 									<span className="flex items-center gap-1 font-semibold text-blue-700">
-										<UserIcon className="h-3.5 w-3.5" />
-										{printPackage.driverName || t("unassigned")}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-gray-500">{t("driverAndTruck")}:</span>
-									<span className="flex items-center gap-1 font-medium font-mono text-gray-800">
-										<TruckIcon className="h-3.5 w-3.5" />
-										{printPackage.vehiclePlate || "N/A"}
+										<RouteIcon className="h-3.5 w-3.5 text-blue-600" />
+										{printPackage.routeName || "Delivery Route"}
 									</span>
 								</div>
 								<div className="mt-1 flex justify-between border-emerald-200/50 border-t pt-1.5">
@@ -612,7 +588,7 @@ export default function PackerPendingPage() {
 									className="bg-emerald-600 font-semibold text-white text-xs shadow-sm hover:bg-emerald-700"
 									onClick={() => {
 										toast.success(
-											`Package ${printPackage.number} confirmed & handed over to driver!`,
+											`Package ${printPackage.number} confirmed & ready for loading!`,
 										);
 										setPrintPackage(null);
 										refetch();

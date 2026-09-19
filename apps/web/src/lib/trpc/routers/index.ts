@@ -33,6 +33,7 @@ import { hrRouter } from "./hr";
 import { hrmsRouter } from "./hrms";
 import { importsRouter } from "./imports";
 import { inventoryRouter } from "./inventory";
+import { loaderRouter } from "./loader";
 import { loyaltyRouter } from "./loyalty";
 import { managerRouter } from "./manager";
 import { marketingRouter } from "./marketing";
@@ -112,6 +113,7 @@ export const appRouter = router({
 	hrms: hrmsRouter,
 	imports: importsRouter,
 	inventory: inventoryRouter,
+	loader: loaderRouter,
 	loyalty: loyaltyRouter,
 	manager: managerRouter,
 	marketing: marketingRouter,

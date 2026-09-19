@@ -70,9 +70,72 @@ export default function OrdersPage() {
 		search: searchTerm.trim() || undefined,
 		status: statusFilter !== "all" ? statusFilter : undefined,
 	});
-	const t = useTranslations("orders");
-	const tc = useTranslations("common");
+	let tRaw: any = null;
+	let tcRaw: any = null;
+	try {
+		tRaw = useTranslations("orders");
+	} catch (e) {}
+	try {
+		tcRaw = useTranslations("common");
+	} catch (e) {}
 	const locale = useLocale();
+
+	const commonDict: Record<string, { en: string; hi: string }> = {
+		previous: { en: "Previous", hi: "पिछला" },
+		next: { en: "Next", hi: "अगला" },
+		all: { en: "All", hi: "सभी" },
+		completed: { en: "Completed", hi: "पूरा हुआ" },
+		pending: { en: "Pending", hi: "लंबित" },
+		cancelled: { en: "Cancelled", hi: "निरस्त" },
+		total: { en: "Total Amount", hi: "कुल राशि" },
+		status: { en: "Status", hi: "स्थिति" },
+		paymentMode: { en: "Payment Status", hi: "भुगतान स्थिति" },
+		date: { en: "Date & Time", hi: "दिनांक" },
+		actions: { en: "Actions", hi: "कार्रवाई" },
+		edit: { en: "Edit Order", hi: "ऑर्डर संपादन" },
+		view: { en: "View Details", hi: "विवरण देखें" },
+		cancel: { en: "Cancel", hi: "रद्द करें" },
+		save: { en: "Save Changes", hi: "सहेजें" },
+		totalRequired: { en: "Total amount is required", hi: "कुल राशि आवश्यक है" },
+	};
+
+	const tc = (key: string) => {
+		try {
+			if (tcRaw) {
+				const val = tcRaw(key);
+				if (
+					val &&
+					typeof val === "string" &&
+					!val.includes("MISSING_MESSAGE") &&
+					!val.includes("Could not resolve")
+				) {
+					return val;
+				}
+			}
+		} catch (e) {}
+		const entry = commonDict[key];
+		if (entry) return locale === "hi" ? entry.hi : entry.en;
+		return key.charAt(0).toUpperCase() + key.slice(1);
+	};
+
+	const t = (key: string) => {
+		try {
+			if (tRaw) {
+				const val = tRaw(key);
+				if (
+					val &&
+					typeof val === "string" &&
+					!val.includes("MISSING_MESSAGE") &&
+					!val.includes("Could not resolve")
+				) {
+					return val;
+				}
+			}
+		} catch (e) {}
+		const entry = commonDict[key];
+		if (entry) return locale === "hi" ? entry.hi : entry.en;
+		return key.charAt(0).toUpperCase() + key.slice(1);
+	};
 
 	const orderEditSchema = z.object({
 		total: z.string().min(1, t("totalRequired")),
@@ -83,7 +146,7 @@ export default function OrdersPage() {
 		{ label: tc("all"), value: "all" },
 		{ label: "Confirmed / Active", value: "confirmed", variant: "primary" },
 		{ label: "Pending Review", value: "pending_review", variant: "warning" },
-		{ label: "Delivered / Completed", value: "completed", variant: "success" },
+		{ label: "Completed", value: "completed", variant: "success" },
 		{ label: tc("cancelled"), value: "cancelled", variant: "danger" },
 	];
 
@@ -111,12 +174,12 @@ export default function OrdersPage() {
 				const s = (row.status ?? "pending").toLowerCase();
 				const statusConfig: Record<string, { label: string; cls: string; bg: string }> = {
 					confirmed: {
-						label: "Confirmed (In Processing)",
+						label: "Sent to Picker",
 						cls: "text-blue-700 dark:text-blue-400 font-semibold",
 						bg: "bg-blue-500/10 border border-blue-500/20",
 					},
 					completed: {
-						label: "Delivered / Completed",
+						label: "Completed",
 						cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
 						bg: "bg-emerald-500/10 border border-emerald-500/20",
 					},
@@ -137,6 +200,11 @@ export default function OrdersPage() {
 					},
 					in_transit: {
 						label: "Out for Delivery",
+						cls: "text-amber-700 dark:text-amber-400 font-semibold",
+						bg: "bg-amber-500/10 border border-amber-500/20",
+					},
+					pending: {
+						label: "Pending Review",
 						cls: "text-amber-700 dark:text-amber-400 font-semibold",
 						bg: "bg-amber-500/10 border border-amber-500/20",
 					},
