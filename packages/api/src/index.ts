@@ -1,4 +1,4 @@
-import type { Role } from "@evaluna/db";
+import { normalizeRole, type Role } from "@evaluna/db";
 import { customers } from "@evaluna/db/schema";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -11,6 +11,7 @@ export type StaffRecord = {
 	name: string;
 	staffCode: string;
 	branchId?: number | null;
+	role?: string | null;
 	// Add other necessary staff fields here as we discover them
 };
 
@@ -82,21 +83,16 @@ export const roleProcedure = (requiredRoles: Role[]) => {
 			return next({ ctx: { ...ctx, user: ctx.user } });
 		}
 
-		let userRole = (ctx.user.primaryRole?.name ||
-			(ctx.user as any).role) as string;
-		if (userRole) {
-			const lowerRole = userRole.toLowerCase();
-			if (
-				lowerRole === "salesperson" ||
-				lowerRole === "sales" ||
-				lowerRole === "sales_person"
-			) {
-				userRole = "sales_person";
-			}
-		}
+		const rawRole = (ctx.user.primaryRole?.name ||
+			(ctx.user as any).role ||
+			ctx.user.staff?.role ||
+			"") as string;
+		const userRole = normalizeRole(rawRole);
 
-		// Check if the user's primary role is one of the required roles
-		if (!userRole || !requiredRoles.includes(userRole as any)) {
+		const normalizedRequired = requiredRoles.map((r) => normalizeRole(r));
+
+		// Check if the user's normalized role is one of the required roles
+		if (!userRole || !normalizedRequired.includes(userRole as any)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 
@@ -124,7 +120,7 @@ export const permissionProcedure = (permission: string) => {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
 
-		if (!ctx.user.isSuperadmin && !ctx.user.permissions.includes(permission)) {
+		if (!ctx.user.isSuperadmin && !ctx.user.permissions?.includes(permission)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 
@@ -139,7 +135,7 @@ export const requirePermission = (permission: string) =>
 		if (!ctx.user) {
 			throw new TRPCError({ code: "UNAUTHORIZED" });
 		}
-		if (!ctx.user.isSuperadmin && !ctx.user.permissions.includes(permission)) {
+		if (!ctx.user.isSuperadmin && !ctx.user.permissions?.includes(permission)) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 		return next({ ctx });

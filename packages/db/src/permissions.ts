@@ -319,7 +319,7 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 
 // ── Runtime Helpers ───────────────────────────────────────────────────────────
 
-function normalizeRole(r: string): Role {
+export function normalizeRole(r: string): Role {
 	if (!r) return "customer" as Role;
 	const lower = r.trim().replace(/_/g, " ").toLowerCase();
 	if (lower === "superadmin" || lower === "super admin")

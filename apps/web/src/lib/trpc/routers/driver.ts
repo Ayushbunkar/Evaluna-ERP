@@ -259,6 +259,9 @@ export const driverRouter = router({
 										inArray(orders.status, [
 											"ready_for_dispatch",
 											"out_for_delivery",
+											"dispatched",
+											"assigned",
+											"in_transit",
 											"packed",
 											"processing",
 											"confirmed",
@@ -850,6 +853,9 @@ export const driverRouter = router({
 									inArray(orders.status, [
 										"ready_for_dispatch",
 										"out_for_delivery",
+										"dispatched",
+										"assigned",
+										"in_transit",
 										"packed",
 										"processing",
 										"confirmed",
@@ -942,6 +948,9 @@ export const driverRouter = router({
 									inArray(orders.status, [
 										"ready_for_dispatch",
 										"out_for_delivery",
+										"dispatched",
+										"assigned",
+										"in_transit",
 										"packed",
 										"processing",
 										"confirmed",

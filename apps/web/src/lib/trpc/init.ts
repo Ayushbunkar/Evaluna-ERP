@@ -13,7 +13,7 @@ import {
 } from "@evaluna/api";
 import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
-import { getPermissionsForRole } from "@/lib/permissions";
+import { getPermissionsForRole, normalizeRole } from "@/lib/permissions";
 
 export type { TRPCContext };
 export {
@@ -34,21 +34,21 @@ export const createTRPCContext = async (opts?: {
 }): Promise<TRPCContext> => {
 	const user = await getAuthUser(opts?.req);
 
-	const rawRoleName = user?.primaryRole?.name || "";
-	const isSales =
-		rawRoleName.toLowerCase() === "salesperson" ||
-		rawRoleName.toLowerCase() === "sales" ||
-		rawRoleName.toLowerCase() === "sales_person";
+	const rawRoleName = (user?.primaryRole?.name ||
+		(user as any)?.role ||
+		user?.staff?.role ||
+		"") as string;
 
-	const resolvedRole = isSales
-		? "sales_person"
-		: user?.primaryRole?.name ||
-			(user?.isSuperadmin ? "super_admin" : "customer");
+	const resolvedRole = normalizeRole(
+		rawRoleName || (user?.isSuperadmin ? "super_admin" : "customer"),
+	);
 
-	const resolvedPermissions =
-		user?.permissions && user.permissions.length > 0
-			? user.permissions
-			: (getPermissionsForRole(resolvedRole as any) as string[]);
+	const standardRolePerms = getPermissionsForRole(resolvedRole as any) as string[];
+	const userPerms =
+		user?.permissions && user.permissions.length > 0 ? user.permissions : [];
+	const resolvedPermissions = Array.from(
+		new Set([...userPerms, ...standardRolePerms]),
+	);
 
 	// Transform CachedSession to match TRPCContext user interface
 	const baseUser = user
@@ -61,14 +61,20 @@ export const createTRPCContext = async (opts?: {
 				isSuperadmin: user.isSuperadmin,
 				branchId: user.branchId ?? user.staff?.branchId ?? null,
 				warehouseId: user.warehouseId,
-				staff: user.staff,
+				staff: user.staff
+					? {
+							...user.staff,
+							role: (user.staff as any).role || resolvedRole,
+						}
+					: null,
 				primaryRole: user.primaryRole
 					? {
 							...user.primaryRole,
-							name: isSales ? "sales_person" : user.primaryRole.name,
+							name: resolvedRole,
+							permissions: resolvedPermissions,
 						}
 					: {
-							name: user.isSuperadmin ? "super_admin" : "customer",
+							name: user.isSuperadmin ? "super_admin" : resolvedRole,
 							dashboardRoute: user.canonicalDashboardRoute ?? "/customer",
 							permissions: resolvedPermissions,
 						},

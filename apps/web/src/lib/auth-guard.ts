@@ -1,4 +1,4 @@
-import { getPermissionsForRole } from "@evaluna/db";
+import { getPermissionsForRole, normalizeRole } from "@evaluna/db";
 import {
 	roles as rolesTable,
 	session as sessionTable,
@@ -287,18 +287,31 @@ export async function getAuthUser(
 	const rolesList =
 		(dbUser.userRoles || [])
 			.filter((ur) => ur && ur.role)
-			.map((ur) => ({
-				name: ur.role.name as RoleName,
-				permissions: getPermissionsForRole(ur.role.name as any) as string[],
-				dashboardRoute: getCanonicalDashboardRoute(ur.role.name),
-			})) ?? [];
+			.map((ur) => {
+				const norm = normalizeRole(ur.role.name);
+				return {
+					name: norm as RoleName,
+					permissions: getPermissionsForRole(norm as any) as string[],
+					dashboardRoute: getCanonicalDashboardRoute(norm),
+				};
+			}) ?? [];
 
 	// Fallback to linked staff role if no explicit userRoles exist
 	if (rolesList.length === 0 && linkedStaff?.role) {
+		const normStaff = normalizeRole(linkedStaff.role);
 		rolesList.push({
-			name: linkedStaff.role as RoleName,
-			permissions: getPermissionsForRole(linkedStaff.role as any) as string[],
-			dashboardRoute: getCanonicalDashboardRoute(linkedStaff.role),
+			name: normStaff as RoleName,
+			permissions: getPermissionsForRole(normStaff as any) as string[],
+			dashboardRoute: getCanonicalDashboardRoute(normStaff),
+		});
+	}
+
+	// Fallback to customer if neither userRoles nor staff role exist
+	if (rolesList.length === 0 && !dbUser.is_superadmin) {
+		rolesList.push({
+			name: "customer" as RoleName,
+			permissions: getPermissionsForRole("customer" as any) as string[],
+			dashboardRoute: getCanonicalDashboardRoute("customer"),
 		});
 	}
 
@@ -311,7 +324,7 @@ export async function getAuthUser(
 	// Super Admin bypass
 	if (dbUser.is_superadmin) {
 		rolesList.unshift({
-			name: "Super Admin",
+			name: "Super Admin" as RoleName,
 			permissions: [], // Permissions are implicitly all, but we don't need to load all of them
 			dashboardRoute: getCanonicalDashboardRoute("Super Admin"),
 		});
@@ -328,14 +341,14 @@ export async function getAuthUser(
 		status: dbUser.status as CachedSession["status"],
 		forcePasswordChange: dbUser.force_password_change ?? false,
 		isSuperadmin: dbUser.is_superadmin ?? false,
-		branchId: dbUser.branch_id ?? dbUser.staff?.branch_id ?? null,
+		branchId: dbUser.branch_id ?? linkedStaff?.branch_id ?? null,
 		warehouseId: dbUser.warehouse_id ?? null,
-		staff: dbUser.staff
+		staff: linkedStaff
 			? {
-					id: dbUser.staff.id,
-					name: dbUser.staff.name,
-					staffCode: dbUser.staff.staff_code,
-					branchId: dbUser.staff.branch_id ?? null,
+					id: linkedStaff.id,
+					name: linkedStaff.name,
+					staffCode: linkedStaff.staff_code || `STF-${linkedStaff.id}`,
+					branchId: linkedStaff.branch_id ?? null,
 				}
 			: null,
 		primaryRole: primaryRole,
