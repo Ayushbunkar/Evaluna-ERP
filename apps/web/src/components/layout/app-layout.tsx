@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -245,6 +245,7 @@ export function AppLayout({
 	role?: string;
 }) {
 	const pathname = usePathname();
+	const router = useRouter();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [isOffline, setIsOffline] = useState(false);
 	const [isSyncing, setIsSyncing] = useState(false);
@@ -522,18 +523,21 @@ export function AppLayout({
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						className="fixed inset-0 z-50 md:hidden"
+						className="fixed inset-0 z-50 flex md:hidden"
 					>
+						{/* Backdrop */}
 						<div
 							className="fixed inset-0 bg-background/80 backdrop-blur-sm"
 							onClick={() => setMobileMenuOpen(false)}
 						/>
+
+						{/* Drawer Content */}
 						<motion.nav
 							initial={{ x: -300 }}
 							animate={{ x: 0 }}
 							exit={{ x: -300 }}
 							transition={{ type: "spring", stiffness: 400, damping: 40 }}
-							className="fixed inset-y-0 left-0 flex w-[280px] flex-col gap-2 overflow-y-auto border-border/40 border-r bg-background p-4 shadow-2xl"
+							className="relative z-10 flex h-full w-[280px] max-w-[85vw] flex-col gap-2 overflow-y-auto border-border/40 border-r bg-background p-4 shadow-2xl"
 						>
 							<div className="mb-6 flex items-center justify-between px-2">
 								<div className="flex items-center gap-3">
@@ -577,8 +581,11 @@ export function AppLayout({
 										>
 											<Link
 												href={href}
-												onClick={() => setMobileMenuOpen(false)}
-												className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all ${
+												onClick={(e) => {
+													setMobileMenuOpen(false);
+													router.push(href);
+												}}
+												className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all cursor-pointer select-none active:scale-[0.98] ${
 													isActive
 														? "bg-primary/10 font-medium text-primary"
 														: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"

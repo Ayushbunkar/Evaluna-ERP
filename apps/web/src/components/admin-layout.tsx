@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -200,6 +200,7 @@ function NotificationBell() {
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
+	const router = useRouter();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [isOffline, setIsOffline] = useState(false);
 	const [isSyncing, setIsSyncing] = useState(false);
@@ -356,10 +357,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						className="fixed inset-0 z-50 sm:hidden"
+						className="fixed inset-0 z-50 flex md:hidden"
 					>
 						<div
-							className="fixed inset-0 bg-black/50"
+							className="fixed inset-0 bg-black/50 backdrop-blur-sm"
 							onClick={() => setMobileMenuOpen(false)}
 						/>
 						<motion.nav
@@ -367,13 +368,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 							animate={{ x: 0 }}
 							exit={{ x: -280 }}
 							transition={{ type: "spring", stiffness: 350, damping: 35 }}
-							className="fixed inset-y-0 left-0 flex w-64 flex-col gap-2 overflow-y-auto border-r bg-background p-4"
+							className="relative z-10 flex h-full w-64 max-w-[85vw] flex-col gap-2 overflow-y-auto border-r bg-background p-4 shadow-2xl"
 						>
 							<div className="mb-4 flex items-center justify-between">
 								<Link
 									href="/admin"
 									className="flex items-center gap-2.5 font-semibold text-lg"
-									onClick={() => setMobileMenuOpen(false)}
+									onClick={(e) => {
+										setMobileMenuOpen(false);
+										router.push("/admin");
+									}}
 								>
 									<img
 										src="/logo.jpg"
@@ -399,8 +403,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 								>
 									<Link
 										href={href}
-										onClick={() => setMobileMenuOpen(false)}
-										className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+										onClick={(e) => {
+											setMobileMenuOpen(false);
+											router.push(href);
+										}}
+										className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer select-none active:scale-[0.98] ${
 											pathname === href
 												? "bg-accent font-medium text-accent-foreground"
 												: "text-muted-foreground hover:bg-muted hover:text-foreground"

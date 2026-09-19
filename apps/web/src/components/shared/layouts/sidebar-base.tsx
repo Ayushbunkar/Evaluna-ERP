@@ -136,8 +136,9 @@ export function SidebarBase({
 														<Link
 															key={subItem.name}
 															href={subItem.href || "#"}
+															onClick={() => setIsOpen(false)}
 															className={cn(
-																"block rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+																"block rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
 																isActive(subItem.href)
 																	? "bg-primary/10 font-medium text-primary"
 																	: "text-muted-foreground",
@@ -156,8 +157,9 @@ export function SidebarBase({
 								// Single Link
 								<Link
 									href={item.href || "#"}
+									onClick={() => setIsOpen(false)}
 									className={cn(
-										"flex items-center gap-3 rounded-md p-2 font-medium text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+										"flex items-center gap-3 rounded-md p-2 font-medium text-sm transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
 										isActive(item.href)
 											? "bg-primary/10 text-primary"
 											: "text-muted-foreground",

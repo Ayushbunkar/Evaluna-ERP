@@ -22,7 +22,7 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Button } from "@evaluna/ui/components/button";
@@ -33,6 +33,7 @@ export default function ManagerLayout({
 	children: React.ReactNode;
 }) {
 	const pathname = usePathname();
+	const router = useRouter();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	const navItems = [
@@ -44,17 +45,29 @@ export default function ManagerLayout({
 			label: "Staff Profiles",
 			icon: UserCheck,
 		},
-		{ href: "/manager/tasks", label: "Tasks", icon: CheckSquare },
-		{ href: "/manager/approvals", label: "Approvals", icon: FileCheck },
-		{ href: "/manager/attendance", label: "Attendance", icon: Clock },
-		{ href: "/manager/leave", label: "Leave Requests", icon: Calendar },
-		{ href: "/manager/expenses", label: "Expenses", icon: CreditCard },
-		{ href: "/manager/cashbook", label: "Cash Book", icon: IndianRupee },
-		{ href: "/manager/performance", label: "Performance", icon: TrendingUp },
-		{ href: "/manager/workload", label: "Workload Analytics", icon: BarChart3 },
 		{
-			href: "/manager/exceptions",
-			label: "Audit Exceptions",
+			href: "/manager/approvals",
+			label: "Expense Approvals",
+			icon: CheckSquare,
+		},
+		{
+			href: "/manager/payroll",
+			label: "Payroll Approvals",
+			icon: IndianRupee,
+		},
+		{
+			href: "/manager/leaves",
+			label: "Leave Approvals",
+			icon: Calendar,
+		},
+		{ href: "/manager/attendance", label: "Staff Attendance", icon: Clock },
+		{ href: "/manager/commissions", label: "Commissions", icon: TrendingUp },
+		{ href: "/manager/credit-limits", label: "Credit Limits", icon: CreditCard },
+		{ href: "/manager/price-changes", label: "Price Review", icon: BarChart3 },
+		{ href: "/manager/e-way-bills", label: "E-Way Bills", icon: FileCheck },
+		{
+			href: "/manager/escalations",
+			label: "Escalations & Holds",
 			icon: AlertTriangle,
 		},
 		{ href: "/manager/activity", label: "Activity Log", icon: History },
@@ -67,10 +80,16 @@ export default function ManagerLayout({
 		<div className="flex h-full flex-col bg-white dark:bg-slate-950">
 			{/* Brand */}
 			<div className="flex h-14 flex-shrink-0 items-center justify-between border-slate-100 border-b px-6 dark:border-slate-900">
-				<Link href="/" className="flex items-center space-x-3">
-					<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
-						<Hexagon className="h-5 w-5 text-blue-600" />
-					</span>
+				<Link
+					href="/"
+					className="flex items-center space-x-2.5"
+					onClick={() => setMobileMenuOpen(false)}
+				>
+					<img
+						src="/logo.jpg"
+						alt="Evaluna ERP"
+						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+					/>
 					<span className="font-bold text-base text-slate-900 dark:text-slate-100">
 						Evaluna Manager
 					</span>
@@ -96,8 +115,11 @@ export default function ManagerLayout({
 							<li key={item.href}>
 								<Link
 									href={item.href}
-									onClick={() => setMobileMenuOpen(false)}
-									className={`flex items-center rounded-lg px-3 py-2.5 font-semibold text-sm transition-all ${
+									onClick={(e) => {
+										setMobileMenuOpen(false);
+										router.push(item.href);
+									}}
+									className={`flex items-center rounded-lg px-3 py-2.5 font-semibold text-sm transition-all cursor-pointer select-none active:scale-[0.98] ${
 										isActive
 											? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
 											: "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900/40"
@@ -125,15 +147,15 @@ export default function ManagerLayout({
 
 			{/* Mobile Drawer Overlay */}
 			{mobileMenuOpen && (
-				<div className="fixed inset-0 z-50 flex bg-slate-950/60 backdrop-blur-sm md:hidden">
-					<div className="h-full w-72 max-w-[85vw] border-slate-800 border-r bg-white shadow-2xl dark:bg-slate-950">
-						{sidebarContent}
-					</div>
+				<div className="fixed inset-0 z-50 flex md:hidden">
 					<div
-						className="flex-1"
+						className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"
 						onClick={() => setMobileMenuOpen(false)}
 						aria-label="Close backdrop"
 					/>
+					<div className="relative z-10 h-full w-72 max-w-[85vw] border-slate-800 border-r bg-white shadow-2xl dark:bg-slate-950">
+						{sidebarContent}
+					</div>
 				</div>
 			)}
 

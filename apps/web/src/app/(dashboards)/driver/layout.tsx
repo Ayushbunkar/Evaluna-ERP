@@ -12,11 +12,11 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { DriverProfileModal } from "./driver-profile-modal";
 import { Button } from "@evaluna/ui/components/button";
+import { DriverProfileModal } from "./DriverProfileModal";
 
 export default function DriverLayout({
 	children,
@@ -24,6 +24,7 @@ export default function DriverLayout({
 	children: React.ReactNode;
 }) {
 	const pathname = usePathname();
+	const router = useRouter();
 	const [profileOpen, setProfileOpen] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -44,10 +45,16 @@ export default function DriverLayout({
 		<div className="flex h-full flex-col bg-white dark:bg-gray-800">
 			{/* Brand */}
 			<div className="flex h-14 flex-shrink-0 items-center justify-between border-gray-200 border-b px-6 dark:border-gray-700">
-				<Link href="/" className="flex items-center space-x-3">
-					<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
-						<Hexagon className="h-5 w-5 text-blue-600" />
-					</span>
+				<Link
+					href="/"
+					className="flex items-center space-x-2.5"
+					onClick={() => setMobileMenuOpen(false)}
+				>
+					<img
+						src="/logo.jpg"
+						alt="Evaluna ERP"
+						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+					/>
 					<span className="font-semibold text-gray-900 text-lg dark:text-gray-100">
 						Evaluna Delivery
 					</span>
@@ -73,8 +80,11 @@ export default function DriverLayout({
 							<li key={item.href}>
 								<Link
 									href={item.href}
-									onClick={() => setMobileMenuOpen(false)}
-									className={`flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors ${
+									onClick={(e) => {
+										setMobileMenuOpen(false);
+										router.push(item.href);
+									}}
+									className={`flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors cursor-pointer select-none active:scale-[0.98] ${
 										isActive
 											? "bg-blue-50 font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
 											: "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -98,7 +108,7 @@ export default function DriverLayout({
 								setMobileMenuOpen(false);
 								setProfileOpen(true);
 							}}
-							className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+							className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
 						>
 							<User className="h-5 w-5 shrink-0 text-gray-400" />
 							<span className="ml-3 truncate">Update Profile Info</span>
@@ -118,15 +128,15 @@ export default function DriverLayout({
 
 			{/* Mobile Drawer Overlay */}
 			{mobileMenuOpen && (
-				<div className="fixed inset-0 z-50 flex bg-gray-900/60 backdrop-blur-sm md:hidden">
-					<div className="h-full w-72 max-w-[85vw] border-gray-200 border-r bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
-						{sidebarContent}
-					</div>
+				<div className="fixed inset-0 z-50 flex md:hidden">
 					<div
-						className="flex-1"
+						className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"
 						onClick={() => setMobileMenuOpen(false)}
 						aria-label="Close backdrop"
 					/>
+					<div className="relative z-10 h-full w-72 max-w-[85vw] border-gray-200 border-r bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+						{sidebarContent}
+					</div>
 				</div>
 			)}
 
