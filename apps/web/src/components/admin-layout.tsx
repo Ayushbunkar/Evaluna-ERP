@@ -265,9 +265,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 				</Button>
 				<Link
 					href="/admin"
-					className="hidden items-center gap-2 font-semibold text-lg sm:flex"
+					className="hidden items-center gap-2.5 font-semibold text-lg sm:flex"
 				>
-					<Package2Icon className="h-6 w-6" />
+					<img
+						src="/logo.jpg"
+						alt="Evaluna ERP"
+						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+					/>
 					<span className="sr-only">{t("adminPanel")}</span>
 				</Link>
 				<h1 className="truncate font-bold text-lg sm:text-xl">
@@ -368,10 +372,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 							<div className="mb-4 flex items-center justify-between">
 								<Link
 									href="/admin"
-									className="flex items-center gap-2 font-semibold text-lg"
+									className="flex items-center gap-2.5 font-semibold text-lg"
 									onClick={() => setMobileMenuOpen(false)}
 								>
-									<Package2Icon className="h-6 w-6" />
+									<img
+										src="/logo.jpg"
+										alt="Evaluna ERP"
+										className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+									/>
 									<span>Evaluna ERP</span>
 								</Link>
 								<Button

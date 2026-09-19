@@ -371,9 +371,11 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 			{/* 1. Branding (Hidden on desktop to avoid duplication with sidebar) */}
 			<div className="flex items-center gap-2 md:hidden">
 				<Link href="/" className="flex items-center gap-2">
-					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10">
-						<ShieldAlert className="h-5 w-5 text-blue-600" />
-					</div>
+					<img
+						src="/logo.jpg"
+						alt="Evaluna ERP"
+						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+					/>
 					<span className="hidden font-bold text-foreground text-base tracking-tight sm:inline-block">
 						Evaluna ERP
 					</span>

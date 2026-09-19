@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { cn } from "@evaluna/ui/lib/utils";
 import {
@@ -104,10 +104,12 @@ export function Sidebar({
 		>
 			<div className="flex-1 space-y-4 overflow-y-auto py-4">
 				<div className="px-3 py-2">
-					<h2 className="mb-2 flex items-center gap-2 px-4 font-semibold text-lg tracking-tight">
-						<span className="rounded-md bg-primary p-1 text-primary-foreground">
-							<Package className="h-4 w-4" />
-						</span>
+					<h2 className="mb-2 flex items-center gap-2.5 px-4 font-semibold text-lg tracking-tight">
+						<img
+							src="/logo.jpg"
+							alt="Evaluna ERP"
+							className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+						/>
 						Evaluna ERP
 					</h2>
 					<div className="mt-6 space-y-1">

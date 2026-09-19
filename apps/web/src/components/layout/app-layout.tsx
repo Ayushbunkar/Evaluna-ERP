@@ -332,8 +332,12 @@ export function AppLayout({
 					<span className="sr-only">Open Menu</span>
 				</Button>
 
-				<div className="flex shrink-0 items-center gap-1 md:w-[240px]">
-					<Package2Icon className="h-6 w-6 text-primary" />
+				<div className="flex shrink-0 items-center gap-2 md:w-[240px]">
+					<img
+						src="/logo.jpg"
+						alt="Evaluna ERP"
+						className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+					/>
 					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base text-transparent tracking-tight sm:text-lg md:inline-block">
 						Evaluna ERP
 					</span>
@@ -532,18 +536,23 @@ export function AppLayout({
 							className="fixed inset-y-0 left-0 flex w-[280px] flex-col gap-2 overflow-y-auto border-border/40 border-r bg-background p-4 shadow-2xl"
 						>
 							<div className="mb-6 flex items-center justify-between px-2">
-								<div className="flex items-center gap-4">
+								<div className="flex items-center gap-3">
+									<img
+										src="/logo.jpg"
+										alt="Evaluna ERP"
+										className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+									/>
+									<span className="font-bold text-lg tracking-tight">
+										Evaluna ERP
+									</span>
 									<Badge
 										variant="secondary"
-										className="bg-emerald-100 font-bold text-emerald-800 text-xs uppercase tracking-wider hover:bg-emerald-100/80"
+										className="bg-emerald-100 font-bold text-emerald-800 text-[10px] uppercase tracking-wider hover:bg-emerald-100/80"
 									>
 										{role
 											? role.replace("_", " ")
 											: session?.user?.role?.replace("_", " ") || "Salesperson"}
 									</Badge>
-									<span className="font-bold text-lg tracking-tight">
-										Evaluna ERP
-									</span>
 								</div>
 								<Button
 									variant="ghost"

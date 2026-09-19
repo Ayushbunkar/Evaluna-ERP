@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { cn } from "@evaluna/ui/lib/utils";
@@ -68,10 +68,12 @@ export function SidebarBase({
 			)}
 		>
 			<div className="flex h-16 items-center justify-between border-b px-4">
-				<Link href="/" className="flex items-center gap-2 overflow-hidden">
-					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-						<MountainIcon className="h-5 w-5 shrink-0 text-primary" />
-					</div>
+				<Link href="/" className="flex items-center gap-2.5 overflow-hidden">
+					<img
+						src="/logo.jpg"
+						alt="Evaluna ERP"
+						className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+					/>
 					{!isCollapsed && (
 						<motion.span
 							initial={{ opacity: 0 }}

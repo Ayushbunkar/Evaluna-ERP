@@ -179,8 +179,12 @@ export default function LoginPage() {
 			<nav className="border-border border-b bg-background/80 backdrop-blur-sm">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex h-16 items-center justify-between">
-						<div className="flex items-center space-x-2">
-							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
+						<div className="flex items-center space-x-2.5">
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-8 w-8 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+							/>
 							<span className="font-bold text-foreground text-xl">
 								Evaluna ERP
 							</span>
@@ -246,11 +250,12 @@ export default function LoginPage() {
 							initial={{ scale: 0.8, opacity: 0 }}
 							animate={{ scale: 1, opacity: 1 }}
 							transition={{ delay: 0.1, duration: 0.5 }}
-							className="mb-2 rounded-2xl bg-secondary p-3 shadow-sm ring-1 ring-border"
+							className="mb-2"
 						>
-							<MountainIcon
-								className="h-8 w-8 text-foreground"
-								strokeWidth={1.5}
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-14 w-14 rounded-2xl object-cover shadow-md ring-1 ring-border"
 							/>
 						</motion.div>
 						<h2 className="font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">

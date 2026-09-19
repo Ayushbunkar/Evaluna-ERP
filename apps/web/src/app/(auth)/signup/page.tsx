@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
@@ -132,11 +132,12 @@ export default function SignupPage() {
 						initial={{ scale: 0.8, opacity: 0 }}
 						animate={{ scale: 1, opacity: 1 }}
 						transition={{ delay: 0.1, duration: 0.5 }}
-						className="mb-2 rounded-2xl bg-secondary p-3 shadow-sm ring-1 ring-border"
+						className="mb-2"
 					>
-						<MountainIcon
-							className="h-8 w-8 text-foreground"
-							strokeWidth={1.5}
+						<img
+							src="/logo.jpg"
+							alt="Evaluna ERP"
+							className="h-14 w-14 rounded-2xl object-cover shadow-md ring-1 ring-border"
 						/>
 					</motion.div>
 					<h2 className="font-semibold text-3xl text-foreground tracking-tight">
