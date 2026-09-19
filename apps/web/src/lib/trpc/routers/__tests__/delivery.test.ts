@@ -741,5 +741,61 @@ describe("delivery router core functionality", () => {
 			const routeStops = await driverAppCaller.getRouteStops();
 			expect(routeStops.length).toBeGreaterThanOrEqual(1);
 		});
+
+		it("resolves driver staff ID when trip is assigned to numeric staff ID and user logs in with UUID", async () => {
+			const testEmail = "driver_lookup_test@evaluna.local";
+			const testUserUuid = "user-uuid-lookup-123";
+			const testStaffId = 888;
+
+			// Insert user record with email
+			await db.insert(schema.user).values({
+				id: testUserUuid,
+				email: testEmail,
+				name: "Lookup Driver",
+			});
+
+			// Insert staff record with matching email and numeric staff ID
+			await db.insert(schema.staff).values({
+				id: testStaffId,
+				name: "Lookup Driver",
+				email: testEmail,
+				role: "driver",
+				join_date: new Date(),
+				salary: "30000",
+			});
+
+			// Create a trip assigned to staff ID string "888"
+			const [createdTrip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					driver_id: String(testStaffId),
+					status: "active",
+				})
+				.returning();
+
+			// Add a trip stop
+			await db.insert(schema.tripStops).values({
+				trip_id: createdTrip.id,
+				customer_id: 1,
+				sequence: 1,
+				status: "pending",
+			});
+
+			// Caller context simulates driver logged in with UUID only (no staff object pre-attached)
+			const testCaller = createCallerFactory(driverRouter)({
+				user: {
+					id: testUserUuid,
+					email: testEmail,
+					name: "Lookup Driver",
+					primaryRole: { name: "driver", dashboardRoute: "/driver", permissions: [] },
+				},
+				db,
+			});
+
+			const dashboard = await testCaller.getMobileDashboard({});
+			expect(dashboard.status).toBe("Online");
+			expect(dashboard.assignedOrders).toBeGreaterThanOrEqual(1);
+			expect(dashboard.routeStops.length).toBeGreaterThanOrEqual(1);
+		});
 	});
 });

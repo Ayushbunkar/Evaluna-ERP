@@ -130,20 +130,68 @@ async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericS
 	}
 
 	try {
-		// 1. Direct query on staff table for linked driver profile
-		const staffConditions = [];
+		// 1. Direct query on user table first for email/name aliases
+		const userConditions = [];
+		if (currentUser.id) {
+			userConditions.push(eq(user.id, currentUser.id));
+		}
+		if (currentUser.userId && currentUser.userId !== currentUser.id) {
+			userConditions.push(eq(user.id, currentUser.userId));
+		}
 		if (currentUser.email) {
-			staffConditions.push(
-				sql`LOWER(TRIM(${staff.email})) = LOWER(TRIM(${currentUser.email}))`,
+			userConditions.push(
+				sql`LOWER(TRIM(${user.email})) = LOWER(TRIM(${currentUser.email}))`,
 			);
 		}
 		if (currentUser.name) {
-			staffConditions.push(
-				sql`LOWER(TRIM(${staff.name})) = LOWER(TRIM(${currentUser.name}))`,
+			userConditions.push(
+				sql`LOWER(TRIM(${user.name})) = LOWER(TRIM(${currentUser.name}))`,
 			);
-			staffConditions.push(
-				sql`LOWER(${staff.name}) LIKE LOWER(${`%${currentUser.name.trim()}%`})`,
-			);
+		}
+
+		const emailsToSearch = new Set<string>();
+		const namesToSearch = new Set<string>();
+
+		if (currentUser.email) emailsToSearch.add(currentUser.email);
+		if (currentUser.name) namesToSearch.add(currentUser.name);
+
+		if (userConditions.length > 0) {
+			const usersList = await db
+				.select({
+					id: user.id,
+					name: user.name,
+					email: user.email,
+				})
+				.from(user)
+				.where(or(...userConditions));
+
+			for (const u of usersList) {
+				addSafe(u.id);
+				addSafe(u.email);
+				addSafe(u.name);
+				if (u.email) emailsToSearch.add(u.email);
+				if (u.name) namesToSearch.add(u.name);
+			}
+		}
+
+		// 2. Direct query on staff table using resolved emails, names, and staff IDs
+		const staffConditions = [];
+		for (const emailVal of emailsToSearch) {
+			if (emailVal.trim()) {
+				staffConditions.push(
+					sql`LOWER(TRIM(${staff.email})) = LOWER(TRIM(${emailVal}))`,
+				);
+			}
+		}
+		for (const nameVal of namesToSearch) {
+			if (nameVal.trim()) {
+				staffConditions.push(
+					sql`LOWER(TRIM(${staff.name})) = LOWER(TRIM(${nameVal}))`,
+				);
+				staffConditions.push(
+					sql`LOWER(${staff.name}) LIKE LOWER(${`%${nameVal.trim()}%`})`,
+				);
+			}
 		}
 		if (currentUser.staffId && !isNaN(Number(currentUser.staffId))) {
 			staffConditions.push(eq(staff.id, Number(currentUser.staffId)));
@@ -171,39 +219,6 @@ async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericS
 				addSafe(s.staff_code);
 				addSafe(s.email);
 				addSafe(s.name);
-			}
-		}
-
-		// 2. Direct query on user table for aliases
-		const userConditions = [];
-		if (currentUser.id) {
-			userConditions.push(eq(user.id, currentUser.id));
-		}
-		if (currentUser.email) {
-			userConditions.push(
-				sql`LOWER(TRIM(${user.email})) = LOWER(TRIM(${currentUser.email}))`,
-			);
-		}
-		if (currentUser.name) {
-			userConditions.push(
-				sql`LOWER(TRIM(${user.name})) = LOWER(TRIM(${currentUser.name}))`,
-			);
-		}
-
-		if (userConditions.length > 0) {
-			const usersList = await db
-				.select({
-					id: user.id,
-					name: user.name,
-					email: user.email,
-				})
-				.from(user)
-				.where(or(...userConditions));
-
-			for (const u of usersList) {
-				addSafe(u.id);
-				addSafe(u.email);
-				addSafe(u.name);
 			}
 		}
 	} catch (e) {

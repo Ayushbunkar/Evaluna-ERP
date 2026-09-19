@@ -55,44 +55,13 @@ async function getDriverIdentifiers(ctx: any): Promise<string[]> {
 	}
 
 	try {
-		const staffConditions = [];
-		if (userObj.email) {
-			staffConditions.push(
-				sql`LOWER(TRIM(${staff.email})) = LOWER(TRIM(${userObj.email}))`,
-			);
-		}
-		if (userObj.name) {
-			staffConditions.push(
-				sql`LOWER(TRIM(${staff.name})) = LOWER(TRIM(${userObj.name}))`,
-			);
-			staffConditions.push(
-				sql`LOWER(${staff.name}) LIKE LOWER(${`%${userObj.name.trim()}%`})`,
-			);
-		}
-		if (userObj.staffId) {
-			staffConditions.push(eq(staff.id, Number(userObj.staffId)));
-		}
-		if (userObj.staff?.id) {
-			staffConditions.push(eq(staff.id, Number(userObj.staff.id)));
-		}
-
-		if (staffConditions.length > 0) {
-			const staffList = await db.query.staff?.findMany({
-				where: or(...staffConditions),
-			});
-			if (staffList && staffList.length > 0) {
-				for (const s of staffList) {
-					addSafe(s.id);
-					addSafe(s.staff_code);
-					addSafe(s.email);
-					addSafe(s.name);
-				}
-			}
-		}
-
+		// 1. Direct query on user table first for email/name aliases
 		const userConditions = [];
 		if (userObj.id) {
 			userConditions.push(eq(user.id, userObj.id));
+		}
+		if (userObj.userId && userObj.userId !== userObj.id) {
+			userConditions.push(eq(user.id, userObj.userId));
 		}
 		if (userObj.email) {
 			userConditions.push(
@@ -105,6 +74,12 @@ async function getDriverIdentifiers(ctx: any): Promise<string[]> {
 			);
 		}
 
+		const emailsToSearch = new Set<string>();
+		const namesToSearch = new Set<string>();
+
+		if (userObj.email) emailsToSearch.add(userObj.email);
+		if (userObj.name) namesToSearch.add(userObj.name);
+
 		if (userConditions.length > 0) {
 			const usersList = await db.query.user?.findMany({
 				where: or(...userConditions),
@@ -114,6 +89,51 @@ async function getDriverIdentifiers(ctx: any): Promise<string[]> {
 					addSafe(u.id);
 					addSafe(u.email);
 					addSafe(u.name);
+					if (u.email) emailsToSearch.add(u.email);
+					if (u.name) namesToSearch.add(u.name);
+				}
+			}
+		}
+
+		// 2. Direct query on staff table using resolved emails, names, and staff IDs
+		const staffConditions = [];
+		for (const emailVal of emailsToSearch) {
+			if (emailVal.trim()) {
+				staffConditions.push(
+					sql`LOWER(TRIM(${staff.email})) = LOWER(TRIM(${emailVal}))`,
+				);
+			}
+		}
+		for (const nameVal of namesToSearch) {
+			if (nameVal.trim()) {
+				staffConditions.push(
+					sql`LOWER(TRIM(${staff.name})) = LOWER(TRIM(${nameVal}))`,
+				);
+				staffConditions.push(
+					sql`LOWER(${staff.name}) LIKE LOWER(${`%${nameVal.trim()}%`})`,
+				);
+			}
+		}
+		if (userObj.staffId && !isNaN(Number(userObj.staffId))) {
+			staffConditions.push(eq(staff.id, Number(userObj.staffId)));
+		}
+		if (userObj.staff?.id && !isNaN(Number(userObj.staff.id))) {
+			staffConditions.push(eq(staff.id, Number(userObj.staff.id)));
+		}
+		if (userObj.id && !isNaN(Number(userObj.id))) {
+			staffConditions.push(eq(staff.id, Number(userObj.id)));
+		}
+
+		if (staffConditions.length > 0) {
+			const staffList = await db.query.staff?.findMany({
+				where: or(...staffConditions),
+			});
+			if (staffList && staffList.length > 0) {
+				for (const s of staffList) {
+					addSafe(s.id);
+					addSafe(s.staff_code);
+					addSafe(s.email);
+					addSafe(s.name);
 				}
 			}
 		}
