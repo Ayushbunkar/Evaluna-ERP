@@ -952,6 +952,7 @@ export function DeliveryManagementDashboard({
 		if (!dispatchConfirmTrip) return;
 		try {
 			await dispatchTripMutation.mutateAsync({ tripId: dispatchConfirmTrip.id });
+			toast.success(`🚚 Trip #${dispatchConfirmTrip.id} dispatched! Driver is now Out for Delivery.`);
 			setIsDispatchConfirmOpen(false);
 			setDispatchConfirmTrip(null);
 			refetchTrips();
@@ -1100,7 +1101,14 @@ export function DeliveryManagementDashboard({
 				)}
 
 				{/* Active & Pending Delivery Trips Dispatch Panel */}
-				{trips.filter((t: any) => t.status === "pending" || t.status === "active").length > 0 && (
+				{trips.filter((t: any) =>
+					t.status === "pending" ||
+					t.status === "active" ||
+					t.status === "ready_for_loading" ||
+					t.status === "loading" ||
+					t.status === "loaded" ||
+					t.status === "ready_for_dispatch"
+				).length > 0 && (
 					<Card className="border-border/60 bg-gradient-to-br from-emerald-50/40 via-white to-blue-50/30 shadow-sm dark:from-emerald-950/20 dark:via-slate-900 dark:to-blue-950/20">
 						<CardHeader className="flex flex-row items-center justify-between pb-3">
 							<div>
@@ -1109,17 +1117,24 @@ export function DeliveryManagementDashboard({
 									Assigned Delivery Trips & Driver Dispatch
 								</CardTitle>
 								<CardDescription className="text-xs text-slate-500">
-									Trips assigned to drivers. Click "Dispatch to Driver" once packing is completed to send stops to the driver app.
+									Trips assigned to drivers. Click "Dispatch to Driver" to send stops to the driver dashboard.
 								</CardDescription>
 							</div>
 							<span className="rounded-full bg-emerald-100 px-3 py-1 font-bold text-emerald-800 text-xs dark:bg-emerald-900/50 dark:text-emerald-300">
-								{trips.filter((t: any) => t.status === "pending" || t.status === "active").length} Active / Pending Trip(s)
+								{trips.filter((t: any) => t.status === "pending" || t.status === "active" || t.status === "ready_for_loading" || t.status === "loading" || t.status === "loaded" || t.status === "ready_for_dispatch").length} Trip(s)
 							</span>
 						</CardHeader>
 						<CardContent>
 							<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
 								{trips
-									.filter((t: any) => t.status === "pending" || t.status === "active")
+									.filter((t: any) =>
+										t.status === "pending" ||
+										t.status === "active" ||
+										t.status === "ready_for_loading" ||
+										t.status === "loading" ||
+										t.status === "loaded" ||
+										t.status === "ready_for_dispatch"
+									)
 									.map((trip: any) => (
 										<div
 											key={trip.id}
@@ -1143,10 +1158,16 @@ export function DeliveryManagementDashboard({
 														className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
 															trip.status === "active"
 																? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-																: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+																: trip.status === "pending"
+																	? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+																	: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300"
 														}`}
 													>
-														{trip.status === "active" ? "Out for Delivery" : "Ready / Pending"}
+														{trip.status === "active"
+															? "Out for Delivery"
+															: trip.status === "pending"
+																? "Pending Dispatch"
+																: trip.status?.replace(/_/g, " ") || "In Progress"}
 													</span>
 												</div>
 
@@ -1178,12 +1199,12 @@ export function DeliveryManagementDashboard({
 											</div>
 
 											<div className="mt-3.5 flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-												{trip.status === "pending" ? (
+												{trip.status !== "active" ? (
 													<>
 														<Button
 															size="sm"
 															className="flex-1 bg-emerald-600 font-semibold text-white shadow-xs hover:bg-emerald-700 text-xs h-8"
-															disabled={updateTripStatus.isPending}
+															disabled={updateTripStatus.isPending || dispatchTripMutation.isPending}
 															onClick={async () => {
 																try {
 																	await updateTripStatus.mutateAsync({
@@ -1191,7 +1212,7 @@ export function DeliveryManagementDashboard({
 																		status: "active",
 																	});
 																	toast.success(
-																		`Trip #${trip.id} dispatched to driver ${trip.driver?.name || ""}! Stops are now visible on Driver dashboard.`,
+																		`🚚 Trip #${trip.id} dispatched to ${trip.driver?.name || "driver"}! Orders are now Out for Delivery.`,
 																	);
 																} catch (err: any) {
 																	toast.error(
@@ -1218,7 +1239,7 @@ export function DeliveryManagementDashboard({
 												) : (
 													<div className="flex w-full items-center justify-between text-xs text-emerald-700 dark:text-emerald-400 font-medium">
 														<span className="flex items-center gap-1">
-															<CheckCircle2Icon className="h-3.5 w-3.5" /> Dispatched to Driver App
+															<CheckCircle2Icon className="h-3.5 w-3.5" /> Dispatched – Out for Delivery
 														</span>
 														<span className="text-[11px] text-muted-foreground">
 															Live in Progress

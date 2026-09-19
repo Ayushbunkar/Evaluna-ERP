@@ -609,20 +609,54 @@ ERROR TABLE: ${err.table}
 
 					if (input.status === "active" && custIds.length > 0) {
 						// Transition associated orders to out_for_delivery
+						// Include ALL pre-delivery statuses to ensure orders are propagated
 						await db
 							.update(orders)
 							.set({ status: "out_for_delivery" })
 							.where(
 								and(
 									inArray(orders.customer_id, custIds),
-									inArray(orders.status, [
-										"packed",
-										"ready_for_dispatch",
-										"processing",
-										"confirmed",
-									]),
+									notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
 								),
 							);
+
+						// Also update orders directly assigned to the driver (driver_id) to out_for_delivery
+						if (trip.driver_id) {
+							try {
+								const driverUser = await db.query.user.findFirst({
+									where: (u, { eq, or }) =>
+										or(
+											eq(u.id, trip.driver_id),
+											sql`LOWER(TRIM(${u.email})) = LOWER(TRIM(${trip.driver_id}))`,
+											sql`LOWER(TRIM(${u.name})) = LOWER(TRIM(${trip.driver_id}))`,
+										),
+									columns: { id: true, email: true, name: true },
+								});
+								if (driverUser) {
+									const driverStaff = await db.query.staff.findFirst({
+										where: (s, { or }) =>
+											or(
+												sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${driverUser.email ?? ""}))`,
+												sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${driverUser.name ?? ""}))`,
+											),
+										columns: { id: true },
+									});
+									if (driverStaff) {
+										await db
+											.update(orders)
+											.set({ status: "out_for_delivery" })
+											.where(
+												and(
+													eq(orders.driver_id, driverStaff.id),
+													notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
+												),
+											);
+									}
+								}
+							} catch (driverSyncErr) {
+								console.warn("[updateTripStatus] Driver order sync error (non-critical):", driverSyncErr);
+							}
+						}
 
 						// Notify Driver and Manager
 						await dispatchNotification({
@@ -1799,24 +1833,28 @@ ERROR TABLE: ${err.table}
 				});
 			}
 
-			if (trip.status !== "loaded" && trip.status !== "loading") {
+			// Block only if already completed or cancelled — allow dispatch from any pre-delivery state
+			const nonDispatchableStatuses = ["active", "completed", "cancelled", "out_for_delivery"];
+			if (nonDispatchableStatuses.includes(trip.status ?? "")) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
-					message: `Trip #${input.tripId} cannot be dispatched until loading is completed by the Loader.`,
+					message: `Trip #${input.tripId} is already in status "${trip.status}" and cannot be re-dispatched.`,
 				});
 			}
 
-			// Update trip status to active (dispatched)
+			// Update trip status to active (dispatched out for delivery)
 			await database
 				.update(deliveryTrips)
 				.set({
 					status: "active",
 					start_time: new Date(),
+					dispatched_at: new Date(),
+					dispatched_by_id: ctx.user?.id || "manager",
 					updated_at: new Date(),
 				})
 				.where(eq(deliveryTrips.id, input.tripId));
 
-			// Update assigned orders to out_for_delivery
+			// Fetch all trip stops to resolve customer IDs
 			const stops = await database
 				.select({ customerId: tripStops.customer_id })
 				.from(tripStops)
@@ -1824,6 +1862,7 @@ ERROR TABLE: ${err.table}
 
 			const customerIds = stops.map((s: any) => s.customerId).filter(Boolean);
 
+			// Update all orders for customers in this trip to out_for_delivery
 			if (customerIds.length > 0) {
 				await database
 					.update(orders)
@@ -1831,9 +1870,52 @@ ERROR TABLE: ${err.table}
 					.where(
 						and(
 							inArray(orders.customer_id, customerIds),
-							notInArray(orders.status, ["delivered", "cancelled"]),
+							notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
 						),
 					);
+			}
+
+			// Also update any orders directly assigned to this driver that are still ready_for_dispatch
+			if (trip.driver_id) {
+				try {
+					// Resolve numeric staff ID for the driver
+					const driverUser = await db.query.user.findFirst({
+						where: (u, { eq, or }) =>
+							or(
+								eq(u.id, trip.driver_id),
+								sql`LOWER(TRIM(${u.email})) = LOWER(TRIM(${trip.driver_id}))`,
+								sql`LOWER(TRIM(${u.name})) = LOWER(TRIM(${trip.driver_id}))`,
+							),
+						columns: { id: true, email: true, name: true },
+					});
+
+					if (driverUser) {
+						// Find linked staff record
+						const driverStaff = await db.query.staff.findFirst({
+							where: (s, { or }) =>
+								or(
+									sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${driverUser.email ?? ""}))`,
+									sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${driverUser.name ?? ""}))`,
+								),
+							columns: { id: true },
+						});
+
+						if (driverStaff) {
+							// Update driver-assigned orders that are ready_for_dispatch to out_for_delivery
+							await database
+								.update(orders)
+								.set({ status: "out_for_delivery" })
+								.where(
+									and(
+										eq(orders.driver_id, driverStaff.id),
+										notInArray(orders.status, ["delivered", "cancelled", "out_for_delivery"]),
+									),
+								);
+						}
+					}
+				} catch (driverOrderSyncErr) {
+					console.warn("[dispatchTrip] Driver order sync error (non-critical):", driverOrderSyncErr);
+				}
 			}
 
 			// Dispatch notification to Driver
@@ -1842,14 +1924,19 @@ ERROR TABLE: ${err.table}
 					type: "info",
 					priority: "high",
 					title: `🚚 Trip #${input.tripId} Dispatched`,
-					message: `Manager has dispatched Trip #${input.tripId}. Ready for delivery!`,
+					message: `Manager has dispatched Trip #${input.tripId}. You are now Out for Delivery!`,
 					branchId: (ctx.user?.branchId as number) || 1,
 					channels: ["in_app"],
 					referenceType: "trips",
 					referenceId: input.tripId,
+					metadata: {
+						trip_id: input.tripId,
+						driver_id: trip.driver_id,
+						dispatched_by: ctx.user?.name || ctx.user?.email || "manager",
+					},
 				});
 			} catch (e) {
-				// Notification fallback
+				// Notification failure is non-critical
 			}
 
 			return { success: true, tripId: input.tripId, status: "active" };
