@@ -118,6 +118,12 @@ export function DeliveryManagementDashboard({
 			refetchTrips();
 		},
 	});
+	const updateTripStatus = trpc.delivery.updateTripStatus.useMutation({
+		onSuccess: () => {
+			refetchTrips();
+			refetchOrders();
+		},
+	});
 	const optimizeRouteSequence =
 		trpc.delivery.optimizeRouteSequence.useMutation();
 
@@ -896,6 +902,140 @@ export function DeliveryManagementDashboard({
 										</div>
 									</div>
 								))}
+							</div>
+						</CardContent>
+					</Card>
+				)}
+
+				{/* Active & Pending Delivery Trips Dispatch Panel */}
+				{trips.filter((t: any) => t.status === "pending" || t.status === "active").length > 0 && (
+					<Card className="border-border/60 bg-gradient-to-br from-emerald-50/40 via-white to-blue-50/30 shadow-sm dark:from-emerald-950/20 dark:via-slate-900 dark:to-blue-950/20">
+						<CardHeader className="flex flex-row items-center justify-between pb-3">
+							<div>
+								<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
+									<TruckIcon className="h-5 w-5 text-emerald-600" />
+									Assigned Delivery Trips & Driver Dispatch
+								</CardTitle>
+								<CardDescription className="text-xs text-slate-500">
+									Trips assigned to drivers. Click "Dispatch to Driver" once packing is completed to send stops to the driver app.
+								</CardDescription>
+							</div>
+							<span className="rounded-full bg-emerald-100 px-3 py-1 font-bold text-emerald-800 text-xs dark:bg-emerald-900/50 dark:text-emerald-300">
+								{trips.filter((t: any) => t.status === "pending" || t.status === "active").length} Active / Pending Trip(s)
+							</span>
+						</CardHeader>
+						<CardContent>
+							<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+								{trips
+									.filter((t: any) => t.status === "pending" || t.status === "active")
+									.map((trip: any) => (
+										<div
+											key={trip.id}
+											className={`flex flex-col justify-between rounded-xl border p-4 shadow-xs transition-all ${
+												trip.status === "active"
+													? "border-amber-200/80 bg-amber-50/30 dark:border-amber-900/40 dark:bg-amber-950/20"
+													: "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900"
+											}`}
+										>
+											<div className="space-y-2">
+												<div className="flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
+															TRIP #{trip.id}
+														</span>
+														<span className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate max-w-[150px]">
+															{trip.route?.name || "Direct Assigned Trip"}
+														</span>
+													</div>
+													<span
+														className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
+															trip.status === "active"
+																? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+																: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+														}`}
+													>
+														{trip.status === "active" ? "Out for Delivery" : "Ready / Pending"}
+													</span>
+												</div>
+
+												<div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+													<div className="flex items-center gap-1.5">
+														<UserIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+														<span>Driver: </span>
+														<span className="font-semibold text-slate-900 dark:text-slate-100">
+															{trip.driver?.name || "Assigned Driver"}
+														</span>
+													</div>
+													{trip.vehicle && (
+														<div className="flex items-center gap-1.5">
+															<TruckIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+															<span>Vehicle: </span>
+															<span className="font-medium text-slate-800 dark:text-slate-200">
+																{trip.vehicle.name} ({trip.vehicle.registration_number})
+															</span>
+														</div>
+													)}
+													<div className="flex items-center gap-1.5">
+														<MapPinIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+														<span>Stops: </span>
+														<span className="font-medium text-slate-800 dark:text-slate-200">
+															{trip.stops?.length || 0} Customer Stop(s)
+														</span>
+													</div>
+												</div>
+											</div>
+
+											<div className="mt-3.5 flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+												{trip.status === "pending" ? (
+													<>
+														<Button
+															size="sm"
+															className="flex-1 bg-emerald-600 font-semibold text-white shadow-xs hover:bg-emerald-700 text-xs h-8"
+															disabled={updateTripStatus.isPending}
+															onClick={async () => {
+																try {
+																	await updateTripStatus.mutateAsync({
+																		tripId: trip.id,
+																		status: "active",
+																	});
+																	toast.success(
+																		`Trip #${trip.id} dispatched to driver ${trip.driver?.name || ""}! Stops are now visible on Driver dashboard.`,
+																	);
+																} catch (err: any) {
+																	toast.error(
+																		err.message || "Failed to dispatch trip",
+																	);
+																}
+															}}
+														>
+															<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+															Dispatch to Driver
+														</Button>
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8 border-red-200 text-red-600 font-semibold shadow-xs hover:bg-red-50 text-xs px-2.5"
+															onClick={() => {
+																setTripToCancel(trip);
+																setIsCancelModalOpen(true);
+															}}
+														>
+															Cancel
+														</Button>
+													</>
+												) : (
+													<div className="flex w-full items-center justify-between text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+														<span className="flex items-center gap-1">
+															<CheckCircle2Icon className="h-3.5 w-3.5" /> Dispatched to Driver App
+														</span>
+														<span className="text-[11px] text-muted-foreground">
+															Live in Progress
+														</span>
+													</div>
+												)}
+											</div>
+										</div>
+									))}
 							</div>
 						</CardContent>
 					</Card>
@@ -1968,28 +2108,54 @@ export function DeliveryManagementDashboard({
 													</span>
 												</div>
 											</div>
-											<div className="mt-4 flex gap-2">
+											<div className="mt-4 flex items-center gap-2">
 												{trip.status === "pending" && (
 													<Button
-														variant="destructive"
 														size="sm"
-														className="flex-1 font-semibold shadow-sm transition-all hover:bg-red-700"
+														className="flex-1 bg-emerald-600 font-semibold text-white shadow-sm hover:bg-emerald-700 text-xs"
+														disabled={updateTripStatus.isPending}
+														onClick={async () => {
+															try {
+																await updateTripStatus.mutateAsync({
+																	tripId: trip.id,
+																	status: "active",
+																});
+																toast.success(
+																	`Trip #${trip.id} dispatched to driver ${trip.driver?.name || ""}! Orders marked Out for Delivery.`,
+																);
+															} catch (err: any) {
+																toast.error(
+																	err.message || "Failed to dispatch trip",
+																);
+															}
+														}}
+													>
+														<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+														Dispatch to Driver
+													</Button>
+												)}
+												{trip.status === "pending" && (
+													<Button
+														variant="outline"
+														size="sm"
+														className="border-red-200 text-red-600 font-semibold shadow-xs hover:bg-red-50 text-xs"
 														onClick={() => {
 															setTripToCancel(trip);
 															setIsCancelModalOpen(true);
 														}}
 													>
-														Cancel Trip
+														Cancel
 													</Button>
 												)}
 												<Button
 													variant="outline"
 													size="sm"
-													className="shrink-0 border-red-200 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50"
+													className="shrink-0 border-slate-200 text-slate-500 transition-colors hover:border-red-300 hover:text-red-600 hover:bg-red-50"
 													onClick={() => {
 														setTripToDelete(trip);
 														setIsDeleteTripModalOpen(true);
 													}}
+													title="Delete Trip"
 												>
 													<Trash2Icon className="h-3.5 w-3.5" />
 												</Button>

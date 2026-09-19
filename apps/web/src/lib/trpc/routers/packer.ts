@@ -1,6 +1,8 @@
 import {
 	customers,
+	deliveryRoutes,
 	deliveryTrips,
+	orderItems,
 	orders,
 	packageItems,
 	packages,
@@ -9,38 +11,76 @@ import {
 	products,
 	staff,
 	tripStops,
+	user,
+	vehicles,
 } from "@evaluna/db/schema";
-import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, notInArray } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
+import { dispatchNotification } from "@/lib/notification-service";
 import { roleProcedure, router } from "../init";
 
 export const packerRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "packer"]).query(
 		async ({ ctx }) => {
-			// Count picklists where the customer has an active/pending trip (= ready to pack)
-			// Replaced 1+N loop with consolidated SQL COUNT(DISTINCT pick_lists.id)
-			const [pendingResult, packedTodayResult] = await Promise.all([
-				ctx.db
-					.select({
-						pendingCount: countDistinct(pickLists.id),
-					})
-					.from(pickLists)
-					.innerJoin(orders, eq(pickLists.order_id, orders.id))
-					.innerJoin(tripStops, eq(tripStops.customer_id, orders.customer_id))
-					.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-					.where(
-						and(
-							isNotNull(orders.customer_id),
-							inArray(deliveryTrips.status, ["pending", "active"]),
-						),
+			const packedPackages = await ctx.db
+				.select({
+					order_id: packages.order_id,
+					pick_list_id: packages.pick_list_id,
+				})
+				.from(packages)
+				.where(
+					inArray(packages.status, [
+						"packed",
+						"ready_for_dispatch",
+						"dispatched",
+						"completed",
+					]),
+				);
+
+			const packedOrderIds = new Set(
+				packedPackages.map((p) => p.order_id).filter(Boolean),
+			);
+			const packedPickListIds = new Set(
+				packedPackages.map((p) => p.pick_list_id).filter(Boolean),
+			);
+
+			// Count pick lists awaiting packing
+			const pickListRows = await ctx.db
+				.select({ id: pickLists.id, order_id: pickLists.order_id })
+				.from(pickLists)
+				.where(inArray(pickLists.status, ["pending", "assigned", "picking", "completed"]));
+
+			const pendingPickListCount = pickListRows.filter(
+				(p) => !packedPickListIds.has(p.id) && (!p.order_id || !packedOrderIds.has(p.order_id)),
+			).length;
+
+			// Count assigned orders awaiting packing
+			const assignedOrderRows = await ctx.db
+				.select({ id: orders.id })
+				.from(orders)
+				.where(
+					and(
+						inArray(orders.status, [
+							"ready_for_dispatch",
+							"confirmed",
+							"processing",
+							"packing",
+						]),
 					),
+				);
+
+			const pendingOrderCount = assignedOrderRows.filter(
+				(o) => !packedOrderIds.has(o.id),
+			).length;
+
+			const [packedTodayResult] = await Promise.all([
 				ctx.db
 					.select({ count: count() })
 					.from(packages)
 					.where(eq(packages.status, "packed")),
 			]);
 
-			const pendingCount = Number(pendingResult[0]?.pendingCount ?? 0);
+			const pendingCount = Math.max(pendingPickListCount, pendingOrderCount);
 			const packedToday = Number(packedTodayResult[0]?.count ?? 0);
 
 			return {
@@ -53,9 +93,12 @@ export const packerRouter = router({
 
 	getPendingToPack: roleProcedure(["admin", "manager", "packer"]).query(
 		async ({ ctx }) => {
-			// Find all pick_list_ids that are already packed or ready for dispatch
+			// Find all order_ids and pick_list_ids that are already packed
 			const packedPackages = await ctx.db
-				.select({ pick_list_id: packages.pick_list_id })
+				.select({
+					order_id: packages.order_id,
+					pick_list_id: packages.pick_list_id,
+				})
 				.from(packages)
 				.where(
 					inArray(packages.status, [
@@ -69,9 +112,15 @@ export const packerRouter = router({
 			const packedPickListIds = new Set(
 				packedPackages.map((p) => p.pick_list_id).filter(Boolean),
 			);
+			const packedOrderIds = new Set(
+				packedPackages.map((p) => p.order_id).filter(Boolean),
+			);
 
-			// Fetch all pick lists with customer & order details
-			const results = await ctx.db
+			const enrichedResults: any[] = [];
+			const seenOrderIds = new Set<number>();
+
+			// 1. Fetch from pickLists
+			const pickListResults = await ctx.db
 				.select({
 					id: pickLists.id,
 					order_id: pickLists.order_id,
@@ -88,47 +137,143 @@ export const packerRouter = router({
 				.orderBy(desc(pickLists.created_at))
 				.limit(100);
 
-			if (results.length === 0) return [];
+			if (pickListResults.length > 0) {
+				const pickListIds = pickListResults.map((r) => r.id);
+				const plItems = await ctx.db
+					.select({
+						id: pickListItems.id,
+						pick_list_id: pickListItems.pick_list_id,
+						productName: products.name,
+						sku: products.sku,
+						quantity: pickListItems.quantity_ordered,
+					})
+					.from(pickListItems)
+					.leftJoin(products, eq(pickListItems.product_id, products.id))
+					.where(inArray(pickListItems.pick_list_id, pickListIds));
 
-			// Fetch all pick list items
-			const items = await ctx.db
+				for (const r of pickListResults) {
+					if (packedPickListIds.has(r.id)) continue;
+					if (r.order_id && packedOrderIds.has(r.order_id)) continue;
+
+					let driverName = "Assigned Driver";
+					let routeName = "Delivery Route";
+					let vehiclePlate = "N/A";
+
+					if (r.customer_id) {
+						try {
+							const [stop] = await ctx.db
+								.select({
+									routeName: deliveryRoutes.name,
+									driverName: user.name,
+									vehiclePlate: vehicles.registration_number,
+								})
+								.from(tripStops)
+								.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
+								.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
+								.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
+								.where(
+									and(
+										eq(tripStops.customer_id, r.customer_id),
+										inArray(deliveryTrips.status, ["pending", "active"]),
+									),
+								)
+								.limit(1);
+
+							if (stop) {
+								if (stop.driverName) driverName = stop.driverName;
+								if (stop.routeName) routeName = stop.routeName;
+								if (stop.vehiclePlate) vehiclePlate = stop.vehiclePlate;
+							}
+						} catch (e) {
+							// Trip lookup fallback
+						}
+					}
+
+					const items = plItems.filter((it) => it.pick_list_id === r.id);
+					if (r.order_id) seenOrderIds.add(r.order_id);
+
+					enrichedResults.push({
+						id: `PL-${r.id}`,
+						pick_list_id: r.id,
+						order_id: r.order_id,
+						order_ref:
+							r.reference_type === "sale"
+								? `ORD-${r.order_id}`
+								: `REF-${r.order_id}`,
+						status: "pending_packing",
+						completed_at: r.completed_at?.toLocaleDateString() || "Today",
+						customerName: r.customerName ?? "Customer",
+						customerPhone: r.customerPhone ?? "N/A",
+						customerAddress: r.customerAddress ?? "N/A",
+						driverName,
+						routeName,
+						vehiclePlate,
+						items: items.length > 0 ? items.map((it) => ({
+							id: it.id,
+							productName: it.productName ?? "General Item",
+							sku: it.sku ?? "N/A",
+							quantity: it.quantity ?? 1,
+						})) : [
+							{
+								id: 1,
+								productName: "Order Items Package",
+								sku: `ORD-${r.order_id}`,
+								quantity: 1,
+							},
+						],
+					});
+				}
+			}
+
+			// 2. Fetch orders assigned to trips / drivers that don't have a pickList entry yet
+			const assignedOrders = await ctx.db
 				.select({
-					id: pickListItems.id,
-					pick_list_id: pickListItems.pick_list_id,
-					productName: products.name,
-					sku: products.sku,
-					quantity: pickListItems.quantity_ordered,
+					id: orders.id,
+					customer_id: orders.customer_id,
+					customerName: customers.name,
+					customerPhone: customers.phone,
+					customerAddress: customers.address,
+					driver_id: orders.driver_id,
+					status: orders.status,
+					created_at: orders.created_at,
 				})
-				.from(pickListItems)
-				.leftJoin(products, eq(pickListItems.product_id, products.id))
+				.from(orders)
+				.leftJoin(customers, eq(orders.customer_id, customers.id))
 				.where(
-					inArray(
-						pickListItems.pick_list_id,
-						results.map((r) => r.id),
+					and(
+						inArray(orders.status, [
+							"ready_for_dispatch",
+							"confirmed",
+							"processing",
+							"packing",
+						]),
 					),
-				);
+				)
+				.orderBy(desc(orders.created_at))
+				.limit(100);
 
-			// Import delivery schema tables
-			const {
-				tripStops,
-				deliveryTrips,
-				vehicles,
-				user,
-				deliveryRoutes,
-			} = require("@evaluna/db/schema");
-			const { db } = require("@/lib/db");
+			for (const ord of assignedOrders) {
+				if (seenOrderIds.has(ord.id) || packedOrderIds.has(ord.id)) continue;
+				seenOrderIds.add(ord.id);
 
-			const enrichedResults = [];
-			for (const r of results) {
-				// Exclude pick lists that have already been packed & completed
-				if (packedPickListIds.has(r.id)) continue;
+				// Fetch items for this order
+				const orderItemsList = await ctx.db
+					.select({
+						id: orderItems.id,
+						productName: products.name,
+						sku: products.sku,
+						quantity: orderItems.quantity,
+					})
+					.from(orderItems)
+					.leftJoin(products, eq(orderItems.product_id, products.id))
+					.where(eq(orderItems.order_id, ord.id));
 
-				let driverName = "Unassigned";
-				let routeName = "Unassigned Route";
+				let driverName = "Assigned Driver";
+				let routeName = "Delivery Route";
 				let vehiclePlate = "N/A";
-				let hasTrip = false;
 
-				if (r.customer_id) {
+				if (ord.customer_id) {
 					try {
 						const [stop] = await ctx.db
 							.select({
@@ -138,60 +283,66 @@ export const packerRouter = router({
 							})
 							.from(tripStops)
 							.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-							.leftJoin(
-								deliveryRoutes,
-								eq(deliveryRoutes.id, deliveryTrips.route_id),
-							)
+							.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
 							.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 							.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
 							.where(
 								and(
-									eq(tripStops.customer_id, r.customer_id),
+									eq(tripStops.customer_id, ord.customer_id),
 									inArray(deliveryTrips.status, ["pending", "active"]),
 								),
 							)
 							.limit(1);
 
 						if (stop) {
-							hasTrip = true;
 							if (stop.driverName) driverName = stop.driverName;
 							if (stop.routeName) routeName = stop.routeName;
 							if (stop.vehiclePlate) vehiclePlate = stop.vehiclePlate;
 						}
 					} catch (e) {
-						console.warn("[getPendingToPack] Trip lookup failed:", e);
+						// Fallback
 					}
 				}
 
-				// Only show orders that have been assigned to a trip by manager
-				if (!hasTrip) continue;
-
-				// Skip pick lists with zero items
-				const pickItems = items.filter((it) => it.pick_list_id === r.id);
-				if (pickItems.length === 0) continue;
+				if (driverName === "Assigned Driver" && ord.driver_id) {
+					try {
+						const [dUser] = await ctx.db
+							.select({ name: staff.name })
+							.from(staff)
+							.where(eq(staff.id, ord.driver_id))
+							.limit(1);
+						if (dUser?.name) driverName = dUser.name;
+					} catch (e) {
+						// Fallback
+					}
+				}
 
 				enrichedResults.push({
-					id: `PL-${r.id}`,
-					pick_list_id: r.id,
-					order_id: r.order_id,
-					order_ref:
-						r.reference_type === "sale"
-							? `ORD-${r.order_id}`
-							: `REF-${r.order_id}`,
+					id: `ORD-${ord.id}`,
+					pick_list_id: ord.id,
+					order_id: ord.id,
+					order_ref: `ORD-${ord.id}`,
 					status: "pending_packing",
-					completed_at: r.completed_at?.toLocaleDateString() || "Unknown",
-					customerName: r.customerName ?? "Walk-in Customer",
-					customerPhone: r.customerPhone ?? "N/A",
-					customerAddress: r.customerAddress ?? "N/A",
+					completed_at: ord.created_at ? new Date(ord.created_at).toLocaleDateString() : "Today",
+					customerName: ord.customerName ?? "Customer",
+					customerPhone: ord.customerPhone ?? "N/A",
+					customerAddress: ord.customerAddress ?? "N/A",
 					driverName,
 					routeName,
 					vehiclePlate,
-					items: pickItems.map((it) => ({
+					items: orderItemsList.length > 0 ? orderItemsList.map((it) => ({
 						id: it.id,
-						productName: it.productName ?? "Unknown Product",
+						productName: it.productName ?? "Order Item",
 						sku: it.sku ?? "N/A",
 						quantity: it.quantity ?? 1,
-					})),
+					})) : [
+						{
+							id: 1,
+							productName: `Order Package (ORD-${ord.id})`,
+							sku: `ORD-${ord.id}`,
+							quantity: 1,
+						},
+					],
 				});
 			}
 
@@ -201,65 +352,17 @@ export const packerRouter = router({
 
 	getPendingOrders: roleProcedure(["admin", "manager", "packer"]).query(
 		async ({ ctx }) => {
-			// Find unique pick_list_ids where package status is "packing" (avoids duplicates)
-			const packingPackages = await ctx.db
-				.select({ pick_list_id: packages.pick_list_id })
-				.from(packages)
-				.where(eq(packages.status, "packing"));
-
-			const packingPickListIds = Array.from(
-				new Set(packingPackages.map((p) => p.pick_list_id).filter(Boolean)),
-			) as number[];
-
-			if (packingPickListIds.length === 0) return [];
-
-			// Fetch the completed picklists cleanly without duplicate-inducing joins
-			const pending = await ctx.db
-				.select({
-					pick_list_id: pickLists.id,
-					order_id: pickLists.order_id,
-					status: pickLists.status,
-					customerName: customers.name,
-				})
-				.from(pickLists)
-				.leftJoin(orders, eq(pickLists.order_id, orders.id))
-				.leftJoin(customers, eq(orders.customer_id, customers.id))
-				.where(
-					and(
-						eq(pickLists.status, "completed"),
-						inArray(pickLists.id, packingPickListIds),
-					),
-				)
-				.orderBy(desc(pickLists.completed_at))
-				.limit(50);
-
-			if (pending.length === 0) return [];
-
-			const pickListIds = pending.map((p) => p.pick_list_id);
-			const items = await ctx.db
-				.select({
-					id: pickListItems.id,
-					pick_list_id: pickListItems.pick_list_id,
-					productName: products.name,
-					barcode: products.barcode,
-					status: pickListItems.status,
-				})
-				.from(pickListItems)
-				.leftJoin(products, eq(pickListItems.product_id, products.id))
-				.where(inArray(pickListItems.pick_list_id, pickListIds));
-
-			return pending.map((pl) => ({
-				id: `PL-${pl.pick_list_id}`,
-				customerName: pl.customerName ?? "Walk-in Customer",
-				status: pl.status ?? "pending_packing",
-				items: items
-					.filter((it) => it.pick_list_id === pl.pick_list_id)
-					.map((it) => ({
-						id: it.id,
-						productName: it.productName ?? "Unknown Product",
-						barcode: it.barcode ?? "",
-						status: it.status ?? "pending",
-					})),
+			const pendingList = await packerRouter.createCaller(ctx).getPendingToPack();
+			return pendingList.map((pl) => ({
+				id: pl.id,
+				customerName: pl.customerName,
+				status: "pending_packing",
+				items: pl.items.map((it) => ({
+					id: it.id,
+					productName: it.productName,
+					barcode: it.sku || "",
+					status: "pending",
+				})),
 			}));
 		},
 	),
@@ -267,7 +370,7 @@ export const packerRouter = router({
 	packOrder: roleProcedure(["admin", "manager", "packer"])
 		.input(
 			z.object({
-				pick_list_id: z.number(),
+				pick_list_id: z.number().optional(),
 				order_id: z.number(),
 				weight: z.number().optional(),
 				dimensions: z.string().optional(),
@@ -276,104 +379,74 @@ export const packerRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			try {
 				let packerId: number | null = null;
+				let packerName = ctx.user?.name || "Packer Staff";
 
 				if (ctx.user?.email) {
 					const staffMember = await ctx.db
-						.select({ id: staff.id })
+						.select({ id: staff.id, name: staff.name })
 						.from(staff)
 						.where(eq(staff.email, ctx.user.email))
 						.limit(1);
 					if (staffMember.length > 0) {
 						packerId = staffMember[0].id;
+						if (staffMember[0].name) packerName = staffMember[0].name;
 					}
 				}
 
-				// 1. Resolve actual order_id from pickLists or input
-				const [plRecord] = await ctx.db
-					.select({ order_id: pickLists.order_id })
-					.from(pickLists)
-					.where(eq(pickLists.id, input.pick_list_id))
-					.limit(1);
+				const validOrderId = input.order_id;
 
-				let validOrderId = plRecord?.order_id || input.order_id;
-
-				// 2. Ensure validOrderId exists in orders table to satisfy foreign key constraint packages_order_id_orders_id_fk
-				const [existingOrder] = await ctx.db
-					.select({ id: orders.id })
+				// Fetch customer details for notification
+				const [ordRow] = await ctx.db
+					.select({
+						id: orders.id,
+						customerName: customers.name,
+						branch_id: orders.branch_id,
+					})
 					.from(orders)
+					.leftJoin(customers, eq(orders.customer_id, customers.id))
 					.where(eq(orders.id, validOrderId))
 					.limit(1);
 
-				if (!existingOrder) {
-					const [inputOrder] = await ctx.db
-						.select({ id: orders.id })
-						.from(orders)
-						.where(eq(orders.id, input.order_id))
+				const custName = ordRow?.customerName || "Customer";
+				const branch = ordRow?.branch_id || ctx.user?.branchId || 1;
+
+				// Check for existing package
+				let finalPackage = null;
+				if (input.pick_list_id) {
+					const [existingPkg] = await ctx.db
+						.select()
+						.from(packages)
+						.where(
+							or(
+								eq(packages.pick_list_id, input.pick_list_id),
+								eq(packages.order_id, validOrderId),
+							),
+						)
 						.limit(1);
 
-					if (inputOrder) {
-						validOrderId = inputOrder.id;
-					} else {
-						// Create placeholder order if missing from DB to satisfy FK
-						try {
-							const [createdOrder] = await ctx.db
-								.insert(orders)
-								.values({
-									id: validOrderId,
-									total_amount: "0.00",
-									user_uid: ctx.user?.id || "system",
-									status: "ready_for_dispatch",
-								})
-								.onConflictDoNothing()
-								.returning();
-
-							if (createdOrder) {
-								validOrderId = createdOrder.id;
-							} else {
-								const [anyOrder] = await ctx.db
-									.select({ id: orders.id })
-									.from(orders)
-									.limit(1);
-								if (anyOrder) validOrderId = anyOrder.id;
-							}
-						} catch (e) {
-							const [anyOrder] = await ctx.db
-								.select({ id: orders.id })
-								.from(orders)
-								.limit(1);
-							if (anyOrder) validOrderId = anyOrder.id;
-						}
+					if (existingPkg) {
+						const [updated] = await ctx.db
+							.update(packages)
+							.set({
+								status: "packed",
+								packed_by: packerId,
+								packed_at: new Date(),
+								weight: input.weight ? input.weight.toString() : null,
+								dimensions: input.dimensions || null,
+							})
+							.where(eq(packages.id, existingPkg.id))
+							.returning();
+						finalPackage = updated;
 					}
 				}
 
-				// Check for an existing package row (created on pick completion)
-				const [existingPkg] = await ctx.db
-					.select()
-					.from(packages)
-					.where(eq(packages.pick_list_id, input.pick_list_id))
-					.limit(1);
-
-				let finalPackage;
-				if (existingPkg) {
-					const [updated] = await ctx.db
-						.update(packages)
-						.set({
-							status: "packed",
-							packed_by: packerId,
-							packed_at: new Date(),
-							weight: input.weight ? input.weight.toString() : null,
-							dimensions: input.dimensions || null,
-						})
-						.where(eq(packages.id, existingPkg.id))
-						.returning();
-					finalPackage = updated;
-				} else {
+				if (!finalPackage) {
 					const packageNumber = `PKG-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
 					const [newPackage] = await ctx.db
 						.insert(packages)
 						.values({
 							order_id: validOrderId,
-							pick_list_id: input.pick_list_id,
+							pick_list_id: input.pick_list_id || null,
 							package_number: packageNumber,
 							status: "packed",
 							packed_by: packerId,
@@ -385,17 +458,41 @@ export const packerRouter = router({
 					finalPackage = newPackage;
 				}
 
-				// Update pick list status to completed
-				await ctx.db
-					.update(pickLists)
-					.set({ status: "completed" })
-					.where(eq(pickLists.id, input.pick_list_id));
+				// Update pick list if applicable
+				if (input.pick_list_id) {
+					await ctx.db
+						.update(pickLists)
+						.set({ status: "completed", completed_at: new Date() })
+						.where(eq(pickLists.id, input.pick_list_id));
+				}
 
-				// Update parent order status
+				// Update parent order status to "packed"
 				await ctx.db
 					.update(orders)
-					.set({ status: "ready_for_dispatch" })
+					.set({ status: "packed" })
 					.where(eq(orders.id, validOrderId));
+
+				// Trigger In-App Notification for Manager
+				try {
+					await dispatchNotification({
+						type: "info",
+						priority: "high",
+						title: `📦 Order ORD-${validOrderId} Packed`,
+						message: `Order ORD-${validOrderId} (${custName}) has been packed by ${packerName}. Ready for final manager dispatch to driver.`,
+						branchId: branch,
+						channels: ["in_app"],
+						referenceType: "orders",
+						referenceId: validOrderId,
+						metadata: {
+							order_id: validOrderId,
+							customer_name: custName,
+							packer_name: packerName,
+							package_number: finalPackage?.package_number,
+						},
+					});
+				} catch (notifErr) {
+					console.warn("[packOrder] Manager notification failed:", notifErr);
+				}
 
 				return {
 					success: true,

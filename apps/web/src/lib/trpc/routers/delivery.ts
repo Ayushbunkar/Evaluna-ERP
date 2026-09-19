@@ -22,6 +22,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { dispatchNotification } from "@/lib/notification-service";
 import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const deliveryRouter = router({
@@ -400,7 +401,7 @@ ERROR TABLE: ${err.table}
 				status: z.enum(["pending", "active", "completed", "cancelled"]),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ input, ctx }) => {
 			await db
 				.update(deliveryTrips)
 				.set({
@@ -409,6 +410,86 @@ ERROR TABLE: ${err.table}
 					...(input.status === "completed" ? { end_time: new Date() } : {}),
 				})
 				.where(eq(deliveryTrips.id, input.tripId));
+
+			// Fetch trip details to sync associated orders and notify stakeholders
+			try {
+				const trip = await db.query.deliveryTrips.findFirst({
+					where: eq(deliveryTrips.id, input.tripId),
+					with: {
+						stops: { with: { customer: true } },
+						driver: true,
+						vehicle: true,
+						route: true,
+					},
+				});
+
+				if (trip) {
+					const custIds = (trip.stops || [])
+						.map((s) => s.customer_id)
+						.filter(Boolean) as number[];
+
+					if (input.status === "active" && custIds.length > 0) {
+						// Transition associated orders to out_for_delivery
+						await db
+							.update(orders)
+							.set({ status: "out_for_delivery" })
+							.where(
+								and(
+									inArray(orders.customer_id, custIds),
+									inArray(orders.status, [
+										"packed",
+										"ready_for_dispatch",
+										"processing",
+										"confirmed",
+									]),
+								),
+							);
+
+						// Notify Driver and Manager
+						await dispatchNotification({
+							type: "info",
+							priority: "high",
+							title: `🚚 Trip #${input.tripId} Dispatched`,
+							message: `Delivery Trip #${input.tripId} (${trip.route?.name || "Route"}) with ${custIds.length} stop(s) is now Out for Delivery with driver ${trip.driver?.name || "assigned driver"}.`,
+							branchId: (ctx.user?.branchId as number) || 1,
+							channels: ["in_app"],
+							referenceType: "trips",
+							referenceId: input.tripId,
+							metadata: {
+								trip_id: input.tripId,
+								driver_id: trip.driver_id,
+								driver_name: trip.driver?.name,
+								stops_count: custIds.length,
+							},
+						});
+					} else if (input.status === "completed" && custIds.length > 0) {
+						// Transition remaining orders to delivered if not already
+						await db
+							.update(orders)
+							.set({ status: "delivered" })
+							.where(
+								and(
+									inArray(orders.customer_id, custIds),
+									inArray(orders.status, ["out_for_delivery", "packed"]),
+								),
+							);
+
+						await dispatchNotification({
+							type: "info",
+							priority: "normal",
+							title: `✅ Trip #${input.tripId} Completed`,
+							message: `Driver ${trip.driver?.name || "Driver"} has completed all deliveries for Trip #${input.tripId}.`,
+							branchId: (ctx.user?.branchId as number) || 1,
+							channels: ["in_app"],
+							referenceType: "trips",
+							referenceId: input.tripId,
+						});
+					}
+				}
+			} catch (syncErr) {
+				console.warn("[updateTripStatus] Order status sync or notification warning:", syncErr);
+			}
+
 			return { success: true };
 		}),
 
