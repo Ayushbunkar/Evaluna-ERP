@@ -318,11 +318,10 @@ function POSContent() {
 		setCart((prev) => {
 			const existing = prev.find((item) => item.id === product.id);
 			if (existing) {
-				return prev.map((item) =>
-					item.id === product.id ? { ...item, qty: item.qty + qty } : item,
-				);
+				const updatedItem = { ...existing, qty: existing.qty + qty };
+				return [updatedItem, ...prev.filter((item) => item.id !== product.id)];
 			}
-			return [...prev, { ...product, qty: qty }];
+			return [{ ...product, qty: qty }, ...prev];
 		});
 	}, []);
 

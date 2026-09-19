@@ -53,18 +53,27 @@ export default function BillerPOSPage() {
 		}>,
 	) => {
 		setCart((prev) => {
-			const newCart = [...prev];
+			let newCart = [...prev];
 			items.forEach((item) => {
-				const existingItem = newCart.find((i) => i.id === item.id);
-				if (existingItem) {
-					existingItem.cartQuantity += item.quantity;
+				const existingItemIndex = newCart.findIndex((i) => i.id === item.id);
+				if (existingItemIndex > -1) {
+					const existingItem = newCart[existingItemIndex];
+					const updatedItem = {
+						...existingItem,
+						cartQuantity: existingItem.cartQuantity + item.quantity,
+					};
+					newCart.splice(existingItemIndex, 1);
+					newCart = [updatedItem, ...newCart];
 				} else {
-					newCart.push({
-						id: item.id,
-						name: item.name,
-						price: item.price,
-						cartQuantity: item.quantity,
-					});
+					newCart = [
+						{
+							id: item.id,
+							name: item.name,
+							price: item.price,
+							cartQuantity: item.quantity,
+						},
+						...newCart,
+					];
 				}
 			});
 			return newCart;
