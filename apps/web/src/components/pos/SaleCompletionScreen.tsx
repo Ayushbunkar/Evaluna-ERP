@@ -36,7 +36,9 @@ interface CompletedOrder {
 	createdAt: string;
 	items: Array<{
 		id: number;
-		name: string;
+		name?: string;
+		productName?: string;
+		product?: { name?: string };
 		qty: number;
 		price: string;
 	}>;
@@ -52,6 +54,15 @@ interface CompletedOrder {
 	village?: string;
 	couponCode?: string;
 }
+
+const getItemName = (item: any): string => {
+	return (
+		item?.name ||
+		item?.productName ||
+		item?.product?.name ||
+		(item?.id ? `Item #${item.id}` : "Product")
+	);
+};
 
 interface SaleCompletionScreenProps {
 	order: CompletedOrder;
@@ -753,7 +764,7 @@ export function SaleCompletionScreen({
 										</Text>
 									) : null}
 									<View style={styles.colItem}>
-										<Text style={styles.tdText}>{item.name}</Text>
+										<Text style={styles.tdText}>{getItemName(item)}</Text>
 									</View>
 									{isA4 ? (
 										<Text
@@ -1445,7 +1456,7 @@ export function SaleCompletionScreen({
 																		{idx + 1}
 																	</td>
 																	<td className="px-4 py-2.5 font-medium text-slate-800 print:text-black">
-																		{item.name}
+																		{getItemName(item)}
 																	</td>
 																	<td className="px-4 py-2.5 font-mono text-[10px] text-slate-500 print:text-slate-800">
 																		SKU-{item.id}
@@ -1601,7 +1612,7 @@ export function SaleCompletionScreen({
 															>
 																<td className="py-2">
 																	<div className="font-bold leading-tight">
-																		{item.name}
+																		{getItemName(item)}
 																	</div>
 																	<div className="mt-0.5 pl-1 text-[10px] text-slate-600">
 																		{Number.isInteger(item.qty)

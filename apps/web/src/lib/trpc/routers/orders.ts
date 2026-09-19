@@ -832,6 +832,7 @@ export const ordersRouter = router({
 				items: (order.orderItems ?? []).map((it) => ({
 					id: it.id,
 					productId: it.product_id,
+					name: it.product?.name ?? "Unknown",
 					productName: it.product?.name ?? "Unknown",
 					sku: it.product?.sku ?? "—",
 					unit: it.product?.unit ?? "pcs",

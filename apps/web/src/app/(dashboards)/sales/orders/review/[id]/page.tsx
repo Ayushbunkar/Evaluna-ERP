@@ -97,15 +97,15 @@ export default function CustomerOrderReviewPage() {
 	useEffect(() => {
 		if (order && !seeded.current) {
 			setLines(
-				order.items.map((it) => ({
+				order.items.map((it: any) => ({
 					productId: it.productId as number,
-					name: it.name,
+					name: it.name || it.productName || it.product?.name || "Product",
 					unit: it.unit,
 					quantity: it.quantity,
 					price:
 						Number(it.price) > 0
 							? Number(it.price)
-							: Number(it.suggestedPrice ?? 0),
+							: Number(it.suggestedPrice ?? it.catalogPrice ?? 0),
 				})),
 			);
 			setDiscount(Number(order.discountAmount ?? 0));
@@ -211,9 +211,10 @@ export default function CustomerOrderReviewPage() {
 				subtotal: sub,
 				discount: discount,
 				total: tot,
-				items: lines.map((l) => ({
+				items: lines.map((l: any) => ({
 					id: l.productId,
-					name: l.name,
+					name: l.name || l.productName || "Product",
+					productName: l.name || l.productName || "Product",
 					qty: l.quantity,
 					price: l.price.toString(),
 				})),
