@@ -1,13 +1,14 @@
 import {
 	branches,
 	branchInventory,
+	dailyProductDiscounts,
 	productBarcodes,
 	productBatches,
 	productConversions,
 	products,
 	stockAdjustments,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq, lte, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, lte, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { stockLedger } from "@/lib/db/schema";
 import {
@@ -44,56 +45,158 @@ export const inventoryRouter = router({
 
 	list: publicProcedure
 		.input(
-			z.object({
-				search: z.string().optional(),
-				limit: z.number().optional(),
-				offset: z.number().optional(),
-			}),
+			z
+				.object({
+					search: z.string().optional(),
+					category: z.string().optional(),
+					status: z.string().optional(),
+					branchId: z.number().optional(),
+					limit: z.number().optional(),
+					offset: z.number().optional(),
+				})
+				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const { limit, offset } = input || {};
+			const { limit, offset, search, category, status, branchId } = input || {};
 			const db = ctx.db;
+			const targetBranchId = branchId || ctx.user?.branchId || 1;
+			const todayStr = new Date().toISOString().split("T")[0];
 
-			const data = await db
+			const conditions: any[] = [eq(products.is_deleted, false)];
+			if (search?.trim()) {
+				const term = `%${search.trim().toLowerCase()}%`;
+				conditions.push(
+					or(
+						ilike(products.name, term),
+						ilike(products.sku, term),
+						ilike(products.barcode, term),
+						ilike(products.category, term),
+					)!,
+				);
+			}
+			if (category && category !== "all") {
+				conditions.push(eq(products.category, category));
+			}
+
+			// Query all products with aggregated stock for the target branch
+			const productRows = await db
 				.select({
-					id: branchInventory.id,
+					id: products.id,
 					productId: products.id,
 					product: products.name,
 					sku: products.sku,
+					category: products.category,
+					unit: products.unit,
+					barcode: products.barcode,
 					price: products.price,
-					branchId: branchInventory.branch_id,
-					branch: branches.name,
-					qty_on_hand: branchInventory.in_stock,
-					reorder_level: branchInventory.reorder_level,
-					status: sql<string>`
-          CASE
-            WHEN COALESCE(${branchInventory.in_stock}, 0) <= 0 THEN 'out_of_stock'
-            WHEN COALESCE(${branchInventory.in_stock}, 0) <= COALESCE(${branchInventory.reorder_level}, 10) THEN 'low_stock'
-            ELSE 'in_stock'
-          END
-        `,
+					baseSellingPrice: products.base_selling_price,
+					inventoryId: sql<number>`max(${branchInventory.id})`,
+					branchId: sql<number>`coalesce(max(${branchInventory.branch_id}), ${targetBranchId})`,
+					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::int`,
+					reorder_level: sql<number>`coalesce(max(${branchInventory.reorder_level}), 10)::int`,
 				})
 				.from(products)
-				.leftJoin(branchInventory, eq(products.id, branchInventory.product_id))
-				.leftJoin(branches, eq(branchInventory.branch_id, branches.id))
-				.limit(limit || 100)
+				.leftJoin(
+					branchInventory,
+					and(
+						eq(products.id, branchInventory.product_id),
+						eq(branchInventory.branch_id, targetBranchId),
+					),
+				)
+				.where(and(...conditions))
+				.groupBy(
+					products.id,
+					products.name,
+					products.sku,
+					products.category,
+					products.unit,
+					products.barcode,
+					products.price,
+					products.base_selling_price,
+				)
+				.orderBy(asc(products.name))
+				.limit(limit || 1000)
 				.offset(offset || 0);
 
-			const countResult = await db.select({ val: count() }).from(products);
+			// Fetch active daily discount offers for today
+			const activeDiscounts = await db
+				.select()
+				.from(dailyProductDiscounts)
+				.where(
+					and(
+						eq(dailyProductDiscounts.effective_date, todayStr),
+						eq(dailyProductDiscounts.is_active, true),
+					),
+				);
 
-			return {
-				items: data.map((d) => ({
-					...d,
-					id: d.id || d.productId,
+			const discountMap = new Map<number, (typeof activeDiscounts)[0]>();
+			for (const disc of activeDiscounts) {
+				discountMap.set(disc.product_id, disc);
+			}
+
+			// Total matching count
+			const countResult = await db
+				.select({ val: count() })
+				.from(products)
+				.where(and(...conditions));
+
+			const items = productRows.map((d) => {
+				const originalPrice = Number.parseFloat(d.price || "0");
+				const activeDiscount = discountMap.get(d.productId);
+				const hasActiveOffer = !!activeDiscount && activeDiscount.is_active;
+				const offerPrice = hasActiveOffer
+					? Number.parseFloat(activeDiscount.discounted_price || "0")
+					: originalPrice;
+				const discountPercent =
+					hasActiveOffer && originalPrice > 0
+						? Number.parseFloat(
+								activeDiscount.discount_percent ||
+									(
+										((originalPrice - offerPrice) / originalPrice) *
+										100
+									).toFixed(1),
+							)
+						: 0;
+
+				let itemStatus = "in_stock";
+				if ((d.qty_on_hand || 0) <= 0) {
+					itemStatus = "out_of_stock";
+				} else if ((d.qty_on_hand || 0) <= (d.reorder_level || 10)) {
+					itemStatus = "low_stock";
+				}
+
+				return {
+					id: d.inventoryId || d.productId,
 					productId: d.productId,
 					product: d.product || "Unknown",
 					sku: d.sku || "N/A",
-					price: Number.parseFloat((d.price as string) || "0"),
-					branch: d.branch || "Bhopal Main Warehouse",
-					branchId: d.branchId || 1,
+					category: d.category || "General",
+					unit: d.unit || "Pcs",
+					barcode: d.barcode || "",
+					price: originalPrice,
+					currentPrice: hasActiveOffer ? offerPrice : originalPrice,
+					hasActiveOffer,
+					offerPrice,
+					discountPercent,
+					offerReason: activeDiscount?.reason || null,
+					branch: "Bhopal Main Warehouse",
+					branchId: d.branchId || targetBranchId,
 					qty_on_hand: d.qty_on_hand ?? 0,
-					status: d.status || "in_stock",
-				})),
+					reorder_level: d.reorder_level ?? 10,
+					status: itemStatus,
+				};
+			});
+
+			const filteredItems =
+				status && status !== "all"
+					? items.filter((i) => {
+							if (status === "on_offer") return i.hasActiveOffer;
+							return i.status === status;
+						})
+					: items;
+
+			return {
+				items: filteredItems,
 				total: Number(countResult[0]?.val) || 0,
 			};
 		}),

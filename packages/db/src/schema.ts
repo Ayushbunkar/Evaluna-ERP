@@ -323,6 +323,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 		fields: [orders.coupon_id],
 		references: [coupons.id],
 	}),
+	orderAudits: many(orderAudits),
 }));
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({

@@ -1,7 +1,9 @@
-import { branches, orders } from "@evaluna/db/schema";
+import { branches, orders, staff, transactions, user } from "@evaluna/db/schema";
 import {
 	deliveryTrips,
+	driverSupportTickets,
 	tripCollections,
+	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
@@ -96,8 +98,8 @@ type VehicleStatus = {
 };
 
 async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericStaffIds: number[] }> {
-	const user = ctx.user;
-	if (!user) return { ids: [], numericStaffIds: [] };
+	const currentUser = ctx.user;
+	if (!currentUser) return { ids: [], numericStaffIds: [] };
 
 	const ids = new Set<string>();
 	const numericStaffIds = new Set<number>();
@@ -113,87 +115,99 @@ async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericS
 		}
 	};
 
-	addSafe(user.id);
-	addSafe(user.userId);
-	addSafe(user.email);
-	addSafe(user.name);
-	addSafe(user.staffId);
+	addSafe(currentUser.id);
+	addSafe(currentUser.userId);
+	addSafe(currentUser.email);
+	addSafe(currentUser.name);
+	addSafe(currentUser.staffId);
 
-	if (user.staff) {
-		addSafe(user.staff.id);
-		addSafe(user.staff.staff_code);
-		addSafe(user.staff.staffCode);
-		addSafe(user.staff.name);
-		addSafe(user.staff.email);
+	if (currentUser.staff) {
+		addSafe(currentUser.staff.id);
+		addSafe(currentUser.staff.staff_code);
+		addSafe(currentUser.staff.staffCode);
+		addSafe(currentUser.staff.name);
+		addSafe(currentUser.staff.email);
 	}
 
 	try {
-		const { staff: staffTable, user: userTable } = require("@evaluna/db/schema");
-
+		// 1. Direct query on staff table for linked driver profile
 		const staffConditions = [];
-		if (user.email) {
+		if (currentUser.email) {
 			staffConditions.push(
-				sql`LOWER(TRIM(${staffTable.email})) = LOWER(TRIM(${user.email}))`,
+				sql`LOWER(TRIM(${staff.email})) = LOWER(TRIM(${currentUser.email}))`,
 			);
 		}
-		if (user.name) {
+		if (currentUser.name) {
 			staffConditions.push(
-				sql`LOWER(TRIM(${staffTable.name})) = LOWER(TRIM(${user.name}))`,
+				sql`LOWER(TRIM(${staff.name})) = LOWER(TRIM(${currentUser.name}))`,
 			);
 			staffConditions.push(
-				sql`LOWER(${staffTable.name}) LIKE LOWER(${`%${user.name.trim()}%`})`,
+				sql`LOWER(${staff.name}) LIKE LOWER(${`%${currentUser.name.trim()}%`})`,
 			);
 		}
-		if (user.staffId) {
-			staffConditions.push(eq(staffTable.id, Number(user.staffId)));
+		if (currentUser.staffId && !isNaN(Number(currentUser.staffId))) {
+			staffConditions.push(eq(staff.id, Number(currentUser.staffId)));
 		}
-		if (user.staff?.id) {
-			staffConditions.push(eq(staffTable.id, Number(user.staff.id)));
+		if (currentUser.staff?.id && !isNaN(Number(currentUser.staff.id))) {
+			staffConditions.push(eq(staff.id, Number(currentUser.staff.id)));
+		}
+		if (currentUser.id && !isNaN(Number(currentUser.id))) {
+			staffConditions.push(eq(staff.id, Number(currentUser.id)));
 		}
 
 		if (staffConditions.length > 0) {
-			const staffList = await db.query.staff?.findMany({
-				where: or(...staffConditions),
-			});
-			if (staffList && staffList.length > 0) {
-				for (const s of staffList) {
-					addSafe(s.id);
-					addSafe(s.staff_code);
-					addSafe(s.email);
-					addSafe(s.name);
-				}
+			const staffList = await db
+				.select({
+					id: staff.id,
+					staff_code: staff.staff_code,
+					name: staff.name,
+					email: staff.email,
+				})
+				.from(staff)
+				.where(or(...staffConditions));
+
+			for (const s of staffList) {
+				addSafe(s.id);
+				addSafe(s.staff_code);
+				addSafe(s.email);
+				addSafe(s.name);
 			}
 		}
 
+		// 2. Direct query on user table for aliases
 		const userConditions = [];
-		if (user.id) {
-			userConditions.push(eq(userTable.id, user.id));
+		if (currentUser.id) {
+			userConditions.push(eq(user.id, currentUser.id));
 		}
-		if (user.email) {
+		if (currentUser.email) {
 			userConditions.push(
-				sql`LOWER(TRIM(${userTable.email})) = LOWER(TRIM(${user.email}))`,
+				sql`LOWER(TRIM(${user.email})) = LOWER(TRIM(${currentUser.email}))`,
 			);
 		}
-		if (user.name) {
+		if (currentUser.name) {
 			userConditions.push(
-				sql`LOWER(TRIM(${userTable.name})) = LOWER(TRIM(${user.name}))`,
+				sql`LOWER(TRIM(${user.name})) = LOWER(TRIM(${currentUser.name}))`,
 			);
 		}
 
 		if (userConditions.length > 0) {
-			const usersList = await db.query.user?.findMany({
-				where: or(...userConditions),
-			});
-			if (usersList && usersList.length > 0) {
-				for (const u of usersList) {
-					addSafe(u.id);
-					addSafe(u.email);
-					addSafe(u.name);
-				}
+			const usersList = await db
+				.select({
+					id: user.id,
+					name: user.name,
+					email: user.email,
+				})
+				.from(user)
+				.where(or(...userConditions));
+
+			for (const u of usersList) {
+				addSafe(u.id);
+				addSafe(u.email);
+				addSafe(u.name);
 			}
 		}
 	} catch (e) {
-		console.warn("[getDriverIdentifiers] lookup fallback:", e);
+		console.warn("[getDriverIdentifiers] lookup error:", e);
 	}
 
 	return {
@@ -257,14 +271,16 @@ export const driverRouter = router({
 									where: and(
 										or(...assignedOrdersConditions),
 										inArray(orders.status, [
+											"pending",
+											"pending_review",
+											"confirmed",
+											"processing",
+											"packed",
 											"ready_for_dispatch",
 											"out_for_delivery",
 											"dispatched",
 											"assigned",
 											"in_transit",
-											"packed",
-											"processing",
-											"confirmed",
 										]),
 									),
 									orderBy: [desc(orders.created_at)],
@@ -456,8 +472,13 @@ export const driverRouter = router({
 											? inArray(orders.driver_id, numericStaffIds)
 											: undefined,
 										inArray(orders.status, [
+											"pending",
+											"pending_review",
 											"ready_for_dispatch",
 											"out_for_delivery",
+											"dispatched",
+											"assigned",
+											"in_transit",
 											"packed",
 											"processing",
 											"confirmed",
@@ -718,7 +739,6 @@ export const driverRouter = router({
 		)
 		.mutation(async ({ input, ctx }) => {
 			try {
-				const { driverSupportTickets } = require("@evaluna/db/schema");
 				await db.insert(driverSupportTickets).values({
 					driver_id: ctx.user?.id || "driver-1",
 					title: input.title,
@@ -851,6 +871,8 @@ export const driverRouter = router({
 								where: and(
 									or(...assignedOrdersConditions),
 									inArray(orders.status, [
+										"pending",
+										"pending_review",
 										"ready_for_dispatch",
 										"out_for_delivery",
 										"dispatched",
@@ -946,6 +968,8 @@ export const driverRouter = router({
 										? inArray(orders.driver_id, numericStaffIds)
 										: undefined,
 									inArray(orders.status, [
+										"pending",
+										"pending_review",
 										"ready_for_dispatch",
 										"out_for_delivery",
 										"dispatched",
@@ -1184,7 +1208,6 @@ export const driverRouter = router({
 		)
 		.mutation(async ({ input, ctx }) => {
 			try {
-				const { tripStops } = require("@evaluna/db/schema");
 				await db
 					.update(tripStops)
 					.set({
@@ -1203,7 +1226,6 @@ export const driverRouter = router({
 		.input(z.object({ trip_id: z.number() }))
 		.mutation(async ({ input, ctx }) => {
 			try {
-				const { deliveryTrips } = require("@evaluna/db/schema");
 				await db
 					.update(deliveryTrips)
 					.set({
@@ -1239,12 +1261,6 @@ export const driverRouter = router({
 		)
 		.mutation(async ({ input, ctx }) => {
 			try {
-				const {
-					tripStops,
-					tripCollections,
-					deliveryTrips,
-				} = require("@evaluna/db/schema");
-
 				let targetTripId: number | null = null;
 
 				// Try to find the stop's actual trip ID
@@ -1415,7 +1431,6 @@ export const driverRouter = router({
 
 	getSupportTickets: protectedProcedure.query(async ({ ctx }) => {
 		try {
-			const { driverSupportTickets } = require("@evaluna/db/schema");
 			const tickets = await db.query.driverSupportTickets.findMany({
 				orderBy: [desc(driverSupportTickets.created_at)],
 			});

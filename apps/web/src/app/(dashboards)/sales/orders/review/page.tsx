@@ -151,14 +151,24 @@ export default function CustomerOrderInboxPage() {
 
 	return (
 		<div className="space-y-6">
-			<div>
-				<h1 className="font-bold text-2xl tracking-tight">
-					Customer Orders Queue
-				</h1>
-				<p className="text-muted-foreground text-sm">
-					Incoming portal orders awaiting staff phone review and price
-					confirmation.
-				</p>
+			<div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+				<div>
+					<h1 className="font-bold text-2xl tracking-tight">
+						Customer Orders Queue
+					</h1>
+					<p className="text-muted-foreground text-sm">
+						Incoming portal orders awaiting staff phone review and price
+						confirmation.
+					</p>
+				</div>
+				<div className="flex items-center gap-2">
+					<Button variant="outline" size="sm" asChild className="gap-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/40">
+						<Link href="/sales/orders/cancelled">
+							<XCircleIcon className="h-4 w-4 text-rose-500" />
+							Cancelled Orders Archive
+						</Link>
+					</Button>
+				</div>
 			</div>
 
 			{/* Queue Metrics */}

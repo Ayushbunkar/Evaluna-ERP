@@ -1501,6 +1501,14 @@ export const ordersRouter = router({
 						locked: true,
 					})
 					.where(eq(orders.id, input.id));
+
+				// If there is any associated pick list, mark it as cancelled
+				await tx
+					.update(pickLists)
+					.set({
+						status: "cancelled",
+					})
+					.where(eq(pickLists.order_id, input.id));
 			});
 
 			return { success: true, orderId: input.id };
@@ -1527,7 +1535,12 @@ export const ordersRouter = router({
 
 			const rows = await db.query.orders.findMany({
 				where: and(
-					eq(orders.status, "cancelled"),
+					or(
+						eq(orders.status, "cancelled"),
+						eq(orders.status, "canceled"),
+						sql`LOWER(${orders.status}) = 'cancelled'`,
+						sql`LOWER(${orders.status}) = 'canceled'`,
+					),
 					branchId
 						? or(eq(orders.branch_id, branchId), sql`${orders.branch_id} IS NULL`)
 						: undefined,
@@ -1563,9 +1576,13 @@ export const ordersRouter = router({
 					);
 				})
 				.map((o) => {
-					const cancelAudit = o.orderAudits?.find(
-						(a: any) => a.action === "cancel" || a.action === "cancelled",
-					);
+					const cancelAudit =
+						o.orderAudits?.find(
+							(a: any) =>
+								a.action === "cancel" ||
+								a.action === "cancelled" ||
+								(a.reason && a.reason.toLowerCase().includes("cancel")),
+						) || o.orderAudits?.[0];
 
 					return {
 						id: o.id,

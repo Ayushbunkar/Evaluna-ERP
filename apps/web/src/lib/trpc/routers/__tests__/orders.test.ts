@@ -31,6 +31,7 @@ let paymentMethodId: number;
 const ORDERS_DDL = buildDDL(
 	[
 		schema.branches,
+		schema.staff,
 		schema.customers,
 		schema.products,
 		schema.paymentMethods,
@@ -313,5 +314,34 @@ describe("orders.listPendingReview and getPendingCount", () => {
 
 		const count = await salesCaller.getPendingCount();
 		expect(count).toBeGreaterThanOrEqual(1);
+	});
+});
+
+describe("orders.cancelOrder and listCancelledOrders", () => {
+	it("cancels an order with reason and returns it in listCancelledOrders with audit details", async () => {
+		const order = await caller.create({
+			customerId,
+			paymentMethodId,
+			products: [{ id: productId, quantity: 2, price: 250 }],
+			total: 500,
+		});
+
+		const salesCaller = callerAs("sales-user-1", "sales_person");
+		const cancelRes = await salesCaller.cancelOrder({
+			id: order.id,
+			reason: "Customer changed mind",
+			notes: "Refused at confirmation call",
+		});
+		expect(cancelRes.success).toBe(true);
+
+		const cancelledList = await salesCaller.listCancelledOrders();
+		expect(cancelledList.length).toBeGreaterThanOrEqual(1);
+		const found = cancelledList.find((o) => o.id === order.id);
+		expect(found).toBeDefined();
+		expect(found?.status).toBe("cancelled");
+		expect(found?.totalAmount).toBe(500);
+		expect(found?.cancelReason).toContain("Customer changed mind");
+		expect(found?.items.length).toBe(1);
+		expect(found?.customer?.name).toBe("Test Customer");
 	});
 });

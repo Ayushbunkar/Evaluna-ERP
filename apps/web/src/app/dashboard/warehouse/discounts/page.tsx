@@ -35,11 +35,16 @@ import {
 	CalendarDaysIcon,
 	CalendarIcon,
 	CheckCircle2Icon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
+	ChevronsLeftIcon,
+	ChevronsRightIcon,
 	ClockIcon,
 	Edit3Icon,
 	FilterIcon,
 	IndianRupeeIcon,
 	InfoIcon,
+	LayersIcon,
 	Loader2Icon,
 	PackageCheckIcon,
 	PencilIcon,
@@ -54,6 +59,7 @@ import {
 	TrendingDownIcon,
 	XCircleIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useLocale } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -83,7 +89,10 @@ export default function WarehouseDiscountsPage() {
 	// State
 	const [selectedDate, setSelectedDate] = useState<string>(todayDateStr);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedCategory, setSelectedCategory] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<"all" | "active" | "no_offer">("all");
+	const [currentPage, setCurrentPage] = useState<number>(1);
+	const pageSize = 50;
 
 	// Discount Modal State
 	const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -106,12 +115,25 @@ export default function WarehouseDiscountsPage() {
 	} = trpc.discounts.listDailyOffers.useQuery({
 		date: selectedDate,
 		search: searchQuery || undefined,
+		category: selectedCategory !== "all" ? selectedCategory : undefined,
 	});
 
 	const { data: stats, refetch: refetchStats } =
 		trpc.discounts.getDailyOfferStats.useQuery({
 			date: selectedDate,
 		});
+
+	// Extract unique categories
+	const categories = useMemo(() => {
+		if (!productsData) return [];
+		const cats = new Set<string>();
+		for (const p of productsData) {
+			if (p.category && p.category.trim()) {
+				cats.add(p.category.trim());
+			}
+		}
+		return Array.from(cats).sort();
+	}, [productsData]);
 
 	// Mutations
 	const setOfferMutation = trpc.discounts.setDailyOffer.useMutation({
@@ -224,11 +246,20 @@ export default function WarehouseDiscountsPage() {
 	const filteredProducts = useMemo(() => {
 		if (!productsData) return [];
 		return productsData.filter((p) => {
+			if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
 			if (statusFilter === "active" && !p.hasActiveOffer) return false;
 			if (statusFilter === "no_offer" && p.hasActiveOffer) return false;
 			return true;
 		});
-	}, [productsData, statusFilter]);
+	}, [productsData, selectedCategory, statusFilter]);
+
+	// Pagination
+	const totalItems = filteredProducts.length;
+	const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+	const paginatedProducts = useMemo(() => {
+		const start = (currentPage - 1) * pageSize;
+		return filteredProducts.slice(start, start + pageSize);
+	}, [filteredProducts, currentPage, pageSize]);
 
 	return (
 		<PageTransition className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -248,6 +279,32 @@ export default function WarehouseDiscountsPage() {
 				</div>
 
 				<div className="flex flex-wrap items-center gap-3">
+					{/* Link to Stock Ledger */}
+					<Button
+						variant="outline"
+						size="sm"
+						asChild
+						className="gap-1.5 border-slate-300 text-xs hover:bg-muted"
+					>
+						<Link href="/dashboard/warehouse/stock">
+							<BoxesIcon className="h-4 w-4 text-emerald-600" />
+							<span>Stock Register</span>
+						</Link>
+					</Button>
+
+					{/* Link to POS */}
+					<Button
+						variant="outline"
+						size="sm"
+						asChild
+						className="gap-1.5 border-emerald-300 bg-emerald-50/50 text-emerald-700 text-xs hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+					>
+						<Link href="/sales/pos">
+							<SparklesIcon className="h-4 w-4 text-emerald-600" />
+							<span>Sales POS</span>
+						</Link>
+					</Button>
+
 					{/* Date Selector / Calendar Header */}
 					<div className="flex items-center gap-2 rounded-lg border bg-card p-1.5 shadow-sm">
 						<CalendarIcon className="h-4 w-4 text-rose-500" />
@@ -258,7 +315,10 @@ export default function WarehouseDiscountsPage() {
 							id="targetDate"
 							type="date"
 							value={selectedDate}
-							onChange={(e) => setSelectedDate(e.target.value)}
+							onChange={(e) => {
+								setSelectedDate(e.target.value);
+								setCurrentPage(1);
+							}}
 							className="h-8 w-36 border-0 bg-transparent p-0 font-bold font-mono text-sm focus-visible:ring-0"
 						/>
 						{selectedDate === todayDateStr && (
@@ -380,30 +440,57 @@ export default function WarehouseDiscountsPage() {
 					<div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
 						<div>
 							<CardTitle className="font-bold text-lg text-foreground">
-								Products & Daily Offers Catalog
+								Products & Daily Offers Catalog ({filteredProducts.length} items)
 							</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">
-								Select any product to set today's offer price or edit existing discount reasons.
+								Showing items {(currentPage - 1) * pageSize + 1} to{" "}
+								{Math.min(currentPage * pageSize, totalItems)} of {totalItems} • Select any product to set today's offer price.
 							</CardDescription>
 						</div>
 
 						<div className="flex flex-wrap items-center gap-2">
+							{/* Category select dropdown */}
+							<div className="flex items-center gap-1.5">
+								<LayersIcon className="h-4 w-4 text-muted-foreground" />
+								<select
+									value={selectedCategory}
+									onChange={(e) => {
+										setSelectedCategory(e.target.value);
+										setCurrentPage(1);
+									}}
+									className="rounded-md border border-input bg-background px-3 py-1.5 font-medium text-foreground text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
+								>
+									<option value="all">All Categories ({productsData?.length || 0})</option>
+									{categories.map((c) => (
+										<option key={c} value={c}>
+											{c} ({productsData?.filter((p) => p.category === c).length || 0})
+										</option>
+									))}
+								</select>
+							</div>
+
 							{/* Filter tabs */}
 							<div className="flex items-center rounded-lg border bg-muted/30 p-1 text-xs">
 								<button
 									type="button"
-									onClick={() => setStatusFilter("all")}
+									onClick={() => {
+										setStatusFilter("all");
+										setCurrentPage(1);
+									}}
 									className={`rounded-md px-3 py-1 font-semibold transition-colors ${
 										statusFilter === "all"
 											? "bg-background text-foreground shadow-sm"
 											: "text-muted-foreground hover:text-foreground"
 									}`}
 								>
-									All Products ({productsData?.length || 0})
+									All ({productsData?.length || 0})
 								</button>
 								<button
 									type="button"
-									onClick={() => setStatusFilter("active")}
+									onClick={() => {
+										setStatusFilter("active");
+										setCurrentPage(1);
+									}}
 									className={`flex items-center gap-1 rounded-md px-3 py-1 font-semibold transition-colors ${
 										statusFilter === "active"
 											? "bg-rose-500 text-white shadow-sm"
@@ -415,7 +502,10 @@ export default function WarehouseDiscountsPage() {
 								</button>
 								<button
 									type="button"
-									onClick={() => setStatusFilter("no_offer")}
+									onClick={() => {
+										setStatusFilter("no_offer");
+										setCurrentPage(1);
+									}}
 									className={`rounded-md px-3 py-1 font-semibold transition-colors ${
 										statusFilter === "no_offer"
 											? "bg-background text-foreground shadow-sm"
@@ -432,7 +522,10 @@ export default function WarehouseDiscountsPage() {
 								<Input
 									placeholder="Search product, SKU or barcode..."
 									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
+									onChange={(e) => {
+										setSearchQuery(e.target.value);
+										setCurrentPage(1);
+									}}
 									className="h-9 pl-9 text-xs"
 								/>
 							</div>
@@ -453,6 +546,7 @@ export default function WarehouseDiscountsPage() {
 							<Table>
 								<TableHeader>
 									<TableRow className="bg-muted/40 hover:bg-muted/40">
+										<TableHead className="w-12 text-xs">#</TableHead>
 										<TableHead className="font-semibold text-xs">Product Details</TableHead>
 										<TableHead className="font-semibold text-xs">SKU / Barcode</TableHead>
 										<TableHead className="font-semibold text-xs">Stock Available</TableHead>
@@ -463,8 +557,13 @@ export default function WarehouseDiscountsPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{filteredProducts.map((p) => (
+									{paginatedProducts.map((p, idx) => {
+										const rowNum = (currentPage - 1) * pageSize + idx + 1;
+										return (
 										<TableRow key={p.id} className="hover:bg-muted/20">
+											<TableCell className="font-mono text-muted-foreground text-xs">
+												{rowNum}
+											</TableCell>
 											<TableCell className="py-3">
 												<div className="font-semibold text-foreground text-sm">
 													{p.name}
@@ -573,12 +672,12 @@ export default function WarehouseDiscountsPage() {
 												</div>
 											</TableCell>
 										</TableRow>
-									))}
+									)})}
 
 									{filteredProducts.length === 0 && (
 										<TableRow>
 											<TableCell
-												colSpan={7}
+												colSpan={8}
 												className="py-12 text-center text-muted-foreground"
 											>
 												<TagIcon className="mx-auto mb-2 h-10 w-10 text-muted-foreground/40" />
@@ -594,6 +693,62 @@ export default function WarehouseDiscountsPage() {
 						</div>
 					)}
 				</CardContent>
+
+				{/* Bottom Pagination Bar */}
+				{filteredProducts.length > 0 && (
+					<div className="flex flex-col items-center justify-between gap-3 border-t p-4 sm:flex-row">
+						<div className="text-muted-foreground text-xs">
+							Showing {(currentPage - 1) * pageSize + 1} to{" "}
+							{Math.min(currentPage * pageSize, totalItems)} of {totalItems}{" "}
+							products
+						</div>
+						<div className="flex items-center gap-1">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setCurrentPage(1)}
+								disabled={currentPage === 1}
+								className="h-8 px-2 text-xs"
+							>
+								<ChevronsLeftIcon className="mr-1 h-3.5 w-3.5" />
+								First
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+								disabled={currentPage === 1}
+								className="h-8 px-2.5 text-xs"
+							>
+								<ChevronLeftIcon className="mr-1 h-3.5 w-3.5" />
+								Prev
+							</Button>
+							<span className="px-3 font-mono font-bold text-xs">
+								Page {currentPage} of {totalPages}
+							</span>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+								disabled={currentPage >= totalPages}
+								className="h-8 px-2.5 text-xs"
+							>
+								Next
+								<ChevronRightIcon className="ml-1 h-3.5 w-3.5" />
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setCurrentPage(totalPages)}
+								disabled={currentPage >= totalPages}
+								className="h-8 px-2 text-xs"
+							>
+								Last
+								<ChevronsRightIcon className="ml-1 h-3.5 w-3.5" />
+							</Button>
+						</div>
+					</div>
+				)}
 			</Card>
 
 			{/* Edit / Set Daily Discount Modal */}

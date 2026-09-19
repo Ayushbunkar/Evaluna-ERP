@@ -109,6 +109,19 @@ export const customerRouter = router({
 	getPortalStats: customerProcedure.query(async ({ ctx }) => {
 		const cid = ctx.customer.id;
 
+		const pendingStatuses = ["pending", "pending_review", "under_review"];
+		const confirmedStatuses = [
+			"confirmed",
+			"billed",
+			"packing",
+			"ready",
+			"ready_for_dispatch",
+			"dispatched",
+			"in_transit",
+			"out_for_delivery",
+		];
+		const completedStatuses = ["completed", "delivered"];
+
 		const [totalRow] = await ctx.db
 			.select({ c: count() })
 			.from(orders)
@@ -120,25 +133,57 @@ export const customerRouter = router({
 			.where(
 				and(
 					eq(orders.customer_id, cid),
-					inArray(orders.status, PENDING_STATUSES),
+					inArray(sql`LOWER(${orders.status})`, pendingStatuses),
+				),
+			);
+
+		const [confirmedRow] = await ctx.db
+			.select({ c: count() })
+			.from(orders)
+			.where(
+				and(
+					eq(orders.customer_id, cid),
+					inArray(sql`LOWER(${orders.status})`, confirmedStatuses),
+				),
+			);
+
+		const [completedRow] = await ctx.db
+			.select({ c: count() })
+			.from(orders)
+			.where(
+				and(
+					eq(orders.customer_id, cid),
+					inArray(sql`LOWER(${orders.status})`, completedStatuses),
 				),
 			);
 
 		const [spentRow] = await ctx.db
 			.select({
-				t: sql<number>`COALESCE(SUM(${orders.total_amount}), 0)`,
+				t: sql<number>`COALESCE(SUM(CAST(${orders.total_amount} AS NUMERIC)), 0)`,
 			})
 			.from(orders)
 			.where(
 				and(
 					eq(orders.customer_id, cid),
-					inArray(orders.status, CONFIRMED_STATUSES),
+					inArray(sql`LOWER(${orders.status})`, [
+						...confirmedStatuses,
+						...completedStatuses,
+					]),
 				),
 			);
 
+		const pendingCount = Number(pendingRow?.c ?? 0);
+		const confirmedCount = Number(confirmedRow?.c ?? 0);
+		const completedCount = Number(completedRow?.c ?? 0);
+		const activeCount = pendingCount + confirmedCount;
+		const totalCount = Number(totalRow?.c ?? 0);
+
 		return {
-			totalOrders: Number(totalRow?.c ?? 0),
-			pendingOrders: Number(pendingRow?.c ?? 0),
+			totalOrders: totalCount,
+			activeOrders: activeCount,
+			pendingOrders: pendingCount,
+			confirmedOrders: confirmedCount,
+			completedOrders: completedCount,
 			totalSpent: Number(spentRow?.t ?? 0),
 			loyaltyPoints: ctx.customer.loyalty_points ?? 0,
 			walletBalance: Number(ctx.customer.store_credit ?? 0),

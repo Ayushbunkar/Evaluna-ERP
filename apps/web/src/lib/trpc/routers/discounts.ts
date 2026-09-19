@@ -20,6 +20,8 @@ export const discountsRouter = router({
 				.object({
 					date: z.string().optional(), // 'YYYY-MM-DD', default today
 					search: z.string().optional(),
+					category: z.string().optional(),
+					status: z.enum(["all", "active", "no_offer"]).optional(),
 					branchId: z.number().optional(),
 				})
 				.optional(),
@@ -28,6 +30,7 @@ export const discountsRouter = router({
 			const targetDate =
 				input?.date || new Date().toISOString().split("T")[0];
 			const search = input?.search?.trim()?.toLowerCase();
+			const category = input?.category;
 			const branchId = input?.branchId || ctx.user?.branchId || 1;
 
 			// Fetch all active products
@@ -39,8 +42,12 @@ export const discountsRouter = router({
 						ilike(products.name, term),
 						ilike(products.sku, term),
 						ilike(products.barcode, term),
+						ilike(products.category, term),
 					)!,
 				);
+			}
+			if (category && category !== "all") {
+				prodConditions.push(eq(products.category, category));
 			}
 
 			const productRows = await db

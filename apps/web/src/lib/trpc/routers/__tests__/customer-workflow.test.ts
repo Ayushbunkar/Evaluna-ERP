@@ -351,4 +351,40 @@ describe("full flow: submit → inbox → price → confirm → invoice", () => 
 			.where(eq(transactions.order_id, orderId));
 		expect(txns.length).toBe(1);
 	});
+
+	it("getPortalStats calculates active, pending, confirmed, and completed orders accurately", async () => {
+		// orderId is confirmed (1 confirmed order)
+		// Let's insert a completed order and a pending order for cust-a
+		await db.insert(orders).values({
+			customer_id: custAId,
+			total_amount: "500.00",
+			user_uid: "cust-a",
+			status: "completed",
+			branch_id: 1,
+		});
+
+		await db.insert(orders).values({
+			customer_id: custAId,
+			total_amount: "300.00",
+			user_uid: "cust-a",
+			status: "pending_review",
+			branch_id: 1,
+		});
+
+		await db.insert(orders).values({
+			customer_id: custAId,
+			total_amount: "200.00",
+			user_uid: "cust-a",
+			status: "out_for_delivery",
+			branch_id: 1,
+		});
+
+		const stats = await customerCaller("cust-a").getPortalStats();
+		expect(stats.pendingOrders).toBeGreaterThanOrEqual(1);
+		expect(stats.confirmedOrders).toBeGreaterThanOrEqual(2); // confirmed + out_for_delivery
+		expect(stats.completedOrders).toBeGreaterThanOrEqual(1);
+		expect(stats.activeOrders).toBe(stats.pendingOrders + stats.confirmedOrders);
+		expect(stats.totalOrders).toBeGreaterThanOrEqual(4);
+		expect(stats.totalSpent).toBeGreaterThanOrEqual(1100 + 500 + 200);
+	});
 });
