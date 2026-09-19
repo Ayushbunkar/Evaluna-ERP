@@ -583,6 +583,36 @@ export const customerRouter = router({
 					});
 				}
 
+				// Deduplication guard — check for rapid identical order submitted within last 15 seconds
+				const fifteenSecondsAgo = new Date(Date.now() - 15 * 1000);
+				const recentOrders = await tx.query.orders.findMany({
+					where: and(
+						eq(orders.customer_id, ctx.customer.id),
+						gte(orders.created_at, fifteenSecondsAgo),
+					),
+					orderBy: [desc(orders.created_at)],
+					with: {
+						orderItems: true,
+					},
+				});
+
+				for (const recent of recentOrders) {
+					if (!recent.orderItems || recent.orderItems.length !== cleanItems.length) continue;
+					const recentItemMap = new Map(
+						recent.orderItems.map((oi: any) => [oi.product_id, oi.quantity]),
+					);
+					const isExactDuplicate = cleanItems.every(
+						(it) => recentItemMap.get(it.productId) === it.quantity,
+					);
+					if (isExactDuplicate) {
+						return {
+							orderId: recent.id,
+							orderRef: `ORD-${recent.id}`,
+							duplicate: true,
+						};
+					}
+				}
+
 				const totalAmount = cleanItems.reduce(
 					(sum, it) => sum + it.price * it.quantity,
 					0,

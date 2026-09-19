@@ -26,6 +26,7 @@ import {
 } from "@evaluna/ui/components/select";
 import {
 	CheckCircle2Icon,
+	Loader2Icon,
 	MinusIcon,
 	PackageIcon,
 	PlusIcon,
@@ -35,7 +36,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -59,6 +60,9 @@ export default function CustomerProductsPage() {
 	const [cart, setCart] = useState<Record<number, CartItem>>({});
 	const [quantities, setQuantities] = useState<Record<number, number>>({});
 	const [reviewOpen, setReviewOpen] = useState(false);
+	const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
+	const submittingRef = useRef(false);
+	const idempotencyKeyRef = useRef<string | null>(null);
 
 	const {
 		data: products,
@@ -175,6 +179,9 @@ export default function CustomerProductsPage() {
 		onSuccess: () => {
 			setCart({});
 			setReviewOpen(false);
+			setIsSubmittingLocal(false);
+			submittingRef.current = false;
+			idempotencyKeyRef.current = null;
 			toast.success(
 				locale === "hi"
 					? "ऑर्डर सफलतापूर्वक सबमिट किया गया!"
@@ -183,6 +190,8 @@ export default function CustomerProductsPage() {
 			router.push("/customer/orders");
 		},
 		onError: (err) => {
+			setIsSubmittingLocal(false);
+			submittingRef.current = false;
 			toast.error(
 				err.message ||
 					(locale === "hi"
@@ -192,7 +201,13 @@ export default function CustomerProductsPage() {
 		},
 	});
 
+	const isSubmitting =
+		isSubmittingLocal ||
+		submitOrderMutation.isPending ||
+		updateProfileMutation.isPending;
+
 	const handleSubmitOrder = async () => {
+		if (submittingRef.current || isSubmitting) return;
 		if (cartItemsList.length === 0) return;
 
 		const cleanPhone = phone.trim();
@@ -215,6 +230,10 @@ export default function CustomerProductsPage() {
 			return;
 		}
 
+		// Immediate synchronous lock
+		submittingRef.current = true;
+		setIsSubmittingLocal(true);
+
 		try {
 			// Save phone & address permanently to profile first
 			await updateProfileMutation.mutateAsync({
@@ -223,9 +242,11 @@ export default function CustomerProductsPage() {
 				address: cleanAddress,
 			});
 
-			// Now submit the order
-			const idempotencyKey = crypto.randomUUID();
-			submitOrderMutation.mutate({
+			// Now submit the order with stable session key
+			const idempotencyKey = idempotencyKeyRef.current || crypto.randomUUID();
+			idempotencyKeyRef.current = idempotencyKey;
+
+			await submitOrderMutation.mutateAsync({
 				idempotencyKey,
 				items: cartItemsList.map((item) => ({
 					productId: item.productId,
@@ -233,6 +254,8 @@ export default function CustomerProductsPage() {
 				})),
 			});
 		} catch (_err) {
+			submittingRef.current = false;
+			setIsSubmittingLocal(false);
 			// handled by mutation onError
 		}
 	};
@@ -711,19 +734,29 @@ export default function CustomerProductsPage() {
 					<DialogFooter className="gap-2 sm:gap-0">
 						<Button
 							variant="outline"
-							onClick={() => setReviewOpen(false)}
-							disabled={submitOrderMutation.isPending}
+							onClick={() => {
+								idempotencyKeyRef.current = null;
+								setReviewOpen(false);
+							}}
+							disabled={isSubmitting}
 						>
 							{t.back}
 						</Button>
 						<Button
-							className="bg-emerald-600 text-white hover:bg-emerald-700"
+							className={`bg-emerald-600 text-white hover:bg-emerald-700 ${
+								isSubmitting ? "pointer-events-none opacity-80" : ""
+							}`}
 							onClick={handleSubmitOrder}
-							disabled={
-								submitOrderMutation.isPending || cartItemsList.length === 0
-							}
+							disabled={isSubmitting || cartItemsList.length === 0}
 						>
-							{submitOrderMutation.isPending ? t.submitting : t.submitBtn}
+							{isSubmitting ? (
+								<>
+									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+									{t.submitting}
+								</>
+							) : (
+								t.submitBtn
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -263,7 +263,8 @@ export default function CustomerOrderReviewPage() {
 	const unpricedCount = lines.filter((l) => l.price <= 0).length;
 	const canConfirm = !locked && lines.length > 0 && unpricedCount === 0;
 
-	const handleSave = () =>
+	const handleSave = () => {
+		if (saveDraft.isPending || confirm.isPending) return;
 		saveDraft.mutate({
 			id,
 			items: lines.map((l) => ({
@@ -273,8 +274,10 @@ export default function CustomerOrderReviewPage() {
 			})),
 			discountAmount: discount,
 		});
+	};
 
-	const handleConfirm = () =>
+	const handleConfirm = () => {
+		if (confirm.isPending || saveDraft.isPending) return;
 		confirm.mutate({
 			id,
 			items: lines.map((l) => ({
@@ -288,6 +291,7 @@ export default function CustomerOrderReviewPage() {
 					? Number(selectedRouteId)
 					: undefined,
 		});
+	};
 
 	return (
 		<div className="space-y-6">
