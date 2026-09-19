@@ -289,7 +289,7 @@ export const driverRouter = router({
 							})
 						: null;
 
-				// If no trip found for exact driver_id, fallback to active dispatched trips
+				// If no trip found for exact driver_id, fallback to recent active or dispatched trip
 				if (!trip || !trip.stops || trip.stops.length === 0) {
 					const fallbackTrip = await db.query.deliveryTrips.findFirst({
 						where: inArray(deliveryTrips.status, [
@@ -297,8 +297,11 @@ export const driverRouter = router({
 							"out_for_delivery",
 							"loaded",
 							"ready_for_loading",
+							"pending",
 							"in_progress",
 							"dispatched",
+							"assigned",
+							"ready_for_dispatch",
 						]),
 						orderBy: [desc(deliveryTrips.created_at)],
 						with: {
