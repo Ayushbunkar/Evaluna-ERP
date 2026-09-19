@@ -1438,55 +1438,69 @@ export function DeliveryManagementDashboard({
 									</DialogHeader>
 									<div className="max-h-[70vh] space-y-4 overflow-y-auto py-2 pr-1">
 										<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-											<div className="space-y-1.5">
+											<div className="space-y-1.5 min-w-0">
 												<Label className="text-xs font-semibold">Select Route *</Label>
 												<Select
 													value={tripRouteId}
 													onValueChange={handleSelectTripRoute}
 												>
-													<SelectTrigger className="h-9 text-xs">
+													<SelectTrigger className="h-9 text-xs w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
 														<SelectValue placeholder="Select Route" />
 													</SelectTrigger>
-													<SelectContent>
+													<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 														{routes.map((r: any) => (
 															<SelectItem key={r.id} value={r.id.toString()}>
-																{r.name}
+																<span className="truncate">{r.name}</span>
 															</SelectItem>
 														))}
 													</SelectContent>
 												</Select>
 											</div>
-											<div className="space-y-1.5">
+											<div className="space-y-1.5 min-w-0">
 												<Label className="text-xs font-semibold">Select Driver *</Label>
 												<Select
 													value={tripDriverId}
 													onValueChange={setTripDriverId}
 												>
-													<SelectTrigger className="h-9 text-xs">
+													<SelectTrigger className="h-9 text-xs w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
 														<SelectValue placeholder="Select Driver" />
 													</SelectTrigger>
-													<SelectContent>
+													<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 														{finalDrivers.map((d: any) => (
-															<SelectItem key={d.id} value={d.id}>
-																👤 {d.name} ({d.email || "Driver"})
+															<SelectItem key={d.id} value={d.id} className="cursor-pointer">
+																<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
+																	<span className="font-medium shrink-0">👤 {d.name}</span>
+																	{d.email && (
+																		<span className="truncate text-xs text-muted-foreground">
+																			({d.email})
+																		</span>
+																	)}
+																</div>
 															</SelectItem>
 														))}
 													</SelectContent>
 												</Select>
 											</div>
-											<div className="space-y-1.5">
+											<div className="space-y-1.5 min-w-0">
 												<Label className="text-xs font-semibold">Select Vehicle *</Label>
 												<Select
 													value={tripVehicleId}
 													onValueChange={setTripVehicleId}
 												>
-													<SelectTrigger className="h-9 text-xs">
+													<SelectTrigger className="h-9 text-xs w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
 														<SelectValue placeholder="Select Vehicle" />
 													</SelectTrigger>
-													<SelectContent>
+													<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 														{vehicles.map((v: any) => (
-															<SelectItem key={v.id} value={v.id.toString()}>
-																🚚 {v.name} ({v.registration_number})
+															<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer">
+																<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
+																	<span className="font-medium shrink-0">🚚 {v.name}</span>
+																	{v.registration_number && (
+																		<span className="truncate text-xs text-muted-foreground">
+																			({v.registration_number})
+																		</span>
+																	)}
+																</div>
 															</SelectItem>
 														))}
 													</SelectContent>
@@ -2231,19 +2245,19 @@ export function DeliveryManagementDashboard({
 
 		{/* Assign Order Route & Driver Modal */}
 		<Dialog open={isOrderAssignOpen} onOpenChange={setIsOrderAssignOpen}>
-			<DialogContent className="max-w-md">
+			<DialogContent className="w-[calc(100vw-2rem)] max-w-lg sm:max-w-md p-4 sm:p-6 overflow-hidden">
 				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<TruckIcon className="h-5 w-5 text-blue-600" />
-						Assign Route & Driver
+					<DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+						<TruckIcon className="h-5 w-5 text-blue-600 shrink-0" />
+						<span className="truncate">Assign Route & Driver</span>
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-xs">
 						{selectedOrderIds.length > 1
 							? `Dispatch ${selectedOrderIds.length} selected orders to a driver & vehicle.`
 							: `Dispatch Order ORD-${assignOrder?.id} (${assignOrder?.customer?.name || "Customer"}) to a driver & vehicle.`}
 					</DialogDescription>
 				</DialogHeader>
-				<div className="space-y-4 py-4">
+				<div className="space-y-4 py-3 min-w-0">
 					{(() => {
 						const ordersToDisplay =
 							selectedOrderIds.length > 0
@@ -2259,8 +2273,8 @@ export function DeliveryManagementDashboard({
 						);
 
 						return (
-							<div className="space-y-2">
-								<div className="flex items-center justify-between rounded-lg bg-blue-50/60 p-2.5 text-xs dark:bg-blue-950/40">
+							<div className="space-y-2 min-w-0">
+								<div className="flex flex-wrap items-center justify-between gap-1.5 rounded-lg bg-blue-50/80 p-2.5 text-xs dark:bg-blue-950/40">
 									<span className="font-semibold text-blue-900 dark:text-blue-200">
 										{ordersToDisplay.length} Order(s) Selected
 									</span>
@@ -2272,14 +2286,14 @@ export function DeliveryManagementDashboard({
 									{ordersToDisplay.map((ord: any, idx: number) => (
 										<div
 											key={ord.id}
-											className="flex items-center justify-between rounded-md border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40"
+											className="flex items-center justify-between gap-2 rounded-md border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40"
 										>
-											<div className="min-w-0 flex-1 pr-2">
+											<div className="min-w-0 flex-1 pr-1">
 												<div className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
-													<span className="font-mono text-[11px] text-blue-600">
+													<span className="font-mono text-[11px] text-blue-600 shrink-0">
 														ORD-{ord.id}
 													</span>
-													<span>•</span>
+													<span className="shrink-0">•</span>
 													<span className="truncate">
 														{ord.customer?.name || "Walk-in Customer"}
 													</span>
@@ -2290,7 +2304,7 @@ export function DeliveryManagementDashboard({
 													</p>
 												)}
 											</div>
-											<span className="shrink-0 font-medium">
+											<span className="shrink-0 font-medium whitespace-nowrap text-right">
 												₹{Number(ord.total_amount || 0).toFixed(2)}
 											</span>
 										</div>
@@ -2300,23 +2314,30 @@ export function DeliveryManagementDashboard({
 						);
 					})()}
 
-					<div className="space-y-2">
+					<div className="space-y-1.5 min-w-0">
 						<Label className="font-medium text-xs">Assign Driver *</Label>
 						<Select value={orderDriverId} onValueChange={setOrderDriverId}>
-							<SelectTrigger>
+							<SelectTrigger className="w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
 								<SelectValue placeholder="Select Driver..." />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 								{finalDrivers.map((d: any) => (
-									<SelectItem key={d.id} value={d.id}>
-										👤 {d.name} ({d.email || "Driver"})
+									<SelectItem key={d.id} value={d.id} className="cursor-pointer">
+										<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
+											<span className="font-medium shrink-0">👤 {d.name}</span>
+											{d.email && (
+												<span className="truncate text-xs text-muted-foreground">
+													({d.email})
+												</span>
+											)}
+										</div>
 									</SelectItem>
 								))}
 							</SelectContent>
 						</Select>
 					</div>
 
-					<div className="space-y-2">
+					<div className="space-y-1.5 min-w-0">
 						<Label className="font-medium text-xs">
 							Assign Vehicle / Truck
 						</Label>
@@ -2324,28 +2345,38 @@ export function DeliveryManagementDashboard({
 							value={orderVehicleId}
 							onValueChange={setOrderVehicleId}
 						>
-							<SelectTrigger>
+							<SelectTrigger className="w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
 								<SelectValue placeholder="Select Vehicle..." />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 								{vehicles.map((v: any) => (
-									<SelectItem key={v.id} value={v.id.toString()}>
-										🚚 {v.name} ({v.registration_number})
+									<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer">
+										<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
+											<span className="font-medium shrink-0">🚚 {v.name}</span>
+											{v.registration_number && (
+												<span className="truncate text-xs text-muted-foreground">
+													({v.registration_number})
+												</span>
+											)}
+										</div>
 									</SelectItem>
 								))}
 							</SelectContent>
 						</Select>
 					</div>
 				</div>
-				<DialogFooter>
+				<DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 sm:justify-end">
 					<Button
+						type="button"
 						variant="outline"
 						onClick={() => setIsOrderAssignOpen(false)}
+						className="w-full sm:w-auto"
 					>
 						Cancel
 					</Button>
 					<Button
-						className="bg-blue-600 text-white hover:bg-blue-700"
+						type="button"
+						className="w-full sm:w-auto bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
 						disabled={createTripDirect.isPending || !orderDriverId}
 						onClick={handleAssignOrderRoute}
 					>
