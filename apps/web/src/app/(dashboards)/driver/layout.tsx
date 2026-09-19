@@ -16,7 +16,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Button } from "@evaluna/ui/components/button";
-import { DriverProfileModal } from "./DriverProfileModal";
+import { DriverProfileModal } from "./driver-profile-modal";
 
 export default function DriverLayout({
 	children,
