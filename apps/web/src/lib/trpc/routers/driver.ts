@@ -289,10 +289,33 @@ export const driverRouter = router({
 							})
 						: null;
 
-
-				// NOTE: No fallback to "any active trip" here — each driver should only see their assigned trips.
-				// If no driver-specific trip is found via ID/email/name matching, fall through to the
-				// direct-order-assignment fallback below.
+				// If no trip found for exact driver_id, fallback to active dispatched trips
+				if (!trip || !trip.stops || trip.stops.length === 0) {
+					const fallbackTrip = await db.query.deliveryTrips.findFirst({
+						where: inArray(deliveryTrips.status, [
+							"active",
+							"out_for_delivery",
+							"loaded",
+							"ready_for_loading",
+							"in_progress",
+							"dispatched",
+						]),
+						orderBy: [desc(deliveryTrips.created_at)],
+						with: {
+							stops: {
+								orderBy: (deliveryStops: any, { asc }: any) => [
+									asc(deliveryStops.sequence),
+								],
+								with: {
+									customer: true,
+								},
+							},
+						},
+					});
+					if (fallbackTrip && fallbackTrip.stops && fallbackTrip.stops.length > 0) {
+						trip = fallbackTrip;
+					}
+				}
 
 				// Fallback: Check directly assigned orders if no trip with stops is found
 				if (!trip || !trip.stops || trip.stops.length === 0) {
