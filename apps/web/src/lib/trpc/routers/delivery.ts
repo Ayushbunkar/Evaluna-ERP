@@ -149,6 +149,7 @@ export const deliveryRouter = router({
 				driverId: z.string(),
 				vehicleId: z.number(),
 				customerIds: z.array(z.number()).optional(),
+				orderIds: z.array(z.number()).optional(),
 				stops: z
 					.array(
 						z.object({
@@ -268,6 +269,57 @@ export const deliveryRouter = router({
 							})),
 						);
 					}
+
+					// 3. Update assigned orders with driver_id
+					let driverStaffId: number | null = null;
+					try {
+						const staffRow = await tx.query.staff.findFirst({
+							where: (s, { eq, or }) =>
+								or(
+									eq(s.email, input.driverId),
+									eq(s.staff_code, input.driverId),
+									eq(s.user_id, input.driverId),
+								),
+						});
+						if (staffRow) {
+							driverStaffId = staffRow.id;
+						} else if (!isNaN(Number(input.driverId))) {
+							driverStaffId = Number(input.driverId);
+						}
+					} catch (e) {
+						if (!isNaN(Number(input.driverId))) {
+							driverStaffId = Number(input.driverId);
+						}
+					}
+
+					if (input.orderIds && input.orderIds.length > 0) {
+						await tx
+							.update(orders)
+							.set({
+								driver_id: driverStaffId,
+								status: "ready_for_dispatch",
+							})
+							.where(inArray(orders.id, input.orderIds));
+					} else if (resolvedStops.length > 0) {
+						const custIds = resolvedStops.map((s) => s.customerId);
+						await tx
+							.update(orders)
+							.set({
+								driver_id: driverStaffId,
+								status: "ready_for_dispatch",
+							})
+							.where(
+								and(
+									inArray(orders.customer_id, custIds),
+									inArray(orders.status, [
+										"confirmed",
+										"processing",
+										"ready_for_dispatch",
+									]),
+								),
+							);
+					}
+
 					return trip;
 				});
 			} catch (err: any) {
@@ -916,6 +968,7 @@ ERROR TABLE: ${err.table}
 			z.object({
 				driverId: z.string(),
 				vehicleId: z.number().optional(),
+				orderIds: z.array(z.number()).optional(),
 				stops: z.array(
 					z.object({
 						customerId: z.number().optional(),
@@ -1030,6 +1083,56 @@ ERROR TABLE: ${err.table}
 								status: "pending",
 							})),
 						);
+					}
+
+					// 5. Update assigned orders with driver_id
+					let driverStaffId: number | null = null;
+					try {
+						const staffRow = await tx.query.staff.findFirst({
+							where: (s, { eq, or }) =>
+								or(
+									eq(s.email, input.driverId),
+									eq(s.staff_code, input.driverId),
+									eq(s.user_id, input.driverId),
+								),
+						});
+						if (staffRow) {
+							driverStaffId = staffRow.id;
+						} else if (!isNaN(Number(input.driverId))) {
+							driverStaffId = Number(input.driverId);
+						}
+					} catch (e) {
+						if (!isNaN(Number(input.driverId))) {
+							driverStaffId = Number(input.driverId);
+						}
+					}
+
+					if (input.orderIds && input.orderIds.length > 0) {
+						await tx
+							.update(orders)
+							.set({
+								driver_id: driverStaffId,
+								status: "ready_for_dispatch",
+							})
+							.where(inArray(orders.id, input.orderIds));
+					} else if (resolvedStops.length > 0) {
+						const custIds = resolvedStops.map((s) => s.customerId);
+						await tx
+							.update(orders)
+							.set({
+								driver_id: driverStaffId,
+								status: "ready_for_dispatch",
+							})
+							.where(
+								and(
+									inArray(orders.customer_id, custIds),
+									inArray(orders.status, [
+										"confirmed",
+										"processing",
+										"ready_for_dispatch",
+									]),
+								),
+							);
 					}
 
 					return trip;

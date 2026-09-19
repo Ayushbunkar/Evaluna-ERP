@@ -92,23 +92,11 @@ export function DeliveryManagementDashboard({
 	const [orderDriverId, setOrderDriverId] = useState("");
 	const [orderVehicleId, setOrderVehicleId] = useState("");
 
-	// Compute set of customer IDs that already have assigned delivery trips
-	const assignedCustomerIds = new Set<number>();
-	for (const trip of trips) {
-		if (trip.status === "pending" || trip.status === "active") {
-			for (const stop of trip.stops || []) {
-				if (stop.customer_id) assignedCustomerIds.add(stop.customer_id);
-				if (stop.customer?.id) assignedCustomerIds.add(stop.customer.id);
-			}
-		}
-	}
-
 	const unassignedOrders = allOrders.filter((order: any) => {
 		if (order.status === "cancelled") return false;
+		if (order.status === "delivered" || order.status === "completed") return false;
 		if (order.status === "pending_review" || order.status === "under_review") return false;
-		const custId = order.customer_id || order.customer?.id;
 		if (order.driver_id) return false;
-		if (custId && assignedCustomerIds.has(custId)) return false;
 		return true;
 	});
 
@@ -764,6 +752,7 @@ export function DeliveryManagementDashboard({
 			driverId: orderDriverId,
 			vehicleId: orderVehicleId ? Number(orderVehicleId) : undefined,
 			stops: customerStops,
+			orderIds: ordersToAssign.map((o: any) => o.id),
 		});
 
 		toast.success(

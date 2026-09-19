@@ -64,13 +64,7 @@ export const managerRouter = router({
 					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS cash_collected,
 					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) NOT LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS online_collected,
 					(SELECT coalesce(count(*), 0)::int FROM trip_collections) AS collections_count,
-					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status IN ('confirmed', 'completed', 'processing', 'ready_for_dispatch', 'pending_review', 'under_review')
-						AND (customer_id IS NULL OR customer_id NOT IN (
-							SELECT ts.customer_id FROM trip_stops ts
-							INNER JOIN delivery_trips dt ON dt.id = ts.trip_id
-							WHERE dt.status IN ('pending', 'active') AND ts.customer_id IS NOT NULL
-						))
-					) AS pending_routes_count
+					(SELECT coalesce(count(*), 0)::int FROM orders WHERE (status IN ('confirmed', 'processing', 'ready_for_dispatch') OR (status = 'completed' AND driver_id IS NULL)) AND driver_id IS NULL) AS pending_routes_count
 			`);
 
 			const totalEmployees = Number(res?.total_employees || 0);

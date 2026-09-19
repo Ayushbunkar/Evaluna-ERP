@@ -18,3 +18,43 @@ ERROR DETAIL: undefined
 ERROR CONSTRAINT: undefined
 ERROR TABLE: undefined
 =========================================
+
+=========================================
+TIMESTAMP: 2026-09-19T07:12:33.423Z
+ERROR MESSAGE: Failed query: update "orders" set "status" = $1, "driver_id" = $2 where ("orders"."customer_id" in ($3, $4) and "orders"."status" in ($5, $6, $7))
+params: ready_for_dispatch,,1,2,confirmed,processing,ready_for_dispatch
+ERROR CODE: undefined
+ERROR DETAIL: undefined
+ERROR CONSTRAINT: undefined
+ERROR TABLE: undefined
+=========================================
+
+=========================================
+TIMESTAMP: 2026-09-19T07:12:33.495Z
+ERROR MESSAGE: Failed query: update "orders" set "status" = $1, "driver_id" = $2 where ("orders"."customer_id" in ($3) and "orders"."status" in ($4, $5, $6))
+params: ready_for_dispatch,,2,confirmed,processing,ready_for_dispatch
+ERROR CODE: undefined
+ERROR DETAIL: undefined
+ERROR CONSTRAINT: undefined
+ERROR TABLE: undefined
+=========================================
+
+=========================================
+TIMESTAMP: 2026-09-19T07:12:33.549Z
+ERROR MESSAGE: Failed query: update "orders" set "status" = $1, "driver_id" = $2 where ("orders"."customer_id" in ($3, $4) and "orders"."status" in ($5, $6, $7))
+params: ready_for_dispatch,,1,4,confirmed,processing,ready_for_dispatch
+ERROR CODE: undefined
+ERROR DETAIL: undefined
+ERROR CONSTRAINT: undefined
+ERROR TABLE: undefined
+=========================================
+
+=========================================
+TIMESTAMP: 2026-09-19T07:12:33.881Z
+ERROR MESSAGE: Failed query: update "orders" set "status" = $1, "driver_id" = $2 where ("orders"."customer_id" in ($3, $4) and "orders"."status" in ($5, $6, $7))
+params: ready_for_dispatch,,1,2,confirmed,processing,ready_for_dispatch
+ERROR CODE: undefined
+ERROR DETAIL: undefined
+ERROR CONSTRAINT: undefined
+ERROR TABLE: undefined
+=========================================
