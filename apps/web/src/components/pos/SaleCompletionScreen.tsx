@@ -1550,6 +1550,11 @@ export function SaleCompletionScreen({
 										<div className="mx-auto w-full max-w-[302px] text-center font-mono text-[11px] text-black leading-tight">
 											{/* Centered Header */}
 											<div className="mb-2 space-y-1">
+												<img
+													src="/logo.jpg"
+													alt={STORE.name}
+													className="invoice-logo mx-auto mb-1 h-10 w-10 shrink-0 rounded object-cover"
+												/>
 												<h2 className="font-bold text-xs uppercase tracking-wide">
 													{STORE.name}
 												</h2>
