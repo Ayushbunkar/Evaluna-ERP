@@ -164,7 +164,7 @@ export const deliveryRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			const database = ctx.db || db;
+			const database = (ctx as any).db || db;
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
 				return await database.transaction(async (tx) => {
@@ -280,7 +280,6 @@ export const deliveryRouter = router({
 									or(
 										eq(s.email, input.driverId),
 										eq(s.staff_code, input.driverId),
-										eq(s.user_id, input.driverId),
 									),
 							});
 							if (staffRow) {
@@ -989,7 +988,7 @@ ERROR TABLE: ${err.table}
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			const database = ctx.db || db;
+			const database = (ctx as any).db || db;
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
 				return await database.transaction(async (tx) => {
@@ -1100,7 +1099,6 @@ ERROR TABLE: ${err.table}
 									or(
 										eq(s.email, input.driverId),
 										eq(s.staff_code, input.driverId),
-										eq(s.user_id, input.driverId),
 									),
 							});
 							if (staffRow) {

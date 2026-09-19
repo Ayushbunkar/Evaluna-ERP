@@ -30,6 +30,7 @@ const DELIVERY_DDL = buildDDL(
 	[
 		schema.branches,
 		schema.user, // Better Auth users table
+		schema.staff,
 		schema.deliveryRoutes,
 		schema.routeStops,
 		schema.deliveryTrips,

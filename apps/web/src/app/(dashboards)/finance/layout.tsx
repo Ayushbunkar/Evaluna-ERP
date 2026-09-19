@@ -163,10 +163,12 @@ export default function FinanceLayout({
 		<div className="flex h-full flex-col border-gray-200 border-r bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
 			{/* Brand Header */}
 			<div className="flex h-16 items-center justify-between border-gray-200 border-b px-6 dark:border-gray-700">
-				<Link href="/" className="flex items-center gap-3">
-					<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/20">
-						<HexagonIcon className="h-5 w-5 text-blue-600" />
-					</span>
+				<Link href="/" className="flex items-center gap-2.5">
+					<img
+						src="/logo.jpg"
+						alt="Evaluna ERP"
+						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+					/>
 					{!sidebarCollapsed && (
 						<span className="font-bold text-gray-900 text-lg dark:text-gray-100">
 							Evaluna ERP
