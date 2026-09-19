@@ -39,7 +39,10 @@ export default async function middleware(request: NextRequest) {
 		pathname === "/favicon.ico" ||
 		pathname === "/manifest.json" ||
 		pathname === "/sw.js" ||
-		pathname.startsWith("/public")
+		pathname.startsWith("/public") ||
+		/\.(jpg|jpeg|png|gif|svg|webp|ico|ttf|woff|woff2|json|txt|xml|mp3|mp4)$/i.test(
+			pathname,
+		)
 	) {
 		return NextResponse.next({ request: { headers: requestHeaders } });
 	}
