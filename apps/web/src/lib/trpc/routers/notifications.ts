@@ -4,7 +4,7 @@ import {
 	notifications,
 	notificationTemplates,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -49,10 +49,14 @@ export const notificationsRouter = router({
 			const conditions: ReturnType<typeof eq | any>[] = [];
 
 			const staffId = await resolveStaffId(db, ctx.user.email);
+			const isAdmin = ctx.user.role === "admin" || ctx.user.role === "superadmin";
+
 			if (staffId) {
-				conditions.push(eq(notifications.user_id, staffId));
+				conditions.push(or(eq(notifications.user_id, staffId), sql`${notifications.user_id} IS NULL`));
+			} else if (isAdmin) {
+				// Admin / Superadmin sees all notifications or unassigned
 			} else {
-				conditions.push(eq(notifications.user_id, -1)); // Return nothing if no staff matching
+				conditions.push(sql`${notifications.user_id} IS NULL`);
 			}
 
 			if (input.branch_id)
@@ -78,10 +82,14 @@ export const notificationsRouter = router({
 			const conditions: any[] = [eq(notifications.is_read, false)];
 
 			const staffId = await resolveStaffId(db, ctx.user.email);
+			const isAdmin = ctx.user.role === "admin" || ctx.user.role === "superadmin";
+
 			if (staffId) {
-				conditions.push(eq(notifications.user_id, staffId));
+				conditions.push(or(eq(notifications.user_id, staffId), sql`${notifications.user_id} IS NULL`));
+			} else if (isAdmin) {
+				// Admin / Superadmin sees all unread notifications
 			} else {
-				conditions.push(eq(notifications.user_id, -1));
+				conditions.push(sql`${notifications.user_id} IS NULL`);
 			}
 
 			if (input.branch_id)
@@ -98,19 +106,10 @@ export const notificationsRouter = router({
 	markAsRead: protectedProcedure
 		.input(z.object({ id: z.number() }))
 		.mutation(async ({ ctx, input }) => {
-			const staffId = await resolveStaffId(db, ctx.user.email);
-
-			const conditions: any[] = [eq(notifications.id, input.id)];
-			if (staffId) {
-				conditions.push(eq(notifications.user_id, staffId));
-			} else {
-				conditions.push(eq(notifications.user_id, -1));
-			}
-
 			return await db
 				.update(notifications)
 				.set({ is_read: true, read_by: ctx.user.id, read_at: new Date() })
-				.where(and(...conditions))
+				.where(eq(notifications.id, input.id))
 				.returning();
 		}),
 
@@ -120,10 +119,12 @@ export const notificationsRouter = router({
 			const conditions: any[] = [eq(notifications.is_read, false)];
 
 			const staffId = await resolveStaffId(db, ctx.user.email);
+			const isAdmin = ctx.user.role === "admin" || ctx.user.role === "superadmin";
+
 			if (staffId) {
-				conditions.push(eq(notifications.user_id, staffId));
-			} else {
-				conditions.push(eq(notifications.user_id, -1));
+				conditions.push(or(eq(notifications.user_id, staffId), sql`${notifications.user_id} IS NULL`));
+			} else if (!isAdmin) {
+				conditions.push(sql`${notifications.user_id} IS NULL`);
 			}
 
 			if (input.branch_id)

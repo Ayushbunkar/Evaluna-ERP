@@ -316,6 +316,51 @@ export function bilingual(en: string, hi: string): string {
 
 // ── Workflow Flow-Event Notification Helpers ──────────────────────────────────
 
+/** Notify Salespersons & Managers that a customer placed an online order needing phone review. (customer.submitOrder) */
+export async function notifyCustomerOrderPlaced(opts: {
+	orderId: number;
+	customerName: string;
+	itemCount: number;
+	branchId?: number | null;
+	staffId?: number | null;
+}): Promise<void> {
+	const { staff } = require("@evaluna/db/schema");
+	// If specific staffId not passed, target all sales / manager staff
+	let targetStaffIds: number[] = opts.staffId ? [opts.staffId] : [];
+	if (targetStaffIds.length === 0) {
+		const salesStaff = await db.select({ id: staff.id, role: staff.role }).from(staff);
+		targetStaffIds = salesStaff
+			.filter((s) => {
+				const r = (s.role || "").toLowerCase();
+				return r.includes("sales") || r.includes("manager") || r.includes("admin");
+			})
+			.map((s) => s.id);
+	}
+
+	for (const sId of targetStaffIds) {
+		await dispatchNotification({
+			type: "info",
+			priority: "high",
+			title: `🔔 New Customer Order ORD-${opts.orderId}`,
+			message: bilingual(
+				`New order ORD-${opts.orderId} from ${opts.customerName} (${opts.itemCount} items) is awaiting phone review.`,
+				`नया ग्राहक ऑर्डर ORD-${opts.orderId} (${opts.customerName}, ${opts.itemCount} आइटम) आया है। कृपया कॉल कर रिव्यू करें।`,
+			),
+			branchId: opts.branchId ?? undefined,
+			userId: sId,
+			referenceType: "orders",
+			referenceId: opts.orderId,
+			channels: ["in_app"],
+			metadata: {
+				order_id: opts.orderId,
+				customer_name: opts.customerName,
+				item_count: opts.itemCount,
+				flow_event: "customer_order_placed",
+			},
+		});
+	}
+}
+
 /** Notify Picker that a new order was created and needs picking. (orders.create) */
 export async function notifyOrderCreated(opts: {
 	orderId: number;

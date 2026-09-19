@@ -10,6 +10,7 @@ import { TRPCError } from "@trpc/server";
 import { endOfDay, startOfDay } from "date-fns";
 import { and, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
+import { notifyCustomerOrderPlaced } from "@/lib/notification-service";
 import { customerProcedure, roleProcedure, router } from "../init";
 
 // Order lifecycle for the customer-ordering workflow.
@@ -527,7 +528,7 @@ export const customerRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			return await ctx.db.transaction(async (tx) => {
+			const createdResult = await ctx.db.transaction(async (tx) => {
 				// Idempotency guard — same key already processed → return that order.
 				const existing = await tx.query.pendingSync.findFirst({
 					where: eq(pendingSync.id, input.idempotencyKey),
@@ -659,12 +660,30 @@ export const customerRouter = router({
 					},
 				});
 
-				return {
+				const result = {
 					orderId: order.id,
 					orderRef: `ORD-${order.id}`,
 					duplicate: false,
 				};
+
+				return result;
 			});
+
+			// Fire notification to Sales & Managers about new customer order
+			if (!createdResult.duplicate && createdResult.orderId) {
+				try {
+					void notifyCustomerOrderPlaced({
+						orderId: createdResult.orderId,
+						customerName: ctx.customer.name || "Customer",
+						itemCount: input.items.length,
+						branchId: ctx.customer.branch_id,
+					});
+				} catch (notifErr) {
+					console.warn("[submitOrder] Notification error:", notifErr);
+				}
+			}
+
+			return createdResult;
 		}),
 
 	// ── Dashboard: customer relationship overview (for sales/reps) ────────────

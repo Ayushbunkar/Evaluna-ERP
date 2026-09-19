@@ -75,7 +75,10 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 
 	// Queries
 	const { data: branches } = trpc.branches.list.useQuery(undefined);
-	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery({});
+	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery(
+		{},
+		{ refetchInterval: 10000 },
+	);
 	const unreadCount = unreadCountData?.count || 0;
 	const { data: todayAttendance, refetch: refetchToday } =
 		trpc.attendance.getToday.useQuery(undefined, { refetchInterval: 30000 });
