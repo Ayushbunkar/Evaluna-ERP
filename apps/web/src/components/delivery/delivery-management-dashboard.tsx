@@ -1095,9 +1095,19 @@ export function DeliveryManagementDashboard({
 											)}
 										</div>
 										<div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-800">
-											<span className="text-[11px] text-muted-foreground">
-												Seq: 1 → {route.stops?.length || 0}
-											</span>
+											{(() => {
+												const stopCount = route.stops?.length || 0;
+												let villageCount = 0;
+												if (route.description) {
+													const parts = route.description.split(/→|->/).map((v: string) => v.trim()).filter(Boolean);
+ 													if (parts.length > 0) villageCount = parts.length;
+												}
+												return (
+													<span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+														{villageCount > 0 ? `${stopCount} Shops (${villageCount} Villages)` : `Seq: 1 → ${stopCount}`}
+													</span>
+												);
+											})()}
 											<div className="flex items-center gap-1.5">
 												<Button
 													size="sm"
@@ -2228,6 +2238,25 @@ export function DeliveryManagementDashboard({
 													<span className="font-semibold">{trip.driver?.name || "Missing Driver"}</span>
 												</div>
 												<div className="flex justify-between">
+													<span className="text-slate-400">Loader:</span>
+													<span className="font-semibold">
+														{trip.loader?.name ? (
+															<>
+																{trip.loader.name}{" "}
+																<span className="font-mono text-[10px] text-slate-400">
+																	({loadersList.find((l: any) => l.id === trip.loader_id)?.staff_code || trip.loader_id})
+																</span>
+															</>
+														) : trip.loader_id ? (
+															<span className="font-mono text-[11px] text-slate-700 dark:text-slate-300">
+																{loadersList.find((l: any) => l.id === trip.loader_id)?.name || `ID: ${trip.loader_id}`}
+															</span>
+														) : (
+															<span className="text-amber-600 dark:text-amber-400 italic">Unassigned</span>
+														)}
+													</span>
+												</div>
+												<div className="flex justify-between">
 													<span className="text-slate-400">Vehicle:</span>
 													<span className="font-semibold">{trip.vehicle?.name || "Missing Vehicle"}</span>
 												</div>
@@ -2634,6 +2663,19 @@ export function DeliveryManagementDashboard({
 													Vehicle:{" "}
 													<span className="font-semibold text-slate-900 dark:text-slate-100">
 														{trip.vehicle?.name || trip.vehicle?.registration_number || "N/A"}
+													</span>
+												</div>
+												<div className="flex items-center gap-2">
+													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+														<UserIcon className="h-3 w-3" />
+													</div>
+													Loader:{" "}
+													<span className="font-semibold text-slate-900 dark:text-slate-100">
+														{trip.loader?.name
+															? `${trip.loader.name} (${loadersList.find((l: any) => l.id === trip.loader_id)?.staff_code || trip.loader_id})`
+															: trip.loader_id
+																? (loadersList.find((l: any) => l.id === trip.loader_id)?.name || `ID: ${trip.loader_id}`)
+																: "Unassigned"}
 													</span>
 												</div>
 												<div className="flex items-center gap-2">

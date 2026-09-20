@@ -36,9 +36,12 @@ import {
 	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { LoaderProfileModal } from "./loader-profile-modal";
 
 export default function LoaderDashboard() {
 	const trpc = useTRPC();
+	const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
 	const { data: stats, isLoading: isLoadingStats } =
 		trpc.loader.getDashboardStats.useQuery(undefined, {
 			refetchInterval: 15000,
@@ -54,14 +57,27 @@ export default function LoaderDashboard() {
 	return (
 		<PageTransition className="space-y-6">
 			{/* Page Header */}
-			<div className="flex flex-col gap-1">
-				<h1 className="font-bold text-2xl tracking-tight text-foreground sm:text-3xl">
-					Loader Dashboard
-				</h1>
-				<p className="text-muted-foreground text-sm">
-					Manage vehicle loading and confirm dispatched orders into assigned delivery trips.
-				</p>
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+				<div className="flex flex-col gap-1">
+					<h1 className="font-bold text-2xl tracking-tight text-foreground sm:text-3xl">
+						Loader Dashboard
+					</h1>
+					<p className="text-muted-foreground text-sm">
+						Manage vehicle loading and confirm dispatched orders into assigned delivery trips.
+					</p>
+				</div>
+				<Button
+					onClick={() => setIsProfileModalOpen(true)}
+					className="bg-primary text-primary-foreground font-semibold text-xs shadow-xs hover:bg-primary/90 gap-2 shrink-0 self-start sm:self-auto"
+				>
+					<UserIcon className="h-4 w-4" /> Edit Profile & Credentials
+				</Button>
 			</div>
+
+			<LoaderProfileModal
+				open={isProfileModalOpen}
+				onOpenChange={setIsProfileModalOpen}
+			/>
 
 			{/* KPI Metrics Cards */}
 			<StaggerList className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -536,9 +536,31 @@ export function PaymentModal({
 									<option value="">{t.routePlaceholder}</option>
 									{routes.map((r: any) => {
 										const stopCount = r.stops?.length || 0;
+										let villageCount = 0;
+										if (r.description) {
+											const vParts = r.description.split(/→|->/).map((v: string) => v.trim()).filter(Boolean);
+											if (vParts.length > 0) villageCount = vParts.length;
+										}
+										if (!villageCount && r.stops) {
+											const seenV = new Set<string>();
+											for (const s of r.stops) {
+												const v = (s.customer?.address || "").split(",")[0]?.trim();
+												if (v && !["madhya pradesh", "mp", "india"].includes(v.toLowerCase())) {
+													seenV.add(v.toLowerCase());
+												}
+											}
+											villageCount = seenV.size;
+										}
+
+										const labelSuffix = stopCount > 0
+											? villageCount > 0 && villageCount !== stopCount
+												? ` (${stopCount} Shops across ${villageCount} Villages)`
+												: ` (${stopCount} ${stopCount === 1 ? 'Stop' : 'Stops'})`
+											: '';
+
 										return (
 											<option key={r.id} value={r.id}>
-												{r.name} {stopCount > 0 ? `(${stopCount} ${stopCount === 1 ? 'Stop' : 'Stops'})` : ''}
+												{r.name}{labelSuffix}
 											</option>
 										);
 									})}
@@ -562,14 +584,21 @@ export function PaymentModal({
 												(r: any) => r.id === selectedRouteId,
 											);
 											const villagesSet = new Set<string>();
-											if (activeRouteObj?.stops) {
+											if (activeRouteObj?.description) {
+												const parts = activeRouteObj.description.split(/→|->/).map((v: string) => v.trim()).filter(Boolean);
+												for (const p of parts) {
+													if (p && !["madhya pradesh", "mp", "india"].includes(p.toLowerCase())) {
+														villagesSet.add(p);
+													}
+												}
+											}
+											if (villagesSet.size === 0 && activeRouteObj?.stops) {
 												for (const s of activeRouteObj.stops) {
 													const addr = s.customer?.address || s.notes;
 													if (addr && addr.trim()) {
-														const parts = addr.split(",");
-														for (const part of parts) {
-															const clean = part.trim();
-															if (clean) villagesSet.add(clean);
+														const villageName = addr.split(",")[0]?.trim();
+														if (villageName && !["madhya pradesh", "mp", "india"].includes(villageName.toLowerCase())) {
+															villagesSet.add(villageName);
 														}
 													}
 												}

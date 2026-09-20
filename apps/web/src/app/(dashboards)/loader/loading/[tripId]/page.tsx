@@ -31,8 +31,8 @@ import {
 	UserIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { use, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -44,6 +44,7 @@ export default function TripLoadingDetailsPage({
 }) {
 	const { tripId } = use(params);
 	const numericTripId = Number.parseInt(tripId, 10);
+	const router = useRouter();
 	const trpc = useTRPC();
 
 	const {
@@ -66,9 +67,9 @@ export default function TripLoadingDetailsPage({
 
 	const completeLoadingMutation = trpc.loader.completeTripLoading.useMutation({
 		onSuccess: () => {
-			toast.success(`Trip #${numericTripId} loading completed successfully!`);
+			toast.success(`✓ Trip #${numericTripId} loading completed successfully! Navigating to dashboard...`);
 			setIsCompleteModalOpen(false);
-			refetch();
+			router.push("/loader");
 		},
 		onError: (err) => toast.error(err.message || "Failed to complete trip loading"),
 	});

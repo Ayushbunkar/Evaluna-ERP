@@ -697,9 +697,12 @@ export default function DriverLiveDeliveryPage() {
 												Stock)
 											</Button>
 											<Badge variant="secondary" className="font-mono text-xs">
-												{activeStop
-													? `ORD-${activeStop.orderId || activeStop.id}`
-													: "ORD-LIVE"}
+												{(() => {
+													if (!activeStop) return "ORD-LIVE";
+													const val = String(activeStop.orderId || activeStop.id || "");
+													if (val.startsWith("ORD-")) return val;
+													return `ORD-${val}`;
+												})()}
 											</Badge>
 										</div>
 									</div>

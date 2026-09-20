@@ -125,32 +125,32 @@ export default function DriverHistoryPage() {
 
 			{/* Financial Summary Stats Cards */}
 			<StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" slow>
-				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/20">
-						<CardContent className="p-4">
-							<div className="flex items-center justify-between">
-								<div>
+				<StaggerItem className="h-full">
+					<Card className="h-full border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/20">
+						<CardContent className="flex h-full flex-col justify-between p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1">
 									<p className="font-semibold text-blue-700 text-xs uppercase tracking-wider dark:text-blue-400">
 										Completed Trips
 									</p>
-									<p className="font-bold text-3xl text-blue-900 dark:text-blue-200">
+									<p className="font-bold font-mono text-2xl text-blue-900 dark:text-blue-200">
 										{completedTripsCount}
 									</p>
-									<p className="mt-0.5 text-[11px] text-blue-600">
-										{inProgressTripsCount} trip(s) in progress
-									</p>
 								</div>
-								<TruckIcon className="h-8 w-8 text-blue-500 opacity-80" />
+								<TruckIcon className="h-8 w-8 text-blue-500 opacity-80 shrink-0" />
 							</div>
+							<p className="mt-2 text-[11px] text-blue-600">
+								{inProgressTripsCount} trip(s) in progress
+							</p>
 						</CardContent>
 					</Card>
 				</StaggerItem>
 
-				<StaggerItem>
-					<Card className="border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20">
-						<CardContent className="p-4">
-							<div className="flex items-center justify-between">
-								<div>
+				<StaggerItem className="h-full">
+					<Card className="h-full border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20">
+						<CardContent className="flex h-full flex-col justify-between p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1">
 									<p className="font-semibold text-emerald-700 text-xs uppercase tracking-wider dark:text-emerald-400">
 										Total Cash Collected
 									</p>
@@ -158,17 +158,20 @@ export default function DriverHistoryPage() {
 										₹{aggregateCash.toFixed(2)}
 									</p>
 								</div>
-								<BanknoteIcon className="h-8 w-8 text-emerald-500 opacity-80" />
+								<BanknoteIcon className="h-8 w-8 text-emerald-500 opacity-80 shrink-0" />
 							</div>
+							<p className="mt-2 text-[11px] text-emerald-600/80">
+								Cash collections
+							</p>
 						</CardContent>
 					</Card>
 				</StaggerItem>
 
-				<StaggerItem>
-					<Card className="border-purple-200 bg-purple-50/60 dark:border-purple-900 dark:bg-purple-950/20">
-						<CardContent className="p-4">
-							<div className="flex items-center justify-between">
-								<div>
+				<StaggerItem className="h-full">
+					<Card className="h-full border-purple-200 bg-purple-50/60 dark:border-purple-900 dark:bg-purple-950/20">
+						<CardContent className="flex h-full flex-col justify-between p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1">
 									<p className="font-semibold text-purple-700 text-xs uppercase tracking-wider dark:text-purple-400">
 										Total Online / UPI
 									</p>
@@ -176,17 +179,20 @@ export default function DriverHistoryPage() {
 										₹{aggregateOnline.toFixed(2)}
 									</p>
 								</div>
-								<CreditCardIcon className="h-8 w-8 text-purple-500 opacity-80" />
+								<CreditCardIcon className="h-8 w-8 text-purple-500 opacity-80 shrink-0" />
 							</div>
+							<p className="mt-2 text-[11px] text-purple-600/80">
+								Digital payment settlements
+							</p>
 						</CardContent>
 					</Card>
 				</StaggerItem>
 
-				<StaggerItem>
-					<Card className="border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20">
-						<CardContent className="p-4">
-							<div className="flex items-center justify-between">
-								<div>
+				<StaggerItem className="h-full">
+					<Card className="h-full border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20">
+						<CardContent className="flex h-full flex-col justify-between p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1">
 									<p className="font-semibold text-amber-700 text-xs uppercase tracking-wider dark:text-amber-400">
 										Combined Total Handover
 									</p>
@@ -194,8 +200,11 @@ export default function DriverHistoryPage() {
 										₹{aggregateTotal.toFixed(2)}
 									</p>
 								</div>
-								<WalletIcon className="h-8 w-8 text-amber-500 opacity-80" />
+								<WalletIcon className="h-8 w-8 text-amber-500 opacity-80 shrink-0" />
 							</div>
+							<p className="mt-2 text-[11px] text-amber-600/80">
+								Total combined collection
+							</p>
 						</CardContent>
 					</Card>
 				</StaggerItem>

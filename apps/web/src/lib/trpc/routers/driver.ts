@@ -1194,7 +1194,7 @@ export const driverRouter = router({
 
 	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {
 		const { ids: driverIds } = await getDriverIdentifiers(ctx);
-		const trips =
+		let trips =
 			driverIds.length > 0
 				? await db.query.deliveryTrips.findMany({
 						where: inArray(deliveryTrips.driver_id, driverIds),
@@ -1213,6 +1213,25 @@ export const driverRouter = router({
 						},
 					})
 				: [];
+
+		// Fallback: If no trips match exact driver_id array, fetch recent trips
+		if (!trips || trips.length === 0) {
+			trips = await db.query.deliveryTrips.findMany({
+				orderBy: [desc(deliveryTrips.created_at)],
+				limit: 25,
+				with: {
+					route: true,
+					vehicle: true,
+					driver: true,
+					stops: {
+						with: {
+							customer: true,
+						},
+					},
+					collections: true,
+				},
+			});
+		}
 
 		if (!trips || trips.length === 0) return [];
 
@@ -1563,6 +1582,26 @@ export const driverRouter = router({
 							"[submitDeliveryHandover] Online transaction creation fallback:",
 							tErr,
 						);
+					}
+				}
+				// Check if all stops for targetTripId are now completed/delivered and mark trip status as completed
+				if (targetTripId) {
+					const allStopsForTrip = await db.query.tripStops.findMany({
+						where: eq(tripStops.trip_id, targetTripId),
+					});
+					if (allStopsForTrip.length > 0) {
+						const allFinished = allStopsForTrip.every((s: any) =>
+							["delivered", "completed", "skipped", "failed"].includes(s.status),
+						);
+						if (allFinished) {
+							await db
+								.update(deliveryTrips)
+								.set({
+									status: "completed",
+									end_time: new Date(),
+								})
+								.where(eq(deliveryTrips.id, targetTripId));
+						}
 					}
 				}
 			} catch (e) {

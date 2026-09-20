@@ -167,6 +167,84 @@ export const staffRouter = router({
 			return updated;
 		}),
 
+	updateMyProfile: protectedProcedure
+		.input(
+			z.object({
+				name: z.string().min(1).optional(),
+				email: z.string().email().optional(),
+				phone: z.string().optional(),
+				address: z.string().optional(),
+				currentPassword: z.string().optional(),
+				newPassword: z.string().min(6).optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const callerEmail = ctx.user.email;
+			if (!callerEmail) throw new Error("Unauthorized");
+
+			// Fetch staff record
+			const [staffRow] = await ctx.db
+				.select()
+				.from(staff)
+				.where(eq(staff.email, callerEmail));
+
+			// 1. If updating password, verify current password first
+			if (input.newPassword) {
+				if (!input.currentPassword) {
+					throw new Error("Current password is required to set a new password.");
+				}
+
+				const { account } = await import("@evaluna/db/schema");
+				const { comparePassword, hashPassword } = await import("@evaluna/db");
+
+				const [userAccount] = await ctx.db
+					.select()
+					.from(account)
+					.where(eq(account.userId, ctx.user.id));
+
+				if (userAccount && userAccount.password) {
+					const isMatch = await comparePassword(input.currentPassword, userAccount.password);
+					if (!isMatch) {
+						throw new Error("Incorrect current password.");
+					}
+
+					const newHash = await hashPassword(input.newPassword);
+					await ctx.db
+						.update(account)
+						.set({ password: newHash })
+						.where(eq(account.id, userAccount.id));
+				}
+			}
+
+			// 2. Update staff row
+			const updatesToStaff: any = {};
+			if (input.name) updatesToStaff.name = input.name;
+			if (input.email) updatesToStaff.email = input.email;
+			if (input.phone !== undefined) updatesToStaff.phone = input.phone;
+			if (input.address !== undefined) updatesToStaff.address = input.address;
+
+			if (staffRow && Object.keys(updatesToStaff).length > 0) {
+				await ctx.db
+					.update(staff)
+					.set(updatesToStaff)
+					.where(eq(staff.id, staffRow.id));
+			}
+
+			// 3. Update Better-Auth user record
+			const updatesToUser: any = {};
+			if (input.name) updatesToUser.name = input.name;
+			if (input.email) updatesToUser.email = input.email;
+
+			if (Object.keys(updatesToUser).length > 0) {
+				await ctx.db
+					.update(user)
+					.set(updatesToUser)
+					.where(eq(user.id, ctx.user.id));
+			}
+
+			return { success: true };
+		}),
+
 	deactivate: protectedProcedure
 		.input(z.object({ id: z.number() }))
 		.mutation(async ({ ctx, input }) => {

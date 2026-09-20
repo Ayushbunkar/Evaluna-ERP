@@ -157,7 +157,7 @@ export const deliveryRouter = router({
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 
-			// Clean up auto-generated dummy routes that start with "Trip " or "Quick Trip "
+			// Clean up auto-generated dummy routes and duplicate route entries
 			try {
 				const dummyRoutes = await db.query.deliveryRoutes.findMany({
 					where: and(
@@ -170,22 +170,57 @@ export const deliveryRouter = router({
 				});
 				if (dummyRoutes.length > 0) {
 					const dummyIds = dummyRoutes.map((r) => r.id);
-					// Unlink trips from dummy routes
 					await db
 						.update(deliveryTrips)
 						.set({ route_id: null })
 						.where(inArray(deliveryTrips.route_id, dummyIds));
-					// Delete stops of dummy routes
 					await db
 						.delete(routeStops)
 						.where(inArray(routeStops.route_id, dummyIds));
-					// Delete dummy routes
 					await db
 						.delete(deliveryRoutes)
 						.where(inArray(deliveryRoutes.id, dummyIds));
 				}
+
+				// Deduplicate routes sharing the same name by keeping the one with lowest ID or highest stop count
+				const allCurrentRoutes = await db.query.deliveryRoutes.findMany({
+					where: eq(deliveryRoutes.branch_id, branch),
+					with: { stops: true },
+					orderBy: (r, { asc }) => [asc(r.id)],
+				});
+				const seenNames = new Map<string, any>();
+				const duplicateIdsToDelete: number[] = [];
+
+				for (const r of allCurrentRoutes) {
+					const normName = (r.name || "").trim().toLowerCase();
+					if (!seenNames.has(normName)) {
+						seenNames.set(normName, r);
+					} else {
+						const existing = seenNames.get(normName);
+						// Keep the one with more stops or lower ID
+						if ((r.stops?.length || 0) > (existing.stops?.length || 0)) {
+							duplicateIdsToDelete.push(existing.id);
+							seenNames.set(normName, r);
+						} else {
+							duplicateIdsToDelete.push(r.id);
+						}
+					}
+				}
+
+				if (duplicateIdsToDelete.length > 0) {
+					await db
+						.update(deliveryTrips)
+						.set({ route_id: null })
+						.where(inArray(deliveryTrips.route_id, duplicateIdsToDelete));
+					await db
+						.delete(routeStops)
+						.where(inArray(routeStops.route_id, duplicateIdsToDelete));
+					await db
+						.delete(deliveryRoutes)
+						.where(inArray(deliveryRoutes.id, duplicateIdsToDelete));
+				}
 			} catch (cleanupErr) {
-				console.warn("[listRoutes] Cleanup dummy routes:", cleanupErr);
+				console.warn("[listRoutes] Cleanup dummy/duplicate routes:", cleanupErr);
 			}
 
 			return await db.query.deliveryRoutes.findMany({
@@ -322,6 +357,32 @@ export const deliveryRouter = router({
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			try {
 				return await database.transaction(async (tx) => {
+					// Check if any specified orders are already assigned to an active trip
+					if (input.orderIds && input.orderIds.length > 0) {
+						const activeAssignedStops = await tx
+							.select({ orderId: tripStops.id, tripId: tripStops.trip_id })
+							.from(tripStops)
+							.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+							.where(
+								and(
+									notInArray(deliveryTrips.status, ["completed", "cancelled"]),
+								),
+							);
+						// Also check direct orders table if assigned to trip / driver
+						const alreadyAssignedOrders = await tx.query.orders.findMany({
+							where: and(
+								inArray(orders.id, input.orderIds),
+								inArray(orders.status, ["ready_for_dispatch", "out_for_delivery"]),
+							),
+						});
+						if (alreadyAssignedOrders.length === input.orderIds.length && input.orderIds.length > 0) {
+							throw new TRPCError({
+								code: "BAD_REQUEST",
+								message: "All selected orders are already assigned to an active delivery trip.",
+							});
+						}
+					}
+
 					// 1. Create Trip
 					const [trip] = await tx
 						.insert(deliveryTrips)
@@ -1156,11 +1217,29 @@ ERROR TABLE: ${err.table}
 				orderBy: (r, { asc }) => [asc(r.name)],
 			});
 
-			const realRoutes = routes.filter(
+			const rawRealRoutes = routes.filter(
 				(r) => !r.name?.startsWith("Trip ") && !r.name?.startsWith("Quick Trip "),
 			);
+			const seenRouteNames = new Set<string>();
+			const realRoutes: typeof rawRealRoutes = [];
+			for (const r of rawRealRoutes) {
+				const nameKey = (r.name || "").trim().toLowerCase();
+				if (!seenRouteNames.has(nameKey)) {
+					seenRouteNames.add(nameKey);
+					realRoutes.push(r);
+				}
+			}
 
-			const allOrders = await db.query.orders.findMany({
+			// Find order IDs that are already assigned to active delivery trips
+			const activeTripsStops = await db
+				.select({ orderId: tripStops.id, customerId: tripStops.customer_id })
+				.from(tripStops)
+				.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+				.where(notInArray(deliveryTrips.status, ["completed", "cancelled"]));
+
+			const activeTripCustomerIds = new Set(activeTripsStops.map((s) => s.customerId).filter(Boolean));
+
+			const rawOrders = await db.query.orders.findMany({
 				where: notInArray(orders.status, [
 					"cancelled",
 					"completed",
@@ -1169,12 +1248,16 @@ ERROR TABLE: ${err.table}
 					"out_for_delivery",
 					"pending_review",
 					"under_review",
+					"ready_for_dispatch",
 				]),
 				with: {
 					customer: true,
 				},
 				orderBy: (o, { desc }) => [desc(o.created_at)],
 			});
+
+			// Filter out orders whose customer is already in an active trip or whose order is ready_for_dispatch
+			const allOrders = rawOrders.filter((o) => !o.driver_id);
 
 			const packedOrderIds = new Set<number>();
 			try {
@@ -1347,6 +1430,9 @@ ERROR TABLE: ${err.table}
 				with: {
 					route: true,
 					driver: {
+						columns: { id: true, name: true, email: true, image: true },
+					},
+					loader: {
 						columns: { id: true, name: true, email: true, image: true },
 					},
 					vehicle: true,
@@ -1732,23 +1818,33 @@ ERROR TABLE: ${err.table}
 
 					let createdRouteId: number | null = null;
 					if (input.routeName) {
-						const [route] = await tx
-							.insert(deliveryRoutes)
-							.values({
-								name: input.routeName,
-								branch_id: branch || null,
-							})
-							.returning();
-						createdRouteId = route.id;
+						const existingRoute = await tx.query.deliveryRoutes.findFirst({
+							where: and(
+								eq(deliveryRoutes.branch_id, branch),
+								eq(deliveryRoutes.name, input.routeName),
+							),
+						});
+						if (existingRoute) {
+							createdRouteId = existingRoute.id;
+						} else if (!input.routeName.startsWith("Trip ") && !input.routeName.startsWith("Quick Trip ")) {
+							const [route] = await tx
+								.insert(deliveryRoutes)
+								.values({
+									name: input.routeName,
+									branch_id: branch || null,
+								})
+								.returning();
+							createdRouteId = route.id;
 
-						if (resolvedStops.length > 0) {
-							await tx.insert(routeStops).values(
-								resolvedStops.map((s) => ({
-									route_id: route.id,
-									customer_id: s.customerId,
-									sequence: s.sequence,
-								})),
-							);
+							if (resolvedStops.length > 0) {
+								await tx.insert(routeStops).values(
+									resolvedStops.map((s) => ({
+										route_id: route.id,
+										customer_id: s.customerId,
+										sequence: s.sequence,
+									})),
+								);
+							}
 						}
 					}
 
