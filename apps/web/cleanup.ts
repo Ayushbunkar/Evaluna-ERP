@@ -122,51 +122,187 @@ const VILLAGES_DATA: { village: string; customers: { name: string; phone: string
 	},
 ];
 
+const ROUTE_2_VILLAGES: { village: string; customers: { name: string; phone: string; notes?: string }[] }[] = [
+	{
+		village: "Mankhyai Jod",
+		customers: [
+			{ name: "Mankhyai Jod Customer 1", phone: "9826000001" },
+		],
+	},
+	{
+		village: "Kulor",
+		customers: [
+			{ name: "Kulor Customer 1", phone: "9826000002" },
+		],
+	},
+	{
+		village: "Dungariya",
+		customers: [
+			{ name: "Dungariya Customer 1", phone: "9826000003" },
+		],
+	},
+	{
+		village: "Suhaya",
+		customers: [
+			{ name: "Suhaya Customer 1", phone: "9826000004" },
+		],
+	},
+	{
+		village: "Jamusar",
+		customers: [
+			{ name: "Jamusar Customer 1", phone: "9826000005" },
+		],
+	},
+];
+
+const ROUTE_3_VILLAGES: { village: string; customers: { name: string; phone: string; notes?: string }[] }[] = [
+	{
+		village: "Pipaliya Hasnabad",
+		customers: [
+			{ name: "Pipaliya Hasnabad Customer 1", phone: "9826000011" },
+		],
+	},
+	{
+		village: "Ramgarha",
+		customers: [
+			{ name: "Ramgarha Customer 1", phone: "9826000012" },
+		],
+	},
+	{
+		village: "Bhojapura Jod",
+		customers: [
+			{ name: "Bhojapura Jod Customer 1", phone: "9826000013" },
+		],
+	},
+	{
+		village: "Unchi Laloi",
+		customers: [
+			{ name: "Unchi Laloi Customer 1", phone: "9826000014" },
+		],
+	},
+	{
+		village: "Kadaiya Chabar",
+		customers: [
+			{ name: "Kadaiya Chabar Customer 1", phone: "9826000015" },
+		],
+	},
+	{
+		village: "Rampura",
+		customers: [
+			{ name: "Rampura Customer 1", phone: "9826000016" },
+		],
+	},
+	{
+		village: "Karanpura",
+		customers: [
+			{ name: "Karanpura Customer 1", phone: "9826000017" },
+		],
+	},
+	{
+		village: "Panchmukhi",
+		customers: [
+			{ name: "Panchmukhi Customer 1", phone: "9826000018" },
+		],
+	},
+	{
+		village: "Barkheda Hasan",
+		customers: [
+			{ name: "Barkheda Hasan Customer 1", phone: "9826000019" },
+		],
+	},
+	{
+		village: "Barkheda Barodi",
+		customers: [
+			{ name: "Barkheda Barodi Customer 1", phone: "9826000020" },
+		],
+	},
+];
+
+const ROUTE_4_VILLAGES: { village: string; customers: { name: string; phone: string; notes?: string }[] }[] = [
+	{
+		village: "Barkheda Barodi",
+		customers: [
+			{ name: "Barkheda Barodi Route 4 Customer", phone: "9826000021" },
+		],
+	},
+	{
+		village: "Arrawati",
+		customers: [
+			{ name: "Arrawati Customer 1", phone: "9826000022" },
+		],
+	},
+	{
+		village: "Pauua Nala",
+		customers: [
+			{ name: "Pauua Nala Customer 1", phone: "9826000023" },
+		],
+	},
+	{
+		village: "Dhamnoda",
+		customers: [
+			{ name: "Dhamnoda Customer 1", phone: "9826000024" },
+		],
+	},
+	{
+		village: "Dupadia",
+		customers: [
+			{ name: "Dupadia Customer 1", phone: "9826000025" },
+		],
+	},
+	{
+		village: "Pipaliya",
+		customers: [
+			{ name: "Pipaliya Customer 1", phone: "9826000026" },
+		],
+	},
+	{
+		village: "Salaiyya",
+		customers: [
+			{ name: "Salaiyya Customer 1", phone: "9826000027" },
+		],
+	},
+	{
+		village: "Lalariya",
+		customers: [
+			{ name: "Lalariya Customer 1", phone: "9826000028" },
+		],
+	},
+];
+
 async function run() {
-	console.log("Setting up Runaha Route and stops accurately...");
+	console.log("Setting up Delivery Routes (Runaha, Suhaya, Barkheda, Salaiyra)...");
 
-	// 1. Ensure or update Runaha Route
-	const routeName = "Runaha Route";
-	const routeDesc = "Birha Shyamkhedi → Bhamora → Sukla → Dhanora → Kotra → Jhirniya → Mithi Chhapri → Jajankhedi → Baksi → Ratanpur → 11 Meel → Kolukhedi → Parsora → Runaha";
+	// 1. Ensure or update Route 1: Runaha Route
+	const route1Name = "Runaha Route";
+	const route1Desc = "Birha Shyamkhedi → Bhamora → Sukla → Dhanora → Kotra → Jhirniya → Mithi Chhapri → Jajankhedi → Baksi → Ratanpur → 11 Meel → Kolukhedi → Parsora → Runaha";
 
-	let route = (await db.execute(sql`SELECT id FROM delivery_routes WHERE name = ${routeName} LIMIT 1`))[0];
-	if (!route) {
+	let route1 = (await db.execute(sql`SELECT id FROM delivery_routes WHERE name = ${route1Name} LIMIT 1`))[0];
+	if (!route1) {
 		const newR = await db.execute(sql`
 			INSERT INTO delivery_routes (name, description, branch_id)
-			VALUES (${routeName}, ${routeDesc}, 1)
+			VALUES (${route1Name}, ${route1Desc}, 1)
 			RETURNING id
 		`);
-		route = newR[0];
+		route1 = newR[0];
 	} else {
 		await db.execute(sql`
 			UPDATE delivery_routes
-			SET description = ${routeDesc}
-			WHERE id = ${route.id}
+			SET description = ${route1Desc}
+			WHERE id = ${route1.id}
 		`);
 	}
 
-	const routeId = route.id;
+	const route1Id = route1.id;
+	await db.execute(sql`DELETE FROM route_stops WHERE route_id = ${route1Id}`);
 
-	// 2. Clear old stops for this route so we populate the exact 14-village sequence cleanly
-	await db.execute(sql`DELETE FROM route_stops WHERE route_id = ${routeId}`);
-
-	// 3. Clear transient custom trips and stops if needed
-	await db.execute(sql`DELETE FROM trip_stops WHERE trip_id IN (SELECT id FROM delivery_trips WHERE route_id IN (SELECT id FROM delivery_routes WHERE name LIKE 'Trip %'))`);
-	await db.execute(sql`DELETE FROM delivery_trips WHERE route_id IN (SELECT id FROM delivery_routes WHERE name LIKE 'Trip %')`);
-	await db.execute(sql`DELETE FROM route_stops WHERE route_id IN (SELECT id FROM delivery_routes WHERE name LIKE 'Trip %')`);
-	await db.execute(sql`DELETE FROM delivery_routes WHERE name LIKE 'Trip %'`);
-
-	let sequence = 1;
-	let totalStopsAdded = 0;
-
+	let seq1 = 1;
 	for (const v of VILLAGES_DATA) {
 		for (const c of v.customers) {
 			const cleanPhone = c.phone.replace(/\D/g, "");
 			const villageAddr = `${v.village}, Madhya Pradesh`;
 
-			// Find existing customer by phone or name
 			let existingCust = (await db.execute(sql`
-				SELECT id, name, phone, address FROM customers
+				SELECT id FROM customers
 				WHERE phone = ${cleanPhone} OR name ILIKE ${c.name}
 				LIMIT 1
 			`))[0];
@@ -184,7 +320,6 @@ async function run() {
 				`);
 				customerId = inserted[0]?.id;
 			} else {
-				// Update customer's address to indicate village location if generic
 				await db.execute(sql`
 					UPDATE customers
 					SET address = ${villageAddr}, name = ${c.name}
@@ -192,30 +327,207 @@ async function run() {
 				`);
 			}
 
-			// Insert route stop with exact sequence
 			await db.execute(sql`
 				INSERT INTO route_stops (route_id, customer_id, sequence, notes)
-				VALUES (${routeId}, ${customerId}, ${sequence}, ${c.notes ?? null})
+				VALUES (${route1Id}, ${customerId}, ${seq1}, ${c.notes ?? null})
 			`);
-
-			sequence++;
-			totalStopsAdded++;
+			seq1++;
 		}
 	}
 
-	console.log(`Successfully configured ${routeName} with ${totalStopsAdded} stops across 14 villages.`);
-	
-	const finalRoutes = await db.execute(sql`SELECT id, name, description FROM delivery_routes`);
+	// 2. Ensure or update Route 2: Suhaya Route
+	const route2Name = "Suhaya Route";
+	const route2Desc = "Mankhyai Jod → Kulor → Dungariya → Suhaya → Jamusar";
+
+	let route2 = (await db.execute(sql`SELECT id FROM delivery_routes WHERE name = ${route2Name} OR name ILIKE '%Suhaya%' LIMIT 1`))[0];
+	if (!route2) {
+		const newR2 = await db.execute(sql`
+			INSERT INTO delivery_routes (name, description, branch_id)
+			VALUES (${route2Name}, ${route2Desc}, 1)
+			RETURNING id
+		`);
+		route2 = newR2[0];
+	} else {
+		await db.execute(sql`
+			UPDATE delivery_routes
+			SET name = ${route2Name}, description = ${route2Desc}
+			WHERE id = ${route2.id}
+		`);
+	}
+
+	const route2Id = route2.id;
+	await db.execute(sql`DELETE FROM route_stops WHERE route_id = ${route2Id}`);
+
+	let seq2 = 1;
+	for (const v of ROUTE_2_VILLAGES) {
+		for (const c of v.customers) {
+			const cleanPhone = c.phone.replace(/\D/g, "");
+			const villageAddr = `${v.village}, Madhya Pradesh`;
+
+			let existingCust = (await db.execute(sql`
+				SELECT id FROM customers
+				WHERE phone = ${cleanPhone} OR name ILIKE ${c.name}
+				LIMIT 1
+			`))[0];
+
+			let customerId = existingCust?.id;
+
+			if (!customerId) {
+				const custCode = `CUST-${cleanPhone || Date.now()}`;
+				const email = `cust_${cleanPhone}@evaluna.local`;
+				const userUid = `usr_cust_${cleanPhone || Date.now()}`;
+				const inserted = await db.execute(sql`
+					INSERT INTO customers (name, phone, address, email, user_uid, customer_code, branch_id, status, is_deleted)
+					VALUES (${c.name}, ${cleanPhone}, ${villageAddr}, ${email}, ${userUid}, ${custCode}, 1, 'active', false)
+					RETURNING id
+				`);
+				customerId = inserted[0]?.id;
+			} else {
+				await db.execute(sql`
+					UPDATE customers
+					SET address = ${villageAddr}, name = ${c.name}
+					WHERE id = ${customerId}
+				`);
+			}
+
+			await db.execute(sql`
+				INSERT INTO route_stops (route_id, customer_id, sequence, notes)
+				VALUES (${route2Id}, ${customerId}, ${seq2}, ${c.notes ?? null})
+			`);
+			seq2++;
+		}
+	}
+
+	// 3. Ensure or update Route 3: Barkheda Route
+	const route3Name = "Barkheda Route";
+	const route3Desc = "Pipaliya Hasnabad → Ramgarha → Bhojapura Jod → Unchi Laloi → Kadaiya Chabar → Rampura → Karanpura → Panchmukhi → Barkheda Hasan → Barkheda Barodi";
+
+	let route3 = (await db.execute(sql`SELECT id FROM delivery_routes WHERE name = ${route3Name} OR name ILIKE '%Barkheda%' LIMIT 1`))[0];
+	if (!route3) {
+		const newR3 = await db.execute(sql`
+			INSERT INTO delivery_routes (name, description, branch_id)
+			VALUES (${route3Name}, ${route3Desc}, 1)
+			RETURNING id
+		`);
+		route3 = newR3[0];
+	} else {
+		await db.execute(sql`
+			UPDATE delivery_routes
+			SET name = ${route3Name}, description = ${route3Desc}
+			WHERE id = ${route3.id}
+		`);
+	}
+
+	const route3Id = route3.id;
+	await db.execute(sql`DELETE FROM route_stops WHERE route_id = ${route3Id}`);
+
+	let seq3 = 1;
+	for (const v of ROUTE_3_VILLAGES) {
+		for (const c of v.customers) {
+			const cleanPhone = c.phone.replace(/\D/g, "");
+			const villageAddr = `${v.village}, Madhya Pradesh`;
+
+			let existingCust = (await db.execute(sql`
+				SELECT id FROM customers
+				WHERE phone = ${cleanPhone} OR name ILIKE ${c.name}
+				LIMIT 1
+			`))[0];
+
+			let customerId = existingCust?.id;
+
+			if (!customerId) {
+				const custCode = `CUST-${cleanPhone || Date.now()}`;
+				const email = `cust_${cleanPhone}@evaluna.local`;
+				const userUid = `usr_cust_${cleanPhone || Date.now()}`;
+				const inserted = await db.execute(sql`
+					INSERT INTO customers (name, phone, address, email, user_uid, customer_code, branch_id, status, is_deleted)
+					VALUES (${c.name}, ${cleanPhone}, ${villageAddr}, ${email}, ${userUid}, ${custCode}, 1, 'active', false)
+					RETURNING id
+				`);
+				customerId = inserted[0]?.id;
+			} else {
+				await db.execute(sql`
+					UPDATE customers
+					SET address = ${villageAddr}, name = ${c.name}
+					WHERE id = ${customerId}
+				`);
+			}
+
+			await db.execute(sql`
+				INSERT INTO route_stops (route_id, customer_id, sequence, notes)
+				VALUES (${route3Id}, ${customerId}, ${seq3}, ${c.notes ?? null})
+			`);
+			seq3++;
+		}
+	}
+
+	// 4. Ensure or update Route 4: Salaiyra Route
+	const route4Name = "Salaiyra Route";
+	const route4Desc = "Barkheda Barodi → Arrawati → Pauua Nala → Dhamnoda → Dupadia → Pipaliya → Salaiyya → Lalariya";
+
+	let route4 = (await db.execute(sql`SELECT id FROM delivery_routes WHERE name = ${route4Name} OR name ILIKE '%Salaiyra%' OR name ILIKE '%Salaiyya%' LIMIT 1`))[0];
+	if (!route4) {
+		const newR4 = await db.execute(sql`
+			INSERT INTO delivery_routes (name, description, branch_id)
+			VALUES (${route4Name}, ${route4Desc}, 1)
+			RETURNING id
+		`);
+		route4 = newR4[0];
+	} else {
+		await db.execute(sql`
+			UPDATE delivery_routes
+			SET name = ${route4Name}, description = ${route4Desc}
+			WHERE id = ${route4.id}
+		`);
+	}
+
+	const route4Id = route4.id;
+	await db.execute(sql`DELETE FROM route_stops WHERE route_id = ${route4Id}`);
+
+	let seq4 = 1;
+	for (const v of ROUTE_4_VILLAGES) {
+		for (const c of v.customers) {
+			const cleanPhone = c.phone.replace(/\D/g, "");
+			const villageAddr = `${v.village}, Madhya Pradesh`;
+
+			let existingCust = (await db.execute(sql`
+				SELECT id FROM customers
+				WHERE phone = ${cleanPhone} OR name ILIKE ${c.name}
+				LIMIT 1
+			`))[0];
+
+			let customerId = existingCust?.id;
+
+			if (!customerId) {
+				const custCode = `CUST-${cleanPhone || Date.now()}`;
+				const email = `cust_${cleanPhone}@evaluna.local`;
+				const userUid = `usr_cust_${cleanPhone || Date.now()}`;
+				const inserted = await db.execute(sql`
+					INSERT INTO customers (name, phone, address, email, user_uid, customer_code, branch_id, status, is_deleted)
+					VALUES (${c.name}, ${cleanPhone}, ${villageAddr}, ${email}, ${userUid}, ${custCode}, 1, 'active', false)
+					RETURNING id
+				`);
+				customerId = inserted[0]?.id;
+			} else {
+				await db.execute(sql`
+					UPDATE customers
+					SET address = ${villageAddr}, name = ${c.name}
+					WHERE id = ${customerId}
+				`);
+			}
+
+			await db.execute(sql`
+				INSERT INTO route_stops (route_id, customer_id, sequence, notes)
+				VALUES (${route4Id}, ${customerId}, ${seq4}, ${c.notes ?? null})
+			`);
+			seq4++;
+		}
+	}
+
+	console.log("Successfully configured Route 1 (Runaha Route), Route 2 (Suhaya Route), Route 3 (Barkheda Route), and Route 4 (Salaiyra Route).");
+
+	const finalRoutes = await db.execute(sql`SELECT id, name, description FROM delivery_routes ORDER BY id ASC`);
 	console.log("All Delivery Routes in DB:", finalRoutes);
-	
-	const finalStops = await db.execute(sql`
-		SELECT rs.sequence, rs.notes, c.name, c.phone, c.address
-		FROM route_stops rs
-		JOIN customers c ON c.id = rs.customer_id
-		WHERE rs.route_id = ${routeId}
-		ORDER BY rs.sequence ASC
-	`);
-	console.log(`Configured Stops for Runaha Route (${finalStops.length}):`, finalStops);
 
 	process.exit(0);
 }
