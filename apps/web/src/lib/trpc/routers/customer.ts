@@ -121,62 +121,24 @@ export const customerRouter = router({
 			"out_for_delivery",
 		];
 		const completedStatuses = ["completed", "delivered"];
+		const paidStatuses = [...confirmedStatuses, ...completedStatuses];
 
-		const [totalRow] = await ctx.db
-			.select({ c: count() })
+		const [statsRow] = await ctx.db
+			.select({
+				totalCount: count(),
+				pendingCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(pendingStatuses.map(s => sql`${s}`), sql`, `)})), 0)`,
+				confirmedCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(confirmedStatuses.map(s => sql`${s}`), sql`, `)})), 0)`,
+				completedCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(completedStatuses.map(s => sql`${s}`), sql`, `)})), 0)`,
+				totalSpent: sql<number>`COALESCE(SUM(CASE WHEN LOWER(${orders.status}) IN (${sql.join(paidStatuses.map(s => sql`${s}`), sql`, `)}) THEN CAST(${orders.total_amount} AS NUMERIC) ELSE 0 END), 0)`,
+			})
 			.from(orders)
 			.where(eq(orders.customer_id, cid));
 
-		const [pendingRow] = await ctx.db
-			.select({ c: count() })
-			.from(orders)
-			.where(
-				and(
-					eq(orders.customer_id, cid),
-					inArray(sql`LOWER(${orders.status})`, pendingStatuses),
-				),
-			);
-
-		const [confirmedRow] = await ctx.db
-			.select({ c: count() })
-			.from(orders)
-			.where(
-				and(
-					eq(orders.customer_id, cid),
-					inArray(sql`LOWER(${orders.status})`, confirmedStatuses),
-				),
-			);
-
-		const [completedRow] = await ctx.db
-			.select({ c: count() })
-			.from(orders)
-			.where(
-				and(
-					eq(orders.customer_id, cid),
-					inArray(sql`LOWER(${orders.status})`, completedStatuses),
-				),
-			);
-
-		const [spentRow] = await ctx.db
-			.select({
-				t: sql<number>`COALESCE(SUM(CAST(${orders.total_amount} AS NUMERIC)), 0)`,
-			})
-			.from(orders)
-			.where(
-				and(
-					eq(orders.customer_id, cid),
-					inArray(sql`LOWER(${orders.status})`, [
-						...confirmedStatuses,
-						...completedStatuses,
-					]),
-				),
-			);
-
-		const pendingCount = Number(pendingRow?.c ?? 0);
-		const confirmedCount = Number(confirmedRow?.c ?? 0);
-		const completedCount = Number(completedRow?.c ?? 0);
+		const pendingCount = Number(statsRow?.pendingCount ?? 0);
+		const confirmedCount = Number(statsRow?.confirmedCount ?? 0);
+		const completedCount = Number(statsRow?.completedCount ?? 0);
 		const activeCount = pendingCount + confirmedCount;
-		const totalCount = Number(totalRow?.c ?? 0);
+		const totalCount = Number(statsRow?.totalCount ?? 0);
 
 		return {
 			totalOrders: totalCount,
@@ -184,7 +146,7 @@ export const customerRouter = router({
 			pendingOrders: pendingCount,
 			confirmedOrders: confirmedCount,
 			completedOrders: completedCount,
-			totalSpent: Number(spentRow?.t ?? 0),
+			totalSpent: Number(statsRow?.totalSpent ?? 0),
 			loyaltyPoints: ctx.customer.loyalty_points ?? 0,
 			walletBalance: Number(ctx.customer.store_credit ?? 0),
 			loyaltyTier: ctx.customer.loyalty_tier ?? "bronze",
