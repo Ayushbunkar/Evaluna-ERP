@@ -1,44 +1,52 @@
 import { db } from "../lib/db";
 import { deliveryTrips, tripStops, user, staff } from "@evaluna/db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, or, desc, inArray, sql } from "drizzle-orm";
 
 async function main() {
-	const trip50 = await db.query.deliveryTrips.findFirst({
-		where: eq(deliveryTrips.id, 50),
-		with: { stops: true },
+	const currentUser = {
+		id: "5fed06bd-f6e4-4044-a114-f63129959477",
+		name: "newdriver",
+		email: "newdriver@evaluna.com",
+		staffId: 142,
+	};
+
+	const ids = new Set<string>();
+	const addSafe = (val: any) => {
+		if (val !== undefined && val !== null && String(val).trim()) {
+			const str = String(val).trim();
+			ids.add(str);
+			ids.add(str.toLowerCase());
+		}
+	};
+
+	addSafe(currentUser.id);
+	addSafe(currentUser.email);
+	addSafe(currentUser.name);
+	addSafe(currentUser.staffId);
+
+	// Look up in staff table
+	const staffList = await db.query.staff.findMany({
+		where: or(
+			eq(staff.id, 142),
+			eq(staff.email, "newdriver@evaluna.com"),
+			eq(staff.name, "newdriver")
+		)
 	});
-	console.log("=== TRIP 50 ===");
-	console.log(JSON.stringify(trip50, null, 2));
-
-	const driverIdInTrip = trip50?.driver_id;
-	console.log("=== DRIVER ID IN TRIP 50 ===", driverIdInTrip);
-
-	if (driverIdInTrip) {
-		const u = await db.query.user.findFirst({
-			where: or(
-				eq(user.id, driverIdInTrip),
-				eq(user.email, driverIdInTrip),
-				eq(user.name, driverIdInTrip)
-			),
-		});
-		console.log("=== USER TABLE RECORD ===", u);
-
-		const s = await db.query.staff.findFirst({
-			where: or(
-				eq(staff.email, driverIdInTrip),
-				eq(staff.name, driverIdInTrip)
-			),
-		});
-		console.log("=== STAFF TABLE RECORD ===", s);
+	for (const s of staffList) {
+		addSafe(s.id);
+		addSafe(s.staff_code);
+		addSafe(s.email);
+		addSafe(s.name);
 	}
 
-	const allUsers = await db.query.user.findMany();
-	console.log("=== ALL USERS ===");
-	console.log(allUsers.map((u: any) => ({ id: u.id, name: u.name, email: u.email, role: u.role, staff_id: u.staff_id })));
+	const driverIds = Array.from(ids);
+	console.log("Resolved driverIds:", driverIds);
 
-	const allStaff = await db.query.staff.findMany();
-	console.log("=== ALL STAFF ===");
-	console.log(allStaff.map((s: any) => ({ id: s.id, staff_code: s.staff_code, name: s.name, email: s.email, role: s.role })));
+	const trips = await db.query.deliveryTrips.findMany({
+		where: inArray(deliveryTrips.driver_id, driverIds),
+		with: { stops: true },
+	});
+	console.log("Matched trips for driverIds:", trips.map(t => ({ id: t.id, driver_id: t.driver_id, status: t.status, stops: t.stops?.length })));
 
 	process.exit(0);
 }

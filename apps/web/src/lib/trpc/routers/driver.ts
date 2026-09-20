@@ -511,7 +511,7 @@ export const driverRouter = router({
 					(s: any) => s.status === "delivered" || s.status === "completed",
 				).length;
 				const pending = trip.stops.filter(
-					(s: any) => s.status === "pending" || s.status === "arrived",
+					(s: any) => s.status !== "delivered" && s.status !== "completed",
 				).length;
 
 				const returnsProcessed = trip.stops.filter(
@@ -521,7 +521,7 @@ export const driverRouter = router({
 
 				const nextStop =
 					trip.stops.find(
-						(s: any) => s.status === "pending" || s.status === "arrived",
+						(s: any) => s.status !== "delivered" && s.status !== "completed",
 					) || trip.stops[0];
 				const customerIds = trip.stops
 					.map((s: any) => s.customer_id)
