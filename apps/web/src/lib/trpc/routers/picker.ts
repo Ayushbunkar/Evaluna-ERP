@@ -353,7 +353,8 @@ export const pickerRouter = router({
 				orderItemCounts = new Map(oItems.map((o) => [o.orderId, o.count]));
 			}
 
-			return lists.map((r, i) => {
+			const historyItems = [];
+			for (const r of lists) {
 				let itemCount =
 					r.pickListItems?.reduce(
 						(acc, item) => acc + (item.quantity_ordered ?? 0),
@@ -364,13 +365,36 @@ export const pickerRouter = router({
 					itemCount = orderItemCounts.get(r.order_id) || 1;
 				}
 
-				return {
+				let routeName = "N/A";
+				if (r.order_id) {
+					try {
+						const [ord] = await db
+							.select({ customer_id: orders.customer_id })
+							.from(orders)
+							.where(eq(orders.id, r.order_id))
+							.limit(1);
+						if (ord?.customer_id) {
+							const [rStop] = await db
+								.select({ routeName: deliveryRoutes.name })
+								.from(routeStops)
+								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+								.where(eq(routeStops.customer_id, ord.customer_id))
+								.limit(1);
+							if (rStop?.routeName) {
+								routeName = rStop.routeName;
+							}
+						}
+					} catch (e) {}
+				}
+
+				historyItems.push({
 					id: r.id,
-					queue_no: i + 1,
+					queue_no: historyItems.length + 1,
 					order_id: `ORD-${r.order_id}`,
 					priority: r.priority ?? "Normal",
 					items: itemCount > 0 ? itemCount : 1,
 					assigned_to: r.assignedTo?.name || "Unassigned",
+					routeName,
 					waiting_since: r.created_at
 						? new Date(r.created_at).toLocaleTimeString("en-US", {
 								hour: "2-digit",
@@ -380,8 +404,10 @@ export const pickerRouter = router({
 							})
 						: "",
 					expected_by: "N/A",
-				};
-			});
+				});
+			}
+
+			return historyItems;
 		}),
 
 	getReturns: roleProcedure(["admin", "manager", "auditor", "picker"])

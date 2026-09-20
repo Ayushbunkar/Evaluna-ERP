@@ -239,7 +239,12 @@ export default function PickerPendingPage() {
 												#{pick.queue_no}
 											</TableCell>
 											<TableCell className="font-semibold text-sm">
-												{pick.order_id}
+												<div>{pick.order_id}</div>
+												{pick.routeName && pick.routeName !== "N/A" && (
+													<div className="text-[11px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-0.5">
+														📍 {pick.routeName}
+													</div>
+												)}
 											</TableCell>
 											<TableCell>
 												<span
