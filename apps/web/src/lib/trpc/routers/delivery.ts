@@ -1159,19 +1159,17 @@ ERROR TABLE: ${err.table}
 				(r) => !r.name?.startsWith("Trip ") && !r.name?.startsWith("Quick Trip "),
 			);
 
-			const activeTrips = await db.query.deliveryTrips.findMany({
-				where: notInArray(deliveryTrips.status, ["cancelled", "completed"]),
-				with: {
-					stops: true,
-				},
-			});
-
-			const customerIdsInActiveTrips = new Set(
-				activeTrips.flatMap((t) => t.stops.map((s) => s.customer_id)).filter(Boolean),
-			);
-
 			const allOrders = await db.query.orders.findMany({
-				where: notInArray(orders.status, ["cancelled", "completed", "delivered", "dispatched", "out_for_delivery"]),
+				where: notInArray(orders.status, [
+					"cancelled",
+					"completed",
+					"delivered",
+					"dispatched",
+					"out_for_delivery",
+					"pending_review",
+					"under_review",
+					"ready_for_dispatch",
+				]),
 				with: {
 					customer: true,
 				},
@@ -1180,26 +1178,6 @@ ERROR TABLE: ${err.table}
 
 			return realRoutes.map((route) => {
 				const routeCustIds = new Set(route.stops.map((s) => s.customer_id).filter(Boolean));
-
-				const routeOrders = allOrders.filter((order) => {
-					if (order.customer_id && customerIdsInActiveTrips.has(order.customer_id)) return false;
-					
-					const isDirectRoute = (order as any).route_id === route.id;
-					const isStopCustomer = Boolean(order.customer_id && routeCustIds.has(order.customer_id));
-
-					return isDirectRoute || isStopCustomer;
-				});
-
-				const waitingCount = routeOrders.length;
-				const readyCount = routeOrders.filter(
-					(o) => o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
-				).length;
-				const pickingCount = routeOrders.filter(
-					(o) => o.status === "confirmed" || o.status === "processing" || o.status === "picking",
-				).length;
-				const packingCount = routeOrders.filter(
-					(o) => o.status === "ready_for_packing" || o.status === "packing",
-				).length;
 
 				// Initialize pre-configured village stops from route description or route stops
 				const villageMap = new Map<string, any[]>();
@@ -1234,6 +1212,44 @@ ERROR TABLE: ${err.table}
 					}
 				}
 
+				const routeOrders = allOrders.filter((order) => {
+					// Ignore if already assigned to a driver
+					if (order.driver_id) return false;
+
+					const isDirectRoute = (order as any).route_id === route.id;
+					const isStopCustomer = Boolean(order.customer_id && routeCustIds.has(order.customer_id));
+
+					if (isDirectRoute || isStopCustomer) return true;
+
+					// Fallback: match by customer address or name against pre-configured route villages
+					const cust = order.customer;
+					const custAddress = (cust?.address || "").trim().toLowerCase();
+					const custName = (cust?.name || "").trim().toLowerCase();
+
+					if (!custAddress && !custName) return false;
+
+					return preConfiguredVillages.some((v) => {
+						const vLower = v.toLowerCase();
+						if (vLower.length < 3) return false;
+						return (
+							custAddress.includes(vLower) ||
+							vLower.includes(custAddress) ||
+							custName.includes(vLower)
+						);
+					});
+				});
+
+				const waitingCount = routeOrders.length;
+				const readyCount = routeOrders.filter(
+					(o) => o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
+				).length;
+				const pickingCount = routeOrders.filter(
+					(o) => o.status === "confirmed" || o.status === "processing" || o.status === "picking",
+				).length;
+				const packingCount = routeOrders.filter(
+					(o) => o.status === "ready_for_packing" || o.status === "packing",
+				).length;
+
 				for (const order of routeOrders) {
 					const cust = order.customer;
 					const custAddress = (cust?.address || "").trim().toLowerCase();
@@ -1242,6 +1258,7 @@ ERROR TABLE: ${err.table}
 					// Find best matching pre-configured village stop
 					let targetVillage = preConfiguredVillages.find((v) => {
 						const vLower = v.toLowerCase();
+						if (vLower.length < 3) return false;
 						return (
 							custAddress.includes(vLower) ||
 							vLower.includes(custAddress) ||

@@ -52,6 +52,8 @@ const ORDERS_DDL = buildDDL(
 		schema.orderAudits,
 		schema.proofOfDeliveries,
 		schema.deliveryStops,
+		schema.deliveryRoutes,
+		schema.routeStops,
 	],
 	false,
 );
