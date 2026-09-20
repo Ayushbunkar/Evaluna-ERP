@@ -17,6 +17,7 @@ import { TRPCError } from "@trpc/server";
 import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, not, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
+import { dispatchNotification } from "@/lib/notification-service";
 import { roleProcedure, router } from "../init";
 
 export const loaderRouter = router({
@@ -27,24 +28,48 @@ export const loaderRouter = router({
 			const todayStart = new Date();
 			todayStart.setHours(0, 0, 0, 0);
 
+			// Loaders only see their own assigned trips; managers/admins see all
+			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
+			const isLoaderRole = userRole === "loader";
+			const loaderId = ctx.user?.id;
+
+			const loaderFilter =
+				isLoaderRole && loaderId
+					? eq(deliveryTrips.loader_id, loaderId)
+					: undefined;
+
 			const [readyTrips] = await db
 				.select({ count: count() })
 				.from(deliveryTrips)
-				.where(inArray(deliveryTrips.status, ["ready_for_loading", "pending"]));
+				.where(
+					loaderFilter
+						? and(inArray(deliveryTrips.status, ["ready_for_loading", "pending"]), loaderFilter)
+						: inArray(deliveryTrips.status, ["ready_for_loading", "pending"]),
+				);
 
 			const [loadingTrips] = await db
 				.select({ count: count() })
 				.from(deliveryTrips)
-				.where(eq(deliveryTrips.status, "loading"));
+				.where(
+					loaderFilter
+						? and(eq(deliveryTrips.status, "loading"), loaderFilter)
+						: eq(deliveryTrips.status, "loading"),
+				);
 
 			const [loadedTodayTrips] = await db
 				.select({ count: count() })
 				.from(deliveryTrips)
 				.where(
-					and(
-						inArray(deliveryTrips.status, ["loaded", "active", "completed"]),
-						gte(deliveryTrips.updated_at, todayStart),
-					),
+					loaderFilter
+						? and(
+								inArray(deliveryTrips.status, ["loaded", "active", "completed"]),
+								gte(deliveryTrips.updated_at, todayStart),
+								loaderFilter,
+						  )
+						: and(
+								inArray(deliveryTrips.status, ["loaded", "active", "completed"]),
+								gte(deliveryTrips.updated_at, todayStart),
+						  ),
 				);
 
 			const [pendingVerificationOrders] = await db
@@ -77,6 +102,15 @@ export const loaderRouter = router({
 					? eq(deliveryTrips.status, input.status)
 					: inArray(deliveryTrips.status, ["ready_for_loading", "pending", "loading", "loaded"]);
 
+			// Loaders only see trips assigned to them
+			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
+			const isLoaderRole = userRole === "loader";
+			const callerId = ctx.user?.id;
+			const loaderIdFilter =
+				isLoaderRole && callerId ? eq(deliveryTrips.loader_id, callerId) : undefined;
+
+			const whereClause = loaderIdFilter ? and(statusFilter, loaderIdFilter) : statusFilter;
+
 			const rawTrips = await db
 				.select({
 					tripId: deliveryTrips.id,
@@ -95,7 +129,7 @@ export const loaderRouter = router({
 				.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
 				.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 				.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
-				.where(statusFilter)
+				.where(whereClause)
 				.orderBy(desc(deliveryTrips.created_at));
 
 			const enrichedTrips = await Promise.all(
@@ -490,10 +524,10 @@ export const loaderRouter = router({
 				});
 			}
 
-			// Update trip status to "loaded"
+			// Update trip status to "loaded" and record loaded_at timestamp
 			await db
 				.update(deliveryTrips)
-				.set({ status: "loaded", updated_at: new Date() })
+				.set({ status: "loaded", loaded_at: new Date(), updated_at: new Date() })
 				.where(eq(deliveryTrips.id, input.tripId));
 
 			// Update all assigned orders for this trip to "loaded"
@@ -508,6 +542,36 @@ export const loaderRouter = router({
 					.update(packages)
 					.set({ status: "loaded" })
 					.where(inArray(packages.order_id, orderIds));
+			}
+
+			// Re-fetch the trip to get route name for notification
+			const [updatedTrip] = await db
+				.select({ id: deliveryTrips.id, routeId: deliveryTrips.route_id })
+				.from(deliveryTrips)
+				.where(eq(deliveryTrips.id, input.tripId));
+
+			// 🔔 Notify Manager: Trip loading is complete — ready to dispatch
+			try {
+				const loaderName = ctx.user?.name || ctx.user?.email || "Loader";
+				await dispatchNotification({
+					type: "info",
+					priority: "high",
+					title: `✅ Trip #${input.tripId} — Loading Complete`,
+					message: `Trip #${input.tripId} has been fully loaded by ${loaderName}. All ${orderIds.length} order(s) are loaded into the vehicle. Please review and dispatch the trip.`,
+					branchId: (ctx.user?.branchId as number) || 1,
+					channels: ["in_app"],
+					referenceType: "trips",
+					referenceId: input.tripId,
+					metadata: {
+						trip_id: input.tripId,
+						loaded_by: loaderName,
+						loaded_orders: orderIds.length,
+						action_required: "dispatch",
+					},
+				});
+			} catch (notifErr) {
+				// Non-critical — notification failure does not block loading completion
+				console.warn("[completeTripLoading] Manager notification failed (non-critical):", notifErr);
 			}
 
 			return {
