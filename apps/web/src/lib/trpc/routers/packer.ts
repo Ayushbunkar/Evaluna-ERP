@@ -581,6 +581,18 @@ export const packerRouter = router({
 							if (stop.vehiclePlate) vehiclePlate = stop.vehiclePlate;
 							if (stop.routeName) routeName = stop.routeName;
 						}
+
+						if (routeName === "N/A" || routeName === "Delivery Route") {
+							const [rStop] = await ctx.db
+								.select({ routeName: deliveryRoutes.name })
+								.from(routeStops)
+								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+								.where(eq(routeStops.customer_id, item.customerId))
+								.limit(1);
+							if (rStop?.routeName) {
+								routeName = rStop.routeName;
+							}
+						}
 					} catch (e) {
 						console.warn("[getPackingHistory] Driver lookup error:", e);
 					}
