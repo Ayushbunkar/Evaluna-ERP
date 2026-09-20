@@ -848,7 +848,7 @@ export function DeliveryManagementDashboard({
 		});
 
 		toast.success(
-			`Dispatched 1 Trip with ${customerStops.length} Stop(s) for ${ordersToAssign.length} order(s)! Sent to Packer Queue.`,
+			`Dispatched 1 Trip with ${customerStops.length} Stop(s) for ${ordersToAssign.length} order(s)! Assigned to Driver & Sent to Loader Queue.`,
 		);
 		setIsOrderAssignOpen(false);
 		setAssignOrder(null);
@@ -3370,7 +3370,7 @@ export function DeliveryManagementDashboard({
 					>
 						{createTripDirect.isPending
 							? "Assigning..."
-							: "Assign & Send to Packer"}
+							: "Assign & Send to Loader"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

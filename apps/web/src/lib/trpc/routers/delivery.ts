@@ -943,25 +943,16 @@ ERROR TABLE: ${err.table}
 	listDrivers: roleProcedure(["admin", "manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			const usersWithRole = await db
-				.select({
-					id: user.id,
-					name: user.name,
-					email: user.email,
-					role: roles.name,
-					image: user.image,
-					staff_id: user.staff_id,
-				})
-				.from(user)
-				.innerJoin(userRoles, eq(userRoles.user_id, user.id))
-				.innerJoin(roles, eq(userRoles.role_id, roles.id))
-				.where(
-					or(
-						eq(roles.name, "delivery"),
-						eq(roles.name, "driver"),
-						eq(roles.name, "delivery_boy"),
-					),
-				);
+			// Query all real authenticated users with their userRoles
+			const allUsers = await db.query.user.findMany({
+				with: {
+					userRoles: {
+						with: {
+							role: true,
+						},
+					},
+				},
+			});
 
 			const staffMembers = await db.query.staff.findMany({
 				where: (s, { eq, or }) =>
@@ -970,95 +961,104 @@ ERROR TABLE: ${err.table}
 						eq(s.role, "driver"),
 						eq(s.role, "delivery_boy"),
 					),
-				columns: { id: true, staff_code: true, name: true, email: true, role: true },
+				columns: { id: true, staff_code: true, name: true, email: true, role: true, phone: true },
 			});
 
-			const merged = new Map();
-			for (const u of usersWithRole) {
-				const matchingStaff = u.staff_id
-					? staffMembers.find((s) => s.id === u.staff_id)
-					: null;
+			// Only include users who actually have an authenticated user account (and dashboard)
+			const driverUsers = allUsers.filter((u) => {
+				const hasDriverUserRole = u.userRoles?.some((r: any) =>
+					["delivery", "driver", "delivery_boy"].includes(r.role?.name?.toLowerCase() || ""),
+				);
+				const hasDriverStaffRecord = staffMembers.some(
+					(s) =>
+						s.id === u.staff_id ||
+						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()),
+				);
+				return hasDriverUserRole || hasDriverStaffRecord;
+			});
 
-				merged.set(u.email.toLowerCase(), {
+			const result = driverUsers.map((u) => {
+				const matchingStaff = staffMembers.find(
+					(s) =>
+						s.id === u.staff_id ||
+						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()) ||
+						(s.name && u.name && s.name.toLowerCase() === u.name.toLowerCase()),
+				);
+
+				return {
 					id: u.id,
 					name: u.name,
 					email: u.email,
-					role: u.role,
-					image: u.image,
+					role: "driver",
+					image: u.image || null,
+					phone: matchingStaff?.phone || null,
 					staff_code: matchingStaff?.staff_code || (u.staff_id ? `EMP-${u.staff_id}` : null),
-				});
-			}
-			for (const s of staffMembers) {
-				if (s.email && !merged.has(s.email.toLowerCase())) {
-					merged.set(s.email.toLowerCase(), {
-						id: String(s.id),
-						name: s.name,
-						email: s.email,
-						role: s.role,
-						image: null,
-						staff_code: s.staff_code || `EMP-${s.id}`,
-					});
-				}
-			}
+				};
+			});
 
-			return Array.from(merged.values());
+			return result;
 		}),
 
 	listLoaders: roleProcedure(["admin", "manager"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
-			const usersWithRole = await db
-				.select({
-					id: user.id,
-					name: user.name,
-					email: user.email,
-					role: roles.name,
-					image: user.image,
-				})
-				.from(user)
-				.innerJoin(userRoles, eq(userRoles.user_id, user.id))
-				.innerJoin(roles, eq(userRoles.role_id, roles.id))
-				.where(eq(roles.name, "loader"));
+			const allUsers = await db.query.user.findMany({
+				with: {
+					userRoles: {
+						with: {
+							role: true,
+						},
+					},
+				},
+			});
 
 			const staffMembers = await db.query.staff.findMany({
 				where: (s, { eq }) => eq(s.role, "loader"),
-				columns: { id: true, name: true, email: true, role: true },
+				columns: { id: true, staff_code: true, name: true, email: true, role: true, phone: true },
 			});
 
-			const merged = new Map();
-			for (const u of usersWithRole) {
-				merged.set(u.email.toLowerCase(), {
-					id: u.id,
-					name: u.name,
-					email: u.email,
-					role: u.role,
-					image: u.image,
-				});
-			}
-			for (const s of staffMembers) {
-				if (s.email && !merged.has(s.email.toLowerCase())) {
-					merged.set(s.email.toLowerCase(), {
-						id: String(s.id),
-						name: s.name,
-						email: s.email,
-						role: s.role,
-						image: null,
-					});
-				}
-			}
+			// Only include users who actually have an authenticated user account (and dashboard)
+			const loaderUsers = allUsers.filter((u) => {
+				const hasLoaderUserRole = u.userRoles?.some((r: any) =>
+					["loader"].includes(r.role?.name?.toLowerCase() || ""),
+				);
+				const hasLoaderStaffRecord = staffMembers.some(
+					(s) =>
+						s.id === u.staff_id ||
+						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()),
+				);
+				return hasLoaderUserRole || hasLoaderStaffRecord;
+			});
 
-			let list = Array.from(merged.values());
-			if (list.length === 0) {
-				const allUsers = await db.query.user.findMany({
-					limit: 20,
-					columns: { id: true, name: true, email: true, image: true },
-				});
-				list = allUsers.map((u) => ({
+			let list = loaderUsers.map((u) => {
+				const matchingStaff = staffMembers.find(
+					(s) =>
+						s.id === u.staff_id ||
+						(s.email && u.email && s.email.toLowerCase() === u.email.toLowerCase()) ||
+						(s.name && u.name && s.name.toLowerCase() === u.name.toLowerCase()),
+				);
+
+				return {
 					id: u.id,
 					name: u.name,
 					email: u.email,
 					role: "loader",
-					image: u.image,
+					image: u.image || null,
+					phone: matchingStaff?.phone || null,
+					staff_code: matchingStaff?.staff_code || (u.staff_id ? `EMP-${u.staff_id}` : null),
+				};
+			});
+
+			// Fallback: If no dedicated loader role yet, list warehouse/staff users with user accounts
+			if (list.length === 0) {
+				list = allUsers.slice(0, 10).map((u) => ({
+					id: u.id,
+					name: u.name,
+					email: u.email,
+					role: "loader",
+					image: u.image || null,
+					phone: null,
+					staff_code: u.staff_id ? `EMP-${u.staff_id}` : null,
 				}));
 			}
 
