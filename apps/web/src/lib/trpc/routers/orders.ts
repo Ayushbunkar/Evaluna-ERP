@@ -42,7 +42,7 @@ import {
 import { z } from "zod/v4";
 import { db } from "@/lib/db";
 import { notifyOrderCreated } from "@/lib/notification-service";
-import { roleProcedure, router } from "../init";
+import { protectedProcedure, roleProcedure, router } from "../init";
 
 const orderWithCustomerSchema = z.object({
 	id: z.number(),
@@ -432,7 +432,16 @@ export const ordersRouter = router({
 			};
 		}),
 
-	list: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+	list: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"sales_person",
+		"salesperson",
+		"sales",
+		"biller",
+		"cashier",
+	])
 		.meta({
 			openapi: {
 				method: "GET",
@@ -995,7 +1004,10 @@ export const ordersRouter = router({
 		"admin",
 		"manager",
 		"sales_person",
+		"salesperson",
 		"sales",
+		"biller",
+		"cashier",
 	])
 		.input(z.void())
 		.query(async ({ ctx }) => {
@@ -1032,7 +1044,10 @@ export const ordersRouter = router({
 		"admin",
 		"manager",
 		"sales_person",
+		"salesperson",
 		"sales",
+		"biller",
+		"cashier",
 	])
 		.input(z.void())
 		.query(async ({ ctx }) => {

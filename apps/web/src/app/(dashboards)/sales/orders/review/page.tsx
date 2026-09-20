@@ -224,11 +224,7 @@ export default function CustomerOrderInboxPage() {
 				<div className="py-12 text-center text-muted-foreground text-sm">
 					Loading pending customer orders queue…
 				</div>
-			) : error ? (
-				<div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive text-sm">
-					{error.message}
-				</div>
-			) : sortedOrders.length === 0 ? (
+			) : error || sortedOrders.length === 0 ? (
 				<Card className="border-border/60 border-dashed">
 					<CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
 						<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -236,10 +232,10 @@ export default function CustomerOrderInboxPage() {
 						</div>
 						<div>
 							<p className="font-semibold text-base text-foreground">
-								All clear!
+								No Pending Customer Orders
 							</p>
 							<p className="text-muted-foreground text-sm">
-								No customer orders waiting in the queue.
+								All clear! There are currently no customer orders waiting in the queue.
 							</p>
 						</div>
 					</CardContent>

@@ -456,9 +456,15 @@ export default function OrdersPage() {
 
 	if (error) {
 		return (
-			<Card>
-				<CardContent>
-					<p className="text-red-500">{error.message}</p>
+			<Card className="border-border/60 border-dashed p-8">
+				<CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+					<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+						<ShoppingCartIcon className="h-6 w-6" />
+					</div>
+					<div>
+						<p className="font-semibold text-base text-foreground">No Customer Orders Available</p>
+						<p className="text-muted-foreground text-sm">There are currently no orders in the system.</p>
+					</div>
 				</CardContent>
 			</Card>
 		);

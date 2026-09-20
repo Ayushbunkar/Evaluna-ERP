@@ -75,16 +75,24 @@ export const roleProcedure = (requiredRoles: Role[]) => {
 			return next({ ctx: { ...ctx, user: ctx.user } });
 		}
 
-		const rawRole = (ctx.user.primaryRole?.name ||
-			(ctx.user as any).role ||
-			ctx.user.staff?.role ||
-			"") as string;
-		const userRole = normalizeRole(rawRole);
+		const userRolesList = [
+			ctx.user.primaryRole?.name,
+			(ctx.user as any).role,
+			ctx.user.staff?.role,
+			...(ctx.user.roles || []).map((r: any) =>
+				typeof r === "string" ? r : r?.name,
+			),
+		]
+			.filter(Boolean)
+			.map((r) => normalizeRole(r as string));
 
 		const normalizedRequired = requiredRoles.map((r) => normalizeRole(r));
 
-		// Check if the user's normalized role is one of the required roles
-		if (!userRole || !normalizedRequired.includes(userRole as any)) {
+		const isAllowed = userRolesList.some((ur) =>
+			normalizedRequired.includes(ur as any),
+		);
+
+		if (!isAllowed) {
 			throw new TRPCError({ code: "FORBIDDEN" });
 		}
 
