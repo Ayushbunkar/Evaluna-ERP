@@ -372,7 +372,7 @@ export function normalizeRole(r: string): Role {
 	if (snake in ROLE_LEVEL) {
 		return snake;
 	}
-	return lower as Role;
+	return "customer" as Role;
 }
 
 /**

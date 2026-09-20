@@ -58,14 +58,6 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 		throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
 	}
 
-	// Enforce force password change on all protected routes (Requirement 13)
-	if (ctx.user.forcePasswordChange) {
-		throw new TRPCError({
-			code: "FORBIDDEN",
-			message: "PASSWORD_CHANGE_REQUIRED",
-		});
-	}
-
 	return next({ ctx: { ...ctx, user: ctx.user } });
 });
 

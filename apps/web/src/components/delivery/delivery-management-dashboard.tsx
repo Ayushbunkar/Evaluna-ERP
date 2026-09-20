@@ -222,8 +222,27 @@ export function DeliveryManagementDashboard({
 			refetchOrders();
 		},
 	});
+	const assignVehicleAndDriverMutation = trpc.delivery.assignVehicleAndDriver.useMutation({
+		onSuccess: () => {
+			toast.success("Trip vehicle and driver assigned successfully!");
+			refetchTrips();
+			refetchOrders();
+			setIsAssignIncompleteTripOpen(false);
+			setSelectedAssignTrip(null);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to assign vehicle and driver");
+		},
+	});
 	const optimizeRouteSequence =
 		trpc.delivery.optimizeRouteSequence.useMutation();
+
+	// Modal States for Incomplete Trip Assignment
+	const [isAssignIncompleteTripOpen, setIsAssignIncompleteTripOpen] = useState(false);
+	const [selectedAssignTrip, setSelectedAssignTrip] = useState<any>(null);
+	const [assignIncompleteDriverId, setAssignIncompleteDriverId] = useState("");
+	const [assignIncompleteVehicleId, setAssignIncompleteVehicleId] = useState("");
+	const [assignIncompleteLoaderId, setAssignIncompleteLoaderId] = useState("");
 
 	// Form States
 	const [vehicleName, setVehicleName] = useState("");
@@ -909,10 +928,8 @@ export function DeliveryManagementDashboard({
 	const handleStartCreateTripFromPool = (routePool: any) => {
 		setCreateTripRoutePool(routePool);
 		setCreateTripStep(1);
-		const eligibleIds = (routePool.orders || [])
-			.filter((o: any) => o.isEligibleForTrip)
-			.map((o: any) => o.id);
-		setSelectedPoolOrderIds(eligibleIds);
+		const orderIds = (routePool.orders || []).map((o: any) => o.id);
+		setSelectedPoolOrderIds(orderIds);
 		setPoolDriverId(finalDrivers[0]?.id || "");
 		setPoolVehicleId(vehicles[0]?.id?.toString() || "");
 		setPoolLoaderId(loadersList[0]?.id || "");
@@ -2131,7 +2148,7 @@ export function DeliveryManagementDashboard({
 												size="sm"
 												className="h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-white"
 												onClick={() => handleStartCreateTripFromPool(routePool)}
-												disabled={routePool.readyCount === 0}
+												disabled={routePool.waitingCount === 0}
 											>
 												{t("createTrip")}
 											</Button>
@@ -2253,16 +2270,35 @@ export function DeliveryManagementDashboard({
 														Monitor Loading
 													</Button>
 												) : (
-													<Button
-														variant="outline"
-														size="sm"
-														className="h-8 text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50 w-full"
-														onClick={() => {
-															openDispatchForRoute({ id: trip.route_id || 1, stops: trip.stops });
-														}}
-													>
-														Complete Assignment
-													</Button>
+													<div className="flex gap-1.5 w-full">
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8 text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50 flex-1"
+															onClick={() => {
+																setSelectedAssignTrip(trip);
+																setAssignIncompleteDriverId(trip.driver_id || "");
+																setAssignIncompleteVehicleId(trip.vehicle_id ? trip.vehicle_id.toString() : "");
+																setAssignIncompleteLoaderId(trip.loader_id || "");
+																setIsAssignIncompleteTripOpen(true);
+															}}
+														>
+															Complete Assignment
+														</Button>
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8 text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 px-2 border-red-200"
+															title="Delete Incomplete Trip"
+															onClick={() => {
+																if (window.confirm(`Are you sure you want to delete incomplete Trip #${trip.id}?`)) {
+																	cancelTrip.mutate({ tripId: trip.id });
+																}
+															}}
+														>
+															<Trash2Icon className="h-3.5 w-3.5" />
+														</Button>
+													</div>
 												)}
 											</div>
 										</div>
@@ -3689,7 +3725,7 @@ export function DeliveryManagementDashboard({
 							setIsViewOrdersOpen(false);
 							if (viewRoutePool) handleStartCreateTripFromPool(viewRoutePool);
 						}}
-						disabled={viewRoutePool?.readyCount === 0}
+						disabled={viewRoutePool?.waitingCount === 0}
 					>
 						{t("createTrip")}
 					</Button>
@@ -3721,13 +3757,11 @@ export function DeliveryManagementDashboard({
 									variant="ghost"
 									className="h-6 text-[11px]"
 									onClick={() => {
-										const eligible = (createTripRoutePool?.orders || [])
-											.filter((o: any) => o.isEligibleForTrip)
-											.map((o: any) => o.id);
-										setSelectedPoolOrderIds(eligible);
+										const allIds = (createTripRoutePool?.orders || []).map((o: any) => o.id);
+										setSelectedPoolOrderIds(allIds);
 									}}
 								>
-									Select All Eligible
+									Select All
 								</Button>
 								<Button
 									size="sm"
@@ -3755,18 +3789,15 @@ export function DeliveryManagementDashboard({
 											<label
 												key={ord.id}
 												className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-													!ord.isReady
-														? "bg-slate-100 opacity-60 cursor-not-allowed dark:bg-slate-800"
-														: isSelected
-															? "border-primary bg-primary/5"
-															: "bg-white dark:bg-slate-800"
+													isSelected
+														? "border-primary bg-primary/5 shadow-2xs"
+														: "bg-white dark:bg-slate-800 hover:border-slate-300"
 												}`}
 											>
 												<div className="flex items-center gap-2">
 													<input
 														type="checkbox"
 														checked={isSelected}
-														disabled={!ord.isReady}
 														onChange={(e) => {
 															if (e.target.checked) {
 																setSelectedPoolOrderIds((prev) => [...prev, ord.id]);
@@ -3787,10 +3818,12 @@ export function DeliveryManagementDashboard({
 													className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
 														ord.isReady
 															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-															: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+															: ord.status === "packing"
+																? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+																: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 													}`}
 												>
-													{ord.isReady ? "Ready for Trip" : ord.status}
+													{ord.isReady ? "Ready for Loading" : ord.status === "packing" ? "Packing" : "Picking"}
 												</span>
 											</label>
 										);
@@ -4052,6 +4085,137 @@ export function DeliveryManagementDashboard({
 					<Button variant="outline" onClick={() => setIsTripDetailOpen(false)}>
 						Close
 					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* DIALOG 5: COMPLETE INCOMPLETE TRIP ASSIGNMENT */}
+		<Dialog open={isAssignIncompleteTripOpen} onOpenChange={setIsAssignIncompleteTripOpen}>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<TruckIcon className="h-5 w-5 text-primary" />
+						Complete Assignment — Trip #{selectedAssignTrip?.id}
+					</DialogTitle>
+					<DialogDescription>
+						Assign a Driver, Vehicle, and Loader to this trip so it can proceed to loading and dispatch.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-4 py-2">
+					{/* Route & Stop Summary */}
+					<div className="rounded-xl border bg-slate-50 dark:bg-slate-800/60 p-3 space-y-1 text-xs">
+						<div className="flex justify-between">
+							<span className="text-slate-500">Route:</span>
+							<span className="font-bold text-slate-800 dark:text-slate-200">
+								{selectedAssignTrip?.route?.name || "Direct Custom Trip"}
+							</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-slate-500">Total Stops:</span>
+							<span className="font-bold text-slate-800 dark:text-slate-200">
+								{(selectedAssignTrip?.stops || []).length} Stops
+							</span>
+						</div>
+					</div>
+
+					{/* Driver Selection */}
+					<div className="space-y-1.5">
+						<Label className="text-xs font-semibold">Select Driver *</Label>
+						<Select value={assignIncompleteDriverId} onValueChange={setAssignIncompleteDriverId}>
+							<SelectTrigger className="h-9 text-xs">
+								<SelectValue placeholder="Select Driver" />
+							</SelectTrigger>
+							<SelectContent>
+								{finalDrivers.map((d: any) => (
+									<SelectItem key={d.id} value={d.id}>
+										👤 {d.name} {d.email ? `(${d.email})` : ""}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					{/* Vehicle Selection */}
+					<div className="space-y-1.5">
+						<Label className="text-xs font-semibold">Select Vehicle *</Label>
+						<Select value={assignIncompleteVehicleId} onValueChange={setAssignIncompleteVehicleId}>
+							<SelectTrigger className="h-9 text-xs">
+								<SelectValue placeholder="Select Vehicle" />
+							</SelectTrigger>
+							<SelectContent>
+								{vehicles.map((v: any) => (
+									<SelectItem key={v.id} value={v.id.toString()}>
+										🚚 {v.name} ({v.registration_number})
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					{/* Loader Selection */}
+					<div className="space-y-1.5">
+						<Label className="text-xs font-semibold">Select Trip Loader (Optional)</Label>
+						<Select value={assignIncompleteLoaderId} onValueChange={setAssignIncompleteLoaderId}>
+							<SelectTrigger className="h-9 text-xs">
+								<SelectValue placeholder="Select Loader" />
+							</SelectTrigger>
+							<SelectContent>
+								{loadersList.map((l: any) => (
+									<SelectItem key={l.id} value={l.id}>
+										📦 {l.name} {l.email ? `(${l.email})` : ""}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+
+				<DialogFooter className="flex flex-row justify-between items-center gap-2 pt-2">
+					<Button
+						type="button"
+						variant="outline"
+						className="text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+						onClick={() => {
+							if (window.confirm(`Are you sure you want to delete Trip #${selectedAssignTrip?.id}?`)) {
+								cancelTrip.mutate({ tripId: selectedAssignTrip.id });
+								setIsAssignIncompleteTripOpen(false);
+							}
+						}}
+						disabled={cancelTrip.isPending || assignVehicleAndDriverMutation.isPending}
+					>
+						Delete Trip
+					</Button>
+
+					<div className="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							className="text-xs"
+							onClick={() => setIsAssignIncompleteTripOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							className="bg-primary hover:bg-primary/90 text-white font-semibold text-xs"
+							onClick={() => {
+								if (!assignIncompleteDriverId || !assignIncompleteVehicleId) {
+									toast.error("Please select both a Driver and a Vehicle.");
+									return;
+								}
+								assignVehicleAndDriverMutation.mutate({
+									tripId: selectedAssignTrip.id,
+									driverId: assignIncompleteDriverId,
+									vehicleId: Number(assignIncompleteVehicleId),
+									loaderId: assignIncompleteLoaderId || undefined,
+								});
+							}}
+							disabled={assignVehicleAndDriverMutation.isPending}
+						>
+							{assignVehicleAndDriverMutation.isPending ? "Saving..." : "Save & Ready for Loading"}
+						</Button>
+					</div>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

@@ -245,6 +245,7 @@ export const driverRouter = router({
 
 				const userEmail = ctx.user?.email;
 				const userName = ctx.user?.name;
+				const emailPrefix = userEmail?.split("@")[0];
 				const tripSqlConditions: any[] = [];
 				if (driverIds.length > 0) {
 					tripSqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
@@ -259,68 +260,101 @@ export const driverRouter = router({
 						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
 					);
 				}
+				if (emailPrefix) {
+					tripSqlConditions.push(
+						sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${emailPrefix}))`,
+					);
+				}
 
-				const allowedStatuses = [
-					"active",
-					"out_for_delivery",
-					"loaded",
-					"ready_for_loading",
-					"pending",
-					"in_progress",
-					"dispatched",
-					"assigned",
-					"ready_for_dispatch",
-				];
+				let trip: any = null;
 
-				let trip =
-					tripSqlConditions.length > 0
-						? await db.query.deliveryTrips.findFirst({
-								where: and(
-									or(...tripSqlConditions),
-									inArray(deliveryTrips.status, allowedStatuses),
-								),
-								orderBy: [desc(deliveryTrips.created_at)],
-								with: {
-									stops: {
-										orderBy: (deliveryStops: any, { asc }: any) => [
-											asc(deliveryStops.sequence),
-										],
-										with: {
-											customer: true,
-										},
-									},
+				// 1. Try driver-specific trips first (prioritize active/out_for_delivery/dispatched)
+				if (tripSqlConditions.length > 0) {
+					// 1a. Try active dispatched trips first
+					trip = await db.query.deliveryTrips.findFirst({
+						where: and(
+							or(...tripSqlConditions),
+							inArray(deliveryTrips.status, [
+								"active",
+								"out_for_delivery",
+								"dispatched",
+								"in_progress",
+							]),
+						),
+						orderBy: [desc(deliveryTrips.created_at)],
+						with: {
+							stops: {
+								orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
+								with: { customer: true },
+							},
+						},
+					});
+
+					// 1b. If no active trip, check loaded / ready / pending trips
+					if (!trip || !trip.stops || trip.stops.length === 0) {
+						trip = await db.query.deliveryTrips.findFirst({
+							where: and(
+								or(...tripSqlConditions),
+								inArray(deliveryTrips.status, [
+									"loaded",
+									"ready_for_loading",
+									"pending",
+									"assigned",
+									"ready_for_dispatch",
+								]),
+							),
+							orderBy: [desc(deliveryTrips.created_at)],
+							with: {
+								stops: {
+									orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
+									with: { customer: true },
 								},
-							})
-						: null;
+							},
+						});
+					}
+				}
 
-				// Fallback: If no trip matched exact driver ID query, fallback to the most recent active/dispatched trip in system
+				// 2. Fallback: If no driver-specific trip with stops was found (e.g. manager testing or ID alias variation)
 				if (!trip || !trip.stops || trip.stops.length === 0) {
-					const fallbackTrip = await db.query.deliveryTrips.findFirst({
+					// 2a. Check any active dispatched trip in the branch/system first
+					const activeFallbackTrip = await db.query.deliveryTrips.findFirst({
 						where: inArray(deliveryTrips.status, [
 							"active",
 							"out_for_delivery",
-							"loaded",
-							"ready_for_loading",
-							"pending",
-							"in_progress",
 							"dispatched",
-							"assigned",
-							"ready_for_dispatch",
+							"in_progress",
 						]),
 						orderBy: [desc(deliveryTrips.created_at)],
 						with: {
 							stops: {
-								orderBy: (deliveryStops: any, { asc }: any) => [
-									asc(deliveryStops.sequence),
-								],
-								with: {
-									customer: true,
-								},
+								orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
+								with: { customer: true },
 							},
 						},
 					});
-					if (fallbackTrip && fallbackTrip.stops && fallbackTrip.stops.length > 0) {
-						trip = fallbackTrip;
+					if (activeFallbackTrip && activeFallbackTrip.stops && activeFallbackTrip.stops.length > 0) {
+						trip = activeFallbackTrip;
+					} else {
+						// 2b. Check loaded/ready trips
+						const readyFallbackTrip = await db.query.deliveryTrips.findFirst({
+							where: inArray(deliveryTrips.status, [
+								"loaded",
+								"ready_for_loading",
+								"pending",
+								"assigned",
+								"ready_for_dispatch",
+							]),
+							orderBy: [desc(deliveryTrips.created_at)],
+							with: {
+								stops: {
+									orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
+									with: { customer: true },
+								},
+							},
+						});
+						if (readyFallbackTrip && readyFallbackTrip.stops && readyFallbackTrip.stops.length > 0) {
+							trip = readyFallbackTrip;
+						}
 					}
 				}
 
@@ -878,6 +912,7 @@ export const driverRouter = router({
 			const userName = ctx.user?.name;
 
 			const sqlConditions = [];
+			const emailPrefix = userEmail?.split("@")[0];
 			if (driverIds.length > 0) {
 				sqlConditions.push(inArray(deliveryTrips.driver_id, driverIds));
 			}
@@ -889,6 +924,11 @@ export const driverRouter = router({
 			if (userName) {
 				sqlConditions.push(
 					sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`,
+				);
+			}
+			if (emailPrefix) {
+				sqlConditions.push(
+					sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${emailPrefix}))`,
 				);
 			}
 
@@ -904,19 +944,24 @@ export const driverRouter = router({
 				"ready_for_dispatch",
 			];
 
-			// 1. Try driver-specific trips first
+			// 1. Try driver-specific trips first (prioritizing active/dispatched)
 			if (sqlConditions.length > 0) {
 				trips = await db.query.deliveryTrips.findMany({
 					where: and(
 						or(...sqlConditions),
 						inArray(deliveryTrips.status, allowedStatuses),
 					),
-					orderBy: [desc(deliveryTrips.created_at)],
+					orderBy: [
+						sql`CASE 
+							WHEN ${deliveryTrips.status} IN ('active', 'out_for_delivery', 'dispatched', 'in_progress') THEN 1 
+							WHEN ${deliveryTrips.status} = 'loaded' THEN 2 
+							ELSE 3 
+						END`,
+						desc(deliveryTrips.created_at),
+					],
 					with: {
 						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
+							orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
 							with: {
 								customer: true,
 							},
@@ -929,13 +974,18 @@ export const driverRouter = router({
 			const driverStopsCount = trips.reduce((acc, t) => acc + (t.stops?.length || 0), 0);
 			if (driverStopsCount === 0) {
 				const fallbackTrips = await db.query.deliveryTrips.findMany({
-					where: inArray(deliveryTrips.status, ["active", "out_for_delivery", "loaded", "in_progress", "dispatched"]),
-					orderBy: [desc(deliveryTrips.created_at)],
+					where: inArray(deliveryTrips.status, ["active", "out_for_delivery", "loaded", "in_progress", "dispatched", "ready_for_loading", "pending"]),
+					orderBy: [
+						sql`CASE 
+							WHEN ${deliveryTrips.status} IN ('active', 'out_for_delivery', 'dispatched', 'in_progress') THEN 1 
+							WHEN ${deliveryTrips.status} = 'loaded' THEN 2 
+							ELSE 3 
+						END`,
+						desc(deliveryTrips.created_at),
+					],
 					with: {
 						stops: {
-							orderBy: (deliveryStops: any, { asc }: any) => [
-								asc(deliveryStops.sequence),
-							],
+							orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
 							with: {
 								customer: true,
 							},

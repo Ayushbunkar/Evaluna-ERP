@@ -6,6 +6,7 @@ import {
 	gpsLogs,
 	orderItems,
 	orders,
+	packages,
 	products,
 	proofOfDeliveries,
 	roles,
@@ -1168,13 +1169,28 @@ ERROR TABLE: ${err.table}
 					"out_for_delivery",
 					"pending_review",
 					"under_review",
-					"ready_for_dispatch",
 				]),
 				with: {
 					customer: true,
 				},
 				orderBy: (o, { desc }) => [desc(o.created_at)],
 			});
+
+			const packedOrderIds = new Set<number>();
+			try {
+				if (db.query && (db.query as any).packages) {
+					const allPackages = await (db.query as any).packages.findMany({
+						where: inArray(packages.status, ["packed", "ready_for_dispatch", "completed"]),
+					});
+					if (allPackages) {
+						for (const p of allPackages) {
+							if (p.order_id) packedOrderIds.add(p.order_id);
+						}
+					}
+				}
+			} catch (pkgErr) {
+				// Fallback if packages table not yet migrated in current DB
+			}
 
 			return realRoutes.map((route) => {
 				const routeCustIds = new Set(route.stops.map((s) => s.customer_id).filter(Boolean));
@@ -1213,9 +1229,6 @@ ERROR TABLE: ${err.table}
 				}
 
 				const routeOrders = allOrders.filter((order) => {
-					// Ignore if already assigned to a driver
-					if (order.driver_id) return false;
-
 					const isDirectRoute = (order as any).route_id === route.id;
 					const isStopCustomer = Boolean(order.customer_id && routeCustIds.has(order.customer_id));
 
@@ -1241,19 +1254,20 @@ ERROR TABLE: ${err.table}
 
 				const waitingCount = routeOrders.length;
 				const readyCount = routeOrders.filter(
-					(o) => o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
+					(o) => o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch" || packedOrderIds.has(o.id),
 				).length;
 				const pickingCount = routeOrders.filter(
-					(o) => o.status === "confirmed" || o.status === "processing" || o.status === "picking",
+					(o) => !packedOrderIds.has(o.id) && o.status !== "packed" && (o.status === "confirmed" || o.status === "processing" || o.status === "picking"),
 				).length;
 				const packingCount = routeOrders.filter(
-					(o) => o.status === "ready_for_packing" || o.status === "packing",
+					(o) => !packedOrderIds.has(o.id) && (o.status === "ready_for_packing" || o.status === "packing"),
 				).length;
 
 				for (const order of routeOrders) {
 					const cust = order.customer;
 					const custAddress = (cust?.address || "").trim().toLowerCase();
 					const custName = (cust?.name || "").trim().toLowerCase();
+					const isOrderReady = order.status === "packed" || order.status === "ready_for_loading" || order.status === "ready_for_dispatch" || packedOrderIds.has(order.id);
 					
 					// Find best matching pre-configured village stop
 					let targetVillage = preConfiguredVillages.find((v) => {
@@ -1278,9 +1292,9 @@ ERROR TABLE: ${err.table}
 						id: order.id,
 						orderNumber: order.order_number || `ORD-${order.id}`,
 						customerName: cust?.name || "Customer",
-						status: order.status,
+						status: isOrderReady ? "packed" : order.status,
 						createdAt: order.created_at,
-						isReady: order.status === "packed" || order.status === "ready_for_loading" || order.status === "ready_for_dispatch",
+						isReady: isOrderReady,
 					});
 				}
 
@@ -1303,16 +1317,20 @@ ERROR TABLE: ${err.table}
 					villageCount: villages.length,
 					villages,
 					latestOrderTime: latestOrder,
-					orders: routeOrders.map((o) => ({
-						id: o.id,
-						orderNumber: o.order_number || `ORD-${o.id}`,
-						customerId: o.customer_id,
-						customerName: o.customer?.name || "Customer",
-						village: o.customer?.address ? o.customer.address.split(",")[0].trim() : "Stop",
-						status: o.status,
-						createdAt: o.created_at,
-						isEligibleForTrip: o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch",
-					})),
+					orders: routeOrders.map((o) => {
+						const isOrderReady = o.status === "packed" || o.status === "ready_for_loading" || o.status === "ready_for_dispatch" || packedOrderIds.has(o.id);
+						return {
+							id: o.id,
+							orderNumber: o.order_number || `ORD-${o.id}`,
+							customerId: o.customer_id,
+							customerName: o.customer?.name || "Customer",
+							village: o.customer?.address ? o.customer.address.split(",")[0].trim() : "Stop",
+							status: isOrderReady ? "packed" : o.status,
+							createdAt: o.created_at,
+							isReady: isOrderReady,
+							isEligibleForTrip: true,
+						};
+					}),
 				};
 			});
 		}),
@@ -1853,6 +1871,89 @@ ERROR TABLE: ${err.table}
 				);
 				throw err;
 			}
+		}),
+
+	assignVehicleAndDriver: roleProcedure(["admin", "manager"])
+		.input(
+			z.object({
+				tripId: z.number(),
+				driverId: z.string(),
+				vehicleId: z.number(),
+				loaderId: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const [trip] = await db
+				.update(deliveryTrips)
+				.set({
+					driver_id: input.driverId,
+					vehicle_id: input.vehicleId,
+					loader_id: input.loaderId || null,
+					status: "ready_for_loading",
+				})
+				.where(eq(deliveryTrips.id, input.tripId))
+				.returning();
+
+			try {
+				let driverStaffId: number | null = null;
+				if (db.query && (db.query as any).staff) {
+					const staffRow = await (db.query as any).staff.findFirst({
+						where: (s: any, { eq, or }: any) =>
+							or(
+								eq(s.email, input.driverId),
+								sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${input.driverId}))`,
+								eq(s.staff_code, input.driverId),
+								sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${input.driverId}))`,
+							),
+					});
+					if (staffRow) {
+						driverStaffId = staffRow.id;
+					}
+				}
+				if (driverStaffId === null && db.query && (db.query as any).user) {
+					const userRow = await (db.query as any).user.findFirst({
+						where: (u: any, { eq, or }: any) =>
+							or(
+								eq(u.id, input.driverId),
+								sql`LOWER(TRIM(${u.email})) = LOWER(TRIM(${input.driverId}))`,
+							),
+					});
+					if (userRow && (db.query as any).staff) {
+						const staffMatch = await (db.query as any).staff.findFirst({
+							where: (s: any, { eq, or }: any) =>
+								or(
+									sql`LOWER(TRIM(${s.email})) = LOWER(TRIM(${userRow.email}))`,
+									sql`LOWER(TRIM(${s.name})) = LOWER(TRIM(${userRow.name}))`,
+								),
+						});
+						if (staffMatch) {
+							driverStaffId = staffMatch.id;
+						}
+					}
+				}
+
+				const stops = await db.query.tripStops.findMany({
+					where: eq(tripStops.trip_id, input.tripId),
+				});
+				const custIds = stops.map((s) => s.customer_id).filter(Boolean) as number[];
+				if (custIds.length > 0) {
+					await db
+						.update(orders)
+						.set({
+							...(driverStaffId !== null ? { driver_id: driverStaffId } : {}),
+						})
+						.where(
+							and(
+								inArray(orders.customer_id, custIds),
+								notInArray(orders.status, ["delivered", "cancelled"]),
+							),
+						);
+				}
+			} catch (e) {
+				console.warn("[assignVehicleAndDriver] driver sync warning:", e);
+			}
+
+			return trip;
 		}),
 
 	addItemsToDeliveryOrder: protectedProcedure
