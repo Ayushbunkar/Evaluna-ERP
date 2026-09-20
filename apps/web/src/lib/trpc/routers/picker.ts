@@ -371,7 +371,14 @@ export const pickerRouter = router({
 					priority: r.priority ?? "Normal",
 					items: itemCount > 0 ? itemCount : 1,
 					assigned_to: r.assignedTo?.name || "Unassigned",
-					waiting_since: r.created_at?.toLocaleTimeString() || "",
+					waiting_since: r.created_at
+						? new Date(r.created_at).toLocaleTimeString("en-US", {
+								hour: "2-digit",
+								minute: "2-digit",
+								second: "2-digit",
+								hour12: true,
+							})
+						: "",
 					expected_by: "N/A",
 				};
 			});

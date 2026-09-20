@@ -153,8 +153,7 @@ export function DeliveryManagementDashboard({
 		if (
 			order.status === "ready_for_dispatch" ||
 			order.status === "out_for_delivery" ||
-			order.status === "dispatched" ||
-			order.status === "packed"
+			order.status === "dispatched"
 		) {
 			return false;
 		}

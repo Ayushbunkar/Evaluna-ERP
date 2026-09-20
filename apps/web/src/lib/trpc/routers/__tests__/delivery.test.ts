@@ -313,14 +313,14 @@ describe("delivery router core functionality", () => {
 
 	describe("updateTripStatus", () => {
 		it("updates trip status and sets timestamps appropriately", async () => {
-			// Create a new trip for this test
+			// Create a new trip for this test (marked as loaded by warehouse loader)
 			const [trip2] = await db
 				.insert(schema.deliveryTrips)
 				.values({
 					route_id: 1,
 					driver_id: "driver-1",
 					vehicle_id: 1,
-					status: "pending",
+					status: "loaded",
 				})
 				.returning();
 
@@ -851,9 +851,18 @@ describe("delivery router core functionality", () => {
 				})
 				.returning();
 
+			await expect(
+				managerCaller.dispatchTrip({ tripId: unloadedTrip.id }),
+			).rejects.toThrow();
+
+			// Verify it succeeds once trip is loaded
+			await db
+				.update(schema.deliveryTrips)
+				.set({ status: "loaded" })
+				.where(eq(schema.deliveryTrips.id, unloadedTrip.id));
+
 			const res = await managerCaller.dispatchTrip({ tripId: unloadedTrip.id });
 			expect(res.success).toBe(true);
-			expect(res.status).toBe("active");
 		});
 	});
 });
