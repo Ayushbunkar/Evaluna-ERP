@@ -154,6 +154,7 @@ function POSContent() {
 	const [tempExtraVal, setTempExtraVal] = useState<string>("");
 	const [tempExtraReason, setTempExtraReason] = useState<string>("");
 	const [tempCustomExtraReason, setTempCustomExtraReason] = useState<string>("");
+	const checkingOutRef = useRef(false);
 
 	// URL Params
 	const completedOrderIdParam = searchParams.get("completedOrderId");
@@ -241,6 +242,7 @@ function POSContent() {
 
 	const checkoutMutation = trpc.pos.checkout.useMutation({
 		onSuccess: (data) => {
+			checkingOutRef.current = false;
 			toast.success(t.successMsg);
 			setLastCompletedOrder({
 				id: data.id,
@@ -270,6 +272,7 @@ function POSContent() {
 			}
 		},
 		onError: (err) => {
+			checkingOutRef.current = false;
 			toast.error(`${t.failMsg}: ${err.message}`);
 		},
 	});
@@ -595,6 +598,8 @@ function POSContent() {
 			address?: string;
 		},
 	) => {
+		if (checkingOutRef.current || checkoutMutation.isPending) return;
+
 		if (customer) setCustomerDetails(customer);
 
 		if (isOffline) {
@@ -607,6 +612,7 @@ function POSContent() {
 			return;
 		}
 
+		checkingOutRef.current = true;
 		setLastPayments(payments);
 		checkoutMutation.mutate({
 			customerId: customer?.customerId,

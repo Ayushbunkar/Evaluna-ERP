@@ -54,7 +54,12 @@ import { useTRPC } from "@/lib/trpc/client";
 export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = {}) {
 	const router = useRouter();
 	const pathname = usePathname();
-	const locale = useLocale();
+	let locale = "en";
+	try {
+		locale = useLocale();
+	} catch {
+		// Fallback when rendered outside NextIntlClientProvider or during SSR
+	}
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 
@@ -216,7 +221,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 							resolve({
 								latitude: pos.coords.latitude,
 								longitude: pos.coords.longitude,
-								accuracy: Math.min(pos.coords.accuracy || 20, 200),
+								accuracy: Math.min(pos.coords.accuracy || 20, 450),
 								deviceTimestamp: new Date(pos.timestamp).toISOString(),
 							}),
 						(err) =>

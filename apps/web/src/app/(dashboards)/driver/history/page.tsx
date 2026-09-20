@@ -24,17 +24,25 @@ import {
 	TableHeader,
 	TableRow,
 } from "@evaluna/ui/components/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	ActivityIcon,
+	AlertTriangle,
+	Banknote,
 	BanknoteIcon,
+	CheckCircle2,
 	CheckCircle2Icon,
 	CreditCardIcon,
 	EyeIcon,
 	FileTextIcon,
 	HistoryIcon,
+	Layers,
 	Loader2Icon,
 	MapPinIcon,
+	PackageCheck,
+	QrCode,
 	SearchIcon,
+	ShoppingCart,
 	TruckIcon,
 	UserIcon,
 	WalletIcon,
@@ -396,90 +404,159 @@ export default function DriverHistoryPage() {
 								</div>
 							</div>
 
-							{/* Itemized Customer Stops Breakdown */}
-							<div className="space-y-2">
-								<h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">
-									Itemized Customer Stop Ledger
+							{/* 2-BILL HANDOVER LIFECYCLE AUDIT VIEW FOR DRIVER */}
+							<div className="space-y-3 pt-2">
+								<h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+									<Layers className="h-4 w-4 text-indigo-600" />
+									2-Bill Handover Lifecycle Audit (दोनों बिलों का तुलनात्मक विवरण)
 								</h4>
-								<div className="overflow-x-auto rounded-lg border border-slate-200">
-									<Table className="w-full text-xs">
-										<TableHeader className="bg-slate-100">
-											<TableRow>
-												<TableHead className="font-semibold text-xs">
-													#
-												</TableHead>
-												<TableHead className="font-semibold text-xs">
-													Customer Name
-												</TableHead>
-												<TableHead className="font-semibold text-xs">
-													Order Ref
-												</TableHead>
-												<TableHead className="font-semibold text-emerald-800 text-xs">
-													Cash (₹)
-												</TableHead>
-												<TableHead className="font-semibold text-purple-800 text-xs">
-													Online (₹)
-												</TableHead>
-												<TableHead className="font-semibold text-xs">
-													Handover Status
-												</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
-												selectedTrip.stops.map((st: any) => (
-													<TableRow
-														key={st.stopId}
-														className="hover:bg-slate-50"
-													>
-														<TableCell className="font-bold font-mono">
-															#{st.sequence}
-														</TableCell>
-														<TableCell className="font-semibold text-slate-900">
-															{st.customerName}
-															<div className="font-normal text-[10px] text-slate-500">
-																📍 {st.address}
-															</div>
-														</TableCell>
-														<TableCell className="font-mono font-semibold text-blue-600">
-															{st.orderRef}
-														</TableCell>
-														<TableCell className="font-bold font-mono text-emerald-700">
-															{st.cashCollected > 0
-																? `₹${st.cashCollected.toFixed(2)}`
-																: "—"}
-														</TableCell>
-														<TableCell className="font-bold font-mono text-purple-700">
-															{st.onlineCollected > 0
-																? `₹${st.onlineCollected.toFixed(2)}`
-																: "—"}
-														</TableCell>
-														<TableCell>
-															<span
-																className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
-																	st.status === "Delivered"
-																		? "bg-emerald-100 text-emerald-800"
-																		: "bg-amber-100 text-amber-800"
-																}`}
-															>
-																✓ {st.status} ({st.deliveredAt})
-															</span>
-														</TableCell>
-													</TableRow>
-												))
-											) : (
-												<TableRow>
-													<TableCell
-														colSpan={6}
-														className="py-4 text-center text-slate-400"
-													>
-														No customer stops recorded for this trip.
-													</TableCell>
-												</TableRow>
-											)}
-										</TableBody>
-									</Table>
-								</div>
+
+								<Tabs defaultValue="bill2" className="w-full space-y-3">
+									<TabsList className="grid grid-cols-2 w-full bg-slate-100 p-1">
+										<TabsTrigger value="bill1" className="text-xs font-semibold py-1.5">
+											1️⃣ Initial Dispatched Bill (जो मिला था)
+										</TabsTrigger>
+										<TabsTrigger value="bill2" className="text-xs font-semibold py-1.5">
+											2️⃣ Final Doorstep Settled Bill (जो कलेक्ट किया)
+										</TabsTrigger>
+									</TabsList>
+
+									{/* BILL 1: INITIAL DISPATCHED ITEMS */}
+									<TabsContent value="bill1">
+										<div className="rounded-lg border border-blue-200 bg-blue-50/30 p-3 space-y-3">
+											<div className="flex items-center justify-between">
+												<div className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+													<ShoppingCart className="h-4 w-4 text-blue-600" />
+													<span>Bill 1: Initial Loaded Vehicle Items (प्रारंभिक बिल)</span>
+												</div>
+												<span className="text-xs font-mono font-bold text-blue-700">
+													Dispatched Value: ₹{selectedTrip.totalCollected.toFixed(2)}
+												</span>
+											</div>
+
+											<div className="overflow-x-auto rounded border border-blue-100 bg-white">
+												<Table className="w-full text-xs">
+													<TableHeader className="bg-blue-50">
+														<TableRow>
+															<TableHead className="font-semibold">Stop / Customer</TableHead>
+															<TableHead className="font-semibold">Order Ref</TableHead>
+															<TableHead className="font-semibold text-center">Dispatched Qty</TableHead>
+															<TableHead className="font-semibold text-right">Rate</TableHead>
+															<TableHead className="font-semibold text-right">Subtotal</TableHead>
+														</TableRow>
+													</TableHeader>
+													<TableBody>
+														{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
+															selectedTrip.stops.map((st: any) => (
+																<TableRow key={st.stopId}>
+																	<TableCell className="font-semibold text-slate-800">
+																		{st.customerName}
+																	</TableCell>
+																	<TableCell className="font-mono text-blue-600 font-semibold">
+																		{st.orderRef}
+																	</TableCell>
+																	<TableCell className="text-center font-bold text-blue-700">
+																		{st.packages || 1} Pkgs / Items
+																	</TableCell>
+																	<TableCell className="text-right">
+																		₹{(st.amountToCollect || (st.cashCollected + st.onlineCollected) || 0).toLocaleString("en-IN")}
+																	</TableCell>
+																	<TableCell className="text-right font-bold text-blue-900">
+																		₹{(st.amountToCollect || (st.cashCollected + st.onlineCollected) || 0).toLocaleString("en-IN")}
+																	</TableCell>
+																</TableRow>
+															))
+														) : (
+															<TableRow>
+																<TableCell colSpan={5} className="py-3 text-center text-slate-400">
+																	No initial dispatch item records found.
+																</TableCell>
+															</TableRow>
+														)}
+													</TableBody>
+												</Table>
+											</div>
+										</div>
+									</TabsContent>
+
+									{/* BILL 2: FINAL DOORSTEP SETTLED BILL */}
+									<TabsContent value="bill2">
+										<div className="rounded-lg border border-emerald-200 bg-emerald-50/30 p-3 space-y-3">
+											<div className="flex items-center justify-between">
+												<div className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+													<PackageCheck className="h-4 w-4 text-emerald-600" />
+													<span>Bill 2: Final Doorstep Delivered & Collected Bill (अंतिम संग्रह)</span>
+												</div>
+												<span className="text-xs font-mono font-bold text-emerald-700">
+													Handover Total: ₹{selectedTrip.totalCollected.toFixed(2)}
+												</span>
+											</div>
+
+											{/* Itemized Customer Stops Ledger */}
+											<div className="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
+												<Table className="w-full text-xs">
+													<TableHeader className="bg-emerald-50">
+														<TableRow>
+															<TableHead className="font-semibold">#</TableHead>
+															<TableHead className="font-semibold">Customer Name</TableHead>
+															<TableHead className="font-semibold">Order Ref</TableHead>
+															<TableHead className="font-semibold text-emerald-800">Cash (₹)</TableHead>
+															<TableHead className="font-semibold text-purple-800">Online (₹)</TableHead>
+															<TableHead className="font-semibold">Handover Status</TableHead>
+														</TableRow>
+													</TableHeader>
+													<TableBody>
+														{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
+															selectedTrip.stops.map((st: any) => (
+																<TableRow key={st.stopId} className="hover:bg-slate-50">
+																	<TableCell className="font-bold font-mono">
+																		#{st.sequence}
+																	</TableCell>
+																	<TableCell className="font-semibold text-slate-900">
+																		{st.customerName}
+																		<div className="font-normal text-[10px] text-slate-500">
+																			📍 {st.address}
+																		</div>
+																	</TableCell>
+																	<TableCell className="font-mono font-semibold text-blue-600">
+																		{st.orderRef}
+																	</TableCell>
+																	<TableCell className="font-bold font-mono text-emerald-700">
+																		{st.cashCollected > 0
+																			? `₹${st.cashCollected.toFixed(2)}`
+																			: "—"}
+																	</TableCell>
+																	<TableCell className="font-bold font-mono text-purple-700">
+																		{st.onlineCollected > 0
+																			? `₹${st.onlineCollected.toFixed(2)}`
+																			: "—"}
+																	</TableCell>
+																	<TableCell>
+																		<span
+																			className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
+																				st.status === "Delivered"
+																					? "bg-emerald-100 text-emerald-800"
+																					: "bg-amber-100 text-amber-800"
+																			}`}
+																		>
+																			✓ {st.status} ({st.deliveredAt})
+																		</span>
+																	</TableCell>
+																</TableRow>
+															))
+														) : (
+															<TableRow>
+																<TableCell colSpan={6} className="py-4 text-center text-slate-400">
+																	No customer stops recorded for this trip.
+																</TableCell>
+															</TableRow>
+														)}
+													</TableBody>
+												</Table>
+											</div>
+										</div>
+									</TabsContent>
+								</Tabs>
 							</div>
 						</div>
 

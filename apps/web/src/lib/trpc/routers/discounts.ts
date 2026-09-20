@@ -34,7 +34,9 @@ export const discountsRouter = router({
 			const branchId = input?.branchId || ctx.user?.branchId || 1;
 
 			// Fetch all active products
-			const prodConditions = [eq(products.is_deleted, false)];
+			const prodConditions = [
+				or(eq(products.is_deleted, false), sql`${products.is_deleted} IS NULL`),
+			];
 			if (search) {
 				const term = `%${search}%`;
 				prodConditions.push(

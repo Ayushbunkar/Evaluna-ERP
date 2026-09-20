@@ -242,7 +242,8 @@ export const pickerRouter = router({
 
 			if (!item) throw new Error("Item not found");
 
-			const newQtyPicked = (item.quantity_picked ?? 0) + 1;
+			const maxAllowed = item.quantity_ordered || 1;
+			const newQtyPicked = Math.min((item.quantity_picked ?? 0) + 1, maxAllowed);
 			const newStatus =
 				newQtyPicked >= item.quantity_ordered ? "picked" : "partial";
 
@@ -268,7 +269,8 @@ export const pickerRouter = router({
 
 			if (!item) throw new Error("Item not found");
 
-			const newQtyPicked = input.quantity;
+			const maxAllowed = item.quantity_ordered || 1;
+			const newQtyPicked = Math.min(Math.max(0, input.quantity), maxAllowed);
 			const newStatus =
 				newQtyPicked >= item.quantity_ordered
 					? "picked"

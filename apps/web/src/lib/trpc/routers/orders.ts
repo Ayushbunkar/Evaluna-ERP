@@ -94,13 +94,25 @@ const orderDetailSchema = z.object({
 	customer_id: z.number().nullable(),
 	total_amount: z.string(),
 	status: z.string().nullable(),
+	finance_status: z.string().nullable().optional(),
+	discount_amount: z.string().nullable().optional(),
+	discount_reason: z.string().nullable().optional(),
+	other_charges: z.string().nullable().optional(),
+	other_charges_reason: z.string().nullable().optional(),
+	cgst_amount: z.string().nullable().optional(),
+	sgst_amount: z.string().nullable().optional(),
+	igst_amount: z.string().nullable().optional(),
+	notes: z.string().nullable().optional(),
 	user_uid: z.string(),
 	created_at: z.coerce.date().nullable(),
+	original_items: z.any().nullable().optional(),
 	customer: z
 		.object({
+			id: z.number().optional(),
 			name: z.string(),
 			phone: z.string().nullable().optional(),
 			address: z.string().nullable().optional(),
+			customer_code: z.string().nullable().optional(),
 		})
 		.nullable(),
 	route: z
@@ -118,10 +130,17 @@ const orderDetailSchema = z.object({
 			quantity: z.number(),
 			price: z.string(),
 			product: z
-				.object({ name: z.string(), category: z.string().nullable() })
+				.object({
+					name: z.string(),
+					category: z.string().nullable().optional(),
+					sku: z.string().nullable().optional(),
+					unit: z.string().nullable().optional(),
+				})
 				.nullable(),
 		}),
 	),
+	deliveryHandover: z.any().nullable().optional(),
+	audits: z.any().nullable().optional(),
 });
 
 export const ordersRouter = router({
@@ -140,10 +159,25 @@ export const ordersRouter = router({
 			const result = await db.query.orders.findFirst({
 				where: eq(orders.id, input.id),
 				with: {
-					customer: { columns: { name: true, phone: true, address: true } },
+					customer: {
+						columns: {
+							id: true,
+							name: true,
+							phone: true,
+							address: true,
+							customer_code: true,
+						},
+					},
 					orderItems: {
 						with: {
-							product: { columns: { name: true, category: true } },
+							product: {
+								columns: {
+									name: true,
+									category: true,
+									sku: true,
+									unit: true,
+								},
+							},
 						},
 					},
 				},
@@ -171,9 +205,133 @@ export const ordersRouter = router({
 				} catch (e) {}
 			}
 
+			// Fetch Proof of Delivery & Delivery Handover Details
+			let deliveryHandover: any = null;
+			try {
+				const [pod] = await db
+					.select()
+					.from(proofOfDeliveries)
+					.where(eq(proofOfDeliveries.order_id, input.id))
+					.orderBy(desc(proofOfDeliveries.created_at))
+					.limit(1);
+
+				const txns = await db.query.transactions.findMany({
+					where: eq(transactions.order_id, input.id),
+					orderBy: [desc(transactions.created_at)],
+				});
+
+				let driver = null;
+				if (result.driver_id) {
+					driver = await db.query.staff.findFirst({
+						where: eq(staff.id, result.driver_id),
+					});
+				}
+
+				let parsedNotes = pod?.notes || result.notes || "";
+				let parsedReturns: any[] = [];
+				let cashAmount = 0;
+				let onlineAmount = 0;
+
+				if (pod?.notes) {
+					try {
+						const p = JSON.parse(pod.notes);
+						if (p.deliveryNotes) parsedNotes = p.deliveryNotes;
+						if (Array.isArray(p.returns) && p.returns.length > 0) {
+							parsedReturns = p.returns;
+						}
+						if (p.cashAmount) cashAmount = Number(p.cashAmount);
+						if (p.onlineAmount) onlineAmount = Number(p.onlineAmount);
+					} catch {
+						parsedNotes = pod.notes;
+					}
+				}
+
+				// Also check tripCollections for actual driver cash & online split
+				let tripCols: any[] = [];
+				if (result.customer_id) {
+					try {
+						tripCols = await db.query.tripCollections.findMany({
+							where: eq(tripCollections.customer_id, result.customer_id),
+							orderBy: [desc(tripCollections.collected_at)],
+						});
+					} catch (e) {}
+				}
+
+				if (tripCols.length > 0) {
+					let tcCash = 0;
+					let tcOnline = 0;
+					for (const tc of tripCols) {
+						const amt = Number(tc.amount || 0);
+						const meth = (tc.payment_method || "").toLowerCase();
+						if (meth.includes("cash")) {
+							tcCash += amt;
+						} else {
+							tcOnline += amt;
+						}
+					}
+					if (tcCash > 0 || tcOnline > 0) {
+						cashAmount = tcCash;
+						onlineAmount = tcOnline;
+					}
+				}
+
+				// Fallback to transactions if amounts not parsed
+				if (cashAmount === 0 && onlineAmount === 0 && txns.length > 0) {
+					for (const t of txns) {
+						const amt = Number(t.amount || 0);
+						if (
+							t.reference_type === "driver_cash_collection" ||
+							t.description?.toLowerCase().includes("cash")
+						) {
+							cashAmount += amt;
+						} else {
+							onlineAmount += amt;
+						}
+					}
+				}
+
+				deliveryHandover = {
+					deliveredAt: pod?.delivered_at || pod?.created_at || null,
+					deliveryStatus:
+						pod?.delivery_status ||
+						(result.status === "completed" ? "delivered" : "pending"),
+					driverName: driver?.name || "Driver Staff",
+					driverEmail: driver?.email || "driver@evaluna.com",
+					driverPhone: driver?.phone || "N/A",
+					deliveryNotes: parsedNotes,
+					returnedItems: parsedReturns,
+					cashCollected: cashAmount,
+					onlineCollected: onlineAmount,
+					totalCollected:
+						cashAmount + onlineAmount > 0
+							? cashAmount + onlineAmount
+							: Number(result.total_amount || 0),
+					transactions: txns.map((t) => ({
+						id: t.id,
+						amount: Number(t.amount || 0),
+						type: t.reference_type || t.category || "Payment",
+						status: t.status,
+						date: t.created_at ? new Date(t.created_at).toLocaleString() : "—",
+					})),
+				};
+			} catch (e) {
+				console.warn("[orders.get] POD fetch fallback:", e);
+			}
+
+			// Fetch order audits history
+			let audits: any[] = [];
+			try {
+				audits = await db.query.orderAudits.findMany({
+					where: eq(orderAudits.order_id, input.id),
+					orderBy: [desc(orderAudits.created_at)],
+				});
+			} catch (e) {}
+
 			return {
 				...result,
 				route,
+				deliveryHandover,
+				audits,
 			};
 		}),
 
@@ -382,42 +540,82 @@ export const ordersRouter = router({
 					customer_name: customers.name,
 					customer_phone: customers.phone,
 					customer_address: customers.address,
-					route_id: routeStops.route_id,
-					route_name: deliveryRoutes.name,
 				})
 				.from(orders)
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
-				.leftJoin(routeStops, eq(routeStops.customer_id, orders.customer_id))
-				.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
 				.where(conditions.length > 0 ? and(...conditions) : undefined)
 				.orderBy(desc(orders.created_at), desc(orders.id))
 				.limit(limit)
 				.offset(offset);
 
-			return rows.map((r) => ({
-				id: r.id,
-				customer_id: r.customer_id,
-				total_amount: r.total_amount,
-				status: r.status,
-				driver_id: r.driver_id ?? null,
-				finance_status: r.finance_status ?? undefined,
-				user_uid: r.user_uid,
-				created_at: r.created_at,
-				customer: r.customer_name
-					? {
-							id: r.customer_id_val ?? undefined,
-							name: r.customer_name,
-							phone: r.customer_phone ?? null,
-							address: r.customer_address ?? null,
+			// Safely resolve customer delivery routes without multiplying order rows
+			const customerIds = Array.from(
+				new Set(rows.map((r) => r.customer_id).filter(Boolean)),
+			) as number[];
+			const customerRouteMap = new Map<number, { id: number; name: string }>();
+
+			if (customerIds.length > 0) {
+				try {
+					const stops = await db
+						.select({
+							customer_id: routeStops.customer_id,
+							route_id: deliveryRoutes.id,
+							route_name: deliveryRoutes.name,
+						})
+						.from(routeStops)
+						.innerJoin(
+							deliveryRoutes,
+							eq(deliveryRoutes.id, routeStops.route_id),
+						)
+						.where(inArray(routeStops.customer_id, customerIds));
+
+					for (const s of stops) {
+						if (!customerRouteMap.has(s.customer_id)) {
+							customerRouteMap.set(s.customer_id, {
+								id: s.route_id,
+								name: s.route_name,
+							});
 						}
-					: null,
-				route: r.route_id && r.route_name
-					? {
-							id: r.route_id,
-							name: r.route_name,
-						}
-					: null,
-			}));
+					}
+				} catch (e) {
+					// Soft fallback if route tables aren't reachable
+				}
+			}
+
+			// Ensure deduplicated unique orders
+			const seenOrderIds = new Set<number>();
+			const uniqueOrders = [];
+
+			for (const r of rows) {
+				if (seenOrderIds.has(r.id)) continue;
+				seenOrderIds.add(r.id);
+
+				const route = r.customer_id
+					? customerRouteMap.get(r.customer_id) ?? null
+					: null;
+
+				uniqueOrders.push({
+					id: r.id,
+					customer_id: r.customer_id,
+					total_amount: r.total_amount,
+					status: r.status,
+					driver_id: r.driver_id ?? null,
+					finance_status: r.finance_status ?? undefined,
+					user_uid: r.user_uid,
+					created_at: r.created_at,
+					customer: r.customer_name
+						? {
+								id: r.customer_id_val ?? undefined,
+								name: r.customer_name,
+								phone: r.customer_phone ?? null,
+								address: r.customer_address ?? null,
+							}
+						: null,
+					route,
+				});
+			}
+
+			return uniqueOrders;
 		}),
 
 	create: roleProcedure(["admin", "manager", "auditor", "sales_person"])

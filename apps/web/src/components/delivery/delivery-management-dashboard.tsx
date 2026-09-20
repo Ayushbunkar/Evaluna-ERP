@@ -6,6 +6,7 @@ import {
 	ArrowUpIcon,
 	CheckCircle2Icon,
 	ClockIcon,
+	EyeIcon,
 	FileTextIcon,
 	ListPlusIcon,
 	MapPinIcon,
@@ -121,6 +122,9 @@ export function DeliveryManagementDashboard({
 		trpc.orders.list.useQuery();
 	const { data: driverCollections = [] } =
 		trpc.finance.getDriverCollections.useQuery();
+
+	const [selectedSettlementDetail, setSelectedSettlementDetail] = useState<any>(null);
+	const [isSettlementDetailOpen, setIsSettlementDetailOpen] = useState(false);
 
 	const [assignOrder, setAssignOrder] = useState<any>(null);
 	const [isOrderAssignOpen, setIsOrderAssignOpen] = useState(false);
@@ -1007,7 +1011,6 @@ export function DeliveryManagementDashboard({
 				<TabsTrigger value="trips">Delivery Trips ({trips.length})</TabsTrigger>
 				<TabsTrigger value="tracking">{t("trackingTab")}</TabsTrigger>
 				<TabsTrigger value="vehicles">{t("vehiclesTab")}</TabsTrigger>
-				<TabsTrigger value="settlements">{t("settlementsTab")}</TabsTrigger>
 			</TabsList>
 
 			<TabsContent value="overview" className="space-y-6">
@@ -2856,81 +2859,188 @@ export function DeliveryManagementDashboard({
 									<thead>
 										<tr className="border-b text-muted-foreground">
 											<th className="px-3 py-2 font-medium">Driver</th>
+											<th className="px-3 py-2 font-medium">Customer & Route</th>
 											<th className="px-3 py-2 font-medium">Method</th>
 											<th className="px-3 py-2 font-medium">Amount</th>
 											<th className="px-3 py-2 font-medium">Ref / Txn ID</th>
 											<th className="px-3 py-2 font-medium">Collected At</th>
 											<th className="px-3 py-2 font-medium">Status</th>
+											<th className="px-3 py-2 font-medium text-right">Action</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y">
 										{(() => {
 											const grouped = Object.values(
 												driverCollections.reduce((acc: any, col: any) => {
-													const key = `${col.driverName}_${col.collectedAt}`;
+													let key = "";
+													if (col.stopId) {
+														key = `stop_${col.tripId}_${col.stopId}`;
+													} else if (
+														col.referenceNumber &&
+														col.referenceNumber.startsWith("STOP-")
+													) {
+														key = `ref_${col.tripId}_${col.referenceNumber}`;
+													} else if (col.customerId && col.tripId) {
+														key = `cust_${col.tripId}_${col.customerId}`;
+													} else {
+														const timeKey = col.rawCollectedAt
+															? col.rawCollectedAt.substring(0, 16)
+															: (col.collectedAt || "").replace(
+																	/:\d{2}\s/,
+																	" ",
+																);
+														key = `drv_${col.driverName}_${timeKey}_${col.customerName || ""}`;
+													}
+
+													const method = col.paymentMethod || "Cash";
+													const amt = Number(col.amount || 0);
+
 													if (!acc[key]) {
 														acc[key] = {
 															...col,
-															amount: Number(col.amount),
-															methods: [col.paymentMethod],
-															breakdown: { [col.paymentMethod]: Number(col.amount) },
-															transactionId: col.transactionId || col.referenceNumber || "",
+															amount: amt,
+															methods: [method],
+															breakdown: { [method]: amt },
+															transactionIds: [
+																col.transactionId ||
+																	col.referenceNumber ||
+																	`COL-${col.id}`,
+															].filter(Boolean),
+															allCollections: [col],
+															allOrders: col.orders || [],
+															allReturnedItems: col.returnedItems || [],
+															deliveryNotes: col.deliveryNotes || "",
 														};
 													} else {
-														acc[key].amount += Number(col.amount);
-														if (!acc[key].methods.includes(col.paymentMethod)) {
-															acc[key].methods.push(col.paymentMethod);
+														acc[key].amount += amt;
+														if (!acc[key].methods.includes(method)) {
+															acc[key].methods.push(method);
 														}
-														acc[key].breakdown[col.paymentMethod] = (acc[key].breakdown[col.paymentMethod] || 0) + Number(col.amount);
-														if (col.transactionId || col.referenceNumber) {
-															acc[key].transactionId = acc[key].transactionId ? `${acc[key].transactionId}, ${col.transactionId || col.referenceNumber}` : (col.transactionId || col.referenceNumber);
+														acc[key].breakdown[method] =
+															(acc[key].breakdown[method] || 0) + amt;
+
+														const txn =
+															col.transactionId || col.referenceNumber;
+														if (
+															txn &&
+															!acc[key].transactionIds.includes(txn)
+														) {
+															acc[key].transactionIds.push(txn);
+														}
+
+														acc[key].allCollections.push(col);
+
+														if (col.orders && col.orders.length > 0) {
+															for (const o of col.orders) {
+																if (
+																	!acc[key].allOrders.some(
+																		(eo: any) => eo.id === o.id,
+																	)
+																) {
+																	acc[key].allOrders.push(o);
+																}
+															}
+														}
+
+														if (
+															col.returnedItems &&
+															col.returnedItems.length > 0
+														) {
+															for (const r of col.returnedItems) {
+																acc[key].allReturnedItems.push(r);
+															}
+														}
+
+														if (col.deliveryNotes && !acc[key].deliveryNotes) {
+															acc[key].deliveryNotes = col.deliveryNotes;
 														}
 													}
 													return acc;
-												}, {})
+												}, {}),
 											);
 
 											return (grouped as any[]).map((col: any) => (
-												<tr key={col.id} className="hover:bg-muted/50">
+												<tr
+													key={col.id || col.transactionIds?.join("-")}
+													className="hover:bg-muted/50 transition-colors"
+												>
 													<td className="px-3 py-3 font-medium">
-														<div>{col.driverName}</div>
+														<div className="font-semibold text-foreground">
+															{col.driverName}
+														</div>
 														<div className="text-muted-foreground text-xs">
 															{col.driverEmail}
 														</div>
 													</td>
-													<td className="px-3 py-3 capitalize">
+													<td className="px-3 py-3">
+														<div className="font-medium text-foreground">
+															{col.customerName || "Customer"}
+														</div>
+														<div className="text-muted-foreground text-xs flex items-center gap-1">
+															{col.customerPhone && (
+																<span>{col.customerPhone} • </span>
+															)}
+															<span className="truncate max-w-[150px]">
+																{col.tripName || `Trip #${col.tripId}`}
+															</span>
+														</div>
+													</td>
+													<td className="px-3 py-3">
 														<span
-															className={`inline-flex items-center rounded px-2 py-0.5 font-medium text-xs ${
+															className={`inline-flex items-center rounded px-2 py-0.5 font-semibold text-xs ${
 																col.methods.length > 1
-																	? "bg-purple-100 text-purple-800"
+																	? "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200"
 																	: col.methods[0]?.toLowerCase() === "cash"
-																		? "bg-amber-100 text-amber-800"
-																		: "bg-blue-100 text-blue-800"
+																		? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200"
+																		: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200"
 															}`}
 														>
 															{col.methods.join(" & ")}
 														</span>
 													</td>
 													<td className="px-3 py-3">
-														<div className="font-semibold text-emerald-600">
+														<div className="font-bold font-mono text-emerald-600">
 															₹{col.amount.toLocaleString("en-IN")}
 														</div>
 														{col.methods.length > 1 && (
-															<div className="text-[10px] text-muted-foreground mt-0.5">
-																{Object.entries(col.breakdown).map(([m, a]: any) => `${m}: ₹${a.toLocaleString("en-IN")}`).join(", ")}
+															<div className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+																{Object.entries(col.breakdown)
+																	.map(
+																		([m, a]: any) =>
+																			`${m}: ₹${a.toLocaleString("en-IN")}`,
+																	)
+																	.join(", ")}
 															</div>
 														)}
 													</td>
-													<td className="px-3 py-3 font-mono text-xs max-w-[200px] truncate" title={col.transactionId}>
-														{col.transactionId}
+													<td
+														className="px-3 py-3 font-mono text-xs max-w-[180px] truncate text-muted-foreground"
+														title={col.transactionIds?.join(", ")}
+													>
+														{col.transactionIds?.join(", ")}
 													</td>
 													<td className="px-3 py-3 text-muted-foreground text-xs">
 														{col.collectedAt}
 													</td>
 													<td className="px-3 py-3">
-														<span className="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs">
-															{col.status}
+														<span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
+															<CheckCircle2Icon className="h-3 w-3 text-emerald-600" />
+															{col.status || "Verified"}
 														</span>
+													</td>
+													<td className="px-3 py-3 text-right">
+														<Button
+															size="sm"
+															variant="outline"
+															className="h-8 gap-1.5 border-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 text-xs font-semibold dark:hover:bg-blue-950/40"
+															onClick={() => {
+																setSelectedSettlementDetail(col);
+																setIsSettlementDetailOpen(true);
+															}}
+														>
+															<EyeIcon className="h-3.5 w-3.5 text-blue-600" />
+															View Details
+														</Button>
 													</td>
 												</tr>
 											));
@@ -4216,6 +4326,330 @@ export function DeliveryManagementDashboard({
 							{assignVehicleAndDriverMutation.isPending ? "Saving..." : "Save & Ready for Loading"}
 						</Button>
 					</div>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+
+		{/* ── Settlement Details & Customer Delivery Audit Modal ── */}
+		<Dialog
+			open={isSettlementDetailOpen}
+			onOpenChange={setIsSettlementDetailOpen}
+		>
+			<DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-6">
+				<DialogHeader className="border-b pb-3">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<DialogTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+							<FileTextIcon className="h-5 w-5 text-blue-600" />
+							Customer Delivery & Payment Settlement Audit
+						</DialogTitle>
+						<span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
+							<CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" />
+							Settlement Verified
+						</span>
+					</div>
+					<DialogDescription className="text-xs text-muted-foreground mt-1">
+						Full breakdown of customer order items, returned/rejected goods, and driver payment handover.
+					</DialogDescription>
+				</DialogHeader>
+
+				{selectedSettlementDetail && (
+					<div className="space-y-6 pt-2">
+						{/* 1. Metric Highlights Bar */}
+						<div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-xl border bg-muted/40 p-4">
+							<div className="space-y-1">
+								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+									Total Collected
+								</span>
+								<p className="font-bold font-mono text-2xl text-emerald-600">
+									₹{selectedSettlementDetail.amount.toLocaleString("en-IN")}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+									Payment Mode
+								</span>
+								<p className="font-semibold text-sm text-foreground capitalize">
+									{selectedSettlementDetail.methods?.join(" & ") || "Cash"}
+								</p>
+								{selectedSettlementDetail.methods?.length > 1 && (
+									<p className="text-[10px] text-muted-foreground font-medium">
+										{Object.entries(selectedSettlementDetail.breakdown || {})
+											.map(
+												([m, a]: any) =>
+													`${m}: ₹${a.toLocaleString("en-IN")}`,
+											)
+											.join(" + ")}
+									</p>
+								)}
+							</div>
+							<div className="space-y-1">
+								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+									Ref / Txn IDs
+								</span>
+								<p
+									className="font-mono font-semibold text-xs text-foreground truncate"
+									title={selectedSettlementDetail.transactionIds?.join(", ")}
+								>
+									{selectedSettlementDetail.transactionIds?.join(", ")}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+									Handover Time
+								</span>
+								<p className="text-xs font-medium text-foreground">
+									{selectedSettlementDetail.collectedAt}
+								</p>
+							</div>
+						</div>
+
+						{/* 2. Customer Profile & Driver Info */}
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							{/* Customer Info Card */}
+							<div className="rounded-xl border bg-card p-4 space-y-3">
+								<div className="flex items-center gap-2 border-b pb-2 text-sm font-semibold text-foreground">
+									<UserIcon className="h-4 w-4 text-emerald-600" />
+									Customer Details
+								</div>
+								<div className="space-y-1.5 text-xs">
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Name:</span>
+										<span className="font-bold text-foreground">
+											{selectedSettlementDetail.customerName}
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Phone:</span>
+										<span className="font-medium text-foreground">
+											{selectedSettlementDetail.customerPhone}
+										</span>
+									</div>
+									<div className="flex items-start gap-1 pt-1 border-t border-border/40">
+										<MapPinIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+										<span className="text-muted-foreground">
+											{selectedSettlementDetail.customerAddress}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							{/* Driver & Trip Info Card */}
+							<div className="rounded-xl border bg-card p-4 space-y-3">
+								<div className="flex items-center gap-2 border-b pb-2 text-sm font-semibold text-foreground">
+									<TruckIcon className="h-4 w-4 text-blue-600" />
+									Driver & Route Info
+								</div>
+								<div className="space-y-1.5 text-xs">
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Driver Name:</span>
+										<span className="font-bold text-foreground">
+											{selectedSettlementDetail.driverName}
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Driver Email:</span>
+										<span className="font-medium text-foreground">
+											{selectedSettlementDetail.driverEmail}
+										</span>
+									</div>
+									<div className="flex justify-between pt-1 border-t border-border/40">
+										<span className="text-muted-foreground">Trip Code:</span>
+										<span className="font-mono font-bold text-primary">
+											{selectedSettlementDetail.tripName ||
+												`Trip #${selectedSettlementDetail.tripId}`}
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						{/* 3. Returned / Damaged Items Alert */}
+						{selectedSettlementDetail.allReturnedItems &&
+							selectedSettlementDetail.allReturnedItems.length > 0 && (
+								<div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/30 space-y-3">
+									<div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-sm">
+										<AlertTriangleIcon className="h-4 w-4 text-amber-600" />
+										Items Returned / Modified at Doorstep (ग्राहक द्वारा लौटाया गया / हटाया गया सामान)
+									</div>
+									<div className="divide-y divide-amber-200 dark:divide-amber-900/60 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-background/90 overflow-hidden">
+										{selectedSettlementDetail.allReturnedItems.map(
+											(ret: any, rIdx: number) => (
+												<div
+													key={rIdx}
+													className="flex flex-wrap items-center justify-between gap-2 p-3 text-xs"
+												>
+													<div>
+														<span className="font-bold text-foreground">
+															{ret.name || ret.productName || "Product"}
+														</span>
+														<span className="ml-2 inline-flex items-center rounded bg-red-100 text-red-800 font-bold px-2 py-0.5 text-[11px] dark:bg-red-950 dark:text-red-300">
+															{ret.qty || 1} Qty Returned
+														</span>
+													</div>
+													<div className="text-amber-800 dark:text-amber-300 font-medium">
+														Reason:{" "}
+														<span className="font-semibold text-foreground">
+															{ret.reason || "Customer refused / damaged"}
+														</span>
+													</div>
+												</div>
+											),
+										)}
+									</div>
+								</div>
+							)}
+
+						{/* 4. Full Order Line Items Breakdown */}
+						<div className="space-y-3">
+							<div className="flex items-center justify-between">
+								<h4 className="flex items-center gap-2 font-bold text-base text-foreground">
+									<PackageIcon className="h-4 w-4 text-primary" />
+									Order Items & Handover Audit
+								</h4>
+								<span className="text-xs text-muted-foreground">
+									{selectedSettlementDetail.allOrders?.length || 0} Linked Order(s)
+								</span>
+							</div>
+
+							{!selectedSettlementDetail.allOrders ||
+							selectedSettlementDetail.allOrders.length === 0 ? (
+								<div className="rounded-xl border p-6 text-center text-muted-foreground text-sm">
+									No detailed order items linked.
+								</div>
+							) : (
+								selectedSettlementDetail.allOrders.map((ord: any) => (
+									<div
+										key={ord.id}
+										className="rounded-xl border bg-card overflow-hidden shadow-xs space-y-0"
+									>
+										<div className="flex flex-wrap items-center justify-between gap-2 bg-muted/50 px-4 py-2.5 border-b text-xs">
+											<div className="flex items-center gap-2">
+												<span className="font-bold font-mono text-primary text-sm">
+													{ord.orderRef || `ORD-${ord.id}`}
+												</span>
+												<span className="text-muted-foreground">
+													({ord.createdAt})
+												</span>
+											</div>
+											<div className="flex items-center gap-3">
+												<span className="font-medium text-muted-foreground">
+													Order Total:{" "}
+													<strong className="font-mono text-foreground text-sm">
+														₹{ord.totalAmount?.toLocaleString("en-IN")}
+													</strong>
+												</span>
+												<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-800 text-[11px]">
+													{ord.status || "Completed"}
+												</span>
+											</div>
+										</div>
+
+										<div className="overflow-x-auto">
+											<table className="w-full text-left text-xs">
+												<thead>
+													<tr className="border-b bg-muted/20 text-muted-foreground">
+														<th className="px-4 py-2 font-semibold">
+															Item & Category
+														</th>
+														<th className="px-3 py-2 font-semibold text-center">
+															Ordered Qty
+														</th>
+														<th className="px-3 py-2 font-semibold text-right">
+															Unit Price
+														</th>
+														<th className="px-3 py-2 font-semibold text-right">
+															Line Total
+														</th>
+														<th className="px-3 py-2 font-semibold text-center">
+															Status
+														</th>
+													</tr>
+												</thead>
+												<tbody className="divide-y">
+													{(ord.items || []).map((it: any) => {
+														const retMatch = (
+															selectedSettlementDetail.allReturnedItems || []
+														).find(
+															(r: any) =>
+																r.id === it.id ||
+																(r.name &&
+																	r.name
+																		.toLowerCase()
+																		.includes(it.productName?.toLowerCase())),
+														);
+														const returnedQty = retMatch?.qty || 0;
+														const deliveredQty = Math.max(
+															0,
+															it.quantity - returnedQty,
+														);
+
+														return (
+															<tr
+																key={it.id}
+																className="hover:bg-muted/30 transition-colors"
+															>
+																<td className="px-4 py-2.5">
+																	<div className="font-semibold text-foreground">
+																		{it.productName}
+																	</div>
+																	<div className="text-[11px] text-muted-foreground">
+																		{it.category}{" "}
+																		{it.sku !== "—" ? `• SKU: ${it.sku}` : ""}
+																	</div>
+																</td>
+																<td className="px-3 py-2.5 text-center font-bold">
+																	{it.quantity} {it.unit || "pcs"}
+																</td>
+																<td className="px-3 py-2.5 text-right font-mono">
+																	₹{it.unitPrice?.toFixed(2)}
+																</td>
+																<td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">
+																	₹{it.totalPrice?.toFixed(2)}
+																</td>
+																<td className="px-3 py-2.5 text-center">
+																	{returnedQty > 0 ? (
+																		<span className="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 font-bold text-amber-800 text-[10px]">
+																			{deliveredQty} Deliv. / {returnedQty} Ret.
+																		</span>
+																	) : (
+																		<span className="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 text-[10px]">
+																			Delivered ({it.quantity})
+																		</span>
+																	)}
+																</td>
+															</tr>
+														);
+													})}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								))
+							)}
+						</div>
+
+						{/* 5. Driver Delivery Notes */}
+						{selectedSettlementDetail.deliveryNotes && (
+							<div className="rounded-xl border bg-muted/30 p-4 space-y-1.5 text-xs">
+								<div className="font-bold text-foreground flex items-center gap-1.5">
+									<FileTextIcon className="h-4 w-4 text-blue-600" />
+									Driver Delivery Notes & Comments:
+								</div>
+								<p className="text-muted-foreground italic pl-5">
+									"{selectedSettlementDetail.deliveryNotes}"
+								</p>
+							</div>
+						)}
+					</div>
+				)}
+
+				<DialogFooter className="border-t pt-3">
+					<Button
+						variant="outline"
+						onClick={() => setIsSettlementDetailOpen(false)}
+					>
+						Close
+					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

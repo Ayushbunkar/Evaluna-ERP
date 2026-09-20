@@ -118,12 +118,12 @@ export async function validateGeofence(
 		Number(fence.latitude),
 		Number(fence.longitude),
 	);
-	const radius = (fence.radius ?? 100) + Math.min(gps.accuracy || 0, 50);
+	const radius = (fence.radius ?? 5000) + Math.min(gps.accuracy || 0, 5000);
 	const isInside = distance <= radius;
 	return {
 		ok: isInside,
 		distance: Math.round(distance * 100) / 100,
-		radius: fence.radius ?? 100,
+		radius: fence.radius ?? 5000,
 		reason: isInside ? undefined : "outside_geofence",
 	};
 }

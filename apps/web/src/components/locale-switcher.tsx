@@ -11,7 +11,12 @@ import { GlobeIcon } from "lucide-react";
 import { useLocale } from "next-intl";
 
 export function LocaleSwitcher() {
-	const locale = useLocale();
+	let locale = "en";
+	try {
+		locale = useLocale();
+	} catch {
+		// Fallback when rendered outside NextIntlClientProvider or during SSR
+	}
 
 	const switchLocale = (newLocale: string) => {
 		document.cookie = `locale=${newLocale}; path=/; max-age=31536000`;

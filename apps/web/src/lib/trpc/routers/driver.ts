@@ -2,6 +2,7 @@ import { branches, orders, staff, transactions, user } from "@evaluna/db/schema"
 import {
 	deliveryTrips,
 	driverSupportTickets,
+	proofOfDeliveries,
 	tripCollections,
 	tripStops,
 	vehicles,
@@ -1419,14 +1420,20 @@ export const driverRouter = router({
 					}
 				}
 
+				const hasReturns =
+					input.damagedOrReturnedItems &&
+					input.damagedOrReturnedItems.length > 0;
+				const formattedComments = hasReturns
+					? `${input.deliveryNotes ? input.deliveryNotes + " | " : ""}Returned/Rejected: ${input.damagedOrReturnedItems?.map((i) => `${i.name} (x${i.qty} - ${i.reason})`).join(", ")}`
+					: input.deliveryNotes || "Delivered live at customer stop";
+
 				// Update trip stop status
 				if (input.stop_id) {
 					await db
 						.update(tripStops)
 						.set({
 							status: "delivered",
-							comments:
-								input.deliveryNotes || "Delivered live at customer stop",
+							comments: formattedComments,
 							resolved_at: new Date(),
 						})
 						.where(eq(tripStops.id, input.stop_id));
@@ -1461,6 +1468,32 @@ export const driverRouter = router({
 								: {}),
 						} as any)
 						.where(eq(orders.id, orderIdToUpdate));
+				}
+
+				// Record proof of delivery with full returns and notes payload
+				if (input.stop_id) {
+					try {
+						const podNotes = JSON.stringify({
+							deliveryNotes: input.deliveryNotes || "",
+							returns: input.damagedOrReturnedItems || [],
+							cashAmount: input.cashAmount,
+							onlineAmount: input.onlineAmount,
+							totalCollected: input.cashAmount + input.onlineAmount,
+							timestamp: new Date().toISOString(),
+						});
+						await db.insert(proofOfDeliveries).values({
+							trip_stop_id: input.stop_id,
+							order_id: orderIdToUpdate,
+							delivery_status: hasReturns ? "partial_return" : "delivered",
+							notes: podNotes,
+							delivered_at: new Date(),
+						});
+					} catch (podErr) {
+						console.warn(
+							"[submitDeliveryHandover] proofOfDeliveries record fallback:",
+							podErr,
+						);
+					}
 				}
 
 				// Create cash collection if cash > 0

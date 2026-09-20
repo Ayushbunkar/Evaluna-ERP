@@ -63,7 +63,6 @@ export default function ManagerLayout({
 		{ href: "/manager/attendance", label: "Staff Attendance", icon: Clock },
 		{ href: "/manager/commissions", label: "Commissions", icon: TrendingUp },
 		{ href: "/manager/credit-limits", label: "Credit Limits", icon: CreditCard },
-		{ href: "/manager/price-changes", label: "Price Review", icon: BarChart3 },
 		{ href: "/manager/e-way-bills", label: "E-Way Bills", icon: FileCheck },
 		{
 			href: "/manager/escalations",

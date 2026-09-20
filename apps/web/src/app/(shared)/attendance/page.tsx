@@ -67,7 +67,7 @@ function captureGps(): Promise<Gps> {
 				resolve({
 					latitude: pos.coords.latitude,
 					longitude: pos.coords.longitude,
-					accuracy: Math.min(pos.coords.accuracy || 20, 200),
+					accuracy: Math.min(pos.coords.accuracy || 20, 450),
 					deviceTimestamp: new Date(pos.timestamp).toISOString(),
 				}),
 			(err) =>

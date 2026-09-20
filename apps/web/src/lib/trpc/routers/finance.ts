@@ -3,9 +3,11 @@ import {
 	customers,
 	expenses,
 	orders,
+	proofOfDeliveries,
 	suppliers,
 	transactions,
 	tripCollections,
+	tripStops,
 } from "@evaluna/db/schema";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -616,6 +618,7 @@ export const financeRouter = router({
 		if (allCustomerIds.length > 0) {
 			dbOrders = await ctx.db.query.orders.findMany({
 				where: inArray(orders.customer_id, allCustomerIds),
+				orderBy: [desc(orders.created_at)],
 				with: {
 					customer: true,
 					orderItems: {
@@ -627,16 +630,93 @@ export const financeRouter = router({
 			});
 		}
 
+		// Fetch proof of deliveries for notes/returns
+		const allStopIds = Array.from(
+			new Set(
+				collections
+					.map((col: any) => {
+						if (col.reference_number?.startsWith("STOP-")) {
+							return Number(col.reference_number.replace("STOP-", ""));
+						}
+						return null;
+					})
+					.filter(Boolean) as number[],
+			),
+		);
+
+		let podList: any[] = [];
+		if (allStopIds.length > 0) {
+			try {
+				podList = await ctx.db.query.proofOfDeliveries.findMany({
+					where: inArray(proofOfDeliveries.trip_stop_id, allStopIds),
+				});
+			} catch (e) {
+				console.warn("[getDriverCollections] POD fetch fallback:", e);
+			}
+		}
+
 		return collections.map((col: any) => {
 			const stops = col.trip?.stops || [];
-			const stopCustomer = stops[0]?.customer || null;
-			const linkedOrders = dbOrders.filter((o: any) =>
-				stops.some((s: any) => s.customer_id === o.customer_id),
+			let targetStopId: number | null = null;
+			if (col.reference_number?.startsWith("STOP-")) {
+				targetStopId = Number(col.reference_number.replace("STOP-", ""));
+			}
+
+			const matchedStop =
+				stops.find((s: any) => s.id === targetStopId) || stops[0] || null;
+			const stopCustomer = matchedStop?.customer || stops[0]?.customer || null;
+			const linkedOrders = dbOrders.filter(
+				(o: any) =>
+					o.customer_id === (stopCustomer?.id || matchedStop?.customer_id),
 			);
+
+			const pod = podList.find(
+				(p: any) => p.trip_stop_id === (targetStopId || matchedStop?.id),
+			);
+
+			let parsedDeliveryNotes = matchedStop?.comments || "";
+			let returnedItems: any[] = [];
+
+			if (pod?.notes) {
+				try {
+					const parsed = JSON.parse(pod.notes);
+					if (parsed.deliveryNotes) parsedDeliveryNotes = parsed.deliveryNotes;
+					if (Array.isArray(parsed.returns) && parsed.returns.length > 0) {
+						returnedItems = parsed.returns;
+					}
+				} catch {
+					parsedDeliveryNotes = pod.notes;
+				}
+			}
+
+			// Also parse returned items from comments string if present
+			if (
+				returnedItems.length === 0 &&
+				matchedStop?.comments &&
+				matchedStop.comments.includes("Returned/Rejected:")
+			) {
+				const parts = matchedStop.comments.split("Returned/Rejected:");
+				if (parts[1]) {
+					parsedDeliveryNotes = parts[0].replace(" | ", "").trim();
+					const itemStrs = parts[1].split(",");
+					returnedItems = itemStrs.map((str: string, idx: number) => {
+						const trimmed = str.trim();
+						return {
+							id: idx + 1,
+							name: trimmed,
+							qty: 1,
+							reason: "Reported at Doorstep",
+						};
+					});
+				}
+			}
 
 			return {
 				id: col.id,
 				tripId: col.trip_id,
+				tripName: `Trip #${col.trip_id}`,
+				stopId: targetStopId || matchedStop?.id || null,
+				customerId: stopCustomer?.id || null,
 				paymentMethod: col.payment_method || "Cash",
 				amount: Number(col.amount || 0),
 				transactionId: col.transaction_id || `COL-${col.id}`,
@@ -644,8 +724,12 @@ export const financeRouter = router({
 				collectedAt: col.collected_at
 					? new Date(col.collected_at).toLocaleString("en-IN")
 					: new Date().toLocaleString("en-IN"),
+				rawCollectedAt: col.collected_at
+					? new Date(col.collected_at).toISOString()
+					: new Date().toISOString(),
 				driverName: col.trip?.driver?.name || "Driver Staff",
 				driverEmail: col.trip?.driver?.email || "driver@evaluna.com",
+				driverPhone: col.trip?.driver?.phone || "N/A",
 				status: "Verified",
 				customerName:
 					stopCustomer?.name || (linkedOrders[0]?.customer?.name ?? "Customer"),
@@ -655,9 +739,25 @@ export const financeRouter = router({
 					stopCustomer?.address ||
 					linkedOrders[0]?.customer?.address ||
 					"On-Route Delivery Address",
+				deliveryNotes: parsedDeliveryNotes,
+				returnedItems: returnedItems,
+				proofOfDelivery: pod
+					? {
+							id: pod.id,
+							status: pod.delivery_status,
+							deliveredAt: pod.delivered_at
+								? new Date(pod.delivered_at).toLocaleString("en-IN")
+								: null,
+						}
+					: null,
 				orders: linkedOrders.map((o: any) => ({
 					id: o.id,
+					orderRef: `ORD-${o.id}`,
 					totalAmount: Number(o.total_amount || 0),
+					discountAmount: Number(o.discount_amount || 0),
+					discountReason: o.discount_reason || null,
+					otherCharges: Number(o.other_charges || 0),
+					otherChargesReason: o.other_charges_reason || null,
 					status: o.status || "completed",
 					financeStatus: o.finance_status || "driver_collected",
 					createdAt: o.created_at
@@ -665,11 +765,15 @@ export const financeRouter = router({
 						: "N/A",
 					items: (o.orderItems || []).map((it: any) => ({
 						id: it.id,
+						productId: it.product_id,
 						productName: it.product?.name || `Item #${it.product_id || it.id}`,
 						category: it.product?.category || "General",
+						unit: it.product?.unit || "pcs",
+						sku: it.product?.sku || "—",
 						quantity: Number(it.quantity || 1),
-						unitPrice: Number(it.unit_price || 0),
-						totalPrice: Number(it.unit_price || 0) * Number(it.quantity || 1),
+						unitPrice: Number(it.price || it.unit_price || 0),
+						totalPrice:
+							Number(it.price || it.unit_price || 0) * Number(it.quantity || 1),
 					})),
 				})),
 			};

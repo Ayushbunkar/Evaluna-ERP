@@ -20,33 +20,59 @@ import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
 import { invalidateCachedSession } from "@/lib/session-cache";
 
 export async function login(formData: FormData) {
-	const email = formData.get("email") as string;
+	const rawEmail = formData.get("email") as string;
 	const password = formData.get("password") as string;
+	const email = (rawEmail || "").toLowerCase().trim();
 	const rememberMe = true;
 
 	const predefinedAccounts: Record<string, string> = {
-		"superadmin@evaluna.com": "superadmin",
+		"superadmin@evaluna.com": "super_admin",
+		"superadmin@evaluna.dev": "super_admin",
+		"admin@evaluna.com": "admin",
+		"admin@evaluna.dev": "admin",
+		"executive@evaluna.dev": "admin",
 		"manager@evaluna.com": "manager",
+		"manager@evaluna.dev": "manager",
+		"finance@evaluna.dev": "finance",
+		"finance@evaluna.com": "finance",
+		"hr@evaluna.com": "hr",
+		"hr@evaluna.dev": "hr",
+		"auditor@evaluna.com": "auditor",
+		"auditor@evaluna.dev": "auditor",
+		"sales@evaluna.com": "sales_person",
+		"sales@evaluna.dev": "sales_person",
+		"billing@evaluna.com": "biller",
+		"billing@evaluna.dev": "biller",
 		"picker@evaluna.com": "picker",
+		"picker@evaluna.dev": "picker",
 		"packer@evaluna.com": "packer",
+		"packer@evaluna.dev": "packer",
 		"loader@evaluna.com": "loader",
+		"loader@evaluna.dev": "loader",
 		"checker@evaluna.com": "checker",
+		"checker@evaluna.dev": "checker",
 		"putter@evaluna.com": "putter",
+		"putter@evaluna.dev": "putter",
 		"driver@evaluna.com": "driver",
+		"driver@evaluna.dev": "driver",
 		"sunil.driver@evaluna.com": "driver",
 		"vikram.driver@evaluna.com": "driver",
 		"amit.driver@evaluna.com": "driver",
 		"rajesh.driver@evaluna.com": "driver",
-		"admin@evaluna.com": "admin",
-		"hr@evaluna.com": "hr",
-		"auditor@evaluna.com": "auditor",
-		"sales@evaluna.com": "sales_person",
-		"billing@evaluna.com": "billing",
+		"marketing@evaluna.com": "marketing",
+		"marketing@evaluna.dev": "marketing",
+		"procurement@evaluna.com": "procurement",
+		"procurement@evaluna.dev": "procurement",
+		"warehouse@evaluna.com": "warehouse_supervisor",
+		"warehouse@evaluna.dev": "warehouse_supervisor",
+		"inventory@evaluna.dev": "warehouse_supervisor",
+		"dispatch@evaluna.dev": "packer",
 		"verma.berasia@gmail.com": "customer",
 		"patel.lalariya@gmail.com": "customer",
 		"sharma.runaha@gmail.com": "customer",
 		"choudhary.gunga@gmail.com": "customer",
 		"bundela.harrakheda@gmail.com": "customer",
+		"customer@evaluna.dev": "customer",
 	};
 
 	let user:
@@ -70,24 +96,44 @@ export async function login(formData: FormData) {
 
 		const resolvedRole =
 			predefinedAccounts[email] ||
-			(email.includes("loader")
-				? "loader"
-				: email.includes("driver")
-					? "driver"
-					: email.includes("manager")
-						? "manager"
-						: email.includes("picker")
-							? "picker"
-							: email.includes("packer")
-								? "packer"
-								: email.includes("checker")
-									? "checker"
-									: email.includes("admin")
-										? "admin"
-										: "staff");
+			(email.includes("superadmin")
+				? "super_admin"
+				: email.includes("finance")
+					? "finance"
+					: email.includes("auditor")
+						? "auditor"
+						: email.includes("sales")
+							? "sales_person"
+							: email.includes("billing")
+								? "biller"
+								: email.includes("procurement")
+									? "procurement"
+									: email.includes("warehouse")
+										? "warehouse_supervisor"
+										: email.includes("hr")
+											? "hr"
+											: email.includes("loader")
+												? "loader"
+												: email.includes("driver")
+													? "driver"
+													: email.includes("manager")
+														? "manager"
+														: email.includes("picker")
+															? "picker"
+															: email.includes("packer")
+																? "packer"
+																: email.includes("checker")
+																	? "checker"
+																	: email.includes("putter")
+																		? "putter"
+																		: email.includes("admin")
+																			? "admin"
+																			: email.includes("customer")
+																				? "customer"
+																				: "customer");
 
 		const isEvalunaAccount =
-			predefinedAccounts[email] ||
+			!!predefinedAccounts[email] ||
 			email.endsWith("@evaluna.com") ||
 			email.endsWith("@evaluna.dev");
 
@@ -158,16 +204,11 @@ export async function login(formData: FormData) {
 					roleRecord = newRole;
 				}
 
-				// 2. Assign role to user in user_roles table if not already assigned
+				// 2. Assign or update role for user in user_roles table
 				const [existingUserRole] = await db
 					.select()
 					.from(userRoles)
-					.where(
-						and(
-							eq(userRoles.user_id, user.id),
-							eq(userRoles.role_id, roleRecord.id),
-						),
-					)
+					.where(eq(userRoles.user_id, user.id))
 					.limit(1);
 
 				if (!existingUserRole) {
@@ -175,6 +216,11 @@ export async function login(formData: FormData) {
 						user_id: user.id,
 						role_id: roleRecord.id,
 					});
+				} else if (existingUserRole.role_id !== roleRecord.id) {
+					await db
+						.update(userRoles)
+						.set({ role_id: roleRecord.id })
+						.where(eq(userRoles.user_id, user.id));
 				}
 
 				// 3. Ensure staff record exists and user.staff_id is linked
@@ -193,7 +239,7 @@ export async function login(formData: FormData) {
 							email: email,
 							branch_id: 1,
 							role: assignedRole,
-							department: "General",
+							department: assignedRole === "finance" ? "Finance" : "General",
 							join_date: new Date(),
 							salary: "0.00",
 						})
@@ -263,6 +309,7 @@ export async function login(formData: FormData) {
 	if (
 		user?.is_superadmin ||
 		predefinedAccounts[email] === "superadmin" ||
+		predefinedAccounts[email] === "super_admin" ||
 		(user as any)?.role === "super_admin" ||
 		(user as any)?.role === "superadmin"
 	) {
@@ -271,12 +318,7 @@ export async function login(formData: FormData) {
 
 	// Fetch role directly from DB security profile to bypass session caching issues
 	const profile = await UserManagement.getSecurityProfileByUserId(user.id);
-	let role = profile?.role || (user as any)?.role || "customer";
-
-	// Force predefined role for test accounts
-	if (predefinedAccounts[email]) {
-		role = predefinedAccounts[email];
-	}
+	let role = predefinedAccounts[email] || profile?.role || (user as any)?.role || "customer";
 
 	const destination = getCanonicalDashboardRoute(role);
 	try {

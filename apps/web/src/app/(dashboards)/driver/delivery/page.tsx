@@ -43,6 +43,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
 import { useTRPC } from "@/lib/trpc/client";
 
 type OrderItemHandover = {
@@ -115,7 +116,22 @@ const TRUCK_STOCK_ITEMS = [
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DriverLiveDeliveryPage() {
-	const t = useTranslations();
+	let tRaw: any = null;
+	try {
+		tRaw = useTranslations();
+	} catch (e) {}
+	const t = (key: string) => {
+		try {
+			if (tRaw) {
+				const val = tRaw(key);
+				if (val && typeof val === "string" && !val.includes("MISSING_MESSAGE") && !val.includes("Could not resolve")) {
+					return val;
+				}
+			}
+		} catch (e) {}
+		return key;
+	};
+
 	const trpc = useTRPC();
 	const {
 		data: dashboardData,
@@ -926,78 +942,42 @@ export default function DriverLiveDeliveryPage() {
 				)}
 			</div>
 
-			{/* ── Digital Receipt Modal ─────────────────────────────────────────── */}
-			<Dialog open={billModalOpen} onOpenChange={setBillModalOpen}>
-				<DialogContent className="max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<CheckCircle className="h-5 w-5 text-emerald-600" />
-							Digital Delivery Bill Generated
-						</DialogTitle>
-						<DialogDescription>
-							Invoice #INV-DEL-{Date.now().toString().slice(-6)} recorded for
-							Finance Manager.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="space-y-3 rounded-lg border bg-white p-4 font-mono text-gray-800 text-xs dark:bg-gray-950 dark:text-gray-200">
-						<div className="border-b pb-2 text-center">
-							<h3 className="font-bold text-sm">EVALUNA ERP LOGISTICS</h3>
-							<p className="text-[10px] text-gray-500">Live Delivery Receipt</p>
-						</div>
-
-						<div className="space-y-1">
-							<div className="flex justify-between">
-								<span>Customer:</span>
-								<span className="font-bold">
-									{activeStop?.customerName || "Customer"}
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span>Date/Time:</span>
-								<span>{new Date().toLocaleTimeString()}</span>
-							</div>
-						</div>
-
-						<div className="space-y-1 border-t border-b py-2">
-							{items.map((i) => (
-								<div key={i.id} className="flex justify-between">
-									<span>
-										{i.deliveredQty}x {i.name}
-									</span>
-									<span>₹{i.deliveredQty * i.price}</span>
-								</div>
-							))}
-						</div>
-
-						<div className="space-y-1 pt-1 font-bold">
-							<div className="flex justify-between">
-								<span>Total Net Bill:</span>
-								<span>₹{finalTotal}</span>
-							</div>
-							<div className="flex justify-between text-emerald-600">
-								<span>Cash Paid:</span>
-								<span>₹{cashAmount}</span>
-							</div>
-							<div className="flex justify-between text-blue-600">
-								<span>Online/UPI Paid:</span>
-								<span>₹{onlineAmount}</span>
-							</div>
-						</div>
-					</div>
-
-					<DialogFooter className="gap-2 sm:gap-0">
-						<Button
-							variant="outline"
-							className="gap-1.5"
-							onClick={() => window.print()}
-						>
-							<Printer className="h-4 w-4" /> Print Receipt
-						</Button>
-						<Button onClick={handleDoneBill}>Done</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			{/* ── POS-Standard Billing Checkout Overlay (A4 Sheet / 80mm Thermal & Sharing) ── */}
+			{billModalOpen && (
+				<SaleCompletionScreen
+					order={{
+						id: Date.now().toString().slice(-6) as any,
+						createdAt: new Date().toISOString(),
+						items: items.map((i) => ({
+							id: i.id,
+							name: i.name,
+							productName: i.name,
+							qty: i.deliveredQty,
+							price: String(i.price),
+						})),
+						total: finalTotal,
+						subtotal: subtotal,
+						discount: 0,
+						payments: [
+							...(cashAmount > 0 ? [{ methodId: 1, amount: String(cashAmount) }] : []),
+							...(onlineAmount > 0 ? [{ methodId: 3, amount: String(onlineAmount) }] : []),
+						],
+						cashierName: dashboardData?.driverName || "Driver Staff",
+						customerName: activeStop?.customerName || "Customer",
+						customerPhone: activeStop?.phone || "N/A",
+						address: activeStop?.address || "Delivery Address",
+					}}
+					onNewSale={() => {
+						setBillModalOpen(false);
+						setHandoverStopId(null);
+						setItems(DEFAULT_ITEMS);
+						setCashAmount(0);
+						setOnlineAmount(0);
+						setNotes("");
+						refetch();
+					}}
+				/>
+			)}
 
 			{/* ── Add Extra Van Item Modal ──────────────────────────────────────── */}
 			<Dialog open={extraModalOpen} onOpenChange={setExtraModalOpen}>

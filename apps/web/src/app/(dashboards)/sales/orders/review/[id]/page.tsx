@@ -83,6 +83,10 @@ export default function CustomerOrderReviewPage() {
 	const [addProductId, setAddProductId] = useState<string>("");
 	const [productSearch, setProductSearch] = useState<string>("");
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [isConfirmingLocal, setIsConfirmingLocal] = useState(false);
+	const [isSavingDraftLocal, setIsSavingDraftLocal] = useState(false);
+	const confirmingRef = useRef(false);
+	const savingDraftRef = useRef(false);
 	const seeded = useRef(false);
 
 	const filteredCatalog = useMemo(() => {
@@ -156,14 +160,23 @@ export default function CustomerOrderReviewPage() {
 		setAddProductId("");
 	};
 
+	const isConfirming = isConfirmingLocal || confirm.isPending;
+	const isSavingDraft = isSavingDraftLocal || saveDraft.isPending;
+
 	const saveDraft = trpc.orders.updateReviewItems.useMutation({
 		onSuccess: () => {
+			savingDraftRef.current = false;
+			setIsSavingDraftLocal(false);
 			toast.success("Order draft updated successfully.");
 			utils.orders.getForReview.invalidate({ id });
 			utils.orders.listPendingReview.invalidate();
 			utils.orders.getPendingCount.invalidate();
 		},
-		onError: (e) => toast.error(e.message),
+		onError: (e) => {
+			savingDraftRef.current = false;
+			setIsSavingDraftLocal(false);
+			toast.error(e.message);
+		},
 	});
 
 	const assignRouteMutation = trpc.orders.assignRoute.useMutation({
@@ -177,7 +190,7 @@ export default function CustomerOrderReviewPage() {
 
 	const handleRouteChange = (newRouteId: string) => {
 		setSelectedRouteId(newRouteId);
-		if (newRouteId) {
+		if (newRouteId && newRouteId !== "none") {
 			assignRouteMutation.mutate({
 				orderId: id,
 				routeId: Number(newRouteId),
@@ -230,6 +243,8 @@ export default function CustomerOrderReviewPage() {
 
 	const confirm = trpc.orders.confirmOrder.useMutation({
 		onSuccess: (res) => {
+			confirmingRef.current = false;
+			setIsConfirmingLocal(false);
 			toast.success("Order confirmed! Bill generated successfully.");
 			utils.orders.list.invalidate();
 			utils.orders.listPendingReview.invalidate();
@@ -267,6 +282,8 @@ export default function CustomerOrderReviewPage() {
 			});
 		},
 		onError: (e) => {
+			confirmingRef.current = false;
+			setIsConfirmingLocal(false);
 			setConfirmOpen(false);
 			toast.error(e.message);
 		},
@@ -307,10 +324,26 @@ export default function CustomerOrderReviewPage() {
 		);
 
 	const unpricedCount = lines.filter((l) => l.price <= 0).length;
-	const canConfirm = !locked && lines.length > 0 && unpricedCount === 0;
+	const canConfirm =
+		!locked &&
+		lines.length > 0 &&
+		unpricedCount === 0 &&
+		!isConfirming &&
+		!isSavingDraft;
 
 	const handleSave = () => {
-		if (saveDraft.isPending || confirm.isPending) return;
+		if (
+			savingDraftRef.current ||
+			confirmingRef.current ||
+			isSavingDraft ||
+			isConfirming ||
+			lines.length === 0
+		)
+			return;
+
+		savingDraftRef.current = true;
+		setIsSavingDraftLocal(true);
+
 		saveDraft.mutate({
 			id,
 			items: lines.map((l) => ({
@@ -323,7 +356,18 @@ export default function CustomerOrderReviewPage() {
 	};
 
 	const handleConfirm = () => {
-		if (confirm.isPending || saveDraft.isPending) return;
+		if (
+			confirmingRef.current ||
+			savingDraftRef.current ||
+			isConfirming ||
+			isSavingDraft ||
+			!canConfirm
+		)
+			return;
+
+		confirmingRef.current = true;
+		setIsConfirmingLocal(true);
+
 		confirm.mutate({
 			id,
 			items: lines.map((l) => ({
@@ -758,16 +802,25 @@ export default function CustomerOrderReviewPage() {
 						<Button
 							variant="outline"
 							onClick={handleSave}
-							disabled={saveDraft.isPending || lines.length === 0}
+							disabled={isSavingDraft || isConfirming || lines.length === 0}
 							className="gap-2"
 						>
-							<SaveIcon className="h-4 w-4" />
-							{saveDraft.isPending ? "Saving Draft…" : "Save Draft"}
+							{isSavingDraft ? (
+								<>
+									<Loader2Icon className="h-4 w-4 animate-spin" />
+									Saving Draft…
+								</>
+							) : (
+								<>
+									<SaveIcon className="h-4 w-4" />
+									Save Draft
+								</>
+							)}
 						</Button>
 
 						<Button
 							onClick={() => setConfirmOpen(true)}
-							disabled={!canConfirm}
+							disabled={!canConfirm || isConfirming || isSavingDraft}
 							className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
 						>
 							<CheckCircle2Icon className="h-4 w-4" />
@@ -987,15 +1040,28 @@ export default function CustomerOrderReviewPage() {
 						</p>
 					</div>
 					<DialogFooter className="gap-2 sm:gap-0">
-						<Button variant="outline" onClick={() => setConfirmOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setConfirmOpen(false)}
+							disabled={isConfirming}
+						>
 							Cancel
 						</Button>
 						<Button
 							onClick={handleConfirm}
-							disabled={confirm.isPending}
-							className="bg-emerald-600 text-white hover:bg-emerald-700"
+							disabled={isConfirming || confirm.isPending}
+							className={`bg-emerald-600 text-white hover:bg-emerald-700 ${
+								isConfirming ? "pointer-events-none opacity-80" : ""
+							}`}
 						>
-							{confirm.isPending ? "Confirming & Billing…" : "Confirm Order"}
+							{isConfirming ? (
+								<>
+									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+									Confirming & Billing…
+								</>
+							) : (
+								"Confirm Order"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

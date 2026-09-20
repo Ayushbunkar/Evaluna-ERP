@@ -119,9 +119,18 @@ export default function PickerActivePage() {
 
 	const handleConfirmSubmit = () => {
 		if (!confirmItem) return;
+		const maxAllowed = confirmItem.qty_required || 1;
+		let qty = Number(confirmQty);
+		if (Number.isNaN(qty) || qty <= 0) {
+			qty = 1;
+		}
+		if (qty > maxAllowed) {
+			toast.error(`Picked quantity cannot exceed required quantity (${maxAllowed})`);
+			qty = maxAllowed;
+		}
 		confirmMutation.mutate({
 			item_id: confirmItem.id,
-			quantity: Number(confirmQty) || 1,
+			quantity: qty,
 		});
 	};
 
@@ -417,9 +426,23 @@ export default function PickerActivePage() {
 									type="number"
 									min="0"
 									max={confirmItem.qty_required}
-									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500"
 									value={confirmQty}
-									onChange={(e) => setConfirmQty(Number(e.target.value))}
+									onChange={(e) => {
+										const rawVal = e.target.value;
+										if (rawVal === "") {
+											setConfirmQty("" as any);
+											return;
+										}
+										const val = Number(rawVal);
+										const maxAllowed = confirmItem.qty_required || 1;
+										if (val > maxAllowed) {
+											toast.error(`Picked quantity cannot exceed required quantity (${maxAllowed})`);
+											setConfirmQty(maxAllowed);
+										} else {
+											setConfirmQty(val < 0 ? 0 : val);
+										}
+									}}
 								/>
 							</div>
 						</div>

@@ -62,7 +62,9 @@ export const inventoryRouter = router({
 			const targetBranchId = branchId || ctx.user?.branchId || 1;
 			const todayStr = new Date().toISOString().split("T")[0];
 
-			const conditions: any[] = [eq(products.is_deleted, false)];
+			const conditions: any[] = [
+				or(eq(products.is_deleted, false), sql`${products.is_deleted} IS NULL`),
+			];
 			if (search?.trim()) {
 				const term = `%${search.trim().toLowerCase()}%`;
 				conditions.push(
@@ -209,6 +211,7 @@ export const inventoryRouter = router({
 				branchId: z.number().optional().default(1),
 				qtyOnHand: z.number().min(0),
 				price: z.number().min(0),
+				reason: z.string().optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
