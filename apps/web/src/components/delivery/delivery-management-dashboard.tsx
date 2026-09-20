@@ -21,7 +21,7 @@ import {
 	UserIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -157,9 +157,29 @@ export function DeliveryManagementDashboard({
 		) {
 			return false;
 		}
-		if (order.driver_id) return false;
-		return true;
 	});
+
+	const [selectedRouteFilter, setSelectedRouteFilter] = useState<string>("all");
+
+	// Group unassigned orders by assigned route name
+	const routeGroups = useMemo(() => {
+		const groups: Record<string, any[]> = { all: unassignedOrders, unassigned: [] };
+		for (const order of unassignedOrders) {
+			const rName = order.route?.name?.trim();
+			if (rName) {
+				if (!groups[rName]) groups[rName] = [];
+				groups[rName].push(order);
+			} else {
+				groups.unassigned.push(order);
+			}
+		}
+		return groups;
+	}, [unassignedOrders]);
+
+	const filteredUnassignedOrders =
+		selectedRouteFilter === "all"
+			? unassignedOrders
+			: routeGroups[selectedRouteFilter] || [];
 
 	const createVehicle = trpc.vehicles.create.useMutation({
 		onSuccess: () => refetchVehicles(),
@@ -1271,7 +1291,7 @@ export function DeliveryManagementDashboard({
 
 				{/* Orders Awaiting Route & Driver Assignment Panel */}
 				<Card className="border-border/50 shadow-sm">
-					<CardHeader className="flex flex-row items-center justify-between pb-4">
+					<CardHeader className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-center sm:justify-between">
 						<div>
 							<CardTitle className="flex items-center gap-2 font-bold text-lg">
 								<PackageIcon className="h-5 w-5 text-blue-600" />
@@ -1281,6 +1301,37 @@ export function DeliveryManagementDashboard({
 								{t("selectMultipleOrdersSub")}
 							</CardDescription>
 						</div>
+
+						{/* Route Filter Pills / Tabs */}
+						<div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 p-1">
+							<Button
+								type="button"
+								size="sm"
+								variant={selectedRouteFilter === "all" ? "default" : "ghost"}
+								className="h-7 px-2.5 text-xs font-semibold rounded-md"
+								onClick={() => setSelectedRouteFilter("all")}
+							>
+								All Routes ({unassignedOrders.length})
+							</Button>
+
+							{Object.entries(routeGroups).map(([rName, rOrders]) => {
+								if (rName === "all" || rOrders.length === 0) return null;
+								const label = rName === "unassigned" ? "Unassigned Route" : rName;
+								return (
+									<Button
+										key={rName}
+										type="button"
+										size="sm"
+										variant={selectedRouteFilter === rName ? "default" : "ghost"}
+										className="h-7 px-2.5 text-xs font-semibold rounded-md"
+										onClick={() => setSelectedRouteFilter(rName)}
+									>
+										📍 {label} ({rOrders.length})
+									</Button>
+								);
+							})}
+						</div>
+
 						{selectedOrderIds.length > 0 && (
 							<Button
 								className="bg-emerald-600 font-semibold text-white text-xs shadow-md hover:bg-emerald-700"
@@ -1305,13 +1356,13 @@ export function DeliveryManagementDashboard({
 												type="checkbox"
 												className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 												checked={
-													unassignedOrders.length > 0 &&
-													selectedOrderIds.length === unassignedOrders.length
+													filteredUnassignedOrders.length > 0 &&
+													selectedOrderIds.length === filteredUnassignedOrders.length
 												}
 												onChange={(e) => {
 													if (e.target.checked) {
 														setSelectedOrderIds(
-															unassignedOrders.map((o: any) => o.id),
+															filteredUnassignedOrders.map((o: any) => o.id),
 														);
 													} else {
 														setSelectedOrderIds([]);
@@ -1332,7 +1383,7 @@ export function DeliveryManagementDashboard({
 									</tr>
 								</thead>
 								<tbody>
-									{unassignedOrders.map((order: any) => {
+									{filteredUnassignedOrders.map((order: any) => {
 										const isSelected = selectedOrderIds.includes(order.id);
 										return (
 											<tr
@@ -1417,14 +1468,18 @@ export function DeliveryManagementDashboard({
 											</tr>
 										);
 									})}
-									{(!unassignedOrders || unassignedOrders.length === 0) && (
+									{(!filteredUnassignedOrders || filteredUnassignedOrders.length === 0) && (
 										<tr>
 											<td
 												colSpan={7}
 												className="py-12 text-center text-muted-foreground"
 											>
 												<PackageIcon className="mx-auto mb-3 h-10 w-10 opacity-20" />
-												<p>{t("noOrdersWaitingRouteAssignment")}</p>
+												<p>
+													{selectedRouteFilter === "all"
+														? t("noOrdersWaitingRouteAssignment")
+														: `No orders found for ${selectedRouteFilter === "unassigned" ? "Unassigned Route" : selectedRouteFilter}.`}
+												</p>
 											</td>
 										</tr>
 									)}
