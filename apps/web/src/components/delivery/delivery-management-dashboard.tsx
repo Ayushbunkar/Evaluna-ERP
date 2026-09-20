@@ -1390,9 +1390,15 @@ export function DeliveryManagementDashboard({
 														: "—"}
 												</td>
 												<td className="px-4 py-3 text-center">
-													<span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-[11px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-														{t("unassignedRoute")}
-													</span>
+													{order.route?.name ? (
+														<span className="rounded-full bg-blue-100 px-2.5 py-1 font-semibold text-[11px] text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+															📍 {order.route.name}
+														</span>
+													) : (
+														<span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-[11px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+															{t("unassignedRoute")}
+														</span>
+													)}
 												</td>
 												<td className="px-4 py-3 text-center">
 													<Button

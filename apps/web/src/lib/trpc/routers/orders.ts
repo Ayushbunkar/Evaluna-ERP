@@ -61,6 +61,13 @@ const orderWithCustomerSchema = z.object({
 			address: z.string().nullable().optional(),
 		})
 		.nullable(),
+	route: z
+		.object({
+			id: z.number(),
+			name: z.string(),
+		})
+		.nullable()
+		.optional(),
 });
 
 const salesDashboardSummarySchema = z.object({
@@ -375,9 +382,13 @@ export const ordersRouter = router({
 					customer_name: customers.name,
 					customer_phone: customers.phone,
 					customer_address: customers.address,
+					route_id: routeStops.route_id,
+					route_name: deliveryRoutes.name,
 				})
 				.from(orders)
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.leftJoin(routeStops, eq(routeStops.customer_id, orders.customer_id))
+				.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
 				.where(conditions.length > 0 ? and(...conditions) : undefined)
 				.orderBy(desc(orders.created_at), desc(orders.id))
 				.limit(limit)
@@ -398,6 +409,12 @@ export const ordersRouter = router({
 							name: r.customer_name,
 							phone: r.customer_phone ?? null,
 							address: r.customer_address ?? null,
+						}
+					: null,
+				route: r.route_id && r.route_name
+					? {
+							id: r.route_id,
+							name: r.route_name,
 						}
 					: null,
 			}));
