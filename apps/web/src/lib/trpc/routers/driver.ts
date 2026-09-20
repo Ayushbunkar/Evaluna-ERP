@@ -120,6 +120,7 @@ async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericS
 	addSafe(currentUser.email);
 	addSafe(currentUser.name);
 	addSafe(currentUser.staffId);
+	addSafe(currentUser.staff_id);
 
 	if (currentUser.staff) {
 		addSafe(currentUser.staff.id);
@@ -195,6 +196,9 @@ async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericS
 		}
 		if (currentUser.staffId && !isNaN(Number(currentUser.staffId))) {
 			staffConditions.push(eq(staff.id, Number(currentUser.staffId)));
+		}
+		if (currentUser.staff_id && !isNaN(Number(currentUser.staff_id))) {
+			staffConditions.push(eq(staff.id, Number(currentUser.staff_id)));
 		}
 		if (currentUser.staff?.id && !isNaN(Number(currentUser.staff.id))) {
 			staffConditions.push(eq(staff.id, Number(currentUser.staff.id)));
