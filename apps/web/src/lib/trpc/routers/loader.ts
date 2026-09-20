@@ -14,7 +14,7 @@ import {
 	vehicles,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, not, notInArray, or, sql } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, lte, not, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
@@ -28,15 +28,26 @@ export const loaderRouter = router({
 			const todayStart = new Date();
 			todayStart.setHours(0, 0, 0, 0);
 
-			// Loaders only see their own assigned trips; managers/admins see all
+			// Loaders see their assigned trips + unassigned loading queue trips
 			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
 			const isLoaderRole = userRole === "loader";
-			const loaderId = ctx.user?.id;
+			const callerId = ctx.user?.id;
+			const callerEmail = ctx.user?.email;
+			const callerStaffId = ctx.user?.staff_id ? String(ctx.user.staff_id) : undefined;
 
-			const loaderFilter =
-				isLoaderRole && loaderId
-					? eq(deliveryTrips.loader_id, loaderId)
-					: undefined;
+			let loaderFilter = undefined;
+			if (isLoaderRole) {
+				const idConditions = [];
+				if (callerId) idConditions.push(eq(deliveryTrips.loader_id, callerId));
+				if (callerEmail) idConditions.push(sql`LOWER(TRIM(${deliveryTrips.loader_id})) = LOWER(TRIM(${callerEmail}))`);
+				if (callerStaffId) idConditions.push(eq(deliveryTrips.loader_id, callerStaffId));
+
+				loaderFilter = or(
+					isNull(deliveryTrips.loader_id),
+					sql`${deliveryTrips.loader_id} = ''`,
+					...idConditions,
+				);
+			}
 
 			const [readyTrips] = await db
 				.select({ count: count() })
@@ -97,17 +108,35 @@ export const loaderRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db || defaultDb;
 
-			const statusFilter =
-				input?.status && input.status !== "all"
-					? eq(deliveryTrips.status, input.status)
-					: inArray(deliveryTrips.status, ["ready_for_loading", "pending", "loading", "loaded"]);
+			let statusFilter;
+			if (input?.status === "ready_for_loading") {
+				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "pending"]);
+			} else if (input?.status && input.status !== "all") {
+				statusFilter = eq(deliveryTrips.status, input.status);
+			} else {
+				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "pending", "loading", "loaded"]);
+			}
 
-			// Loaders only see trips assigned to them
+			// Loaders see trips assigned to them OR unassigned pool trips
 			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
 			const isLoaderRole = userRole === "loader";
 			const callerId = ctx.user?.id;
-			const loaderIdFilter =
-				isLoaderRole && callerId ? eq(deliveryTrips.loader_id, callerId) : undefined;
+			const callerEmail = ctx.user?.email;
+			const callerStaffId = ctx.user?.staff_id ? String(ctx.user.staff_id) : undefined;
+
+			let loaderIdFilter = undefined;
+			if (isLoaderRole) {
+				const idConditions = [];
+				if (callerId) idConditions.push(eq(deliveryTrips.loader_id, callerId));
+				if (callerEmail) idConditions.push(sql`LOWER(TRIM(${deliveryTrips.loader_id})) = LOWER(TRIM(${callerEmail}))`);
+				if (callerStaffId) idConditions.push(eq(deliveryTrips.loader_id, callerStaffId));
+
+				loaderIdFilter = or(
+					isNull(deliveryTrips.loader_id),
+					sql`${deliveryTrips.loader_id} = ''`,
+					...idConditions,
+				);
+			}
 
 			const whereClause = loaderIdFilter ? and(statusFilter, loaderIdFilter) : statusFilter;
 
@@ -410,7 +439,11 @@ export const loaderRouter = router({
 			if (trip.status === "ready_for_loading" || trip.status === "pending") {
 				await db
 					.update(deliveryTrips)
-					.set({ status: "loading", updated_at: new Date() })
+					.set({
+						status: "loading",
+						loader_id: trip.loader_id || ctx.user?.id || null,
+						updated_at: new Date(),
+					})
 					.where(eq(deliveryTrips.id, input.tripId));
 			}
 
