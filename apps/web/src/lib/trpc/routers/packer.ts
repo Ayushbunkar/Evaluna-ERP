@@ -541,7 +541,7 @@ export const packerRouter = router({
 				.leftJoin(staff, eq(packages.packed_by, staff.id))
 				.leftJoin(orders, eq(packages.order_id, orders.id))
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
-				.orderBy(desc(packages.packed_at));
+				.orderBy(desc(packages.id), desc(packages.packed_at));
 
 			const {
 				tripStops,

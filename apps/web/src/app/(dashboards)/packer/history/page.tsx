@@ -233,9 +233,15 @@ export default function PackerHistoryPage() {
 												{pkg.packedBy}
 											</TableCell>
 											<TableCell>
-												<span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800 text-xs capitalize dark:bg-green-900/30 dark:text-green-400">
+												<span
+													className={`rounded-full px-2 py-0.5 font-medium text-xs capitalize ${
+														pkg.status === "Packed" || pkg.status === "packed"
+															? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+															: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+													}`}
+												>
 													{pkg.status === "Packed" || pkg.status === "packed"
-														? "पैक किया हुआ"
+														? "Packed"
 														: pkg.status}
 												</span>
 											</TableCell>

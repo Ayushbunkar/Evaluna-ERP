@@ -158,12 +158,6 @@ export function DeliveryManagementDashboard({
 			return false;
 		}
 		if (order.driver_id) return false;
-		if (
-			order.customer_id &&
-			assignedCustomerIdsInActiveTrips.has(order.customer_id)
-		) {
-			return false;
-		}
 		return true;
 	});
 
