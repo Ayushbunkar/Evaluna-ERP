@@ -1051,19 +1051,9 @@ export function DeliveryManagementDashboard({
 									Saved Delivery Routes & Trip Assignment
 								</CardTitle>
 								<CardDescription className="text-xs text-slate-500">
-									Select a route to assign a vehicle trip and driver.
+									View and edit configured delivery routes.
 								</CardDescription>
 							</div>
-							<Button
-								size="sm"
-								className="bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary/90"
-								onClick={() => {
-									if (realRoutes.length > 0) openDispatchForRoute(realRoutes[0]);
-								}}
-							>
-								<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
-								Assign Trip
-							</Button>
 						</CardHeader>
 						<CardContent>
 							<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -1097,14 +1087,6 @@ export function DeliveryManagementDashboard({
 												>
 													<PencilIcon className="mr-1 h-3 w-3 text-slate-500" />
 													Edit
-												</Button>
-												<Button
-													size="sm"
-													className="h-7 bg-primary px-3 text-xs font-semibold text-white shadow-xs hover:bg-primary/90"
-													onClick={() => openDispatchForRoute(route)}
-												>
-													<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
-													Assign Trip
 												</Button>
 											</div>
 										</div>

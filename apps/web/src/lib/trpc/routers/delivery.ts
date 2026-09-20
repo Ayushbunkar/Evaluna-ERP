@@ -1179,12 +1179,15 @@ ERROR TABLE: ${err.table}
 			});
 
 			return realRoutes.map((route) => {
-				const routeCustIds = new Set(route.stops.map((s) => s.customer_id));
+				const routeCustIds = new Set(route.stops.map((s) => s.customer_id).filter(Boolean));
 
 				const routeOrders = allOrders.filter((order) => {
-					if (!order.customer_id || !routeCustIds.has(order.customer_id)) return false;
-					if (customerIdsInActiveTrips.has(order.customer_id)) return false;
-					return true;
+					if (order.customer_id && customerIdsInActiveTrips.has(order.customer_id)) return false;
+					
+					const isDirectRoute = (order as any).route_id === route.id;
+					const isStopCustomer = Boolean(order.customer_id && routeCustIds.has(order.customer_id));
+
+					return isDirectRoute || isStopCustomer;
 				});
 
 				const waitingCount = routeOrders.length;
