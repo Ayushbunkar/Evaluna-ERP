@@ -3627,11 +3627,13 @@ export function DeliveryManagementDashboard({
 					</DialogDescription>
 				</DialogHeader>
 				<div className="max-h-[65vh] overflow-y-auto space-y-4 py-2 pr-1">
-					{(viewRoutePool?.villages || []).map((village: any, idx: number) => (
+					{(viewRoutePool?.villages || [])
+						.filter((village: any) => (village.orders || []).length > 0)
+						.map((village: any, idx: number) => (
 						<div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2 dark:border-slate-800 dark:bg-slate-900/50">
 							<div className="flex items-center justify-between border-b pb-2 dark:border-slate-800">
 								<span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-									📍 Village/Stop {idx + 1}: {village.name}
+									📍 Village/Stop: {village.name}
 								</span>
 								<span className="text-[11px] font-semibold text-slate-500">
 									{village.orderCount} order(s)
@@ -3671,6 +3673,11 @@ export function DeliveryManagementDashboard({
 							</div>
 						</div>
 					))}
+					{(viewRoutePool?.villages || []).filter((v: any) => (v.orders || []).length > 0).length === 0 && (
+						<div className="py-8 text-center text-slate-400 text-xs font-medium">
+							No pending orders waiting for this route.
+						</div>
+					)}
 				</div>
 				<DialogFooter>
 					<Button variant="outline" onClick={() => setIsViewOrdersOpen(false)}>
@@ -3733,7 +3740,9 @@ export function DeliveryManagementDashboard({
 							</div>
 						</div>
 
-						{(createTripRoutePool?.villages || []).map((village: any, vIdx: number) => (
+						{(createTripRoutePool?.villages || [])
+							.filter((village: any) => (village.orders || []).length > 0)
+							.map((village: any, vIdx: number) => (
 							<div key={vIdx} className="space-y-2 border rounded-xl p-3 bg-slate-50/50 dark:bg-slate-900/50">
 								<span className="font-bold text-xs text-slate-700 dark:text-slate-300 block border-b pb-1">
 									📍 Village: {village.name}

@@ -1201,22 +1201,63 @@ ERROR TABLE: ${err.table}
 					(o) => o.status === "ready_for_packing" || o.status === "packing",
 				).length;
 
+				// Initialize pre-configured village stops from route description or route stops
 				const villageMap = new Map<string, any[]>();
+				const preConfiguredVillages: string[] = [];
+
+				if (route.description && route.description.includes("->")) {
+					for (const v of route.description.split("->")) {
+						const trimmed = v.trim();
+						if (trimmed && !villageMap.has(trimmed)) {
+							villageMap.set(trimmed, []);
+							preConfiguredVillages.push(trimmed);
+						}
+					}
+				} else if (route.description && route.description.includes(",")) {
+					for (const v of route.description.split(",")) {
+						const trimmed = v.trim();
+						if (trimmed && !villageMap.has(trimmed)) {
+							villageMap.set(trimmed, []);
+							preConfiguredVillages.push(trimmed);
+						}
+					}
+				}
+
 				for (const stop of route.stops) {
 					const cust = stop.customer;
-					const villageName = cust?.address ? cust.address.split(",")[0].trim() : `Stop ${stop.sequence}`;
-					if (!villageMap.has(villageName)) {
-						villageMap.set(villageName, []);
+					const vName = cust?.address
+						? cust.address.split(",")[0].trim()
+						: cust?.name?.replace(/^Stop:\s*/, "").trim() || `Stop ${stop.sequence}`;
+					if (!villageMap.has(vName)) {
+						villageMap.set(vName, []);
+						preConfiguredVillages.push(vName);
 					}
 				}
 
 				for (const order of routeOrders) {
 					const cust = order.customer;
-					const villageName = cust?.address ? cust.address.split(",")[0].trim() : "Default Stop";
-					if (!villageMap.has(villageName)) {
-						villageMap.set(villageName, []);
+					const custAddress = (cust?.address || "").trim().toLowerCase();
+					const custName = (cust?.name || "").trim().toLowerCase();
+					
+					// Find best matching pre-configured village stop
+					let targetVillage = preConfiguredVillages.find((v) => {
+						const vLower = v.toLowerCase();
+						return (
+							custAddress.includes(vLower) ||
+							vLower.includes(custAddress) ||
+							custName.includes(vLower)
+						);
+					});
+
+					if (!targetVillage) {
+						targetVillage = cust?.address ? cust.address.split(",")[0].trim() : "Other Stops";
 					}
-					villageMap.get(villageName)?.push({
+
+					if (!villageMap.has(targetVillage)) {
+						villageMap.set(targetVillage, []);
+					}
+
+					villageMap.get(targetVillage)?.push({
 						id: order.id,
 						orderNumber: order.order_number || `ORD-${order.id}`,
 						customerName: cust?.name || "Customer",

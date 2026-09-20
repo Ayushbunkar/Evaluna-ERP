@@ -293,7 +293,7 @@ export const driverRouter = router({
 							})
 						: null;
 
-				// If no trip found for exact driver_id, fallback to recent active or dispatched trip
+				// Fallback: If no trip matched exact driver ID query, fallback to the most recent active/dispatched trip in system
 				if (!trip || !trip.stops || trip.stops.length === 0) {
 					const fallbackTrip = await db.query.deliveryTrips.findFirst({
 						where: inArray(deliveryTrips.status, [
