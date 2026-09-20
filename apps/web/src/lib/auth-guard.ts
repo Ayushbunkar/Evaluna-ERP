@@ -6,7 +6,7 @@ import {
 	userRoles as userRolesTable,
 	user as userTable,
 } from "@evaluna/db/schema";
-import { and, desc, eq, get, gte, isNotNull, or } from "drizzle-orm";
+import { and, desc, eq, get, gte, isNotNull, or, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { auth } from "./auth";
 import { db } from "./db";
@@ -269,8 +269,13 @@ export async function getAuthUser(
 	// 5. Resolve Roles, Permissions, and Dashboard Route (Requirements 4, 5, 8)
 	let linkedStaff = dbUser.staff;
 	if (!linkedStaff && dbUser.email) {
+		const cleanEmail = dbUser.email.trim().toLowerCase();
 		const fallbackStaff = await db.query.staff.findFirst({
-			where: eq(staffTable.email, dbUser.email),
+			where: or(
+				eq(staffTable.email, dbUser.email),
+				eq(staffTable.email, cleanEmail),
+				sql`LOWER(TRIM(${staffTable.email})) = ${cleanEmail}`,
+			),
 			columns: {
 				id: true,
 				name: true,
@@ -304,6 +309,45 @@ export async function getAuthUser(
 			permissions: getPermissionsForRole(normStaff as any) as string[],
 			dashboardRoute: getCanonicalDashboardRoute(normStaff),
 		});
+	}
+
+	// Fallback to user.role column if set directly on user table
+	if (rolesList.length === 0 && (dbUser as any).role) {
+		const normUserRole = normalizeRole((dbUser as any).role);
+		if (normUserRole && normUserRole !== "customer") {
+			rolesList.push({
+				name: normUserRole as RoleName,
+				permissions: getPermissionsForRole(normUserRole as any) as string[],
+				dashboardRoute: getCanonicalDashboardRoute(normUserRole),
+			});
+		}
+	}
+
+	// Fallback heuristic: detect operational roles from email identifier (e.g. loader@evaluna.com, driver@...)
+	if (rolesList.length === 0 && dbUser.email) {
+		const emailLower = dbUser.email.toLowerCase();
+		let detectedRole: RoleName | null = null;
+		if (emailLower.includes("loader")) detectedRole = "loader" as RoleName;
+		else if (emailLower.includes("driver") || emailLower.includes("delivery")) detectedRole = "driver" as RoleName;
+		else if (emailLower.includes("picker")) detectedRole = "picker" as RoleName;
+		else if (emailLower.includes("packer")) detectedRole = "packer" as RoleName;
+		else if (emailLower.includes("putter")) detectedRole = "putter" as RoleName;
+		else if (emailLower.includes("checker")) detectedRole = "checker" as RoleName;
+		else if (emailLower.includes("auditor")) detectedRole = "auditor" as RoleName;
+		else if (emailLower.includes("manager")) detectedRole = "manager" as RoleName;
+		else if (emailLower.includes("admin")) detectedRole = "admin" as RoleName;
+		else if (emailLower.includes("hr")) detectedRole = "hr" as RoleName;
+		else if (emailLower.includes("finance") || emailLower.includes("account")) detectedRole = "finance" as RoleName;
+		else if (emailLower.includes("sales") || emailLower.includes("cashier") || emailLower.includes("biller")) detectedRole = "sales_person" as RoleName;
+
+		if (detectedRole) {
+			const normDetected = normalizeRole(detectedRole);
+			rolesList.push({
+				name: normDetected as RoleName,
+				permissions: getPermissionsForRole(normDetected as any) as string[],
+				dashboardRoute: getCanonicalDashboardRoute(normDetected),
+			});
+		}
 	}
 
 	// Fallback to customer if neither userRoles nor staff role exist

@@ -950,6 +950,7 @@ ERROR TABLE: ${err.table}
 					email: user.email,
 					role: roles.name,
 					image: user.image,
+					staff_id: user.staff_id,
 				})
 				.from(user)
 				.innerJoin(userRoles, eq(userRoles.user_id, user.id))
@@ -969,17 +970,22 @@ ERROR TABLE: ${err.table}
 						eq(s.role, "driver"),
 						eq(s.role, "delivery_boy"),
 					),
-				columns: { id: true, name: true, email: true, role: true },
+				columns: { id: true, staff_code: true, name: true, email: true, role: true },
 			});
 
 			const merged = new Map();
 			for (const u of usersWithRole) {
+				const matchingStaff = u.staff_id
+					? staffMembers.find((s) => s.id === u.staff_id)
+					: null;
+
 				merged.set(u.email.toLowerCase(), {
 					id: u.id,
 					name: u.name,
 					email: u.email,
 					role: u.role,
 					image: u.image,
+					staff_code: matchingStaff?.staff_code || (u.staff_id ? `EMP-${u.staff_id}` : null),
 				});
 			}
 			for (const s of staffMembers) {
@@ -990,6 +996,7 @@ ERROR TABLE: ${err.table}
 						email: s.email,
 						role: s.role,
 						image: null,
+						staff_code: s.staff_code || `EMP-${s.id}`,
 					});
 				}
 			}

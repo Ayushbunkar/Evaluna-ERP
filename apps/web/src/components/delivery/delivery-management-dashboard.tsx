@@ -1820,14 +1820,20 @@ export function DeliveryManagementDashboard({
 													</SelectTrigger>
 													<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 														{finalDrivers.map((d: any) => (
-															<SelectItem key={d.id} value={d.id} className="cursor-pointer">
-																<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
-																	<span className="font-medium shrink-0">👤 {d.name}</span>
-																	{d.email && (
-																		<span className="truncate text-xs text-muted-foreground">
-																			({d.email})
-																		</span>
-																	)}
+															<SelectItem key={d.id} value={d.id} className="cursor-pointer py-2">
+																<div className="flex flex-col gap-0.5 min-w-0 max-w-full text-left">
+																	<div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
+																		<span>👤 {d.name}</span>
+																		{d.staff_code && (
+																			<span className="rounded bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.2 font-mono text-[10px] text-blue-700 dark:text-blue-300">
+																				ID: {d.staff_code}
+																			</span>
+																		)}
+																	</div>
+																	<div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
+																		{d.email && <span>📧 {d.email}</span>}
+																		<span className="font-mono text-[10px] opacity-75">UUID: {d.id}</span>
+																	</div>
 																</div>
 															</SelectItem>
 														))}
@@ -3298,14 +3304,20 @@ export function DeliveryManagementDashboard({
 							</SelectTrigger>
 							<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 								{finalDrivers.map((d: any) => (
-									<SelectItem key={d.id} value={d.id} className="cursor-pointer">
-										<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
-											<span className="font-medium shrink-0">👤 {d.name}</span>
-											{d.email && (
-												<span className="truncate text-xs text-muted-foreground">
-													({d.email})
-												</span>
-											)}
+									<SelectItem key={d.id} value={d.id} className="cursor-pointer py-2">
+										<div className="flex flex-col gap-0.5 min-w-0 max-w-full text-left">
+											<div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
+												<span>👤 {d.name}</span>
+												{d.staff_code && (
+													<span className="rounded bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.2 font-mono text-[10px] text-blue-700 dark:text-blue-300">
+														ID: {d.staff_code}
+													</span>
+												)}
+											</div>
+											<div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
+												{d.email && <span>📧 {d.email}</span>}
+												<span className="font-mono text-[10px] opacity-75">UUID: {d.id}</span>
+											</div>
 										</div>
 									</SelectItem>
 								))}

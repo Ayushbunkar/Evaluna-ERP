@@ -70,19 +70,21 @@ export async function login(formData: FormData) {
 
 		const resolvedRole =
 			predefinedAccounts[email] ||
-			(email.includes("driver")
-				? "driver"
-				: email.includes("manager")
-					? "manager"
-					: email.includes("picker")
-						? "picker"
-						: email.includes("packer")
-							? "packer"
-							: email.includes("checker")
-								? "checker"
-								: email.includes("admin")
-									? "admin"
-									: "staff");
+			(email.includes("loader")
+				? "loader"
+				: email.includes("driver")
+					? "driver"
+					: email.includes("manager")
+						? "manager"
+						: email.includes("picker")
+							? "picker"
+							: email.includes("packer")
+								? "packer"
+								: email.includes("checker")
+									? "checker"
+									: email.includes("admin")
+										? "admin"
+										: "staff");
 
 		const isEvalunaAccount =
 			predefinedAccounts[email] ||
