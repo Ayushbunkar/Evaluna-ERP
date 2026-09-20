@@ -581,6 +581,20 @@ ERROR TABLE: ${err.table}
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			if (input.status === "active") {
+				const [existingTrip] = await db
+					.select({ id: deliveryTrips.id, status: deliveryTrips.status })
+					.from(deliveryTrips)
+					.where(eq(deliveryTrips.id, input.tripId));
+
+				if (existingTrip && existingTrip.status !== "loaded" && existingTrip.status !== "active") {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: `Trip #${input.tripId} cannot be dispatched yet. It must first be physically loaded and verified by the warehouse loader (Current status: "${existingTrip.status}").`,
+					});
+				}
+			}
+
 			await db
 				.update(deliveryTrips)
 				.set({
@@ -1840,12 +1854,11 @@ ERROR TABLE: ${err.table}
 				});
 			}
 
-			// Block only if already completed or cancelled — allow dispatch from any pre-delivery state
-			const nonDispatchableStatuses = ["active", "completed", "cancelled", "out_for_delivery"];
-			if (nonDispatchableStatuses.includes(trip.status ?? "")) {
+			// Strict Gate: A trip must be verified and marked as "loaded" by the loader before it can be dispatched
+			if (trip.status !== "loaded") {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
-					message: `Trip #${input.tripId} is already in status "${trip.status}" and cannot be re-dispatched.`,
+					message: `Trip #${input.tripId} cannot be dispatched yet. It must first be physically loaded and verified by the warehouse loader (Current status: "${trip.status}").`,
 				});
 			}
 

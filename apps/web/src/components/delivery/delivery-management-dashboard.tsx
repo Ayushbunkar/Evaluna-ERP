@@ -1199,7 +1199,16 @@ export function DeliveryManagementDashboard({
 											</div>
 
 											<div className="mt-3.5 flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-												{trip.status !== "active" ? (
+												{trip.status === "active" ? (
+													<div className="flex w-full items-center justify-between text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+														<span className="flex items-center gap-1">
+															<CheckCircle2Icon className="h-3.5 w-3.5" /> Dispatched – Out for Delivery
+														</span>
+														<span className="text-[11px] text-muted-foreground">
+															Live in Progress
+														</span>
+													</div>
+												) : trip.status === "loaded" ? (
 													<>
 														<Button
 															size="sm"
@@ -1207,13 +1216,13 @@ export function DeliveryManagementDashboard({
 															disabled={updateTripStatus.isPending || dispatchTripMutation.isPending}
 															onClick={async () => {
 																try {
-																	await updateTripStatus.mutateAsync({
+																	await dispatchTripMutation.mutateAsync({
 																		tripId: trip.id,
-																		status: "active",
 																	});
 																	toast.success(
 																		`🚚 Trip #${trip.id} dispatched to ${trip.driver?.name || "driver"}! Orders are now Out for Delivery.`,
 																	);
+																	refetchTrips();
 																} catch (err: any) {
 																	toast.error(
 																		err.message || "Failed to dispatch trip",
@@ -1237,14 +1246,27 @@ export function DeliveryManagementDashboard({
 														</Button>
 													</>
 												) : (
-													<div className="flex w-full items-center justify-between text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-														<span className="flex items-center gap-1">
-															<CheckCircle2Icon className="h-3.5 w-3.5" /> Dispatched – Out for Delivery
-														</span>
-														<span className="text-[11px] text-muted-foreground">
-															Live in Progress
-														</span>
-													</div>
+													<>
+														<div className="flex-1 flex items-center gap-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-300 font-medium border border-amber-200/60">
+															<ClockIcon className="h-3.5 w-3.5 shrink-0 text-amber-600 animate-pulse" />
+															<span className="truncate">
+																{trip.status === "loading"
+																	? "Loading in Progress (Waiting for Loader)"
+																	: "Awaiting Loader Verification"}
+															</span>
+														</div>
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8 border-red-200 text-red-600 font-semibold shadow-xs hover:bg-red-50 text-xs px-2.5"
+															onClick={() => {
+																setTripToCancel(trip);
+																setIsCancelModalOpen(true);
+															}}
+														>
+															Cancel
+														</Button>
+													</>
 												)}
 											</div>
 										</div>
