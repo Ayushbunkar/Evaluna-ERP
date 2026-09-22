@@ -160,9 +160,6 @@ export default function CustomerOrderReviewPage() {
 		setAddProductId("");
 	};
 
-	const isConfirming = isConfirmingLocal || confirm.isPending;
-	const isSavingDraft = isSavingDraftLocal || saveDraft.isPending;
-
 	const saveDraft = trpc.orders.updateReviewItems.useMutation({
 		onSuccess: () => {
 			savingDraftRef.current = false;
@@ -289,6 +286,9 @@ export default function CustomerOrderReviewPage() {
 		},
 	});
 
+	const isConfirming = isConfirmingLocal || confirm.isPending;
+	const isSavingDraft = isSavingDraftLocal || saveDraft.isPending;
+
 	if (completedOrder) {
 		return (
 			<SaleCompletionScreen
@@ -385,6 +385,19 @@ export default function CustomerOrderReviewPage() {
 
 	return (
 		<div className="space-y-6">
+			{order.reviewedBy && (
+				<div className="rounded-lg border border-purple-200 bg-purple-50 p-4 text-purple-900 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-200 flex items-center gap-3">
+					<span className="text-xl">🔒</span>
+					<div>
+						<p className="font-semibold text-sm">
+							Equipped / Being Reviewed by: {order.reviewedBy}
+						</p>
+						<p className="text-xs text-purple-700 dark:text-purple-300">
+							Another sales team member opened this order first. Be mindful when editing or making changes.
+						</p>
+					</div>
+				</div>
+			)}
 			{/* Back Link & Header */}
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>

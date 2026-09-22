@@ -456,7 +456,7 @@ const messages = {
 		totalItemsToPick: "Total Items to Pick",
 		pickProgress: "Pick Progress",
 		completing: "Completing…",
-		completePicking: "🏁 Complete Picking",
+		completePicking: "Complete Picking",
 		scanPlaceholder: "Scan SKU barcode or type item barcode...",
 		scanItem: "Scan Item",
 		cameraScanner: "Camera Scanner",
@@ -482,7 +482,7 @@ const messages = {
 			"Picking checklist has been verified and safely forwarded to the Packing Station queue.",
 		pickingStatusVerified: "100% Verified",
 		routingStep: "Routing Step:",
-		nextPackerQueue: "Next ➡️ Packer Queue",
+		nextPackerQueue: "Next Packer Queue",
 		viewCompletedPicksArchive: "View Completed Picks Archive",
 		pendingPickTasks: "Pending Pick Tasks",
 		orderPicklistsQueued:

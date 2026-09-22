@@ -21,6 +21,7 @@ import {
 	ArchiveIcon,
 	CheckCircle2Icon,
 	Loader2Icon,
+	MapPinIcon,
 	PrinterIcon,
 	SearchIcon,
 	TruckIcon,
@@ -227,7 +228,9 @@ export default function PackerHistoryPage() {
 												{pkg.orderId}
 											</TableCell>
 											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
-												📍 {pkg.routeName || "Delivery Route"}
+												<div className="flex items-center gap-1">
+													<MapPinIcon className="h-3 w-3" /> {pkg.routeName || "Delivery Route"}
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pkg.packedBy}

@@ -22,6 +22,7 @@ const customerSchema = z
 		tier_override: z.boolean().nullable(),
 		marketing_opt_in: z.boolean().nullable(),
 		created_at: z.coerce.date().nullable(),
+		route_id: z.number().nullable().optional(),
 	})
 	.passthrough();
 
@@ -38,14 +39,37 @@ export const customersRouter = router({
 		.input(z.void())
 		.output(z.array(customerSchema))
 		.query(async ({ ctx }) => {
-			return db
-				.select()
+			const rows = await db
+				.select({
+					id: customers.id,
+					customer_code: customers.customer_code,
+					name: customers.name,
+					email: customers.email,
+					phone: customers.phone,
+					address: customers.address,
+					status: customers.status,
+					user_uid: customers.user_uid,
+					branch_id: customers.branch_id,
+					store_credit: customers.store_credit,
+					loyalty_tier: customers.loyalty_tier,
+					loyalty_points: customers.loyalty_points,
+					tier_override: customers.tier_override,
+					marketing_opt_in: customers.marketing_opt_in,
+					created_at: customers.created_at,
+					route_id: routeStops.route_id,
+				})
 				.from(customers)
+				.leftJoin(routeStops, eq(customers.id, routeStops.customer_id))
 				.where(
 					ctx.user.branchId
 						? eq(customers.branch_id, ctx.user.branchId)
 						: undefined,
 				);
+
+			return rows.map((r) => ({
+				...r,
+				route_id: r.route_id || null,
+			}));
 		}),
 
 	getById: roleProcedure(["admin", "manager", "auditor", "sales_person"])

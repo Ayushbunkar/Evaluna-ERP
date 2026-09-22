@@ -15,6 +15,7 @@ import {
 	ClipboardListIcon,
 	ClockIcon,
 	Loader2Icon,
+	LockIcon,
 	PhoneIcon,
 	XCircleIcon,
 } from "lucide-react";
@@ -265,6 +266,15 @@ export default function CustomerOrderInboxPage() {
 											>
 												{statusInfo.label}
 											</Badge>
+											{o.reviewedBy && (
+												<Badge
+													variant="outline"
+													className="bg-purple-100 text-purple-900 dark:bg-purple-950/70 dark:text-purple-200 border-purple-300 dark:border-purple-800 text-xs font-semibold gap-1 py-0.5 px-2.5 shadow-sm"
+												>
+													<LockIcon className="h-3 w-3 text-purple-700 dark:text-purple-300" />
+													Taken by {o.reviewedBy} (Equipped)
+												</Badge>
+											)}
 											<span className="inline-flex items-center gap-1 font-medium text-amber-700 text-xs dark:text-amber-400">
 												<ClockIcon className="h-3 w-3" />
 												Waiting: {formatPendingDuration(o.createdAt)}

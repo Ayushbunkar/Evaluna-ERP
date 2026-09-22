@@ -26,6 +26,7 @@ import {
 	PackageIcon,
 	PlaySquareIcon,
 	TrendingUpIcon,
+	UserIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -232,7 +233,12 @@ export default function PickerDashboard() {
 													{tItem.id}
 												</TableCell>
 												<TableCell className="font-semibold text-sm">
-													{tItem.order}
+													<div className="font-bold">{tItem.order}</div>
+													{tItem.customerName && tItem.customerName !== "N/A" && (
+														<div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+															<UserIcon className="h-3 w-3" /> {tItem.customerName}
+														</div>
+													)}
 												</TableCell>
 												<TableCell className="font-medium text-sm">
 													{tItem.items} {t("driver.orderItems")}

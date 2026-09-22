@@ -360,26 +360,30 @@ export default function DriverHistoryPage() {
 							{/* Summary Header Card */}
 							<div className="grid grid-cols-2 gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs sm:grid-cols-4">
 								<div>
-									<span className="block text-slate-500">Route Name:</span>
-									<span className="font-bold text-slate-900 text-sm">
-										📍 {selectedTrip.routeName}
+									<span className="block text-slate-500 font-medium">Route Name:</span>
+									<span className="font-bold text-slate-900 text-sm flex items-center gap-1 mt-0.5">
+										<MapPinIcon className="h-4 w-4 text-blue-600 shrink-0" />
+										{selectedTrip.routeName}
 									</span>
 								</div>
 								<div>
-									<span className="block text-slate-500">Assigned Driver:</span>
-									<span className="font-medium text-slate-800">
-										👤 {selectedTrip.driverName}
+									<span className="block text-slate-500 font-medium">Assigned Driver:</span>
+									<span className="font-semibold text-slate-800 flex items-center gap-1 mt-0.5">
+										<UserIcon className="h-4 w-4 text-slate-600 shrink-0" />
+										{selectedTrip.driverName}
 									</span>
 								</div>
 								<div>
-									<span className="block text-slate-500">Truck / Vehicle:</span>
-									<span className="font-medium font-mono text-slate-800">
-										🚛 {selectedTrip.vehiclePlate}
+									<span className="block text-slate-500 font-medium">Truck / Vehicle:</span>
+									<span className="font-semibold font-mono text-slate-800 flex items-center gap-1 mt-0.5">
+										<TruckIcon className="h-4 w-4 text-slate-600 shrink-0" />
+										{selectedTrip.vehiclePlate}
 									</span>
 								</div>
 								<div>
-									<span className="block text-slate-500">Date & Status:</span>
-									<span className="font-bold text-emerald-700">
+									<span className="block text-slate-500 font-medium">Date & Status:</span>
+									<span className="font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
+										<CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
 										{selectedTrip.date} ({selectedTrip.status})
 									</span>
 								</div>
@@ -388,24 +392,27 @@ export default function DriverHistoryPage() {
 							{/* Financial Ledger Summary Cards */}
 							<div className="grid grid-cols-3 gap-3">
 								<div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs">
-									<span className="font-semibold text-[10px] text-emerald-700 uppercase tracking-wider">
-										💵 Cash Collected
+									<span className="font-semibold text-[10px] text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+										<Banknote className="h-3.5 w-3.5 text-emerald-600" />
+										Cash Collected
 									</span>
 									<p className="mt-1 font-bold font-mono text-emerald-900 text-lg">
 										₹{selectedTrip.totalCashCollected.toFixed(2)}
 									</p>
 								</div>
 								<div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 text-xs">
-									<span className="font-semibold text-[10px] text-purple-700 uppercase tracking-wider">
-										💳 Online / UPI / QR
+									<span className="font-semibold text-[10px] text-purple-700 uppercase tracking-wider flex items-center gap-1">
+										<QrCode className="h-3.5 w-3.5 text-purple-600" />
+										Online / UPI / QR
 									</span>
 									<p className="mt-1 font-bold font-mono text-lg text-purple-900">
 										₹{selectedTrip.totalOnlineCollected.toFixed(2)}
 									</p>
 								</div>
 								<div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs">
-									<span className="font-semibold text-[10px] text-amber-700 uppercase tracking-wider">
-										💰 Total Handover
+									<span className="font-semibold text-[10px] text-amber-700 uppercase tracking-wider flex items-center gap-1">
+										<WalletIcon className="h-3.5 w-3.5 text-amber-600" />
+										Total Handover
 									</span>
 									<p className="mt-1 font-bold font-mono text-amber-900 text-lg">
 										₹{selectedTrip.totalCollected.toFixed(2)}
@@ -422,11 +429,13 @@ export default function DriverHistoryPage() {
 
 								<Tabs defaultValue="bill2" className="w-full space-y-3">
 									<TabsList className="grid grid-cols-2 w-full bg-slate-100 p-1">
-										<TabsTrigger value="bill1" className="text-xs font-semibold py-1.5">
-											1️⃣ Initial Dispatched Bill (जो मिला था)
+										<TabsTrigger value="bill1" className="text-xs font-semibold py-1.5 flex items-center gap-1.5">
+											<ShoppingCart className="h-3.5 w-3.5 text-blue-600" />
+											Initial Dispatched Bill (जो मिला था)
 										</TabsTrigger>
-										<TabsTrigger value="bill2" className="text-xs font-semibold py-1.5">
-											2️⃣ Final Doorstep Settled Bill (जो कलेक्ट किया)
+										<TabsTrigger value="bill2" className="text-xs font-semibold py-1.5 flex items-center gap-1.5">
+											<PackageCheck className="h-3.5 w-3.5 text-emerald-600" />
+											Final Doorstep Settled Bill (जो कलेक्ट किया)
 										</TabsTrigger>
 									</TabsList>
 
@@ -447,37 +456,55 @@ export default function DriverHistoryPage() {
 												<Table className="w-full text-xs">
 													<TableHeader className="bg-blue-50">
 														<TableRow>
-															<TableHead className="font-semibold">Stop / Customer</TableHead>
+															<TableHead className="font-semibold">Customer / Stop</TableHead>
 															<TableHead className="font-semibold">Order Ref</TableHead>
-															<TableHead className="font-semibold text-center">Dispatched Qty</TableHead>
-															<TableHead className="font-semibold text-right">Rate</TableHead>
+															<TableHead className="font-semibold">Dispatched Product Name</TableHead>
+															<TableHead className="font-semibold text-center">Qty</TableHead>
+															<TableHead className="font-semibold text-right">Unit Price</TableHead>
 															<TableHead className="font-semibold text-right">Subtotal</TableHead>
 														</TableRow>
 													</TableHeader>
 													<TableBody>
 														{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
-															selectedTrip.stops.map((st: any) => (
-																<TableRow key={st.stopId}>
-																	<TableCell className="font-semibold text-slate-800">
-																		{st.customerName}
-																	</TableCell>
-																	<TableCell className="font-mono text-blue-600 font-semibold">
-																		{st.orderRef}
-																	</TableCell>
-																	<TableCell className="text-center font-bold text-blue-700">
-																		{st.packages || 1} Pkgs / Items
-																	</TableCell>
-																	<TableCell className="text-right">
-																		₹{(st.amountToCollect || (st.cashCollected + st.onlineCollected) || 0).toLocaleString("en-IN")}
-																	</TableCell>
-																	<TableCell className="text-right font-bold text-blue-900">
-																		₹{(st.amountToCollect || (st.cashCollected + st.onlineCollected) || 0).toLocaleString("en-IN")}
-																	</TableCell>
-																</TableRow>
-															))
+															selectedTrip.stops.flatMap((st: any) => {
+																const items = st.initialItems && st.initialItems.length > 0
+																	? st.initialItems
+																	: [{ name: "Dispatched Order Package", qty: 1, price: st.amountToCollect || st.cashCollected + st.onlineCollected || 0 }];
+																
+																return items.map((it: any, iIdx: number) => (
+																	<TableRow key={`${st.stopId}-${iIdx}`}>
+																		{iIdx === 0 && (
+																			<TableCell rowSpan={items.length} className="font-semibold text-slate-800 align-top border-r bg-slate-50/30">
+																				<div>{st.customerName}</div>
+																				<div className="font-normal text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+																					<MapPinIcon className="h-3 w-3 text-blue-500 inline shrink-0" />
+																					{st.address}
+																				</div>
+																			</TableCell>
+																		)}
+																		{iIdx === 0 && (
+																			<TableCell rowSpan={items.length} className="font-mono text-blue-600 font-semibold align-top border-r bg-slate-50/30">
+																				{st.orderRef}
+																			</TableCell>
+																		)}
+																		<TableCell className="font-medium text-slate-900">
+																			{it.name}
+																		</TableCell>
+																		<TableCell className="text-center font-bold text-blue-700">
+																			{it.qty}
+																		</TableCell>
+																		<TableCell className="text-right">
+																			₹{Number(it.price || 0).toLocaleString("en-IN")}
+																		</TableCell>
+																		<TableCell className="text-right font-bold text-blue-900">
+																			₹{(Number(it.price || 0) * Number(it.qty || 1)).toLocaleString("en-IN")}
+																		</TableCell>
+																	</TableRow>
+																));
+															})
 														) : (
 															<TableRow>
-																<TableCell colSpan={5} className="py-3 text-center text-slate-400">
+																<TableCell colSpan={6} className="py-3 text-center text-slate-400">
 																	No initial dispatch item records found.
 																</TableCell>
 															</TableRow>
@@ -502,67 +529,100 @@ export default function DriverHistoryPage() {
 											</div>
 
 											{/* Itemized Customer Stops Ledger */}
-											<div className="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
-												<Table className="w-full text-xs">
-													<TableHeader className="bg-emerald-50">
-														<TableRow>
-															<TableHead className="font-semibold">#</TableHead>
-															<TableHead className="font-semibold">Customer Name</TableHead>
-															<TableHead className="font-semibold">Order Ref</TableHead>
-															<TableHead className="font-semibold text-emerald-800">Cash (₹)</TableHead>
-															<TableHead className="font-semibold text-purple-800">Online (₹)</TableHead>
-															<TableHead className="font-semibold">Handover Status</TableHead>
-														</TableRow>
-													</TableHeader>
-													<TableBody>
-														{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
-															selectedTrip.stops.map((st: any) => (
-																<TableRow key={st.stopId} className="hover:bg-slate-50">
-																	<TableCell className="font-bold font-mono">
+											{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
+												selectedTrip.stops.map((st: any) => {
+													const delItems =
+														(st.deliveredItems && st.deliveredItems.length > 0)
+															? st.deliveredItems
+															: (st.items && st.items.length > 0)
+																? st.items
+																: [{ name: "Doorstep Delivered Package", qty: 1, price: st.cashCollected + st.onlineCollected || st.amountToCollect || 0 }];
+													
+													const stopTotal = delItems.reduce((acc: number, it: any) => acc + (Number(it.price || 0) * Number(it.qty || 1)), 0);
+
+													return (
+														<div key={st.stopId} className="rounded-lg border border-emerald-200/80 bg-white overflow-hidden space-y-0">
+															{/* Stop Summary Header */}
+															<div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-50/70 p-2.5 border-b border-emerald-100 text-xs">
+																<div className="flex items-center gap-2">
+																	<span className="font-bold font-mono bg-emerald-600 text-white px-2 py-0.5 rounded text-[11px]">
 																		#{st.sequence}
-																	</TableCell>
-																	<TableCell className="font-semibold text-slate-900">
-																		{st.customerName}
-																		<div className="font-normal text-[10px] text-slate-500">
-																			📍 {st.address}
+																	</span>
+																	<div>
+																		<span className="font-bold text-slate-900 text-xs">{st.customerName}</span>
+																		<span className="font-mono text-blue-600 font-semibold ml-2 text-[11px]">({st.orderRef})</span>
+																		<div className="text-[10px] text-slate-500 flex items-center gap-1">
+																			<MapPinIcon className="h-3 w-3 text-emerald-600 inline shrink-0" />
+																			{st.address}
 																		</div>
-																	</TableCell>
-																	<TableCell className="font-mono font-semibold text-blue-600">
-																		{st.orderRef}
-																	</TableCell>
-																	<TableCell className="font-bold font-mono text-emerald-700">
-																		{st.cashCollected > 0
-																			? `₹${st.cashCollected.toFixed(2)}`
-																			: "—"}
-																	</TableCell>
-																	<TableCell className="font-bold font-mono text-purple-700">
-																		{st.onlineCollected > 0
-																			? `₹${st.onlineCollected.toFixed(2)}`
-																			: "—"}
-																	</TableCell>
-																	<TableCell>
-																		<span
-																			className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
-																				st.status === "Delivered"
-																					? "bg-emerald-100 text-emerald-800"
-																					: "bg-amber-100 text-amber-800"
-																			}`}
-																		>
-																			✓ {st.status} ({st.deliveredAt})
+																	</div>
+																</div>
+
+																<div className="flex items-center gap-3">
+																	{st.cashCollected > 0 && (
+																		<span className="font-mono font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
+																			<Banknote className="h-3 w-3 text-emerald-600" />
+																			Cash: ₹{st.cashCollected.toFixed(2)}
 																		</span>
-																	</TableCell>
-																</TableRow>
-															))
-														) : (
-															<TableRow>
-																<TableCell colSpan={6} className="py-4 text-center text-slate-400">
-																	No customer stops recorded for this trip.
-																</TableCell>
-															</TableRow>
-														)}
-													</TableBody>
-												</Table>
-											</div>
+																	)}
+																	{st.onlineCollected > 0 && (
+																		<span className="font-mono font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
+																			<QrCode className="h-3 w-3 text-purple-600" />
+																			Online: ₹{st.onlineCollected.toFixed(2)}
+																		</span>
+																	)}
+																	<span className="rounded-full px-2 py-0.5 font-bold text-[10px] uppercase bg-emerald-100 text-emerald-800 flex items-center gap-1">
+																		<CheckCircle2 className="h-3 w-3 text-emerald-600" />
+																		{st.status} ({st.deliveredAt})
+																	</span>
+																</div>
+															</div>
+
+															{/* Itemized Products Table */}
+															<Table className="w-full text-xs">
+																<TableHeader className="bg-slate-50/80">
+																	<TableRow>
+																		<TableHead className="font-semibold text-slate-700">Delivered Product Name</TableHead>
+																		<TableHead className="font-semibold text-center text-slate-700">Delivered Qty</TableHead>
+																		<TableHead className="font-semibold text-right text-slate-700">Unit Rate</TableHead>
+																		<TableHead className="font-semibold text-right text-slate-700">Accepted Net Total</TableHead>
+																	</TableRow>
+																</TableHeader>
+																<TableBody>
+																	{delItems.map((it: any, iIdx: number) => (
+																		<TableRow key={iIdx} className="hover:bg-slate-50/50">
+																			<TableCell className="font-medium text-slate-900">
+																				{it.name}
+																			</TableCell>
+																			<TableCell className="text-center font-bold text-emerald-700">
+																				{it.qty}
+																			</TableCell>
+																			<TableCell className="text-right text-slate-600">
+																				₹{Number(it.price || 0).toLocaleString("en-IN")}
+																			</TableCell>
+																			<TableCell className="text-right font-bold text-emerald-800">
+																				₹{(Number(it.price || 0) * Number(it.qty || 1)).toLocaleString("en-IN")}
+																			</TableCell>
+																		</TableRow>
+																	))}
+																	<TableRow className="bg-emerald-500/10 font-bold border-t border-emerald-500/20">
+																		<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-emerald-950">
+																			Customer Handover Settled Total (ग्राहक कुल भुगतान)
+																		</TableCell>
+																		<TableCell className="text-right text-emerald-700 text-sm font-extrabold">
+																			₹{stopTotal.toLocaleString("en-IN")}
+																		</TableCell>
+																	</TableRow>
+																</TableBody>
+															</Table>
+														</div>
+													);
+												})
+											) : (
+												<div className="py-4 text-center text-slate-400 text-xs">
+													No customer stops recorded for this trip.
+												</div>
+											)}
 										</div>
 									</TabsContent>
 								</Tabs>

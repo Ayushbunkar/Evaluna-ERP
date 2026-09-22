@@ -20,9 +20,12 @@ import {
 	CheckCircle2Icon,
 	ClockIcon,
 	Loader2Icon,
+	MapPinIcon,
 	PackageIcon,
 	PlaySquareIcon,
 	SearchIcon,
+	UserIcon,
+	ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -85,9 +88,10 @@ export default function PickerPendingPage() {
 	};
 
 	const filteredPicks = pendingPicks?.filter(
-		(p) =>
+		(p: any) =>
 			p.order_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			p.assigned_to.toLowerCase().includes(searchQuery.toLowerCase()),
+			p.assigned_to.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(p.customerName && p.customerName.toLowerCase().includes(searchQuery.toLowerCase())),
 	);
 
 	return (
@@ -129,8 +133,8 @@ export default function PickerPendingPage() {
 						disabled={claimNextMutation.isPending}
 						onClick={() => claimNextMutation.mutate()}
 					>
-						<PlaySquareIcon className="mr-2 h-4 w-4" />
-						{claimNextMutation.isPending ? "Claiming Task..." : "⚡ Claim Next Task from Queue"}
+						<ZapIcon className="mr-2 h-4 w-4" />
+						{claimNextMutation.isPending ? "Claiming Task..." : "Claim Next Task from Queue"}
 					</Button>
 				</div>
 			</div>
@@ -240,8 +244,9 @@ export default function PickerPendingPage() {
 									<TableRow>
 										<TableHead>{t("queueNo")}</TableHead>
 										<TableHead>{t("orderId")}</TableHead>
+										<TableHead>Customer Name</TableHead>
 										<TableHead>{t("priority")}</TableHead>
-										<TableHead>{t("totalItems")}</TableHead>
+										<TableHead>Total Products</TableHead>
 										<TableHead>{t("assignedPicker")}</TableHead>
 										<TableHead>{t("waitingSince")}</TableHead>
 										<TableHead className="text-right">
@@ -256,12 +261,20 @@ export default function PickerPendingPage() {
 												#{pick.queue_no}
 											</TableCell>
 											<TableCell className="font-semibold text-sm">
-												<div>{pick.order_id}</div>
+												<div className="font-bold">{pick.order_id}</div>
 												{pick.routeName && pick.routeName !== "N/A" && (
 													<div className="text-[11px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-0.5">
-														📍 {pick.routeName}
+														<MapPinIcon className="h-3 w-3" /> {pick.routeName}
 													</div>
 												)}
+											</TableCell>
+											<TableCell className="font-medium text-xs text-foreground">
+												<div className="flex items-center gap-1.5">
+													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+													<span className="font-semibold text-gray-900 dark:text-gray-100">
+														{pick.customerName && pick.customerName !== "N/A" ? pick.customerName : "Customer"}
+													</span>
+												</div>
 											</TableCell>
 											<TableCell>
 												<span
@@ -277,7 +290,12 @@ export default function PickerPendingPage() {
 												</span>
 											</TableCell>
 											<TableCell className="font-medium text-sm">
-												{pick.items}
+												<div className="font-bold text-gray-900 dark:text-gray-100">
+													{pick.products_count ?? pick.items} {pick.products_count === 1 ? "product" : "products"}
+												</div>
+												<div className="text-[11px] text-muted-foreground font-medium">
+													({pick.items} {pick.items === 1 ? "unit" : "units"} total)
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pick.assigned_to}

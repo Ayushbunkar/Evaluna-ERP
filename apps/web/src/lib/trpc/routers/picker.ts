@@ -1,4 +1,4 @@
-import { customers, orderItems, orders, pickListItems, pickLists } from "@evaluna/db/schema";
+import { customers, orderItems, orders, pickListItems, pickLists, user } from "@evaluna/db/schema";
 import { and, count, desc, eq, gte, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -79,17 +79,21 @@ export const pickerRouter = router({
 							status: pickLists.status,
 							created_at: pickLists.created_at,
 							items_count: sql<number>`coalesce(sum(${pickListItems.quantity_ordered}), 0)::int`,
+							customer_name: customers.name,
 						})
 						.from(pickLists)
 						.leftJoin(
 							pickListItems,
 							eq(pickLists.id, pickListItems.pick_list_id),
 						)
+						.leftJoin(orders, eq(pickLists.order_id, orders.id))
+						.leftJoin(customers, eq(orders.customer_id, customers.id))
 						.groupBy(
 							pickLists.id,
 							pickLists.order_id,
 							pickLists.status,
 							pickLists.created_at,
+							customers.name,
 						)
 						.orderBy(desc(pickLists.created_at))
 						.limit(5),
@@ -104,9 +108,10 @@ export const pickerRouter = router({
 					exceptions: 0,
 					totalItemsPicked,
 					pickAccuracy: 100,
-					recentTasks: (recent || []).map((r) => ({
+					recentTasks: (recent || []).map((r: any) => ({
 						id: `PL-${r.id}`,
 						order: `ORD-${r.order_id}`,
+						customerName: r.customer_name || "N/A",
 						items: Number(r.items_count || 0),
 						area: "Warehouse",
 						status: r.status ?? "pending",
@@ -296,28 +301,83 @@ export const pickerRouter = router({
 		.query(async ({ ctx }) => {
 			const db = ctx.db;
 
-			const lists = await db.query.pickLists.findMany({
-				where: eq(pickLists.status, "completed"),
-				orderBy: [desc(pickLists.created_at)],
-				limit: 50,
-				with: {
-					assignedTo: true,
-					pickListItems: true,
-				},
-			});
+			try {
+				const lists = await db
+					.select({
+						id: pickLists.id,
+						order_id: pickLists.order_id,
+						created_at: pickLists.created_at,
+						completed_by: user.name,
+						customerName: customers.name,
+					})
+					.from(pickLists)
+					.leftJoin(orders, eq(pickLists.order_id, orders.id))
+					.leftJoin(customers, eq(orders.customer_id, customers.id))
+					.leftJoin(user, eq(pickLists.assigned_to, user.id))
+					.where(eq(pickLists.status, "completed"))
+					.orderBy(desc(pickLists.created_at))
+					.limit(50);
 
-			return lists.map((r) => ({
-				id: `PL-${r.id}`,
-				order_id: `ORD-${r.order_id}`,
-				items: r.pickListItems.reduce(
-					(acc, item) => acc + (item.quantity_ordered ?? 0),
-					0,
-				),
-				time_taken: "N/A",
-				completed_by: r.assignedTo?.name || "Unknown",
-				date: r.created_at?.toLocaleDateString() || "",
-				accuracy: 100, // In real system, this would be calculated based on expected vs actual
-			}));
+				if (!lists || lists.length === 0) return [];
+
+				const listIds = lists.map((l) => l.id);
+				const plItems = await db
+					.select({
+						pick_list_id: pickListItems.pick_list_id,
+						qty: pickListItems.quantity_ordered,
+					})
+					.from(pickListItems)
+					.where(inArray(pickListItems.pick_list_id, listIds));
+
+				const itemCounts = new Map<number, number>();
+				for (const item of plItems) {
+					const current = itemCounts.get(item.pick_list_id) || 0;
+					itemCounts.set(item.pick_list_id, current + (item.qty ?? 0));
+				}
+
+				return lists.map((r) => ({
+					id: `PL-${r.id}`,
+					order_id: `ORD-${r.order_id}`,
+					items: itemCounts.get(r.id) || 1,
+					time_taken: "N/A",
+					completed_by: r.completed_by || "Unknown",
+					customerName: r.customerName || "Customer",
+					date: r.created_at?.toLocaleDateString() || "Today",
+					accuracy: 100,
+				}));
+			} catch (e) {
+				console.warn("[picker.getCompleted] Error querying completed picklists:", e);
+				// Fallback to db.query API
+				try {
+					const fallbackLists = await db.query.pickLists.findMany({
+						where: eq(pickLists.status, "completed"),
+						limit: 50,
+						orderBy: [desc(pickLists.created_at)],
+						with: {
+							assignedTo: true,
+							order: {
+								with: {
+									customer: true,
+								},
+							},
+						},
+					});
+
+					return fallbackLists.map((l: any) => ({
+						id: `PL-${l.id}`,
+						order_id: `ORD-${l.order_id}`,
+						items: l.pickListItems?.length || 1,
+						time_taken: "N/A",
+						completed_by: l.assignedTo?.name || "Picker Staff",
+						customerName: l.order?.customer?.name || "Customer",
+						date: l.created_at ? new Date(l.created_at).toLocaleDateString() : "Today",
+						accuracy: 100,
+					}));
+				} catch (fallbackErr) {
+					console.warn("[picker.getCompleted] Fallback query failed:", fallbackErr);
+					return [];
+				}
+			}
 		}),
 
 	getPending: roleProcedure(["admin", "manager", "auditor", "picker"])
@@ -357,24 +417,37 @@ export const pickerRouter = router({
 
 			const historyItems = [];
 			for (const r of lists) {
-				let itemCount =
+				let totalUnits =
 					r.pickListItems?.reduce(
 						(acc, item) => acc + (item.quantity_ordered ?? 0),
 						0,
 					) || 0;
 
-				if (itemCount === 0 && r.order_id) {
-					itemCount = orderItemCounts.get(r.order_id) || 1;
+				let distinctProducts = r.pickListItems?.length || 0;
+
+				if (totalUnits === 0 && r.order_id) {
+					totalUnits = orderItemCounts.get(r.order_id) || 1;
+				}
+				if (distinctProducts === 0 && r.order_id) {
+					distinctProducts = orderItemCounts.get(r.order_id) || 1;
 				}
 
+				let customerName = "N/A";
 				let routeName = "N/A";
 				if (r.order_id) {
 					try {
 						const [ord] = await db
-							.select({ customer_id: orders.customer_id })
+							.select({
+								customer_id: orders.customer_id,
+								customerName: customers.name,
+							})
 							.from(orders)
+							.leftJoin(customers, eq(orders.customer_id, customers.id))
 							.where(eq(orders.id, r.order_id))
 							.limit(1);
+						if (ord?.customerName) {
+							customerName = ord.customerName;
+						}
 						if (ord?.customer_id) {
 							const [rStop] = await db
 								.select({ routeName: deliveryRoutes.name })
@@ -394,10 +467,12 @@ export const pickerRouter = router({
 					queue_no: historyItems.length + 1,
 					order_id: `ORD-${r.order_id}`,
 					priority: r.priority ?? "Normal",
-					items: itemCount > 0 ? itemCount : 1,
+					items: totalUnits > 0 ? totalUnits : 1,
+					products_count: distinctProducts > 0 ? distinctProducts : 1,
 					assigned_to: r.assignedTo?.name || "Unassigned Queue",
 					status: r.status ?? "pending",
 					is_assigned: Boolean(r.assignedTo),
+					customerName,
 					routeName,
 					waiting_since: r.created_at
 						? new Date(r.created_at).toLocaleTimeString("en-US", {

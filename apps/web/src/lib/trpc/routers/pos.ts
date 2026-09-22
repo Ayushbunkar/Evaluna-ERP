@@ -117,6 +117,7 @@ export const posRouter = router({
 				otherChargesReason: z.string().optional(),
 				couponId: z.number().optional(),
 				isOfflineSync: z.boolean().optional(),
+				customBillDate: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -132,6 +133,11 @@ export const posRouter = router({
 				const extra = Number.parseFloat(input.otherCharges || "0");
 				const total = Math.max(0, subtotal - discount + extra);
 				const status = "confirmed";
+
+				// Custom backdate handling if sales person selected a custom bill date
+				const createdAtDate = input.customBillDate
+					? new Date(`${input.customBillDate}T12:00:00.000Z`)
+					: undefined;
 
 				// 1. Create Order
 				const [order] = await tx
@@ -149,6 +155,7 @@ export const posRouter = router({
 						branch_id: effectiveBranchId,
 						status,
 						finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
+						created_at: createdAtDate,
 					})
 					.returning();
 

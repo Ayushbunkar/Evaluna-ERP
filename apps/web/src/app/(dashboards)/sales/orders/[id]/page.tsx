@@ -36,6 +36,7 @@ import {
 	MessageCircle,
 	PackageCheck,
 	Phone,
+	PlusCircle,
 	Printer,
 	QrCode,
 	RotateCcw,
@@ -204,6 +205,155 @@ export default function OrderDetailPage({
 
 	const assignedDriverName =
 		order.driver?.name || deliveryHandover?.driverName || null;
+
+	// Stage 4: Delivered Items Calculation & Extra Doorstep Addition Detection
+	let rawDeliveredList: any[] = [];
+	if (deliveryHandover?.deliveredItems && Array.isArray(deliveryHandover.deliveredItems) && deliveryHandover.deliveredItems.length > 0) {
+		rawDeliveredList = deliveryHandover.deliveredItems.map((it: any) => ({
+			name: it.name || it.productName || `Item #${it.id || it.product_id}`,
+			quantity: Number(it.qty || it.quantity || 1),
+			price: Number(it.price || it.unitPrice || 0),
+			productId: it.productId || it.id || it.product_id,
+			returnedQty: 0,
+		}));
+	} else {
+		rawDeliveredList = (order.orderItems || []).map((item: any) => {
+			const ret = returnedItems.find(
+				(r: any) =>
+					r.id === item.id ||
+					r.productId === item.product_id ||
+					r.name === item.product?.name,
+			);
+			const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
+			const netQty = Math.max(0, Number(item.quantity || 1) - retQty);
+			return {
+				name: item.product?.name ?? `Product #${item.product_id}`,
+				quantity: netQty,
+				price: Number(item.price || 0),
+				productId: item.product_id || item.id,
+				returnedQty: retQty,
+			};
+		});
+	}
+
+	const currentDeliveredSum = rawDeliveredList.reduce(
+		(sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)),
+		0
+	);
+
+	const deliveredItemsList = rawDeliveredList.map((item: any) => {
+		const origMatch = (originalItems || []).find((orig: any) =>
+			(item.productId && (orig.product_id === item.productId || orig.id === item.productId)) ||
+			(orig.name && item.name && orig.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+		);
+		const revMatch = (reviewedItems || []).find((rev: any) =>
+			(item.productId && (rev.product_id === item.productId || rev.id === item.productId)) ||
+			(rev.product?.name && item.name && rev.product.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+		);
+		
+		const isNewItem = !origMatch && !revMatch;
+		const initialQty = Number(revMatch?.quantity || origMatch?.quantity || 0);
+		const isExtraQty = !isNewItem && item.quantity > initialQty;
+
+		return {
+			...item,
+			isAddedAtDoorstep: isNewItem || isExtraQty,
+			initialQty,
+		};
+	});
+
+	if (totalCollected > 0 && currentDeliveredSum < totalCollected) {
+		const diff = totalCollected - currentDeliveredSum;
+		deliveredItemsList.push({
+			name: "Doorstep Added Items / Balance Adjustment",
+			quantity: 1,
+			price: diff,
+			returnedQty: 0,
+			isAddedAtDoorstep: true,
+		});
+	}
+
+	const finalDeliveredSum = deliveredItemsList.reduce(
+		(sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)),
+		0
+	);
+
+	// Unified 4-Stage Comparison List across all order items & doorstep additions
+	const compMap = new Map<string, any>();
+
+	originalItems.forEach((orig: any, oIdx: number) => {
+		const key = orig.product_id ? `pid_${orig.product_id}` : (orig.name || `orig_${oIdx}`);
+		compMap.set(key, {
+			key,
+			name: orig.name || orig.product?.name || `Product #${orig.id || orig.product_id}`,
+			productId: orig.product_id || orig.id,
+			origQty: Number(orig.quantity || 1),
+			revQty: null,
+			invoiceQty: null,
+			finalQty: null,
+			price: Number(orig.price || 0),
+			isAddedAtDoorstep: false,
+			retQty: 0,
+		});
+	});
+
+	reviewedItems.forEach((rev: any, rIdx: number) => {
+		const key = rev.product_id ? `pid_${rev.product_id}` : (rev.product?.name || `rev_${rIdx}`);
+		const existing = compMap.get(key);
+		const ret = returnedItems.find(
+			(r: any) => r.id === rev.id || r.productId === rev.product_id || r.name === rev.product?.name,
+		);
+		const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
+		const revQty = Number(rev.quantity || 1);
+		const price = Number(rev.price || existing?.price || 0);
+
+		if (existing) {
+			existing.revQty = revQty;
+			existing.invoiceQty = revQty;
+			existing.retQty = retQty;
+			if (price > 0) existing.price = price;
+		} else {
+			compMap.set(key, {
+				key,
+				name: rev.product?.name ?? `Product #${rev.product_id}`,
+				productId: rev.product_id || rev.id,
+				origQty: null,
+				revQty: revQty,
+				invoiceQty: revQty,
+				finalQty: null,
+				price: price,
+				isAddedAtDoorstep: false,
+				isAddedBySalesperson: true,
+				retQty: retQty,
+			});
+		}
+	});
+
+	deliveredItemsList.forEach((del: any, dIdx: number) => {
+		const key = del.productId ? `pid_${del.productId}` : (del.name || `del_${dIdx}`);
+		const existing = compMap.get(key);
+		const delQty = Number(del.quantity || 0);
+
+		if (existing) {
+			existing.finalQty = delQty;
+			if (del.isAddedAtDoorstep) existing.isAddedAtDoorstep = true;
+		} else {
+			compMap.set(key, {
+				key,
+				name: del.name,
+				productId: del.productId,
+				origQty: null,
+				revQty: null,
+				invoiceQty: null,
+				finalQty: delQty,
+				price: Number(del.price || 0),
+				isAddedAtDoorstep: true,
+				retQty: del.returnedQty || 0,
+			});
+		}
+	});
+
+	const comparisonList = Array.from(compMap.values());
 
 	const statusColor =
 		order.status === "completed"
@@ -604,16 +754,27 @@ export default function OrderDetailPage({
 										const itemPrice = Number(item.price || 0);
 										const itemQty = Number(item.quantity || 1);
 										const original = originalItems.find(
-											(o) => o.name === item.product?.name || o.id === item.product_id
+											(o) =>
+												(o.id && (o.id === item.product_id || o.product_id === item.product_id)) ||
+												(o.name && item.product?.name && o.name.trim().toLowerCase() === item.product.name.trim().toLowerCase())
 										);
+										const isNewItem = !original;
 										const origQty = original ? Number(original.quantity || 1) : null;
 										const isQtyModified = origQty !== null && origQty !== itemQty;
 
 										return (
-											<TableRow key={item.id || idx}>
+											<TableRow key={item.id || idx} className={isNewItem ? "bg-emerald-500/10 dark:bg-emerald-950/30" : ""}>
 												<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
 												<TableCell className="font-medium">
-													{item.product?.name ?? `#${item.product_id}`}
+													<div className="flex items-center gap-2 flex-wrap">
+														<span>{item.product?.name ?? `#${item.product_id}`}</span>
+														{isNewItem && (
+															<Badge className="bg-emerald-600 text-white font-bold text-[10px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
+																<PlusCircle className="h-3 w-3" />
+																➕ Added by Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
+															</Badge>
+														)}
+													</div>
 												</TableCell>
 												<TableCell className="hidden sm:table-cell">
 													{item.product?.category ? (
@@ -695,23 +856,40 @@ export default function OrderDetailPage({
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{reviewedItems.map((item: any, idx: number) => (
-										<TableRow key={item.id || idx}>
-											<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-											<TableCell className="font-medium">
-												{item.product?.name ?? `#${item.product_id}`}
-											</TableCell>
-											<TableCell className="text-center font-semibold">
-												{item.quantity}
-											</TableCell>
-											<TableCell className="text-right">
-												{formatCurrency(item.price, locale)}
-											</TableCell>
-											<TableCell className="text-right font-medium">
-												{formatCurrency(item.price * item.quantity, locale)}
-											</TableCell>
-										</TableRow>
-									))}
+									{reviewedItems.map((item: any, idx: number) => {
+										const original = originalItems.find(
+											(o) =>
+												(o.id && (o.id === item.product_id || o.product_id === item.product_id)) ||
+												(o.name && item.product?.name && o.name.trim().toLowerCase() === item.product.name.trim().toLowerCase())
+										);
+										const isNewItem = !original;
+
+										return (
+											<TableRow key={item.id || idx} className={isNewItem ? "bg-emerald-500/10 dark:bg-emerald-950/30" : ""}>
+												<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+												<TableCell className="font-medium">
+													<div className="flex items-center gap-2 flex-wrap">
+														<span>{item.product?.name ?? `#${item.product_id}`}</span>
+														{isNewItem && (
+															<Badge className="bg-emerald-600 text-white font-bold text-[10px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
+																<PlusCircle className="h-3 w-3" />
+																➕ Added by Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
+															</Badge>
+														)}
+													</div>
+												</TableCell>
+												<TableCell className="text-center font-semibold">
+													{item.quantity}
+												</TableCell>
+												<TableCell className="text-right">
+													{formatCurrency(item.price, locale)}
+												</TableCell>
+												<TableCell className="text-right font-medium">
+													{formatCurrency(item.price * item.quantity, locale)}
+												</TableCell>
+											</TableRow>
+										);
+									})}
 								</TableBody>
 							</Table>
 
@@ -974,37 +1152,51 @@ export default function OrderDetailPage({
 													</TableRow>
 												</TableHeader>
 												<TableBody>
-													{reviewedItems.map((item: any, idx: number) => {
-														const ret = returnedItems.find(
-															(r) => r.id === item.id || r.productId === item.product_id || r.name === item.product?.name
-														);
-														const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
-														const netQty = Math.max(0, Number(item.quantity || 1) - retQty);
+													{deliveredItemsList.map((item: any, idx: number) => {
+														const itemQty = Number(item.quantity || 1);
 														const itemPrice = Number(item.price || 0);
 
 														return (
-															<TableRow key={item.id || idx}>
-																<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+															<TableRow key={idx} className={item.isAddedAtDoorstep ? "bg-emerald-500/10 dark:bg-emerald-950/30" : ""}>
+																<TableCell className="text-muted-foreground">
+																	{idx + 1}
+																</TableCell>
 																<TableCell className="font-medium">
-																	{item.product?.name ?? `#${item.product_id}`}
-																	{retQty > 0 && (
-																		<span className="ml-2 text-[10px] text-red-600 font-normal">
-																			({retQty} returned)
-																		</span>
-																	)}
+																	<div className="flex items-center gap-2 flex-wrap">
+																		<span>{item.name}</span>
+																		{item.isAddedAtDoorstep && (
+																			<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
+																				<PlusCircle className="h-3 w-3" />
+																				➕ Added at Doorstep (डोरस्टेप पर जोड़ा गया)
+																			</Badge>
+																		)}
+																		{item.returnedQty > 0 && (
+																			<span className="text-[10px] text-red-600 font-normal">
+																				({item.returnedQty} returned)
+																			</span>
+																		)}
+																	</div>
 																</TableCell>
 																<TableCell className="text-center font-bold text-emerald-700 dark:text-emerald-400">
-																	{netQty}
+																	{itemQty}
 																</TableCell>
 																<TableCell className="text-right">
 																	{formatCurrency(itemPrice, locale)}
 																</TableCell>
 																<TableCell className="text-right font-medium">
-																	{formatCurrency(itemPrice * netQty, locale)}
+																	{formatCurrency(itemPrice * itemQty, locale)}
 																</TableCell>
 															</TableRow>
 														);
 													})}
+													<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
+														<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
+															Total Settled Doorstep Bill (कुल अंतिम बिल)
+														</TableCell>
+														<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm">
+															{formatCurrency(finalDeliveredSum, locale)}
+														</TableCell>
+													</TableRow>
 												</TableBody>
 											</Table>
 										</div>
@@ -1054,11 +1246,25 @@ export default function OrderDetailPage({
 										</div>
 									</div>
 
-									{/* Delivery Handover Notes */}
+									{/* Delivery Handover Notes & Remarks */}
 									{deliveryHandover?.deliveryNotes && (
-										<div className="p-3 rounded bg-muted/40 border border-border text-xs">
-											<span className="font-semibold text-foreground">Driver Handover Remarks:</span>{" "}
-											<span className="text-muted-foreground">{deliveryHandover.deliveryNotes}</span>
+										<div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1">
+											<div className="flex items-center gap-1.5 font-bold text-emerald-950 dark:text-emerald-200">
+												<FileText className="h-3.5 w-3.5 text-emerald-600" />
+												<span>Driver Handover Remarks (ड्राइवर की टिप्पणी):</span>
+											</div>
+											<p className="text-emerald-900 dark:text-emerald-300 font-medium pl-5">
+												{(() => {
+													try {
+														const parsed = JSON.parse(deliveryHandover.deliveryNotes);
+														return parsed.deliveryNotes && parsed.deliveryNotes.trim() !== ""
+															? parsed.deliveryNotes
+															: "Handover completed cleanly at customer doorstep without special remarks.";
+													} catch {
+														return deliveryHandover.deliveryNotes;
+													}
+												})()}
+											</p>
 										</div>
 									)}
 								</div>
@@ -1109,37 +1315,43 @@ export default function OrderDetailPage({
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{reviewedItems.map((item: any, idx: number) => {
-											const original = originalItems.find(
-												(o) => o.name === item.product?.name || o.id === item.product_id
-											);
-											const ret = returnedItems.find(
-												(r) => r.id === item.id || r.productId === item.product_id || r.name === item.product?.name
-											);
-											const origQty = original ? Number(original.quantity || 1) : null;
-											const revQty = Number(item.quantity || 1);
-											const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
-											const finalQty = Math.max(0, revQty - retQty);
+										{comparisonList.map((item: any, idx: number) => {
+											const finalQty = item.finalQty ?? (hasHandover ? Math.max(0, (item.revQty || 0) - (item.retQty || 0)) : null);
 											const itemPrice = Number(item.price || 0);
-											const isQtyModified = origQty !== null && origQty !== revQty;
+
+											const isAddedBySalesperson = item.isAddedBySalesperson || (item.origQty === null && item.revQty !== null);
 
 											return (
-												<TableRow key={item.id || idx}>
+												<TableRow key={item.key || idx} className={item.isAddedAtDoorstep ? "bg-emerald-500/10 dark:bg-emerald-950/30" : isAddedBySalesperson ? "bg-purple-500/10 dark:bg-purple-950/30" : ""}>
 													<TableCell className="font-medium">
-														{item.product?.name ?? `#${item.product_id}`}
-														{retQty > 0 && (
-															<Badge variant="destructive" className="ml-2 text-[9px] py-0 px-1">
-																{retQty} returned
-															</Badge>
-														)}
+														<div className="flex items-center gap-2 flex-wrap">
+															<span>{item.name}</span>
+															{isAddedBySalesperson && (
+																<Badge className="bg-purple-600 text-white font-bold text-[9px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
+																	<PlusCircle className="h-3 w-3" />
+																	➕ Added by Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
+																</Badge>
+															)}
+															{item.isAddedAtDoorstep && (
+																<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
+																	<PlusCircle className="h-3 w-3" />
+																	➕ Added at Doorstep (डोरस्टेप पर जोड़ा गया)
+																</Badge>
+															)}
+															{item.retQty > 0 && (
+																<Badge variant="destructive" className="text-[9px] py-0 px-1">
+																	{item.retQty} returned
+																</Badge>
+															)}
+														</div>
 													</TableCell>
 													<TableCell className="text-center text-blue-700 dark:text-blue-400 font-medium">
-														{origQty ?? "—"}
+														{item.origQty ?? "—"}
 													</TableCell>
 													<TableCell className="text-center text-purple-700 dark:text-purple-400 font-medium">
 														<div className="flex items-center justify-center gap-1">
-															<span>{revQty}</span>
-															{isQtyModified && (
+															<span>{item.revQty ?? "—"}</span>
+															{item.origQty !== null && item.revQty !== null && item.origQty !== item.revQty && (
 																<Badge variant="outline" className="text-[9px] py-0 px-1 border-purple-400 bg-purple-500/10 text-purple-700 font-normal">
 																	Edited
 																</Badge>
@@ -1147,11 +1359,11 @@ export default function OrderDetailPage({
 														</div>
 													</TableCell>
 													<TableCell className="text-center text-amber-700 dark:text-amber-400 font-medium">
-														{revQty}
+														{item.invoiceQty ?? "—"}
 													</TableCell>
 													<TableCell className="text-center text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/5">
 														{hasHandover ? (
-															finalQty
+															finalQty ?? "—"
 														) : (
 															<span className="text-xs text-muted-foreground font-normal italic">
 																— (Pending)
@@ -1163,10 +1375,10 @@ export default function OrderDetailPage({
 													</TableCell>
 													<TableCell className="text-right font-bold text-emerald-600">
 														{hasHandover ? (
-															formatCurrency(itemPrice * finalQty, locale)
+															formatCurrency(itemPrice * (finalQty || 0), locale)
 														) : (
 															<span className="text-xs text-muted-foreground font-normal italic">
-																— (Est. {formatCurrency(itemPrice * revQty, locale)})
+																— (Est. {formatCurrency(itemPrice * (item.revQty || 0), locale)})
 															</span>
 														)}
 													</TableCell>

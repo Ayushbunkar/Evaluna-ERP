@@ -103,7 +103,7 @@ export function DeliveryManagementDashboard({
 		return {
 			isFree: count === 0,
 			count,
-			label: count === 0 ? "🟢 FREE (0 Active Trips)" : `🔴 BUSY (${count} Active Trip${count > 1 ? "s" : ""})`,
+			label: count === 0 ? "FREE (0 Active Trips)" : `BUSY (${count} Active Trip${count > 1 ? "s" : ""})`,
 			badgeClass: count === 0 ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300",
 		};
 	};
@@ -124,7 +124,7 @@ export function DeliveryManagementDashboard({
 		return {
 			isFree: count === 0,
 			count,
-			label: count === 0 ? "🟢 FREE (0 Active Loading Tasks)" : `🔴 BUSY (${count} Active Task${count > 1 ? "s" : ""})`,
+			label: count === 0 ? "FREE (0 Active Loading Tasks)" : `BUSY (${count} Active Task${count > 1 ? "s" : ""})`,
 			badgeClass: count === 0 ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300",
 		};
 	};
@@ -232,6 +232,76 @@ export function DeliveryManagementDashboard({
 	const createVehicle = trpc.vehicles.create.useMutation({
 		onSuccess: () => refetchVehicles(),
 	});
+
+	const [editingVehicle, setEditingVehicle] = useState<any>(null);
+	const [isEditVehicleOpen, setIsEditVehicleOpen] = useState(false);
+	const [editVehicleName, setEditVehicleName] = useState("");
+	const [editVehicleReg, setEditVehicleReg] = useState("");
+	const [editVehicleType, setEditVehicleType] = useState("van");
+	const [editVehicleCap, setEditVehicleCap] = useState("");
+	const [editVehicleStatus, setEditVehicleStatus] = useState("available");
+
+	const updateVehicle = trpc.vehicles.update.useMutation({
+		onSuccess: () => {
+			toast.success("Vehicle details updated successfully!");
+			refetchVehicles();
+			setIsEditVehicleOpen(false);
+			setEditingVehicle(null);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to update vehicle");
+		},
+	});
+
+	const handleOpenEditVehicle = (vehicle: any) => {
+		setEditingVehicle(vehicle);
+		setEditVehicleName(vehicle.name || "");
+		setEditVehicleReg(vehicle.registration_number || "");
+		setEditVehicleType(vehicle.type || "van");
+		setEditVehicleCap(vehicle.capacity_kg ? vehicle.capacity_kg.toString() : "");
+		setEditVehicleStatus(vehicle.status || "available");
+		setIsEditVehicleOpen(true);
+	};
+
+	const handleSaveVehicleEdit = () => {
+		if (!editingVehicle) return;
+		if (!editVehicleName.trim()) {
+			toast.error("Vehicle name cannot be empty");
+			return;
+		}
+		if (!editVehicleReg.trim()) {
+			toast.error("Registration number cannot be empty");
+			return;
+		}
+		updateVehicle.mutate({
+			id: editingVehicle.id,
+			name: editVehicleName.trim(),
+			registration_number: editVehicleReg.trim(),
+			type: editVehicleType,
+			capacity_kg: editVehicleCap ? parseFloat(editVehicleCap) : null,
+			status: editVehicleStatus as any,
+		});
+	};
+
+	const [vehicleToDelete, setVehicleToDelete] = useState<any>(null);
+	const [isDeleteVehicleOpen, setIsDeleteVehicleOpen] = useState(false);
+
+	const deleteVehicle = trpc.vehicles.delete.useMutation({
+		onSuccess: () => {
+			toast.success("Vehicle deleted from fleet!");
+			refetchVehicles();
+			setIsDeleteVehicleOpen(false);
+			setVehicleToDelete(null);
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to delete vehicle");
+		},
+	});
+
+	const handleDeleteVehicleConfirm = () => {
+		if (!vehicleToDelete) return;
+		deleteVehicle.mutate({ id: vehicleToDelete.id });
+	};
 	const createRoute = trpc.delivery.createRoute.useMutation({
 		onSuccess: () => refetchRoutes(),
 	});
@@ -2897,7 +2967,7 @@ export function DeliveryManagementDashboard({
 									{vehicles.map((vehicle: any) => (
 										<div
 											key={vehicle.id}
-											className="rounded-md border p-4 shadow-sm"
+											className="rounded-md border p-4 shadow-sm relative group hover:border-primary/50 transition-all"
 										>
 											<div className="mb-2 flex items-start justify-between">
 												<div>
@@ -2906,9 +2976,32 @@ export function DeliveryManagementDashboard({
 														{vehicle.registration_number}
 													</p>
 												</div>
-												<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-700 text-xs">
-													{vehicle.status || "available"}
-												</span>
+												<div className="flex items-center gap-1.5">
+													<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-700 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
+														{vehicle.status || "available"}
+													</span>
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-7 px-2 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300"
+														onClick={() => handleOpenEditVehicle(vehicle)}
+													>
+														<PencilIcon className="h-3 w-3 text-slate-500" />
+														Edit
+													</Button>
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-7 px-2 text-xs gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/40"
+														onClick={() => {
+															setVehicleToDelete(vehicle);
+															setIsDeleteVehicleOpen(true);
+														}}
+													>
+														<Trash2Icon className="h-3 w-3 text-red-500" />
+														Delete
+													</Button>
+												</div>
 											</div>
 											<div className="mt-4 flex items-center justify-between border-t pt-3 text-muted-foreground text-sm">
 												<span>Type: {vehicle.type}</span>
@@ -2921,6 +3014,109 @@ export function DeliveryManagementDashboard({
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* Edit Vehicle Modal */}
+				<Dialog open={isEditVehicleOpen} onOpenChange={setIsEditVehicleOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2">
+								<PencilIcon className="h-4 w-4 text-primary" />
+								Edit Vehicle Details ({editingVehicle?.name})
+							</DialogTitle>
+						</DialogHeader>
+						<div className="space-y-4 py-3">
+							<div className="space-y-2">
+								<Label>Vehicle Name / Model</Label>
+								<Input
+									value={editVehicleName}
+									onChange={(e) => setEditVehicleName(e.target.value)}
+									placeholder="e.g. Mahindra Supro Cargo"
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label>Registration Number</Label>
+								<Input
+									value={editVehicleReg}
+									onChange={(e) => setEditVehicleReg(e.target.value)}
+									placeholder="e.g. MP04CD5678"
+								/>
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<div className="space-y-2">
+									<Label>Vehicle Type</Label>
+									<Select value={editVehicleType} onValueChange={setEditVehicleType}>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="van">Van</SelectItem>
+											<SelectItem value="truck">Truck</SelectItem>
+											<SelectItem value="bike">Bike</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label>Capacity (kg)</Label>
+									<Input
+										type="number"
+										value={editVehicleCap}
+										onChange={(e) => setEditVehicleCap(e.target.value)}
+										placeholder="e.g. 850"
+									/>
+								</div>
+							</div>
+							<div className="space-y-2">
+								<Label>Fleet Availability Status</Label>
+								<Select value={editVehicleStatus} onValueChange={setEditVehicleStatus}>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="available">Available (निःशुल्क / उपलब्ध)</SelectItem>
+										<SelectItem value="in_transit">In Transit (मार्ग में)</SelectItem>
+										<SelectItem value="maintenance">Maintenance (रखरखाव में)</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+						<DialogFooter>
+							<Button variant="outline" onClick={() => setIsEditVehicleOpen(false)}>
+								Cancel
+							</Button>
+							<Button onClick={handleSaveVehicleEdit} disabled={updateVehicle.isPending}>
+								{updateVehicle.isPending ? "Saving..." : "Save Changes"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				{/* Delete Vehicle Modal */}
+				<Dialog open={isDeleteVehicleOpen} onOpenChange={setIsDeleteVehicleOpen}>
+					<DialogContent className="sm:max-w-md">
+						<DialogHeader>
+							<DialogTitle className="flex items-center gap-2 text-rose-600">
+								<Trash2Icon className="h-5 w-5" />
+								Delete Vehicle from Fleet?
+							</DialogTitle>
+							<DialogDescription className="text-xs pt-1">
+								Are you sure you want to remove <strong>{vehicleToDelete?.name}</strong> ({vehicleToDelete?.registration_number}) from the active fleet? This action cannot be undone.
+							</DialogDescription>
+						</DialogHeader>
+						<DialogFooter className="gap-2 sm:gap-0 mt-4">
+							<Button variant="outline" onClick={() => setIsDeleteVehicleOpen(false)}>
+								Cancel
+							</Button>
+							<Button
+								variant="destructive"
+								onClick={handleDeleteVehicleConfirm}
+								disabled={deleteVehicle.isPending}
+								className="gap-1.5"
+							>
+								{deleteVehicle.isPending ? "Deleting..." : "Delete Vehicle"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</TabsContent>
 
 			<TabsContent value="settlements">
@@ -4048,8 +4244,9 @@ export function DeliveryManagementDashboard({
 										return (
 											<SelectItem key={d.id} value={d.id} className="cursor-pointer py-1.5">
 												<div className="flex items-center justify-between gap-2 w-full text-xs">
-													<span className="font-medium text-slate-900 dark:text-slate-100">
-														👤 {d.name} {d.email ? `(${d.email})` : ""}
+													<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+														<UserIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+														{d.name} {d.email ? `(${d.email})` : ""}
 													</span>
 													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
 														{avail.label}
@@ -4070,8 +4267,11 @@ export function DeliveryManagementDashboard({
 								</SelectTrigger>
 								<SelectContent>
 									{vehicles.map((v: any) => (
-										<SelectItem key={v.id} value={v.id.toString()}>
-											🚚 {v.name} ({v.registration_number})
+										<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer py-1.5">
+											<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+												<TruckIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+												{v.name} ({v.registration_number})
+											</span>
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -4090,8 +4290,9 @@ export function DeliveryManagementDashboard({
 										return (
 											<SelectItem key={l.id} value={l.id} className="cursor-pointer py-1.5">
 												<div className="flex items-center justify-between gap-2 w-full text-xs">
-													<span className="font-medium text-slate-900 dark:text-slate-100">
-														📦 {l.name} {l.email ? `(${l.email})` : ""}
+													<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+														<PackageIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+														{l.name} {l.email ? `(${l.email})` : ""}
 													</span>
 													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
 														{avail.label}
@@ -4347,8 +4548,11 @@ export function DeliveryManagementDashboard({
 							</SelectTrigger>
 							<SelectContent>
 								{finalDrivers.map((d: any) => (
-									<SelectItem key={d.id} value={d.id}>
-										👤 {d.name} {d.email ? `(${d.email})` : ""}
+									<SelectItem key={d.id} value={d.id} className="cursor-pointer py-1.5">
+										<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
+											<UserIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+											{d.name} {d.email ? `(${d.email})` : ""}
+										</span>
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -4364,8 +4568,11 @@ export function DeliveryManagementDashboard({
 							</SelectTrigger>
 							<SelectContent>
 								{vehicles.map((v: any) => (
-									<SelectItem key={v.id} value={v.id.toString()}>
-										🚚 {v.name} ({v.registration_number})
+									<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer py-1.5">
+										<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
+											<TruckIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+											{v.name} ({v.registration_number})
+										</span>
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -4381,8 +4588,11 @@ export function DeliveryManagementDashboard({
 							</SelectTrigger>
 							<SelectContent>
 								{loadersList.map((l: any) => (
-									<SelectItem key={l.id} value={l.id}>
-										📦 {l.name} {l.email ? `(${l.email})` : ""}
+									<SelectItem key={l.id} value={l.id} className="cursor-pointer py-1.5">
+										<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
+											<PackageIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+											{l.name} {l.email ? `(${l.email})` : ""}
+										</span>
 									</SelectItem>
 								))}
 							</SelectContent>

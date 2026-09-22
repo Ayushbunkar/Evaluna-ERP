@@ -24,7 +24,9 @@ import { Textarea } from "@evaluna/ui/components/textarea";
 import {
 	AlertTriangle,
 	ArrowLeft,
+	Check,
 	CheckCircle,
+	CheckSquare,
 	CreditCard,
 	FileText,
 	IndianRupee,
@@ -54,6 +56,7 @@ type OrderItemHandover = {
 	returnedQty: number;
 	price: number;
 	returnReason?: string;
+	checked?: boolean;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -266,6 +269,21 @@ export default function DriverLiveDeliveryPage() {
 		);
 	};
 
+	const handleToggleCheck = (id: number) => {
+		setItems((prev) =>
+			prev.map((item) =>
+				item.id === id ? { ...item, checked: !item.checked } : item,
+			),
+		);
+	};
+
+	const handleToggleAllChecks = () => {
+		const allChecked = items.length > 0 && items.every((i) => i.checked);
+		setItems((prev) =>
+			prev.map((item) => ({ ...item, checked: !allChecked })),
+		);
+	};
+
 	// ── Bill calculations ──────────────────────────────────────────────────────
 
 	const subtotal = items.reduce(
@@ -319,6 +337,14 @@ export default function DriverLiveDeliveryPage() {
 					qty: i.returnedQty,
 					reason: i.returnReason || "Item Returned / Damaged",
 				})),
+			deliveredItems: items
+				.filter((i) => i.deliveredQty > 0)
+				.map((i) => ({
+					id: i.id,
+					name: i.name,
+					qty: i.deliveredQty,
+					price: i.price,
+				})),
 		});
 	};
 
@@ -369,6 +395,7 @@ export default function DriverLiveDeliveryPage() {
 					deliveredQty: oi.qty,
 					returnedQty: 0,
 					price: Number(oi.price || 0),
+					checked: Boolean(oi.checked),
 				})),
 			);
 		} else {
@@ -699,12 +726,28 @@ export default function DriverLiveDeliveryPage() {
 												Adjust quantities for items kept vs returned/damaged.
 											</CardDescription>
 										</div>
-										<div className="flex items-center space-x-2">
+										<div className="flex flex-wrap items-center gap-2">
 											<Button
 												type="button"
 												variant="outline"
 												size="sm"
-												className="h-8 gap-1 border-blue-300 bg-blue-50 text-blue-700 text-xs hover:bg-blue-100"
+												className={`h-8 gap-1 text-xs transition-colors ${
+													items.length > 0 && items.every((i) => i.checked)
+														? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+														: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+												}`}
+												onClick={handleToggleAllChecks}
+											>
+												<CheckSquare className="h-3.5 w-3.5 text-emerald-600" />
+												{items.length > 0 && items.every((i) => i.checked)
+													? "Uncheck All"
+													: "Tick All Items"}
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												className="h-8 gap-1 border-blue-300 bg-blue-50 text-blue-700 text-xs hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
 												onClick={() => setExtraModalOpen(true)}
 											>
 												<Plus className="h-3.5 w-3.5" /> Add Extra Item (Van
@@ -723,16 +766,60 @@ export default function DriverLiveDeliveryPage() {
 								</CardHeader>
 								<CardContent className="divide-y p-0">
 									{items.map((item) => (
-										<div key={item.id} className="space-y-3 p-4">
-											<div className="flex items-start justify-between">
-												<div>
-													<h4 className="font-semibold text-gray-900 text-sm dark:text-white">
-														{item.name}
-													</h4>
-													<p className="text-gray-500 text-xs dark:text-gray-400">
-														Price: ₹{item.price} / unit | Total Expected:{" "}
-														{item.originalQty}
-													</p>
+										<div
+											key={item.id}
+											className={`space-y-3 p-4 transition-colors ${
+												item.checked
+													? "bg-emerald-50/60 dark:bg-emerald-950/20"
+													: ""
+											}`}
+										>
+											<div className="flex items-start justify-between gap-3">
+												<div className="flex items-start gap-3">
+													<button
+														type="button"
+														onClick={() => handleToggleCheck(item.id)}
+														className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all ${
+															item.checked
+																? "border-emerald-600 bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20"
+																: "border-gray-300 bg-white hover:border-emerald-500 dark:border-gray-600 dark:bg-gray-800"
+														}`}
+														title={item.checked ? "Handed Over" : "Click to mark as handed over"}
+													>
+														<Check
+															className={`h-4 w-4 ${
+																item.checked
+																	? "opacity-100 stroke-[3]"
+																	: "opacity-0"
+															}`}
+														/>
+													</button>
+													<div>
+														<div className="flex items-center gap-2">
+															<h4
+																onClick={() => handleToggleCheck(item.id)}
+																className={`cursor-pointer font-semibold text-sm transition-colors ${
+																	item.checked
+																		? "text-emerald-950 dark:text-emerald-200 line-through decoration-emerald-500/50"
+																		: "text-gray-900 dark:text-white"
+																}`}
+															>
+																{item.name}
+															</h4>
+															{item.checked && (
+																<Badge
+																	variant="outline"
+																	className="border-emerald-300 bg-emerald-100/80 text-[10px] font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
+																>
+																	✓ Handed Over
+																</Badge>
+															)}
+														</div>
+														<p className="text-gray-500 text-xs dark:text-gray-400">
+															Price: ₹{item.price} / unit | Total Expected:{" "}
+															{item.originalQty}
+														</p>
+													</div>
 												</div>
 												<span className="font-bold font-mono text-gray-900 text-sm dark:text-white">
 													₹{item.deliveredQty * item.price}

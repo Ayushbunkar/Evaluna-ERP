@@ -35,6 +35,7 @@ interface CustomerOption {
 	phone?: string | null;
 	address?: string | null;
 	customer_code?: string | null;
+	route_id?: number | null;
 }
 
 export function PaymentModal({
@@ -127,13 +128,13 @@ export function PaymentModal({
 
 	// Sync route when full details load
 	useEffect(() => {
-		if (fullCustomerDetails?.customer) {
-			const cust = fullCustomerDetails.customer;
-			if (cust.route_id && !selectedRouteId) {
-				setSelectedRouteId(cust.route_id);
+		if (fullCustomerDetails) {
+			const routeId = fullCustomerDetails.route?.id || fullCustomerDetails.customer?.route_id;
+			if (routeId) {
+				setSelectedRouteId(routeId);
 			}
 		}
-	}, [fullCustomerDetails, selectedRouteId]);
+	}, [fullCustomerDetails]);
 
 	// Hindi Translation dictionary
 	const t = {
@@ -219,7 +220,7 @@ export function PaymentModal({
 		setCustomerName(c.name);
 		setCustomerPhone(c.phone || "");
 		setShopName(c.address || "");
-		setSelectedRouteId(null);
+		setSelectedRouteId(c.route_id || null);
 		setIsSearchOpen(false);
 		setIsEditingCustomer(false);
 	};
@@ -291,6 +292,17 @@ export function PaymentModal({
 					: "Please click '+ Save New Customer' to save the customer to database before proceeding",
 			);
 			return;
+		}
+
+		// Auto-persist route and customer address updates to DB for future orders
+		if (selectedCustomerId && (isEditingCustomer || selectedRouteId)) {
+			updateCustomerMutation.mutate({
+				id: selectedCustomerId,
+				name: customerName.trim(),
+				phone: customerPhone.trim() || undefined,
+				address: shopName.trim() || undefined,
+				route_id: selectedRouteId || undefined,
+			});
 		}
 
 		const amountToPay =

@@ -22,6 +22,7 @@ import {
 	Loader2Icon,
 	PackageIcon,
 	SearchIcon,
+	UserIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -43,7 +44,9 @@ export default function PickerCompletedPage() {
 		(p) =>
 			p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			p.order_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			p.completed_by.toLowerCase().includes(searchQuery.toLowerCase()),
+			p.completed_by.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(p.customerName &&
+				p.customerName.toLowerCase().includes(searchQuery.toLowerCase())),
 	);
 
 	return (
@@ -162,6 +165,7 @@ export default function PickerCompletedPage() {
 									<TableRow>
 										<TableHead>{t("picker.picklistId")}</TableHead>
 										<TableHead>{t("picker.orderId")}</TableHead>
+										<TableHead>Customer Name</TableHead>
 										<TableHead>{t("picker.totalItems")}</TableHead>
 										<TableHead>{t("picker.completedBy")}</TableHead>
 										<TableHead>{t("common.status")}</TableHead>
@@ -176,6 +180,14 @@ export default function PickerCompletedPage() {
 											</TableCell>
 											<TableCell className="font-semibold text-sm">
 												{pick.order_id}
+											</TableCell>
+											<TableCell className="font-medium text-xs text-foreground">
+												<div className="flex items-center gap-1.5">
+													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+													<span className="font-semibold text-gray-900 dark:text-gray-100">
+														{pick.customerName || "Customer"}
+													</span>
+												</div>
 											</TableCell>
 											<TableCell className="font-medium text-sm">
 												{pick.items} {t("driver.orderItems")}

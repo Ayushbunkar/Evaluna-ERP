@@ -193,12 +193,10 @@ export function SaleCompletionScreen({
 	const grandTotal = Math.round(order.total);
 	const status = getPaymentStatusBadge(order);
 
-	const formattedDate = new Date(order.createdAt).toLocaleString("en-IN", {
+	const formattedDate = new Date(order.createdAt).toLocaleDateString("en-IN", {
 		day: "2-digit",
 		month: "short",
 		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
 	});
 
 	const handlePrint = () => {

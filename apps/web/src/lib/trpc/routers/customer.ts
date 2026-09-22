@@ -177,17 +177,71 @@ export const customerRouter = router({
 				limit: 200,
 			});
 
-			return rows.map((p) => ({
-				id: p.id,
-				name: p.name,
-				description: (p as any).description ?? "No description available",
-				category: p.category ?? "General",
-				price: Number(p.price || p.base_selling_price || 0),
-				unit: p.unit ?? null,
-				sku: p.sku ?? null,
-				image: (p as any).image_url ?? (p as any).image ?? null,
-				available: !(p as any).is_out_of_stock && !p.is_deleted && !p.is_hidden,
-			}));
+			const todayDateStr = new Date().toISOString().split("T")[0];
+			let activeDiscounts: any[] = [];
+			try {
+				const { dailyProductDiscounts } = require("@evaluna/db/schema");
+				activeDiscounts = await ctx.db
+					.select()
+					.from(dailyProductDiscounts)
+					.where(
+						and(
+							eq(dailyProductDiscounts.effective_date, todayDateStr),
+							eq(dailyProductDiscounts.is_active, true),
+						),
+					);
+			} catch (e) {
+				console.warn("[browseProducts] Error fetching daily discounts:", e);
+			}
+
+			const discountMap = new Map<number, any>();
+			for (const d of activeDiscounts) {
+				discountMap.set(d.product_id, d);
+			}
+
+			const enriched = rows.map((p) => {
+				const originalPrice = Number(p.price || p.base_selling_price || 0);
+				const disc = discountMap.get(p.id);
+
+				let hasActiveOffer = false;
+				let finalPrice = originalPrice;
+				let discountPercent = 0;
+				let offerReason = "";
+
+				if (disc && disc.is_active) {
+					hasActiveOffer = true;
+					finalPrice = Number(disc.discounted_price || originalPrice);
+					discountPercent = Number(
+						disc.discount_percent ||
+							(originalPrice > 0
+								? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+								: 0),
+					);
+					offerReason = disc.reason || "Today's Special Deal";
+				}
+
+				return {
+					id: p.id,
+					name: p.name,
+					description: (p as any).description ?? "No description available",
+					category: p.category ?? "General",
+					originalPrice,
+					price: finalPrice,
+					discountPercent,
+					hasActiveOffer,
+					offerReason,
+					unit: p.unit ?? null,
+					sku: p.sku ?? null,
+					image: (p as any).image_url ?? (p as any).image ?? null,
+					available: !(p as any).is_out_of_stock && !p.is_deleted && !p.is_hidden,
+				};
+			});
+
+			return enriched.sort((a, b) => {
+				if (a.hasActiveOffer && !b.hasActiveOffer) return -1;
+				if (!a.hasActiveOffer && b.hasActiveOffer) return 1;
+				return a.name.localeCompare(b.name);
+			});
 		}),
 
 	// ── My orders (list) ──────────────────────────────────────────────────────

@@ -457,7 +457,7 @@ const messages: Messages = {
 		totalItemsToPick: "पिक करने के लिए कुल आइटम",
 		pickProgress: "पिकिंग प्रगति",
 		completing: "पूरा किया जा रहा है…",
-		completePicking: "🏁 पिकिंग पूर्ण करें",
+		completePicking: "पिकिंग पूर्ण करें",
 		scanPlaceholder: "SKU बारकोड स्कैन करें या टाइप करें...",
 		scanItem: "आइटम स्कैन करें",
 		cameraScanner: "कैमरा स्कैनर",
@@ -483,7 +483,7 @@ const messages: Messages = {
 			"पिकिंग चेकलिस्ट को सत्यापित कर लिया गया है और पैकेजिंग स्टेशन कतार में भेज दिया गया है।",
 		pickingStatusVerified: "100% सत्यापित",
 		routingStep: "अगला चरण:",
-		nextPackerQueue: "अगला ➡️ पैकर कतार",
+		nextPackerQueue: "अगला पैकर कतार",
 		viewCompletedPicksArchive: "पूर्ण पिकिंग संग्रह देखें",
 		pendingPickTasks: "लंबित पिक कार्य",
 		orderPicklistsQueued:

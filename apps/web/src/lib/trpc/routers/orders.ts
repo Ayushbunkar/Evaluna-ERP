@@ -294,20 +294,43 @@ export const ordersRouter = router({
 				if (pod || result.status === "completed") {
 					let parsedNotes = pod?.notes || result.notes || "";
 					let parsedReturns: any[] = [];
+					let parsedDeliveredItems: any[] = [];
 					let cashAmount = 0;
 					let onlineAmount = 0;
 
 					if (pod?.notes) {
 						try {
 							const p = JSON.parse(pod.notes);
-							if (p.deliveryNotes) parsedNotes = p.deliveryNotes;
+							parsedNotes = p.deliveryNotes || "";
 							if (Array.isArray(p.returns) && p.returns.length > 0) {
 								parsedReturns = p.returns;
+							}
+							if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
+								parsedDeliveredItems = p.deliveredItems;
 							}
 							if (p.cashAmount) cashAmount = Number(p.cashAmount);
 							if (p.onlineAmount) onlineAmount = Number(p.onlineAmount);
 						} catch {
 							parsedNotes = pod.notes;
+						}
+					}
+
+					// Fallback: If legacy POD notes JSON has no deliveredItems, construct from orderItems or original_items
+					if (parsedDeliveredItems.length === 0) {
+						if (result.orderItems && result.orderItems.length > 0) {
+							parsedDeliveredItems = result.orderItems.map((oi: any) => ({
+								id: oi.id,
+								name: oi.product?.name || `Item #${oi.product_id}`,
+								qty: oi.quantity,
+								price: Number(oi.price || 0),
+							}));
+						} else if (Array.isArray(result.original_items) && result.original_items.length > 0) {
+							parsedDeliveredItems = result.original_items.map((oi: any) => ({
+								id: oi.id || Math.random(),
+								name: oi.name || oi.product?.name || `Item #${oi.id || oi.product_id}`,
+								qty: Number(oi.quantity || 1),
+								price: Number(oi.price || 0),
+							}));
 						}
 					}
 
@@ -365,6 +388,7 @@ export const ordersRouter = router({
 						driverPhone: assignedDriver?.phone || null,
 						deliveryNotes: parsedNotes,
 						returnedItems: parsedReturns,
+						deliveredItems: parsedDeliveredItems,
 						cashCollected: cashAmount,
 						onlineCollected: onlineAmount,
 						totalCollected:
@@ -556,21 +580,19 @@ export const ordersRouter = router({
 			const branchId = ctx.user?.branchId ?? null;
 			const privilegedRoles = [
 				"admin",
+				"super_admin",
 				"manager",
 				"finance",
 				"warehouse_manager",
 				"accountant",
-				"sales_person",
-				"salesperson",
-				"sales",
 			];
 			const isPrivileged =
 				ctx.user?.isSuperadmin ||
-				(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
 
 			const baseScope = branchId
 				? isPrivileged
-					? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
+					? eq(orders.branch_id, branchId)
 					: and(
 							eq(orders.branch_id, branchId),
 							eq(orders.user_uid, ctx.user?.id),
@@ -1120,16 +1142,26 @@ export const ordersRouter = router({
 					orderItems: { columns: { id: true } },
 				},
 			});
-			return rows.map((o) => ({
-				id: o.id,
-				orderRef: `ORD-${o.id}`,
-				status: o.status,
-				customerName: o.customer?.name ?? "—",
-				customerPhone: o.customer?.phone ?? null,
-				customerCode: o.customer?.customer_code ?? null,
-				itemsCount: o.orderItems.length,
-				createdAt: o.created_at,
-			}));
+			return rows.map((o) => {
+				let reviewedBy: string | null = null;
+				if (o.notes) {
+					const match = o.notes.match(/\[REVIEWED_BY:\s*([^\]]+)\]/);
+					if (match && match[1]) {
+						reviewedBy = match[1].trim();
+					}
+				}
+				return {
+					id: o.id,
+					orderRef: `ORD-${o.id}`,
+					status: o.status,
+					customerName: o.customer?.name ?? "—",
+					customerPhone: o.customer?.phone ?? null,
+					customerCode: o.customer?.customer_code ?? null,
+					itemsCount: o.orderItems.length,
+					createdAt: o.created_at,
+					reviewedBy,
+				};
+			});
 		}),
 	getPendingCount: roleProcedure([
 		"admin",
@@ -1191,6 +1223,28 @@ export const ordersRouter = router({
 			if (!order)
 				throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
 
+			let reviewedBy: string | null = null;
+			const notesText = order.notes || "";
+			const match = notesText.match(/\[REVIEWED_BY:\s*([^\]]+)\]/);
+			if (match && match[1]) {
+				reviewedBy = match[1].trim();
+			} else {
+				const currentSalesPersonName =
+					ctx.user?.name || ctx.user?.email?.split("@")[0] || "Salesperson";
+				reviewedBy = currentSalesPersonName;
+				const updatedNotes = notesText
+					? `${notesText} [REVIEWED_BY: ${currentSalesPersonName}]`
+					: `[REVIEWED_BY: ${currentSalesPersonName}]`;
+				try {
+					await db
+						.update(orders)
+						.set({ notes: updatedNotes, status: "under_review" })
+						.where(eq(orders.id, input.id));
+				} catch (e) {
+					console.warn("[getForReview] Failed to set reviewedBy:", e);
+				}
+			}
+
 			return {
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
@@ -1201,6 +1255,7 @@ export const ordersRouter = router({
 				discountAmount: Number(order.discount_amount ?? 0),
 				deliveryAddress: order.shipping_address,
 				customerNotes: order.notes,
+				reviewedBy,
 				customer: {
 					id: order.customer?.id ?? 0,
 					name: order.customer?.name ?? "Guest",
@@ -1217,9 +1272,7 @@ export const ordersRouter = router({
 					sku: it.product?.sku ?? "—",
 					unit: it.product?.unit ?? "pcs",
 					quantity: it.quantity,
-					// Stored order-item price (already numeric string) or fallback to catalog price
 					price: Number(it.price || it.product?.price || 0),
-					// Base unit cost (for salesperson margin awareness)
 					basePrice: Number(it.product?.buying_price ?? 0),
 					catalogPrice: Number(it.product?.price ?? 0),
 				})),

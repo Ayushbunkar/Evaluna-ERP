@@ -328,6 +328,10 @@ export default function OrdersPage() {
 	const [statusChangeReason, setStatusChangeReason] = useState("");
 	const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending");
 
+	// Cancellation modal state with preset reasons & custom typing option
+	const [cancelReasonPreset, setCancelReasonPreset] = useState<string>("");
+	const [customCancelReason, setCustomCancelReason] = useState<string>("");
+
 	const utils = trpc.useUtils();
 
 	const updateMutation = trpc.orders.update.useMutation({
@@ -344,15 +348,68 @@ export default function OrdersPage() {
 		},
 	});
 
-	const deleteMutation = trpc.orders.delete.useMutation({
+	const cancelMutation = trpc.orders.cancelOrder.useMutation({
 		onSuccess: () => {
 			utils.orders.list.invalidate();
-			toast.success(t("deleted"));
+			utils.orders.listCancelledOrders.invalidate();
+			utils.orders.listPendingReview.invalidate();
+			utils.orders.getPendingCount.invalidate();
+			toast.success(
+				locale === "hi"
+					? `ऑर्डर ORD-${deleteId} सफलतापूर्वक निरस्त किया गया और निरस्त ऑर्डर संग्रह में सुरक्षित किया गया.`
+					: `Order ORD-${deleteId} cancelled and archived under Cancelled Orders.`
+			);
+			setIsDeleteOpen(false);
+			setDeleteId(null);
+			setCancelReasonPreset("");
+			setCustomCancelReason("");
 		},
-		onError: () => {
-			toast.error(t("deleteError"));
+		onError: (err) => {
+			toast.error(
+				locale === "hi"
+					? `ऑर्डर निरस्त करने में विफल: ${err.message}`
+					: `Failed to cancel order: ${err.message}`
+			);
 		},
 	});
+
+	const CANCEL_REASON_PRESETS = [
+		"Customer Request / Cancelled Call (ग्राहक ने मना किया)",
+		"Duplicate Order / Wrong Entry (गलत ऑर्डर प्रविष्टि)",
+		"Item Out of Stock / Unavailability (सामान स्टॉक में नहीं है)",
+		"Pricing Error / Discount Dispute (कीमत / डिस्काउंट विवाद)",
+		"Delayed Dispatch / Delivery Issue (डिलीवरी देरी)",
+		"Other Reason / Write Below",
+	];
+
+	const getFinalCancelReason = (): string => {
+		if (cancelReasonPreset === "Other Reason / Write Below" || !cancelReasonPreset) {
+			return customCancelReason.trim();
+		}
+		if (customCancelReason.trim()) {
+			return `${cancelReasonPreset} - ${customCancelReason.trim()}`;
+		}
+		return cancelReasonPreset;
+	};
+
+	const handleDelete = () => {
+		const finalReason = getFinalCancelReason();
+		if (!finalReason) {
+			toast.error(
+				locale === "hi"
+					? "कृपया ऑर्डर निरस्त करने का कारण चुनें या दर्ज करें!"
+					: "Please select or type a reason before cancelling!"
+			);
+			return;
+		}
+
+		if (deleteId !== null) {
+			cancelMutation.mutate({
+				id: deleteId,
+				reason: finalReason,
+			});
+		}
+	};
 
 	const form = useForm({
 		defaultValues: { total: "", status: "pending" as OrderStatus },
@@ -370,10 +427,6 @@ export default function OrdersPage() {
 						);
 						return;
 					}
-					console.log(
-						`[Order ID #${editingId} Status Change to ${value.status.toUpperCase()}]: Reason:`,
-						statusChangeReason,
-					);
 				}
 
 				updateMutation.mutate({
@@ -396,37 +449,51 @@ export default function OrdersPage() {
 		setIsDialogOpen(true);
 	};
 
-	const handleDelete = () => {
-		if (deleteId !== null) {
-			deleteMutation.mutate({ id: deleteId });
-			setIsDeleteOpen(false);
-			setDeleteId(null);
-		}
-	};
-
 	const actionsColumn: Column<Order> = {
 		key: "actions",
 		header: tc("actions"),
-		render: (row) => (
-			<TableActions>
-				<TableActionButton
-					onClick={() => openEdit(row)}
-					icon={<FilePenIcon className="h-4 w-4" />}
-					label={tc("edit")}
-				/>
-				{/* Delete button removed for Sales Person based on professional audit rules */}
-				<Link
-					href={`/sales/orders/${row.id}`}
-					prefetch={false}
-					onClick={(e) => e.stopPropagation()}
-				>
-					<Button size="icon" variant="ghost">
-						<EyeIcon className="h-4 w-4" />
-						<span className="sr-only">{tc("view")}</span>
-					</Button>
-				</Link>
-			</TableActions>
-		),
+		render: (row: any) => {
+			const isCollectedOrSettled =
+				row.finance_status === "driver_collected" ||
+				row.finance_status === "finance_submitted" ||
+				row.finance_status === "reconciled";
+
+			return (
+				<TableActions>
+					<TableActionButton
+						onClick={() => openEdit(row)}
+						icon={<FilePenIcon className="h-4 w-4" />}
+						label={tc("edit")}
+					/>
+					<Link
+						href={`/sales/orders/${row.id}`}
+						prefetch={false}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<Button size="icon" variant="ghost">
+							<EyeIcon className="h-4 w-4 text-slate-600" />
+							<span className="sr-only">{tc("view")}</span>
+						</Button>
+					</Link>
+					{!isCollectedOrSettled && (
+						<Button
+							size="icon"
+							variant="ghost"
+							className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+							onClick={(e) => {
+								e.stopPropagation();
+								setDeleteId(row.id);
+								setIsDeleteOpen(true);
+							}}
+							title={locale === "hi" ? "ऑर्डर निरस्त करें (Cancelled Orders)" : "Cancel & Archive Order"}
+						>
+							<TrashIcon className="h-4 w-4" />
+							<span className="sr-only">{tc("cancel")}</span>
+						</Button>
+					)}
+				</TableActions>
+			);
+		},
 	};
 
 	if (isLoading) {
@@ -641,12 +708,110 @@ export default function OrdersPage() {
 				</DialogContent>
 			</Dialog>
 
-			<DeleteConfirmationDialog
+			{/* Order Cancellation Modal with mandatory reason selection & write-in note */}
+			<Dialog
 				open={isDeleteOpen}
-				onOpenChange={setIsDeleteOpen}
-				onConfirm={handleDelete}
-				description={t("deleteMessage")}
-			/>
+				onOpenChange={(open) => {
+					setIsDeleteOpen(open);
+					if (!open) {
+						setCancelReasonPreset("");
+						setCustomCancelReason("");
+					}
+				}}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-lg">
+							<TrashIcon className="h-5 w-5 text-red-600" />
+							{locale === "hi" ? `ऑर्डर ORD-${deleteId} निरस्त करें` : `Cancel Order ORD-${deleteId}`}
+						</DialogTitle>
+						<div className="text-xs text-muted-foreground mt-1">
+							{locale === "hi"
+								? "यह ऑर्डर 'निरस्त ऑर्डर (Cancelled Orders)' पेज पर आर्काइव में स्टोर रहेगा. आगे बढ़ने के लिए निरस्तीकरण का कारण चुनें या लिखें."
+								: "This order will be stored safely in 'Cancelled Orders' page. Please select or write a reason to proceed."}
+						</div>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						{/* Preset Reasons Radio List */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-bold flex items-center justify-between text-foreground">
+								<span>{locale === "hi" ? "निरस्त करने का कारण चुनें *" : "Select Cancellation Reason *"}</span>
+								<span className="text-[10px] text-amber-600 font-semibold">{locale === "hi" ? "आवश्यक" : "Mandatory"}</span>
+							</Label>
+							<div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-1">
+								{CANCEL_REASON_PRESETS.map((reason) => (
+									<button
+										key={reason}
+										type="button"
+										onClick={() => {
+											setCancelReasonPreset(reason);
+										}}
+										className={`text-left text-xs p-2.5 rounded-lg border transition-all ${
+											cancelReasonPreset === reason
+												? "border-red-500 bg-red-50 font-semibold text-red-950 dark:bg-red-950/40 dark:text-red-200 dark:border-red-800 shadow-xs"
+												: "border-border hover:bg-muted/60 text-foreground"
+										}`}
+									>
+										{reason}
+									</button>
+								))}
+							</div>
+						</div>
+
+						{/* Custom Reason Text Input */}
+						<div className="space-y-1.5">
+							<Label htmlFor="customCancelNote" className="text-xs font-semibold text-foreground">
+								{locale === "hi" ? "अपना कारण लिखें (या अतिरिक्त टिप्पणी):" : "Write your own reason / Additional note:"}
+							</Label>
+							<textarea
+								id="customCancelNote"
+								rows={2}
+								placeholder={
+									locale === "hi"
+										? "यहाँ अपना कारण टाइप करें..."
+										: "Type your reason here..."
+								}
+								value={customCancelReason}
+								onChange={(e) => setCustomCancelReason(e.target.value)}
+								className="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+							/>
+						</div>
+
+						{/* Live selection preview */}
+						{getFinalCancelReason() && (
+							<div className="rounded-lg bg-red-50/80 border border-red-200/60 p-2.5 text-xs text-red-900 dark:bg-red-950/30 dark:border-red-900 dark:text-red-300">
+								<span className="font-bold">{locale === "hi" ? "दर्ज कारण:" : "Selected Reason:"} </span>
+								<span className="italic">{getFinalCancelReason()}</span>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsDeleteOpen(false);
+								setCancelReasonPreset("");
+								setCustomCancelReason("");
+							}}
+							disabled={cancelMutation.isPending}
+						>
+							{tc("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							className="bg-red-600 hover:bg-red-700 font-bold"
+							onClick={handleDelete}
+							disabled={!getFinalCancelReason() || cancelMutation.isPending}
+						>
+							{cancelMutation.isPending
+								? (locale === "hi" ? "निरस्त हो रहा है..." : "Cancelling...")
+								: (locale === "hi" ? "निरस्त करें और सहेजें" : "Cancel & Archive Order")}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</Card>
 	);
 }

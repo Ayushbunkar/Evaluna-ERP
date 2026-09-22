@@ -1071,83 +1071,128 @@ export const driverRouter = router({
 						})
 					: [];
 
-			return allStops.map((s: any, idx: number) => {
-				const allMatchingOrders = ordersForStops.filter(
-					(order) => order.customer_id === s.customer_id,
-				);
-				const pendingOrders = allMatchingOrders.filter(
-					(o) => o.status !== "delivered" && o.status !== "completed",
-				);
-				const matchingOrders =
-					s.status === "delivered" || pendingOrders.length === 0
-						? allMatchingOrders
-						: pendingOrders;
+			return Promise.all(
+				allStops.map(async (s: any, idx: number) => {
+					const allMatchingOrders = ordersForStops.filter(
+						(order) => order.customer_id === s.customer_id,
+					);
+					const pendingOrders = allMatchingOrders.filter(
+						(o) => o.status !== "delivered" && o.status !== "completed",
+					);
+					const matchingOrders =
+						s.status === "delivered" || pendingOrders.length === 0
+							? allMatchingOrders
+							: pendingOrders;
 
-				const matchingOrder = matchingOrders[0];
-				const orderIdList = matchingOrders.map((o) => o.id);
-				const formattedOrderIds =
-					orderIdList.length > 0
-						? orderIdList.map((id) => `ORD-${id}`).join(", ")
-						: `ORD-${s.order_id || 460 + idx}`;
-				const totalAmount = matchingOrders.reduce(
-					(sum, o) => sum + Number(o.total_amount || 0),
-					0,
-				);
-				const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+					const matchingOrder = matchingOrders[0];
+					const orderIdList = matchingOrders.map((o) => o.id);
+					const formattedOrderIds =
+						orderIdList.length > 0
+							? orderIdList.map((id) => `ORD-${id}`).join(", ")
+							: `ORD-${s.order_id || 460 + idx}`;
+					const totalAmount = matchingOrders.reduce(
+						(sum, o) => sum + Number(o.total_amount || 0),
+						0,
+					);
+					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
 
-				const resolvedCustName =
-					s.customer?.name ||
-					matchingOrder?.customer?.name ||
-					"Customer";
-				const resolvedCustPhone =
-					s.customer?.phone ||
-					matchingOrder?.customer?.phone ||
-					(matchingOrder as any)?.customer_phone ||
-					"N/A";
-				const resolvedCustAddress =
-					s.customer?.address ||
-					matchingOrder?.customer?.address ||
-					(matchingOrder as any)?.shipping_address ||
-					"N/A";
+					// Check proof of delivery for edited doorstep items
+					let podDeliveredItems: any[] = [];
+					let podCollectedTotal = 0;
+					try {
+						const [pod] = await db
+							.select()
+							.from(proofOfDeliveries)
+							.where(
+								or(
+									eq(proofOfDeliveries.trip_stop_id, s.id),
+									matchingOrder ? eq(proofOfDeliveries.order_id, matchingOrder.id) : undefined,
+								),
+							)
+							.orderBy(desc(proofOfDeliveries.created_at))
+							.limit(1);
 
-				return {
-					id: s.id,
-					trip_id: s.trip_id,
-					status:
-						s.status === "delivered" || s.status === "completed"
-							? "completed"
-							: idx === 0
-								? "next"
-								: "pending",
-					rawStatus: s.status,
-					time:
-						s.status === "delivered" || s.status === "completed"
-							? "Completed"
-							: "--:--",
-					customerName: resolvedCustName,
-					address: resolvedCustAddress,
-					phone: resolvedCustPhone,
-					orderId: formattedOrderIds,
-					orderIds: orderIdList,
-					ordersCount: matchingOrders.length,
-					orders: matchingOrders.map((o) => ({
-						id: o.id,
-						total_amount: Number(o.total_amount || 0),
-						status: o.status,
-						itemsCount: o.orderItems?.length || 0,
-					})),
-					amountToCollect: totalAmount,
-					packages: allItems.length > 0 ? allItems.length : 1,
-					orderItems:
-						allItems.map((item) => ({
-							id: item.id,
-							product_id: item.product_id,
-							name: item.product?.name ?? "Product",
-							qty: item.quantity,
-							price: Number(item.price || 0),
-						})) || [],
-				};
-			});
+						if (pod?.notes) {
+							const p = JSON.parse(pod.notes);
+							if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
+								podDeliveredItems = p.deliveredItems.map((it: any) => ({
+									id: it.id || Math.random(),
+									product_id: it.productId || it.id,
+									name: it.name || it.productName || "Delivered Item",
+									qty: Number(it.qty || it.quantity || 1),
+									price: Number(it.price || it.unitPrice || 0),
+								}));
+							}
+							if (p.totalCollected || p.cashAmount || p.onlineAmount) {
+								podCollectedTotal = Number(p.totalCollected || (Number(p.cashAmount || 0) + Number(p.onlineAmount || 0)));
+							}
+						}
+					} catch (e) {}
+
+					const resolvedOrderItems = podDeliveredItems.length > 0
+						? podDeliveredItems
+						: allItems.map((item) => ({
+								id: item.id,
+								product_id: item.product_id,
+								name: item.product?.name ?? "Product",
+								qty: item.quantity,
+								price: Number(item.price || 0),
+							}));
+
+					const resolvedCustName =
+						s.customer?.name ||
+						matchingOrder?.customer?.name ||
+						"Customer";
+					const resolvedCustPhone =
+						s.customer?.phone ||
+						matchingOrder?.customer?.phone ||
+						(matchingOrder as any)?.customer_phone ||
+						"N/A";
+					const resolvedCustAddress =
+						s.customer?.address ||
+						matchingOrder?.customer?.address ||
+						(matchingOrder as any)?.shipping_address ||
+						"N/A";
+
+					const calculatedItemsSum = resolvedOrderItems.reduce(
+						(sum: number, it: any) => sum + Math.round(Number(it.price || 0) * Number(it.qty || 0)),
+						0,
+					);
+					const itemsWithTax = calculatedItemsSum > 0 ? calculatedItemsSum + Math.round(calculatedItemsSum * 0.05) : 0;
+					const finalAmountToCollect = podCollectedTotal || (calculatedItemsSum > 0 ? itemsWithTax : totalAmount);
+
+					return {
+						id: s.id,
+						trip_id: s.trip_id,
+						status:
+							s.status === "delivered" || s.status === "completed"
+								? "completed"
+								: idx === 0
+									? "next"
+									: "pending",
+						rawStatus: s.status,
+						time:
+							s.status === "delivered" || s.status === "completed"
+								? "Completed"
+								: "--:--",
+						customerName: resolvedCustName,
+						address: resolvedCustAddress,
+						phone: resolvedCustPhone,
+						orderId: formattedOrderIds,
+						orderIds: orderIdList,
+						ordersCount: matchingOrders.length,
+						orders: matchingOrders.map((o) => ({
+							id: o.id,
+							total_amount: Number(o.total_amount || 0),
+							status: o.status,
+							itemsCount: o.orderItems?.length || 0,
+						})),
+						amountToCollect: finalAmountToCollect,
+						packages: resolvedOrderItems.length > 0 ? resolvedOrderItems.length : 1,
+						orderItems: resolvedOrderItems,
+					};
+				}),
+			);
 		} catch (error) {
 			console.warn("[getRouteStops] Safe fallback on error:", error);
 			return [];
@@ -1178,100 +1223,164 @@ export const driverRouter = router({
 
 		if (!trips || trips.length === 0) return [];
 
-		return trips.map((t: any) => {
-			let totalCash = 0;
-			let totalOnline = 0;
+		return Promise.all(
+			trips.map(async (t: any) => {
+				let totalCash = 0;
+				let totalOnline = 0;
 
-			if (t.collections && t.collections.length > 0) {
-				for (const c of t.collections) {
-					const amt = Number(c.amount || 0);
-					if (c.payment_method?.toLowerCase().includes("cash")) {
-						totalCash += amt;
-					} else {
-						totalOnline += amt;
+				if (t.collections && t.collections.length > 0) {
+					for (const c of t.collections) {
+						const amt = Number(c.amount || 0);
+						if (c.payment_method?.toLowerCase().includes("cash")) {
+							totalCash += amt;
+						} else {
+							totalOnline += amt;
+						}
 					}
 				}
-			}
 
-			const stops = (t.stops || []).map((s: any, idx: number) => {
-				const stopCollections = (t.collections || []).filter(
-					(c: any) => c.trip_id === t.id,
+				const stops = await Promise.all(
+					(t.stops || []).map(async (s: any, idx: number) => {
+						const stopCollections = (t.collections || []).filter(
+							(c: any) => c.trip_id === t.id,
+						);
+						let cash = 0;
+						let online = 0;
+						for (const col of stopCollections) {
+							const amt = Number(col.amount || 0);
+							if (col.payment_method?.toLowerCase().includes("cash")) {
+								cash += amt;
+							} else {
+								online += amt;
+							}
+						}
+
+						const isDelivered =
+							s.status === "delivered" || s.status === "completed";
+
+						// Fetch POD notes / items if available
+						let deliveredItems: any[] = [];
+						let initialItems: any[] = [];
+						try {
+							const [pod] = await db
+								.select()
+								.from(proofOfDeliveries)
+								.where(
+									or(
+										eq(proofOfDeliveries.trip_stop_id, s.id),
+										s.customer_id ? eq(proofOfDeliveries.order_id, s.customer_id) : undefined,
+									),
+								)
+								.orderBy(desc(proofOfDeliveries.created_at))
+								.limit(1);
+							if (pod?.notes) {
+								const p = JSON.parse(pod.notes);
+								if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
+									deliveredItems = p.deliveredItems.map((it: any) => ({
+										id: it.id || Math.random(),
+										name: it.name || it.productName || "Delivered Item",
+										qty: Number(it.qty || it.quantity || 1),
+										price: Number(it.price || it.unitPrice || 0),
+									}));
+								}
+							}
+						} catch (e) {}
+
+						// Fallback: If no POD deliveredItems, query real orderItems for this customer/stop
+						if (deliveredItems.length === 0 && s.customer_id) {
+							try {
+								const custOrder = await db.query.orders.findFirst({
+									where: eq(orders.customer_id, s.customer_id),
+									orderBy: [desc(orders.created_at)],
+									with: {
+										orderItems: {
+											with: {
+												product: true,
+											},
+										},
+									},
+								});
+
+								if (custOrder?.orderItems && custOrder.orderItems.length > 0) {
+									deliveredItems = custOrder.orderItems.map((oi: any) => ({
+										id: oi.id,
+										name: oi.product?.name || `Product #${oi.product_id}`,
+										qty: Number(oi.quantity || 1),
+										price: Number(oi.price || 0),
+									}));
+								}
+							} catch (e) {}
+						}
+
+						// Calculate initial dispatched items
+						initialItems = deliveredItems.map((it: any) => ({ ...it }));
+
+						return {
+							stopId: s.id,
+							sequence: idx + 1,
+							customerName: s.customer?.name || "Customer",
+							customerPhone: s.customer?.phone || "N/A",
+							address: s.customer?.address || "N/A",
+							orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
+							status: isDelivered
+								? "Delivered"
+								: s.status === "failed"
+									? "Failed"
+									: "Pending",
+							cashCollected: cash,
+							onlineCollected: online,
+							deliveredAt: isDelivered
+								? s.resolved_at
+									? new Date(s.resolved_at).toLocaleTimeString()
+									: new Date().toLocaleTimeString()
+								: "—",
+							items: deliveredItems,
+							deliveredItems,
+							initialItems,
+						};
+					}),
 				);
-				let cash = 0;
-				let online = 0;
-				for (const col of stopCollections) {
-					const amt = Number(col.amount || 0);
-					if (col.payment_method?.toLowerCase().includes("cash")) {
-						cash += amt;
-					} else {
-						online += amt;
-					}
-				}
 
-				const isDelivered =
-					s.status === "delivered" || s.status === "completed";
+				const completedStops = stops.filter(
+					(s: any) => s.status === "Delivered",
+				).length;
+				const totalStops = stops.length;
+				const isTripCompleted =
+					(completedStops === totalStops && totalStops > 0) ||
+					t.status === "completed";
+
+				totalCash = stops.reduce(
+					(acc: number, st: any) => acc + st.cashCollected,
+					0,
+				);
+				totalOnline = stops.reduce(
+					(acc: number, st: any) => acc + st.onlineCollected,
+					0,
+				);
 
 				return {
-					stopId: s.id,
-					sequence: idx + 1,
-					customerName: s.customer?.name || "Customer",
-					customerPhone: s.customer?.phone || "N/A",
-					address: s.customer?.address || "N/A",
-					orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
-					status: isDelivered
-						? "Delivered"
-						: s.status === "failed"
-							? "Failed"
-							: "Pending",
-					cashCollected: cash,
-					onlineCollected: online,
-					deliveredAt: isDelivered
-						? s.resolved_at
-							? new Date(s.resolved_at).toLocaleTimeString()
-							: new Date().toLocaleTimeString()
-						: "—",
+					id: t.id,
+					tripNumber: `TRIP-#${t.id}`,
+					routeName: t.route?.name || `Route #${t.id}`,
+					vehiclePlate: t.vehicle?.registration_number || "MP04AB1234",
+					driverName: t.driver?.name || ctx.user?.name || "Rajesh Kumar",
+					status: isTripCompleted
+						? "Completed"
+						: t.status === "cancelled"
+							? "Cancelled"
+							: "In Progress",
+					date: t.created_at
+						? new Date(t.created_at).toLocaleDateString()
+						: new Date().toLocaleDateString(),
+					totalStops,
+					completedStops,
+					totalCashCollected: totalCash,
+					totalOnlineCollected: totalOnline,
+					totalCollected: totalCash + totalOnline,
+					stops,
 				};
-			});
-
-			const completedStops = stops.filter(
-				(s: any) => s.status === "Delivered",
-			).length;
-			const totalStops = stops.length;
-			const isTripCompleted =
-				(completedStops === totalStops && totalStops > 0) ||
-				t.status === "completed";
-
-			totalCash = stops.reduce(
-				(acc: number, st: any) => acc + st.cashCollected,
-				0,
-			);
-			totalOnline = stops.reduce(
-				(acc: number, st: any) => acc + st.onlineCollected,
-				0,
-			);
-
-			return {
-				id: t.id,
-				tripNumber: `TRIP-#${t.id}`,
-				routeName: t.route?.name || `Route #${t.id}`,
-				vehiclePlate: t.vehicle?.registration_number || "MP04AB1234",
-				driverName: t.driver?.name || ctx.user?.name || "Rajesh Kumar",
-				status: isTripCompleted
-					? "Completed"
-					: t.status === "cancelled"
-						? "Cancelled"
-						: "In Progress",
-				date: t.created_at
-					? new Date(t.created_at).toLocaleDateString()
-					: new Date().toLocaleDateString(),
-				totalStops,
-				completedStops,
-				totalCashCollected: totalCash,
-				totalOnlineCollected: totalOnline,
-				totalCollected: totalCash + totalOnline,
-				stops,
-			};
-		});
+			}),
+		);
 	}),
 
 	updateStopStatus: protectedProcedure
@@ -1326,10 +1435,20 @@ export const driverRouter = router({
 				damagedOrReturnedItems: z
 					.array(
 						z.object({
-							id: z.number(),
+							id: z.number().optional(),
 							name: z.string(),
 							qty: z.number(),
-							reason: z.string(),
+							reason: z.string().optional(),
+						}),
+					)
+					.optional(),
+				deliveredItems: z
+					.array(
+						z.object({
+							id: z.number().optional(),
+							name: z.string(),
+							qty: z.number(),
+							price: z.number(),
 						}),
 					)
 					.optional(),
@@ -1386,7 +1505,7 @@ export const driverRouter = router({
 					input.damagedOrReturnedItems &&
 					input.damagedOrReturnedItems.length > 0;
 				const formattedComments = hasReturns
-					? `${input.deliveryNotes ? input.deliveryNotes + " | " : ""}Returned/Rejected: ${input.damagedOrReturnedItems?.map((i) => `${i.name} (x${i.qty} - ${i.reason})`).join(", ")}`
+					? `${input.deliveryNotes ? input.deliveryNotes + " | " : ""}Returned/Rejected: ${input.damagedOrReturnedItems?.map((i) => `${i.name} (x${i.qty} - ${i.reason || "Returned"})`).join(", ")}`
 					: input.deliveryNotes || "Delivered live at customer stop";
 
 				// Update trip stop status
@@ -1432,12 +1551,13 @@ export const driverRouter = router({
 						.where(eq(orders.id, orderIdToUpdate));
 				}
 
-				// Record proof of delivery with full returns and notes payload
+				// Record proof of delivery with full returns, deliveredItems, and notes payload
 				if (input.stop_id) {
 					try {
 						const podNotes = JSON.stringify({
 							deliveryNotes: input.deliveryNotes || "",
 							returns: input.damagedOrReturnedItems || [],
+							deliveredItems: input.deliveredItems || [],
 							cashAmount: input.cashAmount,
 							onlineAmount: input.onlineAmount,
 							totalCollected: input.cashAmount + input.onlineAmount,

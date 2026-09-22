@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -26,12 +27,15 @@ import {
 } from "@evaluna/ui/components/select";
 import {
 	CheckCircle2Icon,
+	FlameIcon,
 	Loader2Icon,
 	MinusIcon,
 	PackageIcon,
 	PlusIcon,
 	SearchIcon,
 	ShoppingBagIcon,
+	SparklesIcon,
+	TagIcon,
 	Trash2Icon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -80,6 +84,11 @@ export default function CustomerProductsPage() {
 		});
 		return Array.from(set);
 	}, [products]);
+
+	const productsWithDeals = useMemo(
+		() => (products ?? []).filter((p) => p.hasActiveOffer),
+		[products],
+	);
 
 	const cartItemsList = useMemo(() => Object.values(cart), [cart]);
 	const totalCartCount = useMemo(
@@ -341,6 +350,34 @@ export default function CustomerProductsPage() {
 				)}
 			</div>
 
+			{/* Active Deals Banner */}
+			{productsWithDeals.length > 0 && (
+				<div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/15 via-red-500/10 to-amber-500/15 p-4 sm:p-5 shadow-sm dark:border-amber-700/60 dark:from-amber-950/40 dark:to-amber-950/40">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<div className="flex items-center gap-3">
+							<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-red-500 text-white shadow-md">
+								<FlameIcon className="h-6 w-6 animate-pulse" />
+							</div>
+							<div>
+								<div className="flex items-center gap-2">
+									<h3 className="font-extrabold text-base text-gray-900 dark:text-white sm:text-lg">
+										{locale === "hi" ? "आज के विशेष ऑफर एवं डिस्काउंट" : "Today's Special Deals & Offers"}
+									</h3>
+									<Badge className="bg-red-600 font-extrabold text-white text-[10px] tracking-wider animate-pulse">
+										{productsWithDeals.length} {locale === "hi" ? "ऑफ़र सक्रिय" : "DEALS ACTIVE"}
+									</Badge>
+								</div>
+								<p className="mt-0.5 text-muted-foreground text-xs">
+									{locale === "hi"
+										? "वेयरहाउस मैनेजर द्वारा आज के लिए विशेष छूट! इन उत्पादों पर भारी बचत करें (सबसे ऊपर सूचीबद्ध)।"
+										: "Warehouse-managed daily discounts active today! Enjoy heavy savings on these top featured items."}
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* Search & Filter Bar */}
 			<Card className="border-border/50 bg-card/50 shadow-sm">
 				<CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
@@ -391,26 +428,45 @@ export default function CustomerProductsPage() {
 						const isAvailable = product.available !== false;
 						const currentQty = getQty(product.id);
 						const inCart = cart[product.id];
+						const hasOffer = Boolean(product.hasActiveOffer);
 
 						return (
 							<Card
 								key={product.id}
-								className="flex flex-col justify-between border-border/50 bg-card shadow-sm transition-all hover:border-border"
+								className={`flex flex-col justify-between transition-all ${
+									hasOffer
+										? "border-amber-400/80 bg-gradient-to-b from-amber-50/60 via-card to-card shadow-md dark:border-amber-600/80 dark:from-amber-950/20"
+										: "border-border/50 bg-card shadow-sm hover:border-border"
+								}`}
 							>
 								<CardHeader className="p-4 pb-2">
 									<div className="flex items-start justify-between gap-2">
-										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-											<PackageIcon className="h-5 w-5 text-blue-500" />
+										<div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+											hasOffer ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" : "bg-blue-500/10 text-blue-500"
+										}`}>
+											{hasOffer ? (
+												<FlameIcon className="h-5 w-5 animate-bounce text-red-500" />
+											) : (
+												<PackageIcon className="h-5 w-5" />
+											)}
 										</div>
-										<span
-											className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
-												isAvailable
-													? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-													: "bg-red-500/10 text-red-600 dark:text-red-400"
-											}`}
-										>
-											{isAvailable ? t.available : t.unavailable}
-										</span>
+										<div className="flex flex-col items-end gap-1">
+											{hasOffer && (
+												<Badge className="bg-gradient-to-r from-amber-500 to-red-600 text-white font-extrabold text-[10px] gap-1 shadow-sm">
+													<FlameIcon className="h-3 w-3" />
+													{product.discountPercent}% OFF
+												</Badge>
+											)}
+											<span
+												className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
+													isAvailable
+														? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+														: "bg-red-500/10 text-red-600 dark:text-red-400"
+												}`}
+											>
+												{isAvailable ? t.available : t.unavailable}
+											</span>
+										</div>
 									</div>
 									<CardTitle className="mt-2 line-clamp-1 text-base">
 										{product.name}
@@ -428,23 +484,54 @@ export default function CustomerProductsPage() {
 									)}
 
 									{/* Price & Unit Display */}
-									<div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
-										<div className="flex items-baseline justify-between">
-											<div className="flex items-baseline gap-1">
-												<span className="font-bold text-foreground text-lg sm:text-xl">
-													₹{Number(product.price || 0).toLocaleString(undefined, {
-														minimumFractionDigits: 2,
-														maximumFractionDigits: 2,
-													})}
+									<div className={`rounded-lg border p-2.5 transition-colors ${
+										hasOffer
+											? "border-amber-300/80 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30"
+											: "border-border/60 bg-muted/20"
+									}`}>
+										{hasOffer && (
+											<div className="mb-1 flex items-center justify-between border-amber-200 border-b pb-1 text-[11px] dark:border-amber-800">
+												<span className="flex items-center gap-1 font-bold text-red-600 dark:text-red-400">
+													<FlameIcon className="h-3 w-3 text-red-500" />
+													{product.offerReason || (locale === "hi" ? "आज का विशेष ऑफर" : "Today's Deal")}
 												</span>
-												{product.unit && (
-													<span className="font-medium text-muted-foreground text-xs">
-														/ {product.unit}
+												<span className="font-extrabold text-red-600 dark:text-red-400">
+													{product.discountPercent}% OFF
+												</span>
+											</div>
+										)}
+										<div className="flex items-baseline justify-between">
+											<div className="flex flex-col">
+												{hasOffer && product.originalPrice > product.price && (
+													<span className="line-through font-semibold text-muted-foreground text-xs">
+														₹{Number(product.originalPrice).toLocaleString(undefined, {
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														})}
 													</span>
 												)}
+												<div className="flex items-baseline gap-1">
+													<span className={`font-bold text-lg sm:text-xl ${
+														hasOffer ? "text-red-600 dark:text-red-400 font-extrabold" : "text-foreground"
+													}`}>
+														₹{Number(product.price || 0).toLocaleString(undefined, {
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														})}
+													</span>
+													{product.unit && (
+														<span className="font-medium text-muted-foreground text-xs">
+															/ {product.unit}
+														</span>
+													)}
+												</div>
 											</div>
-											<span className="font-medium text-[10px] text-emerald-600 dark:text-emerald-400">
-												{locale === "hi" ? "मानक मूल्य" : "Standard Price"}
+											<span className={`font-semibold text-[10px] ${
+												hasOffer ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+											}`}>
+												{hasOffer
+													? (locale === "hi" ? "ऑफ़र मूल्य" : "Deal Price")
+													: (locale === "hi" ? "मानक मूल्य" : "Standard Price")}
 											</span>
 										</div>
 

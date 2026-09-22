@@ -217,7 +217,7 @@ export default function PickerActivePage() {
 									</div>
 
 									<Button
-										className={`h-14 px-6 font-bold text-white shadow-md transition-all ${
+										className={`h-14 px-6 font-bold text-white shadow-md transition-all flex items-center gap-2 ${
 											pct === 100
 												? "animate-bounce bg-green-600 hover:bg-green-700"
 												: "bg-gray-400 cursor-not-allowed opacity-70"
@@ -234,9 +234,16 @@ export default function PickerActivePage() {
 										}}
 										disabled={completeMutation.isPending}
 									>
-										{completeMutation.isPending
-											? t("completing")
-											: t("completePicking")}
+										{completeMutation.isPending ? (
+											<Loader2Icon className="h-5 w-5 animate-spin" />
+										) : (
+											<CheckCircle2Icon className="h-5 w-5" />
+										)}
+										<span>
+											{completeMutation.isPending
+												? t("completing")
+												: t("completePicking")}
+										</span>
 									</Button>
 								</div>
 							</div>

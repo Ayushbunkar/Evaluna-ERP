@@ -37,6 +37,7 @@ import {
 	PrinterIcon,
 	TrendingUpIcon,
 	TruckIcon,
+	UserIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -300,8 +301,9 @@ export default function PackerDashboard() {
 								<Table>
 									<TableHeader>
 										<TableRow>
+											<TableHead>Picklist Ref</TableHead>
 											<TableHead>{t("orderRef")}</TableHead>
-											<TableHead>{t("orderRef")}</TableHead>
+											<TableHead>Customer Name</TableHead>
 											<TableHead>{t("packedDate")}</TableHead>
 											<TableHead>{tCommon("status")}</TableHead>
 											<TableHead className="text-right">
@@ -317,6 +319,14 @@ export default function PackerDashboard() {
 												</TableCell>
 												<TableCell className="font-semibold text-sm">
 													{pl.order_ref}
+												</TableCell>
+												<TableCell className="font-medium text-xs text-foreground">
+													<div className="flex items-center gap-1.5">
+														<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+														<span className="font-semibold text-gray-900 dark:text-gray-100">
+															{pl.customerName || "Customer"}
+														</span>
+													</div>
 												</TableCell>
 												<TableCell className="text-muted-foreground text-xs">
 													{pl.completed_at}

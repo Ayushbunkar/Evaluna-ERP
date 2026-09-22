@@ -44,6 +44,7 @@ import {
 	TagIcon,
 	TruckIcon,
 	UserIcon,
+	ZapIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -156,7 +157,9 @@ export default function PackerPendingPage() {
 	const filteredList = pendingList?.filter(
 		(pl) =>
 			pl.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			pl.order_ref.toLowerCase().includes(searchQuery.toLowerCase()),
+			pl.order_ref.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(pl.customerName &&
+				pl.customerName.toLowerCase().includes(searchQuery.toLowerCase())),
 	);
 
 	return (
@@ -307,8 +310,8 @@ export default function PackerPendingPage() {
 						disabled={claimPackMutation.isPending || !pendingList || pendingList.length === 0}
 						onClick={() => claimPackMutation.mutate()}
 					>
-						<BoxIcon className="mr-2 h-4 w-4" />
-						{claimPackMutation.isPending ? "Claiming Parcel..." : "⚡ Claim & Pack Next Parcel"}
+						<ZapIcon className="mr-2 h-4 w-4" />
+						{claimPackMutation.isPending ? "Claiming Parcel..." : "Claim & Pack Next Parcel"}
 					</Button>
 				</div>
 			</div>
@@ -415,6 +418,7 @@ export default function PackerPendingPage() {
 										<TableHead>Queue #</TableHead>
 										<TableHead>Picklist Ref</TableHead>
 										<TableHead>{t("orderRef")}</TableHead>
+										<TableHead>Customer Name</TableHead>
 										<TableHead>{t("assignedRoute")}</TableHead>
 										<TableHead>{t("pickingCompletionTime")}</TableHead>
 										<TableHead>{tCommon("status")}</TableHead>
@@ -435,8 +439,18 @@ export default function PackerPendingPage() {
 											<TableCell className="font-semibold text-sm">
 												{pl.order_ref}
 											</TableCell>
+											<TableCell className="font-medium text-xs text-foreground">
+												<div className="flex items-center gap-1.5">
+													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+													<span className="font-semibold text-gray-900 dark:text-gray-100">
+														{pl.customerName || "Customer"}
+													</span>
+												</div>
+											</TableCell>
 											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
-												📍 {pl.routeName}
+												<div className="flex items-center gap-1">
+													<MapPinIcon className="h-3 w-3" /> {pl.routeName}
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pl.completed_at}
@@ -488,8 +502,14 @@ export default function PackerPendingPage() {
 								<p>
 									<strong>{t("orderRef")}:</strong> {selectedPickList.order_ref}
 								</p>
-								<p className="mt-1.5 border-blue-200/30 border-t pt-1.5">
-									<strong>📍 {t("assignedRoute")}:</strong>{" "}
+								<p className="flex items-center gap-1">
+									<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+									<strong>Customer:</strong>{" "}
+									{selectedPickList.customerName || "Customer"}
+								</p>
+								<p className="mt-1.5 flex items-center gap-1 border-blue-200/30 border-t pt-1.5">
+									<MapPinIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+									<strong>{t("assignedRoute")}:</strong>{" "}
 									{selectedPickList.routeName}
 								</p>
 							</div>

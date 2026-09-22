@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -14,6 +15,7 @@ import {
 	CheckCircle2Icon,
 	ClockIcon,
 	CoinsIcon,
+	FlameIcon,
 	IndianRupeeIcon,
 	LayoutDashboardIcon,
 	PackageIcon,
@@ -275,44 +277,72 @@ export default function CustomerDashboard() {
 						</CardHeader>
 						<CardContent className="p-6 pt-0">
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-								{products.slice(0, 4).map((prod) => (
-									<div
-										key={prod.id}
-										className="flex flex-col justify-between rounded-lg border border-border/60 bg-card p-3.5 shadow-sm transition-all hover:border-emerald-500/40"
-									>
-										<div>
-											<div className="flex items-center justify-between gap-2">
-												<span className="rounded-full bg-blue-500/10 p-1.5 text-blue-500">
-													<PackageIcon className="h-4 w-4" />
-												</span>
-												<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
-													{locale === "hi" ? "उपलब्ध" : "Available"}
-												</span>
+								{products.slice(0, 4).map((prod) => {
+									const hasOffer = Boolean(prod.hasActiveOffer);
+									return (
+										<div
+											key={prod.id}
+											className={`flex flex-col justify-between rounded-xl border p-3.5 shadow-sm transition-all ${
+												hasOffer
+													? "border-amber-400 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-950/20"
+													: "border-border/60 bg-card hover:border-emerald-500/40"
+											}`}
+										>
+											<div>
+												<div className="flex items-center justify-between gap-2">
+													<span className={`rounded-full p-1.5 ${
+														hasOffer ? "bg-amber-500/20 text-red-500" : "bg-blue-500/10 text-blue-500"
+													}`}>
+														{hasOffer ? <FlameIcon className="h-4 w-4 animate-bounce" /> : <PackageIcon className="h-4 w-4" />}
+													</span>
+													{hasOffer ? (
+														<Badge className="bg-gradient-to-r from-amber-500 to-red-600 text-white font-extrabold text-[9px] gap-0.5 shadow-sm">
+															<FlameIcon className="h-2.5 w-2.5" />
+															{prod.discountPercent}% OFF
+														</Badge>
+													) : (
+														<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
+															{locale === "hi" ? "उपलब्ध" : "Available"}
+														</span>
+													)}
+												</div>
+												<h4 className="mt-2 line-clamp-1 font-semibold text-foreground text-sm">
+													{prod.name}
+												</h4>
+												{prod.sku && (
+													<p className="font-mono text-[10px] text-muted-foreground">
+														SKU: {prod.sku}
+													</p>
+												)}
 											</div>
-											<h4 className="mt-2 line-clamp-1 font-semibold text-foreground text-sm">
-												{prod.name}
-											</h4>
-											{prod.sku && (
-												<p className="font-mono text-[10px] text-muted-foreground">
-													SKU: {prod.sku}
-												</p>
-											)}
+											<div className="mt-3 flex items-baseline justify-between border-border/40 border-t pt-2">
+												<div className="flex flex-col">
+													{hasOffer && prod.originalPrice > prod.price && (
+														<span className="line-through font-semibold text-muted-foreground text-[11px]">
+															₹{Number(prod.originalPrice).toLocaleString(undefined, {
+																minimumFractionDigits: 2,
+																maximumFractionDigits: 2,
+															})}
+														</span>
+													)}
+													<span className={`font-bold text-base ${
+														hasOffer ? "text-red-600 dark:text-red-400 font-extrabold" : "text-emerald-600 dark:text-emerald-400"
+													}`}>
+														₹{Number(prod.price || 0).toLocaleString(undefined, {
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														})}
+													</span>
+												</div>
+												{prod.unit && (
+													<span className="text-muted-foreground text-xs">
+														/ {prod.unit}
+													</span>
+												)}
+											</div>
 										</div>
-										<div className="mt-3 flex items-baseline justify-between border-border/40 border-t pt-2">
-											<span className="font-bold text-emerald-600 text-base dark:text-emerald-400">
-												₹{Number(prod.price || 0).toLocaleString(undefined, {
-													minimumFractionDigits: 2,
-													maximumFractionDigits: 2,
-												})}
-											</span>
-											{prod.unit && (
-												<span className="text-muted-foreground text-xs">
-													/ {prod.unit}
-												</span>
-											)}
-										</div>
-									</div>
-								))}
+									);
+								})}
 							</div>
 						</CardContent>
 					</Card>
