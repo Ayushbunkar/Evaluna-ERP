@@ -467,4 +467,118 @@ export const usersRouter = router({
 			}
 		},
 	),
+
+	// ── Get Logged-In User Profile ─────────────────────────────────────────────
+	getMyProfile: protectedProcedure.query(async ({ ctx }) => {
+		const userId = ctx.user.id;
+		const [u] = await ctx.db
+			.select()
+			.from(user)
+			.where(eq(user.id, userId))
+			.limit(1);
+
+		if (!u) {
+			throw new TRPCError({
+				code: "NOT_FOUND",
+				message: "User profile not found.",
+			});
+		}
+
+		let phone = "";
+		if (u.staff_id) {
+			const [s] = await ctx.db
+				.select()
+				.from(staff)
+				.where(eq(staff.id, u.staff_id))
+				.limit(1);
+			if (s?.phone) phone = s.phone;
+		} else if (u.email) {
+			const [s] = await ctx.db
+				.select()
+				.from(staff)
+				.where(eq(staff.email, u.email))
+				.limit(1);
+			if (s?.phone) phone = s.phone;
+		}
+
+		return {
+			id: u.id,
+			name: u.name,
+			email: u.email,
+			phone: phone,
+			role: (ctx.user as any).role || "staff",
+			status: u.status,
+		};
+	}),
+
+	// ── Update Logged-In User Profile ──────────────────────────────────────────
+	updateMyProfile: protectedProcedure
+		.input(
+			z.object({
+				name: z.string().min(1, "Full Name is required."),
+				email: z.string().email("Invalid email address."),
+				phone: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const userId = ctx.user.id;
+
+			// Check email uniqueness if email is changed
+			if (input.email !== ctx.user.email) {
+				const existing = await ctx.db
+					.select()
+					.from(user)
+					.where(eq(user.email, input.email))
+					.limit(1);
+				if (existing.length > 0 && existing[0].id !== userId) {
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "An account with this email address already exists.",
+					});
+				}
+			}
+
+			// Update user table (name, email)
+			await ctx.db
+				.update(user)
+				.set({
+					name: input.name,
+					email: input.email,
+					updatedAt: new Date(),
+				})
+				.where(eq(user.id, userId));
+
+			// Update associated staff table record
+			const [userRecord] = await ctx.db
+				.select()
+				.from(user)
+				.where(eq(user.id, userId))
+				.limit(1);
+
+			const staffId = userRecord?.staff_id;
+
+			if (staffId) {
+				await ctx.db
+					.update(staff)
+					.set({
+						name: input.name,
+						email: input.email,
+						...(input.phone !== undefined ? { phone: input.phone } : {}),
+						updated_at: new Date(),
+					})
+					.where(eq(staff.id, staffId));
+			} else if (ctx.user.email) {
+				await ctx.db
+					.update(staff)
+					.set({
+						name: input.name,
+						email: input.email,
+						...(input.phone !== undefined ? { phone: input.phone } : {}),
+						updated_at: new Date(),
+					})
+					.where(eq(staff.email, ctx.user.email));
+			}
+
+			return { success: true };
+		}),
 });

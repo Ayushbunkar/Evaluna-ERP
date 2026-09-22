@@ -512,6 +512,19 @@ export const packerRouter = router({
 			}
 		}),
 
+	claimNextPackTask: roleProcedure(["admin", "manager", "packer"]).mutation(
+		async ({ ctx }) => {
+			const pendingList = await packerRouter.createCaller(ctx).getPendingToPack();
+
+			if (pendingList.length === 0) {
+				throw new Error("No pending packages available in the packing queue.");
+			}
+
+			const nextParcel = pendingList[0];
+			return { success: true, parcel: nextParcel };
+		},
+	),
+
 	getPackingHistory: roleProcedure(["admin", "manager", "packer"])
 		.input(
 			z

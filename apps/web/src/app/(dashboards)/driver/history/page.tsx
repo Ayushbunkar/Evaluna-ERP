@@ -179,7 +179,7 @@ export default function DriverHistoryPage() {
 										₹{aggregateOnline.toFixed(2)}
 									</p>
 								</div>
-								<CreditCardIcon className="h-8 w-8 text-purple-500 opacity-80 shrink-0" />
+								<QrCode className="h-8 w-8 text-purple-500 opacity-80 shrink-0" />
 							</div>
 							<p className="mt-2 text-[11px] text-purple-600/80">
 								Digital payment settlements

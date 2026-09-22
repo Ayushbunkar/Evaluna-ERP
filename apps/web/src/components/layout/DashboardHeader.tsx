@@ -74,9 +74,41 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 	const [attendanceOpen, setAttendanceOpen] = useState(false);
 	const [workNotes, setWorkNotes] = useState("");
 
+	// Profile editing state
+	const [isEditingProfile, setIsEditingProfile] = useState(false);
+	const [editName, setEditName] = useState("");
+	const [editEmail, setEditEmail] = useState("");
+	const [editPhone, setEditPhone] = useState("");
+
 	const { activeBranchId } = useBranch();
 	const sessionData = useSession();
 	const user = sessionData.session?.user;
+
+	// Profile query & mutation
+	const { data: myProfile, refetch: refetchMyProfile } = trpc.users.getMyProfile.useQuery(
+		undefined,
+		{ enabled: profileOpen },
+	);
+
+	const updateProfileMutation = trpc.users.updateMyProfile.useMutation({
+		onSuccess: () => {
+			toast.success("Profile updated successfully!");
+			setIsEditingProfile(false);
+			refetchMyProfile();
+			queryClient.invalidateQueries();
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to update profile");
+		},
+	});
+
+	useEffect(() => {
+		if (profileOpen) {
+			setEditName(myProfile?.name || user?.name || "");
+			setEditEmail(myProfile?.email || user?.email || "");
+			setEditPhone(myProfile?.phone || "");
+		}
+	}, [profileOpen, myProfile, user]);
 
 	// Queries
 	const { data: branches } = trpc.branches.list.useQuery(undefined);
@@ -521,7 +553,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 							className="flex cursor-pointer items-center text-xs"
 						>
 							<UserCircle className="mr-2 h-4 w-4 text-slate-500" />
-							<span>View Profile Details</span>
+							<span>My Profile & Edit</span>
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							onSelect={() => {
@@ -546,72 +578,179 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 				</DropdownMenu>
 			</div>
 			{/* Profile Dialog Modal */}
-			<Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+			<Dialog open={profileOpen} onOpenChange={(open) => { setProfileOpen(open); if (!open) setIsEditingProfile(false); }}>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle>My Profile Details</DialogTitle>
+						<DialogTitle>{isEditingProfile ? "Edit Profile Details" : "My Profile Details"}</DialogTitle>
 						<DialogDescription>
-							Overview of your authenticated ERP system credentials.
+							{isEditingProfile ? "Update your personal details below. Role cannot be modified." : "Overview of your authenticated ERP system credentials."}
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-4 py-3">
-						<div className="flex items-center justify-center pb-2">
-							<div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 text-blue-600">
-								<UserIcon className="h-8 w-8" />
-							</div>
-						</div>
-
-						<div className="grid grid-cols-2 gap-4 border-border/40 border-b pb-4 text-xs sm:text-sm">
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Full Name
-								</span>
-								<span className="font-medium text-foreground">
-									{user?.name || "N/A"}
-								</span>
-							</div>
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Email / Login ID
-								</span>
-								<span className="font-medium text-foreground">
-									{user?.email || "N/A"}
-								</span>
-							</div>
-						</div>
-
-						<div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Primary Role
-								</span>
-								<span className="font-medium text-foreground capitalize">
-									{user?.role
-										? user.role.toUpperCase().replace("_", " ")
-										: "N/A"}
-								</span>
-							</div>
-							<div>
-								<span className="block font-semibold text-muted-foreground text-xs">
-									Account Status
-								</span>
-								<span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 font-medium text-green-700 text-xs dark:text-green-400">
-									Active Login
-								</span>
-							</div>
-						</div>
-					</div>
-
-					<DialogFooter>
-						<Button
-							type="button"
-							className="w-full"
-							onClick={() => setProfileOpen(false)}
+					{isEditingProfile ? (
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								updateProfileMutation.mutate({
+									name: editName,
+									email: editEmail,
+									phone: editPhone,
+								});
+							}}
+							className="space-y-4 py-2"
 						>
-							Close Profile
-						</Button>
-					</DialogFooter>
+							<div className="space-y-1.5">
+								<Label htmlFor="profile-name" className="text-xs font-semibold">
+									Full Name
+								</Label>
+								<Input
+									id="profile-name"
+									value={editName}
+									onChange={(e) => setEditName(e.target.value)}
+									placeholder="Enter full name"
+									required
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="profile-email" className="text-xs font-semibold">
+									Email / Login ID
+								</Label>
+								<Input
+									id="profile-email"
+									type="email"
+									value={editEmail}
+									onChange={(e) => setEditEmail(e.target.value)}
+									placeholder="Enter email address"
+									required
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="profile-phone" className="text-xs font-semibold">
+									Phone Number
+								</Label>
+								<Input
+									id="profile-phone"
+									value={editPhone}
+									onChange={(e) => setEditPhone(e.target.value)}
+									placeholder="Enter phone number"
+								/>
+							</div>
+
+							<div className="grid grid-cols-2 gap-3 pt-1">
+								<div className="space-y-1.5">
+									<Label className="text-xs font-semibold text-muted-foreground">
+										Primary Role (Read-only)
+									</Label>
+									<Input
+										value={user?.role ? user.role.toUpperCase().replace("_", " ") : "N/A"}
+										disabled
+										className="bg-muted text-muted-foreground cursor-not-allowed text-xs"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label className="text-xs font-semibold text-muted-foreground">
+										Account Status
+									</Label>
+									<div className="h-9 flex items-center px-3 rounded-md bg-green-500/10 text-green-700 text-xs font-medium dark:text-green-400">
+										Active Login
+									</div>
+								</div>
+							</div>
+
+							<DialogFooter className="pt-3 gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => setIsEditingProfile(false)}
+									disabled={updateProfileMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button type="submit" disabled={updateProfileMutation.isPending}>
+									{updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+								</Button>
+							</DialogFooter>
+						</form>
+					) : (
+						<>
+							<div className="space-y-4 py-3">
+								<div className="flex items-center justify-center pb-2">
+									<div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 text-blue-600">
+										<UserIcon className="h-8 w-8" />
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 gap-4 border-border/40 border-b pb-4 text-xs sm:text-sm">
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Full Name
+										</span>
+										<span className="font-medium text-foreground">
+											{myProfile?.name || user?.name || "N/A"}
+										</span>
+									</div>
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Email / Login ID
+										</span>
+										<span className="font-medium text-foreground">
+											{myProfile?.email || user?.email || "N/A"}
+										</span>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Phone Number
+										</span>
+										<span className="font-medium text-foreground">
+											{myProfile?.phone || "Not set"}
+										</span>
+									</div>
+									<div>
+										<span className="block font-semibold text-muted-foreground text-xs">
+											Primary Role
+										</span>
+										<span className="font-medium text-foreground capitalize">
+											{user?.role
+												? user.role.toUpperCase().replace("_", " ")
+												: "N/A"}
+										</span>
+									</div>
+								</div>
+
+								<div className="pt-2 text-xs sm:text-sm">
+									<span className="block font-semibold text-muted-foreground text-xs">
+										Account Status
+									</span>
+									<span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 font-medium text-green-700 text-xs dark:text-green-400 mt-1">
+										Active Login
+									</span>
+								</div>
+							</div>
+
+							<DialogFooter className="flex gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									className="flex-1"
+									onClick={() => setProfileOpen(false)}
+								>
+									Close Profile
+								</Button>
+								<Button
+									type="button"
+									className="flex-1"
+									onClick={() => setIsEditingProfile(true)}
+								>
+									Edit Profile
+								</Button>
+							</DialogFooter>
+						</>
+					)}
 				</DialogContent>
 			</Dialog>
 			{/* Account Settings Dialog Modal */}

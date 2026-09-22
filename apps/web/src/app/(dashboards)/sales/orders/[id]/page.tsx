@@ -25,6 +25,7 @@ import {
 	AlertTriangle,
 	ArrowLeftIcon,
 	Banknote,
+	BarChart3,
 	CheckCircle2,
 	Clock,
 	DollarSign,
@@ -45,7 +46,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 import { generateOrderWhatsAppLink } from "@/lib/whatsapp";
@@ -58,11 +59,23 @@ export default function OrderDetailPage({
 	const { id } = use(params);
 	const orderId = Number.parseInt(id, 10);
 	const router = useRouter();
-	const [activeTab, setActiveTab] = useState("stage4");
 
 	const { data: order, isLoading } = trpc.orders.get.useQuery({
 		id: orderId,
 	}) as { data: any; isLoading: boolean };
+
+	const hasHandover =
+		!!order?.deliveryHandover &&
+		(order.status === "completed" ||
+			order.deliveryHandover?.deliveryStatus === "delivered");
+
+	const [activeTab, setActiveTab] = useState<string>("stage3");
+
+	useEffect(() => {
+		if (order) {
+			setActiveTab(hasHandover ? "stage4" : "stage3");
+		}
+	}, [order, hasHandover]);
 
 	let tRaw: any = null;
 	let tcRaw: any = null;
@@ -189,12 +202,17 @@ export default function OrderDetailPage({
 		0
 	);
 
+	const assignedDriverName =
+		order.driver?.name || deliveryHandover?.driverName || null;
+
 	const statusColor =
 		order.status === "completed"
 			? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
 			: order.status === "cancelled"
 				? "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20"
-				: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+				: order.status === "out_for_delivery"
+					? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
+					: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
 
 	return (
 		<div className="max-w-5xl space-y-6 mx-auto pb-12">
@@ -216,7 +234,11 @@ export default function OrderDetailPage({
 									? "Delivered & Settled"
 									: order.status === "cancelled"
 										? "Cancelled"
-										: "In Progress / Active"}
+										: order.status === "out_for_delivery"
+											? "Out for Delivery"
+											: order.route
+												? "Route Assigned / Processing"
+												: "Awaiting Dispatch"}
 							</Badge>
 						</div>
 						<p className="text-xs text-muted-foreground mt-0.5">
@@ -231,7 +253,7 @@ export default function OrderDetailPage({
 							href={generateOrderWhatsAppLink(
 								{
 									id: order.id,
-									totalAmount: order.total_amount,
+									totalAmount: hasHandover ? totalCollected : invoicedTotal,
 									items: order.orderItems?.map((item: any) => ({
 										name: item.product?.name,
 										quantity: item.quantity,
@@ -254,10 +276,14 @@ export default function OrderDetailPage({
 					<Button
 						size="sm"
 						onClick={() => router.push(`/sales/pos?completedOrderId=${order.id}`)}
-						className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700 shadow-sm"
+						className={`gap-2 font-semibold text-white shadow-sm ${
+							hasHandover
+								? "bg-emerald-600 hover:bg-emerald-700"
+								: "bg-amber-600 hover:bg-amber-700"
+						}`}
 					>
 						<Printer className="h-4 w-4" />
-						Print Final Bill
+						{hasHandover ? "Print Final Settled Bill" : "Print Commercial Invoice"}
 					</Button>
 				</div>
 			</div>
@@ -268,44 +294,49 @@ export default function OrderDetailPage({
 					<div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
 						{/* Customer Column */}
 						<div>
-							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-								<User className="h-3.5 w-3.5" /> Customer Details
+							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+								<User className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Customer Details
 							</div>
-							<div className="font-bold text-sm text-foreground mt-1">
+							<div className="font-bold text-sm text-foreground mt-1 flex items-center gap-1.5">
+								<span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
 								{order.customer?.name || "Walk-in Customer"}
 							</div>
 							{order.customer?.phone && (
-								<p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-									<Phone className="h-3 w-3 text-emerald-600" /> {order.customer.phone}
+								<p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono">
+									<Phone className="h-3 w-3 text-emerald-600 shrink-0" /> {order.customer.phone}
 								</p>
 							)}
 							{order.customer?.address && (
-								<p className="text-xs text-muted-foreground flex items-start gap-1 mt-1 leading-snug line-clamp-2">
-									<MapPin className="h-3 w-3 text-red-500 shrink-0 mt-0.5" />
+								<p className="text-xs text-muted-foreground flex items-start gap-1.5 mt-1 leading-snug line-clamp-2">
+									<MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
 									<span>{order.customer.address}</span>
 								</p>
 							)}
 						</div>
 
-						{/* Delivery Route */}
+						{/* Delivery Route & Assigned Driver */}
 						<div>
-							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-								<Truck className="h-3.5 w-3.5" /> Assigned Route & Driver
+							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+								<Truck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Assigned Route & Driver
 							</div>
 							{order.route ? (
 								<div className="mt-1">
-									<Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 font-semibold text-xs">
-										🚚 {order.route.name} {order.route.code ? `(${order.route.code})` : ""}
+									<Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 font-semibold text-xs gap-1">
+										<Truck className="h-3 w-3 text-amber-600" /> {order.route.name} {order.route.code ? `(${order.route.code})` : ""}
 									</Badge>
 								</div>
 							) : (
-								<p className="text-xs text-muted-foreground mt-1">No route assigned</p>
+								<p className="text-xs text-muted-foreground mt-1 italic">No route assigned</p>
 							)}
-							{deliveryHandover?.driverName && (
-								<p className="text-xs font-medium text-foreground mt-1 flex items-center gap-1">
-									<span>👤 Driver:</span> {deliveryHandover.driverName}
-								</p>
-							)}
+							<p className="text-xs font-medium text-foreground mt-1.5 flex items-center gap-1.5">
+								<User className="h-3 w-3 text-indigo-500 shrink-0" />
+								<span className="text-muted-foreground">Driver:</span>{" "}
+								{assignedDriverName ? (
+									<span className="font-semibold text-foreground">{assignedDriverName}</span>
+								) : (
+									<span className="text-muted-foreground italic">Not assigned yet</span>
+								)}
+							</p>
 						</div>
 
 						{/* Timestamps */}
@@ -325,19 +356,37 @@ export default function OrderDetailPage({
 							)}
 						</div>
 
-						{/* Final Setteled Amount */}
+						{/* Current Active Total / Settled Amount Box */}
 						<div className="bg-muted/40 p-3 rounded-lg border border-border/40">
-							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-								Final Settled Bill
+							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+								<span>{hasHandover ? "Final Settled Bill" : "Active Commercial Total"}</span>
+								{!hasHandover && (
+									<Badge variant="outline" className="text-[9px] py-0 px-1 bg-amber-500/10 text-amber-600 border-amber-500/20">
+										{order.status === "out_for_delivery" ? "In Transit" : "Invoice"}
+									</Badge>
+								)}
 							</div>
-							<div className="font-extrabold text-xl text-emerald-600 dark:text-emerald-400 mt-0.5">
-								{formatCurrency(totalCollected, locale)}
+							<div className={`font-extrabold text-xl mt-0.5 ${hasHandover ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+								{formatCurrency(hasHandover ? totalCollected : invoicedTotal, locale)}
 							</div>
-							<div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-								<span>💵 ₹{cashCollected}</span>
-								<span>•</span>
-								<span>📱 ₹{onlineCollected}</span>
-							</div>
+							{hasHandover ? (
+								<div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
+									<span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800/60">
+										<Banknote className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+										₹{cashCollected}
+									</span>
+									<span className="text-muted-foreground/40">•</span>
+									<span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400 px-2 py-0.5 rounded border border-purple-200/80 dark:border-purple-800/60">
+										<QrCode className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+										₹{onlineCollected}
+									</span>
+								</div>
+							) : (
+								<p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+									<Clock className="h-3 w-3 text-amber-600" />
+									Pending Doorstep Handover
+								</p>
+							)}
 						</div>
 					</div>
 				</CardContent>
@@ -413,28 +462,39 @@ export default function OrderDetailPage({
 						4. Doorstep Final Bill
 					</div>
 					<div className="text-[11px] text-muted-foreground mt-0.5">
-						Settled: {formatCurrency(totalCollected, locale)} {hasReturns ? "• ⚠️ Returns" : ""}
+						{hasHandover
+							? `Settled: ${formatCurrency(totalCollected, locale)}${hasReturns ? " • ⚠️ Returns" : ""}`
+							: `Pending: ${formatCurrency(invoicedTotal, locale)} (Awaiting Delivery)`}
 					</div>
 				</button>
 			</div>
 
 			{/* Main 4-Stage Bill Tabs */}
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
-				<TabsList className="grid grid-cols-2 md:grid-cols-5 w-full h-auto p-1 bg-muted/70">
-					<TabsTrigger value="stage1" className="text-xs py-2">
-						1️⃣ Customer Placed
+				<TabsList className="grid grid-cols-2 md:grid-cols-5 w-full h-auto p-1 bg-muted/70 gap-1">
+					<TabsTrigger value="stage1" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-[10px] font-bold text-blue-600 dark:text-blue-400">1</span>
+						<ShoppingCart className="h-3.5 w-3.5 text-blue-500" />
+						Customer Placed
 					</TabsTrigger>
-					<TabsTrigger value="stage2" className="text-xs py-2">
-						2️⃣ Sales Review
+					<TabsTrigger value="stage2" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-purple-500/15 text-[10px] font-bold text-purple-600 dark:text-purple-400">2</span>
+						<FileEdit className="h-3.5 w-3.5 text-purple-500" />
+						Sales Review
 					</TabsTrigger>
-					<TabsTrigger value="stage3" className="text-xs py-2">
-						3️⃣ Invoiced Bill
+					<TabsTrigger value="stage3" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-[10px] font-bold text-amber-600 dark:text-amber-400">3</span>
+						<FileText className="h-3.5 w-3.5 text-amber-500" />
+						Invoiced Bill
 					</TabsTrigger>
-					<TabsTrigger value="stage4" className="text-xs py-2">
-						4️⃣ Final Doorstep Bill
+					<TabsTrigger value="stage4" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">4</span>
+						<PackageCheck className="h-3.5 w-3.5 text-emerald-500" />
+						Final Doorstep Bill
 					</TabsTrigger>
-					<TabsTrigger value="comparison" className="text-xs py-2 col-span-2 md:col-span-1">
-						📊 All 4 Comparison
+					<TabsTrigger value="comparison" className="text-xs py-2 col-span-2 md:col-span-1 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
+						<BarChart3 className="h-3.5 w-3.5 text-indigo-500" />
+						All 4 Comparison
 					</TabsTrigger>
 				</TabsList>
 
@@ -543,6 +603,12 @@ export default function OrderDetailPage({
 									{reviewedItems.map((item: any, idx: number) => {
 										const itemPrice = Number(item.price || 0);
 										const itemQty = Number(item.quantity || 1);
+										const original = originalItems.find(
+											(o) => o.name === item.product?.name || o.id === item.product_id
+										);
+										const origQty = original ? Number(original.quantity || 1) : null;
+										const isQtyModified = origQty !== null && origQty !== itemQty;
+
 										return (
 											<TableRow key={item.id || idx}>
 												<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
@@ -559,7 +625,17 @@ export default function OrderDetailPage({
 													)}
 												</TableCell>
 												<TableCell className="text-center font-semibold">
-													{itemQty}
+													<div className="flex items-center justify-center gap-1.5">
+														<span>{itemQty}</span>
+														{isQtyModified && (
+															<Badge
+																variant="outline"
+																className="text-[10px] py-0 px-1 bg-purple-500/10 border-purple-400 text-purple-700 dark:text-purple-300 font-normal"
+															>
+																Edited (was {origQty})
+															</Badge>
+														)}
+													</div>
 												</TableCell>
 												<TableCell className="text-right">
 													{formatCurrency(itemPrice, locale)}
@@ -709,164 +785,282 @@ export default function OrderDetailPage({
 										Stage 4: Doorstep Delivery & Final Settlement Bill (अंतिम डिलीवरी व संग्रह बिल)
 									</CardTitle>
 									<CardDescription className="text-xs">
-										The final handover at the customer doorstep — verified delivered items, returned/damaged deductions, and payment collected.
+										{hasHandover
+											? "The final handover at the customer doorstep — verified delivered items, returned/damaged deductions, and payment collected."
+											: "This stage is unlocked when the driver completes physical delivery handover and payment collection."}
 									</CardDescription>
 								</div>
-								<Badge className="bg-emerald-600 text-white font-medium">Stage 4 Final</Badge>
+								<Badge className={hasHandover ? "bg-emerald-600 text-white font-medium" : "bg-amber-600 text-white font-medium"}>
+									{hasHandover ? "Stage 4 Final" : "Awaiting Handover"}
+								</Badge>
 							</div>
 						</CardHeader>
 						<CardContent className="p-5 space-y-6">
-							{/* Doorstep Return / Damage Alert if applicable */}
-							{hasReturns ? (
-								<div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
-									<div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-sm">
-										<AlertTriangle className="h-4 w-4" />
-										<span>Doorstep Returns & Damaged Items Deducted ({returnedItems.length})</span>
+							{!hasHandover ? (
+								/* Awaiting Dispatch / Delivery Handover View */
+								<div className="space-y-6">
+									<div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-900 dark:text-amber-200">
+										<Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+										<div className="space-y-1 text-xs">
+											<p className="font-bold text-sm">
+												Awaiting Physical Dispatch & Doorstep Handover (डिलीवरी व अंतिम बिल लंबित)
+											</p>
+											<p className="text-amber-800 dark:text-amber-300 leading-relaxed">
+												This order has not reached the final delivery handover stage yet. 
+												Once the driver completes delivery at the customer doorstep (recording any returned or rejected items, POD confirmation, and collecting cash/UPI payments), the final settled bill and audit will be generated and displayed here.
+											</p>
+										</div>
 									</div>
-									<div className="overflow-x-auto">
-										<table className="w-full text-xs">
-											<thead>
-												<tr className="border-b border-red-500/20 text-muted-foreground">
-													<th className="text-left pb-1 font-medium">Item Name</th>
-													<th className="text-center pb-1 font-medium">Returned Qty</th>
-													<th className="text-left pb-1 font-medium">Reason for Return / Damage</th>
-													<th className="text-right pb-1 font-medium">Deduction</th>
-												</tr>
-											</thead>
-											<tbody>
-												{returnedItems.map((ret: any, idx: number) => {
-													const retQty = Number(ret.quantity || ret.qty || 1);
-													const retPrice = Number(ret.price || ret.unitPrice || 0);
-													return (
-														<tr key={idx} className="border-b border-red-500/10">
-															<td className="py-1.5 font-medium text-foreground">
-																{ret.name || ret.productName || `Item #${ret.productId || idx + 1}`}
-															</td>
-															<td className="py-1.5 text-center font-bold text-red-600">
-																{retQty}
-															</td>
-															<td className="py-1.5 text-muted-foreground">
-																{ret.reason || "Damaged at delivery / Customer rejected"}
-															</td>
-															<td className="py-1.5 text-right font-medium text-red-600">
-																- {formatCurrency(retPrice * retQty, locale)}
-															</td>
-														</tr>
-													);
-												})}
-											</tbody>
-										</table>
+
+									{/* Pending Items Summary */}
+									<div>
+										<h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+											Items Pending Delivery Handover
+										</h3>
+										<div className="rounded-md border overflow-hidden">
+											<Table>
+												<TableHeader>
+													<TableRow>
+														<TableHead className="w-12">#</TableHead>
+														<TableHead>Product Name</TableHead>
+														<TableHead className="text-center">Dispatched Qty</TableHead>
+														<TableHead className="text-center">Delivery Status</TableHead>
+														<TableHead className="text-right">Unit Rate</TableHead>
+														<TableHead className="text-right">Invoiced Amount</TableHead>
+													</TableRow>
+												</TableHeader>
+												<TableBody>
+													{reviewedItems.map((item: any, idx: number) => {
+														const itemPrice = Number(item.price || 0);
+														const itemQty = Number(item.quantity || 1);
+														return (
+															<TableRow key={item.id || idx}>
+																<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+																<TableCell className="font-medium">
+																	{item.product?.name ?? `#${item.product_id}`}
+																</TableCell>
+																<TableCell className="text-center font-semibold">
+																	{itemQty}
+																</TableCell>
+																<TableCell className="text-center">
+																	<Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
+																		Pending Handover
+																	</Badge>
+																</TableCell>
+																<TableCell className="text-right">
+																	{formatCurrency(itemPrice, locale)}
+																</TableCell>
+																<TableCell className="text-right font-medium">
+																	{formatCurrency(itemPrice * itemQty, locale)}
+																</TableCell>
+															</TableRow>
+														);
+													})}
+												</TableBody>
+											</Table>
+										</div>
+									</div>
+
+									{/* Expected Collection Placeholder */}
+									<div>
+										<h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+											Expected Collection at Handover
+										</h3>
+										<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+											<div className="p-4 rounded-lg bg-card border border-border/80 shadow-sm flex items-center gap-3">
+												<div className="p-2.5 rounded-full bg-muted text-muted-foreground">
+													<Banknote className="h-5 w-5" />
+												</div>
+												<div>
+													<div className="text-xs text-muted-foreground">Cash (Pending)</div>
+													<div className="text-base font-semibold text-muted-foreground">
+														—
+													</div>
+												</div>
+											</div>
+
+											<div className="p-4 rounded-lg bg-card border border-border/80 shadow-sm flex items-center gap-3">
+												<div className="p-2.5 rounded-full bg-muted text-muted-foreground">
+													<QrCode className="h-5 w-5" />
+												</div>
+												<div>
+													<div className="text-xs text-muted-foreground">Online / UPI (Pending)</div>
+													<div className="text-base font-semibold text-muted-foreground">
+														—
+													</div>
+												</div>
+											</div>
+
+											<div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 shadow-sm flex items-center gap-3">
+												<div className="p-2.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+													<Clock className="h-5 w-5" />
+												</div>
+												<div>
+													<div className="text-xs text-amber-700 dark:text-amber-300 font-medium">Expected Handover Total</div>
+													<div className="text-lg font-bold text-amber-800 dark:text-amber-200">
+														{formatCurrency(invoicedTotal, locale)}
+													</div>
+												</div>
+											</div>
+										</div>
 									</div>
 								</div>
 							) : (
-								<div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
-									<CheckCircle2 className="h-4 w-4 text-emerald-600" />
-									<span>All items accepted in full at doorstep without returns or damage.</span>
-								</div>
-							)}
+								/* Completed Handover & Settlement View */
+								<div className="space-y-6">
+									{/* Doorstep Return / Damage Alert if applicable */}
+									{hasReturns ? (
+										<div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
+											<div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-sm">
+												<AlertTriangle className="h-4 w-4" />
+												<span>Doorstep Returns & Damaged Items Deducted ({returnedItems.length})</span>
+											</div>
+											<div className="overflow-x-auto">
+												<table className="w-full text-xs">
+													<thead>
+														<tr className="border-b border-red-500/20 text-muted-foreground">
+															<th className="text-left pb-1 font-medium">Item Name</th>
+															<th className="text-center pb-1 font-medium">Returned Qty</th>
+															<th className="text-left pb-1 font-medium">Reason for Return / Damage</th>
+															<th className="text-right pb-1 font-medium">Deduction</th>
+														</tr>
+													</thead>
+													<tbody>
+														{returnedItems.map((ret: any, idx: number) => {
+															const retQty = Number(ret.quantity || ret.qty || 1);
+															const retPrice = Number(ret.price || ret.unitPrice || 0);
+															return (
+																<tr key={idx} className="border-b border-red-500/10">
+																	<td className="py-1.5 font-medium text-foreground">
+																		{ret.name || ret.productName || `Item #${ret.productId || idx + 1}`}
+																	</td>
+																	<td className="py-1.5 text-center font-bold text-red-600">
+																		{retQty}
+																	</td>
+																	<td className="py-1.5 text-muted-foreground">
+																		{ret.reason || "Damaged at delivery / Customer rejected"}
+																	</td>
+																	<td className="py-1.5 text-right font-medium text-red-600">
+																		- {formatCurrency(retPrice * retQty, locale)}
+																	</td>
+																</tr>
+															);
+														})}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									) : (
+										<div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
+											<CheckCircle2 className="h-4 w-4 text-emerald-600" />
+											<span>All items accepted in full at doorstep without returns or damage.</span>
+										</div>
+									)}
 
-							{/* Doorstep Delivered Items Table */}
-							<div>
-								<h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-									Delivered Items Summary
-								</h3>
-								<div className="rounded-md border overflow-hidden">
-									<Table>
-										<TableHeader>
-											<TableRow>
-												<TableHead className="w-12">#</TableHead>
-												<TableHead>Product Name</TableHead>
-												<TableHead className="text-center">Delivered Qty</TableHead>
-												<TableHead className="text-right">Unit Rate</TableHead>
-												<TableHead className="text-right">Net Accepted Total</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{reviewedItems.map((item: any, idx: number) => {
-												const ret = returnedItems.find(
-													(r) => r.id === item.id || r.productId === item.product_id || r.name === item.product?.name
-												);
-												const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
-												const netQty = Math.max(0, Number(item.quantity || 1) - retQty);
-												const itemPrice = Number(item.price || 0);
-
-												return (
-													<TableRow key={item.id || idx}>
-														<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-														<TableCell className="font-medium">
-															{item.product?.name ?? `#${item.product_id}`}
-															{retQty > 0 && (
-																<span className="ml-2 text-[10px] text-red-600 font-normal">
-																	({retQty} returned)
-																</span>
-															)}
-														</TableCell>
-														<TableCell className="text-center font-bold text-emerald-700 dark:text-emerald-400">
-															{netQty}
-														</TableCell>
-														<TableCell className="text-right">
-															{formatCurrency(itemPrice, locale)}
-														</TableCell>
-														<TableCell className="text-right font-medium">
-															{formatCurrency(itemPrice * netQty, locale)}
-														</TableCell>
+									{/* Doorstep Delivered Items Table */}
+									<div>
+										<h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+											Delivered Items Summary
+										</h3>
+										<div className="rounded-md border overflow-hidden">
+											<Table>
+												<TableHeader>
+													<TableRow>
+														<TableHead className="w-12">#</TableHead>
+														<TableHead>Product Name</TableHead>
+														<TableHead className="text-center">Delivered Qty</TableHead>
+														<TableHead className="text-right">Unit Rate</TableHead>
+														<TableHead className="text-right">Net Accepted Total</TableHead>
 													</TableRow>
-												);
-											})}
-										</TableBody>
-									</Table>
-								</div>
-							</div>
+												</TableHeader>
+												<TableBody>
+													{reviewedItems.map((item: any, idx: number) => {
+														const ret = returnedItems.find(
+															(r) => r.id === item.id || r.productId === item.product_id || r.name === item.product?.name
+														);
+														const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
+														const netQty = Math.max(0, Number(item.quantity || 1) - retQty);
+														const itemPrice = Number(item.price || 0);
 
-							{/* Payment Collection Cards */}
-							<div>
-								<h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-									Doorstep Payment Collection Breakdown
-								</h3>
-								<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-									<div className="p-4 rounded-lg bg-card border border-border/80 shadow-sm flex items-center gap-3">
-										<div className="p-2.5 rounded-full bg-emerald-500/10 text-emerald-600">
-											<Banknote className="h-5 w-5" />
+														return (
+															<TableRow key={item.id || idx}>
+																<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+																<TableCell className="font-medium">
+																	{item.product?.name ?? `#${item.product_id}`}
+																	{retQty > 0 && (
+																		<span className="ml-2 text-[10px] text-red-600 font-normal">
+																			({retQty} returned)
+																		</span>
+																	)}
+																</TableCell>
+																<TableCell className="text-center font-bold text-emerald-700 dark:text-emerald-400">
+																	{netQty}
+																</TableCell>
+																<TableCell className="text-right">
+																	{formatCurrency(itemPrice, locale)}
+																</TableCell>
+																<TableCell className="text-right font-medium">
+																	{formatCurrency(itemPrice * netQty, locale)}
+																</TableCell>
+															</TableRow>
+														);
+													})}
+												</TableBody>
+											</Table>
 										</div>
-										<div>
-											<div className="text-xs text-muted-foreground">Cash Collected</div>
-											<div className="text-lg font-bold text-emerald-600">
-												{formatCurrency(cashCollected, locale)}
+									</div>
+
+									{/* Payment Collection Cards */}
+									<div>
+										<h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+											Doorstep Payment Collection Breakdown
+										</h3>
+										<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+											<div className="p-4 rounded-lg bg-card border border-border/80 shadow-sm flex items-center gap-3">
+												<div className="p-2.5 rounded-full bg-emerald-500/10 text-emerald-600">
+													<Banknote className="h-5 w-5" />
+												</div>
+												<div>
+													<div className="text-xs text-muted-foreground">Cash Collected</div>
+													<div className="text-lg font-bold text-emerald-600">
+														{formatCurrency(cashCollected, locale)}
+													</div>
+												</div>
+											</div>
+
+											<div className="p-4 rounded-lg bg-card border border-border/80 shadow-sm flex items-center gap-3">
+												<div className="p-2.5 rounded-full bg-blue-500/10 text-blue-600">
+													<QrCode className="h-5 w-5" />
+												</div>
+												<div>
+													<div className="text-xs text-muted-foreground">Online / UPI Collected</div>
+													<div className="text-lg font-bold text-blue-600">
+														{formatCurrency(onlineCollected, locale)}
+													</div>
+												</div>
+											</div>
+
+											<div className="p-4 rounded-lg bg-emerald-600 text-white shadow-sm flex items-center gap-3">
+												<div className="p-2.5 rounded-full bg-white/20 text-white">
+													<CheckCircle2 className="h-5 w-5" />
+												</div>
+												<div>
+													<div className="text-xs text-white/80">Total Bill Settled</div>
+													<div className="text-lg font-black">
+														{formatCurrency(totalCollected, locale)}
+													</div>
+												</div>
 											</div>
 										</div>
 									</div>
 
-									<div className="p-4 rounded-lg bg-card border border-border/80 shadow-sm flex items-center gap-3">
-										<div className="p-2.5 rounded-full bg-blue-500/10 text-blue-600">
-											<QrCode className="h-5 w-5" />
+									{/* Delivery Handover Notes */}
+									{deliveryHandover?.deliveryNotes && (
+										<div className="p-3 rounded bg-muted/40 border border-border text-xs">
+											<span className="font-semibold text-foreground">Driver Handover Remarks:</span>{" "}
+											<span className="text-muted-foreground">{deliveryHandover.deliveryNotes}</span>
 										</div>
-										<div>
-											<div className="text-xs text-muted-foreground">Online / UPI Collected</div>
-											<div className="text-lg font-bold text-blue-600">
-												{formatCurrency(onlineCollected, locale)}
-											</div>
-										</div>
-									</div>
-
-									<div className="p-4 rounded-lg bg-emerald-600 text-white shadow-sm flex items-center gap-3">
-										<div className="p-2.5 rounded-full bg-white/20 text-white">
-											<CheckCircle2 className="h-5 w-5" />
-										</div>
-										<div>
-											<div className="text-xs text-white/80">Total Bill Settled</div>
-											<div className="text-lg font-black">
-												{formatCurrency(totalCollected, locale)}
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							{/* Delivery Handover Notes */}
-							{deliveryHandover?.deliveryNotes && (
-								<div className="p-3 rounded bg-muted/40 border border-border text-xs">
-									<span className="font-semibold text-foreground">Driver Handover Remarks:</span>{" "}
-									<span className="text-muted-foreground">{deliveryHandover.deliveryNotes}</span>
+									)}
 								</div>
 							)}
 						</CardContent>
@@ -908,9 +1102,9 @@ export default function OrderDetailPage({
 												3. Invoice Qty
 											</TableHead>
 											<TableHead className="text-center font-bold text-emerald-600">
-												4. Final Net Qty
+												4. Final Settled Qty
 											</TableHead>
-											<TableHead className="text-right font-bold">Final Rate</TableHead>
+											<TableHead className="text-right font-bold">Unit Rate</TableHead>
 											<TableHead className="text-right font-bold">Settled Amount</TableHead>
 										</TableRow>
 									</TableHeader>
@@ -922,11 +1116,12 @@ export default function OrderDetailPage({
 											const ret = returnedItems.find(
 												(r) => r.id === item.id || r.productId === item.product_id || r.name === item.product?.name
 											);
-											const origQty = original ? Number(original.quantity || 1) : "—";
+											const origQty = original ? Number(original.quantity || 1) : null;
 											const revQty = Number(item.quantity || 1);
 											const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
 											const finalQty = Math.max(0, revQty - retQty);
 											const itemPrice = Number(item.price || 0);
+											const isQtyModified = origQty !== null && origQty !== revQty;
 
 											return (
 												<TableRow key={item.id || idx}>
@@ -939,22 +1134,41 @@ export default function OrderDetailPage({
 														)}
 													</TableCell>
 													<TableCell className="text-center text-blue-700 dark:text-blue-400 font-medium">
-														{origQty}
+														{origQty ?? "—"}
 													</TableCell>
 													<TableCell className="text-center text-purple-700 dark:text-purple-400 font-medium">
-														{revQty}
+														<div className="flex items-center justify-center gap-1">
+															<span>{revQty}</span>
+															{isQtyModified && (
+																<Badge variant="outline" className="text-[9px] py-0 px-1 border-purple-400 bg-purple-500/10 text-purple-700 font-normal">
+																	Edited
+																</Badge>
+															)}
+														</div>
 													</TableCell>
 													<TableCell className="text-center text-amber-700 dark:text-amber-400 font-medium">
 														{revQty}
 													</TableCell>
 													<TableCell className="text-center text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/5">
-														{finalQty}
+														{hasHandover ? (
+															finalQty
+														) : (
+															<span className="text-xs text-muted-foreground font-normal italic">
+																— (Pending)
+															</span>
+														)}
 													</TableCell>
 													<TableCell className="text-right">
 														{formatCurrency(itemPrice, locale)}
 													</TableCell>
 													<TableCell className="text-right font-bold text-emerald-600">
-														{formatCurrency(itemPrice * finalQty, locale)}
+														{hasHandover ? (
+															formatCurrency(itemPrice * finalQty, locale)
+														) : (
+															<span className="text-xs text-muted-foreground font-normal italic">
+																— (Est. {formatCurrency(itemPrice * revQty, locale)})
+															</span>
+														)}
 													</TableCell>
 												</TableRow>
 											);
@@ -984,9 +1198,13 @@ export default function OrderDetailPage({
 									</div>
 								</div>
 								<div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-									<div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">4. Final Settled</div>
+									<div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
+										{hasHandover ? "4. Final Settled" : "4. Final Settled (Pending)"}
+									</div>
 									<div className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
-										{formatCurrency(totalCollected, locale)}
+										{hasHandover
+											? formatCurrency(totalCollected, locale)
+											: `Pending (Est: ${formatCurrency(invoicedTotal, locale)})`}
 									</div>
 								</div>
 							</div>

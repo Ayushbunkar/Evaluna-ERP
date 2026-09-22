@@ -4,6 +4,7 @@ import {
 	customers,
 	deliveryRoutes,
 	deliveryStops,
+	deliveryTrips,
 	eWayBills,
 	loyaltyHistory,
 	notifications,
@@ -23,6 +24,7 @@ import {
 	staff,
 	stockLedger,
 	transactions,
+	tripStops,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import {
@@ -35,6 +37,7 @@ import {
 	inArray,
 	isNotNull,
 	lte,
+	ne,
 	notInArray,
 	or,
 	sql,
@@ -115,6 +118,15 @@ const orderDetailSchema = z.object({
 			customer_code: z.string().nullable().optional(),
 		})
 		.nullable(),
+	driver: z
+		.object({
+			id: z.number().optional(),
+			name: z.string().optional(),
+			phone: z.string().nullable().optional(),
+			email: z.string().nullable().optional(),
+		})
+		.nullable()
+		.optional(),
 	route: z
 		.object({
 			id: z.number(),
@@ -185,23 +197,81 @@ export const ordersRouter = router({
 
 			if (!result) return null;
 
-			let route = null;
+			let route: any = null;
+			let assignedDriver: any = null;
+			let activeTripStop: any = null;
+
+			// Check if this customer / order is part of an active delivery trip
 			if (result.customer_id) {
 				try {
-					const existingStops = await db
+					const [ts] = await db
+						.select({
+							stopId: tripStops.id,
+							tripId: tripStops.trip_id,
+							stopStatus: tripStops.status,
+							routeId: deliveryTrips.route_id,
+							driverId: deliveryTrips.driver_id,
+							tripStatus: deliveryTrips.status,
+						})
+						.from(tripStops)
+						.innerJoin(deliveryTrips, eq(tripStops.trip_id, deliveryTrips.id))
+						.where(
+							and(
+								eq(tripStops.customer_id, result.customer_id),
+								ne(deliveryTrips.status, "cancelled")
+							)
+						)
+						.orderBy(desc(tripStops.created_at))
+						.limit(1);
+
+					if (ts) {
+						activeTripStop = ts;
+						if (ts.routeId) {
+							const r = await db.query.deliveryRoutes.findFirst({
+								where: eq(deliveryRoutes.id, ts.routeId),
+							});
+							if (r) {
+								route = { id: r.id, name: r.name, code: r.code };
+							}
+						}
+						if (ts.driverId) {
+							const dId = Number(ts.driverId);
+							if (!isNaN(dId)) {
+								assignedDriver = await db.query.staff.findFirst({
+									where: eq(staff.id, dId),
+								});
+							}
+						}
+					}
+				} catch (e) {}
+			}
+
+			// Fallback: If no active trip route, check master customer route assignment
+			if (!route && result.customer_id) {
+				try {
+					const [rs] = await db
 						.select()
 						.from(routeStops)
 						.where(eq(routeStops.customer_id, result.customer_id))
 						.limit(1);
 
-					if (existingStops.length > 0 && existingStops[0].route_id) {
+					if (rs && rs.route_id) {
 						const r = await db.query.deliveryRoutes.findFirst({
-							where: eq(deliveryRoutes.id, existingStops[0].route_id),
+							where: eq(deliveryRoutes.id, rs.route_id),
 						});
 						if (r) {
 							route = { id: r.id, name: r.name, code: r.code };
 						}
 					}
+				} catch (e) {}
+			}
+
+			// Fallback for driver directly attached to order
+			if (!assignedDriver && result.driver_id) {
+				try {
+					assignedDriver = await db.query.staff.findFirst({
+						where: eq(staff.id, result.driver_id),
+					});
 				} catch (e) {}
 			}
 
@@ -220,100 +290,96 @@ export const ordersRouter = router({
 					orderBy: [desc(transactions.created_at)],
 				});
 
-				let driver = null;
-				if (result.driver_id) {
-					driver = await db.query.staff.findFirst({
-						where: eq(staff.id, result.driver_id),
-					});
-				}
+				// ONLY create deliveryHandover if POD actually exists OR order status is completed
+				if (pod || result.status === "completed") {
+					let parsedNotes = pod?.notes || result.notes || "";
+					let parsedReturns: any[] = [];
+					let cashAmount = 0;
+					let onlineAmount = 0;
 
-				let parsedNotes = pod?.notes || result.notes || "";
-				let parsedReturns: any[] = [];
-				let cashAmount = 0;
-				let onlineAmount = 0;
-
-				if (pod?.notes) {
-					try {
-						const p = JSON.parse(pod.notes);
-						if (p.deliveryNotes) parsedNotes = p.deliveryNotes;
-						if (Array.isArray(p.returns) && p.returns.length > 0) {
-							parsedReturns = p.returns;
-						}
-						if (p.cashAmount) cashAmount = Number(p.cashAmount);
-						if (p.onlineAmount) onlineAmount = Number(p.onlineAmount);
-					} catch {
-						parsedNotes = pod.notes;
-					}
-				}
-
-				// Also check tripCollections for actual driver cash & online split
-				let tripCols: any[] = [];
-				if (result.customer_id) {
-					try {
-						tripCols = await db.query.tripCollections.findMany({
-							where: eq(tripCollections.customer_id, result.customer_id),
-							orderBy: [desc(tripCollections.collected_at)],
-						});
-					} catch (e) {}
-				}
-
-				if (tripCols.length > 0) {
-					let tcCash = 0;
-					let tcOnline = 0;
-					for (const tc of tripCols) {
-						const amt = Number(tc.amount || 0);
-						const meth = (tc.payment_method || "").toLowerCase();
-						if (meth.includes("cash")) {
-							tcCash += amt;
-						} else {
-							tcOnline += amt;
+					if (pod?.notes) {
+						try {
+							const p = JSON.parse(pod.notes);
+							if (p.deliveryNotes) parsedNotes = p.deliveryNotes;
+							if (Array.isArray(p.returns) && p.returns.length > 0) {
+								parsedReturns = p.returns;
+							}
+							if (p.cashAmount) cashAmount = Number(p.cashAmount);
+							if (p.onlineAmount) onlineAmount = Number(p.onlineAmount);
+						} catch {
+							parsedNotes = pod.notes;
 						}
 					}
-					if (tcCash > 0 || tcOnline > 0) {
-						cashAmount = tcCash;
-						onlineAmount = tcOnline;
-					}
-				}
 
-				// Fallback to transactions if amounts not parsed
-				if (cashAmount === 0 && onlineAmount === 0 && txns.length > 0) {
-					for (const t of txns) {
-						const amt = Number(t.amount || 0);
-						if (
-							t.reference_type === "driver_cash_collection" ||
-							t.description?.toLowerCase().includes("cash")
-						) {
-							cashAmount += amt;
-						} else {
-							onlineAmount += amt;
+					// Also check tripCollections for actual driver cash & online split
+					let tripCols: any[] = [];
+					if (result.customer_id) {
+						try {
+							tripCols = await db.query.tripCollections.findMany({
+								where: eq(tripCollections.customer_id, result.customer_id),
+								orderBy: [desc(tripCollections.collected_at)],
+							});
+						} catch (e) {}
+					}
+
+					if (tripCols.length > 0) {
+						let tcCash = 0;
+						let tcOnline = 0;
+						for (const tc of tripCols) {
+							const amt = Number(tc.amount || 0);
+							const meth = (tc.payment_method || "").toLowerCase();
+							if (meth.includes("cash")) {
+								tcCash += amt;
+							} else {
+								tcOnline += amt;
+							}
+						}
+						if (tcCash > 0 || tcOnline > 0) {
+							cashAmount = tcCash;
+							onlineAmount = tcOnline;
 						}
 					}
-				}
 
-				deliveryHandover = {
-					deliveredAt: pod?.delivered_at || pod?.created_at || null,
-					deliveryStatus:
-						pod?.delivery_status ||
-						(result.status === "completed" ? "delivered" : "pending"),
-					driverName: driver?.name || "Driver Staff",
-					driverEmail: driver?.email || "driver@evaluna.com",
-					driverPhone: driver?.phone || "N/A",
-					deliveryNotes: parsedNotes,
-					returnedItems: parsedReturns,
-					cashCollected: cashAmount,
-					onlineCollected: onlineAmount,
-					totalCollected:
-						cashAmount + onlineAmount > 0
-							? cashAmount + onlineAmount
-							: Number(result.total_amount || 0),
-					transactions: txns.map((t) => ({
-						id: t.id,
-						amount: Number(t.amount || 0),
-						type: t.reference_type || t.category || "Payment",
-						status: t.status,
-						date: t.created_at ? new Date(t.created_at).toLocaleString() : "—",
-					})),
-				};
+					// Fallback to transactions if amounts not parsed
+					if (cashAmount === 0 && onlineAmount === 0 && txns.length > 0) {
+						for (const t of txns) {
+							const amt = Number(t.amount || 0);
+							if (
+								t.reference_type === "driver_cash_collection" ||
+								t.description?.toLowerCase().includes("cash")
+							) {
+								cashAmount += amt;
+							} else {
+								onlineAmount += amt;
+							}
+						}
+					}
+
+					deliveryHandover = {
+						deliveredAt: pod?.delivered_at || pod?.created_at || (result.status === "completed" ? result.updated_at : null),
+						deliveryStatus:
+							pod?.delivery_status ||
+							(result.status === "completed" ? "delivered" : "pending"),
+						driverName: assignedDriver?.name || null,
+						driverEmail: assignedDriver?.email || null,
+						driverPhone: assignedDriver?.phone || null,
+						deliveryNotes: parsedNotes,
+						returnedItems: parsedReturns,
+						cashCollected: cashAmount,
+						onlineCollected: onlineAmount,
+						totalCollected:
+							cashAmount + onlineAmount > 0
+								? cashAmount + onlineAmount
+								: Number(result.total_amount || 0),
+						transactions: txns.map((t) => ({
+							id: t.id,
+							amount: Number(t.amount || 0),
+							type: t.reference_type || t.category || "Payment",
+							status: t.status,
+							date: t.created_at ? new Date(t.created_at).toLocaleString() : "—",
+						})),
+					};
+				}
 			} catch (e) {
 				console.warn("[orders.get] POD fetch fallback:", e);
 			}
@@ -329,6 +395,14 @@ export const ordersRouter = router({
 
 			return {
 				...result,
+				driver: assignedDriver
+					? {
+							id: assignedDriver.id,
+							name: assignedDriver.name,
+							phone: assignedDriver.phone,
+							email: assignedDriver.email,
+					  }
+					: null,
 				route,
 				deliveryHandover,
 				audits,
@@ -357,27 +431,25 @@ export const ordersRouter = router({
 			const branchId = ctx.user?.branchId ?? null;
 			const privilegedRoles = [
 				"admin",
+				"super_admin",
 				"manager",
 				"finance",
 				"warehouse_manager",
 				"accountant",
-				"sales_person",
-				"salesperson",
-				"sales",
 			];
 			const isPrivileged =
 				ctx.user?.isSuperadmin ||
-				(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
 
-			const baseScope = branchId
-				? isPrivileged
-					? or(eq(orders.branch_id, branchId), eq(orders.user_uid, ctx.user?.id))
-					: and(
+			const baseScope = isPrivileged
+				? branchId
+					? eq(orders.branch_id, branchId)
+					: undefined
+				: branchId
+					? and(
 							eq(orders.branch_id, branchId),
 							eq(orders.user_uid, ctx.user?.id),
 						)
-				: isPrivileged
-					? undefined
 					: eq(orders.user_uid, ctx.user?.id);
 
 			const startOfToday = new Date();
@@ -386,7 +458,26 @@ export const ordersRouter = router({
 			const endOfToday = new Date();
 			endOfToday.setHours(23, 59, 59, 999);
 
-			const dailyGoal = 50000;
+			// Fetch individual staff monthly sales target if available
+			let dailyGoal = 50000;
+			try {
+				if (ctx.user?.email) {
+					const [staffRecord] = await db
+						.select({ monthly_sales_target: staff.monthly_sales_target })
+						.from(staff)
+						.where(eq(staff.email, ctx.user.email))
+						.limit(1);
+
+					if (staffRecord?.monthly_sales_target) {
+						const monthlyTarget = Number(staffRecord.monthly_sales_target);
+						if (monthlyTarget > 0) {
+							dailyGoal = Math.round(monthlyTarget / 30);
+						}
+					}
+				}
+			} catch (err) {
+				console.error("Failed to fetch staff sales target:", err);
+			}
 
 			const [[salesAgg], recentOrdersList] = await Promise.all([
 				db

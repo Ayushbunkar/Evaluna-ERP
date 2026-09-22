@@ -86,6 +86,48 @@ export function DeliveryManagementDashboard({
 	const finalDrivers = listDriversData || drivers || [];
 	const { data: listLoadersData } = trpc.delivery.listLoaders.useQuery({});
 	const loadersList = listLoadersData || [];
+
+	// Helper to calculate active trip count & availability for a driver
+	const getDriverAvailability = (driverId: string | number) => {
+		const activeTrips = (trips || []).filter(
+			(t: any) =>
+				t.status !== "cancelled" &&
+				t.status !== "completed" &&
+				(t.driver_id === driverId ||
+					t.driver_id === String(driverId) ||
+					t.driver?.id === driverId ||
+					t.driver?.user_id === driverId ||
+					t.driver?.email === driverId),
+		);
+		const count = activeTrips.length;
+		return {
+			isFree: count === 0,
+			count,
+			label: count === 0 ? "🟢 FREE (0 Active Trips)" : `🔴 BUSY (${count} Active Trip${count > 1 ? "s" : ""})`,
+			badgeClass: count === 0 ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300",
+		};
+	};
+
+	// Helper to calculate active loading task count & availability for a loader
+	const getLoaderAvailability = (loaderId: string | number) => {
+		const activeLoading = (trips || []).filter(
+			(t: any) =>
+				t.status !== "cancelled" &&
+				t.status !== "completed" &&
+				t.status !== "delivered" &&
+				(t.loader_id === loaderId ||
+					t.loader_id === String(loaderId) ||
+					t.loader?.id === loaderId ||
+					t.loader?.email === loaderId),
+		);
+		const count = activeLoading.length;
+		return {
+			isFree: count === 0,
+			count,
+			label: count === 0 ? "🟢 FREE (0 Active Loading Tasks)" : `🔴 BUSY (${count} Active Task${count > 1 ? "s" : ""})`,
+			badgeClass: count === 0 ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300",
+		};
+	};
 	const { data: routeWaitingPool = [], refetch: refetchRoutePool } =
 		trpc.delivery.getRouteWaitingPool.useQuery({});
 
@@ -3176,24 +3218,29 @@ export function DeliveryManagementDashboard({
 								<SelectValue placeholder="Select Driver..." />
 							</SelectTrigger>
 							<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
-								{finalDrivers.map((d: any) => (
-									<SelectItem key={d.id} value={d.id} className="cursor-pointer py-2">
-										<div className="flex flex-col gap-0.5 min-w-0 max-w-full text-left">
-											<div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
-												<span>👤 {d.name}</span>
-												{d.staff_code && (
-													<span className="rounded bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.2 font-mono text-[10px] text-blue-700 dark:text-blue-300">
-														ID: {d.staff_code}
+								{finalDrivers.map((d: any) => {
+									const avail = getDriverAvailability(d.id);
+									return (
+										<SelectItem key={d.id} value={d.id} className="cursor-pointer py-2">
+											<div className="flex flex-col gap-0.5 min-w-0 max-w-full text-left">
+												<div className="flex items-center justify-between gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
+													<span>👤 {d.name}</span>
+													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
+														{avail.label}
 													</span>
-												)}
+												</div>
+												<div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
+													{d.email && <span>📧 {d.email}</span>}
+													{d.staff_code && (
+														<span className="font-mono text-[10px] opacity-75">
+															ID: {d.staff_code}
+														</span>
+													)}
+												</div>
 											</div>
-											<div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
-												{d.email && <span>📧 {d.email}</span>}
-												<span className="font-mono text-[10px] opacity-75">UUID: {d.id}</span>
-											</div>
-										</div>
-									</SelectItem>
-								))}
+										</SelectItem>
+									);
+								})}
 							</SelectContent>
 						</Select>
 					</div>
@@ -3996,11 +4043,21 @@ export function DeliveryManagementDashboard({
 									<SelectValue placeholder="Select Driver" />
 								</SelectTrigger>
 								<SelectContent>
-									{finalDrivers.map((d: any) => (
-										<SelectItem key={d.id} value={d.id}>
-											👤 {d.name} {d.email ? `(${d.email})` : ""}
-										</SelectItem>
-									))}
+									{finalDrivers.map((d: any) => {
+										const avail = getDriverAvailability(d.id);
+										return (
+											<SelectItem key={d.id} value={d.id} className="cursor-pointer py-1.5">
+												<div className="flex items-center justify-between gap-2 w-full text-xs">
+													<span className="font-medium text-slate-900 dark:text-slate-100">
+														👤 {d.name} {d.email ? `(${d.email})` : ""}
+													</span>
+													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
+														{avail.label}
+													</span>
+												</div>
+											</SelectItem>
+										);
+									})}
 								</SelectContent>
 							</Select>
 						</div>
@@ -4028,11 +4085,21 @@ export function DeliveryManagementDashboard({
 									<SelectValue placeholder="Select Loader" />
 								</SelectTrigger>
 								<SelectContent>
-									{loadersList.map((l: any) => (
-										<SelectItem key={l.id} value={l.id}>
-											📦 {l.name} {l.email ? `(${l.email})` : ""}
-										</SelectItem>
-									))}
+									{loadersList.map((l: any) => {
+										const avail = getLoaderAvailability(l.id);
+										return (
+											<SelectItem key={l.id} value={l.id} className="cursor-pointer py-1.5">
+												<div className="flex items-center justify-between gap-2 w-full text-xs">
+													<span className="font-medium text-slate-900 dark:text-slate-100">
+														📦 {l.name} {l.email ? `(${l.email})` : ""}
+													</span>
+													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
+														{avail.label}
+													</span>
+												</div>
+											</SelectItem>
+										);
+									})}
 								</SelectContent>
 							</Select>
 							<p className="text-[11px] text-slate-500">

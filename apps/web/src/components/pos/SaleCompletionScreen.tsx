@@ -689,7 +689,7 @@ export function SaleCompletionScreen({
 								<Text>{order.cashierName || "Counter 1"}</Text>
 							</View>
 
-							{order.customerName || order.customerPhone || order.shopName ? (
+							{order.customerName || order.customerPhone || order.shopName || order.address ? (
 								<>
 									<View style={styles.separator} />
 									<Text style={[styles.bold, { marginBottom: 4 }]}>

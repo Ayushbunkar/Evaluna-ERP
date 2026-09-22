@@ -359,7 +359,21 @@ export default function DriverLiveDeliveryPage() {
 		setCashAmount(0);
 		setOnlineAmount(0);
 		setNotes("");
-		setItems(DEFAULT_ITEMS);
+		const targetStop = routeStops.find((s) => s.id === stopId);
+		if (targetStop && targetStop.orderItems && targetStop.orderItems.length > 0) {
+			setItems(
+				targetStop.orderItems.map((oi: any) => ({
+					id: oi.id,
+					name: oi.name,
+					originalQty: oi.qty,
+					deliveredQty: oi.qty,
+					returnedQty: 0,
+					price: Number(oi.price || 0),
+				})),
+			);
+		} else {
+			setItems(DEFAULT_ITEMS);
+		}
 		setHandoverStopId(stopId);
 	};
 
@@ -949,7 +963,7 @@ export default function DriverLiveDeliveryPage() {
 			{billModalOpen && (
 				<SaleCompletionScreen
 					order={{
-						id: Date.now().toString().slice(-6) as any,
+						id: (activeStop?.orderIds?.[0] || activeStop?.orderId || Date.now().toString().slice(-6)) as any,
 						createdAt: new Date().toISOString(),
 						items: items.map((i) => ({
 							id: i.id,
@@ -966,9 +980,9 @@ export default function DriverLiveDeliveryPage() {
 							...(onlineAmount > 0 ? [{ methodId: 3, amount: String(onlineAmount) }] : []),
 						],
 						cashierName: dashboardData?.driverName || "Driver Staff",
-						customerName: activeStop?.customerName || "Customer",
-						customerPhone: activeStop?.phone || "N/A",
-						address: activeStop?.address || "Delivery Address",
+						customerName: activeStop?.customerName && activeStop.customerName !== "Customer" ? activeStop.customerName : "Customer",
+						customerPhone: activeStop?.phone && activeStop.phone !== "N/A" ? activeStop.phone : "N/A",
+						address: activeStop?.address && activeStop.address !== "N/A" ? activeStop.address : "Delivery Address",
 					}}
 					onNewSale={() => {
 						setBillModalOpen(false);

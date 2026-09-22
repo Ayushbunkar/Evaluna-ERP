@@ -65,6 +65,16 @@ export default function PackerPendingPage() {
 		refetchIntervalInBackground: false,
 	});
 
+	const claimPackMutation = trpc.packer.claimNextPackTask.useMutation({
+		onSuccess: (data) => {
+			toast.success(`Claimed parcel ${data.parcel.order_ref} from packing queue!`);
+			setSelectedPickList(data.parcel);
+		},
+		onError: (err) => {
+			toast.error(err.message || "No pending parcels available in the queue.");
+		},
+	});
+
 	const [printPackage, setPrintPackage] = useState<{
 		number: string;
 		orderRef: string;
@@ -281,14 +291,26 @@ export default function PackerPendingPage() {
 			</div>
 
 			{/* Page Header */}
-			<div className="flex flex-col gap-1">
-				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
-					<PackageIcon className="h-7 w-7 text-blue-600" />
-					{t("pendingPackingQueue")}
-				</h1>
-				<p className="text-muted-foreground text-sm">
-					{t("pendingPackingQueueSub")}
-				</p>
+			<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+				<div className="flex flex-col gap-1">
+					<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
+						<PackageIcon className="h-7 w-7 text-blue-600" />
+						{t("pendingPackingQueue")}
+					</h1>
+					<p className="text-muted-foreground text-sm">
+						{t("pendingPackingQueueSub")}
+					</p>
+				</div>
+				<div className="flex items-center gap-2">
+					<Button
+						className="bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-sm"
+						disabled={claimPackMutation.isPending || !pendingList || pendingList.length === 0}
+						onClick={() => claimPackMutation.mutate()}
+					>
+						<BoxIcon className="mr-2 h-4 w-4" />
+						{claimPackMutation.isPending ? "Claiming Parcel..." : "⚡ Claim & Pack Next Parcel"}
+					</Button>
+				</div>
 			</div>
 
 			{/* Stats */}
@@ -390,6 +412,7 @@ export default function PackerPendingPage() {
 							<Table>
 								<TableHeader>
 									<TableRow>
+										<TableHead>Queue #</TableHead>
 										<TableHead>Picklist Ref</TableHead>
 										<TableHead>{t("orderRef")}</TableHead>
 										<TableHead>{t("assignedRoute")}</TableHead>
@@ -401,8 +424,11 @@ export default function PackerPendingPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{filteredList.map((pl) => (
+									{filteredList.map((pl, idx) => (
 										<TableRow key={pl.id} className="hover:bg-muted/50">
+											<TableCell className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
+												#{idx + 1}
+											</TableCell>
 											<TableCell className="font-mono font-semibold text-xs">
 												{pl.id}
 											</TableCell>
@@ -416,7 +442,7 @@ export default function PackerPendingPage() {
 												{pl.completed_at}
 											</TableCell>
 											<TableCell>
-												<span className="rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+												<span className="rounded-full bg-yellow-100 px-2.5 py-0.5 font-bold text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
 													{t("readyToPack")}
 												</span>
 											</TableCell>

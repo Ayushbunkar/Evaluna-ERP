@@ -326,6 +326,8 @@ function POSContent() {
 				customerName:
 					fetchedCompletedOrder.customer?.name || "Walk-in Customer",
 				customerPhone: fetchedCompletedOrder.customer?.phone || "",
+				address: fetchedCompletedOrder.customer?.address || "",
+				village: (fetchedCompletedOrder.customer as any)?.village || "",
 				shopName: "",
 				payments: [
 					{

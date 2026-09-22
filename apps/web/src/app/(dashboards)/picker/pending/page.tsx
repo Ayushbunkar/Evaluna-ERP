@@ -50,6 +50,20 @@ export default function PickerPendingPage() {
 		},
 	);
 
+	const claimNextMutation = trpc.picker.claimNextTask.useMutation({
+		onSuccess: (data) => {
+			toast.success(
+				data.isExisting
+					? "Resuming your active picking task..."
+					: "Next task claimed from queue! Opening pick execution...",
+			);
+			router.push(`/picker/active?id=${data.pickListId}`);
+		},
+		onError: (err) => {
+			toast.error(err.message || "No tasks available to claim.");
+		},
+	});
+
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeStartingId, setActiveStartingId] = useState<number | null>(null);
 
@@ -110,10 +124,13 @@ export default function PickerPendingPage() {
 						/>
 						{isFetching ? t("refreshing") : t("refresh")}
 					</Button>
-					<Button className="bg-blue-600 text-white hover:bg-blue-700" asChild>
-						<Link href="/picker/active">
-							<PlaySquareIcon className="mr-2 h-4 w-4" /> {t("startActivePick")}
-						</Link>
+					<Button
+						className="bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-sm"
+						disabled={claimNextMutation.isPending}
+						onClick={() => claimNextMutation.mutate()}
+					>
+						<PlaySquareIcon className="mr-2 h-4 w-4" />
+						{claimNextMutation.isPending ? "Claiming Task..." : "⚡ Claim Next Task from Queue"}
 					</Button>
 				</div>
 			</div>

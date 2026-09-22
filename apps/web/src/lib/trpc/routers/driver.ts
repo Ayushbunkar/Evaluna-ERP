@@ -315,51 +315,7 @@ export const driverRouter = router({
 					}
 				}
 
-				// 2. Fallback: If no driver-specific trip with stops was found (e.g. manager testing or ID alias variation)
-				if (!trip || !trip.stops || trip.stops.length === 0) {
-					// 2a. Check any active dispatched trip in the branch/system first
-					const activeFallbackTrip = await db.query.deliveryTrips.findFirst({
-						where: inArray(deliveryTrips.status, [
-							"active",
-							"out_for_delivery",
-							"dispatched",
-							"in_progress",
-						]),
-						orderBy: [desc(deliveryTrips.created_at)],
-						with: {
-							stops: {
-								orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
-								with: { customer: true },
-							},
-						},
-					});
-					if (activeFallbackTrip && activeFallbackTrip.stops && activeFallbackTrip.stops.length > 0) {
-						trip = activeFallbackTrip;
-					} else {
-						// 2b. Check loaded/ready trips
-						const readyFallbackTrip = await db.query.deliveryTrips.findFirst({
-							where: inArray(deliveryTrips.status, [
-								"loaded",
-								"ready_for_loading",
-								"pending",
-								"assigned",
-								"ready_for_dispatch",
-							]),
-							orderBy: [desc(deliveryTrips.created_at)],
-							with: {
-								stops: {
-									orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
-									with: { customer: true },
-								},
-							},
-						});
-						if (readyFallbackTrip && readyFallbackTrip.stops && readyFallbackTrip.stops.length > 0) {
-							trip = readyFallbackTrip;
-						}
-					}
-				}
-
-				// Fallback: Check directly assigned orders if no trip with stops is found
+				// If no driver-specific trip was found, check if orders are assigned directly to driver staff ID/UID and ready for dispatch or out for delivery
 				if (!trip || !trip.stops || trip.stops.length === 0) {
 					const assignedOrdersConditions = [];
 					if (numericStaffIds.length > 0) {
@@ -371,41 +327,32 @@ export const driverRouter = router({
 						assignedOrdersConditions.push(inArray(orders.user_uid, driverIds));
 					}
 
-					const directOrders = await db.query.orders.findMany({
-						where:
-							assignedOrdersConditions.length > 0
-								? and(
+					const directOrders =
+						assignedOrdersConditions.length > 0
+							? await db.query.orders.findMany({
+									where: and(
 										or(...assignedOrdersConditions),
 										inArray(orders.status, [
-											"pending",
-											"pending_review",
-											"confirmed",
-											"processing",
-											"packed",
 											"ready_for_dispatch",
 											"out_for_delivery",
 											"dispatched",
-											"assigned",
 											"in_transit",
+											"assigned",
+											"packed",
+											"loaded",
 										]),
-									)
-								: inArray(orders.status, [
-										"out_for_delivery",
-										"dispatched",
-										"ready_for_dispatch",
-										"packed",
-										"in_transit",
-									]),
-						orderBy: [desc(orders.created_at)],
-						with: {
-							customer: true,
-							orderItems: {
-								with: {
-									product: true,
-								},
-							},
-						},
-					});
+									),
+									orderBy: [desc(orders.created_at)],
+									with: {
+										customer: true,
+										orderItems: {
+											with: {
+												product: true,
+											},
+										},
+									},
+							  })
+							: [];
 
 					if (directOrders.length > 0) {
 						// Group orders by customer
@@ -579,13 +526,8 @@ export const driverRouter = router({
 						? db.query.orders.findMany({
 								where: inArray(orders.customer_id, customerIds),
 								orderBy: [desc(orders.created_at)],
-								columns: {
-									id: true,
-									customer_id: true,
-									total_amount: true,
-									status: true,
-								},
 								with: {
+									customer: true,
 									orderItems: {
 										columns: {
 											id: true,
@@ -644,6 +586,21 @@ export const driverRouter = router({
 					);
 					const allItems = activeOrders.flatMap((o) => o.orderItems || []);
 
+					const resolvedCustName =
+						nextStop.customer?.name ||
+						activeOrder?.customer?.name ||
+						"Customer";
+					const resolvedCustPhone =
+						nextStop.customer?.phone ||
+						activeOrder?.customer?.phone ||
+						(activeOrder as any)?.customer_phone ||
+						"N/A";
+					const resolvedCustAddress =
+						nextStop.customer?.address ||
+						activeOrder?.customer?.address ||
+						(activeOrder as any)?.shipping_address ||
+						"N/A";
+
 					nextDelivery = {
 						id: `CUST-${nextStop.customer_id}`,
 						order_id: activeOrder?.id,
@@ -657,12 +614,12 @@ export const driverRouter = router({
 							itemsCount: o.orderItems?.length || 0,
 						})),
 						stop_id: nextStop.id,
-						customerName: nextStop.customer?.name ?? "Customer",
-						phone: nextStop.customer?.phone ?? "N/A",
-						address: nextStop.customer?.address ?? "N/A",
+						customerName: resolvedCustName,
+						phone: resolvedCustPhone,
+						address: resolvedCustAddress,
 						landmark: "",
-						contactName: nextStop.customer?.name ?? "Customer",
-						contactPhone: nextStop.customer?.phone ?? "N/A",
+						contactName: resolvedCustName,
+						contactPhone: resolvedCustPhone,
 						paymentType: "Cash on Delivery / UPI",
 						amountToCollect: totalAmount,
 						packages: allItems.length > 0 ? allItems.length : 1,
@@ -680,7 +637,7 @@ export const driverRouter = router({
 					};
 				}
 
-				// Build route stops safely using only data already loaded from the trip query
+				// Build route stops safely using data loaded from trip query and ordersForStops
 				const routeStops = trip.stops.map((s: any, idx: number) => {
 					const allMatchingOrders = ordersForStops.filter(
 						(order) => order.customer_id === s.customer_id,
@@ -693,6 +650,7 @@ export const driverRouter = router({
 							? allMatchingOrders
 							: pendingOrders;
 
+					const matchingOrder = matchingOrders[0];
 					const orderIdList = matchingOrders.map((o) => o.id);
 					const formattedOrderIds =
 						orderIdList.length > 0
@@ -703,6 +661,21 @@ export const driverRouter = router({
 						0,
 					);
 					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+
+					const resolvedCustName =
+						s.customer?.name ||
+						matchingOrder?.customer?.name ||
+						"Customer";
+					const resolvedCustPhone =
+						s.customer?.phone ||
+						matchingOrder?.customer?.phone ||
+						(matchingOrder as any)?.customer_phone ||
+						null;
+					const resolvedCustAddress =
+						s.customer?.address ||
+						matchingOrder?.customer?.address ||
+						(matchingOrder as any)?.shipping_address ||
+						"N/A";
 
 					return {
 						id: s.id,
@@ -718,9 +691,9 @@ export const driverRouter = router({
 							s.status === "delivered" || s.status === "completed"
 								? "Completed"
 								: "--:--",
-						address: s.customer?.address ?? "N/A",
-						customerName: s.customer?.name ?? "Customer",
-						phone: s.customer?.phone ?? null,
+						address: resolvedCustAddress,
+						customerName: resolvedCustName,
+						phone: resolvedCustPhone,
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: matchingOrders.length,
@@ -971,32 +944,7 @@ export const driverRouter = router({
 				});
 			}
 
-			// 2. Fallback: If no driver-specific trips with stops exist, fetch any active dispatched trip
-			const driverStopsCount = trips.reduce((acc, t) => acc + (t.stops?.length || 0), 0);
-			if (driverStopsCount === 0) {
-				const fallbackTrips = await db.query.deliveryTrips.findMany({
-					where: inArray(deliveryTrips.status, ["active", "out_for_delivery", "loaded", "in_progress", "dispatched", "ready_for_loading", "pending"]),
-					orderBy: [
-						sql`CASE 
-							WHEN ${deliveryTrips.status} IN ('active', 'out_for_delivery', 'dispatched', 'in_progress') THEN 1 
-							WHEN ${deliveryTrips.status} = 'loaded' THEN 2 
-							ELSE 3 
-						END`,
-						desc(deliveryTrips.created_at),
-					],
-					with: {
-						stops: {
-							orderBy: (s: any, { asc }: any) => [asc(s.sequence)],
-							with: {
-								customer: true,
-							},
-						},
-					},
-				});
-				trips = fallbackTrips;
-			}
-
-			// Collect all stops across trips
+			// Collect all stops across driver's trips
 			const allStops: any[] = [];
 			for (const trip of trips) {
 				if (trip.stops && trip.stops.length > 0) {
@@ -1006,29 +954,44 @@ export const driverRouter = router({
 				}
 			}
 
-			// Fallback to directly assigned / active orders if no trip stops found
+			// If no trip stops found, check if orders are directly assigned to driver staff ID/UID and ready for dispatch or out for delivery
 			if (allStops.length === 0) {
-				const directOrders = await db.query.orders.findMany({
-					where: inArray(orders.status, [
-						"out_for_delivery",
-						"dispatched",
-						"ready_for_dispatch",
-						"packed",
-						"in_transit",
-						"processing",
-						"confirmed",
-						"pending",
-					]),
-					orderBy: [desc(orders.created_at)],
-					with: {
-						customer: true,
-						orderItems: {
-							with: {
-								product: true,
-							},
-						},
-					},
-				});
+				const assignedOrdersConditions = [];
+				if (numericStaffIds.length > 0) {
+					assignedOrdersConditions.push(
+						inArray(orders.driver_id, numericStaffIds),
+					);
+				}
+				if (driverIds.length > 0) {
+					assignedOrdersConditions.push(inArray(orders.user_uid, driverIds));
+				}
+
+				const directOrders =
+					assignedOrdersConditions.length > 0
+						? await db.query.orders.findMany({
+								where: and(
+									or(...assignedOrdersConditions),
+									inArray(orders.status, [
+										"ready_for_dispatch",
+										"out_for_delivery",
+										"dispatched",
+										"in_transit",
+										"assigned",
+										"packed",
+										"loaded",
+									]),
+								),
+								orderBy: [desc(orders.created_at)],
+								with: {
+									customer: true,
+									orderItems: {
+										with: {
+											product: true,
+										},
+									},
+								},
+						  })
+						: [];
 
 				if (directOrders.length === 0) return [];
 
@@ -1097,28 +1060,11 @@ export const driverRouter = router({
 				customerIds.length > 0
 					? await db.query.orders.findMany({
 							where: inArray(orders.customer_id, customerIds),
-							columns: {
-								id: true,
-								customer_id: true,
-								total_amount: true,
-								status: true,
-							},
 							with: {
+								customer: true,
 								orderItems: {
-									columns: {
-										id: true,
-										order_id: true,
-										product_id: true,
-										quantity: true,
-										price: true,
-									},
 									with: {
-										product: {
-											columns: {
-												id: true,
-												name: true,
-											},
-										},
+										product: true,
 									},
 								},
 							},
@@ -1137,6 +1083,7 @@ export const driverRouter = router({
 						? allMatchingOrders
 						: pendingOrders;
 
+				const matchingOrder = matchingOrders[0];
 				const orderIdList = matchingOrders.map((o) => o.id);
 				const formattedOrderIds =
 					orderIdList.length > 0
@@ -1147,6 +1094,21 @@ export const driverRouter = router({
 					0,
 				);
 				const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+
+				const resolvedCustName =
+					s.customer?.name ||
+					matchingOrder?.customer?.name ||
+					"Customer";
+				const resolvedCustPhone =
+					s.customer?.phone ||
+					matchingOrder?.customer?.phone ||
+					(matchingOrder as any)?.customer_phone ||
+					"N/A";
+				const resolvedCustAddress =
+					s.customer?.address ||
+					matchingOrder?.customer?.address ||
+					(matchingOrder as any)?.shipping_address ||
+					"N/A";
 
 				return {
 					id: s.id,
@@ -1162,9 +1124,9 @@ export const driverRouter = router({
 						s.status === "delivered" || s.status === "completed"
 							? "Completed"
 							: "--:--",
-					customerName: s.customer?.name ?? "Customer",
-					address: s.customer?.address ?? "N/A",
-					phone: s.customer?.phone ?? "N/A",
+					customerName: resolvedCustName,
+					address: resolvedCustAddress,
+					phone: resolvedCustPhone,
 					orderId: formattedOrderIds,
 					orderIds: orderIdList,
 					ordersCount: matchingOrders.length,
@@ -1194,7 +1156,7 @@ export const driverRouter = router({
 
 	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {
 		const { ids: driverIds } = await getDriverIdentifiers(ctx);
-		let trips =
+		const trips =
 			driverIds.length > 0
 				? await db.query.deliveryTrips.findMany({
 						where: inArray(deliveryTrips.driver_id, driverIds),
@@ -1213,25 +1175,6 @@ export const driverRouter = router({
 						},
 					})
 				: [];
-
-		// Fallback: If no trips match exact driver_id array, fetch recent trips
-		if (!trips || trips.length === 0) {
-			trips = await db.query.deliveryTrips.findMany({
-				orderBy: [desc(deliveryTrips.created_at)],
-				limit: 25,
-				with: {
-					route: true,
-					vehicle: true,
-					driver: true,
-					stops: {
-						with: {
-							customer: true,
-						},
-					},
-					collections: true,
-				},
-			});
-		}
 
 		if (!trips || trips.length === 0) return [];
 

@@ -395,7 +395,9 @@ export const pickerRouter = router({
 					order_id: `ORD-${r.order_id}`,
 					priority: r.priority ?? "Normal",
 					items: itemCount > 0 ? itemCount : 1,
-					assigned_to: r.assignedTo?.name || "Unassigned",
+					assigned_to: r.assignedTo?.name || "Unassigned Queue",
+					status: r.status ?? "pending",
+					is_assigned: Boolean(r.assignedTo),
 					routeName,
 					waiting_since: r.created_at
 						? new Date(r.created_at).toLocaleTimeString("en-US", {
@@ -411,6 +413,59 @@ export const pickerRouter = router({
 
 			return historyItems;
 		}),
+
+	// ── Claim Next Available Pick Task from Queue ─────────────────────────────
+	claimNextTask: roleProcedure(["admin", "manager", "picker"]).mutation(
+		async ({ ctx }) => {
+			const db = ctx.db;
+
+			// First check if user already has an active task in 'picking' status
+			const activeTask = await db.query.pickLists.findFirst({
+				where: and(
+					eq(pickLists.status, "picking"),
+					eq(pickLists.assigned_to, Number(ctx.user.id) || 1),
+				),
+			});
+
+			if (activeTask) {
+				return { success: true, pickListId: activeTask.id, isExisting: true };
+			}
+
+			// Find earliest unassigned or pending pickList in queue
+			const pendingLists = await db.query.pickLists.findMany({
+				where: inArray(pickLists.status, ["pending", "unassigned"]),
+				orderBy: [pickLists.created_at],
+				limit: 10,
+			});
+
+			if (pendingLists.length === 0) {
+				throw new Error("No pending pick tasks available in the queue.");
+			}
+
+			const nextTask = pendingLists[0];
+
+			// Resolve current user staff ID
+			let staffId = Number(ctx.user.id) || 1;
+			if (ctx.user.email) {
+				const [staffRow] = await db
+					.select({ id: staff.id })
+					.from(staff)
+					.where(eq(staff.email, ctx.user.email))
+					.limit(1);
+				if (staffRow) staffId = staffRow.id;
+			}
+
+			await db
+				.update(pickLists)
+				.set({
+					status: "picking",
+					assigned_to: staffId,
+				})
+				.where(eq(pickLists.id, nextTask.id));
+
+			return { success: true, pickListId: nextTask.id, isExisting: false };
+		},
+	),
 
 	getReturns: roleProcedure(["admin", "manager", "auditor", "picker"])
 		.input(z.object({ branch_id: z.number().optional() }))
