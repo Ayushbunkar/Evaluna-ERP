@@ -483,6 +483,7 @@ const messages = {
 		pickingStatusVerified: "100% Verified",
 		routingStep: "Routing Step:",
 		nextPackerQueue: "Next Packer Queue",
+		returnToPendingPicks: "Return to Pending Picks Queue",
 		viewCompletedPicksArchive: "View Completed Picks Archive",
 		pendingPickTasks: "Pending Pick Tasks",
 		orderPicklistsQueued:

@@ -488,7 +488,7 @@ export default function PickerActivePage() {
 				onOpenChange={(open) => {
 					if (!open) {
 						setShowSuccessModal(false);
-						router.push("/picker/completed");
+						router.push("/picker/pending");
 					}
 				}}
 			>
@@ -527,10 +527,10 @@ export default function PickerActivePage() {
 							className="w-full bg-blue-600 text-white hover:bg-blue-700"
 							onClick={() => {
 								setShowSuccessModal(false);
-								router.push("/picker/completed");
+								router.push("/picker/pending");
 							}}
 						>
-							{t("viewCompletedPicksArchive")}
+							{t("returnToPendingPicks")}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

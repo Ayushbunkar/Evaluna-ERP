@@ -484,6 +484,7 @@ const messages: Messages = {
 		pickingStatusVerified: "100% सत्यापित",
 		routingStep: "अगला चरण:",
 		nextPackerQueue: "अगला पैकर कतार",
+		returnToPendingPicks: "लंबित पिक कतार पर वापस जाएं",
 		viewCompletedPicksArchive: "पूर्ण पिकिंग संग्रह देखें",
 		pendingPickTasks: "लंबित पिक कार्य",
 		orderPicklistsQueued:
