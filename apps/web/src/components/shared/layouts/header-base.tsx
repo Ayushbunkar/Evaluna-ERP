@@ -11,6 +11,7 @@ import {
 } from "@evaluna/ui/components/dropdown-menu";
 import { Bell, Menu, Search, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useSession } from "@/hooks/use-session";
 import { authClient } from "@/lib/auth-client";
 
@@ -57,10 +58,7 @@ export function HeaderBase({ title, onMenuClick }: HeaderBaseProps) {
 			</div>
 
 			<div className="flex items-center gap-2">
-				<Button variant="ghost" size="icon" className="relative">
-					<Bell className="h-5 w-5" />
-					<span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-destructive" />
-				</Button>
+				<NotificationBell />
 
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>

@@ -15,6 +15,7 @@ import {
 	CameraIcon,
 	CameraOffIcon,
 	CoffeeIcon,
+	Loader2,
 	LogInIcon,
 	LogOutIcon,
 	MapPinIcon,
@@ -24,15 +25,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/use-session";
 import { useBranch } from "@/lib/branch-context";
+import {
+	type GeolocationProgress,
+	type GpsCoordinates,
+	acquireAccurateLocation,
+} from "@/lib/geolocation";
 import { trpc } from "@/lib/trpc/client";
-
-type Gps = {
-	latitude: number;
-	longitude: number;
-	accuracy: number;
-	deviceTimestamp: string;
-	mocked?: boolean;
-};
 
 /** A lightweight, non-PII device fingerprint (NOT a biometric). */
 function deviceFingerprint(): { fingerprint: string; userAgent: string } {
@@ -53,34 +51,6 @@ function deviceFingerprint(): { fingerprint: string; userAgent: string } {
 		fingerprint: `fp_${Math.abs(h).toString(36)}`,
 		userAgent: navigator.userAgent,
 	};
-}
-
-/** Capture one raw GPS reading. Rejects if permission denied / unavailable. */
-function captureGps(): Promise<Gps> {
-	return new Promise((resolve, reject) => {
-		if (!("geolocation" in navigator)) {
-			reject(new Error("This device has no GPS / geolocation support."));
-			return;
-		}
-		navigator.geolocation.getCurrentPosition(
-			(pos) =>
-				resolve({
-					latitude: pos.coords.latitude,
-					longitude: pos.coords.longitude,
-					accuracy: Math.min(pos.coords.accuracy || 20, 450),
-					deviceTimestamp: new Date(pos.timestamp).toISOString(),
-				}),
-			(err) =>
-				reject(
-					new Error(
-						err.code === err.PERMISSION_DENIED
-							? "Location permission denied. Attendance requires your location."
-							: "Could not read your location. Move to open sky and retry.",
-					),
-				),
-			{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-		);
-	});
 }
 
 const STATE_LABEL: Record<string, { text: string; cls: string }> = {
@@ -121,6 +91,7 @@ export default function MyAttendancePage() {
 	const streamRef = useRef<MediaStream | null>(null);
 	const [cameraOn, setCameraOn] = useState(false);
 	const [busy, setBusy] = useState(false);
+	const [gpsProgress, setGpsProgress] = useState<GeolocationProgress | null>(null);
 	const [nowTick, setNowTick] = useState(Date.now());
 
 	// A ticking display clock. Purely cosmetic â€” the RECORD uses server time.
@@ -167,14 +138,28 @@ export default function MyAttendancePage() {
 			const video = videoRef.current;
 			const canvas = canvasRef.current;
 			if (!video || !canvas || !streamRef.current)
-				throw new Error("Start the camera first â€” a live photo is required.");
-			canvas.width = video.videoWidth || 640;
-			canvas.height = video.videoHeight || 480;
+				throw new Error("Start the camera first — a live photo is required.");
+
+			// Optimize & compress selfie to minimize database storage footprint (~10-18KB)
+			const maxDim = 360;
+			let targetWidth = video.videoWidth || 640;
+			let targetHeight = video.videoHeight || 480;
+			if (targetWidth > maxDim || targetHeight > maxDim) {
+				if (targetWidth > targetHeight) {
+					targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+					targetWidth = maxDim;
+				} else {
+					targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+					targetHeight = maxDim;
+				}
+			}
+			canvas.width = targetWidth;
+			canvas.height = targetHeight;
 			const ctx = canvas.getContext("2d");
 			if (!ctx) throw new Error("Could not capture the photo.");
 			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 			const blob = await new Promise<Blob | null>((res) =>
-				canvas.toBlob(res, "image/jpeg", 0.85),
+				canvas.toBlob(res, "image/jpeg", 0.65),
 			);
 			if (!blob) throw new Error("Could not encode the photo.");
 			const fd = new FormData();
@@ -238,8 +223,15 @@ export default function MyAttendancePage() {
 		async (kind: "checkIn" | "checkOut") => {
 			const effectiveBranchId = activeBranchId || sessionBranchId || 1;
 			setBusy(true);
+			setGpsProgress({ status: "locating", message: "Acquiring GPS location..." });
 			try {
-				const gps = await captureGps();
+				const gps = await acquireAccurateLocation({
+					desiredAccuracy: 25,
+					maxAcceptableAccuracy: 500,
+					timeoutMs: 12000,
+					refinementWindowMs: 3500,
+					onProgress: (p) => setGpsProgress(p),
+				});
 				const imageAttachmentId = await captureAndUpload(kind);
 				const device = deviceFingerprint();
 				if (kind === "checkIn")
@@ -254,6 +246,7 @@ export default function MyAttendancePage() {
 				toast.error(e instanceof Error ? e.message : "Something went wrong.");
 			} finally {
 				setBusy(false);
+				setGpsProgress(null);
 			}
 		},
 		[activeBranchId, sessionBranchId, captureAndUpload, checkIn, checkOut],
@@ -346,6 +339,13 @@ export default function MyAttendancePage() {
 								<Button variant="ghost" onClick={stopCamera} className="gap-2">
 									<CameraOffIcon className="h-4 w-4" /> Stop camera
 								</Button>
+							)}
+
+							{gpsProgress && (
+								<div className="flex w-full items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-2 text-blue-900 text-xs dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+									<Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
+									<span className="font-medium">{gpsProgress.message}</span>
+								</div>
 							)}
 
 							{state === "NOT_STARTED" && (

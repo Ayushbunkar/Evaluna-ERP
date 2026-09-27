@@ -1,4 +1,4 @@
-import { auditLogs, notifications, staff } from "@evaluna/db/schema";
+import { auditLogs, notifications, staff, user } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 
@@ -30,12 +30,49 @@ export async function resolveStaffId(
 		.from(staff)
 		.where(eq(staff.email, email))
 		.limit(1);
-	return rows[0]?.id ?? null;
+	if (rows[0]?.id) return rows[0].id;
+
+	// Self-healing: if user exists in auth `user` table, provision a staff record so FKs don't break
+	try {
+		const users = await db
+			.select()
+			.from(user)
+			.where(eq(user.email, email))
+			.limit(1);
+		const userRec = users[0];
+		if (userRec) {
+			const [newStaff] = await db
+				.insert(staff)
+				.values({
+					name: userRec.name || email.split("@")[0].toUpperCase(),
+					staff_code: `STAFF-${userRec.id.slice(0, 6).toUpperCase()}`,
+					email: email,
+					branch_id: userRec.branch_id || 1,
+					role: "staff",
+					department: "Operations",
+					join_date: new Date(),
+					salary: "0.00",
+				})
+				.returning();
+			if (newStaff?.id) {
+				await db
+					.update(user)
+					.set({ staff_id: newStaff.id })
+					.where(eq(user.id, userRec.id));
+				return newStaff.id;
+			}
+		}
+	} catch {
+		// Ignore any conflict / duplicate race condition
+	}
+
+	return null;
 }
 
 /**
  * Append an immutable audit-trail entry. Never updates or deletes existing
  * rows — corrections are represented as new events.
+ * Safely ensures that user_id satisfies foreign key constraint referencing staff.id.
  */
 export async function logAudit(
 	db: DB,
@@ -48,14 +85,34 @@ export async function logAudit(
 		newValues?: unknown;
 	},
 ): Promise<void> {
-	await db.insert(auditLogs).values({
-		user_id: entry.userId ?? null,
-		action: entry.action,
-		entity_type: entry.entityType,
-		entity_id: entry.entityId ?? null,
-		old_values: entry.oldValues ?? null,
-		new_values: entry.newValues ?? null,
-	});
+	let validStaffId: number | null = null;
+	if (entry.userId) {
+		try {
+			const rows = await db
+				.select({ id: staff.id })
+				.from(staff)
+				.where(eq(staff.id, entry.userId))
+				.limit(1);
+			if (rows[0]?.id) {
+				validStaffId = rows[0].id;
+			}
+		} catch {
+			validStaffId = null;
+		}
+	}
+
+	try {
+		await db.insert(auditLogs).values({
+			user_id: validStaffId,
+			action: entry.action,
+			entity_type: entry.entityType,
+			entity_id: entry.entityId ?? null,
+			old_values: entry.oldValues ?? null,
+			new_values: entry.newValues ?? null,
+		});
+	} catch (err) {
+		console.warn("[audit_logs] Failed to insert audit log:", err);
+	}
 }
 
 /**

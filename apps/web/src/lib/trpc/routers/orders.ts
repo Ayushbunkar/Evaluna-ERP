@@ -1767,11 +1767,13 @@ export const ordersRouter = router({
 							notificationBatch.push({
 								user_id: s.id,
 								branch_id: result.branchId,
-								type: "info",
+								type: "picking",
 								channel: "in_app",
 								priority: "high",
 								title: "📦 New Picking Task Available!",
 								message: `Picklist PL-${pl.id} (Order ORD-${result.orderId}) is ready for picking. Please assign yourself and start picking immediately.`,
+								reference_type: "pick_lists",
+								reference_id: pl.id,
 								status: "pending",
 							});
 						} else if (
@@ -1781,11 +1783,13 @@ export const ordersRouter = router({
 							notificationBatch.push({
 								user_id: s.id,
 								branch_id: result.branchId,
-								type: "info",
+								type: "packing",
 								channel: "in_app",
 								priority: "normal",
 								title: "🏷️ New Packing Task Queued",
 								message: `Order ORD-${result.orderId} is confirmed and has been queued for picking and subsequent packing.`,
+								reference_type: "packages",
+								reference_id: pl.id,
 								status: "pending",
 							});
 						}

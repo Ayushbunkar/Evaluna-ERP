@@ -12,6 +12,7 @@ const TABLES: PgTable[] = [
 	schema.orders,
 	schema.orderItems,
 	schema.transactions,
+	schema.routeStops,
 ];
 
 function sqlLiteral(value: unknown): string | null {

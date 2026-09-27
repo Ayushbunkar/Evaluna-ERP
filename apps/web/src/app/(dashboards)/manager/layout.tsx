@@ -70,7 +70,6 @@ export default function ManagerLayout({
 			icon: AlertTriangle,
 		},
 		{ href: "/manager/activity", label: "Activity Log", icon: History },
-		{ href: "/manager/notifications", label: "Notifications", icon: Bell },
 		{ href: "/manager/reports", label: "Reports", icon: FileBarChart },
 		{ href: "/manager/settings", label: "Settings", icon: Settings },
 	];

@@ -135,6 +135,10 @@ export default function BillerPOSPage() {
 		(total, item) => total + item.price * item.cartQuantity,
 		0,
 	);
+	const totalQuantity = cart.reduce(
+		(total, item) => total + item.cartQuantity,
+		0,
+	);
 	const tax = subtotal * 0.1;
 	const total = subtotal + tax;
 
@@ -225,9 +229,25 @@ export default function BillerPOSPage() {
 				{/* Cart Section */}
 				<Card className="border-border/50 shadow-sm lg:col-span-2">
 					<CardHeader className="flex flex-row items-center justify-between">
-						<CardTitle className="text-base sm:text-lg">
-							Cart ({cart.length} items)
-						</CardTitle>
+						<div className="flex items-center gap-2">
+							<CardTitle className="text-base sm:text-lg">
+								Cart
+							</CardTitle>
+							{cart.length > 0 ? (
+								<div className="flex items-center gap-1.5">
+									<span className="inline-flex items-center rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-bold text-white shadow-xs">
+										{cart.length} {cart.length === 1 ? "Product" : "Products"}
+									</span>
+									<span className="inline-flex items-center rounded-full border border-blue-500/30 bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+										{totalQuantity} Qty
+									</span>
+								</div>
+							) : (
+								<span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+									0 Items
+								</span>
+							)}
+						</div>
 						<div className="font-bold text-blue-600 text-lg sm:text-xl dark:text-blue-400">
 							{formatCurrency(total, "en")}
 						</div>

@@ -112,6 +112,7 @@ export const attachments = pgTable(
 		mime_type: varchar("mime_type", { length: 100 }).notNull(),
 		file_size: integer("file_size").notNull().default(0), // bytes
 		storage_path: varchar("storage_path", { length: 500 }).notNull(), // relative path inside uploads root
+		file_data: text("file_data"), // base64 encoded image data for serverless/Vercel persistence
 		uploaded_by: varchar("uploaded_by", { length: 255 }).notNull(),
 		is_deleted: boolean("is_deleted").default(false),
 		deleted_at: timestamp("deleted_at"),

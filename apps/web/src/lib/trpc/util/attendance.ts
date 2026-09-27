@@ -70,7 +70,7 @@ export async function loadSettings(db: DB) {
 		enableSelfie: s?.enableSelfie ?? true,
 		enableDeviceLock: s?.enableDeviceLock ?? true,
 		enableBreakTracking: s?.enableBreakTracking ?? true,
-		minGPSAccuracy: s?.minGPSAccuracy ?? 500,
+		minGPSAccuracy: s?.minGPSAccuracy ? Math.max(s.minGPSAccuracy, 300) : 500,
 		graceTime: s?.graceTime ?? 10,
 		maxBreakTime: s?.maxBreakTime ?? 60,
 		workingHours: s?.workingHours ?? 8,
@@ -118,12 +118,15 @@ export async function validateGeofence(
 		Number(fence.latitude),
 		Number(fence.longitude),
 	);
-	const radius = (fence.radius ?? 5000) + Math.min(gps.accuracy || 0, 5000);
-	const isInside = distance <= radius;
+	// Fence radius plus measurement tolerance (up to minAccuracy)
+	const fenceRadius = fence.radius ?? 100;
+	const accuracyTolerance = Math.min(gps.accuracy || 0, minAccuracy);
+	const effectiveRadius = fenceRadius + accuracyTolerance;
+	const isInside = distance <= effectiveRadius;
 	return {
 		ok: isInside,
 		distance: Math.round(distance * 100) / 100,
-		radius: fence.radius ?? 5000,
+		radius: fenceRadius,
 		reason: isInside ? undefined : "outside_geofence",
 	};
 }
@@ -154,6 +157,11 @@ export function assessRisk(input: {
 	if (input.gps.accuracy > 0 && input.gps.accuracy < 1) {
 		score += 20;
 		reasons.push("suspiciously_precise_accuracy");
+	}
+	// High accuracy uncertainty (> 150m) flags for review without blocking
+	if (input.gps.accuracy > 150) {
+		score += 15;
+		reasons.push("wide_gps_accuracy_range");
 	}
 	if (input.gps.deviceTimestamp) {
 		const drift = Math.abs(

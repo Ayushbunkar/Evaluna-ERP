@@ -26,15 +26,14 @@ import { Button } from "@evaluna/ui/components/button";
 
 const navItems = [
 	{ href: "/auditor", label: "Dashboard", icon: LayoutDashboard },
-	{ href: "/auditor/stock", label: "Stock Audits", icon: ClipboardList },
-	{ href: "/auditor/price-changes", label: "Price Audits", icon: DollarSign },
-	{ href: "/auditor/exceptions", label: "Exceptions", icon: AlertTriangle },
-	{ href: "/auditor/cash-book", label: "Cash Book", icon: BookOpen },
-	{ href: "/auditor/log", label: "Audit Log", icon: FileText },
+	{ href: "/auditor/tasks", label: "Stock Audits", icon: ClipboardList },
 	{ href: "/auditor/findings", label: "Findings", icon: CheckSquare },
-	{ href: "/auditor/upc-tasks", label: "UPC Tasks", icon: Barcode },
+	{ href: "/auditor/upc", label: "UPC Verification", icon: Barcode },
+	{ href: "/auditor/receiving", label: "Receiving", icon: BookOpen },
+	{ href: "/auditor/placement", label: "Placement", icon: ActivityIcon },
+	{ href: "/auditor/history", label: "Audit History", icon: History },
 	{ href: "/auditor/reports", label: "Reports", icon: BarChart3 },
-	{ href: "/auditor/settings", label: "Settings", icon: Settings },
+	{ href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AuditorLayout({

@@ -1,5 +1,6 @@
 import {
 	approvals,
+	attachments,
 	attendance,
 	attendanceBreaks,
 	auditFindings,
@@ -48,6 +49,7 @@ export const managerRouter = router({
 			todayStart.setHours(0, 0, 0, 0);
 			const todayEnd = new Date();
 			todayEnd.setHours(23, 59, 59, 999);
+			const todayStr = todayStart.toISOString().split("T")[0];
 
 			const [res] = await db.execute<{
 				total_employees: number;
@@ -62,12 +64,19 @@ export const managerRouter = router({
 				pending_routes_count: number;
 			}>(sql`
 				SELECT
-					(SELECT coalesce(count(*), 0)::int FROM staff) AS total_employees,
-					(SELECT coalesce(count(*), 0)::int FROM attendance WHERE status = 'present' AND created_at >= ${todayStart.toISOString()} AND created_at <= ${todayEnd.toISOString()}) AS present_today,
+					(SELECT coalesce(count(*), 0)::int FROM staff WHERE is_deleted = false AND NOT (email ILIKE '%seed%' OR email ILIKE '%hotmail.com' OR email ILIKE '%yahoo.com' OR email ILIKE '%example%')) AS total_employees,
+					(
+						SELECT coalesce(count(DISTINCT emp_id), 0)::int
+						FROM (
+							SELECT employee_id AS emp_id FROM attendance WHERE status = 'present' AND created_at >= ${todayStart.toISOString()} AND created_at <= ${todayEnd.toISOString()}
+							UNION
+							SELECT employee_id AS emp_id FROM enhanced_attendance WHERE status IN ('present', 'half_day', 'late') AND date = ${todayStr}
+						) present_staff
+					) AS present_today,
 					(SELECT coalesce(count(*) filter (WHERE status = 'pending'), 0)::int FROM approvals) AS pending_approvals,
 					(SELECT coalesce(count(*) filter (WHERE reference_type = 'leave' AND status = 'approved'), 0)::int FROM approvals) AS on_leave_today,
 					(SELECT coalesce(count(*), 0)::int FROM upc_tasks WHERE status != 'VERIFIED' AND due_at <= NOW()) AS overdue_tasks,
-					(SELECT coalesce(count(*), 0)::int FROM audit_findings WHERE status != 'CLOSED') AS open_exceptions,
+					(SELECT coalesce(count(*), 0)::int FROM audit_findings WHERE status != 'CLOSED' AND NOT (title ILIKE '%rty%' OR description ILIKE '%rty%')) AS open_exceptions,
 					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS cash_collected,
 					(SELECT coalesce(sum(CASE WHEN lower(coalesce(payment_method, '')) NOT LIKE '%cash%' THEN amount::numeric ELSE 0 END), 0)::float FROM trip_collections) AS online_collected,
 					(SELECT coalesce(count(*), 0)::int FROM trip_collections) AS collections_count,
@@ -148,6 +157,9 @@ export const managerRouter = router({
 						input?.status ? eq(staff.status, input.status) : undefined,
 						input?.role ? eq(staff.role, input.role) : undefined,
 						not(ilike(staff.email, "%seed%")),
+						not(ilike(staff.email, "%hotmail.com")),
+						not(ilike(staff.email, "%yahoo.com")),
+						not(ilike(staff.email, "%example%")),
 						not(ilike(staff.name, "%staff%")),
 						not(ilike(staff.name, "%scot%")),
 						not(ilike(staff.name, "%carleton%")),
@@ -443,6 +455,47 @@ export const managerRouter = router({
 				}),
 			);
 
+			// 3b. Batch fetch selfie attachments to supply immediate data URLs (survives Vercel serverless)
+			const attachmentIds = new Set<number>();
+			for (const { att } of enhancedRows) {
+				const checkInSelfieObj = att.checkInSelfie as any;
+				const checkOutSelfieObj = att.checkOutSelfie as any;
+				const inId =
+					typeof checkInSelfieObj === "object" && checkInSelfieObj !== null
+						? checkInSelfieObj.attachmentId || checkInSelfieObj.id || null
+						: typeof checkInSelfieObj === "number" || typeof checkInSelfieObj === "string"
+							? Number(checkInSelfieObj) || null
+							: null;
+				const outId =
+					typeof checkOutSelfieObj === "object" && checkOutSelfieObj !== null
+						? checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null
+						: typeof checkOutSelfieObj === "number" || typeof checkOutSelfieObj === "string"
+							? Number(checkOutSelfieObj) || null
+							: null;
+
+				if (inId && !Number.isNaN(inId)) attachmentIds.add(inId);
+				if (outId && !Number.isNaN(outId)) attachmentIds.add(outId);
+			}
+
+			const attachmentDataMap = new Map<number, string>();
+			if (attachmentIds.size > 0) {
+				const attachmentRecords = await db
+					.select({
+						id: attachments.id,
+						file_data: attachments.file_data,
+						mime_type: attachments.mime_type,
+					})
+					.from(attachments)
+					.where(inArray(attachments.id, Array.from(attachmentIds)));
+
+				for (const rec of attachmentRecords) {
+					if (rec.file_data) {
+						const mime = rec.mime_type || "image/jpeg";
+						attachmentDataMap.set(rec.id, `data:${mime};base64,${rec.file_data}`);
+					}
+				}
+			}
+
 			// 4. Map production enhancedAttendance records synchronously
 			const formattedEnhanced = enhancedRows.map(({ att, emp, usr, br }) => {
 				const breaksForAtt = allBreaks.filter(
@@ -550,6 +603,13 @@ export const managerRouter = router({
 					checkOutSelfieAttachmentId = Number(checkOutSelfieObj) || null;
 				}
 
+				const checkInSelfieUrl = selfieAttachmentId
+					? (attachmentDataMap.get(selfieAttachmentId) || `/api/attendance/attachments/${selfieAttachmentId}`)
+					: null;
+				const checkOutSelfieUrl = checkOutSelfieAttachmentId
+					? (attachmentDataMap.get(checkOutSelfieAttachmentId) || `/api/attendance/attachments/${checkOutSelfieAttachmentId}`)
+					: null;
+
 				return {
 					id: att.id,
 					employeeId: att.employeeId || 1,
@@ -567,6 +627,8 @@ export const managerRouter = router({
 					notes: locationFormatted,
 					selfieAttachmentId,
 					checkOutSelfieAttachmentId,
+					checkInSelfieUrl,
+					checkOutSelfieUrl,
 					createdAt: att.createdAt,
 					distance: att.distanceFromOffice,
 				};
@@ -589,6 +651,10 @@ export const managerRouter = router({
 				breakMinutes: 0,
 				breakCount: 0,
 				notes: null,
+				selfieAttachmentId: null,
+				checkOutSelfieAttachmentId: null,
+				checkInSelfieUrl: null,
+				checkOutSelfieUrl: null,
 				createdAt: l.createdAt,
 				distance: null,
 			}));
@@ -629,7 +695,18 @@ export const managerRouter = router({
 	// ── 8. Team Performance ─────────────────────────────────────────────────────
 	getPerformance: protectedProcedure.query(async ({ ctx }) => {
 		const [allStaff, allTasks, allAttendance] = await Promise.all([
-			db.select().from(staff).where(eq(staff.email, ctx.user.email)),
+			db
+				.select()
+				.from(staff)
+				.where(
+					and(
+						eq(staff.is_deleted, false),
+						not(ilike(staff.email, "%seed%")),
+						not(ilike(staff.email, "%hotmail.com")),
+						not(ilike(staff.email, "%yahoo.com")),
+						not(ilike(staff.email, "%example%")),
+					),
+				),
 			db.select().from(upcTasks),
 			db.select().from(attendance),
 		]);
@@ -660,7 +737,18 @@ export const managerRouter = router({
 	// ── 9. Team Workload ────────────────────────────────────────────────────────
 	getWorkload: protectedProcedure.query(async ({ ctx }) => {
 		const [allStaff, allTasks] = await Promise.all([
-			db.select().from(staff).where(eq(staff.email, ctx.user.email)),
+			db
+				.select()
+				.from(staff)
+				.where(
+					and(
+						eq(staff.is_deleted, false),
+						not(ilike(staff.email, "%seed%")),
+						not(ilike(staff.email, "%hotmail.com")),
+						not(ilike(staff.email, "%yahoo.com")),
+						not(ilike(staff.email, "%example%")),
+					),
+				),
 			db.select().from(upcTasks),
 		]);
 
@@ -687,14 +775,54 @@ export const managerRouter = router({
 
 	// ── 10. Operational Exceptions Center ───────────────────────────────────────
 	getExceptions: protectedProcedure.query(async ({ ctx }) => {
-		const findings = await db.select().from(auditFindings);
+		const findings = await db
+			.select()
+			.from(auditFindings)
+			.where(
+				and(
+					ne(auditFindings.status, "CLOSED"),
+					not(ilike(auditFindings.title, "%rty%")),
+					not(ilike(auditFindings.description, "%rty%")),
+				),
+			)
+			.orderBy(desc(auditFindings.created_at))
+			.limit(50);
+
 		return findings.map((f) => ({
 			id: f.id,
-			severity: f.severity,
+			severity: f.severity || "medium",
 			title: f.title,
 			description: f.description,
 			status: f.status,
 			created_at: f.created_at,
+		}));
+	}),
+
+	// ── 11. Live Team Timeline Activity ─────────────────────────────────────────
+	getActivity: protectedProcedure.query(async ({ ctx }) => {
+		const rows = await db
+			.select({
+				id: auditLogs.id,
+				action: auditLogs.action,
+				entity_type: auditLogs.entity_type,
+				entity_id: auditLogs.entity_id,
+				user_id: auditLogs.user_id,
+				user_name: staff.name,
+				created_at: auditLogs.created_at,
+			})
+			.from(auditLogs)
+			.leftJoin(staff, eq(auditLogs.user_id, staff.id))
+			.orderBy(desc(auditLogs.created_at))
+			.limit(50);
+
+		return rows.map((r) => ({
+			id: r.id,
+			action: r.action,
+			entity_type: r.entity_type,
+			entity_id: r.entity_id,
+			user_id: r.user_id,
+			user_name: r.user_name || "System",
+			created_at: r.created_at,
 		}));
 	}),
 

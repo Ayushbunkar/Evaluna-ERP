@@ -195,7 +195,7 @@ export const attendanceSettings = pgTable("attendance_settings", {
 	enableAutoCheckout: boolean("enable_auto_checkout").default(true),
 	enableLiveLocation: boolean("enable_live_location").default(false),
 	gpsRadius: integer("gps_radius").default(100), // meters
-	minGPSAccuracy: integer("min_gps_accuracy").default(50), // meters
+	minGPSAccuracy: integer("min_gps_accuracy").default(500), // meters
 	maxBreakTime: integer("max_break_time").default(60), // minutes
 	graceTime: integer("grace_time").default(10), // minutes
 	workingHours: integer("working_hours").default(8), // hours

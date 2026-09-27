@@ -315,8 +315,8 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 	{ domain: "attendance", action: "read", minRole: "sales_person" },
 	{ domain: "attendance", action: "write", minRole: "sales_person" },
 	// Verification, manual correction, device approval, geofence & settings
-	// config — HR and above (hr, auditor, manager, admin via inheritance).
-	{ domain: "attendance", action: "approve", minRole: "hr" },
+	// config — Warehouse supervisor, HR, Manager and above (warehouse_supervisor, hr, auditor, manager, admin via inheritance).
+	{ domain: "attendance", action: "approve", minRole: "warehouse_supervisor" },
 	{ domain: "attendance", action: "delete", minRole: "admin" },
 ];
 
@@ -470,21 +470,30 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/sync", minRole: "sales_person" },
 
 	// Role Dashboards
+	{ path: "/superadmin", minRole: "super_admin" },
 	{ path: "/admin/companies", minRole: "super_admin" },
 	{ path: "/admin", minRole: "admin" }, // Note: Both super_admin (0) and admin (1) can access the /admin prefix
 	{ path: "/manager", minRole: "manager" },
+	{ path: "/executive", minRole: "manager" },
+	{ path: "/route-manager", minRole: "manager" },
 	{ path: "/auditor", minRole: "auditor" },
 	{ path: "/hr", minRole: "hr" },
 	{ path: "/finance", minRole: "finance" },
 	{ path: "/marketing", minRole: "marketing" },
+	{ path: "/warehouse", minRole: "warehouse_supervisor" },
+	{ path: "/dashboard/warehouse", minRole: "warehouse_supervisor" },
 	{ path: "/putter", minRole: "putter" },
 	{ path: "/picker", minRole: "picker" },
 	{ path: "/packer", minRole: "packer" },
+	{ path: "/packing-dispatch", minRole: "packer" },
+	{ path: "/checker", minRole: "packer" },
 	{ path: "/loader", minRole: "loader" },
-	{ path: "/driver", minRole: "driver" },
-	{ path: "/sales", minRole: "sales_person" },
-	{ path: "/customer", minRole: "customer" },
 	{ path: "/procurement", minRole: "procurement" },
-	// Consolidated Warehouse Routes
-	{ path: "/dashboard/warehouse", minRole: "warehouse_supervisor" },
+	{ path: "/dashboard/procurement", minRole: "procurement" },
+	{ path: "/driver", minRole: "driver" },
+	{ path: "/delivery", minRole: "driver" },
+	{ path: "/sales", minRole: "sales_person" },
+	{ path: "/pos", minRole: "sales_person" },
+	{ path: "/biller", minRole: "sales_person" },
+	{ path: "/customer", minRole: "customer" },
 ];

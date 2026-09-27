@@ -29,6 +29,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useTRPC } from "@/lib/trpc/client";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export default function WarehouseWMSLayout({
 	children,
@@ -335,10 +336,9 @@ export default function WarehouseWMSLayout({
 
 						{/* Breadcrumbs */}
 						<nav className="hidden items-center space-x-2 font-medium text-gray-500 text-sm sm:flex">
-							<span className="text-gray-400">Warehouse</span>
 							{getBreadcrumbs().map((b, i) => (
 								<div key={i} className="flex items-center space-x-2">
-									<span className="text-gray-300">/</span>
+									{i > 0 && <span className="text-gray-300">/</span>}
 									{b.isLast ? (
 										<span className="font-semibold text-gray-800 dark:text-gray-100">
 											{b.label}
@@ -379,30 +379,12 @@ export default function WarehouseWMSLayout({
 							</Button>
 						</div>
 
-						{/* Global Selector */}
-						<div className="relative">
-							<div className="flex cursor-pointer items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 font-semibold text-xs shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600">
-								<span className="text-blue-600 dark:text-blue-400">
-									Bhopal Main Warehouse
-								</span>
-								<ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" />
-							</div>
-						</div>
 
 						{/* Hindi / English Language Switcher */}
 						<LocaleSwitcher />
 
 						{/* Notifications icon */}
-						<Button
-							variant="ghost"
-							size="icon"
-							className="relative rounded-full"
-						>
-							<BellIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-							{stats?.delayedTasks !== undefined && stats.delayedTasks > 0 && (
-								<span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500" />
-							)}
-						</Button>
+						<NotificationBell />
 
 						{/* Profile & Logout triggers */}
 						<div className="flex items-center gap-1 rounded-lg border bg-slate-50 p-1 shadow-inner dark:bg-slate-700">

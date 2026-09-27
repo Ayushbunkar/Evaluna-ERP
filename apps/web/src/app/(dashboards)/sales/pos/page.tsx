@@ -198,6 +198,11 @@ function POSContent() {
 		[cart],
 	);
 
+	const totalCartQuantity = useMemo(
+		() => cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0),
+		[cart],
+	);
+
 	const discountValue = useMemo(() => {
 		if (!discountAmount || discountAmount <= 0) return 0;
 		if (discountType === "percent") {
@@ -1008,14 +1013,41 @@ function POSContent() {
 				}`}
 			>
 				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
-					<h2 className="flex items-center gap-2 font-bold text-lg sm:text-xl">
-						<ShoppingCart className="h-5 w-5" /> {t.currentOrder}
-					</h2>
+					<div className="flex items-center gap-2">
+						<h2 className="flex items-center gap-2 font-bold text-lg sm:text-xl text-foreground">
+							<ShoppingCart className="h-5 w-5 text-primary" /> {t.currentOrder}
+						</h2>
+						{cart.length > 0 ? (
+							<div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-200">
+								<span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 py-0.5 font-bold text-xs text-white shadow-xs">
+									<Sparkles className="h-3 w-3 text-amber-300 animate-pulse" />
+									<span>
+										{cart.length}{" "}
+										{cart.length === 1
+											? locale === "hi"
+												? "उत्पाद"
+												: "Product"
+											: locale === "hi"
+												? "उत्पाद"
+												: "Products"}
+									</span>
+								</span>
+								<span className="inline-flex items-center rounded-full border border-blue-500/30 bg-blue-50/80 px-2 py-0.5 font-bold text-[11px] text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+									{totalCartQuantity} {locale === "hi" ? "कुल पीस" : "Qty"}
+								</span>
+							</div>
+						) : (
+							<span className="rounded-full bg-muted px-2.5 py-0.5 font-medium text-xs text-muted-foreground">
+								0 {locale === "hi" ? "उत्पाद" : "Items"}
+							</span>
+						)}
+					</div>
 					<Button
 						variant="ghost"
 						size="sm"
 						onClick={() => setCart([])}
 						disabled={cart.length === 0 || checkoutMutation.isPending}
+						className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
 					>
 						{t.clear}
 					</Button>
@@ -1024,7 +1056,7 @@ function POSContent() {
 				{/* Active Customer & Route Banner */}
 				<div
 					onClick={() => setCustomerModalOpen(true)}
-					className="mb-3 flex cursor-pointer items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-50/80 p-2.5 text-xs transition-colors hover:bg-emerald-100/80 dark:bg-emerald-950/50 dark:border-emerald-800"
+					className="mb-2.5 flex cursor-pointer items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-50/80 p-2.5 text-xs transition-colors hover:bg-emerald-100/80 dark:bg-emerald-950/50 dark:border-emerald-800"
 				>
 					<div className="flex items-center gap-1.5 truncate">
 						<User className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
@@ -1042,6 +1074,31 @@ function POSContent() {
 						{locale === "hi" ? "बदलें" : "Change"}
 					</span>
 				</div>
+
+				{/* Dedicated Live Products Added Count Banner */}
+				{cart.length > 0 && (
+					<div className="mb-2.5 flex items-center justify-between rounded-lg border border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-blue-50/90 px-3 py-1.5 text-xs text-blue-950 shadow-xs dark:border-blue-900/60 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-blue-950/40 dark:text-blue-200 animate-in fade-in slide-in-from-top-1 duration-200">
+						<div className="flex items-center gap-1.5">
+							<span className="relative flex h-2 w-2">
+								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+								<span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
+							</span>
+							<span className="font-semibold text-blue-900 dark:text-blue-200">
+								{locale === "hi" ? "कार्ट में जोड़े गए उत्पाद:" : "Products Added:"}
+							</span>
+							<span className="rounded-md bg-blue-600 px-1.5 py-0.5 font-black text-white text-[11px] shadow-xs">
+								{cart.length} {cart.length === 1 ? (locale === "hi" ? "आइटम" : "Item") : (locale === "hi" ? "आइटम्स" : "Items")}
+							</span>
+						</div>
+						<div className="flex items-center gap-1 text-[11px] font-semibold text-blue-800 dark:text-blue-300">
+							<span>{locale === "hi" ? "कुल मात्रा:" : "Total Qty:"}</span>
+							<span className="rounded bg-blue-200/70 dark:bg-blue-900/70 px-2 py-0.5 font-black text-blue-950 dark:text-blue-100">
+								{totalCartQuantity} {locale === "hi" ? "पीस" : "Pcs"}
+							</span>
+						</div>
+					</div>
+				)}
+
 				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 bg-muted/20 p-4">
 					<AnimatePresence>
 						{cart.length === 0 ? (
@@ -1057,33 +1114,38 @@ function POSContent() {
 							</motion.div>
 						) : (
 							<div className="space-y-3 pr-4">
-								{cart.map((item) => (
+								{cart.map((item, index) => (
 									<motion.div
 										key={item.id}
 										initial={{ opacity: 0, scale: 0.95, y: 10 }}
 										animate={{ opacity: 1, scale: 1, y: 0 }}
 										exit={{ opacity: 0, scale: 0.95, y: -10 }}
-										className="flex w-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 shadow-sm"
+										className="group flex w-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all"
 									>
 										<div className="flex w-full min-w-0 items-center justify-between gap-2">
-											<div
-												className="min-w-0 flex-1 truncate font-semibold text-sm"
-												title={getLocalizedProductName(item.name, locale)}
-											>
-												{getLocalizedProductName(item.name, locale)}
+											<div className="flex items-center gap-1.5 min-w-0 flex-1">
+												<span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary dark:bg-primary/20">
+													#{index + 1}
+												</span>
+												<div
+													className="min-w-0 flex-1 truncate font-semibold text-sm text-foreground"
+													title={getLocalizedProductName(item.name, locale)}
+												>
+													{getLocalizedProductName(item.name, locale)}
+												</div>
 											</div>
-											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs">
+											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs font-medium">
 												₹{Number.parseFloat(item.price).toFixed(2)}{" "}
 												{t.unitLabel}
 											</div>
 										</div>
 
 										<div className="flex w-full min-w-0 items-center justify-between gap-2">
-											<div className="flex h-8 items-center rounded-md border">
+											<div className="flex h-8 items-center rounded-md border bg-background">
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-8 w-8 rounded-none rounded-l-md"
+													className="h-8 w-8 rounded-none rounded-l-md hover:bg-muted"
 													onClick={() => updateQty(item.id, -1)}
 													disabled={checkoutMutation.isPending}
 												>
@@ -1100,13 +1162,13 @@ function POSContent() {
 															setDirectQty(item.id, val);
 														}
 													}}
-													className="h-8 w-14 border-0 p-0 text-center font-semibold text-sm focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+													className="h-8 w-14 border-0 p-0 text-center font-bold text-sm focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 													disabled={checkoutMutation.isPending}
 												/>
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-8 w-8 rounded-none rounded-r-md"
+													className="h-8 w-8 rounded-none rounded-r-md hover:bg-muted"
 													onClick={() => updateQty(item.id, 1)}
 													disabled={checkoutMutation.isPending}
 												>
@@ -1114,7 +1176,7 @@ function POSContent() {
 												</Button>
 											</div>
 											<div className="flex items-center gap-3">
-												<span className="font-bold text-sm">
+												<span className="font-extrabold text-sm text-foreground">
 													₹
 													{(Number.parseFloat(item.price) * item.qty).toFixed(
 														2,
@@ -1266,9 +1328,27 @@ function POSContent() {
 					</AnimatePresence>
 
 					{/* Total row */}
-					<div className="flex items-center justify-between border-t pt-2 font-bold text-2xl">
-						<span>{t.total}</span>
-						<span>₹{total.toFixed(2)}</span>
+					<div className="flex items-baseline justify-between border-t pt-2">
+						<div>
+							<div className="font-extrabold text-xl sm:text-2xl text-foreground">{t.total}</div>
+							{cart.length > 0 && (
+								<p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+									{cart.length}{" "}
+									{cart.length === 1
+										? locale === "hi"
+											? "उत्पाद"
+											: "product"
+										: locale === "hi"
+											? "उत्पाद"
+											: "products"}{" "}
+									• {totalCartQuantity}{" "}
+									{locale === "hi" ? "कुल पीस" : "units"}
+								</p>
+							)}
+						</div>
+						<span className="font-black text-2xl tracking-tight text-foreground sm:text-3xl">
+							₹{total.toFixed(2)}
+						</span>
 					</div>
 
 					<div className="grid grid-cols-2 gap-2 pt-2">

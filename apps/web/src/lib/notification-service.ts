@@ -339,7 +339,7 @@ export async function notifyCustomerOrderPlaced(opts: {
 
 	for (const sId of targetStaffIds) {
 		await dispatchNotification({
-			type: "info",
+			type: "sales",
 			priority: "high",
 			title: `🔔 New Customer Order ORD-${opts.orderId}`,
 			message: bilingual(
@@ -369,7 +369,7 @@ export async function notifyOrderCreated(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "picking",
 		priority: "high",
 		title: `📦 New Order ORD-${opts.orderId}`,
 		message: bilingual(
@@ -393,7 +393,7 @@ export async function notifyPickComplete(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "packing",
 		priority: "high",
 		title: `✅ Picking Done — ORD-${opts.orderId}`,
 		message: bilingual(
@@ -409,7 +409,7 @@ export async function notifyPickComplete(opts: {
 	});
 }
 
-/** Notify Manager that packing is done — order ready for dispatch. (packer.packOrder) */
+/** Notify Manager & Driver that packing is done — order ready for dispatch. (packer.packOrder) */
 export async function notifyPackComplete(opts: {
 	orderId: number;
 	customerName: string;
@@ -419,7 +419,7 @@ export async function notifyPackComplete(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "delivery",
 		priority: "high",
 		title: `📦 Packed — ORD-${opts.orderId}`,
 		message: bilingual(
@@ -450,7 +450,7 @@ export async function notifyTripAssigned(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "delivery",
 		priority: "high",
 		title: `🚚 Trip #${opts.tripId} Assigned to You`,
 		message: bilingual(
@@ -476,7 +476,7 @@ export async function notifyTripDispatched(opts: {
 	staffId?: number | null;
 }): Promise<void> {
 	await dispatchNotification({
-		type: "info",
+		type: "delivery",
 		priority: "critical",
 		title: `🟢 Start Delivery — Trip #${opts.tripId}`,
 		message: bilingual(
@@ -516,7 +516,7 @@ export async function notifyDriverCollected(opts: {
 	const methodStr = methods.join(" + ") || "₹0";
 
 	await dispatchNotification({
-		type: "sale",
+		type: "finance",
 		priority: "high",
 		title: `💰 ₹${total} Collected — ${opts.customerName}`,
 		message: bilingual(

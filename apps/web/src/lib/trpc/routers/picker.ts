@@ -1,4 +1,12 @@
-import { customers, orderItems, orders, pickListItems, pickLists, user } from "@evaluna/db/schema";
+import {
+	customers,
+	orderItems,
+	orders,
+	pickListItems,
+	pickLists,
+	staff,
+	user,
+} from "@evaluna/db/schema";
 import { and, count, desc, eq, gte, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -307,13 +315,13 @@ export const pickerRouter = router({
 						id: pickLists.id,
 						order_id: pickLists.order_id,
 						created_at: pickLists.created_at,
-						completed_by: user.name,
+						completed_by: staff.name,
 						customerName: customers.name,
 					})
 					.from(pickLists)
 					.leftJoin(orders, eq(pickLists.order_id, orders.id))
 					.leftJoin(customers, eq(orders.customer_id, customers.id))
-					.leftJoin(user, eq(pickLists.assigned_to, user.id))
+					.leftJoin(staff, eq(pickLists.assigned_to, staff.id))
 					.where(eq(pickLists.status, "completed"))
 					.orderBy(desc(pickLists.created_at))
 					.limit(50);

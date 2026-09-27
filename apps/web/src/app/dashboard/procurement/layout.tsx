@@ -23,8 +23,8 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { useTRPC } from "@/lib/trpc/client";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export default function ProcurementLayout({
 	children,
@@ -306,18 +306,7 @@ export default function ProcurementLayout({
 						</div>
 
 						{/* Notifications icon */}
-						<Button
-							variant="ghost"
-							size="icon"
-							className="relative rounded-full"
-						>
-							<BellIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-							{pos?.filter((p) => p.status === "pending").length !==
-								undefined &&
-								pos.filter((p) => p.status === "pending").length > 0 && (
-									<span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500" />
-								)}
-						</Button>
+						<NotificationBell />
 
 						{/* Profile & Logout triggers */}
 						<div className="flex items-center gap-1 rounded-lg border bg-slate-50 p-1 shadow-inner dark:bg-slate-700">

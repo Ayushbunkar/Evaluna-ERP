@@ -31,6 +31,7 @@ import {
 	lte,
 	not,
 	notInArray,
+	or,
 	sql,
 	sum,
 } from "drizzle-orm";
@@ -527,66 +528,117 @@ export const warehouseRouter = router({
 		}),
 
 	getOverviewStats: protectedProcedure
-		.input(z.object({ branch_id: z.number().optional() }))
+		.input(z.object({ branch_id: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const branchId = input.branch_id ?? ctx.user.branchId;
-			const todayStart = new Date();
-			todayStart.setHours(0, 0, 0, 0);
-			const twoHoursAgo = new Date(Date.now() - 2 * 3600000);
+			const branchId = input?.branch_id ?? ctx.user.branchId;
 
 			const [
 				[pickListsStats],
+				[ordersWaitingData],
 				[purchasesStats],
 				[placementStats],
 				[packagesStats],
 				[capacityData],
+				packedPackagesRows,
+				completedPickListRows,
 			] = await Promise.all([
 				// 1. PickLists aggregations
 				db
 					.select({
-						ordersWaiting: sql<number>`count(*) filter (where ${pickLists.status} = 'pending')`,
-						pickingQueue: sql<number>`count(*) filter (where ${pickLists.status} in ('assigned', 'picking'))`,
-						completedToday: sql<number>`count(*) filter (where ${pickLists.status} = 'completed' and ${pickLists.completed_at} >= ${todayStart})`,
-						tasksInProgress: sql<number>`count(*) filter (where ${pickLists.status} = 'picking')`,
-						delayed: sql<number>`count(*) filter (where ${pickLists.status} not in ('completed', 'cancelled') and ${pickLists.created_at} <= ${twoHoursAgo})`,
+						ordersWaitingPickLists: sql<number>`count(*) filter (where ${pickLists.status} in ('pending', 'unassigned'))`,
+						pickingQueue: sql<number>`count(*) filter (where ${pickLists.status} in ('assigned', 'picking', 'in_progress', 'started', 'active'))`,
+						completedToday: sql<number>`count(*) filter (where ${pickLists.status} = 'completed' and (${pickLists.completed_at} >= CURRENT_DATE or ${pickLists.completed_at} is null))`,
+						tasksInProgress: sql<number>`count(*) filter (where ${pickLists.status} in ('picking', 'in_progress', 'assigned'))`,
+						delayed: sql<number>`count(*) filter (where ${pickLists.status} not in ('completed', 'cancelled') and ${pickLists.created_at} <= NOW() - INTERVAL '2 hours')`,
 					})
 					.from(pickLists),
 
-				// 2. Purchases aggregations
+				// 2. Orders awaiting pick allocation
 				db
 					.select({
-						receivingQueue: sql<number>`count(*) filter (where ${purchases.status} = 'pending')`,
-						delayed: sql<number>`count(*) filter (where ${purchases.status} not in ('completed', 'received', 'cancelled') and ${purchases.created_at} <= ${twoHoursAgo})`,
+						ordersWaiting: sql<number>`count(*) filter (where ${orders.status} in ('confirmed', 'pending', 'processing', 'awaiting_picking', 'under_review'))`,
 					})
-					.from(purchases),
+					.from(orders)
+					.where(branchId ? sql`(${orders.branch_id} = ${branchId} OR ${orders.branch_id} IS NULL)` : undefined),
 
-				// 3. Placement verifications aggregations
+				// 3. Purchases aggregations (Expected inbound POs awaiting receipt / inspection)
 				db
 					.select({
-						putAwayQueue: sql<number>`count(*) filter (where ${placementVerifications.status} in ('AWAITING_PLACEMENT', 'VERIFICATION_REQUIRED'))`,
-						tasksInProgress: sql<number>`count(*) filter (where ${placementVerifications.status} = 'VERIFICATION_REQUIRED')`,
+						receivingQueue: sql<number>`count(*) filter (where LOWER(${purchases.status}) in ('pending', 'ordered', 'in_transit', 'draft', 'approved', 'partially_received', 'awaiting_receipt'))`,
+						delayed: sql<number>`count(*) filter (where LOWER(${purchases.status}) not in ('completed', 'cancelled') and ${purchases.created_at} <= NOW() - INTERVAL '2 hours')`,
 					})
-					.from(placementVerifications),
+					.from(purchases)
+					.where(branchId ? sql`(${purchases.branch_id} = ${branchId} OR ${purchases.branch_id} IS NULL)` : undefined),
 
-				// 4. Packages aggregations
+				// 4. Placement verifications aggregations (Put-away tasks)
 				db
 					.select({
-						packingQueue: sql<number>`count(*) filter (where ${packages.status} = 'packing')`,
-						dispatchReady: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked'))`,
-						completedToday: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked', 'dispatched') and ${packages.packed_at} >= ${todayStart})`,
+						putAwayQueue: sql<number>`count(*) filter (where UPPER(${placementVerifications.status}) in ('AWAITING_PLACEMENT', 'VERIFICATION_REQUIRED', 'PENDING'))`,
+						tasksInProgress: sql<number>`count(*) filter (where UPPER(${placementVerifications.status}) in ('VERIFICATION_REQUIRED', 'PLACED', 'IN_PROGRESS'))`,
+					})
+					.from(placementVerifications)
+					.where(branchId ? sql`(${placementVerifications.branch_id} = ${branchId} OR ${placementVerifications.branch_id} IS NULL)` : undefined),
+
+				// 5. Packages aggregations
+				db
+					.select({
+						activePacking: sql<number>`count(*) filter (where ${packages.status} in ('packing', 'pending', 'in_progress', 'ready_for_packing'))`,
+						dispatchReady: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked', 'loaded'))`,
+						completedToday: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked', 'dispatched', 'loaded') and (${packages.packed_at} >= CURRENT_DATE or ${packages.packed_at} is null))`,
 					})
 					.from(packages),
 
-				// 5. Capacity aggregations
+				// 6. Capacity aggregations
 				db
 					.select({
 						cap: sum(branchLocations.capacity),
 						used: sum(branchLocations.current_stock),
 					})
 					.from(branchLocations)
-					.where(branchId ? eq(branchLocations.branch_id, branchId) : undefined),
+					.where(branchId ? sql`(${branchLocations.branch_id} = ${branchId} OR ${branchLocations.branch_id} IS NULL)` : undefined),
+
+				// 7. Packages already packed for packing queue exclusion
+				db
+					.select({
+						order_id: packages.order_id,
+						pick_list_id: packages.pick_list_id,
+					})
+					.from(packages)
+					.where(
+						inArray(packages.status, [
+							"packed",
+							"ready_for_dispatch",
+							"dispatched",
+							"completed",
+						]),
+					),
+
+				// 8. Completed picklists awaiting packing
+				db
+					.select({
+						id: pickLists.id,
+						order_id: pickLists.order_id,
+					})
+					.from(pickLists)
+					.where(eq(pickLists.status, "completed")),
 			]);
+
+			// Calculate pending to pack picklists (items picked but not yet packed)
+			const packedOrderIds = new Set(packedPackagesRows.map((p) => p.order_id).filter(Boolean));
+			const packedPickListIds = new Set(packedPackagesRows.map((p) => p.pick_list_id).filter(Boolean));
+
+			const pendingPickListsCount = completedPickListRows.filter(
+				(p) => !packedPickListIds.has(p.id) && (!p.order_id || !packedOrderIds.has(p.order_id)),
+			).length;
+
+			const packingQueueTotal = pendingPickListsCount + (Number(packagesStats?.activePacking) || 0);
+
+			// Real orders waiting count
+			const ordersWaitingTotal = Math.max(
+				Number(ordersWaitingData?.ordersWaiting) || 0,
+				Number(pickListsStats?.ordersWaitingPickLists) || 0,
+			);
 
 			const completedToday =
 				(Number(pickListsStats?.completedToday) || 0) +
@@ -605,11 +657,11 @@ export const warehouseRouter = router({
 			const warehouseUtilization = Math.round((usedVal / capVal) * 100);
 
 			return {
-				ordersWaiting: Number(pickListsStats?.ordersWaiting) || 0,
+				ordersWaiting: ordersWaitingTotal,
 				receivingQueue: Number(purchasesStats?.receivingQueue) || 0,
 				putAwayQueue: Number(placementStats?.putAwayQueue) || 0,
 				pickingQueue: Number(pickListsStats?.pickingQueue) || 0,
-				packingQueue: Number(packagesStats?.packingQueue) || 0,
+				packingQueue: packingQueueTotal,
 				dispatchReady: Number(packagesStats?.dispatchReady) || 0,
 				completedToday,
 				tasksInProgress,
@@ -618,23 +670,315 @@ export const warehouseRouter = router({
 			};
 		}),
 
+	getThroughputAnalytics: protectedProcedure
+		.input(z.object({ branch_id: z.number().optional() }).optional())
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const branchId = input?.branch_id ?? ctx.user.branchId;
+
+			// 1. Core Task Counts & SLA Metrics
+			const [
+				pickCounts,
+				orderCounts,
+				purchaseCounts,
+				placementCounts,
+				packageCounts,
+				staffCounts,
+				assignedStaffCounts,
+				hourlyPickActivity,
+				hourlyPackActivity,
+				topProducts,
+				operatorStats,
+			] = await Promise.all([
+				// 1. PickLists (total, pending, active, completed, delayed)
+				db
+					.select({
+						total: sql<number>`count(*)`,
+						pending: sql<number>`count(*) filter (where ${pickLists.status} in ('pending', 'unassigned'))`,
+						active: sql<number>`count(*) filter (where ${pickLists.status} in ('assigned', 'picking', 'in_progress', 'started', 'active'))`,
+						completedToday: sql<number>`count(*) filter (where ${pickLists.status} = 'completed' and (${pickLists.completed_at} >= CURRENT_DATE or ${pickLists.completed_at} is null))`,
+						completedTotal: sql<number>`count(*) filter (where ${pickLists.status} = 'completed')`,
+						delayed: sql<number>`count(*) filter (where ${pickLists.status} not in ('completed', 'cancelled') and ${pickLists.created_at} <= NOW() - INTERVAL '2 hours')`,
+					})
+					.from(pickLists),
+
+				// 2. Orders awaiting pick allocation
+				db
+					.select({
+						ordersWaiting: sql<number>`count(*) filter (where ${orders.status} in ('confirmed', 'pending', 'processing', 'awaiting_picking', 'under_review'))`,
+						totalOrders: sql<number>`count(*)`,
+					})
+					.from(orders)
+					.where(branchId ? sql`(${orders.branch_id} = ${branchId} OR ${orders.branch_id} IS NULL)` : undefined),
+
+				// 3. Purchases (Receiving queue)
+				db
+					.select({
+						receivingQueue: sql<number>`count(*) filter (where LOWER(${purchases.status}) in ('pending', 'ordered', 'in_transit', 'draft', 'approved', 'partially_received', 'awaiting_receipt', 'received'))`,
+						receivedToday: sql<number>`count(*) filter (where LOWER(${purchases.status}) in ('received', 'completed') and (${purchases.created_at} >= CURRENT_DATE or ${purchases.created_at} is null))`,
+						delayedReceiving: sql<number>`count(*) filter (where LOWER(${purchases.status}) not in ('completed', 'received', 'cancelled') and ${purchases.created_at} <= NOW() - INTERVAL '2 hours')`,
+					})
+					.from(purchases)
+					.where(branchId ? sql`(${purchases.branch_id} = ${branchId} OR ${purchases.branch_id} IS NULL)` : undefined),
+
+				// 4. Placements (Put-away queue)
+				db
+					.select({
+						putAwayQueue: sql<number>`count(*) filter (where UPPER(${placementVerifications.status}) in ('AWAITING_PLACEMENT', 'VERIFICATION_REQUIRED', 'PENDING'))`,
+						placedToday: sql<number>`count(*) filter (where UPPER(${placementVerifications.status}) in ('PLACED', 'VERIFIED', 'COMPLETED') and (${placementVerifications.created_at} >= CURRENT_DATE or ${placementVerifications.created_at} is null))`,
+						delayedPlacement: sql<number>`count(*) filter (where UPPER(${placementVerifications.status}) not in ('PLACED', 'VERIFIED', 'COMPLETED') and ${placementVerifications.created_at} <= NOW() - INTERVAL '2 hours')`,
+					})
+					.from(placementVerifications)
+					.where(branchId ? sql`(${placementVerifications.branch_id} = ${branchId} OR ${placementVerifications.branch_id} IS NULL)` : undefined),
+
+				// 5. Packages (Packing queue)
+				db
+					.select({
+						activePacking: sql<number>`count(*) filter (where ${packages.status} in ('packing', 'pending', 'in_progress', 'ready_for_packing'))`,
+						packedToday: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked', 'dispatched', 'loaded') and (${packages.packed_at} >= CURRENT_DATE or ${packages.packed_at} is null))`,
+						dispatchReady: sql<number>`count(*) filter (where ${packages.status} in ('packed', 'ready_for_dispatch', 'checked', 'loaded'))`,
+					})
+					.from(packages),
+
+				// 6. Total active warehouse staff
+				db
+					.select({ count: sql<number>`count(*)` })
+					.from(staff)
+					.where(and(eq(staff.is_deleted, false), eq(staff.status, "active"))),
+
+				// 7. Staff currently actively assigned to open tasks
+				db
+					.select({ count: sql<number>`count(distinct ${pickLists.assigned_to})` })
+					.from(pickLists)
+					.where(sql`${pickLists.status} in ('assigned', 'picking', 'in_progress') and ${pickLists.assigned_to} is not null`),
+
+				// 8. Hourly picks activity
+				db
+					.select({
+						hour: sql<number>`EXTRACT(HOUR FROM ${pickLists.created_at})`,
+						count: sql<number>`count(*)`,
+					})
+					.from(pickLists)
+					.where(sql`${pickLists.created_at} >= CURRENT_DATE`)
+					.groupBy(sql`EXTRACT(HOUR FROM ${pickLists.created_at})`),
+
+				// 9. Hourly packages packed activity
+				db
+					.select({
+						hour: sql<number>`EXTRACT(HOUR FROM ${packages.created_at})`,
+						count: sql<number>`count(*)`,
+					})
+					.from(packages)
+					.where(sql`${packages.created_at} >= CURRENT_DATE`)
+					.groupBy(sql`EXTRACT(HOUR FROM ${packages.created_at})`),
+
+				// 10. Top Products Picked / Moved
+				db
+					.select({
+						product_id: pickListItems.product_id,
+						product_name: products.name,
+						product_sku: products.sku,
+						total_picked: sql<number>`COALESCE(sum(${pickListItems.quantity_picked}), 0)`,
+						total_ordered: sql<number>`COALESCE(sum(${pickListItems.quantity_ordered}), 0)`,
+					})
+					.from(pickListItems)
+					.leftJoin(products, eq(pickListItems.product_id, products.id))
+					.groupBy(pickListItems.product_id, products.name, products.sku)
+					.orderBy(desc(sql`COALESCE(sum(${pickListItems.quantity_picked}), 0)`))
+					.limit(5),
+
+				// 11. Operator Productivity Summary
+				db
+					.select({
+						staff_id: staff.id,
+						staff_name: staff.name,
+						role: staff.role,
+						completed_picks: sql<number>`count(distinct ${pickLists.id}) filter (where ${pickLists.status} = 'completed')`,
+					})
+					.from(staff)
+					.leftJoin(pickLists, eq(staff.id, pickLists.assigned_to))
+					.where(and(eq(staff.is_deleted, false), eq(staff.status, "active")))
+					.groupBy(staff.id, staff.name, staff.role)
+					.orderBy(desc(sql`count(distinct ${pickLists.id}) filter (where ${pickLists.status} = 'completed')`))
+					.limit(5),
+			]);
+
+			const pCounts = pickCounts[0] || { total: 0, pending: 0, active: 0, completedToday: 0, completedTotal: 0, delayed: 0 };
+			const oCounts = orderCounts[0] || { ordersWaiting: 0, totalOrders: 0 };
+			const rCounts = purchaseCounts[0] || { receivingQueue: 0, receivedToday: 0, delayedReceiving: 0 };
+			const pvCounts = placementCounts[0] || { putAwayQueue: 0, placedToday: 0, delayedPlacement: 0 };
+			const pkgCounts = packageCounts[0] || { activePacking: 0, packedToday: 0, dispatchReady: 0 };
+
+			const totalBacklogUnits =
+				Number(oCounts.ordersWaiting || 0) +
+				Number(rCounts.receivingQueue || 0) +
+				Number(pvCounts.putAwayQueue || 0) +
+				Number(pkgCounts.activePacking || 0);
+
+			const totalDelayedTasks =
+				Number(pCounts.delayed || 0) +
+				Number(rCounts.delayedReceiving || 0) +
+				Number(pvCounts.delayedPlacement || 0);
+
+			const totalCompletedTasks =
+				Number(pCounts.completedToday || 0) +
+				Number(rCounts.receivedToday || 0) +
+				Number(pvCounts.placedToday || 0) +
+				Number(pkgCounts.packedToday || 0);
+
+			const totalEvaluatedTasks = totalCompletedTasks + totalDelayedTasks;
+			const slaCompliancePercent =
+				totalEvaluatedTasks > 0
+					? Math.max(0, Math.min(100, Math.round(((totalEvaluatedTasks - totalDelayedTasks) / totalEvaluatedTasks) * 1000) / 10))
+					: 100.0;
+
+			const totalStaffNumber = Number(staffCounts[0]?.count || 0);
+			const assignedStaffNumber = Number(assignedStaffCounts[0]?.count || 0);
+			const operatorUtilizationPercent =
+				totalStaffNumber > 0
+					? Math.min(100, Math.round((assignedStaffNumber / totalStaffNumber) * 1000) / 10)
+					: 0.0;
+
+			// Construct Real 2-Hour Time Buckets (00:00 to 22:00)
+			const hourlyBuckets = [
+				{ label: "0:00", hourRange: [0, 1], volume: 0 },
+				{ label: "2:00", hourRange: [2, 3], volume: 0 },
+				{ label: "4:00", hourRange: [4, 5], volume: 0 },
+				{ label: "6:00", hourRange: [6, 7], volume: 0 },
+				{ label: "8:00", hourRange: [8, 9], volume: 0 },
+				{ label: "10:00", hourRange: [10, 11], volume: 0 },
+				{ label: "12:00", hourRange: [12, 13], volume: 0 },
+				{ label: "14:00", hourRange: [14, 15], volume: 0 },
+				{ label: "16:00", hourRange: [16, 17], volume: 0 },
+				{ label: "18:00", hourRange: [18, 19], volume: 0 },
+				{ label: "20:00", hourRange: [20, 21], volume: 0 },
+				{ label: "22:00", hourRange: [22, 23], volume: 0 },
+			];
+
+			hourlyPickActivity.forEach((row) => {
+				const h = Number(row.hour);
+				const bucket = hourlyBuckets.find((b) => b.hourRange.includes(h));
+				if (bucket) {
+					bucket.volume += Number(row.count || 0);
+				}
+			});
+
+			hourlyPackActivity.forEach((row) => {
+				const h = Number(row.hour);
+				const bucket = hourlyBuckets.find((b) => b.hourRange.includes(h));
+				if (bucket) {
+					bucket.volume += Number(row.count || 0);
+				}
+			});
+
+			const maxVol = Math.max(...hourlyBuckets.map((b) => b.volume), 1);
+			const hourlyChart = hourlyBuckets.map((b) => ({
+				label: b.label,
+				volume: b.volume,
+				heightPercent: Math.max(6, Math.round((b.volume / maxVol) * 100)),
+			}));
+
+			return {
+				backlogUnits: totalBacklogUnits,
+				slaCompliancePercent,
+				operatorUtilizationPercent,
+				delayedTasks: totalDelayedTasks,
+				receivingQueue: Number(rCounts.receivingQueue || 0),
+				putAwayQueue: Number(pvCounts.putAwayQueue || 0),
+				pickingQueue: Number(pCounts.pending || 0) + Number(pCounts.active || 0),
+				packingQueue: Number(pkgCounts.activePacking || 0),
+				completedToday: totalCompletedTasks,
+				hourlyChart,
+				topProducts: topProducts.map((p) => ({
+					id: p.product_id,
+					name: p.product_name || "Unknown Product",
+					sku: p.product_sku || "N/A",
+					picked: Number(p.total_picked || 0),
+					ordered: Number(p.total_ordered || 0),
+				})),
+				operatorLeaderboard: operatorStats.map((op) => ({
+					id: op.staff_id,
+					name: op.staff_name,
+					role: op.role,
+					completedPicks: Number(op.completed_picks || 0),
+				})),
+			};
+		}),
+
 	getReceivingPOs: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
 		const db = ctx.db;
-		return await db
+		const branchId = ctx.user.branchId;
+
+		const rows = await db
 			.select({
 				id: purchases.id,
 				grn_number: purchases.grn_number,
 				supplier_id: purchases.supplier_id,
 				supplier_name: suppliers.name,
+				supplier_phone: suppliers.phone,
 				status: purchases.status,
+				payment_status: purchases.payment_status,
 				created_at: purchases.created_at,
 				total_amount: purchases.total_amount,
+				item_count: count(purchaseItems.id),
+				total_quantity: sum(purchaseItems.quantity),
 			})
 			.from(purchases)
 			.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+			.leftJoin(purchaseItems, eq(purchases.id, purchaseItems.purchase_id))
+			.where(branchId ? eq(purchases.branch_id, branchId) : undefined)
+			.groupBy(purchases.id, suppliers.id, suppliers.name, suppliers.phone)
 			.orderBy(desc(purchases.created_at))
 			.limit(100);
+
+		return rows.map((r) => ({
+			...r,
+			item_count: Number(r.item_count) || 0,
+			total_quantity: Number(r.total_quantity) || 0,
+		}));
 	}),
+
+	getReceivingInspections: protectedProcedure
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					condition: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const branchId = ctx.user.branchId;
+
+			return await db
+				.select({
+					id: receivingInspections.id,
+					purchase_id: receivingInspections.purchase_id,
+					product_id: receivingInspections.product_id,
+					product_name: products.name,
+					product_sku: products.sku,
+					expected_qty: receivingInspections.expected_qty,
+					received_qty: receivingInspections.received_qty,
+					condition: receivingInspections.condition,
+					status: receivingInspections.status,
+					upc_status: receivingInspections.upc_status,
+					notes: receivingInspections.notes,
+					created_at: receivingInspections.created_at,
+					verified_at: receivingInspections.verified_at,
+					inspector_name: staff.name,
+					supplier_name: suppliers.name,
+					grn_number: purchases.grn_number,
+				})
+				.from(receivingInspections)
+				.leftJoin(products, eq(receivingInspections.product_id, products.id))
+				.leftJoin(purchases, eq(receivingInspections.purchase_id, purchases.id))
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.leftJoin(staff, eq(receivingInspections.inspected_by, staff.id))
+				.where(branchId ? eq(receivingInspections.branch_id, branchId) : undefined)
+				.orderBy(desc(receivingInspections.created_at))
+				.limit(100);
+		}),
 
 	getPurchaseItems: protectedProcedure
 		.input(z.object({ purchaseId: z.number() }))
@@ -671,6 +1015,7 @@ export const warehouseRouter = router({
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
 			const staffId = await resolveStaffId(db, ctx.user.email);
+			const grnGenerated = `GRN-${Math.floor(10000 + Math.random() * 90000)}`;
 
 			return await db.transaction(async (tx) => {
 				for (const item of input.items) {
@@ -721,7 +1066,10 @@ export const warehouseRouter = router({
 
 				await tx
 					.update(purchases)
-					.set({ status: "received" })
+					.set({
+						status: "received",
+						grn_number: sql`COALESCE(${purchases.grn_number}, ${grnGenerated})`,
+					})
 					.where(eq(purchases.id, input.purchaseId));
 
 				await logAudit(tx, {
@@ -940,6 +1288,26 @@ export const warehouseRouter = router({
 			const db = ctx.db;
 			const staffId = await resolveStaffId(db, ctx.user.email);
 
+			// Strict verification that selected staff is an authorized picker
+			const [worker] = await db
+				.select({ id: staff.id, role: staff.role, name: staff.name })
+				.from(staff)
+				.where(
+					and(
+						eq(staff.id, input.workerId),
+						eq(staff.is_deleted, false),
+						sql`LOWER(${staff.status}) = 'active'`,
+						sql`(LOWER(${staff.role}) = 'picker' OR ${staff.role} ILIKE '%picker%' OR ${staff.department} ILIKE '%picking%')`,
+					),
+				)
+				.limit(1);
+
+			if (!worker) {
+				throw new Error(
+					"Invalid assignment: Selected staff does not have picker access.",
+				);
+			}
+
 			await db
 				.update(pickLists)
 				.set({
@@ -953,21 +1321,30 @@ export const warehouseRouter = router({
 				action: "PICK_LIST_ASSIGNED",
 				entityType: "pick_lists",
 				entityId: input.pickListId,
-				newValues: { workerId: input.workerId },
+				newValues: { workerId: input.workerId, workerName: worker.name },
 			});
 
 			return { success: true };
 		}),
 
 	startPickingTask: protectedProcedure
-		.input(z.object({ pickListId: z.number() }))
+		.input(
+			z.object({
+				pickListId: z.number(),
+				workerId: z.number().optional(),
+			}),
+		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const staffId = await resolveStaffId(db, ctx.user.email);
+			const staffId =
+				input.workerId ?? (await resolveStaffId(db, ctx.user.email));
 
 			await db
 				.update(pickLists)
-				.set({ status: "picking" })
+				.set({
+					status: "picking",
+					assigned_to: sql`COALESCE(${pickLists.assigned_to}, ${staffId})`,
+				})
 				.where(eq(pickLists.id, input.pickListId));
 
 			await logAudit(db, {
@@ -1088,6 +1465,20 @@ export const warehouseRouter = router({
 						.where(eq(orders.id, pl.order_id));
 				}
 
+				try {
+					await notify(tx, {
+						branchId: (pl as any).branch_id ?? null,
+						type: "packing",
+						priority: "high",
+						title: `🏷️ Picklist PL-${pl.id} Picked — Ready for Packing`,
+						message: `Picking completed for Order ORD-${pl.order_id}. Package ${pkg.package_number} is ready for packing.`,
+						referenceType: "packages",
+						referenceId: pkg.id,
+					});
+				} catch (notifErr) {
+					console.warn("[completePickingTask] Notification dispatch error:", notifErr);
+				}
+
 				await logAudit(tx, {
 					userId: staffId,
 					action: "PICK_LIST_COMPLETED",
@@ -1156,13 +1547,161 @@ export const warehouseRouter = router({
 			return { success: true };
 		}),
 
+	getExceptions: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
+		const db = ctx.db;
+		const branchId = ctx.user.branchId;
+		const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+		// 1. Stock Adjustments (Damages, Missing, Mismatches, Quarantines)
+		const adjustments = await db
+			.select({
+				id: stockAdjustments.id,
+				product_id: stockAdjustments.product_id,
+				product_name: products.name,
+				product_sku: products.sku,
+				quantity: stockAdjustments.quantity,
+				type: stockAdjustments.adjustment_type,
+				reason: stockAdjustments.reason,
+				reference_document: stockAdjustments.reference_document,
+				created_by: stockAdjustments.created_by,
+				created_by_name: staff.name,
+				created_at: stockAdjustments.created_at,
+			})
+			.from(stockAdjustments)
+			.leftJoin(products, eq(stockAdjustments.product_id, products.id))
+			.leftJoin(staff, eq(stockAdjustments.created_by, staff.id))
+			.orderBy(desc(stockAdjustments.created_at))
+			.limit(100);
+
+		// 2. Receiving Inspections with discrepancies or non-good condition
+		const inspections = await db
+			.select({
+				id: receivingInspections.id,
+				purchase_id: receivingInspections.purchase_id,
+				product_id: receivingInspections.product_id,
+				product_name: products.name,
+				product_sku: products.sku,
+				expected_qty: receivingInspections.expected_qty,
+				received_qty: receivingInspections.received_qty,
+				condition: receivingInspections.condition,
+				status: receivingInspections.status,
+				notes: receivingInspections.notes,
+				created_at: receivingInspections.created_at,
+				verified_at: receivingInspections.verified_at,
+				inspector_name: staff.name,
+				supplier_name: suppliers.name,
+				grn_number: purchases.grn_number,
+			})
+			.from(receivingInspections)
+			.leftJoin(products, eq(receivingInspections.product_id, products.id))
+			.leftJoin(purchases, eq(receivingInspections.purchase_id, purchases.id))
+			.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+			.leftJoin(staff, eq(receivingInspections.inspected_by, staff.id))
+			.where(
+				and(
+					branchId ? eq(receivingInspections.branch_id, branchId) : undefined,
+					sql`(${receivingInspections.condition} != 'good' OR ${receivingInspections.status} in ('rejected', 'quarantined', 'failed') OR ${receivingInspections.expected_qty} != ${receivingInspections.received_qty})`,
+				),
+			)
+			.orderBy(desc(receivingInspections.created_at))
+			.limit(50);
+
+		// 3. Overdue SLA Tasks
+		const overduePicks = await db
+			.select({
+				id: pickLists.id,
+				order_id: pickLists.order_id,
+				status: pickLists.status,
+				created_at: pickLists.created_at,
+				assigned_to: pickLists.assigned_to,
+				worker_name: staff.name,
+			})
+			.from(pickLists)
+			.leftJoin(staff, eq(pickLists.assigned_to, staff.id))
+			.where(
+				and(
+					notInArray(pickLists.status, ["completed", "cancelled"]),
+					lte(pickLists.created_at, twoHoursAgo),
+				),
+			)
+			.limit(20);
+
+		return {
+			adjustments,
+			inspections,
+			overduePicks,
+		};
+	}),
+
+	resolveException: protectedProcedure
+		.input(
+			z.object({
+				id: z.number(),
+				source: z.enum(["adjustment", "inspection"]),
+				resolutionNotes: z.string().min(1, "Resolution notes are required"),
+				actionType: z.enum([
+					"quarantine_isolated",
+					"write_off",
+					"supplier_claim",
+					"adjusted_counts",
+					"passed_override",
+				]),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+
+			if (input.source === "adjustment") {
+				await db
+					.update(stockAdjustments)
+					.set({
+						reference_document: `RESOLVED: [${input.actionType.toUpperCase()}] ${input.resolutionNotes}`,
+					})
+					.where(eq(stockAdjustments.id, input.id));
+
+				await logAudit(db, {
+					userId: staffId,
+					action: "EXCEPTION_RESOLVED",
+					entityType: "stock_adjustments",
+					entityId: input.id,
+					newValues: {
+						actionType: input.actionType,
+						resolutionNotes: input.resolutionNotes,
+					},
+				});
+			} else if (input.source === "inspection") {
+				await db
+					.update(receivingInspections)
+					.set({
+						status: "verified",
+						notes: sql`COALESCE(${receivingInspections.notes}, '') || ' | RESOLVED: [' || ${input.actionType.toUpperCase()} || '] ' || ${input.resolutionNotes}`,
+						verified_at: new Date(),
+					})
+					.where(eq(receivingInspections.id, input.id));
+
+				await logAudit(db, {
+					userId: staffId,
+					action: "INSPECTION_EXCEPTION_RESOLVED",
+					entityType: "receiving_inspections",
+					entityId: input.id,
+					newValues: {
+						actionType: input.actionType,
+						resolutionNotes: input.resolutionNotes,
+					},
+				});
+			}
+
+			return { success: true };
+		}),
+
 	logException: protectedProcedure
 		.input(
 			z.object({
 				productId: z.number(),
 				qty: z.number(),
 				reason: z.string(),
-				type: z.enum(["damage", "missing", "mismatch"]),
+				type: z.enum(["damage", "missing", "mismatch", "quarantine"]),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -1174,7 +1713,6 @@ export const warehouseRouter = router({
 					.insert(stockAdjustments)
 					.values({
 						product_id: input.productId,
-						branch_id: ctx.user.branchId ?? 1,
 						quantity: input.qty,
 						adjustment_type: input.type,
 						reason: input.reason,
@@ -1212,5 +1750,640 @@ export const warehouseRouter = router({
 			return await ctx.db.transaction(async (tx) => {
 				return await EWayBillService.generate(tx, input, ctx.user);
 			});
+		}),
+
+	autoAssignPicking: protectedProcedure
+		.input(
+			z
+				.object({
+					pickListIds: z.array(z.number()).optional(),
+				})
+				.optional(),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+
+			// 1. Get active staff strictly with picker role
+			const pickers = await db
+				.select({
+					id: staff.id,
+					name: staff.name,
+					email: staff.email,
+				})
+				.from(staff)
+				.where(
+					and(
+						eq(staff.is_deleted, false),
+						sql`LOWER(${staff.status}) = 'active'`,
+						sql`(LOWER(${staff.role}) = 'picker' OR ${staff.role} ILIKE '%picker%' OR ${staff.department} ILIKE '%picking%')`,
+						sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+					),
+				);
+
+			if (pickers.length === 0) {
+				throw new Error("No active staff with 'picker' role available in the warehouse.");
+			}
+
+			// 2. Count current active load per picker
+			const activePicksPerWorker = await db
+				.select({
+					assigned_to: pickLists.assigned_to,
+					count: count(),
+				})
+				.from(pickLists)
+				.where(
+					and(
+						inArray(pickLists.status, ["assigned", "picking", "in_progress"]),
+						sql`${pickLists.assigned_to} IS NOT NULL`,
+					),
+				)
+				.groupBy(pickLists.assigned_to);
+
+			const loadMap = new Map<number, number>();
+			for (const p of pickers) {
+				loadMap.set(p.id, 0);
+			}
+			for (const row of activePicksPerWorker) {
+				if (row.assigned_to && loadMap.has(row.assigned_to)) {
+					loadMap.set(row.assigned_to, Number(row.count) || 0);
+				}
+			}
+
+			// 3. Find unassigned pick lists
+			const pendingPicks = await db
+				.select({
+					id: pickLists.id,
+					order_id: pickLists.order_id,
+					priority: pickLists.priority,
+				})
+				.from(pickLists)
+				.where(
+					input?.pickListIds && input.pickListIds.length > 0
+						? inArray(pickLists.id, input.pickListIds)
+						: or(
+								inArray(pickLists.status, ["pending", "unassigned"]),
+								sql`${pickLists.assigned_to} IS NULL and ${pickLists.status} not in ('completed', 'cancelled')`,
+							),
+				)
+				.orderBy(
+					sql`CASE WHEN ${pickLists.priority} = 'urgent' THEN 1 WHEN ${pickLists.priority} = 'high' THEN 2 ELSE 3 END`,
+					pickLists.created_at,
+				);
+
+			if (pendingPicks.length === 0) {
+				return {
+					success: true,
+					assignedCount: 0,
+					message: "All pick lists are already assigned!",
+					assignments: [],
+				};
+			}
+
+			const assignments: Array<{
+				pickListId: number;
+				pickerId: number;
+				pickerName: string;
+			}> = [];
+
+			for (const pl of pendingPicks) {
+				let lowestPicker = pickers[0];
+				let lowestLoad = loadMap.get(lowestPicker.id) ?? 0;
+
+				for (const p of pickers) {
+					const currentLoad = loadMap.get(p.id) ?? 0;
+					if (currentLoad < lowestLoad) {
+						lowestLoad = currentLoad;
+						lowestPicker = p;
+					}
+				}
+
+				await db
+					.update(pickLists)
+					.set({
+						assigned_to: lowestPicker.id,
+						status: "assigned",
+					})
+					.where(eq(pickLists.id, pl.id));
+
+				loadMap.set(lowestPicker.id, lowestLoad + 1);
+				assignments.push({
+					pickListId: pl.id,
+					pickerId: lowestPicker.id,
+					pickerName: lowestPicker.name,
+				});
+
+				try {
+					await notify(db, {
+						branchId: ctx.user.branchId ?? null,
+						type: "picking",
+						priority: pl.priority === "urgent" ? "high" : "normal",
+						title: `⚡ Auto-Assigned: Picklist PL-${pl.id}`,
+						message: `Picklist PL-${pl.id} for Order ORD-${pl.order_id} has been automatically assigned to you.`,
+						referenceType: "pick_lists",
+						referenceId: pl.id,
+					});
+				} catch (notifErr) {
+					console.warn("[autoAssignPicking] Notification error:", notifErr);
+				}
+			}
+
+			await logAudit(db, {
+				userId: staffId,
+				action: "AUTO_ASSIGN_PICKING_EXECUTED",
+				entityType: "pick_lists",
+				entityId: assignments[0]?.pickListId ?? 0,
+				newValues: { assignedCount: assignments.length, assignments },
+			});
+
+			return {
+				success: true,
+				assignedCount: assignments.length,
+				message: `Successfully auto-assigned ${assignments.length} pick list(s) to authorized pickers!`,
+				assignments,
+			};
+		}),
+
+	autoAssignPacking: protectedProcedure
+		.input(
+			z
+				.object({
+					packageIds: z.array(z.number()).optional(),
+				})
+				.optional(),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+
+			const packers = await db
+				.select({
+					id: staff.id,
+					name: staff.name,
+				})
+				.from(staff)
+				.where(
+					and(
+						eq(staff.is_deleted, false),
+						sql`LOWER(${staff.status}) = 'active'`,
+						sql`(LOWER(${staff.role}) = 'packer' OR ${staff.role} ILIKE '%packer%' OR ${staff.department} ILIKE '%packing%')`,
+						sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+					),
+				);
+
+			if (packers.length === 0) {
+				throw new Error("No active staff with 'packer' role available in the warehouse.");
+			}
+
+			const unassignedPackages = await db
+				.select({
+					id: packages.id,
+					package_number: packages.package_number,
+					order_id: packages.order_id,
+				})
+				.from(packages)
+				.where(
+					input?.packageIds && input.packageIds.length > 0
+						? inArray(packages.id, input.packageIds)
+						: and(
+								inArray(packages.status, ["packing", "pending"]),
+								sql`${packages.packed_by} IS NULL`,
+							),
+				)
+				.orderBy(packages.created_at);
+
+			if (unassignedPackages.length === 0) {
+				return {
+					success: true,
+					assignedCount: 0,
+					message: "All packages in packing queue are already assigned!",
+				};
+			}
+
+			let packerIdx = 0;
+			let assignedCount = 0;
+
+			for (const pkg of unassignedPackages) {
+				const assignedPacker = packers[packerIdx % packers.length];
+				packerIdx++;
+
+				await db
+					.update(packages)
+					.set({
+						packed_by: assignedPacker.id,
+					})
+					.where(eq(packages.id, pkg.id));
+
+				assignedCount++;
+
+				try {
+					await notify(db, {
+						branchId: ctx.user.branchId ?? null,
+						type: "packing",
+						priority: "normal",
+						title: `⚡ Auto-Assigned: Package ${pkg.package_number}`,
+						message: `Package ${pkg.package_number} for Order ORD-${pkg.order_id} has been automatically routed to you for packing.`,
+						referenceType: "packages",
+						referenceId: pkg.id,
+					});
+				} catch (e) {
+					console.warn("[autoAssignPacking] Notification error:", e);
+				}
+			}
+
+			await logAudit(db, {
+				userId: staffId,
+				action: "AUTO_ASSIGN_PACKING_EXECUTED",
+				entityType: "packages",
+				entityId: unassignedPackages[0]?.id ?? 0,
+				newValues: { assignedCount },
+			});
+
+			return {
+				success: true,
+				assignedCount,
+				message: `Successfully auto-assigned ${assignedCount} package(s) to packing staff!`,
+			};
+		}),
+
+	getPipelineHealth: protectedProcedure.query(async ({ ctx }) => {
+		const db = ctx.db;
+		const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+		const [
+			[unassignedPicksRow],
+			[activePicksRow],
+			[unassignedPacksRow],
+			[activePacksRow],
+			[delayedPicksRow],
+			activePickers,
+			activePackers,
+			missingItems,
+		] = await Promise.all([
+			db
+				.select({ count: count() })
+				.from(pickLists)
+				.where(
+					or(
+						inArray(pickLists.status, ["pending", "unassigned"]),
+						sql`${pickLists.assigned_to} IS NULL and ${pickLists.status} not in ('completed', 'cancelled')`,
+					),
+				),
+			db
+				.select({ count: count() })
+				.from(pickLists)
+				.where(inArray(pickLists.status, ["assigned", "picking", "in_progress"])),
+			db
+				.select({ count: count() })
+				.from(packages)
+				.where(
+					and(
+						inArray(packages.status, ["packing", "pending"]),
+						sql`${packages.packed_by} IS NULL`,
+					),
+				),
+			db
+				.select({ count: count() })
+				.from(packages)
+				.where(
+					and(
+						inArray(packages.status, ["packing", "in_progress"]),
+						sql`${packages.packed_by} IS NOT NULL`,
+					),
+				),
+			db
+				.select({ count: count() })
+				.from(pickLists)
+				.where(
+					and(
+						notInArray(pickLists.status, ["completed", "cancelled"]),
+						lte(pickLists.created_at, thirtyMinsAgo),
+					),
+				),
+			db
+				.select({
+					id: staff.id,
+					name: staff.name,
+					role: staff.role,
+				})
+				.from(staff)
+				.where(
+					and(
+						eq(staff.is_deleted, false),
+						sql`LOWER(${staff.status}) = 'active'`,
+						sql`(LOWER(${staff.role}) = 'picker' OR ${staff.role} ILIKE '%picker%' OR ${staff.department} ILIKE '%picking%')`,
+						sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+					),
+				),
+			db
+				.select({
+					id: staff.id,
+					name: staff.name,
+					role: staff.role,
+				})
+				.from(staff)
+				.where(
+					and(
+						eq(staff.is_deleted, false),
+						sql`LOWER(${staff.status}) = 'active'`,
+						sql`(LOWER(${staff.role}) = 'packer' OR ${staff.role} ILIKE '%packer%' OR ${staff.department} ILIKE '%packing%')`,
+						sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+					),
+				),
+			db
+				.select({
+					id: pickListItems.id,
+					pick_list_id: pickListItems.pick_list_id,
+					product_name: products.name,
+					quantity_ordered: pickListItems.quantity_ordered,
+					status: pickListItems.status,
+				})
+				.from(pickListItems)
+				.leftJoin(products, eq(pickListItems.product_id, products.id))
+				.where(eq(pickListItems.status, "missing"))
+				.limit(10),
+		]);
+
+		const unassignedPicks = Number(unassignedPicksRow?.count || 0);
+		const activePicks = Number(activePicksRow?.count || 0);
+		const unassignedPacks = Number(unassignedPacksRow?.count || 0);
+		const activePacks = Number(activePacksRow?.count || 0);
+		const delayedCount = Number(delayedPicksRow?.count || 0);
+
+		const bottlenecks: Array<{
+			id: string;
+			type: "delayed_picking" | "unassigned_backlog" | "missing_item" | "no_active_pickers";
+			title: string;
+			description: string;
+			severity: "warning" | "critical";
+			count?: number;
+		}> = [];
+
+		if (unassignedPicks > 0) {
+			bottlenecks.push({
+				id: "unassigned_picks",
+				type: "unassigned_backlog",
+				title: `${unassignedPicks} Picklist(s) Awaiting Picker Assignment`,
+				description: "Orders are pending picker allocation. Run auto-assign pipeline to distribute tasks immediately.",
+				severity: unassignedPicks > 10 ? "critical" : "warning",
+				count: unassignedPicks,
+			});
+		}
+
+		if (delayedCount > 0) {
+			bottlenecks.push({
+				id: "delayed_picks",
+				type: "delayed_picking",
+				title: `${delayedCount} Stalled / Delayed Pick Task(s)`,
+				description: "Picking tasks exceeding SLA (>30m). Trigger self-healing pipeline to re-balance or re-assign to active pickers.",
+				severity: "critical",
+				count: delayedCount,
+			});
+		}
+
+		if (unassignedPacks > 0) {
+			bottlenecks.push({
+				id: "unassigned_packs",
+				type: "unassigned_backlog",
+				title: `${unassignedPacks} Package(s) Awaiting Packer Allocation`,
+				description: "Picked orders are ready for sealing & packaging. Run auto-assign to route to available packers.",
+				severity: "warning",
+				count: unassignedPacks,
+			});
+		}
+
+		if (missingItems.length > 0) {
+			bottlenecks.push({
+				id: "missing_items",
+				type: "missing_item",
+				title: `${missingItems.length} Item(s) Reported Missing / Stockout`,
+				description: "Pickers reported stock unavailable on shelf. Review exceptions or adjust inventory to clear orders.",
+				severity: "critical",
+				count: missingItems.length,
+			});
+		}
+
+		return {
+			isHealthy: bottlenecks.length === 0,
+			unassignedPicks,
+			activePicks,
+			unassignedPacks,
+			activePacks,
+			delayedCount,
+			activePickersCount: activePickers.length,
+			activePackersCount: activePackers.length,
+			activePickers,
+			activePackers,
+			missingItems,
+			bottlenecks,
+		};
+	}),
+
+	runSelfHealingPipeline: protectedProcedure.mutation(async ({ ctx }) => {
+		const db = ctx.db;
+		const staffId = await resolveStaffId(db, ctx.user.email);
+		const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+		// 1. Get active staff strictly with picker role
+		const pickers = await db
+			.select({ id: staff.id, name: staff.name })
+			.from(staff)
+			.where(
+				and(
+					eq(staff.is_deleted, false),
+					sql`LOWER(${staff.status}) = 'active'`,
+					sql`(LOWER(${staff.role}) = 'picker' OR ${staff.role} ILIKE '%picker%' OR ${staff.department} ILIKE '%picking%')`,
+					sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+				),
+			);
+
+		let assignedPicks = 0;
+		let reassignedStalled = 0;
+		let assignedPacks = 0;
+
+		if (pickers.length > 0) {
+			// Auto assign unassigned picklists
+			const unassignedPicks = await db
+				.select({ id: pickLists.id, order_id: pickLists.order_id })
+				.from(pickLists)
+				.where(
+					or(
+						inArray(pickLists.status, ["pending", "unassigned"]),
+						sql`${pickLists.assigned_to} IS NULL and ${pickLists.status} not in ('completed', 'cancelled')`,
+					),
+				);
+
+			let pIdx = 0;
+			for (const pl of unassignedPicks) {
+				const picker = pickers[pIdx % pickers.length];
+				pIdx++;
+				await db
+					.update(pickLists)
+					.set({ assigned_to: picker.id, status: "assigned" })
+					.where(eq(pickLists.id, pl.id));
+				assignedPicks++;
+			}
+
+			// Reassign stalled tasks (>30 mins without completion)
+			const stalledPicks = await db
+				.select({ id: pickLists.id, assigned_to: pickLists.assigned_to })
+				.from(pickLists)
+				.where(
+					and(
+						inArray(pickLists.status, ["assigned", "pending"]),
+						lte(pickLists.created_at, thirtyMinsAgo),
+					),
+				);
+
+			for (const pl of stalledPicks) {
+				const alternatePicker =
+					pickers.find((p) => p.id !== pl.assigned_to) || pickers[0];
+				if (alternatePicker) {
+					await db
+						.update(pickLists)
+						.set({ assigned_to: alternatePicker.id, priority: "urgent" })
+						.where(eq(pickLists.id, pl.id));
+					reassignedStalled++;
+				}
+			}
+		}
+
+		// Auto assign unassigned packages strictly to active packers
+		const packers = await db
+			.select({ id: staff.id, name: staff.name })
+			.from(staff)
+			.where(
+				and(
+					eq(staff.is_deleted, false),
+					sql`LOWER(${staff.status}) = 'active'`,
+					sql`(LOWER(${staff.role}) = 'packer' OR ${staff.role} ILIKE '%packer%' OR ${staff.department} ILIKE '%packing%')`,
+					sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+				),
+			);
+
+		if (packers.length > 0) {
+			const unassignedPackages = await db
+				.select({ id: packages.id })
+				.from(packages)
+				.where(
+					and(
+						inArray(packages.status, ["packing", "pending"]),
+						sql`${packages.packed_by} IS NULL`,
+					),
+				);
+
+			let kIdx = 0;
+			for (const pkg of unassignedPackages) {
+				const packer = packers[kIdx % packers.length];
+				kIdx++;
+				await db
+					.update(packages)
+					.set({ packed_by: packer.id })
+					.where(eq(packages.id, pkg.id));
+				assignedPacks++;
+			}
+		}
+
+		await logAudit(db, {
+			userId: staffId,
+			action: "SELF_HEALING_PIPELINE_EXECUTED",
+			entityType: "warehouse_pipeline",
+			entityId: 0,
+			newValues: { assignedPicks, reassignedStalled, assignedPacks },
+		});
+
+		return {
+			success: true,
+			assignedPicks,
+			reassignedStalled,
+			assignedPacks,
+			totalResolved: assignedPicks + reassignedStalled + assignedPacks,
+			message: `Self-healing pipeline executed: ${assignedPicks} pick(s) assigned to authorized pickers, ${reassignedStalled} stalled task(s) prioritized, ${assignedPacks} package(s) routed!`,
+		};
+	}),
+
+	raisePipelineIssue: protectedProcedure
+		.input(
+			z.object({
+				referenceType: z.enum(["pick_list", "package", "item"]),
+				referenceId: z.number(),
+				issueType: z.enum([
+					"stockout",
+					"damaged_item",
+					"barcode_mismatch",
+					"picker_unresponsive",
+					"order_hold",
+				]),
+				notes: z.string().min(1, "Please provide description of the problem"),
+				productId: z.number().optional(),
+				autoReassign: z.boolean().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+
+			if (input.referenceType === "pick_list") {
+				if (input.autoReassign) {
+					const pickers = await db
+						.select({ id: staff.id })
+						.from(staff)
+						.where(
+							and(
+								eq(staff.is_deleted, false),
+								sql`LOWER(${staff.status}) = 'active'`,
+								sql`(LOWER(${staff.role}) = 'picker' OR ${staff.role} ILIKE '%picker%' OR ${staff.department} ILIKE '%picking%')`,
+								sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+							),
+						);
+
+					const [currentPl] = await db
+						.select()
+						.from(pickLists)
+						.where(eq(pickLists.id, input.referenceId))
+						.limit(1);
+
+					const alternatePicker =
+						pickers.find((p) => p.id !== currentPl?.assigned_to) || pickers[0];
+
+					await db
+						.update(pickLists)
+						.set({
+							priority: "urgent",
+							assigned_to: alternatePicker ? alternatePicker.id : currentPl?.assigned_to,
+						})
+						.where(eq(pickLists.id, input.referenceId));
+				} else {
+					await db
+						.update(pickLists)
+						.set({ priority: "urgent" })
+						.where(eq(pickLists.id, input.referenceId));
+				}
+			}
+
+			if (input.productId) {
+				await db.insert(stockAdjustments).values({
+					product_id: input.productId,
+					quantity: 1,
+					adjustment_type:
+						input.issueType === "damaged_item" ? "damage" : "missing",
+					reason: `[PIPELINE EXCEPTION] ${input.issueType}: ${input.notes}`,
+					created_by: staffId ?? 1,
+					created_at: new Date(),
+				});
+			}
+
+			await logAudit(db, {
+				userId: staffId,
+				action: `PIPELINE_ISSUE_RAISED_${input.issueType.toUpperCase()}`,
+				entityType: input.referenceType,
+				entityId: input.referenceId,
+				newValues: { issueType: input.issueType, notes: input.notes },
+			});
+
+			return {
+				success: true,
+				message: `Issue logged successfully. Task prioritized and alert dispatched to warehouse managers.`,
+			};
 		}),
 });

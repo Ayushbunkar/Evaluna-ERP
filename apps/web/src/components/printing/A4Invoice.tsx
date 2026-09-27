@@ -1,4 +1,4 @@
-﻿import type React from "react";
+import type React from "react";
 
 export interface A4InvoiceProps {
 	order: any;
@@ -26,14 +26,14 @@ export const A4Invoice: React.FC<A4InvoiceProps> = ({
 				</div>
 				<div className="text-right">
 					<h2 className="font-bold text-2xl text-gray-900">
-						{branch?.name || "Company Name"}
+						{branch?.name || "EVALUNA PVT LTD"}
 					</h2>
 					<p className="mt-1 whitespace-pre-line text-gray-600">
-						{branch?.address || "Company Address\nCity, State ZIP"}
+						{branch?.address || "Near Bank of India, Vidisha Road, Berasia\nBhopal, MP – 463106"}
 					</p>
-					<p className="text-gray-600">{branch?.phone || "Phone Number"}</p>
+					<p className="font-bold text-gray-800">Phone: {branch?.phone || "9630649277"}</p>
 					<p className="text-gray-600">
-						{branch?.email || "email@example.com"}
+						{branch?.email || "support@evaluna.in"}
 					</p>
 				</div>
 			</div>

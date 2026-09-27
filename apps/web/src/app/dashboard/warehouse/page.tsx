@@ -39,12 +39,24 @@ export default function WMSDashboardOverview() {
 
 	// Queries
 	const { data: stats, isLoading: statsLoading } =
-		trpc.warehouse.getOverviewStats.useQuery({});
+		trpc.warehouse.getOverviewStats.useQuery(
+			{},
+			{
+				refetchInterval: 15000,
+				refetchOnWindowFocus: true,
+			},
+		);
 
 	// Load general warehouse stats for the activity feed & capacity alerts
-	const { data: genStats } = trpc.warehouse.getStats.useQuery({
-		branch_id: undefined,
-	});
+	const { data: genStats } = trpc.warehouse.getStats.useQuery(
+		{
+			branch_id: undefined,
+		},
+		{
+			refetchInterval: 30000,
+			refetchOnWindowFocus: true,
+		},
+	);
 
 	const kpis = [
 		{
@@ -121,28 +133,28 @@ export default function WMSDashboardOverview() {
 				</div>
 			</div>
 
-			{/* KPI Cards Row */}
-			<StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" slow>
+			{/* KPI Cards Row — Single line on desktop */}
+			<StaggerList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 gap-3 sm:gap-3.5" slow>
 				{kpis.map((kpi, idx) => {
 					const Icon = kpi.icon;
 					return (
 						<StaggerItem key={idx}>
 							<AnimatedCard>
-								<Link href={kpi.href}>
+								<Link href={kpi.href} className="block h-full">
 									<Card
-										className={`border-l-4 ${kpi.color} cursor-pointer bg-white shadow-sm transition-all hover:scale-102 hover:shadow-md dark:bg-slate-800`}
+										className={`h-full border-l-4 ${kpi.color} cursor-pointer bg-white shadow-sm transition-all hover:scale-[1.02] hover:shadow-md dark:bg-slate-800`}
 									>
-										<CardHeader className="flex flex-row items-center justify-between pb-2">
-											<CardTitle className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+										<CardHeader className="flex flex-row items-center justify-between p-3.5 pb-1 sm:p-4 sm:pb-2">
+											<CardTitle className="font-semibold text-muted-foreground text-[11px] sm:text-xs uppercase tracking-wider truncate">
 												{kpi.title}
 											</CardTitle>
-											<Icon className={`h-4 w-4 ${kpi.iconColor}`} />
+											<Icon className={`h-4 w-4 shrink-0 ${kpi.iconColor}`} />
 										</CardHeader>
-										<CardContent>
-											<div className="font-bold text-2xl text-slate-900 sm:text-3xl dark:text-slate-100">
+										<CardContent className="p-3.5 pt-0 sm:p-4 sm:pt-0">
+											<div className="font-bold text-2xl text-slate-900 sm:text-3xl dark:text-slate-100 tracking-tight">
 												{statsLoading ? "..." : kpi.value}
 											</div>
-											<p className="mt-1 text-[10px] text-muted-foreground">
+											<p className="mt-1 text-[11px] text-muted-foreground truncate">
 												{kpi.desc}
 											</p>
 										</CardContent>

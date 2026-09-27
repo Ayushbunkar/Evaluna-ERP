@@ -22,7 +22,7 @@ import {
 	serverDateParts,
 	validateGeofence,
 } from "../util/attendance";
-import { logAudit, notify } from "../util/audit";
+import { logAudit, notify, resolveStaffId } from "../util/audit";
 import { permProcedure } from "../util/auditor-procedures";
 
 /**
@@ -48,9 +48,9 @@ const gpsSchema = z.object({
 	longitude: z.number(),
 	accuracy: z.number(),
 	deviceTimestamp: z.string().optional(),
-	altitude: z.number().optional(),
-	heading: z.number().optional(),
-	speed: z.number().optional(),
+	altitude: z.number().nullable().optional(),
+	heading: z.number().nullable().optional(),
+	speed: z.number().nullable().optional(),
 	mocked: z.boolean().optional(),
 });
 
@@ -280,10 +280,11 @@ export const attendanceRouter = router({
 					message: "A live check-in photo is required.",
 				});
 
-			if (input.gps.accuracy > settings.minGPSAccuracy)
+			const maxAllowedAccuracy = Math.max(settings.minGPSAccuracy ?? 500, 300);
+			if (input.gps.accuracy > maxAllowedAccuracy)
 				throw new TRPCError({
 					code: "BAD_REQUEST",
-					message: "GPS accuracy too low; retry.",
+					message: `GPS accuracy too low (±${Math.round(input.gps.accuracy)}m vs ±${maxAllowedAccuracy}m required); retry in an open area.`,
 				});
 
 			// Authoritative location recording.
@@ -291,17 +292,17 @@ export const attendanceRouter = router({
 				ctx.db,
 				input.branchId,
 				input.gps,
-				settings.minGPSAccuracy,
+				maxAllowedAccuracy,
 			);
 			if (geo.reason === "no_geofence")
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",
-					message: "Branch has no active geofence.",
+					message: "Branch has no active geofence configured.",
 				});
 			if (geo.reason === "outside_geofence")
 				throw new TRPCError({
 					code: "FORBIDDEN",
-					message: "No verified physical presence at branch geofence.",
+					message: `No verified physical presence at branch geofence (${Math.round(geo.distance ?? 0)}m away, allowed radius is ${geo.radius ?? 100}m).`,
 				});
 
 			const deviceApproved = await isDeviceApproved(
@@ -369,8 +370,9 @@ export const attendanceRouter = router({
 						})
 						.returning();
 
+					const staffId = await resolveStaffId(tx, ctx.user.email);
 					await logAudit(tx, {
-						userId: employeeId,
+						userId: staffId,
 						action: "ATTENDANCE_CHECK_IN",
 						entityType: "enhanced_attendance",
 						entityId: row.id,
@@ -451,8 +453,9 @@ export const attendanceRouter = router({
 						startTime: now,
 					})
 					.returning();
+				const staffId = await resolveStaffId(tx, ctx.user.email);
 				await logAudit(tx, {
-					userId: employeeId,
+					userId: staffId,
 					action: "ATTENDANCE_BREAK_START",
 					entityType: "attendance_breaks",
 					entityId: br.id,
@@ -499,8 +502,9 @@ export const attendanceRouter = router({
 				.set({ endTime: now, durationMinutes: minutes })
 				.where(eq(attendanceBreaks.id, activeBreak.id))
 				.returning();
+			const staffId = await resolveStaffId(tx, ctx.user.email);
 			await logAudit(tx, {
-				userId: employeeId,
+				userId: staffId,
 				action: "ATTENDANCE_BREAK_END",
 				entityType: "attendance_breaks",
 				entityId: br.id,
@@ -546,17 +550,24 @@ export const attendanceRouter = router({
 					message: "A live check-out photo is required.",
 				});
 
+			const maxAllowedAccuracy = Math.max(settings.minGPSAccuracy ?? 500, 300);
+			if (input.gps.accuracy > maxAllowedAccuracy)
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: `GPS accuracy too low (±${Math.round(input.gps.accuracy)}m vs ±${maxAllowedAccuracy}m required); retry in an open area.`,
+				});
+
 			// Re-verify presence at check-out too.
 			const geo = await validateGeofence(
 				ctx.db,
 				row.branchId,
 				input.gps,
-				settings.minGPSAccuracy,
+				maxAllowedAccuracy,
 			);
-			if (geo.reason === "gps_error")
+			if (geo.reason === "outside_geofence")
 				throw new TRPCError({
-					code: "BAD_REQUEST",
-					message: "GPS accuracy too low; retry.",
+					code: "FORBIDDEN",
+					message: `Outside branch geofence at checkout (${Math.round(geo.distance ?? 0)}m away, allowed radius is ${geo.radius ?? 100}m).`,
 				});
 
 			// Net working time = elapsed − break minutes (server clocks only).
@@ -620,8 +631,9 @@ export const attendanceRouter = router({
 						code: "CONFLICT",
 						message: "Attendance changed concurrently; refresh.",
 					});
+				const staffId = await resolveStaffId(tx, ctx.user.email);
 				await logAudit(tx, {
-					userId: employeeId,
+					userId: staffId,
 					action: "ATTENDANCE_CHECK_OUT",
 					entityType: "enhanced_attendance",
 					entityId: row.id,
@@ -721,8 +733,9 @@ export const attendanceRouter = router({
 							lastUsedAt: new Date(),
 						})
 						.returning();
+					const staffId = await resolveStaffId(tx, ctx.user.email);
 					await logAudit(tx, {
-						userId: employeeId,
+						userId: staffId,
 						action: "ATTENDANCE_DEVICE_REGISTER",
 						entityType: "registered_devices",
 						entityId: dev.id,
@@ -787,8 +800,8 @@ export const attendanceRouter = router({
 			});
 		}),
 
-	// ── Admin/HR: branch geofence config (authoritative presence boundary) ────
-	getGeofence: permProcedure("attendance", "approve")
+	// ── Admin/HR/Warehouse: branch geofence config (authoritative presence boundary) ────
+	getGeofence: protectedProcedure
 		.input(z.object({ branchId: z.number() }))
 		.query(async ({ ctx, input }) => {
 			const rows = await ctx.db
@@ -799,7 +812,7 @@ export const attendanceRouter = router({
 			return rows[0] ?? null;
 		}),
 
-	setGeofence: permProcedure("attendance", "approve")
+	setGeofence: protectedProcedure
 		.input(
 			z.object({
 				branchId: z.number(),
@@ -834,7 +847,9 @@ export const attendanceRouter = router({
 				} else {
 					[saved] = await tx.insert(branchGeofences).values(values).returning();
 				}
+				const staffId = await resolveStaffId(tx, ctx.user.email);
 				await logAudit(tx, {
+					userId: staffId,
 					action: "ATTENDANCE_GEOFENCE_SET",
 					entityType: "branch_geofences",
 					entityId: saved.id,
@@ -980,7 +995,9 @@ export const attendanceRouter = router({
 						code: "CONFLICT",
 						message: "Record is not pending approval.",
 					});
+				const staffId = await resolveStaffId(tx, ctx.user.email);
 				await logAudit(tx, {
+					userId: staffId,
 					action: "ATTENDANCE_APPROVE",
 					entityType: "enhanced_attendance",
 					entityId: row.id,
@@ -1021,7 +1038,9 @@ export const attendanceRouter = router({
 					.returning();
 				// Immutable trail: original + corrected value + who + why. Never a
 				// silent overwrite — the prior value is preserved here forever.
+				const staffId = await resolveStaffId(tx, ctx.user.email);
 				await logAudit(tx, {
+					userId: staffId,
 					action: "ATTENDANCE_MANUAL_CORRECTION",
 					entityType: "enhanced_attendance",
 					entityId: input.id,

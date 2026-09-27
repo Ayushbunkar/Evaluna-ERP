@@ -55,6 +55,7 @@ export default function PackerDashboard() {
 	const t = useTranslations("packer");
 	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
+	const utils = trpc.useUtils();
 	const { data: stats } = trpc.packer.getDashboardStats.useQuery();
 	const {
 		data: pendingPickLists,
@@ -72,6 +73,10 @@ export default function PackerDashboard() {
 			setSelectedPickList(null);
 			setWeight("1.5");
 			setDimensions("30x20x10 cm");
+			utils.warehouse.getOverviewStats.invalidate();
+			utils.warehouse.getPackingQueue.invalidate();
+			utils.warehouse.getPipelineHealth.invalidate();
+			utils.packer.getDashboardStats.invalidate();
 		},
 	});
 

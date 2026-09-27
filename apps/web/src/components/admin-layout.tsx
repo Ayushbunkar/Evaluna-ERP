@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { authClient } from "@/lib/auth-client";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
 import { trpc } from "@/lib/trpc/client";
@@ -156,47 +157,7 @@ function BranchSwitcher() {
 	);
 }
 
-function NotificationBell() {
-	const { data: notifications } = trpc.notifications.list.useQuery(
-		{ is_read: false },
-		{ refetchInterval: 30000, refetchOnWindowFocus: true },
-	);
-
-	const unreadCount = notifications?.length || 0;
-
-	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Link href="/admin/notifications">
-						<Button
-							variant="outline"
-							size="icon"
-							className="relative shrink-0 rounded-full"
-						>
-							<motion.div
-								animate={
-									unreadCount > 0 ? { rotate: [0, -15, 15, -15, 15, 0] } : {}
-								}
-								transition={{
-									repeat: Number.POSITIVE_INFINITY,
-									repeatDelay: 3,
-									duration: 0.5,
-								}}
-							>
-								<BellIcon className="h-5 w-5" />
-							</motion.div>
-							{unreadCount > 0 && (
-								<span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-red-600" />
-							)}
-						</Button>
-					</Link>
-				</TooltipTrigger>
-				<TooltipContent>Notifications</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
-	);
-}
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();

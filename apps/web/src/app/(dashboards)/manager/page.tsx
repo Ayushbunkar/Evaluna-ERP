@@ -42,15 +42,28 @@ export default function ManagerDashboard() {
 
 	// Queries Sourced Entirely From Real DB
 	const { data: stats, isLoading: statsLoading } =
-		trpc.manager.getDashboardStats.useQuery();
+		trpc.manager.getDashboardStats.useQuery(undefined, {
+			refetchInterval: 15000,
+		});
 	const { data: employees = [], isLoading: employeesLoading } =
-		trpc.manager.getEmployees.useQuery();
+		trpc.manager.getEmployees.useQuery(undefined, {
+			refetchInterval: 15000,
+		});
 	const { data: pendingApprovals = [], isLoading: approvalsLoading } =
-		trpc.manager.getApprovals.useQuery({ status: "pending" });
+		trpc.manager.getApprovals.useQuery(
+			{ status: "pending" },
+			{ refetchInterval: 15000 },
+		);
 	const { data: exceptions = [], isLoading: exceptionsLoading } =
-		trpc.manager.getExceptions.useQuery();
-	const { data: workload = [] } = trpc.manager.getWorkload.useQuery();
-	const { data: activity = [] } = trpc.manager.getActivity.useQuery();
+		trpc.manager.getExceptions.useQuery(undefined, {
+			refetchInterval: 15000,
+		});
+	const { data: workload = [] } = trpc.manager.getWorkload.useQuery(undefined, {
+		refetchInterval: 15000,
+	});
+	const { data: activity = [] } = trpc.manager.getActivity.useQuery(undefined, {
+		refetchInterval: 15000,
+	});
 
 	// Mutations Sourced Entirely From Real DB
 	const reviewApprovalMutation = trpc.manager.reviewApproval.useMutation({

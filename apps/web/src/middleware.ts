@@ -21,13 +21,6 @@ import { and, eq, gte, or } from "drizzle-orm";
 export default async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
-	// Clone headers to strip proxy headers that break Next.js CSRF in Codespaces
-	const requestHeaders = new Headers(request.headers);
-	requestHeaders.delete("x-forwarded-host");
-	requestHeaders.delete("x-forwarded-proto");
-	requestHeaders.delete("x-forwarded-port");
-	requestHeaders.delete("x-forwarded-for");
-
 	// 1. Let public assets, auth APIs, and TRPC pass through
 	// TRPC handles its own authentication via context
 	if (
@@ -35,6 +28,8 @@ export default async function middleware(request: NextRequest) {
 		pathname.startsWith("/api/logout") ||
 		pathname.startsWith("/api/seed-users") ||
 		pathname.startsWith("/api/trpc") ||
+		pathname.startsWith("/api/attendance/attachments") ||
+		pathname.startsWith("/api/finance/attachments") ||
 		pathname.startsWith("/_next") ||
 		pathname === "/favicon.ico" ||
 		pathname === "/manifest.json" ||
@@ -44,7 +39,7 @@ export default async function middleware(request: NextRequest) {
 			pathname,
 		)
 	) {
-		return NextResponse.next({ request: { headers: requestHeaders } });
+		return NextResponse.next();
 	}
 
 	// 1.5. Allow public website routes without authentication
@@ -71,7 +66,7 @@ export default async function middleware(request: NextRequest) {
 			(route) => pathname === route || pathname.startsWith(route + "/"),
 		)
 	) {
-		return NextResponse.next({ request: { headers: requestHeaders } });
+		return NextResponse.next();
 	}
 
 	// 2. Public auth pages — redirect to role dashboard if already logged in
@@ -89,7 +84,7 @@ export default async function middleware(request: NextRequest) {
 		request.cookies.get("__Secure-better-auth.session_token")?.value;
 
 	if (!sessionToken && isAuthPage) {
-		return NextResponse.next({ request: { headers: requestHeaders } });
+		return NextResponse.next();
 	}
 	if (!sessionToken) {
 		const url = request.nextUrl.clone();
@@ -156,7 +151,7 @@ export default async function middleware(request: NextRequest) {
 	if (!sessionData) {
 		// If we're already on an auth page, just render it so the user can log in
 		if (isAuthPage) {
-			return NextResponse.next({ request: { headers: requestHeaders } });
+			return NextResponse.next();
 		}
 
 		// Otherwise redirect to login
@@ -288,7 +283,29 @@ export default async function middleware(request: NextRequest) {
 	}
 
 	// 6. Attach context headers for downstream consumption
-	const response = NextResponse.next({ request: { headers: requestHeaders } });
+	const requestHeaders = new Headers(request.headers);
+	if (sessionData.user?.id || (sessionData.session as any)?.userId) {
+		requestHeaders.set(
+			"x-user-id",
+			sessionData.user?.id || (sessionData.session as any)?.userId || "",
+		);
+	}
+	if (sessionData.role) {
+		requestHeaders.set("x-user-role", sessionData.role);
+	}
+	if ((sessionData.user as any)?.branchId) {
+		requestHeaders.set(
+			"x-branch-id",
+			(sessionData.user as any).branchId.toString(),
+		);
+	}
+
+	const response = NextResponse.next({
+		request: {
+			headers: requestHeaders,
+		},
+	});
+
 	response.headers.set(
 		"X-User-Id",
 		sessionData.user?.id || (sessionData.session as any)?.userId || "",

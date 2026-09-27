@@ -12,18 +12,18 @@ export const staffRouter = router({
 					role: z.string().optional(),
 					status: z.string().optional(),
 					search: z.string().optional(),
-					limit: z.number().min(1).max(100).default(50),
+					limit: z.number().min(1).max(200).default(100),
 					page: z.number().min(1).default(1),
 				})
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const branchId = input?.branch_id ?? ctx.user.branchId;
-			const limit = input?.limit ?? 50;
+			const limit = input?.limit ?? 100;
 			const page = input?.page ?? 1;
 			const offset = (page - 1) * limit;
 
-			const conds = [];
+			const conds = [eq(staff.is_deleted, false)];
 			if (branchId) {
 				conds.push(eq(staff.branch_id, branchId));
 			}
@@ -36,11 +36,11 @@ export const staffRouter = router({
 			if (input?.search) {
 				const q = `%${input.search}%`;
 				conds.push(
-					sql`(${staff.name} ILIKE ${q} OR ${staff.email} ILIKE ${q} OR ${staff.staff_code} ILIKE ${q})`,
+					sql`(${staff.name} ILIKE ${q} OR ${staff.email} ILIKE ${q} OR ${staff.staff_code} ILIKE ${q} OR ${staff.role} ILIKE ${q} OR ${staff.department} ILIKE ${q})`,
 				);
 			}
 
-			const whereClause = conds.length > 0 ? and(...conds) : undefined;
+			const whereClause = and(...conds);
 
 			return ctx.db
 				.select({
@@ -58,9 +58,123 @@ export const staffRouter = router({
 				})
 				.from(staff)
 				.where(whereClause)
-				.orderBy(asc(staff.id))
+				.orderBy(asc(staff.name))
 				.limit(limit)
 				.offset(offset);
+		}),
+
+	getPickers: protectedProcedure
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = input?.branch_id ?? ctx.user.branchId;
+			const conds = [
+				eq(staff.is_deleted, false),
+				sql`LOWER(${staff.status}) = 'active'`,
+				sql`(LOWER(${staff.role}) = 'picker' OR ${staff.role} ILIKE '%picker%' OR ${staff.department} ILIKE '%picking%')`,
+				sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com' AND ${staff.name} NOT ILIKE 'fake%')`,
+			];
+
+			if (branchId) {
+				conds.push(eq(staff.branch_id, branchId));
+			}
+
+			return ctx.db
+				.select({
+					id: staff.id,
+					staff_code: staff.staff_code,
+					name: staff.name,
+					email: staff.email,
+					phone: staff.phone,
+					role: staff.role,
+					department: staff.department,
+					status: staff.status,
+					branch_id: staff.branch_id,
+				})
+				.from(staff)
+				.where(and(...conds))
+				.orderBy(asc(staff.name));
+		}),
+
+	getPutters: protectedProcedure
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = input?.branch_id ?? ctx.user.branchId;
+			const conds = [
+				eq(staff.is_deleted, false),
+				sql`LOWER(${staff.status}) = 'active'`,
+				sql`(LOWER(${staff.role}) = 'putter' OR ${staff.role} ILIKE '%putter%' OR ${staff.department} ILIKE '%put-away%' OR ${staff.department} ILIKE '%inbound%')`,
+				sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com')`,
+			];
+
+			if (branchId) {
+				conds.push(eq(staff.branch_id, branchId));
+			}
+
+			return ctx.db
+				.select({
+					id: staff.id,
+					staff_code: staff.staff_code,
+					name: staff.name,
+					email: staff.email,
+					phone: staff.phone,
+					role: staff.role,
+					department: staff.department,
+					status: staff.status,
+					branch_id: staff.branch_id,
+				})
+				.from(staff)
+				.where(and(...conds))
+				.orderBy(asc(staff.name));
+		}),
+
+	getPackers: protectedProcedure
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = input?.branch_id ?? ctx.user.branchId;
+			const conds = [
+				eq(staff.is_deleted, false),
+				sql`LOWER(${staff.status}) = 'active'`,
+				sql`(LOWER(${staff.role}) = 'packer' OR ${staff.role} ILIKE '%packer%' OR ${staff.department} ILIKE '%packing%')`,
+				sql`(${staff.email} NOT ILIKE '%@example.com' AND ${staff.email} NOT ILIKE '%@mock.com' AND ${staff.email} NOT ILIKE '%@seed.com')`,
+			];
+
+			if (branchId) {
+				conds.push(eq(staff.branch_id, branchId));
+			}
+
+			return ctx.db
+				.select({
+					id: staff.id,
+					staff_code: staff.staff_code,
+					name: staff.name,
+					email: staff.email,
+					phone: staff.phone,
+					role: staff.role,
+					department: staff.department,
+					status: staff.status,
+					branch_id: staff.branch_id,
+				})
+				.from(staff)
+				.where(and(...conds))
+				.orderBy(asc(staff.name));
 		}),
 
 	me: protectedProcedure.query(async ({ ctx }) => {
@@ -88,16 +202,10 @@ export const staffRouter = router({
 				email: z.string().email(),
 				phone: z.string().optional(),
 				address: z.string().optional(),
-				role: z.enum([
-					"superadmin",
-					"manager",
-					"cashier",
-					"inventory",
-					"auditor",
-				]),
+				role: z.string().min(1),
 				department: z.string().optional(),
 				join_date: z.string(), // ISO string
-				salary: z.number().min(0),
+				salary: z.number().min(0).default(0),
 				monthly_sales_target: z.number().min(0).optional(),
 				branch_id: z.number().optional(),
 				pf_number: z.string().optional(),
@@ -118,8 +226,9 @@ export const staffRouter = router({
 					join_date: new Date(input.join_date),
 					salary: input.salary.toString(),
 					monthly_sales_target: input.monthly_sales_target?.toString() ?? "0",
-					branch_id: input.branch_id ?? ctx.user.branchId,
+					branch_id: input.branch_id ?? ctx.user.branchId ?? 1,
 					status: "active",
+					is_deleted: false,
 				})
 				.returning();
 			return created;
@@ -132,9 +241,7 @@ export const staffRouter = router({
 				name: z.string().min(1).optional(),
 				phone: z.string().optional(),
 				address: z.string().optional(),
-				role: z
-					.enum(["superadmin", "manager", "cashier", "inventory", "auditor"])
-					.optional(),
+				role: z.string().optional(),
 				department: z.string().optional(),
 				salary: z.number().min(0).optional(),
 				monthly_sales_target: z.number().min(0).optional(),
@@ -166,6 +273,134 @@ export const staffRouter = router({
 
 			return updated;
 		}),
+
+	delete: protectedProcedure
+		.input(z.object({ id: z.number() }))
+		.mutation(async ({ ctx, input }) => {
+			const [deleted] = await ctx.db
+				.update(staff)
+				.set({ is_deleted: true, status: "inactive" })
+				.where(eq(staff.id, input.id))
+				.returning();
+			return { success: true, deleted };
+		}),
+
+	cleanAndSeedRealStaff: protectedProcedure.mutation(async ({ ctx }) => {
+		const db = ctx.db;
+		// 1. Mark fake / mock seed emails and placeholder names as deleted
+		await db
+			.update(staff)
+			.set({ is_deleted: true, status: "inactive" })
+			.where(
+				sql`(${staff.email} ILIKE '%hotmail.com' OR ${staff.email} ILIKE '%yahoo.com' OR ${staff.email} ILIKE '%example%' OR ${staff.email} ILIKE '%seed%' OR ${staff.email} ILIKE '%mock%' OR ${staff.name} IN ('Albertha Kovacek', 'Angeline Runte', 'Chris Halvorson', 'Ernestine Rolfson', 'Gilberto Mitchell', 'Carol O''Conner', 'ADMIN', 'Customer', 'DRIVERFINAL', 'EXECUTIVE', 'BILLING', 'FINANCE', 'Executive', 'Auditor Desk'))`,
+			);
+
+		// 2. Real Official Evaluna Depot Team Members
+		const realStaffList = [
+			{
+				name: "Rupesh Sharma",
+				email: "rupesh@evaluna.com",
+				role: "warehouse_manager",
+				department: "Warehouse Administration",
+				phone: "+91 98765 43210",
+				salary: "45000",
+			},
+			{
+				name: "Kailash Bharati",
+				email: "kailash.bharati@evaluna.com",
+				role: "picker",
+				department: "Outbound Picking",
+				phone: "+91 98765 43211",
+				salary: "28000",
+			},
+			{
+				name: "Ayush Bunkar",
+				email: "ayush.bunkar@evaluna.com",
+				role: "manager",
+				department: "Depot Operations",
+				phone: "+91 98765 43212",
+				salary: "50000",
+			},
+			{
+				name: "Anita Verma",
+				email: "anita.verma@evaluna.com",
+				role: "putter",
+				department: "Inbound & Put-Away",
+				phone: "+91 98765 43213",
+				salary: "27000",
+			},
+			{
+				name: "Vikram Patel",
+				email: "vikram.patel@evaluna.com",
+				role: "auditor",
+				department: "Quality Assurance",
+				phone: "+91 98765 43214",
+				salary: "32000",
+			},
+			{
+				name: "Rahul Yadav",
+				email: "rahul.yadav@evaluna.com",
+				role: "packer",
+				department: "Packing & Dispatch",
+				phone: "+91 98765 43215",
+				salary: "26000",
+			},
+			{
+				name: "Suresh Kumar",
+				email: "suresh.kumar@evaluna.com",
+				role: "driver",
+				department: "Fleet & Delivery",
+				phone: "+91 98765 43216",
+				salary: "25000",
+			},
+			{
+				name: "Pooja Sharma",
+				email: "pooja.sharma@evaluna.com",
+				role: "checker",
+				department: "Inventory Control",
+				phone: "+91 98765 43217",
+				salary: "30000",
+			},
+		];
+
+		for (const st of realStaffList) {
+			const [existing] = await db
+				.select()
+				.from(staff)
+				.where(eq(staff.email, st.email))
+				.limit(1);
+
+			if (existing) {
+				await db
+					.update(staff)
+					.set({
+						name: st.name,
+						role: st.role,
+						department: st.department,
+						is_deleted: false,
+						status: "active",
+					})
+					.where(eq(staff.id, existing.id));
+			} else {
+				const staffCode = `EMP-${Math.floor(100000 + Math.random() * 900000)}`;
+				await db.insert(staff).values({
+					staff_code: staffCode,
+					name: st.name,
+					email: st.email,
+					phone: st.phone,
+					role: st.role,
+					department: st.department,
+					salary: st.salary,
+					branch_id: ctx.user.branchId ?? 1,
+					join_date: new Date(),
+					status: "active",
+					is_deleted: false,
+				});
+			}
+		}
+
+		return { success: true };
+	}),
 
 	updateMyProfile: protectedProcedure
 		.input(
@@ -257,7 +492,10 @@ export const staffRouter = router({
 		}),
 
 	count: protectedProcedure.query(async ({ ctx }) => {
-		const all = await ctx.db.select({ id: staff.id }).from(staff);
+		const all = await ctx.db
+			.select({ id: staff.id })
+			.from(staff)
+			.where(eq(staff.is_deleted, false));
 		return all.length;
 	}),
 
@@ -267,7 +505,7 @@ export const staffRouter = router({
 			const result = await ctx.db
 				.select()
 				.from(staff)
-				.where(eq(staff.staff_code, input.code));
+				.where(and(eq(staff.staff_code, input.code), eq(staff.is_deleted, false)));
 
 			if (result.length === 0) {
 				throw new Error("Invalid Staff Code");

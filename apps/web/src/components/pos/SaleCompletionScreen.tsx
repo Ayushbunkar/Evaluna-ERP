@@ -20,6 +20,7 @@ import {
 	IndianRupee,
 	Mail,
 	MessageCircle,
+	Phone,
 	Printer,
 	RotateCcw,
 	ShoppingBag,
@@ -76,7 +77,7 @@ const STORE = {
 	name: "EVALUNA PVT LTD",
 	address: "Near Bank of India, Vidisha Road, Berasia",
 	city: "Bhopal, MP – 463106",
-	phone: "7000219747",
+	phone: "9630649277",
 };
 
 const PAYMENT_METHOD_LABELS: Record<number, string> = {
@@ -593,7 +594,9 @@ export function SaleCompletionScreen({
 								<Text style={styles.title}>{STORE.name}</Text>
 								<Text style={styles.subtitle}>{STORE.address}</Text>
 								<Text style={styles.subtitle}>{STORE.city}</Text>
-								<Text style={styles.subtitle}>Phone: {STORE.phone}</Text>
+								<Text style={{ ...styles.subtitle, fontWeight: "bold", color: "#1e40af", marginTop: 2 }}>
+									PHONE: {STORE.phone}
+								</Text>
 							</View>
 						</View>
 						<View style={styles.invoiceMeta}>
@@ -1338,6 +1341,13 @@ export function SaleCompletionScreen({
 														<p className="text-slate-500 text-xs">
 															{STORE.city}
 														</p>
+														<div className="mt-1.5 flex items-center gap-1.5">
+															<span className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-bold text-xs text-blue-900 shadow-xs print:border-black print:bg-transparent print:text-black">
+																<Phone className="h-3 w-3 text-blue-600 print:text-black" />
+																<span>PHONE / HELPLINE:</span>
+																<span className="font-extrabold tracking-wider text-blue-700 print:text-black">{STORE.phone}</span>
+															</span>
+														</div>
 													</div>
 												</div>
 												<div className="text-right">
@@ -1586,7 +1596,9 @@ export function SaleCompletionScreen({
 												</h2>
 												<p className="text-[10px]">{STORE.address}</p>
 												<p className="text-[10px]">{STORE.city}</p>
-												<p className="text-[10px]">PHONE: {STORE.phone}</p>
+												<div className="my-1 inline-block rounded border border-black px-2 py-0.5 font-bold text-[11px] tracking-wider">
+													PHONE: {STORE.phone}
+												</div>
 											</div>
 
 											<div className="my-2 border-slate-900 border-t border-dashed" />

@@ -46,6 +46,7 @@ export default function PickerActivePage() {
 	const t = useTranslations("picker");
 	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
+	const utils = trpc.useUtils();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const activePickId = searchParams.get("id");
@@ -80,6 +81,11 @@ export default function PickerActivePage() {
 	const completeMutation = trpc.warehouse.completePickingTask.useMutation({
 		onSuccess: () => {
 			setShowSuccessModal(true);
+			utils.warehouse.getOverviewStats.invalidate();
+			utils.warehouse.getPickingQueue.invalidate();
+			utils.warehouse.getPackingQueue.invalidate();
+			utils.warehouse.getPipelineHealth.invalidate();
+			utils.picker.getDashboardStats.invalidate();
 		},
 		onError: (err) => {
 			toast.error(err.message || "Failed to complete picking task.");

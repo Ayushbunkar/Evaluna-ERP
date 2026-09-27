@@ -28,6 +28,7 @@ import {
 	Clock,
 	Coffee,
 	Globe,
+	Loader2,
 	LogIn,
 	LogOut,
 	MapPin,
@@ -49,7 +50,9 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useSession } from "@/hooks/use-session";
 import { authClient } from "@/lib/auth-client";
 import { useBranch } from "@/lib/branch-context";
-import { useTRPC } from "@/lib/trpc/client";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { type GeolocationProgress, acquireAccurateLocation } from "@/lib/geolocation";
+import { trpc } from "@/lib/trpc/client";
 
 export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = {}) {
 	const router = useRouter();
@@ -60,7 +63,6 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 	} catch {
 		// Fallback when rendered outside NextIntlClientProvider or during SSR
 	}
-	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 
 	// State
@@ -70,7 +72,6 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 	// Modals for Profile, Account Settings, and Attendance
 	const [profileOpen, setProfileOpen] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
-	const [notifOpen, setNotifOpen] = useState(false);
 	const [attendanceOpen, setAttendanceOpen] = useState(false);
 	const [workNotes, setWorkNotes] = useState("");
 
@@ -112,11 +113,6 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 
 	// Queries
 	const { data: branches } = trpc.branches.list.useQuery(undefined);
-	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery(
-		{},
-		{ refetchInterval: 10000 },
-	);
-	const unreadCount = unreadCountData?.count || 0;
 	const { data: todayAttendance, refetch: refetchToday } =
 		trpc.attendance.getToday.useQuery(undefined, { refetchInterval: 30000 });
 
@@ -126,6 +122,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 	const streamRef = useRef<MediaStream | null>(null);
 	const [cameraOn, setCameraOn] = useState(false);
 	const [attendanceBusy, setAttendanceBusy] = useState(false);
+	const [attendanceGpsProgress, setAttendanceGpsProgress] = useState<GeolocationProgress | null>(null);
 
 	const stopCamera = useCallback(() => {
 		for (const track of streamRef.current?.getTracks() ?? []) track.stop();
@@ -165,13 +162,27 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 			const canvas = canvasRef.current;
 			if (!video || !canvas || !streamRef.current)
 				throw new Error("Start the camera first — a live photo is required.");
-			canvas.width = video.videoWidth || 640;
-			canvas.height = video.videoHeight || 480;
+
+			// Optimize & compress selfie to minimize database storage footprint (~10-18KB)
+			const maxDim = 360;
+			let targetWidth = video.videoWidth || 640;
+			let targetHeight = video.videoHeight || 480;
+			if (targetWidth > maxDim || targetHeight > maxDim) {
+				if (targetWidth > targetHeight) {
+					targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+					targetWidth = maxDim;
+				} else {
+					targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+					targetHeight = maxDim;
+				}
+			}
+			canvas.width = targetWidth;
+			canvas.height = targetHeight;
 			const ctx = canvas.getContext("2d");
 			if (!ctx) throw new Error("Could not capture the photo.");
 			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 			const blob = await new Promise<Blob | null>((res) =>
-				canvas.toBlob(res, "image/jpeg", 0.85),
+				canvas.toBlob(res, "image/jpeg", 0.65),
 			);
 			if (!blob) throw new Error("Could not encode the photo.");
 			const fd = new FormData();
@@ -237,35 +248,14 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 		async (kind: "checkIn" | "checkOut") => {
 			const effectiveBranchId = activeBranchId || (user as any)?.branchId || 1;
 			setAttendanceBusy(true);
+			setAttendanceGpsProgress({ status: "locating", message: "Acquiring GPS location..." });
 			try {
-				const gps = await new Promise<{
-					latitude: number;
-					longitude: number;
-					accuracy: number;
-					deviceTimestamp: string;
-				}>((resolve, reject) => {
-					if (!("geolocation" in navigator)) {
-						reject(new Error("This device has no GPS support."));
-						return;
-					}
-					navigator.geolocation.getCurrentPosition(
-						(pos) =>
-							resolve({
-								latitude: pos.coords.latitude,
-								longitude: pos.coords.longitude,
-								accuracy: Math.min(pos.coords.accuracy || 20, 450),
-								deviceTimestamp: new Date(pos.timestamp).toISOString(),
-							}),
-						(err) =>
-							reject(
-								new Error(
-									err.code === err.PERMISSION_DENIED
-										? "Location permission denied. Attendance requires location access."
-										: "Could not read location. Move to open sky and retry.",
-								),
-							),
-						{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-					);
+				const gps = await acquireAccurateLocation({
+					desiredAccuracy: 25,
+					maxAcceptableAccuracy: 500,
+					timeoutMs: 12000,
+					refinementWindowMs: 3500,
+					onProgress: (p) => setAttendanceGpsProgress(p),
 				});
 
 				const imageAttachmentId = await captureAndUpload(kind);
@@ -293,6 +283,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 				toast.error(e?.message || "Something went wrong during check-in/out.");
 			} finally {
 				setAttendanceBusy(false);
+				setAttendanceGpsProgress(null);
 			}
 		},
 		[activeBranchId, user, captureAndUpload, checkInMutation, checkOutMutation],
@@ -311,35 +302,6 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 		},
 		onError: (err) => {
 			toast.error(`Failed to change password: ${err.message}`);
-		},
-	});
-
-	// Notifications Queries & Mutations
-	const { data: notificationsList, refetch: refetchNotifs } =
-		trpc.notifications.list.useQuery({ limit: 10 }, { enabled: notifOpen });
-
-	const markAsReadMutation = trpc.notifications.markAsRead.useMutation({
-		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: [["notifications", "unreadCount"]],
-			});
-			void refetchNotifs();
-		},
-		onError: (err) => {
-			toast.error(`Failed to mark read: ${err.message}`);
-		},
-	});
-
-	const markAllAsReadMutation = trpc.notifications.markAllAsRead.useMutation({
-		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: [["notifications", "unreadCount"]],
-			});
-			void refetchNotifs();
-			toast.success("All notifications marked as read.");
-		},
-		onError: (err) => {
-			toast.error(`Failed to mark all read: ${err.message}`);
 		},
 	});
 
@@ -445,20 +407,8 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 					/>
 				</Button>
 
-				{/* 4. Notification Button */}
-				<Button
-					variant="ghost"
-					size="icon"
-					className="relative h-8 w-8"
-					title="Notifications"
-					aria-label="Notifications"
-					onClick={() => setNotifOpen(true)}
-				>
-					<Bell className="h-4 w-4 text-muted-foreground" />
-					{unreadCount > 0 && (
-						<span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-destructive" />
-					)}
-				</Button>
+				{/* 4. Notification Bell Component (Role-aware modal) */}
+				<NotificationBell />
 
 				{!pathname?.startsWith("/superadmin") && (
 					<>
@@ -851,96 +801,6 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 					</form>
 				</DialogContent>
 			</Dialog>
-			{/* Notifications Dialog Modal */}
-			<Dialog open={notifOpen} onOpenChange={setNotifOpen}>
-				<DialogContent className="max-h-[80vh] max-w-md overflow-y-auto">
-					<DialogHeader className="flex flex-row items-center justify-between border-border/40 border-b pb-3">
-						<div>
-							<DialogTitle className="font-bold text-base">
-								Notifications Inbox
-							</DialogTitle>
-							<DialogDescription className="mt-0.5 text-muted-foreground text-xs">
-								System-wide alerts, activities, and operational warnings.
-							</DialogDescription>
-						</div>
-						{unreadCount > 0 && (
-							<Button
-								variant="outline"
-								size="xs"
-								className="h-7 text-xs"
-								disabled={markAllAsReadMutation.isPending}
-								onClick={() => markAllAsReadMutation.mutate({})}
-							>
-								Mark All Read
-							</Button>
-						)}
-					</DialogHeader>
-
-					<div className="max-h-96 space-y-3 divide-y divide-border/30 overflow-y-auto py-2">
-						{notificationsList && notificationsList.length > 0 ? (
-							notificationsList.map((notif: any) => (
-								<div
-									key={notif.id}
-									className="flex items-start justify-between gap-3 pt-3 text-xs first:pt-0 sm:text-sm"
-								>
-									<div className="flex-1 space-y-1">
-										<div className="flex items-center gap-1.5">
-											<span
-												className={`h-2 w-2 flex-shrink-0 rounded-full ${
-													notif.is_read
-														? "bg-transparent"
-														: "animate-pulse bg-red-500"
-												}`}
-											/>
-											<span className="font-semibold text-foreground">
-												{notif.title}
-											</span>
-											<span className="ml-auto text-[10px] text-muted-foreground">
-												{notif.created_at
-													? new Date(notif.created_at).toLocaleDateString()
-													: ""}
-											</span>
-										</div>
-										<p className="text-muted-foreground text-xs leading-normal">
-											{notif.message}
-										</p>
-									</div>
-
-									{!notif.is_read && (
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-6 w-6 text-blue-500 hover:text-blue-600"
-											disabled={markAsReadMutation.isPending}
-											onClick={() =>
-												markAsReadMutation.mutate({ id: notif.id })
-											}
-											title="Mark as read"
-										>
-											<Check className="h-3.5 w-3.5" />
-										</Button>
-									)}
-								</div>
-							))
-						) : (
-							<div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground text-xs sm:text-sm">
-								<Bell className="h-8 w-8 text-muted-foreground/40" />
-								<span>No notifications received yet.</span>
-							</div>
-						)}
-					</div>
-
-					<DialogFooter className="border-border/40 border-t pt-2">
-						<Button
-							type="button"
-							className="w-full"
-							onClick={() => setNotifOpen(false)}
-						>
-							Close Inbox
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
 			{/* Attendance Action Dialog Modal */}
 			<Dialog
 				open={attendanceOpen}
@@ -1053,6 +913,13 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 										>
 											<CameraOff className="h-4 w-4" /> Stop Camera
 										</Button>
+									)}
+
+									{attendanceGpsProgress && (
+										<div className="flex w-full items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-2 text-blue-900 text-xs dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+											<Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
+											<span className="font-medium">{attendanceGpsProgress.message}</span>
+										</div>
 									)}
 
 									{currentState === "NOT_STARTED" && (
