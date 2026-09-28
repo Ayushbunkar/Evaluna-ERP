@@ -279,13 +279,14 @@ export default function BillerPOSPage() {
 										<div className="flex items-center justify-between gap-2 sm:justify-end">
 											<Input
 												type="number"
-												min="1"
-												max="99"
+												step="any"
+												min="0.001"
+												max="9999"
 												value={item.cartQuantity}
 												onChange={(e) =>
 													handleQuantityChange(
 														item.id,
-														Number.parseInt(e.target.value) || 1,
+														Number.parseFloat(e.target.value) || 0,
 													)
 												}
 												className="h-8 w-16 text-center text-xs"

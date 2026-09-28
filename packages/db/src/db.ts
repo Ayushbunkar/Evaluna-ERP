@@ -41,8 +41,13 @@ if (!process.env.DATABASE_URL) {
 	throw new Error("DATABASE_URL is missing in environment variables.");
 }
 
+const cleanDbUrl = process.env.DATABASE_URL.replace(/^"|"$/g, "").replace(
+	/sslmode=(require|prefer|verify-ca)/g,
+	"sslmode=verify-full",
+);
+
 const pool = new Pool({
-	connectionString: process.env.DATABASE_URL,
+	connectionString: cleanDbUrl,
 	...({ lookup: customLookup } as any),
 });
 

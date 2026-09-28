@@ -159,7 +159,7 @@ export const warehouseRouter = router({
 				batch_stock_id: z.number(),
 				from_location_id: z.number(),
 				to_location_id: z.number(),
-				quantity: z.number().min(1),
+				quantity: z.number().positive(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {

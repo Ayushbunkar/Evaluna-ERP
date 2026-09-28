@@ -336,3 +336,48 @@ body {
 		overflow: hidden;
 	}
 }
+
+/* Global Smooth Scrolling Architecture */
+/* 1. Hardware-accelerated smooth scrolling for overflow containers */
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-x-auto,
+.overflow-x-scroll {
+	scroll-behavior: smooth;
+	overscroll-behavior: contain;
+}
+
+/* 2. Fallback native smooth scrolling when Lenis is not active */
+html {
+	scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html,
+	.overflow-y-auto,
+	.overflow-y-scroll {
+		scroll-behavior: auto !important;
+	}
+}
+
+/* 3. CRITICAL: When Lenis is initialized, prevent native CSS scroll engine from fighting Lenis RAF loop */
+html.lenis,
+html.lenis body,
+html.lenis.lenis-smooth {
+	scroll-behavior: auto !important;
+	height: auto;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+	overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+	overflow: clip;
+}
+
+.lenis.lenis-smooth iframe {
+	pointer-events: none;
+}
+
+

@@ -756,11 +756,11 @@ export const ordersRouter = router({
 				products: z.array(
 					z.object({
 						id: z.number(),
-						quantity: z.number().int().positive(),
-						price: z.number().int(),
+						quantity: z.number().positive(),
+						price: z.number().nonnegative(),
 					}),
 				),
-				total: z.number().int(),
+				total: z.number().nonnegative(),
 			}),
 		)
 		.output(orderWithCustomerSchema)
@@ -1297,7 +1297,7 @@ export const ordersRouter = router({
 					.array(
 						z.object({
 							productId: z.number().int().positive(),
-							quantity: z.number().int().positive(),
+							quantity: z.number().positive(),
 							price: z.number().nonnegative(),
 						}),
 					)
@@ -1398,7 +1398,7 @@ export const ordersRouter = router({
 					.array(
 						z.object({
 							productId: z.number().int().positive(),
-							quantity: z.number().int().positive(),
+							quantity: z.number().positive(),
 							price: z.number().nonnegative(),
 						}),
 					)

@@ -21,6 +21,7 @@ import {
 	User,
 	Wifi,
 	WifiOff,
+	X,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -109,6 +110,100 @@ const EXTRA_CHARGES_PRESET_REASONS = [
 	"Cold Storage & Special Care (कोल्ड स्टोरेज शुल्क)",
 	"Custom / Other Charge",
 ];
+
+function ScrollableQtyBadge({
+	qty,
+	unit,
+	onIncrement,
+	onDecrement,
+	className = "",
+}: {
+	qty: number;
+	unit?: string | null;
+	onIncrement: () => void;
+	onDecrement: () => void;
+	className?: string;
+}) {
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const el = ref.current;
+		if (!el) return;
+
+		const handleWheel = (e: WheelEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			if (e.deltaY < 0) {
+				onIncrement();
+			} else if (e.deltaY > 0) {
+				onDecrement();
+			}
+		};
+
+		el.addEventListener("wheel", handleWheel, { passive: false });
+		return () => {
+			el.removeEventListener("wheel", handleWheel);
+		};
+	}, [onIncrement, onDecrement]);
+
+	return (
+		<div
+			ref={ref}
+			title="Scroll mouse wheel up/down to adjust quantity"
+			className={className}
+		>
+			<span className="text-[10px] opacity-70">↕</span>
+			<span className="select-none font-mono font-bold text-xs">{qty}</span>
+			{unit && unit !== "Pcs" && (
+				<span className="text-[10px] font-normal opacity-80">{unit}</span>
+			)}
+		</div>
+	);
+}
+
+function WheelStepperWrapper({
+	children,
+	onIncrement,
+	onDecrement,
+	className = "",
+}: {
+	children: React.ReactNode;
+	onIncrement: () => void;
+	onDecrement: () => void;
+	className?: string;
+}) {
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const el = ref.current;
+		if (!el) return;
+
+		const handleWheel = (e: WheelEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			if (e.deltaY < 0) {
+				onIncrement();
+			} else if (e.deltaY > 0) {
+				onDecrement();
+			}
+		};
+
+		el.addEventListener("wheel", handleWheel, { passive: false });
+		return () => {
+			el.removeEventListener("wheel", handleWheel);
+		};
+	}, [onIncrement, onDecrement]);
+
+	return (
+		<div
+			ref={ref}
+			title="Scroll mouse wheel up/down to adjust quantity"
+			className={className}
+		>
+			{children}
+		</div>
+	);
+}
 
 function POSContent() {
 	const locale = useLocale();
@@ -269,6 +364,7 @@ function POSContent() {
 				otherCharges: extraChargesValue,
 				otherChargesReason: extraChargesReason || undefined,
 				payments: lastPayments,
+				finance_status: data.finance_status || (lastPayments && lastPayments.length > 0 ? "paid" : "pending"),
 				...customerDetails,
 			});
 			setCart([]);
@@ -344,12 +440,20 @@ function POSContent() {
 				address: fetchedCompletedOrder.customer?.address || "",
 				village: (fetchedCompletedOrder.customer as any)?.village || "",
 				shopName: "",
-				payments: [
-					{
-						methodId: fetchedCompletedOrder.payment_method_id || 1,
-						amount: Number(fetchedCompletedOrder.total_amount).toFixed(2),
-					},
-				],
+				payments:
+					fetchedCompletedOrder.finance_status === "pending" ||
+					fetchedCompletedOrder.finance_status === "unpaid"
+						? []
+						: [
+								{
+									methodId:
+										fetchedCompletedOrder.payment_method_id || 1,
+									amount: Number(
+										fetchedCompletedOrder.total_amount,
+									).toFixed(2),
+								},
+							],
+				finance_status: fetchedCompletedOrder.finance_status || "pending",
 			});
 		}
 	}, [fetchedCompletedOrder]);
@@ -492,7 +596,7 @@ function POSContent() {
 		setCart((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
-					const newQty = Math.max(0.001, item.qty + delta);
+					const newQty = Math.max(0.001, parseFloat((item.qty + delta).toFixed(3)));
 					return { ...item, qty: newQty };
 				}
 				return item;
@@ -940,67 +1044,167 @@ function POSContent() {
 						</div>
 					) : (
 						<StaggerList className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4">
-							{filteredCatalog.map((product) => (
-								<StaggerItem key={product.id}>
-									<AnimatedCard>
-										<Card
-											className="flex h-full cursor-pointer flex-col justify-between border-transparent shadow-sm transition-colors hover:border-primary/50"
-											onClick={() => {
-												addToCart(product);
-											}}
-										>
-											<CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
-												<div className="flex items-center justify-between gap-1">
-													<CardTitle
-														className="truncate font-semibold text-xs sm:text-sm flex-1"
-														title={getLocalizedProductName(product.name, locale)}
-													>
-														{getLocalizedProductName(product.name, locale)}
-													</CardTitle>
-													<span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary dark:bg-primary/20">
-														#{product.id}
-													</span>
-												</div>
-											</CardHeader>
-											<CardContent className="flex flex-col justify-end p-3 pt-0 sm:p-4 sm:pt-0">
-												{product.hasDailyOffer ? (
-													<div className="space-y-0.5">
-														<div className="flex items-center gap-1.5">
-															<span className="font-semibold text-muted-foreground line-through text-xs sm:text-sm">
-																₹{Number.parseFloat(product.originalPrice || product.price).toFixed(2)}
+							{filteredCatalog.map((product) => {
+								const cartItem = cart.find((item) => item.id === product.id);
+								const isInCart = Boolean(cartItem);
+								const cartQty = cartItem ? cartItem.qty : 0;
+								const isWeighted = Boolean(
+									product.is_weighted ||
+										product.unit === "kg" ||
+										product.unit === "g" ||
+										product.unit === "L" ||
+										product.unit === "ml",
+								);
+								const step = isWeighted || (cartQty > 0 && cartQty < 1) ? 0.1 : 1;
+
+								return (
+									<StaggerItem key={product.id}>
+										<AnimatedCard>
+											<Card
+												className={`group relative flex h-full cursor-pointer flex-col justify-between transition-all duration-200 ${
+													isInCart
+														? "border-emerald-500 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-500/30 dark:border-emerald-500 dark:bg-emerald-950/20"
+														: "border-transparent shadow-xs hover:border-primary/40 hover:shadow-sm"
+												}`}
+												onClick={() => {
+													addToCart(product);
+												}}
+											>
+												<CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
+													<div className="flex items-center justify-between gap-1">
+														<CardTitle
+															className="truncate font-semibold text-xs sm:text-sm flex-1 text-gray-900 dark:text-gray-100"
+															title={getLocalizedProductName(product.name, locale)}
+														>
+															{getLocalizedProductName(product.name, locale)}
+														</CardTitle>
+														<div className="flex items-center gap-1 shrink-0">
+															<span
+																className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold transition-colors ${
+																	isInCart
+																		? "bg-emerald-600 text-white"
+																		: "bg-primary/10 text-primary dark:bg-primary/20"
+																}`}
+															>
+																#{product.id}
 															</span>
-															<span className="font-extrabold text-base text-rose-600 dark:text-rose-400 sm:text-lg">
-																₹{Number.parseFloat(product.offerPrice).toFixed(2)}
-															</span>
-														</div>
-														<div className="flex items-center gap-1">
-															<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-1.5 py-0.5 font-bold text-[10px] text-rose-600 dark:text-rose-400">
-																<Tag className="h-2.5 w-2.5" />
-																{product.dailyOfferPercent}% OFF
-															</span>
-															{product.dailyOfferReason && (
-																<span className="truncate text-[10px] text-muted-foreground" title={product.dailyOfferReason}>
-																	• {product.dailyOfferReason.split("(")[0].trim()}
-																</span>
+															{isInCart && (
+																<button
+																	type="button"
+																	title={
+																		locale === "hi"
+																			? "हटाएं (Deselect / Remove)"
+																			: "Deselect / Remove from cart"
+																	}
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		removeFromCart(product.id);
+																	}}
+																	className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 text-rose-600 hover:bg-rose-500 hover:text-white dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-600 transition-colors shadow-2xs"
+																>
+																	<X className="h-3 w-3" />
+																</button>
 															)}
 														</div>
 													</div>
-												) : (
-													<div className="font-bold text-base text-primary sm:text-lg">
-														₹{Number.parseFloat(product.price).toFixed(2)}
-													</div>
-												)}
-												<div className="mt-1 line-clamp-2 min-h-[28px] text-muted-foreground text-[11px] sm:min-h-[32px] sm:text-xs">
-													{getLocalizedProductName(
-														product.description || "",
-														locale,
+												</CardHeader>
+												<CardContent className="flex flex-col justify-end p-3 pt-0 sm:p-4 sm:pt-0">
+													{product.hasDailyOffer ? (
+														<div className="space-y-0.5">
+															<div className="flex items-center gap-1.5">
+																<span className="font-semibold text-muted-foreground line-through text-xs sm:text-sm">
+																	₹{Number.parseFloat(product.originalPrice || product.price).toFixed(2)}
+																</span>
+																<span className="font-extrabold text-base text-rose-600 dark:text-rose-400 sm:text-lg">
+																	₹{Number.parseFloat(product.offerPrice).toFixed(2)}
+																</span>
+															</div>
+															<div className="flex items-center gap-1">
+																<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-1.5 py-0.5 font-bold text-[10px] text-rose-600 dark:text-rose-400">
+																	<Tag className="h-2.5 w-2.5" />
+																	{product.dailyOfferPercent}% OFF
+																</span>
+																{product.dailyOfferReason && (
+																	<span className="truncate text-[10px] text-muted-foreground" title={product.dailyOfferReason}>
+																		• {product.dailyOfferReason.split("(")[0].trim()}
+																	</span>
+																)}
+															</div>
+														</div>
+													) : (
+														<div className="font-bold text-base text-primary sm:text-lg">
+															₹{Number.parseFloat(product.price).toFixed(2)}
+														</div>
 													)}
-												</div>
-											</CardContent>
-										</Card>
-									</AnimatedCard>
-								</StaggerItem>
-							))}
+													<div className="mt-1 line-clamp-1 min-h-[18px] text-muted-foreground text-[11px] sm:text-xs">
+														{getLocalizedProductName(
+															product.description || "",
+															locale,
+														)}
+													</div>
+
+													{/* In-box Quantity Controller with Mouse Wheel Scroll & Deselect */}
+													{isInCart ? (
+														<div
+															className="mt-2.5 flex items-center justify-between gap-1 rounded-lg border border-emerald-300 bg-white/95 p-1 shadow-xs dark:border-emerald-700/60 dark:bg-gray-800/95"
+															onClick={(e) => e.stopPropagation()}
+														>
+															<button
+																type="button"
+																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 hover:bg-rose-100 hover:text-rose-600 active:scale-95 transition-all dark:bg-gray-700 dark:text-gray-200"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	if (cartQty <= step) {
+																		removeFromCart(product.id);
+																	} else {
+																		updateQty(product.id, -step);
+																	}
+																}}
+																title={locale === "hi" ? "कम करें (Scroll down)" : "Decrease (or scroll down)"}
+															>
+																<Minus className="h-3 w-3" />
+															</button>
+
+															<ScrollableQtyBadge
+																qty={cartQty}
+																unit={product.unit}
+																onIncrement={() => updateQty(product.id, step)}
+																onDecrement={() => {
+																	if (cartQty <= step) {
+																		removeFromCart(product.id);
+																	} else {
+																		updateQty(product.id, -step);
+																	}
+																}}
+																className="flex-1 flex items-center justify-center gap-1 rounded bg-emerald-600/10 px-1 py-0.5 text-center font-bold font-mono text-emerald-800 dark:text-emerald-200 text-xs cursor-ns-resize hover:bg-emerald-600 hover:text-white transition-all select-none"
+															/>
+
+															<button
+																type="button"
+																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-600 active:scale-95 transition-all dark:bg-gray-700 dark:text-gray-200"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	updateQty(product.id, step);
+																}}
+																title={locale === "hi" ? "बढ़ाएं (Scroll up)" : "Increase (or scroll up)"}
+															>
+																<Plus className="h-3 w-3" />
+															</button>
+														</div>
+													) : (
+														<div className="mt-2.5 flex items-center justify-end">
+															<span className="inline-flex items-center gap-1 rounded-md border border-dashed border-gray-300 bg-gray-50/50 px-2 py-0.5 text-[11px] font-semibold text-gray-500 group-hover:border-primary group-hover:text-primary transition-colors dark:border-gray-700 dark:bg-gray-800/40">
+																<Plus className="h-2.5 w-2.5" />
+																{locale === "hi" ? "जोड़ें" : "Add"}
+															</span>
+														</div>
+													)}
+												</CardContent>
+											</Card>
+										</AnimatedCard>
+									</StaggerItem>
+								);
+							})}
 						</StaggerList>
 					)}
 				</ScrollArea>
@@ -1141,7 +1345,11 @@ function POSContent() {
 										</div>
 
 										<div className="flex w-full min-w-0 items-center justify-between gap-2">
-											<div className="flex h-8 items-center rounded-md border bg-background">
+											<WheelStepperWrapper
+												onIncrement={() => updateQty(item.id, 1)}
+												onDecrement={() => updateQty(item.id, -1)}
+												className="flex h-8 items-center rounded-md border bg-background"
+											>
 												<Button
 													variant="ghost"
 													size="icon"
@@ -1162,8 +1370,9 @@ function POSContent() {
 															setDirectQty(item.id, val);
 														}
 													}}
-													className="h-8 w-14 border-0 p-0 text-center font-bold text-sm focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+													className="h-8 w-14 border-0 p-0 text-center font-bold text-sm focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none cursor-ns-resize"
 													disabled={checkoutMutation.isPending}
+													title="Scroll mouse wheel to adjust"
 												/>
 												<Button
 													variant="ghost"
@@ -1174,7 +1383,7 @@ function POSContent() {
 												>
 													<Plus className="h-3 w-3" />
 												</Button>
-											</div>
+											</WheelStepperWrapper>
 											<div className="flex items-center gap-3">
 												<span className="font-extrabold text-sm text-foreground">
 													₹

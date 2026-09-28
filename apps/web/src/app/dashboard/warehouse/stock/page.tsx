@@ -1403,6 +1403,7 @@ export default function StockPage() {
 								<Input
 									id="newItemStock"
 									type="number"
+									step="any"
 									min="0"
 									placeholder="e.g. 50"
 									value={newItem.initialStock}
@@ -1450,7 +1451,7 @@ export default function StockPage() {
 									? Number.parseFloat(newItem.costPrice)
 									: undefined;
 								const parsedStock =
-									Number.parseInt(newItem.initialStock, 10) || 0;
+									Number.parseFloat(newItem.initialStock) || 0;
 
 								if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
 									toast.error("Please enter a valid positive selling price.");

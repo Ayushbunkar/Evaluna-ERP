@@ -16,7 +16,7 @@ import { roleProcedure, router } from "../init";
 
 const salesReturnItemSchema = z.object({
 	productId: z.number(),
-	quantity: z.number().int().positive(),
+	quantity: z.number().positive(),
 	price: z.number(),
 	refundAmount: z.number(),
 });

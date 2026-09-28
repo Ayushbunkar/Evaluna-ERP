@@ -239,7 +239,9 @@ export const orderItems = pgTable(
 		id: serial("id").primaryKey(),
 		order_id: integer("order_id").references(() => orders.id),
 		product_id: integer("product_id").references(() => products.id),
-		quantity: integer("quantity").notNull(),
+		quantity: decimal("quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
 		price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
 		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
@@ -362,8 +364,14 @@ export const branchInventory = pgTable(
 		product_id: integer("product_id")
 			.references(() => products.id)
 			.notNull(),
-		in_stock: integer("in_stock").notNull().default(0),
-		reserved_stock: integer("reserved_stock").notNull().default(0),
+		in_stock: decimal("in_stock", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull()
+			.default("0"),
+		reserved_stock: decimal("reserved_stock", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull()
+			.default("0"),
 		reorder_level: integer("reorder_level").notNull().default(10),
 		created_at: timestamp("created_at").defaultNow(),
 	},
@@ -558,7 +566,9 @@ export const stockAdjustments = pgTable("stock_adjustments", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	reason: text("reason"),
 	adjustment_type: varchar("adjustment_type", { length: 20 }).notNull(),
 	reference_document: varchar("reference_document", { length: 255 }),
@@ -610,7 +620,9 @@ export const stockTransfers = pgTable("stock_transfers", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	status: varchar("status", { length: 20 }).default("pending"),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -868,7 +880,9 @@ export const purchaseItems = pgTable(
 		product_id: integer("product_id")
 			.references(() => products.id)
 			.notNull(),
-		quantity: integer("quantity").notNull(),
+		quantity: decimal("quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
 		price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
 		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
@@ -1014,7 +1028,10 @@ export const productBatches = pgTable("product_batches", {
 		.references(() => products.id)
 		.notNull(),
 	batch_number: varchar("batch_number", { length: 50 }).notNull(),
-	quantity: integer("quantity").notNull().default(0),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull()
+		.default("0"),
 	mrp: decimal("mrp", { precision: 10, scale: 2 }).notNull(),
 	selling_price: decimal("selling_price", {
 		precision: 10,
@@ -1055,7 +1072,9 @@ export const stockLedger = pgTable("stock_ledger", {
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
 	transaction_type: varchar("transaction_type", { length: 20 }).notNull(), // 'in', 'out', 'adjustment', 'transfer', 'damage', 'expiry'
-	quantity: integer("quantity").notNull(), // positive for in, negative for out
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(), // positive for in, negative for out
 	unit_cost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
 	total_cost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
 	reference_id: integer("reference_id"), // order_id, purchase_id, adjustment_id
@@ -1091,7 +1110,9 @@ export const branchLocations = pgTable("branch_locations", {
 	level: varchar("level", { length: 10 }),
 	location_type: varchar("location_type", { length: 20 }).default("storage"), // storage, picking, quarantine, damage
 	capacity: integer("capacity").default(0),
-	current_stock: integer("current_stock").default(0),
+	current_stock: decimal("current_stock", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.default("0"),
 	is_active: boolean("is_active").default(true),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -1139,7 +1160,10 @@ export const batchStock = pgTable("batch_stock", {
 	location_id: integer("location_id")
 		.references(() => branchLocations.id)
 		.notNull(),
-	quantity: integer("quantity").notNull().default(0),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull()
+		.default("0"),
 	min_quantity: integer("min_quantity").default(0),
 	max_quantity: integer("max_quantity").default(0),
 	created_at: timestamp("created_at").defaultNow(),
@@ -1200,8 +1224,12 @@ export const pickListItems = pgTable("pick_list_items", {
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
 	location_id: integer("location_id").references(() => branchLocations.id),
-	quantity_ordered: integer("quantity_ordered").notNull(),
-	quantity_picked: integer("quantity_picked").default(0),
+	quantity_ordered: decimal("quantity_ordered", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
+	quantity_picked: decimal("quantity_picked", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.default("0"),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, picked, partial, missing
 	picked_by: integer("picked_by").references(() => staff.id),
 	picked_at: timestamp("picked_at"),
@@ -1282,7 +1310,9 @@ export const packageItems = pgTable("package_items", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });
 
@@ -1327,7 +1357,9 @@ export const putListItems = pgTable("put_list_items", {
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
 	location_id: integer("location_id").references(() => branchLocations.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, put, partial
 	put_by: integer("put_by").references(() => staff.id),
 	put_at: timestamp("put_at"),
@@ -1367,7 +1399,9 @@ export const branchDamage = pgTable("branch_damage", {
 		.references(() => products.id)
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	reason: text("reason"),
 	reported_by: integer("reported_by")
 		.references(() => staff.id)
@@ -1557,7 +1591,9 @@ export const missingStockQueue = pgTable("missing_stock_queue", {
 		.references(() => products.id)
 		.notNull(),
 	audit_id: integer("audit_id").references(() => stockAudits.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	status: varchar("status", { length: 20 }).default("missing"), // missing, found, written_off
 	created_at: timestamp("created_at").defaultNow(),
 	resolved_at: timestamp("resolved_at"),
@@ -1740,7 +1776,9 @@ export const salesReturnItems = pgTable("sales_return_items", {
 	product_id: integer("product_id")
 		.references(() => products.id)
 		.notNull(),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 	refund_amount: decimal("refund_amount", {
 		precision: 10,
@@ -1805,7 +1843,9 @@ export const purchaseReturnItems = pgTable("purchase_return_items", {
 		.references(() => products.id)
 		.notNull(),
 	batch_id: integer("batch_id").references(() => productBatches.id),
-	quantity: integer("quantity").notNull(),
+	quantity: decimal("quantity", { precision: 10, scale: 3 })
+		.$type<number | string>()
+		.notNull(),
 	refund_amount: decimal("refund_amount", {
 		precision: 10,
 		scale: 2,
@@ -2664,8 +2704,12 @@ export const receivingInspections = pgTable(
 			.references(() => products.id)
 			.notNull(),
 		branch_id: integer("branch_id").references(() => branches.id),
-		expected_qty: integer("expected_qty"),
-		received_qty: integer("received_qty"),
+		expected_qty: decimal("expected_qty", { precision: 10, scale: 3 }).$type<
+			number | string
+		>(),
+		received_qty: decimal("received_qty", { precision: 10, scale: 3 }).$type<
+			number | string
+		>(),
 		condition: varchar("condition", { length: 20 }), // good, damaged, mismatch
 		upc_status: varchar("upc_status", { length: 20 }), // present, missing, invalid
 		status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING, VERIFIED, DISCREPANCY

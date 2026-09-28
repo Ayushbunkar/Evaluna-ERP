@@ -122,6 +122,7 @@ export const posRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			return await ctx.db.transaction(async (tx) => {
+				const userId = ctx.user.id || (ctx.user as any).userId;
 				const effectiveBranchId = ctx.user.branchId || 1;
 
 				// Calculate totals
@@ -151,7 +152,7 @@ export const posRouter = router({
 						other_charges_reason: input.otherChargesReason,
 						coupon_id: input.couponId,
 						is_offline_sync: input.isOfflineSync,
-						user_uid: ctx.user.id,
+						user_uid: userId,
 						branch_id: effectiveBranchId,
 						status,
 						finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
@@ -340,7 +341,7 @@ export const posRouter = router({
 					original_amount: payment.amount, // preserve original sales amount
 					adjustment_amount: "0",
 					reconciliation_status: "pending",
-					user_uid: ctx.user.id,
+					user_uid: userId,
 					branch_id: effectiveBranchId,
 					type: "in" as const,
 					category: "sale" as const,
@@ -388,6 +389,7 @@ export const posRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			const userId = ctx.user.id || (ctx.user as any).userId;
 			// Creates a suspended order that can be retrieved later
 			const [order] = await ctx.db
 				.insert(orders)
@@ -395,7 +397,7 @@ export const posRouter = router({
 					customer_id: input.customerId,
 					total_amount: input.total,
 					status: "suspended",
-					user_uid: ctx.user.id,
+					user_uid: userId,
 					branch_id: ctx.user.branchId,
 				})
 				.returning();

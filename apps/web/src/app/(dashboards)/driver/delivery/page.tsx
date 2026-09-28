@@ -294,8 +294,7 @@ export default function DriverLiveDeliveryPage() {
 		(acc, item) => acc + item.returnedQty * item.price,
 		0,
 	);
-	const tax = Math.round(subtotal * 0.05); // 5% GST
-	const finalTotal = subtotal + tax;
+	const finalTotal = subtotal;
 	const remainingBalance = finalTotal - (cashAmount + onlineAmount);
 
 	const handleQuickFillPayment = (
@@ -927,10 +926,6 @@ export default function DriverLiveDeliveryPage() {
 												</span>
 											</div>
 										)}
-										<div className="flex justify-between text-gray-600 dark:text-gray-300">
-											<span>Estimated GST (5%)</span>
-											<span className="font-mono">₹{tax}</span>
-										</div>
 										<div className="flex justify-between border-t pt-2 font-bold text-base text-gray-900 dark:text-white">
 											<span>Net Payable Amount</span>
 											<span className="font-mono text-blue-600 dark:text-blue-400">

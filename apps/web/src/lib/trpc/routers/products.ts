@@ -106,7 +106,7 @@ export const productsRouter = router({
 					baseSellingPrice: products.base_selling_price,
 					visibilityLevel: products.visibility_level,
 					isHidden: products.is_hidden,
-					stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::int`,
+					stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
 				})
 				.from(products)
 				.leftJoin(branchInventory, inventoryJoinCondition)

@@ -4,6 +4,7 @@ import {
 	CheckCircle2Icon,
 	Edit3Icon,
 	HistoryIcon,
+	IndianRupee,
 	MapPinIcon,
 	PhoneIcon,
 	PlusIcon,
@@ -60,6 +61,9 @@ export function PaymentModal({
 		{},
 		{ enabled: open },
 	);
+
+	const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid">("unpaid");
+	const [selectedMethodId, setSelectedMethodId] = useState<number>(1);
 
 	const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
 		initialCustomerDetails?.customerId || null,
@@ -177,6 +181,8 @@ export function PaymentModal({
 	// Reset when opened if no initial values provided
 	useEffect(() => {
 		if (open) {
+			setPaymentStatus("unpaid");
+			setSelectedMethodId(1);
 			if (initialCustomerDetails) {
 				setSelectedCustomerId(initialCustomerDetails.customerId || null);
 				setCustomerName(initialCustomerDetails.customerName || "");
@@ -252,7 +258,11 @@ export function PaymentModal({
 		if (onConfirmCustomer) {
 			onConfirmCustomer(customerObj);
 		} else if (onConfirm) {
-			onConfirm([{ methodId: 1, amount: totalAmount.toString() }], customerObj);
+			const payments =
+				paymentStatus === "paid"
+					? [{ methodId: selectedMethodId, amount: totalAmount.toString() }]
+					: [];
+			onConfirm(payments, customerObj);
 		}
 		onOpenChange(false);
 	};
@@ -309,7 +319,10 @@ export function PaymentModal({
 			typeof totalAmount === "number"
 				? totalAmount
 				: Number.parseFloat(totalAmount || "0");
-		const payments = [{ methodId: 1, amount: amountToPay.toString() }];
+		const payments =
+			paymentStatus === "paid"
+				? [{ methodId: selectedMethodId, amount: amountToPay.toString() }]
+				: [];
 
 		const selectedRoute = routes.find((r: any) => r.id === selectedRouteId);
 		const customerObj = {
@@ -692,6 +705,85 @@ export function PaymentModal({
 						</div>
 					</div>
 
+					{/* Payment Status Selection (Default: UNPAID for field salesperson orders) */}
+					{!isInitialSelection && (
+						<div className="space-y-2.5 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/20">
+							<div className="flex items-center justify-between">
+								<span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+									<IndianRupee className="h-3.5 w-3.5 text-blue-600" />
+									{locale === "hi" ? "भुगतान स्थिति (Payment Status)" : "Payment Status"}
+								</span>
+								<Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-background">
+									{locale === "hi" ? "डिफ़ॉल्ट: अनपेड (उधार)" : "Default: Unpaid / Credit"}
+								</Badge>
+							</div>
+
+							<div className="grid grid-cols-2 gap-2">
+								<button
+									type="button"
+									onClick={() => setPaymentStatus("unpaid")}
+									className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2.5 text-xs font-bold transition-all cursor-pointer ${
+										paymentStatus === "unpaid"
+											? "border-amber-500 bg-amber-50 text-amber-900 shadow-xs ring-2 ring-amber-500/30 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-600"
+											: "border-border bg-background text-muted-foreground hover:bg-muted/40"
+									}`}
+								>
+									<span className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+										⏳ {locale === "hi" ? "अनपेड (बाकी / क्रेडिट)" : "UNPAID (Pay on Delivery)"}
+									</span>
+									<span className="text-[10px] font-normal text-muted-foreground">
+										{locale === "hi" ? "डिलीवरी पर ड्राइवर कलेक्ट करेगा" : "Driver collects on delivery"}
+									</span>
+								</button>
+
+								<button
+									type="button"
+									onClick={() => setPaymentStatus("paid")}
+									className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2.5 text-xs font-bold transition-all cursor-pointer ${
+										paymentStatus === "paid"
+											? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-xs ring-2 ring-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-600"
+											: "border-border bg-background text-muted-foreground hover:bg-muted/40"
+									}`}
+								>
+									<span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+										✓ {locale === "hi" ? "पेड (तुरंत नकद मिला)" : "PAID (Collected Now)"}
+									</span>
+									<span className="text-[10px] font-normal text-muted-foreground">
+										{locale === "hi" ? "नकद या ऑनलाइन प्राप्त हो गया" : "Payment received upfront"}
+									</span>
+								</button>
+							</div>
+
+							{paymentStatus === "paid" && (
+								<div className="pt-2 flex items-center justify-between border-t border-blue-200/50 dark:border-blue-900/40">
+									<span className="text-xs text-muted-foreground font-medium">
+										{locale === "hi" ? "भुगतान माध्यम:" : "Payment Method:"}
+									</span>
+									<div className="flex gap-2">
+										{[
+											{ id: 1, label: "Cash" },
+											{ id: 3, label: "UPI" },
+											{ id: 2, label: "Card" },
+										].map((m) => (
+											<button
+												key={m.id}
+												type="button"
+												onClick={() => setSelectedMethodId(m.id)}
+												className={`rounded-md px-2.5 py-1 text-xs font-semibold border cursor-pointer ${
+													selectedMethodId === m.id
+														? "bg-emerald-600 text-white border-emerald-600"
+														: "bg-background text-foreground border-border hover:bg-muted"
+												}`}
+											>
+												{m.label}
+											</button>
+										))}
+									</div>
+								</div>
+							)}
+						</div>
+					)}
+
 					{/* Previous Purchased Items Section */}
 					{selectedCustomerId && lastOrderItems.length > 0 && (
 						<div className="rounded-xl border bg-muted/30 p-3 space-y-2">
@@ -752,9 +844,17 @@ export function PaymentModal({
 					<Button
 						size="lg"
 						onClick={handleConfirm}
-						className="bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+						className={
+							paymentStatus === "unpaid"
+								? "bg-amber-600 text-white hover:bg-amber-700 font-semibold"
+								: "bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+						}
 					>
-						{t.confirm}
+						{isInitialSelection
+							? t.confirm
+							: paymentStatus === "unpaid"
+								? (locale === "hi" ? "अनपेड बिल बनाएं और प्रिंट करें" : "Create Unpaid Order & Print")
+								: (locale === "hi" ? "पेड बिल बनाएं और प्रिंट करें" : "Confirm Paid & Print")}
 					</Button>
 				</div>
 			</DialogContent>

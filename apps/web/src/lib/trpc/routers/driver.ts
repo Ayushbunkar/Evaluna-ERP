@@ -1158,8 +1158,7 @@ export const driverRouter = router({
 						(sum: number, it: any) => sum + Math.round(Number(it.price || 0) * Number(it.qty || 0)),
 						0,
 					);
-					const itemsWithTax = calculatedItemsSum > 0 ? calculatedItemsSum + Math.round(calculatedItemsSum * 0.05) : 0;
-					const finalAmountToCollect = podCollectedTotal || (calculatedItemsSum > 0 ? itemsWithTax : totalAmount);
+					const finalAmountToCollect = podCollectedTotal || (calculatedItemsSum > 0 ? calculatedItemsSum : totalAmount);
 
 					return {
 						id: s.id,

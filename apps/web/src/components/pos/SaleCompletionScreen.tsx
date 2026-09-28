@@ -56,7 +56,7 @@ interface CompletedOrder {
 	shopName?: string;
 	address?: string;
 	village?: string;
-	couponCode?: string;
+	finance_status?: string;
 }
 
 const getItemName = (item: any): string => {
@@ -160,11 +160,14 @@ function numberToWords(num: number): string {
 }
 
 const getPaymentStatusBadge = (order: CompletedOrder) => {
-	const paid = order.payments.reduce(
-		(a, p) => a + Number.parseFloat(p.amount),
+	if (order.finance_status === "pending" || order.finance_status === "unpaid") {
+		return { label: "UNPAID", color: "bg-red-100 text-red-700 border-red-300" };
+	}
+	const paid = (order.payments || []).reduce(
+		(a, p) => a + Number.parseFloat(p.amount || "0"),
 		0,
 	);
-	if (paid >= order.total - 0.01)
+	if (order.total > 0 && paid >= order.total - 0.01)
 		return {
 			label: "PAID",
 			color: "bg-green-100 text-green-700 border-green-300",
@@ -655,7 +658,12 @@ export function SaleCompletionScreen({
 											styles.bold,
 											{
 												fontSize: 10,
-												color: status.label === "PAID" ? "#16a34a" : "#ca8a04",
+												color:
+													status.label === "PAID"
+														? "#16a34a"
+														: status.label === "PARTIAL"
+															? "#ca8a04"
+															: "#dc2626",
 											},
 										]}
 									>

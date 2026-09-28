@@ -582,7 +582,7 @@ export const customerRouter = router({
 					.array(
 						z.object({
 							productId: z.number().int().positive(),
-							quantity: z.number().int().positive(),
+							quantity: z.number().positive(),
 						}),
 					)
 					.min(1),
