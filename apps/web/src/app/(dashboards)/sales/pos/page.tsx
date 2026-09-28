@@ -6,6 +6,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Edit3,
+	Info,
 	Loader2,
 	MapPin,
 	Minus,
@@ -54,8 +55,16 @@ import { trpc } from "@/lib/trpc/client";
 // Reusable Devanagari Parser to localize dynamic product content
 export function getLocalizedProductName(name: string, locale: string): string {
 	if (!name) return "";
+
 	if (locale !== "hi") {
-		return name;
+		// When viewing in English (or non-Hindi), strip out Hindi/Devanagari characters and empty parentheses
+		// so that English product details and prices (e.g. "Rs 10") are cleanly visible without truncation.
+		let res = name.replace(/\s*\([\s\u0900-\u097F]+\)\s*/g, " ");
+		res = res.replace(/[\u0900-\u097F]+/g, "");
+		res = res.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
+		res = res.replace(/\(\s*\)/g, "");
+		res = res.replace(/\s+/g, " ").replace(/\s*,/g, ",").trim();
+		return res || name;
 	}
 
 	// Try extracting Hindi inside parentheses, e.g. "Mishri (मिश्री)"
@@ -111,20 +120,31 @@ const EXTRA_CHARGES_PRESET_REASONS = [
 	"Custom / Other Charge",
 ];
 
-function ScrollableQtyBadge({
+function ScrollableQtyInput({
 	qty,
 	unit,
+	onChange,
 	onIncrement,
 	onDecrement,
 	className = "",
 }: {
 	qty: number;
 	unit?: string | null;
+	onChange: (val: number) => void;
 	onIncrement: () => void;
 	onDecrement: () => void;
 	className?: string;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const [textValue, setTextValue] = useState(String(qty));
+	const [isEditing, setIsEditing] = useState(false);
+
+	useEffect(() => {
+		if (!isEditing) {
+			setTextValue(String(qty));
+		}
+	}, [qty, isEditing]);
 
 	useEffect(() => {
 		const el = ref.current;
@@ -146,20 +166,66 @@ function ScrollableQtyBadge({
 		};
 	}, [onIncrement, onDecrement]);
 
+	const commit = () => {
+		setIsEditing(false);
+		const parsed = parseFloat(textValue.trim());
+		if (isNaN(parsed) || parsed <= 0) {
+			onChange(0);
+		} else {
+			onChange(Math.round(parsed * 1000) / 1000);
+		}
+	};
+
 	return (
 		<div
 			ref={ref}
-			title="Scroll mouse wheel up/down to adjust quantity"
+			data-lenis-prevent
+			title="Click to type number manually, or scroll mouse wheel to adjust (1, 2, 3...)"
 			className={className}
+			onClick={(e) => {
+				e.stopPropagation();
+				inputRef.current?.focus();
+				inputRef.current?.select();
+			}}
 		>
-			<span className="text-[10px] opacity-70">↕</span>
-			<span className="select-none font-mono font-bold text-xs">{qty}</span>
+			<span className="text-[9px] opacity-50 select-none">↕</span>
+			<input
+				ref={inputRef}
+				type="text"
+				inputMode="decimal"
+				value={textValue}
+				onFocus={(e) => {
+					setIsEditing(true);
+					e.target.select();
+				}}
+				onChange={(e) => {
+					const val = e.target.value;
+					if (/^\d*\.?\d*$/.test(val)) {
+						setTextValue(val);
+					}
+				}}
+				onBlur={commit}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") {
+						e.currentTarget.blur();
+					} else if (e.key === "ArrowUp") {
+						e.preventDefault();
+						onIncrement();
+					} else if (e.key === "ArrowDown") {
+						e.preventDefault();
+						onDecrement();
+					}
+				}}
+				onClick={(e) => e.stopPropagation()}
+				className="w-9 min-w-0 bg-transparent text-center font-mono font-bold text-xs text-emerald-950 dark:text-emerald-100 p-0 border-none outline-none focus:bg-white dark:focus:bg-gray-900 rounded cursor-text"
+			/>
 			{unit && unit !== "Pcs" && (
-				<span className="text-[10px] font-normal opacity-80">{unit}</span>
+				<span className="text-[10px] font-normal opacity-80 select-none shrink-0">{unit}</span>
 			)}
 		</div>
 	);
 }
+
 
 function WheelStepperWrapper({
 	children,
@@ -197,6 +263,7 @@ function WheelStepperWrapper({
 	return (
 		<div
 			ref={ref}
+			data-lenis-prevent
 			title="Scroll mouse wheel up/down to adjust quantity"
 			className={className}
 		>
@@ -257,6 +324,9 @@ function POSContent() {
 
 	// Summary Breakdown Accordion toggle state
 	const [showSummaryDetails, setShowSummaryDetails] = useState<boolean>(true);
+
+	// Product Details Modal state
+	const [detailsProduct, setDetailsProduct] = useState<any | null>(null);
 
 	// URL Params
 	const completedOrderIdParam = searchParams.get("completedOrderId");
@@ -1048,14 +1118,6 @@ function POSContent() {
 								const cartItem = cart.find((item) => item.id === product.id);
 								const isInCart = Boolean(cartItem);
 								const cartQty = cartItem ? cartItem.qty : 0;
-								const isWeighted = Boolean(
-									product.is_weighted ||
-										product.unit === "kg" ||
-										product.unit === "g" ||
-										product.unit === "L" ||
-										product.unit === "ml",
-								);
-								const step = isWeighted || (cartQty > 0 && cartQty < 1) ? 0.1 : 1;
 
 								return (
 									<StaggerItem key={product.id}>
@@ -1136,11 +1198,31 @@ function POSContent() {
 															₹{Number.parseFloat(product.price).toFixed(2)}
 														</div>
 													)}
-													<div className="mt-1 line-clamp-1 min-h-[18px] text-muted-foreground text-[11px] sm:text-xs">
-														{getLocalizedProductName(
-															product.description || "",
-															locale,
-														)}
+													<div className="mt-1 flex items-center justify-between gap-1 min-h-[18px]">
+														<span
+															className="line-clamp-1 flex-1 text-muted-foreground text-[11px] sm:text-xs hover:text-foreground transition-colors cursor-pointer"
+															title={product.description || product.name || ""}
+															onClick={(e) => {
+																e.stopPropagation();
+																setDetailsProduct(product);
+															}}
+														>
+															{getLocalizedProductName(
+																product.description || "",
+																locale,
+															)}
+														</span>
+														<button
+															type="button"
+															title={locale === "hi" ? "पूरा विवरण देखें (Full details)" : "View full product description"}
+															onClick={(e) => {
+																e.stopPropagation();
+																setDetailsProduct(product);
+															}}
+															className="shrink-0 flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground/70 hover:bg-primary/15 hover:text-primary transition-all active:scale-90"
+														>
+															<Info className="h-3 w-3" />
+														</button>
 													</div>
 
 													{/* In-box Quantity Controller with Mouse Wheel Scroll & Deselect */}
@@ -1154,29 +1236,43 @@ function POSContent() {
 																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 hover:bg-rose-100 hover:text-rose-600 active:scale-95 transition-all dark:bg-gray-700 dark:text-gray-200"
 																onClick={(e) => {
 																	e.stopPropagation();
-																	if (cartQty <= step) {
+																	const nextQty = Math.ceil(cartQty) - 1;
+																	if (nextQty <= 0) {
 																		removeFromCart(product.id);
 																	} else {
-																		updateQty(product.id, -step);
+																		setDirectQty(product.id, nextQty);
 																	}
 																}}
-																title={locale === "hi" ? "कम करें (Scroll down)" : "Decrease (or scroll down)"}
+																title={locale === "hi" ? "कम करें (1 कम करें)" : "Decrease by 1"}
 															>
 																<Minus className="h-3 w-3" />
 															</button>
 
-															<ScrollableQtyBadge
+															<ScrollableQtyInput
 																qty={cartQty}
 																unit={product.unit}
-																onIncrement={() => updateQty(product.id, step)}
-																onDecrement={() => {
-																	if (cartQty <= step) {
+																onChange={(val) => {
+																	if (val <= 0) {
 																		removeFromCart(product.id);
 																	} else {
-																		updateQty(product.id, -step);
+																		setDirectQty(product.id, val);
 																	}
 																}}
-																className="flex-1 flex items-center justify-center gap-1 rounded bg-emerald-600/10 px-1 py-0.5 text-center font-bold font-mono text-emerald-800 dark:text-emerald-200 text-xs cursor-ns-resize hover:bg-emerald-600 hover:text-white transition-all select-none"
+																onIncrement={() => {
+																	// Pure integer scroll: 1, 2, 3, 4, 5, 6... (no decimals in scroll)
+																	const nextQty = Math.floor(cartQty) + 1;
+																	setDirectQty(product.id, nextQty);
+																}}
+																onDecrement={() => {
+																	// Pure integer scroll: 5, 4, 3, 2, 1...
+																	const nextQty = Math.ceil(cartQty) - 1;
+																	if (nextQty <= 0) {
+																		removeFromCart(product.id);
+																	} else {
+																		setDirectQty(product.id, nextQty);
+																	}
+																}}
+																className="flex-1 flex items-center justify-center gap-0.5 rounded bg-emerald-600/10 px-1 py-0.5 text-center font-bold font-mono text-emerald-800 dark:text-emerald-200 text-xs cursor-ns-resize hover:bg-emerald-600/20 transition-all select-none"
 															/>
 
 															<button
@@ -1184,9 +1280,10 @@ function POSContent() {
 																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-600 active:scale-95 transition-all dark:bg-gray-700 dark:text-gray-200"
 																onClick={(e) => {
 																	e.stopPropagation();
-																	updateQty(product.id, step);
+																	const nextQty = Math.floor(cartQty) + 1;
+																	setDirectQty(product.id, nextQty);
 																}}
-																title={locale === "hi" ? "बढ़ाएं (Scroll up)" : "Increase (or scroll up)"}
+																title={locale === "hi" ? "बढ़ाएं (1 बढ़ाएं)" : "Increase by 1"}
 															>
 																<Plus className="h-3 w-3" />
 															</button>
@@ -1911,6 +2008,173 @@ function POSContent() {
 							{locale === "hi" ? "शुल्क जोड़ें" : "Apply Charges"}
 						</Button>
 					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Product Details & Full Description Modal */}
+			<Dialog
+				open={!!detailsProduct}
+				onOpenChange={(open) => {
+					if (!open) setDetailsProduct(null);
+				}}
+			>
+				<DialogContent className="max-w-md p-5 sm:max-w-lg">
+					{detailsProduct && (
+						<>
+							<DialogHeader className="space-y-1.5 pb-2 border-b">
+								<div className="flex items-center justify-between gap-2">
+									<span className="rounded bg-primary/10 px-2 py-0.5 font-mono font-bold text-xs text-primary dark:bg-primary/20">
+										#{detailsProduct.id}
+									</span>
+									{detailsProduct.category && (
+										<span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+											{detailsProduct.category}
+										</span>
+									)}
+								</div>
+								<DialogTitle className="text-base sm:text-lg font-bold text-foreground">
+									{detailsProduct.name}
+								</DialogTitle>
+								<DialogDescription className="text-xs text-muted-foreground">
+									{locale === "hi"
+										? "उत्पाद का पूरा विवरण एवं मूल्य जानकारी"
+										: "Complete product specifications, pricing, and description"}
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="space-y-4 py-2 text-sm">
+								{/* Price & Offers Box */}
+								<div className="rounded-xl border bg-muted/30 p-3.5 space-y-2">
+									<div className="flex items-baseline justify-between">
+										<span className="text-xs font-semibold text-muted-foreground">
+											{locale === "hi" ? "बिक्री मूल्य (Selling Price)" : "Selling Price"}
+										</span>
+										<div className="text-right">
+											{detailsProduct.hasDailyOffer ? (
+												<div className="flex items-baseline gap-2">
+													<span className="text-sm text-muted-foreground line-through font-semibold">
+														₹{Number.parseFloat(detailsProduct.originalPrice || detailsProduct.price).toFixed(2)}
+													</span>
+													<span className="text-xl font-extrabold text-rose-600 dark:text-rose-400">
+														₹{Number.parseFloat(detailsProduct.offerPrice).toFixed(2)}
+													</span>
+												</div>
+											) : (
+												<span className="text-xl font-extrabold text-primary">
+													₹{Number.parseFloat(detailsProduct.price).toFixed(2)}
+												</span>
+											)}
+											{detailsProduct.unit && (
+												<span className="text-xs text-muted-foreground ml-1">
+													/ {detailsProduct.unit}
+												</span>
+											)}
+										</div>
+									</div>
+
+									{detailsProduct.hasDailyOffer && (
+										<div className="flex items-center gap-1.5 pt-1 border-t border-dashed">
+											<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-2 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+												<Tag className="h-3 w-3" />
+												{detailsProduct.dailyOfferPercent}% OFF
+											</span>
+											{detailsProduct.dailyOfferReason && (
+												<span className="text-xs text-muted-foreground">
+													{detailsProduct.dailyOfferReason}
+												</span>
+											)}
+										</div>
+									)}
+								</div>
+
+								{/* Full Description Section */}
+								<div className="space-y-1.5">
+									<Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+										<Info className="h-3.5 w-3.5 text-primary" />
+										{locale === "hi" ? "पूरा उत्पाद विवरण (Full Description)" : "Full Product Description"}
+									</Label>
+									<div className="rounded-lg border bg-background p-3 text-xs sm:text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed min-h-[60px] max-h-[160px] overflow-y-auto">
+										{detailsProduct.description || (
+											<span className="italic text-muted-foreground">
+												{locale === "hi" ? "कोई अतिरिक्त विवरण उपलब्ध नहीं है।" : "No additional description provided."}
+											</span>
+										)}
+									</div>
+								</div>
+
+								{/* Technical / Inventory Badges */}
+								<div className="grid grid-cols-2 gap-2 text-xs">
+									<div className="rounded-lg border bg-muted/20 p-2.5 space-y-0.5">
+										<span className="text-[11px] text-muted-foreground">
+											{locale === "hi" ? "माप इकाई (Unit)" : "Measurement Unit"}
+										</span>
+										<p className="font-semibold text-foreground">
+											{detailsProduct.unit || "Pcs"} {detailsProduct.is_weighted ? "(Weighted)" : ""}
+										</p>
+									</div>
+									<div className="rounded-lg border bg-muted/20 p-2.5 space-y-0.5">
+										<span className="text-[11px] text-muted-foreground">
+											{locale === "hi" ? "बारकोड / एसकेयू" : "Barcode / SKU"}
+										</span>
+										<p className="font-mono font-semibold text-foreground truncate">
+											{detailsProduct.barcode || detailsProduct.sku || `#${detailsProduct.id}`}
+										</p>
+									</div>
+								</div>
+							</div>
+
+							<DialogFooter className="gap-2 sm:gap-0 pt-2 border-t flex flex-row items-center justify-between">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setDetailsProduct(null)}
+								>
+									{locale === "hi" ? "बंद करें" : "Close"}
+								</Button>
+
+								{(() => {
+									const inCartItem = cart.find((i) => i.id === detailsProduct.id);
+									if (inCartItem) {
+										return (
+											<div className="flex items-center gap-2">
+												<span className="text-xs text-emerald-700 font-bold dark:text-emerald-300">
+													In Cart: {inCartItem.qty} {detailsProduct.unit || "Pcs"}
+												</span>
+												<Button
+													size="sm"
+													className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+													onClick={() => {
+														addToCart(detailsProduct, 1);
+														toast.success(`Added 1 more ${detailsProduct.name}`);
+													}}
+												>
+													<Plus className="h-3.5 w-3.5" />
+													{locale === "hi" ? "+1 जोड़ें" : "Add +1"}
+												</Button>
+											</div>
+										);
+									}
+									return (
+										<Button
+											size="sm"
+											className="bg-primary text-primary-foreground gap-1.5"
+											onClick={() => {
+												addToCart(detailsProduct, 1);
+												toast.success(
+													locale === "hi"
+														? `${detailsProduct.name} कार्ट में जोड़ा गया!`
+														: `Added ${detailsProduct.name} to cart!`,
+												);
+											}}
+										>
+											<Plus className="h-3.5 w-3.5" />
+											{locale === "hi" ? "कार्ट में जोड़ें" : "Add to Cart"}
+										</Button>
+									);
+								})()}
+							</DialogFooter>
+						</>
+					)}
 				</DialogContent>
 			</Dialog>
 		</PageTransition>
