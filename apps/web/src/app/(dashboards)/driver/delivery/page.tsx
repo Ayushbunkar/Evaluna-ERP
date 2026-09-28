@@ -323,26 +323,26 @@ export default function DriverLiveDeliveryPage() {
 			return;
 		}
 		submitHandover.mutate({
-			trip_id: 1,
+			trip_id: activeStop?.trip_id || 1,
 			stop_id: activeStop?.id || 1,
-			cashAmount,
-			onlineAmount,
+			cashAmount: Number(cashAmount) || 0,
+			onlineAmount: Number(onlineAmount) || 0,
 			deliveryNotes: notes,
 			damagedOrReturnedItems: items
-				.filter((i) => i.returnedQty > 0)
+				.filter((i) => (Number(i.returnedQty) || 0) > 0)
 				.map((i) => ({
-					id: i.id,
-					name: i.name,
-					qty: i.returnedQty,
+					id: Number(i.id),
+					name: String(i.name || ""),
+					qty: Number(i.returnedQty) || 0,
 					reason: i.returnReason || "Item Returned / Damaged",
 				})),
 			deliveredItems: items
-				.filter((i) => i.deliveredQty > 0)
+				.filter((i) => (Number(i.deliveredQty) || 0) > 0)
 				.map((i) => ({
-					id: i.id,
-					name: i.name,
-					qty: i.deliveredQty,
-					price: i.price,
+					id: Number(i.id),
+					name: String(i.name || ""),
+					qty: Number(i.deliveredQty) || 0,
+					price: Number(i.price) || 0,
 				})),
 		});
 	};
@@ -390,8 +390,8 @@ export default function DriverLiveDeliveryPage() {
 				targetStop.orderItems.map((oi: any) => ({
 					id: oi.id,
 					name: oi.name,
-					originalQty: oi.qty,
-					deliveredQty: oi.qty,
+					originalQty: Number(oi.qty) || 0,
+					deliveredQty: Number(oi.qty) || 0,
 					returnedQty: 0,
 					price: Number(oi.price || 0),
 					checked: Boolean(oi.checked),
@@ -1051,7 +1051,7 @@ export default function DriverLiveDeliveryPage() {
 							id: i.id,
 							name: i.name,
 							productName: i.name,
-							qty: i.deliveredQty,
+							qty: Number(i.deliveredQty) || 0,
 							price: String(i.price),
 						})),
 						total: finalTotal,

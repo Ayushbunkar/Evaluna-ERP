@@ -736,24 +736,28 @@ export const managerRouter = router({
 
 	// ── 9. Team Workload ────────────────────────────────────────────────────────
 	getWorkload: protectedProcedure.query(async ({ ctx }) => {
-		const [allStaff, allTasks] = await Promise.all([
-			db
-				.select()
-				.from(staff)
-				.where(
-					and(
-						eq(staff.is_deleted, false),
-						not(ilike(staff.email, "%seed%")),
-						not(ilike(staff.email, "%hotmail.com")),
-						not(ilike(staff.email, "%yahoo.com")),
-						not(ilike(staff.email, "%example%")),
-					),
+		const allStaff = await db
+			.select()
+			.from(staff)
+			.where(
+				and(
+					eq(staff.is_deleted, false),
+					not(ilike(staff.email, "%seed%")),
+					not(ilike(staff.email, "%hotmail.com")),
+					not(ilike(staff.email, "%yahoo.com")),
+					not(ilike(staff.email, "%example%")),
 				),
-			db.select().from(upcTasks),
-		]);
+			);
+
+		let allTasks: Array<typeof upcTasks.$inferSelect> = [];
+		try {
+			allTasks = await db.select().from(upcTasks);
+		} catch (error) {
+			console.error("[manager.getWorkload] upcTasks query failed:", error);
+		}
 
 		return allStaff.map((s) => {
-			const staffTasks = allTasks.filter((t) => t.assigned_to === s.id);
+			const staffTasks = (allTasks || []).filter((t) => t && t.assigned_to === s.id);
 			return {
 				id: s.id,
 				name: s.name,

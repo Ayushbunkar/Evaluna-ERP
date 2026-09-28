@@ -29,11 +29,11 @@ export const loaderRouter = router({
 			todayStart.setHours(0, 0, 0, 0);
 
 			// Loaders see their assigned trips + unassigned loading queue trips
-			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
+			const userRole = ctx.user?.roles?.[0] as unknown as string | undefined;
 			const isLoaderRole = userRole === "loader";
 			const callerId = ctx.user?.id;
 			const callerEmail = ctx.user?.email;
-			const callerStaffId = ctx.user?.staff_id ? String(ctx.user.staff_id) : undefined;
+			const callerStaffId = (ctx.user as any)?.staff_id ? String((ctx.user as any).staff_id) : undefined;
 
 			let loaderFilter = undefined;
 			if (isLoaderRole) {
@@ -118,11 +118,11 @@ export const loaderRouter = router({
 			}
 
 			// Loaders see trips assigned to them OR unassigned pool trips
-			const userRole = ctx.user?.role || ctx.user?.roles?.[0];
+			const userRole = ctx.user?.roles?.[0] as unknown as string | undefined;
 			const isLoaderRole = userRole === "loader";
 			const callerId = ctx.user?.id;
 			const callerEmail = ctx.user?.email;
-			const callerStaffId = ctx.user?.staff_id ? String(ctx.user.staff_id) : undefined;
+			const callerStaffId = (ctx.user as any)?.staff_id ? String((ctx.user as any).staff_id) : undefined;
 
 			let loaderIdFilter = undefined;
 			if (isLoaderRole) {
@@ -162,7 +162,7 @@ export const loaderRouter = router({
 				.orderBy(desc(deliveryTrips.created_at));
 
 			const enrichedTrips = await Promise.all(
-				rawTrips.map(async (t) => {
+				rawTrips.map(async (t: any) => {
 					const stops = await db
 						.select({
 							customerId: tripStops.customer_id,
@@ -177,7 +177,7 @@ export const loaderRouter = router({
 						.where(eq(tripStops.trip_id, t.tripId))
 						.orderBy(tripStops.sequence);
 
-					const customerIds = stops.map((s) => s.customerId).filter(Boolean);
+					const customerIds = stops.map((s: any) => s.customerId).filter(Boolean);
 
 					let tripOrders: any[] = [];
 					if (customerIds.length > 0) {
@@ -369,7 +369,7 @@ export const loaderRouter = router({
 							totalAmount: o.totalAmount,
 							packageCount: pkgs.length || 1,
 							packages: pkgs,
-							itemsCount: items.reduce((acc, i) => acc + (i.quantity || 1), 0),
+							itemsCount: items.reduce((acc, i) => acc + (Number.parseFloat(i.quantity) || 1), 0),
 							items: items,
 						};
 					});

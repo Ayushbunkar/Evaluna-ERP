@@ -19,6 +19,7 @@ import {
 } from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
+import { Textarea } from "@evaluna/ui/components/textarea";
 import {
 	Table,
 	TableBody,
@@ -88,11 +89,25 @@ export default function StockPage() {
 	const [currentPage, setCurrentPage] = useState(1);
 	const pageSize = 50;
 
-	// Edit Stock & Price Modal
+	// Edit Stock & Product Specifications Modal
 	const [editItem, setEditItem] = useState<any>(null);
+	const [editName, setEditName] = useState<string>("");
+	const [editCategory, setEditCategory] = useState<string>("");
+	const [editUnit, setEditUnit] = useState<string>("");
+	const [editBarcode, setEditBarcode] = useState<string>("");
+	const [editSku, setEditSku] = useState<string>("");
+	const [editDescription, setEditDescription] = useState<string>("");
 	const [editStockQty, setEditStockQty] = useState<string>("");
 	const [editPrice, setEditPrice] = useState<string>("");
+	const [editCostPrice, setEditCostPrice] = useState<string>("");
 	const [editReason, setEditReason] = useState<string>("");
+
+	// Manager Delete Product Modal States
+	const [deleteItem, setDeleteItem] = useState<any>(null);
+	const [deleteReasonPreset, setDeleteReasonPreset] = useState<string>(
+		"Discontinued Product (उत्पाद बंद कर दिया गया)",
+	);
+	const [customDeleteReason, setCustomDeleteReason] = useState<string>("");
 
 	// Daily Offer Modal (Inline from Stock Page)
 	const [offerItem, setOfferItem] = useState<any>(null);
@@ -139,13 +154,29 @@ export default function StockPage() {
 	const updateMutation = trpc.inventory.updateStockAndPrice.useMutation({
 		onSuccess: () => {
 			toast.success(
-				"Stock & Price updated successfully! Synced with POS & Store dashboards.",
+				"Product specifications & stock updated successfully! Synced across POS & dashboards.",
 			);
 			refetch();
 			setEditItem(null);
 		},
 		onError: (err) => {
-			toast.error(`Failed to update stock: ${err.message}`);
+			toast.error(`Failed to update product: ${err.message}`);
+		},
+	});
+
+	const deleteMutation = trpc.products.delete.useMutation({
+		onSuccess: () => {
+			toast.success(
+				locale === "hi"
+					? "उत्पाद डेटाबेस से सफलतापूर्वक हटा दिया गया!"
+					: "Product deleted successfully from inventory register!",
+			);
+			refetch();
+			setDeleteItem(null);
+			setEditItem(null);
+		},
+		onError: (err) => {
+			toast.error(`Failed to delete product: ${err.message}`);
 		},
 	});
 
@@ -266,22 +297,35 @@ export default function StockPage() {
 
 	const handleOpenEdit = (item: any) => {
 		setEditItem(item);
+		setEditName(item.product || "");
+		setEditCategory(item.category || "General");
+		setEditUnit(item.unit || "Pcs");
+		setEditBarcode(item.barcode || "");
+		setEditSku(item.sku || "");
+		setEditDescription(item.description || "");
 		setEditStockQty(String(item.qty_on_hand ?? 0));
 		setEditPrice(String(item.price ?? 0));
-		setEditReason("Stock count verified during warehouse audit");
+		setEditCostPrice(String(item.costPrice ?? 0));
+		setEditReason("Stock and product details updated by warehouse manager");
 	};
 
 	const handleSaveEdit = async () => {
 		if (!editItem) return;
+		if (!editName.trim()) {
+			toast.error(locale === "hi" ? "कृपया उत्पाद का नाम दर्ज करें" : "Please enter product name");
+			return;
+		}
+
 		const qty = Number.parseInt(editStockQty, 10);
 		const price = Number.parseFloat(editPrice);
+		const cost = Number.parseFloat(editCostPrice || "0");
 
 		if (Number.isNaN(qty) || qty < 0) {
 			toast.error("Stock quantity must be 0 or higher.");
 			return;
 		}
 		if (Number.isNaN(price) || price < 0) {
-			toast.error("Price must be a valid positive number.");
+			toast.error("Selling price must be a valid positive number.");
 			return;
 		}
 
@@ -290,9 +334,45 @@ export default function StockPage() {
 			inventoryId: editItem.id ? Number(editItem.id) : undefined,
 			productId: targetProdId ? Number(targetProdId) : undefined,
 			branchId: editItem.branchId || 1,
+			name: editName.trim(),
+			category: editCategory.trim() || "General",
+			unit: editUnit.trim() || "Pcs",
+			barcode: editBarcode.trim() || undefined,
+			sku: editSku.trim() || undefined,
+			description: editDescription.trim(),
 			qtyOnHand: qty,
 			price: price,
-			reason: editReason || "Warehouse stock adjustment",
+			costPrice: Number.isNaN(cost) ? 0 : cost,
+			reason: editReason || "Warehouse stock & specification update",
+		});
+	};
+
+	const handleOpenDelete = (item: any) => {
+		setDeleteItem(item);
+		setDeleteReasonPreset("Discontinued Product (उत्पाद बंद कर दिया गया)");
+		setCustomDeleteReason("");
+	};
+
+	const handleConfirmDelete = async () => {
+		if (!deleteItem) return;
+		const finalReason =
+			deleteReasonPreset === "Custom Reason / Other"
+				? customDeleteReason.trim()
+				: deleteReasonPreset;
+
+		if (!finalReason) {
+			toast.error(
+				locale === "hi"
+					? "कृपया हटाने का कारण दर्ज करें"
+					: "Please specify a deletion reason",
+			);
+			return;
+		}
+
+		const targetProdId = deleteItem.productId ?? deleteItem.id;
+		await deleteMutation.mutateAsync({
+			id: Number(targetProdId),
+			reason: finalReason,
 		});
 	};
 
@@ -741,8 +821,16 @@ export default function StockPage() {
 													<div className="font-bold text-slate-900 text-sm dark:text-slate-100">
 														{item.product}
 													</div>
-													<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-														<span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+													{item.description && (
+														<div
+															className="text-[11px] text-muted-foreground line-clamp-1 italic max-w-xs"
+															title={item.description}
+														>
+															{item.description}
+														</div>
+													)}
+													<div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
+														<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
 															{item.category || "General"}
 														</span>
 														<span>•</span>
@@ -829,10 +917,10 @@ export default function StockPage() {
 															variant="outline"
 															className="h-8 gap-1 border-slate-300 text-xs hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40"
 															onClick={() => handleOpenEdit(item)}
-															title="Adjust Stock Quantity & Base Price"
+															title="Edit Name, Description, Price & Stock"
 														>
-															<PencilIcon className="h-3.5 w-3.5" />
-															<span>Stock / Price</span>
+															<PencilIcon className="h-3.5 w-3.5 text-blue-600" />
+															<span>Edit Details</span>
 														</Button>
 														<Button
 															size="sm"
@@ -853,6 +941,15 @@ export default function StockPage() {
 																	? "Edit Offer"
 																	: "Daily Offer"}
 															</span>
+														</Button>
+														<Button
+															size="sm"
+															variant="outline"
+															className="h-8 w-8 p-0 text-red-600 border-red-200 bg-red-50/50 hover:bg-red-100 hover:border-red-300 dark:bg-red-950/40 dark:border-red-900"
+															onClick={() => handleOpenDelete(item)}
+															title="Delete Product (requires reason)"
+														>
+															<Trash2Icon className="h-3.5 w-3.5 text-red-600" />
 														</Button>
 													</div>
 												</TableCell>
@@ -937,88 +1034,289 @@ export default function StockPage() {
 				</div>
 			</Card>
 
-			{/* Edit Stock Quantity & Unit Price Dialog */}
+			{/* Edit Stock Quantity & Product Specifications Dialog */}
 			<Dialog
 				open={!!editItem}
 				onOpenChange={(open) => !open && setEditItem(null)}
 			>
-				<DialogContent className="sm:max-w-md">
+				<DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2 text-lg">
-							<Edit3Icon className="h-5 w-5 text-blue-600" />
-							<span>Adjust Stock Quantity & Base Price</span>
+						<DialogTitle className="flex items-center justify-between text-lg">
+							<span className="flex items-center gap-2">
+								<Edit3Icon className="h-5 w-5 text-blue-600" />
+								<span>Edit Product Specifications & Stock (उत्पाद विवरण)</span>
+							</span>
+							<Badge variant="outline" className="text-xs font-mono">
+								#{editItem?.productId || editItem?.id}
+							</Badge>
 						</DialogTitle>
 						<DialogDescription>
-							{editItem?.product} ({editItem?.sku})
+							Update item name, category, unit, barcode, full description, prices, and stock count.
 						</DialogDescription>
 					</DialogHeader>
 
 					{editItem && (
-						<div className="space-y-4 py-2">
-							<div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/40 p-3 text-xs">
-								<div>
-									<span className="block text-muted-foreground">Category</span>
-									<span className="font-bold text-foreground">
-										{editItem.category || "General"}
-									</span>
-								</div>
-								<div>
-									<span className="block text-muted-foreground">
-										Stock Status
-									</span>
-									<span className="font-semibold text-emerald-600">
-										{editItem.status}
-									</span>
-								</div>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="stockQty" className="font-semibold text-sm">
-									Physical Stock Count ({editItem.unit || "Units"})
-								</Label>
-								<Input
-									id="stockQty"
-									type="number"
-									min="0"
-									placeholder="e.g. 50"
-									value={editStockQty}
-									onChange={(e) => setEditStockQty(e.target.value)}
-									className="font-bold font-mono text-base"
-								/>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="price" className="font-semibold text-sm">
-									Selling Price (विक्रय मूल्य)
-								</Label>
-								<div className="relative">
-									<span className="absolute top-1/2 left-3 -translate-y-1/2 font-bold text-muted-foreground">
-										₹
-									</span>
+						<div className="space-y-3.5 py-1">
+							{/* Product Name & Category */}
+							<div className="grid grid-cols-2 gap-3">
+								<div className="space-y-1.5">
+									<Label htmlFor="editName" className="font-semibold text-xs">
+										Product Name (उत्पाद का नाम) *
+									</Label>
 									<Input
-										id="price"
-										type="number"
-										step="0.01"
-										min="0"
-										placeholder="e.g. 25.00"
-										value={editPrice}
-										onChange={(e) => setEditPrice(e.target.value)}
-										className="pl-8 font-bold font-mono text-base text-emerald-700"
+										id="editName"
+										value={editName}
+										onChange={(e) => setEditName(e.target.value)}
+										placeholder="e.g. 20-20 Biscuit Pack"
+										className="font-bold text-sm"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="editCategory" className="font-semibold text-xs">
+										Category (श्रेणी)
+									</Label>
+									<Input
+										id="editCategory"
+										value={editCategory}
+										onChange={(e) => setEditCategory(e.target.value)}
+										placeholder="e.g. Snacks / Beverages / Grocery"
+										className="text-sm"
 									/>
 								</div>
 							</div>
 
-							<div className="space-y-2">
-								<Label htmlFor="editReason" className="font-semibold text-sm">
-									Audit Reason / Remarks (कारण)
+							{/* Unit & Barcode/SKU */}
+							<div className="grid grid-cols-3 gap-3">
+								<div className="space-y-1.5">
+									<Label htmlFor="editUnit" className="font-semibold text-xs">
+										Unit (माप इकाई)
+									</Label>
+									<Input
+										id="editUnit"
+										value={editUnit}
+										onChange={(e) => setEditUnit(e.target.value)}
+										placeholder="e.g. Pcs / Kg / Ltr / Pack"
+										className="text-sm font-mono"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="editSku" className="font-semibold text-xs">
+										SKU Code
+									</Label>
+									<Input
+										id="editSku"
+										value={editSku}
+										onChange={(e) => setEditSku(e.target.value)}
+										placeholder="SKU-0001"
+										className="text-sm font-mono"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="editBarcode" className="font-semibold text-xs">
+										Barcode / UPC
+									</Label>
+									<Input
+										id="editBarcode"
+										value={editBarcode}
+										onChange={(e) => setEditBarcode(e.target.value)}
+										placeholder="e.g. 890123456789"
+										className="text-sm font-mono"
+									/>
+								</div>
+							</div>
+
+							{/* Full Description Textarea */}
+							<div className="space-y-1.5">
+								<Label htmlFor="editDescription" className="font-semibold text-xs flex items-center justify-between">
+									<span>Full Product Description (पूरा उत्पाद विवरण)</span>
+									<span className="text-[10px] text-muted-foreground font-normal">Shows in POS & Details Modal</span>
 								</Label>
-								<Input
-									id="editReason"
-									placeholder="e.g. Physical inventory count correction"
-									value={editReason}
-									onChange={(e) => setEditReason(e.target.value)}
-									className="text-sm"
+								<Textarea
+									id="editDescription"
+									rows={3}
+									value={editDescription}
+									onChange={(e) => setEditDescription(e.target.value)}
+									placeholder="Enter full specification, ingredients, net weight, or details..."
+									className="text-xs font-medium leading-relaxed"
 								/>
+							</div>
+
+							{/* Selling Price & Cost Price */}
+							<div className="grid grid-cols-2 gap-3">
+								<div className="space-y-1.5">
+									<Label htmlFor="editPrice" className="font-semibold text-xs text-emerald-700 dark:text-emerald-400">
+										Selling Price (विक्रय मूल्य ₹) *
+									</Label>
+									<div className="relative">
+										<span className="absolute top-1/2 left-3 -translate-y-1/2 font-bold text-muted-foreground text-xs">
+											₹
+										</span>
+										<Input
+											id="editPrice"
+											type="number"
+											step="0.01"
+											min="0"
+											placeholder="0.00"
+											value={editPrice}
+											onChange={(e) => setEditPrice(e.target.value)}
+											className="pl-7 font-bold font-mono text-sm text-emerald-700"
+										/>
+									</div>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="editCostPrice" className="font-semibold text-xs">
+										Base Cost Price (लागत मूल्य ₹)
+									</Label>
+									<div className="relative">
+										<span className="absolute top-1/2 left-3 -translate-y-1/2 font-bold text-muted-foreground text-xs">
+											₹
+										</span>
+										<Input
+											id="editCostPrice"
+											type="number"
+											step="0.01"
+											min="0"
+											placeholder="0.00"
+											value={editCostPrice}
+											onChange={(e) => setEditCostPrice(e.target.value)}
+											className="pl-7 font-mono text-sm"
+										/>
+									</div>
+								</div>
+							</div>
+
+							{/* Stock Qty & Audit Reason */}
+							<div className="grid grid-cols-2 gap-3">
+								<div className="space-y-1.5">
+									<Label htmlFor="stockQty" className="font-semibold text-xs">
+										Physical Stock Quantity ({editUnit || "Units"}) *
+									</Label>
+									<Input
+										id="stockQty"
+										type="number"
+										min="0"
+										placeholder="e.g. 100"
+										value={editStockQty}
+										onChange={(e) => setEditStockQty(e.target.value)}
+										className="font-bold font-mono text-sm"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="editReason" className="font-semibold text-xs">
+										Audit / Remarks (कारण)
+									</Label>
+									<Input
+										id="editReason"
+										placeholder="e.g. Stock count verified during audit"
+										value={editReason}
+										onChange={(e) => setEditReason(e.target.value)}
+										className="text-xs"
+									/>
+								</div>
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="gap-2 sm:justify-between items-center pt-2 border-t">
+						<Button
+							type="button"
+							variant="destructive"
+							size="sm"
+							onClick={() => handleOpenDelete(editItem)}
+							className="gap-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs"
+						>
+							<Trash2Icon className="h-3.5 w-3.5" />
+							<span>Delete Item</span>
+						</Button>
+
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setEditItem(null)}
+								disabled={updateMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								size="sm"
+								onClick={handleSaveEdit}
+								disabled={updateMutation.isPending}
+								className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700 font-semibold text-xs"
+							>
+								{updateMutation.isPending ? (
+									<Loader2Icon className="h-4 w-4 animate-spin" />
+								) : (
+									<SaveIcon className="h-4 w-4" />
+								)}
+								<span>Save Changes</span>
+							</Button>
+						</div>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Manager Delete Product Dialog */}
+			<Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-lg text-red-600 dark:text-red-400">
+							<AlertTriangleIcon className="h-5 w-5 text-red-600" />
+							<span>Delete Product (उत्पाद हटाएं)</span>
+						</DialogTitle>
+						<DialogDescription>
+							You are about to delete <strong className="text-foreground">{deleteItem?.product}</strong> (#{deleteItem?.productId || deleteItem?.id}).
+						</DialogDescription>
+					</DialogHeader>
+
+					{deleteItem && (
+						<div className="space-y-4 py-1">
+							<div className="rounded-lg border border-red-200 bg-red-50/80 p-3 text-xs text-red-900 dark:bg-red-950/50 dark:border-red-900 dark:text-red-200">
+								<p className="font-bold flex items-center gap-1.5">
+									<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600" />
+									Warning: Permanent Action
+								</p>
+								<p className="mt-1 font-medium">
+									Deleting this item will remove it from active warehouse inventory, POS billing catalogs, and store registers.
+								</p>
+							</div>
+
+							<div className="space-y-2">
+								<Label className="font-bold text-xs text-foreground">
+									Reason for Deletion (हटाने का कारण) *
+								</Label>
+
+								<div className="space-y-1.5">
+									{[
+										"Discontinued Product (उत्पाद बंद कर दिया गया)",
+										"Damaged / Expired Stock (क्षतिग्रस्त / एक्सपायर्ड स्टॉक)",
+										"Duplicate / Incorrect Entry (गलत या डुप्लीकेट प्रविष्टि)",
+										"Clearance / Removed from Catalog (कैटलॉग से हटाया गया)",
+										"Custom Reason / Other",
+									].map((reasonOption) => (
+										<button
+											key={reasonOption}
+											type="button"
+											onClick={() => setDeleteReasonPreset(reasonOption)}
+											className={`w-full text-left rounded-md px-3 py-1.5 text-xs font-medium border transition-all cursor-pointer ${
+												deleteReasonPreset === reasonOption
+													? "bg-red-50 border-red-400 text-red-900 font-bold dark:bg-red-950/60 dark:text-red-200"
+													: "bg-background border-border hover:bg-muted"
+											}`}
+										>
+											{reasonOption}
+										</button>
+									))}
+								</div>
+
+								{deleteReasonPreset === "Custom Reason / Other" && (
+									<Input
+										placeholder="Enter specific reason for deletion..."
+										value={customDeleteReason}
+										onChange={(e) => setCustomDeleteReason(e.target.value)}
+										className="mt-2 text-xs font-medium border-red-300 focus:border-red-500"
+									/>
+								)}
 							</div>
 						</div>
 					)}
@@ -1026,22 +1324,25 @@ export default function StockPage() {
 					<DialogFooter className="gap-2">
 						<Button
 							variant="outline"
-							onClick={() => setEditItem(null)}
-							disabled={updateMutation.isPending}
+							size="sm"
+							onClick={() => setDeleteItem(null)}
+							disabled={deleteMutation.isPending}
 						>
 							Cancel
 						</Button>
 						<Button
-							onClick={handleSaveEdit}
-							disabled={updateMutation.isPending}
-							className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+							variant="destructive"
+							size="sm"
+							onClick={handleConfirmDelete}
+							disabled={deleteMutation.isPending}
+							className="gap-1.5 bg-red-600 hover:bg-red-700 text-white font-bold"
 						>
-							{updateMutation.isPending ? (
+							{deleteMutation.isPending ? (
 								<Loader2Icon className="h-4 w-4 animate-spin" />
 							) : (
-								<SaveIcon className="h-4 w-4" />
+								<Trash2Icon className="h-4 w-4" />
 							)}
-							<span>Save Changes</span>
+							<span>Confirm & Delete</span>
 						</Button>
 					</DialogFooter>
 				</DialogContent>

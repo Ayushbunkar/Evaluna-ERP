@@ -1428,15 +1428,15 @@ export const driverRouter = router({
 			z.object({
 				trip_id: z.number(),
 				stop_id: z.number(),
-				cashAmount: z.number(),
-				onlineAmount: z.number(),
+				cashAmount: z.coerce.number(),
+				onlineAmount: z.coerce.number(),
 				deliveryNotes: z.string().optional(),
 				damagedOrReturnedItems: z
 					.array(
 						z.object({
-							id: z.number().optional(),
+							id: z.coerce.number().optional(),
 							name: z.string(),
-							qty: z.number(),
+							qty: z.coerce.number(),
 							reason: z.string().optional(),
 						}),
 					)
@@ -1444,10 +1444,10 @@ export const driverRouter = router({
 				deliveredItems: z
 					.array(
 						z.object({
-							id: z.number().optional(),
+							id: z.coerce.number().optional(),
 							name: z.string(),
-							qty: z.number(),
-							price: z.number(),
+							qty: z.coerce.number(),
+							price: z.coerce.number(),
 						}),
 					)
 					.optional(),

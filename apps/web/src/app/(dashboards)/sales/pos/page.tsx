@@ -494,7 +494,7 @@ function POSContent() {
 					fetchedCompletedOrder.orderItems?.map((item: any) => ({
 						id: item.id,
 						name: item.product?.name || "Item",
-						qty: item.quantity,
+						qty: Number(item.quantity) || 0,
 						price: Number(item.price).toFixed(2),
 					})) || [],
 				total: Number(fetchedCompletedOrder.total_amount),
@@ -533,8 +533,8 @@ function POSContent() {
 			const restoredCart = resumeOrder.orderItems.map((item: any) => ({
 				id: item.product?.id || item.product_id,
 				name: item.product?.name || `Item #${item.product_id}`,
-				price: item.price,
-				qty: item.quantity,
+				price: Number(item.price) || 0,
+				qty: Number(item.quantity) || 1,
 			}));
 			setCart(restoredCart);
 			if (resumeOrder.discount_amount && Number(resumeOrder.discount_amount) > 0) {
@@ -1200,12 +1200,8 @@ function POSContent() {
 													)}
 													<div className="mt-1 flex items-center justify-between gap-1 min-h-[18px]">
 														<span
-															className="line-clamp-1 flex-1 text-muted-foreground text-[11px] sm:text-xs hover:text-foreground transition-colors cursor-pointer"
+															className="line-clamp-1 flex-1 text-muted-foreground text-[11px] sm:text-xs"
 															title={product.description || product.name || ""}
-															onClick={(e) => {
-																e.stopPropagation();
-																setDetailsProduct(product);
-															}}
 														>
 															{getLocalizedProductName(
 																product.description || "",
@@ -1219,7 +1215,7 @@ function POSContent() {
 																e.stopPropagation();
 																setDetailsProduct(product);
 															}}
-															className="shrink-0 flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground/70 hover:bg-primary/15 hover:text-primary transition-all active:scale-90"
+															className="shrink-0 flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground/70 hover:bg-primary/15 hover:text-primary transition-all active:scale-90 cursor-pointer"
 														>
 															<Info className="h-3 w-3" />
 														</button>

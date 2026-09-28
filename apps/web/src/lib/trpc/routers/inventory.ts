@@ -86,12 +86,14 @@ export const inventoryRouter = router({
 					id: products.id,
 					productId: products.id,
 					product: products.name,
+					description: products.description,
 					sku: products.sku,
 					category: products.category,
 					unit: products.unit,
 					barcode: products.barcode,
 					price: products.price,
 					baseSellingPrice: products.base_selling_price,
+					baseProcurementPrice: products.base_procurement_price,
 					inventoryId: sql<number>`max(${branchInventory.id})`,
 					branchId: sql<number>`coalesce(max(${branchInventory.branch_id}), ${targetBranchId})`,
 					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::int`,
@@ -109,12 +111,14 @@ export const inventoryRouter = router({
 				.groupBy(
 					products.id,
 					products.name,
+					products.description,
 					products.sku,
 					products.category,
 					products.unit,
 					products.barcode,
 					products.price,
 					products.base_selling_price,
+					products.base_procurement_price,
 				)
 				.orderBy(asc(products.name))
 				.limit(limit || 1000)
@@ -171,11 +175,13 @@ export const inventoryRouter = router({
 					id: d.inventoryId || d.productId,
 					productId: d.productId,
 					product: d.product || "Unknown",
+					description: d.description || "",
 					sku: d.sku || "N/A",
 					category: d.category || "General",
 					unit: d.unit || "Pcs",
 					barcode: d.barcode || "",
 					price: originalPrice,
+					costPrice: Number.parseFloat(d.baseProcurementPrice || "0"),
 					currentPrice: hasActiveOffer ? offerPrice : originalPrice,
 					hasActiveOffer,
 					offerPrice,
@@ -211,6 +217,13 @@ export const inventoryRouter = router({
 				branchId: z.number().optional().default(1),
 				qtyOnHand: z.number().min(0),
 				price: z.number().min(0),
+				costPrice: z.number().optional().nullable(),
+				name: z.string().optional().nullable(),
+				description: z.string().optional().nullable(),
+				category: z.string().optional().nullable(),
+				unit: z.string().optional().nullable(),
+				barcode: z.string().optional().nullable(),
+				sku: z.string().optional().nullable(),
 				reason: z.string().optional().nullable(),
 			}),
 		)
@@ -237,13 +250,36 @@ export const inventoryRouter = router({
 
 				const priceStr = input.price.toFixed(2);
 
-				// 1. Update product price in `products` table (Syncs across Sales & Driver App)
+				// 1. Update product details & price in `products` table (Syncs across Sales & POS)
+				const productUpdates: any = {
+					price: priceStr,
+					base_selling_price: priceStr,
+				};
+				if (input.name !== undefined && input.name !== null) {
+					productUpdates.name = input.name.trim();
+				}
+				if (input.description !== undefined && input.description !== null) {
+					productUpdates.description = input.description.trim();
+				}
+				if (input.category !== undefined && input.category !== null) {
+					productUpdates.category = input.category.trim();
+				}
+				if (input.unit !== undefined && input.unit !== null) {
+					productUpdates.unit = input.unit.trim();
+				}
+				if (input.barcode !== undefined && input.barcode !== null) {
+					productUpdates.barcode = input.barcode.trim();
+				}
+				if (input.sku !== undefined && input.sku !== null) {
+					productUpdates.sku = input.sku.trim();
+				}
+				if (input.costPrice !== undefined && input.costPrice !== null) {
+					productUpdates.base_procurement_price = input.costPrice.toFixed(2);
+				}
+
 				await tx
 					.update(products)
-					.set({
-						price: priceStr,
-						base_selling_price: priceStr,
-					})
+					.set(productUpdates)
 					.where(eq(products.id, prodId));
 
 				// 2. Update physical stock in `branchInventory`

@@ -1,18 +1,26 @@
 "use client";
 
 import {
+	AlertCircle,
+	Banknote,
+	CheckCircle2,
 	CheckCircle2Icon,
+	Clock,
+	CreditCard,
 	Edit3Icon,
 	HistoryIcon,
 	IndianRupee,
 	MapPinIcon,
 	PhoneIcon,
 	PlusIcon,
+	QrCode,
+	Receipt,
 	RouteIcon,
 	SaveIcon,
 	SearchIcon,
 	UserIcon,
 	UserPlusIcon,
+	Wallet,
 	XIcon,
 } from "lucide-react";
 import { useLocale } from "next-intl";
@@ -64,6 +72,7 @@ export function PaymentModal({
 
 	const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid">("unpaid");
 	const [selectedMethodId, setSelectedMethodId] = useState<number>(1);
+	const [receivedAmount, setReceivedAmount] = useState<string>("");
 
 	const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
 		initialCustomerDetails?.customerId || null,
@@ -178,11 +187,17 @@ export function PaymentModal({
 		walkIn: locale === "hi" ? "वाक-इन ग्राहक (Walk-in Customer)" : "Walk-in Customer",
 	};
 
+	const displayAmount =
+		typeof totalAmount === "number"
+			? totalAmount
+			: Number.parseFloat(totalAmount || "0");
+
 	// Reset when opened if no initial values provided
 	useEffect(() => {
 		if (open) {
 			setPaymentStatus("unpaid");
 			setSelectedMethodId(1);
+			setReceivedAmount(displayAmount > 0 ? displayAmount.toString() : "");
 			if (initialCustomerDetails) {
 				setSelectedCustomerId(initialCustomerDetails.customerId || null);
 				setCustomerName(initialCustomerDetails.customerName || "");
@@ -199,7 +214,7 @@ export function PaymentModal({
 			setIsSearchOpen(false);
 			setIsEditingCustomer(false);
 		}
-	}, [open, initialCustomerDetails, isInitialSelection]);
+	}, [open, initialCustomerDetails, isInitialSelection, displayAmount]);
 
 	// Filter customers for autocomplete
 	const filteredCustomers = useMemo(() => {
@@ -258,10 +273,13 @@ export function PaymentModal({
 		if (onConfirmCustomer) {
 			onConfirmCustomer(customerObj);
 		} else if (onConfirm) {
-			const payments =
-				paymentStatus === "paid"
-					? [{ methodId: selectedMethodId, amount: totalAmount.toString() }]
-					: [];
+			let payments: Array<{ methodId: number; amount: string }> = [];
+			if (paymentStatus === "paid") {
+				const numReceived = Number.parseFloat(receivedAmount) || 0;
+				if (numReceived > 0) {
+					payments = [{ methodId: selectedMethodId, amount: numReceived.toString() }];
+				}
+			}
 			onConfirm(payments, customerObj);
 		}
 		onOpenChange(false);
@@ -315,14 +333,13 @@ export function PaymentModal({
 			});
 		}
 
-		const amountToPay =
-			typeof totalAmount === "number"
-				? totalAmount
-				: Number.parseFloat(totalAmount || "0");
-		const payments =
-			paymentStatus === "paid"
-				? [{ methodId: selectedMethodId, amount: amountToPay.toString() }]
-				: [];
+		let payments: Array<{ methodId: number; amount: string }> = [];
+		if (paymentStatus === "paid") {
+			const numReceived = Number.parseFloat(receivedAmount) || 0;
+			if (numReceived > 0) {
+				payments = [{ methodId: selectedMethodId, amount: numReceived.toString() }];
+			}
+		}
 
 		const selectedRoute = routes.find((r: any) => r.id === selectedRouteId);
 		const customerObj = {
@@ -342,11 +359,6 @@ export function PaymentModal({
 		}
 		onOpenChange(false);
 	};
-
-	const displayAmount =
-		typeof totalAmount === "number"
-			? totalAmount
-			: Number.parseFloat(totalAmount || "0");
 
 	const lastOrderItems = fullCustomerDetails?.lastOrderItems || [];
 
@@ -707,77 +719,215 @@ export function PaymentModal({
 
 					{/* Payment Status Selection (Default: UNPAID for field salesperson orders) */}
 					{!isInitialSelection && (
-						<div className="space-y-2.5 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/20">
+						<div className="space-y-3 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/20">
 							<div className="flex items-center justify-between">
 								<span className="font-bold text-xs text-foreground flex items-center gap-1.5">
 									<IndianRupee className="h-3.5 w-3.5 text-blue-600" />
-									{locale === "hi" ? "भुगतान स्थिति (Payment Status)" : "Payment Status"}
+									{locale === "hi" ? "भुगतान स्थिति एवं अग्रिम राशि (Payment & Advance)" : "Payment Status & Advance Money"}
 								</span>
 								<Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-background">
-									{locale === "hi" ? "डिफ़ॉल्ट: अनपेड (उधार)" : "Default: Unpaid / Credit"}
+									{locale === "hi" ? "उधार या नकद चुनें" : "Select Credit or Paid"}
 								</Badge>
 							</div>
 
 							<div className="grid grid-cols-2 gap-2">
 								<button
 									type="button"
-									onClick={() => setPaymentStatus("unpaid")}
-									className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2.5 text-xs font-bold transition-all cursor-pointer ${
+									onClick={() => {
+										setPaymentStatus("unpaid");
+										setReceivedAmount("0");
+									}}
+									className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
 										paymentStatus === "unpaid"
-											? "border-amber-500 bg-amber-50 text-amber-900 shadow-xs ring-2 ring-amber-500/30 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-600"
+											? "border-amber-500 bg-amber-50/90 text-amber-900 shadow-xs ring-2 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-600"
 											: "border-border bg-background text-muted-foreground hover:bg-muted/40"
 									}`}
 								>
-									<span className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400">
-										⏳ {locale === "hi" ? "अनपेड (बाकी / क्रेडिट)" : "UNPAID (Pay on Delivery)"}
+									<span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+										<Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+										{locale === "hi" ? "अनपेड (100% उधार)" : "UNPAID (Pay on Delivery)"}
 									</span>
 									<span className="text-[10px] font-normal text-muted-foreground">
-										{locale === "hi" ? "डिलीवरी पर ड्राइवर कलेक्ट करेगा" : "Driver collects on delivery"}
+										{locale === "hi" ? "पूरा बिल उधार रहेगा, बाद में कलेक्ट होगा" : "Full bill on credit, collect later"}
 									</span>
 								</button>
 
 								<button
 									type="button"
-									onClick={() => setPaymentStatus("paid")}
-									className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2.5 text-xs font-bold transition-all cursor-pointer ${
+									onClick={() => {
+										setPaymentStatus("paid");
+										setReceivedAmount(displayAmount.toString());
+									}}
+									className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
 										paymentStatus === "paid"
-											? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-xs ring-2 ring-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-600"
+											? "border-emerald-500 bg-emerald-50/90 text-emerald-900 shadow-xs ring-2 ring-emerald-500/30 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-600"
 											: "border-border bg-background text-muted-foreground hover:bg-muted/40"
 									}`}
 								>
-									<span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-										✓ {locale === "hi" ? "पेड (तुरंत नकद मिला)" : "PAID (Collected Now)"}
+									<span className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+										<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+										{locale === "hi" ? "पेड / एडवांस (नकद मिला)" : "PAID / ADVANCE (Received)"}
 									</span>
 									<span className="text-[10px] font-normal text-muted-foreground">
-										{locale === "hi" ? "नकद या ऑनलाइन प्राप्त हो गया" : "Payment received upfront"}
+										{locale === "hi" ? "नकद, यूपीआई या अग्रिम भुगतान प्राप्त हुआ" : "Upfront or advance payment received"}
 									</span>
 								</button>
 							</div>
 
 							{paymentStatus === "paid" && (
-								<div className="pt-2 flex items-center justify-between border-t border-blue-200/50 dark:border-blue-900/40">
-									<span className="text-xs text-muted-foreground font-medium">
-										{locale === "hi" ? "भुगतान माध्यम:" : "Payment Method:"}
-									</span>
-									<div className="flex gap-2">
-										{[
-											{ id: 1, label: "Cash" },
-											{ id: 3, label: "UPI" },
-											{ id: 2, label: "Card" },
-										].map((m) => (
-											<button
-												key={m.id}
-												type="button"
-												onClick={() => setSelectedMethodId(m.id)}
-												className={`rounded-md px-2.5 py-1 text-xs font-semibold border cursor-pointer ${
-													selectedMethodId === m.id
-														? "bg-emerald-600 text-white border-emerald-600"
-														: "bg-background text-foreground border-border hover:bg-muted"
-												}`}
-											>
-												{m.label}
-											</button>
-										))}
+								<div className="space-y-3 pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
+									{/* Received Amount Input & Presets */}
+									<div className="space-y-1.5">
+										<div className="flex items-center justify-between text-xs font-semibold text-foreground">
+											<Label htmlFor="received-amount-input" className="text-xs font-bold flex items-center gap-1 text-emerald-800 dark:text-emerald-300">
+												<Wallet className="h-3.5 w-3.5 text-emerald-600" />
+												{locale === "hi" ? "प्राप्त राशि / एडवांस मनी (Amount Received ₹):" : "Amount Received / Advance Money (₹):"}
+											</Label>
+											<span className="text-[11px] text-muted-foreground font-medium">
+												{locale === "hi" ? `कुल बिल: ₹${displayAmount.toLocaleString("en-IN")}` : `Total Bill: ₹${displayAmount.toLocaleString("en-IN")}`}
+											</span>
+										</div>
+
+										<div className="flex items-center gap-2">
+											<div className="relative flex-1">
+												<span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+													₹
+												</span>
+												<Input
+													id="received-amount-input"
+													type="number"
+													min="0"
+													step="any"
+													value={receivedAmount}
+													onChange={(e) => setReceivedAmount(e.target.value)}
+													placeholder="0"
+													className="pl-7 font-bold text-base h-9 bg-background border-emerald-500/50 focus:border-emerald-600 focus:ring-emerald-500"
+												/>
+											</div>
+
+											{/* Quick Preset Buttons */}
+											<div className="flex gap-1 shrink-0">
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => setReceivedAmount(displayAmount.toString())}
+													className="h-9 px-2 text-xs font-bold border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+												>
+													{locale === "hi" ? "पूरा" : "Full"} (₹{displayAmount})
+												</Button>
+												{displayAmount > 0 && (
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={() => setReceivedAmount((Math.round(displayAmount / 2)).toString())}
+														className="h-9 px-2 text-xs font-medium border-border hover:bg-muted"
+													>
+														50% (₹{Math.round(displayAmount / 2)})
+													</Button>
+												)}
+											</div>
+										</div>
+
+										{/* Live Financial Breakdown Card */}
+										{(() => {
+											const numReceived = Number.parseFloat(receivedAmount) || 0;
+											const remBalance = Math.max(0, displayAmount - numReceived);
+											const changeReturn = Math.max(0, numReceived - displayAmount);
+
+											return (
+												<div className="mt-2 rounded-lg border p-2.5 bg-background text-xs space-y-1.5 shadow-2xs">
+													<div className="flex items-center justify-between">
+														<span className="text-muted-foreground font-medium flex items-center gap-1">
+															<Receipt className="h-3.5 w-3.5 text-blue-600" />
+															{locale === "hi" ? "भुगतान विवरण (Breakdown):" : "Payment Breakdown:"}
+														</span>
+														{numReceived >= displayAmount ? (
+															<Badge className="bg-emerald-600 text-white font-bold text-[10px]">
+																✓ {locale === "hi" ? "पूर्ण भुगतान (Fully Paid)" : "Fully Paid"}
+															</Badge>
+														) : numReceived > 0 ? (
+															<Badge className="bg-amber-500 text-white font-bold text-[10px]">
+																⌛ {locale === "hi" ? "अग्रिम / आंशिक भुगतान (Advance Received)" : "Advance / Partial Paid"}
+															</Badge>
+														) : (
+															<Badge variant="destructive" className="font-bold text-[10px]">
+																! {locale === "hi" ? "0 भुगतान (Unpaid Credit)" : "Zero Payment"}
+															</Badge>
+														)}
+													</div>
+
+													<div className="grid grid-cols-2 gap-2 pt-1 border-t border-dashed">
+														<div className="rounded border border-emerald-200 bg-emerald-50/70 p-1.5 dark:bg-emerald-950/40 dark:border-emerald-900">
+															<span className="text-[10px] text-muted-foreground block font-medium">
+																{locale === "hi" ? "प्राप्त एडवांस / जमा:" : "Advance Received:"}
+															</span>
+															<span className="font-extrabold text-sm text-emerald-700 dark:text-emerald-400">
+																₹{numReceived.toLocaleString("en-IN")}
+															</span>
+														</div>
+
+														<div className={`rounded border p-1.5 ${
+															remBalance > 0
+																? "bg-amber-50/80 border-amber-200 dark:bg-amber-950/40 dark:border-amber-900"
+																: "bg-slate-50 border-slate-200 dark:bg-slate-900"
+														}`}>
+															<span className="text-[10px] text-muted-foreground block font-medium">
+																{locale === "hi" ? "शेष बकाया (उधार):" : "Remaining Due (Credit):"}
+															</span>
+															<span className={`font-extrabold text-sm ${
+																remBalance > 0
+																	? "text-amber-700 dark:text-amber-400"
+																	: "text-slate-600 dark:text-slate-400"
+															}`}>
+																₹{remBalance.toLocaleString("en-IN")}
+															</span>
+														</div>
+													</div>
+
+													{changeReturn > 0 && (
+														<div className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 p-1.5 rounded border border-emerald-200 text-center">
+															{locale === "hi"
+																? `ग्राहक को वापस देने योग्य छुट्टे (Change Return): ₹${changeReturn.toLocaleString("en-IN")}`
+																: `Change Return to Customer: ₹${changeReturn.toLocaleString("en-IN")}`}
+														</div>
+													)}
+												</div>
+											);
+										})()}
+									</div>
+
+									{/* Payment Method Selection */}
+									<div className="pt-1 flex items-center justify-between">
+										<span className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
+											<Banknote className="h-3.5 w-3.5 text-blue-600" />
+											{locale === "hi" ? "भुगतान का तरीका:" : "Payment Method:"}
+										</span>
+										<div className="flex gap-1.5">
+											{[
+												{ id: 1, label: "Cash", icon: Banknote },
+												{ id: 3, label: "UPI", icon: QrCode },
+												{ id: 2, label: "Card", icon: CreditCard },
+											].map((m) => {
+												const IconComponent = m.icon;
+												return (
+													<button
+														key={m.id}
+														type="button"
+														onClick={() => setSelectedMethodId(m.id)}
+														className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold border transition-all cursor-pointer ${
+															selectedMethodId === m.id
+																? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+																: "bg-background text-foreground border-border hover:bg-muted"
+														}`}
+													>
+														<IconComponent className="h-3 w-3" />
+														{m.label}
+													</button>
+												);
+											})}
+										</div>
 									</div>
 								</div>
 							)}

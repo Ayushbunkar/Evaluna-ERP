@@ -40,14 +40,14 @@ interface CompletedOrder {
 		name?: string;
 		productName?: string;
 		product?: { name?: string };
-		qty: number;
+		qty: number | string;
 		price: string;
 	}>;
-	total: number;
-	subtotal: number;
-	discount: number;
+	total: number | string;
+	subtotal: number | string;
+	discount: number | string;
 	discountReason?: string;
-	otherCharges?: number;
+	otherCharges?: number | string;
 	otherChargesReason?: string;
 	payments: Array<{ methodId: number; amount: string }>;
 	cashierName?: string;
@@ -57,7 +57,13 @@ interface CompletedOrder {
 	address?: string;
 	village?: string;
 	finance_status?: string;
+	couponCode?: string;
 }
+
+const formatQty = (qty: number | string | undefined | null): string => {
+	const num = Number(qty) || 0;
+	return Number.isInteger(num) ? num.toString() : num.toFixed(3);
+};
 
 const getItemName = (item: any): string => {
 	return (
@@ -167,7 +173,8 @@ const getPaymentStatusBadge = (order: CompletedOrder) => {
 		(a, p) => a + Number.parseFloat(p.amount || "0"),
 		0,
 	);
-	if (order.total > 0 && paid >= order.total - 0.01)
+	const orderTotal = Number(order.total) || 0;
+	if (orderTotal > 0 && paid >= orderTotal - 0.01)
 		return {
 			label: "PAID",
 			color: "bg-green-100 text-green-700 border-green-300",
@@ -187,14 +194,19 @@ export function SaleCompletionScreen({
 	const receiptRef = useRef<HTMLDivElement>(null);
 	const [pageSize, setPageSize] = useState<"80mm" | "A4">("80mm");
 
-	const totalPaid = order.payments.reduce(
-		(a, p) => a + Number.parseFloat(p.amount),
+	const orderTotal = Number(order.total) || 0;
+	const orderSubtotal = Number(order.subtotal) || 0;
+	const orderDiscount = Number(order.discount) || 0;
+	const orderOtherCharges = Number(order.otherCharges) || 0;
+
+	const totalPaid = (order.payments || []).reduce(
+		(a, p) => a + (Number.parseFloat(p.amount) || 0),
 		0,
 	);
-	const change = Math.max(0, totalPaid - order.total);
-	const balanceDue = Math.max(0, order.total - totalPaid);
-	const roundOff = Math.round(order.total) - order.total;
-	const grandTotal = Math.round(order.total);
+	const change = Math.max(0, totalPaid - orderTotal);
+	const balanceDue = Math.max(0, orderTotal - totalPaid);
+	const roundOff = Math.round(orderTotal) - orderTotal;
+	const grandTotal = Math.round(orderTotal);
 	const status = getPaymentStatusBadge(order);
 
 	const formattedDate = new Date(order.createdAt).toLocaleDateString("en-IN", {
@@ -763,11 +775,10 @@ export function SaleCompletionScreen({
 
 						{/* Table Items */}
 						{order.items.map((item, idx) => {
-							const rate = Number.parseFloat(item.price);
-							const lineTotal = rate * item.qty;
-							const qtyStr = Number.isInteger(item.qty)
-								? item.qty.toString()
-								: item.qty.toFixed(3);
+							const rate = Number.parseFloat(item.price) || 0;
+							const itemQty = Number(item.qty) || 0;
+							const lineTotal = rate * itemQty;
+							const qtyStr = formatQty(item.qty);
 							return (
 								<View key={idx} style={styles.tableRow}>
 									{isA4 ? (
@@ -840,26 +851,26 @@ export function SaleCompletionScreen({
 								<View style={styles.row}>
 									<Text style={styles.tdText}>Subtotal:</Text>
 									<Text style={styles.tdText}>
-										Rs.{order.subtotal.toFixed(2)}
+										Rs.{orderSubtotal.toFixed(2)}
 									</Text>
 								</View>
-								{order.discount > 0 ? (
+								{orderDiscount > 0 ? (
 									<View style={styles.row}>
 										<Text style={styles.tdText}>
 											Discount{order.discountReason ? ` (${order.discountReason})` : ""}:
 										</Text>
 										<Text style={styles.tdText}>
-											-Rs.{order.discount.toFixed(2)}
+											-Rs.{orderDiscount.toFixed(2)}
 										</Text>
 									</View>
 								) : null}
-								{order.otherCharges && order.otherCharges > 0 ? (
+								{orderOtherCharges > 0 ? (
 									<View style={styles.row}>
 										<Text style={styles.tdText}>
 											Extra Charges{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
 										</Text>
 										<Text style={styles.tdText}>
-											+Rs.{Number(order.otherCharges).toFixed(2)}
+											+Rs.{orderOtherCharges.toFixed(2)}
 										</Text>
 									</View>
 								) : null}
@@ -901,14 +912,14 @@ export function SaleCompletionScreen({
 								<View style={styles.row}>
 									<Text style={styles.subtitle}>Subtotal:</Text>
 									<Text style={styles.subtitle}>
-										Rs.{order.subtotal.toFixed(2)}
+										Rs.{orderSubtotal.toFixed(2)}
 									</Text>
 								</View>
-								{order.discount > 0 ? (
+								{orderDiscount > 0 ? (
 									<View style={styles.row}>
 										<Text style={styles.subtitle}>Discount:</Text>
 										<Text style={styles.subtitle}>
-											-Rs.{order.discount.toFixed(2)}
+											-Rs.{orderDiscount.toFixed(2)}
 										</Text>
 									</View>
 								) : null}
@@ -1095,7 +1106,7 @@ export function SaleCompletionScreen({
 	const handleEmail = () => {
 		const subject = encodeURIComponent(`Invoice #${order.id} - ${STORE.name}`);
 		const body = encodeURIComponent(
-			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${order.total.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
+			`Dear Customer,\n\nYour invoice #${order.id} has been generated.\nTotal: ₹${orderTotal.toFixed(2)}\nDate: ${formattedDate}\n\nThank you for shopping at ${STORE.name}!`,
 		);
 		window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
 	};
@@ -1476,8 +1487,9 @@ export function SaleCompletionScreen({
 													</thead>
 													<tbody className="divide-y divide-slate-100 print:divide-black/20">
 														{order.items.map((item, idx) => {
-															const rate = Number.parseFloat(item.price);
-															const lineTotal = rate * item.qty;
+															const rate = Number.parseFloat(item.price) || 0;
+															const itemQty = Number(item.qty) || 0;
+															const lineTotal = rate * itemQty;
 															return (
 																<tr
 																	key={idx}
@@ -1493,9 +1505,7 @@ export function SaleCompletionScreen({
 																		SKU-{item.id}
 																	</td>
 																	<td className="px-4 py-2.5 text-center font-semibold text-slate-700 print:text-black">
-																		{Number.isInteger(item.qty)
-																			? item.qty
-																			: item.qty.toFixed(3)}
+																		{formatQty(item.qty)}
 																	</td>
 																	<td className="px-4 py-2.5 text-right text-slate-600 print:text-black">
 																		₹{rate.toFixed(2)}
@@ -1526,9 +1536,9 @@ export function SaleCompletionScreen({
 												<div className="w-5/12 space-y-2 text-xs">
 													<div className="flex justify-between text-slate-500 print:text-black">
 														<span>Subtotal</span>
-														<span>₹{order.subtotal.toFixed(2)}</span>
+														<span>₹{orderSubtotal.toFixed(2)}</span>
 													</div>
-													{order.discount > 0 && (
+													{orderDiscount > 0 && (
 														<div className="flex justify-between font-medium text-green-600 print:text-black">
 															<span>
 																Discount{" "}
@@ -1538,10 +1548,10 @@ export function SaleCompletionScreen({
 																		? `(${order.couponCode})`
 																		: ""}
 															</span>
-															<span>− ₹{order.discount.toFixed(2)}</span>
+															<span>− ₹{orderDiscount.toFixed(2)}</span>
 														</div>
 													)}
-													{order.otherCharges && order.otherCharges > 0 && (
+													{orderOtherCharges > 0 && (
 														<div className="flex justify-between font-medium text-blue-600 print:text-black">
 															<span>
 																Extra Charges{" "}
@@ -1549,7 +1559,7 @@ export function SaleCompletionScreen({
 																	? `(${order.otherChargesReason})`
 																	: ""}
 															</span>
-															<span>+ ₹{Number(order.otherCharges).toFixed(2)}</span>
+															<span>+ ₹{orderOtherCharges.toFixed(2)}</span>
 														</div>
 													)}
 													{roundOff !== 0 && (
@@ -1564,6 +1574,24 @@ export function SaleCompletionScreen({
 													<div className="flex justify-between font-black text-blue-900 text-sm print:text-black">
 														<span>Grand Total</span>
 														<span>₹{grandTotal.toFixed(2)}</span>
+													</div>
+
+													<div className="mt-2 pt-2 border-t border-dashed border-slate-300 print:border-black space-y-1 font-medium text-xs">
+														<div className="flex justify-between text-emerald-700 print:text-black">
+															<span>Paid / Advance Received ({order.payments.map((p) => PAYMENT_METHOD_LABELS[p.methodId] || "Cash").join(", ") || "Unpaid"})</span>
+															<span>₹{totalPaid.toFixed(2)}</span>
+														</div>
+														{balanceDue > 0 ? (
+															<div className="flex justify-between font-bold text-amber-700 print:text-black">
+																<span>Balance Due (Credit / Remaining)</span>
+																<span>₹{balanceDue.toFixed(2)}</span>
+															</div>
+														) : change > 0 ? (
+															<div className="flex justify-between font-semibold text-blue-700 print:text-black">
+																<span>Change Returned</span>
+																<span>₹{change.toFixed(2)}</span>
+															</div>
+														) : null}
 													</div>
 												</div>
 											</div>
@@ -1654,8 +1682,9 @@ export function SaleCompletionScreen({
 												</thead>
 												<tbody>
 													{order.items.map((item, idx) => {
-														const rate = Number.parseFloat(item.price);
-														const lineTotal = rate * item.qty;
+														const rate = Number.parseFloat(item.price) || 0;
+														const itemQty = Number(item.qty) || 0;
+														const lineTotal = rate * itemQty;
 														return (
 															<tr
 																key={idx}
@@ -1666,16 +1695,12 @@ export function SaleCompletionScreen({
 																		{getItemName(item)}
 																	</div>
 																	<div className="mt-0.5 pl-1 text-[10px] text-slate-600">
-																		{Number.isInteger(item.qty)
-																			? item.qty
-																			: item.qty.toFixed(3)}{" "}
+																		{formatQty(item.qty)}{" "}
 																		x Rs.{rate.toFixed(2)}
 																	</div>
 																</td>
 																<td className="py-2 text-center align-middle">
-																	{Number.isInteger(item.qty)
-																		? item.qty
-																		: item.qty.toFixed(3)}
+																	{formatQty(item.qty)}
 																</td>
 																<td className="py-2 text-right align-middle font-medium">
 																	Rs.{lineTotal.toFixed(2)}
@@ -1692,22 +1717,22 @@ export function SaleCompletionScreen({
 											<div className="space-y-1 text-left">
 												<div className="flex justify-between">
 													<span>SUBTOTAL:</span>
-													<span>Rs.{order.subtotal.toFixed(2)}</span>
+													<span>Rs.{orderSubtotal.toFixed(2)}</span>
 												</div>
-												{order.discount > 0 && (
+												{orderDiscount > 0 && (
 													<div className="flex justify-between">
 														<span>
 															DISCOUNT{order.discountReason ? ` (${order.discountReason})` : ""}:
 														</span>
-														<span>-Rs.{order.discount.toFixed(2)}</span>
+														<span>-Rs.{orderDiscount.toFixed(2)}</span>
 													</div>
 												)}
-												{order.otherCharges && order.otherCharges > 0 && (
+												{orderOtherCharges > 0 && (
 													<div className="flex justify-between">
 														<span>
 															EXTRA CHG{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
 														</span>
-														<span>+Rs.{Number(order.otherCharges).toFixed(2)}</span>
+														<span>+Rs.{orderOtherCharges.toFixed(2)}</span>
 													</div>
 												)}
 												{roundOff !== 0 && (
@@ -1723,6 +1748,21 @@ export function SaleCompletionScreen({
 													<span>GRAND TOTAL:</span>
 													<span>Rs.{grandTotal.toFixed(2)}</span>
 												</div>
+												<div className="flex justify-between text-[11px] font-semibold text-emerald-800 print:text-black">
+													<span>PAID / ADVANCE:</span>
+													<span>Rs.{totalPaid.toFixed(2)}</span>
+												</div>
+												{balanceDue > 0 ? (
+													<div className="flex justify-between text-[11px] font-bold text-amber-800 print:text-black">
+														<span>BALANCE DUE:</span>
+														<span>Rs.{balanceDue.toFixed(2)}</span>
+													</div>
+												) : change > 0 ? (
+													<div className="flex justify-between text-[11px]">
+														<span>CHANGE RETURN:</span>
+														<span>Rs.{change.toFixed(2)}</span>
+													</div>
+												) : null}
 											</div>
 
 											<div className="my-2 border-slate-900 border-t border-dashed" />

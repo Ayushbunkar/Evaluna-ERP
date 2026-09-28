@@ -266,12 +266,21 @@ export const productsRouter = router({
 		}),
 
 	delete: protectedProcedure
-		.input(z.object({ id: z.number() }))
-		.mutation(async ({ input }) => {
+		.input(z.object({ id: z.number(), reason: z.string().optional() }))
+		.mutation(async ({ input, ctx }) => {
 			await db
 				.update(products)
 				.set({ is_deleted: true })
 				.where(eq(products.id, input.id));
+
+			const staffId = await resolveStaffId(db, ctx.user?.email || "");
+			await logAudit(db, {
+				userId: staffId,
+				action: "PRODUCT_DELETED",
+				entityType: "products",
+				entityId: input.id,
+				newValues: { reason: input.reason || "Deleted by manager" },
+			});
 			return { success: true };
 		}),
 

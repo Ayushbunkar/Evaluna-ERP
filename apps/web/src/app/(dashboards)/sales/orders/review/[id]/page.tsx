@@ -272,7 +272,7 @@ export default function CustomerOrderReviewPage() {
 					id: l.productId,
 					name: l.name || l.productName || "Product",
 					productName: l.name || l.productName || "Product",
-					qty: l.quantity,
+					qty: Number(l.quantity) || 0,
 					price: l.price.toString(),
 				})),
 				payments: [{ methodId: 1, amount: tot.toString() }],

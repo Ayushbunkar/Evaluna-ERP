@@ -309,7 +309,7 @@ export default function TripLoadingDetailsPage({
 												</div>
 												<div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
 													<span>
-														<strong>{order.itemsCount}</strong> Items
+														<strong>{Math.round(Number(order.itemsCount) || 0)}</strong> Items
 													</span>
 													<span>•</span>
 													<span>
@@ -320,18 +320,6 @@ export default function TripLoadingDetailsPage({
 														₹{Number(order.totalAmount || 0).toLocaleString()}
 													</span>
 												</div>
-												{order.items && order.items.length > 0 && (
-													<div className="mt-2 flex flex-wrap gap-1">
-														{order.items.map((i: any, iIdx: number) => (
-															<span
-																key={iIdx}
-																className="inline-flex items-center rounded border bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
-															>
-																{i.productName || "Item"} ({i.quantity})
-															</span>
-														))}
-													</div>
-												)}
 											</div>
 										</div>
 
