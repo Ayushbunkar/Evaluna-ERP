@@ -2305,7 +2305,6 @@ export function DeliveryManagementDashboard({
 							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 								{actionableTrips.map((trip: any) => {
 									const isMissingDriverOrVehicle = !trip.driver_id || !trip.vehicle_id;
-									const isReadyForLoading = trip.status === "ready_for_loading" || trip.status === "pending";
 									const isLoading = trip.status === "loading";
 									const isLoaded = trip.status === "loaded";
 
@@ -2331,7 +2330,9 @@ export function DeliveryManagementDashboard({
 																? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
 																: isMissingDriverOrVehicle
 																	? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-																	: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+																	: trip.status === "ready_for_loading"
+																		? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+																		: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
 													}`}
 												>
 													{isLoaded
@@ -2340,7 +2341,9 @@ export function DeliveryManagementDashboard({
 															? t("loading")
 															: isMissingDriverOrVehicle
 																? t("assignmentIncomplete")
-																: t("readyForLoading")}
+																: trip.status === "ready_for_loading"
+																	? (locale === "hi" ? "लोडर को भेजा गया" : "Released to Loader")
+																	: (locale === "hi" ? "लोडर को भेजना बाकी" : "Pending Release")}
 												</span>
 											</div>
 
@@ -2391,29 +2394,7 @@ export function DeliveryManagementDashboard({
 														<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
 														{t("dispatchTrip")}
 													</Button>
-												) : isReadyForLoading ? (
-													<Button
-														size="sm"
-														className="h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white w-full"
-														onClick={() => releaseToLoaderMutation.mutate({ tripId: trip.id })}
-														disabled={releaseToLoaderMutation.isPending}
-													>
-														<PackageIcon className="mr-1.5 h-3.5 w-3.5" />
-														{t("releaseToLoader")}
-													</Button>
-												) : isLoading ? (
-													<Button
-														variant="outline"
-														size="sm"
-														className="h-8 text-xs font-semibold w-full"
-														onClick={() => {
-															setSelectedDetailTrip(trip);
-															setIsTripDetailOpen(true);
-														}}
-													>
-														Monitor Loading
-													</Button>
-												) : (
+												) : isMissingDriverOrVehicle ? (
 													<div className="flex gap-1.5 w-full">
 														<Button
 															variant="outline"
@@ -2443,7 +2424,42 @@ export function DeliveryManagementDashboard({
 															<Trash2Icon className="h-3.5 w-3.5" />
 														</Button>
 													</div>
-												)}
+												) : trip.status === "pending" ? (
+													<Button
+														size="sm"
+														className="h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white w-full"
+														onClick={() => releaseToLoaderMutation.mutate({ tripId: trip.id })}
+														disabled={releaseToLoaderMutation.isPending}
+													>
+														<PackageIcon className="mr-1.5 h-3.5 w-3.5" />
+														{t("releaseToLoader")}
+													</Button>
+												) : trip.status === "ready_for_loading" ? (
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-8 text-xs font-semibold text-blue-600 border-blue-200 hover:bg-blue-50 w-full"
+														onClick={() => {
+															setSelectedDetailTrip(trip);
+															setIsTripDetailOpen(true);
+														}}
+													>
+														<ClockIcon className="mr-1.5 h-3.5 w-3.5" />
+														{locale === "hi" ? "लोडिंग की प्रतीक्षा..." : "Awaiting Loader Verification..."}
+													</Button>
+												) : isLoading ? (
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-8 text-xs font-semibold w-full"
+														onClick={() => {
+															setSelectedDetailTrip(trip);
+															setIsTripDetailOpen(true);
+														}}
+													>
+														Monitor Loading
+													</Button>
+												) : null}
 											</div>
 										</div>
 									);

@@ -27,16 +27,25 @@ import {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
+import { formatQty } from "@/lib/utils";
 
 export default function PickerCompletedPage() {
 	const t = useTranslations();
 	const trpc = useTRPC();
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
+
 	const {
 		data: completedPicks,
 		isLoading,
 		error,
-	} = trpc.picker.getCompleted.useQuery({});
+	} = trpc.picker.getCompleted.useQuery({
+		startDate: startDate || undefined,
+		endDate: endDate || undefined,
+	});
 
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -143,6 +152,21 @@ export default function PickerCompletedPage() {
 						/>
 					</div>
 				</CardHeader>
+
+				<div className="px-6 pb-2">
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={filteredPicks?.length}
+						countLabel="picks"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
+				</div>
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
@@ -190,7 +214,12 @@ export default function PickerCompletedPage() {
 												</div>
 											</TableCell>
 											<TableCell className="font-medium text-sm">
-												{pick.items} {t("driver.orderItems")}
+												<div className="font-bold text-gray-900 dark:text-gray-100">
+													{formatQty(pick.items)} {Number(formatQty(pick.items)) === 1 ? "Product" : "Products"}
+												</div>
+												<div className="text-[11px] text-muted-foreground font-medium">
+													({formatQty(pick.total_quantity ?? pick.items)} {Number(formatQty(pick.total_quantity ?? pick.items)) === 1 ? "unit" : "units"} total)
+												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
 												{pick.completed_by}

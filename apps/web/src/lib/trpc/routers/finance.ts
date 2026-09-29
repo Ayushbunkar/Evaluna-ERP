@@ -124,10 +124,16 @@ export const financeRouter = router({
 			if (type) conditions.push(eq(transactions.type, type));
 			if (category) conditions.push(eq(transactions.category, category));
 			if (status) conditions.push(eq(transactions.status, status));
-			if (date_from)
-				conditions.push(gte(transactions.created_at, new Date(date_from)));
-			if (date_to)
-				conditions.push(lte(transactions.created_at, new Date(date_to)));
+			if (date_from) {
+				const fromDate = new Date(date_from);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(gte(transactions.created_at, fromDate));
+			}
+			if (date_to) {
+				const toDate = new Date(date_to);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(lte(transactions.created_at, toDate));
+			}
 			if (search) {
 				conditions.push(
 					sql`${transactions.description} ILIKE ${"%" + search + "%"}`,

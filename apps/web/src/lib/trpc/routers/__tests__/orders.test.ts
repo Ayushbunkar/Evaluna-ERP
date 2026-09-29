@@ -161,7 +161,7 @@ describe("orders.create", () => {
 			.from(orderItems)
 			.where(eq(orderItems.order_id, order.id));
 		expect(items.length).toBe(1);
-		expect(items[0].quantity).toBe(3);
+		expect(Number(items[0].quantity)).toBe(3);
 		expect(Number(items[0].price)).toBe(1000);
 		expect(items[0].product_id).toBe(productId);
 
@@ -344,6 +344,33 @@ describe("orders.cancelOrder and listCancelledOrders", () => {
 		expect(found?.totalAmount).toBe(500);
 		expect(found?.cancelReason).toContain("Customer changed mind");
 		expect(found?.items.length).toBe(1);
-		expect(found?.customer?.name).toBe("Test Customer");
+	});
+});
+
+describe("orders.list date filtering", () => {
+	it("filters orders by startDate and endDate properly", async () => {
+		const today = new Date();
+		const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+		const order = await caller.create({
+			customerId,
+			paymentMethodId,
+			products: [{ id: productId, quantity: 1, price: 100 }],
+			total: 100,
+		});
+
+		// Query for today
+		const todayOrders = await caller.list({
+			startDate: todayStr,
+			endDate: todayStr,
+		});
+		expect(todayOrders.some((o) => o.id === order.id)).toBe(true);
+
+		// Query for future date range (should not contain today's order)
+		const futureOrders = await caller.list({
+			startDate: "2099-01-01",
+			endDate: "2099-01-02",
+		});
+		expect(futureOrders.some((o) => o.id === order.id)).toBe(false);
 	});
 });

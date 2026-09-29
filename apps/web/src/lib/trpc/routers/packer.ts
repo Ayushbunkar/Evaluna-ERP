@@ -15,7 +15,7 @@ import {
 	user,
 	vehicles,
 } from "@evaluna/db/schema";
-import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, notInArray, or } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { dispatchNotification } from "@/lib/notification-service";
 import { roleProcedure, router } from "../init";
@@ -208,8 +208,10 @@ export const packerRouter = router({
 						items: items.length > 0 ? items.map((it) => ({
 							id: it.id,
 							productName: it.productName ?? "General Item",
-							sku: it.sku ?? "N/A",
-							quantity: it.quantity ?? 1,
+							quantity:
+								Math.round(
+									(Number.parseFloat(String(it.quantity || "1")) || 1) * 10,
+								) / 10,
 						})) : [
 							{
 								id: 1,
@@ -341,7 +343,10 @@ export const packerRouter = router({
 						id: it.id,
 						productName: it.productName ?? "Order Item",
 						sku: it.sku ?? "N/A",
-						quantity: it.quantity ?? 1,
+						quantity:
+							Math.round(
+								(Number.parseFloat(String(it.quantity || "1")) || 1) * 10,
+							) / 10,
 					})) : [
 						{
 							id: 1,
@@ -529,17 +534,37 @@ export const packerRouter = router({
 		.input(
 			z
 				.object({
-					startDate: z.coerce.date().optional(),
-					endDate: z.coerce.date().optional(),
+					startDate: z.union([z.string(), z.coerce.date()]).optional(),
+					endDate: z.union([z.string(), z.coerce.date()]).optional(),
 					status: z.string().optional(),
 					search: z.string().optional(),
 				})
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const startDate =
-				input?.startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-			const endDate = input?.endDate ?? new Date();
+			const conditions = [];
+
+			if (input?.startDate) {
+				const fromDate = new Date(input.startDate);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(
+					sql`COALESCE(${packages.packed_at}, ${packages.created_at}) >= ${fromDate}`,
+				);
+			}
+
+			if (input?.endDate) {
+				const toDate = new Date(input.endDate);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(
+					sql`COALESCE(${packages.packed_at}, ${packages.created_at}) <= ${toDate}`,
+				);
+			}
+
+			if (input?.status) {
+				conditions.push(eq(packages.status, input.status));
+			}
+
+			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
 			const results = await ctx.db
 				.select({
@@ -547,6 +572,7 @@ export const packerRouter = router({
 					packedBy: staff.name,
 					status: packages.status,
 					packedAt: packages.packed_at,
+					createdAt: packages.created_at,
 					packageNumber: packages.package_number,
 					customerId: orders.customer_id,
 					customerName: customers.name,
@@ -555,6 +581,7 @@ export const packerRouter = router({
 				.leftJoin(staff, eq(packages.packed_by, staff.id))
 				.leftJoin(orders, eq(packages.order_id, orders.id))
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.where(whereClause)
 				.orderBy(desc(packages.id), desc(packages.packed_at));
 
 			const {

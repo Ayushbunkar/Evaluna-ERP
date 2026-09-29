@@ -34,10 +34,14 @@ import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+	CalendarDaysIcon,
+	CalendarIcon,
 	EyeIcon,
 	FilePenIcon,
+	RotateCcwIcon,
 	ShoppingCartIcon,
 	TrashIcon,
+	XIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
@@ -45,6 +49,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/router";
 import { formatCurrency } from "@/lib/utils";
@@ -57,8 +62,12 @@ export default function OrdersPage() {
 	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
 	const [page, setPage] = useState(1);
 	const pageSize = 50;
+
 
 	const {
 		data: orders = [],
@@ -69,6 +78,8 @@ export default function OrdersPage() {
 		limit: pageSize,
 		search: searchTerm.trim() || undefined,
 		status: statusFilter !== "all" ? statusFilter : undefined,
+		startDate: startDate || undefined,
+		endDate: endDate || undefined,
 	});
 	let tRaw: any = null;
 	let tcRaw: any = null;
@@ -539,7 +550,7 @@ export default function OrdersPage() {
 
 	return (
 		<Card className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
-			<CardHeader className="p-0">
+			<CardHeader className="p-0 space-y-3">
 				<SearchFilter
 					search={searchTerm}
 					onSearchChange={(val) => {
@@ -557,6 +568,20 @@ export default function OrdersPage() {
 							},
 						},
 					]}
+				/>
+
+				<DateFilterBar
+					startDate={startDate}
+					endDate={endDate}
+					datePreset={datePreset}
+					totalCount={orders.length}
+					countLabel={locale === "hi" ? "ऑर्डर" : "orders"}
+					onDateChange={(start, end, preset) => {
+						setStartDate(start);
+						setEndDate(end);
+						setDatePreset(preset);
+						setPage(1);
+					}}
 				/>
 			</CardHeader>
 			<CardContent className="space-y-4 p-0">

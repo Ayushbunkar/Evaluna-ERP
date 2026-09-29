@@ -398,6 +398,7 @@ export default function PackerDashboard() {
 										<TableRow>
 											<TableHead>{t("packageBarcode")}</TableHead>
 											<TableHead>{t("orderRef")}</TableHead>
+											<TableHead>{t("customerName")}</TableHead>
 											<TableHead>{t("packedBy")}</TableHead>
 											<TableHead>{t("packedDate")}</TableHead>
 											<TableHead className="text-right">
@@ -413,6 +414,14 @@ export default function PackerDashboard() {
 												</TableCell>
 												<TableCell className="font-semibold text-sm">
 													{pkg.orderId}
+												</TableCell>
+												<TableCell className="font-medium text-xs text-foreground">
+													<div className="flex items-center gap-1.5">
+														<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+														<span className="font-semibold text-foreground">
+															{pkg.customerName || "Customer Order"}
+														</span>
+													</div>
 												</TableCell>
 												<TableCell className="text-muted-foreground text-xs">
 													{pkg.packedBy}

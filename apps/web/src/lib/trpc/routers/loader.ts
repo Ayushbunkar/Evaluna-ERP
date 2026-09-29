@@ -54,8 +54,8 @@ export const loaderRouter = router({
 				.from(deliveryTrips)
 				.where(
 					loaderFilter
-						? and(inArray(deliveryTrips.status, ["ready_for_loading", "pending"]), loaderFilter)
-						: inArray(deliveryTrips.status, ["ready_for_loading", "pending"]),
+						? and(eq(deliveryTrips.status, "ready_for_loading"), loaderFilter)
+						: eq(deliveryTrips.status, "ready_for_loading"),
 				);
 
 			const [loadingTrips] = await db
@@ -110,11 +110,11 @@ export const loaderRouter = router({
 
 			let statusFilter;
 			if (input?.status === "ready_for_loading") {
-				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "pending"]);
+				statusFilter = eq(deliveryTrips.status, "ready_for_loading");
 			} else if (input?.status && input.status !== "all") {
 				statusFilter = eq(deliveryTrips.status, input.status);
 			} else {
-				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "pending", "loading", "loaded"]);
+				statusFilter = inArray(deliveryTrips.status, ["ready_for_loading", "loading", "loaded"]);
 			}
 
 			// Loaders see trips assigned to them OR unassigned pool trips
@@ -368,9 +368,21 @@ export const loaderRouter = router({
 							isLoaded: o.status === "loaded",
 							totalAmount: o.totalAmount,
 							packageCount: pkgs.length || 1,
-							packages: pkgs,
-							itemsCount: items.reduce((acc, i) => acc + (Number.parseFloat(i.quantity) || 1), 0),
-							items: items,
+							itemsCount:
+								Math.round(
+									items.reduce(
+										(acc, i) =>
+											acc + (Number.parseFloat(String(i.quantity)) || 1),
+										0,
+									) * 10,
+								) / 10,
+							items: items.map((it) => ({
+								...it,
+								quantity:
+									Math.round(
+										(Number.parseFloat(String(it.quantity)) || 1) * 10,
+									) / 10,
+							})),
 						};
 					});
 
@@ -436,7 +448,7 @@ export const loaderRouter = router({
 				});
 			}
 
-			if (trip.status === "ready_for_loading" || trip.status === "pending") {
+			if (trip.status === "ready_for_loading") {
 				await db
 					.update(deliveryTrips)
 					.set({
@@ -498,7 +510,7 @@ export const loaderRouter = router({
 				.where(
 					and(
 						eq(deliveryTrips.id, input.tripId),
-						inArray(deliveryTrips.status, ["ready_for_loading", "pending"]),
+						inArray(deliveryTrips.status, ["ready_for_loading", "loading"]),
 					),
 				);
 
@@ -620,13 +632,31 @@ export const loaderRouter = router({
 			z
 				.object({
 					search: z.string().optional(),
-					startDate: z.coerce.date().optional(),
-					endDate: z.coerce.date().optional(),
+					startDate: z.union([z.string(), z.coerce.date()]).optional(),
+					endDate: z.union([z.string(), z.coerce.date()]).optional(),
 				})
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db || defaultDb;
+
+			const conditions = [inArray(deliveryTrips.status, ["loaded", "active", "completed"])];
+
+			if (input?.startDate) {
+				const fromDate = new Date(input.startDate);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(
+					sql`COALESCE(${deliveryTrips.loaded_at}, ${deliveryTrips.updated_at}, ${deliveryTrips.created_at}) >= ${fromDate}`,
+				);
+			}
+
+			if (input?.endDate) {
+				const toDate = new Date(input.endDate);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(
+					sql`COALESCE(${deliveryTrips.loaded_at}, ${deliveryTrips.updated_at}, ${deliveryTrips.created_at}) <= ${toDate}`,
+				);
+			}
 
 			const historyTrips = await db
 				.select({
@@ -638,12 +668,13 @@ export const loaderRouter = router({
 					routeName: deliveryRoutes.name,
 					updatedAt: deliveryTrips.updated_at,
 					createdAt: deliveryTrips.created_at,
+					loadedAt: deliveryTrips.loaded_at,
 				})
 				.from(deliveryTrips)
 				.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
 				.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 				.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
-				.where(inArray(deliveryTrips.status, ["loaded", "active", "completed"]))
+				.where(and(...conditions))
 				.orderBy(desc(deliveryTrips.updated_at));
 
 			const enrichedHistory = await Promise.all(

@@ -30,17 +30,25 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function LoadingHistoryPage() {
 	const trpc = useTRPC();
 	const [searchQuery, setSearchQuery] = useState("");
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
 
 	const {
 		data: history = [],
 		isLoading,
 	} = trpc.loader.getLoadingHistory.useQuery(
-		{ search: searchQuery },
+		{
+			search: searchQuery || undefined,
+			startDate: startDate || undefined,
+			endDate: endDate || undefined,
+		},
 		{ refetchInterval: 15000 },
 	);
 
@@ -58,20 +66,35 @@ export default function LoadingHistoryPage() {
 
 			{/* Search & Filter Bar */}
 			<Card className="border-border/60 shadow-xs">
-				<CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-					<div className="relative w-full sm:w-80">
-						<SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-						<Input
-							type="text"
-							placeholder="Search Trip ID, Route, Driver, Vehicle..."
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="h-8 pl-8 text-xs rounded-lg"
-						/>
+				<CardContent className="p-4 space-y-3">
+					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+						<div className="relative w-full sm:w-80">
+							<SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+							<Input
+								type="text"
+								placeholder="Search Trip ID, Route, Driver, Vehicle..."
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								className="h-8 pl-8 text-xs rounded-lg"
+							/>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Showing <strong>{history.length}</strong> loaded trips
+						</p>
 					</div>
-					<p className="text-xs text-muted-foreground">
-						Showing <strong>{history.length}</strong> loaded trips
-					</p>
+
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={history.length}
+						countLabel="trips"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
 				</CardContent>
 			</Card>
 

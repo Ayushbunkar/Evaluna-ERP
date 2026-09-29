@@ -1,13 +1,15 @@
 import {
 	customers,
+	deliveryRoutes,
 	orderItems,
 	orders,
 	pickListItems,
 	pickLists,
+	routeStops,
 	staff,
 	user,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq, gte, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifyPickComplete } from "@/lib/notification-service";
@@ -224,8 +226,12 @@ export const pickerRouter = router({
 				},
 				items: items.map((i) => ({
 					id: i.id,
-					qty_required: i.quantity_ordered,
-					qty_picked: i.quantity_picked ?? 0,
+					qty_required: Number(
+						Number.parseFloat(String(i.quantity_ordered || "1")).toFixed(1),
+					),
+					qty_picked: Number(
+						Number.parseFloat(String(i.quantity_picked || "0")).toFixed(1),
+					),
 					status: i.status,
 					product: i.product?.name ?? "Unknown",
 					sku: i.product?.sku ?? i.product?.barcode ?? "N/A",
@@ -305,11 +311,34 @@ export const pickerRouter = router({
 		}),
 
 	getCompleted: roleProcedure(["admin", "manager", "auditor", "picker"])
-		.input(z.object({ branch_id: z.number().optional() }).optional())
-		.query(async ({ ctx }) => {
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					startDate: z.union([z.string(), z.coerce.date()]).optional(),
+					endDate: z.union([z.string(), z.coerce.date()]).optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 
 			try {
+				const conditions = [eq(pickLists.status, "completed")];
+				if (input?.branch_id) {
+					conditions.push(eq(orders.branch_id, input.branch_id));
+				}
+				if (input?.startDate) {
+					const fromDate = new Date(input.startDate);
+					fromDate.setHours(0, 0, 0, 0);
+					conditions.push(gte(pickLists.created_at, fromDate));
+				}
+				if (input?.endDate) {
+					const toDate = new Date(input.endDate);
+					toDate.setHours(23, 59, 59, 999);
+					conditions.push(lte(pickLists.created_at, toDate));
+				}
+
 				const lists = await db
 					.select({
 						id: pickLists.id,
@@ -322,9 +351,9 @@ export const pickerRouter = router({
 					.leftJoin(orders, eq(pickLists.order_id, orders.id))
 					.leftJoin(customers, eq(orders.customer_id, customers.id))
 					.leftJoin(staff, eq(pickLists.assigned_to, staff.id))
-					.where(eq(pickLists.status, "completed"))
+					.where(and(...conditions))
 					.orderBy(desc(pickLists.created_at))
-					.limit(50);
+					.limit(100);
 
 				if (!lists || lists.length === 0) return [];
 
@@ -337,32 +366,49 @@ export const pickerRouter = router({
 					.from(pickListItems)
 					.where(inArray(pickListItems.pick_list_id, listIds));
 
-				const itemCounts = new Map<number, number>();
+				const productCounts = new Map<number, number>();
+				const totalQuantities = new Map<number, number>();
+
 				for (const item of plItems) {
-					const current = itemCounts.get(item.pick_list_id) || 0;
-					itemCounts.set(item.pick_list_id, current + (item.qty ?? 0));
+					const pCount = productCounts.get(item.pick_list_id) || 0;
+					productCounts.set(item.pick_list_id, pCount + 1);
+
+					const numQty = Number.parseFloat(String(item.qty || "0"));
+					const currentQty = totalQuantities.get(item.pick_list_id) || 0;
+					totalQuantities.set(
+						item.pick_list_id,
+						currentQty + (Number.isNaN(numQty) ? 0 : numQty),
+					);
 				}
 
-				return lists.map((r) => ({
-					id: `PL-${r.id}`,
-					order_id: `ORD-${r.order_id}`,
-					items: itemCounts.get(r.id) || 1,
-					time_taken: "N/A",
-					completed_by: r.completed_by || "Unknown",
-					customerName: r.customerName || "Customer",
-					date: r.created_at?.toLocaleDateString() || "Today",
-					accuracy: 100,
-				}));
+				return lists.map((r) => {
+					const productCount = productCounts.get(r.id) || 1;
+					const rawQty = totalQuantities.get(r.id) || productCount;
+					const roundedQty = Math.round(rawQty * 10) / 10;
+
+					return {
+						id: `PL-${r.id}`,
+						order_id: `ORD-${r.order_id}`,
+						items: productCount,
+						total_quantity: roundedQty,
+						time_taken: "N/A",
+						completed_by: r.completed_by || "Unknown",
+						customerName: r.customerName || "Customer",
+						date: r.created_at?.toLocaleDateString() || "Today",
+						accuracy: 100,
+					};
+				});
 			} catch (e) {
 				console.warn("[picker.getCompleted] Error querying completed picklists:", e);
 				// Fallback to db.query API
 				try {
 					const fallbackLists = await db.query.pickLists.findMany({
 						where: eq(pickLists.status, "completed"),
-						limit: 50,
+						limit: 100,
 						orderBy: [desc(pickLists.created_at)],
 						with: {
 							assignedTo: true,
+							pickListItems: true,
 							order: {
 								with: {
 									customer: true,
@@ -371,16 +417,27 @@ export const pickerRouter = router({
 						},
 					});
 
-					return fallbackLists.map((l: any) => ({
-						id: `PL-${l.id}`,
-						order_id: `ORD-${l.order_id}`,
-						items: l.pickListItems?.length || 1,
-						time_taken: "N/A",
-						completed_by: l.assignedTo?.name || "Picker Staff",
-						customerName: l.order?.customer?.name || "Customer",
-						date: l.created_at ? new Date(l.created_at).toLocaleDateString() : "Today",
-						accuracy: 100,
-					}));
+					return fallbackLists.map((l: any) => {
+						const itemsList = l.pickListItems || [];
+						const rawTotalQty = itemsList.reduce(
+							(acc: number, item: any) =>
+								acc + (Number.parseFloat(String(item.quantity_ordered || "0")) || 0),
+							0,
+						);
+						const roundedQty = Math.round((rawTotalQty || itemsList.length || 1) * 10) / 10;
+
+						return {
+							id: `PL-${l.id}`,
+							order_id: `ORD-${l.order_id}`,
+							items: itemsList.length || 1,
+							total_quantity: roundedQty,
+							time_taken: "N/A",
+							completed_by: l.assignedTo?.name || "Picker Staff",
+							customerName: l.order?.customer?.name || "Customer",
+							date: l.created_at ? new Date(l.created_at).toLocaleDateString() : "Today",
+							accuracy: 100,
+						};
+					});
 				} catch (fallbackErr) {
 					console.warn("[picker.getCompleted] Fallback query failed:", fallbackErr);
 					return [];
@@ -427,9 +484,12 @@ export const pickerRouter = router({
 			for (const r of lists) {
 				let totalUnits =
 					r.pickListItems?.reduce(
-						(acc, item) => acc + (item.quantity_ordered ?? 0),
+						(acc, item) =>
+							acc +
+							(Number.parseFloat(String(item.quantity_ordered || "0")) || 0),
 						0,
 					) || 0;
+				totalUnits = Math.round(totalUnits * 10) / 10;
 
 				let distinctProducts = r.pickListItems?.length || 0;
 

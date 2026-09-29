@@ -556,6 +556,7 @@ const messages = {
 		packagesReadyForDispatch: "Packages packed and ready for dispatch",
 		packageBarcode: "Package Barcode",
 		orderRef: "Order Ref",
+		customerName: "Customer Name",
 		packedBy: "Packed By",
 		packedDate: "Packed Date",
 		labelAction: "Label Action",

@@ -38,6 +38,7 @@ import {
 	StaggerList,
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { formatQty } from "@/lib/utils";
 
 export default function PickerDashboard() {
 	const t = useTranslations();
@@ -241,7 +242,7 @@ export default function PickerDashboard() {
 													)}
 												</TableCell>
 												<TableCell className="font-medium text-sm">
-													{tItem.items} {t("driver.orderItems")}
+													{formatQty(tItem.items)} {Number(formatQty(tItem.items)) === 1 ? "Product" : "Products"}
 												</TableCell>
 												<TableCell className="text-muted-foreground text-xs">
 													{tItem.area}

@@ -172,7 +172,7 @@ export default function TripLoadingDetailsPage({
 					</div>
 				</div>
 
-				{trip.status === "ready_for_loading" || trip.status === "pending" ? (
+				{trip.status === "ready_for_loading" ? (
 					<Button
 						onClick={handleStartLoading}
 						disabled={startLoadingMutation.isPending}

@@ -2,7 +2,6 @@ import {
 	branchInventory,
 	coupons,
 	dailyProductDiscounts,
-	deliveryTrips,
 	orderAudits,
 	orderItems,
 	orders,
@@ -11,11 +10,9 @@ import {
 	pickListItems,
 	pickLists,
 	products,
-	routeStops,
 	staff,
 	stockLedger,
 	transactions,
-	tripStops,
 } from "@evaluna/db/schema";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -194,81 +191,7 @@ export const posRouter = router({
 					);
 				}
 
-				// Auto Trip Assignment: Connect customer order to delivery trip for their route
-				if (input.customerId) {
-					try {
-						const customerRouteStop = await tx
-							.select()
-							.from(routeStops)
-							.where(eq(routeStops.customer_id, input.customerId))
-							.limit(1);
 
-						if (customerRouteStop.length > 0 && customerRouteStop[0].route_id) {
-							const routeId = customerRouteStop[0].route_id;
-
-							// Check for existing pending/active trip for this route
-							const existingTrips = await tx
-								.select()
-								.from(deliveryTrips)
-								.where(
-									and(
-										eq(deliveryTrips.route_id, routeId),
-										or(
-											eq(deliveryTrips.status, "pending"),
-											eq(deliveryTrips.status, "active"),
-										),
-									),
-								)
-								.limit(1);
-
-							let targetTripId: number;
-
-							if (existingTrips.length > 0) {
-								targetTripId = existingTrips[0].id;
-							} else {
-								// Auto create new delivery trip for this route
-								const [newTrip] = await tx
-									.insert(deliveryTrips)
-									.values({
-										route_id: routeId,
-										driver_id: ctx.user.id || "auto_dispatch",
-										status: "pending",
-									})
-									.returning();
-								targetTripId = newTrip.id;
-							}
-
-							// Check if stop already exists in this trip
-							const existingStops = await tx
-								.select()
-								.from(tripStops)
-								.where(
-									and(
-										eq(tripStops.trip_id, targetTripId),
-										eq(tripStops.customer_id, input.customerId),
-									),
-								);
-
-							if (existingStops.length === 0) {
-								const currentStopsCount = await tx
-									.select({ count: sql<number>`count(*)` })
-									.from(tripStops)
-									.where(eq(tripStops.trip_id, targetTripId));
-
-								const nextSeq = (Number(currentStopsCount[0]?.count) || 0) + 1;
-
-								await tx.insert(tripStops).values({
-									trip_id: targetTripId,
-									customer_id: input.customerId,
-									sequence: customerRouteStop[0].sequence || nextSeq,
-									status: "pending",
-								});
-							}
-						}
-					} catch (e) {
-						// Non-blocking auto trip assignment
-					}
-				}
 
 				if (status === "completed") {
 					// Batch insert stock ledger

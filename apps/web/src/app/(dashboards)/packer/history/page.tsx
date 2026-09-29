@@ -25,26 +25,36 @@ import {
 	PrinterIcon,
 	SearchIcon,
 	TruckIcon,
+	UserIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerHistoryPage() {
 	const t = useTranslations("packer");
 	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
+
 	const {
 		data: historyList,
 		isLoading,
 		error,
-	} = trpc.packer.getPackingHistory.useQuery({});
+	} = trpc.packer.getPackingHistory.useQuery({
+		startDate: startDate || undefined,
+		endDate: endDate || undefined,
+	});
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [printPackage, setPrintPackage] = useState<{
 		number: string;
 		orderRef: string;
+		customerName?: string;
 	} | null>(null);
 	const printSvgRef = useRef<SVGSVGElement | null>(null);
 
@@ -65,8 +75,8 @@ export default function PackerHistoryPage() {
 		}
 	}, [printPackage]);
 
-	const handlePrintLabel = (pkgNum: string, orderRef: string) => {
-		setPrintPackage({ number: pkgNum, orderRef });
+	const handlePrintLabel = (pkgNum: string, orderRef: string, customerName?: string) => {
+		setPrintPackage({ number: pkgNum, orderRef, customerName });
 		setTimeout(() => {
 			window.print();
 		}, 300);
@@ -76,6 +86,8 @@ export default function PackerHistoryPage() {
 		(p) =>
 			p.packageNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			p.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(p.customerName && p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+			(p.routeName && p.routeName.toLowerCase().includes(searchQuery.toLowerCase())) ||
 			p.packedBy.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
@@ -89,6 +101,11 @@ export default function PackerHistoryPage() {
 						<p className="mt-1 font-semibold text-gray-700 text-xs">
 							Ref: {printPackage.orderRef}
 						</p>
+						{printPackage.customerName && (
+							<p className="mt-0.5 font-bold text-black text-xs">
+								{printPackage.customerName}
+							</p>
+						)}
 						<svg ref={printSvgRef} className="my-2" />
 						<p className="text-[10px] text-gray-500">
 							PACKED & VERIFIED BY EVALUNA LOGISTICS
@@ -187,6 +204,21 @@ export default function PackerHistoryPage() {
 						/>
 					</div>
 				</CardHeader>
+
+				<div className="px-6 pb-2">
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={filteredList?.length}
+						countLabel="packages"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
+				</div>
 				<CardContent>
 					{isLoading ? (
 						<div className="flex h-40 items-center justify-center gap-2 text-muted-foreground">
@@ -209,6 +241,7 @@ export default function PackerHistoryPage() {
 									<TableRow>
 										<TableHead>{t("packageNumber")}</TableHead>
 										<TableHead>{t("orderRef")}</TableHead>
+										<TableHead>{t("customerName")}</TableHead>
 										<TableHead>{t("assignedRoute")}</TableHead>
 										<TableHead>{t("packedBy")}</TableHead>
 										<TableHead>{tCommon("status")}</TableHead>
@@ -226,6 +259,14 @@ export default function PackerHistoryPage() {
 											</TableCell>
 											<TableCell className="font-semibold text-sm">
 												{pkg.orderId}
+											</TableCell>
+											<TableCell className="font-medium text-xs text-foreground">
+												<div className="flex items-center gap-1.5">
+													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+													<span className="font-semibold text-foreground">
+														{pkg.customerName || "Customer Order"}
+													</span>
+												</div>
 											</TableCell>
 											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
 												<div className="flex items-center gap-1">
@@ -257,7 +298,7 @@ export default function PackerHistoryPage() {
 													size="sm"
 													className="h-8 gap-1"
 													onClick={() =>
-														handlePrintLabel(pkg.packageNumber, pkg.orderId)
+														handlePrintLabel(pkg.packageNumber, pkg.orderId, pkg.customerName)
 													}
 												>
 													<PrinterIcon className="h-3.5 w-3.5" />{" "}

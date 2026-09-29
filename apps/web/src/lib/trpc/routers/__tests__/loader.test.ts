@@ -141,6 +141,26 @@ describe("loaderRouter", () => {
 		expect(found?.driverName).toBe("Rahul Driver");
 	});
 
+	it("does not include unreleased pending trips in loader queue until manager releases them", async () => {
+		// Insert an unreleased pending trip
+		const [pendingTrip] = await db
+			.insert(schema.deliveryTrips)
+			.values({
+				route_id: 1,
+				driver_id: "drv-101",
+				status: "pending",
+			})
+			.returning();
+
+		const queue = await callerAsLoader.getLoadingQueue({ status: "ready_for_loading" });
+		const found = queue.find((q) => q.tripId === pendingTrip.id);
+		expect(found).toBeUndefined();
+
+		const allQueue = await callerAsLoader.getLoadingQueue({ status: "all" });
+		const foundAll = allQueue.find((q) => q.tripId === pendingTrip.id);
+		expect(foundAll).toBeUndefined();
+	});
+
 	it("transitions trip status to loading when startLoadingTrip is called", async () => {
 		const res = await callerAsLoader.startLoadingTrip({ tripId: testTripId });
 		expect(res.success).toBe(true);

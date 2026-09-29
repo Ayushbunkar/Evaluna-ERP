@@ -572,6 +572,10 @@ export const ordersRouter = router({
 					limit: z.number().int().min(1).max(500).optional(),
 					search: z.string().optional(),
 					status: z.string().optional(),
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+					dateFrom: z.string().optional(),
+					dateTo: z.string().optional(),
 				})
 				.optional(),
 		)
@@ -601,9 +605,32 @@ export const ordersRouter = router({
 					? undefined
 					: eq(orders.user_uid, ctx.user?.id);
 
-			const { page = 1, limit = 50, search, status } = input || {};
+			const {
+				page = 1,
+				limit = 50,
+				search,
+				status,
+				startDate,
+				endDate,
+				dateFrom,
+				dateTo,
+			} = input || {};
 			const conditions = [];
 			if (baseScope) conditions.push(baseScope);
+
+			// Server-side date range / single date filter
+			const fromDateStr = startDate || dateFrom;
+			const toDateStr = endDate || dateTo;
+			if (fromDateStr) {
+				const fromDate = new Date(fromDateStr);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(gte(orders.created_at, fromDate));
+			}
+			if (toDateStr) {
+				const toDate = new Date(toDateStr);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(lte(orders.created_at, toDate));
+			}
 
 			// Server-side status filter
 			if (status && status !== "all") {
