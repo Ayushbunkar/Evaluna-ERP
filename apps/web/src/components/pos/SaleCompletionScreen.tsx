@@ -615,8 +615,8 @@ export function SaleCompletionScreen({
 							</View>
 						</View>
 						<View style={styles.invoiceMeta}>
-							<Text style={styles.metaTitle}>INVOICE</Text>
-							<Text style={styles.subtitle}>Invoice #: {order.id}</Text>
+							<Text style={styles.metaTitle}>TAX INVOICE / BILL</Text>
+							<Text style={styles.subtitle}>Order / Bill / Inv #: {order.id}</Text>
 							<Text style={styles.subtitle}>Date: {formattedDate}</Text>
 							<Text style={styles.subtitle}>
 								Cashier: {order.cashierName || "Counter 1"}
@@ -698,7 +698,7 @@ export function SaleCompletionScreen({
 						<>
 							<View style={styles.separator} />
 							<View style={styles.row}>
-								<Text>Invoice No:</Text>
+								<Text>Bill / Invoice No:</Text>
 								<Text>#{order.id}</Text>
 							</View>
 							<View style={styles.row}>
@@ -1252,8 +1252,12 @@ export function SaleCompletionScreen({
 								<div className="font-black text-base leading-none tracking-tight">
 									Billing Checkout
 								</div>
-								<div className="mt-1 text-blue-300 text-xs">
-									Invoice #{order.id} generated
+								<div className="mt-1 flex flex-wrap items-center gap-1.5 text-blue-200 text-xs font-semibold">
+									<span>Order #{order.id}</span>
+									<span>•</span>
+									<span>Bill #{order.id}</span>
+									<span>•</span>
+									<span>Invoice #{order.id}</span>
 								</div>
 							</div>
 						</div>
@@ -1371,11 +1375,14 @@ export function SaleCompletionScreen({
 												</div>
 												<div className="text-right">
 													<div className="mb-1 font-bold text-[10px] text-blue-800 uppercase tracking-widest">
-														Bill Invoice
+														Bill & Tax Invoice
 													</div>
 													<h2 className="font-black text-slate-900 text-xl">
 														#{order.id}
 													</h2>
+													<p className="mt-0.5 text-slate-500 text-[11px] font-medium">
+														Order #{order.id}
+													</p>
 													<p className="mt-1 text-slate-500 text-xs">
 														{formattedDate}
 													</p>
@@ -1641,7 +1648,7 @@ export function SaleCompletionScreen({
 
 											{/* Meta Info */}
 											<div className="space-y-0.5 text-left">
-												<div>INVOICE: #{order.id}</div>
+												<div>ORDER / BILL / INVOICE: #{order.id}</div>
 												<div>DATE: {formattedDate}</div>
 												<div>CASHIER: {order.cashierName || "Counter 1"}</div>
 												<div className="font-bold">STATUS: {status.label}</div>

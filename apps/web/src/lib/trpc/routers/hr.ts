@@ -1,22 +1,34 @@
 import {
 	approvals,
+	attendanceBreaks,
+	auditLogs,
 	branches,
+	departments,
+	designations,
 	employees,
+	employeeShifts,
 	enhancedAttendance,
+	holidays,
 	leaveApplications,
 	leaveTypes,
 	payroll,
+	shifts,
 	staff,
+	user,
+	weekOffs,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import {
 	aliasedTable,
 	and,
+	asc,
 	count,
 	desc,
 	eq,
 	gte,
 	ilike,
+	inArray,
+	isNull,
 	lte,
 	ne,
 	not,
@@ -24,7 +36,16 @@ import {
 	sql,
 } from "drizzle-orm";
 import { z } from "zod";
+import {
+	ADJUSTMENT_CATEGORIES,
+	DEFAULT_SHIFT_RULE,
+	evaluateAttendance,
+	formatTime12h,
+	minutesToFormattedHours,
+	timeStringToMinutes,
+} from "@/lib/attendance-engine";
 import { protectedProcedure, roleProcedure, router } from "../init";
+import { logAudit, resolveStaffId } from "../util/audit";
 
 export const hrRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "auditor", "hr"])
@@ -542,111 +563,1076 @@ export const hrRouter = router({
 			z
 				.object({
 					branch_id: z.number().optional(),
+					department: z.string().optional(),
 					date: z.string().optional(),
+					search: z.string().optional(),
+					status: z.string().optional(),
 				})
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			try {
-				let query = db
+				const targetDate = input?.date || new Date().toISOString().split("T")[0];
+				const isSuperAdmin = Boolean(
+					ctx.user.isSuperadmin ||
+						(ctx.user as any).role === "super_admin" ||
+						(ctx.user as any).roles?.includes("super_admin"),
+				);
+				const effectiveBranchId = isSuperAdmin
+					? input?.branch_id
+					: ctx.user.branchId
+						? Number(ctx.user.branchId)
+						: input?.branch_id;
+
+				// 1. Check holiday on targetDate
+				const [holiday] = await db
+					.select()
+					.from(holidays)
+					.where(eq(holidays.date, targetDate))
+					.limit(1);
+
+				// 2. Fetch default active shift
+				const defaultShifts = await db
+					.select()
+					.from(shifts)
+					.where(eq(shifts.isActive, true))
+					.limit(1);
+				const defaultShift = defaultShifts[0] || null;
+
+				// 3. Build staff conditions
+				const conditions = [eq(staff.is_deleted, false)];
+				if (effectiveBranchId != null) {
+					conditions.push(eq(staff.branch_id, effectiveBranchId));
+				}
+				if (input?.department && input.department !== "all") {
+					conditions.push(eq(staff.department, input.department));
+				}
+				if (input?.search?.trim()) {
+					const searchTerm = `%${input.search.trim().toLowerCase()}%`;
+					conditions.push(
+						or(
+							ilike(staff.name, searchTerm),
+							ilike(staff.email, searchTerm),
+							ilike(staff.staff_code, searchTerm),
+						)!,
+					);
+				}
+
+				// 4. Query staff with canonical user photo, employee link, attendance on target date, and shift
+				const rows = await db
+					.select({
+						staffId: staff.id,
+						staffName: staff.name,
+						staffEmail: staff.email,
+						staffCode: staff.staff_code,
+						staffDepartment: staff.department,
+						staffRole: staff.role,
+						branchId: staff.branch_id,
+						userImage: user.image, // CANONICAL PHOTO ONLY (no duplicate storage)
+						employeeId: employees.id,
+						attendanceId: enhancedAttendance.id,
+						attendanceDate: enhancedAttendance.date,
+						checkIn: enhancedAttendance.checkIn,
+						checkOut: enhancedAttendance.checkOut,
+						dbStatus: enhancedAttendance.status,
+						workingHours: enhancedAttendance.workingHours,
+						breakHours: enhancedAttendance.breakHours,
+						lateMinutes: enhancedAttendance.lateMinutes,
+						earlyExitMinutes: enhancedAttendance.earlyExitMinutes,
+						isAdjusted: enhancedAttendance.isAdjusted,
+						originalCheckIn: enhancedAttendance.originalCheckIn,
+						originalCheckOut: enhancedAttendance.originalCheckOut,
+						adjustmentReason: enhancedAttendance.adjustmentReason,
+						adjustmentCategory: enhancedAttendance.adjustmentCategory,
+						adjustedBy: enhancedAttendance.adjustedBy,
+						adjustedAt: enhancedAttendance.adjustedAt,
+						isApproved: enhancedAttendance.isApproved,
+						notes: enhancedAttendance.notes,
+						shiftName: shifts.name,
+						shiftStartTime: shifts.startTime,
+						shiftEndTime: shifts.endTime,
+						shiftGraceTime: shifts.graceTime,
+						shiftLunchDuration: shifts.lunchDuration,
+					})
+					.from(staff)
+					.leftJoin(employees, eq(staff.email, employees.email))
+					.leftJoin(
+						user,
+						or(eq(staff.email, user.email), eq(user.staff_id, staff.id)),
+					)
+					.leftJoin(
+						enhancedAttendance,
+						and(
+							eq(enhancedAttendance.employeeId, employees.id),
+							eq(enhancedAttendance.date, targetDate),
+						),
+					)
+					.leftJoin(
+						employeeShifts,
+						and(
+							eq(employeeShifts.employeeId, employees.id),
+							lte(employeeShifts.effectiveFrom, targetDate),
+							or(
+								isNull(employeeShifts.effectiveTo),
+								gte(employeeShifts.effectiveTo, targetDate),
+							),
+						),
+					)
+					.leftJoin(shifts, eq(shifts.id, employeeShifts.shiftId))
+					.where(and(...conditions))
+					.orderBy(staff.name);
+
+				// 5. Query approved leave applications on target date
+				const leavesOnDate = await db
+					.select({
+						employeeId: leaveApplications.employeeId,
+						leaveTypeName: leaveTypes.name,
+					})
+					.from(leaveApplications)
+					.leftJoin(leaveTypes, eq(leaveApplications.leaveTypeId, leaveTypes.id))
+					.where(
+						and(
+							lte(leaveApplications.startDate, targetDate),
+							gte(leaveApplications.endDate, targetDate),
+							eq(leaveApplications.status, "approved"),
+						),
+					);
+
+				const leaveMap = new Map<number, string>();
+				for (const l of leavesOnDate) {
+					if (l.employeeId) {
+						leaveMap.set(l.employeeId, l.leaveTypeName || "Approved Leave");
+					}
+				}
+
+				// Weekly off check (e.g. Sunday)
+				const targetDayOfWeek = new Date(targetDate).getDay();
+				const isSunday = targetDayOfWeek === 0;
+
+				// 6. Evaluate each record using the centralized attendance engine
+				const evaluatedRecords = rows.map((r: any) => {
+					const hasLeave = r.employeeId ? leaveMap.has(r.employeeId) : false;
+					const leaveType = r.employeeId
+						? leaveMap.get(r.employeeId) || null
+						: null;
+
+					const shiftRule = {
+						name: r.shiftName || defaultShift?.name || DEFAULT_SHIFT_RULE.name,
+						startTime:
+							r.shiftStartTime ||
+							defaultShift?.startTime ||
+							DEFAULT_SHIFT_RULE.startTime,
+						endTime:
+							r.shiftEndTime ||
+							defaultShift?.endTime ||
+							DEFAULT_SHIFT_RULE.endTime,
+						graceTimeMinutes:
+							r.shiftGraceTime ??
+							defaultShift?.graceTime ??
+							DEFAULT_SHIFT_RULE.graceTimeMinutes,
+						minFullDayMinutes: DEFAULT_SHIFT_RULE.minFullDayMinutes,
+						minHalfDayMinutes: DEFAULT_SHIFT_RULE.minHalfDayMinutes,
+					};
+
+					const evalResult = evaluateAttendance({
+						date: targetDate,
+						checkIn: r.checkIn,
+						checkOut: r.checkOut,
+						breakMinutes: r.breakHours
+							? Math.round(Number(r.breakHours) * 60)
+							: 0,
+						shift: shiftRule,
+						isLeave: hasLeave,
+						leaveType,
+						isHoliday: Boolean(holiday),
+						holidayName: holiday?.name,
+						isWeeklyOff: isSunday,
+						isAdjusted: Boolean(r.isAdjusted),
+						isApproved: r.isApproved !== false,
+					});
+
+					const empCode =
+						r.staffCode ||
+						(r.employeeId ? `EMP-${r.employeeId}` : `STAFF-${r.staffId}`);
+					const checkInFmt = r.checkIn ? formatTime12h(r.checkIn) : null;
+					const checkOutFmt = r.checkOut ? formatTime12h(r.checkOut) : null;
+					const origCheckInFmt = r.originalCheckIn
+						? formatTime12h(r.originalCheckIn)
+						: null;
+					const origCheckOutFmt = r.originalCheckOut
+						? formatTime12h(r.originalCheckOut)
+						: null;
+
+					const shiftTimings = `${formatTime12h(shiftRule.startTime)} - ${formatTime12h(shiftRule.endTime)}`;
+
+					return {
+						id: r.attendanceId,
+						staffId: r.staffId,
+						employeeId: r.employeeId || r.staffId,
+						name: r.staffName,
+						emp_name: r.staffName, // reports page compatibility
+						employee_name: r.staffName, // backward compatibility
+						email: r.staffEmail,
+						employeeCode: empCode,
+						department: r.staffDepartment || "General",
+						role: r.staffRole || "Staff",
+						photoUrl: r.userImage || null, // CANONICAL PROFILE PHOTO
+						date: targetDate,
+						checkIn: r.checkIn,
+						check_in: checkInFmt, // backward compatibility
+						checkInFormatted: checkInFmt,
+						checkOut: r.checkOut,
+						check_out: checkOutFmt, // backward compatibility
+						checkOutFormatted: checkOutFmt,
+						workingMinutes: evalResult.workingMinutes,
+						workingHours: Number((evalResult.workingMinutes / 60).toFixed(2)),
+						workingHoursFormatted: evalResult.workingHoursFormatted,
+						breakHours: r.breakHours ? Number(r.breakHours) : 0,
+						status: evalResult.status,
+						statusLabel: evalResult.statusLabel,
+						dbStatus: evalResult.dbStatus,
+						isLate: evalResult.isLate,
+						lateMinutes: evalResult.lateMinutes,
+						isEarlyDeparture: evalResult.isEarlyDeparture,
+						earlyDepartureMinutes: evalResult.earlyDepartureMinutes,
+						isAdjusted: Boolean(r.isAdjusted),
+						originalCheckIn: r.originalCheckIn,
+						originalCheckInFormatted: origCheckInFmt,
+						originalCheckOut: r.originalCheckOut,
+						originalCheckOutFormatted: origCheckOutFmt,
+						adjustmentCategory: r.adjustmentCategory,
+						adjustmentReason: r.adjustmentReason,
+						adjustedBy: r.adjustedBy,
+						adjustedAt: r.adjustedAt,
+						isApproved: evalResult.isApproved,
+						shiftName: shiftRule.name,
+						shiftTimings,
+						notes: r.notes,
+					};
+				});
+
+				// Optional filter by status
+				if (input?.status && input.status !== "all") {
+					const s = input.status.toUpperCase();
+					return evaluatedRecords.filter((rec: any) => {
+						if (s === "PRESENT")
+							return (
+								rec.status === "FULL_DAY" ||
+								rec.status === "LATE" ||
+								rec.status === "EARLY_DEPARTURE"
+							);
+						if (s === "ABSENT") return rec.status === "ABSENT";
+						if (s === "LATE") return rec.isLate;
+						if (s === "HALF_DAY") return rec.status === "HALF_DAY";
+						if (s === "LEAVE") return rec.status === "LEAVE";
+						if (s === "ADJUSTED") return rec.isAdjusted;
+						if (s === "INCOMPLETE") return rec.status === "INCOMPLETE";
+						return rec.status === s;
+					});
+				}
+
+				return evaluatedRecords;
+			} catch (err) {
+				console.error("Error in getAttendanceRecords:", err);
+				return [];
+			}
+		}),
+
+	getAttendanceSummary: roleProcedure(["admin", "manager", "auditor", "hr"])
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					department: z.string().optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const targetDate = input?.date || new Date().toISOString().split("T")[0];
+			const isSuperAdmin = Boolean(
+				ctx.user.isSuperadmin ||
+					(ctx.user as any).role === "super_admin" ||
+					(ctx.user as any).roles?.includes("super_admin"),
+			);
+			const effectiveBranchId = isSuperAdmin
+				? input?.branch_id
+				: ctx.user.branchId
+					? Number(ctx.user.branchId)
+					: input?.branch_id;
+
+			const conditions = [eq(staff.is_deleted, false)];
+			if (effectiveBranchId != null) {
+				conditions.push(eq(staff.branch_id, effectiveBranchId));
+			}
+			if (input?.department && input.department !== "all") {
+				conditions.push(eq(staff.department, input.department));
+			}
+
+			const staffList = await db
+				.select({ id: staff.id, email: staff.email })
+				.from(staff)
+				.where(and(...conditions));
+
+			const totalStaff = staffList.length;
+
+			const attRows = await db
+				.select({
+					id: enhancedAttendance.id,
+					status: enhancedAttendance.status,
+					lateMinutes: enhancedAttendance.lateMinutes,
+					earlyExitMinutes: enhancedAttendance.earlyExitMinutes,
+					checkIn: enhancedAttendance.checkIn,
+					checkOut: enhancedAttendance.checkOut,
+					isAdjusted: enhancedAttendance.isAdjusted,
+				})
+				.from(enhancedAttendance)
+				.where(eq(enhancedAttendance.date, targetDate));
+
+			const presentCount = attRows.filter(
+				(r: any) =>
+					r.status === "present" ||
+					r.status === "half_day" ||
+					r.status === "late",
+			).length;
+			const lateCount = attRows.filter(
+				(r: any) => (r.lateMinutes && r.lateMinutes > 0) || r.status === "late",
+			).length;
+			const halfDayCount = attRows.filter((r: any) => r.status === "half_day").length;
+			const leaveCount = attRows.filter((r: any) => r.status === "leave").length;
+			const adjustedCount = attRows.filter((r: any) => r.isAdjusted).length;
+			const incompleteCount = attRows.filter(
+				(r: any) => r.checkIn && !r.checkOut,
+			).length;
+			const absentCount = Math.max(0, totalStaff - presentCount - leaveCount);
+
+			return {
+				totalEmployees: totalStaff,
+				presentCount,
+				lateCount,
+				halfDayCount,
+				absentCount,
+				leaveCount,
+				adjustedCount,
+				incompleteCount,
+				targetDate,
+			};
+		}),
+
+	adjustAttendance: roleProcedure(["admin", "manager", "hr"])
+		.input(
+			z.object({
+				staffId: z.number(),
+				employeeId: z.number().optional(),
+				date: z.string(), // YYYY-MM-DD
+				checkIn: z.string().nullable().optional(),
+				checkOut: z.string().nullable().optional(),
+				status: z
+					.enum(["present", "half_day", "absent", "leave", "holiday", "week_off"])
+					.optional(),
+				adjustmentCategory: z.enum([
+					"biometric_malfunction",
+					"network_outage",
+					"official_duty",
+					"manager_approval",
+					"forgot_punch",
+					"system_recovery",
+					"other",
+				]),
+				adjustmentReason: z
+					.string()
+					.min(3, "Adjustment reason is mandatory (minimum 3 characters)."),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+
+			// 1. Locate staff record
+			const [staffRecord] = await db
+				.select()
+				.from(staff)
+				.where(eq(staff.id, input.staffId))
+				.limit(1);
+
+			if (!staffRecord) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Staff member not found.",
+				});
+			}
+
+			// 2. Auto-sync or find employee record to satisfy foreign key
+			let [employeeRecord] = await db
+				.select()
+				.from(employees)
+				.where(eq(employees.email, staffRecord.email))
+				.limit(1);
+
+			if (!employeeRecord) {
+				[employeeRecord] = await db
+					.insert(employees)
+					.values({
+						employeeCode: staffRecord.staff_code || `EMP-${staffRecord.id}`,
+						firstName: staffRecord.name.split(" ")[0] || "Unknown",
+						lastName:
+							staffRecord.name.split(" ").slice(1).join(" ") || "Employee",
+						email: staffRecord.email,
+						hireDate: staffRecord.join_date
+							? new Date(staffRecord.join_date).toISOString().split("T")[0]
+							: new Date().toISOString().split("T")[0],
+						status: staffRecord.status === "active" ? "active" : "inactive",
+						userUid: `sync-${staffRecord.id}`,
+					})
+					.returning();
+			}
+
+			const realEmployeeId = employeeRecord.id;
+			const approverStaffId = await resolveStaffId(db, ctx.user.email);
+
+			// 3. Find existing attendance record
+			const [existing] = await db
+				.select()
+				.from(enhancedAttendance)
+				.where(
+					and(
+						eq(enhancedAttendance.employeeId, realEmployeeId),
+						eq(enhancedAttendance.date, input.date),
+					),
+				)
+				.limit(1);
+
+			// Determine new check-in/out and calculate status engine output
+			const cleanCheckIn =
+				input.checkIn !== undefined ? input.checkIn : (existing?.checkIn ?? null);
+			const cleanCheckOut =
+				input.checkOut !== undefined
+					? input.checkOut
+					: (existing?.checkOut ?? null);
+
+			const evalResult = evaluateAttendance({
+				date: input.date,
+				checkIn: cleanCheckIn,
+				checkOut: cleanCheckOut,
+				isAdjusted: true,
+			});
+
+			const finalDbStatus = input.status || evalResult.dbStatus;
+			const workingHours = (evalResult.workingMinutes / 60).toFixed(2);
+
+			let updatedRow: any;
+
+			if (existing) {
+				// Preserve original punches immutably
+				const originalCheckIn = existing.originalCheckIn || existing.checkIn;
+				const originalCheckOut = existing.originalCheckOut || existing.checkOut;
+
+				[updatedRow] = await db
+					.update(enhancedAttendance)
+					.set({
+						checkIn: cleanCheckIn,
+						checkOut: cleanCheckOut,
+						originalCheckIn,
+						originalCheckOut,
+						isAdjusted: true,
+						adjustmentCategory: input.adjustmentCategory,
+						adjustmentReason: input.adjustmentReason,
+						adjustedBy: realEmployeeId,
+						adjustedAt: new Date(),
+						status: finalDbStatus,
+						workingHours,
+						lateMinutes: evalResult.lateMinutes,
+						earlyExitMinutes: evalResult.earlyDepartureMinutes,
+						notes: `Adjusted by ${ctx.user.name || ctx.user.email} (${input.adjustmentCategory}): ${input.adjustmentReason}`,
+						isApproved: true,
+						updatedAt: new Date(),
+					})
+					.where(eq(enhancedAttendance.id, existing.id))
+					.returning();
+
+				// Write immutable audit log
+				await logAudit(db, {
+					userId: approverStaffId,
+					action: "ATTENDANCE_MANUAL_ADJUSTMENT",
+					entityType: "enhanced_attendance",
+					entityId: existing.id,
+					oldValues: {
+						checkIn: existing.checkIn,
+						checkOut: existing.checkOut,
+						status: existing.status,
+						isAdjusted: existing.isAdjusted,
+					},
+					newValues: {
+						checkIn: cleanCheckIn,
+						checkOut: cleanCheckOut,
+						status: finalDbStatus,
+						adjustmentCategory: input.adjustmentCategory,
+						adjustmentReason: input.adjustmentReason,
+						adjustedBy: ctx.user.email,
+						adjustedAt: new Date().toISOString(),
+					},
+				});
+			} else {
+				// Missing check-in / system failure case: create new record
+				[updatedRow] = await db
+					.insert(enhancedAttendance)
+					.values({
+						employeeId: realEmployeeId,
+						branchId: staffRecord.branch_id || ctx.user.branchId || 1,
+						date: input.date,
+						checkIn: cleanCheckIn,
+						checkOut: cleanCheckOut,
+						originalCheckIn: null,
+						originalCheckOut: null,
+						isAdjusted: true,
+						adjustmentCategory: input.adjustmentCategory,
+						adjustmentReason: input.adjustmentReason,
+						adjustedBy: realEmployeeId,
+						adjustedAt: new Date(),
+						status: finalDbStatus,
+						workingHours,
+						breakHours: "0",
+						lateMinutes: evalResult.lateMinutes,
+						earlyExitMinutes: evalResult.earlyDepartureMinutes,
+						overtimeMinutes: 0,
+						riskScore: 0,
+						isApproved: true,
+						notes: `Manual recovery by ${ctx.user.name || ctx.user.email} (${input.adjustmentCategory}): ${input.adjustmentReason}`,
+					})
+					.returning();
+
+				await logAudit(db, {
+					userId: approverStaffId,
+					action: "ATTENDANCE_SYSTEM_RECOVERY_INSERT",
+					entityType: "enhanced_attendance",
+					entityId: updatedRow.id,
+					newValues: {
+						checkIn: cleanCheckIn,
+						checkOut: cleanCheckOut,
+						status: finalDbStatus,
+						adjustmentCategory: input.adjustmentCategory,
+						adjustmentReason: input.adjustmentReason,
+						adjustedBy: ctx.user.email,
+					},
+				});
+			}
+
+			return {
+				success: true,
+				attendanceId: updatedRow.id,
+				isAdjusted: true,
+				status: updatedRow.status,
+			};
+		}),
+
+	getAttendanceDetail: roleProcedure(["admin", "manager", "auditor", "hr"])
+		.input(
+			z.object({
+				attendanceId: z.number().optional(),
+				staffId: z.number().optional(),
+				date: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const targetDate = input.date || new Date().toISOString().split("T")[0];
+
+			let attendanceRow: any = null;
+			let staffRow: any = null;
+
+			if (input.attendanceId) {
+				const res = await db
+					.select()
+					.from(enhancedAttendance)
+					.where(eq(enhancedAttendance.id, input.attendanceId))
+					.limit(1);
+				attendanceRow = res[0] || null;
+			}
+
+			if (input.staffId) {
+				const res = await db
+					.select()
+					.from(staff)
+					.where(eq(staff.id, input.staffId))
+					.limit(1);
+				staffRow = res[0] || null;
+			}
+
+			if (attendanceRow && !staffRow) {
+				const [emp] = await db
+					.select()
+					.from(employees)
+					.where(eq(employees.id, attendanceRow.employeeId))
+					.limit(1);
+				if (emp) {
+					const [st] = await db
+						.select()
+						.from(staff)
+						.where(eq(staff.email, emp.email))
+						.limit(1);
+					staffRow = st || null;
+				}
+			}
+
+			// If attendanceRow is not yet found but staffId is present, query by employeeId + date
+			if (!attendanceRow && staffRow) {
+				const [emp] = await db
+					.select()
+					.from(employees)
+					.where(eq(employees.email, staffRow.email))
+					.limit(1);
+				if (emp) {
+					const [att] = await db
+						.select()
+						.from(enhancedAttendance)
+						.where(
+							and(
+								eq(enhancedAttendance.employeeId, emp.id),
+								eq(enhancedAttendance.date, targetDate),
+							),
+						)
+						.limit(1);
+					attendanceRow = att || null;
+				}
+			}
+
+			// Fetch canonical photo from user table
+			let canonicalPhoto: string | null = null;
+			if (staffRow) {
+				const [userRec] = await db
+					.select({ image: user.image })
+					.from(user)
+					.where(
+						or(
+							eq(user.email, staffRow.email),
+							eq(user.staff_id, staffRow.id),
+						),
+					)
+					.limit(1);
+				canonicalPhoto = userRec?.image || null;
+			}
+
+			// Fetch breaks if attendance exists
+			const breaks = attendanceRow
+				? await db
+						.select()
+						.from(attendanceBreaks)
+						.where(eq(attendanceBreaks.attendanceId, attendanceRow.id))
+						.orderBy(asc(attendanceBreaks.startTime))
+				: [];
+
+			// Fetch audit trail for manual corrections or adjustments
+			const auditTrail = attendanceRow
+				? await db
+						.select()
+						.from(auditLogs)
+						.where(
+							and(
+								eq(auditLogs.entity_type, "enhanced_attendance"),
+								eq(auditLogs.entity_id, attendanceRow.id),
+							),
+						)
+						.orderBy(desc(auditLogs.created_at))
+						.limit(10)
+				: [];
+
+			return {
+				staff: staffRow
+					? {
+							id: staffRow.id,
+							name: staffRow.name,
+							email: staffRow.email,
+							code: staffRow.staff_code,
+							department: staffRow.department || "General",
+							role: staffRow.role,
+							phone: staffRow.phone,
+							photoUrl: canonicalPhoto,
+						}
+					: null,
+				attendance: attendanceRow,
+				breaks,
+				auditTrail,
+			};
+		}),
+
+	getMonthlySummary: roleProcedure(["admin", "manager", "auditor", "hr"])
+		.input(
+			z.object({
+				year: z.number(),
+				month: z.number().min(1).max(12),
+				branchId: z.number().optional(),
+				department: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const isSuperAdmin = Boolean(
+				ctx.user.isSuperadmin ||
+					(ctx.user as any).role === "super_admin" ||
+					(ctx.user as any).roles?.includes("super_admin"),
+			);
+			const effectiveBranchId = isSuperAdmin
+				? input.branchId
+				: ctx.user.branchId
+					? Number(ctx.user.branchId)
+					: input.branchId;
+
+			const monthStr = String(input.month).padStart(2, "0");
+			const fromDate = `${input.year}-${monthStr}-01`;
+			const lastDay = new Date(input.year, input.month, 0).getDate();
+			const toDate = `${input.year}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
+
+			const staffConditions = [eq(staff.is_deleted, false)];
+			if (effectiveBranchId != null) {
+				staffConditions.push(eq(staff.branch_id, effectiveBranchId));
+			}
+			if (input.department && input.department !== "all") {
+				staffConditions.push(eq(staff.department, input.department));
+			}
+
+			const allStaff = await db
+				.select({
+					id: staff.id,
+					name: staff.name,
+					email: staff.email,
+					code: staff.staff_code,
+					department: staff.department,
+					photoUrl: user.image, // CANONICAL PHOTO ONLY
+				})
+				.from(staff)
+				.leftJoin(
+					user,
+					or(eq(staff.email, user.email), eq(user.staff_id, staff.id)),
+				)
+				.where(and(...staffConditions))
+				.orderBy(staff.name);
+
+			const allEmployees = await db.select().from(employees);
+			const emailToEmpMap = new Map<string, number>();
+			for (const e of allEmployees) {
+				if (e.email && e.id) emailToEmpMap.set(e.email, e.id);
+			}
+
+			// Fetch all attendance records in this month
+			const monthlyAttendance = await db
+				.select()
+				.from(enhancedAttendance)
+				.where(
+					and(
+						gte(enhancedAttendance.date, fromDate),
+						lte(enhancedAttendance.date, toDate),
+					),
+				);
+
+			// Fetch holidays in month
+			const monthlyHolidays = await db
+				.select()
+				.from(holidays)
+				.where(and(gte(holidays.date, fromDate), lte(holidays.date, toDate)));
+			const holidayDates = new Set(monthlyHolidays.map((h: any) => h.date));
+
+			// Fetch leaves in month
+			const monthlyLeaves = await db
+				.select({
+					employeeId: leaveApplications.employeeId,
+					startDate: leaveApplications.startDate,
+					endDate: leaveApplications.endDate,
+				})
+				.from(leaveApplications)
+				.where(
+					and(
+						lte(leaveApplications.startDate, toDate),
+						gte(leaveApplications.endDate, fromDate),
+						eq(leaveApplications.status, "approved"),
+					),
+				);
+
+			const todayStr = new Date().toISOString().split("T")[0];
+
+			// Group attendance by employeeId -> date -> record
+			const attMap = new Map<number, Map<string, any>>();
+			for (const att of monthlyAttendance) {
+				if (!att.employeeId) continue;
+				if (!attMap.has(att.employeeId)) attMap.set(att.employeeId, new Map());
+				attMap.get(att.employeeId)!.set(att.date, att);
+			}
+
+			const employeeSummaries = allStaff.map((st: any) => {
+				const empId = st.email ? emailToEmpMap.get(st.email) : null;
+				const empAttMap = empId ? attMap.get(empId) : null;
+
+				let presentDays = 0;
+				let halfDays = 0;
+				let lateDays = 0;
+				let absentDays = 0;
+				let leaveDays = 0;
+				let holidayDays = 0;
+				let weekOffDays = 0;
+				let incompleteDays = 0;
+				let adjustedDays = 0;
+				let totalWorkingMinutes = 0;
+
+				const dailyMatrix: Array<{
+					day: number;
+					date: string;
+					code: string;
+					statusLabel: string;
+					isAdjusted: boolean;
+				}> = [];
+
+				for (let d = 1; d <= lastDay; d++) {
+					const dateStr = `${input.year}-${monthStr}-${String(d).padStart(2, "0")}`;
+					const dayOfWeek = new Date(dateStr).getDay();
+					const isSunday = dayOfWeek === 0;
+					const isPast = dateStr <= todayStr;
+
+					const attRecord = empAttMap ? empAttMap.get(dateStr) : null;
+
+					// Check leave
+					const onLeave =
+						empId &&
+						monthlyLeaves.some(
+							(l: any) =>
+								l.employeeId === empId &&
+								l.startDate <= dateStr &&
+								l.endDate >= dateStr,
+						);
+
+					let code = "A";
+					let statusLabel = "Absent";
+					let isAdjusted = Boolean(attRecord?.isAdjusted);
+
+					if (onLeave) {
+						code = "LV";
+						statusLabel = "Leave";
+						leaveDays++;
+					} else if (holidayDates.has(dateStr)) {
+						code = "H";
+						statusLabel = "Holiday";
+						holidayDays++;
+					} else if (isSunday) {
+						code = "WO";
+						statusLabel = "Weekly Off";
+						weekOffDays++;
+					} else if (attRecord) {
+						if (attRecord.isAdjusted) adjustedDays++;
+						if (attRecord.checkIn && !attRecord.checkOut && dateStr < todayStr) {
+							code = "INC";
+							statusLabel = "Incomplete";
+							incompleteDays++;
+						} else if (
+							attRecord.status === "half_day" ||
+							(attRecord.workingHours &&
+								Number(attRecord.workingHours) >= 4 &&
+								Number(attRecord.workingHours) < 8)
+						) {
+							code = "HD";
+							statusLabel = "Half Day";
+							halfDays++;
+							totalWorkingMinutes += Math.round(
+								Number(attRecord.workingHours || 4) * 60,
+							);
+						} else if (
+							attRecord.status === "present" ||
+							attRecord.status === "late" ||
+							(attRecord.workingHours && Number(attRecord.workingHours) >= 8)
+						) {
+							if (
+								(attRecord.lateMinutes && attRecord.lateMinutes > 0) ||
+								attRecord.status === "late"
+							) {
+								code = "L";
+								statusLabel = "Late (Full Day)";
+								lateDays++;
+							} else {
+								code = "P";
+								statusLabel = "Present";
+							}
+							presentDays++;
+							totalWorkingMinutes += Math.round(
+								Number(attRecord.workingHours || 8) * 60,
+							);
+						} else {
+							code = "A";
+							statusLabel = "Absent";
+							if (isPast) absentDays++;
+						}
+					} else {
+						if (isPast) absentDays++;
+						code = isPast ? "A" : "-";
+						statusLabel = isPast ? "Absent" : "Upcoming";
+					}
+
+					dailyMatrix.push({
+						day: d,
+						date: dateStr,
+						code,
+						statusLabel,
+						isAdjusted,
+					});
+				}
+
+				return {
+					staffId: st.id,
+					name: st.name,
+					email: st.email,
+					code: st.code || `EMP-${st.id}`,
+					department: st.department || "General",
+					photoUrl: st.photoUrl || null, // CANONICAL PHOTO ONLY
+					totalDays: lastDay,
+					presentDays,
+					halfDays,
+					lateDays,
+					absentDays,
+					leaveDays,
+					holidayDays,
+					weekOffDays,
+					incompleteDays,
+					adjustedDays,
+					totalWorkingHoursFormatted: minutesToFormattedHours(totalWorkingMinutes),
+					dailyMatrix,
+				};
+			});
+
+			return {
+				year: input.year,
+				month: input.month,
+				daysInMonth: lastDay,
+				employeeSummaries,
+			};
+		}),
+
+	getShifts: roleProcedure(["admin", "manager", "auditor", "hr"]).query(
+		async ({ ctx }) => {
+			return await ctx.db
+				.select()
+				.from(shifts)
+				.where(eq(shifts.isActive, true))
+				.orderBy(shifts.name);
+		},
+	),
+
+	getAttendanceReports: roleProcedure(["admin", "manager", "auditor", "hr"])
+		.input(
+			z.object({
+				reportType: z.enum([
+					"daily",
+					"monthly",
+					"adjustments",
+					"exceptions",
+				]),
+				date: z.string().optional(),
+				month: z.number().optional(),
+				year: z.number().optional(),
+				branchId: z.number().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const targetDate = input.date || new Date().toISOString().split("T")[0];
+
+			if (input.reportType === "adjustments") {
+				// Query all records that have been adjusted
+				const adjustedRows = await db
 					.select({
 						id: enhancedAttendance.id,
 						date: enhancedAttendance.date,
 						checkIn: enhancedAttendance.checkIn,
 						checkOut: enhancedAttendance.checkOut,
+						originalCheckIn: enhancedAttendance.originalCheckIn,
+						originalCheckOut: enhancedAttendance.originalCheckOut,
+						adjustmentCategory: enhancedAttendance.adjustmentCategory,
+						adjustmentReason: enhancedAttendance.adjustmentReason,
+						adjustedAt: enhancedAttendance.adjustedAt,
 						status: enhancedAttendance.status,
 						notes: enhancedAttendance.notes,
-						empFirstName: employees.firstName,
-						empLastName: employees.lastName,
 						staffName: staff.name,
+						staffCode: staff.staff_code,
+						department: staff.department,
 					})
 					.from(enhancedAttendance)
-					.leftJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
-					.leftJoin(staff, eq(employees.email, staff.email));
+					.innerJoin(
+						employees,
+						eq(enhancedAttendance.employeeId, employees.id),
+					)
+					.innerJoin(staff, eq(employees.email, staff.email))
+					.where(eq(enhancedAttendance.isAdjusted, true))
+					.orderBy(desc(enhancedAttendance.adjustedAt))
+					.limit(500);
 
-				if (input?.branch_id) {
-					query = query.where(
-						or(
-							eq(enhancedAttendance.branchId, input.branch_id),
-							eq(staff.branch_id, input.branch_id),
-						),
-					);
-				} else if (ctx.user.branchId) {
-					query = query.where(
-						or(
-							eq(enhancedAttendance.branchId, ctx.user.branchId),
-							eq(staff.branch_id, ctx.user.branchId),
-						),
-					);
-				}
-
-				if (input?.date) {
-					query = query.where(eq(enhancedAttendance.date, input.date));
-				}
-
-				const results = await query
-					.orderBy(desc(enhancedAttendance.date), desc(enhancedAttendance.id))
-					.limit(100);
-
-				return results.map((r) => {
-					let checkInStr = "N/A";
-					let checkOutStr = "N/A";
-
-					if (r.checkIn) {
-						try {
-							const d = r.date || new Date().toISOString().split("T")[0];
-							const dt = new Date(`${d}T${r.checkIn}`);
-							if (!isNaN(dt.getTime())) {
-								checkInStr = dt.toLocaleTimeString([], {
-									hour: "2-digit",
-									minute: "2-digit",
-								});
-							} else {
-								checkInStr = String(r.checkIn);
-							}
-						} catch {
-							checkInStr = String(r.checkIn);
-						}
-					}
-
-					if (r.checkOut) {
-						try {
-							const d = r.date || new Date().toISOString().split("T")[0];
-							const dt = new Date(`${d}T${r.checkOut}`);
-							if (!isNaN(dt.getTime())) {
-								checkOutStr = dt.toLocaleTimeString([], {
-									hour: "2-digit",
-									minute: "2-digit",
-								});
-							} else {
-								checkOutStr = String(r.checkOut);
-							}
-						} catch {
-							checkOutStr = String(r.checkOut);
-						}
-					}
-
-					const empName =
-						[r.empFirstName, r.empLastName].filter(Boolean).join(" ") ||
-						r.staffName ||
-						`Staff Member #${r.id}`;
-
-					return {
+				return {
+					type: "adjustments",
+					title: "Attendance Adjustments & System Recovery Audit Report",
+					rows: adjustedRows.map((r: any) => ({
 						id: r.id,
-						date: r.date
-							? new Date(r.date).toLocaleDateString()
-							: new Date().toLocaleDateString(),
-						employee_name: empName,
-						check_in: checkInStr,
-						check_out: checkOutStr,
-						status: r.status || "present",
-					};
-				});
-			} catch (err) {
-				console.error("Error in getAttendanceRecords:", err);
-				return [];
+						name: r.staffName,
+						code: r.staffCode,
+						department: r.department,
+						date: r.date,
+						originalCheckIn: formatTime12h(r.originalCheckIn),
+						originalCheckOut: formatTime12h(r.originalCheckOut),
+						adjustedCheckIn: formatTime12h(r.checkIn),
+						adjustedCheckOut: formatTime12h(r.checkOut),
+						category: r.adjustmentCategory || "N/A",
+						reason: r.adjustmentReason || "N/A",
+						status: r.status,
+						adjustedAt: r.adjustedAt
+							? new Date(r.adjustedAt).toLocaleString()
+							: "N/A",
+					})),
+				};
 			}
+
+			if (input.reportType === "exceptions") {
+				// Query missing check-outs
+				const exceptions = await db
+					.select({
+						id: enhancedAttendance.id,
+						date: enhancedAttendance.date,
+						checkIn: enhancedAttendance.checkIn,
+						staffName: staff.name,
+						staffCode: staff.staff_code,
+						department: staff.department,
+						status: enhancedAttendance.status,
+					})
+					.from(enhancedAttendance)
+					.innerJoin(
+						employees,
+						eq(enhancedAttendance.employeeId, employees.id),
+					)
+					.innerJoin(staff, eq(employees.email, staff.email))
+					.where(
+						and(
+							isNull(enhancedAttendance.checkOut),
+							lte(enhancedAttendance.date, targetDate),
+						),
+					)
+					.orderBy(desc(enhancedAttendance.date))
+					.limit(200);
+
+				return {
+					type: "exceptions",
+					title: "Missing Check-Out & Anomaly Exceptions Report",
+					rows: exceptions.map((e: any) => ({
+						id: e.id,
+						name: e.staffName,
+						code: e.staffCode,
+						department: e.department,
+						date: e.date,
+						checkIn: formatTime12h(e.checkIn),
+						issue: "Missing Check-out Punch",
+						status: e.status,
+					})),
+				};
+			}
+
+			// Default: Daily register
+			return {
+				type: "daily",
+				title: `Daily Attendance Roll Report (${targetDate})`,
+				date: targetDate,
+			};
 		}),
 
 	markEmployeeOff: roleProcedure(["admin", "manager", "hr"])
@@ -725,13 +1711,14 @@ export const hrRouter = router({
 				.insert(enhancedAttendance)
 				.values({
 					employeeId: realEmployeeId,
+					branchId: staffRecord.branch_id || ctx.user.branchId || 1,
 					date: input.date,
 					status: input.status,
 					notes: input.reason || `Marked ${input.status} by HR`,
 					checkIn: null,
 					checkOut: null,
-					workingHours: 0,
-					breakHours: 0,
+					workingHours: "0",
+					breakHours: "0",
 					lateMinutes: 0,
 					earlyExitMinutes: 0,
 					overtimeMinutes: 0,

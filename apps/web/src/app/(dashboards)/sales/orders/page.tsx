@@ -108,6 +108,7 @@ export default function OrdersPage() {
 		cancel: { en: "Cancel", hi: "रद्द करें" },
 		save: { en: "Save Changes", hi: "सहेजें" },
 		totalRequired: { en: "Total amount is required", hi: "कुल राशि आवश्यक है" },
+		orderId: { en: "Order / Bill / Invoice #", hi: "ऑर्डर / बिल / इनवॉइस #" },
 	};
 
 	const tc = (key: string) => {
@@ -162,7 +163,19 @@ export default function OrdersPage() {
 	];
 
 	const tableColumns: Column<Order>[] = [
-		{ key: "id", header: t("orderId"), sortable: true },
+		{
+			key: "id",
+			header: t("orderId"),
+			sortable: true,
+			render: (row) => (
+				<div className="flex flex-col">
+					<span className="font-bold text-foreground">#{row.id}</span>
+					<span className="text-[11px] text-muted-foreground font-medium whitespace-nowrap">
+						{locale === "hi" ? "बिल & इनवॉइस: #" : "Bill & Inv: #"}{row.id}
+					</span>
+				</div>
+			),
+		},
 		{
 			key: "customer",
 			header: t("customer"),

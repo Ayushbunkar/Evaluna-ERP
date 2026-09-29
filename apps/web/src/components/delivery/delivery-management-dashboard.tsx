@@ -21,7 +21,7 @@ import {
 	TruckIcon,
 	UserIcon,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ export function DeliveryManagementDashboard({
 	initialTrips,
 }: DeliveryManagementDashboardProps) {
 	const t = useTranslations("manager");
+	const locale = useLocale();
 	const [activeTab, setActiveTab] = useState("overview");
 
 	const { data: routes = initialRoutes, refetch: refetchRoutes } =

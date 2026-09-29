@@ -6,10 +6,12 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Edit3,
+	IndianRupee,
 	Info,
 	Loader2,
 	MapPin,
 	Minus,
+	PauseCircle,
 	Percent,
 	Plus,
 	PlusCircle,
@@ -322,8 +324,13 @@ function POSContent() {
 	const [tempCustomExtraReason, setTempCustomExtraReason] = useState<string>("");
 	const checkingOutRef = useRef(false);
 
-	// Summary Breakdown Accordion toggle state
-	const [showSummaryDetails, setShowSummaryDetails] = useState<boolean>(true);
+	// Summary Breakdown Accordion toggle state (collapsed on mobile by default to maximize space for items)
+	const [showSummaryDetails, setShowSummaryDetails] = useState<boolean>(() => {
+		if (typeof window !== "undefined") {
+			return window.innerWidth >= 768;
+		}
+		return true;
+	});
 
 	// Product Details Modal state
 	const [detailsProduct, setDetailsProduct] = useState<any | null>(null);
@@ -449,7 +456,7 @@ function POSContent() {
 			utils.cashbook.getDailySummary.invalidate();
 
 			if (resumeId) {
-				deleteHoldBillMutation.mutate({ id: Number(resumeId) });
+				window.history.replaceState({}, "", "/sales/pos");
 			}
 		},
 		onError: (err) => {
@@ -806,6 +813,7 @@ function POSContent() {
 		checkingOutRef.current = true;
 		setLastPayments(payments);
 		checkoutMutation.mutate({
+			existingOrderId: resumeId ? Number(resumeId) : undefined,
 			customerId: customer?.customerId,
 			items: cart.map((c) => ({
 				productId: c.id,
@@ -933,7 +941,7 @@ function POSContent() {
 	}
 
 	return (
-		<PageTransition className="flex h-[calc(100vh-64px)] flex-col overflow-hidden bg-muted/40 md:flex-row">
+		<PageTransition className="flex h-[calc(100dvh-72px)] md:h-full w-full flex-col overflow-hidden bg-muted/40 md:flex-row rounded-lg">
 			{/* Mobile View Mode Switcher */}
 			<div className="flex shrink-0 items-center justify-between border-b bg-background p-2 md:hidden">
 				<div className="flex w-full rounded-lg bg-muted p-1">
@@ -967,7 +975,7 @@ function POSContent() {
 
 			{/* Left Pane - Catalog */}
 			<div
-				className={`min-h-0 flex-1 flex-col border-r p-3 sm:p-4 ${
+				className={`min-h-0 flex-1 flex-col border-r p-2.5 sm:p-4 overflow-hidden ${
 					activeMobileTab === "catalog" ? "flex" : "hidden md:flex"
 				}`}
 			>
@@ -1113,8 +1121,8 @@ function POSContent() {
 							</p>
 						</div>
 					) : (
-						<StaggerList className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4">
-							{filteredCatalog.map((product) => {
+						<StaggerList className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4 pb-20 md:pb-2">
+							{filteredCatalog.map((product: any) => {
 								const cartItem = cart.find((item) => item.id === product.id);
 								const isInCart = Boolean(cartItem);
 								const cartQty = cartItem ? cartItem.qty : 0;
@@ -1301,11 +1309,75 @@ function POSContent() {
 						</StaggerList>
 					)}
 				</ScrollArea>
+
+				{/* Permanent Mobile Action Bar (Catalog View) */}
+				{activeMobileTab === "catalog" && (
+					<div className="shrink-0 border-t bg-background/95 backdrop-blur-md p-2.5 shadow-lg md:hidden z-20">
+						<div className="flex items-center justify-between gap-2">
+							{/* Cart total & item count preview with link to Cart tab */}
+							<button
+								type="button"
+								onClick={() => setActiveMobileTab("cart")}
+								className="flex flex-col text-left pl-1 cursor-pointer group flex-1 min-w-0"
+								title="View Cart"
+							>
+								<div className="flex items-center gap-1.5">
+									<span className="font-extrabold text-base text-foreground">
+										₹{total.toFixed(2)}
+									</span>
+									{cart.length > 0 && (
+										<span className="rounded-full bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+											{totalCartQuantity} {locale === "hi" ? "पीस" : "pcs"}
+										</span>
+									)}
+								</div>
+								<span className="text-[11px] text-muted-foreground truncate group-hover:text-primary transition-colors">
+									{cart.length === 0
+										? (locale === "hi" ? "कार्ट खाली है" : "Cart is empty")
+										: `${cart.length} ${cart.length === 1 ? (locale === "hi" ? "आइटम" : "item") : (locale === "hi" ? "आइटम्स" : "items")} • ${locale === "hi" ? "ऑर्डर देखें" : "View Order"} →`}
+								</span>
+							</button>
+
+							{/* Action Buttons: Hold Bill & Pay Now */}
+							<div className="flex items-center gap-1.5 shrink-0">
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-9 px-2.5 text-xs font-semibold border-amber-300 bg-amber-50/60 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+									onClick={() => {
+										suspendMutation.mutate({
+											items: cart,
+											total: total.toString(),
+											discountAmount: discountValue > 0 ? String(discountValue) : undefined,
+											discountReason: discountReason || undefined,
+											otherCharges: extraChargesValue > 0 ? String(extraChargesValue) : undefined,
+											otherChargesReason: extraChargesReason || undefined,
+										} as any);
+									}}
+									disabled={cart.length === 0 || suspendMutation.isPending}
+								>
+									<PauseCircle className="mr-1 h-3.5 w-3.5 text-amber-600" />
+									{suspendMutation.isPending ? t.holding : t.holdBill}
+								</Button>
+
+								<Button
+									size="sm"
+									className="h-9 px-3.5 text-xs font-bold bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+									onClick={handleCheckout}
+									disabled={cart.length === 0 || checkoutMutation.isPending}
+								>
+									<IndianRupee className="mr-1 h-3.5 w-3.5" />
+									{checkoutMutation.isPending ? t.processing : t.payNow}
+								</Button>
+							</div>
+						</div>
+					</div>
+				)}
 			</div>
 
 			{/* Right Pane - Cart */}
 			<div
-				className={`z-10 min-h-0 w-full shrink-0 flex-col bg-background p-3 shadow-xl sm:p-4 md:w-[350px] lg:w-[400px] ${
+				className={`z-10 min-h-0 w-full flex-1 flex-col overflow-hidden bg-background p-2.5 sm:p-4 shadow-xl md:w-[350px] lg:w-[400px] md:h-full md:flex-initial ${
 					activeMobileTab === "cart" ? "flex" : "hidden md:flex"
 				}`}
 			>
@@ -1396,7 +1468,7 @@ function POSContent() {
 					</div>
 				)}
 
-				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 bg-muted/20 p-4">
+				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 bg-muted/20 p-2 sm:p-4 rounded-lg overflow-y-auto overscroll-contain">
 					<AnimatePresence>
 						{cart.length === 0 ? (
 							<motion.div
@@ -1410,7 +1482,7 @@ function POSContent() {
 								<p className="text-xs">{t.scanHint}</p>
 							</motion.div>
 						) : (
-							<div className="space-y-3 pr-4">
+							<div className="space-y-2.5 pr-1.5 sm:pr-4 pb-4 touch-pan-y">
 								{cart.map((item, index) => (
 									<motion.div
 										key={item.id}
@@ -1503,7 +1575,7 @@ function POSContent() {
 				</ScrollArea>
 
 				{/* Cart Bottom Summary Block with Floating Border Toggle */}
-				<div className="relative mt-2 shrink-0 border-t p-4 pt-4">
+				<div className="relative mt-auto shrink-0 border-t bg-background p-3 pt-3.5 sm:p-4 z-10 shadow-lg sm:shadow-none">
 					{/* Circular Toggle Button positioned right on the top border line */}
 					<button
 						type="button"
@@ -1657,7 +1729,7 @@ function POSContent() {
 						<Button
 							variant="secondary"
 							size="lg"
-							className="w-full"
+							className="w-full text-xs sm:text-base font-semibold border border-amber-300/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
 							onClick={() => {
 								suspendMutation.mutate({
 									items: cart,
@@ -1670,14 +1742,16 @@ function POSContent() {
 							}}
 							disabled={cart.length === 0 || suspendMutation.isPending}
 						>
+							<PauseCircle className="mr-1.5 h-4 w-4 text-amber-600 shrink-0" />
 							{suspendMutation.isPending ? t.holding : t.holdBill}
 						</Button>
 						<Button
 							size="lg"
-							className="w-full font-bold text-lg"
+							className="w-full font-bold text-sm sm:text-lg bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
 							onClick={handleCheckout}
 							disabled={cart.length === 0 || checkoutMutation.isPending}
 						>
+							<IndianRupee className="mr-1.5 h-4 w-4 shrink-0" />
 							{checkoutMutation.isPending ? t.processing : t.payNow}
 						</Button>
 					</div>

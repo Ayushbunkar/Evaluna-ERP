@@ -23,6 +23,7 @@ import {
 	CameraIcon,
 	ClockIcon,
 	CoffeeIcon,
+	Edit3Icon,
 	Loader2Icon,
 	MapPinIcon,
 	RadioIcon,
@@ -33,6 +34,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
+import { ADJUSTMENT_CATEGORIES } from "@/lib/attendance-engine";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AttendancePage() {
@@ -110,8 +112,29 @@ export default function AttendancePage() {
 		});
 	};
 
+	// Adjust Attendance Modal State
+	const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+	const [adjustTarget, setAdjustTarget] = useState<any>(null);
+	const [adjustCheckIn, setAdjustCheckIn] = useState("");
+	const [adjustCheckOut, setAdjustCheckOut] = useState("");
+	const [adjustCategory, setAdjustCategory] = useState<string>("biometric_malfunction");
+	const [adjustReason, setAdjustReason] = useState("");
+
+	const adjustMutation = trpc.hr.adjustAttendance.useMutation({
+		onSuccess: () => {
+			toast.success("Attendance adjusted successfully & audit trail logged.");
+			refetchAttendanceList();
+			setAdjustModalOpen(false);
+			setAdjustTarget(null);
+			setAdjustReason("");
+		},
+		onError: (err) => {
+			toast.error(`Adjustment failed: ${err.message}`);
+		},
+	});
+
 	// Query real attendance records
-	const { data: attendanceList = [], isLoading } =
+	const { data: attendanceList = [], isLoading, refetch: refetchAttendanceList } =
 		trpc.manager.getAttendance.useQuery();
 
 	return (
@@ -189,21 +212,46 @@ export default function AttendancePage() {
 										<th className="p-3 font-semibold">
 											{t("geofenceStatusHeader")}
 										</th>
+										<th className="p-3 font-semibold text-right">Actions</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y">
 									{attendanceList.map((att: any) => (
 										<tr key={att.id} className="hover:bg-slate-50/40">
 											<td className="p-3 font-bold text-slate-900 dark:text-slate-100">
-												<div>
-													<p className="font-bold text-slate-900 dark:text-slate-100">
-														{att.employeeName || `Staff #${att.employeeId}`}
-													</p>
-													<p className="font-mono font-normal text-[10px] text-slate-500">
-														{att.employeeEmail
-															? `${att.employeeCode} (${att.employeeEmail})`
-															: att.employeeCode}
-													</p>
+												<div className="flex items-center gap-2.5">
+													{att.photoUrl ? (
+														<img
+															src={att.photoUrl}
+															alt={att.employeeName}
+															className="h-9 w-9 rounded-full object-cover ring-2 ring-blue-500/20 shadow-2xs shrink-0"
+															loading="lazy"
+														/>
+													) : (
+														<div className="h-9 w-9 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+															{att.employeeName
+																?.split(" ")
+																.map((n: string) => n[0])
+																.slice(0, 2)
+																.join("")
+																.toUpperCase() || "ST"}
+														</div>
+													)}
+													<div>
+														<p className="font-bold text-slate-900 dark:text-slate-100">
+															{att.employeeName || `Staff #${att.employeeId}`}
+														</p>
+														<p className="font-mono font-normal text-[10px] text-slate-500">
+															{att.employeeEmail
+																? `${att.employeeCode} (${att.employeeEmail})`
+																: att.employeeCode}
+														</p>
+														{att.isAdjusted && (
+															<span className="inline-flex items-center gap-1 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 px-1.5 py-0.2 text-[9px] font-semibold mt-0.5">
+																Adjusted
+															</span>
+														)}
+													</div>
 												</div>
 											</td>
 											{/* Check-In Selfie Thumbnail */}
@@ -336,12 +384,29 @@ export default function AttendancePage() {
 													</span>
 												</div>
 											</td>
+											<td className="p-3 text-right">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => {
+														setAdjustTarget(att);
+														setAdjustCheckIn(att.checkIn || "09:30");
+														setAdjustCheckOut(att.checkOut || "18:30");
+														setAdjustCategory(att.adjustmentCategory || "biometric_malfunction");
+														setAdjustReason(att.adjustmentReason || "");
+														setAdjustModalOpen(true);
+													}}
+													className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+												>
+													<Edit3Icon className="h-3 w-3 mr-1 text-blue-600" /> Adjust
+												</Button>
+											</td>
 										</tr>
 									))}
 									{attendanceList.length === 0 && (
 										<tr>
 											<td
-												colSpan={9}
+												colSpan={10}
 												className="py-12 text-center text-slate-400 text-xs"
 											>
 												{t("noTeamCheckinsLoggedToday")}
@@ -536,6 +601,134 @@ export default function AttendancePage() {
 							)}
 						</Button>
 					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* ADJUST ATTENDANCE MODAL FOR MANAGER */}
+			<Dialog open={adjustModalOpen} onOpenChange={setAdjustModalOpen}>
+				<DialogContent className="max-w-md bg-white dark:bg-slate-900">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
+							<Edit3Icon className="h-5 w-5 text-blue-600" />
+							Adjust Staff Attendance (Manager Recovery)
+						</DialogTitle>
+						<DialogDescription className="text-xs text-slate-500">
+							Adjust punch-in, punch-out, or status due to biometric failure, network glitch, or system recovery.
+						</DialogDescription>
+					</DialogHeader>
+
+					{adjustTarget && (
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								if (!adjustReason.trim() || adjustReason.trim().length < 3) {
+									toast.error("Please provide a valid explanation (min 3 chars).");
+									return;
+								}
+								adjustMutation.mutate({
+									staffId: adjustTarget.employeeId || adjustTarget.id,
+									employeeId: adjustTarget.employeeId,
+									date: new Date().toISOString().split("T")[0],
+									checkIn: adjustCheckIn.trim() || null,
+									checkOut: adjustCheckOut.trim() || null,
+									adjustmentCategory: adjustCategory as any,
+									adjustmentReason: adjustReason.trim(),
+								});
+							}}
+							className="space-y-3.5 pt-2"
+						>
+							<div className="flex items-center gap-2.5 p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-800/60">
+								{adjustTarget.photoUrl ? (
+									<img
+										src={adjustTarget.photoUrl}
+										alt={adjustTarget.employeeName}
+										className="h-10 w-10 rounded-full object-cover ring-2 ring-blue-500/20"
+									/>
+								) : (
+									<div className="h-10 w-10 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
+										{adjustTarget.employeeName?.[0] || "S"}
+									</div>
+								)}
+								<div className="flex-1 min-w-0">
+									<h4 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+										{adjustTarget.employeeName}
+									</h4>
+									<p className="font-mono text-[10px] text-slate-500">
+										{adjustTarget.employeeCode}
+									</p>
+								</div>
+							</div>
+
+							<div className="grid grid-cols-2 gap-3">
+								<div className="space-y-1">
+									<Label className="text-xs font-semibold">Adjusted Check-In</Label>
+									<Input
+										type="time"
+										value={adjustCheckIn}
+										onChange={(e) => setAdjustCheckIn(e.target.value)}
+										className="text-xs font-mono"
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs font-semibold">Adjusted Check-Out</Label>
+									<Input
+										type="time"
+										value={adjustCheckOut}
+										onChange={(e) => setAdjustCheckOut(e.target.value)}
+										className="text-xs font-mono"
+									/>
+								</div>
+							</div>
+
+							<div className="space-y-1">
+								<Label className="text-xs font-semibold">Mandatory Reason Category *</Label>
+								<select
+									value={adjustCategory}
+									onChange={(e) => setAdjustCategory(e.target.value)}
+									className="w-full rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold"
+									required
+								>
+									{ADJUSTMENT_CATEGORIES.map((cat) => (
+										<option key={cat.value} value={cat.value}>
+											{cat.label}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div className="space-y-1">
+								<Label className="text-xs font-semibold">Manager Explanation / Note *</Label>
+								<textarea
+									value={adjustReason}
+									onChange={(e) => setAdjustReason(e.target.value)}
+									placeholder="Explain reasons for adjustment (e.g. Scanner power outage, manual punch verified)..."
+									rows={3}
+									className="w-full rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+									required
+								/>
+							</div>
+
+							<DialogFooter className="pt-2">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => setAdjustModalOpen(false)}
+									disabled={adjustMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									size="sm"
+									disabled={adjustMutation.isPending}
+									className="bg-blue-600 hover:bg-blue-700 text-white"
+								>
+									{adjustMutation.isPending ? "Saving..." : "Save Adjustment"}
+								</Button>
+							</DialogFooter>
+						</form>
+					)}
 				</DialogContent>
 			</Dialog>
 		</PageTransition>

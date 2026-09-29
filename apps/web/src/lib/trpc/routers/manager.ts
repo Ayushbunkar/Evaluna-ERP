@@ -616,6 +616,7 @@ export const managerRouter = router({
 					employeeName,
 					employeeEmail,
 					employeeCode,
+					photoUrl: usr?.image || null, // CANONICAL PROFILE PHOTO
 					checkIn: att.checkIn,
 					checkOut: att.checkOut,
 					status: activeBreak
@@ -631,6 +632,11 @@ export const managerRouter = router({
 					checkOutSelfieUrl,
 					createdAt: att.createdAt,
 					distance: att.distanceFromOffice,
+					isAdjusted: Boolean(att.isAdjusted),
+					originalCheckIn: att.originalCheckIn,
+					originalCheckOut: att.originalCheckOut,
+					adjustmentCategory: att.adjustmentCategory,
+					adjustmentReason: att.adjustmentReason,
 				};
 			});
 
@@ -641,12 +647,8 @@ export const managerRouter = router({
 				employeeName: `Staff #${l.employeeId}`,
 				employeeEmail: "",
 				employeeCode: `STAFF-${l.employeeId}`,
-				checkIn: l.checkInTime
-					? new Date(l.checkInTime).toLocaleTimeString()
-					: null,
-				checkOut: l.checkOutTime
-					? new Date(l.checkOutTime).toLocaleTimeString()
-					: null,
+				checkIn: l.checkIn || null,
+				checkOut: l.checkOut || null,
 				status: l.status || "present",
 				breakMinutes: 0,
 				breakCount: 0,

@@ -687,7 +687,7 @@ export function AppLayout({
 				</main>
 			</div>
 
-			<ChatWidget />
+			{!pathname?.includes("/pos") && <ChatWidget />}
 		</div>
 	);
 }

@@ -95,6 +95,7 @@ export const posRouter = router({
 		.input(
 			z.object({
 				customerId: z.number().optional(),
+				existingOrderId: z.number().optional(),
 				items: z.array(
 					z.object({
 						productId: z.number(),
@@ -137,25 +138,57 @@ export const posRouter = router({
 					? new Date(`${input.customBillDate}T12:00:00.000Z`)
 					: undefined;
 
-				// 1. Create Order
-				const [order] = await tx
-					.insert(orders)
-					.values({
-						customer_id: input.customerId,
-						total_amount: total.toString(),
-						discount_amount: discount.toString(),
-						discount_reason: input.discountReason,
-						other_charges: extra.toString(),
-						other_charges_reason: input.otherChargesReason,
-						coupon_id: input.couponId,
-						is_offline_sync: input.isOfflineSync,
-						user_uid: userId,
-						branch_id: effectiveBranchId,
-						status,
-						finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
-						created_at: createdAtDate,
-					})
-					.returning();
+				// 1. Create or Update Order (preserving sequential order ID if resuming held bill)
+				let order: any;
+				if (input.existingOrderId) {
+					await tx
+						.delete(orderItems)
+						.where(eq(orderItems.order_id, input.existingOrderId));
+					await tx
+						.delete(pickLists)
+						.where(eq(pickLists.order_id, input.existingOrderId));
+
+					const [updated] = await tx
+						.update(orders)
+						.set({
+							customer_id: input.customerId,
+							total_amount: total.toString(),
+							discount_amount: discount.toString(),
+							discount_reason: input.discountReason,
+							other_charges: extra.toString(),
+							other_charges_reason: input.otherChargesReason,
+							coupon_id: input.couponId,
+							is_offline_sync: input.isOfflineSync,
+							user_uid: userId,
+							branch_id: effectiveBranchId,
+							status,
+							finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
+							created_at: createdAtDate || new Date(),
+						})
+						.where(eq(orders.id, input.existingOrderId))
+						.returning();
+					order = updated;
+				} else {
+					const [created] = await tx
+						.insert(orders)
+						.values({
+							customer_id: input.customerId,
+							total_amount: total.toString(),
+							discount_amount: discount.toString(),
+							discount_reason: input.discountReason,
+							other_charges: extra.toString(),
+							other_charges_reason: input.otherChargesReason,
+							coupon_id: input.couponId,
+							is_offline_sync: input.isOfflineSync,
+							user_uid: userId,
+							branch_id: effectiveBranchId,
+							status,
+							finance_status: input.payments && input.payments.length > 0 ? "paid" : "pending",
+							created_at: createdAtDate,
+						})
+						.returning();
+					order = created;
+				}
 
 				// 2. Batch insert Order Items
 				const itemsToInsert = input.items.map((item) => ({
