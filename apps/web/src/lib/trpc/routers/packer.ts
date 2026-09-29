@@ -15,7 +15,7 @@ import {
 	user,
 	vehicles,
 } from "@evaluna/db/schema";
-import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { dispatchNotification } from "@/lib/notification-service";
 import { roleProcedure, router } from "../init";
@@ -544,19 +544,36 @@ export const packerRouter = router({
 		.query(async ({ ctx, input }) => {
 			const conditions = [];
 
-			if (input?.startDate) {
-				const fromDate = new Date(input.startDate);
-				fromDate.setHours(0, 0, 0, 0);
-				conditions.push(
-					sql`COALESCE(${packages.packed_at}, ${packages.created_at}) >= ${fromDate}`,
-				);
-			}
+			const fromDate = input?.startDate ? new Date(input.startDate) : null;
+			if (fromDate) fromDate.setHours(0, 0, 0, 0);
 
-			if (input?.endDate) {
-				const toDate = new Date(input.endDate);
-				toDate.setHours(23, 59, 59, 999);
+			const toDate = input?.endDate ? new Date(input.endDate) : null;
+			if (toDate) toDate.setHours(23, 59, 59, 999);
+
+			if (fromDate && toDate) {
 				conditions.push(
-					sql`COALESCE(${packages.packed_at}, ${packages.created_at}) <= ${toDate}`,
+					or(
+						and(gte(packages.packed_at, fromDate), lte(packages.packed_at, toDate)),
+						and(
+							isNull(packages.packed_at),
+							gte(packages.created_at, fromDate),
+							lte(packages.created_at, toDate),
+						),
+					),
+				);
+			} else if (fromDate) {
+				conditions.push(
+					or(
+						gte(packages.packed_at, fromDate),
+						and(isNull(packages.packed_at), gte(packages.created_at, fromDate)),
+					),
+				);
+			} else if (toDate) {
+				conditions.push(
+					or(
+						lte(packages.packed_at, toDate),
+						and(isNull(packages.packed_at), lte(packages.created_at, toDate)),
+					),
 				);
 			}
 

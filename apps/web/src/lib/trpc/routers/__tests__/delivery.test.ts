@@ -504,7 +504,7 @@ describe("delivery router core functionality", () => {
 			});
 			expect(returnItems).toHaveLength(1);
 			expect(returnItems[0].product_id).toBe(1);
-			expect(returnItems[0].quantity).toBe(1);
+			expect(Number(returnItems[0].quantity)).toBe(1);
 			expect(returnItems[0].reason).toBe("Damaged in transit");
 
 			// Verify stop was marked as partially delivered

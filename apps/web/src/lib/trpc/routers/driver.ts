@@ -7,7 +7,7 @@ import {
 	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -524,7 +524,26 @@ export const driverRouter = router({
 						}),
 					customerIds.length > 0
 						? db.query.orders.findMany({
-								where: inArray(orders.customer_id, customerIds),
+								where: and(
+									inArray(orders.customer_id, customerIds),
+									inArray(orders.status, [
+										"ready_for_dispatch",
+										"ready_for_loading",
+										"packed",
+										"loaded",
+										"out_for_delivery",
+										"in_transit",
+										"dispatched",
+										"delivered",
+										"completed",
+										"partially_delivered",
+										"failed",
+										"returned",
+									]),
+									trip.created_at
+										? lte(orders.created_at, new Date(new Date(trip.created_at).getTime() + 120_000))
+										: undefined,
+								),
 								orderBy: [desc(orders.created_at)],
 								with: {
 									customer: true,
@@ -1059,7 +1078,23 @@ export const driverRouter = router({
 			const ordersForStops =
 				customerIds.length > 0
 					? await db.query.orders.findMany({
-							where: inArray(orders.customer_id, customerIds),
+							where: and(
+								inArray(orders.customer_id, customerIds),
+								inArray(orders.status, [
+									"ready_for_dispatch",
+									"ready_for_loading",
+									"packed",
+									"loaded",
+									"out_for_delivery",
+									"in_transit",
+									"dispatched",
+									"delivered",
+									"completed",
+									"partially_delivered",
+									"failed",
+									"returned",
+								]),
+							),
 							with: {
 								customer: true,
 								orderItems: {

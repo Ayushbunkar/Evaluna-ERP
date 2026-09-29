@@ -181,6 +181,24 @@ export const loaderRouter = router({
 
 					let tripOrders: any[] = [];
 					if (customerIds.length > 0) {
+						const tripCreatedAtBuffer = t.createdAt
+							? new Date(new Date(t.createdAt).getTime() + 120_000)
+							: null;
+
+						const orderConditions = [
+							inArray(orders.customer_id, customerIds),
+							inArray(orders.status, [
+								"ready_for_dispatch",
+								"ready_for_loading",
+								"packed",
+								"loaded",
+							]),
+						];
+
+						if (tripCreatedAtBuffer) {
+							orderConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+						}
+
 						tripOrders = await db
 							.select({
 								id: orders.id,
@@ -189,12 +207,7 @@ export const loaderRouter = router({
 								totalAmount: orders.total_amount,
 							})
 							.from(orders)
-							.where(
-								and(
-									inArray(orders.customer_id, customerIds),
-									notInArray(orders.status, ["cancelled", "completed", "delivered"]),
-								),
-							);
+							.where(and(...orderConditions));
 					}
 
 					const totalOrdersCount = tripOrders.length;
@@ -294,6 +307,24 @@ export const loaderRouter = router({
 
 			let tripOrders: any[] = [];
 			if (customerIds.length > 0) {
+				const tripCreatedAtBuffer = trip.createdAt
+					? new Date(new Date(trip.createdAt).getTime() + 120_000)
+					: null;
+
+				const orderConditions = [
+					inArray(orders.customer_id, customerIds),
+					inArray(orders.status, [
+						"ready_for_dispatch",
+						"ready_for_loading",
+						"packed",
+						"loaded",
+					]),
+				];
+
+				if (tripCreatedAtBuffer) {
+					orderConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+				}
+
 				tripOrders = await db
 					.select({
 						id: orders.id,
@@ -303,12 +334,7 @@ export const loaderRouter = router({
 						createdAt: orders.created_at,
 					})
 					.from(orders)
-					.where(
-						and(
-							inArray(orders.customer_id, customerIds),
-							notInArray(orders.status, ["cancelled", "completed", "delivered"]),
-						),
-					);
+					.where(and(...orderConditions));
 			}
 
 			const orderIds = tripOrders.map((o) => o.id);
@@ -549,15 +575,28 @@ export const loaderRouter = router({
 
 			let tripOrders: any[] = [];
 			if (customerIds.length > 0) {
+				const tripCreatedAtBuffer = trip.created_at
+					? new Date(new Date(trip.created_at).getTime() + 120_000)
+					: null;
+
+				const orderConditions = [
+					inArray(orders.customer_id, customerIds),
+					inArray(orders.status, [
+						"ready_for_dispatch",
+						"ready_for_loading",
+						"packed",
+						"loaded",
+					]),
+				];
+
+				if (tripCreatedAtBuffer) {
+					orderConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+				}
+
 				tripOrders = await db
 					.select({ id: orders.id, status: orders.status })
 					.from(orders)
-					.where(
-						and(
-							inArray(orders.customer_id, customerIds),
-							notInArray(orders.status, ["cancelled", "completed", "delivered"]),
-						),
-					);
+					.where(and(...orderConditions));
 			}
 
 			const pendingOrders = tripOrders.filter((o) => o.status !== "loaded");
@@ -642,19 +681,36 @@ export const loaderRouter = router({
 
 			const conditions = [inArray(deliveryTrips.status, ["loaded", "active", "completed"])];
 
-			if (input?.startDate) {
-				const fromDate = new Date(input.startDate);
-				fromDate.setHours(0, 0, 0, 0);
-				conditions.push(
-					sql`COALESCE(${deliveryTrips.loaded_at}, ${deliveryTrips.updated_at}, ${deliveryTrips.created_at}) >= ${fromDate}`,
-				);
-			}
+			const fromDate = input?.startDate ? new Date(input.startDate) : null;
+			if (fromDate) fromDate.setHours(0, 0, 0, 0);
 
-			if (input?.endDate) {
-				const toDate = new Date(input.endDate);
-				toDate.setHours(23, 59, 59, 999);
+			const toDate = input?.endDate ? new Date(input.endDate) : null;
+			if (toDate) toDate.setHours(23, 59, 59, 999);
+
+			if (fromDate && toDate) {
 				conditions.push(
-					sql`COALESCE(${deliveryTrips.loaded_at}, ${deliveryTrips.updated_at}, ${deliveryTrips.created_at}) <= ${toDate}`,
+					or(
+						and(gte(deliveryTrips.loaded_at, fromDate), lte(deliveryTrips.loaded_at, toDate)),
+						and(
+							isNull(deliveryTrips.loaded_at),
+							gte(deliveryTrips.created_at, fromDate),
+							lte(deliveryTrips.created_at, toDate),
+						),
+					),
+				);
+			} else if (fromDate) {
+				conditions.push(
+					or(
+						gte(deliveryTrips.loaded_at, fromDate),
+						and(isNull(deliveryTrips.loaded_at), gte(deliveryTrips.created_at, fromDate)),
+					),
+				);
+			} else if (toDate) {
+				conditions.push(
+					or(
+						lte(deliveryTrips.loaded_at, toDate),
+						and(isNull(deliveryTrips.loaded_at), lte(deliveryTrips.created_at, toDate)),
+					),
 				);
 			}
 
@@ -688,10 +744,30 @@ export const loaderRouter = router({
 
 					let ordersCount = 0;
 					if (customerIds.length > 0) {
+						const tripCreatedAtBuffer = t.createdAt
+							? new Date(new Date(t.createdAt).getTime() + 120_000)
+							: null;
+						const histConditions = [
+							inArray(orders.customer_id, customerIds),
+							inArray(orders.status, [
+								"ready_for_dispatch",
+								"ready_for_loading",
+								"packed",
+								"loaded",
+								"out_for_delivery",
+								"in_transit",
+								"dispatched",
+								"delivered",
+								"completed",
+							]),
+						];
+						if (tripCreatedAtBuffer) {
+							histConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+						}
 						const res = await db
 							.select({ count: count() })
 							.from(orders)
-							.where(inArray(orders.customer_id, customerIds));
+							.where(and(...histConditions));
 						ordersCount = res[0]?.count || 0;
 					}
 

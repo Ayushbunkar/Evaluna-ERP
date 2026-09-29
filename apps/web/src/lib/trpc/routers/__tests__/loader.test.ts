@@ -189,6 +189,32 @@ describe("loaderRouter", () => {
 		expect(details.summary.loadedOrders).toBe(1);
 	});
 
+	it("does not leak newly created orders for customer into an existing trip", async () => {
+		// Create a brand new order for the same customer with status 'confirmed' (as created in POS/sales)
+		// created after the trip was created
+		const futureDate = new Date(Date.now() + 1_000_000);
+		const [newBill] = await db
+			.insert(schema.orders)
+			.values({
+				customer_id: testCustomerId,
+				total_amount: "999.00",
+				status: "confirmed",
+				user_uid: "sales-1",
+				created_at: futureDate,
+			})
+			.returning();
+
+		// Check getTripLoadingDetails for testTripId does NOT include newBill
+		const details = await callerAsLoader.getTripLoadingDetails({ tripId: testTripId });
+		const orderIdsInDetails = details.stops.flatMap((s: any) => s.orders.map((o: any) => o.orderId));
+		expect(orderIdsInDetails).not.toContain(newBill.id);
+
+		// Also check that queue does not count the new bill for this trip
+		const queue = await callerAsLoader.getLoadingQueue({ status: "all" });
+		const tripInQueue = queue.find((q: any) => q.tripId === testTripId);
+		expect(tripInQueue?.ordersCount).toBe(1);
+	});
+
 	it("completes trip loading when all orders are loaded", async () => {
 		const completeRes = await callerAsLoader.completeTripLoading({
 			tripId: testTripId,
