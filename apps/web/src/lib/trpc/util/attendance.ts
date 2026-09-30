@@ -269,19 +269,55 @@ export function assertShiftTransition(
 	}
 }
 
-/** Server-authoritative date key (yyyy-mm-dd) and HH:mm:ss time string. */
-export function serverDateParts(now = new Date()) {
-	const year = now.getFullYear();
-	const month = String(now.getMonth() + 1).padStart(2, "0");
-	const day = String(now.getDate()).padStart(2, "0");
-	const hours = String(now.getHours()).padStart(2, "0");
-	const minutes = String(now.getMinutes()).padStart(2, "0");
-	const seconds = String(now.getSeconds()).padStart(2, "0");
-	return {
-		date: `${year}-${month}-${day}`,
-		time: `${hours}:${minutes}:${seconds}`,
-		now,
-	};
+/**
+ * Server-authoritative date key (yyyy-mm-dd) and HH:mm:ss time string.
+ * Formats in Indian Standard Time (Asia/Kolkata, UTC+5:30) as authoritative operations timezone.
+ */
+export function serverDateParts(
+	now = new Date(),
+	timeZone = process.env.APP_TIMEZONE || "Asia/Kolkata",
+) {
+	try {
+		const formatter = new Intl.DateTimeFormat("en-US", {
+			timeZone,
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			hour12: false,
+		});
+		const parts = formatter.formatToParts(now);
+		const p: Record<string, string> = {};
+		for (const part of parts) {
+			p[part.type] = part.value;
+		}
+		const year = p.year;
+		const month = p.month;
+		const day = p.day;
+		let hour = p.hour;
+		if (hour === "24") hour = "00";
+		const minute = p.minute;
+		const second = p.second;
+		return {
+			date: `${year}-${month}-${day}`,
+			time: `${hour}:${minute}:${second}`,
+			now,
+		};
+	} catch {
+		const year = now.getFullYear();
+		const month = String(now.getMonth() + 1).padStart(2, "0");
+		const day = String(now.getDate()).padStart(2, "0");
+		const hours = String(now.getHours()).padStart(2, "0");
+		const minutes = String(now.getMinutes()).padStart(2, "0");
+		const seconds = String(now.getSeconds()).padStart(2, "0");
+		return {
+			date: `${year}-${month}-${day}`,
+			time: `${hours}:${minutes}:${seconds}`,
+			now,
+		};
+	}
 }
 
 /**

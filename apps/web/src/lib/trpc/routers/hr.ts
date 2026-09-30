@@ -1,5 +1,6 @@
 import {
 	approvals,
+	attachments,
 	attendanceBreaks,
 	auditLogs,
 	branches,
@@ -635,6 +636,8 @@ export const hrRouter = router({
 						attendanceDate: enhancedAttendance.date,
 						checkIn: enhancedAttendance.checkIn,
 						checkOut: enhancedAttendance.checkOut,
+						checkInSelfie: enhancedAttendance.checkInSelfie,
+						checkOutSelfie: enhancedAttendance.checkOutSelfie,
 						dbStatus: enhancedAttendance.status,
 						workingHours: enhancedAttendance.workingHours,
 						breakHours: enhancedAttendance.breakHours,
@@ -682,6 +685,47 @@ export const hrRouter = router({
 					.leftJoin(shifts, eq(shifts.id, employeeShifts.shiftId))
 					.where(and(...conditions))
 					.orderBy(staff.name);
+
+				// Extract and resolve selfie attachment IDs concurrently
+				const attachmentIds = new Set<number>();
+				for (const r of rows) {
+					const checkInSelfieObj = r.checkInSelfie as any;
+					const checkOutSelfieObj = r.checkOutSelfie as any;
+					const inId =
+						typeof checkInSelfieObj === "object" && checkInSelfieObj !== null
+							? checkInSelfieObj.attachmentId || checkInSelfieObj.id || null
+							: typeof checkInSelfieObj === "number" || typeof checkInSelfieObj === "string"
+								? Number(checkInSelfieObj) || null
+								: null;
+					const outId =
+						typeof checkOutSelfieObj === "object" && checkOutSelfieObj !== null
+							? checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null
+							: typeof checkOutSelfieObj === "number" || typeof checkOutSelfieObj === "string"
+								? Number(checkOutSelfieObj) || null
+								: null;
+
+					if (inId && !Number.isNaN(inId)) attachmentIds.add(inId);
+					if (outId && !Number.isNaN(outId)) attachmentIds.add(outId);
+				}
+
+				const attachmentDataMap = new Map<number, string>();
+				if (attachmentIds.size > 0) {
+					const attachmentRecords = await db
+						.select({
+							id: attachments.id,
+							file_data: attachments.file_data,
+							mime_type: attachments.mime_type,
+						})
+						.from(attachments)
+						.where(inArray(attachments.id, Array.from(attachmentIds)));
+
+					for (const rec of attachmentRecords) {
+						if (rec.file_data) {
+							const mime = rec.mime_type || "image/jpeg";
+							attachmentDataMap.set(rec.id, `data:${mime};base64,${rec.file_data}`);
+						}
+					}
+				}
 
 				// 5. Query approved leave applications on target date
 				const leavesOnDate = await db
@@ -766,6 +810,28 @@ export const hrRouter = router({
 
 					const shiftTimings = `${formatTime12h(shiftRule.startTime)} - ${formatTime12h(shiftRule.endTime)}`;
 
+					const checkInSelfieObj = r.checkInSelfie as any;
+					const checkOutSelfieObj = r.checkOutSelfie as any;
+					const selfieAttachmentId =
+						typeof checkInSelfieObj === "object" && checkInSelfieObj !== null
+							? checkInSelfieObj.attachmentId || checkInSelfieObj.id || null
+							: typeof checkInSelfieObj === "number" || typeof checkInSelfieObj === "string"
+								? Number(checkInSelfieObj) || null
+								: null;
+					const checkOutSelfieAttachmentId =
+						typeof checkOutSelfieObj === "object" && checkOutSelfieObj !== null
+							? checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null
+							: typeof checkOutSelfieObj === "number" || typeof checkOutSelfieObj === "string"
+								? Number(checkOutSelfieObj) || null
+								: null;
+
+					const checkInSelfieUrl = selfieAttachmentId
+						? (attachmentDataMap.get(selfieAttachmentId) || `/api/attendance/attachments/${selfieAttachmentId}`)
+						: null;
+					const checkOutSelfieUrl = checkOutSelfieAttachmentId
+						? (attachmentDataMap.get(checkOutSelfieAttachmentId) || `/api/attendance/attachments/${checkOutSelfieAttachmentId}`)
+						: null;
+
 					return {
 						id: r.attendanceId,
 						staffId: r.staffId,
@@ -785,6 +851,10 @@ export const hrRouter = router({
 						checkOut: r.checkOut,
 						check_out: checkOutFmt, // backward compatibility
 						checkOutFormatted: checkOutFmt,
+						selfieAttachmentId,
+						checkOutSelfieAttachmentId,
+						checkInSelfieUrl,
+						checkOutSelfieUrl,
 						workingMinutes: evalResult.workingMinutes,
 						workingHours: Number((evalResult.workingMinutes / 60).toFixed(2)),
 						workingHoursFormatted: evalResult.workingHoursFormatted,

@@ -16,6 +16,7 @@ import { and, asc, count, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, roleProcedure, router } from "../init";
+import { serverDateParts } from "../util/attendance";
 
 export const hrmsRouter = router({
 	// Employee Management
@@ -109,8 +110,7 @@ export const hrmsRouter = router({
 				});
 			}
 
-			const today = new Date();
-			const date = today.toISOString().split("T")[0];
+			const { date, time, now } = serverDateParts();
 
 			// Check if already checked in today
 			const existing = await db.query.attendance.findFirst({
@@ -137,7 +137,7 @@ export const hrmsRouter = router({
 			const weekOff = await db.query.weekOffs.findFirst({
 				where: and(
 					eq(weekOffs.employeeId, Number(employeeId)),
-					eq(weekOffs.weekday, today.getDay()),
+					eq(weekOffs.weekday, now.getDay()),
 					sql`${weekOffs.effectiveFrom} <= ${date} AND (${weekOffs.effectiveTo} >= ${date} OR ${weekOffs.effectiveTo} IS NULL)`,
 				),
 			});
@@ -154,7 +154,7 @@ export const hrmsRouter = router({
 				.values({
 					employeeId: Number(employeeId),
 					date: date as any,
-					checkIn: today.toTimeString().split(" ")[0],
+					checkIn: time,
 					status: status as any,
 					location: input.location,
 					ipAddress: input.ipAddress,
@@ -180,13 +180,12 @@ export const hrmsRouter = router({
 				});
 			}
 
-			const today = new Date();
-			const date = today.toISOString().split("T")[0];
+			const { date, time } = serverDateParts();
 
 			const [record] = await db
 				.update(attendance)
 				.set({
-					checkOut: today.toTimeString().split(" ")[0],
+					checkOut: time,
 					location: input.location,
 				})
 				.where(

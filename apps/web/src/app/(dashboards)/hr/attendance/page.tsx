@@ -32,6 +32,8 @@ import {
 	AlertTriangleIcon,
 	CalendarIcon,
 	CalendarOffIcon,
+	CameraIcon,
+	CameraOffIcon,
 	CheckCircle2Icon,
 	ClockIcon,
 	DownloadIcon,
@@ -62,6 +64,10 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function HRAttendancePage() {
 	const trpc = useTRPC();
+	const [selectedImage, setSelectedImage] = useState<{
+		url: string;
+		title: string;
+	} | null>(null);
 
 	// ── Filter State ────────────────────────────────────────────────────────────
 	const [activeTab, setActiveTab] = useState("today");
@@ -677,45 +683,129 @@ export default function HRAttendancePage() {
 
 												{/* Check In */}
 												<TableCell>
-													<div className="text-xs font-mono">
-														{rec.checkInFormatted ? (
-															<div className="flex items-center gap-1.5">
-																<span className="font-semibold text-emerald-600">
-																	{rec.checkInFormatted}
-																</span>
-																{rec.isLate && (
-																	<Badge variant="outline" className="text-[10px] px-1 py-0 bg-orange-50 text-orange-700 border-orange-200">
-																		+{rec.lateMinutes}m Late
-																	</Badge>
-																)}
+													<div className="flex items-center gap-2">
+														{rec.checkInSelfieUrl || rec.selfieAttachmentId ? (
+															<button
+																type="button"
+																onClick={() =>
+																	setSelectedImage({
+																		url: rec.checkInSelfieUrl || `/api/attendance/attachments/${rec.selfieAttachmentId}`,
+																		title: `Check-In Selfie — ${rec.name} (${rec.checkInFormatted || ""})`,
+																	})
+																}
+																className="group relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-emerald-500 bg-emerald-50 shadow-xs hover:ring-2 hover:ring-emerald-600"
+																title="Click to view Check-In Selfie"
+															>
+																<img
+																	src={rec.checkInSelfieUrl || `/api/attendance/attachments/${rec.selfieAttachmentId}`}
+																	alt={`Check-in selfie of ${rec.name}`}
+																	className="h-full w-full object-cover"
+																	loading="lazy"
+																	onError={(e) => {
+																		const target = e.currentTarget;
+																		if (!target.dataset.retried && rec.selfieAttachmentId) {
+																			target.dataset.retried = "1";
+																			setTimeout(() => {
+																				target.src = `/api/attendance/attachments/${rec.selfieAttachmentId}?retry=1`;
+																			}, 300);
+																		}
+																	}}
+																/>
+																<div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+																	<CameraIcon className="h-3.5 w-3.5 text-white" />
+																</div>
+															</button>
+														) : rec.checkIn ? (
+															<div
+																className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400"
+																title="No check-in selfie"
+															>
+																<CameraOffIcon className="h-3.5 w-3.5" />
 															</div>
-														) : (
-															<span className="text-slate-400">--:--</span>
-														)}
+														) : null}
+
+														<div className="text-xs font-mono">
+															{rec.checkInFormatted ? (
+																<div className="flex flex-col">
+																	<span className="font-semibold text-emerald-600">
+																		{rec.checkInFormatted}
+																	</span>
+																	{rec.isLate && (
+																		<Badge variant="outline" className="text-[10px] px-1 py-0 bg-orange-50 text-orange-700 border-orange-200 w-fit mt-0.5">
+																			+{rec.lateMinutes}m Late
+																		</Badge>
+																	)}
+																</div>
+															) : (
+																<span className="text-slate-400">--:--</span>
+															)}
+														</div>
 													</div>
 												</TableCell>
 
 												{/* Check Out */}
 												<TableCell>
-													<div className="text-xs font-mono">
-														{rec.checkOutFormatted ? (
-															<div className="flex items-center gap-1.5">
-																<span className="font-semibold text-slate-800 dark:text-slate-200">
-																	{rec.checkOutFormatted}
-																</span>
-																{rec.isEarlyDeparture && (
-																	<Badge variant="outline" className="text-[10px] px-1 py-0 bg-indigo-50 text-indigo-700 border-indigo-200">
-																		-{rec.earlyDepartureMinutes}m Early
-																	</Badge>
-																)}
+													<div className="flex items-center gap-2">
+														{rec.checkOutSelfieUrl || rec.checkOutSelfieAttachmentId ? (
+															<button
+																type="button"
+																onClick={() =>
+																	setSelectedImage({
+																		url: rec.checkOutSelfieUrl || `/api/attendance/attachments/${rec.checkOutSelfieAttachmentId}`,
+																		title: `Check-Out Selfie — ${rec.name} (${rec.checkOutFormatted || ""})`,
+																	})
+																}
+																className="group relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-orange-500 bg-orange-50 shadow-xs hover:ring-2 hover:ring-orange-600"
+																title="Click to view Check-Out Selfie"
+															>
+																<img
+																	src={rec.checkOutSelfieUrl || `/api/attendance/attachments/${rec.checkOutSelfieAttachmentId}`}
+																	alt={`Check-out selfie of ${rec.name}`}
+																	className="h-full w-full object-cover"
+																	loading="lazy"
+																	onError={(e) => {
+																		const target = e.currentTarget;
+																		if (!target.dataset.retried && rec.checkOutSelfieAttachmentId) {
+																			target.dataset.retried = "1";
+																			setTimeout(() => {
+																				target.src = `/api/attendance/attachments/${rec.checkOutSelfieAttachmentId}?retry=1`;
+																			}, 300);
+																		}
+																	}}
+																/>
+																<div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+																	<CameraIcon className="h-3.5 w-3.5 text-white" />
+																</div>
+															</button>
+														) : rec.checkOut ? (
+															<div
+																className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400"
+																title="No check-out selfie"
+															>
+																<CameraOffIcon className="h-3.5 w-3.5" />
 															</div>
-														) : rec.checkIn ? (
-															<Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-rose-50 text-rose-700 border-rose-200 font-sans">
-																Missing Out
-															</Badge>
-														) : (
-															<span className="text-slate-400">--:--</span>
-														)}
+														) : null}
+
+														<div className="text-xs font-mono">
+															{rec.checkOutFormatted ? (
+																<div className="flex flex-col">
+																	<span className="font-semibold text-slate-800 dark:text-slate-200">
+																		{rec.checkOutFormatted}
+																	</span>
+																	{rec.isEarlyDeparture && (
+																		<Badge variant="outline" className="text-[10px] px-1 py-0 bg-indigo-50 text-indigo-700 border-indigo-200 w-fit mt-0.5">
+																			-{rec.earlyDepartureMinutes}m Early
+																		</Badge>
+																	)}
+																</div>
+															) : rec.checkIn ? (
+																<Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-rose-50 text-rose-700 border-rose-200 font-sans">
+																	Missing Out
+																</Badge>
+															) : (
+																<span className="text-slate-400">--:--</span>
+															)}
+														</div>
 													</div>
 												</TableCell>
 
@@ -1496,6 +1586,30 @@ export default function HRAttendancePage() {
 							</Button>
 						</DialogFooter>
 					</form>
+				</DialogContent>
+			</Dialog>
+
+			{/* Modal Preview for Live Selfie Image */}
+			<Dialog
+				open={!!selectedImage}
+				onOpenChange={() => setSelectedImage(null)}
+			>
+				<DialogContent className="max-w-lg">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 font-bold text-base">
+							<CameraIcon className="h-5 w-5 text-blue-600" />
+							{selectedImage?.title}
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col items-center justify-center p-2">
+						{selectedImage && (
+							<img
+								src={selectedImage.url}
+								alt="Live Attendance Selfie"
+								className="max-h-[450px] w-auto rounded-xl border border-slate-200 object-contain shadow-md"
+							/>
+						)}
+					</div>
 				</DialogContent>
 			</Dialog>
 		</PageTransition>

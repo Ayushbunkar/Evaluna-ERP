@@ -18,7 +18,6 @@ import {
 	DialogTitle,
 } from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
-import { Label } from "@evaluna/ui/components/label";
 import {
 	CameraIcon,
 	ClockIcon,
@@ -30,20 +29,36 @@ import {
 	ShieldCheckIcon,
 	UserIcon,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	DateFilterBar,
+	formatDateDisplay,
+	getTodayStr,
+} from "@/components/shared/filters/date-filter-bar";
 import { PageTransition } from "@/lib/animations";
-import { ADJUSTMENT_CATEGORIES } from "@/lib/attendance-engine";
+import { ADJUSTMENT_CATEGORIES, formatTime12h } from "@/lib/attendance-engine";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function AttendancePage() {
 	const t = useTranslations("manager");
+	let locale = "en";
+	try {
+		locale = useLocale();
+	} catch {
+		locale = "en";
+	}
 	const trpc = useTRPC();
 	const [selectedImage, setSelectedImage] = useState<{
 		url: string;
 		title: string;
 	} | null>(null);
+
+	// Date range and preset filtering
+	const [startDate, setStartDate] = useState(getTodayStr());
+	const [endDate, setEndDate] = useState(getTodayStr());
+	const [datePreset, setDatePreset] = useState("today");
 
 	// Geofence Modal State & Query
 	const [isGeofenceModalOpen, setIsGeofenceModalOpen] = useState(false);
@@ -133,9 +148,12 @@ export default function AttendancePage() {
 		},
 	});
 
-	// Query real attendance records
+	// Query real attendance records with active date filters
 	const { data: attendanceList = [], isLoading, refetch: refetchAttendanceList } =
-		trpc.manager.getAttendance.useQuery();
+		trpc.manager.getAttendance.useQuery({
+			startDate: startDate || undefined,
+			endDate: endDate || undefined,
+		});
 
 	return (
 		<PageTransition className="space-y-6">
@@ -181,11 +199,34 @@ export default function AttendancePage() {
 			</div>
 
 			<Card className="shadow-sm">
-				<CardHeader>
-					<CardTitle className="font-bold text-base">
-						{t("todaysAttendanceRoll")}
-					</CardTitle>
-					<CardDescription>{t("todaysAttendanceRollSub")}</CardDescription>
+				<CardHeader className="space-y-4">
+					<div>
+						<CardTitle className="font-bold text-base">
+							{datePreset === "today"
+								? t("todaysAttendanceRoll")
+								: datePreset === "yesterday"
+									? (locale === "hi" ? "कल की उपस्थिति पंजी (Yesterday's Attendance)" : "Yesterday's Attendance Roll")
+									: (locale === "hi" ? "टीम उपस्थिति पंजी (Attendance Roll)" : "Team Attendance Roll")}
+						</CardTitle>
+						<CardDescription>
+							{datePreset === "today"
+								? t("todaysAttendanceRollSub")
+								: (locale === "hi" ? "चयनित दिनांक / अवधि के अनुसार लाइव चेक-इन एवं पंचिंग रिकॉर्ड" : "Live check-in & punch records for the selected period")}
+						</CardDescription>
+					</div>
+
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={attendanceList.length}
+						countLabel={locale === "hi" ? "चेक-इन" : "records"}
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					{isLoading ? (
@@ -197,6 +238,7 @@ export default function AttendancePage() {
 							<table className="w-full text-left text-xs">
 								<thead>
 									<tr className="border-b bg-slate-50/50 text-slate-500">
+										<th className="p-3 font-semibold">{locale === "hi" ? "दिनांक" : "Date"}</th>
 										<th className="p-3 font-semibold">Employee / User</th>
 										<th className="p-3 font-semibold">Check-In Selfie</th>
 										<th className="p-3 font-semibold">Check-Out Selfie</th>
@@ -218,6 +260,9 @@ export default function AttendancePage() {
 								<tbody className="divide-y">
 									{attendanceList.map((att: any) => (
 										<tr key={att.id} className="hover:bg-slate-50/40">
+											<td className="p-3 font-mono font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">
+												{att.date ? formatDateDisplay(att.date) : "Today"}
+											</td>
 											<td className="p-3 font-bold text-slate-900 dark:text-slate-100">
 												<div className="flex items-center gap-2.5">
 													{att.photoUrl ? (
@@ -339,14 +384,16 @@ export default function AttendancePage() {
 													</div>
 												)}
 											</td>
-											<td className="p-3 font-medium font-mono text-green-600">
-												{att.checkIn ||
+											<td className="p-3 font-medium font-mono text-green-600 whitespace-nowrap">
+												{att.checkInFormatted ||
+													(att.checkIn ? formatTime12h(att.checkIn) : null) ||
 													(att.createdAt
-														? new Date(att.createdAt).toLocaleTimeString()
+														? formatTime12h(att.createdAt)
 														: "N/A")}
 											</td>
-											<td className="p-3 font-medium font-mono">
-												{att.checkOut ||
+											<td className="p-3 font-medium font-mono text-slate-700 dark:text-slate-200 whitespace-nowrap">
+												{att.checkOutFormatted ||
+													(att.checkOut ? formatTime12h(att.checkOut) : null) ||
 													(att.status?.includes("present") ||
 													att.status?.includes("Break")
 														? t("activeLabel")
@@ -406,10 +453,14 @@ export default function AttendancePage() {
 									{attendanceList.length === 0 && (
 										<tr>
 											<td
-												colSpan={10}
+												colSpan={11}
 												className="py-12 text-center text-slate-400 text-xs"
 											>
-												{t("noTeamCheckinsLoggedToday")}
+												{datePreset === "today"
+													? t("noTeamCheckinsLoggedToday")
+													: locale === "hi"
+														? "चयनित दिनांक / अवधि के लिए कोई उपस्थिति रिकॉर्ड नहीं मिला।"
+														: "No team check-ins logged for the selected period."}
 											</td>
 										</tr>
 									)}

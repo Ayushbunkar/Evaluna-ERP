@@ -105,10 +105,23 @@ export function minutesToFormattedHours(minutes: number): string {
 	return `${h}h ${m}m`;
 }
 
-/** Convert 24h time to 12h time with AM/PM */
+/** Convert 24h time or ISO timestamp string to 12h time with AM/PM */
 export function formatTime12h(timeStr: string | null | undefined): string {
 	if (!timeStr) return "--:--";
-	const cleanTime = timeStr.trim();
+	const cleanTime = String(timeStr).trim();
+	if (cleanTime.includes("T") || cleanTime.includes("Z")) {
+		try {
+			const d = new Date(cleanTime);
+			if (!Number.isNaN(d.getTime())) {
+				return d.toLocaleTimeString("en-US", {
+					hour: "2-digit",
+					minute: "2-digit",
+					hour12: true,
+					timeZone: "Asia/Kolkata",
+				});
+			}
+		} catch {}
+	}
 	const parts = cleanTime.split(":");
 	if (parts.length < 2) return cleanTime;
 	let hours = Number.parseInt(parts[0], 10);

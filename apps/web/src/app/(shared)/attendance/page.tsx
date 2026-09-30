@@ -31,6 +31,7 @@ import {
 	acquireAccurateLocation,
 } from "@/lib/geolocation";
 import { trpc } from "@/lib/trpc/client";
+import { formatTime12h } from "@/lib/attendance-engine";
 
 /** A lightweight, non-PII device fingerprint (NOT a biometric). */
 function deviceFingerprint(): { fingerprint: string; userAgent: string } {
@@ -287,9 +288,21 @@ export default function MyAttendancePage() {
 				<div className="flex items-center justify-between">
 					<div>
 						<p className="text-muted-foreground text-sm">Current status</p>
-						<Badge variant="outline" className={`mt-1 ${label.cls}`}>
-							{label.text}
-						</Badge>
+						<div className="flex items-center gap-2 mt-1">
+							<Badge variant="outline" className={label.cls}>
+								{label.text}
+							</Badge>
+						</div>
+						{row?.checkIn && (
+							<p className="text-xs text-muted-foreground mt-1.5 font-mono">
+								Check-in: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatTime12h(row.checkIn)}</span>
+							</p>
+						)}
+						{row?.checkOut && (
+							<p className="text-xs text-muted-foreground mt-0.5 font-mono">
+								Check-out: <span className="font-semibold text-blue-600 dark:text-blue-400">{formatTime12h(row.checkOut)}</span>
+							</p>
+						)}
 					</div>
 					{row?.checkIn && !row?.checkOut && (
 						<div className="text-right">

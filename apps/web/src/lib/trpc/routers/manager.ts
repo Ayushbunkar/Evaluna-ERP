@@ -34,11 +34,11 @@ import {
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { formatTime12h } from "@/lib/attendance-engine";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
 import { reverseGeocodeLocation } from "../util/attendance";
 import { logAudit, resolveStaffId } from "../util/audit";
-
 
 export const managerRouter = router({
 	// ── 1. Centralized Dashboard Stats (Optimized SQL Aggregation) ─────────────
@@ -389,10 +389,43 @@ export const managerRouter = router({
 
 	// ── 5. Attendance Feed ──────────────────────────────────────────────────────
 	getAttendance: protectedProcedure
-		.input(z.object({ date: z.string().optional() }).optional())
+		.input(
+			z
+				.object({
+					date: z.string().optional(),
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+				})
+				.optional(),
+		)
 		.query(async ({ ctx, input }) => {
-			const targetDateStr =
-				input?.date || new Date().toISOString().split("T")[0];
+			let enhancedDateCondition = undefined;
+			let legacyDateCondition = undefined;
+
+			const start = input?.startDate || (input?.date ? input.date : undefined);
+			const end = input?.endDate || (input?.date ? input.date : undefined);
+
+			if (start && end) {
+				if (start === end) {
+					enhancedDateCondition = eq(enhancedAttendance.date, start);
+					legacyDateCondition = eq(attendance.date, start);
+				} else {
+					enhancedDateCondition = and(
+						gte(enhancedAttendance.date, start),
+						lte(enhancedAttendance.date, end),
+					);
+					legacyDateCondition = and(
+						gte(attendance.date, start),
+						lte(attendance.date, end),
+					);
+				}
+			} else if (start) {
+				enhancedDateCondition = gte(enhancedAttendance.date, start);
+				legacyDateCondition = gte(attendance.date, start);
+			} else if (end) {
+				enhancedDateCondition = lte(enhancedAttendance.date, end);
+				legacyDateCondition = lte(attendance.date, end);
+			}
 
 			// 1. Fetch enhanced attendance, breaks, and legacy records concurrently
 			const [enhancedRows, allBreaks, legacyRows] = await Promise.all([
@@ -407,9 +440,14 @@ export const managerRouter = router({
 					.leftJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
 					.leftJoin(user, eq(employees.userUid, user.id))
 					.leftJoin(branches, eq(enhancedAttendance.branchId, branches.id))
-					.where(eq(enhancedAttendance.date, targetDateStr as string)),
+					.where(enhancedDateCondition)
+					.orderBy(desc(enhancedAttendance.date), desc(enhancedAttendance.createdAt)),
 				db.select().from(attendanceBreaks),
-				db.select().from(attendance),
+				db
+					.select()
+					.from(attendance)
+					.where(legacyDateCondition)
+					.orderBy(desc(attendance.date), desc(attendance.createdAt)),
 			]);
 
 			// 2. Extract and deduplicate all unique GPS coordinates across all rows
@@ -618,7 +656,9 @@ export const managerRouter = router({
 					employeeCode,
 					photoUrl: usr?.image || null, // CANONICAL PROFILE PHOTO
 					checkIn: att.checkIn,
+					checkInFormatted: att.checkIn ? formatTime12h(att.checkIn) : null,
 					checkOut: att.checkOut,
+					checkOutFormatted: att.checkOut ? formatTime12h(att.checkOut) : null,
 					status: activeBreak
 						? `On Break (${activeBreak.type})`
 						: att.status || "present",
@@ -631,6 +671,7 @@ export const managerRouter = router({
 					checkInSelfieUrl,
 					checkOutSelfieUrl,
 					createdAt: att.createdAt,
+					date: att.date,
 					distance: att.distanceFromOffice,
 					isAdjusted: Boolean(att.isAdjusted),
 					originalCheckIn: att.originalCheckIn,
@@ -648,7 +689,9 @@ export const managerRouter = router({
 				employeeEmail: "",
 				employeeCode: `STAFF-${l.employeeId}`,
 				checkIn: l.checkIn || null,
+				checkInFormatted: l.checkIn ? formatTime12h(l.checkIn) : null,
 				checkOut: l.checkOut || null,
+				checkOutFormatted: l.checkOut ? formatTime12h(l.checkOut) : null,
 				status: l.status || "present",
 				breakMinutes: 0,
 				breakCount: 0,
@@ -658,6 +701,7 @@ export const managerRouter = router({
 				checkInSelfieUrl: null,
 				checkOutSelfieUrl: null,
 				createdAt: l.createdAt,
+				date: l.date,
 				distance: null,
 			}));
 

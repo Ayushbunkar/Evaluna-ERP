@@ -579,13 +579,18 @@ export const attendanceRouter = router({
 				(s: number, b: { d: number | null }) => s + (b.d ?? 0),
 				0,
 			);
-			const elapsedMin = Math.max(
-				0,
-				Math.round(
-					(now.getTime() - new Date(`${date}T${row.checkIn}Z`).getTime()) /
-						60000,
-				),
-			);
+			let elapsedMin = 0;
+			if (row.checkIn && time) {
+				const inParts = String(row.checkIn).split(":");
+				const outParts = String(time).split(":");
+				if (inParts.length >= 2 && outParts.length >= 2) {
+					const inMins = Number(inParts[0]) * 60 + Number(inParts[1]);
+					const outMins = Number(outParts[0]) * 60 + Number(outParts[1]);
+					if (!Number.isNaN(inMins) && !Number.isNaN(outMins) && outMins >= inMins) {
+						elapsedMin = outMins - inMins;
+					}
+				}
+			}
 			const workMin = Math.max(0, elapsedMin - breakMin);
 			const workingHours = (workMin / 60).toFixed(2);
 
