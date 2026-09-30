@@ -18,6 +18,7 @@ import {
 	DialogTitle,
 } from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
 import {
 	CameraIcon,
 	ClockIcon,
