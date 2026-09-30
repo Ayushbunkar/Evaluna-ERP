@@ -1,9 +1,10 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { CalendarDaysIcon, CalendarIcon, XIcon } from "lucide-react";
+import { CalendarDaysIcon, CalendarIcon, IndianRupeeIcon, XIcon } from "lucide-react";
 import { useLocale } from "next-intl";
 import React, { useState } from "react";
+import { formatCurrency } from "@/lib/utils";
 
 export const getTodayStr = (): string => {
 	const d = new Date();
@@ -44,6 +45,8 @@ export interface DateFilterBarProps {
 	datePreset?: string;
 	totalCount?: number;
 	countLabel?: string;
+	totalAmount?: number | string;
+	amountLabel?: string;
 	className?: string;
 	showPresetButtons?: boolean;
 }
@@ -55,6 +58,8 @@ export function DateFilterBar({
 	datePreset = "all",
 	totalCount,
 	countLabel,
+	totalAmount,
+	amountLabel,
 	className = "",
 	showPresetButtons = true,
 }: DateFilterBarProps) {
@@ -186,7 +191,7 @@ export function DateFilterBar({
 
 			{/* Active Filter Notification Badge */}
 			{(startDate || endDate) && (
-				<div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary font-medium animate-in fade-in-50 duration-200">
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary font-medium animate-in fade-in-50 duration-200">
 					<div className="flex items-center gap-1.5">
 						<CalendarIcon className="h-3.5 w-3.5 shrink-0" />
 						<span>
@@ -220,10 +225,23 @@ export function DateFilterBar({
 						</span>
 					</div>
 
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						{typeof totalCount === "number" && (
-							<span className="bg-primary/20 px-2 py-0.5 rounded-full text-[11px] font-semibold">
-								{totalCount} {countLabel ? countLabel : (isHindi ? "रिकॉर्ड" : "records")}
+							<span className="bg-primary/20 text-primary px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+								{totalCount} {countLabel ? countLabel : (isHindi ? "ऑर्डर" : "orders")}
+							</span>
+						)}
+						{totalAmount !== undefined && totalAmount !== null && (
+							<span className="bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-2xs">
+								<IndianRupeeIcon className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+								<span className="opacity-85 font-semibold">
+									{amountLabel ? amountLabel : (isHindi ? "कुल बिक्री:" : "Total Sales:")}
+								</span>
+								<span className="font-black">
+									{typeof totalAmount === "number" || typeof totalAmount === "string"
+										? formatCurrency(totalAmount, currentLocale)
+										: totalAmount}
+								</span>
 							</span>
 						)}
 						<button
@@ -232,7 +250,7 @@ export function DateFilterBar({
 							className="hover:underline text-[11px] font-semibold text-primary/80 hover:text-primary cursor-pointer flex items-center gap-0.5 ml-1"
 						>
 							<XIcon className="h-3 w-3" />
-							{isHindi ? "रीसेट" : "Reset"}
+							<span>{isHindi ? "रीसेट" : "Reset"}</span>
 						</button>
 					</div>
 				</div>

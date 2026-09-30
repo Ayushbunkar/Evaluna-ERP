@@ -81,6 +81,16 @@ export default function OrdersPage() {
 		startDate: startDate || undefined,
 		endDate: endDate || undefined,
 	});
+
+	const totalSalesAmount = useMemo(() => {
+		return orders.reduce((sum, order) => {
+			if (order.status === "cancelled" && statusFilter !== "cancelled") {
+				return sum;
+			}
+			return sum + (Number(order.total_amount) || 0);
+		}, 0);
+	}, [orders, statusFilter]);
+
 	let tRaw: any = null;
 	let tcRaw: any = null;
 	try {
@@ -589,6 +599,8 @@ export default function OrdersPage() {
 					datePreset={datePreset}
 					totalCount={orders.length}
 					countLabel={locale === "hi" ? "ऑर्डर" : "orders"}
+					totalAmount={totalSalesAmount}
+					amountLabel={locale === "hi" ? "कुल बिक्री:" : "Total Sales:"}
 					onDateChange={(start, end, preset) => {
 						setStartDate(start);
 						setEndDate(end);

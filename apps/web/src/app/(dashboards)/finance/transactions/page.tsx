@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
@@ -46,6 +46,10 @@ export default function FinanceTransactionsPage() {
 
 	const transactions = data?.items || [];
 	const totalPages = data?.pages || 1;
+
+	const totalTransactionAmount = useMemo(() => {
+		return transactions.reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
+	}, [transactions]);
 
 	return (
 		<PageTransition className="container mx-auto py-8">
@@ -86,6 +90,8 @@ export default function FinanceTransactionsPage() {
 					datePreset={datePreset}
 					totalCount={data?.total}
 					countLabel="transactions"
+					totalAmount={totalTransactionAmount}
+					amountLabel="Total Amount:"
 					onDateChange={(start, end, preset) => {
 						setStartDate(start);
 						setEndDate(end);
