@@ -91,6 +91,7 @@ export function PaymentModal({
 	);
 	const [isSearchOpen, setIsSearchOpen] = useState(false);
 	const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
 	// Fetch customer history & assigned route when a customer is selected
@@ -195,6 +196,7 @@ export function PaymentModal({
 	// Reset when opened if no initial values provided
 	useEffect(() => {
 		if (open) {
+			setIsSubmitting(false);
 			setPaymentStatus("unpaid");
 			setSelectedMethodId(1);
 			setReceivedAmount(displayAmount > 0 ? displayAmount.toString() : "");
@@ -310,6 +312,7 @@ export function PaymentModal({
 	};
 
 	const handleConfirm = () => {
+		if (isSubmitting) return;
 		const isWalkIn = customerName.trim().toLowerCase() === "walk-in customer";
 		
 		// If user typed a new customer name (not walk-in) and hasn't saved to DB / selected from DB
@@ -321,6 +324,8 @@ export function PaymentModal({
 			);
 			return;
 		}
+
+		setIsSubmitting(true);
 
 		// Auto-persist route and customer address updates to DB for future orders
 		if (selectedCustomerId && (isEditingCustomer || selectedRouteId)) {
@@ -993,6 +998,7 @@ export function PaymentModal({
 					</Button>
 					<Button
 						size="lg"
+						disabled={isSubmitting || createCustomerMutation.isPending || updateCustomerMutation.isPending}
 						onClick={handleConfirm}
 						className={
 							paymentStatus === "unpaid"
