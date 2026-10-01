@@ -145,7 +145,8 @@ export default function DriverDashboard() {
 								</div>
 								<ArrowRightIcon className="h-5 w-5 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
 							</CardContent>
-						</Link>
+						</Card>
+					</Link>
 
 					{/* Action 3: Delivery History */}
 					<Link href="/driver/history" className="group">
@@ -166,7 +167,8 @@ export default function DriverDashboard() {
 								</div>
 								<ArrowRightIcon className="h-5 w-5 text-purple-600 group-hover:translate-x-1 transition-transform shrink-0" />
 							</CardContent>
-						</Link>
+						</Card>
+					</Link>
 
 					{/* Action 4: Vehicle Status */}
 					<Link href="/driver/vehicle" className="group">
@@ -189,7 +191,8 @@ export default function DriverDashboard() {
 								</div>
 								<ArrowRightIcon className="h-5 w-5 text-amber-600 group-hover:translate-x-1 transition-transform shrink-0" />
 							</CardContent>
-						</Link>
+						</Card>
+					</Link>
 
 					{/* Action 5: Support & Dispatch */}
 					<Link href="/driver/support" className="group">
@@ -210,7 +213,8 @@ export default function DriverDashboard() {
 								</div>
 								<ArrowRightIcon className="h-5 w-5 text-indigo-600 group-hover:translate-x-1 transition-transform shrink-0" />
 							</CardContent>
-						</Link>
+						</Card>
+					</Link>
 
 					{/* Action 6: Profile & Account */}
 					<Link href="/driver/profile" className="group">
@@ -231,7 +235,8 @@ export default function DriverDashboard() {
 								</div>
 								<ArrowRightIcon className="h-5 w-5 text-slate-600 group-hover:translate-x-1 transition-transform shrink-0" />
 							</CardContent>
-						</Link>
+						</Card>
+					</Link>
 				</div>
 			</div>
 
