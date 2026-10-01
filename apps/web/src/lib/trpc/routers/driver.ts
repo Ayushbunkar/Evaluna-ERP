@@ -1345,6 +1345,10 @@ export const driverRouter = router({
 						// Fetch POD notes / items if available
 						let deliveredItems: any[] = [];
 						let initialItems: any[] = [];
+						let stopDiscountAmount = 0;
+						let stopDiscountReason = "";
+						let stopExtraCharges = 0;
+						let stopExtraChargesReason = "";
 						try {
 							const [pod] = await db
 								.select()
@@ -1357,10 +1361,6 @@ export const driverRouter = router({
 								)
 								.orderBy(desc(proofOfDeliveries.created_at))
 								.limit(1);
-						let stopDiscountAmount = 0;
-						let stopDiscountReason = "";
-						let stopExtraCharges = 0;
-						let stopExtraChargesReason = "";
 
 						if (pod?.notes) {
 							const p = JSON.parse(pod.notes);
