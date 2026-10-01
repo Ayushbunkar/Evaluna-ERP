@@ -7,7 +7,7 @@ import {
 	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
-import { and, desc, eq, inArray, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
