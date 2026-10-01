@@ -105,6 +105,17 @@ function formatBilingualText(text?: string | null, locale = "en"): string {
 }
 
 /**
+ * Clean raw emoji characters from notification text to ensure clean Lucide icons UI
+ */
+function cleanNotificationText(text?: string | null): string {
+	if (!text) return "";
+	return text
+		.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|🔴|🟠|🟡|🟢|🔵|🟣|⚫|⚪|🟥|🟧|🟨|🟩|🟦|🟪|⬛|⬜|📦|🚚|🚨|⚠️|✅|📢|🛒|💰|🗓️|🎂|⭐|⏰/gu, "")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+/**
  * Get role-specific title & header styling
  */
 function getRoleHeaderDetails(rawRole?: string) {
@@ -526,6 +537,9 @@ export function NotificationModal({ open, onOpenChange }: NotificationModalProps
 							const isHighPriority =
 								notif.priority === "high" || notif.priority === "critical";
 
+							const cleanTitle = cleanNotificationText(notif.title);
+							const cleanMsg = cleanNotificationText(localizedMessage);
+
 							return (
 								<div
 									key={notif.id}
@@ -555,7 +569,7 @@ export function NotificationModal({ open, onOpenChange }: NotificationModalProps
 														notif.is_read ? "text-foreground/80" : "text-foreground"
 													}`}
 												>
-													{notif.title}
+													{cleanTitle}
 												</h4>
 											</div>
 
@@ -575,9 +589,9 @@ export function NotificationModal({ open, onOpenChange }: NotificationModalProps
 											</div>
 										</div>
 
-										{localizedMessage && (
+										{cleanMsg && (
 											<p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-												{localizedMessage}
+												{cleanMsg}
 											</p>
 										)}
 

@@ -640,7 +640,7 @@ export const loaderRouter = router({
 				await dispatchNotification({
 					type: "info",
 					priority: "high",
-					title: `✅ Trip #${input.tripId} — Loading Complete`,
+					title: `Trip #${input.tripId} — Loading Complete`,
 					message: `Trip #${input.tripId} has been fully loaded by ${loaderName}. All ${orderIds.length} order(s) are loaded into the vehicle. Please review and dispatch the trip.`,
 					branchId: (ctx.user?.branchId as number) || 1,
 					channels: ["in_app"],

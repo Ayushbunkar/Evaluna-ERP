@@ -54,6 +54,8 @@ type RouteStop = {
 	status: string;
 	rawStatus: string;
 	time: string;
+	date?: string;
+	created_at?: string;
 	address: string;
 	customerName: string;
 	phone: string | null;
@@ -382,12 +384,18 @@ export const driverRouter = router({
 							);
 							const allItems = ords.flatMap((o) => o.orderItems || []);
 
+							const stopDate = firstOrd.created_at
+								? new Date(firstOrd.created_at).toISOString().split("T")[0]
+								: new Date().toISOString().split("T")[0];
+
 							virtualStops.push({
 								id: firstOrd.id,
 								trip_id: 0,
 								status: seq === 1 ? "next" : "pending",
 								rawStatus: firstOrd.status,
 								time: "--:--",
+								date: stopDate,
+								created_at: firstOrd.created_at ? String(firstOrd.created_at) : undefined,
 								address: cust?.address || firstOrd.shipping_address || "N/A",
 								customerName: cust?.name || "Customer",
 								phone: cust?.phone || null,
@@ -1043,12 +1051,18 @@ export const driverRouter = router({
 					);
 					const allItems = ords.flatMap((o) => o.orderItems || []);
 
+					const stopDate = firstOrd.created_at
+						? new Date(firstOrd.created_at).toISOString().split("T")[0]
+						: new Date().toISOString().split("T")[0];
+
 					virtualStops.push({
 						id: firstOrd.id,
 						trip_id: 0,
 						status: seq === 1 ? "next" : "pending",
 						rawStatus: firstOrd.status,
 						time: "--:--",
+						date: stopDate,
+						created_at: firstOrd.created_at ? String(firstOrd.created_at) : undefined,
 						address: cust?.address || firstOrd.shipping_address || "N/A",
 						customerName: cust?.name || "Customer",
 						phone: cust?.phone || null,
@@ -1201,6 +1215,11 @@ export const driverRouter = router({
 					);
 					const finalAmountToCollect = podCollectedTotal || (calculatedItemsSum > 0 ? calculatedItemsSum : totalAmount);
 
+					const stopRawDate = s.created_at || matchingOrder?.created_at;
+					const stopDate = stopRawDate
+						? new Date(stopRawDate).toISOString().split("T")[0]
+						: new Date().toISOString().split("T")[0];
+
 					return {
 						id: s.id,
 						trip_id: s.trip_id,
@@ -1215,6 +1234,8 @@ export const driverRouter = router({
 							s.status === "delivered" || s.status === "completed"
 								? "Completed"
 								: "--:--",
+						date: stopDate,
+						created_at: stopRawDate ? String(stopRawDate) : undefined,
 						customerName: resolvedCustName,
 						address: resolvedCustAddress,
 						phone: resolvedCustPhone,
@@ -1239,27 +1260,50 @@ export const driverRouter = router({
 		}
 	}),
 
-	getDeliveryHistory: protectedProcedure.query(async ({ ctx }) => {
-		const { ids: driverIds } = await getDriverIdentifiers(ctx);
-		const trips =
-			driverIds.length > 0
-				? await db.query.deliveryTrips.findMany({
-						where: inArray(deliveryTrips.driver_id, driverIds),
-						orderBy: [desc(deliveryTrips.created_at)],
-						limit: 25,
+	getDeliveryHistory: protectedProcedure
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const { ids: driverIds } = await getDriverIdentifiers(ctx);
+			const conditions: any[] = [];
+
+			if (driverIds.length > 0) {
+				conditions.push(inArray(deliveryTrips.driver_id, driverIds));
+			}
+
+			if (input?.startDate) {
+				conditions.push(
+					gte(deliveryTrips.created_at, new Date(`${input.startDate}T00:00:00`)),
+				);
+			}
+			if (input?.endDate) {
+				conditions.push(
+					lte(deliveryTrips.created_at, new Date(`${input.endDate}T23:59:59`)),
+				);
+			}
+
+			const trips = await db.query.deliveryTrips.findMany({
+				where: conditions.length > 0 ? and(...conditions) : undefined,
+				orderBy: [desc(deliveryTrips.created_at)],
+				limit: 100,
+				with: {
+					route: true,
+					vehicle: true,
+					driver: true,
+					stops: {
 						with: {
-							route: true,
-							vehicle: true,
-							driver: true,
-							stops: {
-								with: {
-									customer: true,
-								},
-							},
-							collections: true,
+							customer: true,
 						},
-					})
-				: [];
+					},
+					collections: true,
+				},
+			});
 
 		if (!trips || trips.length === 0) return [];
 
@@ -1313,71 +1357,88 @@ export const driverRouter = router({
 								)
 								.orderBy(desc(proofOfDeliveries.created_at))
 								.limit(1);
-							if (pod?.notes) {
-								const p = JSON.parse(pod.notes);
-								if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
-									deliveredItems = p.deliveredItems.map((it: any) => ({
-										id: it.id || Math.random(),
-										name: it.name || it.productName || "Delivered Item",
-										qty: Number(it.qty || it.quantity || 1),
-										price: Number(it.price || it.unitPrice || 0),
-									}));
-								}
-							}
-						} catch (e) {}
+						let stopDiscountAmount = 0;
+						let stopDiscountReason = "";
+						let stopExtraCharges = 0;
+						let stopExtraChargesReason = "";
 
-						// Fallback: If no POD deliveredItems, query real orderItems for this customer/stop
-						if (deliveredItems.length === 0 && s.customer_id) {
-							try {
-								const custOrder = await db.query.orders.findFirst({
-									where: eq(orders.customer_id, s.customer_id),
-									orderBy: [desc(orders.created_at)],
-									with: {
-										orderItems: {
-											with: {
-												product: true,
-											},
+						if (pod?.notes) {
+							const p = JSON.parse(pod.notes);
+							if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
+								deliveredItems = p.deliveredItems.map((it: any) => ({
+									id: it.id || Math.random(),
+									name: it.name || it.productName || "Delivered Item",
+									qty: Number(it.qty || it.quantity || 1),
+									price: Number(it.price || it.unitPrice || 0),
+								}));
+							}
+							if (p.discountAmount || p.discountReason) {
+								stopDiscountAmount = Number(p.discountAmount || 0);
+								stopDiscountReason = String(p.discountReason || "");
+							}
+							if (p.extraCharges || p.extraChargesReason) {
+								stopExtraCharges = Number(p.extraCharges || 0);
+								stopExtraChargesReason = String(p.extraChargesReason || "");
+							}
+						}
+					} catch (e) {}
+
+					// Fallback: If no POD deliveredItems, query real orderItems for this customer/stop
+					if (deliveredItems.length === 0 && s.customer_id) {
+						try {
+							const custOrder = await db.query.orders.findFirst({
+								where: eq(orders.customer_id, s.customer_id),
+								orderBy: [desc(orders.created_at)],
+								with: {
+									orderItems: {
+										with: {
+											product: true,
 										},
 									},
-								});
+								},
+							});
 
-								if (custOrder?.orderItems && custOrder.orderItems.length > 0) {
-									deliveredItems = custOrder.orderItems.map((oi: any) => ({
-										id: oi.id,
-										name: oi.product?.name || `Product #${oi.product_id}`,
-										qty: Number(oi.quantity || 1),
-										price: Number(oi.price || 0),
-									}));
-								}
-							} catch (e) {}
-						}
+							if (custOrder?.orderItems && custOrder.orderItems.length > 0) {
+								deliveredItems = custOrder.orderItems.map((oi: any) => ({
+									id: oi.id,
+									name: oi.product?.name || `Product #${oi.product_id}`,
+									qty: Number(oi.quantity || 1),
+									price: Number(oi.price || 0),
+								}));
+							}
+						} catch (e) {}
+					}
 
-						// Calculate initial dispatched items
-						initialItems = deliveredItems.map((it: any) => ({ ...it }));
+					// Calculate initial dispatched items
+					initialItems = deliveredItems.map((it: any) => ({ ...it }));
 
-						return {
-							stopId: s.id,
-							sequence: idx + 1,
-							customerName: s.customer?.name || "Customer",
-							customerPhone: s.customer?.phone || "N/A",
-							address: s.customer?.address || "N/A",
-							orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
-							status: isDelivered
-								? "Delivered"
-								: s.status === "failed"
-									? "Failed"
-									: "Pending",
-							cashCollected: cash,
-							onlineCollected: online,
-							deliveredAt: isDelivered
-								? s.resolved_at
-									? new Date(s.resolved_at).toLocaleTimeString()
-									: new Date().toLocaleTimeString()
-								: "—",
-							items: deliveredItems,
-							deliveredItems,
-							initialItems,
-						};
+					return {
+						stopId: s.id,
+						sequence: idx + 1,
+						customerName: s.customer?.name || "Customer",
+						customerPhone: s.customer?.phone || "N/A",
+						address: s.customer?.address || "N/A",
+						orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
+						status: isDelivered
+							? "Delivered"
+							: s.status === "failed"
+								? "Failed"
+								: "Pending",
+						cashCollected: cash,
+						onlineCollected: online,
+						discountAmount: stopDiscountAmount,
+						discountReason: stopDiscountReason,
+						extraCharges: stopExtraCharges,
+						extraChargesReason: stopExtraChargesReason,
+						deliveredAt: isDelivered
+							? s.resolved_at
+								? new Date(s.resolved_at).toLocaleTimeString()
+								: new Date().toLocaleTimeString()
+							: "—",
+						items: deliveredItems,
+						deliveredItems,
+						initialItems,
+					};
 					}),
 				);
 
@@ -1492,6 +1553,10 @@ export const driverRouter = router({
 						}),
 					)
 					.optional(),
+				discountAmount: z.coerce.number().optional(),
+				discountReason: z.string().optional(),
+				extraCharges: z.coerce.number().optional(),
+				extraChargesReason: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
@@ -1601,6 +1666,10 @@ export const driverRouter = router({
 							cashAmount: input.cashAmount,
 							onlineAmount: input.onlineAmount,
 							totalCollected: input.cashAmount + input.onlineAmount,
+							discountAmount: Number(input.discountAmount || 0),
+							discountReason: input.discountReason || "",
+							extraCharges: Number(input.extraCharges || 0),
+							extraChargesReason: input.extraChargesReason || "",
 							timestamp: new Date().toISOString(),
 						});
 						await db.insert(proofOfDeliveries).values({

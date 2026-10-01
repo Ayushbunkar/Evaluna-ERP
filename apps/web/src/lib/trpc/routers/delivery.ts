@@ -738,7 +738,7 @@ ERROR TABLE: ${err.table}
 						await dispatchNotification({
 							type: "info",
 							priority: "high",
-							title: `🚚 Trip #${input.tripId} Dispatched`,
+							title: `Trip #${input.tripId} Dispatched`,
 							message: `Delivery Trip #${input.tripId} (${trip.route?.name || "Route"}) with ${custIds.length} stop(s) is now Out for Delivery with driver ${trip.driver?.name || "assigned driver"}.`,
 							branchId: (ctx.user?.branchId as number) || 1,
 							channels: ["in_app"],
@@ -766,7 +766,7 @@ ERROR TABLE: ${err.table}
 						await dispatchNotification({
 							type: "info",
 							priority: "normal",
-							title: `✅ Trip #${input.tripId} Completed`,
+							title: `Trip #${input.tripId} Completed`,
 							message: `Driver ${trip.driver?.name || "Driver"} has completed all deliveries for Trip #${input.tripId}.`,
 							branchId: (ctx.user?.branchId as number) || 1,
 							channels: ["in_app"],
@@ -1185,7 +1185,7 @@ ERROR TABLE: ${err.table}
 				await dispatchNotification({
 					type: "info",
 					priority: "high",
-					title: `📦 Loading Task Assigned - Trip #${input.tripId}`,
+					title: `Loading Task Assigned - Trip #${input.tripId}`,
 					message: `Trip #${input.tripId} has been released for loading.`,
 					branchId: (ctx.user?.branchId as number) || 1,
 					channels: ["in_app"],
@@ -2201,7 +2201,7 @@ ERROR TABLE: ${err.table}
 				await dispatchNotification({
 					type: "info",
 					priority: "high",
-					title: `🚚 Trip #${input.tripId} Dispatched`,
+					title: `Trip #${input.tripId} Dispatched`,
 					message: `Manager has dispatched Trip #${input.tripId}. You are now Out for Delivery!`,
 					branchId: (ctx.user?.branchId as number) || 1,
 					channels: ["in_app"],

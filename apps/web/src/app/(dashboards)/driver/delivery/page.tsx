@@ -46,12 +46,21 @@ import {
 	Truck,
 	User,
 	X,
+	CalendarDays,
+	Tag,
+	PlusCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
+import {
+	formatDateDisplay,
+	getTodayStr,
+	getTomorrowStr,
+	getYesterdayStr,
+} from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 
 type OrderItemHandover = {
@@ -235,6 +244,106 @@ export default function DriverLiveDeliveryPage() {
 			? directRouteStops
 			: (dashboardData?.routeStops ?? []);
 	const activeStop = routeStops.find((s) => s.id === handoverStopId) ?? null;
+
+	const [stopDateFilter, setStopDateFilter] = useState<string>("all");
+	const [stopSearchQuery, setStopSearchQuery] = useState<string>("");
+
+	// ── Date-wise Grouping of Delivery Stops ──────────────────────────────────
+	const groupedStopsByDate = useMemo(() => {
+		const map = new Map<string, RouteStop[]>();
+		const todayStr = getTodayStr();
+		const yestStr = getYesterdayStr();
+		const tomStr = getTomorrowStr();
+
+		const query = stopSearchQuery.trim().toLowerCase();
+
+		for (const stop of routeStops) {
+			if (query) {
+				const matchName = stop.customerName?.toLowerCase().includes(query);
+				const matchAddress = stop.address?.toLowerCase().includes(query);
+				const matchPhone = stop.phone?.toLowerCase().includes(query);
+				const matchOrderIdStr = typeof stop.orderId === "string" ? stop.orderId.toLowerCase().includes(query) : false;
+				const matchOrderIdsNum = stop.orderIds ? stop.orderIds.some((id) => String(id).includes(query) || `ord-${id}`.toLowerCase().includes(query)) : false;
+				const matchStopId = String(stop.id).includes(query) || `ord-${stop.id}`.toLowerCase().includes(query);
+				const matchItems = stop.orderItems ? stop.orderItems.some((it) => it.name?.toLowerCase().includes(query)) : false;
+
+				if (!matchName && !matchAddress && !matchPhone && !matchOrderIdStr && !matchOrderIdsNum && !matchStopId && !matchItems) {
+					continue;
+				}
+			}
+
+			let d = stop.date;
+			if (!d && stop.created_at) {
+				try {
+					d = new Date(stop.created_at).toISOString().split("T")[0];
+				} catch (e) {}
+			}
+			if (!d) {
+				d = todayStr;
+			}
+			if (!map.has(d)) {
+				map.set(d, []);
+			}
+			map.get(d)!.push(stop);
+		}
+
+		const sortedEntries = Array.from(map.entries()).sort(([dA], [dB]) => dB.localeCompare(dA));
+
+		return sortedEntries
+			.map(([dateKey, stops]) => {
+				const isToday = dateKey === todayStr;
+				const isYesterday = dateKey === yestStr;
+				const isTomorrow = dateKey === tomStr;
+
+				let title = formatDateDisplay(dateKey);
+				let badgeLabel = dateKey;
+
+				if (isToday) {
+					title = locale === "hi" ? "आज के डिलीवरी ऑर्डर्स (Today)" : "Today's Delivery Stops";
+					badgeLabel = locale === "hi" ? "आज (Today)" : "Today";
+				} else if (isYesterday) {
+					title = locale === "hi" ? "कल के ऑर्डर्स (Yesterday)" : "Yesterday's Delivery Stops";
+					badgeLabel = locale === "hi" ? "कल (Yesterday)" : "Yesterday";
+				} else if (isTomorrow) {
+					title = locale === "hi" ? "आने वाले कल के ऑर्डर्स (Tomorrow)" : "Tomorrow's Delivery Stops";
+					badgeLabel = locale === "hi" ? "कल (Tomorrow)" : "Tomorrow";
+				} else {
+					title = locale === "hi" ? `दिनांक: ${formatDateDisplay(dateKey)} के ऑर्डर्स` : `Delivery Stops - ${formatDateDisplay(dateKey)}`;
+					badgeLabel = formatDateDisplay(dateKey);
+				}
+
+				const pendingCount = stops.filter(
+					(s) => s.status !== "delivered" && s.status !== "completed" && s.status !== "failed",
+				).length;
+				const deliveredCount = stops.filter(
+					(s) => s.status === "delivered" || s.status === "completed",
+				).length;
+				const dateTotalAmount = stops.reduce(
+					(sum, s) => sum + (s.amountToCollect || 0),
+					0,
+				);
+
+				return {
+					dateKey,
+					title,
+					badgeLabel,
+					isToday,
+					isYesterday,
+					isTomorrow,
+					stops,
+					pendingCount,
+					deliveredCount,
+					dateTotalAmount,
+				};
+			})
+			.filter((group) => {
+				if (stopDateFilter === "all") return true;
+				if (stopDateFilter === "today") return group.isToday;
+				if (stopDateFilter === "yesterday") return group.isYesterday;
+				if (stopDateFilter === "earlier") return !group.isToday && !group.isYesterday && !group.isTomorrow;
+				return group.dateKey === stopDateFilter;
+			});
+	}, [routeStops, stopDateFilter, stopSearchQuery, locale]);
 
 	// ── Active Stop Orders List ────────────────────────────────────────────────
 	const activeOrdersList = useMemo(() => {
@@ -874,48 +983,173 @@ export default function DriverLiveDeliveryPage() {
 						)}
 
 						{!isLoading && routeStops.length > 0 && (
-							<div className="space-y-4">
-								{/* Summary strip */}
-								<div className="flex flex-wrap gap-3">
-									<Badge
-										variant="outline"
-										className="gap-1.5 px-3 py-1 text-sm font-semibold bg-background"
-									>
-										<Package className="h-3.5 w-3.5 text-blue-600" />
-										{routeStops.length} {t("driver.totalStops")}
-									</Badge>
-									<Badge
-										variant="outline"
-										className="gap-1.5 border-amber-400 bg-amber-50 px-3 py-1 text-amber-700 text-sm font-semibold dark:bg-amber-950/40 dark:text-amber-300"
-									>
-										{
-											routeStops.filter(
-												(s) =>
-													s.status !== "delivered" &&
-													s.status !== "completed" &&
-													s.status !== "failed",
-											).length
-										}{" "}
-										{t("status.pending")}
-									</Badge>
-									<Badge
-										variant="outline"
-										className="gap-1.5 border-emerald-400 bg-emerald-50 px-3 py-1 text-emerald-700 text-sm font-semibold dark:bg-emerald-950/40 dark:text-emerald-300"
-									>
-										<CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-										{
-											routeStops.filter(
-												(s) =>
-													s.status === "delivered" || s.status === "completed",
-											).length
-										}{" "}
-										{t("status.delivered")}
-									</Badge>
+							<div className="space-y-6">
+								{/* Top Bar: Quick Search & Date Filter Pills */}
+								<div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-3.5 shadow-2xs">
+									<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+										{/* Search Bar Input */}
+										<div className="relative flex-1">
+											<Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+											<Input
+												type="text"
+												value={stopSearchQuery}
+												onChange={(e) => setStopSearchQuery(e.target.value)}
+												placeholder={
+													locale === "hi"
+														? "ग्राहक के नाम या ऑर्डर नंबर (ORD-...) से खोजें..."
+														: "Search by Customer Name or Order # (ORD-595)..."
+												}
+												className="pl-9 pr-8 h-9 text-xs bg-background border-border/80 rounded-xl shadow-2xs focus-visible:ring-1 focus-visible:ring-blue-500"
+											/>
+											{stopSearchQuery && (
+												<button
+													type="button"
+													onClick={() => setStopSearchQuery("")}
+													className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+												>
+													<X className="h-4 w-4" />
+												</button>
+											)}
+										</div>
+
+										<div className="flex flex-wrap items-center gap-2 shrink-0">
+											<Badge
+												variant="outline"
+												className="gap-1.5 px-3 py-1 text-xs font-semibold bg-background"
+											>
+												<Package className="h-3.5 w-3.5 text-blue-600" />
+												{routeStops.length} {t("driver.totalStops")}
+											</Badge>
+											<Badge
+												variant="outline"
+												className="gap-1.5 border-amber-400 bg-amber-50 px-3 py-1 text-amber-700 text-xs font-semibold dark:bg-amber-950/40 dark:text-amber-300"
+											>
+												{
+													routeStops.filter(
+														(s) =>
+															s.status !== "delivered" &&
+															s.status !== "completed" &&
+															s.status !== "failed",
+													).length
+												}{" "}
+												{t("status.pending")}
+											</Badge>
+											<Badge
+												variant="outline"
+												className="gap-1.5 border-emerald-400 bg-emerald-50 px-3 py-1 text-emerald-700 text-xs font-semibold dark:bg-emerald-950/40 dark:text-emerald-300"
+											>
+												<CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+												{
+													routeStops.filter(
+														(s) =>
+															s.status === "delivered" || s.status === "completed",
+													).length
+												}{" "}
+												{t("status.delivered")}
+											</Badge>
+										</div>
+									</div>
+
+									{/* Quick Date Filter Tabs */}
+									<div className="flex flex-wrap items-center justify-between border-t border-border/50 pt-2.5 gap-2">
+										<span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+											<CalendarDays className="h-3.5 w-3.5 text-blue-600" />
+											<span>{locale === "hi" ? "तारीख अनुसार देखें:" : "Filter Date:"}</span>
+										</span>
+
+										<div className="flex flex-wrap items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/60">
+											<Button
+												type="button"
+												variant={stopDateFilter === "all" ? "default" : "ghost"}
+												size="sm"
+												className={`h-7 px-2.5 text-xs font-semibold rounded-lg ${
+													stopDateFilter === "all" ? "bg-blue-600 text-white shadow-xs" : "text-muted-foreground"
+												}`}
+												onClick={() => setStopDateFilter("all")}
+											>
+												{locale === "hi" ? "सभी तारीखें" : "All Dates"}
+											</Button>
+											<Button
+												type="button"
+												variant={stopDateFilter === "today" ? "default" : "ghost"}
+												size="sm"
+												className={`h-7 px-2.5 text-xs font-semibold rounded-lg ${
+													stopDateFilter === "today" ? "bg-blue-600 text-white shadow-xs" : "text-muted-foreground"
+												}`}
+												onClick={() => setStopDateFilter("today")}
+											>
+												{locale === "hi" ? "आज (Today)" : "Today"}
+											</Button>
+											<Button
+												type="button"
+												variant={stopDateFilter === "yesterday" ? "default" : "ghost"}
+												size="sm"
+												className={`h-7 px-2.5 text-xs font-semibold rounded-lg ${
+													stopDateFilter === "yesterday" ? "bg-blue-600 text-white shadow-xs" : "text-muted-foreground"
+												}`}
+												onClick={() => setStopDateFilter("yesterday")}
+											>
+												{locale === "hi" ? "कल (Yesterday)" : "Yesterday"}
+											</Button>
+											<Button
+												type="button"
+												variant={stopDateFilter === "earlier" ? "default" : "ghost"}
+												size="sm"
+												className={`h-7 px-2.5 text-xs font-semibold rounded-lg ${
+													stopDateFilter === "earlier" ? "bg-blue-600 text-white shadow-xs" : "text-muted-foreground"
+												}`}
+												onClick={() => setStopDateFilter("earlier")}
+											>
+												{locale === "hi" ? "पिछली तारीखें" : "Earlier Dates"}
+											</Button>
+										</div>
+									</div>
 								</div>
 
-								{/* Stop cards */}
-								<div className="grid gap-4 sm:grid-cols-2">
-									{routeStops.map((stop, idx) => {
+								{/* Date-wise Section Banners & Stop Cards */}
+								{groupedStopsByDate.map((dateGroup) => (
+									<div key={dateGroup.dateKey} className="space-y-3.5 pt-1">
+										{/* Date Section Header Card */}
+										<div className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-blue-200/90 bg-gradient-to-r from-blue-50/90 via-blue-50/40 to-card p-3.5 shadow-2xs dark:border-blue-900/50 dark:from-blue-950/40 dark:to-slate-900/40">
+											<div className="flex items-center gap-2.5">
+												<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs shrink-0">
+													<CalendarDays className="h-5 w-5" />
+												</div>
+												<div>
+													<h3 className="font-bold text-slate-900 text-sm sm:text-base dark:text-slate-100 flex items-center gap-2">
+														<span>{dateGroup.title}</span>
+														<Badge
+															variant="secondary"
+															className={`font-mono font-bold text-xs ${
+																dateGroup.isToday
+																	? "bg-blue-600 text-white"
+																	: dateGroup.isYesterday
+																		? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+																		: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+															}`}
+														>
+															{formatDateDisplay(dateGroup.dateKey)}
+														</Badge>
+													</h3>
+													<p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+														{dateGroup.stops.length} {locale === "hi" ? "कुल स्टॉप्स" : "Total Stops"} • {dateGroup.pendingCount} {locale === "hi" ? "लंबित" : "Pending"} • {dateGroup.deliveredCount} {locale === "hi" ? "पूरे हुए" : "Delivered"}
+													</p>
+												</div>
+											</div>
+
+											<div className="flex items-center gap-2">
+												<span className="text-xs text-muted-foreground font-medium hidden sm:inline">
+													{locale === "hi" ? "तारीख का कुल बिल:" : "Date Bill Total:"}
+												</span>
+												<Badge variant="outline" className="border-emerald-400 bg-emerald-50 text-emerald-800 font-mono font-bold text-xs sm:text-sm px-3 py-1 dark:bg-emerald-950/50 dark:text-emerald-300 shadow-2xs">
+													₹{dateGroup.dateTotalAmount.toLocaleString("en-IN")}
+												</Badge>
+											</div>
+										</div>
+
+										{/* Stop cards inside Date Group */}
+										<div className="grid gap-4 sm:grid-cols-2">
+											{dateGroup.stops.map((stop, idx) => {
 										const isDone =
 											stop.status === "delivered" ||
 											stop.status === "completed";
@@ -1097,7 +1331,9 @@ export default function DriverLiveDeliveryPage() {
 									})}
 								</div>
 							</div>
-						)}
+						))}
+					</div>
+				)}
 					</>
 				)}
 
@@ -1105,7 +1341,7 @@ export default function DriverLiveDeliveryPage() {
 				    PHASE 2 — HANDOVER & BILL PANEL (WITH ORDER SEPARATION & FILTERING)
 				    ══════════════════════════════════════════════════════════════ */}
 				{handoverStopId !== null && (
-					<div className="grid gap-6 md:grid-cols-12">
+					<div className="grid gap-6 md:grid-cols-12 items-start">
 						{/* Left Column: Item Inspection & Return/Damage Entry */}
 						<div className="space-y-4 md:col-span-7">
 							<Card className="shadow-sm border">
@@ -1567,7 +1803,7 @@ export default function DriverLiveDeliveryPage() {
 						</div>
 
 						{/* Right Column: Live Bill Summary & Payment Collection with Order Breakdown */}
-						<div className="space-y-4 md:col-span-5">
+						<div className="space-y-4 md:col-span-5 md:sticky md:top-4 md:self-start max-h-[calc(100vh-2rem)] overflow-y-auto pr-0.5">
 							<Card className="border-2 border-blue-500 shadow-md">
 								<CardHeader className="rounded-t-lg bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4">
 									<CardTitle className="flex items-center justify-between text-base sm:text-lg font-bold">

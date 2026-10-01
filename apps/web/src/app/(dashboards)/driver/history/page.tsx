@@ -49,15 +49,23 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function DriverHistoryPage() {
 	const trpc = useTRPC();
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
+
 	const {
 		data: deliveryHistory,
 		isLoading,
 		error,
-	} = trpc.driver.getDeliveryHistory.useQuery();
+	} = trpc.driver.getDeliveryHistory.useQuery({
+		startDate: startDate || undefined,
+		endDate: endDate || undefined,
+	});
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedTrip, setSelectedTrip] = useState<any | null>(null);
@@ -212,28 +220,45 @@ export default function DriverHistoryPage() {
 
 			{/* Main Trip History Table Card */}
 			<Card className="border-border/60 shadow-sm">
-				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<CardTitle className="flex items-center gap-2 font-bold text-lg">
-							<TruckIcon className="h-5 w-5 text-blue-600" />
-							Trip Delivery Log & Collections
-						</CardTitle>
-						<CardDescription className="text-xs">
-							Click on any trip to view detailed customer stops and Cash/Online
-							collection breakdown.
-						</CardDescription>
+				<CardHeader className="flex flex-col gap-4">
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<CardTitle className="flex items-center gap-2 font-bold text-lg">
+								<TruckIcon className="h-5 w-5 text-blue-600" />
+								Trip Delivery Log & Collections
+							</CardTitle>
+							<CardDescription className="text-xs">
+								Click on any trip to view detailed customer stops and Cash/Online
+								collection breakdown.
+							</CardDescription>
+						</div>
+
+						<div className="relative w-full sm:w-64">
+							<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+							<input
+								type="text"
+								placeholder="Search trip, route, driver..."
+								className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+							/>
+						</div>
 					</div>
 
-					<div className="relative w-full sm:w-64">
-						<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-						<input
-							type="text"
-							placeholder="Search trip, route, driver..."
-							className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-						/>
-					</div>
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={filteredList?.length || 0}
+						countLabel="trips"
+						totalAmount={aggregateTotal}
+						amountLabel="Total Handover:"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
 				</CardHeader>
 				<CardContent>
 					{!filteredList || filteredList.length === 0 ? (

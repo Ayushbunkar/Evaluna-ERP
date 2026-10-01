@@ -1797,7 +1797,7 @@ export const ordersRouter = router({
 								type: "picking",
 								channel: "in_app",
 								priority: "high",
-								title: "📦 New Picking Task Available!",
+								title: "New Picking Task Available!",
 								message: `Picklist PL-${pl.id} (Order ORD-${result.orderId}) is ready for picking. Please assign yourself and start picking immediately.`,
 								reference_type: "pick_lists",
 								reference_id: pl.id,

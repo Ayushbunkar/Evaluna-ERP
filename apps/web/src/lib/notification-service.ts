@@ -67,50 +67,50 @@ export const DEFAULT_TEMPLATES: Record<
 	{ subject?: string; body: string }
 > = {
 	low_stock: {
-		subject: "⚠️ Low Stock Alert: {{product_name}}",
+		subject: "Low Stock Alert: {{product_name}}",
 		body: "Product '{{product_name}}' is running low. Current stock: {{current_stock}} units (Reorder level: {{reorder_level}}).",
 	},
 	expiry: {
-		subject: "🗓️ Expiry Alert: {{product_name}}",
+		subject: "Expiry Alert: {{product_name}}",
 		body: "Batch {{batch_number}} of '{{product_name}}' expires on {{expiry_date}}. Quantity: {{quantity}} units.",
 	},
 	damage: {
-		subject: "🔴 Damage Report: {{product_name}}",
+		subject: "Damage Report: {{product_name}}",
 		body: "{{quantity}} units of '{{product_name}}' have been reported as damaged at branch {{branch_name}}.",
 	},
 	purchase: {
-		subject: "📦 Purchase Order Received",
+		subject: "Purchase Order Received",
 		body: "GRN {{grn_number}} from {{supplier_name}} worth ₹{{total_amount}} has been received.",
 	},
 	sale: {
-		subject: "💰 New Sale Completed",
+		subject: "New Sale Completed",
 		body: "Order #{{order_id}} completed for ₹{{total_amount}}. Payment: {{payment_method}}.",
 	},
 	payment_due: {
-		subject: "⏰ Payment Due: {{supplier_name}}",
+		subject: "Payment Due: {{supplier_name}}",
 		body: "Payment of ₹{{amount}} is due to {{supplier_name}} on {{due_date}}.",
 	},
 	birthday: {
-		subject: "🎂 Happy Birthday {{customer_name}}!",
+		subject: "Happy Birthday {{customer_name}}!",
 		body: "Wishing {{customer_name}} a very happy birthday! Use code BDAY{{year}} for a special discount today.",
 	},
 	loyalty: {
-		subject: "⭐ Loyalty Update",
+		subject: "Loyalty Update",
 		body: "{{customer_name}} has earned {{points}} points! Total balance: {{total_points}} points. Tier: {{tier}}.",
 	},
 	campaign: {
-		subject: "📢 {{campaign_name}}",
+		subject: "{{campaign_name}}",
 		body: "{{campaign_message}}",
 	},
 	info: {
 		body: "{{message}}",
 	},
 	warning: {
-		subject: "⚠️ Warning",
+		subject: "Warning",
 		body: "{{message}}",
 	},
 	error: {
-		subject: "🔴 Error Alert",
+		subject: "Error Alert",
 		body: "{{message}}",
 	},
 };
@@ -371,7 +371,7 @@ export async function notifyOrderCreated(opts: {
 	await dispatchNotification({
 		type: "picking",
 		priority: "high",
-		title: `📦 New Order ORD-${opts.orderId}`,
+		title: `New Order ORD-${opts.orderId}`,
 		message: bilingual(
 			`New order ORD-${opts.orderId} for ${opts.customerName} has been placed. Please pick the items.`,
 			`नया ऑर्डर ORD-${opts.orderId} (${opts.customerName}) आया है। कृपया आइटम पिक करें।`,
@@ -395,7 +395,7 @@ export async function notifyPickComplete(opts: {
 	await dispatchNotification({
 		type: "packing",
 		priority: "high",
-		title: `✅ Picking Done — ORD-${opts.orderId}`,
+		title: `Picking Done — ORD-${opts.orderId}`,
 		message: bilingual(
 			`Order ORD-${opts.orderId} (${opts.customerName}) has been fully picked. Please pack it now.`,
 			`ऑर्डर ORD-${opts.orderId} (${opts.customerName}) की पिकिंग पूरी हो गई। अब पैकिंग करें।`,
@@ -421,7 +421,7 @@ export async function notifyPackComplete(opts: {
 	await dispatchNotification({
 		type: "delivery",
 		priority: "high",
-		title: `📦 Packed — ORD-${opts.orderId}`,
+		title: `Packed — ORD-${opts.orderId}`,
 		message: bilingual(
 			`Order ORD-${opts.orderId} (${opts.customerName}) packed by ${opts.packerName} [Pkg: ${opts.packageNumber}]. Ready for driver dispatch.`,
 			`ऑर्डर ORD-${opts.orderId} (${opts.customerName}) ${opts.packerName} ने पैक कर दिया [Pkg: ${opts.packageNumber}]। ड्राइवर को डिस्पैच करें।`,
@@ -452,7 +452,7 @@ export async function notifyTripAssigned(opts: {
 	await dispatchNotification({
 		type: "delivery",
 		priority: "high",
-		title: `🚚 Trip #${opts.tripId} Assigned to You`,
+		title: `Trip #${opts.tripId} Assigned to You`,
 		message: bilingual(
 			`Trip #${opts.tripId} with ${opts.stopsCount} stop(s) has been assigned to you. Prepare for delivery.`,
 			`ट्रिप #${opts.tripId} में ${opts.stopsCount} स्टॉप आपको असाइन हुए हैं। डिलीवरी की तैयारी करें।`,
@@ -478,7 +478,7 @@ export async function notifyTripDispatched(opts: {
 	await dispatchNotification({
 		type: "delivery",
 		priority: "critical",
-		title: `🟢 Start Delivery — Trip #${opts.tripId}`,
+		title: `Start Delivery — Trip #${opts.tripId}`,
 		message: bilingual(
 			`Manager dispatched Trip #${opts.tripId} (${opts.routeName}) with ${opts.stopsCount} stop(s). All stops are now in your app!`,
 			`मैनेजर ने ट्रिप #${opts.tripId} (${opts.routeName}) डिस्पैच किया है। ${opts.stopsCount} स्टॉप आपके ऐप में दिख रहे हैं।`,
@@ -518,7 +518,7 @@ export async function notifyDriverCollected(opts: {
 	await dispatchNotification({
 		type: "finance",
 		priority: "high",
-		title: `💰 ₹${total} Collected — ${opts.customerName}`,
+		title: `₹${total} Collected — ${opts.customerName}`,
 		message: bilingual(
 			`Driver ${opts.driverName} collected ${methodStr} from ${opts.customerName}${opts.orderId ? ` (ORD-${opts.orderId})` : ""}. Awaiting reconciliation.`,
 			`ड्राइवर ${opts.driverName} ने ${opts.customerName}${opts.orderId ? ` (ORD-${opts.orderId})` : ""} से ${methodStr} लिया। रिकंसिलिएशन बाकी है।`,
@@ -552,7 +552,7 @@ export async function notifyTripCompleted(opts: {
 	await dispatchNotification({
 		type: "info",
 		priority: "high",
-		title: `✅ Trip #${opts.tripId} Complete`,
+		title: `Trip #${opts.tripId} Complete`,
 		message: bilingual(
 			`Driver ${opts.driverName} completed all deliveries for Trip #${opts.tripId}. Total collected: ₹${opts.totalCollected}.`,
 			`ड्राइवर ${opts.driverName} ने ट्रिप #${opts.tripId} की सभी डिलीवरी पूरी की। कुल कलेक्शन: ₹${opts.totalCollected}।`,

@@ -17,6 +17,12 @@ export const getYesterdayStr = (): string => {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+export const getTomorrowStr = (): string => {
+	const d = new Date();
+	d.setDate(d.getDate() + 1);
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export const getDaysAgoStr = (days: number): string => {
 	const d = new Date();
 	d.setDate(d.getDate() - days);
@@ -84,6 +90,9 @@ export function DateFilterBar({
 		} else if (preset === "yesterday") {
 			const yest = getYesterdayStr();
 			onDateChange(yest, yest, "yesterday");
+		} else if (preset === "tomorrow") {
+			const tom = getTomorrowStr();
+			onDateChange(tom, tom, "tomorrow");
 		} else if (preset === "7days") {
 			onDateChange(getDaysAgoStr(7), getTodayStr(), "7days");
 		} else if (preset === "month") {
@@ -112,6 +121,7 @@ export function DateFilterBar({
 		{ id: "all", label: isHindi ? "सभी" : "All" },
 		{ id: "today", label: isHindi ? "आज (Today)" : "Today" },
 		{ id: "yesterday", label: isHindi ? "कल (Yesterday)" : "Yesterday" },
+		{ id: "tomorrow", label: isHindi ? "कल (Tomorrow)" : "Tomorrow" },
 		{ id: "7days", label: isHindi ? "7 दिन" : "Last 7 Days" },
 		{ id: "month", label: isHindi ? "इस माह" : "This Month" },
 	];

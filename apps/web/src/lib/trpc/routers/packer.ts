@@ -489,7 +489,7 @@ export const packerRouter = router({
 					await dispatchNotification({
 						type: "info",
 						priority: "high",
-						title: `📦 Order ORD-${validOrderId} Packed`,
+						title: `Order ORD-${validOrderId} Packed`,
 						message: `Order ORD-${validOrderId} (${custName}) has been packed by ${packerName}. Ready for final manager dispatch to driver.`,
 						branchId: branch,
 						channels: ["in_app"],
