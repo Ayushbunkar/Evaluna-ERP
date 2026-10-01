@@ -27,9 +27,13 @@ import {
 	Check,
 	CheckCircle,
 	CheckSquare,
+	ChevronDown,
+	ChevronUp,
 	CreditCard,
 	FileText,
+	Filter,
 	IndianRupee,
+	Layers,
 	MapPin,
 	Minus,
 	Package,
@@ -38,18 +42,22 @@ import {
 	Printer,
 	QrCode,
 	RefreshCw,
+	Search,
 	Truck,
 	User,
+	X,
 } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
 import { useTRPC } from "@/lib/trpc/client";
 
 type OrderItemHandover = {
 	id: number;
+	order_id?: number | null;
+	product_id?: number | null;
 	name: string;
 	originalQty: number;
 	deliveredQty: number;
@@ -57,7 +65,17 @@ type OrderItemHandover = {
 	price: number;
 	returnReason?: string;
 	checked?: boolean;
+	isVanStock?: boolean;
 };
+
+const RETURN_PRESET_REASONS = [
+	"Damaged Packaging (पैकेजिंग क्षति)",
+	"Customer Refused / Excess (ग्राहक ने लेने से मना किया)",
+	"Wrong Item / Variant (गलत सामान)",
+	"Expired / Near Expiry (खराब गुणवत्ता)",
+	"Short Supply / Missing (कम मात्रा)",
+	"Custom / Other Reason",
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -66,23 +84,27 @@ function getStatusVariant(
 ): "default" | "secondary" | "destructive" | "outline" {
 	if (status === "delivered" || status === "completed") return "secondary";
 	if (status === "failed") return "destructive";
-	if (status === "started") return "default";
+	if (status === "started" || status === "out_for_delivery" || status === "in_transit")
+		return "default";
 	return "outline";
 }
 
 function getStatusLabel(status: string): string {
 	if (status === "delivered" || status === "completed") return "Delivered ✓";
 	if (status === "failed") return "Failed ✗";
-	if (status === "started") return "In Progress";
+	if (status === "started" || status === "out_for_delivery" || status === "in_transit")
+		return "Out for Delivery";
+	if (status === "loaded" || status === "ready_for_loading") return "Loaded";
 	if (status === "partially_delivered") return "Partial";
 	return "Pending";
 }
 
-// ─── Default items (to be replaced with real order items from API) ────────────
+// ─── Default items ────────────────────────────────────────────────────────────
 
 const DEFAULT_ITEMS: OrderItemHandover[] = [
 	{
 		id: 1,
+		order_id: 595,
 		name: "Whole Wheat Atta 10kg",
 		originalQty: 2,
 		deliveredQty: 2,
@@ -91,6 +113,7 @@ const DEFAULT_ITEMS: OrderItemHandover[] = [
 	},
 	{
 		id: 2,
+		order_id: 595,
 		name: "Refined Soyabean Oil 5L",
 		originalQty: 1,
 		deliveredQty: 1,
@@ -99,12 +122,13 @@ const DEFAULT_ITEMS: OrderItemHandover[] = [
 	},
 	{
 		id: 3,
+		order_id: 574,
 		name: "Basmati Rice Special 5kg",
 		originalQty: 1,
 		deliveredQty: 0,
 		returnedQty: 1,
 		price: 580,
-		returnReason: "Damaged Package",
+		returnReason: "Damaged Packaging (पैकेजिंग क्षति)",
 	},
 ];
 
@@ -119,6 +143,13 @@ const TRUCK_STOCK_ITEMS = [
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DriverLiveDeliveryPage() {
+	let locale = "en";
+	try {
+		locale = useLocale();
+	} catch {
+		locale = "en";
+	}
+
 	let tRaw: any = null;
 	try {
 		tRaw = useTranslations();
@@ -127,7 +158,12 @@ export default function DriverLiveDeliveryPage() {
 		try {
 			if (tRaw) {
 				const val = tRaw(key);
-				if (val && typeof val === "string" && !val.includes("MISSING_MESSAGE") && !val.includes("Could not resolve")) {
+				if (
+					val &&
+					typeof val === "string" &&
+					!val.includes("MISSING_MESSAGE") &&
+					!val.includes("Could not resolve")
+				) {
 					return val;
 				}
 			}
@@ -159,7 +195,9 @@ export default function DriverLiveDeliveryPage() {
 	const submitHandover = trpc.driver.submitDeliveryHandover.useMutation({
 		onSuccess: () => {
 			toast.success(
-				"Delivery Handover & Payment Settlement recorded successfully!",
+				locale === "hi"
+					? "डिलीवरी हैंडओवर एवं भुगतान सफलतापूर्वक रिकॉर्ड किया गया!"
+					: "Delivery Handover & Payment Settlement recorded successfully!",
 			);
 			setBillModalOpen(true);
 			refetch();
@@ -183,11 +221,272 @@ export default function DriverLiveDeliveryPage() {
 	>({});
 	const [items, setItems] = useState<OrderItemHandover[]>(DEFAULT_ITEMS);
 
+	// Order filtering & Search states
+	const [selectedOrderFilter, setSelectedOrderFilter] = useState<
+		number | "all" | "van_stock"
+	>("all");
+	const [searchQuery, setSearchQuery] = useState("");
+	const [collapsedOrders, setCollapsedOrders] = useState<Record<string, boolean>>(
+		{},
+	);
+
 	const routeStops =
 		directRouteStops && directRouteStops.length > 0
 			? directRouteStops
 			: (dashboardData?.routeStops ?? []);
 	const activeStop = routeStops.find((s) => s.id === handoverStopId) ?? null;
+
+	// ── Active Stop Orders List ────────────────────────────────────────────────
+	const activeOrdersList = useMemo(() => {
+		if (!activeStop) return [];
+
+		// If activeStop has an orders array from backend
+		if (activeStop.orders && activeStop.orders.length > 0) {
+			return activeStop.orders.map((ord: any) => {
+				const ordItems = items.filter((it) => it.order_id === ord.id);
+				const ordDeliveredTotal = ordItems.reduce(
+					(sum, it) => sum + it.deliveredQty * it.price,
+					0,
+				);
+				const ordOriginalTotal = ordItems.reduce(
+					(sum, it) => sum + it.originalQty * it.price,
+					0,
+				);
+				const allChecked =
+					ordItems.length > 0 && ordItems.every((it) => it.checked);
+				const checkedCount = ordItems.filter((it) => it.checked).length;
+				return {
+					id: ord.id,
+					orderIdStr: `ORD-${ord.id}`,
+					status: ord.status,
+					itemsCount: ordItems.length,
+					deliveredTotal: ordDeliveredTotal,
+					originalTotal: ordOriginalTotal || ord.total_amount,
+					allChecked,
+					checkedCount,
+					items: ordItems,
+				};
+			});
+		}
+
+		// Fallback: group items by order_id if present
+		const groupedMap = new Map<number, OrderItemHandover[]>();
+		for (const item of items) {
+			if (item.order_id) {
+				if (!groupedMap.has(item.order_id)) {
+					groupedMap.set(item.order_id, []);
+				}
+				groupedMap.get(item.order_id)!.push(item);
+			}
+		}
+
+		if (groupedMap.size > 0) {
+			return Array.from(groupedMap.entries()).map(([ordId, ordItems]) => {
+				const ordDeliveredTotal = ordItems.reduce(
+					(sum, it) => sum + it.deliveredQty * it.price,
+					0,
+				);
+				const ordOriginalTotal = ordItems.reduce(
+					(sum, it) => sum + it.originalQty * it.price,
+					0,
+				);
+				return {
+					id: ordId,
+					orderIdStr: `ORD-${ordId}`,
+					status: "in_transit",
+					itemsCount: ordItems.length,
+					deliveredTotal: ordDeliveredTotal,
+					originalTotal: ordOriginalTotal,
+					allChecked:
+						ordItems.length > 0 && ordItems.every((it) => it.checked),
+					checkedCount: ordItems.filter((it) => it.checked).length,
+					items: ordItems,
+				};
+			});
+		}
+
+		// Single order fallback
+		const fallbackId = activeStop.orderId || activeStop.id;
+		const ordDeliveredTotal = items.reduce(
+			(sum, it) => sum + it.deliveredQty * it.price,
+			0,
+		);
+		return [
+			{
+				id: typeof fallbackId === "number" ? fallbackId : 1,
+				orderIdStr: String(fallbackId).startsWith("ORD-")
+					? String(fallbackId)
+					: `ORD-${fallbackId}`,
+				status: activeStop.rawStatus || "in_transit",
+				itemsCount: items.length,
+				deliveredTotal: ordDeliveredTotal,
+				originalTotal: ordDeliveredTotal,
+				allChecked: items.length > 0 && items.every((it) => it.checked),
+				checkedCount: items.filter((it) => it.checked).length,
+				items: items,
+			},
+		];
+	}, [activeStop, items]);
+
+	const vanStockItemsCount = useMemo(
+		() => items.filter((i) => i.isVanStock).length,
+		[items],
+	);
+	const vanStockDeliveredTotal = useMemo(
+		() =>
+			items
+				.filter((i) => i.isVanStock)
+				.reduce((sum, it) => sum + it.deliveredQty * it.price, 0),
+		[items],
+	);
+
+	// ── Filtered items based on Order Tab + Search ────────────────────────────
+	const filteredItems = useMemo(() => {
+		return items.filter((item) => {
+			// Order pill filter
+			if (selectedOrderFilter === "van_stock") {
+				if (!item.isVanStock) return false;
+			} else if (selectedOrderFilter !== "all") {
+				if (item.order_id !== selectedOrderFilter) return false;
+			}
+
+			// Text search filter
+			if (searchQuery.trim()) {
+				const q = searchQuery.toLowerCase().trim();
+				const matchName = item.name.toLowerCase().includes(q);
+				const matchOrderId = item.order_id
+					? String(item.order_id).includes(q) ||
+						`ord-${item.order_id}`.includes(q)
+					: false;
+				const matchReason = item.returnReason
+					? item.returnReason.toLowerCase().includes(q)
+					: false;
+				if (!matchName && !matchOrderId && !matchReason) return false;
+			}
+
+			return true;
+		});
+	}, [items, selectedOrderFilter, searchQuery]);
+
+	// ── Grouped Sections for Order-Wise Display ────────────────────────────────
+	const groupedItemsByOrder = useMemo(() => {
+		const groups: Array<{
+			orderIdKey: string;
+			orderIdNumeric?: number;
+			orderTitle: string;
+			orderBadge: string;
+			orderTotal: number;
+			items: OrderItemHandover[];
+			allChecked: boolean;
+			checkedCount: number;
+		}> = [];
+
+		if (selectedOrderFilter !== "all") {
+			const isVan = selectedOrderFilter === "van_stock";
+			const title = isVan
+				? locale === "hi"
+					? "अतिरिक्त वैन स्टॉक सामान (Van Stock)"
+					: "Van Stock Additions"
+				: `Order #${
+						typeof selectedOrderFilter === "number"
+							? `ORD-${selectedOrderFilter}`
+							: selectedOrderFilter
+					}`;
+			const total = filteredItems.reduce(
+				(sum, it) => sum + it.deliveredQty * it.price,
+				0,
+			);
+			groups.push({
+				orderIdKey: String(selectedOrderFilter),
+				orderIdNumeric: isVan ? undefined : Number(selectedOrderFilter),
+				orderTitle: title,
+				orderBadge: isVan ? "Van Stock" : `ORD-${selectedOrderFilter}`,
+				orderTotal: total,
+				items: filteredItems,
+				allChecked:
+					filteredItems.length > 0 &&
+					filteredItems.every((it) => it.checked),
+				checkedCount: filteredItems.filter((it) => it.checked).length,
+			});
+			return groups;
+		}
+
+		// Group by order_id
+		const orderMap = new Map<number, OrderItemHandover[]>();
+		const vanStockList: OrderItemHandover[] = [];
+		const otherList: OrderItemHandover[] = [];
+
+		for (const item of filteredItems) {
+			if (item.isVanStock) {
+				vanStockList.push(item);
+			} else if (item.order_id) {
+				if (!orderMap.has(item.order_id)) {
+					orderMap.set(item.order_id, []);
+				}
+				orderMap.get(item.order_id)!.push(item);
+			} else {
+				otherList.push(item);
+			}
+		}
+
+		for (const [ordId, ordItems] of orderMap.entries()) {
+			const total = ordItems.reduce(
+				(sum, it) => sum + it.deliveredQty * it.price,
+				0,
+			);
+			groups.push({
+				orderIdKey: `ord-${ordId}`,
+				orderIdNumeric: ordId,
+				orderTitle: `Order #ORD-${ordId}`,
+				orderBadge: `ORD-${ordId}`,
+				orderTotal: total,
+				items: ordItems,
+				allChecked:
+					ordItems.length > 0 && ordItems.every((it) => it.checked),
+				checkedCount: ordItems.filter((it) => it.checked).length,
+			});
+		}
+
+		if (vanStockList.length > 0) {
+			const total = vanStockList.reduce(
+				(sum, it) => sum + it.deliveredQty * it.price,
+				0,
+			);
+			groups.push({
+				orderIdKey: "van_stock",
+				orderTitle:
+					locale === "hi"
+						? "अतिरिक्त वैन स्टॉक सामान (Van Stock)"
+						: "Van Stock Additions",
+				orderBadge: "Van Stock",
+				orderTotal: total,
+				items: vanStockList,
+				allChecked:
+					vanStockList.length > 0 &&
+					vanStockList.every((it) => it.checked),
+				checkedCount: vanStockList.filter((it) => it.checked).length,
+			});
+		}
+
+		if (otherList.length > 0) {
+			const total = otherList.reduce(
+				(sum, it) => sum + it.deliveredQty * it.price,
+				0,
+			);
+			groups.push({
+				orderIdKey: "other",
+				orderTitle: `${activeStop?.customerName || "Customer"} Items`,
+				orderBadge: "Items",
+				orderTotal: total,
+				items: otherList,
+				allChecked:
+					otherList.length > 0 && otherList.every((it) => it.checked),
+				checkedCount: otherList.filter((it) => it.checked).length,
+			});
+		}
+
+		return groups;
+	}, [filteredItems, selectedOrderFilter, activeStop, locale]);
 
 	// ── Van stock helpers ──────────────────────────────────────────────────────
 
@@ -218,22 +517,31 @@ export default function DriverLiveDeliveryPage() {
 			const truckItem = TRUCK_STOCK_ITEMS.find((t) => t.id === id);
 			if (truckItem && qty > 0) {
 				newEntries.push({
-					id: id + Date.now() + Math.random(),
+					id: id + Date.now() + Math.floor(Math.random() * 1000),
+					order_id: null,
+					isVanStock: true,
 					name: `${truckItem.name} (Van Stock)`,
 					originalQty: qty,
 					deliveredQty: qty,
 					returnedQty: 0,
 					price: truckItem.price,
+					checked: true,
 				});
 			}
 		}
 		if (newEntries.length === 0) {
-			toast.error("Please select at least one item to add.");
+			toast.error(
+				locale === "hi"
+					? "कृपया कम से कम एक सामान चुनें"
+					: "Please select at least one item to add.",
+			);
 			return;
 		}
 		setItems((prev) => [...prev, ...newEntries]);
 		toast.success(
-			`Added ${newEntries.length} items from Van Stock to customer bill!`,
+			locale === "hi"
+				? `वैन स्टॉक से ${newEntries.length} सामान ग्राहक बिल में जोड़े गए!`
+				: `Added ${newEntries.length} items from Van Stock to customer bill!`,
 		);
 		setExtraModalOpen(false);
 		setSelectedTruckItems({});
@@ -278,10 +586,38 @@ export default function DriverLiveDeliveryPage() {
 	};
 
 	const handleToggleAllChecks = () => {
-		const allChecked = items.length > 0 && items.every((i) => i.checked);
+		const targetList = filteredItems;
+		const allTargetChecked =
+			targetList.length > 0 && targetList.every((i) => i.checked);
+		const targetIds = new Set(targetList.map((i) => i.id));
 		setItems((prev) =>
-			prev.map((item) => ({ ...item, checked: !allChecked })),
+			prev.map((item) =>
+				targetIds.has(item.id)
+					? { ...item, checked: !allTargetChecked }
+					: item,
+			),
 		);
+	};
+
+	const handleToggleGroupChecks = (groupKey: string) => {
+		const group = groupedItemsByOrder.find((g) => g.orderIdKey === groupKey);
+		if (!group) return;
+		const allGroupChecked = group.allChecked;
+		const groupItemIds = new Set(group.items.map((i) => i.id));
+		setItems((prev) =>
+			prev.map((item) =>
+				groupItemIds.has(item.id)
+					? { ...item, checked: !allGroupChecked }
+					: item,
+			),
+		);
+	};
+
+	const toggleCollapseOrder = (groupKey: string) => {
+		setCollapsedOrders((prev) => ({
+			...prev,
+			[groupKey]: !prev[groupKey],
+		}));
 	};
 
 	// ── Bill calculations ──────────────────────────────────────────────────────
@@ -318,7 +654,9 @@ export default function DriverLiveDeliveryPage() {
 	const handleSubmitHandover = () => {
 		if (remainingBalance !== 0) {
 			toast.error(
-				`Payment amount does not match bill total of ₹${finalTotal}. Remaining balance: ₹${remainingBalance}`,
+				locale === "hi"
+					? `भुगतान राशि कुल बिल ₹${finalTotal} से मेल नहीं खाती। बकाया: ₹${remainingBalance}`
+					: `Payment amount does not match bill total of ₹${finalTotal}. Remaining balance: ₹${remainingBalance}`,
 			);
 			return;
 		}
@@ -359,20 +697,26 @@ export default function DriverLiveDeliveryPage() {
 		);
 		if (remainingPending.length > 0) {
 			const nextStop = remainingPending[0];
-			// Reset form for next stop
 			setCashAmount(0);
 			setOnlineAmount(0);
 			setNotes("");
 			setItems(DEFAULT_ITEMS);
+			setSelectedOrderFilter("all");
+			setSearchQuery("");
 			setHandoverStopId(nextStop.id);
 			toast.success(
-				`Completed delivery for ${activeStop?.customerName || "Customer"}. Opening next stop: ${nextStop.customerName}!`,
+				locale === "hi"
+					? `${activeStop?.customerName || "ग्राहक"} की डिलीवरी पूरी हुई! अगला स्टॉप: ${nextStop.customerName}`
+					: `Completed delivery for ${activeStop?.customerName || "Customer"}. Opening next stop: ${nextStop.customerName}!`,
 			);
 		} else {
 			setHandoverStopId(null);
-			toast.success("All delivery stops on this trip completed successfully!", {
-				duration: 5000,
-			});
+			toast.success(
+				locale === "hi"
+					? "इस ट्रिप के सभी डिलीवरी स्टॉप्स सफलतापूर्वक पूरे हो गए!"
+					: "All delivery stops on this trip completed successfully!",
+				{ duration: 5000 },
+			);
 		}
 		refetch();
 	};
@@ -380,21 +724,29 @@ export default function DriverLiveDeliveryPage() {
 	// ── Open handover for a stop ───────────────────────────────────────────────
 
 	const handleOpenHandover = (stopId: number) => {
-		// Reset form when opening a new stop
 		setCashAmount(0);
 		setOnlineAmount(0);
 		setNotes("");
+		setSelectedOrderFilter("all");
+		setSearchQuery("");
 		const targetStop = routeStops.find((s) => s.id === stopId);
 		if (targetStop && targetStop.orderItems && targetStop.orderItems.length > 0) {
 			setItems(
 				targetStop.orderItems.map((oi: any) => ({
 					id: oi.id,
+					order_id:
+						oi.order_id ??
+						(targetStop.orders && targetStop.orders.length === 1
+							? targetStop.orders[0].id
+							: null),
+					product_id: oi.product_id,
 					name: oi.name,
 					originalQty: Number(oi.qty) || 0,
 					deliveredQty: Number(oi.qty) || 0,
 					returnedQty: 0,
 					price: Number(oi.price || 0),
 					checked: Boolean(oi.checked),
+					isVanStock: false,
 				})),
 			);
 		} else {
@@ -409,7 +761,7 @@ export default function DriverLiveDeliveryPage() {
 
 	return (
 		<div className="min-h-screen bg-gray-50/50 p-4 md:p-6 dark:bg-gray-900">
-			<div className="mx-auto max-w-5xl space-y-6">
+			<div className="mx-auto max-w-6xl space-y-6">
 				{/* ── Top Bar ─────────────────────────────────────────────────── */}
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex items-center space-x-3">
@@ -418,32 +770,54 @@ export default function DriverLiveDeliveryPage() {
 								variant="outline"
 								size="icon"
 								onClick={() => setHandoverStopId(null)}
+								className="h-9 w-9 rounded-xl shadow-xs"
 							>
 								<ArrowLeft className="h-4 w-4" />
 							</Button>
 						) : (
 							<Link href="/driver">
-								<Button variant="outline" size="icon">
+								<Button variant="outline" size="icon" className="h-9 w-9 rounded-xl shadow-xs">
 									<ArrowLeft className="h-4 w-4" />
 								</Button>
 							</Link>
 						)}
 						<div>
-							<h1 className="font-bold text-2xl text-gray-900 tracking-tight dark:text-white">
+							<h1 className="font-bold text-xl sm:text-2xl text-gray-900 tracking-tight dark:text-white flex items-center gap-2">
 								{handoverStopId !== null
-									? t("driver.handoverAndLiveBilling")
+									? (locale === "hi" ? "हैंडओवर एवं लाइव बिलिंग" : "Handover & Live Billing")
 									: t("driver.deliveryStops")}
 							</h1>
-							<p className="text-gray-500 text-sm dark:text-gray-400">
-								{handoverStopId !== null
-									? `${t("sales.customerName")}: ${activeStop?.customerName || "—"} · Ref #${activeStop?.id ?? "—"}`
-									: t("driver.selectStopToStartLiveHandoverBilling")}
+							<p className="text-gray-500 text-xs sm:text-sm dark:text-gray-400 flex items-center gap-2">
+								{handoverStopId !== null ? (
+									<>
+										<span className="font-medium text-gray-800 dark:text-gray-200">
+											{locale === "hi" ? "ग्राहक का नाम" : "Customer Name"}:{" "}
+											<span className="font-bold text-blue-600 dark:text-blue-400">
+												{activeStop?.customerName || "—"}
+											</span>
+										</span>
+										<span>•</span>
+										<span className="font-mono text-gray-500">
+											Ref #{activeStop?.id ?? "—"}
+										</span>
+										{activeOrdersList.length > 1 && (
+											<Badge
+												variant="secondary"
+												className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-semibold text-[11px]"
+											>
+												{activeOrdersList.length} {locale === "hi" ? "संयुक्त ऑर्डर्स" : "Combined Orders"}
+											</Badge>
+										)}
+									</>
+								) : (
+									t("driver.selectStopToStartLiveHandoverBilling")
+								)}
 							</p>
 						</div>
 					</div>
 					<Badge
 						variant="outline"
-						className="w-fit border-blue-500 bg-blue-50 px-3 py-1.5 text-blue-700"
+						className="w-fit border-blue-500 bg-blue-50 px-3 py-1.5 text-blue-700 font-semibold shadow-2xs"
 					>
 						<Truck className="mr-1.5 h-4 w-4" />{" "}
 						{t("driver.activeDriverSession")}
@@ -458,7 +832,7 @@ export default function DriverLiveDeliveryPage() {
 						{isLoading && (
 							<div className="flex items-center justify-center py-20">
 								<RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-								<span className="ml-3 text-gray-500">
+								<span className="ml-3 text-gray-500 font-medium">
 									{t("common.loading")}
 								</span>
 							</div>
@@ -471,11 +845,12 @@ export default function DriverLiveDeliveryPage() {
 										<Package className="h-8 w-8" />
 									</div>
 									<h3 className="font-bold text-foreground text-lg sm:text-xl">
-										No Active Delivery Stops
+										{locale === "hi" ? "कोई सक्रिय डिलीवरी स्टॉप नहीं" : "No Active Delivery Stops"}
 									</h3>
 									<p className="mt-1.5 max-w-md text-muted-foreground text-xs leading-relaxed sm:text-sm">
-										Your delivery manager has not assigned any active customer stops to you yet.
-										Once your route is dispatched, your customer orders and handover verification tools will appear here.
+										{locale === "hi"
+											? "मैनेजर द्वारा आपको अभी कोई सक्रिय रूट असाइन नहीं किया गया है। डिस्पैच होते ही सभी ऑर्डर्स यहाँ दिखेंगे।"
+											: "Your delivery manager has not assigned any active customer stops to you yet. Once your route is dispatched, your customer orders and handover verification tools will appear here."}
 									</p>
 									<div className="mt-6 flex flex-wrap items-center justify-center gap-3">
 										<Button
@@ -484,11 +859,13 @@ export default function DriverLiveDeliveryPage() {
 											onClick={refetch}
 											className="gap-2 text-xs"
 										>
-											<RefreshCw className="h-3.5 w-3.5" /> Check for New Route
+											<RefreshCw className="h-3.5 w-3.5" />{" "}
+											{locale === "hi" ? "रूट चेक करें" : "Check for New Route"}
 										</Button>
 										<Button size="sm" asChild className="gap-2 text-xs">
 											<Link href="/driver/route">
-												<MapPin className="h-3.5 w-3.5" /> View Route Dashboard
+												<MapPin className="h-3.5 w-3.5" />{" "}
+												{locale === "hi" ? "रूट डैशबोर्ड देखें" : "View Route Dashboard"}
 											</Link>
 										</Button>
 									</div>
@@ -502,14 +879,14 @@ export default function DriverLiveDeliveryPage() {
 								<div className="flex flex-wrap gap-3">
 									<Badge
 										variant="outline"
-										className="gap-1.5 px-3 py-1 text-sm"
+										className="gap-1.5 px-3 py-1 text-sm font-semibold bg-background"
 									>
-										<Package className="h-3.5 w-3.5" />
+										<Package className="h-3.5 w-3.5 text-blue-600" />
 										{routeStops.length} {t("driver.totalStops")}
 									</Badge>
 									<Badge
 										variant="outline"
-										className="gap-1.5 border-amber-400 bg-amber-50 px-3 py-1 text-amber-700 text-sm"
+										className="gap-1.5 border-amber-400 bg-amber-50 px-3 py-1 text-amber-700 text-sm font-semibold dark:bg-amber-950/40 dark:text-amber-300"
 									>
 										{
 											routeStops.filter(
@@ -523,9 +900,9 @@ export default function DriverLiveDeliveryPage() {
 									</Badge>
 									<Badge
 										variant="outline"
-										className="gap-1.5 border-emerald-400 bg-emerald-50 px-3 py-1 text-emerald-700 text-sm"
+										className="gap-1.5 border-emerald-400 bg-emerald-50 px-3 py-1 text-emerald-700 text-sm font-semibold dark:bg-emerald-950/40 dark:text-emerald-300"
 									>
-										<CheckCircle className="h-3.5 w-3.5" />
+										<CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
 										{
 											routeStops.filter(
 												(s) =>
@@ -546,12 +923,12 @@ export default function DriverLiveDeliveryPage() {
 										return (
 											<Card
 												key={stop.id}
-												className={`shadow-sm transition-all ${
+												className={`shadow-xs transition-all border ${
 													isDone
 														? "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/20"
 														: isFailed
 															? "border-red-200 bg-red-50/30 dark:border-red-900"
-															: "hover:border-blue-200 hover:shadow-md"
+															: "hover:border-blue-300 hover:shadow-md bg-card"
 												}`}
 											>
 												<CardHeader className="pb-3">
@@ -560,20 +937,22 @@ export default function DriverLiveDeliveryPage() {
 															<span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 text-xs dark:bg-blue-900 dark:text-blue-300">
 																{idx + 1}
 															</span>
-															<CardTitle className="text-base leading-tight">
-																{stop.customerName}
-															</CardTitle>
+															<div>
+																<CardTitle className="text-base leading-tight">
+																	{stop.customerName}
+																</CardTitle>
+															</div>
 														</div>
 														<Badge
 															variant={getStatusVariant(stop.status)}
 															className="shrink-0 text-xs"
 														>
-															{getStatusLabel(stop.status, t)}
+															{getStatusLabel(stop.status)}
 														</Badge>
 													</div>
 												</CardHeader>
 
-												<CardContent className="space-y-2 pb-4 text-sm">
+												<CardContent className="space-y-2.5 pb-4 text-sm">
 													{/* Address */}
 													{stop.address && (
 														<div className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
@@ -587,81 +966,97 @@ export default function DriverLiveDeliveryPage() {
 													{stop.phone && (
 														<div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
 															<Phone className="h-4 w-4 shrink-0 text-gray-400" />
-															<span className="text-xs">{stop.phone}</span>
+															<span className="text-xs font-mono">{stop.phone}</span>
 														</div>
 													)}
-													{/* Order Items */}
+
+													{/* Orders tags breakdown */}
+													<div className="flex flex-wrap items-center gap-1.5 pt-1">
+														{stop.orders && stop.orders.length > 0 ? (
+															stop.orders.map((ord: any) => (
+																<span
+																	key={ord.id}
+																	className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50/80 px-2 py-0.5 font-mono text-[11px] font-bold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300 shadow-2xs"
+																>
+																	<Package className="h-3 w-3" />
+																	ORD-{ord.id}
+																	{ord.total_amount > 0 && (
+																		<span className="text-blue-950 dark:text-blue-200 font-semibold">
+																			(₹{ord.total_amount})
+																		</span>
+																	)}
+																</span>
+															))
+														) : (
+															<span className="font-mono text-gray-500 text-xs">
+																{typeof stop.orderId === "string" &&
+																stop.orderId.startsWith("ORD-")
+																	? stop.orderId
+																	: `ORD-${stop.orderId || stop.id}`}
+															</span>
+														)}
+														{stop.ordersCount && stop.ordersCount > 1 && (
+															<span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+																{stop.ordersCount} {locale === "hi" ? "ऑर्डर्स" : "Orders"}
+															</span>
+														)}
+													</div>
+
+													{/* Order Items preview */}
 													{stop.orderItems && stop.orderItems.length > 0 && (
-														<div className="mt-2 rounded-lg border border-gray-100 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/40">
-															<div className="flex items-center gap-1.5 border-gray-100 border-b px-3 py-1.5 dark:border-gray-700">
-																<Package className="h-3.5 w-3.5 text-blue-500" />
-																<span className="font-semibold text-[11px] text-gray-600 uppercase tracking-wide dark:text-gray-400">
-																	{t("driver.orderItems")} (
+														<div className="mt-2 rounded-lg border border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/40 overflow-hidden">
+															<div className="flex items-center justify-between border-gray-100 border-b px-3 py-1.5 dark:border-gray-700 bg-muted/30">
+																<span className="font-semibold text-[11px] text-gray-600 uppercase tracking-wide dark:text-gray-400 flex items-center gap-1.5">
+																	<Package className="h-3.5 w-3.5 text-blue-500" />
+																	{locale === "hi" ? "सामान सूची" : "Items Preview"} (
 																	{stop.orderItems.length})
 																</span>
+																<span className="font-mono text-xs font-bold text-emerald-600">
+																	₹{stop.amountToCollect ?? "—"}
+																</span>
 															</div>
-															<div className="divide-y divide-gray-100 dark:divide-gray-700">
-																{stop.orderItems.map(
-																	(
-																		oi: {
-																			id: number;
-																			name: string;
-																			qty: number;
-																			price?: number;
-																		},
-																		i: number,
-																	) => (
-																		<div
-																			key={oi.id ?? i}
-																			className="flex items-center justify-between px-3 py-2"
-																		>
-																			<div className="flex items-center gap-2">
-																				<span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 font-bold text-[10px] text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-																					{oi.qty}
-																				</span>
-																				<span className="text-gray-700 text-xs leading-tight dark:text-gray-300">
-																					{oi.name}
-																				</span>
-																			</div>
-																			{oi.price != null && (
-																				<span className="ml-2 shrink-0 font-mono font-semibold text-gray-700 text-xs dark:text-gray-300">
-																					₹{oi.price * oi.qty}
+															<div className="divide-y divide-gray-100 dark:divide-gray-700/60 max-h-36 overflow-y-auto">
+																{stop.orderItems.slice(0, 4).map((oi: any, i: number) => (
+																	<div
+																		key={oi.id ?? i}
+																		className="flex items-center justify-between px-3 py-1.5 text-xs"
+																	>
+																		<div className="flex items-center gap-2 truncate">
+																			<span className="flex h-4 min-w-4 px-1 items-center justify-center rounded bg-blue-100 font-bold text-[10px] text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+																				{oi.qty}x
+																			</span>
+																			<span className="text-gray-700 dark:text-gray-300 truncate">
+																				{oi.name}
+																			</span>
+																			{oi.order_id && (
+																				<span className="text-[10px] font-mono text-muted-foreground">
+																					[ORD-{oi.order_id}]
 																				</span>
 																			)}
 																		</div>
-																	),
+																		{oi.price != null && (
+																			<span className="ml-2 shrink-0 font-mono font-semibold text-gray-700 text-xs dark:text-gray-300">
+																				₹{oi.price * oi.qty}
+																			</span>
+																		)}
+																	</div>
+																))}
+																{stop.orderItems.length > 4 && (
+																	<div className="px-3 py-1 text-[11px] text-center text-blue-600 font-semibold bg-blue-50/40 dark:bg-blue-950/20">
+																		+{stop.orderItems.length - 4} {locale === "hi" ? "और सामान..." : "more items..."}
+																	</div>
 																)}
 															</div>
 														</div>
 													)}
-													{/* Order ref & amount */}
-													<div className="flex items-center justify-between border-t pt-1">
-														<div className="flex flex-wrap items-center gap-1">
-															{stop.orders && stop.orders.length > 0 ? (
-																stop.orders.map((ord: any) => (
-																	<span
-																		key={ord.id}
-																		className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
-																	>
-																		ORD-{ord.id}
-																	</span>
-																))
-															) : (
-																<span className="font-mono text-gray-500 text-xs">
-																	{typeof stop.orderId === "string" &&
-																	stop.orderId.startsWith("ORD-")
-																		? stop.orderId
-																		: `ORD-${stop.orderId || stop.id}`}
-																</span>
-															)}
-															{stop.ordersCount && stop.ordersCount > 1 && (
-																<span className="inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-																	{stop.ordersCount} Orders
-																</span>
-															)}
-														</div>
-														<span className="flex items-center gap-0.5 font-bold font-mono text-sm">
-															<IndianRupee className="h-3.5 w-3.5" />
+
+													{/* Amount to collect */}
+													<div className="flex items-center justify-between border-t pt-2">
+														<span className="text-xs font-medium text-muted-foreground">
+															{locale === "hi" ? "कुल देय राशि:" : "Total Payable Amount:"}
+														</span>
+														<span className="flex items-center gap-0.5 font-bold font-mono text-base text-blue-600 dark:text-blue-400">
+															<IndianRupee className="h-4 w-4" />
 															{stop.amountToCollect ?? "—"}
 														</span>
 													</div>
@@ -689,11 +1084,11 @@ export default function DriverLiveDeliveryPage() {
 														</div>
 													) : (
 														<Button
-															className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700"
+															className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 font-semibold shadow-xs"
 															onClick={() => handleOpenHandover(stop.id)}
 														>
 															<FileText className="h-4 w-4" />
-															{t("driver.handoverAndLiveBilling")}
+															{locale === "hi" ? "सामान जाँचें एवं बिल बनाएं" : "Handover & Live Billing"}
 														</Button>
 													)}
 												</CardFooter>
@@ -707,239 +1102,575 @@ export default function DriverLiveDeliveryPage() {
 				)}
 
 				{/* ══════════════════════════════════════════════════════════════
-				    PHASE 2 — HANDOVER & BILL PANEL
+				    PHASE 2 — HANDOVER & BILL PANEL (WITH ORDER SEPARATION & FILTERING)
 				    ══════════════════════════════════════════════════════════════ */}
 				{handoverStopId !== null && (
 					<div className="grid gap-6 md:grid-cols-12">
 						{/* Left Column: Item Inspection & Return/Damage Entry */}
-						<div className="space-y-6 md:col-span-7">
-							<Card className="shadow-sm">
-								<CardHeader className="border-b bg-gray-50/50 pb-3 dark:bg-gray-800/50">
-									<div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+						<div className="space-y-4 md:col-span-7">
+							<Card className="shadow-sm border">
+								<CardHeader className="border-b bg-gradient-to-r from-blue-50/50 via-gray-50/50 to-muted/20 pb-3 dark:from-blue-950/20 dark:via-gray-800/50 dark:to-gray-800/30">
+									<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
 										<div>
-											<CardTitle className="flex items-center gap-2 text-base">
+											<CardTitle className="flex items-center gap-2 text-base font-bold">
 												<Package className="h-4 w-4 text-blue-600" />
-												Itemized Delivery Verification
+												{locale === "hi"
+													? "सामान वितरण सत्यापन (Itemized Verification)"
+													: "Itemized Delivery Verification"}
 											</CardTitle>
-											<CardDescription>
-												Adjust quantities for items kept vs returned/damaged.
+											<CardDescription className="text-xs">
+												{locale === "hi"
+													? "ग्राहकों को सौंपे गए या लौटाए गए सामान की मात्रा समायोजित करें।"
+													: "Adjust quantities for items kept vs returned/damaged."}
 											</CardDescription>
 										</div>
+
 										<div className="flex flex-wrap items-center gap-2">
 											<Button
 												type="button"
 												variant="outline"
 												size="sm"
-												className={`h-8 gap-1 text-xs transition-colors ${
-													items.length > 0 && items.every((i) => i.checked)
+												className={`h-8 gap-1 text-xs font-semibold transition-colors shadow-2xs ${
+													filteredItems.length > 0 &&
+													filteredItems.every((i) => i.checked)
 														? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
 														: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
 												}`}
 												onClick={handleToggleAllChecks}
 											>
 												<CheckSquare className="h-3.5 w-3.5 text-emerald-600" />
-												{items.length > 0 && items.every((i) => i.checked)
-													? "Uncheck All"
-													: "Tick All Items"}
+												{filteredItems.length > 0 &&
+												filteredItems.every((i) => i.checked)
+													? locale === "hi" ? "सभी अनचेक करें" : "Uncheck All"
+													: locale === "hi" ? "सभी सामान टिक करें" : "Tick All Items"}
 											</Button>
 											<Button
 												type="button"
 												variant="outline"
 												size="sm"
-												className="h-8 gap-1 border-blue-300 bg-blue-50 text-blue-700 text-xs hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
+												className="h-8 gap-1 border-blue-300 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 shadow-2xs"
 												onClick={() => setExtraModalOpen(true)}
 											>
-												<Plus className="h-3.5 w-3.5" /> Add Extra Item (Van
-												Stock)
+												<Plus className="h-3.5 w-3.5" />{" "}
+												{locale === "hi" ? "+ वैन स्टॉक जोड़ें" : "+ Add Van Stock"}
 											</Button>
-											<Badge variant="secondary" className="font-mono text-xs">
-												{(() => {
-													if (!activeStop) return "ORD-LIVE";
-													const val = String(activeStop.orderId || activeStop.id || "");
-													if (val.startsWith("ORD-")) return val;
-													return `ORD-${val}`;
-												})()}
-											</Badge>
+										</div>
+									</div>
+
+									{/* ── Order Filter & Pills Bar (The core user request) ── */}
+									<div className="mt-3 space-y-2 border-t pt-3">
+										<div className="flex items-center justify-between text-xs">
+											<span className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+												<Layers className="h-3.5 w-3.5 text-blue-600" />
+												{locale === "hi"
+													? "ऑर्डर अनुसार अलग-अलग देखें (Filter by Order Number):"
+													: "Filter by Order Number:"}
+											</span>
+											{selectedOrderFilter !== "all" && (
+												<button
+													type="button"
+													onClick={() => setSelectedOrderFilter("all")}
+													className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
+												>
+													<X className="h-3 w-3" />{" "}
+													{locale === "hi" ? "सभी ऑर्डर्स देखें" : "Show All Orders"}
+												</button>
+											)}
+										</div>
+
+										<div className="flex flex-wrap gap-1.5">
+											{/* All Orders Button */}
+											<button
+												type="button"
+												onClick={() => setSelectedOrderFilter("all")}
+												className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer border ${
+													selectedOrderFilter === "all"
+														? "bg-blue-600 text-white border-blue-600 shadow-sm ring-2 ring-blue-500/20"
+														: "bg-white text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+												}`}
+											>
+												<Package className="h-3.5 w-3.5" />
+												<span>{locale === "hi" ? "सभी ऑर्डर्स (All)" : "All Orders"}</span>
+												<span
+													className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+														selectedOrderFilter === "all"
+															? "bg-blue-700 text-white"
+															: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+													}`}
+												>
+													{items.length} {locale === "hi" ? "सामान" : "items"}
+												</span>
+											</button>
+
+											{/* Individual Order Buttons */}
+											{activeOrdersList.map((ord) => {
+												const isSelected = selectedOrderFilter === ord.id;
+												return (
+													<button
+														key={ord.id}
+														type="button"
+														onClick={() => setSelectedOrderFilter(ord.id)}
+														className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer border ${
+															isSelected
+																? "bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-500/20"
+																: "bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+														}`}
+													>
+														<span className="font-mono font-bold">
+															{ord.orderIdStr}
+														</span>
+														<span
+															className={`rounded px-1.5 py-0.2 font-mono text-[10px] ${
+																isSelected
+																	? "bg-indigo-700 text-white"
+																	: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+															}`}
+														>
+															₹{ord.deliveredTotal}
+														</span>
+														<span
+															className={`text-[10px] font-normal ${
+																isSelected ? "text-indigo-100" : "text-gray-500"
+															}`}
+														>
+															({ord.checkedCount}/{ord.itemsCount} ✓)
+														</span>
+													</button>
+												);
+											})}
+
+											{/* Van Stock items button if added */}
+											{vanStockItemsCount > 0 && (
+												<button
+													type="button"
+													onClick={() => setSelectedOrderFilter("van_stock")}
+													className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer border ${
+														selectedOrderFilter === "van_stock"
+															? "bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-500/20"
+															: "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+													}`}
+												>
+													<Plus className="h-3.5 w-3.5" />
+													<span>Van Stock</span>
+													<span className="rounded bg-emerald-200/80 dark:bg-emerald-900 px-1 py-0.2 font-mono text-[10px]">
+														+₹{vanStockDeliveredTotal}
+													</span>
+												</button>
+											)}
+										</div>
+
+										{/* Search box for quick filtering within or across orders */}
+										<div className="relative pt-1">
+											<Search className="absolute left-2.5 top-3.5 h-3.5 w-3.5 text-gray-400" />
+											<Input
+												type="text"
+												placeholder={
+													locale === "hi"
+														? "सामान का नाम या कोड खोजें (Search item in order)..."
+														: "Search item name, order # or return reason..."
+												}
+												value={searchQuery}
+												onChange={(e) => setSearchQuery(e.target.value)}
+												className="h-8 pl-8 pr-8 text-xs bg-white dark:bg-gray-900"
+											/>
+											{searchQuery && (
+												<button
+													type="button"
+													onClick={() => setSearchQuery("")}
+													className="absolute right-2.5 top-3 text-gray-400 hover:text-gray-600"
+												>
+													<X className="h-3.5 w-3.5" />
+												</button>
+											)}
 										</div>
 									</div>
 								</CardHeader>
-								<CardContent className="divide-y p-0">
-									{items.map((item) => (
-										<div
-											key={item.id}
-											className={`space-y-3 p-4 transition-colors ${
-												item.checked
-													? "bg-emerald-50/60 dark:bg-emerald-950/20"
-													: ""
-											}`}
-										>
-											<div className="flex items-start justify-between gap-3">
-												<div className="flex items-start gap-3">
-													<button
-														type="button"
-														onClick={() => handleToggleCheck(item.id)}
-														className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all ${
-															item.checked
-																? "border-emerald-600 bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20"
-																: "border-gray-300 bg-white hover:border-emerald-500 dark:border-gray-600 dark:bg-gray-800"
-														}`}
-														title={item.checked ? "Handed Over" : "Click to mark as handed over"}
-													>
-														<Check
-															className={`h-4 w-4 ${
-																item.checked
-																	? "opacity-100 stroke-[3]"
-																	: "opacity-0"
-															}`}
-														/>
-													</button>
-													<div>
-														<div className="flex items-center gap-2">
-															<h4
-																onClick={() => handleToggleCheck(item.id)}
-																className={`cursor-pointer font-semibold text-sm transition-colors ${
-																	item.checked
-																		? "text-emerald-950 dark:text-emerald-200 line-through decoration-emerald-500/50"
-																		: "text-gray-900 dark:text-white"
-																}`}
-															>
-																{item.name}
-															</h4>
-															{item.checked && (
-																<Badge
-																	variant="outline"
-																	className="border-emerald-300 bg-emerald-100/80 text-[10px] font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
-																>
-																	✓ Handed Over
-																</Badge>
-															)}
-														</div>
-														<p className="text-gray-500 text-xs dark:text-gray-400">
-															Price: ₹{item.price} / unit | Total Expected:{" "}
-															{item.originalQty}
-														</p>
-													</div>
-												</div>
-												<span className="font-bold font-mono text-gray-900 text-sm dark:text-white">
-													₹{item.deliveredQty * item.price}
-												</span>
-											</div>
 
-											<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-800">
-												<div className="flex items-center space-x-2">
-													<span className="font-medium text-gray-600 text-xs dark:text-gray-300">
-														Accepted Qty:
-													</span>
-													<div className="flex items-center space-x-1">
-														<Button
-															variant="outline"
-															size="icon"
-															className="h-7 w-7"
-															onClick={() => handleQtyChange(item.id, -1)}
-														>
-															<Minus className="h-3 w-3" />
-														</Button>
-														<span className="w-8 text-center font-bold text-sm">
-															{item.deliveredQty}
-														</span>
-														<Button
-															variant="outline"
-															size="icon"
-															className="h-7 w-7"
-															onClick={() => handleQtyChange(item.id, 1)}
-														>
-															<Plus className="h-3 w-3" />
-														</Button>
-													</div>
-												</div>
-												{item.returnedQty > 0 && (
-													<Badge variant="destructive" className="gap-1">
-														<AlertTriangle className="h-3 w-3" />
-														{item.returnedQty} Returned / Damaged
-													</Badge>
-												)}
-											</div>
-
-											{item.returnedQty > 0 && (
-												<div className="space-y-1 pt-1">
-													<Label className="font-medium text-red-600 text-xs dark:text-red-400">
-														Reason for Return / Damage:
-													</Label>
-													<Input
-														placeholder="e.g. Damaged seal, customer rejected item..."
-														value={item.returnReason || ""}
-														onChange={(e) =>
-															handleReasonChange(item.id, e.target.value)
-														}
-														className="h-8 border-red-200 text-xs focus:border-red-500"
-													/>
-												</div>
-											)}
+								<CardContent className="p-3 space-y-4">
+									{filteredItems.length === 0 ? (
+										<div className="py-12 text-center text-muted-foreground text-xs">
+											<Package className="mx-auto mb-2 h-8 w-8 opacity-40" />
+											<p className="font-semibold text-sm">
+												{locale === "hi"
+													? "कोई सामान नहीं मिला"
+													: "No items match current order filter or search query"}
+											</p>
+											<Button
+												variant="link"
+												size="sm"
+												onClick={() => {
+													setSelectedOrderFilter("all");
+													setSearchQuery("");
+												}}
+												className="mt-2 text-xs"
+											>
+												{locale === "hi" ? "फ़िल्टर रीसेट करें" : "Reset Filters"}
+											</Button>
 										</div>
-									))}
+									) : (
+										groupedItemsByOrder.map((group) => {
+											const isCollapsed = collapsedOrders[group.orderIdKey];
+											return (
+												<div
+													key={group.orderIdKey}
+													className="rounded-xl border bg-card shadow-2xs overflow-hidden transition-all"
+												>
+													{/* Group Section Header */}
+													<div className="flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-muted/60 via-muted/40 to-muted/20 border-b">
+														<div className="flex items-center gap-2">
+															<button
+																type="button"
+																onClick={() => toggleCollapseOrder(group.orderIdKey)}
+																className="p-1 text-muted-foreground hover:text-foreground cursor-pointer rounded hover:bg-muted"
+																title={isCollapsed ? "Expand" : "Collapse"}
+															>
+																{isCollapsed ? (
+																	<ChevronDown className="h-4 w-4" />
+																) : (
+																	<ChevronUp className="h-4 w-4" />
+																)}
+															</button>
+															<span className="font-bold text-xs sm:text-sm text-foreground flex items-center gap-2">
+																<Package className="h-4 w-4 text-blue-600" />
+																{group.orderTitle}
+															</span>
+															<Badge
+																variant="secondary"
+																className="font-mono text-[10px] font-bold bg-blue-100/70 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+															>
+																{group.items.length} {locale === "hi" ? "सामान" : "Items"}
+															</Badge>
+														</div>
+
+														<div className="flex items-center gap-2">
+															<span className="font-mono font-bold text-xs text-foreground">
+																₹{group.orderTotal}
+															</span>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																onClick={() => handleToggleGroupChecks(group.orderIdKey)}
+																className="h-6 px-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950"
+															>
+																<CheckSquare className="mr-1 h-3 w-3 text-emerald-600" />
+																{group.allChecked
+																	? locale === "hi" ? "अनचेक" : "Uncheck"
+																	: locale === "hi" ? "पूरा टिक करें" : "Tick Order"}
+															</Button>
+														</div>
+													</div>
+
+													{/* Group Items */}
+													{!isCollapsed && (
+														<div className="divide-y divide-border/60">
+															{group.items.map((item) => (
+																<div
+																	key={item.id}
+																	className={`space-y-2.5 p-3.5 transition-colors ${
+																		item.checked
+																			? "bg-emerald-50/50 dark:bg-emerald-950/20"
+																			: ""
+																	}`}
+																>
+																	<div className="flex items-start justify-between gap-3">
+																		<div className="flex items-start gap-3">
+																			<button
+																				type="button"
+																				onClick={() => handleToggleCheck(item.id)}
+																				className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all cursor-pointer ${
+																					item.checked
+																						? "border-emerald-600 bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-600/20"
+																						: "border-gray-300 bg-white hover:border-emerald-500 dark:border-gray-600 dark:bg-gray-800"
+																				}`}
+																				title={
+																					item.checked
+																						? "Handed Over (वितरित)"
+																						: "Click to mark as handed over (वितरित चिह्नित करें)"
+																				}
+																			>
+																				<Check
+																					className={`h-4 w-4 ${
+																						item.checked
+																							? "opacity-100 stroke-[3]"
+																							: "opacity-0"
+																					}`}
+																				/>
+																			</button>
+
+																			<div>
+																				<div className="flex flex-wrap items-center gap-1.5">
+																					<h4
+																						onClick={() => handleToggleCheck(item.id)}
+																						className={`cursor-pointer font-semibold text-xs sm:text-sm transition-colors ${
+																							item.checked
+																								? "text-emerald-950 dark:text-emerald-200 line-through decoration-emerald-500/50"
+																								: "text-foreground"
+																						}`}
+																					>
+																						{item.name}
+																					</h4>
+																					{item.order_id && (
+																						<Badge
+																							variant="outline"
+																							className="font-mono text-[10px] font-bold border-indigo-200 bg-indigo-50/70 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 py-0"
+																						>
+																							ORD-{item.order_id}
+																						</Badge>
+																					)}
+																					{item.isVanStock && (
+																						<Badge
+																							variant="outline"
+																							className="font-mono text-[10px] font-bold border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 py-0"
+																						>
+																							Van Stock
+																						</Badge>
+																					)}
+																					{item.checked && (
+																						<Badge
+																							variant="outline"
+																							className="border-emerald-300 bg-emerald-100/80 text-[10px] font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 py-0"
+																						>
+																							✓ Handed Over
+																						</Badge>
+																					)}
+																				</div>
+																				<p className="text-muted-foreground text-[11px] mt-0.5">
+																					{locale === "hi" ? "मूल्य" : "Price"}: ₹{item.price} / unit |{" "}
+																					{locale === "hi" ? "अपेक्षित मात्रा" : "Total Expected"}:{" "}
+																					<span className="font-semibold text-foreground">{item.originalQty}</span>
+																				</p>
+																			</div>
+																		</div>
+
+																		<span className="font-bold font-mono text-foreground text-xs sm:text-sm shrink-0">
+																			₹{item.deliveredQty * item.price}
+																		</span>
+																	</div>
+
+																	{/* Quantity Stepper & Return status */}
+																	<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 p-2 text-xs">
+																		<div className="flex items-center space-x-2">
+																			<span className="font-semibold text-muted-foreground text-[11px]">
+																				{locale === "hi" ? "स्वीकृत मात्रा:" : "Accepted Qty:"}
+																			</span>
+																			<div className="flex items-center space-x-1 bg-background border rounded-md p-0.5">
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					className="h-6 w-6 rounded"
+																					onClick={() => handleQtyChange(item.id, -1)}
+																				>
+																					<Minus className="h-3 w-3" />
+																				</Button>
+																				<span className="w-8 text-center font-bold font-mono text-xs text-foreground">
+																					{item.deliveredQty}
+																				</span>
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					className="h-6 w-6 rounded"
+																					onClick={() => handleQtyChange(item.id, 1)}
+																				>
+																					<Plus className="h-3 w-3" />
+																				</Button>
+																			</div>
+																		</div>
+
+																		{item.returnedQty > 0 ? (
+																			<Badge variant="destructive" className="gap-1 font-semibold text-[11px]">
+																				<AlertTriangle className="h-3 w-3" />
+																				{item.returnedQty} {locale === "hi" ? "वापस / क्षतिग्रस्त" : "Returned / Damaged"}
+																			</Badge>
+																		) : (
+																			<span className="text-[11px] text-emerald-600 font-medium">
+																				✓ {locale === "hi" ? "पूरी मात्रा स्वीकृत" : "Full quantity accepted"}
+																			</span>
+																		)}
+																	</div>
+
+																	{/* Reason selection for returns */}
+																	{item.returnedQty > 0 && (
+																		<div className="space-y-1.5 rounded-lg border border-red-200 bg-red-50/50 p-2.5 dark:border-red-900/50 dark:bg-red-950/20">
+																			<Label className="font-bold text-red-700 text-[11px] dark:text-red-400 flex items-center justify-between">
+																				<span>{locale === "hi" ? "वापसी / क्षति का कारण चुनें:" : "Reason for Return / Damage:"}</span>
+																				<span className="text-[10px] font-normal text-red-500">Required</span>
+																			</Label>
+																			<div className="grid gap-1.5 sm:grid-cols-2">
+																				<select
+																					value={
+																						RETURN_PRESET_REASONS.includes(item.returnReason || "")
+																							? item.returnReason
+																							: "Custom / Other Reason"
+																					}
+																					onChange={(e) => {
+																						const val = e.target.value;
+																						if (val !== "Custom / Other Reason") {
+																							handleReasonChange(item.id, val);
+																						}
+																					}}
+																					className="h-8 rounded-md border border-red-200 bg-white px-2 text-xs text-red-950 dark:border-red-800 dark:bg-gray-900 dark:text-red-200 focus:outline-none focus:ring-1 focus:ring-red-500"
+																				>
+																					{RETURN_PRESET_REASONS.map((r) => (
+																						<option key={r} value={r}>
+																							{r}
+																						</option>
+																					))}
+																				</select>
+																				<Input
+																					placeholder={
+																						locale === "hi"
+																							? "स्पष्टीकरण लिखें..."
+																							: "Type specific reason / note..."
+																					}
+																					value={item.returnReason || ""}
+																					onChange={(e) =>
+																						handleReasonChange(item.id, e.target.value)
+																					}
+																					className="h-8 border-red-200 bg-white text-xs text-red-950 dark:border-red-800 dark:bg-gray-900 dark:text-red-200 focus:border-red-500"
+																				/>
+																			</div>
+																		</div>
+																	)}
+																</div>
+															))}
+														</div>
+													)}
+												</div>
+											);
+										})
+									)}
 								</CardContent>
 							</Card>
 
 							{/* Delivery Notes */}
-							<Card className="shadow-sm">
-								<CardHeader className="pb-3">
-									<CardTitle className="text-sm">
-										Driver Stop Observations / Remarks
+							<Card className="shadow-xs border">
+								<CardHeader className="pb-2 pt-3">
+									<CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+										{locale === "hi" ? "ड्राइवर डिलीवरी टिप्पणी / रिमार्क्स" : "Driver Stop Observations / Remarks"}
 									</CardTitle>
 								</CardHeader>
-								<CardContent>
+								<CardContent className="pb-3">
 									<Textarea
-										placeholder="Add any specific delivery remarks (e.g. Handed to security guard, cash verified with customer...)"
+										placeholder={
+											locale === "hi"
+												? "कोई विशेष टिप्पणी लिखें (जैसे: सुरक्षा गार्ड को सामान सौंपा, ग्राहक द्वारा नकद चेक कराया गया...)"
+												: "Add any specific delivery remarks (e.g. Handed to security guard, cash verified with customer...)"
+										}
 										value={notes}
 										onChange={(e) => setNotes(e.target.value)}
 										rows={2}
-										className="text-xs"
+										className="text-xs resize-none"
 									/>
 								</CardContent>
 							</Card>
 						</div>
 
-						{/* Right Column: Live Bill Summary & Payment Collection */}
-						<div className="space-y-6 md:col-span-5">
+						{/* Right Column: Live Bill Summary & Payment Collection with Order Breakdown */}
+						<div className="space-y-4 md:col-span-5">
 							<Card className="border-2 border-blue-500 shadow-md">
-								<CardHeader className="rounded-t-lg bg-blue-600 text-white">
-									<CardTitle className="flex items-center justify-between text-lg">
-										<span>Live Invoice Summary</span>
-										<FileText className="h-5 w-5 opacity-80" />
+								<CardHeader className="rounded-t-lg bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4">
+									<CardTitle className="flex items-center justify-between text-base sm:text-lg font-bold">
+										<span className="flex items-center gap-1.5">
+											<FileText className="h-5 w-5" />
+											{locale === "hi" ? "लाइव बिल सारांश" : "Live Invoice Summary"}
+										</span>
+										<Badge className="bg-white/20 text-white border-none font-mono text-xs">
+											Ref #{activeStop?.id || "STOP-01"}
+										</Badge>
 									</CardTitle>
 									<CardDescription className="text-blue-100 text-xs">
-										Customer: {activeStop?.customerName || "Customer"} | Ref: #
-										{activeStop?.id || "STOP-01"}
+										{locale === "hi" ? "ग्राहक" : "Customer"}:{" "}
+										<span className="font-bold text-white">
+											{activeStop?.customerName || "Customer"}
+										</span>
 									</CardDescription>
 								</CardHeader>
-								<CardContent className="space-y-4 p-5">
-									<div className="space-y-2 text-sm">
-										<div className="flex justify-between text-gray-600 dark:text-gray-300">
-											<span>Items Subtotal</span>
-											<span className="font-mono">₹{subtotal}</span>
+
+								<CardContent className="space-y-4 p-4">
+									{/* Order-wise Breakdown Accordion/Widget */}
+									{activeOrdersList.length > 0 && (
+										<div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+											<div className="flex items-center justify-between text-xs font-bold text-foreground">
+												<span className="flex items-center gap-1.5">
+													<Layers className="h-3.5 w-3.5 text-blue-600" />
+													{locale === "hi" ? "ऑर्डर अनुसार ब्रेकडाउन:" : "Order-Wise Breakdown:"}
+												</span>
+												<span className="font-mono text-muted-foreground text-[11px]">
+													{activeOrdersList.length} {locale === "hi" ? "ऑर्डर्स" : "Orders"}
+												</span>
+											</div>
+
+											<div className="space-y-1.5 max-h-40 overflow-y-auto">
+												{activeOrdersList.map((ord) => {
+													const isFiltered = selectedOrderFilter === ord.id;
+													return (
+														<button
+															key={ord.id}
+															type="button"
+															onClick={() =>
+																setSelectedOrderFilter((prev) =>
+																	prev === ord.id ? "all" : ord.id,
+																)
+															}
+															className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-all cursor-pointer border text-left ${
+																isFiltered
+																	? "bg-indigo-50 border-indigo-300 text-indigo-950 font-bold dark:bg-indigo-950/50 dark:text-indigo-200"
+																	: "bg-background border-border/60 hover:bg-muted text-foreground"
+															}`}
+															title="Click to isolate this order's items"
+														>
+															<div className="flex items-center gap-1.5">
+																<span className="font-mono font-bold text-blue-700 dark:text-blue-300">
+																	{ord.orderIdStr}
+																</span>
+																<span className="text-[10px] text-muted-foreground">
+																	({ord.itemsCount} {locale === "hi" ? "सामान" : "items"})
+																</span>
+															</div>
+															<div className="flex items-center gap-1.5">
+																<span className="font-mono font-semibold">
+																	₹{ord.deliveredTotal}
+																</span>
+																<span className="text-[10px] text-emerald-600 font-bold">
+																	{ord.checkedCount}/{ord.itemsCount} ✓
+																</span>
+															</div>
+														</button>
+													);
+												})}
+											</div>
+										</div>
+									)}
+
+									{/* Total calculations */}
+									<div className="space-y-2 text-xs sm:text-sm">
+										<div className="flex justify-between text-muted-foreground">
+											<span>{locale === "hi" ? "सामान उप-योग (Subtotal)" : "Items Subtotal"}</span>
+											<span className="font-mono font-semibold text-foreground">₹{subtotal}</span>
 										</div>
 										{totalReturnedValue > 0 && (
-											<div className="flex justify-between font-medium text-red-600 dark:text-red-400">
-												<span>Return / Damage Deduction</span>
+											<div className="flex justify-between font-semibold text-red-600 dark:text-red-400">
+												<span>{locale === "hi" ? "वापसी / क्षति कटौती" : "Return / Damage Deduction"}</span>
 												<span className="font-mono">
 													-₹{totalReturnedValue}
 												</span>
 											</div>
 										)}
-										<div className="flex justify-between border-t pt-2 font-bold text-base text-gray-900 dark:text-white">
-											<span>Net Payable Amount</span>
-											<span className="font-mono text-blue-600 dark:text-blue-400">
+										<div className="flex justify-between border-t pt-2 font-bold text-base text-foreground">
+											<span>{locale === "hi" ? "कुल देय राशि (Net Payable)" : "Net Payable Amount"}</span>
+											<span className="font-mono text-blue-600 dark:text-blue-400 text-lg">
 												₹{finalTotal}
 											</span>
 										</div>
 									</div>
 
 									{/* Payment Collection */}
-									<div className="space-y-3 border-t pt-4">
-										<Label className="flex items-center justify-between font-semibold text-gray-900 text-xs dark:text-white">
-											<span>Payment Collection Mode</span>
-											<span className="font-normal text-[10px] text-gray-500">
-												Mixed / Full Split
+									<div className="space-y-3 border-t pt-3">
+										<Label className="flex items-center justify-between font-bold text-foreground text-xs">
+											<span>{locale === "hi" ? "भुगतान संग्रह मोड (Payment Mode)" : "Payment Collection Mode"}</span>
+											<span className="font-normal text-[10px] text-muted-foreground">
+												Mixed / Split Supported
 											</span>
 										</Label>
 
@@ -948,25 +1679,25 @@ export default function DriverLiveDeliveryPage() {
 												type="button"
 												variant="outline"
 												size="sm"
-												className="flex-1 text-xs"
+												className="flex-1 text-xs font-semibold h-8"
 												onClick={() => handleQuickFillPayment("fullCash")}
 											>
-												<IndianRupee className="mr-1 h-3.5 w-3.5" /> Full Cash
+												<IndianRupee className="mr-1 h-3.5 w-3.5 text-emerald-600" /> Full Cash
 											</Button>
 											<Button
 												type="button"
 												variant="outline"
 												size="sm"
-												className="flex-1 text-xs"
+												className="flex-1 text-xs font-semibold h-8"
 												onClick={() => handleQuickFillPayment("fullOnline")}
 											>
-												<QrCode className="mr-1 h-3 w-3" /> Full Online
+												<QrCode className="mr-1 h-3 w-3 text-blue-600" /> Full Online
 											</Button>
 											<Button
 												type="button"
 												variant="outline"
 												size="sm"
-												className="flex-1 text-xs"
+												className="flex-1 text-xs font-semibold h-8"
 												onClick={() => handleQuickFillPayment("halfSplit")}
 											>
 												50/50 Split
@@ -975,8 +1706,8 @@ export default function DriverLiveDeliveryPage() {
 
 										<div className="grid grid-cols-2 gap-3 pt-1">
 											<div className="space-y-1">
-												<Label className="text-gray-600 text-xs dark:text-gray-400">
-													Cash Received (₹)
+												<Label className="text-muted-foreground text-[11px] font-semibold">
+													{locale === "hi" ? "नकद प्राप्त (₹ Cash)" : "Cash Received (₹)"}
 												</Label>
 												<Input
 													type="number"
@@ -985,12 +1716,12 @@ export default function DriverLiveDeliveryPage() {
 														setCashAmount(Number(e.target.value))
 													}
 													placeholder="0"
-													className="font-mono text-sm"
+													className="font-mono text-sm h-9"
 												/>
 											</div>
 											<div className="space-y-1">
-												<Label className="text-gray-600 text-xs dark:text-gray-400">
-													Online / UPI Received (₹)
+												<Label className="text-muted-foreground text-[11px] font-semibold">
+													{locale === "hi" ? "ऑनलाइन / UPI प्राप्त (₹)" : "Online / UPI (₹)"}
 												</Label>
 												<Input
 													type="number"
@@ -999,31 +1730,32 @@ export default function DriverLiveDeliveryPage() {
 														setOnlineAmount(Number(e.target.value))
 													}
 													placeholder="0"
-													className="font-mono text-sm"
+													className="font-mono text-sm h-9"
 												/>
 											</div>
 										</div>
 
 										{/* Balance Status */}
-										<div className="flex items-center justify-between rounded-md bg-gray-100 p-2.5 font-semibold text-xs dark:bg-gray-800">
-											<span>Payment Balance:</span>
+										<div className="flex items-center justify-between rounded-lg bg-muted/60 p-2.5 font-bold text-xs">
+											<span>{locale === "hi" ? "भुगतान स्थिति:" : "Payment Balance:"}</span>
 											<span
 												className={
 													remainingBalance === 0
-														? "text-emerald-600"
+														? "text-emerald-600 font-bold"
 														: "font-bold text-amber-600"
 												}
 											>
 												{remainingBalance === 0
-													? "✓ Paid in Full"
-													: `₹${remainingBalance} Pending`}
+													? locale === "hi" ? "✓ पूर्ण भुगतान प्राप्त" : "✓ Paid in Full"
+													: `₹${remainingBalance} ${locale === "hi" ? "बकाया" : "Pending"}`}
 											</span>
 										</div>
 									</div>
 								</CardContent>
-								<CardFooter className="rounded-b-lg border-t bg-gray-50 p-4 dark:bg-gray-800">
+
+								<CardFooter className="rounded-b-lg border-t bg-muted/20 p-4">
 									<Button
-										className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700"
+										className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 font-bold text-sm h-10 shadow-xs"
 										disabled={submitHandover.isPending}
 										onClick={handleSubmitHandover}
 									>
@@ -1032,7 +1764,7 @@ export default function DriverLiveDeliveryPage() {
 										) : (
 											<CheckCircle className="h-4 w-4" />
 										)}
-										Complete Handover &amp; Issue Bill
+										{locale === "hi" ? "हैंडओवर पूर्ण करें एवं रसीद जारी करें" : "Complete Handover & Issue Bill"}
 									</Button>
 								</CardFooter>
 							</Card>
@@ -1045,7 +1777,9 @@ export default function DriverLiveDeliveryPage() {
 			{billModalOpen && (
 				<SaleCompletionScreen
 					order={{
-						id: (activeStop?.orderIds?.[0] || activeStop?.orderId || Date.now().toString().slice(-6)) as any,
+						id: (activeStop?.orderIds?.[0] ||
+							activeStop?.orderId ||
+							Date.now().toString().slice(-6)) as any,
 						createdAt: new Date().toISOString(),
 						items: items.map((i) => ({
 							id: i.id,
@@ -1058,23 +1792,29 @@ export default function DriverLiveDeliveryPage() {
 						subtotal: subtotal,
 						discount: 0,
 						payments: [
-							...(cashAmount > 0 ? [{ methodId: 1, amount: String(cashAmount) }] : []),
-							...(onlineAmount > 0 ? [{ methodId: 3, amount: String(onlineAmount) }] : []),
+							...(cashAmount > 0
+								? [{ methodId: 1, amount: String(cashAmount) }]
+								: []),
+							...(onlineAmount > 0
+								? [{ methodId: 3, amount: String(onlineAmount) }]
+								: []),
 						],
 						cashierName: dashboardData?.driverName || "Driver Staff",
-						customerName: activeStop?.customerName && activeStop.customerName !== "Customer" ? activeStop.customerName : "Customer",
-						customerPhone: activeStop?.phone && activeStop.phone !== "N/A" ? activeStop.phone : "N/A",
-						address: activeStop?.address && activeStop.address !== "N/A" ? activeStop.address : "Delivery Address",
+						customerName:
+							activeStop?.customerName &&
+							activeStop.customerName !== "Customer"
+								? activeStop.customerName
+								: "Customer",
+						customerPhone:
+							activeStop?.phone && activeStop.phone !== "N/A"
+								? activeStop.phone
+								: "N/A",
+						address:
+							activeStop?.address && activeStop.address !== "N/A"
+								? activeStop.address
+								: "Delivery Address",
 					}}
-					onNewSale={() => {
-						setBillModalOpen(false);
-						setHandoverStopId(null);
-						setItems(DEFAULT_ITEMS);
-						setCashAmount(0);
-						setOnlineAmount(0);
-						setNotes("");
-						refetch();
-					}}
+					onNewSale={handleDoneBill}
 				/>
 			)}
 
@@ -1084,24 +1824,27 @@ export default function DriverLiveDeliveryPage() {
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Package className="h-5 w-5 text-blue-600" />
-							Add On-the-spot Items (Van Stock)
+							{locale === "hi"
+								? "मौके पर अतिरिक्त सामान जोड़ें (Van Stock)"
+								: "Add On-the-spot Items (Van Stock)"}
 						</DialogTitle>
 						<DialogDescription className="text-xs">
-							Select one or multiple extra inventory items carried in the truck
-							buffer stock to add to customer's live bill.
+							{locale === "hi"
+								? "ट्रक में मौजूद अतिरिक्त सामान को ग्राहक के लाइव बिल में शामिल करने के लिए चुनें।"
+								: "Select one or multiple extra inventory items carried in the truck buffer stock to add to customer's live bill."}
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-2">
 						<div className="space-y-1.5">
-							<div className="flex items-center justify-between font-semibold text-gray-700 text-xs dark:text-gray-300">
-								<span>Available Truck Buffer Items</span>
+							<div className="flex items-center justify-between font-semibold text-foreground text-xs">
+								<span>{locale === "hi" ? "उपलब्ध वैन बफ़र सामान" : "Available Truck Buffer Items"}</span>
 								<span className="font-normal text-[11px] text-blue-600">
-									Check items to include
+									{locale === "hi" ? "शामिल करने के लिए चेक करें" : "Check items to include"}
 								</span>
 							</div>
 
-							<div className="grid max-h-64 gap-2.5 overflow-y-auto rounded-lg border bg-gray-50/50 p-2 dark:bg-gray-900">
+							<div className="grid max-h-64 gap-2.5 overflow-y-auto rounded-lg border bg-muted/20 p-2">
 								{TRUCK_STOCK_ITEMS.map((truckItem) => {
 									const isSelected = !!selectedTruckItems[truckItem.id];
 									const qty = selectedTruckItems[truckItem.id] || 1;
@@ -1110,8 +1853,8 @@ export default function DriverLiveDeliveryPage() {
 											key={truckItem.id}
 											className={`space-y-2 rounded-lg border p-3 text-xs transition-all ${
 												isSelected
-													? "border-blue-500 bg-white shadow-sm dark:bg-gray-800"
-													: "border-gray-200 bg-white/60 hover:border-gray-300 dark:bg-gray-800/60"
+													? "border-blue-500 bg-card shadow-xs"
+													: "border-border bg-card/60 hover:border-border"
 											}`}
 										>
 											<div className="flex items-center justify-between">
@@ -1122,19 +1865,19 @@ export default function DriverLiveDeliveryPage() {
 														onChange={() => toggleTruckItem(truckItem.id)}
 														className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 													/>
-													<span className="font-semibold text-gray-900 dark:text-white">
+													<span className="font-semibold text-foreground">
 														{truckItem.name}
 													</span>
 												</label>
-												<span className="font-bold font-mono text-gray-900 dark:text-white">
+												<span className="font-bold font-mono text-foreground">
 													₹{truckItem.price} / unit
 												</span>
 											</div>
 
 											{isSelected && (
-												<div className="flex items-center justify-between border-gray-100 border-t pt-1 dark:border-gray-700">
-													<span className="text-[11px] text-gray-500">
-														Quantity to add:
+												<div className="flex items-center justify-between border-t pt-1.5">
+													<span className="text-[11px] text-muted-foreground">
+														{locale === "hi" ? "जोड़ी जाने वाली मात्रा:" : "Quantity to add:"}
 													</span>
 													<div className="flex items-center space-x-1.5">
 														<Button
@@ -1148,7 +1891,7 @@ export default function DriverLiveDeliveryPage() {
 														>
 															<Minus className="h-3 w-3" />
 														</Button>
-														<span className="w-7 text-center font-bold font-mono text-xs">
+														<span className="w-7 text-center font-bold font-mono text-xs text-foreground">
 															{qty}
 														</span>
 														<Button
@@ -1195,15 +1938,16 @@ export default function DriverLiveDeliveryPage() {
 
 					<DialogFooter>
 						<Button variant="outline" onClick={() => setExtraModalOpen(false)}>
-							Cancel
+							{locale === "hi" ? "रद्द करें" : "Cancel"}
 						</Button>
 						<Button
 							disabled={Object.keys(selectedTruckItems).length === 0}
 							onClick={handleAddMultipleTruckItemsToBill}
-							className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+							className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700 font-semibold"
 						>
-							Add Selected ({Object.keys(selectedTruckItems).length}) to Live
-							Bill
+							{locale === "hi"
+								? `चुने गए (${Object.keys(selectedTruckItems).length}) लाइव बिल में जोड़ें`
+								: `Add Selected (${Object.keys(selectedTruckItems).length}) to Live Bill`}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -70,6 +70,7 @@ type RouteStop = {
 	packages: number;
 	orderItems: {
 		id: number;
+		order_id?: number | null;
 		product_id: number;
 		name: string;
 		qty: number;
@@ -403,6 +404,7 @@ export const driverRouter = router({
 								packages: allItems.length > 0 ? allItems.length : ords.length,
 								orderItems: allItems.map((item) => ({
 									id: item.id,
+									order_id: item.order_id,
 									product_id: item.product_id,
 									name: item.product?.name || "Product",
 									qty: item.quantity,
@@ -649,6 +651,7 @@ export const driverRouter = router({
 						items:
 							allItems.map((item) => ({
 								id: item.product_id ?? 0,
+								order_id: item.order_id,
 								name: item.product?.name ?? "Product",
 								quantity: item.quantity,
 								price: Number(item.price || 0),
@@ -727,6 +730,7 @@ export const driverRouter = router({
 						orderItems:
 							allItems.map((item) => ({
 								id: item.id,
+								order_id: item.order_id,
 								product_id: item.product_id,
 								name: item.product?.name ?? "Product",
 								qty: item.quantity,
@@ -1061,6 +1065,7 @@ export const driverRouter = router({
 						packages: allItems.length > 0 ? allItems.length : ords.length,
 						orderItems: allItems.map((item) => ({
 							id: item.id,
+							order_id: item.order_id,
 							product_id: item.product_id,
 							name: item.product?.name || "Product",
 							qty: item.quantity,
@@ -1168,6 +1173,7 @@ export const driverRouter = router({
 						? podDeliveredItems
 						: allItems.map((item) => ({
 								id: item.id,
+								order_id: item.order_id,
 								product_id: item.product_id,
 								name: item.product?.name ?? "Product",
 								qty: item.quantity,
