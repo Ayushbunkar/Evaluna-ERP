@@ -356,7 +356,7 @@ export default function SalesReportsPage() {
 					textColor: [255, 255, 255],
 					fontStyle: "bold",
 				},
-				styles: { fontSize: 9 },
+				styles: { fontSize: 8.5, overflow: "linebreak" },
 				margin: { left: 14, right: 14 },
 			});
 
@@ -396,7 +396,14 @@ export default function SalesReportsPage() {
 					textColor: [255, 255, 255],
 					fontStyle: "bold",
 				},
-				styles: { fontSize: 8.5 },
+				styles: { fontSize: 8, overflow: "linebreak", cellPadding: 2 },
+				columnStyles: {
+					0: { cellWidth: 65 },
+					1: { cellWidth: 35 },
+					2: { cellWidth: 28 },
+					3: { cellWidth: 20 },
+					4: { cellWidth: 34 },
+				},
 				margin: { left: 14, right: 14 },
 			});
 
@@ -441,7 +448,15 @@ export default function SalesReportsPage() {
 					textColor: [255, 255, 255],
 					fontStyle: "bold",
 				},
-				styles: { fontSize: 8.5 },
+				styles: { fontSize: 8, overflow: "linebreak", cellPadding: 2 },
+				columnStyles: {
+					0: { cellWidth: 32 },
+					1: { cellWidth: 16 },
+					2: { cellWidth: 20 },
+					3: { cellWidth: 22 },
+					4: { cellWidth: 28 },
+					5: { cellWidth: 64 },
+				},
 				margin: { left: 14, right: 14 },
 			});
 
@@ -488,7 +503,15 @@ export default function SalesReportsPage() {
 					textColor: [255, 255, 255],
 					fontStyle: "bold",
 				},
-				styles: { fontSize: 8.5 },
+				styles: { fontSize: 8, overflow: "linebreak", cellPadding: 2 },
+				columnStyles: {
+					0: { cellWidth: 42 },
+					1: { cellWidth: 36 },
+					2: { cellWidth: 18 },
+					3: { cellWidth: 22 },
+					4: { cellWidth: 24 },
+					5: { cellWidth: 40 },
+				},
 				margin: { left: 14, right: 14 },
 			});
 

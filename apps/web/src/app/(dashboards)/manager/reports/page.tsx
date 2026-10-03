@@ -28,6 +28,7 @@ import {
 	FileTextIcon,
 	FilterIcon,
 	Loader2Icon,
+	SearchIcon,
 	ShieldCheckIcon,
 	UsersIcon,
 	ZapIcon,
@@ -652,42 +653,48 @@ export default function ReportsPage() {
 						startDate={startDate}
 						endDate={endDate}
 						datePreset={datePreset}
-						searchQuery={searchQuery}
-						onStartDateChange={setStartDate}
-						onEndDateChange={setEndDate}
-						onDatePresetChange={setDatePreset}
-						onSearchQueryChange={setSearchQuery}
-						onResetFilters={() => {
-							setStartDate("");
-							setEndDate("");
-							setDatePreset("all");
-							setSelectedTeam("all");
-							setSearchQuery("");
+						totalCount={companySummary.totalEmployees}
+						countLabel="employees"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
 						}}
-						isRefetching={isRefetching}
-						onRefetch={refetch}
 					/>
 
 					<div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-slate-100 border-t pt-4 dark:border-slate-800">
-						<div className="flex items-center gap-2">
-							<FilterIcon className="h-4 w-4 text-slate-400" />
-							<span className="font-medium text-slate-600 text-xs dark:text-slate-300">
-								Filter Team:
-							</span>
-							<select
-								value={selectedTeam}
-								onChange={(e) => setSelectedTeam(e.target.value)}
-								className="rounded-md border border-slate-200 bg-white px-3 py-1 text-slate-800 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-							>
-								<option value="all">All Teams / Departments</option>
-								<option value="Operations">Operations</option>
-								<option value="Logistics & Delivery">
-									Logistics & Delivery
-								</option>
-								<option value="Warehouse Picking">Warehouse Picking</option>
-								<option value="Warehouse Packing">Warehouse Packing</option>
-								<option value="Sales & Growth">Sales & Growth</option>
-							</select>
+						<div className="flex flex-wrap items-center gap-3">
+							<div className="flex items-center gap-2">
+								<FilterIcon className="h-4 w-4 text-slate-400" />
+								<span className="font-medium text-slate-600 text-xs dark:text-slate-300">
+									Filter Team:
+								</span>
+								<select
+									value={selectedTeam}
+									onChange={(e) => setSelectedTeam(e.target.value)}
+									className="rounded-md border border-slate-200 bg-white px-3 py-1 text-slate-800 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+								>
+									<option value="all">All Teams / Departments</option>
+									<option value="Operations">Operations</option>
+									<option value="Logistics & Delivery">
+										Logistics & Delivery
+									</option>
+									<option value="Warehouse Picking">Warehouse Picking</option>
+									<option value="Warehouse Packing">Warehouse Packing</option>
+									<option value="Sales & Growth">Sales & Growth</option>
+								</select>
+							</div>
+
+							<div className="relative flex items-center">
+								<SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-slate-400" />
+								<input
+									type="text"
+									placeholder="Search staff name, code, role..."
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+									className="w-48 rounded-md border border-slate-200 bg-white py-1 pr-3 pl-8 text-slate-800 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-64 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+								/>
+							</div>
 						</div>
 
 						{/* Navigation Tabs */}
