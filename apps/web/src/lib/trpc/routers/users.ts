@@ -505,6 +505,7 @@ export const usersRouter = router({
 			id: u.id,
 			name: u.name,
 			email: u.email,
+			image: u.image || null,
 			phone: phone,
 			role: (ctx.user as any).role || "staff",
 			status: u.status,
@@ -518,6 +519,7 @@ export const usersRouter = router({
 				name: z.string().min(1, "Full Name is required."),
 				email: z.string().email("Invalid email address."),
 				phone: z.string().optional(),
+				image: z.string().optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -538,12 +540,13 @@ export const usersRouter = router({
 				}
 			}
 
-			// Update user table (name, email)
+			// Update user table (name, email, image)
 			await ctx.db
 				.update(user)
 				.set({
 					name: input.name,
 					email: input.email,
+					...(input.image !== undefined ? { image: input.image } : {}),
 					updatedAt: new Date(),
 				})
 				.where(eq(user.id, userId));

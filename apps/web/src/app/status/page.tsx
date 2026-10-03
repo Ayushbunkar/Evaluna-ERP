@@ -1,4 +1,4 @@
-﻿import { Button } from "@evaluna/ui/components/button";
+import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
 	Activity,
@@ -633,35 +633,35 @@ export default function StatusPage() {
 
 							<div className="space-y-3 text-sm">
 								<div className="flex items-center justify-between rounded-lg bg-green-50/50 p-2">
-									<span>â€¢ Core ERP System</span>
+									<span>· Core ERP System</span>
 									<div className="flex items-center">
 										<CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
 										<span className="font-medium">Operational</span>
 									</div>
 								</div>
 								<div className="flex items-center justify-between rounded-lg bg-green-50/50 p-2">
-									<span>â€¢ Database Services</span>
+									<span>· Database Services</span>
 									<div className="flex items-center">
 										<CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
 										<span className="font-medium">Healthy</span>
 									</div>
 								</div>
 								<div className="flex items-center justify-between rounded-lg bg-green-50/50 p-2">
-									<span>â€¢ Authentication Services</span>
+									<span>· Authentication Services</span>
 									<div className="flex items-center">
 										<CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
 										<span className="font-medium">Operational</span>
 									</div>
 								</div>
 								<div className="flex items-center justify-between rounded-lg bg-green-50/50 p-2">
-									<span>â€¢ Integration Services</span>
+									<span>· Integration Services</span>
 									<div className="flex items-center">
 										<CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
 										<span className="font-medium">Operational</span>
 									</div>
 								</div>
 								<div className="flex items-center justify-between rounded-lg bg-green-50/50 p-2">
-									<span>â€¢ Security Systems</span>
+									<span>· Security Systems</span>
 									<div className="flex items-center">
 										<CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
 										<span className="font-medium">Secure</span>

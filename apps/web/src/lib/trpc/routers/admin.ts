@@ -511,9 +511,11 @@ export const adminRouter = router({
 						join_date: staff.join_date,
 						salary: staff.salary,
 						created_at: staff.created_at,
+						userImage: user.image,
 					})
 					.from(staff)
 					.leftJoin(branches, eq(staff.branch_id, branches.id))
+					.leftJoin(user, eq(staff.email, user.email))
 					.where(where)
 					.orderBy(
 						orderBy(EMPLOYEE_SORT, input.sortBy, input.sortDir, "created_at"),
@@ -538,6 +540,7 @@ export const adminRouter = router({
 					join_date: isoDate(r.join_date),
 					salary: toNumber(r.salary),
 					created_at: isoDate(r.created_at),
+					userImage: r.userImage ?? null,
 				})),
 				totals[0]?.count ?? 0,
 				input.page,
@@ -590,9 +593,11 @@ export const adminRouter = router({
 				.select({
 					employee: staff,
 					branch_name: branches.name,
+					userImage: user.image,
 				})
 				.from(staff)
 				.leftJoin(branches, eq(staff.branch_id, branches.id))
+				.leftJoin(user, eq(staff.email, user.email))
 				.where(
 					and(
 						eq(staff.id, input.id),
@@ -627,6 +632,7 @@ export const adminRouter = router({
 				ifsc: e.ifsc ?? null,
 				created_at: isoDate(e.created_at),
 				updated_at: isoDate(e.updated_at),
+				userImage: row.userImage ?? null,
 			};
 		}),
 

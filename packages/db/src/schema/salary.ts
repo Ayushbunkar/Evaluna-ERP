@@ -444,14 +444,16 @@ export const payrollVarianceRelations = relations(
 export const payrollAudit = pgTable("payroll_audit", {
 	id: serial("id").primaryKey(),
 	payrollId: integer("payroll_id").references(() => payroll.id),
-	action: varchar("action", { length: 50 }).notNull(), // salary_calculation, approval, payment, etc.
+	action: varchar("action", { length: 50 }).notNull(), // salary_calculation, adjustment, approval, return, payment, etc.
 	entityType: varchar("entity_type", { length: 30 }).notNull(), // payroll, salary_structure, loan, etc.
 	entityId: integer("entity_id"),
 	oldValues: jsonb("old_values"),
 	newValues: jsonb("new_values"),
-	changedBy: integer("changed_by")
-		.references(() => employees.id)
-		.notNull(),
+	changedBy: integer("changed_by").references(() => employees.id),
+	changedByName: varchar("changed_by_name", { length: 255 }),
+	role: varchar("role", { length: 50 }),
+	fieldChanged: varchar("field_changed", { length: 100 }),
+	reason: text("reason"),
 	changedAt: timestamp("changed_at").defaultNow(),
 	ipAddress: varchar("ip_address", { length: 45 }),
 	userAgent: text("user_agent"),

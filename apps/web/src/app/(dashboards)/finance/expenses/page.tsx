@@ -583,7 +583,7 @@ export default function FinanceExpensesPage() {
 
 			{/* RECORD EXPENSE REQUEST MODAL */}
 			<Dialog open={isSubmitModalOpen} onOpenChange={setIsSubmitModalOpen}>
-				<DialogContent className="max-w-xl bg-white">
+				<DialogContent className="max-w-xl border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Record Expense Claim Request
@@ -597,11 +597,11 @@ export default function FinanceExpensesPage() {
 					<div className="my-2 space-y-4">
 						<div className="grid gap-4 sm:grid-cols-2">
 							<div>
-								<Label className="font-bold text-slate-700 text-xs">
+								<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 									Claim Category Type
 								</Label>
 								<select
-									className="mt-1 h-9 w-full cursor-pointer rounded border bg-white p-2 font-bold text-xs"
+									className="mt-1 h-9 w-full cursor-pointer rounded border border-input bg-background p-2 font-bold text-foreground text-xs dark:bg-slate-950"
 									value={claimCategory}
 									onChange={(e) => setClaimCategory(e.target.value)}
 								>
@@ -683,7 +683,7 @@ export default function FinanceExpensesPage() {
 
 			{/* SUPERVISOR REVIEW MODAL */}
 			<Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-				<DialogContent className="bg-white">
+				<DialogContent className="border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Review Claim Request
@@ -696,11 +696,11 @@ export default function FinanceExpensesPage() {
 
 					<div className="my-2 space-y-4">
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 								Decision Outcome
 							</Label>
 							<select
-								className="mt-1 h-9 w-full cursor-pointer rounded border bg-white p-2 font-bold text-xs"
+								className="mt-1 h-9 w-full cursor-pointer rounded border border-input bg-background p-2 font-bold text-foreground text-xs dark:bg-slate-950"
 								value={reviewDecision}
 								onChange={(e) => setReviewDecision(e.target.value as any)}
 							>
@@ -709,7 +709,7 @@ export default function FinanceExpensesPage() {
 							</select>
 						</div>
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 								Reviewer Audit Notes
 							</Label>
 							<Textarea
@@ -744,7 +744,7 @@ export default function FinanceExpensesPage() {
 
 			{/* MARK AS PAID / CONFIRM DISBURSEMENT DIALOG */}
 			<Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
-				<DialogContent className="bg-white">
+				<DialogContent className="border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Record Disbursement & Mark as Paid
@@ -757,11 +757,11 @@ export default function FinanceExpensesPage() {
 
 					<div className="my-2 space-y-4">
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 								Source Bank Account
 							</Label>
 							<select
-								className="mt-1 h-9 w-full cursor-pointer rounded border bg-white p-2 font-bold text-xs"
+								className="mt-1 h-9 w-full cursor-pointer rounded border border-input bg-background p-2 font-bold text-foreground text-xs dark:bg-slate-950"
 								value={payBankAccountId}
 								onChange={(e) => setPayBankAccountId(e.target.value)}
 							>

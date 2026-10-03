@@ -4,6 +4,8 @@ import { Button } from "@evaluna/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@evaluna/ui/components/dialog";
@@ -16,15 +18,34 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	ActivityIcon,
+	AlertCircleIcon,
+	AlertTriangleIcon,
 	CalendarPlusIcon,
 	CheckCircle2Icon,
+	ClockIcon,
 	Loader2Icon,
+	ShieldAlertIcon,
+	UserCheckIcon,
 	XCircleIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+
+interface LeaveAlertModalState {
+	open: boolean;
+	type: "warning" | "error" | "info";
+	title: string;
+	message: string;
+	details?: string;
+}
+
+interface ConfirmActionState {
+	open: boolean;
+	leaveId: number;
+	empName: string;
+	status: "approved" | "rejected";
+}
 
 export default function HRLeavePage() {
 	const trpc = useTRPC();
@@ -41,6 +62,13 @@ export default function HRLeavePage() {
 	);
 	const [reason, setReason] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const [alertModal, setAlertModal] = useState<LeaveAlertModalState | null>(
+		null,
+	);
+	const [confirmAction, setConfirmAction] = useState<ConfirmActionState | null>(
+		null,
+	);
 
 	const {
 		data: leaveRequests = [],
@@ -71,16 +99,32 @@ export default function HRLeavePage() {
 	const updateLeaveMutation = trpc.hr.updateLeaveRequest.useMutation({
 		onSuccess: () => {
 			refetch();
+			setConfirmAction(null);
 		},
 		onError: (err) => {
-			alert(err.message || "Failed to update leave request");
+			setConfirmAction(null);
+			const isPrecondition =
+				err.message?.includes("Manager approval required") ||
+				err.data?.code === "PRECONDITION_FAILED";
+
+			setAlertModal({
+				open: true,
+				type: "warning",
+				title: isPrecondition
+					? "Manager Approval Required"
+					: "Leave Action Failed",
+				message: err.message || "Failed to update leave request",
+				details: isPrecondition
+					? "Under company compliance policy, employee leave requests require authorization from their reporting manager before HR finalization."
+					: undefined,
+			});
 		},
 	});
 
 	const handleApplyLeave = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!selectedEmployeeId || !selectedLeaveTypeId) {
-			alert("Please select both an employee and leave type");
+			setFormError("Please select both an employee and leave type.");
 			return;
 		}
 		setIsSubmitting(true);
@@ -93,9 +137,31 @@ export default function HRLeavePage() {
 		});
 	};
 
-	const handleAction = (leaveId: number, status: "approved" | "rejected") => {
-		updateLeaveMutation.mutate({
-			leaveId,
+	const handleAction = (
+		req: {
+			id: number;
+			emp_name: string;
+			manager_approved?: boolean;
+		},
+		status: "approved" | "rejected",
+	) => {
+		if (status === "approved" && req.manager_approved === false) {
+			setAlertModal({
+				open: true,
+				type: "warning",
+				title: "Manager Approval Required",
+				message:
+					"Manager approval required before HR can approve this leave request.",
+				details:
+					"Under company policy, employee leave requests must be approved by their department or reporting manager before HR final approval can be granted.",
+			});
+			return;
+		}
+
+		setConfirmAction({
+			open: true,
+			leaveId: req.id,
+			empName: req.emp_name,
 			status,
 		});
 	};
@@ -166,17 +232,38 @@ export default function HRLeavePage() {
 										{req.reason || "N/A"}
 									</TableCell>
 									<TableCell>
-										<span
-											className={`rounded-full px-2.5 py-0.5 font-medium text-xs ${
-												req.status === "approved"
-													? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
-													: req.status === "rejected"
-														? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
-														: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
-											}`}
-										>
-											{req.status}
-										</span>
+										<div className="flex flex-col gap-1">
+											<span
+												className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 font-medium text-xs ${
+													req.status === "approved"
+														? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+														: req.status === "rejected"
+															? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+															: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
+												}`}
+											>
+												{req.status}
+											</span>
+											{req.status === "pending" && (
+												<span
+													className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 font-normal text-[11px] ${
+														(req as any).manager_approved
+															? "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
+															: "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+													}`}
+												>
+													{(req as any).manager_approved ? (
+														<>
+															<UserCheckIcon className="h-3 w-3" /> Mgr Approved
+														</>
+													) : (
+														<>
+															<ClockIcon className="h-3 w-3" /> Awaiting Manager
+														</>
+													)}
+												</span>
+											)}
+										</div>
 									</TableCell>
 									<TableCell className="flex flex-row gap-2">
 										{req.status === "pending" ? (
@@ -184,16 +271,16 @@ export default function HRLeavePage() {
 												<Button
 													variant="outline"
 													size="xs"
-													className="border-green-600 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400"
-													onClick={() => handleAction(req.id, "approved")}
+													className="border-green-600 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/40"
+													onClick={() => handleAction(req, "approved")}
 												>
 													<CheckCircle2Icon className="mr-1 h-3 w-3" /> Approve
 												</Button>
 												<Button
 													variant="outline"
 													size="xs"
-													className="border-red-600 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
-													onClick={() => handleAction(req.id, "rejected")}
+													className="border-red-600 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
+													onClick={() => handleAction(req, "rejected")}
 												>
 													<XCircleIcon className="mr-1 h-3 w-3" /> Reject
 												</Button>
@@ -226,17 +313,21 @@ export default function HRLeavePage() {
 							</div>
 						)}
 						<div className="space-y-1">
-							<label className="font-semibold text-foreground text-xs">
+							<label
+								htmlFor="leave-employee"
+								className="font-semibold text-foreground text-xs"
+							>
 								Employee
 							</label>
 							<select
+								id="leave-employee"
 								value={selectedEmployeeId}
 								onChange={(e) =>
 									setSelectedEmployeeId(
 										e.target.value ? Number(e.target.value) : "",
 									)
 								}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+								className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
 								required
 							>
 								<option value="">-- Choose Employee --</option>
@@ -249,17 +340,21 @@ export default function HRLeavePage() {
 						</div>
 
 						<div className="space-y-1">
-							<label className="font-semibold text-foreground text-xs">
+							<label
+								htmlFor="leave-type"
+								className="font-semibold text-foreground text-xs"
+							>
 								Leave Type
 							</label>
 							<select
+								id="leave-type"
 								value={selectedLeaveTypeId}
 								onChange={(e) =>
 									setSelectedLeaveTypeId(
 										e.target.value ? Number(e.target.value) : "",
 									)
 								}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+								className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
 								required
 							>
 								<option value="">-- Choose Leave Type --</option>
@@ -273,42 +368,54 @@ export default function HRLeavePage() {
 
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1">
-								<label className="font-semibold text-foreground text-xs">
+								<label
+									htmlFor="leave-start-date"
+									className="font-semibold text-foreground text-xs"
+								>
 									Start Date
 								</label>
 								<input
+									id="leave-start-date"
 									type="date"
 									value={startDate}
 									onChange={(e) => setStartDate(e.target.value)}
-									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+									className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
 									required
 								/>
 							</div>
 
 							<div className="space-y-1">
-								<label className="font-semibold text-foreground text-xs">
+								<label
+									htmlFor="leave-end-date"
+									className="font-semibold text-foreground text-xs"
+								>
 									End Date
 								</label>
 								<input
+									id="leave-end-date"
 									type="date"
 									value={endDate}
 									onChange={(e) => setEndDate(e.target.value)}
-									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+									className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
 									required
 								/>
 							</div>
 						</div>
 
 						<div className="space-y-1">
-							<label className="font-semibold text-foreground text-xs">
+							<label
+								htmlFor="leave-reason"
+								className="font-semibold text-foreground text-xs"
+							>
 								Reason / Purpose
 							</label>
 							<textarea
+								id="leave-reason"
 								value={reason}
 								onChange={(e) => setReason(e.target.value)}
 								placeholder="e.g. Medical emergency, Family event, Annual vacation..."
 								rows={3}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+								className="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
 								required
 							/>
 						</div>
@@ -334,6 +441,131 @@ export default function HRLeavePage() {
 							</Button>
 						</div>
 					</form>
+				</DialogContent>
+			</Dialog>
+
+			{/* Alert / Precondition Requirement Modal */}
+			<Dialog
+				open={!!alertModal?.open}
+				onOpenChange={(open) => {
+					if (!open) setAlertModal(null);
+				}}
+			>
+				<DialogContent className="sm:max-w-[480px]">
+					<DialogHeader>
+						<div className="flex items-start gap-3.5 text-left">
+							<div
+								className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+									alertModal?.type === "warning"
+										? "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"
+										: "bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400"
+								}`}
+							>
+								{alertModal?.type === "warning" ? (
+									<ShieldAlertIcon className="h-6 w-6" />
+								) : (
+									<AlertCircleIcon className="h-6 w-6" />
+								)}
+							</div>
+							<div className="space-y-1">
+								<DialogTitle className="font-semibold text-foreground text-lg">
+									{alertModal?.title || "Notice"}
+								</DialogTitle>
+								<DialogDescription className="text-muted-foreground text-xs sm:text-sm">
+									Workflow Policy & Approval Requirements
+								</DialogDescription>
+							</div>
+						</div>
+					</DialogHeader>
+
+					<div className="space-y-3 py-2 text-left">
+						<div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3.5 text-amber-900 text-xs sm:text-sm dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+							<div className="flex items-start gap-2.5 font-medium">
+								<AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+								<span>{alertModal?.message}</span>
+							</div>
+						</div>
+
+						{alertModal?.details && (
+							<div className="rounded-md border border-border bg-muted/40 p-3 text-muted-foreground text-xs leading-relaxed">
+								{alertModal.details}
+							</div>
+						)}
+					</div>
+
+					<DialogFooter className="sm:justify-end">
+						<Button
+							variant="default"
+							onClick={() => setAlertModal(null)}
+							className="w-full sm:w-auto"
+						>
+							Understood
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Confirm Action Dialog */}
+			<Dialog
+				open={!!confirmAction?.open}
+				onOpenChange={(open) => {
+					if (!open) setConfirmAction(null);
+				}}
+			>
+				<DialogContent className="sm:max-w-[420px]">
+					<DialogHeader>
+						<DialogTitle className="font-semibold text-foreground text-lg">
+							{confirmAction?.status === "approved"
+								? "Approve Leave Request"
+								: "Reject Leave Request"}
+						</DialogTitle>
+						<DialogDescription className="text-muted-foreground text-xs sm:text-sm">
+							Are you sure you want to{" "}
+							<span className="font-semibold text-foreground">
+								{confirmAction?.status}
+							</span>{" "}
+							this leave application for{" "}
+							<span className="font-semibold text-foreground">
+								{confirmAction?.empName}
+							</span>
+							?
+						</DialogDescription>
+					</DialogHeader>
+
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setConfirmAction(null)}
+							disabled={updateLeaveMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant={
+								confirmAction?.status === "rejected" ? "destructive" : "default"
+							}
+							onClick={() => {
+								if (confirmAction) {
+									updateLeaveMutation.mutate({
+										leaveId: confirmAction.leaveId,
+										status: confirmAction.status,
+									});
+								}
+							}}
+							disabled={updateLeaveMutation.isPending}
+						>
+							{updateLeaveMutation.isPending ? (
+								<>
+									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />{" "}
+									Processing...
+								</>
+							) : confirmAction?.status === "rejected" ? (
+								"Reject Leave"
+							) : (
+								"Approve Leave"
+							)}
+						</Button>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</PageTransition>

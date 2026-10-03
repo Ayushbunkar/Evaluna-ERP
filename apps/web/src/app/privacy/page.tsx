@@ -1,4 +1,4 @@
-﻿import { Button } from "@evaluna/ui/components/button";
+import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
 	ArrowLeft,
@@ -95,32 +95,32 @@ export default function PrivacyPage() {
 							<div className="space-y-4">
 								<div>
 									<h3 className="mb-2 font-medium">Personal Information:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ Full name and contact information</li>
-										<li>â€¢ Employee ID and job title</li>
-										<li>â€¢ Department and location</li>
-										<li>â€¢ Contact information (email, phone)</li>
-										<li>â€¢ Emergency contact details</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>Full name and contact information</li>
+										<li>Employee ID and job title</li>
+										<li>Department and location</li>
+										<li>Contact information (email, phone)</li>
+										<li>Emergency contact details</li>
 									</ul>
 								</div>
 								<div>
 									<h3 className="mb-2 font-medium">Business Information:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ Job performance data</li>
-										<li>â€¢ Attendance and time records</li>
-										<li>â€¢ Training and certification records</li>
-										<li>â€¢ Project assignments and progress</li>
-										<li>â€¢ Department-specific operational data</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>Job performance data</li>
+										<li>Attendance and time records</li>
+										<li>Training and certification records</li>
+										<li>Project assignments and progress</li>
+										<li>Department-specific operational data</li>
 									</ul>
 								</div>
 								<div>
 									<h3 className="mb-2 font-medium">System Usage Data:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ Login times and session duration</li>
-										<li>â€¢ IP addresses and device information</li>
-										<li>â€¢ System access logs</li>
-										<li>â€¢ Feature usage patterns</li>
-										<li>â€¢ Error reports and debugging information</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>Login times and session duration</li>
+										<li>IP addresses and device information</li>
+										<li>System access logs</li>
+										<li>Feature usage patterns</li>
+										<li>Error reports and debugging information</li>
 									</ul>
 								</div>
 							</div>
@@ -138,17 +138,17 @@ export default function PrivacyPage() {
 							<p className="mb-4 text-muted-foreground">
 								We use the information we collect for various business purposes:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ To provide and maintain our ERP system services</li>
-								<li>â€¢ To manage employee records and HR processes</li>
-								<li>â€¢ To process payroll and benefits administration</li>
-								<li>â€¢ To track business operations and performance</li>
-								<li>â€¢ To generate reports and analytics for management</li>
-								<li>â€¢ To ensure system security and prevent fraud</li>
-								<li>â€¢ To comply with legal and regulatory requirements</li>
-								<li>â€¢ To improve system functionality and user experience</li>
-								<li>â€¢ To communicate important company information</li>
-								<li>â€¢ To provide technical support and troubleshooting</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>To provide and maintain our ERP system services</li>
+								<li>To manage employee records and HR processes</li>
+								<li>To process payroll and benefits administration</li>
+								<li>To track business operations and performance</li>
+								<li>To generate reports and analytics for management</li>
+								<li>To ensure system security and prevent fraud</li>
+								<li>To comply with legal and regulatory requirements</li>
+								<li>To improve system functionality and user experience</li>
+								<li>To communicate important company information</li>
+								<li>To provide technical support and troubleshooting</li>
 							</ul>
 						</CardContent>
 					</Card>
@@ -167,35 +167,35 @@ export default function PrivacyPage() {
 							<div className="space-y-4">
 								<div>
 									<h3 className="mb-2 font-medium">Within Our Organization:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ With your direct managers and supervisors</li>
-										<li>â€¢ With HR and payroll departments</li>
-										<li>â€¢ With IT support staff for troubleshooting</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>With your direct managers and supervisors</li>
+										<li>With HR and payroll departments</li>
+										<li>With IT support staff for troubleshooting</li>
 										<li>
-											â€¢ With authorized personnel based on role-based access
+											· With authorized personnel based on role-based access
 										</li>
 									</ul>
 								</div>
 								<div>
 									<h3 className="mb-2 font-medium">With Service Providers:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ Cloud hosting and infrastructure providers</li>
-										<li>â€¢ Payroll processing services</li>
-										<li>â€¢ IT security and maintenance vendors</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>Cloud hosting and infrastructure providers</li>
+										<li>Payroll processing services</li>
+										<li>IT security and maintenance vendors</li>
 										<li>
-											â€¢ All service providers are bound by confidentiality
+											· All service providers are bound by confidentiality
 											agreements
 										</li>
 									</ul>
 								</div>
 								<div>
 									<h3 className="mb-2 font-medium">For Legal Compliance:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ To comply with applicable laws and regulations</li>
-										<li>â€¢ To respond to lawful requests from authorities</li>
-										<li>â€¢ To protect our rights and property</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>To comply with applicable laws and regulations</li>
+										<li>To respond to lawful requests from authorities</li>
+										<li>To protect our rights and property</li>
 										<li>
-											â€¢ To investigate potential violations of our policies
+											· To investigate potential violations of our policies
 										</li>
 									</ul>
 								</div>
@@ -214,38 +214,34 @@ export default function PrivacyPage() {
 							<div className="space-y-4">
 								<div>
 									<h3 className="mb-2 font-medium">Security Measures:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
-										<li>â€¢ Role-based access control and authentication</li>
-										<li>â€¢ Data encryption in transit and at rest</li>
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+										<li>Role-based access control and authentication</li>
+										<li>Data encryption in transit and at rest</li>
+										<li>· Regular security audits and vulnerability testing</li>
 										<li>
-											â€¢ Regular security audits and vulnerability testing
+											· Secure data backup and disaster recovery procedures
 										</li>
-										<li>
-											â€¢ Secure data backup and disaster recovery procedures
-										</li>
-										<li>
-											â€¢ Employee training on data security best practices
-										</li>
+										<li>· Employee training on data security best practices</li>
 									</ul>
 								</div>
 								<div>
 									<h3 className="mb-2 font-medium">Data Retention:</h3>
-									<ul className="space-y-1 text-muted-foreground text-sm">
+									<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
 										<li>
-											â€¢ Employee records: Retained for duration of employment
-											+ 7 years
+											· Employee records: Retained for duration of employment +
+											7 years
 										</li>
 										<li>
-											â€¢ Financial records: Retained for 7 years as per legal
+											· Financial records: Retained for 7 years as per legal
 											requirements
 										</li>
-										<li>â€¢ System logs: Retained for 12 months</li>
+										<li>System logs: Retained for 12 months</li>
 										<li>
-											â€¢ Deleted data may be retained in backups for up to 90
+											· Deleted data may be retained in backups for up to 90
 											days
 										</li>
 										<li>
-											â€¢ Specific retention periods may vary based on legal
+											· Specific retention periods may vary based on legal
 											requirements
 										</li>
 									</ul>
@@ -266,18 +262,16 @@ export default function PrivacyPage() {
 								As an employee using our ERP system, you have certain rights
 								regarding your personal information:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ Right to access your personal information</li>
-								<li>â€¢ Right to request correction of inaccurate data</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>Right to access your personal information</li>
+								<li>Right to request correction of inaccurate data</li>
 								<li>
-									â€¢ Right to request deletion of certain information (subject
-									to legal requirements)
+									· Right to request deletion of certain information (subject to
+									legal requirements)
 								</li>
-								<li>â€¢ Right to limit processing of your personal data</li>
-								<li>â€¢ Right to receive information about data sharing</li>
-								<li>
-									â€¢ Right to file complaints with appropriate authorities
-								</li>
+								<li>Right to limit processing of your personal data</li>
+								<li>Right to receive information about data sharing</li>
+								<li>· Right to file complaints with appropriate authorities</li>
 							</ul>
 							<p className="mt-4 text-muted-foreground">
 								To exercise these rights, please contact our HR department or IT
@@ -298,17 +292,17 @@ export default function PrivacyPage() {
 								We may update this Privacy Policy from time to time. When we
 								make changes, we will:
 							</p>
-							<ul className="space-y-2 text-muted-foreground text-sm">
-								<li>â€¢ Post the updated policy on our internal systems</li>
+							<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+								<li>Post the updated policy on our internal systems</li>
 								<li>
-									â€¢ Update the "Last updated" date at the top of this policy
+									· Update the "Last updated" date at the top of this policy
 								</li>
 								<li>
-									â€¢ Notify employees of significant changes via company
+									· Notify employees of significant changes via company
 									communication channels
 								</li>
 								<li>
-									â€¢ Provide reasonable notice before major policy changes take
+									· Provide reasonable notice before major policy changes take
 									effect
 								</li>
 							</ul>

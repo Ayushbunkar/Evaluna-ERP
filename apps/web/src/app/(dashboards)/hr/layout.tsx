@@ -1,10 +1,11 @@
 "use client";
 
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Banknote,
-	Circle,
+	CalendarDays,
+	Clock,
 	FileBarChart,
-	Hexagon,
 	LayoutDashboard,
 	Users,
 	X,
@@ -13,13 +14,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { Button } from "@evaluna/ui/components/button";
 
 const navItems = [
 	{ href: "/hr", label: "Dashboard", icon: LayoutDashboard },
 	{ href: "/hr/employees", label: "Employees", icon: Users },
-	{ href: "/hr/leave", label: "Leave Management", icon: Circle },
-	{ href: "/hr/attendance", label: "Attendance", icon: Circle },
+	{ href: "/hr/leave", label: "Leave Management", icon: CalendarDays },
+	{ href: "/hr/attendance", label: "Attendance", icon: Clock },
 	{ href: "/hr/payroll", label: "Payroll", icon: Banknote },
 	{ href: "/hr/reports", label: "Reports", icon: FileBarChart },
 ];
@@ -74,7 +74,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
 										setMobileMenuOpen(false);
 										router.push(item.href);
 									}}
-									className={`flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors cursor-pointer select-none active:scale-[0.98] ${
+									className={`flex w-full cursor-pointer select-none items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors active:scale-[0.98] ${
 										isActive
 											? "bg-blue-50 font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
 											: "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -82,7 +82,9 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
 								>
 									<Icon
 										className={`h-5 w-5 shrink-0 ${
-											isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-400"
+											isActive
+												? "text-blue-600 dark:text-blue-400"
+												: "text-gray-400"
 										}`}
 									/>
 									<span className="ml-3 truncate">{item.label}</span>
@@ -122,9 +124,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
 
 				{/* Scrollable Content */}
 				<main className="flex-1 overflow-y-auto p-3 sm:p-6">
-					<div className="mx-auto w-full max-w-7xl min-w-0">
-						{children}
-					</div>
+					<div className="mx-auto w-full min-w-0 max-w-7xl">{children}</div>
 				</main>
 			</div>
 		</div>

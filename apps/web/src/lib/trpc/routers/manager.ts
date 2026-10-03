@@ -149,8 +149,10 @@ export const managerRouter = router({
 					role: staff.role,
 					join_date: staff.join_date,
 					salary: staff.salary,
+					image: user.image,
 				})
 				.from(staff)
+				.leftJoin(user, or(eq(user.staff_id, staff.id), eq(user.email, staff.email)))
 				.where(
 					and(
 						eq(staff.is_deleted, false),
@@ -187,18 +189,27 @@ export const managerRouter = router({
 	getEmployeeDetail: protectedProcedure
 		.input(z.object({ staffId: z.number() }))
 		.query(async ({ ctx, input }) => {
-			const [employee] = await db
-				.select()
+			const [empRow] = await db
+				.select({
+					staff: staff,
+					image: user.image,
+				})
 				.from(staff)
+				.leftJoin(user, or(eq(user.staff_id, staff.id), eq(user.email, staff.email)))
 				.where(eq(staff.id, input.staffId))
 				.limit(1);
 
-			if (!employee) {
+			if (!empRow || !empRow.staff) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Employee not found.",
 				});
 			}
+
+			const employee = {
+				...empRow.staff,
+				image: empRow.image || null,
+			};
 
 			// Query leave requests
 			const leaves = await db

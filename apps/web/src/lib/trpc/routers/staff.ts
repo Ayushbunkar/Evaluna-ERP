@@ -264,7 +264,7 @@ export const staffRouter = router({
 				.returning();
 
 			// Cascadingly sync with Better-Auth user table to propagate name changes globally
-			if (updated && updated.email && updated.name) {
+			if (updated?.email && updated.name) {
 				await ctx.db
 					.update(user)
 					.set({ name: updated.name })
@@ -292,7 +292,7 @@ export const staffRouter = router({
 			.update(staff)
 			.set({ is_deleted: true, status: "inactive" })
 			.where(
-				sql`(${staff.email} ILIKE '%hotmail.com' OR ${staff.email} ILIKE '%yahoo.com' OR ${staff.email} ILIKE '%example%' OR ${staff.email} ILIKE '%seed%' OR ${staff.email} ILIKE '%mock%' OR ${staff.name} IN ('Albertha Kovacek', 'Angeline Runte', 'Chris Halvorson', 'Ernestine Rolfson', 'Gilberto Mitchell', 'Carol O''Conner', 'ADMIN', 'Customer', 'DRIVERFINAL', 'EXECUTIVE', 'BILLING', 'FINANCE', 'Executive', 'Auditor Desk'))`,
+				sql`(${staff.email} ILIKE '%hotmail.com' OR ${staff.email} ILIKE '%yahoo.com' OR ${staff.email} ILIKE '%example%' OR ${staff.email} ILIKE '%seed%' OR ${staff.email} ILIKE '%mock%' OR ${staff.name} IN ('Albertha Kovacek', 'Angeline Runte', 'Chris Halvorson', 'Ernestine Rolfson', 'Gilberto Mitchell', 'Carol O''Conner', 'ADMIN', 'Customer', 'DRIVERFINAL', 'EXECUTIVE', 'BILLING', 'FINANCE', 'Executive', 'Auditor Desk', 'Pooja Sharma', 'Suresh Kumar', 'Rahul Yadav', 'Vikram Patel', 'Anita Verma', 'Rahul Sharma (Packing)'))`,
 			);
 
 		// 2. Real Official Evaluna Depot Team Members
@@ -322,44 +322,44 @@ export const staffRouter = router({
 				salary: "50000",
 			},
 			{
-				name: "Anita Verma",
-				email: "anita.verma@evaluna.com",
-				role: "putter",
-				department: "Inbound & Put-Away",
+				name: "Narendra Vishwakarma",
+				email: "narendravishwakarma378@gmail.com",
+				role: "driver",
+				department: "Logistics",
 				phone: "+91 98765 43213",
-				salary: "27000",
+				salary: "25000",
 			},
 			{
-				name: "Vikram Patel",
-				email: "vikram.patel@evaluna.com",
-				role: "auditor",
-				department: "Quality Assurance",
+				name: "Naitik Sahu",
+				email: "naitiksahu6323@gmail.com",
+				role: "driver",
+				department: "Logistics",
 				phone: "+91 98765 43214",
-				salary: "32000",
+				salary: "25000",
 			},
 			{
-				name: "Rahul Yadav",
-				email: "rahul.yadav@evaluna.com",
-				role: "packer",
-				department: "Packing & Dispatch",
+				name: "Anuj “Bana”",
+				email: "anujrajput6232@gmail.com",
+				role: "staff",
+				department: "Operations",
 				phone: "+91 98765 43215",
 				salary: "26000",
 			},
 			{
-				name: "Suresh Kumar",
-				email: "suresh.kumar@evaluna.com",
+				name: "Rajesh Kumar",
+				email: "driver@evaluna.com",
 				role: "driver",
-				department: "Fleet & Delivery",
+				department: "Logistics",
 				phone: "+91 98765 43216",
 				salary: "25000",
 			},
 			{
-				name: "Pooja Sharma",
-				email: "pooja.sharma@evaluna.com",
-				role: "checker",
-				department: "Inventory Control",
+				name: "Manager sahab",
+				email: "manager@evaluna.com",
+				role: "manager",
+				department: "Warehouse",
 				phone: "+91 98765 43217",
-				salary: "30000",
+				salary: "40000",
 			},
 		];
 
@@ -426,7 +426,9 @@ export const staffRouter = router({
 			// 1. If updating password, verify current password first
 			if (input.newPassword) {
 				if (!input.currentPassword) {
-					throw new Error("Current password is required to set a new password.");
+					throw new Error(
+						"Current password is required to set a new password.",
+					);
 				}
 
 				const { account } = await import("@evaluna/db/schema");
@@ -437,8 +439,11 @@ export const staffRouter = router({
 					.from(account)
 					.where(eq(account.userId, ctx.user.id));
 
-				if (userAccount && userAccount.password) {
-					const isMatch = await comparePassword(input.currentPassword, userAccount.password);
+				if (userAccount?.password) {
+					const isMatch = await comparePassword(
+						input.currentPassword,
+						userAccount.password,
+					);
 					if (!isMatch) {
 						throw new Error("Incorrect current password.");
 					}
@@ -452,7 +457,7 @@ export const staffRouter = router({
 			}
 
 			// 2. Update staff row
-			const updatesToStaff: any = {};
+			const updatesToStaff: Record<string, unknown> = {};
 			if (input.name) updatesToStaff.name = input.name;
 			if (input.email) updatesToStaff.email = input.email;
 			if (input.phone !== undefined) updatesToStaff.phone = input.phone;
@@ -466,7 +471,7 @@ export const staffRouter = router({
 			}
 
 			// 3. Update Better-Auth user record
-			const updatesToUser: any = {};
+			const updatesToUser: Record<string, unknown> = {};
 			if (input.name) updatesToUser.name = input.name;
 			if (input.email) updatesToUser.email = input.email;
 
@@ -505,7 +510,9 @@ export const staffRouter = router({
 			const result = await ctx.db
 				.select()
 				.from(staff)
-				.where(and(eq(staff.staff_code, input.code), eq(staff.is_deleted, false)));
+				.where(
+					and(eq(staff.staff_code, input.code), eq(staff.is_deleted, false)),
+				);
 
 			if (result.length === 0) {
 				throw new Error("Invalid Staff Code");

@@ -1964,13 +1964,35 @@ export const payroll = pgTable("payroll", {
 	// Totals
 	net_payable: decimal("net_payable", { precision: 10, scale: 2 }).notNull(),
 
-	status: varchar("status", { length: 20 }).default("draft"), // draft, approved, paid
+	status: varchar("status", { length: 50 }).default("draft"), // draft, hr_review, submitted_to_manager, returned_to_hr, manager_approved, paid, locked
 	payment_date: timestamp("payment_date"),
 	payment_method_id: integer("payment_method_id").references(
 		() => paymentMethods.id,
 	),
 
 	notes: text("notes"),
+
+	// Attendance & Workflow fields
+	pay_type: varchar("pay_type", { length: 20 }).default("monthly"),
+	working_days: integer("working_days").default(30),
+	present_days: decimal("present_days", { precision: 5, scale: 2 }).default("0"),
+	half_days: integer("half_days").default(0),
+	paid_leave_days: decimal("paid_leave_days", { precision: 5, scale: 2 }).default("0"),
+	unpaid_leave_days: decimal("unpaid_leave_days", { precision: 5, scale: 2 }).default("0"),
+	absent_days: decimal("absent_days", { precision: 5, scale: 2 }).default("0"),
+	overtime_hours: decimal("overtime_hours", { precision: 6, scale: 2 }).default("0"),
+	system_calculated_amount: decimal("system_calculated_amount", { precision: 10, scale: 2 }),
+	adjustment_amount: decimal("adjustment_amount", { precision: 10, scale: 2 }).default("0"),
+	adjustment_reason: text("adjustment_reason"),
+	return_reason: text("return_reason"),
+	submitted_by: varchar("submitted_by", { length: 255 }),
+	submitted_at: timestamp("submitted_at"),
+	approved_by: varchar("approved_by", { length: 255 }),
+	approved_at: timestamp("approved_at"),
+	transaction_reference: varchar("transaction_reference", { length: 100 }),
+	payment_proof_url: text("payment_proof_url"),
+	is_locked: boolean("is_locked").default(false),
+
 	created_at: timestamp("created_at").defaultNow(),
 	updated_at: timestamp("updated_at").defaultNow(),
 });

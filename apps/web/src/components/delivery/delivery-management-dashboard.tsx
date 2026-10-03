@@ -62,6 +62,25 @@ interface DeliveryManagementDashboardProps {
 	initialTrips?: any[];
 }
 
+const cleanVillageName = (name: string | null | undefined): string => {
+	if (!name) return "";
+	return name
+		.replace(/,\s*madhya\s+pradesh\b/gi, "")
+		.replace(/\s*madhya\s+pradesh\b/gi, "")
+		.replace(/,\s*m\.?p\.?\b/gi, "")
+		.replace(/\s*m\.?p\.?\b/gi, "")
+		.trim();
+};
+
+const cleanRouteDescription = (desc: string | null | undefined): string => {
+	if (!desc) return "";
+	return cleanVillageName(desc)
+		.split(/\s*(?:->|→)\s*/)
+		.map((v) => cleanVillageName(v))
+		.filter(Boolean)
+		.join(" -> ");
+};
+
 export function DeliveryManagementDashboard({
 	initialRoutes,
 	initialVehicles,
@@ -104,8 +123,14 @@ export function DeliveryManagementDashboard({
 		return {
 			isFree: count === 0,
 			count,
-			label: count === 0 ? "FREE (0 Active Trips)" : `BUSY (${count} Active Trip${count > 1 ? "s" : ""})`,
-			badgeClass: count === 0 ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300",
+			label:
+				count === 0
+					? "FREE (0 Active Trips)"
+					: `BUSY (${count} Active Trip${count > 1 ? "s" : ""})`,
+			badgeClass:
+				count === 0
+					? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300"
+					: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300",
 		};
 	};
 
@@ -125,8 +150,14 @@ export function DeliveryManagementDashboard({
 		return {
 			isFree: count === 0,
 			count,
-			label: count === 0 ? "FREE (0 Active Loading Tasks)" : `BUSY (${count} Active Task${count > 1 ? "s" : ""})`,
-			badgeClass: count === 0 ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300",
+			label:
+				count === 0
+					? "FREE (0 Active Loading Tasks)"
+					: `BUSY (${count} Active Task${count > 1 ? "s" : ""})`,
+			badgeClass:
+				count === 0
+					? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300"
+					: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300",
 		};
 	};
 	const { data: routeWaitingPool = [], refetch: refetchRoutePool } =
@@ -150,7 +181,9 @@ export function DeliveryManagementDashboard({
 	const [createTripRoutePool, setCreateTripRoutePool] = useState<any>(null);
 	const [isCreateTripPoolOpen, setIsCreateTripPoolOpen] = useState(false);
 	const [createTripStep, setCreateTripStep] = useState<1 | 2 | 3>(1);
-	const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<number[]>([]);
+	const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<number[]>(
+		[],
+	);
 	const [poolDriverId, setPoolDriverId] = useState("");
 	const [poolVehicleId, setPoolVehicleId] = useState("");
 	const [poolLoaderId, setPoolLoaderId] = useState("");
@@ -166,7 +199,8 @@ export function DeliveryManagementDashboard({
 	const { data: driverCollections = [] } =
 		trpc.finance.getDriverCollections.useQuery();
 
-	const [selectedSettlementDetail, setSelectedSettlementDetail] = useState<any>(null);
+	const [selectedSettlementDetail, setSelectedSettlementDetail] =
+		useState<any>(null);
 	const [isSettlementDetailOpen, setIsSettlementDetailOpen] = useState(false);
 
 	const [assignOrder, setAssignOrder] = useState<any>(null);
@@ -186,17 +220,17 @@ export function DeliveryManagementDashboard({
 
 	const assignedCustomerIdsInActiveTrips = new Set(
 		(trips || [])
-			.filter(
-				(t: any) => t.status !== "cancelled" && t.status !== "completed",
-			)
+			.filter((t: any) => t.status !== "cancelled" && t.status !== "completed")
 			.flatMap((t: any) => (t.stops || []).map((s: any) => s.customer_id))
 			.filter(Boolean),
 	);
 
 	const unassignedOrders = allOrders.filter((order: any) => {
 		if (order.status === "cancelled") return false;
-		if (order.status === "delivered" || order.status === "completed") return false;
-		if (order.status === "pending_review" || order.status === "under_review") return false;
+		if (order.status === "delivered" || order.status === "completed")
+			return false;
+		if (order.status === "pending_review" || order.status === "under_review")
+			return false;
 		if (
 			order.status === "ready_for_dispatch" ||
 			order.status === "out_for_delivery" ||
@@ -212,7 +246,10 @@ export function DeliveryManagementDashboard({
 
 	// Group unassigned orders by assigned route name
 	const routeGroups = useMemo(() => {
-		const groups: Record<string, any[]> = { all: unassignedOrders, unassigned: [] };
+		const groups: Record<string, any[]> = {
+			all: unassignedOrders,
+			unassigned: [],
+		};
 		for (const order of unassignedOrders) {
 			const rName = order.route?.name?.trim();
 			if (rName) {
@@ -259,7 +296,9 @@ export function DeliveryManagementDashboard({
 		setEditVehicleName(vehicle.name || "");
 		setEditVehicleReg(vehicle.registration_number || "");
 		setEditVehicleType(vehicle.type || "van");
-		setEditVehicleCap(vehicle.capacity_kg ? vehicle.capacity_kg.toString() : "");
+		setEditVehicleCap(
+			vehicle.capacity_kg ? vehicle.capacity_kg.toString() : "",
+		);
 		setEditVehicleStatus(vehicle.status || "available");
 		setIsEditVehicleOpen(true);
 	};
@@ -279,7 +318,7 @@ export function DeliveryManagementDashboard({
 			name: editVehicleName.trim(),
 			registration_number: editVehicleReg.trim(),
 			type: editVehicleType,
-			capacity_kg: editVehicleCap ? parseFloat(editVehicleCap) : null,
+			capacity_kg: editVehicleCap ? Number.parseFloat(editVehicleCap) : null,
 			status: editVehicleStatus as any,
 		});
 	};
@@ -339,26 +378,29 @@ export function DeliveryManagementDashboard({
 			refetchOrders();
 		},
 	});
-	const assignVehicleAndDriverMutation = trpc.delivery.assignVehicleAndDriver.useMutation({
-		onSuccess: () => {
-			toast.success("Trip vehicle and driver assigned successfully!");
-			refetchTrips();
-			refetchOrders();
-			setIsAssignIncompleteTripOpen(false);
-			setSelectedAssignTrip(null);
-		},
-		onError: (err) => {
-			toast.error(err.message || "Failed to assign vehicle and driver");
-		},
-	});
+	const assignVehicleAndDriverMutation =
+		trpc.delivery.assignVehicleAndDriver.useMutation({
+			onSuccess: () => {
+				toast.success("Trip vehicle and driver assigned successfully!");
+				refetchTrips();
+				refetchOrders();
+				setIsAssignIncompleteTripOpen(false);
+				setSelectedAssignTrip(null);
+			},
+			onError: (err) => {
+				toast.error(err.message || "Failed to assign vehicle and driver");
+			},
+		});
 	const optimizeRouteSequence =
 		trpc.delivery.optimizeRouteSequence.useMutation();
 
 	// Modal States for Incomplete Trip Assignment
-	const [isAssignIncompleteTripOpen, setIsAssignIncompleteTripOpen] = useState(false);
+	const [isAssignIncompleteTripOpen, setIsAssignIncompleteTripOpen] =
+		useState(false);
 	const [selectedAssignTrip, setSelectedAssignTrip] = useState<any>(null);
 	const [assignIncompleteDriverId, setAssignIncompleteDriverId] = useState("");
-	const [assignIncompleteVehicleId, setAssignIncompleteVehicleId] = useState("");
+	const [assignIncompleteVehicleId, setAssignIncompleteVehicleId] =
+		useState("");
 	const [assignIncompleteLoaderId, setAssignIncompleteLoaderId] = useState("");
 
 	// Form States
@@ -378,7 +420,9 @@ export function DeliveryManagementDashboard({
 	const [manualStopAddress, setManualStopAddress] = useState("");
 	const [bulkAddressesText, setBulkAddressesText] = useState("");
 	const [isRouteOpen, setIsRouteOpen] = useState(false);
-	const [routeCreationMode, setRouteCreationMode] = useState<"existing" | "bulk">("existing");
+	const [routeCreationMode, setRouteCreationMode] = useState<
+		"existing" | "bulk"
+	>("existing");
 
 	interface TripModalStop {
 		tempId: string;
@@ -397,7 +441,9 @@ export function DeliveryManagementDashboard({
 	const [tripStopSearchText, setTripStopSearchText] = useState("");
 	const [isTripOpen, setIsTripOpen] = useState(false);
 	const [isAddStopDrawerOpen, setIsAddStopDrawerOpen] = useState(false);
-	const [addStopMode, setAddStopMode] = useState<"registered" | "custom">("registered");
+	const [addStopMode, setAddStopMode] = useState<"registered" | "custom">(
+		"registered",
+	);
 	const [selectedAddCustomerId, setSelectedAddCustomerId] = useState("");
 	const [newStopName, setNewStopName] = useState("");
 	const [newStopPhone, setNewStopPhone] = useState("");
@@ -472,7 +518,11 @@ export function DeliveryManagementDashboard({
 			setSelectedAddCustomerId("");
 			toast.success(`Added ${cust.name} to this trip.`);
 		} else {
-			if (!newStopName.trim() && !newStopPhone.trim() && !newStopAddress.trim()) {
+			if (
+				!newStopName.trim() &&
+				!newStopPhone.trim() &&
+				!newStopAddress.trim()
+			) {
 				toast.error("Please enter a customer name, phone, or address.");
 				return;
 			}
@@ -542,7 +592,9 @@ export function DeliveryManagementDashboard({
 			...customRouteStops,
 			{
 				id: `custom_${Date.now()}_${Math.random()}`,
-				name: manualStopName.trim() || `Customer ${manualStopPhone || customRouteStops.length + 1}`,
+				name:
+					manualStopName.trim() ||
+					`Customer ${manualStopPhone || customRouteStops.length + 1}`,
 				phone: manualStopPhone.trim(),
 				address: manualStopAddress.trim(),
 			},
@@ -564,15 +616,22 @@ export function DeliveryManagementDashboard({
 			.map((l) => l.trim())
 			.filter((l) => l.length > 0);
 
-		const parsed: Array<{ id: string; name: string; phone: string; address: string }> = [];
+		const parsed: Array<{
+			id: string;
+			name: string;
+			phone: string;
+			address: string;
+		}> = [];
 
 		for (const line of lines) {
 			// Extract phone if present (10-12 digits)
 			const phoneMatch = line.match(/(?:\+91|91)?[\s-]?[6-9]\d{9}/);
 			const phone = phoneMatch ? phoneMatch[0].replace(/[\s-]/g, "") : "";
-			
+
 			// Remove phone from line to get rest
-			let remaining = phoneMatch ? line.replace(phoneMatch[0], "").trim() : line;
+			let remaining = phoneMatch
+				? line.replace(phoneMatch[0], "").trim()
+				: line;
 			remaining = remaining.replace(/^[,;|-]+|[,;|-]+$/g, "").trim();
 
 			// If line has format: "Name - Address" or "Name, Address"
@@ -593,7 +652,9 @@ export function DeliveryManagementDashboard({
 
 			parsed.push({
 				id: `bulk_${Date.now()}_${Math.random()}`,
-				name: name || (address ? `Stop: ${address.slice(0, 25)}` : `Phone: ${phone}`),
+				name:
+					name ||
+					(address ? `Stop: ${address.slice(0, 25)}` : `Phone: ${phone}`),
 				phone: phone,
 				address: address || (phone ? `Contact: ${phone}` : "Standard Delivery"),
 			});
@@ -644,17 +705,27 @@ export function DeliveryManagementDashboard({
 		}
 
 		if (allStops.length === 0) {
-			toast.error("Please add at least one customer stop or address to this route.");
+			toast.error(
+				"Please add at least one customer stop or address to this route.",
+			);
 			return;
 		}
 
 		try {
+			const cleanedName = cleanVillageName(routeName);
+			const cleanedDesc = cleanRouteDescription(routeDesc);
 			await createRoute.mutateAsync({
-				name: routeName,
-				description: routeDesc,
-				stops: allStops,
+				name: cleanedName,
+				description: cleanedDesc,
+				stops: allStops.map((s) => ({
+					...s,
+					name: cleanVillageName(s.name),
+					address: cleanVillageName(s.address),
+				})),
 			});
-			toast.success(`Route "${routeName}" created with ${allStops.length} stop(s)!`);
+			toast.success(
+				`Route "${cleanedName}" created with ${allStops.length} stop(s)!`,
+			);
 			setIsRouteOpen(false);
 			setRouteName("");
 			setRouteDesc("");
@@ -779,30 +850,32 @@ export function DeliveryManagementDashboard({
 
 	const openEditRouteModal = (route: any) => {
 		setRouteToEdit(route);
-		setEditRouteName(route.name || "");
-		setEditRouteDesc(route.description || "");
+		setEditRouteName(cleanVillageName(route.name || ""));
+		const cleanedDesc = cleanRouteDescription(route.description || "");
+		setEditRouteDesc(cleanedDesc);
 
 		// Extract current villages from description or stops
 		let villages: string[] = [];
-		if (route.description && route.description.includes("->")) {
-			villages = route.description
+		if (cleanedDesc && cleanedDesc.includes("->")) {
+			villages = cleanedDesc
 				.split("->")
-				.map((v: string) => v.trim())
+				.map((v: string) => cleanVillageName(v))
 				.filter(Boolean);
-		} else if (route.description && route.description.includes(",")) {
-			villages = route.description
+		} else if (cleanedDesc && cleanedDesc.includes(",")) {
+			villages = cleanedDesc
 				.split(",")
-				.map((v: string) => v.trim())
+				.map((v: string) => cleanVillageName(v))
 				.filter(Boolean);
 		} else {
 			const seen = new Set<string>();
 			for (const s of route.stops || []) {
-				const vName =
+				const rawName =
 					s.customer?.address?.trim() ||
 					(s.customer?.name?.startsWith("Stop:")
 						? s.customer.name.replace(/^Stop:\s*/, "")
 						: s.customer?.name) ||
 					`Stop ${s.sequence}`;
+				const vName = cleanVillageName(rawName);
 				if (vName && !seen.has(vName.toLowerCase())) {
 					seen.add(vName.toLowerCase());
 					villages.push(vName);
@@ -816,8 +889,9 @@ export function DeliveryManagementDashboard({
 	};
 
 	const handleAddVillageToEdit = () => {
-		if (!newVillageInput.trim()) return;
-		const updated = [...editVillageStops, newVillageInput.trim()];
+		const cleaned = cleanVillageName(newVillageInput);
+		if (!cleaned) return;
+		const updated = [...editVillageStops, cleaned];
 		setEditVillageStops(updated);
 		setEditRouteDesc(updated.join(" -> "));
 		setNewVillageInput("");
@@ -847,27 +921,32 @@ export function DeliveryManagementDashboard({
 
 	const handleSaveEditRoute = async () => {
 		if (!routeToEdit) return;
-		if (!editRouteName.trim()) {
+		const cleanedName = cleanVillageName(editRouteName);
+		if (!cleanedName) {
 			toast.error("Please enter a route name.");
 			return;
 		}
-		if (editVillageStops.length === 0) {
+		const cleanedStops = editVillageStops.map(cleanVillageName).filter(Boolean);
+		if (cleanedStops.length === 0) {
 			toast.error("Please have at least one village stop on this route.");
 			return;
 		}
 
+		const finalDesc =
+			cleanRouteDescription(editRouteDesc) || cleanedStops.join(" -> ");
+
 		try {
 			await updateRouteMutation.mutateAsync({
 				id: routeToEdit.id,
-				name: editRouteName.trim(),
-				description: editRouteDesc.trim() || editVillageStops.join(" -> "),
-				stops: editVillageStops.map((vName, idx) => ({
+				name: cleanedName,
+				description: finalDesc,
+				stops: cleanedStops.map((vName, idx) => ({
 					name: vName,
 					address: vName,
 					sequence: idx + 1,
 				})),
 			});
-			toast.success(`Route "${editRouteName}" updated successfully!`);
+			toast.success(`Route "${cleanedName}" updated successfully!`);
 			setIsEditRouteOpen(false);
 			setRouteToEdit(null);
 		} catch (err: any) {
@@ -1069,8 +1148,8 @@ export function DeliveryManagementDashboard({
 		}
 
 		try {
-			const selectedOrders = (createTripRoutePool.orders || []).filter((o: any) =>
-				selectedPoolOrderIds.includes(o.id),
+			const selectedOrders = (createTripRoutePool.orders || []).filter(
+				(o: any) => selectedPoolOrderIds.includes(o.id),
 			);
 			const stops = selectedOrders.map((o: any, idx: number) => ({
 				customerId: o.customerId,
@@ -1100,8 +1179,12 @@ export function DeliveryManagementDashboard({
 	const handleConfirmFinalDispatch = async () => {
 		if (!dispatchConfirmTrip) return;
 		try {
-			await dispatchTripMutation.mutateAsync({ tripId: dispatchConfirmTrip.id });
-			toast.success(`🚚 Trip #${dispatchConfirmTrip.id} dispatched! Driver is now Out for Delivery.`);
+			await dispatchTripMutation.mutateAsync({
+				tripId: dispatchConfirmTrip.id,
+			});
+			toast.success(
+				`🚚 Trip #${dispatchConfirmTrip.id} dispatched! Driver is now Out for Delivery.`,
+			);
 			setIsDispatchConfirmOpen(false);
 			setDispatchConfirmTrip(null);
 			refetchTrips();
@@ -1114,303 +1197,343 @@ export function DeliveryManagementDashboard({
 
 	return (
 		<>
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-			<TabsList>
-				<TabsTrigger value="overview">{t("overviewTab")}</TabsTrigger>
-				<TabsTrigger value="routes">Saved Routes ({realRoutes.length})</TabsTrigger>
-				<TabsTrigger value="dispatch">
-					{t("dispatchBoard")} ({dispatchBoardCount})
-				</TabsTrigger>
-				<TabsTrigger value="trips">Delivery Trips ({trips.length})</TabsTrigger>
-				<TabsTrigger value="tracking">{t("trackingTab")}</TabsTrigger>
-				<TabsTrigger value="vehicles">{t("vehiclesTab")}</TabsTrigger>
-			</TabsList>
+			<Tabs
+				value={activeTab}
+				onValueChange={setActiveTab}
+				className="space-y-4"
+			>
+				<TabsList>
+					<TabsTrigger value="overview">{t("overviewTab")}</TabsTrigger>
+					<TabsTrigger value="routes">
+						Saved Routes ({realRoutes.length})
+					</TabsTrigger>
+					<TabsTrigger value="dispatch">
+						{t("dispatchBoard")} ({dispatchBoardCount})
+					</TabsTrigger>
+					<TabsTrigger value="trips">
+						Delivery Trips ({trips.length})
+					</TabsTrigger>
+					<TabsTrigger value="tracking">{t("trackingTab")}</TabsTrigger>
+					<TabsTrigger value="vehicles">{t("vehiclesTab")}</TabsTrigger>
+				</TabsList>
 
-			<TabsContent value="overview" className="space-y-6">
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-					<Card>
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="font-medium text-sm">
-								{t("activeTripsCard")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="font-bold text-2xl">
-								{trips.filter((t: any) => t.status === "active" || t.status === "pending").length}
-							</div>
-						</CardContent>
-					</Card>
-					<Card>
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="font-medium text-sm">
-								Saved Delivery Routes
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="font-bold text-2xl text-blue-600">{realRoutes.length}</div>
-						</CardContent>
-					</Card>
-					<Card>
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="font-medium text-sm">
-								{t("availableVehiclesCard")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="font-bold text-2xl">{vehicles.length}</div>
-						</CardContent>
-					</Card>
-					<Card>
-						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="font-medium text-sm">
-								{t("pendingSettlementsCard")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="font-bold text-2xl">
-								{driverCollections.filter((c: any) => c.status === "pending").length}
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-
-				{/* Quick Route Trip Dispatch Panel */}
-				{realRoutes.length > 0 && (
-					<Card className="border-border/60 bg-gradient-to-br from-slate-50/70 to-blue-50/30 shadow-sm dark:from-slate-900/40 dark:to-blue-950/20">
-						<CardHeader className="flex flex-row items-center justify-between pb-3">
-							<div>
-								<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
-									<RouteIcon className="h-5 w-5 text-primary" />
-									Saved Delivery Routes & Trip Assignment
+				<TabsContent value="overview" className="space-y-6">
+					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="font-medium text-sm">
+									{t("activeTripsCard")}
 								</CardTitle>
-								<CardDescription className="text-xs text-slate-500">
-									View and edit configured delivery routes.
+							</CardHeader>
+							<CardContent>
+								<div className="font-bold text-2xl">
+									{
+										trips.filter(
+											(t: any) =>
+												t.status === "active" || t.status === "pending",
+										).length
+									}
+								</div>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="font-medium text-sm">
+									Saved Delivery Routes
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="font-bold text-2xl text-blue-600 dark:text-blue-400">
+									{realRoutes.length}
+								</div>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="font-medium text-sm">
+									{t("availableVehiclesCard")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="font-bold text-2xl">{vehicles.length}</div>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="font-medium text-sm">
+									{t("pendingSettlementsCard")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="font-bold text-2xl">
+									{
+										driverCollections.filter((c: any) => c.status === "pending")
+											.length
+									}
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+
+					{/* Quick Route Trip Dispatch Panel */}
+					{realRoutes.length > 0 && (
+						<Card className="border-border/60 bg-gradient-to-br from-slate-50/70 to-blue-50/30 shadow-sm dark:border-slate-800 dark:from-slate-900/40 dark:to-blue-950/20">
+							<CardHeader className="flex flex-row items-center justify-between pb-3">
+								<div>
+									<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
+										<RouteIcon className="h-5 w-5 text-primary" />
+										Saved Delivery Routes & Trip Assignment
+									</CardTitle>
+									<CardDescription className="text-slate-500 text-xs dark:text-slate-400">
+										View and edit configured delivery routes.
+									</CardDescription>
+								</div>
+							</CardHeader>
+							<CardContent>
+								<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+									{realRoutes.map((route: any) => (
+										<div
+											key={route.id}
+											className="flex h-[135px] flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900/90"
+										>
+											<div className="space-y-1">
+												<div className="flex items-center justify-between">
+													<h4
+														className="truncate font-bold text-slate-900 text-sm dark:text-slate-100"
+														title={cleanVillageName(route.name)}
+													>
+														{cleanVillageName(route.name)}
+													</h4>
+												</div>
+												<div className="h-8">
+													{route.description && (
+														<p
+															className="line-clamp-2 text-slate-500 text-xs leading-relaxed dark:text-slate-400"
+															title={cleanRouteDescription(route.description)}
+														>
+															{cleanRouteDescription(route.description)}
+														</p>
+													)}
+												</div>
+											</div>
+											<div className="mt-3 flex items-center justify-between border-slate-100 border-t pt-2.5 dark:border-slate-800">
+												{(() => {
+													const stopCount = route.stops?.length || 0;
+													let villageCount = 0;
+													const cleanedDesc = cleanRouteDescription(
+														route.description,
+													);
+													if (cleanedDesc) {
+														const parts = cleanedDesc
+															.split(/→|->/)
+															.map((v: string) => cleanVillageName(v))
+															.filter(Boolean);
+														if (parts.length > 0) villageCount = parts.length;
+													}
+													return (
+														<span className="font-medium text-[11px] text-slate-600 dark:text-slate-300">
+															{villageCount > 0
+																? `${stopCount} Shops (${villageCount} Villages)`
+																: `Seq: 1 → ${stopCount}`}
+														</span>
+													);
+												})()}
+												<div className="flex items-center gap-1.5">
+													<Button
+														size="sm"
+														variant="outline"
+														className="h-7 border-slate-200 px-2 font-semibold text-slate-700 text-xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+														onClick={() => openEditRouteModal(route)}
+													>
+														<PencilIcon className="mr-1 h-3 w-3 text-slate-500 dark:text-slate-400" />
+														Edit
+													</Button>
+												</div>
+											</div>
+										</div>
+									))}
+								</div>
+							</CardContent>
+						</Card>
+					)}
+				</TabsContent>
+
+				<TabsContent value="routes">
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between">
+							<div>
+								<CardTitle>Delivery Routes</CardTitle>
+								<CardDescription>
+									Manage and optimize delivery routes for your customers.
 								</CardDescription>
 							</div>
-						</CardHeader>
-						<CardContent>
-							<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-								{realRoutes.map((route: any) => (
-									<div
-										key={route.id}
-										className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"
+							<div className="flex items-center space-x-2">
+								{(routes.length > 0 || trips.length > 0) && (
+									<Button
+										variant="outline"
+										className="border-red-200 font-medium text-red-600 hover:border-red-300 hover:bg-red-50"
+										onClick={() => setIsClearAllModalOpen(true)}
 									>
-										<div className="space-y-1.5">
-											<div className="flex items-center justify-between">
-												<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-													{route.name}
-												</h4>
-											</div>
-											{route.description && (
-												<p className="line-clamp-2 text-slate-500 text-xs leading-relaxed">
-													{route.description}
-												</p>
-											)}
-										</div>
-										<div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-800">
-											{(() => {
-												const stopCount = route.stops?.length || 0;
-												let villageCount = 0;
-												if (route.description) {
-													const parts = route.description.split(/→|->/).map((v: string) => v.trim()).filter(Boolean);
- 													if (parts.length > 0) villageCount = parts.length;
-												}
-												return (
-													<span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
-														{villageCount > 0 ? `${stopCount} Shops (${villageCount} Villages)` : `Seq: 1 → ${stopCount}`}
-													</span>
-												);
-											})()}
-											<div className="flex items-center gap-1.5">
-												<Button
-													size="sm"
-													variant="outline"
-													className="h-7 border-slate-200 px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
-													onClick={() => openEditRouteModal(route)}
-												>
-													<PencilIcon className="mr-1 h-3 w-3 text-slate-500" />
-													Edit
-												</Button>
-											</div>
-										</div>
-									</div>
-								))}
-							</div>
-						</CardContent>
-					</Card>
-				)}
-
-			</TabsContent>
-
-			<TabsContent value="routes">
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
-						<div>
-							<CardTitle>Delivery Routes</CardTitle>
-							<CardDescription>
-								Manage and optimize delivery routes for your customers.
-							</CardDescription>
-						</div>
-						<div className="flex items-center space-x-2">
-							{(routes.length > 0 || trips.length > 0) && (
-								<Button
-									variant="outline"
-									className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 font-medium"
-									onClick={() => setIsClearAllModalOpen(true)}
+										<Trash2Icon className="mr-1.5 h-4 w-4" />
+										Clear All Routes & Trips
+									</Button>
+								)}
+								<Dialog
+									open={isQuickTripOpen}
+									onOpenChange={setIsQuickTripOpen}
 								>
-									<Trash2Icon className="mr-1.5 h-4 w-4" />
-									Clear All Routes & Trips
-								</Button>
-							)}
-							<Dialog open={isQuickTripOpen} onOpenChange={setIsQuickTripOpen}>
-								<DialogTrigger asChild>
-									<Button variant="secondary">Quick Custom Trip</Button>
-								</DialogTrigger>
-								<DialogContent className="max-w-xl">
-									<DialogHeader>
-										<DialogTitle>Quick Dispatch</DialogTitle>
-										<DialogDescription>
-											Assign a custom trip directly without creating a saved
-											route.
-										</DialogDescription>
-									</DialogHeader>
-									<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
-										<div className="space-y-2">
-											<Label>Select Driver</Label>
-											<Select
-												value={tripDriverId}
-												onValueChange={setTripDriverId}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Select Driver" />
-												</SelectTrigger>
-												<SelectContent>
-													{finalDrivers.map((d: any) => (
-														<SelectItem key={d.id} value={d.id}>
-															{d.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="space-y-2">
-											<Label>Select Vehicle</Label>
-											<Select
-												value={tripVehicleId}
-												onValueChange={setTripVehicleId}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Select Vehicle" />
-												</SelectTrigger>
-												<SelectContent>
-													{vehicles.map((v: any) => (
-														<SelectItem key={v.id} value={v.id.toString()}>
-															{v.name} - {v.registration_number}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="space-y-2">
-											<div className="flex items-center justify-between">
-												<Label>Add Customers (Select to add to sequence)</Label>
-												{quickTripCustomers.length > 1 && (
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={handleOptimizeQuickTrip}
-														disabled={optimizeRouteSequence.isPending}
-														className="h-7 border-emerald-200 bg-emerald-50 font-semibold text-emerald-600 text-xs hover:bg-emerald-100"
-													>
-														✨ Auto-Optimize Route
-													</Button>
+									<DialogTrigger asChild>
+										<Button variant="secondary">Quick Custom Trip</Button>
+									</DialogTrigger>
+									<DialogContent className="max-w-xl">
+										<DialogHeader>
+											<DialogTitle>Quick Dispatch</DialogTitle>
+											<DialogDescription>
+												Assign a custom trip directly without creating a saved
+												route.
+											</DialogDescription>
+										</DialogHeader>
+										<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
+											<div className="space-y-2">
+												<Label>Select Driver</Label>
+												<Select
+													value={tripDriverId}
+													onValueChange={setTripDriverId}
+												>
+													<SelectTrigger>
+														<SelectValue placeholder="Select Driver" />
+													</SelectTrigger>
+													<SelectContent>
+														{finalDrivers.map((d: any) => (
+															<SelectItem key={d.id} value={d.id}>
+																{d.name}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+											<div className="space-y-2">
+												<Label>Select Vehicle</Label>
+												<Select
+													value={tripVehicleId}
+													onValueChange={setTripVehicleId}
+												>
+													<SelectTrigger>
+														<SelectValue placeholder="Select Vehicle" />
+													</SelectTrigger>
+													<SelectContent>
+														{vehicles.map((v: any) => (
+															<SelectItem key={v.id} value={v.id.toString()}>
+																{v.name} - {v.registration_number}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+											<div className="space-y-2">
+												<div className="flex items-center justify-between">
+													<Label>
+														Add Customers (Select to add to sequence)
+													</Label>
+													{quickTripCustomers.length > 1 && (
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={handleOptimizeQuickTrip}
+															disabled={optimizeRouteSequence.isPending}
+															className="h-7 border-emerald-200 bg-emerald-50 font-semibold text-emerald-600 text-xs hover:bg-emerald-100"
+														>
+															✨ Auto-Optimize Route
+														</Button>
+													)}
+												</div>
+												<Select
+													onValueChange={(val) =>
+														setQuickTripCustomers([
+															...quickTripCustomers,
+															Number(val),
+														])
+													}
+												>
+													<SelectTrigger>
+														<SelectValue placeholder="Add a customer..." />
+													</SelectTrigger>
+													<SelectContent>
+														{customers.map((c: any) => (
+															<SelectItem key={c.id} value={c.id.toString()}>
+																{c.name} ({c.phone || "No Phone"})
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+												{quickTripCustomers.length > 0 && (
+													<div className="mt-2 space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
+														{quickTripCustomers.map((id, idx) => {
+															const cust = customers.find(
+																(c: any) => c.id === id,
+															);
+															return (
+																<div
+																	key={idx}
+																	className="flex items-center gap-2"
+																>
+																	<MapPinIcon className="h-4 w-4 text-primary" />{" "}
+																	<strong>Stop {idx + 1}:</strong> {cust?.name}
+																</div>
+															);
+														})}
+													</div>
 												)}
 											</div>
-											<Select
-												onValueChange={(val) =>
-													setQuickTripCustomers([
-														...quickTripCustomers,
-														Number(val),
-													])
+										</div>
+										<DialogFooter>
+											<Button
+												onClick={handleCreateQuickTrip}
+												disabled={
+													createTripDirect.isPending ||
+													!tripDriverId ||
+													quickTripCustomers.length === 0
 												}
 											>
-												<SelectTrigger>
-													<SelectValue placeholder="Add a customer..." />
-												</SelectTrigger>
-												<SelectContent>
-													{customers.map((c: any) => (
-														<SelectItem key={c.id} value={c.id.toString()}>
-															{c.name} ({c.phone || "No Phone"})
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-											{quickTripCustomers.length > 0 && (
-												<div className="mt-2 space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
-													{quickTripCustomers.map((id, idx) => {
-														const cust = customers.find(
-															(c: any) => c.id === id,
-														);
-														return (
-															<div
-																key={idx}
-																className="flex items-center gap-2"
-															>
-																<MapPinIcon className="h-4 w-4 text-primary" />{" "}
-																<strong>Stop {idx + 1}:</strong> {cust?.name}
-															</div>
-														);
-													})}
-												</div>
-											)}
-										</div>
-									</div>
-									<DialogFooter>
-										<Button
-											onClick={handleCreateQuickTrip}
-											disabled={
-												createTripDirect.isPending ||
-												!tripDriverId ||
-												quickTripCustomers.length === 0
-											}
-										>
-											Dispatch Trip
-										</Button>
-									</DialogFooter>
-								</DialogContent>
-							</Dialog>
+												Dispatch Trip
+											</Button>
+										</DialogFooter>
+									</DialogContent>
+								</Dialog>
 
-							<Dialog open={isRouteOpen} onOpenChange={setIsRouteOpen}>
-								<DialogTrigger asChild>
-									<Button variant="outline">Create New Route</Button>
-								</DialogTrigger>
-								<DialogContent className="max-w-xl">
-									<DialogHeader>
-										<DialogTitle>Create Delivery Route</DialogTitle>
-										<DialogDescription>
-											Define a route and assign villages.
-										</DialogDescription>
-									</DialogHeader>
-									<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
-										<div className="space-y-2">
-											<Label>Route Name</Label>
-											<Input
-												value={routeName}
-												onChange={(e) => setRouteName(e.target.value)}
-												placeholder="e.g. Downtown Morning"
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label>Description</Label>
-											<Input
-												value={routeDesc}
-												onChange={(e) => setRouteDesc(e.target.value)}
-												placeholder="Route notes..."
-											/>
-										</div>
-										<div className="space-y-2">
+								<Dialog open={isRouteOpen} onOpenChange={setIsRouteOpen}>
+									<DialogTrigger asChild>
+										<Button variant="outline">Create New Route</Button>
+									</DialogTrigger>
+									<DialogContent className="max-w-xl">
+										<DialogHeader>
+											<DialogTitle>Create Delivery Route</DialogTitle>
+											<DialogDescription>
+												Define a route and assign villages.
+											</DialogDescription>
+										</DialogHeader>
+										<div className="max-h-[60vh] space-y-4 overflow-y-auto py-4 pr-2">
+											<div className="space-y-2">
+												<Label>Route Name</Label>
+												<Input
+													value={routeName}
+													onChange={(e) => setRouteName(e.target.value)}
+													placeholder="e.g. Downtown Morning"
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label>Description</Label>
+												<Input
+													value={routeDesc}
+													onChange={(e) => setRouteDesc(e.target.value)}
+													placeholder="Route notes..."
+												/>
+											</div>
+											<div className="space-y-2">
 												<div className="flex items-center justify-between">
-													<Label className="text-xs font-medium">Select Registered Villages</Label>
+													<Label className="font-medium text-xs">
+														Select Registered Villages
+													</Label>
 													{routeCustomers.length > 1 && (
 														<Button
 															variant="outline"
@@ -1423,651 +1546,596 @@ export function DeliveryManagementDashboard({
 														</Button>
 													)}
 												</div>
-													<div className="flex gap-2">
-														<Input
-															value={manualStopName}
-															onChange={(e) => setManualStopName(e.target.value)}
-															placeholder="Type a village name..."
-															onKeyDown={(e) => {
-																if (e.key === "Enter" && manualStopName.trim()) {
-																	e.preventDefault();
-																	setCustomRouteStops([...customRouteStops, { id: `v_${Date.now()}`, name: manualStopName.trim(), phone: "", address: "" }]);
-																	setManualStopName("");
-																}
-															}}
-														/>
-														<Button
-															type="button"
-															onClick={() => {
-																if (manualStopName.trim()) {
-																	setCustomRouteStops([...customRouteStops, { id: `v_${Date.now()}`, name: manualStopName.trim(), phone: "", address: "" }]);
-																	setManualStopName("");
-																}
-															}}
-														>
-															Add
-														</Button>
-													</div>
-											</div>
-
-
-										{/* Combined Stops Preview List */}
-										{(routeCustomers.length > 0 || customRouteStops.length > 0) && (
-											<div className="space-y-2 pt-2">
-												<div className="flex items-center justify-between">
-													<Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-														Villages Sequence ({routeCustomers.length + customRouteStops.length} Total)
-													</Label>
+												<div className="flex gap-2">
+													<Input
+														value={manualStopName}
+														onChange={(e) => setManualStopName(e.target.value)}
+														placeholder="Type a village name..."
+														onKeyDown={(e) => {
+															if (e.key === "Enter" && manualStopName.trim()) {
+																e.preventDefault();
+																setCustomRouteStops([
+																	...customRouteStops,
+																	{
+																		id: `v_${Date.now()}`,
+																		name: manualStopName.trim(),
+																		phone: "",
+																		address: "",
+																	},
+																]);
+																setManualStopName("");
+															}
+														}}
+													/>
 													<Button
 														type="button"
-														variant="ghost"
-														size="sm"
-														className="h-6 text-[11px] text-red-500 hover:text-red-700 hover:bg-red-50"
 														onClick={() => {
-															setRouteCustomers([]);
-															setCustomRouteStops([]);
+															if (manualStopName.trim()) {
+																setCustomRouteStops([
+																	...customRouteStops,
+																	{
+																		id: `v_${Date.now()}`,
+																		name: manualStopName.trim(),
+																		phone: "",
+																		address: "",
+																	},
+																]);
+																setManualStopName("");
+															}
 														}}
 													>
-														Clear All Villages
+														Add
 													</Button>
 												</div>
+											</div>
 
-												<div className="max-h-48 space-y-1.5 overflow-y-auto rounded-lg border bg-muted/20 p-2.5 text-xs">
-													{/* Registered customer stops */}
-													{routeCustomers.map((id, idx) => {
-														const cust = customers.find((c: any) => c.id === id);
-														return (
-															<div
-																key={`reg_${id}_${idx}`}
-																className="flex items-center justify-between rounded-md bg-white p-2 shadow-xs dark:bg-slate-800"
-															>
-																<div className="flex items-center gap-2">
-																	<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
-																		{idx + 1}
-																	</div>
-																	<div>
-																		<span className="font-semibold text-slate-800 dark:text-slate-200">
-																			{cust?.name || `Village #${id}`}
-																		</span>
-																		{cust?.phone && (
-																			<span className="ml-2 text-slate-500 font-mono text-[11px]">
-																				📞 {cust.phone}
-																			</span>
-																		)}
-																		{cust?.address && (
-																			<p className="text-[11px] text-slate-400">
-																				📍 {cust.address}
-																			</p>
-																		)}
-																	</div>
-																</div>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="icon"
-																	className="h-6 w-6 text-slate-400 hover:text-red-600"
-																	onClick={() =>
-																		setRouteCustomers(
-																			routeCustomers.filter((cid) => cid !== id),
-																		)
-																	}
-																>
-																	×
-																</Button>
-															</div>
-														);
-													})}
-
-													{/* Custom & Bulk parsed stops */}
-													{customRouteStops.map((cStop, idx) => (
-														<div
-															key={cStop.id}
-															className="flex items-center justify-between rounded-md bg-emerald-50/70 border border-emerald-100 p-2 shadow-xs dark:bg-emerald-950/30"
+											{/* Combined Stops Preview List */}
+											{(routeCustomers.length > 0 ||
+												customRouteStops.length > 0) && (
+												<div className="space-y-2 pt-2">
+													<div className="flex items-center justify-between">
+														<Label className="font-bold text-muted-foreground text-xs uppercase tracking-wider">
+															Villages Sequence (
+															{routeCustomers.length + customRouteStops.length}{" "}
+															Total)
+														</Label>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-6 text-[11px] text-red-500 hover:bg-red-50 hover:text-red-700"
+															onClick={() => {
+																setRouteCustomers([]);
+																setCustomRouteStops([]);
+															}}
 														>
-															<div className="flex items-center gap-2">
-																<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">
-																	{routeCustomers.length + idx + 1}
-																</div>
-																<div>
-																	<span className="font-semibold text-emerald-950 dark:text-emerald-200">
-																		{cStop.name}
-																	</span>
-																</div>
-															</div>
-															<div className="flex items-center gap-1">
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="icon"
-																	className="h-6 w-6 text-slate-500 hover:text-emerald-600"
-																	disabled={idx === 0}
-																	onClick={() => {
-																		const newStops = [...customRouteStops];
-																		const temp = newStops[idx - 1];
-																		newStops[idx - 1] = newStops[idx];
-																		newStops[idx] = temp;
-																		setCustomRouteStops(newStops);
-																	}}
-																>
-																	<ArrowUpIcon className="h-3 w-3" />
-																</Button>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="icon"
-																	className="h-6 w-6 text-slate-500 hover:text-emerald-600"
-																	disabled={idx === customRouteStops.length - 1}
-																	onClick={() => {
-																		const newStops = [...customRouteStops];
-																		const temp = newStops[idx + 1];
-																		newStops[idx + 1] = newStops[idx];
-																		newStops[idx] = temp;
-																		setCustomRouteStops(newStops);
-																	}}
-																>
-																	<ArrowDownIcon className="h-3 w-3" />
-																</Button>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="icon"
-																	className="h-6 w-6 text-emerald-600 hover:text-red-600 ml-1"
-																	onClick={() =>
-																		setCustomRouteStops(
-																			customRouteStops.filter((s) => s.id !== cStop.id),
-																		)
-																	}
-																>
-																	×
-																</Button>
-															</div>
-														</div>
-													))}
-												</div>
-											</div>
-										)}
-									</div>
-									<DialogFooter>
-										<Button
-											onClick={handleCreateRoute}
-											disabled={
-												createRoute.isPending ||
-												(!routeName.trim()) ||
-												(routeCustomers.length === 0 && customRouteStops.length === 0)
-											}
-											className="font-semibold shadow-sm"
-										>
-											{createRoute.isPending ? "Creating Route..." : "Save Route with Villages"}
-										</Button>
-									</DialogFooter>
-								</DialogContent>
-							</Dialog>
+															Clear All Villages
+														</Button>
+													</div>
 
-							<Dialog open={isTripOpen} onOpenChange={setIsTripOpen}>
-								<DialogTrigger asChild>
-									<Button>Dispatch Trip</Button>
-								</DialogTrigger>
-								<DialogContent className="max-w-2xl">
-									<DialogHeader>
-										<DialogTitle className="flex items-center gap-2">
-											<TruckIcon className="h-5 w-5 text-primary" />
-											Dispatch Vehicle Trip
-										</DialogTitle>
-										<DialogDescription>
-											Assign a route to a driver and vehicle. Uncheck any customers not ordering on this trip.
-										</DialogDescription>
-									</DialogHeader>
-									<div className="max-h-[70vh] space-y-4 overflow-y-auto py-2 pr-1">
-										<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-											<div className="space-y-1.5 min-w-0">
-												<Label className="text-xs font-semibold">Select Route *</Label>
-												<Select
-													value={tripRouteId}
-													onValueChange={handleSelectTripRoute}
-												>
-													<SelectTrigger className="h-9 text-xs w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
-														<SelectValue placeholder="Select Route" />
-													</SelectTrigger>
-													<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
-														{routes.map((r: any) => (
-															<SelectItem key={r.id} value={r.id.toString()}>
-																<span className="truncate">{r.name}</span>
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-											<div className="space-y-1.5 min-w-0">
-												<Label className="text-xs font-semibold">Select Driver *</Label>
-												<Select
-													value={tripDriverId}
-													onValueChange={setTripDriverId}
-												>
-													<SelectTrigger className="h-9 text-xs w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
-														<SelectValue placeholder="Select Driver" />
-													</SelectTrigger>
-													<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
-														{finalDrivers.map((d: any) => (
-															<SelectItem key={d.id} value={d.id} className="cursor-pointer py-2">
-																<div className="flex flex-col gap-0.5 min-w-0 max-w-full text-left">
-																	<div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
-																		<span>👤 {d.name}</span>
-																		{d.staff_code && (
-																			<span className="rounded bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.2 font-mono text-[10px] text-blue-700 dark:text-blue-300">
-																				ID: {d.staff_code}
+													<div className="max-h-48 space-y-1.5 overflow-y-auto rounded-lg border bg-muted/20 p-2.5 text-xs">
+														{/* Registered customer stops */}
+														{routeCustomers.map((id, idx) => {
+															const cust = customers.find(
+																(c: any) => c.id === id,
+															);
+															return (
+																<div
+																	key={`reg_${id}_${idx}`}
+																	className="flex items-center justify-between rounded-md bg-white p-2 shadow-xs dark:bg-slate-800"
+																>
+																	<div className="flex items-center gap-2">
+																		<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
+																			{idx + 1}
+																		</div>
+																		<div>
+																			<span className="font-semibold text-slate-800 dark:text-slate-200">
+																				{cust?.name || `Village #${id}`}
 																			</span>
-																		)}
-																	</div>
-																	<div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
-																		{d.email && <span>📧 {d.email}</span>}
-																		<span className="font-mono text-[10px] opacity-75">UUID: {d.id}</span>
-																	</div>
-																</div>
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-											<div className="space-y-1.5 min-w-0">
-												<Label className="text-xs font-semibold">Select Vehicle *</Label>
-												<Select
-													value={tripVehicleId}
-													onValueChange={setTripVehicleId}
-												>
-													<SelectTrigger className="h-9 text-xs w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
-														<SelectValue placeholder="Select Vehicle" />
-													</SelectTrigger>
-													<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
-														{vehicles.map((v: any) => (
-															<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer">
-																<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
-																	<span className="font-medium shrink-0">🚚 {v.name}</span>
-																	{v.registration_number && (
-																		<span className="truncate text-xs text-muted-foreground">
-																			({v.registration_number})
-																		</span>
-																	)}
-																</div>
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-										</div>
-
-										{/* Stops Selector for this Trip */}
-										{(() => {
-											const filteredStops = tripStopsList.filter((s) => {
-												if (!tripStopSearchText.trim()) return true;
-												const q = tripStopSearchText.toLowerCase();
-												const name = (s.name || "").toLowerCase();
-												const phone = s.phone || "";
-												const addr = (s.address || "").toLowerCase();
-												return name.includes(q) || phone.includes(q) || addr.includes(q);
-											});
-											const includedCount = tripStopsList.filter((s) => s.included).length;
-
-											if (!tripRouteId && tripStopsList.length === 0) {
-												return (
-													<div className="rounded-xl border border-dashed p-6 text-center text-slate-400 text-xs">
-														Please select a Route above or add customers to build this trip.
-													</div>
-												);
-											}
-
-											return (
-												<div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/50">
-													<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5 dark:border-slate-800">
-														<div>
-															<div className="flex items-center gap-2">
-																<span className="font-bold text-xs text-slate-900 dark:text-slate-100">
-																	Trip Customer Stops
-																</span>
-																<span className="rounded-full bg-primary/10 px-2 py-0.5 font-bold text-[11px] text-primary">
-																	{includedCount} of {tripStopsList.length} Selected
-																</span>
-															</div>
-															<p className="text-[11px] text-slate-500">
-																Checked customers will be loaded into this vehicle trip. You can also add or delete stops.
-															</p>
-														</div>
-														<div className="flex items-center gap-1.5 flex-wrap">
-															<Button
-																type="button"
-																variant="outline"
-																size="sm"
-																className={`h-7 text-xs font-semibold ${
-																	isAddStopDrawerOpen
-																		? "border-primary bg-primary text-white hover:bg-primary/90 hover:text-white"
-																		: "border-primary/30 text-primary hover:bg-primary/10"
-																}`}
-																onClick={() => setIsAddStopDrawerOpen(!isAddStopDrawerOpen)}
-															>
-																<PlusIcon className="mr-1 h-3.5 w-3.5" />
-																{isAddStopDrawerOpen ? "Close Add Panel" : "Add Customer"}
-															</Button>
-															<Button
-																type="button"
-																variant="outline"
-																size="sm"
-																className="h-7 text-xs"
-																onClick={handleSelectAllStops}
-															>
-																Select All
-															</Button>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																className="h-7 text-xs text-slate-500 hover:text-slate-800"
-																onClick={handleDeselectAllStops}
-															>
-																Deselect All
-															</Button>
-														</div>
-													</div>
-
-													{/* Add Customer / Stop Drawer */}
-													{isAddStopDrawerOpen && (
-														<div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3 dark:bg-primary/10">
-															<div className="flex items-center justify-between">
-																<div className="flex rounded-md border bg-white p-0.5 dark:bg-slate-800">
-																	<button
-																		type="button"
-																		className={`rounded px-2.5 py-1 text-xs font-semibold transition-all ${
-																			addStopMode === "registered"
-																				? "bg-primary text-white shadow-xs"
-																				: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
-																		}`}
-																		onClick={() => setAddStopMode("registered")}
-																	>
-																		Registered Customer
-																	</button>
-																	<button
-																		type="button"
-																		className={`rounded px-2.5 py-1 text-xs font-semibold transition-all ${
-																			addStopMode === "custom"
-																				? "bg-primary text-white shadow-xs"
-																				: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
-																		}`}
-																		onClick={() => setAddStopMode("custom")}
-																	>
-																		New Custom Stop
-																	</button>
-																</div>
-															</div>
-
-															{addStopMode === "registered" ? (
-																<div className="flex flex-col sm:flex-row gap-2 items-center">
-																	<div className="flex-1 w-full">
-																		<Select
-																			value={selectedAddCustomerId}
-																			onValueChange={setSelectedAddCustomerId}
-																		>
-																			<SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-800">
-																				<SelectValue placeholder="Choose a registered customer..." />
-																			</SelectTrigger>
-																			<SelectContent className="max-h-56">
-																				{customers.map((c: any) => (
-																					<SelectItem key={c.id} value={c.id.toString()}>
-																						{c.name} {c.phone ? `(${c.phone})` : ""} {c.address ? `— ${c.address.slice(0, 25)}` : ""}
-																					</SelectItem>
-																				))}
-																			</SelectContent>
-																		</Select>
+																			{cust?.phone && (
+																				<span className="ml-2 font-mono text-[11px] text-slate-500">
+																					📞 {cust.phone}
+																				</span>
+																			)}
+																			{cust?.address && (
+																				<p className="text-[11px] text-slate-400">
+																					📍 {cust.address}
+																				</p>
+																			)}
+																		</div>
 																	</div>
 																	<Button
 																		type="button"
-																		size="sm"
-																		className="h-8 text-xs bg-primary text-white font-semibold hover:bg-primary/90 shrink-0 w-full sm:w-auto"
-																		onClick={handleAddCustomerToTrip}
+																		variant="ghost"
+																		size="icon"
+																		className="h-6 w-6 text-slate-400 hover:text-red-600"
+																		onClick={() =>
+																			setRouteCustomers(
+																				routeCustomers.filter(
+																					(cid) => cid !== id,
+																				),
+																			)
+																		}
 																	>
-																		<PlusIcon className="mr-1 h-3.5 w-3.5" />
-																		Add to Trip
+																		×
 																	</Button>
 																</div>
-															) : (
-																<div className="space-y-2">
-																	<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-																		<Input
-																			placeholder="Customer Name"
-																			value={newStopName}
-																			onChange={(e) => setNewStopName(e.target.value)}
-																			className="h-8 text-xs bg-white dark:bg-slate-800"
-																		/>
-																		<Input
-																			placeholder="Phone (e.g. 9876543210)"
-																			value={newStopPhone}
-																			onChange={(e) => setNewStopPhone(e.target.value)}
-																			className="h-8 text-xs bg-white dark:bg-slate-800"
-																		/>
-																		<Input
-																			placeholder="Village / Address"
-																			value={newStopAddress}
-																			onChange={(e) => setNewStopAddress(e.target.value)}
-																			className="h-8 text-xs bg-white dark:bg-slate-800"
-																		/>
-																	</div>
-																	<div className="flex justify-end">
-																		<Button
-																			type="button"
-																			size="sm"
-																			className="h-7 text-xs bg-primary text-white font-semibold hover:bg-primary/90"
-																			onClick={handleAddCustomerToTrip}
-																		>
-																			<PlusIcon className="mr-1 h-3.5 w-3.5" />
-																			Add Stop
-																		</Button>
-																	</div>
-																</div>
-															)}
-														</div>
-													)}
+															);
+														})}
 
-													<Input
-														placeholder="Filter stops by customer name, village or mobile number..."
-														value={tripStopSearchText}
-														onChange={(e) => setTripStopSearchText(e.target.value)}
-														className="h-8 text-xs bg-white dark:bg-slate-800"
-													/>
-
-													<div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
-														{filteredStops.map((stop, idx) => (
+														{/* Custom & Bulk parsed stops */}
+														{customRouteStops.map((cStop, idx) => (
 															<div
-																key={stop.tempId}
-																className={`flex items-start gap-2.5 rounded-lg border p-2 text-xs transition-all ${
-																	stop.included
-																		? "border-primary/30 bg-white shadow-xs dark:bg-slate-800"
-																		: "border-transparent bg-slate-100/70 opacity-50 dark:bg-slate-900"
-																}`}
+																key={cStop.id}
+																className="flex items-center justify-between rounded-md border border-emerald-100 bg-emerald-50/70 p-2 shadow-xs dark:bg-emerald-950/30"
 															>
-																<input
-																	type="checkbox"
-																	className="mt-1 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-																	checked={stop.included}
-																	onChange={() => handleToggleStop(stop.tempId)}
-																/>
-																<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
-																	{idx + 1}
-																</div>
-																<div
-																	className="flex-1 min-w-0 cursor-pointer"
-																	onClick={() => handleToggleStop(stop.tempId)}
-																>
-																	<div className="flex items-center justify-between gap-2">
-																		<span className="font-semibold text-slate-900 truncate dark:text-slate-100">
-																			{stop.name}
+																<div className="flex items-center gap-2">
+																	<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 font-bold text-[10px] text-white">
+																		{routeCustomers.length + idx + 1}
+																	</div>
+																	<div>
+																		<span className="font-semibold text-emerald-950 dark:text-emerald-200">
+																			{cStop.name}
 																		</span>
-																		{stop.phone && (
-																			<span className="text-[11px] text-slate-500 font-mono shrink-0">
-																				📞 {stop.phone}
+																	</div>
+																</div>
+																<div className="flex items-center gap-1">
+																	<Button
+																		type="button"
+																		variant="ghost"
+																		size="icon"
+																		className="h-6 w-6 text-slate-500 hover:text-emerald-600"
+																		disabled={idx === 0}
+																		onClick={() => {
+																			const newStops = [...customRouteStops];
+																			const temp = newStops[idx - 1];
+																			newStops[idx - 1] = newStops[idx];
+																			newStops[idx] = temp;
+																			setCustomRouteStops(newStops);
+																		}}
+																	>
+																		<ArrowUpIcon className="h-3 w-3" />
+																	</Button>
+																	<Button
+																		type="button"
+																		variant="ghost"
+																		size="icon"
+																		className="h-6 w-6 text-slate-500 hover:text-emerald-600"
+																		disabled={
+																			idx === customRouteStops.length - 1
+																		}
+																		onClick={() => {
+																			const newStops = [...customRouteStops];
+																			const temp = newStops[idx + 1];
+																			newStops[idx + 1] = newStops[idx];
+																			newStops[idx] = temp;
+																			setCustomRouteStops(newStops);
+																		}}
+																	>
+																		<ArrowDownIcon className="h-3 w-3" />
+																	</Button>
+																	<Button
+																		type="button"
+																		variant="ghost"
+																		size="icon"
+																		className="ml-1 h-6 w-6 text-emerald-600 hover:text-red-600"
+																		onClick={() =>
+																			setCustomRouteStops(
+																				customRouteStops.filter(
+																					(s) => s.id !== cStop.id,
+																				),
+																			)
+																		}
+																	>
+																		×
+																	</Button>
+																</div>
+															</div>
+														))}
+													</div>
+												</div>
+											)}
+										</div>
+										<DialogFooter>
+											<Button
+												onClick={handleCreateRoute}
+												disabled={
+													createRoute.isPending ||
+													!routeName.trim() ||
+													(routeCustomers.length === 0 &&
+														customRouteStops.length === 0)
+												}
+												className="font-semibold shadow-sm"
+											>
+												{createRoute.isPending
+													? "Creating Route..."
+													: "Save Route with Villages"}
+											</Button>
+										</DialogFooter>
+									</DialogContent>
+								</Dialog>
+
+								<Dialog open={isTripOpen} onOpenChange={setIsTripOpen}>
+									<DialogTrigger asChild>
+										<Button>Dispatch Trip</Button>
+									</DialogTrigger>
+									<DialogContent className="max-w-2xl">
+										<DialogHeader>
+											<DialogTitle className="flex items-center gap-2">
+												<TruckIcon className="h-5 w-5 text-primary" />
+												Dispatch Vehicle Trip
+											</DialogTitle>
+											<DialogDescription>
+												Assign a route to a driver and vehicle. Uncheck any
+												customers not ordering on this trip.
+											</DialogDescription>
+										</DialogHeader>
+										<div className="max-h-[70vh] space-y-4 overflow-y-auto py-2 pr-1">
+											<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+												<div className="min-w-0 space-y-1.5">
+													<Label className="font-semibold text-xs">
+														Select Route *
+													</Label>
+													<Select
+														value={tripRouteId}
+														onValueChange={handleSelectTripRoute}
+													>
+														<SelectTrigger className="h-9 w-full min-w-0 overflow-hidden text-left text-xs [&>span]:min-w-0 [&>span]:truncate">
+															<SelectValue placeholder="Select Route" />
+														</SelectTrigger>
+														<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
+															{routes.map((r: any) => (
+																<SelectItem key={r.id} value={r.id.toString()}>
+																	<span className="truncate">{r.name}</span>
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</div>
+												<div className="min-w-0 space-y-1.5">
+													<Label className="font-semibold text-xs">
+														Select Driver *
+													</Label>
+													<Select
+														value={tripDriverId}
+														onValueChange={setTripDriverId}
+													>
+														<SelectTrigger className="h-9 w-full min-w-0 overflow-hidden text-left text-xs [&>span]:min-w-0 [&>span]:truncate">
+															<SelectValue placeholder="Select Driver" />
+														</SelectTrigger>
+														<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
+															{finalDrivers.map((d: any) => (
+																<SelectItem
+																	key={d.id}
+																	value={d.id}
+																	className="cursor-pointer py-2"
+																>
+																	<div className="flex min-w-0 max-w-full flex-col gap-0.5 text-left">
+																		<div className="flex items-center gap-1.5 font-semibold text-slate-900 text-xs dark:text-slate-100">
+																			<span>👤 {d.name}</span>
+																			{d.staff_code && (
+																				<span className="rounded bg-blue-100 px-1.5 py-0.2 font-mono text-[10px] text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+																					ID: {d.staff_code}
+																				</span>
+																			)}
+																		</div>
+																		<div className="flex items-center gap-2 truncate text-[11px] text-muted-foreground">
+																			{d.email && <span>📧 {d.email}</span>}
+																			<span className="font-mono text-[10px] opacity-75">
+																				UUID: {d.id}
+																			</span>
+																		</div>
+																	</div>
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</div>
+												<div className="min-w-0 space-y-1.5">
+													<Label className="font-semibold text-xs">
+														Select Vehicle *
+													</Label>
+													<Select
+														value={tripVehicleId}
+														onValueChange={setTripVehicleId}
+													>
+														<SelectTrigger className="h-9 w-full min-w-0 overflow-hidden text-left text-xs [&>span]:min-w-0 [&>span]:truncate">
+															<SelectValue placeholder="Select Vehicle" />
+														</SelectTrigger>
+														<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
+															{vehicles.map((v: any) => (
+																<SelectItem
+																	key={v.id}
+																	value={v.id.toString()}
+																	className="cursor-pointer"
+																>
+																	<div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-left">
+																		<span className="shrink-0 font-medium">
+																			🚚 {v.name}
+																		</span>
+																		{v.registration_number && (
+																			<span className="truncate text-muted-foreground text-xs">
+																				({v.registration_number})
 																			</span>
 																		)}
 																	</div>
-																	{stop.address && (
-																		<p className="text-[11px] text-slate-500 truncate mt-0.5">
-																			📍 {stop.address}
-																		</p>
-																	)}
-																</div>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="icon"
-																	title="Remove stop from trip"
-																	className="h-6 w-6 shrink-0 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-																	onClick={() => handleDeleteStopFromTrip(stop.tempId)}
-																>
-																	<Trash2Icon className="h-3.5 w-3.5" />
-																</Button>
-															</div>
-														))}
-														{filteredStops.length === 0 && (
-															<p className="py-4 text-center text-slate-400 text-xs">
-																{tripStopsList.length === 0
-																	? "No customer stops in this trip. Click '+ Add Customer' to add stops."
-																	: "No stops match your filter query."}
-															</p>
-														)}
-													</div>
-												</div>
-											);
-										})()}
-									</div>
-									<DialogFooter>
-										<Button
-											variant="outline"
-											onClick={() => setIsTripOpen(false)}
-										>
-											Cancel
-										</Button>
-										<Button
-											onClick={handleAssignTrip}
-											disabled={
-												assignTrip.isPending ||
-												!tripRouteId ||
-												!tripDriverId ||
-												!tripVehicleId ||
-												tripStopsList.filter((s) => s.included).length === 0
-											}
-											className="bg-primary text-white font-semibold shadow-sm hover:bg-primary/90"
-										>
-											{assignTrip.isPending ? (
-												"Dispatching..."
-											) : (
-												<>
-													<TruckIcon className="mr-1.5 h-4 w-4" />
-													Dispatch Trip ({tripStopsList.filter((s) => s.included).length} Stops)
-												</>
-											)}
-										</Button>
-									</DialogFooter>
-								</DialogContent>
-							</Dialog>
-						</div>
-					</CardHeader>
-					<CardContent>
-						<div className="space-y-4">
-							{realRoutes.length === 0 ? (
-								<p className="text-muted-foreground text-sm">
-									No routes found.
-								</p>
-							) : (
-								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-									{realRoutes.map((route: any) => (
-										<div
-											key={route.id}
-											className="group relative overflow-hidden rounded-md border p-4 shadow-sm"
-										>
-											<div className="absolute top-0 left-0 h-full w-1 bg-primary" />
-											<div className="mb-1 flex items-start justify-between">
-												<h4 className="font-semibold text-base leading-tight">
-													{route.name}
-												</h4>
-												<div className="flex items-center gap-1">
-													<Button
-														size="sm"
-														variant="outline"
-														className="h-7 border-slate-200 px-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
-														onClick={() => openEditRouteModal(route)}
-													>
-														<PencilIcon className="mr-1 h-3.5 w-3.5 text-slate-500" />
-														Edit
-													</Button>
-													<Button
-														size="sm"
-														className="h-7 bg-primary px-2.5 text-xs font-semibold text-white shadow-xs hover:bg-primary/90"
-														onClick={() => openDispatchForRoute(route)}
-													>
-														<TruckIcon className="mr-1 h-3.5 w-3.5" />
-														Dispatch
-													</Button>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-7 w-7 shrink-0 rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
-														onClick={() => {
-															setRouteToDelete(route);
-															setIsDeleteRouteModalOpen(true);
-														}}
-													>
-														<Trash2Icon className="h-4 w-4" />
-													</Button>
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
 												</div>
 											</div>
-											<p className="mb-3 text-muted-foreground text-sm">
-												{route.description || "No description"}
-											</p>
+
+											{/* Stops Selector for this Trip */}
 											{(() => {
-												let villageList: string[] = [];
-												if (route.description && route.description.includes("->")) {
-													villageList = route.description
-														.split("->")
-														.map((v: string) => v.trim())
-														.filter(Boolean);
-												} else if (route.description && route.description.includes(",")) {
-													villageList = route.description
-														.split(",")
-														.map((v: string) => v.trim())
-														.filter(Boolean);
-												} else {
-													const seen = new Set<string>();
-													for (const stop of route.stops || []) {
-														const vName =
-															stop.customer?.address?.trim() ||
-															(stop.customer?.name?.startsWith("Stop:")
-																? stop.customer.name.replace(/^Stop:\s*/, "")
-																: stop.customer?.name) ||
-															`Stop ${stop.sequence}`;
-														if (vName && !seen.has(vName.toLowerCase())) {
-															seen.add(vName.toLowerCase());
-															villageList.push(vName);
-														}
-													}
+												const filteredStops = tripStopsList.filter((s) => {
+													if (!tripStopSearchText.trim()) return true;
+													const q = tripStopSearchText.toLowerCase();
+													const name = (s.name || "").toLowerCase();
+													const phone = s.phone || "";
+													const addr = (s.address || "").toLowerCase();
+													return (
+														name.includes(q) ||
+														phone.includes(q) ||
+														addr.includes(q)
+													);
+												});
+												const includedCount = tripStopsList.filter(
+													(s) => s.included,
+												).length;
+
+												if (!tripRouteId && tripStopsList.length === 0) {
+													return (
+														<div className="rounded-xl border border-dashed p-6 text-center text-slate-400 text-xs">
+															Please select a Route above or add customers to
+															build this trip.
+														</div>
+													);
 												}
 
 												return (
-													<div className="space-y-2 border-t pt-2 mt-2">
-														<div className="flex items-center justify-between font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-															<span>Village Stops Sequence ({villageList.length})</span>
-														</div>
-														<div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
-															{villageList.map((village: string, idx: number) => (
-																<div
-																	key={`${route.id}_v_${idx}`}
-																	className="flex items-center gap-2 rounded-md bg-slate-50/80 p-1.5 text-xs transition-colors dark:bg-slate-900/50"
-																>
-																	<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-																		{idx + 1}
-																	</div>
-																	<span className="truncate font-semibold text-slate-800 dark:text-slate-200">
-																		{village}
+													<div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/50">
+														<div className="flex flex-col justify-between gap-2 border-slate-200/80 border-b pb-2.5 sm:flex-row sm:items-center dark:border-slate-800">
+															<div>
+																<div className="flex items-center gap-2">
+																	<span className="font-bold text-slate-900 text-xs dark:text-slate-100">
+																		Trip Customer Stops
+																	</span>
+																	<span className="rounded-full bg-primary/10 px-2 py-0.5 font-bold text-[11px] text-primary">
+																		{includedCount} of {tripStopsList.length}{" "}
+																		Selected
 																	</span>
 																</div>
+																<p className="text-[11px] text-slate-500">
+																	Checked customers will be loaded into this
+																	vehicle trip. You can also add or delete
+																	stops.
+																</p>
+															</div>
+															<div className="flex flex-wrap items-center gap-1.5">
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																	className={`h-7 font-semibold text-xs ${
+																		isAddStopDrawerOpen
+																			? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+																			: "border-primary/30 text-primary hover:bg-primary/10"
+																	}`}
+																	onClick={() =>
+																		setIsAddStopDrawerOpen(!isAddStopDrawerOpen)
+																	}
+																>
+																	<PlusIcon className="mr-1 h-3.5 w-3.5" />
+																	{isAddStopDrawerOpen
+																		? "Close Add Panel"
+																		: "Add Customer"}
+																</Button>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																	className="h-7 text-xs"
+																	onClick={handleSelectAllStops}
+																>
+																	Select All
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-7 text-slate-500 text-xs hover:text-slate-800"
+																	onClick={handleDeselectAllStops}
+																>
+																	Deselect All
+																</Button>
+															</div>
+														</div>
+
+														{/* Add Customer / Stop Drawer */}
+														{isAddStopDrawerOpen && (
+															<div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3 dark:bg-primary/10">
+																<div className="flex items-center justify-between">
+																	<div className="flex rounded-md border bg-white p-0.5 dark:bg-slate-800">
+																		<button
+																			type="button"
+																			className={`rounded px-2.5 py-1 font-semibold text-xs transition-all ${
+																				addStopMode === "registered"
+																					? "bg-primary text-primary-foreground shadow-xs"
+																					: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+																			}`}
+																			onClick={() =>
+																				setAddStopMode("registered")
+																			}
+																		>
+																			Registered Customer
+																		</button>
+																		<button
+																			type="button"
+																			className={`rounded px-2.5 py-1 font-semibold text-xs transition-all ${
+																				addStopMode === "custom"
+																					? "bg-primary text-primary-foreground shadow-xs"
+																					: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+																			}`}
+																			onClick={() => setAddStopMode("custom")}
+																		>
+																			New Custom Stop
+																		</button>
+																	</div>
+																</div>
+
+																{addStopMode === "registered" ? (
+																	<div className="flex flex-col items-center gap-2 sm:flex-row">
+																		<div className="w-full flex-1">
+																			<Select
+																				value={selectedAddCustomerId}
+																				onValueChange={setSelectedAddCustomerId}
+																			>
+																				<SelectTrigger className="h-8 bg-white text-xs dark:bg-slate-800">
+																					<SelectValue placeholder="Choose a registered customer..." />
+																				</SelectTrigger>
+																				<SelectContent className="max-h-56">
+																					{customers.map((c: any) => (
+																						<SelectItem
+																							key={c.id}
+																							value={c.id.toString()}
+																						>
+																							{c.name}{" "}
+																							{c.phone ? `(${c.phone})` : ""}{" "}
+																							{c.address
+																								? `— ${c.address.slice(0, 25)}`
+																								: ""}
+																						</SelectItem>
+																					))}
+																				</SelectContent>
+																			</Select>
+																		</div>
+																		<Button
+																			type="button"
+																			size="sm"
+																			className="h-8 w-full shrink-0 bg-primary font-semibold text-primary-foreground text-xs hover:bg-primary/90 sm:w-auto"
+																			onClick={handleAddCustomerToTrip}
+																		>
+																			<PlusIcon className="mr-1 h-3.5 w-3.5" />
+																			Add to Trip
+																		</Button>
+																	</div>
+																) : (
+																	<div className="space-y-2">
+																		<div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+																			<Input
+																				placeholder="Customer Name"
+																				value={newStopName}
+																				onChange={(e) =>
+																					setNewStopName(e.target.value)
+																				}
+																				className="h-8 bg-white text-xs dark:bg-slate-800"
+																			/>
+																			<Input
+																				placeholder="Phone (e.g. 9876543210)"
+																				value={newStopPhone}
+																				onChange={(e) =>
+																					setNewStopPhone(e.target.value)
+																				}
+																				className="h-8 bg-white text-xs dark:bg-slate-800"
+																			/>
+																			<Input
+																				placeholder="Village / Address"
+																				value={newStopAddress}
+																				onChange={(e) =>
+																					setNewStopAddress(e.target.value)
+																				}
+																				className="h-8 bg-white text-xs dark:bg-slate-800"
+																			/>
+																		</div>
+																		<div className="flex justify-end">
+																			<Button
+																				type="button"
+																				size="sm"
+																				className="h-7 bg-primary font-semibold text-primary-foreground text-xs hover:bg-primary/90"
+																				onClick={handleAddCustomerToTrip}
+																			>
+																				<PlusIcon className="mr-1 h-3.5 w-3.5" />
+																				Add Stop
+																			</Button>
+																		</div>
+																	</div>
+																)}
+															</div>
+														)}
+
+														<Input
+															placeholder="Filter stops by customer name, village or mobile number..."
+															value={tripStopSearchText}
+															onChange={(e) =>
+																setTripStopSearchText(e.target.value)
+															}
+															className="h-8 bg-white text-xs dark:bg-slate-800"
+														/>
+
+														<div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+															{filteredStops.map((stop, idx) => (
+																<div
+																	key={stop.tempId}
+																	className={`flex items-start gap-2.5 rounded-lg border p-2 text-xs transition-all ${
+																		stop.included
+																			? "border-primary/30 bg-white shadow-xs dark:bg-slate-800"
+																			: "border-transparent bg-slate-100/70 opacity-50 dark:bg-slate-900"
+																	}`}
+																>
+																	<input
+																		type="checkbox"
+																		className="mt-1 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary"
+																		checked={stop.included}
+																		onChange={() =>
+																			handleToggleStop(stop.tempId)
+																		}
+																	/>
+																	<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary">
+																		{idx + 1}
+																	</div>
+																	<button
+																		type="button"
+																		className="min-w-0 flex-1 cursor-pointer text-left"
+																		onClick={() =>
+																			handleToggleStop(stop.tempId)
+																		}
+																	>
+																		<div className="flex items-center justify-between gap-2">
+																			<span className="truncate font-semibold text-slate-900 dark:text-slate-100">
+																				{stop.name}
+																			</span>
+																			{stop.phone && (
+																				<span className="shrink-0 font-mono text-[11px] text-slate-500">
+																					📞 {stop.phone}
+																				</span>
+																			)}
+																		</div>
+																		{stop.address && (
+																			<p className="mt-0.5 truncate text-[11px] text-slate-500">
+																				📍 {stop.address}
+																			</p>
+																		)}
+																	</button>
+																	<Button
+																		type="button"
+																		variant="ghost"
+																		size="icon"
+																		title="Remove stop from trip"
+																		className="h-6 w-6 shrink-0 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+																		onClick={() =>
+																			handleDeleteStopFromTrip(stop.tempId)
+																		}
+																	>
+																		<Trash2Icon className="h-3.5 w-3.5" />
+																	</Button>
+																</div>
 															))}
-															{villageList.length === 0 && (
-																<p className="text-xs text-muted-foreground">
-																	No village stops defined.
+															{filteredStops.length === 0 && (
+																<p className="py-4 text-center text-slate-400 text-xs">
+																	{tripStopsList.length === 0
+																		? "No customer stops in this trip. Click '+ Add Customer' to add stops."
+																		: "No stops match your filter query."}
 																</p>
 															)}
 														</div>
@@ -2075,488 +2143,513 @@ export function DeliveryManagementDashboard({
 												);
 											})()}
 										</div>
-									))}
-								</div>
-							)}
-						</div>
-
-					</CardContent>
-				</Card>
-			</TabsContent>
-
-			<TabsContent value="dispatch" className="space-y-6">
-				{/* Top Summary Cards */}
-				<div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
-						<CardHeader className="pb-1 pt-3 px-3.5">
-							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-								{t("waitingOrders")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pb-3 px-3.5">
-							<div className="font-extrabold text-2xl text-amber-600">
-								{totalWaitingOrders}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
-						<CardHeader className="pb-1 pt-3 px-3.5">
-							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-								{t("readyOrders")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pb-3 px-3.5">
-							<div className="font-extrabold text-2xl text-emerald-600">
-								{totalReadyOrders}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
-						<CardHeader className="pb-1 pt-3 px-3.5">
-							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-								{t("routesWaiting")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pb-3 px-3.5">
-							<div className="font-extrabold text-2xl text-blue-600">
-								{routesWaitingCount}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
-						<CardHeader className="pb-1 pt-3 px-3.5">
-							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-								{t("tripsAwaitingLoader")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pb-3 px-3.5">
-							<div className="font-extrabold text-2xl text-purple-600">
-								{tripsAwaitingLoaderCount}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
-						<CardHeader className="pb-1 pt-3 px-3.5">
-							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-								{t("tripsLoading")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pb-3 px-3.5">
-							<div className="font-extrabold text-2xl text-sky-600">
-								{tripsLoadingCount}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="border-border/60 bg-white dark:bg-slate-900 shadow-sm">
-						<CardHeader className="pb-1 pt-3 px-3.5">
-							<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-								{t("tripsReadyToDispatch")}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pb-3 px-3.5">
-							<div className="font-extrabold text-2xl text-indigo-600">
-								{tripsReadyToDispatchCount}
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-
-				{/* SECTION A: ROUTE WAITING POOL */}
-				<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
-					<CardHeader className="flex flex-row items-center justify-between border-b pb-3">
-						<div>
-							<CardTitle className="flex items-center gap-2 font-bold text-base">
-								<RouteIcon className="h-5 w-5 text-primary" />
-								{t("routeWaitingPool")}
-							</CardTitle>
-							<CardDescription className="text-xs">
-								Routes with confirmed sales orders waiting to be grouped into trips
-							</CardDescription>
-						</div>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => refetchRoutePool()}
-							className="h-8 text-xs font-semibold"
-						>
-							Refresh Pool
-						</Button>
-					</CardHeader>
-					<CardContent className="pt-4">
-						{routeWaitingPool.length === 0 ? (
-							<div className="py-8 text-center text-slate-400 text-xs font-medium">
-								{t("noWaitingOrders")}
-							</div>
-						) : (
-							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-								{routeWaitingPool.map((routePool: any) => (
-									<div
-										key={routePool.routeId}
-										className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 space-y-3 dark:border-slate-800 dark:bg-slate-900/50 hover:border-slate-300 transition-all"
-									>
-										<div className="flex items-start justify-between">
-											<div>
-												<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-													{routePool.routeName}
-												</h4>
-												<p className="text-xs text-slate-500">
-													{routePool.villageCount} Village(s) Sequence
-												</p>
-											</div>
-											<span className="rounded-full bg-amber-100 dark:bg-amber-950 px-2.5 py-0.5 font-extrabold text-[11px] text-amber-700 dark:text-amber-300">
-												{routePool.waitingCount} Waiting
-											</span>
-										</div>
-
-										<div className="grid grid-cols-3 gap-2 py-1 text-center">
-											<div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 p-2 border border-emerald-200/60 dark:border-emerald-900/60">
-												<span className="block font-bold text-sm text-emerald-700 dark:text-emerald-300">
-													{routePool.readyCount}
-												</span>
-												<span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
-													Ready
-												</span>
-											</div>
-											<div className="rounded-lg bg-blue-50 dark:bg-blue-950/40 p-2 border border-blue-200/60 dark:border-blue-900/60">
-												<span className="block font-bold text-sm text-blue-700 dark:text-blue-300">
-													{routePool.pickingCount}
-												</span>
-												<span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase">
-													Picking
-												</span>
-											</div>
-											<div className="rounded-lg bg-purple-50 dark:bg-purple-950/40 p-2 border border-purple-200/60 dark:border-purple-900/60">
-												<span className="block font-bold text-sm text-purple-700 dark:text-purple-300">
-													{routePool.packingCount}
-												</span>
-												<span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase">
-													Packing
-												</span>
-											</div>
-										</div>
-
-										{/* Village Breakdown */}
-										<div className="space-y-1 bg-white dark:bg-slate-800 p-2.5 rounded-lg border text-xs">
-											<span className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
-												Villages / Stops Breakdown:
-											</span>
-											{(routePool.villages || []).slice(0, 4).map((v: any, idx: number) => (
-												<div key={idx} className="flex justify-between text-slate-600 dark:text-slate-300">
-													<span className="truncate">{v.name}</span>
-													<span className="font-bold text-slate-800 dark:text-slate-200">{v.orderCount} order(s)</span>
-												</div>
-											))}
-											{(routePool.villages || []).length > 4 && (
-												<div className="text-[10px] text-slate-400 font-medium pt-0.5">
-													+{(routePool.villages || []).length - 4} more village stops...
-												</div>
-											)}
-										</div>
-
-										<div className="flex items-center justify-between pt-1">
+										<DialogFooter>
 											<Button
 												variant="outline"
-												size="sm"
-												className="h-8 text-xs font-semibold"
-												onClick={() => {
-													setViewRoutePool(routePool);
-													setIsViewOrdersOpen(true);
-												}}
+												onClick={() => setIsTripOpen(false)}
 											>
-												{t("viewOrders")}
+												Cancel
 											</Button>
 											<Button
-												size="sm"
-												className="h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-white"
-												onClick={() => handleStartCreateTripFromPool(routePool)}
-												disabled={routePool.waitingCount === 0}
+												onClick={handleAssignTrip}
+												disabled={
+													assignTrip.isPending ||
+													!tripRouteId ||
+													!tripDriverId ||
+													!tripVehicleId ||
+													tripStopsList.filter((s) => s.included).length === 0
+												}
+												className="bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
 											>
-												{t("createTrip")}
+												{assignTrip.isPending ? (
+													"Dispatching..."
+												) : (
+													<>
+														<TruckIcon className="mr-1.5 h-4 w-4" />
+														Dispatch Trip (
+														{tripStopsList.filter((s) => s.included).length}{" "}
+														Stops)
+													</>
+												)}
 											</Button>
-										</div>
+										</DialogFooter>
+									</DialogContent>
+								</Dialog>
+							</div>
+						</CardHeader>
+						<CardContent>
+							<div className="space-y-4">
+								{realRoutes.length === 0 ? (
+									<p className="text-muted-foreground text-sm">
+										No routes found.
+									</p>
+								) : (
+									<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+										{realRoutes.map((route: any) => (
+											<div
+												key={route.id}
+												className="group relative flex h-[390px] flex-col justify-between overflow-hidden rounded-md border bg-card p-4 shadow-sm"
+											>
+												<div className="absolute top-0 left-0 h-full w-1 bg-primary" />
+												<div className="mb-2 flex items-start justify-between gap-2">
+													<h4
+														className="truncate font-semibold text-base text-slate-900 leading-tight dark:text-slate-100"
+														title={cleanVillageName(route.name)}
+													>
+														{cleanVillageName(route.name)}
+													</h4>
+													<div className="flex shrink-0 items-center gap-1">
+														<Button
+															size="sm"
+															variant="outline"
+															className="h-7 border-slate-200 px-2 font-semibold text-slate-700 text-xs shadow-xs hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
+															onClick={() => openEditRouteModal(route)}
+														>
+															<PencilIcon className="mr-1 h-3.5 w-3.5 text-slate-500" />
+															Edit
+														</Button>
+														<Button
+															size="sm"
+															className="h-7 bg-primary px-2.5 font-semibold text-primary-foreground text-xs shadow-xs hover:bg-primary/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+															onClick={() => openDispatchForRoute(route)}
+														>
+															<TruckIcon className="mr-1 h-3.5 w-3.5" />
+															Dispatch
+														</Button>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-7 w-7 shrink-0 rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+															onClick={() => {
+																setRouteToDelete(route);
+																setIsDeleteRouteModalOpen(true);
+															}}
+														>
+															<Trash2Icon className="h-4 w-4" />
+														</Button>
+													</div>
+												</div>
+												<div className="mb-2 h-10 shrink-0">
+													<p
+														className="line-clamp-2 text-muted-foreground text-xs leading-relaxed"
+														title={
+															cleanRouteDescription(route.description) ||
+															"No description"
+														}
+													>
+														{cleanRouteDescription(route.description) ||
+															"No description"}
+													</p>
+												</div>
+												{(() => {
+													let villageList: string[] = [];
+													const cleanedDesc = cleanRouteDescription(
+														route.description,
+													);
+													if (cleanedDesc && cleanedDesc.includes("->")) {
+														villageList = cleanedDesc
+															.split("->")
+															.map((v: string) => cleanVillageName(v))
+															.filter(Boolean);
+													} else if (cleanedDesc && cleanedDesc.includes(",")) {
+														villageList = cleanedDesc
+															.split(",")
+															.map((v: string) => cleanVillageName(v))
+															.filter(Boolean);
+													} else {
+														const seen = new Set<string>();
+														for (const stop of route.stops || []) {
+															const rawName =
+																stop.customer?.address?.trim() ||
+																(stop.customer?.name?.startsWith("Stop:")
+																	? stop.customer.name.replace(/^Stop:\s*/, "")
+																	: stop.customer?.name) ||
+																`Stop ${stop.sequence}`;
+															const vName = cleanVillageName(rawName);
+															if (vName && !seen.has(vName.toLowerCase())) {
+																seen.add(vName.toLowerCase());
+																villageList.push(vName);
+															}
+														}
+													}
+
+													return (
+														<div className="mt-1 flex flex-1 min-h-0 flex-col border-t pt-2.5">
+															<div className="mb-2 flex shrink-0 items-center justify-between font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+																<span>
+																	Village Stops Sequence ({villageList.length})
+																</span>
+															</div>
+															<div className="flex-1 min-h-0 space-y-1.5 overflow-y-auto pr-1">
+																{villageList.map(
+																	(village: string, idx: number) => (
+																		<div
+																			key={`${route.id}_v_${idx}`}
+																			className="flex items-center gap-2 rounded-md bg-slate-50/80 p-1.5 text-xs transition-colors dark:bg-slate-900/50"
+																		>
+																			<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+																				{idx + 1}
+																			</div>
+																			<span className="truncate font-semibold text-slate-800 dark:text-slate-200">
+																				{cleanVillageName(village)}
+																			</span>
+																		</div>
+																	),
+																)}
+																{villageList.length === 0 && (
+																	<p className="text-muted-foreground text-xs">
+																		No village stops defined.
+																	</p>
+																)}
+															</div>
+														</div>
+													);
+												})()}
+											</div>
+										))}
 									</div>
-								))}
+								)}
 							</div>
-						)}
-					</CardContent>
-				</Card>
+						</CardContent>
+					</Card>
+				</TabsContent>
 
-				{/* SECTION B: TRIPS REQUIRING ACTION */}
-				<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
-					<CardHeader className="border-b pb-3">
-						<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
-							<AlertTriangleIcon className="h-5 w-5 text-amber-500" />
-							Trips Requiring Action
-						</CardTitle>
-						<CardDescription className="text-xs">
-							Delivery trips awaiting driver, vehicle, loader assignment, loading release, or final dispatch
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="pt-4">
-						{actionableTrips.length === 0 ? (
-							<div className="py-6 text-center text-slate-400 text-xs font-medium">
-								{t("noTripsRequiringAction")}
+				<TabsContent value="dispatch" className="space-y-6">
+					{/* Top Summary Cards */}
+					<div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+						<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+							<CardHeader className="px-3.5 pt-3 pb-1">
+								<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+									{t("waitingOrders")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="px-3.5 pb-3">
+								<div className="font-extrabold text-2xl text-amber-600">
+									{totalWaitingOrders}
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+							<CardHeader className="px-3.5 pt-3 pb-1">
+								<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+									{t("readyOrders")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="px-3.5 pb-3">
+								<div className="font-extrabold text-2xl text-emerald-600">
+									{totalReadyOrders}
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+							<CardHeader className="px-3.5 pt-3 pb-1">
+								<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+									{t("routesWaiting")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="px-3.5 pb-3">
+								<div className="font-extrabold text-2xl text-blue-600">
+									{routesWaitingCount}
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+							<CardHeader className="px-3.5 pt-3 pb-1">
+								<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+									{t("tripsAwaitingLoader")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="px-3.5 pb-3">
+								<div className="font-extrabold text-2xl text-purple-600">
+									{tripsAwaitingLoaderCount}
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+							<CardHeader className="px-3.5 pt-3 pb-1">
+								<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+									{t("tripsLoading")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="px-3.5 pb-3">
+								<div className="font-extrabold text-2xl text-sky-600">
+									{tripsLoadingCount}
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+							<CardHeader className="px-3.5 pt-3 pb-1">
+								<CardTitle className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+									{t("tripsReadyToDispatch")}
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="px-3.5 pb-3">
+								<div className="font-extrabold text-2xl text-indigo-600">
+									{tripsReadyToDispatchCount}
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+
+					{/* SECTION A: ROUTE WAITING POOL */}
+					<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+						<CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+							<div>
+								<CardTitle className="flex items-center gap-2 font-bold text-base">
+									<RouteIcon className="h-5 w-5 text-primary" />
+									{t("routeWaitingPool")}
+								</CardTitle>
+								<CardDescription className="text-xs">
+									Routes with confirmed sales orders waiting to be grouped into
+									trips
+								</CardDescription>
 							</div>
-						) : (
-							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-								{actionableTrips.map((trip: any) => {
-									const isMissingDriverOrVehicle = !trip.driver_id || !trip.vehicle_id;
-									const isLoading = trip.status === "loading";
-									const isLoaded = trip.status === "loaded";
-
-									return (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => refetchRoutePool()}
+								className="h-8 font-semibold text-xs"
+							>
+								Refresh Pool
+							</Button>
+						</CardHeader>
+						<CardContent className="pt-4">
+							{routeWaitingPool.length === 0 ? (
+								<div className="py-8 text-center font-medium text-slate-400 text-xs">
+									{t("noWaitingOrders")}
+								</div>
+							) : (
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+									{routeWaitingPool.map((routePool: any) => (
 										<div
-											key={trip.id}
-											className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 dark:border-slate-800 dark:bg-slate-900 shadow-sm"
+											key={routePool.routeId}
+											className="space-y-3 rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50"
 										>
 											<div className="flex items-start justify-between">
 												<div>
-													<span className="font-mono text-xs font-bold text-slate-500">
-														Trip #{trip.id}
-													</span>
-													<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-														{trip.route?.name || "Direct Delivery"}
+													<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+														{routePool.routeName}
 													</h4>
+													<p className="text-slate-500 text-xs">
+														{routePool.villageCount} Village(s) Sequence
+													</p>
 												</div>
-												<span
-													className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase ${
-														isLoaded
-															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-															: isLoading
-																? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
-																: isMissingDriverOrVehicle
-																	? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-																	: trip.status === "ready_for_loading"
-																		? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-																		: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-													}`}
-												>
-													{isLoaded
-														? t("loaded")
-														: isLoading
-															? t("loading")
-															: isMissingDriverOrVehicle
-																? t("assignmentIncomplete")
-																: trip.status === "ready_for_loading"
-																	? (locale === "hi" ? "लोडर को भेजा गया" : "Released to Loader")
-																	: (locale === "hi" ? "लोडर को भेजना बाकी" : "Pending Release")}
+												<span className="rounded-full bg-amber-100 px-2.5 py-0.5 font-extrabold text-[11px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+													{routePool.waitingCount} Waiting
 												</span>
 											</div>
 
-											<div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border">
-												<div className="flex justify-between">
-													<span className="text-slate-400">Driver:</span>
-													<span className="font-semibold">{trip.driver?.name || "Missing Driver"}</span>
-												</div>
-												<div className="flex justify-between">
-													<span className="text-slate-400">Loader:</span>
-													<span className="font-semibold">
-														{trip.loader?.name ? (
-															<>
-																{trip.loader.name}{" "}
-																<span className="font-mono text-[10px] text-slate-400">
-																	({loadersList.find((l: any) => l.id === trip.loader_id)?.staff_code || trip.loader_id})
-																</span>
-															</>
-														) : trip.loader_id ? (
-															<span className="font-mono text-[11px] text-slate-700 dark:text-slate-300">
-																{loadersList.find((l: any) => l.id === trip.loader_id)?.name || `ID: ${trip.loader_id}`}
-															</span>
-														) : (
-															<span className="text-amber-600 dark:text-amber-400 italic">Unassigned</span>
-														)}
+											<div className="grid grid-cols-3 gap-2 py-1 text-center">
+												<div className="rounded-lg border border-emerald-200/60 bg-emerald-50 p-2 dark:border-emerald-900/60 dark:bg-emerald-950/40">
+													<span className="block font-bold text-emerald-700 text-sm dark:text-emerald-300">
+														{routePool.readyCount}
+													</span>
+													<span className="font-semibold text-[10px] text-emerald-600 uppercase dark:text-emerald-400">
+														Ready
 													</span>
 												</div>
-												<div className="flex justify-between">
-													<span className="text-slate-400">Vehicle:</span>
-													<span className="font-semibold">{trip.vehicle?.name || "Missing Vehicle"}</span>
+												<div className="rounded-lg border border-blue-200/60 bg-blue-50 p-2 dark:border-blue-900/60 dark:bg-blue-950/40">
+													<span className="block font-bold text-blue-700 text-sm dark:text-blue-300">
+														{routePool.pickingCount}
+													</span>
+													<span className="font-semibold text-[10px] text-blue-600 uppercase dark:text-blue-400">
+														Picking
+													</span>
 												</div>
-												<div className="flex justify-between">
-													<span className="text-slate-400">Stops / Orders:</span>
-													<span className="font-semibold">{(trip.stops || []).length} Stops</span>
+												<div className="rounded-lg border border-purple-200/60 bg-purple-50 p-2 dark:border-purple-900/60 dark:bg-purple-950/40">
+													<span className="block font-bold text-purple-700 text-sm dark:text-purple-300">
+														{routePool.packingCount}
+													</span>
+													<span className="font-semibold text-[10px] text-purple-600 uppercase dark:text-purple-400">
+														Packing
+													</span>
 												</div>
 											</div>
 
-											<div className="pt-1 flex items-center justify-end gap-2">
-												{isLoaded ? (
-													<Button
-														size="sm"
-														className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white w-full"
-														onClick={() => {
-															setDispatchConfirmTrip(trip);
-															setIsDispatchConfirmOpen(true);
-														}}
-													>
-														<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
-														{t("dispatchTrip")}
-													</Button>
-												) : isMissingDriverOrVehicle ? (
-													<div className="flex gap-1.5 w-full">
-														<Button
-															variant="outline"
-															size="sm"
-															className="h-8 text-xs font-semibold text-red-600 border-red-200 hover:bg-red-50 flex-1"
-															onClick={() => {
-																setSelectedAssignTrip(trip);
-																setAssignIncompleteDriverId(trip.driver_id || "");
-																setAssignIncompleteVehicleId(trip.vehicle_id ? trip.vehicle_id.toString() : "");
-																setAssignIncompleteLoaderId(trip.loader_id || "");
-																setIsAssignIncompleteTripOpen(true);
-															}}
+											{/* Village Breakdown */}
+											<div className="space-y-1 rounded-lg border bg-white p-2.5 text-xs dark:bg-slate-800">
+												<span className="mb-1 block font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+													Villages / Stops Breakdown:
+												</span>
+												{(routePool.villages || [])
+													.slice(0, 4)
+													.map((v: any, idx: number) => (
+														<div
+															key={idx}
+															className="flex justify-between text-slate-600 dark:text-slate-300"
 														>
-															Complete Assignment
-														</Button>
-														<Button
-															variant="outline"
-															size="sm"
-															className="h-8 text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 px-2 border-red-200"
-															title="Delete Incomplete Trip"
-															onClick={() => {
-																if (window.confirm(`Are you sure you want to delete incomplete Trip #${trip.id}?`)) {
-																	cancelTrip.mutate({ tripId: trip.id });
-																}
-															}}
-														>
-															<Trash2Icon className="h-3.5 w-3.5" />
-														</Button>
+															<span className="truncate">{v.name}</span>
+															<span className="font-bold text-slate-800 dark:text-slate-200">
+																{v.orderCount} order(s)
+															</span>
+														</div>
+													))}
+												{(routePool.villages || []).length > 4 && (
+													<div className="pt-0.5 font-medium text-[10px] text-slate-400">
+														+{(routePool.villages || []).length - 4} more
+														village stops...
 													</div>
-												) : trip.status === "pending" ? (
-													<Button
-														size="sm"
-														className="h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white w-full"
-														onClick={() => releaseToLoaderMutation.mutate({ tripId: trip.id })}
-														disabled={releaseToLoaderMutation.isPending}
-													>
-														<PackageIcon className="mr-1.5 h-3.5 w-3.5" />
-														{t("releaseToLoader")}
-													</Button>
-												) : trip.status === "ready_for_loading" ? (
-													<Button
-														variant="outline"
-														size="sm"
-														className="h-8 text-xs font-semibold text-blue-600 border-blue-200 hover:bg-blue-50 w-full"
-														onClick={() => {
-															setSelectedDetailTrip(trip);
-															setIsTripDetailOpen(true);
-														}}
-													>
-														<ClockIcon className="mr-1.5 h-3.5 w-3.5" />
-														{locale === "hi" ? "लोडिंग की प्रतीक्षा..." : "Awaiting Loader Verification..."}
-													</Button>
-												) : isLoading ? (
-													<Button
-														variant="outline"
-														size="sm"
-														className="h-8 text-xs font-semibold w-full"
-														onClick={() => {
-															setSelectedDetailTrip(trip);
-															setIsTripDetailOpen(true);
-														}}
-													>
-														Monitor Loading
-													</Button>
-												) : null}
+												)}
+											</div>
+
+											<div className="flex items-center justify-between pt-1">
+												<Button
+													variant="outline"
+													size="sm"
+													className="h-8 font-semibold text-xs"
+													onClick={() => {
+														setViewRoutePool(routePool);
+														setIsViewOrdersOpen(true);
+													}}
+												>
+													{t("viewOrders")}
+												</Button>
+												<Button
+													size="sm"
+													className="h-8 bg-primary font-semibold text-primary-foreground text-xs hover:bg-primary/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+													onClick={() =>
+														handleStartCreateTripFromPool(routePool)
+													}
+													disabled={routePool.waitingCount === 0}
+												>
+													{t("createTrip")}
+												</Button>
 											</div>
 										</div>
-									);
-								})}
-							</div>
-						)}
-					</CardContent>
-				</Card>
+									))}
+								</div>
+							)}
+						</CardContent>
+					</Card>
 
-				{/* SECTION C: LOADING & DISPATCH MONITOR */}
-				<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
-					<CardHeader className="border-b pb-3 flex flex-row items-center justify-between">
-						<div>
+					{/* SECTION B: TRIPS REQUIRING ACTION */}
+					<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+						<CardHeader className="border-b pb-3">
 							<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
-								<PackageIcon className="h-5 w-5 text-sky-500" />
-								LOADING & DISPATCH MONITOR
+								<AlertTriangleIcon className="h-5 w-5 text-amber-500" />
+								Trips Requiring Action
 							</CardTitle>
 							<CardDescription className="text-xs">
-								Real-time vehicle loading progress confirmed by physical loaders
+								Delivery trips awaiting driver, vehicle, loader assignment,
+								loading release, or final dispatch
 							</CardDescription>
-						</div>
-					</CardHeader>
-					<CardContent className="pt-4">
-						{(() => {
-							const activeLoadingTrips = (trips || []).filter(
-								(t: any) => t.status === "loading" || t.status === "ready_for_loading" || t.status === "loaded",
-							);
-
-							if (activeLoadingTrips.length === 0) {
-								return (
-									<div className="py-6 text-center text-slate-400 text-xs font-medium">
-										No active trip loading in progress.
-									</div>
-								);
-							}
-
-							return (
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-									{activeLoadingTrips.map((trip: any) => {
-										const stopsCount = (trip.stops || []).length || 1;
+						</CardHeader>
+						<CardContent className="pt-4">
+							{actionableTrips.length === 0 ? (
+								<div className="py-6 text-center font-medium text-slate-400 text-xs">
+									{t("noTripsRequiringAction")}
+								</div>
+							) : (
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+									{actionableTrips.map((trip: any) => {
+										const isMissingDriverOrVehicle =
+											!trip.driver_id || !trip.vehicle_id;
+										const isLoading = trip.status === "loading";
 										const isLoaded = trip.status === "loaded";
-										const loadedCount = isLoaded ? stopsCount : Math.min(stopsCount, Math.floor(stopsCount * 0.6));
-										const percent = Math.round((loadedCount / stopsCount) * 100);
 
 										return (
 											<div
 												key={trip.id}
-												className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 dark:border-slate-800 dark:bg-slate-900 shadow-sm"
+												className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
 											>
 												<div className="flex items-start justify-between">
 													<div>
-														<span className="font-mono text-xs font-bold text-slate-500">
+														<span className="font-bold font-mono text-slate-500 text-xs">
 															Trip #{trip.id}
 														</span>
-														<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-															{trip.route?.name || "Direct Trip"}
+														<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+															{trip.route?.name || "Direct Delivery"}
 														</h4>
 													</div>
-													<span className="rounded-full bg-sky-100 dark:bg-sky-950 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300">
-														{trip.status === "loaded" ? "Loaded 100%" : `${percent}% Loaded`}
+													<span
+														className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase ${
+															isLoaded
+																? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+																: isLoading
+																	? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+																	: isMissingDriverOrVehicle
+																		? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+																		: trip.status === "ready_for_loading"
+																			? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+																			: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+														}`}
+													>
+														{isLoaded
+															? t("loaded")
+															: isLoading
+																? t("loading")
+																: isMissingDriverOrVehicle
+																	? t("assignmentIncomplete")
+																	: trip.status === "ready_for_loading"
+																		? locale === "hi"
+																			? "लोडर को भेजा गया"
+																			: "Released to Loader"
+																		: locale === "hi"
+																			? "लोडर को भेजना बाकी"
+																			: "Pending Release"}
 													</span>
 												</div>
 
-												{/* Progress Bar */}
-												<div className="space-y-1">
-													<div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
-														<span>Loading Progress</span>
-														<span>{loadedCount} / {stopsCount} Loaded</span>
+												<div className="space-y-1.5 rounded-lg border bg-slate-50 p-2.5 text-slate-600 text-xs dark:bg-slate-800/60 dark:text-slate-300">
+													<div className="flex justify-between">
+														<span className="text-slate-400">Driver:</span>
+														<span className="font-semibold">
+															{trip.driver?.name || "Missing Driver"}
+														</span>
 													</div>
-													<div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-														<div
-															className={`h-full transition-all duration-300 ${
-																isLoaded ? "bg-emerald-500" : "bg-sky-500"
-															}`}
-															style={{ width: `${percent}%` }}
-														/>
+													<div className="flex justify-between">
+														<span className="text-slate-400">Loader:</span>
+														<span className="font-semibold">
+															{trip.loader?.name ? (
+																<>
+																	{trip.loader.name}{" "}
+																	<span className="font-mono text-[10px] text-slate-400">
+																		(
+																		{loadersList.find(
+																			(l: any) => l.id === trip.loader_id,
+																		)?.staff_code || trip.loader_id}
+																		)
+																	</span>
+																</>
+															) : trip.loader_id ? (
+																<span className="font-mono text-[11px] text-slate-700 dark:text-slate-300">
+																	{loadersList.find(
+																		(l: any) => l.id === trip.loader_id,
+																	)?.name || `ID: ${trip.loader_id}`}
+																</span>
+															) : (
+																<span className="text-amber-600 italic dark:text-amber-400">
+																	Unassigned
+																</span>
+															)}
+														</span>
+													</div>
+													<div className="flex justify-between">
+														<span className="text-slate-400">Vehicle:</span>
+														<span className="font-semibold">
+															{trip.vehicle?.name || "Missing Vehicle"}
+														</span>
+													</div>
+													<div className="flex justify-between">
+														<span className="text-slate-400">
+															Stops / Orders:
+														</span>
+														<span className="font-semibold">
+															{(trip.stops || []).length} Stops
+														</span>
 													</div>
 												</div>
 
-												<div className="flex items-center justify-between pt-1">
-													<Button
-														variant="outline"
-														size="sm"
-														className="h-8 text-xs font-semibold"
-														onClick={() => {
-															setSelectedDetailTrip(trip);
-															setIsTripDetailOpen(true);
-														}}
-													>
-														View Detail
-													</Button>
-
+												<div className="flex items-center justify-end gap-2 pt-1">
 													{isLoaded ? (
 														<Button
 															size="sm"
-															className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+															className="h-8 w-full bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
 															onClick={() => {
 																setDispatchConfirmTrip(trip);
 																setIsDispatchConfirmOpen(true);
@@ -2565,392 +2658,753 @@ export function DeliveryManagementDashboard({
 															<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
 															{t("dispatchTrip")}
 														</Button>
-													) : (
-														<span className="text-[11px] font-medium text-slate-500 italic">
-															Awaiting Loader Completion
-														</span>
-													)}
+													) : isMissingDriverOrVehicle ? (
+														<div className="flex w-full gap-1.5">
+															<Button
+																variant="outline"
+																size="sm"
+																className="h-8 flex-1 border-red-200 font-semibold text-red-600 text-xs hover:bg-red-50"
+																onClick={() => {
+																	setSelectedAssignTrip(trip);
+																	setAssignIncompleteDriverId(
+																		trip.driver_id || "",
+																	);
+																	setAssignIncompleteVehicleId(
+																		trip.vehicle_id
+																			? trip.vehicle_id.toString()
+																			: "",
+																	);
+																	setAssignIncompleteLoaderId(
+																		trip.loader_id || "",
+																	);
+																	setIsAssignIncompleteTripOpen(true);
+																}}
+															>
+																Complete Assignment
+															</Button>
+															<Button
+																variant="outline"
+																size="sm"
+																className="h-8 border-red-200 px-2 text-slate-400 text-xs hover:bg-red-50 hover:text-red-600"
+																title="Delete Incomplete Trip"
+																onClick={() => {
+																	if (
+																		window.confirm(
+																			`Are you sure you want to delete incomplete Trip #${trip.id}?`,
+																		)
+																	) {
+																		cancelTrip.mutate({ tripId: trip.id });
+																	}
+																}}
+															>
+																<Trash2Icon className="h-3.5 w-3.5" />
+															</Button>
+														</div>
+													) : trip.status === "pending" ? (
+														<Button
+															size="sm"
+															className="h-8 w-full bg-amber-600 font-semibold text-white text-xs hover:bg-amber-700"
+															onClick={() =>
+																releaseToLoaderMutation.mutate({
+																	tripId: trip.id,
+																})
+															}
+															disabled={releaseToLoaderMutation.isPending}
+														>
+															<PackageIcon className="mr-1.5 h-3.5 w-3.5" />
+															{t("releaseToLoader")}
+														</Button>
+													) : trip.status === "ready_for_loading" ? (
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8 w-full border-blue-200 font-semibold text-blue-600 text-xs hover:bg-blue-50"
+															onClick={() => {
+																setSelectedDetailTrip(trip);
+																setIsTripDetailOpen(true);
+															}}
+														>
+															<ClockIcon className="mr-1.5 h-3.5 w-3.5" />
+															{locale === "hi"
+																? "लोडिंग की प्रतीक्षा..."
+																: "Awaiting Loader Verification..."}
+														</Button>
+													) : isLoading ? (
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8 w-full font-semibold text-xs"
+															onClick={() => {
+																setSelectedDetailTrip(trip);
+																setIsTripDetailOpen(true);
+															}}
+														>
+															Monitor Loading
+														</Button>
+													) : null}
 												</div>
 											</div>
 										);
 									})}
 								</div>
-							);
-						})()}
-					</CardContent>
-				</Card>
+							)}
+						</CardContent>
+					</Card>
 
-				{/* ATTENTION REQUIRED SECTION */}
-				<Card className="border-amber-200 bg-amber-50/30 dark:border-amber-900/40 dark:bg-amber-950/10 shadow-sm">
-					<CardHeader className="pb-2 pt-3">
-						<CardTitle className="flex items-center gap-2 font-bold text-sm text-amber-800 dark:text-amber-300">
-							<AlertTriangleIcon className="h-4 w-4 text-amber-600" />
-							{t("attentionRequired")}
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="pb-3 text-xs space-y-2 text-amber-900 dark:text-amber-200">
-						{routeWaitingPool.filter((r: any) => r.readyCount > 0).map((r: any) => (
-							<div key={r.routeId} className="flex items-center justify-between border-b border-amber-200/50 pb-1.5 last:border-0">
-								<span>
-									<strong>{r.routeName}</strong>: {r.readyCount} ready order(s) waiting for Trip creation.
-								</span>
-								<Button
-									size="sm"
-									variant="outline"
-									className="h-7 text-[11px] font-semibold border-amber-300 text-amber-800 hover:bg-amber-100"
-									onClick={() => handleStartCreateTripFromPool(r)}
-								>
-									Create Trip
-								</Button>
+					{/* SECTION C: LOADING & DISPATCH MONITOR */}
+					<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
+						<CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+							<div>
+								<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
+									<PackageIcon className="h-5 w-5 text-sky-500" />
+									LOADING & DISPATCH MONITOR
+								</CardTitle>
+								<CardDescription className="text-xs">
+									Real-time vehicle loading progress confirmed by physical
+									loaders
+								</CardDescription>
 							</div>
-						))}
-						{routeWaitingPool.filter((r: any) => r.readyCount > 0).length === 0 && (
-							<p className="text-slate-500 font-medium">All ready route orders are assigned to active trips.</p>
-						)}
-					</CardContent>
-				</Card>
-			</TabsContent>
+						</CardHeader>
+						<CardContent className="pt-4">
+							{(() => {
+								const activeLoadingTrips = (trips || []).filter(
+									(t: any) =>
+										t.status === "loading" ||
+										t.status === "ready_for_loading" ||
+										t.status === "loaded",
+								);
 
-			<TabsContent value="trips">
-				<Card>
-					<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-						<div>
-							<CardTitle className="flex items-center gap-2">
-								<TruckIcon className="h-5 w-5 text-primary" />
-								Delivery Trips & Driver Dispatch
-							</CardTitle>
-							<CardDescription>
-								Manage all vehicle trips assigned to drivers. Dispatch pending trips, monitor active deliveries, and review completed runs.
-							</CardDescription>
-						</div>
-						<div className="flex items-center gap-2">
-							<Button
-								className="bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary/90"
-								onClick={() => setIsQuickTripOpen(true)}
-							>
-								<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
-								Quick Custom Trip
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent className="space-y-6">
-						{/* Status Filters & Search Bar */}
-						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
-							<div className="flex flex-wrap items-center gap-1.5">
-								<Button
-									size="sm"
-									variant={tripFilterStatus === "all" ? "default" : "outline"}
-									className="h-8 text-xs font-semibold rounded-lg"
-									onClick={() => setTripFilterStatus("all")}
-								>
-									All ({trips.length})
-								</Button>
-								<Button
-									size="sm"
-									variant={tripFilterStatus === "pending" ? "default" : "outline"}
-									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "pending" ? "border-blue-200 text-blue-700 hover:bg-blue-50" : ""}`}
-									onClick={() => setTripFilterStatus("pending")}
-								>
-									Pending Dispatch ({trips.filter((t: any) => t.status === "pending").length})
-								</Button>
-								<Button
-									size="sm"
-									variant={tripFilterStatus === "active" ? "default" : "outline"}
-									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "active" ? "border-amber-200 text-amber-700 hover:bg-amber-50" : ""}`}
-									onClick={() => setTripFilterStatus("active")}
-								>
-									Active / On Route ({trips.filter((t: any) => t.status === "active").length})
-								</Button>
-								<Button
-									size="sm"
-									variant={tripFilterStatus === "completed" ? "default" : "outline"}
-									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "completed" ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : ""}`}
-									onClick={() => setTripFilterStatus("completed")}
-								>
-									Completed ({trips.filter((t: any) => t.status === "completed").length})
-								</Button>
-								<Button
-									size="sm"
-									variant={tripFilterStatus === "cancelled" ? "default" : "outline"}
-									className={`h-8 text-xs font-semibold rounded-lg ${tripFilterStatus !== "cancelled" ? "border-red-200 text-red-700 hover:bg-red-50" : ""}`}
-									onClick={() => setTripFilterStatus("cancelled")}
-								>
-									Cancelled ({trips.filter((t: any) => t.status === "cancelled").length})
-								</Button>
-							</div>
-
-							<div className="relative w-full sm:w-64">
-								<SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-								<Input
-									type="text"
-									placeholder="Search driver, vehicle, route..."
-									value={tripSearchQuery}
-									onChange={(e) => setTripSearchQuery(e.target.value)}
-									className="h-8 pl-8 text-xs rounded-lg"
-								/>
-							</div>
-						</div>
-
-						{/* Trips Cards Grid */}
-						{(() => {
-							const filteredTrips = trips.filter((trip: any) => {
-								if (tripFilterStatus !== "all" && trip.status !== tripFilterStatus) {
-									return false;
-								}
-								if (tripSearchQuery.trim()) {
-									const query = tripSearchQuery.toLowerCase();
-									const driverName = trip.driver?.name?.toLowerCase() || "";
-									const vehicleName = trip.vehicle?.name?.toLowerCase() || "";
-									const routeName = trip.route?.name?.toLowerCase() || "";
-									const tripId = String(trip.id);
+								if (activeLoadingTrips.length === 0) {
 									return (
-										driverName.includes(query) ||
-										vehicleName.includes(query) ||
-										routeName.includes(query) ||
-										tripId.includes(query)
+										<div className="py-6 text-center font-medium text-slate-400 text-xs">
+											No active trip loading in progress.
+										</div>
 									);
 								}
-								return true;
-							});
 
-							if (filteredTrips.length === 0) {
 								return (
-									<div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-										<TruckIcon className="h-10 w-10 text-slate-300 dark:text-slate-700 mb-2" />
-										<p className="font-semibold text-sm">No delivery trips match your selection.</p>
-										<p className="text-xs mt-0.5">Change status filters or click "Quick Custom Trip" to assign a new run.</p>
-									</div>
-								);
-							}
+									<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+										{activeLoadingTrips.map((trip: any) => {
+											const stopsCount = (trip.stops || []).length || 1;
+											const isLoaded = trip.status === "loaded";
+											const loadedCount = isLoaded
+												? stopsCount
+												: Math.min(stopsCount, Math.floor(stopsCount * 0.6));
+											const percent = Math.round(
+												(loadedCount / stopsCount) * 100,
+											);
 
-							return (
-								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-									{filteredTrips.map((trip: any) => (
-										<div
-											key={trip.id}
-											className="group relative overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-										>
-											<div
-												className={`absolute top-0 left-0 h-full w-1.5 ${
-													trip.status === "completed"
-														? "bg-emerald-500"
-														: trip.status === "active"
-															? "bg-amber-500 animate-pulse"
-															: trip.status === "cancelled"
-																? "bg-red-500"
-																: "bg-blue-500"
-												}`}
-											/>
-											<div className="flex items-start justify-between">
-												<div>
-													<div className="flex items-center gap-2">
-														<span className="font-mono text-xs font-bold text-slate-500">
-															Trip #{trip.id}
+											return (
+												<div
+													key={trip.id}
+													className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+												>
+													<div className="flex items-start justify-between">
+														<div>
+															<span className="font-bold font-mono text-slate-500 text-xs">
+																Trip #{trip.id}
+															</span>
+															<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+																{trip.route?.name || "Direct Trip"}
+															</h4>
+														</div>
+														<span className="rounded-full bg-sky-100 px-2 py-0.5 font-bold text-[10px] text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+															{trip.status === "loaded"
+																? "Loaded 100%"
+																: `${percent}% Loaded`}
 														</span>
-														{trip.route?.name && (
-															<span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-																{trip.route.name}
+													</div>
+
+													{/* Progress Bar */}
+													<div className="space-y-1">
+														<div className="flex justify-between font-semibold text-slate-700 text-xs dark:text-slate-300">
+															<span>Loading Progress</span>
+															<span>
+																{loadedCount} / {stopsCount} Loaded
+															</span>
+														</div>
+														<div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+															<div
+																className={`h-full transition-all duration-300 ${
+																	isLoaded ? "bg-emerald-500" : "bg-sky-500"
+																}`}
+																style={{ width: `${percent}%` }}
+															/>
+														</div>
+													</div>
+
+													<div className="flex items-center justify-between pt-1">
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8 font-semibold text-xs"
+															onClick={() => {
+																setSelectedDetailTrip(trip);
+																setIsTripDetailOpen(true);
+															}}
+														>
+															View Detail
+														</Button>
+
+														{isLoaded ? (
+															<Button
+																size="sm"
+																className="h-8 bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
+																onClick={() => {
+																	setDispatchConfirmTrip(trip);
+																	setIsDispatchConfirmOpen(true);
+																}}
+															>
+																<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+																{t("dispatchTrip")}
+															</Button>
+														) : (
+															<span className="font-medium text-[11px] text-slate-500 italic">
+																Awaiting Loader Completion
 															</span>
 														)}
 													</div>
-													<h4 className="font-bold text-base text-slate-900 dark:text-slate-100 mt-0.5">
-														{trip.route?.name || "Direct Custom Trip"}
-													</h4>
 												</div>
-												<span
-													className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-wider ${
+											);
+										})}
+									</div>
+								);
+							})()}
+						</CardContent>
+					</Card>
+
+					{/* ATTENTION REQUIRED SECTION */}
+					<Card className="border-amber-200 bg-amber-50/30 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/10">
+						<CardHeader className="pt-3 pb-2">
+							<CardTitle className="flex items-center gap-2 font-bold text-amber-800 text-sm dark:text-amber-300">
+								<AlertTriangleIcon className="h-4 w-4 text-amber-600" />
+								{t("attentionRequired")}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-2 pb-3 text-amber-900 text-xs dark:text-amber-200">
+							{routeWaitingPool
+								.filter((r: any) => r.readyCount > 0)
+								.map((r: any) => (
+									<div
+										key={r.routeId}
+										className="flex items-center justify-between border-amber-200/50 border-b pb-1.5 last:border-0"
+									>
+										<span>
+											<strong>{r.routeName}</strong>: {r.readyCount} ready
+											order(s) waiting for Trip creation.
+										</span>
+										<Button
+											size="sm"
+											variant="outline"
+											className="h-7 border-amber-300 font-semibold text-[11px] text-amber-800 hover:bg-amber-100"
+											onClick={() => handleStartCreateTripFromPool(r)}
+										>
+											Create Trip
+										</Button>
+									</div>
+								))}
+							{routeWaitingPool.filter((r: any) => r.readyCount > 0).length ===
+								0 && (
+								<p className="font-medium text-slate-500">
+									All ready route orders are assigned to active trips.
+								</p>
+							)}
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				<TabsContent value="trips">
+					<Card>
+						<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+							<div>
+								<CardTitle className="flex items-center gap-2">
+									<TruckIcon className="h-5 w-5 text-primary" />
+									Delivery Trips & Driver Dispatch
+								</CardTitle>
+								<CardDescription>
+									Manage all vehicle trips assigned to drivers. Dispatch pending
+									trips, monitor active deliveries, and review completed runs.
+								</CardDescription>
+							</div>
+							<div className="flex items-center gap-2">
+								<Button
+									className="bg-primary font-semibold text-primary-foreground text-xs shadow-sm hover:bg-primary/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+									onClick={() => setIsQuickTripOpen(true)}
+								>
+									<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+									Quick Custom Trip
+								</Button>
+							</div>
+						</CardHeader>
+						<CardContent className="space-y-6">
+							{/* Status Filters & Search Bar */}
+							<div className="flex flex-col justify-between gap-3 border-b pb-4 sm:flex-row sm:items-center">
+								<div className="flex flex-wrap items-center gap-1.5">
+									<Button
+										size="sm"
+										variant={tripFilterStatus === "all" ? "default" : "outline"}
+										className="h-8 rounded-lg font-semibold text-xs"
+										onClick={() => setTripFilterStatus("all")}
+									>
+										All ({trips.length})
+									</Button>
+									<Button
+										size="sm"
+										variant={
+											tripFilterStatus === "pending" ? "default" : "outline"
+										}
+										className={`h-8 rounded-lg font-semibold text-xs ${tripFilterStatus !== "pending" ? "border-blue-200 text-blue-700 hover:bg-blue-50" : ""}`}
+										onClick={() => setTripFilterStatus("pending")}
+									>
+										Pending Dispatch (
+										{trips.filter((t: any) => t.status === "pending").length})
+									</Button>
+									<Button
+										size="sm"
+										variant={
+											tripFilterStatus === "active" ? "default" : "outline"
+										}
+										className={`h-8 rounded-lg font-semibold text-xs ${tripFilterStatus !== "active" ? "border-amber-200 text-amber-700 hover:bg-amber-50" : ""}`}
+										onClick={() => setTripFilterStatus("active")}
+									>
+										Active / On Route (
+										{trips.filter((t: any) => t.status === "active").length})
+									</Button>
+									<Button
+										size="sm"
+										variant={
+											tripFilterStatus === "completed" ? "default" : "outline"
+										}
+										className={`h-8 rounded-lg font-semibold text-xs ${tripFilterStatus !== "completed" ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : ""}`}
+										onClick={() => setTripFilterStatus("completed")}
+									>
+										Completed (
+										{trips.filter((t: any) => t.status === "completed").length})
+									</Button>
+									<Button
+										size="sm"
+										variant={
+											tripFilterStatus === "cancelled" ? "default" : "outline"
+										}
+										className={`h-8 rounded-lg font-semibold text-xs ${tripFilterStatus !== "cancelled" ? "border-red-200 text-red-700 hover:bg-red-50" : ""}`}
+										onClick={() => setTripFilterStatus("cancelled")}
+									>
+										Cancelled (
+										{trips.filter((t: any) => t.status === "cancelled").length})
+									</Button>
+								</div>
+
+								<div className="relative w-full sm:w-64">
+									<SearchIcon className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+									<Input
+										type="text"
+										placeholder="Search driver, vehicle, route..."
+										value={tripSearchQuery}
+										onChange={(e) => setTripSearchQuery(e.target.value)}
+										className="h-8 rounded-lg pl-8 text-xs"
+									/>
+								</div>
+							</div>
+
+							{/* Trips Cards Grid */}
+							{(() => {
+								const filteredTrips = trips.filter((trip: any) => {
+									if (
+										tripFilterStatus !== "all" &&
+										trip.status !== tripFilterStatus
+									) {
+										return false;
+									}
+									if (tripSearchQuery.trim()) {
+										const query = tripSearchQuery.toLowerCase();
+										const driverName = trip.driver?.name?.toLowerCase() || "";
+										const vehicleName = trip.vehicle?.name?.toLowerCase() || "";
+										const routeName = trip.route?.name?.toLowerCase() || "";
+										const tripId = String(trip.id);
+										return (
+											driverName.includes(query) ||
+											vehicleName.includes(query) ||
+											routeName.includes(query) ||
+											tripId.includes(query)
+										);
+									}
+									return true;
+								});
+
+								if (filteredTrips.length === 0) {
+									return (
+										<div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+											<TruckIcon className="mb-2 h-10 w-10 text-slate-300 dark:text-slate-700" />
+											<p className="font-semibold text-sm">
+												No delivery trips match your selection.
+											</p>
+											<p className="mt-0.5 text-xs">
+												Change status filters or click "Quick Custom Trip" to
+												assign a new run.
+											</p>
+										</div>
+									);
+								}
+
+								return (
+									<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+										{filteredTrips.map((trip: any) => (
+											<div
+												key={trip.id}
+												className="group relative overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+											>
+												<div
+													className={`absolute top-0 left-0 h-full w-1.5 ${
 														trip.status === "completed"
-															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+															? "bg-emerald-500"
 															: trip.status === "active"
-																? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+																? "animate-pulse bg-amber-500"
 																: trip.status === "cancelled"
-																	? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-																	: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+																	? "bg-red-500"
+																	: "bg-blue-500"
 													}`}
-												>
-													{trip.status === "active" && (
-														<span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-													)}
-													{trip.status === "active" ? "Out for Delivery" : trip.status}
-												</span>
-											</div>
-
-											<div className="mt-3.5 space-y-2 text-xs text-muted-foreground">
-												<div className="flex items-center gap-2">
-													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-														<PackageIcon className="h-3 w-3" />
+												/>
+												<div className="flex items-start justify-between">
+													<div>
+														<div className="flex items-center gap-2">
+															<span className="font-bold font-mono text-slate-500 text-xs">
+																Trip #{trip.id}
+															</span>
+															{trip.route?.name && (
+																<span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+																	{trip.route.name}
+																</span>
+															)}
+														</div>
+														<h4 className="mt-0.5 font-bold text-base text-slate-900 dark:text-slate-100">
+															{trip.route?.name || "Direct Custom Trip"}
+														</h4>
 													</div>
-													Driver:{" "}
-													<span className="font-semibold text-slate-900 dark:text-slate-100">
-														{trip.driver?.name || "Unassigned"}
-													</span>
-												</div>
-												<div className="flex items-center gap-2">
-													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-														<TruckIcon className="h-3 w-3" />
-													</div>
-													Vehicle:{" "}
-													<span className="font-semibold text-slate-900 dark:text-slate-100">
-														{trip.vehicle?.name || trip.vehicle?.registration_number || "N/A"}
-													</span>
-												</div>
-												<div className="flex items-center gap-2">
-													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-														<UserIcon className="h-3 w-3" />
-													</div>
-													Loader:{" "}
-													<span className="font-semibold text-slate-900 dark:text-slate-100">
-														{trip.loader?.name
-															? `${trip.loader.name} (${loadersList.find((l: any) => l.id === trip.loader_id)?.staff_code || trip.loader_id})`
-															: trip.loader_id
-																? (loadersList.find((l: any) => l.id === trip.loader_id)?.name || `ID: ${trip.loader_id}`)
-																: "Unassigned"}
-													</span>
-												</div>
-												<div className="flex items-center gap-2">
-													<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-														<RouteIcon className="h-3 w-3" />
-													</div>
-													Stops:{" "}
-													<span className="font-semibold text-slate-900 dark:text-slate-100">
-														{trip.stops?.length || 0} customer stops
-													</span>
-												</div>
-											</div>
-
-											<div className="mt-4 flex items-center gap-2 border-t pt-3 border-slate-100 dark:border-slate-800">
-												{(trip.status === "loaded" || trip.status === "ready_for_loading" || trip.status === "pending") && (
-													<Button
-														size="sm"
-														className="flex-1 bg-emerald-600 font-semibold text-white shadow-sm hover:bg-emerald-700 text-xs"
-														disabled={dispatchTripMutation.isPending || (trip.status !== "loaded" && trip.status !== "loading")}
-														onClick={async () => {
-															try {
-																await dispatchTripMutation.mutateAsync({
-																	tripId: trip.id,
-																});
-																toast.success(
-																	`Trip #${trip.id} officially dispatched! Sent to Driver ${trip.driver?.name || "assigned driver"}.`,
-																);
-															} catch (err: any) {
-																toast.error(
-																	err.message || "Failed to dispatch trip",
-																);
-															}
-														}}
+													<span
+														className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-wider ${
+															trip.status === "completed"
+																? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+																: trip.status === "active"
+																	? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+																	: trip.status === "cancelled"
+																		? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+																		: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+														}`}
 													>
-														<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
-														{trip.status === "loaded"
-															? "Dispatch Trip to Driver"
-															: "Awaiting Loader Confirmation"}
-													</Button>
-												)}
-												{(trip.status === "pending" || trip.status === "ready_for_loading" || trip.status === "loading") && (
+														{trip.status === "active" && (
+															<span className="h-1.5 w-1.5 animate-ping rounded-full bg-amber-500" />
+														)}
+														{trip.status === "active"
+															? "Out for Delivery"
+															: trip.status}
+													</span>
+												</div>
+
+												<div className="mt-3.5 space-y-2 text-muted-foreground text-xs">
+													<div className="flex items-center gap-2">
+														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+															<PackageIcon className="h-3 w-3" />
+														</div>
+														Driver:{" "}
+														<span className="font-semibold text-slate-900 dark:text-slate-100">
+															{trip.driver?.name || "Unassigned"}
+														</span>
+													</div>
+													<div className="flex items-center gap-2">
+														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+															<TruckIcon className="h-3 w-3" />
+														</div>
+														Vehicle:{" "}
+														<span className="font-semibold text-slate-900 dark:text-slate-100">
+															{trip.vehicle?.name ||
+																trip.vehicle?.registration_number ||
+																"N/A"}
+														</span>
+													</div>
+													<div className="flex items-center gap-2">
+														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+															<UserIcon className="h-3 w-3" />
+														</div>
+														Loader:{" "}
+														<span className="font-semibold text-slate-900 dark:text-slate-100">
+															{trip.loader?.name
+																? `${trip.loader.name} (${loadersList.find((l: any) => l.id === trip.loader_id)?.staff_code || trip.loader_id})`
+																: trip.loader_id
+																	? loadersList.find(
+																			(l: any) => l.id === trip.loader_id,
+																		)?.name || `ID: ${trip.loader_id}`
+																	: "Unassigned"}
+														</span>
+													</div>
+													<div className="flex items-center gap-2">
+														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+															<RouteIcon className="h-3 w-3" />
+														</div>
+														Stops:{" "}
+														<span className="font-semibold text-slate-900 dark:text-slate-100">
+															{trip.stops?.length || 0} customer stops
+														</span>
+													</div>
+												</div>
+
+												<div className="mt-4 flex items-center gap-2 border-slate-100 border-t pt-3 dark:border-slate-800">
+													{(trip.status === "loaded" ||
+														trip.status === "ready_for_loading" ||
+														trip.status === "pending") && (
+														<Button
+															size="sm"
+															className="flex-1 bg-emerald-600 font-semibold text-white text-xs shadow-sm hover:bg-emerald-700"
+															disabled={
+																dispatchTripMutation.isPending ||
+																(trip.status !== "loaded" &&
+																	trip.status !== "loading")
+															}
+															onClick={async () => {
+																try {
+																	await dispatchTripMutation.mutateAsync({
+																		tripId: trip.id,
+																	});
+																	toast.success(
+																		`Trip #${trip.id} officially dispatched! Sent to Driver ${trip.driver?.name || "assigned driver"}.`,
+																	);
+																} catch (err: any) {
+																	toast.error(
+																		err.message || "Failed to dispatch trip",
+																	);
+																}
+															}}
+														>
+															<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
+															{trip.status === "loaded"
+																? "Dispatch Trip to Driver"
+																: "Awaiting Loader Confirmation"}
+														</Button>
+													)}
+													{(trip.status === "pending" ||
+														trip.status === "ready_for_loading" ||
+														trip.status === "loading") && (
+														<Button
+															variant="outline"
+															size="sm"
+															className="border-red-200 font-semibold text-red-600 text-xs shadow-xs hover:bg-red-50"
+															onClick={() => {
+																setTripToCancel(trip);
+																setIsCancelModalOpen(true);
+															}}
+														>
+															Cancel
+														</Button>
+													)}
 													<Button
 														variant="outline"
 														size="sm"
-														className="border-red-200 text-red-600 font-semibold shadow-xs hover:bg-red-50 text-xs"
+														className="shrink-0 border-slate-200 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600"
 														onClick={() => {
-															setTripToCancel(trip);
-															setIsCancelModalOpen(true);
+															setTripToDelete(trip);
+															setIsDeleteTripModalOpen(true);
 														}}
+														title="Delete Trip"
 													>
-														Cancel
+														<Trash2Icon className="h-3.5 w-3.5" />
 													</Button>
-												)}
-												<Button
-													variant="outline"
-													size="sm"
-													className="shrink-0 border-slate-200 text-slate-500 transition-colors hover:border-red-300 hover:text-red-600 hover:bg-red-50"
-													onClick={() => {
-														setTripToDelete(trip);
-														setIsDeleteTripModalOpen(true);
-													}}
-													title="Delete Trip"
-												>
-													<Trash2Icon className="h-3.5 w-3.5" />
-												</Button>
+												</div>
 											</div>
-										</div>
-									))}
-								</div>
-							);
-						})()}
-					</CardContent>
-				</Card>
-			</TabsContent>
+										))}
+									</div>
+								);
+							})()}
+						</CardContent>
+					</Card>
+				</TabsContent>
 
-			<TabsContent value="tracking">
-				<Card>
-					<CardHeader>
-						<CardTitle>Live GPS Tracking</CardTitle>
-						<CardDescription>Simulated view of active trips.</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<div className="relative flex h-[400px] w-full items-center justify-center overflow-hidden rounded-md border bg-slate-100">
-							{/* Simulated Map Background */}
-							<div
-								className="absolute inset-0 opacity-20"
-								style={{
-									backgroundImage:
-										"linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)",
-									backgroundSize: "20px 20px",
-								}}
-							/>
+				<TabsContent value="tracking">
+					<Card>
+						<CardHeader>
+							<CardTitle>Live GPS Tracking</CardTitle>
+							<CardDescription>Simulated view of active trips.</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<div className="relative flex h-[400px] w-full items-center justify-center overflow-hidden rounded-md border bg-slate-100">
+								{/* Simulated Map Background */}
+								<div
+									className="absolute inset-0 opacity-20"
+									style={{
+										backgroundImage:
+											"linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)",
+										backgroundSize: "20px 20px",
+									}}
+								/>
 
-							<div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-xl bg-white p-4 shadow-lg">
-								<div className="flex h-10 w-10 animate-pulse items-center justify-center rounded-full bg-primary/10">
-									<TruckIcon className="h-5 w-5 text-primary" />
-								</div>
-								<div>
-									<h4 className="font-bold">Truck 01</h4>
-									<p className="text-muted-foreground text-xs">
-										Moving at 45 km/h â€¢ ETA 10 mins
-									</p>
+								<div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-xl border border-border/60 bg-white p-4 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+									<div className="flex h-10 w-10 animate-pulse items-center justify-center rounded-full bg-primary/10">
+										<TruckIcon className="h-5 w-5 text-primary" />
+									</div>
+									<div>
+										<h4 className="font-bold">Truck 01</h4>
+										<p className="text-muted-foreground text-xs">
+											Moving at 45 km/h · ETA 10 mins
+										</p>
+									</div>
 								</div>
 							</div>
-						</div>
-					</CardContent>
-				</Card>
-			</TabsContent>
+						</CardContent>
+					</Card>
+				</TabsContent>
 
-			<TabsContent value="vehicles">
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
-						<div>
-							<CardTitle>Vehicle Fleet</CardTitle>
-							<CardDescription>
-								Manage your delivery vehicles and their status.
-							</CardDescription>
-						</div>
-						<Dialog open={isVehicleOpen} onOpenChange={setIsVehicleOpen}>
-							<DialogTrigger asChild>
-								<Button>Add Vehicle</Button>
-							</DialogTrigger>
-							<DialogContent>
-								<DialogHeader>
-									<DialogTitle>Add New Vehicle</DialogTitle>
-								</DialogHeader>
-								<div className="space-y-4 py-4">
-									<div className="space-y-2">
-										<Label>Vehicle Name/Model</Label>
-										<Input
-											value={vehicleName}
-											onChange={(e) => setVehicleName(e.target.value)}
-											placeholder="e.g. Ford Transit"
-										/>
+				<TabsContent value="vehicles">
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between">
+							<div>
+								<CardTitle>Vehicle Fleet</CardTitle>
+								<CardDescription>
+									Manage your delivery vehicles and their status.
+								</CardDescription>
+							</div>
+							<Dialog open={isVehicleOpen} onOpenChange={setIsVehicleOpen}>
+								<DialogTrigger asChild>
+									<Button>Add Vehicle</Button>
+								</DialogTrigger>
+								<DialogContent>
+									<DialogHeader>
+										<DialogTitle>Add New Vehicle</DialogTitle>
+									</DialogHeader>
+									<div className="space-y-4 py-4">
+										<div className="space-y-2">
+											<Label>Vehicle Name/Model</Label>
+											<Input
+												value={vehicleName}
+												onChange={(e) => setVehicleName(e.target.value)}
+												placeholder="e.g. Ford Transit"
+											/>
+										</div>
+										<div className="space-y-2">
+											<Label>Registration Number</Label>
+											<Input
+												value={vehicleReg}
+												onChange={(e) => setVehicleReg(e.target.value)}
+												placeholder="e.g. XY-1234"
+											/>
+										</div>
+										<div className="space-y-2">
+											<Label>Type</Label>
+											<Select
+												value={vehicleType}
+												onValueChange={setVehicleType}
+											>
+												<SelectTrigger>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="van">Van</SelectItem>
+													<SelectItem value="truck">Truck</SelectItem>
+													<SelectItem value="bike">Bike</SelectItem>
+												</SelectContent>
+											</Select>
+										</div>
 									</div>
-									<div className="space-y-2">
-										<Label>Registration Number</Label>
-										<Input
-											value={vehicleReg}
-											onChange={(e) => setVehicleReg(e.target.value)}
-											placeholder="e.g. XY-1234"
-										/>
+									<DialogFooter>
+										<Button
+											onClick={handleAddVehicle}
+											disabled={createVehicle.isPending}
+										>
+											Add Vehicle
+										</Button>
+									</DialogFooter>
+								</DialogContent>
+							</Dialog>
+						</CardHeader>
+						<CardContent>
+							<div className="space-y-4">
+								{vehicles.length === 0 ? (
+									<p className="text-muted-foreground text-sm">
+										No vehicles found.
+									</p>
+								) : (
+									<div className="grid gap-4 md:grid-cols-3">
+										{vehicles.map((vehicle: any) => (
+											<div
+												key={vehicle.id}
+												className="group relative rounded-md border p-4 shadow-sm transition-all hover:border-primary/50"
+											>
+												<div className="mb-2 flex items-start justify-between">
+													<div>
+														<h4 className="font-bold">{vehicle.name}</h4>
+														<p className="mt-1 inline-block rounded bg-muted px-2 py-0.5 font-mono text-xs">
+															{vehicle.registration_number}
+														</p>
+													</div>
+													<div className="flex items-center gap-1.5">
+														<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-700 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
+															{vehicle.status || "available"}
+														</span>
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-7 gap-1 border-slate-200 px-2 text-slate-700 text-xs hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300"
+															onClick={() => handleOpenEditVehicle(vehicle)}
+														>
+															<PencilIcon className="h-3 w-3 text-slate-500" />
+															Edit
+														</Button>
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-7 gap-1 border-red-200 px-2 text-red-600 text-xs hover:bg-red-50 hover:text-red-700 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/40"
+															onClick={() => {
+																setVehicleToDelete(vehicle);
+																setIsDeleteVehicleOpen(true);
+															}}
+														>
+															<Trash2Icon className="h-3 w-3 text-red-500" />
+															Delete
+														</Button>
+													</div>
+												</div>
+												<div className="mt-4 flex items-center justify-between border-t pt-3 text-muted-foreground text-sm">
+													<span>Type: {vehicle.type}</span>
+													<span>Cap: {vehicle.capacity_kg || "N/A"} kg</span>
+												</div>
+											</div>
+										))}
 									</div>
+								)}
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Edit Vehicle Modal */}
+					<Dialog open={isEditVehicleOpen} onOpenChange={setIsEditVehicleOpen}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle className="flex items-center gap-2">
+									<PencilIcon className="h-4 w-4 text-primary" />
+									Edit Vehicle Details ({editingVehicle?.name})
+								</DialogTitle>
+							</DialogHeader>
+							<div className="space-y-4 py-3">
+								<div className="space-y-2">
+									<Label>Vehicle Name / Model</Label>
+									<Input
+										value={editVehicleName}
+										onChange={(e) => setEditVehicleName(e.target.value)}
+										placeholder="e.g. Mahindra Supro Cargo"
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label>Registration Number</Label>
+									<Input
+										value={editVehicleReg}
+										onChange={(e) => setEditVehicleReg(e.target.value)}
+										placeholder="e.g. MP04CD5678"
+									/>
+								</div>
+								<div className="grid grid-cols-2 gap-3">
 									<div className="space-y-2">
-										<Label>Type</Label>
-										<Select value={vehicleType} onValueChange={setVehicleType}>
+										<Label>Vehicle Type</Label>
+										<Select
+											value={editVehicleType}
+											onValueChange={setEditVehicleType}
+										>
 											<SelectTrigger>
 												<SelectValue />
 											</SelectTrigger>
@@ -2961,1313 +3415,421 @@ export function DeliveryManagementDashboard({
 											</SelectContent>
 										</Select>
 									</div>
+									<div className="space-y-2">
+										<Label>Capacity (kg)</Label>
+										<Input
+											type="number"
+											value={editVehicleCap}
+											onChange={(e) => setEditVehicleCap(e.target.value)}
+											placeholder="e.g. 850"
+										/>
+									</div>
 								</div>
-								<DialogFooter>
-									<Button
-										onClick={handleAddVehicle}
-										disabled={createVehicle.isPending}
-									>
-										Add Vehicle
-									</Button>
-								</DialogFooter>
-							</DialogContent>
-						</Dialog>
-					</CardHeader>
-					<CardContent>
-						<div className="space-y-4">
-							{vehicles.length === 0 ? (
-								<p className="text-muted-foreground text-sm">
-									No vehicles found.
-								</p>
-							) : (
-								<div className="grid gap-4 md:grid-cols-3">
-									{vehicles.map((vehicle: any) => (
-										<div
-											key={vehicle.id}
-											className="rounded-md border p-4 shadow-sm relative group hover:border-primary/50 transition-all"
-										>
-											<div className="mb-2 flex items-start justify-between">
-												<div>
-													<h4 className="font-bold">{vehicle.name}</h4>
-													<p className="mt-1 inline-block rounded bg-muted px-2 py-0.5 font-mono text-xs">
-														{vehicle.registration_number}
-													</p>
-												</div>
-												<div className="flex items-center gap-1.5">
-													<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-700 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
-														{vehicle.status || "available"}
-													</span>
-													<Button
-														variant="outline"
-														size="sm"
-														className="h-7 px-2 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300"
-														onClick={() => handleOpenEditVehicle(vehicle)}
-													>
-														<PencilIcon className="h-3 w-3 text-slate-500" />
-														Edit
-													</Button>
-													<Button
-														variant="outline"
-														size="sm"
-														className="h-7 px-2 text-xs gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/40"
-														onClick={() => {
-															setVehicleToDelete(vehicle);
-															setIsDeleteVehicleOpen(true);
-														}}
-													>
-														<Trash2Icon className="h-3 w-3 text-red-500" />
-														Delete
-													</Button>
-												</div>
-											</div>
-											<div className="mt-4 flex items-center justify-between border-t pt-3 text-muted-foreground text-sm">
-												<span>Type: {vehicle.type}</span>
-												<span>Cap: {vehicle.capacity_kg || "N/A"} kg</span>
-											</div>
-										</div>
-									))}
-								</div>
-							)}
-						</div>
-					</CardContent>
-				</Card>
-
-				{/* Edit Vehicle Modal */}
-				<Dialog open={isEditVehicleOpen} onOpenChange={setIsEditVehicleOpen}>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2">
-								<PencilIcon className="h-4 w-4 text-primary" />
-								Edit Vehicle Details ({editingVehicle?.name})
-							</DialogTitle>
-						</DialogHeader>
-						<div className="space-y-4 py-3">
-							<div className="space-y-2">
-								<Label>Vehicle Name / Model</Label>
-								<Input
-									value={editVehicleName}
-									onChange={(e) => setEditVehicleName(e.target.value)}
-									placeholder="e.g. Mahindra Supro Cargo"
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label>Registration Number</Label>
-								<Input
-									value={editVehicleReg}
-									onChange={(e) => setEditVehicleReg(e.target.value)}
-									placeholder="e.g. MP04CD5678"
-								/>
-							</div>
-							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-2">
-									<Label>Vehicle Type</Label>
-									<Select value={editVehicleType} onValueChange={setEditVehicleType}>
+									<Label>Fleet Availability Status</Label>
+									<Select
+										value={editVehicleStatus}
+										onValueChange={setEditVehicleStatus}
+									>
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="van">Van</SelectItem>
-											<SelectItem value="truck">Truck</SelectItem>
-											<SelectItem value="bike">Bike</SelectItem>
+											<SelectItem value="available">
+												Available (निःशुल्क / उपलब्ध)
+											</SelectItem>
+											<SelectItem value="in_transit">
+												In Transit (मार्ग में)
+											</SelectItem>
+											<SelectItem value="maintenance">
+												Maintenance (रखरखाव में)
+											</SelectItem>
 										</SelectContent>
 									</Select>
 								</div>
-								<div className="space-y-2">
-									<Label>Capacity (kg)</Label>
-									<Input
-										type="number"
-										value={editVehicleCap}
-										onChange={(e) => setEditVehicleCap(e.target.value)}
-										placeholder="e.g. 850"
-									/>
-								</div>
 							</div>
-							<div className="space-y-2">
-								<Label>Fleet Availability Status</Label>
-								<Select value={editVehicleStatus} onValueChange={setEditVehicleStatus}>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="available">Available (निःशुल्क / उपलब्ध)</SelectItem>
-										<SelectItem value="in_transit">In Transit (मार्ग में)</SelectItem>
-										<SelectItem value="maintenance">Maintenance (रखरखाव में)</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-						<DialogFooter>
-							<Button variant="outline" onClick={() => setIsEditVehicleOpen(false)}>
-								Cancel
-							</Button>
-							<Button onClick={handleSaveVehicleEdit} disabled={updateVehicle.isPending}>
-								{updateVehicle.isPending ? "Saving..." : "Save Changes"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setIsEditVehicleOpen(false)}
+								>
+									Cancel
+								</Button>
+								<Button
+									onClick={handleSaveVehicleEdit}
+									disabled={updateVehicle.isPending}
+								>
+									{updateVehicle.isPending ? "Saving..." : "Save Changes"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 
-				{/* Delete Vehicle Modal */}
-				<Dialog open={isDeleteVehicleOpen} onOpenChange={setIsDeleteVehicleOpen}>
-					<DialogContent className="sm:max-w-md">
-						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2 text-rose-600">
-								<Trash2Icon className="h-5 w-5" />
-								Delete Vehicle from Fleet?
-							</DialogTitle>
-							<DialogDescription className="text-xs pt-1">
-								Are you sure you want to remove <strong>{vehicleToDelete?.name}</strong> ({vehicleToDelete?.registration_number}) from the active fleet? This action cannot be undone.
-							</DialogDescription>
-						</DialogHeader>
-						<DialogFooter className="gap-2 sm:gap-0 mt-4">
-							<Button variant="outline" onClick={() => setIsDeleteVehicleOpen(false)}>
-								Cancel
-							</Button>
-							<Button
-								variant="destructive"
-								onClick={handleDeleteVehicleConfirm}
-								disabled={deleteVehicle.isPending}
-								className="gap-1.5"
-							>
-								{deleteVehicle.isPending ? "Deleting..." : "Delete Vehicle"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-			</TabsContent>
+					{/* Delete Vehicle Modal */}
+					<Dialog
+						open={isDeleteVehicleOpen}
+						onOpenChange={setIsDeleteVehicleOpen}
+					>
+						<DialogContent className="sm:max-w-md">
+							<DialogHeader>
+								<DialogTitle className="flex items-center gap-2 text-rose-600">
+									<Trash2Icon className="h-5 w-5" />
+									Delete Vehicle from Fleet?
+								</DialogTitle>
+								<DialogDescription className="pt-1 text-xs">
+									Are you sure you want to remove{" "}
+									<strong>{vehicleToDelete?.name}</strong> (
+									{vehicleToDelete?.registration_number}) from the active fleet?
+									This action cannot be undone.
+								</DialogDescription>
+							</DialogHeader>
+							<DialogFooter className="mt-4 gap-2 sm:gap-0">
+								<Button
+									variant="outline"
+									onClick={() => setIsDeleteVehicleOpen(false)}
+								>
+									Cancel
+								</Button>
+								<Button
+									variant="destructive"
+									onClick={handleDeleteVehicleConfirm}
+									disabled={deleteVehicle.isPending}
+									className="gap-1.5"
+								>
+									{deleteVehicle.isPending ? "Deleting..." : "Delete Vehicle"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</TabsContent>
 
-			<TabsContent value="settlements">
-				<Card>
-					<CardHeader>
-						<CardTitle>Cash & Online Settlements</CardTitle>
-						<CardDescription>
-							Verify end-of-day collections brought by drivers from customer
-							handovers.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						{driverCollections.length === 0 ? (
-							<p className="text-muted-foreground text-sm">
-								No pending or completed driver settlements.
-							</p>
-						) : (
-							<div className="overflow-x-auto">
-								<table className="w-full text-left text-sm">
-									<thead>
-										<tr className="border-b text-muted-foreground">
-											<th className="px-3 py-2 font-medium">Driver</th>
-											<th className="px-3 py-2 font-medium">Customer & Route</th>
-											<th className="px-3 py-2 font-medium">Method</th>
-											<th className="px-3 py-2 font-medium">Amount</th>
-											<th className="px-3 py-2 font-medium">Ref / Txn ID</th>
-											<th className="px-3 py-2 font-medium">Collected At</th>
-											<th className="px-3 py-2 font-medium">Status</th>
-											<th className="px-3 py-2 font-medium text-right">Action</th>
-										</tr>
-									</thead>
-									<tbody className="divide-y">
-										{(() => {
-											const grouped = Object.values(
-												driverCollections.reduce((acc: any, col: any) => {
-													let key = "";
-													if (col.stopId) {
-														key = `stop_${col.tripId}_${col.stopId}`;
-													} else if (
-														col.referenceNumber &&
-														col.referenceNumber.startsWith("STOP-")
-													) {
-														key = `ref_${col.tripId}_${col.referenceNumber}`;
-													} else if (col.customerId && col.tripId) {
-														key = `cust_${col.tripId}_${col.customerId}`;
-													} else {
-														const timeKey = col.rawCollectedAt
-															? col.rawCollectedAt.substring(0, 16)
-															: (col.collectedAt || "").replace(
-																	/:\d{2}\s/,
-																	" ",
-																);
-														key = `drv_${col.driverName}_${timeKey}_${col.customerName || ""}`;
-													}
-
-													const method = col.paymentMethod || "Cash";
-													const amt = Number(col.amount || 0);
-
-													if (!acc[key]) {
-														acc[key] = {
-															...col,
-															amount: amt,
-															methods: [method],
-															breakdown: { [method]: amt },
-															transactionIds: [
-																col.transactionId ||
-																	col.referenceNumber ||
-																	`COL-${col.id}`,
-															].filter(Boolean),
-															allCollections: [col],
-															allOrders: col.orders || [],
-															allReturnedItems: col.returnedItems || [],
-															deliveryNotes: col.deliveryNotes || "",
-														};
-													} else {
-														acc[key].amount += amt;
-														if (!acc[key].methods.includes(method)) {
-															acc[key].methods.push(method);
-														}
-														acc[key].breakdown[method] =
-															(acc[key].breakdown[method] || 0) + amt;
-
-														const txn =
-															col.transactionId || col.referenceNumber;
-														if (
-															txn &&
-															!acc[key].transactionIds.includes(txn)
+				<TabsContent value="settlements">
+					<Card>
+						<CardHeader>
+							<CardTitle>Cash & Online Settlements</CardTitle>
+							<CardDescription>
+								Verify end-of-day collections brought by drivers from customer
+								handovers.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{driverCollections.length === 0 ? (
+								<p className="text-muted-foreground text-sm">
+									No pending or completed driver settlements.
+								</p>
+							) : (
+								<div className="overflow-x-auto">
+									<table className="w-full text-left text-sm">
+										<thead>
+											<tr className="border-b text-muted-foreground">
+												<th className="px-3 py-2 font-medium">Driver</th>
+												<th className="px-3 py-2 font-medium">
+													Customer & Route
+												</th>
+												<th className="px-3 py-2 font-medium">Method</th>
+												<th className="px-3 py-2 font-medium">Amount</th>
+												<th className="px-3 py-2 font-medium">Ref / Txn ID</th>
+												<th className="px-3 py-2 font-medium">Collected At</th>
+												<th className="px-3 py-2 font-medium">Status</th>
+												<th className="px-3 py-2 text-right font-medium">
+													Action
+												</th>
+											</tr>
+										</thead>
+										<tbody className="divide-y">
+											{(() => {
+												const grouped = Object.values(
+													driverCollections.reduce((acc: any, col: any) => {
+														let key = "";
+														if (col.stopId) {
+															key = `stop_${col.tripId}_${col.stopId}`;
+														} else if (
+															col.referenceNumber &&
+															col.referenceNumber.startsWith("STOP-")
 														) {
-															acc[key].transactionIds.push(txn);
+															key = `ref_${col.tripId}_${col.referenceNumber}`;
+														} else if (col.customerId && col.tripId) {
+															key = `cust_${col.tripId}_${col.customerId}`;
+														} else {
+															const timeKey = col.rawCollectedAt
+																? col.rawCollectedAt.substring(0, 16)
+																: (col.collectedAt || "").replace(
+																		/:\d{2}\s/,
+																		" ",
+																	);
+															key = `drv_${col.driverName}_${timeKey}_${col.customerName || ""}`;
 														}
 
-														acc[key].allCollections.push(col);
+														const method = col.paymentMethod || "Cash";
+														const amt = Number(col.amount || 0);
 
-														if (col.orders && col.orders.length > 0) {
-															for (const o of col.orders) {
-																if (
-																	!acc[key].allOrders.some(
-																		(eo: any) => eo.id === o.id,
-																	)
-																) {
-																	acc[key].allOrders.push(o);
+														if (!acc[key]) {
+															acc[key] = {
+																...col,
+																amount: amt,
+																methods: [method],
+																breakdown: { [method]: amt },
+																transactionIds: [
+																	col.transactionId ||
+																		col.referenceNumber ||
+																		`COL-${col.id}`,
+																].filter(Boolean),
+																allCollections: [col],
+																allOrders: col.orders || [],
+																allReturnedItems: col.returnedItems || [],
+																deliveryNotes: col.deliveryNotes || "",
+															};
+														} else {
+															acc[key].amount += amt;
+															if (!acc[key].methods.includes(method)) {
+																acc[key].methods.push(method);
+															}
+															acc[key].breakdown[method] =
+																(acc[key].breakdown[method] || 0) + amt;
+
+															const txn =
+																col.transactionId || col.referenceNumber;
+															if (
+																txn &&
+																!acc[key].transactionIds.includes(txn)
+															) {
+																acc[key].transactionIds.push(txn);
+															}
+
+															acc[key].allCollections.push(col);
+
+															if (col.orders && col.orders.length > 0) {
+																for (const o of col.orders) {
+																	if (
+																		!acc[key].allOrders.some(
+																			(eo: any) => eo.id === o.id,
+																		)
+																	) {
+																		acc[key].allOrders.push(o);
+																	}
 																}
 															}
-														}
 
-														if (
-															col.returnedItems &&
-															col.returnedItems.length > 0
-														) {
-															for (const r of col.returnedItems) {
-																acc[key].allReturnedItems.push(r);
+															if (
+																col.returnedItems &&
+																col.returnedItems.length > 0
+															) {
+																for (const r of col.returnedItems) {
+																	acc[key].allReturnedItems.push(r);
+																}
+															}
+
+															if (
+																col.deliveryNotes &&
+																!acc[key].deliveryNotes
+															) {
+																acc[key].deliveryNotes = col.deliveryNotes;
 															}
 														}
+														return acc;
+													}, {}),
+												);
 
-														if (col.deliveryNotes && !acc[key].deliveryNotes) {
-															acc[key].deliveryNotes = col.deliveryNotes;
-														}
-													}
-													return acc;
-												}, {}),
-											);
-
-											return (grouped as any[]).map((col: any) => (
-												<tr
-													key={col.id || col.transactionIds?.join("-")}
-													className="hover:bg-muted/50 transition-colors"
-												>
-													<td className="px-3 py-3 font-medium">
-														<div className="font-semibold text-foreground">
-															{col.driverName}
-														</div>
-														<div className="text-muted-foreground text-xs">
-															{col.driverEmail}
-														</div>
-													</td>
-													<td className="px-3 py-3">
-														<div className="font-medium text-foreground">
-															{col.customerName || "Customer"}
-														</div>
-														<div className="text-muted-foreground text-xs flex items-center gap-1">
-															{col.customerPhone && (
-																<span>{col.customerPhone} • </span>
-															)}
-															<span className="truncate max-w-[150px]">
-																{col.tripName || `Trip #${col.tripId}`}
-															</span>
-														</div>
-													</td>
-													<td className="px-3 py-3">
-														<span
-															className={`inline-flex items-center rounded px-2 py-0.5 font-semibold text-xs ${
-																col.methods.length > 1
-																	? "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200"
-																	: col.methods[0]?.toLowerCase() === "cash"
-																		? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200"
-																		: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200"
-															}`}
-														>
-															{col.methods.join(" & ")}
-														</span>
-													</td>
-													<td className="px-3 py-3">
-														<div className="font-bold font-mono text-emerald-600">
-															₹{col.amount.toLocaleString("en-IN")}
-														</div>
-														{col.methods.length > 1 && (
-															<div className="text-[10px] text-muted-foreground mt-0.5 font-medium">
-																{Object.entries(col.breakdown)
-																	.map(
-																		([m, a]: any) =>
-																			`${m}: ₹${a.toLocaleString("en-IN")}`,
-																	)
-																	.join(", ")}
-															</div>
-														)}
-													</td>
-													<td
-														className="px-3 py-3 font-mono text-xs max-w-[180px] truncate text-muted-foreground"
-														title={col.transactionIds?.join(", ")}
+												return (grouped as any[]).map((col: any) => (
+													<tr
+														key={col.id || col.transactionIds?.join("-")}
+														className="transition-colors hover:bg-muted/50"
 													>
-														{col.transactionIds?.join(", ")}
-													</td>
-													<td className="px-3 py-3 text-muted-foreground text-xs">
-														{col.collectedAt}
-													</td>
-													<td className="px-3 py-3">
-														<span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
-															<CheckCircle2Icon className="h-3 w-3 text-emerald-600" />
-															{col.status || "Verified"}
-														</span>
-													</td>
-													<td className="px-3 py-3 text-right">
-														<Button
-															size="sm"
-															variant="outline"
-															className="h-8 gap-1.5 border-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 text-xs font-semibold dark:hover:bg-blue-950/40"
-															onClick={() => {
-																setSelectedSettlementDetail(col);
-																setIsSettlementDetailOpen(true);
-															}}
+														<td className="px-3 py-3 font-medium">
+															<div className="font-semibold text-foreground">
+																{col.driverName}
+															</div>
+															<div className="text-muted-foreground text-xs">
+																{col.driverEmail}
+															</div>
+														</td>
+														<td className="px-3 py-3">
+															<div className="font-medium text-foreground">
+																{col.customerName || "Customer"}
+															</div>
+															<div className="flex items-center gap-1 text-muted-foreground text-xs">
+																{col.customerPhone && (
+																	<span>{col.customerPhone} • </span>
+																)}
+																<span className="max-w-[150px] truncate">
+																	{col.tripName || `Trip #${col.tripId}`}
+																</span>
+															</div>
+														</td>
+														<td className="px-3 py-3">
+															<span
+																className={`inline-flex items-center rounded px-2 py-0.5 font-semibold text-xs ${
+																	col.methods.length > 1
+																		? "border border-purple-200 bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
+																		: col.methods[0]?.toLowerCase() === "cash"
+																			? "border border-amber-200 bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+																			: "border border-blue-200 bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+																}`}
+															>
+																{col.methods.join(" & ")}
+															</span>
+														</td>
+														<td className="px-3 py-3">
+															<div className="font-bold font-mono text-emerald-600">
+																₹{col.amount.toLocaleString("en-IN")}
+															</div>
+															{col.methods.length > 1 && (
+																<div className="mt-0.5 font-medium text-[10px] text-muted-foreground">
+																	{Object.entries(col.breakdown)
+																		.map(
+																			([m, a]: any) =>
+																				`${m}: ₹${a.toLocaleString("en-IN")}`,
+																		)
+																		.join(", ")}
+																</div>
+															)}
+														</td>
+														<td
+															className="max-w-[180px] truncate px-3 py-3 font-mono text-muted-foreground text-xs"
+															title={col.transactionIds?.join(", ")}
 														>
-															<EyeIcon className="h-3.5 w-3.5 text-blue-600" />
-															View Details
-														</Button>
-													</td>
-												</tr>
-											));
-										})()}
-									</tbody>
-								</table>
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			</TabsContent>
-		</Tabs>
-
-		{/* ── Global Action & Confirmation Dialogs ────────────────────────────── */}
-
-		{/* Assign Order Route & Driver Modal */}
-		<Dialog open={isOrderAssignOpen} onOpenChange={setIsOrderAssignOpen}>
-			<DialogContent className="w-[calc(100vw-2rem)] max-w-lg sm:max-w-md p-4 sm:p-6 overflow-hidden">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-						<TruckIcon className="h-5 w-5 text-blue-600 shrink-0" />
-						<span className="truncate">Assign Route & Driver</span>
-					</DialogTitle>
-					<DialogDescription className="text-xs">
-						{selectedOrderIds.length > 1
-							? `Dispatch ${selectedOrderIds.length} selected orders to a driver & vehicle.`
-							: `Dispatch Order ORD-${assignOrder?.id} (${assignOrder?.customer?.name || "Customer"}) to a driver & vehicle.`}
-					</DialogDescription>
-				</DialogHeader>
-				<div className="space-y-4 py-3 min-w-0">
-					{(() => {
-						const ordersToDisplay =
-							selectedOrderIds.length > 0
-								? unassignedOrders.filter((o: any) =>
-										selectedOrderIds.includes(o.id),
-									)
-								: assignOrder
-									? [assignOrder]
-									: [];
-						const totalAmt = ordersToDisplay.reduce(
-							(sum: number, o: any) => sum + Number(o.total_amount || 0),
-							0,
-						);
-
-						return (
-							<div className="space-y-2 min-w-0">
-								<div className="flex flex-wrap items-center justify-between gap-1.5 rounded-lg bg-blue-50/80 p-2.5 text-xs dark:bg-blue-950/40">
-									<span className="font-semibold text-blue-900 dark:text-blue-200">
-										{ordersToDisplay.length} Order(s) Selected
-									</span>
-									<span className="font-bold text-blue-900 dark:text-blue-100">
-										Total: ₹{totalAmt.toFixed(2)}
-									</span>
-								</div>
-								<div className="max-h-36 space-y-1.5 overflow-y-auto pr-1">
-									{ordersToDisplay.map((ord: any, idx: number) => (
-										<div
-											key={ord.id}
-											className="flex items-center justify-between gap-2 rounded-md border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40"
-										>
-											<div className="min-w-0 flex-1 pr-1">
-												<div className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
-													<span className="font-mono text-[11px] text-blue-600 shrink-0">
-														ORD-{ord.id}
-													</span>
-													<span className="shrink-0">•</span>
-													<span className="truncate">
-														{ord.customer?.name || "Walk-in Customer"}
-													</span>
-												</div>
-												{(ord.customer?.address || ord.shipping_address) && (
-													<p className="truncate text-[11px] text-emerald-700 dark:text-emerald-400">
-														📍 {ord.customer?.address || ord.shipping_address}
-													</p>
-												)}
-											</div>
-											<span className="shrink-0 font-medium whitespace-nowrap text-right">
-												₹{Number(ord.total_amount || 0).toFixed(2)}
-											</span>
-										</div>
-									))}
-								</div>
-							</div>
-						);
-					})()}
-
-					<div className="space-y-1.5 min-w-0">
-						<Label className="font-medium text-xs">Assign Driver *</Label>
-						<Select value={orderDriverId} onValueChange={setOrderDriverId}>
-							<SelectTrigger className="w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
-								<SelectValue placeholder="Select Driver..." />
-							</SelectTrigger>
-							<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
-								{finalDrivers.map((d: any) => {
-									const avail = getDriverAvailability(d.id);
-									return (
-										<SelectItem key={d.id} value={d.id} className="cursor-pointer py-2">
-											<div className="flex flex-col gap-0.5 min-w-0 max-w-full text-left">
-												<div className="flex items-center justify-between gap-1.5 font-semibold text-xs text-slate-900 dark:text-slate-100">
-													<span>👤 {d.name}</span>
-													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
-														{avail.label}
-													</span>
-												</div>
-												<div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
-													{d.email && <span>📧 {d.email}</span>}
-													{d.staff_code && (
-														<span className="font-mono text-[10px] opacity-75">
-															ID: {d.staff_code}
-														</span>
-													)}
-												</div>
-											</div>
-										</SelectItem>
-									);
-								})}
-							</SelectContent>
-						</Select>
-					</div>
-
-					<div className="space-y-1.5 min-w-0">
-						<Label className="font-medium text-xs">
-							Assign Vehicle / Truck
-						</Label>
-						<Select
-							value={orderVehicleId}
-							onValueChange={setOrderVehicleId}
-						>
-							<SelectTrigger className="w-full min-w-0 overflow-hidden text-left [&>span]:truncate [&>span]:min-w-0">
-								<SelectValue placeholder="Select Vehicle..." />
-							</SelectTrigger>
-							<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
-								{vehicles.map((v: any) => (
-									<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer">
-										<div className="flex items-center gap-1.5 min-w-0 max-w-full overflow-hidden text-left">
-											<span className="font-medium shrink-0">🚚 {v.name}</span>
-											{v.registration_number && (
-												<span className="truncate text-xs text-muted-foreground">
-													({v.registration_number})
-												</span>
-											)}
-										</div>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-				</div>
-				<DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 sm:justify-end">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => setIsOrderAssignOpen(false)}
-						className="w-full sm:w-auto"
-					>
-						Cancel
-					</Button>
-					<Button
-						type="button"
-						className="w-full sm:w-auto bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-						disabled={createTripDirect.isPending || !orderDriverId}
-						onClick={handleAssignOrderRoute}
-					>
-						{createTripDirect.isPending
-							? "Assigning..."
-							: "Assign & Send to Loader"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* Delete Route Confirmation Modal */}
-		<Dialog
-			open={isDeleteRouteModalOpen}
-			onOpenChange={setIsDeleteRouteModalOpen}
-		>
-			<DialogContent className="max-w-md border-red-200">
-				<DialogHeader>
-					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-							<Trash2Icon className="h-5 w-5" />
-						</div>
-						<div>
-							<DialogTitle className="font-bold text-lg text-slate-900">
-								Delete Delivery Route?
-							</DialogTitle>
-							<DialogDescription className="text-slate-500 text-xs">
-								This will permanently delete the route and all its stops.
-								Active trips using this route will be unlinked.
-							</DialogDescription>
-						</div>
-					</div>
-				</DialogHeader>
-
-				{routeToDelete && (
-					<div className="py-2">
-						<div className="space-y-2 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
-							<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-								<span>{routeToDelete.name}</span>
-								<span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-[10px] text-slate-600">
-									{routeToDelete.stops?.length || 0} Stop(s)
-								</span>
-							</div>
-							{routeToDelete.description && (
-								<p className="text-slate-500 text-xs">
-									{routeToDelete.description}
-								</p>
-							)}
-							{routeToDelete.stops?.length > 0 && (
-								<div className="space-y-1 pt-1">
-									{routeToDelete.stops
-										.slice(0, 4)
-										.map((stop: any, idx: number) => (
-											<div
-												key={stop.id}
-												className="flex items-center gap-2 text-slate-600 text-xs"
-											>
-												<div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[9px] text-primary">
-													{idx + 1}
-												</div>
-												{stop.customer?.name}
-											</div>
-										))}
-									{routeToDelete.stops.length > 4 && (
-										<p className="pl-6 text-slate-400 text-xs">
-											+{routeToDelete.stops.length - 4} more stop(s)…
-										</p>
-									)}
+															{col.transactionIds?.join(", ")}
+														</td>
+														<td className="px-3 py-3 text-muted-foreground text-xs">
+															{col.collectedAt}
+														</td>
+														<td className="px-3 py-3">
+															<span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
+																<CheckCircle2Icon className="h-3 w-3 text-emerald-600" />
+																{col.status || "Verified"}
+															</span>
+														</td>
+														<td className="px-3 py-3 text-right">
+															<Button
+																size="sm"
+																variant="outline"
+																className="h-8 gap-1.5 border-slate-300 font-semibold text-xs hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40"
+																onClick={() => {
+																	setSelectedSettlementDetail(col);
+																	setIsSettlementDetailOpen(true);
+																}}
+															>
+																<EyeIcon className="h-3.5 w-3.5 text-blue-600" />
+																View Details
+															</Button>
+														</td>
+													</tr>
+												));
+											})()}
+										</tbody>
+									</table>
 								</div>
 							)}
-						</div>
-					</div>
-				)}
+						</CardContent>
+					</Card>
+				</TabsContent>
+			</Tabs>
 
-				<DialogFooter className="gap-2 sm:gap-0">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => {
-							setIsDeleteRouteModalOpen(false);
-							setRouteToDelete(null);
-						}}
-						disabled={deleteRouteMutation.isPending}
-					>
-						Keep Route
-					</Button>
-					<Button
-						type="button"
-						variant="destructive"
-						onClick={handleConfirmDeleteRoute}
-						disabled={deleteRouteMutation.isPending}
-						className="font-semibold shadow-sm"
-					>
-						{deleteRouteMutation.isPending
-							? "Deleting..."
-							: "Yes, Delete Route"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+			{/* ── Global Action & Confirmation Dialogs ────────────────────────────── */}
 
-		{/* Delete Trip Confirmation Modal */}
-		<Dialog
-			open={isDeleteTripModalOpen}
-			onOpenChange={setIsDeleteTripModalOpen}
-		>
-			<DialogContent className="max-w-md border-red-200">
-				<DialogHeader>
-					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-							<Trash2Icon className="h-5 w-5" />
-						</div>
-						<div>
-							<DialogTitle className="font-bold text-lg text-slate-900">
-								Delete Delivery Trip?
-							</DialogTitle>
-							<DialogDescription className="text-slate-500 text-xs">
-								This will permanently remove the trip and all its stops.
-								Orders will be released back to the dispatch queue.
-							</DialogDescription>
-						</div>
-					</div>
-				</DialogHeader>
+			{/* Assign Order Route & Driver Modal */}
+			<Dialog open={isOrderAssignOpen} onOpenChange={setIsOrderAssignOpen}>
+				<DialogContent className="w-[calc(100vw-2rem)] max-w-lg overflow-hidden p-4 sm:max-w-md sm:p-6">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+							<TruckIcon className="h-5 w-5 shrink-0 text-blue-600" />
+							<span className="truncate">Assign Route & Driver</span>
+						</DialogTitle>
+						<DialogDescription className="text-xs">
+							{selectedOrderIds.length > 1
+								? `Dispatch ${selectedOrderIds.length} selected orders to a driver & vehicle.`
+								: `Dispatch Order ORD-${assignOrder?.id} (${assignOrder?.customer?.name || "Customer"}) to a driver & vehicle.`}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="min-w-0 space-y-4 py-3">
+						{(() => {
+							const ordersToDisplay =
+								selectedOrderIds.length > 0
+									? unassignedOrders.filter((o: any) =>
+											selectedOrderIds.includes(o.id),
+										)
+									: assignOrder
+										? [assignOrder]
+										: [];
+							const totalAmt = ordersToDisplay.reduce(
+								(sum: number, o: any) => sum + Number(o.total_amount || 0),
+								0,
+							);
 
-				{tripToDelete && (
-					<div className="py-2">
-						<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
-							<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-								<span>
-									{tripToDelete.route?.name || `Trip #${tripToDelete.id}`}
-								</span>
-								<span
-									className={`rounded px-2 py-0.5 font-bold text-[10px] uppercase ${
-										tripToDelete.status === "cancelled"
-											? "bg-red-100 text-red-700"
-											: tripToDelete.status === "completed"
-												? "bg-emerald-100 text-emerald-700"
-												: "bg-blue-100 text-blue-700"
-									}`}
-								>
-									{tripToDelete.status}
-								</span>
-							</div>
-							<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
-								<div>
-									<span className="text-slate-400">Driver:</span>{" "}
-									<span className="font-medium text-slate-800">
-										{tripToDelete.driver?.name || "Unassigned"}
-									</span>
-								</div>
-								<div>
-									<span className="text-slate-400">Vehicle:</span>{" "}
-									<span className="font-medium text-slate-800">
-										{tripToDelete.vehicle?.name || "N/A"}
-									</span>
-								</div>
-								<div className="col-span-2">
-									<span className="text-slate-400">Total Stops:</span>{" "}
-									<span className="font-medium text-slate-800">
-										{tripToDelete.stops?.length || 0} Stop(s)
-									</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				)}
-
-				<DialogFooter className="gap-2 sm:gap-0">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => {
-							setIsDeleteTripModalOpen(false);
-							setTripToDelete(null);
-						}}
-						disabled={deleteTripMutation.isPending}
-					>
-						Keep Trip
-					</Button>
-					<Button
-						type="button"
-						variant="destructive"
-						onClick={handleConfirmDeleteTrip}
-						disabled={deleteTripMutation.isPending}
-						className="font-semibold shadow-sm"
-					>
-						{deleteTripMutation.isPending
-							? "Deleting..."
-							: "Yes, Delete Trip"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* Trip Cancellation Confirmation Modal */}
-		<Dialog
-			open={isCancelModalOpen}
-			onOpenChange={setIsCancelModalOpen}
-		>
-			<DialogContent className="max-w-md border-red-200">
-				<DialogHeader>
-					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-							<AlertTriangleIcon className="h-5 w-5" />
-						</div>
-						<div>
-							<DialogTitle className="font-bold text-lg text-slate-900">
-								Cancel Delivery Trip?
-							</DialogTitle>
-							<DialogDescription className="text-slate-500 text-xs">
-								Are you sure you want to cancel this trip? Assigned
-								orders will be released back to dispatch.
-							</DialogDescription>
-						</div>
-					</div>
-				</DialogHeader>
-
-				{tripToCancel && (
-					<div className="space-y-4 py-2">
-						<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm">
-							<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900">
-								<span>
-									{tripToCancel.route?.name ||
-										`Trip #${tripToCancel.id}`}
-								</span>
-								<span className="rounded bg-red-100 px-2 py-0.5 font-bold text-[10px] text-red-700 uppercase">
-									{tripToCancel.status}
-								</span>
-							</div>
-							<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs">
-								<div>
-									<span className="text-slate-400">Driver:</span>{" "}
-									<span className="font-medium text-slate-800">
-										{tripToCancel.driver?.name || "Unassigned"}
-									</span>
-								</div>
-								<div>
-									<span className="text-slate-400">Vehicle:</span>{" "}
-									<span className="font-medium text-slate-800">
-										{tripToCancel.vehicle?.name || "N/A"}
-									</span>
-								</div>
-								<div className="col-span-2">
-									<span className="text-slate-400">Total Stops:</span>{" "}
-									<span className="font-medium text-slate-800">
-										{tripToCancel.stops?.length || 0} Stop(s)
-									</span>
-								</div>
-							</div>
-						</div>
-
-						<div className="space-y-1.5">
-							<Label className="font-semibold text-slate-700 text-xs">
-								Reason for Cancellation (Optional)
-							</Label>
-							<Select
-								value={cancelReason}
-								onValueChange={setCancelReason}
-							>
-								<SelectTrigger className="h-9 text-xs">
-									<SelectValue placeholder="Select cancellation reason..." />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="driver_unavailable">
-										Driver Unavailable
-									</SelectItem>
-									<SelectItem value="vehicle_breakdown">
-										Vehicle Breakdown / Maintenance
-									</SelectItem>
-									<SelectItem value="route_reorganization">
-										Route Reorganization
-									</SelectItem>
-									<SelectItem value="customer_reschedule">
-										Customer Rescheduled
-									</SelectItem>
-									<SelectItem value="other">
-										Other Operational Reason
-									</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-				)}
-
-				<DialogFooter className="gap-2 sm:gap-0">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => {
-							setIsCancelModalOpen(false);
-							setTripToCancel(null);
-						}}
-						disabled={cancelTrip.isPending}
-					>
-						Keep Trip
-					</Button>
-					<Button
-						type="button"
-						variant="destructive"
-						onClick={handleConfirmCancelTrip}
-						disabled={cancelTrip.isPending}
-						className="font-semibold shadow-sm"
-					>
-						{cancelTrip.isPending
-							? "Cancelling..."
-							: "Yes, Cancel Trip"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* Clear All Confirmation Modal */}
-		<Dialog
-			open={isClearAllModalOpen}
-			onOpenChange={setIsClearAllModalOpen}
-		>
-			<DialogContent className="max-w-md border-red-200">
-				<DialogHeader>
-					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-							<Trash2Icon className="h-5 w-5" />
-						</div>
-						<div>
-							<DialogTitle className="font-bold text-lg text-slate-900">
-								Delete All Routes & Trips?
-							</DialogTitle>
-							<DialogDescription className="text-slate-500 text-xs">
-								This will permanently delete all {routes.length} route(s) and {trips.length} trip(s). All orders will be released back to the unassigned queue.
-							</DialogDescription>
-						</div>
-					</div>
-				</DialogHeader>
-
-				<div className="py-2">
-					<div className="rounded-xl border border-red-200 bg-red-50/70 p-3.5 text-xs text-red-800 space-y-1">
-						<p className="font-semibold flex items-center gap-1.5">
-							<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600" />
-							Warning: This action cannot be undone!
-						</p>
-						<p className="text-red-700/90 leading-relaxed">
-							All route stops, trip stops, and delivery tracking entries will be erased so you can set up fresh routes from scratch.
-						</p>
-					</div>
-				</div>
-
-				<DialogFooter className="gap-2 sm:gap-0">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => setIsClearAllModalOpen(false)}
-						disabled={clearAllMutation.isPending}
-					>
-						Cancel
-					</Button>
-					<Button
-						type="button"
-						variant="destructive"
-						onClick={handleConfirmClearAll}
-						disabled={clearAllMutation.isPending}
-						className="font-semibold shadow-sm"
-					>
-						{clearAllMutation.isPending
-							? "Deleting Everything..."
-							: "Yes, Delete All Routes & Trips"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* Edit Route & Village Stops Modal */}
-		<Dialog open={isEditRouteOpen} onOpenChange={setIsEditRouteOpen}>
-			<DialogContent className="max-w-xl">
-				<DialogHeader>
-					<div className="flex items-center gap-2.5">
-						<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-							<RouteIcon className="h-5 w-5" />
-						</div>
-						<div>
-							<DialogTitle className="font-bold text-lg">
-								Edit Route & Village Stops
-							</DialogTitle>
-							<DialogDescription className="text-xs">
-								Add, reorder, rename, or delete villages for this delivery route.
-							</DialogDescription>
-						</div>
-					</div>
-				</DialogHeader>
-
-				<div className="max-h-[65vh] space-y-4 overflow-y-auto py-3 pr-1 text-xs">
-					<div className="space-y-1.5">
-						<Label className="font-semibold text-xs text-slate-800 dark:text-slate-200">
-							Route Name *
-						</Label>
-						<Input
-							value={editRouteName}
-							onChange={(e) => setEditRouteName(e.target.value)}
-							placeholder="e.g. Runaha Route"
-							className="h-9 text-xs"
-						/>
-					</div>
-
-					{/* Add Village Input */}
-					<div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-3 dark:border-primary/30 dark:bg-primary/10">
-						<Label className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-							<MapPinIcon className="h-3.5 w-3.5 text-primary" />
-							Add New Village / Stop
-						</Label>
-						<div className="flex gap-2">
-							<Input
-								value={newVillageInput}
-								onChange={(e) => setNewVillageInput(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") {
-										e.preventDefault();
-										handleAddVillageToEdit();
-									}
-								}}
-								placeholder="Type village name (e.g. Bhamoni, Sukha, Runaha)..."
-								className="h-8 text-xs bg-white dark:bg-slate-900"
-							/>
-							<Button
-								type="button"
-								size="sm"
-								className="h-8 px-3 text-xs bg-primary text-white font-semibold hover:bg-primary/90 shadow-sm"
-								onClick={handleAddVillageToEdit}
-								disabled={!newVillageInput.trim()}
-							>
-								<PlusIcon className="mr-1 h-3.5 w-3.5" />
-								Add
-							</Button>
-						</div>
-					</div>
-
-					{/* Village List */}
-					<div className="space-y-2">
-						<div className="flex items-center justify-between">
-							<Label className="font-semibold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-								Villages in Route Sequence ({editVillageStops.length})
-							</Label>
-							{editVillageStops.length > 0 && (
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="h-6 text-[11px] text-red-500 hover:text-red-700 hover:bg-red-50"
-									onClick={() => {
-										setEditVillageStops([]);
-										setEditRouteDesc("");
-									}}
-								>
-									Clear All
-								</Button>
-							)}
-						</div>
-
-						<div className="max-h-56 space-y-1.5 overflow-y-auto rounded-xl border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40">
-							{editVillageStops.map((village, idx) => (
-								<div
-									key={`edit_v_${idx}`}
-									className="flex items-center justify-between gap-2 rounded-lg border bg-white p-2 shadow-xs transition-colors hover:border-primary/30 dark:bg-slate-800"
-								>
-									<div className="flex items-center gap-2 min-w-0 flex-1">
-										<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-											{idx + 1}
-										</div>
-										<Input
-											value={village}
-											onChange={(e) => {
-												const val = e.target.value;
-												const updated = [...editVillageStops];
-												updated[idx] = val;
-												setEditVillageStops(updated);
-												setEditRouteDesc(updated.join(" -> "));
-											}}
-											className="h-7 text-xs font-semibold text-slate-800 border-none bg-transparent focus-visible:ring-1 focus-visible:ring-primary dark:text-slate-200"
-										/>
-									</div>
-									<div className="flex items-center gap-1 shrink-0">
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											title="Move Up"
-											className="h-6 w-6 text-slate-400 hover:text-slate-700"
-											disabled={idx === 0}
-											onClick={() => handleMoveVillage(idx, "up")}
-										>
-											<ArrowUpIcon className="h-3.5 w-3.5" />
-										</Button>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											title="Move Down"
-											className="h-6 w-6 text-slate-400 hover:text-slate-700"
-											disabled={idx === editVillageStops.length - 1}
-											onClick={() => handleMoveVillage(idx, "down")}
-										>
-											<ArrowDownIcon className="h-3.5 w-3.5" />
-										</Button>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											title="Delete Village"
-											className="h-6 w-6 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-											onClick={() => handleRemoveVillageFromEdit(idx)}
-										>
-											<Trash2Icon className="h-3.5 w-3.5" />
-										</Button>
-									</div>
-								</div>
-							))}
-							{editVillageStops.length === 0 && (
-								<p className="py-6 text-center text-slate-400 text-xs">
-									No villages left. Add villages using the input above.
-								</p>
-							)}
-						</div>
-					</div>
-
-					{/* Route Description Preview */}
-					<div className="space-y-1">
-						<Label className="text-[11px] text-muted-foreground">
-							Route Summary Preview:
-						</Label>
-						<p className="rounded-lg bg-slate-100/70 p-2.5 text-[11px] font-mono text-slate-600 leading-relaxed dark:bg-slate-900/60 dark:text-slate-400">
-							{editVillageStops.length > 0
-								? editVillageStops.join(" → ")
-								: "No village stops"}
-						</p>
-					</div>
-				</div>
-
-				<DialogFooter className="gap-2 sm:gap-0">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => {
-							setIsEditRouteOpen(false);
-							setRouteToEdit(null);
-						}}
-						disabled={updateRouteMutation.isPending}
-					>
-						Cancel
-					</Button>
-					<Button
-						type="button"
-						className="bg-primary text-white font-semibold shadow-sm hover:bg-primary/90"
-						onClick={handleSaveEditRoute}
-						disabled={
-							updateRouteMutation.isPending ||
-							!editRouteName.trim() ||
-							editVillageStops.length === 0
-						}
-					>
-						{updateRouteMutation.isPending
-							? "Saving Changes..."
-							: "Save Route & Villages"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* DIALOG 1: VIEW ORDERS (Route Waiting Pool) */}
-		<Dialog open={isViewOrdersOpen} onOpenChange={setIsViewOrdersOpen}>
-			<DialogContent className="max-w-3xl">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<RouteIcon className="h-5 w-5 text-primary" />
-						{viewRoutePool?.routeName} — Waiting Orders List
-					</DialogTitle>
-					<DialogDescription>
-						Orders grouped by route stop / village sequence. Only packed and ready orders can be dispatched in a trip.
-					</DialogDescription>
-				</DialogHeader>
-				<div className="max-h-[65vh] overflow-y-auto space-y-4 py-2 pr-1">
-					{(viewRoutePool?.villages || [])
-						.filter((village: any) => (village.orders || []).length > 0)
-						.map((village: any, idx: number) => (
-						<div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2 dark:border-slate-800 dark:bg-slate-900/50">
-							<div className="flex items-center justify-between border-b pb-2 dark:border-slate-800">
-								<span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-									📍 Village/Stop: {village.name}
-								</span>
-								<span className="text-[11px] font-semibold text-slate-500">
-									{village.orderCount} order(s)
-								</span>
-							</div>
-							<div className="space-y-2 pt-1">
-								{(village.orders || []).map((ord: any) => (
-									<div
-										key={ord.id}
-										className="flex items-center justify-between rounded-lg border bg-white p-2.5 text-xs shadow-2xs dark:bg-slate-800"
-									>
-										<div className="flex items-center gap-3">
-											<span className="font-mono font-bold text-slate-600 dark:text-slate-300">
-												{ord.orderNumber}
-											</span>
-											<span className="font-medium text-slate-900 dark:text-slate-100">
-												{ord.customerName}
-											</span>
-										</div>
-										<span
-											className={`rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase ${
-												ord.isReady
-													? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-													: ord.status === "packing"
-														? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-														: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-											}`}
-										>
-											{ord.isReady
-												? "Ready for Trip"
-												: ord.status === "packing"
-													? "Packing"
-													: "Picked / Processing"}
+							return (
+								<div className="min-w-0 space-y-2">
+									<div className="flex flex-wrap items-center justify-between gap-1.5 rounded-lg bg-blue-50/80 p-2.5 text-xs dark:bg-blue-950/40">
+										<span className="font-semibold text-blue-900 dark:text-blue-200">
+											{ordersToDisplay.length} Order(s) Selected
+										</span>
+										<span className="font-bold text-blue-900 dark:text-blue-100">
+											Total: ₹{totalAmt.toFixed(2)}
 										</span>
 									</div>
-								))}
-							</div>
-						</div>
-					))}
-					{(viewRoutePool?.villages || []).filter((v: any) => (v.orders || []).length > 0).length === 0 && (
-						<div className="py-8 text-center text-slate-400 text-xs font-medium">
-							No pending orders waiting for this route.
-						</div>
-					)}
-				</div>
-				<DialogFooter>
-					<Button variant="outline" onClick={() => setIsViewOrdersOpen(false)}>
-						Close
-					</Button>
-					<Button
-						className="bg-primary text-white font-semibold"
-						onClick={() => {
-							setIsViewOrdersOpen(false);
-							if (viewRoutePool) handleStartCreateTripFromPool(viewRoutePool);
-						}}
-						disabled={viewRoutePool?.waitingCount === 0}
-					>
-						{t("createTrip")}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* DIALOG 2: CREATE TRIP MULTI-STEP MODAL */}
-		<Dialog open={isCreateTripPoolOpen} onOpenChange={setIsCreateTripPoolOpen}>
-			<DialogContent className="max-w-2xl">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<TruckIcon className="h-5 w-5 text-primary" />
-						Create Delivery Trip — {createTripRoutePool?.routeName}
-					</DialogTitle>
-					<DialogDescription>
-						Step {createTripStep} of 3: {createTripStep === 1 ? "Select Orders" : createTripStep === 2 ? "Assign Driver, Vehicle & Loader" : "Review & Create Trip"}
-					</DialogDescription>
-				</DialogHeader>
-
-				{/* STEP 1: SELECT ORDERS */}
-				{createTripStep === 1 && (
-					<div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 pr-1">
-						<div className="flex justify-between items-center bg-slate-100 dark:bg-slate-800 p-2.5 rounded-lg text-xs font-semibold">
-							<span>Selected: {selectedPoolOrderIds.length} order(s)</span>
-							<div className="flex gap-2">
-								<Button
-									size="sm"
-									variant="ghost"
-									className="h-6 text-[11px]"
-									onClick={() => {
-										const allIds = (createTripRoutePool?.orders || []).map((o: any) => o.id);
-										setSelectedPoolOrderIds(allIds);
-									}}
-								>
-									Select All
-								</Button>
-								<Button
-									size="sm"
-									variant="ghost"
-									className="h-6 text-[11px]"
-									onClick={() => setSelectedPoolOrderIds([])}
-								>
-									Deselect All
-								</Button>
-							</div>
-						</div>
-
-						{(createTripRoutePool?.villages || [])
-							.filter((village: any) => (village.orders || []).length > 0)
-							.map((village: any, vIdx: number) => (
-							<div key={vIdx} className="space-y-2 border rounded-xl p-3 bg-slate-50/50 dark:bg-slate-900/50">
-								<span className="font-bold text-xs text-slate-700 dark:text-slate-300 block border-b pb-1">
-									📍 Village: {village.name}
-								</span>
-								<div className="space-y-1.5">
-									{(village.orders || []).map((ord: any) => {
-										const isSelected = selectedPoolOrderIds.includes(ord.id);
-
-										return (
-											<label
+									<div className="max-h-36 space-y-1.5 overflow-y-auto pr-1">
+										{ordersToDisplay.map((ord: any, idx: number) => (
+											<div
 												key={ord.id}
-												className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-													isSelected
-														? "border-primary bg-primary/5 shadow-2xs"
-														: "bg-white dark:bg-slate-800 hover:border-slate-300"
-												}`}
+												className="flex items-center justify-between gap-2 rounded-md border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40"
 											>
-												<div className="flex items-center gap-2">
-													<input
-														type="checkbox"
-														checked={isSelected}
-														onChange={(e) => {
-															if (e.target.checked) {
-																setSelectedPoolOrderIds((prev) => [...prev, ord.id]);
-															} else {
-																setSelectedPoolOrderIds((prev) => prev.filter((id) => id !== ord.id));
-															}
-														}}
-														className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4"
-													/>
-													<div>
-														<span className="font-mono font-bold text-slate-800 dark:text-slate-200 mr-2">
-															{ord.orderNumber}
+												<div className="min-w-0 flex-1 pr-1">
+													<div className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+														<span className="shrink-0 font-mono text-[11px] text-blue-600">
+															ORD-{ord.id}
 														</span>
-														<span>{ord.customerName}</span>
+														<span className="shrink-0">•</span>
+														<span className="truncate">
+															{ord.customer?.name || "Walk-in Customer"}
+														</span>
 													</div>
+													{(ord.customer?.address || ord.shipping_address) && (
+														<p className="truncate text-[11px] text-emerald-700 dark:text-emerald-400">
+															📍 {ord.customer?.address || ord.shipping_address}
+														</p>
+													)}
 												</div>
-												<span
-													className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
-														ord.isReady
-															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-															: ord.status === "packing"
-																? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-																: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-													}`}
-												>
-													{ord.isReady ? "Ready for Loading" : ord.status === "packing" ? "Packing" : "Picking"}
+												<span className="shrink-0 whitespace-nowrap text-right font-medium">
+													₹{Number(ord.total_amount || 0).toFixed(2)}
 												</span>
-											</label>
-										);
-									})}
+											</div>
+										))}
+									</div>
 								</div>
-							</div>
-						))}
-					</div>
-				)}
+							);
+						})()}
 
-				{/* STEP 2: TRIP ASSIGNMENT */}
-				{createTripStep === 2 && (
-					<div className="space-y-4 py-2">
-						<div className="space-y-1.5">
-							<Label className="text-xs font-semibold">Select Driver *</Label>
-							<Select value={poolDriverId} onValueChange={setPoolDriverId}>
-								<SelectTrigger className="h-9 text-xs">
-									<SelectValue placeholder="Select Driver" />
+						<div className="min-w-0 space-y-1.5">
+							<Label className="font-medium text-xs">Assign Driver *</Label>
+							<Select value={orderDriverId} onValueChange={setOrderDriverId}>
+								<SelectTrigger className="w-full min-w-0 overflow-hidden text-left [&>span]:min-w-0 [&>span]:truncate">
+									<SelectValue placeholder="Select Driver..." />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
 									{finalDrivers.map((d: any) => {
 										const avail = getDriverAvailability(d.id);
 										return (
-											<SelectItem key={d.id} value={d.id} className="cursor-pointer py-1.5">
-												<div className="flex items-center justify-between gap-2 w-full text-xs">
-													<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-														<UserIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-														{d.name} {d.email ? `(${d.email})` : ""}
-													</span>
-													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
-														{avail.label}
-													</span>
+											<SelectItem
+												key={d.id}
+												value={d.id}
+												className="cursor-pointer py-2"
+											>
+												<div className="flex min-w-0 max-w-full flex-col gap-0.5 text-left">
+													<div className="flex items-center justify-between gap-1.5 font-semibold text-slate-900 text-xs dark:text-slate-100">
+														<span>👤 {d.name}</span>
+														<span
+															className={`inline-flex items-center rounded-full border px-2 py-0.5 font-bold text-[10px] ${avail.badgeClass}`}
+														>
+															{avail.label}
+														</span>
+													</div>
+													<div className="flex items-center gap-2 truncate text-[11px] text-muted-foreground">
+														{d.email && <span>📧 {d.email}</span>}
+														{d.staff_code && (
+															<span className="font-mono text-[10px] opacity-75">
+																ID: {d.staff_code}
+															</span>
+														)}
+													</div>
 												</div>
 											</SelectItem>
 										);
@@ -4276,17 +3838,1258 @@ export function DeliveryManagementDashboard({
 							</Select>
 						</div>
 
+						<div className="min-w-0 space-y-1.5">
+							<Label className="font-medium text-xs">
+								Assign Vehicle / Truck
+							</Label>
+							<Select value={orderVehicleId} onValueChange={setOrderVehicleId}>
+								<SelectTrigger className="w-full min-w-0 overflow-hidden text-left [&>span]:min-w-0 [&>span]:truncate">
+									<SelectValue placeholder="Select Vehicle..." />
+								</SelectTrigger>
+								<SelectContent className="max-w-[calc(100vw-3rem)] sm:max-w-md">
+									{vehicles.map((v: any) => (
+										<SelectItem
+											key={v.id}
+											value={v.id.toString()}
+											className="cursor-pointer"
+										>
+											<div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-left">
+												<span className="shrink-0 font-medium">
+													🚚 {v.name}
+												</span>
+												{v.registration_number && (
+													<span className="truncate text-muted-foreground text-xs">
+														({v.registration_number})
+													</span>
+												)}
+											</div>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+					<DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setIsOrderAssignOpen(false)}
+							className="w-full sm:w-auto"
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							className="w-full bg-blue-600 text-white shadow-sm hover:bg-blue-700 sm:w-auto"
+							disabled={createTripDirect.isPending || !orderDriverId}
+							onClick={handleAssignOrderRoute}
+						>
+							{createTripDirect.isPending
+								? "Assigning..."
+								: "Assign & Send to Loader"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Route Confirmation Modal */}
+			<Dialog
+				open={isDeleteRouteModalOpen}
+				onOpenChange={setIsDeleteRouteModalOpen}
+			>
+				<DialogContent className="max-w-md border-red-200 dark:border-red-900/50">
+					<DialogHeader>
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+								<Trash2Icon className="h-5 w-5" />
+							</div>
+							<div>
+								<DialogTitle className="font-bold text-lg text-slate-900 dark:text-slate-100">
+									Delete Delivery Route?
+								</DialogTitle>
+								<DialogDescription className="text-slate-500 text-xs dark:text-slate-400">
+									This will permanently delete the route and all its stops.
+									Active trips using this route will be unlinked.
+								</DialogDescription>
+							</div>
+						</div>
+					</DialogHeader>
+
+					{routeToDelete && (
+						<div className="py-2">
+							<div className="space-y-2 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm dark:border-red-900/30 dark:bg-red-950/20">
+								<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900 dark:border-red-900/30 dark:text-slate-100">
+									<span>{cleanVillageName(routeToDelete.name)}</span>
+									<span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+										{routeToDelete.stops?.length || 0} Stop(s)
+									</span>
+								</div>
+								{routeToDelete.description && (
+									<p className="text-slate-500 text-xs dark:text-slate-400">
+										{cleanRouteDescription(routeToDelete.description)}
+									</p>
+								)}
+								{routeToDelete.stops?.length > 0 && (
+									<div className="space-y-1 pt-1">
+										{routeToDelete.stops
+											.slice(0, 4)
+											.map((stop: any, idx: number) => (
+												<div
+													key={stop.id}
+													className="flex items-center gap-2 text-slate-600 text-xs"
+												>
+													<div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[9px] text-primary">
+														{idx + 1}
+													</div>
+													{stop.customer?.name}
+												</div>
+											))}
+										{routeToDelete.stops.length > 4 && (
+											<p className="pl-6 text-slate-400 text-xs">
+												+{routeToDelete.stops.length - 4} more stop(s)…
+											</p>
+										)}
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => {
+								setIsDeleteRouteModalOpen(false);
+								setRouteToDelete(null);
+							}}
+							disabled={deleteRouteMutation.isPending}
+						>
+							Keep Route
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={handleConfirmDeleteRoute}
+							disabled={deleteRouteMutation.isPending}
+							className="font-semibold shadow-sm"
+						>
+							{deleteRouteMutation.isPending
+								? "Deleting..."
+								: "Yes, Delete Route"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Trip Confirmation Modal */}
+			<Dialog
+				open={isDeleteTripModalOpen}
+				onOpenChange={setIsDeleteTripModalOpen}
+			>
+				<DialogContent className="max-w-md border-red-200 dark:border-red-900/50">
+					<DialogHeader>
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+								<Trash2Icon className="h-5 w-5" />
+							</div>
+							<div>
+								<DialogTitle className="font-bold text-lg text-slate-900 dark:text-slate-100">
+									Delete Delivery Trip?
+								</DialogTitle>
+								<DialogDescription className="text-slate-500 text-xs dark:text-slate-400">
+									This will permanently remove the trip and all its stops.
+									Orders will be released back to the dispatch queue.
+								</DialogDescription>
+							</div>
+						</div>
+					</DialogHeader>
+
+					{tripToDelete && (
+						<div className="py-2">
+							<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm dark:border-red-900/30 dark:bg-red-950/20">
+								<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900 dark:border-red-900/30 dark:text-slate-100">
+									<span>
+										{tripToDelete.route?.name || `Trip #${tripToDelete.id}`}
+									</span>
+									<span
+										className={`rounded px-2 py-0.5 font-bold text-[10px] uppercase ${
+											tripToDelete.status === "cancelled"
+												? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+												: tripToDelete.status === "completed"
+													? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+													: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+										}`}
+									>
+										{tripToDelete.status}
+									</span>
+								</div>
+								<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs dark:text-slate-300">
+									<div>
+										<span className="text-slate-400 dark:text-slate-400">
+											Driver:
+										</span>{" "}
+										<span className="font-medium text-slate-800 dark:text-slate-200">
+											{tripToDelete.driver?.name || "Unassigned"}
+										</span>
+									</div>
+									<div>
+										<span className="text-slate-400 dark:text-slate-400">
+											Vehicle:
+										</span>{" "}
+										<span className="font-medium text-slate-800 dark:text-slate-200">
+											{tripToDelete.vehicle?.name || "N/A"}
+										</span>
+									</div>
+									<div className="col-span-2">
+										<span className="text-slate-400 dark:text-slate-400">
+											Total Stops:
+										</span>{" "}
+										<span className="font-medium text-slate-800 dark:text-slate-200">
+											{tripToDelete.stops?.length || 0} Stop(s)
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => {
+								setIsDeleteTripModalOpen(false);
+								setTripToDelete(null);
+							}}
+							disabled={deleteTripMutation.isPending}
+						>
+							Keep Trip
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={handleConfirmDeleteTrip}
+							disabled={deleteTripMutation.isPending}
+							className="font-semibold shadow-sm"
+						>
+							{deleteTripMutation.isPending
+								? "Deleting..."
+								: "Yes, Delete Trip"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Trip Cancellation Confirmation Modal */}
+			<Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
+				<DialogContent className="max-w-md border-red-200 dark:border-red-900/50">
+					<DialogHeader>
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+								<AlertTriangleIcon className="h-5 w-5" />
+							</div>
+							<div>
+								<DialogTitle className="font-bold text-lg text-slate-900 dark:text-slate-100">
+									Cancel Delivery Trip?
+								</DialogTitle>
+								<DialogDescription className="text-slate-500 text-xs dark:text-slate-400">
+									Are you sure you want to cancel this trip? Assigned orders
+									will be released back to dispatch.
+								</DialogDescription>
+							</div>
+						</div>
+					</DialogHeader>
+
+					{tripToCancel && (
+						<div className="space-y-4 py-2">
+							<div className="space-y-2.5 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-sm dark:border-red-900/30 dark:bg-red-950/20">
+								<div className="flex items-center justify-between border-red-100/80 border-b pb-2 font-semibold text-slate-900 dark:border-red-900/30 dark:text-slate-100">
+									<span>
+										{tripToCancel.route?.name || `Trip #${tripToCancel.id}`}
+									</span>
+									<span className="rounded bg-red-100 px-2 py-0.5 font-bold text-[10px] text-red-700 uppercase dark:bg-red-950 dark:text-red-300">
+										{tripToCancel.status}
+									</span>
+								</div>
+								<div className="grid grid-cols-2 gap-2 text-slate-600 text-xs dark:text-slate-300">
+									<div>
+										<span className="text-slate-400 dark:text-slate-400">
+											Driver:
+										</span>{" "}
+										<span className="font-medium text-slate-800 dark:text-slate-200">
+											{tripToCancel.driver?.name || "Unassigned"}
+										</span>
+									</div>
+									<div>
+										<span className="text-slate-400 dark:text-slate-400">
+											Vehicle:
+										</span>{" "}
+										<span className="font-medium text-slate-800 dark:text-slate-200">
+											{tripToCancel.vehicle?.name || "N/A"}
+										</span>
+									</div>
+									<div className="col-span-2">
+										<span className="text-slate-400">Total Stops:</span>{" "}
+										<span className="font-medium text-slate-800">
+											{tripToCancel.stops?.length || 0} Stop(s)
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label className="font-semibold text-slate-700 text-xs">
+									Reason for Cancellation (Optional)
+								</Label>
+								<Select value={cancelReason} onValueChange={setCancelReason}>
+									<SelectTrigger className="h-9 text-xs">
+										<SelectValue placeholder="Select cancellation reason..." />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="driver_unavailable">
+											Driver Unavailable
+										</SelectItem>
+										<SelectItem value="vehicle_breakdown">
+											Vehicle Breakdown / Maintenance
+										</SelectItem>
+										<SelectItem value="route_reorganization">
+											Route Reorganization
+										</SelectItem>
+										<SelectItem value="customer_reschedule">
+											Customer Rescheduled
+										</SelectItem>
+										<SelectItem value="other">
+											Other Operational Reason
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => {
+								setIsCancelModalOpen(false);
+								setTripToCancel(null);
+							}}
+							disabled={cancelTrip.isPending}
+						>
+							Keep Trip
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={handleConfirmCancelTrip}
+							disabled={cancelTrip.isPending}
+							className="font-semibold shadow-sm"
+						>
+							{cancelTrip.isPending ? "Cancelling..." : "Yes, Cancel Trip"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Clear All Confirmation Modal */}
+			<Dialog open={isClearAllModalOpen} onOpenChange={setIsClearAllModalOpen}>
+				<DialogContent className="max-w-md border-red-200 dark:border-red-900/50">
+					<DialogHeader>
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+								<Trash2Icon className="h-5 w-5" />
+							</div>
+							<div>
+								<DialogTitle className="font-bold text-lg text-slate-900 dark:text-slate-100">
+									Delete All Routes & Trips?
+								</DialogTitle>
+								<DialogDescription className="text-slate-500 text-xs dark:text-slate-400">
+									This will permanently delete all {routes.length} route(s) and{" "}
+									{trips.length} trip(s). All orders will be released back to
+									the unassigned queue.
+								</DialogDescription>
+							</div>
+						</div>
+					</DialogHeader>
+
+					<div className="py-2">
+						<div className="space-y-1 rounded-xl border border-red-200 bg-red-50/70 p-3.5 text-red-800 text-xs dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+							<p className="flex items-center gap-1.5 font-semibold text-red-900 dark:text-red-200">
+								<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+								Warning: This action cannot be undone!
+							</p>
+							<p className="text-red-700/90 leading-relaxed dark:text-red-300/90">
+								All route stops, trip stops, and delivery tracking entries will
+								be erased so you can set up fresh routes from scratch.
+							</p>
+						</div>
+					</div>
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setIsClearAllModalOpen(false)}
+							disabled={clearAllMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={handleConfirmClearAll}
+							disabled={clearAllMutation.isPending}
+							className="font-semibold shadow-sm"
+						>
+							{clearAllMutation.isPending
+								? "Deleting Everything..."
+								: "Yes, Delete All Routes & Trips"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Edit Route & Village Stops Modal */}
+			<Dialog open={isEditRouteOpen} onOpenChange={setIsEditRouteOpen}>
+				<DialogContent className="max-w-xl">
+					<DialogHeader>
+						<div className="flex items-center gap-2.5">
+							<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+								<RouteIcon className="h-5 w-5" />
+							</div>
+							<div>
+								<DialogTitle className="font-bold text-lg">
+									Edit Route & Village Stops
+								</DialogTitle>
+								<DialogDescription className="text-xs">
+									Add, reorder, rename, or delete villages for this delivery
+									route.
+								</DialogDescription>
+							</div>
+						</div>
+					</DialogHeader>
+
+					<div className="max-h-[65vh] space-y-4 overflow-y-auto py-3 pr-1 text-xs">
 						<div className="space-y-1.5">
-							<Label className="text-xs font-semibold">Select Vehicle *</Label>
-							<Select value={poolVehicleId} onValueChange={setPoolVehicleId}>
+							<Label className="font-semibold text-slate-800 text-xs dark:text-slate-200">
+								Route Name *
+							</Label>
+							<Input
+								value={editRouteName}
+								onChange={(e) => setEditRouteName(e.target.value)}
+								placeholder="e.g. Runaha Route"
+								className="h-9 text-xs"
+							/>
+						</div>
+
+						{/* Add Village Input */}
+						<div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-3 dark:border-primary/30 dark:bg-primary/10">
+							<Label className="flex items-center gap-1.5 font-semibold text-slate-900 text-xs dark:text-slate-100">
+								<MapPinIcon className="h-3.5 w-3.5 text-primary" />
+								Add New Village / Stop
+							</Label>
+							<div className="flex gap-2">
+								<Input
+									value={newVillageInput}
+									onChange={(e) => setNewVillageInput(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											handleAddVillageToEdit();
+										}
+									}}
+									placeholder="Type village name (e.g. Bhamoni, Sukha, Runaha)..."
+									className="h-8 bg-white text-xs dark:bg-slate-900"
+								/>
+								<Button
+									type="button"
+									size="sm"
+									className="h-8 bg-primary px-3 font-semibold text-primary-foreground text-xs shadow-sm hover:bg-primary/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+									onClick={handleAddVillageToEdit}
+									disabled={!newVillageInput.trim()}
+								>
+									<PlusIcon className="mr-1 h-3.5 w-3.5" />
+									Add
+								</Button>
+							</div>
+						</div>
+
+						{/* Village List */}
+						<div className="space-y-2">
+							<div className="flex items-center justify-between">
+								<Label className="font-semibold text-slate-800 text-xs uppercase tracking-wider dark:text-slate-200">
+									Villages in Route Sequence ({editVillageStops.length})
+								</Label>
+								{editVillageStops.length > 0 && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 text-[11px] text-red-500 hover:bg-red-50 hover:text-red-700"
+										onClick={() => {
+											setEditVillageStops([]);
+											setEditRouteDesc("");
+										}}
+									>
+										Clear All
+									</Button>
+								)}
+							</div>
+
+							<div className="max-h-56 space-y-1.5 overflow-y-auto rounded-xl border bg-slate-50/50 p-2 text-xs dark:bg-slate-900/40">
+								{editVillageStops.map((village, idx) => (
+									<div
+										key={`edit_v_${idx}`}
+										className="flex items-center justify-between gap-2 rounded-lg border bg-white p-2 shadow-xs transition-colors hover:border-primary/30 dark:bg-slate-800"
+									>
+										<div className="flex min-w-0 flex-1 items-center gap-2">
+											<div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+												{idx + 1}
+											</div>
+											<Input
+												value={village}
+												onChange={(e) => {
+													const val = e.target.value;
+													const updated = [...editVillageStops];
+													updated[idx] = val;
+													setEditVillageStops(updated);
+													setEditRouteDesc(updated.join(" -> "));
+												}}
+												className="h-7 border-none bg-transparent font-semibold text-slate-800 text-xs focus-visible:ring-1 focus-visible:ring-primary dark:text-slate-200"
+											/>
+										</div>
+										<div className="flex shrink-0 items-center gap-1">
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												title="Move Up"
+												className="h-6 w-6 text-slate-400 hover:text-slate-700"
+												disabled={idx === 0}
+												onClick={() => handleMoveVillage(idx, "up")}
+											>
+												<ArrowUpIcon className="h-3.5 w-3.5" />
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												title="Move Down"
+												className="h-6 w-6 text-slate-400 hover:text-slate-700"
+												disabled={idx === editVillageStops.length - 1}
+												onClick={() => handleMoveVillage(idx, "down")}
+											>
+												<ArrowDownIcon className="h-3.5 w-3.5" />
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												title="Delete Village"
+												className="h-6 w-6 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+												onClick={() => handleRemoveVillageFromEdit(idx)}
+											>
+												<Trash2Icon className="h-3.5 w-3.5" />
+											</Button>
+										</div>
+									</div>
+								))}
+								{editVillageStops.length === 0 && (
+									<p className="py-6 text-center text-slate-400 text-xs">
+										No villages left. Add villages using the input above.
+									</p>
+								)}
+							</div>
+						</div>
+
+						{/* Route Description Preview */}
+						<div className="space-y-1">
+							<Label className="text-[11px] text-muted-foreground">
+								Route Summary Preview:
+							</Label>
+							<p className="rounded-lg bg-slate-100/70 p-2.5 font-mono text-[11px] text-slate-600 leading-relaxed dark:bg-slate-900/60 dark:text-slate-400">
+								{editVillageStops.length > 0
+									? editVillageStops.join(" → ")
+									: "No village stops"}
+							</p>
+						</div>
+					</div>
+
+					<DialogFooter className="gap-2 sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => {
+								setIsEditRouteOpen(false);
+								setRouteToEdit(null);
+							}}
+							disabled={updateRouteMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							className="bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+							onClick={handleSaveEditRoute}
+							disabled={
+								updateRouteMutation.isPending ||
+								!editRouteName.trim() ||
+								editVillageStops.length === 0
+							}
+						>
+							{updateRouteMutation.isPending
+								? "Saving Changes..."
+								: "Save Route & Villages"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* DIALOG 1: VIEW ORDERS (Route Waiting Pool) */}
+			<Dialog open={isViewOrdersOpen} onOpenChange={setIsViewOrdersOpen}>
+				<DialogContent className="max-w-3xl">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<RouteIcon className="h-5 w-5 text-primary" />
+							{viewRoutePool?.routeName} — Waiting Orders List
+						</DialogTitle>
+						<DialogDescription>
+							Orders grouped by route stop / village sequence. Only packed and
+							ready orders can be dispatched in a trip.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="max-h-[65vh] space-y-4 overflow-y-auto py-2 pr-1">
+						{(viewRoutePool?.villages || [])
+							.filter((village: any) => (village.orders || []).length > 0)
+							.map((village: any, idx: number) => (
+								<div
+									key={idx}
+									className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/50"
+								>
+									<div className="flex items-center justify-between border-b pb-2 dark:border-slate-800">
+										<span className="font-bold text-slate-800 text-xs dark:text-slate-200">
+											📍 Village/Stop: {village.name}
+										</span>
+										<span className="font-semibold text-[11px] text-slate-500">
+											{village.orderCount} order(s)
+										</span>
+									</div>
+									<div className="space-y-2 pt-1">
+										{(village.orders || []).map((ord: any) => (
+											<div
+												key={ord.id}
+												className="flex items-center justify-between rounded-lg border bg-white p-2.5 text-xs shadow-2xs dark:bg-slate-800"
+											>
+												<div className="flex items-center gap-3">
+													<span className="font-bold font-mono text-slate-600 dark:text-slate-300">
+														{ord.orderNumber}
+													</span>
+													<span className="font-medium text-slate-900 dark:text-slate-100">
+														{ord.customerName}
+													</span>
+												</div>
+												<span
+													className={`rounded-full px-2.5 py-0.5 font-bold text-[10px] uppercase ${
+														ord.isReady
+															? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+															: ord.status === "packing"
+																? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+																: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+													}`}
+												>
+													{ord.isReady
+														? "Ready for Trip"
+														: ord.status === "packing"
+															? "Packing"
+															: "Picked / Processing"}
+												</span>
+											</div>
+										))}
+									</div>
+								</div>
+							))}
+						{(viewRoutePool?.villages || []).filter(
+							(v: any) => (v.orders || []).length > 0,
+						).length === 0 && (
+							<div className="py-8 text-center font-medium text-slate-400 text-xs">
+								No pending orders waiting for this route.
+							</div>
+						)}
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsViewOrdersOpen(false)}
+						>
+							Close
+						</Button>
+						<Button
+							className="bg-primary font-semibold text-primary-foreground"
+							onClick={() => {
+								setIsViewOrdersOpen(false);
+								if (viewRoutePool) handleStartCreateTripFromPool(viewRoutePool);
+							}}
+							disabled={viewRoutePool?.waitingCount === 0}
+						>
+							{t("createTrip")}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* DIALOG 2: CREATE TRIP MULTI-STEP MODAL */}
+			<Dialog
+				open={isCreateTripPoolOpen}
+				onOpenChange={setIsCreateTripPoolOpen}
+			>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<TruckIcon className="h-5 w-5 text-primary" />
+							Create Delivery Trip — {createTripRoutePool?.routeName}
+						</DialogTitle>
+						<DialogDescription>
+							Step {createTripStep} of 3:{" "}
+							{createTripStep === 1
+								? "Select Orders"
+								: createTripStep === 2
+									? "Assign Driver, Vehicle & Loader"
+									: "Review & Create Trip"}
+						</DialogDescription>
+					</DialogHeader>
+
+					{/* STEP 1: SELECT ORDERS */}
+					{createTripStep === 1 && (
+						<div className="max-h-[60vh] space-y-4 overflow-y-auto py-2 pr-1">
+							<div className="flex items-center justify-between rounded-lg bg-slate-100 p-2.5 font-semibold text-xs dark:bg-slate-800">
+								<span>Selected: {selectedPoolOrderIds.length} order(s)</span>
+								<div className="flex gap-2">
+									<Button
+										size="sm"
+										variant="ghost"
+										className="h-6 text-[11px]"
+										onClick={() => {
+											const allIds = (createTripRoutePool?.orders || []).map(
+												(o: any) => o.id,
+											);
+											setSelectedPoolOrderIds(allIds);
+										}}
+									>
+										Select All
+									</Button>
+									<Button
+										size="sm"
+										variant="ghost"
+										className="h-6 text-[11px]"
+										onClick={() => setSelectedPoolOrderIds([])}
+									>
+										Deselect All
+									</Button>
+								</div>
+							</div>
+
+							{(createTripRoutePool?.villages || [])
+								.filter((village: any) => (village.orders || []).length > 0)
+								.map((village: any, vIdx: number) => (
+									<div
+										key={vIdx}
+										className="space-y-2 rounded-xl border bg-slate-50/50 p-3 dark:bg-slate-900/50"
+									>
+										<span className="block border-b pb-1 font-bold text-slate-700 text-xs dark:text-slate-300">
+											📍 Village: {village.name}
+										</span>
+										<div className="space-y-1.5">
+											{(village.orders || []).map((ord: any) => {
+												const isSelected = selectedPoolOrderIds.includes(
+													ord.id,
+												);
+
+												return (
+													<label
+														key={ord.id}
+														className={`flex cursor-pointer items-center justify-between rounded-lg border p-2 text-xs transition-colors ${
+															isSelected
+																? "border-primary bg-primary/5 shadow-2xs"
+																: "bg-white hover:border-slate-300 dark:bg-slate-800"
+														}`}
+													>
+														<div className="flex items-center gap-2">
+															<input
+																type="checkbox"
+																checked={isSelected}
+																onChange={(e) => {
+																	if (e.target.checked) {
+																		setSelectedPoolOrderIds((prev) => [
+																			...prev,
+																			ord.id,
+																		]);
+																	} else {
+																		setSelectedPoolOrderIds((prev) =>
+																			prev.filter((id) => id !== ord.id),
+																		);
+																	}
+																}}
+																className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+															/>
+															<div>
+																<span className="mr-2 font-bold font-mono text-slate-800 dark:text-slate-200">
+																	{ord.orderNumber}
+																</span>
+																<span>{ord.customerName}</span>
+															</div>
+														</div>
+														<span
+															className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase ${
+																ord.isReady
+																	? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+																	: ord.status === "packing"
+																		? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+																		: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+															}`}
+														>
+															{ord.isReady
+																? "Ready for Loading"
+																: ord.status === "packing"
+																	? "Packing"
+																	: "Picking"}
+														</span>
+													</label>
+												);
+											})}
+										</div>
+									</div>
+								))}
+						</div>
+					)}
+
+					{/* STEP 2: TRIP ASSIGNMENT */}
+					{createTripStep === 2 && (
+						<div className="space-y-4 py-2">
+							<div className="space-y-1.5">
+								<Label className="font-semibold text-xs">Select Driver *</Label>
+								<Select value={poolDriverId} onValueChange={setPoolDriverId}>
+									<SelectTrigger className="h-9 text-xs">
+										<SelectValue placeholder="Select Driver" />
+									</SelectTrigger>
+									<SelectContent>
+										{finalDrivers.map((d: any) => {
+											const avail = getDriverAvailability(d.id);
+											return (
+												<SelectItem
+													key={d.id}
+													value={d.id}
+													className="cursor-pointer py-1.5"
+												>
+													<div className="flex w-full items-center justify-between gap-2 text-xs">
+														<span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
+															<UserIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+															{d.name} {d.email ? `(${d.email})` : ""}
+														</span>
+														<span
+															className={`inline-flex items-center rounded-full border px-2 py-0.5 font-bold text-[10px] ${avail.badgeClass}`}
+														>
+															{avail.label}
+														</span>
+													</div>
+												</SelectItem>
+											);
+										})}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label className="font-semibold text-xs">
+									Select Vehicle *
+								</Label>
+								<Select value={poolVehicleId} onValueChange={setPoolVehicleId}>
+									<SelectTrigger className="h-9 text-xs">
+										<SelectValue placeholder="Select Vehicle" />
+									</SelectTrigger>
+									<SelectContent>
+										{vehicles.map((v: any) => (
+											<SelectItem
+												key={v.id}
+												value={v.id.toString()}
+												className="cursor-pointer py-1.5"
+											>
+												<span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
+													<TruckIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+													{v.name} ({v.registration_number})
+												</span>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label className="font-semibold text-xs">
+									Select Trip Loader *
+								</Label>
+								<Select value={poolLoaderId} onValueChange={setPoolLoaderId}>
+									<SelectTrigger className="h-9 text-xs">
+										<SelectValue placeholder="Select Loader" />
+									</SelectTrigger>
+									<SelectContent>
+										{loadersList.map((l: any) => {
+											const avail = getLoaderAvailability(l.id);
+											return (
+												<SelectItem
+													key={l.id}
+													value={l.id}
+													className="cursor-pointer py-1.5"
+												>
+													<div className="flex w-full items-center justify-between gap-2 text-xs">
+														<span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
+															<PackageIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+															{l.name} {l.email ? `(${l.email})` : ""}
+														</span>
+														<span
+															className={`inline-flex items-center rounded-full border px-2 py-0.5 font-bold text-[10px] ${avail.badgeClass}`}
+														>
+															{avail.label}
+														</span>
+													</div>
+												</SelectItem>
+											);
+										})}
+									</SelectContent>
+								</Select>
+								<p className="text-[11px] text-slate-500">
+									The Loader is assigned to the whole trip and will confirm
+									physical vehicle loading.
+								</p>
+							</div>
+						</div>
+					)}
+
+					{/* STEP 3: REVIEW */}
+					{createTripStep === 3 && (
+						<div className="space-y-4 py-2 text-xs">
+							<div className="space-y-2 rounded-xl border bg-slate-50 p-4 dark:bg-slate-800/60">
+								<h4 className="border-b pb-1 font-bold text-slate-900 text-sm dark:text-slate-100">
+									Trip Manifest Review
+								</h4>
+								<div className="flex justify-between">
+									<span className="text-slate-500">Route:</span>
+									<span className="font-bold">
+										{createTripRoutePool?.routeName}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-slate-500">Total Selected Orders:</span>
+									<span className="font-bold text-emerald-600">
+										{selectedPoolOrderIds.length} Orders
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-slate-500">Assigned Driver:</span>
+									<span className="font-bold">
+										{finalDrivers.find((d: any) => d.id === poolDriverId)
+											?.name || poolDriverId}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-slate-500">Assigned Vehicle:</span>
+									<span className="font-bold">
+										{vehicles.find(
+											(v: any) => v.id.toString() === poolVehicleId,
+										)?.name || poolVehicleId}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-slate-500">Assigned Loader:</span>
+									<span className="font-bold">
+										{loadersList.find((l: any) => l.id === poolLoaderId)
+											?.name ||
+											poolLoaderId ||
+											"Default Loader"}
+									</span>
+								</div>
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="flex items-center justify-between sm:justify-between">
+						{createTripStep > 1 ? (
+							<Button
+								variant="outline"
+								onClick={() => setCreateTripStep((prev) => (prev - 1) as 1 | 2)}
+							>
+								Back
+							</Button>
+						) : (
+							<Button
+								variant="outline"
+								onClick={() => setIsCreateTripPoolOpen(false)}
+							>
+								Cancel
+							</Button>
+						)}
+
+						{createTripStep < 3 ? (
+							<Button
+								className="bg-primary font-semibold text-primary-foreground"
+								onClick={() => {
+									if (
+										createTripStep === 1 &&
+										selectedPoolOrderIds.length === 0
+									) {
+										toast.error("Please select at least 1 order.");
+										return;
+									}
+									setCreateTripStep((prev) => (prev + 1) as 2 | 3);
+								}}
+							>
+								Next
+							</Button>
+						) : (
+							<Button
+								className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+								onClick={handleConfirmCreateTripFromPool}
+								disabled={createTripDirect.isPending}
+							>
+								{createTripDirect.isPending
+									? "Creating Trip..."
+									: "Create Trip"}
+							</Button>
+						)}
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* DIALOG 3: FINAL DISPATCH CONFIRMATION */}
+			<Dialog
+				open={isDispatchConfirmOpen}
+				onOpenChange={setIsDispatchConfirmOpen}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+							<TruckIcon className="h-5 w-5" />
+							Dispatch Trip #{dispatchConfirmTrip?.id}?
+						</DialogTitle>
+						<DialogDescription>
+							All required packages/orders have been physically loaded onto the
+							vehicle. Dispatching will release the trip to the Driver for
+							delivery.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-xs dark:bg-slate-800">
+						<div className="flex justify-between">
+							<span className="text-slate-500">Route:</span>
+							<span className="font-bold">
+								{dispatchConfirmTrip?.route?.name || "Direct Trip"}
+							</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-slate-500">Driver:</span>
+							<span className="font-bold">
+								{dispatchConfirmTrip?.driver?.name || "Assigned Driver"}
+							</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-slate-500">Vehicle:</span>
+							<span className="font-bold">
+								{dispatchConfirmTrip?.vehicle?.name || "Assigned Vehicle"}
+							</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-slate-500">Orders Status:</span>
+							<span className="font-bold text-emerald-600">
+								✓ All Orders Loaded
+							</span>
+						</div>
+					</div>
+
+					<DialogFooter className="gap-2">
+						<Button
+							variant="outline"
+							onClick={() => setIsDispatchConfirmOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+							onClick={handleConfirmFinalDispatch}
+							disabled={dispatchTripMutation.isPending}
+						>
+							{dispatchTripMutation.isPending
+								? "Dispatching..."
+								: "Confirm & Dispatch Trip"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* DIALOG 4: TRIP DETAIL MODAL */}
+			<Dialog open={isTripDetailOpen} onOpenChange={setIsTripDetailOpen}>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<TruckIcon className="h-5 w-5 text-primary" />
+							Trip #{selectedDetailTrip?.id} Details
+						</DialogTitle>
+						<DialogDescription>
+							Manifest, assigned team, loading completion, and stop details
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="max-h-[60vh] space-y-4 overflow-y-auto py-2 text-xs">
+						<div className="grid grid-cols-2 gap-3 rounded-xl border bg-slate-50 p-3 sm:grid-cols-4 dark:bg-slate-800/60">
+							<div>
+								<span className="block text-slate-400">Route:</span>
+								<span className="font-bold text-slate-900 dark:text-slate-100">
+									{selectedDetailTrip?.route?.name || "Direct Trip"}
+								</span>
+							</div>
+							<div>
+								<span className="block text-slate-400">Driver:</span>
+								<span className="font-bold text-slate-900 dark:text-slate-100">
+									{selectedDetailTrip?.driver?.name || "N/A"}
+								</span>
+							</div>
+							<div>
+								<span className="block text-slate-400">Vehicle:</span>
+								<span className="font-bold text-slate-900 dark:text-slate-100">
+									{selectedDetailTrip?.vehicle?.name || "N/A"}
+								</span>
+							</div>
+							<div>
+								<span className="block text-slate-400">Status:</span>
+								<span className="font-bold text-emerald-600 uppercase">
+									{selectedDetailTrip?.status || "Pending"}
+								</span>
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<h4 className="font-bold text-slate-500 text-xs uppercase tracking-wider">
+								Assigned Customer Stops (
+								{(selectedDetailTrip?.stops || []).length})
+							</h4>
+							<div className="space-y-2">
+								{(selectedDetailTrip?.stops || []).map(
+									(stop: any, idx: number) => (
+										<div
+											key={stop.id || idx}
+											className="flex items-center justify-between rounded-lg border bg-white p-2.5 dark:bg-slate-800"
+										>
+											<div>
+												<span className="font-bold text-slate-900 dark:text-slate-100">
+													{idx + 1}. {stop.customer?.name || "Customer Stop"}
+												</span>
+												{stop.customer?.address && (
+													<span className="block text-[11px] text-slate-500">
+														📍 {stop.customer.address}
+													</span>
+												)}
+											</div>
+											<span className="rounded bg-slate-100 px-2 py-0.5 font-bold text-[10px] dark:bg-slate-700">
+												Stop #{stop.sequence || idx + 1}
+											</span>
+										</div>
+									),
+								)}
+							</div>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsTripDetailOpen(false)}
+						>
+							Close
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* DIALOG 5: COMPLETE INCOMPLETE TRIP ASSIGNMENT */}
+			<Dialog
+				open={isAssignIncompleteTripOpen}
+				onOpenChange={setIsAssignIncompleteTripOpen}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<TruckIcon className="h-5 w-5 text-primary" />
+							Complete Assignment — Trip #{selectedAssignTrip?.id}
+						</DialogTitle>
+						<DialogDescription>
+							Assign a Driver, Vehicle, and Loader to this trip so it can
+							proceed to loading and dispatch.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						{/* Route & Stop Summary */}
+						<div className="space-y-1 rounded-xl border bg-slate-50 p-3 text-xs dark:bg-slate-800/60">
+							<div className="flex justify-between">
+								<span className="text-slate-500">Route:</span>
+								<span className="font-bold text-slate-800 dark:text-slate-200">
+									{selectedAssignTrip?.route?.name || "Direct Custom Trip"}
+								</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-slate-500">Total Stops:</span>
+								<span className="font-bold text-slate-800 dark:text-slate-200">
+									{(selectedAssignTrip?.stops || []).length} Stops
+								</span>
+							</div>
+						</div>
+
+						{/* Driver Selection */}
+						<div className="space-y-1.5">
+							<Label className="font-semibold text-xs">Select Driver *</Label>
+							<Select
+								value={assignIncompleteDriverId}
+								onValueChange={setAssignIncompleteDriverId}
+							>
+								<SelectTrigger className="h-9 text-xs">
+									<SelectValue placeholder="Select Driver" />
+								</SelectTrigger>
+								<SelectContent>
+									{finalDrivers.map((d: any) => (
+										<SelectItem
+											key={d.id}
+											value={d.id}
+											className="cursor-pointer py-1.5"
+										>
+											<span className="flex items-center gap-1.5 font-medium text-slate-900 text-xs dark:text-slate-100">
+												<UserIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+												{d.name} {d.email ? `(${d.email})` : ""}
+											</span>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* Vehicle Selection */}
+						<div className="space-y-1.5">
+							<Label className="font-semibold text-xs">Select Vehicle *</Label>
+							<Select
+								value={assignIncompleteVehicleId}
+								onValueChange={setAssignIncompleteVehicleId}
+							>
 								<SelectTrigger className="h-9 text-xs">
 									<SelectValue placeholder="Select Vehicle" />
 								</SelectTrigger>
 								<SelectContent>
 									{vehicles.map((v: any) => (
-										<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer py-1.5">
-											<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-												<TruckIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+										<SelectItem
+											key={v.id}
+											value={v.id.toString()}
+											className="cursor-pointer py-1.5"
+										>
+											<span className="flex items-center gap-1.5 font-medium text-slate-900 text-xs dark:text-slate-100">
+												<TruckIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
 												{v.name} ({v.registration_number})
 											</span>
 										</SelectItem>
@@ -4295,700 +5098,424 @@ export function DeliveryManagementDashboard({
 							</Select>
 						</div>
 
+						{/* Loader Selection */}
 						<div className="space-y-1.5">
-							<Label className="text-xs font-semibold">Select Trip Loader *</Label>
-							<Select value={poolLoaderId} onValueChange={setPoolLoaderId}>
+							<Label className="font-semibold text-xs">
+								Select Trip Loader (Optional)
+							</Label>
+							<Select
+								value={assignIncompleteLoaderId}
+								onValueChange={setAssignIncompleteLoaderId}
+							>
 								<SelectTrigger className="h-9 text-xs">
 									<SelectValue placeholder="Select Loader" />
 								</SelectTrigger>
 								<SelectContent>
-									{loadersList.map((l: any) => {
-										const avail = getLoaderAvailability(l.id);
-										return (
-											<SelectItem key={l.id} value={l.id} className="cursor-pointer py-1.5">
-												<div className="flex items-center justify-between gap-2 w-full text-xs">
-													<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-														<PackageIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-														{l.name} {l.email ? `(${l.email})` : ""}
-													</span>
-													<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${avail.badgeClass}`}>
-														{avail.label}
-													</span>
-												</div>
-											</SelectItem>
-										);
-									})}
+									{loadersList.map((l: any) => (
+										<SelectItem
+											key={l.id}
+											value={l.id}
+											className="cursor-pointer py-1.5"
+										>
+											<span className="flex items-center gap-1.5 font-medium text-slate-900 text-xs dark:text-slate-100">
+												<PackageIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+												{l.name} {l.email ? `(${l.email})` : ""}
+											</span>
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
-							<p className="text-[11px] text-slate-500">
-								The Loader is assigned to the whole trip and will confirm physical vehicle loading.
-							</p>
-						</div>
-					</div>
-				)}
-
-				{/* STEP 3: REVIEW */}
-				{createTripStep === 3 && (
-					<div className="space-y-4 py-2 text-xs">
-						<div className="rounded-xl border bg-slate-50 dark:bg-slate-800/60 p-4 space-y-2">
-							<h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 border-b pb-1">
-								Trip Manifest Review
-							</h4>
-							<div className="flex justify-between">
-								<span className="text-slate-500">Route:</span>
-								<span className="font-bold">{createTripRoutePool?.routeName}</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-slate-500">Total Selected Orders:</span>
-								<span className="font-bold text-emerald-600">{selectedPoolOrderIds.length} Orders</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-slate-500">Assigned Driver:</span>
-								<span className="font-bold">
-									{finalDrivers.find((d: any) => d.id === poolDriverId)?.name || poolDriverId}
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-slate-500">Assigned Vehicle:</span>
-								<span className="font-bold">
-									{vehicles.find((v: any) => v.id.toString() === poolVehicleId)?.name || poolVehicleId}
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-slate-500">Assigned Loader:</span>
-								<span className="font-bold">
-									{loadersList.find((l: any) => l.id === poolLoaderId)?.name || poolLoaderId || "Default Loader"}
-								</span>
-							</div>
-						</div>
-					</div>
-				)}
-
-				<DialogFooter className="flex justify-between items-center sm:justify-between">
-					{createTripStep > 1 ? (
-						<Button variant="outline" onClick={() => setCreateTripStep((prev) => (prev - 1) as 1 | 2)}>
-							Back
-						</Button>
-					) : (
-						<Button variant="outline" onClick={() => setIsCreateTripPoolOpen(false)}>
-							Cancel
-						</Button>
-					)}
-
-					{createTripStep < 3 ? (
-						<Button
-							className="bg-primary text-white font-semibold"
-							onClick={() => {
-								if (createTripStep === 1 && selectedPoolOrderIds.length === 0) {
-									toast.error("Please select at least 1 order.");
-									return;
-								}
-								setCreateTripStep((prev) => (prev + 1) as 2 | 3);
-							}}
-						>
-							Next
-						</Button>
-					) : (
-						<Button
-							className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-							onClick={handleConfirmCreateTripFromPool}
-							disabled={createTripDirect.isPending}
-						>
-							{createTripDirect.isPending ? "Creating Trip..." : "Create Trip"}
-						</Button>
-					)}
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* DIALOG 3: FINAL DISPATCH CONFIRMATION */}
-		<Dialog open={isDispatchConfirmOpen} onOpenChange={setIsDispatchConfirmOpen}>
-			<DialogContent className="max-w-md">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-						<TruckIcon className="h-5 w-5" />
-						Dispatch Trip #{dispatchConfirmTrip?.id}?
-					</DialogTitle>
-					<DialogDescription>
-						All required packages/orders have been physically loaded onto the vehicle. Dispatching will release the trip to the Driver for delivery.
-					</DialogDescription>
-				</DialogHeader>
-
-				<div className="space-y-2 border rounded-xl p-3 bg-slate-50 dark:bg-slate-800 text-xs">
-					<div className="flex justify-between">
-						<span className="text-slate-500">Route:</span>
-						<span className="font-bold">{dispatchConfirmTrip?.route?.name || "Direct Trip"}</span>
-					</div>
-					<div className="flex justify-between">
-						<span className="text-slate-500">Driver:</span>
-						<span className="font-bold">{dispatchConfirmTrip?.driver?.name || "Assigned Driver"}</span>
-					</div>
-					<div className="flex justify-between">
-						<span className="text-slate-500">Vehicle:</span>
-						<span className="font-bold">{dispatchConfirmTrip?.vehicle?.name || "Assigned Vehicle"}</span>
-					</div>
-					<div className="flex justify-between">
-						<span className="text-slate-500">Orders Status:</span>
-						<span className="font-bold text-emerald-600">✓ All Orders Loaded</span>
-					</div>
-				</div>
-
-				<DialogFooter className="gap-2">
-					<Button variant="outline" onClick={() => setIsDispatchConfirmOpen(false)}>
-						Cancel
-					</Button>
-					<Button
-						className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-						onClick={handleConfirmFinalDispatch}
-						disabled={dispatchTripMutation.isPending}
-					>
-						{dispatchTripMutation.isPending ? "Dispatching..." : "Confirm & Dispatch Trip"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* DIALOG 4: TRIP DETAIL MODAL */}
-		<Dialog open={isTripDetailOpen} onOpenChange={setIsTripDetailOpen}>
-			<DialogContent className="max-w-2xl">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<TruckIcon className="h-5 w-5 text-primary" />
-						Trip #{selectedDetailTrip?.id} Details
-					</DialogTitle>
-					<DialogDescription>
-						Manifest, assigned team, loading completion, and stop details
-					</DialogDescription>
-				</DialogHeader>
-
-				<div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 text-xs">
-					<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border">
-						<div>
-							<span className="text-slate-400 block">Route:</span>
-							<span className="font-bold text-slate-900 dark:text-slate-100">
-								{selectedDetailTrip?.route?.name || "Direct Trip"}
-							</span>
-						</div>
-						<div>
-							<span className="text-slate-400 block">Driver:</span>
-							<span className="font-bold text-slate-900 dark:text-slate-100">
-								{selectedDetailTrip?.driver?.name || "N/A"}
-							</span>
-						</div>
-						<div>
-							<span className="text-slate-400 block">Vehicle:</span>
-							<span className="font-bold text-slate-900 dark:text-slate-100">
-								{selectedDetailTrip?.vehicle?.name || "N/A"}
-							</span>
-						</div>
-						<div>
-							<span className="text-slate-400 block">Status:</span>
-							<span className="font-bold text-emerald-600 uppercase">
-								{selectedDetailTrip?.status || "Pending"}
-							</span>
 						</div>
 					</div>
 
-					<div className="space-y-2">
-						<h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
-							Assigned Customer Stops ({(selectedDetailTrip?.stops || []).length})
-						</h4>
-						<div className="space-y-2">
-							{(selectedDetailTrip?.stops || []).map((stop: any, idx: number) => (
-								<div
-									key={stop.id || idx}
-									className="flex justify-between items-center p-2.5 rounded-lg border bg-white dark:bg-slate-800"
-								>
-									<div>
-										<span className="font-bold text-slate-900 dark:text-slate-100">
-											{idx + 1}. {stop.customer?.name || "Customer Stop"}
-										</span>
-										{stop.customer?.address && (
-											<span className="text-[11px] text-slate-500 block">
-												📍 {stop.customer.address}
-											</span>
-										)}
-									</div>
-									<span className="rounded bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-bold">
-										Stop #{stop.sequence || idx + 1}
-									</span>
-								</div>
-							))}
-						</div>
-					</div>
-				</div>
-
-				<DialogFooter>
-					<Button variant="outline" onClick={() => setIsTripDetailOpen(false)}>
-						Close
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-
-		{/* DIALOG 5: COMPLETE INCOMPLETE TRIP ASSIGNMENT */}
-		<Dialog open={isAssignIncompleteTripOpen} onOpenChange={setIsAssignIncompleteTripOpen}>
-			<DialogContent className="max-w-md">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<TruckIcon className="h-5 w-5 text-primary" />
-						Complete Assignment — Trip #{selectedAssignTrip?.id}
-					</DialogTitle>
-					<DialogDescription>
-						Assign a Driver, Vehicle, and Loader to this trip so it can proceed to loading and dispatch.
-					</DialogDescription>
-				</DialogHeader>
-
-				<div className="space-y-4 py-2">
-					{/* Route & Stop Summary */}
-					<div className="rounded-xl border bg-slate-50 dark:bg-slate-800/60 p-3 space-y-1 text-xs">
-						<div className="flex justify-between">
-							<span className="text-slate-500">Route:</span>
-							<span className="font-bold text-slate-800 dark:text-slate-200">
-								{selectedAssignTrip?.route?.name || "Direct Custom Trip"}
-							</span>
-						</div>
-						<div className="flex justify-between">
-							<span className="text-slate-500">Total Stops:</span>
-							<span className="font-bold text-slate-800 dark:text-slate-200">
-								{(selectedAssignTrip?.stops || []).length} Stops
-							</span>
-						</div>
-					</div>
-
-					{/* Driver Selection */}
-					<div className="space-y-1.5">
-						<Label className="text-xs font-semibold">Select Driver *</Label>
-						<Select value={assignIncompleteDriverId} onValueChange={setAssignIncompleteDriverId}>
-							<SelectTrigger className="h-9 text-xs">
-								<SelectValue placeholder="Select Driver" />
-							</SelectTrigger>
-							<SelectContent>
-								{finalDrivers.map((d: any) => (
-									<SelectItem key={d.id} value={d.id} className="cursor-pointer py-1.5">
-										<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
-											<UserIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-											{d.name} {d.email ? `(${d.email})` : ""}
-										</span>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					{/* Vehicle Selection */}
-					<div className="space-y-1.5">
-						<Label className="text-xs font-semibold">Select Vehicle *</Label>
-						<Select value={assignIncompleteVehicleId} onValueChange={setAssignIncompleteVehicleId}>
-							<SelectTrigger className="h-9 text-xs">
-								<SelectValue placeholder="Select Vehicle" />
-							</SelectTrigger>
-							<SelectContent>
-								{vehicles.map((v: any) => (
-									<SelectItem key={v.id} value={v.id.toString()} className="cursor-pointer py-1.5">
-										<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
-											<TruckIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-											{v.name} ({v.registration_number})
-										</span>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					{/* Loader Selection */}
-					<div className="space-y-1.5">
-						<Label className="text-xs font-semibold">Select Trip Loader (Optional)</Label>
-						<Select value={assignIncompleteLoaderId} onValueChange={setAssignIncompleteLoaderId}>
-							<SelectTrigger className="h-9 text-xs">
-								<SelectValue placeholder="Select Loader" />
-							</SelectTrigger>
-							<SelectContent>
-								{loadersList.map((l: any) => (
-									<SelectItem key={l.id} value={l.id} className="cursor-pointer py-1.5">
-										<span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
-											<PackageIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-											{l.name} {l.email ? `(${l.email})` : ""}
-										</span>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-				</div>
-
-				<DialogFooter className="flex flex-row justify-between items-center gap-2 pt-2">
-					<Button
-						type="button"
-						variant="outline"
-						className="text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-						onClick={() => {
-							if (window.confirm(`Are you sure you want to delete Trip #${selectedAssignTrip?.id}?`)) {
-								cancelTrip.mutate({ tripId: selectedAssignTrip.id });
-								setIsAssignIncompleteTripOpen(false);
-							}
-						}}
-						disabled={cancelTrip.isPending || assignVehicleAndDriverMutation.isPending}
-					>
-						Delete Trip
-					</Button>
-
-					<div className="flex items-center gap-2">
+					<DialogFooter className="flex flex-row items-center justify-between gap-2 pt-2">
 						<Button
 							type="button"
 							variant="outline"
-							className="text-xs"
-							onClick={() => setIsAssignIncompleteTripOpen(false)}
-						>
-							Cancel
-						</Button>
-						<Button
-							type="button"
-							className="bg-primary hover:bg-primary/90 text-white font-semibold text-xs"
+							className="border-red-200 text-red-600 text-xs hover:bg-red-50 hover:text-red-700"
 							onClick={() => {
-								if (!assignIncompleteDriverId || !assignIncompleteVehicleId) {
-									toast.error("Please select both a Driver and a Vehicle.");
-									return;
+								if (
+									window.confirm(
+										`Are you sure you want to delete Trip #${selectedAssignTrip?.id}?`,
+									)
+								) {
+									cancelTrip.mutate({ tripId: selectedAssignTrip.id });
+									setIsAssignIncompleteTripOpen(false);
 								}
-								assignVehicleAndDriverMutation.mutate({
-									tripId: selectedAssignTrip.id,
-									driverId: assignIncompleteDriverId,
-									vehicleId: Number(assignIncompleteVehicleId),
-									loaderId: assignIncompleteLoaderId || undefined,
-								});
 							}}
-							disabled={assignVehicleAndDriverMutation.isPending}
+							disabled={
+								cancelTrip.isPending || assignVehicleAndDriverMutation.isPending
+							}
 						>
-							{assignVehicleAndDriverMutation.isPending ? "Saving..." : "Save & Ready for Loading"}
+							Delete Trip
 						</Button>
-					</div>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
 
-		{/* ── Settlement Details & Customer Delivery Audit Modal ── */}
-		<Dialog
-			open={isSettlementDetailOpen}
-			onOpenChange={setIsSettlementDetailOpen}
-		>
-			<DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-6">
-				<DialogHeader className="border-b pb-3">
-					<div className="flex flex-wrap items-center justify-between gap-2">
-						<DialogTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-							<FileTextIcon className="h-5 w-5 text-blue-600" />
-							Customer Delivery & Payment Settlement Audit
-						</DialogTitle>
-						<span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
-							<CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" />
-							Settlement Verified
-						</span>
-					</div>
-					<DialogDescription className="text-xs text-muted-foreground mt-1">
-						Full breakdown of customer order items, returned/rejected goods, and driver payment handover.
-					</DialogDescription>
-				</DialogHeader>
+						<div className="flex items-center gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								className="text-xs"
+								onClick={() => setIsAssignIncompleteTripOpen(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								type="button"
+								className="bg-primary font-semibold text-primary-foreground text-xs hover:bg-primary/90"
+								onClick={() => {
+									if (!assignIncompleteDriverId || !assignIncompleteVehicleId) {
+										toast.error("Please select both a Driver and a Vehicle.");
+										return;
+									}
+									assignVehicleAndDriverMutation.mutate({
+										tripId: selectedAssignTrip.id,
+										driverId: assignIncompleteDriverId,
+										vehicleId: Number(assignIncompleteVehicleId),
+										loaderId: assignIncompleteLoaderId || undefined,
+									});
+								}}
+								disabled={assignVehicleAndDriverMutation.isPending}
+							>
+								{assignVehicleAndDriverMutation.isPending
+									? "Saving..."
+									: "Save & Ready for Loading"}
+							</Button>
+						</div>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
-				{selectedSettlementDetail && (
-					<div className="space-y-6 pt-2">
-						{/* 1. Metric Highlights Bar */}
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-xl border bg-muted/40 p-4">
-							<div className="space-y-1">
-								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-									Total Collected
-								</span>
-								<p className="font-bold font-mono text-2xl text-emerald-600">
-									₹{selectedSettlementDetail.amount.toLocaleString("en-IN")}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-									Payment Mode
-								</span>
-								<p className="font-semibold text-sm text-foreground capitalize">
-									{selectedSettlementDetail.methods?.join(" & ") || "Cash"}
-								</p>
-								{selectedSettlementDetail.methods?.length > 1 && (
-									<p className="text-[10px] text-muted-foreground font-medium">
-										{Object.entries(selectedSettlementDetail.breakdown || {})
-											.map(
-												([m, a]: any) =>
-													`${m}: ₹${a.toLocaleString("en-IN")}`,
-											)
-											.join(" + ")}
+			{/* ── Settlement Details & Customer Delivery Audit Modal ── */}
+			<Dialog
+				open={isSettlementDetailOpen}
+				onOpenChange={setIsSettlementDetailOpen}
+			>
+				<DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-6">
+					<DialogHeader className="border-b pb-3">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<DialogTitle className="flex items-center gap-2 font-bold text-foreground text-lg">
+								<FileTextIcon className="h-5 w-5 text-blue-600" />
+								Customer Delivery & Payment Settlement Audit
+							</DialogTitle>
+							<span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800 text-xs dark:bg-emerald-950/60 dark:text-emerald-300">
+								<CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" />
+								Settlement Verified
+							</span>
+						</div>
+						<DialogDescription className="mt-1 text-muted-foreground text-xs">
+							Full breakdown of customer order items, returned/rejected goods,
+							and driver payment handover.
+						</DialogDescription>
+					</DialogHeader>
+
+					{selectedSettlementDetail && (
+						<div className="space-y-6 pt-2">
+							{/* 1. Metric Highlights Bar */}
+							<div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/40 p-4 sm:grid-cols-4">
+								<div className="space-y-1">
+									<span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+										Total Collected
+									</span>
+									<p className="font-bold font-mono text-2xl text-emerald-600">
+										₹{selectedSettlementDetail.amount.toLocaleString("en-IN")}
 									</p>
+								</div>
+								<div className="space-y-1">
+									<span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+										Payment Mode
+									</span>
+									<p className="font-semibold text-foreground text-sm capitalize">
+										{selectedSettlementDetail.methods?.join(" & ") || "Cash"}
+									</p>
+									{selectedSettlementDetail.methods?.length > 1 && (
+										<p className="font-medium text-[10px] text-muted-foreground">
+											{Object.entries(selectedSettlementDetail.breakdown || {})
+												.map(
+													([m, a]: any) =>
+														`${m}: ₹${a.toLocaleString("en-IN")}`,
+												)
+												.join(" + ")}
+										</p>
+									)}
+								</div>
+								<div className="space-y-1">
+									<span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+										Ref / Txn IDs
+									</span>
+									<p
+										className="truncate font-mono font-semibold text-foreground text-xs"
+										title={selectedSettlementDetail.transactionIds?.join(", ")}
+									>
+										{selectedSettlementDetail.transactionIds?.join(", ")}
+									</p>
+								</div>
+								<div className="space-y-1">
+									<span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
+										Handover Time
+									</span>
+									<p className="font-medium text-foreground text-xs">
+										{selectedSettlementDetail.collectedAt}
+									</p>
+								</div>
+							</div>
+
+							{/* 2. Customer Profile & Driver Info */}
+							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+								{/* Customer Info Card */}
+								<div className="space-y-3 rounded-xl border bg-card p-4">
+									<div className="flex items-center gap-2 border-b pb-2 font-semibold text-foreground text-sm">
+										<UserIcon className="h-4 w-4 text-emerald-600" />
+										Customer Details
+									</div>
+									<div className="space-y-1.5 text-xs">
+										<div className="flex justify-between">
+											<span className="text-muted-foreground">Name:</span>
+											<span className="font-bold text-foreground">
+												{selectedSettlementDetail.customerName}
+											</span>
+										</div>
+										<div className="flex justify-between">
+											<span className="text-muted-foreground">Phone:</span>
+											<span className="font-medium text-foreground">
+												{selectedSettlementDetail.customerPhone}
+											</span>
+										</div>
+										<div className="flex items-start gap-1 border-border/40 border-t pt-1">
+											<MapPinIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+											<span className="text-muted-foreground">
+												{selectedSettlementDetail.customerAddress}
+											</span>
+										</div>
+									</div>
+								</div>
+
+								{/* Driver & Trip Info Card */}
+								<div className="space-y-3 rounded-xl border bg-card p-4">
+									<div className="flex items-center gap-2 border-b pb-2 font-semibold text-foreground text-sm">
+										<TruckIcon className="h-4 w-4 text-blue-600" />
+										Driver & Route Info
+									</div>
+									<div className="space-y-1.5 text-xs">
+										<div className="flex justify-between">
+											<span className="text-muted-foreground">
+												Driver Name:
+											</span>
+											<span className="font-bold text-foreground">
+												{selectedSettlementDetail.driverName}
+											</span>
+										</div>
+										<div className="flex justify-between">
+											<span className="text-muted-foreground">
+												Driver Email:
+											</span>
+											<span className="font-medium text-foreground">
+												{selectedSettlementDetail.driverEmail}
+											</span>
+										</div>
+										<div className="flex justify-between border-border/40 border-t pt-1">
+											<span className="text-muted-foreground">Trip Code:</span>
+											<span className="font-bold font-mono text-primary">
+												{selectedSettlementDetail.tripName ||
+													`Trip #${selectedSettlementDetail.tripId}`}
+											</span>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							{/* 3. Returned / Damaged Items Alert */}
+							{selectedSettlementDetail.allReturnedItems &&
+								selectedSettlementDetail.allReturnedItems.length > 0 && (
+									<div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+										<div className="flex items-center gap-2 font-bold text-amber-900 text-sm dark:text-amber-200">
+											<AlertTriangleIcon className="h-4 w-4 text-amber-600" />
+											Items Returned / Modified at Doorstep (ग्राहक द्वारा लौटाया
+											गया / हटाया गया सामान)
+										</div>
+										<div className="divide-y divide-amber-200 overflow-hidden rounded-lg border border-amber-200 bg-background/90 dark:divide-amber-900/60 dark:border-amber-900/60">
+											{selectedSettlementDetail.allReturnedItems.map(
+												(ret: any, rIdx: number) => (
+													<div
+														key={rIdx}
+														className="flex flex-wrap items-center justify-between gap-2 p-3 text-xs"
+													>
+														<div>
+															<span className="font-bold text-foreground">
+																{ret.name || ret.productName || "Product"}
+															</span>
+															<span className="ml-2 inline-flex items-center rounded bg-red-100 px-2 py-0.5 font-bold text-[11px] text-red-800 dark:bg-red-950 dark:text-red-300">
+																{ret.qty || 1} Qty Returned
+															</span>
+														</div>
+														<div className="font-medium text-amber-800 dark:text-amber-300">
+															Reason:{" "}
+															<span className="font-semibold text-foreground">
+																{ret.reason || "Customer refused / damaged"}
+															</span>
+														</div>
+													</div>
+												),
+											)}
+										</div>
+									</div>
+								)}
+
+							{/* 4. Full Order Line Items Breakdown */}
+							<div className="space-y-3">
+								<div className="flex items-center justify-between">
+									<h4 className="flex items-center gap-2 font-bold text-base text-foreground">
+										<PackageIcon className="h-4 w-4 text-primary" />
+										Order Items & Handover Audit
+									</h4>
+									<span className="text-muted-foreground text-xs">
+										{selectedSettlementDetail.allOrders?.length || 0} Linked
+										Order(s)
+									</span>
+								</div>
+
+								{!selectedSettlementDetail.allOrders ||
+								selectedSettlementDetail.allOrders.length === 0 ? (
+									<div className="rounded-xl border p-6 text-center text-muted-foreground text-sm">
+										No detailed order items linked.
+									</div>
+								) : (
+									selectedSettlementDetail.allOrders.map((ord: any) => (
+										<div
+											key={ord.id}
+											className="space-y-0 overflow-hidden rounded-xl border bg-card shadow-xs"
+										>
+											<div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/50 px-4 py-2.5 text-xs">
+												<div className="flex items-center gap-2">
+													<span className="font-bold font-mono text-primary text-sm">
+														{ord.orderRef || `ORD-${ord.id}`}
+													</span>
+													<span className="text-muted-foreground">
+														({ord.createdAt})
+													</span>
+												</div>
+												<div className="flex items-center gap-3">
+													<span className="font-medium text-muted-foreground">
+														Order Total:{" "}
+														<strong className="font-mono text-foreground text-sm">
+															₹{ord.totalAmount?.toLocaleString("en-IN")}
+														</strong>
+													</span>
+													<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-[11px] text-emerald-800">
+														{ord.status || "Completed"}
+													</span>
+												</div>
+											</div>
+
+											<div className="overflow-x-auto">
+												<table className="w-full text-left text-xs">
+													<thead>
+														<tr className="border-b bg-muted/20 text-muted-foreground">
+															<th className="px-4 py-2 font-semibold">
+																Item & Category
+															</th>
+															<th className="px-3 py-2 text-center font-semibold">
+																Ordered Qty
+															</th>
+															<th className="px-3 py-2 text-right font-semibold">
+																Unit Price
+															</th>
+															<th className="px-3 py-2 text-right font-semibold">
+																Line Total
+															</th>
+															<th className="px-3 py-2 text-center font-semibold">
+																Status
+															</th>
+														</tr>
+													</thead>
+													<tbody className="divide-y">
+														{(ord.items || []).map((it: any) => {
+															const retMatch = (
+																selectedSettlementDetail.allReturnedItems || []
+															).find(
+																(r: any) =>
+																	r.id === it.id ||
+																	(r.name &&
+																		r.name
+																			.toLowerCase()
+																			.includes(it.productName?.toLowerCase())),
+															);
+															const returnedQty = retMatch?.qty || 0;
+															const deliveredQty = Math.max(
+																0,
+																it.quantity - returnedQty,
+															);
+
+															return (
+																<tr
+																	key={it.id}
+																	className="transition-colors hover:bg-muted/30"
+																>
+																	<td className="px-4 py-2.5">
+																		<div className="font-semibold text-foreground">
+																			{it.productName}
+																		</div>
+																		<div className="text-[11px] text-muted-foreground">
+																			{it.category}{" "}
+																			{it.sku !== "—" ? `• SKU: ${it.sku}` : ""}
+																		</div>
+																	</td>
+																	<td className="px-3 py-2.5 text-center font-bold">
+																		{it.quantity} {it.unit || "pcs"}
+																	</td>
+																	<td className="px-3 py-2.5 text-right font-mono">
+																		₹{it.unitPrice?.toFixed(2)}
+																	</td>
+																	<td className="px-3 py-2.5 text-right font-bold font-mono text-foreground">
+																		₹{it.totalPrice?.toFixed(2)}
+																	</td>
+																	<td className="px-3 py-2.5 text-center">
+																		{returnedQty > 0 ? (
+																			<span className="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 font-bold text-[10px] text-amber-800">
+																				{deliveredQty} Deliv. / {returnedQty}{" "}
+																				Ret.
+																			</span>
+																		) : (
+																			<span className="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 font-semibold text-[10px] text-emerald-800">
+																				Delivered ({it.quantity})
+																			</span>
+																		)}
+																	</td>
+																</tr>
+															);
+														})}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									))
 								)}
 							</div>
-							<div className="space-y-1">
-								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-									Ref / Txn IDs
-								</span>
-								<p
-									className="font-mono font-semibold text-xs text-foreground truncate"
-									title={selectedSettlementDetail.transactionIds?.join(", ")}
-								>
-									{selectedSettlementDetail.transactionIds?.join(", ")}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-									Handover Time
-								</span>
-								<p className="text-xs font-medium text-foreground">
-									{selectedSettlementDetail.collectedAt}
-								</p>
-							</div>
-						</div>
 
-						{/* 2. Customer Profile & Driver Info */}
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{/* Customer Info Card */}
-							<div className="rounded-xl border bg-card p-4 space-y-3">
-								<div className="flex items-center gap-2 border-b pb-2 text-sm font-semibold text-foreground">
-									<UserIcon className="h-4 w-4 text-emerald-600" />
-									Customer Details
-								</div>
-								<div className="space-y-1.5 text-xs">
-									<div className="flex justify-between">
-										<span className="text-muted-foreground">Name:</span>
-										<span className="font-bold text-foreground">
-											{selectedSettlementDetail.customerName}
-										</span>
+							{/* 5. Driver Delivery Notes */}
+							{selectedSettlementDetail.deliveryNotes && (
+								<div className="space-y-1.5 rounded-xl border bg-muted/30 p-4 text-xs">
+									<div className="flex items-center gap-1.5 font-bold text-foreground">
+										<FileTextIcon className="h-4 w-4 text-blue-600" />
+										Driver Delivery Notes & Comments:
 									</div>
-									<div className="flex justify-between">
-										<span className="text-muted-foreground">Phone:</span>
-										<span className="font-medium text-foreground">
-											{selectedSettlementDetail.customerPhone}
-										</span>
-									</div>
-									<div className="flex items-start gap-1 pt-1 border-t border-border/40">
-										<MapPinIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-										<span className="text-muted-foreground">
-											{selectedSettlementDetail.customerAddress}
-										</span>
-									</div>
-								</div>
-							</div>
-
-							{/* Driver & Trip Info Card */}
-							<div className="rounded-xl border bg-card p-4 space-y-3">
-								<div className="flex items-center gap-2 border-b pb-2 text-sm font-semibold text-foreground">
-									<TruckIcon className="h-4 w-4 text-blue-600" />
-									Driver & Route Info
-								</div>
-								<div className="space-y-1.5 text-xs">
-									<div className="flex justify-between">
-										<span className="text-muted-foreground">Driver Name:</span>
-										<span className="font-bold text-foreground">
-											{selectedSettlementDetail.driverName}
-										</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-muted-foreground">Driver Email:</span>
-										<span className="font-medium text-foreground">
-											{selectedSettlementDetail.driverEmail}
-										</span>
-									</div>
-									<div className="flex justify-between pt-1 border-t border-border/40">
-										<span className="text-muted-foreground">Trip Code:</span>
-										<span className="font-mono font-bold text-primary">
-											{selectedSettlementDetail.tripName ||
-												`Trip #${selectedSettlementDetail.tripId}`}
-										</span>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						{/* 3. Returned / Damaged Items Alert */}
-						{selectedSettlementDetail.allReturnedItems &&
-							selectedSettlementDetail.allReturnedItems.length > 0 && (
-								<div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/30 space-y-3">
-									<div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-sm">
-										<AlertTriangleIcon className="h-4 w-4 text-amber-600" />
-										Items Returned / Modified at Doorstep (ग्राहक द्वारा लौटाया गया / हटाया गया सामान)
-									</div>
-									<div className="divide-y divide-amber-200 dark:divide-amber-900/60 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-background/90 overflow-hidden">
-										{selectedSettlementDetail.allReturnedItems.map(
-											(ret: any, rIdx: number) => (
-												<div
-													key={rIdx}
-													className="flex flex-wrap items-center justify-between gap-2 p-3 text-xs"
-												>
-													<div>
-														<span className="font-bold text-foreground">
-															{ret.name || ret.productName || "Product"}
-														</span>
-														<span className="ml-2 inline-flex items-center rounded bg-red-100 text-red-800 font-bold px-2 py-0.5 text-[11px] dark:bg-red-950 dark:text-red-300">
-															{ret.qty || 1} Qty Returned
-														</span>
-													</div>
-													<div className="text-amber-800 dark:text-amber-300 font-medium">
-														Reason:{" "}
-														<span className="font-semibold text-foreground">
-															{ret.reason || "Customer refused / damaged"}
-														</span>
-													</div>
-												</div>
-											),
-										)}
-									</div>
+									<p className="pl-5 text-muted-foreground italic">
+										"{selectedSettlementDetail.deliveryNotes}"
+									</p>
 								</div>
 							)}
-
-						{/* 4. Full Order Line Items Breakdown */}
-						<div className="space-y-3">
-							<div className="flex items-center justify-between">
-								<h4 className="flex items-center gap-2 font-bold text-base text-foreground">
-									<PackageIcon className="h-4 w-4 text-primary" />
-									Order Items & Handover Audit
-								</h4>
-								<span className="text-xs text-muted-foreground">
-									{selectedSettlementDetail.allOrders?.length || 0} Linked Order(s)
-								</span>
-							</div>
-
-							{!selectedSettlementDetail.allOrders ||
-							selectedSettlementDetail.allOrders.length === 0 ? (
-								<div className="rounded-xl border p-6 text-center text-muted-foreground text-sm">
-									No detailed order items linked.
-								</div>
-							) : (
-								selectedSettlementDetail.allOrders.map((ord: any) => (
-									<div
-										key={ord.id}
-										className="rounded-xl border bg-card overflow-hidden shadow-xs space-y-0"
-									>
-										<div className="flex flex-wrap items-center justify-between gap-2 bg-muted/50 px-4 py-2.5 border-b text-xs">
-											<div className="flex items-center gap-2">
-												<span className="font-bold font-mono text-primary text-sm">
-													{ord.orderRef || `ORD-${ord.id}`}
-												</span>
-												<span className="text-muted-foreground">
-													({ord.createdAt})
-												</span>
-											</div>
-											<div className="flex items-center gap-3">
-												<span className="font-medium text-muted-foreground">
-													Order Total:{" "}
-													<strong className="font-mono text-foreground text-sm">
-														₹{ord.totalAmount?.toLocaleString("en-IN")}
-													</strong>
-												</span>
-												<span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold text-emerald-800 text-[11px]">
-													{ord.status || "Completed"}
-												</span>
-											</div>
-										</div>
-
-										<div className="overflow-x-auto">
-											<table className="w-full text-left text-xs">
-												<thead>
-													<tr className="border-b bg-muted/20 text-muted-foreground">
-														<th className="px-4 py-2 font-semibold">
-															Item & Category
-														</th>
-														<th className="px-3 py-2 font-semibold text-center">
-															Ordered Qty
-														</th>
-														<th className="px-3 py-2 font-semibold text-right">
-															Unit Price
-														</th>
-														<th className="px-3 py-2 font-semibold text-right">
-															Line Total
-														</th>
-														<th className="px-3 py-2 font-semibold text-center">
-															Status
-														</th>
-													</tr>
-												</thead>
-												<tbody className="divide-y">
-													{(ord.items || []).map((it: any) => {
-														const retMatch = (
-															selectedSettlementDetail.allReturnedItems || []
-														).find(
-															(r: any) =>
-																r.id === it.id ||
-																(r.name &&
-																	r.name
-																		.toLowerCase()
-																		.includes(it.productName?.toLowerCase())),
-														);
-														const returnedQty = retMatch?.qty || 0;
-														const deliveredQty = Math.max(
-															0,
-															it.quantity - returnedQty,
-														);
-
-														return (
-															<tr
-																key={it.id}
-																className="hover:bg-muted/30 transition-colors"
-															>
-																<td className="px-4 py-2.5">
-																	<div className="font-semibold text-foreground">
-																		{it.productName}
-																	</div>
-																	<div className="text-[11px] text-muted-foreground">
-																		{it.category}{" "}
-																		{it.sku !== "—" ? `• SKU: ${it.sku}` : ""}
-																	</div>
-																</td>
-																<td className="px-3 py-2.5 text-center font-bold">
-																	{it.quantity} {it.unit || "pcs"}
-																</td>
-																<td className="px-3 py-2.5 text-right font-mono">
-																	₹{it.unitPrice?.toFixed(2)}
-																</td>
-																<td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">
-																	₹{it.totalPrice?.toFixed(2)}
-																</td>
-																<td className="px-3 py-2.5 text-center">
-																	{returnedQty > 0 ? (
-																		<span className="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 font-bold text-amber-800 text-[10px]">
-																			{deliveredQty} Deliv. / {returnedQty} Ret.
-																		</span>
-																	) : (
-																		<span className="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 text-[10px]">
-																			Delivered ({it.quantity})
-																		</span>
-																	)}
-																</td>
-															</tr>
-														);
-													})}
-												</tbody>
-											</table>
-										</div>
-									</div>
-								))
-							)}
 						</div>
+					)}
 
-						{/* 5. Driver Delivery Notes */}
-						{selectedSettlementDetail.deliveryNotes && (
-							<div className="rounded-xl border bg-muted/30 p-4 space-y-1.5 text-xs">
-								<div className="font-bold text-foreground flex items-center gap-1.5">
-									<FileTextIcon className="h-4 w-4 text-blue-600" />
-									Driver Delivery Notes & Comments:
-								</div>
-								<p className="text-muted-foreground italic pl-5">
-									"{selectedSettlementDetail.deliveryNotes}"
-								</p>
-							</div>
-						)}
-					</div>
-				)}
-
-				<DialogFooter className="border-t pt-3">
-					<Button
-						variant="outline"
-						onClick={() => setIsSettlementDetailOpen(false)}
-					>
-						Close
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+					<DialogFooter className="border-t pt-3">
+						<Button
+							variant="outline"
+							onClick={() => setIsSettlementDetailOpen(false)}
+						>
+							Close
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</>
 	);
 }

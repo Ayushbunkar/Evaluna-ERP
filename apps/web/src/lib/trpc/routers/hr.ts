@@ -6,8 +6,8 @@ import {
 	branches,
 	departments,
 	designations,
-	employees,
 	employeeShifts,
+	employees,
 	enhancedAttendance,
 	holidays,
 	leaveApplications,
@@ -139,8 +139,22 @@ export const hrRouter = router({
 				}
 
 				const results = await db
-					.select()
+					.select({
+						id: staff.id,
+						staff_code: staff.staff_code,
+						name: staff.name,
+						department: staff.department,
+						role: staff.role,
+						phone: staff.phone,
+						email: staff.email,
+						join_date: staff.join_date,
+						salary: staff.salary,
+						status: staff.status,
+						branch_id: staff.branch_id,
+						userImage: user.image,
+					})
 					.from(staff)
+					.leftJoin(user, eq(staff.email, user.email))
 					.where(and(...conditions))
 					.orderBy(desc(staff.created_at))
 					.limit(100);
@@ -159,6 +173,8 @@ export const hrRouter = router({
 					salary: Number(r.salary) || 0,
 					status: r.status || "active",
 					branch_id: r.branch_id,
+					image: r.userImage || null,
+					userImage: r.userImage || null,
 				}));
 			} catch (err: any) {
 				console.error("Error in getEmployees:", err);
@@ -185,6 +201,7 @@ export const hrRouter = router({
 						endDate: leaveApplications.endDate,
 						reason: leaveApplications.reason,
 						status: leaveApplications.status,
+						managerApproved: leaveApplications.managerApproved,
 						appliedAt: leaveApplications.createdAt,
 						approvedAt: leaveApplications.approvedAt,
 						approvedBy: sql<string>`COALESCE(${employeesApproved.firstName} || ' ' || ${employeesApproved.lastName}, 'N/A')`,
@@ -221,6 +238,7 @@ export const hrRouter = router({
 					end_date: r.endDate ? new Date(r.endDate).toLocaleDateString() : "",
 					reason: r.reason || "",
 					status: r.status || "pending",
+					manager_approved: Boolean(r.managerApproved),
 					applied_at: r.appliedAt
 						? new Date(r.appliedAt).toLocaleDateString()
 						: "",
@@ -382,7 +400,18 @@ export const hrRouter = router({
 			const leave = leaveRequest[0];
 
 			// Ensure manager has approved before HR can approve
-			if (input.status === "approved" && !leave.managerApproved) {
+			const isManager = ctx.user.role === "manager";
+			const isAdmin =
+				ctx.user.role === "admin" ||
+				ctx.user.role === "super_admin" ||
+				Boolean(ctx.user.isSuperadmin);
+
+			if (
+				input.status === "approved" &&
+				!leave.managerApproved &&
+				!isAdmin &&
+				!isManager
+			) {
 				throw new TRPCError({
 					code: "PRECONDITION_FAILED",
 					message:
@@ -440,6 +469,8 @@ export const hrRouter = router({
 				.update(leaveApplications)
 				.set({
 					status: input.status,
+					managerApproved:
+						input.status === "approved" ? true : leave.managerApproved,
 					approvedBy: approverId,
 					approvedAt: input.approvedAt ?? new Date(),
 				})
@@ -574,7 +605,8 @@ export const hrRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			try {
-				const targetDate = input?.date || new Date().toISOString().split("T")[0];
+				const targetDate =
+					input?.date || new Date().toISOString().split("T")[0];
 				const isSuperAdmin = Boolean(
 					ctx.user.isSuperadmin ||
 						(ctx.user as any).role === "super_admin" ||
@@ -694,13 +726,15 @@ export const hrRouter = router({
 					const inId =
 						typeof checkInSelfieObj === "object" && checkInSelfieObj !== null
 							? checkInSelfieObj.attachmentId || checkInSelfieObj.id || null
-							: typeof checkInSelfieObj === "number" || typeof checkInSelfieObj === "string"
+							: typeof checkInSelfieObj === "number" ||
+									typeof checkInSelfieObj === "string"
 								? Number(checkInSelfieObj) || null
 								: null;
 					const outId =
 						typeof checkOutSelfieObj === "object" && checkOutSelfieObj !== null
 							? checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null
-							: typeof checkOutSelfieObj === "number" || typeof checkOutSelfieObj === "string"
+							: typeof checkOutSelfieObj === "number" ||
+									typeof checkOutSelfieObj === "string"
 								? Number(checkOutSelfieObj) || null
 								: null;
 
@@ -722,7 +756,10 @@ export const hrRouter = router({
 					for (const rec of attachmentRecords) {
 						if (rec.file_data) {
 							const mime = rec.mime_type || "image/jpeg";
-							attachmentDataMap.set(rec.id, `data:${mime};base64,${rec.file_data}`);
+							attachmentDataMap.set(
+								rec.id,
+								`data:${mime};base64,${rec.file_data}`,
+							);
 						}
 					}
 				}
@@ -734,7 +771,10 @@ export const hrRouter = router({
 						leaveTypeName: leaveTypes.name,
 					})
 					.from(leaveApplications)
-					.leftJoin(leaveTypes, eq(leaveApplications.leaveTypeId, leaveTypes.id))
+					.leftJoin(
+						leaveTypes,
+						eq(leaveApplications.leaveTypeId, leaveTypes.id),
+					)
 					.where(
 						and(
 							lte(leaveApplications.startDate, targetDate),
@@ -815,21 +855,25 @@ export const hrRouter = router({
 					const selfieAttachmentId =
 						typeof checkInSelfieObj === "object" && checkInSelfieObj !== null
 							? checkInSelfieObj.attachmentId || checkInSelfieObj.id || null
-							: typeof checkInSelfieObj === "number" || typeof checkInSelfieObj === "string"
+							: typeof checkInSelfieObj === "number" ||
+									typeof checkInSelfieObj === "string"
 								? Number(checkInSelfieObj) || null
 								: null;
 					const checkOutSelfieAttachmentId =
 						typeof checkOutSelfieObj === "object" && checkOutSelfieObj !== null
 							? checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null
-							: typeof checkOutSelfieObj === "number" || typeof checkOutSelfieObj === "string"
+							: typeof checkOutSelfieObj === "number" ||
+									typeof checkOutSelfieObj === "string"
 								? Number(checkOutSelfieObj) || null
 								: null;
 
 					const checkInSelfieUrl = selfieAttachmentId
-						? (attachmentDataMap.get(selfieAttachmentId) || `/api/attendance/attachments/${selfieAttachmentId}`)
+						? attachmentDataMap.get(selfieAttachmentId) ||
+							`/api/attendance/attachments/${selfieAttachmentId}`
 						: null;
 					const checkOutSelfieUrl = checkOutSelfieAttachmentId
-						? (attachmentDataMap.get(checkOutSelfieAttachmentId) || `/api/attendance/attachments/${checkOutSelfieAttachmentId}`)
+						? attachmentDataMap.get(checkOutSelfieAttachmentId) ||
+							`/api/attendance/attachments/${checkOutSelfieAttachmentId}`
 						: null;
 
 					return {
@@ -970,8 +1014,12 @@ export const hrRouter = router({
 			const lateCount = attRows.filter(
 				(r: any) => (r.lateMinutes && r.lateMinutes > 0) || r.status === "late",
 			).length;
-			const halfDayCount = attRows.filter((r: any) => r.status === "half_day").length;
-			const leaveCount = attRows.filter((r: any) => r.status === "leave").length;
+			const halfDayCount = attRows.filter(
+				(r: any) => r.status === "half_day",
+			).length;
+			const leaveCount = attRows.filter(
+				(r: any) => r.status === "leave",
+			).length;
 			const adjustedCount = attRows.filter((r: any) => r.isAdjusted).length;
 			const incompleteCount = attRows.filter(
 				(r: any) => r.checkIn && !r.checkOut,
@@ -1000,7 +1048,14 @@ export const hrRouter = router({
 				checkIn: z.string().nullable().optional(),
 				checkOut: z.string().nullable().optional(),
 				status: z
-					.enum(["present", "half_day", "absent", "leave", "holiday", "week_off"])
+					.enum([
+						"present",
+						"half_day",
+						"absent",
+						"leave",
+						"holiday",
+						"week_off",
+					])
 					.optional(),
 				adjustmentCategory: z.enum([
 					"biometric_malfunction",
@@ -1075,7 +1130,9 @@ export const hrRouter = router({
 
 			// Determine new check-in/out and calculate status engine output
 			const cleanCheckIn =
-				input.checkIn !== undefined ? input.checkIn : (existing?.checkIn ?? null);
+				input.checkIn !== undefined
+					? input.checkIn
+					: (existing?.checkIn ?? null);
 			const cleanCheckOut =
 				input.checkOut !== undefined
 					? input.checkOut
@@ -1274,10 +1331,7 @@ export const hrRouter = router({
 					.select({ image: user.image })
 					.from(user)
 					.where(
-						or(
-							eq(user.email, staffRow.email),
-							eq(user.staff_id, staffRow.id),
-						),
+						or(eq(user.email, staffRow.email), eq(user.staff_id, staffRow.id)),
 					)
 					.limit(1);
 				canonicalPhoto = userRec?.image || null;
@@ -1471,7 +1525,7 @@ export const hrRouter = router({
 
 					let code = "A";
 					let statusLabel = "Absent";
-					let isAdjusted = Boolean(attRecord?.isAdjusted);
+					const isAdjusted = Boolean(attRecord?.isAdjusted);
 
 					if (onLeave) {
 						code = "LV";
@@ -1487,7 +1541,11 @@ export const hrRouter = router({
 						weekOffDays++;
 					} else if (attRecord) {
 						if (attRecord.isAdjusted) adjustedDays++;
-						if (attRecord.checkIn && !attRecord.checkOut && dateStr < todayStr) {
+						if (
+							attRecord.checkIn &&
+							!attRecord.checkOut &&
+							dateStr < todayStr
+						) {
 							code = "INC";
 							statusLabel = "Incomplete";
 							incompleteDays++;
@@ -1560,7 +1618,8 @@ export const hrRouter = router({
 					weekOffDays,
 					incompleteDays,
 					adjustedDays,
-					totalWorkingHoursFormatted: minutesToFormattedHours(totalWorkingMinutes),
+					totalWorkingHoursFormatted:
+						minutesToFormattedHours(totalWorkingMinutes),
 					dailyMatrix,
 				};
 			});
@@ -1586,12 +1645,7 @@ export const hrRouter = router({
 	getAttendanceReports: roleProcedure(["admin", "manager", "auditor", "hr"])
 		.input(
 			z.object({
-				reportType: z.enum([
-					"daily",
-					"monthly",
-					"adjustments",
-					"exceptions",
-				]),
+				reportType: z.enum(["daily", "monthly", "adjustments", "exceptions"]),
 				date: z.string().optional(),
 				month: z.number().optional(),
 				year: z.number().optional(),
@@ -1622,10 +1676,7 @@ export const hrRouter = router({
 						department: staff.department,
 					})
 					.from(enhancedAttendance)
-					.innerJoin(
-						employees,
-						eq(enhancedAttendance.employeeId, employees.id),
-					)
+					.innerJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
 					.innerJoin(staff, eq(employees.email, staff.email))
 					.where(eq(enhancedAttendance.isAdjusted, true))
 					.orderBy(desc(enhancedAttendance.adjustedAt))
@@ -1667,10 +1718,7 @@ export const hrRouter = router({
 						status: enhancedAttendance.status,
 					})
 					.from(enhancedAttendance)
-					.innerJoin(
-						employees,
-						eq(enhancedAttendance.employeeId, employees.id),
-					)
+					.innerJoin(employees, eq(enhancedAttendance.employeeId, employees.id))
 					.innerJoin(staff, eq(employees.email, staff.email))
 					.where(
 						and(

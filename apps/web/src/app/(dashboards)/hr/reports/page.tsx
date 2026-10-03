@@ -16,7 +16,7 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import { jsPDF } from "jspdf";
-import { ActivityIcon, DownloadIcon, FileBarChartIcon } from "lucide-react";
+import { ActivityIcon, DownloadIcon } from "lucide-react";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -26,6 +26,7 @@ export default function HRReportsPage() {
 	const { data: stats } = trpc.hr.getDashboardStats.useQuery({});
 
 	const [selectedReport, setSelectedReport] = useState<string | null>(null);
+	const [errorModal, setErrorModal] = useState<string | null>(null);
 
 	const reportCategories = [
 		{
@@ -149,7 +150,7 @@ export default function HRReportsPage() {
 			doc.save(`${selectedReport.replace(/\s+/g, "_").toLowerCase()}.pdf`);
 		} catch (err) {
 			console.error("Error generating PDF:", err);
-			alert("Failed to generate report. Please try again.");
+			setErrorModal("Failed to generate report PDF. Please try again.");
 		} finally {
 			setIsDownloading(false);
 			setSelectedReport(null);
@@ -267,6 +268,24 @@ export default function HRReportsPage() {
 								{isDownloading ? "Generating PDF..." : "Download PDF"}
 							</Button>
 						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			{/* Error Modal */}
+			<Dialog
+				open={!!errorModal}
+				onOpenChange={(open) => !open && setErrorModal(null)}
+			>
+				<DialogContent className="sm:max-w-[420px]">
+					<DialogHeader>
+						<DialogTitle className="font-semibold text-foreground text-lg">
+							Report Generation Failed
+						</DialogTitle>
+					</DialogHeader>
+					<div className="py-2 text-muted-foreground text-sm">{errorModal}</div>
+					<div className="flex justify-end pt-2">
+						<Button onClick={() => setErrorModal(null)}>Close</Button>
 					</div>
 				</DialogContent>
 			</Dialog>

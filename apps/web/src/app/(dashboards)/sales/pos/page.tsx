@@ -28,7 +28,14 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import { PaymentModal } from "@/components/pos/payment-modal";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
@@ -170,7 +177,7 @@ function ScrollableQtyInput({
 
 	const commit = () => {
 		setIsEditing(false);
-		const parsed = parseFloat(textValue.trim());
+		const parsed = Number.parseFloat(textValue.trim());
 		if (isNaN(parsed) || parsed <= 0) {
 			onChange(0);
 		} else {
@@ -190,7 +197,7 @@ function ScrollableQtyInput({
 				inputRef.current?.select();
 			}}
 		>
-			<span className="text-[9px] opacity-50 select-none">↕</span>
+			<span className="select-none text-[9px] opacity-50">↕</span>
 			<input
 				ref={inputRef}
 				type="text"
@@ -219,15 +226,16 @@ function ScrollableQtyInput({
 					}
 				}}
 				onClick={(e) => e.stopPropagation()}
-				className="w-9 min-w-0 bg-transparent text-center font-mono font-bold text-xs text-emerald-950 dark:text-emerald-100 p-0 border-none outline-none focus:bg-white dark:focus:bg-gray-900 rounded cursor-text"
+				className="w-9 min-w-0 cursor-text rounded border-none bg-transparent p-0 text-center font-bold font-mono text-emerald-950 text-xs outline-none focus:bg-white dark:text-emerald-100 dark:focus:bg-gray-900"
 			/>
 			{unit && unit !== "Pcs" && (
-				<span className="text-[10px] font-normal opacity-80 select-none shrink-0">{unit}</span>
+				<span className="shrink-0 select-none font-normal text-[10px] opacity-80">
+					{unit}
+				</span>
 			)}
 		</div>
 	);
 }
-
 
 function WheelStepperWrapper({
 	children,
@@ -298,20 +306,27 @@ function POSContent() {
 		routeName?: string;
 	}>({});
 	const [lastPayments, setLastPayments] = useState<any[]>([]);
-	const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">("catalog");
+	const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">(
+		"catalog",
+	);
 	const [customBillDate, setCustomBillDate] = useState<string>(""); // YYYY-MM-DD backdate or empty for real time
 
 	// Discount state
 	const [discountAmount, setDiscountAmount] = useState<number>(0);
-	const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
+	const [discountType, setDiscountType] = useState<"fixed" | "percent">(
+		"fixed",
+	);
 	const [discountReason, setDiscountReason] = useState<string>("");
 	const [discountModalOpen, setDiscountModalOpen] = useState(false);
 
 	// Temp state in Discount modal
 	const [tempDiscountVal, setTempDiscountVal] = useState<string>("");
-	const [tempDiscountType, setTempDiscountType] = useState<"fixed" | "percent">("fixed");
+	const [tempDiscountType, setTempDiscountType] = useState<"fixed" | "percent">(
+		"fixed",
+	);
 	const [tempDiscountReason, setTempDiscountReason] = useState<string>("");
-	const [tempCustomDiscountReason, setTempCustomDiscountReason] = useState<string>("");
+	const [tempCustomDiscountReason, setTempCustomDiscountReason] =
+		useState<string>("");
 
 	// Extra charges state
 	const [extraChargesAmount, setExtraChargesAmount] = useState<number>(0);
@@ -321,7 +336,8 @@ function POSContent() {
 	// Temp state in Extra charges modal
 	const [tempExtraVal, setTempExtraVal] = useState<string>("");
 	const [tempExtraReason, setTempExtraReason] = useState<string>("");
-	const [tempCustomExtraReason, setTempCustomExtraReason] = useState<string>("");
+	const [tempCustomExtraReason, setTempCustomExtraReason] =
+		useState<string>("");
 	const checkingOutRef = useRef(false);
 
 	// Summary Breakdown Accordion toggle state (collapsed on mobile by default to maximize space for items)
@@ -409,8 +425,10 @@ function POSContent() {
 		subtotal: locale === "hi" ? "उप-योग (Subtotal)" : "Subtotal",
 		discount: locale === "hi" ? "छूट (Discount)" : "Discount",
 		editDiscount: locale === "hi" ? "छूट जोड़ें / बदलें" : "Edit Discount",
-		extraCharges: locale === "hi" ? "अतिरिक्त शुल्क (Extra Charges)" : "Extra Charges",
-		addExtraCharges: locale === "hi" ? "+ अतिरिक्त शुल्क जोड़ें" : "+ Add Extra Charge",
+		extraCharges:
+			locale === "hi" ? "अतिरिक्त शुल्क (Extra Charges)" : "Extra Charges",
+		addExtraCharges:
+			locale === "hi" ? "+ अतिरिक्त शुल्क जोड़ें" : "+ Add Extra Charge",
 		total: locale === "hi" ? "कुल राशि (Total)" : "Total",
 		holdBill: locale === "hi" ? "बिल होल्ड करें" : "Hold Bill",
 		holding: locale === "hi" ? "होल्ड हो रहा है..." : "Holding...",
@@ -441,7 +459,9 @@ function POSContent() {
 				otherCharges: extraChargesValue,
 				otherChargesReason: extraChargesReason || undefined,
 				payments: lastPayments,
-				finance_status: data.finance_status || (lastPayments && lastPayments.length > 0 ? "paid" : "pending"),
+				finance_status:
+					data.finance_status ||
+					(lastPayments && lastPayments.length > 0 ? "paid" : "pending"),
 				...customerDetails,
 			});
 			setCart([]);
@@ -509,7 +529,8 @@ function POSContent() {
 				discount: Number(fetchedCompletedOrder.discount_amount || 0),
 				discountReason: fetchedCompletedOrder.discount_reason || undefined,
 				otherCharges: Number(fetchedCompletedOrder.other_charges || 0),
-				otherChargesReason: fetchedCompletedOrder.other_charges_reason || undefined,
+				otherChargesReason:
+					fetchedCompletedOrder.other_charges_reason || undefined,
 				cashierName: "Counter 1",
 				customerName:
 					fetchedCompletedOrder.customer?.name || "Walk-in Customer",
@@ -523,11 +544,8 @@ function POSContent() {
 						? []
 						: [
 								{
-									methodId:
-										fetchedCompletedOrder.payment_method_id || 1,
-									amount: Number(
-										fetchedCompletedOrder.total_amount,
-									).toFixed(2),
+									methodId: fetchedCompletedOrder.payment_method_id || 1,
+									amount: Number(fetchedCompletedOrder.total_amount).toFixed(2),
 								},
 							],
 				finance_status: fetchedCompletedOrder.finance_status || "pending",
@@ -544,7 +562,10 @@ function POSContent() {
 				qty: Number(item.quantity) || 1,
 			}));
 			setCart(restoredCart);
-			if (resumeOrder.discount_amount && Number(resumeOrder.discount_amount) > 0) {
+			if (
+				resumeOrder.discount_amount &&
+				Number(resumeOrder.discount_amount) > 0
+			) {
 				setDiscountAmount(Number(resumeOrder.discount_amount));
 				setDiscountType("fixed");
 				setDiscountReason(resumeOrder.discount_reason || "");
@@ -573,9 +594,10 @@ function POSContent() {
 
 	// Callbacks
 	const addToCart = useCallback((product: any, qty = 1) => {
-		const effectivePrice = product.hasDailyOffer && product.offerPrice
-			? product.offerPrice
-			: product.price;
+		const effectivePrice =
+			product.hasDailyOffer && product.offerPrice
+				? product.offerPrice
+				: product.price;
 
 		setCart((prev) => {
 			const existing = prev.find((item) => item.id === product.id);
@@ -673,7 +695,10 @@ function POSContent() {
 		setCart((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
-					const newQty = Math.max(0.001, parseFloat((item.qty + delta).toFixed(3)));
+					const newQty = Math.max(
+						0.001,
+						Number.parseFloat((item.qty + delta).toFixed(3)),
+					);
 					return { ...item, qty: newQty };
 				}
 				return item;
@@ -709,7 +734,7 @@ function POSContent() {
 	};
 
 	const applyDiscount = () => {
-		const parsedVal = parseFloat(tempDiscountVal);
+		const parsedVal = Number.parseFloat(tempDiscountVal);
 		if (isNaN(parsedVal) || parsedVal <= 0) {
 			setDiscountAmount(0);
 			setDiscountReason("");
@@ -720,14 +745,17 @@ function POSContent() {
 
 		const finalReason =
 			tempDiscountReason === "Custom / Other Reason" || !tempDiscountReason
-				? tempCustomDiscountReason.trim() || (locale === "hi" ? "विशेष छूट" : "Special Discount")
+				? tempCustomDiscountReason.trim() ||
+					(locale === "hi" ? "विशेष छूट" : "Special Discount")
 				: tempDiscountReason;
 
 		setDiscountAmount(parsedVal);
 		setDiscountType(tempDiscountType);
 		setDiscountReason(finalReason);
 		setDiscountModalOpen(false);
-		toast.success(locale === "hi" ? "छूट सफलतापूर्वक लागू की गई!" : "Discount applied!");
+		toast.success(
+			locale === "hi" ? "छूट सफलतापूर्वक लागू की गई!" : "Discount applied!",
+		);
 	};
 
 	const clearDiscount = () => {
@@ -745,30 +773,37 @@ function POSContent() {
 		setTempExtraVal(extraChargesAmount > 0 ? String(extraChargesAmount) : "");
 		setTempExtraReason(extraChargesReason);
 		setTempCustomExtraReason(
-			EXTRA_CHARGES_PRESET_REASONS.includes(extraChargesReason) ? "" : extraChargesReason,
+			EXTRA_CHARGES_PRESET_REASONS.includes(extraChargesReason)
+				? ""
+				: extraChargesReason,
 		);
 		setExtraChargesModalOpen(true);
 	};
 
 	const applyExtraCharges = () => {
-		const parsedVal = parseFloat(tempExtraVal);
+		const parsedVal = Number.parseFloat(tempExtraVal);
 		if (isNaN(parsedVal) || parsedVal <= 0) {
 			setExtraChargesAmount(0);
 			setExtraChargesReason("");
 			setExtraChargesModalOpen(false);
-			toast.info(locale === "hi" ? "अतिरिक्त शुल्क हटा दिया गया" : "Extra charges removed");
+			toast.info(
+				locale === "hi" ? "अतिरिक्त शुल्क हटा दिया गया" : "Extra charges removed",
+			);
 			return;
 		}
 
 		const finalReason =
 			tempExtraReason === "Custom / Other Charge" || !tempExtraReason
-				? tempCustomExtraReason.trim() || (locale === "hi" ? "अतिरिक्त शुल्क" : "Extra Charge")
+				? tempCustomExtraReason.trim() ||
+					(locale === "hi" ? "अतिरिक्त शुल्क" : "Extra Charge")
 				: tempExtraReason;
 
 		setExtraChargesAmount(parsedVal);
 		setExtraChargesReason(finalReason);
 		setExtraChargesModalOpen(false);
-		toast.success(locale === "hi" ? "अतिरिक्त शुल्क जोड़ा गया!" : "Extra charges added!");
+		toast.success(
+			locale === "hi" ? "अतिरिक्त शुल्क जोड़ा गया!" : "Extra charges added!",
+		);
 	};
 
 	const clearExtraCharges = () => {
@@ -778,7 +813,9 @@ function POSContent() {
 		setTempExtraReason("");
 		setTempCustomExtraReason("");
 		setExtraChargesModalOpen(false);
-		toast.info(locale === "hi" ? "अतिरिक्त शुल्क हटा दिया गया" : "Extra charges removed");
+		toast.info(
+			locale === "hi" ? "अतिरिक्त शुल्क हटा दिया गया" : "Extra charges removed",
+		);
 	};
 
 	const handleCheckout = () => {
@@ -824,7 +861,8 @@ function POSContent() {
 			isOfflineSync: false,
 			discountAmount: discountValue > 0 ? String(discountValue) : undefined,
 			discountReason: discountReason || undefined,
-			otherCharges: extraChargesValue > 0 ? String(extraChargesValue) : undefined,
+			otherCharges:
+				extraChargesValue > 0 ? String(extraChargesValue) : undefined,
 			otherChargesReason: extraChargesReason || undefined,
 			customBillDate: customBillDate || undefined,
 		} as any);
@@ -887,7 +925,10 @@ function POSContent() {
 			const numericQ = rawQ.replace(/[^0-9]/g, "");
 
 			result = result.filter((p) => {
-				const localizedName = getLocalizedProductName(p.name || "", "hi").toLowerCase();
+				const localizedName = getLocalizedProductName(
+					p.name || "",
+					"hi",
+				).toLowerCase();
 				const nameLower = (p.name || "").toLowerCase();
 				const descLower = (p.description || "").toLowerCase();
 				const skuLower = (p.sku || "").toLowerCase();
@@ -896,7 +937,10 @@ function POSContent() {
 				const idStr = String(p.id);
 
 				// Fast Number Code Match
-				if (numericQ && (idStr === numericQ || `#${idStr}` === q || `p-${idStr}` === q)) {
+				if (
+					numericQ &&
+					(idStr === numericQ || `#${idStr}` === q || `p-${idStr}` === q)
+				) {
 					return true;
 				}
 
@@ -916,7 +960,9 @@ function POSContent() {
 				const searchTokens = q.split(/\s+/).filter(Boolean);
 				if (searchTokens.length > 1) {
 					const combinedHaystack = `${nameLower} ${localizedName} ${descLower} ${skuLower} ${barcodeLower} ${catLower}`;
-					return searchTokens.every((token) => combinedHaystack.includes(token));
+					return searchTokens.every((token) =>
+						combinedHaystack.includes(token),
+					);
 				}
 
 				return false;
@@ -941,7 +987,7 @@ function POSContent() {
 	}
 
 	return (
-		<PageTransition className="flex h-[calc(100dvh-72px)] md:h-full w-full flex-col overflow-hidden bg-muted/40 md:flex-row rounded-lg">
+		<PageTransition className="flex h-[calc(100dvh-72px)] w-full flex-col overflow-hidden rounded-lg bg-muted/40 md:h-full md:flex-row">
 			{/* Mobile View Mode Switcher */}
 			<div className="flex shrink-0 items-center justify-between border-b bg-background p-2 md:hidden">
 				<div className="flex w-full rounded-lg bg-muted p-1">
@@ -965,7 +1011,8 @@ function POSContent() {
 								: "text-muted-foreground hover:text-foreground"
 						}`}
 					>
-						{t.currentOrder} ({cart.reduce((acc, item) => acc + (item.qty || 1), 0)})
+						{t.currentOrder} (
+						{cart.reduce((acc, item) => acc + (item.qty || 1), 0)})
 						{cart.length > 0 && (
 							<span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-primary" />
 						)}
@@ -975,7 +1022,7 @@ function POSContent() {
 
 			{/* Left Pane - Catalog */}
 			<div
-				className={`min-h-0 flex-1 flex-col border-r p-2.5 sm:p-4 overflow-hidden ${
+				className={`min-h-0 flex-1 flex-col overflow-hidden border-r p-2.5 sm:p-4 ${
 					activeMobileTab === "catalog" ? "flex" : "hidden md:flex"
 				}`}
 			>
@@ -983,7 +1030,7 @@ function POSContent() {
 					<div className="flex items-center gap-2">
 						<h1 className="font-bold text-xl sm:text-2xl">{t.posTitle}</h1>
 						{catalog && catalog.length > 0 && (
-							<span className="rounded-md border bg-muted px-2 py-0.5 font-semibold text-xs text-muted-foreground">
+							<span className="rounded-md border bg-muted px-2 py-0.5 font-semibold text-muted-foreground text-xs">
 								{catalog.length} Products
 							</span>
 						)}
@@ -992,14 +1039,20 @@ function POSContent() {
 						{/* Custom Bill Date Selector */}
 						<div className="flex items-center gap-1">
 							<div className="relative flex items-center">
-								<Label htmlFor="pos-bill-date" className="sr-only">Bill Date</Label>
-								<div className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
-									customBillDate 
-										? "border-amber-500/60 bg-amber-50 text-amber-900 shadow-xs dark:bg-amber-950/50 dark:text-amber-300"
-										: "border-border bg-background text-foreground hover:bg-muted/50"
-								}`}>
-									<Calendar className={`h-3.5 w-3.5 ${customBillDate ? "text-amber-600" : "text-muted-foreground"}`} />
-									<span className="hidden sm:inline text-[11px] text-muted-foreground">
+								<Label htmlFor="pos-bill-date" className="sr-only">
+									Bill Date
+								</Label>
+								<div
+									className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold text-xs transition-all ${
+										customBillDate
+											? "border-amber-500/60 bg-amber-50 text-amber-900 shadow-xs dark:bg-amber-950/50 dark:text-amber-300"
+											: "border-border bg-background text-foreground hover:bg-muted/50"
+									}`}
+								>
+									<Calendar
+										className={`h-3.5 w-3.5 ${customBillDate ? "text-amber-600" : "text-muted-foreground"}`}
+									/>
+									<span className="hidden text-[11px] text-muted-foreground sm:inline">
 										{locale === "hi" ? "बिल तारीख:" : "Bill Date:"}
 									</span>
 									<input
@@ -1007,14 +1060,18 @@ function POSContent() {
 										type="date"
 										value={customBillDate}
 										onChange={(e) => setCustomBillDate(e.target.value)}
-										className="bg-transparent font-bold text-xs focus:outline-none cursor-pointer p-0 border-none"
+										className="w-[115px] min-w-0 cursor-pointer border-none bg-transparent p-0 font-bold text-foreground text-xs focus:outline-none sm:w-[125px] dark:text-slate-100"
 									/>
 									{customBillDate && (
 										<button
 											type="button"
 											onClick={() => setCustomBillDate("")}
-											className="ml-0.5 rounded-full p-0.5 text-amber-700 hover:bg-amber-200 hover:text-red-700 text-xs font-extrabold"
-											title={locale === "hi" ? "वास्तविक समय (आज) पर रीसेट करें" : "Reset to Real-time (Today)"}
+											className="ml-0.5 rounded-full p-0.5 font-extrabold text-amber-700 text-xs hover:bg-amber-200 hover:text-red-700"
+											title={
+												locale === "hi"
+													? "वास्तविक समय (आज) पर रीसेट करें"
+													: "Reset to Real-time (Today)"
+											}
 										>
 											×
 										</button>
@@ -1029,15 +1086,17 @@ function POSContent() {
 							variant="outline"
 							size="sm"
 							onClick={() => setPaymentModalOpen(true)}
-							className="h-8 gap-1.5 text-xs font-semibold border-emerald-500/40 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+							className="h-8 gap-1.5 border-emerald-500/40 bg-emerald-50/60 font-semibold text-emerald-800 text-xs hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
 						>
 							<User className="h-3.5 w-3.5 text-emerald-600" />
 							{customerDetails?.customerName ? (
-								<span className="truncate max-w-[140px] font-bold">
+								<span className="max-w-[140px] truncate font-bold">
 									{customerDetails.customerName}
 								</span>
 							) : (
-								<span>{locale === "hi" ? "ग्राहक / रूट चुनें" : "Customer / Route"}</span>
+								<span>
+									{locale === "hi" ? "ग्राहक / रूट चुनें" : "Customer / Route"}
+								</span>
 							)}
 						</Button>
 
@@ -1054,7 +1113,7 @@ function POSContent() {
 				</div>
 
 				{/* Search & Category Pills */}
-				<div className="mb-3 flex flex-col gap-2 shrink-0 sm:mb-4">
+				<div className="mb-3 flex shrink-0 flex-col gap-2 sm:mb-4">
 					<div className="relative">
 						<Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground sm:top-3" />
 						<Input
@@ -1069,7 +1128,7 @@ function POSContent() {
 
 					{/* Category Quick Filter Chips */}
 					{categories.length > 0 && (
-						<div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-thin">
+						<div className="scrollbar-thin flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
 							<button
 								type="button"
 								onClick={() => setSelectedCategory("all")}
@@ -1082,7 +1141,8 @@ function POSContent() {
 								All ({catalog?.length || 0})
 							</button>
 							{categories.map((c) => {
-								const count = catalog?.filter((p) => p.category === c).length || 0;
+								const count =
+									catalog?.filter((p) => p.category === c).length || 0;
 								return (
 									<button
 										key={c}
@@ -1121,7 +1181,7 @@ function POSContent() {
 							</p>
 						</div>
 					) : (
-						<StaggerList className="grid grid-cols-2 gap-3 p-1 sm:gap-4 sm:p-2 md:grid-cols-3 lg:grid-cols-4 pb-20 md:pb-2">
+						<StaggerList className="grid grid-cols-2 gap-3 p-1 pb-20 sm:gap-4 sm:p-2 md:grid-cols-3 md:pb-2 lg:grid-cols-4">
 							{filteredCatalog.map((product: any) => {
 								const cartItem = cart.find((item) => item.id === product.id);
 								const isInCart = Boolean(cartItem);
@@ -1143,14 +1203,17 @@ function POSContent() {
 												<CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
 													<div className="flex items-center justify-between gap-1">
 														<CardTitle
-															className="truncate font-semibold text-xs sm:text-sm flex-1 text-gray-900 dark:text-gray-100"
-															title={getLocalizedProductName(product.name, locale)}
+															className="flex-1 truncate font-semibold text-gray-900 text-xs sm:text-sm dark:text-gray-100"
+															title={getLocalizedProductName(
+																product.name,
+																locale,
+															)}
 														>
 															{getLocalizedProductName(product.name, locale)}
 														</CardTitle>
-														<div className="flex items-center gap-1 shrink-0">
+														<div className="flex shrink-0 items-center gap-1">
 															<span
-																className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold transition-colors ${
+																className={`shrink-0 rounded px-1.5 py-0.5 font-bold font-mono text-[10px] transition-colors ${
 																	isInCart
 																		? "bg-emerald-600 text-white"
 																		: "bg-primary/10 text-primary dark:bg-primary/20"
@@ -1170,7 +1233,7 @@ function POSContent() {
 																		e.stopPropagation();
 																		removeFromCart(product.id);
 																	}}
-																	className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 text-rose-600 hover:bg-rose-500 hover:text-white dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-600 transition-colors shadow-2xs"
+																	className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-2xs transition-colors hover:bg-rose-500 hover:text-white dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-600"
 																>
 																	<X className="h-3 w-3" />
 																</button>
@@ -1182,11 +1245,17 @@ function POSContent() {
 													{product.hasDailyOffer ? (
 														<div className="space-y-0.5">
 															<div className="flex items-center gap-1.5">
-																<span className="font-semibold text-muted-foreground line-through text-xs sm:text-sm">
-																	₹{Number.parseFloat(product.originalPrice || product.price).toFixed(2)}
+																<span className="font-semibold text-muted-foreground text-xs line-through sm:text-sm">
+																	₹
+																	{Number.parseFloat(
+																		product.originalPrice || product.price,
+																	).toFixed(2)}
 																</span>
-																<span className="font-extrabold text-base text-rose-600 dark:text-rose-400 sm:text-lg">
-																	₹{Number.parseFloat(product.offerPrice).toFixed(2)}
+																<span className="font-extrabold text-base text-rose-600 sm:text-lg dark:text-rose-400">
+																	₹
+																	{Number.parseFloat(
+																		product.offerPrice,
+																	).toFixed(2)}
 																</span>
 															</div>
 															<div className="flex items-center gap-1">
@@ -1195,8 +1264,14 @@ function POSContent() {
 																	{product.dailyOfferPercent}% OFF
 																</span>
 																{product.dailyOfferReason && (
-																	<span className="truncate text-[10px] text-muted-foreground" title={product.dailyOfferReason}>
-																		• {product.dailyOfferReason.split("(")[0].trim()}
+																	<span
+																		className="truncate text-[10px] text-muted-foreground"
+																		title={product.dailyOfferReason}
+																	>
+																		•{" "}
+																		{product.dailyOfferReason
+																			.split("(")[0]
+																			.trim()}
 																	</span>
 																)}
 															</div>
@@ -1206,9 +1281,9 @@ function POSContent() {
 															₹{Number.parseFloat(product.price).toFixed(2)}
 														</div>
 													)}
-													<div className="mt-1 flex items-center justify-between gap-1 min-h-[18px]">
+													<div className="mt-1 flex min-h-[18px] items-center justify-between gap-1">
 														<span
-															className="line-clamp-1 flex-1 text-muted-foreground text-[11px] sm:text-xs"
+															className="line-clamp-1 flex-1 text-[11px] text-muted-foreground sm:text-xs"
 															title={product.description || product.name || ""}
 														>
 															{getLocalizedProductName(
@@ -1218,12 +1293,16 @@ function POSContent() {
 														</span>
 														<button
 															type="button"
-															title={locale === "hi" ? "पूरा विवरण देखें (Full details)" : "View full product description"}
+															title={
+																locale === "hi"
+																	? "पूरा विवरण देखें (Full details)"
+																	: "View full product description"
+															}
 															onClick={(e) => {
 																e.stopPropagation();
 																setDetailsProduct(product);
 															}}
-															className="shrink-0 flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground/70 hover:bg-primary/15 hover:text-primary transition-all active:scale-90 cursor-pointer"
+															className="flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground/70 transition-all hover:bg-primary/15 hover:text-primary active:scale-90"
 														>
 															<Info className="h-3 w-3" />
 														</button>
@@ -1237,7 +1316,7 @@ function POSContent() {
 														>
 															<button
 																type="button"
-																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 hover:bg-rose-100 hover:text-rose-600 active:scale-95 transition-all dark:bg-gray-700 dark:text-gray-200"
+																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 transition-all hover:bg-rose-100 hover:text-rose-600 active:scale-95 dark:bg-gray-700 dark:text-gray-200"
 																onClick={(e) => {
 																	e.stopPropagation();
 																	const nextQty = Math.ceil(cartQty) - 1;
@@ -1247,7 +1326,11 @@ function POSContent() {
 																		setDirectQty(product.id, nextQty);
 																	}
 																}}
-																title={locale === "hi" ? "कम करें (1 कम करें)" : "Decrease by 1"}
+																title={
+																	locale === "hi"
+																		? "कम करें (1 कम करें)"
+																		: "Decrease by 1"
+																}
 															>
 																<Minus className="h-3 w-3" />
 															</button>
@@ -1276,25 +1359,29 @@ function POSContent() {
 																		setDirectQty(product.id, nextQty);
 																	}
 																}}
-																className="flex-1 flex items-center justify-center gap-0.5 rounded bg-emerald-600/10 px-1 py-0.5 text-center font-bold font-mono text-emerald-800 dark:text-emerald-200 text-xs cursor-ns-resize hover:bg-emerald-600/20 transition-all select-none"
+																className="flex flex-1 cursor-ns-resize select-none items-center justify-center gap-0.5 rounded bg-emerald-600/10 px-1 py-0.5 text-center font-bold font-mono text-emerald-800 text-xs transition-all hover:bg-emerald-600/20 dark:text-emerald-200"
 															/>
 
 															<button
 																type="button"
-																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-600 active:scale-95 transition-all dark:bg-gray-700 dark:text-gray-200"
+																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 transition-all hover:bg-emerald-100 hover:text-emerald-600 active:scale-95 dark:bg-gray-700 dark:text-gray-200"
 																onClick={(e) => {
 																	e.stopPropagation();
 																	const nextQty = Math.floor(cartQty) + 1;
 																	setDirectQty(product.id, nextQty);
 																}}
-																title={locale === "hi" ? "बढ़ाएं (1 बढ़ाएं)" : "Increase by 1"}
+																title={
+																	locale === "hi"
+																		? "बढ़ाएं (1 बढ़ाएं)"
+																		: "Increase by 1"
+																}
 															>
 																<Plus className="h-3 w-3" />
 															</button>
 														</div>
 													) : (
 														<div className="mt-2.5 flex items-center justify-end">
-															<span className="inline-flex items-center gap-1 rounded-md border border-dashed border-gray-300 bg-gray-50/50 px-2 py-0.5 text-[11px] font-semibold text-gray-500 group-hover:border-primary group-hover:text-primary transition-colors dark:border-gray-700 dark:bg-gray-800/40">
+															<span className="inline-flex items-center gap-1 rounded-md border border-gray-300 border-dashed bg-gray-50/50 px-2 py-0.5 font-semibold text-[11px] text-gray-500 transition-colors group-hover:border-primary group-hover:text-primary dark:border-gray-700 dark:bg-gray-800/40">
 																<Plus className="h-2.5 w-2.5" />
 																{locale === "hi" ? "जोड़ें" : "Add"}
 															</span>
@@ -1312,13 +1399,13 @@ function POSContent() {
 
 				{/* Permanent Mobile Action Bar (Catalog View) */}
 				{activeMobileTab === "catalog" && (
-					<div className="shrink-0 border-t bg-background/95 backdrop-blur-md p-2.5 shadow-lg md:hidden z-20">
+					<div className="z-20 shrink-0 border-t bg-background/95 p-2.5 shadow-lg backdrop-blur-md md:hidden">
 						<div className="flex items-center justify-between gap-2">
 							{/* Cart total & item count preview with link to Cart tab */}
 							<button
 								type="button"
 								onClick={() => setActiveMobileTab("cart")}
-								className="flex flex-col text-left pl-1 cursor-pointer group flex-1 min-w-0"
+								className="group flex min-w-0 flex-1 cursor-pointer flex-col pl-1 text-left"
 								title="View Cart"
 							>
 								<div className="flex items-center gap-1.5">
@@ -1326,31 +1413,37 @@ function POSContent() {
 										₹{total.toFixed(2)}
 									</span>
 									{cart.length > 0 && (
-										<span className="rounded-full bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+										<span className="rounded-full bg-blue-100 px-2 py-0.5 font-bold text-[10px] text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
 											{totalCartQuantity} {locale === "hi" ? "पीस" : "pcs"}
 										</span>
 									)}
 								</div>
-								<span className="text-[11px] text-muted-foreground truncate group-hover:text-primary transition-colors">
+								<span className="truncate text-[11px] text-muted-foreground transition-colors group-hover:text-primary">
 									{cart.length === 0
-										? (locale === "hi" ? "कार्ट खाली है" : "Cart is empty")
-										: `${cart.length} ${cart.length === 1 ? (locale === "hi" ? "आइटम" : "item") : (locale === "hi" ? "आइटम्स" : "items")} • ${locale === "hi" ? "ऑर्डर देखें" : "View Order"} →`}
+										? locale === "hi"
+											? "कार्ट खाली है"
+											: "Cart is empty"
+										: `${cart.length} ${cart.length === 1 ? (locale === "hi" ? "आइटम" : "item") : locale === "hi" ? "आइटम्स" : "items"} • ${locale === "hi" ? "ऑर्डर देखें" : "View Order"} →`}
 								</span>
 							</button>
 
 							{/* Action Buttons: Hold Bill & Pay Now */}
-							<div className="flex items-center gap-1.5 shrink-0">
+							<div className="flex shrink-0 items-center gap-1.5">
 								<Button
 									variant="outline"
 									size="sm"
-									className="h-9 px-2.5 text-xs font-semibold border-amber-300 bg-amber-50/60 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+									className="h-9 border-amber-300 bg-amber-50/60 px-2.5 font-semibold text-amber-900 text-xs hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
 									onClick={() => {
 										suspendMutation.mutate({
 											items: cart,
 											total: total.toString(),
-											discountAmount: discountValue > 0 ? String(discountValue) : undefined,
+											discountAmount:
+												discountValue > 0 ? String(discountValue) : undefined,
 											discountReason: discountReason || undefined,
-											otherCharges: extraChargesValue > 0 ? String(extraChargesValue) : undefined,
+											otherCharges:
+												extraChargesValue > 0
+													? String(extraChargesValue)
+													: undefined,
 											otherChargesReason: extraChargesReason || undefined,
 										} as any);
 									}}
@@ -1362,7 +1455,7 @@ function POSContent() {
 
 								<Button
 									size="sm"
-									className="h-9 px-3.5 text-xs font-bold bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+									className="h-9 bg-primary px-3.5 font-bold text-primary-foreground text-xs shadow-xs hover:bg-primary/90"
 									onClick={handleCheckout}
 									disabled={cart.length === 0 || checkoutMutation.isPending}
 								>
@@ -1377,19 +1470,19 @@ function POSContent() {
 
 			{/* Right Pane - Cart */}
 			<div
-				className={`z-10 min-h-0 w-full flex-1 flex-col overflow-hidden bg-background p-2.5 sm:p-4 shadow-xl md:w-[350px] lg:w-[400px] md:h-full md:flex-initial ${
+				className={`z-10 min-h-0 w-full flex-1 flex-col overflow-hidden bg-background p-2.5 shadow-xl sm:p-4 md:h-full md:w-[350px] md:flex-initial lg:w-[400px] ${
 					activeMobileTab === "cart" ? "flex" : "hidden md:flex"
 				}`}
 			>
 				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
 					<div className="flex items-center gap-2">
-						<h2 className="flex items-center gap-2 font-bold text-lg sm:text-xl text-foreground">
+						<h2 className="flex items-center gap-2 font-bold text-foreground text-lg sm:text-xl">
 							<ShoppingCart className="h-5 w-5 text-primary" /> {t.currentOrder}
 						</h2>
 						{cart.length > 0 ? (
-							<div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-200">
-								<span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 py-0.5 font-bold text-xs text-white shadow-xs">
-									<Sparkles className="h-3 w-3 text-amber-300 animate-pulse" />
+							<div className="fade-in zoom-in-95 flex animate-in items-center gap-1.5 duration-200">
+								<span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 py-0.5 font-bold text-white text-xs shadow-xs">
+									<Sparkles className="h-3 w-3 animate-pulse text-amber-300" />
 									<span>
 										{cart.length}{" "}
 										{cart.length === 1
@@ -1406,7 +1499,7 @@ function POSContent() {
 								</span>
 							</div>
 						) : (
-							<span className="rounded-full bg-muted px-2.5 py-0.5 font-medium text-xs text-muted-foreground">
+							<span className="rounded-full bg-muted px-2.5 py-0.5 font-medium text-muted-foreground text-xs">
 								0 {locale === "hi" ? "उत्पाद" : "Items"}
 							</span>
 						)}
@@ -1416,7 +1509,7 @@ function POSContent() {
 						size="sm"
 						onClick={() => setCart([])}
 						disabled={cart.length === 0 || checkoutMutation.isPending}
-						className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+						className="text-muted-foreground text-xs hover:bg-destructive/10 hover:text-destructive"
 					>
 						{t.clear}
 					</Button>
@@ -1425,28 +1518,29 @@ function POSContent() {
 				{/* Active Customer & Route Banner */}
 				<div
 					onClick={() => setCustomerModalOpen(true)}
-					className="mb-2.5 flex cursor-pointer items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-50/80 p-2.5 text-xs transition-colors hover:bg-emerald-100/80 dark:bg-emerald-950/50 dark:border-emerald-800"
+					className="mb-2.5 flex cursor-pointer items-center justify-between rounded-lg border border-emerald-500/40 bg-emerald-50/80 p-2.5 text-xs transition-colors hover:bg-emerald-100/80 dark:border-emerald-800 dark:bg-emerald-950/50"
 				>
 					<div className="flex items-center gap-1.5 truncate">
-						<User className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-						<span className="font-bold text-emerald-900 dark:text-emerald-200 truncate">
-							{customerDetails?.customerName || (locale === "hi" ? "वाक-इन ग्राहक" : "Walk-in Customer")}
+						<User className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+						<span className="truncate font-bold text-emerald-900 dark:text-emerald-200">
+							{customerDetails?.customerName ||
+								(locale === "hi" ? "वाक-इन ग्राहक" : "Walk-in Customer")}
 						</span>
 						{customerDetails?.routeName && (
-							<span className="shrink-0 rounded bg-emerald-200/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 flex items-center gap-1">
+							<span className="flex shrink-0 items-center gap-1 rounded bg-emerald-200/60 px-1.5 py-0.5 font-semibold text-[10px] text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
 								<Route className="h-3 w-3 text-emerald-600" />
 								{customerDetails.routeName}
 							</span>
 						)}
 					</div>
-					<span className="text-[10px] font-bold text-emerald-700 underline shrink-0 ml-2">
+					<span className="ml-2 shrink-0 font-bold text-[10px] text-emerald-700 underline">
 						{locale === "hi" ? "बदलें" : "Change"}
 					</span>
 				</div>
 
 				{/* Dedicated Live Products Added Count Banner */}
 				{cart.length > 0 && (
-					<div className="mb-2.5 flex items-center justify-between rounded-lg border border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-blue-50/90 px-3 py-1.5 text-xs text-blue-950 shadow-xs dark:border-blue-900/60 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-blue-950/40 dark:text-blue-200 animate-in fade-in slide-in-from-top-1 duration-200">
+					<div className="fade-in slide-in-from-top-1 mb-2.5 flex animate-in items-center justify-between rounded-lg border border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-blue-50/90 px-3 py-1.5 text-blue-950 text-xs shadow-xs duration-200 dark:border-blue-900/60 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-blue-950/40 dark:text-blue-200">
 						<div className="flex items-center gap-1.5">
 							<span className="relative flex h-2 w-2">
 								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
@@ -1455,20 +1549,27 @@ function POSContent() {
 							<span className="font-semibold text-blue-900 dark:text-blue-200">
 								{locale === "hi" ? "कार्ट में जोड़े गए उत्पाद:" : "Products Added:"}
 							</span>
-							<span className="rounded-md bg-blue-600 px-1.5 py-0.5 font-black text-white text-[11px] shadow-xs">
-								{cart.length} {cart.length === 1 ? (locale === "hi" ? "आइटम" : "Item") : (locale === "hi" ? "आइटम्स" : "Items")}
+							<span className="rounded-md bg-blue-600 px-1.5 py-0.5 font-black text-[11px] text-white shadow-xs">
+								{cart.length}{" "}
+								{cart.length === 1
+									? locale === "hi"
+										? "आइटम"
+										: "Item"
+									: locale === "hi"
+										? "आइटम्स"
+										: "Items"}
 							</span>
 						</div>
-						<div className="flex items-center gap-1 text-[11px] font-semibold text-blue-800 dark:text-blue-300">
+						<div className="flex items-center gap-1 font-semibold text-[11px] text-blue-800 dark:text-blue-300">
 							<span>{locale === "hi" ? "कुल मात्रा:" : "Total Qty:"}</span>
-							<span className="rounded bg-blue-200/70 dark:bg-blue-900/70 px-2 py-0.5 font-black text-blue-950 dark:text-blue-100">
+							<span className="rounded bg-blue-200/70 px-2 py-0.5 font-black text-blue-950 dark:bg-blue-900/70 dark:text-blue-100">
 								{totalCartQuantity} {locale === "hi" ? "पीस" : "Pcs"}
 							</span>
 						</div>
 					</div>
 				)}
 
-				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 bg-muted/20 p-2 sm:p-4 rounded-lg overflow-y-auto overscroll-contain">
+				<ScrollArea className="scroll-area-vertical min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg bg-muted/20 p-2 sm:p-4">
 					<AnimatePresence>
 						{cart.length === 0 ? (
 							<motion.div
@@ -1482,28 +1583,28 @@ function POSContent() {
 								<p className="text-xs">{t.scanHint}</p>
 							</motion.div>
 						) : (
-							<div className="space-y-2.5 pr-1.5 sm:pr-4 pb-4 touch-pan-y">
+							<div className="touch-pan-y space-y-2.5 pr-1.5 pb-4 sm:pr-4">
 								{cart.map((item, index) => (
 									<motion.div
 										key={item.id}
 										initial={{ opacity: 0, scale: 0.95, y: 10 }}
 										animate={{ opacity: 1, scale: 1, y: 0 }}
 										exit={{ opacity: 0, scale: 0.95, y: -10 }}
-										className="group flex w-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all"
+										className="group flex w-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm"
 									>
 										<div className="flex w-full min-w-0 items-center justify-between gap-2">
-											<div className="flex items-center gap-1.5 min-w-0 flex-1">
-												<span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary dark:bg-primary/20">
+											<div className="flex min-w-0 flex-1 items-center gap-1.5">
+												<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary dark:bg-primary/20">
 													#{index + 1}
 												</span>
 												<div
-													className="min-w-0 flex-1 truncate font-semibold text-sm text-foreground"
+													className="min-w-0 flex-1 truncate font-semibold text-foreground text-sm"
 													title={getLocalizedProductName(item.name, locale)}
 												>
 													{getLocalizedProductName(item.name, locale)}
 												</div>
 											</div>
-											<div className="shrink-0 whitespace-nowrap text-muted-foreground text-xs font-medium">
+											<div className="shrink-0 whitespace-nowrap font-medium text-muted-foreground text-xs">
 												₹{Number.parseFloat(item.price).toFixed(2)}{" "}
 												{t.unitLabel}
 											</div>
@@ -1530,12 +1631,12 @@ function POSContent() {
 													step="any"
 													value={item.qty}
 													onChange={(e) => {
-														const val = parseFloat(e.target.value);
+														const val = Number.parseFloat(e.target.value);
 														if (!isNaN(val) && val > 0) {
 															setDirectQty(item.id, val);
 														}
 													}}
-													className="h-8 w-14 border-0 p-0 text-center font-bold text-sm focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none cursor-ns-resize"
+													className="h-8 w-14 cursor-ns-resize border-0 p-0 text-center font-bold text-sm [appearance:textfield] focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 													disabled={checkoutMutation.isPending}
 													title="Scroll mouse wheel to adjust"
 												/>
@@ -1550,7 +1651,7 @@ function POSContent() {
 												</Button>
 											</WheelStepperWrapper>
 											<div className="flex items-center gap-3">
-												<span className="font-extrabold text-sm text-foreground">
+												<span className="font-extrabold text-foreground text-sm">
 													₹
 													{(Number.parseFloat(item.price) * item.qty).toFixed(
 														2,
@@ -1575,12 +1676,12 @@ function POSContent() {
 				</ScrollArea>
 
 				{/* Cart Bottom Summary Block with Floating Border Toggle */}
-				<div className="relative mt-auto shrink-0 border-t bg-background p-3 pt-3.5 sm:p-4 z-10 shadow-lg sm:shadow-none">
+				<div className="relative z-10 mt-auto shrink-0 border-t bg-background p-3 pt-3.5 shadow-lg sm:p-4 sm:shadow-none">
 					{/* Circular Toggle Button positioned right on the top border line */}
 					<button
 						type="button"
 						onClick={() => setShowSummaryDetails((prev) => !prev)}
-						className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-all z-20"
+						className="absolute -top-3.5 left-1/2 z-20 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-xs transition-all hover:bg-accent hover:text-foreground"
 						title={showSummaryDetails ? "Hide breakdown" : "Show breakdown"}
 					>
 						{showSummaryDetails ? (
@@ -1598,12 +1699,14 @@ function POSContent() {
 								animate={{ height: "auto", opacity: 1 }}
 								exit={{ height: 0, opacity: 0 }}
 								transition={{ duration: 0.2 }}
-								className="overflow-hidden space-y-2.5 pt-1"
+								className="space-y-2.5 overflow-hidden pt-1"
 							>
 								{/* Subtotal row */}
 								<div className="flex items-center justify-between text-muted-foreground text-sm">
 									<span>{t.subtotal}</span>
-									<span className="font-medium text-foreground">₹{subtotal.toFixed(2)}</span>
+									<span className="font-medium text-foreground">
+										₹{subtotal.toFixed(2)}
+									</span>
 								</div>
 
 								{/* Discount row */}
@@ -1615,20 +1718,24 @@ function POSContent() {
 												<button
 													type="button"
 													onClick={openDiscountDialog}
-													className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs hover:bg-emerald-200 transition-colors"
+													className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800 text-xs transition-colors hover:bg-emerald-200"
 													title={discountReason || "Discount reason"}
 												>
-													<span>{discountType === "percent" ? `${discountAmount}%` : `₹${discountAmount}`}</span>
+													<span>
+														{discountType === "percent"
+															? `${discountAmount}%`
+															: `₹${discountAmount}`}
+													</span>
 													{discountReason && (
 														<span className="max-w-[100px] truncate opacity-80">
 															({discountReason.split(" (")[0]})
 														</span>
 													)}
-													<Edit3 className="h-2.5 w-2.5 ml-0.5" />
+													<Edit3 className="ml-0.5 h-2.5 w-2.5" />
 												</button>
 												<button
 													type="button"
-													className="h-4 w-4 rounded-full flex items-center justify-center text-emerald-700 hover:text-red-600 hover:bg-red-50 text-xs font-bold"
+													className="flex h-4 w-4 items-center justify-center rounded-full font-bold text-emerald-700 text-xs hover:bg-red-50 hover:text-red-600"
 													onClick={clearDiscount}
 													title="Remove discount"
 												>
@@ -1639,7 +1746,7 @@ function POSContent() {
 											<Button
 												variant="outline"
 												size="sm"
-												className="h-6 gap-1 px-2 text-xs border-dashed text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 border-emerald-300"
+												className="h-6 gap-1 border-emerald-300 border-dashed px-2 text-emerald-700 text-xs hover:bg-emerald-50 hover:text-emerald-800"
 												onClick={openDiscountDialog}
 												disabled={cart.length === 0}
 											>
@@ -1648,20 +1755,24 @@ function POSContent() {
 										)}
 									</div>
 									<span className="font-medium text-emerald-600">
-										{discountValue > 0 ? `− ₹${discountValue.toFixed(2)}` : "− ₹0.00"}
+										{discountValue > 0
+											? `− ₹${discountValue.toFixed(2)}`
+											: "− ₹0.00"}
 									</span>
 								</div>
 
 								{/* Extra Charges row */}
 								<div className="flex items-center justify-between text-sm">
 									<div className="flex flex-wrap items-center gap-1.5">
-										<span className="text-muted-foreground">{t.extraCharges}</span>
+										<span className="text-muted-foreground">
+											{t.extraCharges}
+										</span>
 										{extraChargesValue > 0 ? (
 											<div className="flex items-center gap-1">
 												<button
 													type="button"
 													onClick={openExtraChargesDialog}
-													className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs hover:bg-blue-200 transition-colors"
+													className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs transition-colors hover:bg-blue-200"
 													title={extraChargesReason || "Extra charge reason"}
 												>
 													<span>₹{extraChargesValue.toFixed(2)}</span>
@@ -1670,11 +1781,11 @@ function POSContent() {
 															({extraChargesReason.split(" (")[0]})
 														</span>
 													)}
-													<Edit3 className="h-2.5 w-2.5 ml-0.5" />
+													<Edit3 className="ml-0.5 h-2.5 w-2.5" />
 												</button>
 												<button
 													type="button"
-													className="h-4 w-4 rounded-full flex items-center justify-center text-blue-700 hover:text-red-600 hover:bg-red-50 text-xs font-bold"
+													className="flex h-4 w-4 items-center justify-center rounded-full font-bold text-blue-700 text-xs hover:bg-red-50 hover:text-red-600"
 													onClick={clearExtraCharges}
 													title="Remove extra charges"
 												>
@@ -1685,7 +1796,7 @@ function POSContent() {
 											<Button
 												variant="outline"
 												size="sm"
-												className="h-6 gap-1 px-2 text-xs border-dashed text-blue-700 hover:bg-blue-50 hover:text-blue-800 border-blue-300"
+												className="h-6 gap-1 border-blue-300 border-dashed px-2 text-blue-700 text-xs hover:bg-blue-50 hover:text-blue-800"
 												onClick={openExtraChargesDialog}
 												disabled={cart.length === 0}
 											>
@@ -1694,7 +1805,9 @@ function POSContent() {
 										)}
 									</div>
 									<span className="font-medium text-blue-600">
-										{extraChargesValue > 0 ? `+ ₹${extraChargesValue.toFixed(2)}` : "+ ₹0.00"}
+										{extraChargesValue > 0
+											? `+ ₹${extraChargesValue.toFixed(2)}`
+											: "+ ₹0.00"}
 									</span>
 								</div>
 							</motion.div>
@@ -1704,9 +1817,11 @@ function POSContent() {
 					{/* Total row */}
 					<div className="flex items-baseline justify-between border-t pt-2">
 						<div>
-							<div className="font-extrabold text-xl sm:text-2xl text-foreground">{t.total}</div>
+							<div className="font-extrabold text-foreground text-xl sm:text-2xl">
+								{t.total}
+							</div>
 							{cart.length > 0 && (
-								<p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+								<p className="font-semibold text-[11px] text-blue-600 dark:text-blue-400">
 									{cart.length}{" "}
 									{cart.length === 1
 										? locale === "hi"
@@ -1715,12 +1830,11 @@ function POSContent() {
 										: locale === "hi"
 											? "उत्पाद"
 											: "products"}{" "}
-									• {totalCartQuantity}{" "}
-									{locale === "hi" ? "कुल पीस" : "units"}
+									• {totalCartQuantity} {locale === "hi" ? "कुल पीस" : "units"}
 								</p>
 							)}
 						</div>
-						<span className="font-black text-2xl tracking-tight text-foreground sm:text-3xl">
+						<span className="font-black text-2xl text-foreground tracking-tight sm:text-3xl">
 							₹{total.toFixed(2)}
 						</span>
 					</div>
@@ -1729,25 +1843,29 @@ function POSContent() {
 						<Button
 							variant="secondary"
 							size="lg"
-							className="w-full text-xs sm:text-base font-semibold border border-amber-300/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+							className="w-full border border-amber-300/80 bg-amber-50 font-semibold text-amber-900 text-xs hover:bg-amber-100 sm:text-base dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
 							onClick={() => {
 								suspendMutation.mutate({
 									items: cart,
 									total: total.toString(),
-									discountAmount: discountValue > 0 ? String(discountValue) : undefined,
+									discountAmount:
+										discountValue > 0 ? String(discountValue) : undefined,
 									discountReason: discountReason || undefined,
-									otherCharges: extraChargesValue > 0 ? String(extraChargesValue) : undefined,
+									otherCharges:
+										extraChargesValue > 0
+											? String(extraChargesValue)
+											: undefined,
 									otherChargesReason: extraChargesReason || undefined,
 								} as any);
 							}}
 							disabled={cart.length === 0 || suspendMutation.isPending}
 						>
-							<PauseCircle className="mr-1.5 h-4 w-4 text-amber-600 shrink-0" />
+							<PauseCircle className="mr-1.5 h-4 w-4 shrink-0 text-amber-600" />
 							{suspendMutation.isPending ? t.holding : t.holdBill}
 						</Button>
 						<Button
 							size="lg"
-							className="w-full font-bold text-sm sm:text-lg bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+							className="w-full bg-primary font-bold text-primary-foreground text-sm shadow-xs hover:bg-primary/90 sm:text-lg"
 							onClick={handleCheckout}
 							disabled={cart.length === 0 || checkoutMutation.isPending}
 						>
@@ -1791,7 +1909,9 @@ function POSContent() {
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2 text-lg">
 							<Percent className="h-5 w-5 text-emerald-600" />
-							{locale === "hi" ? "छूट एवं कारण (Discount & Reason)" : "Discount & Reason"}
+							{locale === "hi"
+								? "छूट एवं कारण (Discount & Reason)"
+								: "Discount & Reason"}
 						</DialogTitle>
 						<DialogDescription>
 							{locale === "hi"
@@ -1803,15 +1923,17 @@ function POSContent() {
 					<div className="space-y-4 py-2">
 						{/* Mode Toggle & Input */}
 						<div className="space-y-1.5">
-							<Label className="text-xs font-semibold">
-								{locale === "hi" ? "छूट का प्रकार एवं मान" : "Discount Type & Value"}
+							<Label className="font-semibold text-xs">
+								{locale === "hi"
+									? "छूट का प्रकार एवं मान"
+									: "Discount Type & Value"}
 							</Label>
 							<div className="flex gap-2">
-								<div className="flex rounded-md border p-0.5 bg-muted">
+								<div className="flex rounded-md border bg-muted p-0.5">
 									<button
 										type="button"
 										onClick={() => setTempDiscountType("fixed")}
-										className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+										className={`rounded px-3 py-1 font-semibold text-xs transition-all ${
 											tempDiscountType === "fixed"
 												? "bg-background text-foreground shadow-sm"
 												: "text-muted-foreground hover:text-foreground"
@@ -1822,7 +1944,7 @@ function POSContent() {
 									<button
 										type="button"
 										onClick={() => setTempDiscountType("percent")}
-										className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+										className={`rounded px-3 py-1 font-semibold text-xs transition-all ${
 											tempDiscountType === "percent"
 												? "bg-background text-foreground shadow-sm"
 												: "text-muted-foreground hover:text-foreground"
@@ -1832,7 +1954,7 @@ function POSContent() {
 									</button>
 								</div>
 								<div className="relative flex-1">
-									<span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-bold">
+									<span className="absolute top-2.5 left-3 font-bold text-muted-foreground text-xs">
 										{tempDiscountType === "fixed" ? "₹" : "%"}
 									</span>
 									<Input
@@ -1848,15 +1970,23 @@ function POSContent() {
 								</div>
 							</div>
 							{/* Live preview */}
-							{tempDiscountVal && parseFloat(tempDiscountVal) > 0 && (
-								<div className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-800 flex justify-between">
+							{tempDiscountVal && Number.parseFloat(tempDiscountVal) > 0 && (
+								<div className="flex justify-between rounded-md bg-emerald-50 p-2 text-emerald-800 text-xs">
 									<span>
 										{locale === "hi" ? "लागू छूट:" : "Effective Discount:"}{" "}
 										<strong>
 											₹
 											{(tempDiscountType === "percent"
-												? Math.min(subtotal, (subtotal * parseFloat(tempDiscountVal || "0")) / 100)
-												: Math.min(subtotal, parseFloat(tempDiscountVal || "0"))
+												? Math.min(
+														subtotal,
+														(subtotal *
+															Number.parseFloat(tempDiscountVal || "0")) /
+															100,
+													)
+												: Math.min(
+														subtotal,
+														Number.parseFloat(tempDiscountVal || "0"),
+													)
 											).toFixed(2)}
 										</strong>
 									</span>
@@ -1868,8 +1998,10 @@ function POSContent() {
 												0,
 												subtotal -
 													(tempDiscountType === "percent"
-														? (subtotal * parseFloat(tempDiscountVal || "0")) / 100
-														: parseFloat(tempDiscountVal || "0")) +
+														? (subtotal *
+																Number.parseFloat(tempDiscountVal || "0")) /
+															100
+														: Number.parseFloat(tempDiscountVal || "0")) +
 													extraChargesValue,
 											).toFixed(2)}
 										</strong>
@@ -1880,10 +2012,17 @@ function POSContent() {
 
 						{/* Predefined Reasons Dropdown */}
 						<div className="space-y-1.5">
-							<Label htmlFor="discountReasonSelect" className="text-xs font-semibold flex items-center justify-between">
-								<span>{locale === "hi" ? "छूट का कारण (Reason Dropdown)" : "Discount Reason Dropdown"}</span>
+							<Label
+								htmlFor="discountReasonSelect"
+								className="flex items-center justify-between font-semibold text-xs"
+							>
+								<span>
+									{locale === "hi"
+										? "छूट का कारण (Reason Dropdown)"
+										: "Discount Reason Dropdown"}
+								</span>
 								{tempDiscountReason && (
-									<span className="text-[10px] text-emerald-700 font-bold">
+									<span className="font-bold text-[10px] text-emerald-700">
 										✓ {locale === "hi" ? "चयनित" : "Selected"}
 									</span>
 								)}
@@ -1899,9 +2038,13 @@ function POSContent() {
 											setTempCustomDiscountReason("");
 										}
 									}}
-									className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-medium pr-8"
+									className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 pr-8 font-medium text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 								>
-									<option value="">{locale === "hi" ? "-- अधिकृत छूट कारण चुनें --" : "-- Select Authorized Discount Reason --"}</option>
+									<option value="">
+										{locale === "hi"
+											? "-- अधिकृत छूट कारण चुनें --"
+											: "-- Select Authorized Discount Reason --"}
+									</option>
 									{DISCOUNT_PRESET_REASONS.map((r) => (
 										<option key={r} value={r}>
 											{r}
@@ -1913,8 +2056,10 @@ function POSContent() {
 
 						{/* Custom Reason Text */}
 						<div className="space-y-1">
-							<Label className="text-xs text-muted-foreground">
-								{locale === "hi" ? "अतिरिक्त विवरण / टिप्पणी (वैकल्पिक)" : "Custom Note / Details (Optional)"}
+							<Label className="text-muted-foreground text-xs">
+								{locale === "hi"
+									? "अतिरिक्त विवरण / टिप्पणी (वैकल्पिक)"
+									: "Custom Note / Details (Optional)"}
 							</Label>
 							<Input
 								type="text"
@@ -1937,14 +2082,24 @@ function POSContent() {
 
 					<DialogFooter className="gap-2 sm:gap-0">
 						{discountAmount > 0 && (
-							<Button variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={clearDiscount}>
+							<Button
+								variant="ghost"
+								className="text-destructive hover:bg-destructive/10"
+								onClick={clearDiscount}
+							>
 								{locale === "hi" ? "छूट हटाएं" : "Remove Discount"}
 							</Button>
 						)}
-						<Button variant="outline" onClick={() => setDiscountModalOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setDiscountModalOpen(false)}
+						>
 							{t.close}
 						</Button>
-						<Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={applyDiscount}>
+						<Button
+							className="bg-emerald-600 text-white hover:bg-emerald-700"
+							onClick={applyDiscount}
+						>
 							{locale === "hi" ? "छूट लागू करें" : "Apply Discount"}
 						</Button>
 					</DialogFooter>
@@ -1952,12 +2107,17 @@ function POSContent() {
 			</Dialog>
 
 			{/* Extra Charges Dialog Modal */}
-			<Dialog open={extraChargesModalOpen} onOpenChange={setExtraChargesModalOpen}>
+			<Dialog
+				open={extraChargesModalOpen}
+				onOpenChange={setExtraChargesModalOpen}
+			>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2 text-lg">
 							<PlusCircle className="h-5 w-5 text-blue-600" />
-							{locale === "hi" ? "अतिरिक्त शुल्क एवं कारण (Extra Charges)" : "Extra Charges & Reason"}
+							{locale === "hi"
+								? "अतिरिक्त शुल्क एवं कारण (Extra Charges)"
+								: "Extra Charges & Reason"}
 						</DialogTitle>
 						<DialogDescription>
 							{locale === "hi"
@@ -1969,11 +2129,13 @@ function POSContent() {
 					<div className="space-y-4 py-2">
 						{/* Extra Amount Input */}
 						<div className="space-y-1.5">
-							<Label className="text-xs font-semibold">
-								{locale === "hi" ? "अतिरिक्त शुल्क राशि (₹)" : "Extra Charge Amount (₹)"}
+							<Label className="font-semibold text-xs">
+								{locale === "hi"
+									? "अतिरिक्त शुल्क राशि (₹)"
+									: "Extra Charge Amount (₹)"}
 							</Label>
 							<div className="relative">
-								<span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-bold">
+								<span className="absolute top-2.5 left-3 font-bold text-muted-foreground text-xs">
 									₹
 								</span>
 								<Input
@@ -1988,11 +2150,13 @@ function POSContent() {
 								/>
 							</div>
 							{/* Live preview */}
-							{tempExtraVal && parseFloat(tempExtraVal) > 0 && (
-								<div className="rounded-md bg-blue-50 p-2 text-xs text-blue-800 flex justify-between">
+							{tempExtraVal && Number.parseFloat(tempExtraVal) > 0 && (
+								<div className="flex justify-between rounded-md bg-blue-50 p-2 text-blue-800 text-xs">
 									<span>
 										{locale === "hi" ? "अतिरिक्त शुल्क:" : "Extra Charges:"}{" "}
-										<strong>+₹{parseFloat(tempExtraVal || "0").toFixed(2)}</strong>
+										<strong>
+											+₹{Number.parseFloat(tempExtraVal || "0").toFixed(2)}
+										</strong>
 									</span>
 									<span>
 										{locale === "hi" ? "नया योग:" : "New Total:"}{" "}
@@ -2000,7 +2164,9 @@ function POSContent() {
 											₹
 											{Math.max(
 												0,
-												subtotal - discountValue + parseFloat(tempExtraVal || "0"),
+												subtotal -
+													discountValue +
+													Number.parseFloat(tempExtraVal || "0"),
 											).toFixed(2)}
 										</strong>
 									</span>
@@ -2010,10 +2176,17 @@ function POSContent() {
 
 						{/* Predefined Reasons Dropdown */}
 						<div className="space-y-1.5">
-							<Label htmlFor="extraChargesReasonSelect" className="text-xs font-semibold flex items-center justify-between">
-								<span>{locale === "hi" ? "शुल्क का कारण (Category Dropdown)" : "Charge Category / Reason Dropdown"}</span>
+							<Label
+								htmlFor="extraChargesReasonSelect"
+								className="flex items-center justify-between font-semibold text-xs"
+							>
+								<span>
+									{locale === "hi"
+										? "शुल्क का कारण (Category Dropdown)"
+										: "Charge Category / Reason Dropdown"}
+								</span>
 								{tempExtraReason && (
-									<span className="text-[10px] text-blue-700 font-bold">
+									<span className="font-bold text-[10px] text-blue-700">
 										✓ {locale === "hi" ? "चयनित" : "Selected"}
 									</span>
 								)}
@@ -2029,9 +2202,13 @@ function POSContent() {
 											setTempCustomExtraReason("");
 										}
 									}}
-									className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-medium pr-8"
+									className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 pr-8 font-medium text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 								>
-									<option value="">{locale === "hi" ? "-- अतिरिक्त शुल्क प्रकार चुनें --" : "-- Select Extra Charge Category --"}</option>
+									<option value="">
+										{locale === "hi"
+											? "-- अतिरिक्त शुल्क प्रकार चुनें --"
+											: "-- Select Extra Charge Category --"}
+									</option>
 									{EXTRA_CHARGES_PRESET_REASONS.map((r) => (
 										<option key={r} value={r}>
 											{r}
@@ -2043,8 +2220,10 @@ function POSContent() {
 
 						{/* Custom Reason Text */}
 						<div className="space-y-1">
-							<Label className="text-xs text-muted-foreground">
-								{locale === "hi" ? "अतिरिक्त विवरण / टिप्पणी (वैकल्पिक)" : "Custom Note / Details (Optional)"}
+							<Label className="text-muted-foreground text-xs">
+								{locale === "hi"
+									? "अतिरिक्त विवरण / टिप्पणी (वैकल्पिक)"
+									: "Custom Note / Details (Optional)"}
 							</Label>
 							<Input
 								type="text"
@@ -2067,14 +2246,24 @@ function POSContent() {
 
 					<DialogFooter className="gap-2 sm:gap-0">
 						{extraChargesAmount > 0 && (
-							<Button variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={clearExtraCharges}>
+							<Button
+								variant="ghost"
+								className="text-destructive hover:bg-destructive/10"
+								onClick={clearExtraCharges}
+							>
 								{locale === "hi" ? "शुल्क हटाएं" : "Remove Charges"}
 							</Button>
 						)}
-						<Button variant="outline" onClick={() => setExtraChargesModalOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setExtraChargesModalOpen(false)}
+						>
 							{t.close}
 						</Button>
-						<Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={applyExtraCharges}>
+						<Button
+							className="bg-blue-600 text-white hover:bg-blue-700"
+							onClick={applyExtraCharges}
+						>
 							{locale === "hi" ? "शुल्क जोड़ें" : "Apply Charges"}
 						</Button>
 					</DialogFooter>
@@ -2091,21 +2280,21 @@ function POSContent() {
 				<DialogContent className="max-w-md p-5 sm:max-w-lg">
 					{detailsProduct && (
 						<>
-							<DialogHeader className="space-y-1.5 pb-2 border-b">
+							<DialogHeader className="space-y-1.5 border-b pb-2">
 								<div className="flex items-center justify-between gap-2">
-									<span className="rounded bg-primary/10 px-2 py-0.5 font-mono font-bold text-xs text-primary dark:bg-primary/20">
+									<span className="rounded bg-primary/10 px-2 py-0.5 font-bold font-mono text-primary text-xs dark:bg-primary/20">
 										#{detailsProduct.id}
 									</span>
 									{detailsProduct.category && (
-										<span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+										<span className="rounded-full bg-muted px-2.5 py-0.5 font-semibold text-muted-foreground text-xs">
 											{detailsProduct.category}
 										</span>
 									)}
 								</div>
-								<DialogTitle className="text-base sm:text-lg font-bold text-foreground">
+								<DialogTitle className="font-bold text-base text-foreground sm:text-lg">
 									{detailsProduct.name}
 								</DialogTitle>
-								<DialogDescription className="text-xs text-muted-foreground">
+								<DialogDescription className="text-muted-foreground text-xs">
 									{locale === "hi"
 										? "उत्पाद का पूरा विवरण एवं मूल्य जानकारी"
 										: "Complete product specifications, pricing, and description"}
@@ -2114,28 +2303,37 @@ function POSContent() {
 
 							<div className="space-y-4 py-2 text-sm">
 								{/* Price & Offers Box */}
-								<div className="rounded-xl border bg-muted/30 p-3.5 space-y-2">
+								<div className="space-y-2 rounded-xl border bg-muted/30 p-3.5">
 									<div className="flex items-baseline justify-between">
-										<span className="text-xs font-semibold text-muted-foreground">
-											{locale === "hi" ? "बिक्री मूल्य (Selling Price)" : "Selling Price"}
+										<span className="font-semibold text-muted-foreground text-xs">
+											{locale === "hi"
+												? "बिक्री मूल्य (Selling Price)"
+												: "Selling Price"}
 										</span>
 										<div className="text-right">
 											{detailsProduct.hasDailyOffer ? (
 												<div className="flex items-baseline gap-2">
-													<span className="text-sm text-muted-foreground line-through font-semibold">
-														₹{Number.parseFloat(detailsProduct.originalPrice || detailsProduct.price).toFixed(2)}
+													<span className="font-semibold text-muted-foreground text-sm line-through">
+														₹
+														{Number.parseFloat(
+															detailsProduct.originalPrice ||
+																detailsProduct.price,
+														).toFixed(2)}
 													</span>
-													<span className="text-xl font-extrabold text-rose-600 dark:text-rose-400">
-														₹{Number.parseFloat(detailsProduct.offerPrice).toFixed(2)}
+													<span className="font-extrabold text-rose-600 text-xl dark:text-rose-400">
+														₹
+														{Number.parseFloat(
+															detailsProduct.offerPrice,
+														).toFixed(2)}
 													</span>
 												</div>
 											) : (
-												<span className="text-xl font-extrabold text-primary">
+												<span className="font-extrabold text-primary text-xl">
 													₹{Number.parseFloat(detailsProduct.price).toFixed(2)}
 												</span>
 											)}
 											{detailsProduct.unit && (
-												<span className="text-xs text-muted-foreground ml-1">
+												<span className="ml-1 text-muted-foreground text-xs">
 													/ {detailsProduct.unit}
 												</span>
 											)}
@@ -2143,13 +2341,13 @@ function POSContent() {
 									</div>
 
 									{detailsProduct.hasDailyOffer && (
-										<div className="flex items-center gap-1.5 pt-1 border-t border-dashed">
-											<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-2 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+										<div className="flex items-center gap-1.5 border-t border-dashed pt-1">
+											<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-2 py-0.5 font-bold text-rose-600 text-xs dark:text-rose-400">
 												<Tag className="h-3 w-3" />
 												{detailsProduct.dailyOfferPercent}% OFF
 											</span>
 											{detailsProduct.dailyOfferReason && (
-												<span className="text-xs text-muted-foreground">
+												<span className="text-muted-foreground text-xs">
 													{detailsProduct.dailyOfferReason}
 												</span>
 											)}
@@ -2159,14 +2357,18 @@ function POSContent() {
 
 								{/* Full Description Section */}
 								<div className="space-y-1.5">
-									<Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+									<Label className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
 										<Info className="h-3.5 w-3.5 text-primary" />
-										{locale === "hi" ? "पूरा उत्पाद विवरण (Full Description)" : "Full Product Description"}
+										{locale === "hi"
+											? "पूरा उत्पाद विवरण (Full Description)"
+											: "Full Product Description"}
 									</Label>
-									<div className="rounded-lg border bg-background p-3 text-xs sm:text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed min-h-[60px] max-h-[160px] overflow-y-auto">
+									<div className="max-h-[160px] min-h-[60px] overflow-y-auto whitespace-pre-wrap rounded-lg border bg-background p-3 text-foreground/90 text-xs leading-relaxed sm:text-sm">
 										{detailsProduct.description || (
-											<span className="italic text-muted-foreground">
-												{locale === "hi" ? "कोई अतिरिक्त विवरण उपलब्ध नहीं है।" : "No additional description provided."}
+											<span className="text-muted-foreground italic">
+												{locale === "hi"
+													? "कोई अतिरिक्त विवरण उपलब्ध नहीं है।"
+													: "No additional description provided."}
 											</span>
 										)}
 									</div>
@@ -2174,26 +2376,29 @@ function POSContent() {
 
 								{/* Technical / Inventory Badges */}
 								<div className="grid grid-cols-2 gap-2 text-xs">
-									<div className="rounded-lg border bg-muted/20 p-2.5 space-y-0.5">
+									<div className="space-y-0.5 rounded-lg border bg-muted/20 p-2.5">
 										<span className="text-[11px] text-muted-foreground">
 											{locale === "hi" ? "माप इकाई (Unit)" : "Measurement Unit"}
 										</span>
 										<p className="font-semibold text-foreground">
-											{detailsProduct.unit || "Pcs"} {detailsProduct.is_weighted ? "(Weighted)" : ""}
+											{detailsProduct.unit || "Pcs"}{" "}
+											{detailsProduct.is_weighted ? "(Weighted)" : ""}
 										</p>
 									</div>
-									<div className="rounded-lg border bg-muted/20 p-2.5 space-y-0.5">
+									<div className="space-y-0.5 rounded-lg border bg-muted/20 p-2.5">
 										<span className="text-[11px] text-muted-foreground">
 											{locale === "hi" ? "बारकोड / एसकेयू" : "Barcode / SKU"}
 										</span>
-										<p className="font-mono font-semibold text-foreground truncate">
-											{detailsProduct.barcode || detailsProduct.sku || `#${detailsProduct.id}`}
+										<p className="truncate font-mono font-semibold text-foreground">
+											{detailsProduct.barcode ||
+												detailsProduct.sku ||
+												`#${detailsProduct.id}`}
 										</p>
 									</div>
 								</div>
 							</div>
 
-							<DialogFooter className="gap-2 sm:gap-0 pt-2 border-t flex flex-row items-center justify-between">
+							<DialogFooter className="flex flex-row items-center justify-between gap-2 border-t pt-2 sm:gap-0">
 								<Button
 									variant="outline"
 									size="sm"
@@ -2203,19 +2408,24 @@ function POSContent() {
 								</Button>
 
 								{(() => {
-									const inCartItem = cart.find((i) => i.id === detailsProduct.id);
+									const inCartItem = cart.find(
+										(i) => i.id === detailsProduct.id,
+									);
 									if (inCartItem) {
 										return (
 											<div className="flex items-center gap-2">
-												<span className="text-xs text-emerald-700 font-bold dark:text-emerald-300">
-													In Cart: {inCartItem.qty} {detailsProduct.unit || "Pcs"}
+												<span className="font-bold text-emerald-700 text-xs dark:text-emerald-300">
+													In Cart: {inCartItem.qty}{" "}
+													{detailsProduct.unit || "Pcs"}
 												</span>
 												<Button
 													size="sm"
-													className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+													className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
 													onClick={() => {
 														addToCart(detailsProduct, 1);
-														toast.success(`Added 1 more ${detailsProduct.name}`);
+														toast.success(
+															`Added 1 more ${detailsProduct.name}`,
+														);
 													}}
 												>
 													<Plus className="h-3.5 w-3.5" />
@@ -2227,7 +2437,7 @@ function POSContent() {
 									return (
 										<Button
 											size="sm"
-											className="bg-primary text-primary-foreground gap-1.5"
+											className="gap-1.5 bg-primary text-primary-foreground"
 											onClick={() => {
 												addToCart(detailsProduct, 1);
 												toast.success(

@@ -1,4 +1,4 @@
-﻿import { Button } from "@evaluna/ui/components/button";
+import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
 	ArrowLeft,
@@ -144,12 +144,12 @@ export default function ContactPage() {
 									Assistance with system navigation, features, and general
 									usage.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ Account access issues</li>
-									<li>â€¢ Feature explanations</li>
-									<li>â€¢ Basic troubleshooting</li>
-									<li>â€¢ User guide assistance</li>
-									<li>â€¢ Password resets</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Account access issues</li>
+									<li>Feature explanations</li>
+									<li>Basic troubleshooting</li>
+									<li>User guide assistance</li>
+									<li>Password resets</li>
 								</ul>
 								<Button className="mt-4 w-full" variant="outline" size="sm">
 									Contact User Support
@@ -167,12 +167,12 @@ export default function ContactPage() {
 									Help with technical issues, system errors, and performance
 									problems.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ System errors</li>
-									<li>â€¢ Performance issues</li>
-									<li>â€¢ Integration problems</li>
-									<li>â€¢ Data import/export</li>
-									<li>â€¢ Browser compatibility</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>System errors</li>
+									<li>Performance issues</li>
+									<li>Integration problems</li>
+									<li>Data import/export</li>
+									<li>Browser compatibility</li>
 								</ul>
 								<Button className="mt-4 w-full" variant="outline" size="sm">
 									Contact Technical Support
@@ -190,12 +190,12 @@ export default function ContactPage() {
 									Report security concerns, access issues, and compliance
 									questions.
 								</p>
-								<ul className="space-y-2 text-sm">
-									<li>â€¢ Suspicious activity</li>
-									<li>â€¢ Access violations</li>
-									<li>â€¢ Data breaches</li>
-									<li>â€¢ Compliance questions</li>
-									<li>â€¢ Security training</li>
+								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+									<li>Suspicious activity</li>
+									<li>Access violations</li>
+									<li>Data breaches</li>
+									<li>Compliance questions</li>
+									<li>Security training</li>
 								</ul>
 								<Button className="mt-4 w-full" variant="outline" size="sm">
 									Contact Security Team
@@ -262,29 +262,29 @@ export default function ContactPage() {
 								<div className="space-y-4">
 									<div>
 										<h4 className="mb-1 font-medium">Slow Performance:</h4>
-										<ul className="space-y-1 text-muted-foreground text-sm">
-											<li>â€¢ Clear your browser cache</li>
-											<li>â€¢ Try a different browser</li>
-											<li>â€¢ Check your internet connection</li>
-											<li>â€¢ Close unused tabs</li>
+										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+											<li>Clear your browser cache</li>
+											<li>Try a different browser</li>
+											<li>Check your internet connection</li>
+											<li>Close unused tabs</li>
 										</ul>
 									</div>
 									<div>
 										<h4 className="mb-1 font-medium">Error Messages:</h4>
-										<ul className="space-y-1 text-muted-foreground text-sm">
-											<li>â€¢ Note the exact error message</li>
-											<li>â€¢ Try refreshing the page</li>
-											<li>â€¢ Check if others are experiencing issues</li>
-											<li>â€¢ Report to IT with screenshots</li>
+										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+											<li>Note the exact error message</li>
+											<li>Try refreshing the page</li>
+											<li>Check if others are experiencing issues</li>
+											<li>Report to IT with screenshots</li>
 										</ul>
 									</div>
 									<div>
 										<h4 className="mb-1 font-medium">Data Not Saving:</h4>
-										<ul className="space-y-1 text-muted-foreground text-sm">
-											<li>â€¢ Check your internet connection</li>
-											<li>â€¢ Verify you have edit permissions</li>
-											<li>â€¢ Try saving smaller batches of data</li>
-											<li>â€¢ Contact IT if issues persist</li>
+										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
+											<li>Check your internet connection</li>
+											<li>Verify you have edit permissions</li>
+											<li>Try saving smaller batches of data</li>
+											<li>Contact IT if issues persist</li>
 										</ul>
 									</div>
 								</div>

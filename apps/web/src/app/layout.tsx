@@ -6,9 +6,10 @@ import { Toaster } from "sonner";
 import TRPCProvider from "@/app/_trpc/provider";
 import { CookieConsent } from "@/components/cookie-consent";
 import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
+import { ThemeProvider } from "@/components/theme-provider";
+import { defaultLocale, type Locale } from "@/i18n/config";
 import enMessages from "@/messages/en";
 import hiMessages from "@/messages/hi";
-import { defaultLocale, type Locale } from "@/i18n/config";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -61,13 +62,20 @@ export default async function RootLayout({
 				suppressHydrationWarning
 			>
 				<NextIntlClientProvider locale={locale} messages={messages}>
-					<TRPCProvider>
-						<SmoothScrollProvider>
-							<main>{children}</main>
-							<Toaster richColors position="top-right" />
-							<CookieConsent />
-						</SmoothScrollProvider>
-					</TRPCProvider>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="system"
+						enableSystem
+						disableTransitionOnChange
+					>
+						<TRPCProvider>
+							<SmoothScrollProvider>
+								<main>{children}</main>
+								<Toaster richColors position="top-right" />
+								<CookieConsent />
+							</SmoothScrollProvider>
+						</TRPCProvider>
+					</ThemeProvider>
 				</NextIntlClientProvider>
 			</body>
 		</html>

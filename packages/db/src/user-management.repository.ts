@@ -597,6 +597,7 @@ export class UserManagementRepository {
 				roleName: roles.name,
 				branchId: user.branch_id,
 				warehouseId: user.warehouse_id,
+				image: user.image,
 			})
 			.from(user)
 			.where(eq(user.id, userId))
@@ -683,6 +684,7 @@ export class UserManagementRepository {
 				staffId: staff.id,
 				staffCode: staff.staff_code,
 				roleName: roles.name,
+				image: user.image,
 			})
 			.from(user)
 			.leftJoin(staff, eq(user.staff_id, staff.id))
@@ -696,7 +698,7 @@ export class UserManagementRepository {
 			.offset(offset);
 
 		// Deduplicate users by ID in case of multiple user_roles / joins
-		const userMap = new Map<string, typeof usersData[0]>();
+		const userMap = new Map<string, (typeof usersData)[0]>();
 		for (const u of usersData) {
 			if (!userMap.has(u.id)) {
 				userMap.set(u.id, u);
@@ -717,8 +719,9 @@ export class UserManagementRepository {
 			.leftJoin(userRoles, eq(user.id, userRoles.user_id))
 			.leftJoin(roles, eq(userRoles.role_id, roles.id));
 
-		const [totalCountResult] = await countQuery
-			.where(and(...(whereClauses.filter(Boolean) as SQL<unknown>[])));
+		const [totalCountResult] = await countQuery.where(
+			and(...(whereClauses.filter(Boolean) as SQL<unknown>[])),
+		);
 
 		const totalUsers = totalCountResult?.count ?? 0;
 

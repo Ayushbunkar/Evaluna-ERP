@@ -261,7 +261,7 @@ export default function SuppliersPage() {
 
 			{/* SUPPLIER DETAILS MODAL DRAWER */}
 			<Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-				<DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto bg-white">
+				<DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto border-border bg-white dark:bg-slate-900">
 					{detailsLoading ? (
 						<div className="flex justify-center py-12">
 							<Loader2Icon className="h-8 w-8 animate-spin" />
@@ -427,7 +427,7 @@ export default function SuppliersPage() {
 
 			{/* PAY SUPPLIER DIALOG */}
 			<Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
-				<DialogContent className="bg-white">
+				<DialogContent className="border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Register Supplier Payment
@@ -440,7 +440,7 @@ export default function SuppliersPage() {
 
 					<div className="my-2 space-y-4">
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 								Amount Paid (₹)
 							</Label>
 							<Input
@@ -452,7 +452,7 @@ export default function SuppliersPage() {
 							/>
 						</div>
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-slate-700 text-xs dark:text-slate-300">
 								Transaction Description
 							</Label>
 							<Textarea
@@ -487,7 +487,7 @@ export default function SuppliersPage() {
 
 			{/* CREATE SUPPLIER DIALOG */}
 			<Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-				<DialogContent className="bg-white">
+				<DialogContent className="border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Register New Supplier Partner

@@ -90,7 +90,10 @@ export default function PurchaseOrdersPage() {
 
 	const handleQuickAddProduct = (product: any) => {
 		const unitCost = Number(
-			product.base_procurement_price || product.procurement_price || product.price || 10,
+			product.base_procurement_price ||
+				product.procurement_price ||
+				product.price ||
+				10,
 		);
 		const existingIdx = orderItems.findIndex(
 			(i) => i.productId === product.id.toString(),
@@ -323,7 +326,7 @@ export default function PurchaseOrdersPage() {
 
 			{/* CREATE PO MODAL DIALOG */}
 			<Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-				<DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto bg-white">
+				<DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Create Purchase Order (PO)
@@ -583,7 +586,7 @@ export default function PurchaseOrdersPage() {
 
 			{/* PO DETAIL DRAWER */}
 			<Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-				<DialogContent className="max-w-xl bg-white">
+				<DialogContent className="max-w-xl border-border bg-white dark:bg-slate-900">
 					<DialogHeader>
 						<DialogTitle className="font-bold text-lg">
 							Purchase Order Items — PO-#{selectedPO?.id}

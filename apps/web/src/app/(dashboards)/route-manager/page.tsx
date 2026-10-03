@@ -8,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import { motion } from "framer-motion";
 import {
 	ActivityIcon,
 	AlertTriangleIcon,
@@ -22,7 +23,6 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { useLocale } from "next-intl";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -201,7 +201,7 @@ export default function RouteManagerDashboard() {
 											<div className="flex flex-col">
 												<p className="font-medium text-sm">Trip #{trip.id}</p>
 												<p className="text-muted-foreground text-xs">
-													Route: {trip.route_id} â€¢ Driver: {trip.driver_id}
+													Route: {trip.route_id} · Driver: {trip.driver_id}
 												</p>
 											</div>
 											<div className="flex items-center gap-2 text-right">

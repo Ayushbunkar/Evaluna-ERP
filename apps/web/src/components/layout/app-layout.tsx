@@ -50,6 +50,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { logout } from "@/app/(auth)/login/actions";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -366,6 +367,8 @@ export function AppLayout({
 					{role !== "customer" && (
 						<BranchSwitcher isSuperadmin={!!session?.user?.isSuperadmin} />
 					)}
+
+					<ThemeToggle />
 
 					<div className="hidden md:block">
 						<LocaleSwitcher />

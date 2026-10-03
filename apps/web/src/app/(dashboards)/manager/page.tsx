@@ -123,33 +123,33 @@ export default function ManagerDashboard() {
 			</div>
 
 			{/* KPI Cards Grid */}
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-				<Card className="shadow-sm">
-					<CardContent className="flex items-center gap-3 p-4">
-						<div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-950/40">
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+				<Card className="shadow-sm overflow-hidden">
+					<CardContent className="flex items-center gap-2.5 p-3 sm:p-4">
+						<div className="shrink-0 rounded-xl bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40 sm:p-2.5">
 							<UsersIcon className="h-5 w-5" />
 						</div>
-						<div>
-							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+						<div className="min-w-0 flex-1 overflow-hidden">
+							<p className="truncate font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
 								{t("totalTeam")}
 							</p>
-							<h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
+							<h3 className="truncate font-bold text-base sm:text-lg text-slate-900 dark:text-slate-100 tracking-tight">
 								{stats?.totalEmployees ?? 0}
 							</h3>
 						</div>
 					</CardContent>
 				</Card>
 
-				<Card className="border-l-4 border-l-green-500 shadow-sm">
-					<CardContent className="flex items-center gap-3 p-4">
-						<div className="rounded-xl bg-green-50 p-2.5 text-green-600 dark:bg-green-950/40">
+				<Card className="border-l-4 border-l-green-500 shadow-sm overflow-hidden">
+					<CardContent className="flex items-center gap-2.5 p-3 sm:p-4">
+						<div className="shrink-0 rounded-xl bg-green-50 p-2 text-green-600 dark:bg-green-950/40 sm:p-2.5">
 							<ClockIcon className="h-5 w-5" />
 						</div>
-						<div>
-							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+						<div className="min-w-0 flex-1 overflow-hidden">
+							<p className="truncate font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
 								{t("presentToday")}
 							</p>
-							<h3 className="font-bold text-green-600 text-lg">
+							<h3 className="truncate font-bold text-base sm:text-lg text-green-600 tracking-tight">
 								{stats?.presentToday ?? 0}
 							</h3>
 						</div>
@@ -157,17 +157,17 @@ export default function ManagerDashboard() {
 				</Card>
 
 				{/* NEW: Confirmed Orders Awaiting Route Dispatch */}
-				<Link href="/manager/dispatch" className="block">
-					<Card className="border-l-4 border-l-blue-500 shadow-sm transition-all hover:shadow-md">
-						<CardContent className="flex items-center gap-3 p-4">
-							<div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-950/40">
+				<Link href="/manager/dispatch" className="block min-w-0">
+					<Card className="border-l-4 border-l-blue-500 shadow-sm transition-all hover:shadow-md overflow-hidden h-full">
+						<CardContent className="flex items-center gap-2.5 p-3 sm:p-4">
+							<div className="shrink-0 rounded-xl bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40 sm:p-2.5">
 								<TruckIcon className="h-5 w-5" />
 							</div>
-							<div>
-								<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+							<div className="min-w-0 flex-1 overflow-hidden">
+								<p className="truncate font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
 									Dispatch Queue
 								</p>
-								<h3 className="font-bold text-blue-600 text-lg">
+								<h3 className="truncate font-bold text-base sm:text-lg text-blue-600 tracking-tight">
 									{(stats as any)?.pendingRoutesCount ?? 0}
 								</h3>
 							</div>
@@ -175,48 +175,54 @@ export default function ManagerDashboard() {
 					</Card>
 				</Link>
 
-				<Card className="border-l-4 border-l-amber-500 shadow-sm">
-					<CardContent className="flex items-center gap-3 p-4">
-						<div className="rounded-xl bg-amber-50 p-2.5 text-amber-600 dark:bg-amber-950/40">
+				<Card className="border-l-4 border-l-amber-500 shadow-sm overflow-hidden">
+					<CardContent className="flex items-center gap-2.5 p-3 sm:p-4">
+						<div className="shrink-0 rounded-xl bg-amber-50 p-2 text-amber-600 dark:bg-amber-950/40 sm:p-2.5">
 							<FileCheckIcon className="h-5 w-5" />
 						</div>
-						<div>
-							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+						<div className="min-w-0 flex-1 overflow-hidden">
+							<p className="truncate font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
 								{t("pendingApprovals")}
 							</p>
-							<h3 className="font-bold text-amber-600 text-lg">
+							<h3 className="truncate font-bold text-base sm:text-lg text-amber-600 tracking-tight">
 								{stats?.pendingApprovals ?? 0}
 							</h3>
 						</div>
 					</CardContent>
 				</Card>
 
-				<Card className="border-l-4 border-l-emerald-500 shadow-sm">
-					<CardContent className="flex items-center gap-3 p-4">
-						<div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-950/40">
+				<Card className="border-l-4 border-l-emerald-500 shadow-sm overflow-hidden">
+					<CardContent className="flex items-center gap-2.5 p-3 sm:p-4">
+						<div className="shrink-0 rounded-xl bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-950/40 sm:p-2.5">
 							<IndianRupeeIcon className="h-5 w-5" />
 						</div>
-						<div>
-							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+						<div className="min-w-0 flex-1 overflow-hidden">
+							<p
+								className="truncate font-semibold text-[11px] text-slate-500 uppercase tracking-wider"
+								title={t("driverCashColl")}
+							>
 								{t("driverCashColl")}
 							</p>
-							<h3 className="font-bold text-emerald-600 text-lg">
+							<h3
+								className="truncate font-bold text-xs sm:text-sm lg:text-xs xl:text-base text-emerald-600 tracking-tight"
+								title={`₹${(stats?.driverCashCollected ?? 0).toLocaleString("en-IN")}`}
+							>
 								₹{(stats?.driverCashCollected ?? 0).toLocaleString("en-IN")}
 							</h3>
 						</div>
 					</CardContent>
 				</Card>
 
-				<Card className="border-l-4 border-l-red-500 shadow-sm">
-					<CardContent className="flex items-center gap-3 p-4">
-						<div className="rounded-xl bg-red-50 p-2.5 text-red-600 dark:bg-red-950/40">
+				<Card className="border-l-4 border-l-red-500 shadow-sm overflow-hidden">
+					<CardContent className="flex items-center gap-2.5 p-3 sm:p-4">
+						<div className="shrink-0 rounded-xl bg-red-50 p-2 text-red-600 dark:bg-red-950/40 sm:p-2.5">
 							<AlertTriangleIcon className="h-5 w-5" />
 						</div>
-						<div>
-							<p className="font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
+						<div className="min-w-0 flex-1 overflow-hidden">
+							<p className="truncate font-semibold text-[11px] text-slate-500 uppercase tracking-wider">
 								{t("overdueTasks")}
 							</p>
-							<h3 className="font-bold text-lg text-red-600">
+							<h3 className="truncate font-bold text-base sm:text-lg text-red-600 tracking-tight">
 								{stats?.overdueTasks ?? 0}
 							</h3>
 						</div>

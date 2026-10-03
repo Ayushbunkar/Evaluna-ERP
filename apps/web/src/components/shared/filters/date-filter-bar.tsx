@@ -1,7 +1,12 @@
 "use client";
 
 import { Button } from "@evaluna/ui/components/button";
-import { CalendarDaysIcon, CalendarIcon, IndianRupeeIcon, XIcon } from "lucide-react";
+import {
+	CalendarDaysIcon,
+	CalendarIcon,
+	IndianRupeeIcon,
+	XIcon,
+} from "lucide-react";
 import { useLocale } from "next-intl";
 import React, { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
@@ -165,7 +170,7 @@ export function DateFilterBar({
 							type="date"
 							value={startDate}
 							onChange={(e) => handleCustomStartChange(e.target.value)}
-							className="bg-transparent text-xs text-foreground focus:outline-none cursor-pointer"
+							className="w-[115px] sm:w-[125px] min-w-0 bg-transparent text-xs text-foreground focus:outline-none cursor-pointer"
 							title={isHindi ? "प्रारंभिक दिनांक चुनें" : "Select start date"}
 						/>
 					</div>
@@ -178,7 +183,7 @@ export function DateFilterBar({
 							type="date"
 							value={endDate}
 							onChange={(e) => handleCustomEndChange(e.target.value)}
-							className="bg-transparent text-xs text-foreground focus:outline-none cursor-pointer"
+							className="w-[115px] sm:w-[125px] min-w-0 bg-transparent text-xs text-foreground focus:outline-none cursor-pointer"
 							title={isHindi ? "अंतिम दिनांक चुनें" : "Select end date"}
 						/>
 					</div>
@@ -238,17 +243,23 @@ export function DateFilterBar({
 					<div className="flex flex-wrap items-center gap-2">
 						{typeof totalCount === "number" && (
 							<span className="bg-primary/20 text-primary px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
-								{totalCount} {countLabel ? countLabel : (isHindi ? "ऑर्डर" : "orders")}
+								{totalCount}{" "}
+								{countLabel ? countLabel : isHindi ? "ऑर्डर" : "orders"}
 							</span>
 						)}
 						{totalAmount !== undefined && totalAmount !== null && (
 							<span className="bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-2xs">
 								<IndianRupeeIcon className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
 								<span className="opacity-85 font-semibold">
-									{amountLabel ? amountLabel : (isHindi ? "कुल बिक्री:" : "Total Sales:")}
+									{amountLabel
+										? amountLabel
+										: isHindi
+											? "कुल बिक्री:"
+											: "Total Sales:"}
 								</span>
 								<span className="font-black">
-									{typeof totalAmount === "number" || typeof totalAmount === "string"
+									{typeof totalAmount === "number" ||
+									typeof totalAmount === "string"
 										? formatCurrency(totalAmount, currentLocale)
 										: totalAmount}
 								</span>

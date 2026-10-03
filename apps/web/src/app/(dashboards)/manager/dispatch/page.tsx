@@ -23,7 +23,7 @@ export default function ManagerDispatchPage() {
 			</div>
 
 			{/* Render Unified Delivery Management Component */}
-			<div className="overflow-hidden rounded-xl border border-border/50 bg-white shadow-sm">
+			<div className="w-full">
 				<DeliveryManagementDashboard
 					initialRoutes={[]}
 					initialVehicles={[]}

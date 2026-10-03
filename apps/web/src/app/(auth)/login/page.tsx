@@ -5,18 +5,12 @@ import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { motion } from "framer-motion";
-import { AlertCircle, Loader2, MountainIcon } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-	type FormEvent,
-	Suspense,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { type FormEvent, Suspense, useRef, useState } from "react";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { login } from "./actions";
 
@@ -220,6 +214,7 @@ export default function LoginPage() {
 							>
 								Company
 							</Link>
+							<ThemeToggle />
 							<Button asChild variant="outline" className="text-sm">
 								<Link href="/signup">Sign Up</Link>
 							</Button>
@@ -235,8 +230,9 @@ export default function LoginPage() {
 					<div className="absolute right-[-10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
 				</div>
 
-				<div className="absolute top-6 right-6">
+				<div className="absolute top-6 right-6 flex items-center gap-2">
 					<LocaleSwitcher />
+					<ThemeToggle />
 				</div>
 
 				<motion.div
