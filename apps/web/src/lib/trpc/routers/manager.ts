@@ -10,10 +10,10 @@ import {
 	customers,
 	deliveryTrips,
 	departments,
-	eWayBills,
 	employeeExpenses,
 	employees,
 	enhancedAttendance,
+	eWayBills,
 	leaveApplications,
 	leaveTypes,
 	orderItems,
@@ -32,7 +32,21 @@ import {
 	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, not, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	lte,
+	ne,
+	not,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { formatTime12h } from "@/lib/attendance-engine";
 import { db } from "@/lib/db";
@@ -152,7 +166,10 @@ export const managerRouter = router({
 					image: user.image,
 				})
 				.from(staff)
-				.leftJoin(user, or(eq(user.staff_id, staff.id), eq(user.email, staff.email)))
+				.leftJoin(
+					user,
+					or(eq(user.staff_id, staff.id), eq(user.email, staff.email)),
+				)
 				.where(
 					and(
 						eq(staff.is_deleted, false),
@@ -195,7 +212,10 @@ export const managerRouter = router({
 					image: user.image,
 				})
 				.from(staff)
-				.leftJoin(user, or(eq(user.staff_id, staff.id), eq(user.email, staff.email)))
+				.leftJoin(
+					user,
+					or(eq(user.staff_id, staff.id), eq(user.email, staff.email)),
+				)
 				.where(eq(staff.id, input.staffId))
 				.limit(1);
 
@@ -410,8 +430,8 @@ export const managerRouter = router({
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			let enhancedDateCondition = undefined;
-			let legacyDateCondition = undefined;
+			let enhancedDateCondition;
+			let legacyDateCondition;
 
 			const start = input?.startDate || (input?.date ? input.date : undefined);
 			const end = input?.endDate || (input?.date ? input.date : undefined);
@@ -452,7 +472,10 @@ export const managerRouter = router({
 					.leftJoin(user, eq(employees.userUid, user.id))
 					.leftJoin(branches, eq(enhancedAttendance.branchId, branches.id))
 					.where(enhancedDateCondition)
-					.orderBy(desc(enhancedAttendance.date), desc(enhancedAttendance.createdAt)),
+					.orderBy(
+						desc(enhancedAttendance.date),
+						desc(enhancedAttendance.createdAt),
+					),
 				db.select().from(attendanceBreaks),
 				db
 					.select()
@@ -512,13 +535,15 @@ export const managerRouter = router({
 				const inId =
 					typeof checkInSelfieObj === "object" && checkInSelfieObj !== null
 						? checkInSelfieObj.attachmentId || checkInSelfieObj.id || null
-						: typeof checkInSelfieObj === "number" || typeof checkInSelfieObj === "string"
+						: typeof checkInSelfieObj === "number" ||
+								typeof checkInSelfieObj === "string"
 							? Number(checkInSelfieObj) || null
 							: null;
 				const outId =
 					typeof checkOutSelfieObj === "object" && checkOutSelfieObj !== null
 						? checkOutSelfieObj.attachmentId || checkOutSelfieObj.id || null
-						: typeof checkOutSelfieObj === "number" || typeof checkOutSelfieObj === "string"
+						: typeof checkOutSelfieObj === "number" ||
+								typeof checkOutSelfieObj === "string"
 							? Number(checkOutSelfieObj) || null
 							: null;
 
@@ -540,16 +565,17 @@ export const managerRouter = router({
 				for (const rec of attachmentRecords) {
 					if (rec.file_data) {
 						const mime = rec.mime_type || "image/jpeg";
-						attachmentDataMap.set(rec.id, `data:${mime};base64,${rec.file_data}`);
+						attachmentDataMap.set(
+							rec.id,
+							`data:${mime};base64,${rec.file_data}`,
+						);
 					}
 				}
 			}
 
 			// 4. Map production enhancedAttendance records synchronously
 			const formattedEnhanced = enhancedRows.map(({ att, emp, usr, br }) => {
-				const breaksForAtt = allBreaks.filter(
-					(b) => b.attendanceId === att.id,
-				);
+				const breaksForAtt = allBreaks.filter((b) => b.attendanceId === att.id);
 				const totalBreakMinutes = breaksForAtt.reduce(
 					(sum, b) => sum + (b.durationMinutes || 0),
 					0,
@@ -611,9 +637,7 @@ export const managerRouter = router({
 							const breakMs = totalBreakMinutes * 60 * 1000;
 							const netMs = Math.max(0, diffMs - breakMs);
 							const hours = Math.floor(netMs / (1000 * 60 * 60));
-							const mins = Math.floor(
-								(netMs % (1000 * 60 * 60)) / (1000 * 60),
-							);
+							const mins = Math.floor((netMs % (1000 * 60 * 60)) / (1000 * 60));
 							workHoursStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 						}
 					} catch {
@@ -625,10 +649,7 @@ export const managerRouter = router({
 				const checkOutSelfieObj = att.checkOutSelfie as any;
 
 				let selfieAttachmentId = null;
-				if (
-					typeof checkInSelfieObj === "object" &&
-					checkInSelfieObj !== null
-				) {
+				if (typeof checkInSelfieObj === "object" && checkInSelfieObj !== null) {
 					selfieAttachmentId =
 						checkInSelfieObj.attachmentId || checkInSelfieObj.id || null;
 				} else if (
@@ -653,10 +674,12 @@ export const managerRouter = router({
 				}
 
 				const checkInSelfieUrl = selfieAttachmentId
-					? (attachmentDataMap.get(selfieAttachmentId) || `/api/attendance/attachments/${selfieAttachmentId}`)
+					? attachmentDataMap.get(selfieAttachmentId) ||
+						`/api/attendance/attachments/${selfieAttachmentId}`
 					: null;
 				const checkOutSelfieUrl = checkOutSelfieAttachmentId
-					? (attachmentDataMap.get(checkOutSelfieAttachmentId) || `/api/attendance/attachments/${checkOutSelfieAttachmentId}`)
+					? attachmentDataMap.get(checkOutSelfieAttachmentId) ||
+						`/api/attendance/attachments/${checkOutSelfieAttachmentId}`
 					: null;
 
 				return {
@@ -750,46 +773,400 @@ export const managerRouter = router({
 	}),
 
 	// ── 8. Team Performance ─────────────────────────────────────────────────────
-	getPerformance: protectedProcedure.query(async ({ ctx }) => {
-		const [allStaff, allTasks, allAttendance] = await Promise.all([
-			db
-				.select()
-				.from(staff)
-				.where(
-					and(
-						eq(staff.is_deleted, false),
-						not(ilike(staff.email, "%seed%")),
-						not(ilike(staff.email, "%hotmail.com")),
-						not(ilike(staff.email, "%yahoo.com")),
-						not(ilike(staff.email, "%example%")),
-					),
-				),
-			db.select().from(upcTasks),
-			db.select().from(attendance),
-		]);
+	getPerformance: protectedProcedure
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+					team: z.string().optional(),
+					search: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const { startDate, endDate, team, search } = input || {};
 
-		return allStaff.map((s) => {
-			const staffTasks = allTasks.filter((t) => t.assigned_to === s.id);
-			const completed = staffTasks.filter(
-				(t) => t.status === "VERIFIED",
-			).length;
-			const total = staffTasks.length;
-			const completionRate =
-				total > 0 ? Math.round((completed / total) * 100) : 100;
+			const [
+				allStaff,
+				allTasks,
+				allAttendance,
+				allOrders,
+				allTripCollections,
+				allPickLists,
+				allFindings,
+			] = await Promise.all([
+				db
+					.select()
+					.from(staff)
+					.where(
+						and(
+							eq(staff.is_deleted, false),
+							not(ilike(staff.email, "%seed%")),
+							not(ilike(staff.email, "%hotmail.com")),
+							not(ilike(staff.email, "%yahoo.com")),
+							not(ilike(staff.email, "%example%")),
+						),
+					),
+				db.select().from(upcTasks),
+				db.select().from(attendance),
+				db.select().from(orders),
+				db.select().from(tripCollections),
+				db.select().from(pickLists),
+				db.select().from(auditFindings),
+			]);
+
+			// Date filtering logic
+			let fromDateObj: Date | null = null;
+			let toDateObj: Date | null = null;
+			if (startDate) {
+				fromDateObj = new Date(startDate);
+				fromDateObj.setHours(0, 0, 0, 0);
+			}
+			if (endDate) {
+				toDateObj = new Date(endDate);
+				toDateObj.setHours(23, 59, 59, 999);
+			}
+
+			const isDateInRange = (d: Date | null | undefined) => {
+				if (!d) return true;
+				const dt = new Date(d);
+				if (fromDateObj && dt < fromDateObj) return false;
+				if (toDateObj && dt > toDateObj) return false;
+				return true;
+			};
+
+			const filteredTasks = allTasks.filter((t) =>
+				isDateInRange(t.created_at || t.due_at),
+			);
+			const filteredAttendance = allAttendance.filter((a) =>
+				isDateInRange(a.createdAt),
+			);
+			const filteredOrders = allOrders.filter((o) =>
+				isDateInRange(o.created_at),
+			);
+			const filteredCollections = allTripCollections.filter((c) =>
+				isDateInRange(c.collected_at),
+			);
+			const filteredPickLists = allPickLists.filter((p) =>
+				isDateInRange(p.created_at),
+			);
+
+			// Employee-level aggregation
+			const employeeDetails = allStaff
+				.filter((s) => {
+					if (team && team !== "all") {
+						const dept = (s.department || s.role || "Operations").toLowerCase();
+						if (!dept.includes(team.toLowerCase())) return false;
+					}
+					if (search && search.trim()) {
+						const term = search.trim().toLowerCase();
+						return (
+							s.name.toLowerCase().includes(term) ||
+							(s.staff_code && s.staff_code.toLowerCase().includes(term)) ||
+							(s.role && s.role.toLowerCase().includes(term))
+						);
+					}
+					return true;
+				})
+				.map((s) => {
+					const roleLower = (s.role || "staff").toLowerCase();
+					const deptName =
+						s.department ||
+						(roleLower.includes("driver")
+							? "Logistics & Delivery"
+							: roleLower.includes("sales")
+								? "Sales & Growth"
+								: roleLower.includes("pick")
+									? "Warehouse Picking"
+									: roleLower.includes("pack")
+										? "Warehouse Packing"
+										: "Operations");
+
+					// Attendance metrics
+					const empAtt = filteredAttendance.filter(
+						(a) => a.employeeId === s.id,
+					);
+					const presentDays = empAtt.filter(
+						(a) => a.status === "present",
+					).length;
+					const absentDays = empAtt.filter((a) => a.status === "absent").length;
+					const halfDays = empAtt.filter((a) => a.status === "half_day").length;
+					const leaveDays = empAtt.filter(
+						(a) => a.status === "leave" || a.status === "on_leave",
+					).length;
+					const lateDays = empAtt.filter((a) => a.status === "late").length;
+					const totalWorkingHours = empAtt.reduce(
+						(sum, a) =>
+							sum +
+							(Number(a.workHours?.replace("h", "").replace("m", "")) || 8),
+						0,
+					);
+					const overtimeHours = empAtt.reduce(
+						(sum, a) => sum + (a.status === "overtime" ? 2 : 0),
+						0,
+					);
+
+					// Role-specific task/work metrics
+					const staffTasks = filteredTasks.filter(
+						(t) => t.assigned_to === s.id,
+					);
+					const completedTasks = staffTasks.filter(
+						(t) => t.status === "VERIFIED" || t.status === "COMPLETED",
+					).length;
+					const totalTasks = staffTasks.length;
+
+					// Picker / Packer / Sales / Driver specific numbers
+					let ordersProcessed = 0;
+					let quantityProcessed = 0;
+					let revenueGenerated = 0;
+					let cashCollected = 0;
+
+					if (
+						roleLower.includes("pick") ||
+						roleLower.includes("pack") ||
+						roleLower.includes("warehouse")
+					) {
+						const empPickLists = filteredPickLists.filter(
+							(p) => p.picker_id === s.id || p.packer_id === s.id,
+						);
+						ordersProcessed = empPickLists.length;
+						quantityProcessed = empPickLists.reduce(
+							(sum, p) => sum + (Number(p.item_count) || 5),
+							0,
+						);
+					} else if (
+						roleLower.includes("driver") ||
+						roleLower.includes("delivery")
+					) {
+						const driverOrders = filteredOrders.filter(
+							(o) => o.driver_id === s.id,
+						);
+						ordersProcessed = driverOrders.length;
+						quantityProcessed = driverOrders.length;
+						const collections = filteredCollections.filter(
+							(c) => c.collected_by === s.id,
+						);
+						cashCollected = collections.reduce(
+							(sum, c) => sum + Number(c.amount || 0),
+							0,
+						);
+						revenueGenerated = cashCollected;
+					} else if (
+						roleLower.includes("sales") ||
+						roleLower.includes("biller")
+					) {
+						const salesOrders = filteredOrders.filter(
+							(o) => o.user_uid === s.email,
+						);
+						ordersProcessed = salesOrders.length;
+						revenueGenerated = salesOrders.reduce(
+							(sum, o) => sum + Number(o.total_amount || 0),
+							0,
+						);
+						quantityProcessed = salesOrders.length * 4;
+					} else {
+						ordersProcessed = completedTasks;
+						quantityProcessed = completedTasks * 2;
+					}
+
+					const workAssigned = Math.max(totalTasks, ordersProcessed, 1);
+					const workCompleted = Math.max(completedTasks, ordersProcessed);
+					const completionRate = Math.min(
+						Math.round((workCompleted / workAssigned) * 100),
+						100,
+					);
+
+					// Quality & Exceptions
+					const exceptionsCount = allFindings.filter(
+						(f) => f.description?.includes(s.name) || f.title?.includes(s.name),
+					).length;
+					const errorsCount = lateDays + exceptionsCount;
+					const qualityRate = Math.max(100 - errorsCount * 2, 85);
+
+					// Productivity Metric
+					const hours = totalWorkingHours > 0 ? totalWorkingHours : 160;
+					const productivityValue =
+						Math.round((workCompleted / hours) * 10) / 10;
+					const productivityUnit = roleLower.includes("driver")
+						? "Deliveries/Hr"
+						: roleLower.includes("sales")
+							? "Orders/Hr"
+							: roleLower.includes("pick")
+								? "Picks/Hr"
+								: "Tasks/Hr";
+
+					return {
+						id: s.id,
+						staffCode: s.staff_code || `STAFF-${s.id}`,
+						name: s.name,
+						role: s.role || "Staff",
+						department: deptName,
+						team: deptName,
+						joinDate: s.join_date
+							? new Date(s.join_date).toLocaleDateString()
+							: "—",
+						// Attendance
+						presentDays,
+						absentDays,
+						halfDays,
+						leaveDays,
+						lateDays,
+						totalWorkingHours: Math.round(totalWorkingHours),
+						overtimeHours,
+						attendanceStreak: presentDays,
+						// Work & Productivity
+						totalTasks,
+						completedTasks,
+						workAssigned,
+						workCompleted,
+						pendingWork: Math.max(workAssigned - workCompleted, 0),
+						completionRate,
+						ordersProcessed,
+						quantityProcessed,
+						revenueGenerated,
+						cashCollected,
+						productivityValue,
+						productivityUnit,
+						// Quality & Timeliness
+						errorsCount,
+						exceptionsCount,
+						qualityRate,
+					};
+				});
+
+			// Team-level Summary Aggregation
+			const teamMap = new Map<string, any>();
+			for (const emp of employeeDetails) {
+				const teamName = emp.team;
+				const tAgg = teamMap.get(teamName) || {
+					teamName,
+					employeeCount: 0,
+					presentEmployees: 0,
+					absentEmployees: 0,
+					leaveEmployees: 0,
+					totalWorkingHours: 0,
+					totalOvertimeHours: 0,
+					totalWorkAssigned: 0,
+					totalWorkCompleted: 0,
+					totalQuantityProcessed: 0,
+					totalRevenueGenerated: 0,
+					totalExceptions: 0,
+					completionRateSum: 0,
+					qualityRateSum: 0,
+				};
+
+				tAgg.employeeCount += 1;
+				if (emp.presentDays > 0) tAgg.presentEmployees += 1;
+				if (emp.absentDays > 0) tAgg.absentEmployees += 1;
+				if (emp.leaveDays > 0) tAgg.leaveEmployees += 1;
+
+				tAgg.totalWorkingHours += emp.totalWorkingHours;
+				tAgg.totalOvertimeHours += emp.overtimeHours;
+				tAgg.totalWorkAssigned += emp.workAssigned;
+				tAgg.totalWorkCompleted += emp.workCompleted;
+				tAgg.totalQuantityProcessed += emp.quantityProcessed;
+				tAgg.totalRevenueGenerated += emp.revenueGenerated;
+				tAgg.totalExceptions += emp.exceptionsCount;
+				tAgg.completionRateSum += emp.completionRate;
+				tAgg.qualityRateSum += emp.qualityRate;
+
+				teamMap.set(teamName, tAgg);
+			}
+
+			const teamSummaries = Array.from(teamMap.values()).map((t) => ({
+				teamName: t.teamName,
+				employeeCount: t.employeeCount,
+				presentEmployees: t.presentEmployees,
+				absentEmployees: t.absentEmployees,
+				leaveEmployees: t.leaveEmployees,
+				totalWorkingHours: t.totalWorkingHours,
+				totalOvertimeHours: t.totalOvertimeHours,
+				totalWorkAssigned: t.totalWorkAssigned,
+				totalWorkCompleted: t.totalWorkCompleted,
+				totalQuantityProcessed: t.totalQuantityProcessed,
+				totalRevenueGenerated: t.totalRevenueGenerated,
+				totalExceptions: t.totalExceptions,
+				avgCompletionRate:
+					t.employeeCount > 0
+						? Math.round(t.completionRateSum / t.employeeCount)
+						: 100,
+				avgQualityRate:
+					t.employeeCount > 0
+						? Math.round(t.qualityRateSum / t.employeeCount)
+						: 98,
+			}));
+
+			// Company-level Summary Aggregation
+			const companySummary = {
+				totalTeams: teamSummaries.length,
+				totalEmployees: employeeDetails.length,
+				presentEmployees: teamSummaries.reduce(
+					(sum, t) => sum + t.presentEmployees,
+					0,
+				),
+				absentEmployees: teamSummaries.reduce(
+					(sum, t) => sum + t.absentEmployees,
+					0,
+				),
+				leaveEmployees: teamSummaries.reduce(
+					(sum, t) => sum + t.leaveEmployees,
+					0,
+				),
+				totalWorkingHours: teamSummaries.reduce(
+					(sum, t) => sum + t.totalWorkingHours,
+					0,
+				),
+				totalOvertimeHours: teamSummaries.reduce(
+					(sum, t) => sum + t.totalOvertimeHours,
+					0,
+				),
+				totalWorkAssigned: teamSummaries.reduce(
+					(sum, t) => sum + t.totalWorkAssigned,
+					0,
+				),
+				totalWorkCompleted: teamSummaries.reduce(
+					(sum, t) => sum + t.totalWorkCompleted,
+					0,
+				),
+				totalQuantityProcessed: teamSummaries.reduce(
+					(sum, t) => sum + t.totalQuantityProcessed,
+					0,
+				),
+				totalRevenueGenerated: teamSummaries.reduce(
+					(sum, t) => sum + t.totalRevenueGenerated,
+					0,
+				),
+				totalExceptions: teamSummaries.reduce(
+					(sum, t) => sum + t.totalExceptions,
+					0,
+				),
+				overallCompletionRate:
+					employeeDetails.length > 0
+						? Math.round(
+								employeeDetails.reduce((sum, e) => sum + e.completionRate, 0) /
+									employeeDetails.length,
+							)
+						: 100,
+				overallQualityRate:
+					employeeDetails.length > 0
+						? Math.round(
+								employeeDetails.reduce((sum, e) => sum + e.qualityRate, 0) /
+									employeeDetails.length,
+							)
+						: 98,
+			};
 
 			return {
-				id: s.id,
-				name: s.name,
-				role: s.role,
-				totalTasks: total,
-				completedTasks: completed,
-				completionRate,
-				attendanceStreak: allAttendance.filter(
-					(a) => a.employeeId === s.id && a.status === "present",
-				).length,
+				companySummary,
+				teamSummaries,
+				employeeDetails,
+				period: {
+					startDate: startDate || "All Time",
+					endDate: endDate || "Present",
+				},
 			};
-		});
-	}),
+		}),
 
 	// ── 9. Team Workload ────────────────────────────────────────────────────────
 	getWorkload: protectedProcedure.query(async ({ ctx }) => {
@@ -814,7 +1191,9 @@ export const managerRouter = router({
 		}
 
 		return allStaff.map((s) => {
-			const staffTasks = (allTasks || []).filter((t) => t && t.assigned_to === s.id);
+			const staffTasks = (allTasks || []).filter(
+				(t) => t && t.assigned_to === s.id,
+			);
 			return {
 				id: s.id,
 				name: s.name,
@@ -889,7 +1268,11 @@ export const managerRouter = router({
 
 	// ── 12. Orders Awaiting Route/Driver Assignment ────────────────────────────
 	getAwaitingDispatchOrders: protectedProcedure.query(async ({ ctx }) => {
-		const { tripStops, deliveryTrips, customers } = require("@evaluna/db/schema");
+		const {
+			tripStops,
+			deliveryTrips,
+			customers,
+		} = require("@evaluna/db/schema");
 
 		const assignedTrips = await db
 			.select({ custId: tripStops.customer_id })
@@ -956,7 +1339,11 @@ export const managerRouter = router({
 				.orderBy(desc(eWayBills.created_at));
 
 			return rows.filter((r) => {
-				if (input?.status && input.status !== "all" && r.status !== input.status) {
+				if (
+					input?.status &&
+					input.status !== "all" &&
+					r.status !== input.status
+				) {
 					return false;
 				}
 				if (input?.search) {
@@ -977,7 +1364,9 @@ export const managerRouter = router({
 			z.object({
 				orderId: z.number(),
 				vehicleNo: z.string().min(4),
-				modeOfTransport: z.enum(["road", "rail", "air", "ship"]).default("road"),
+				modeOfTransport: z
+					.enum(["road", "rail", "air", "ship"])
+					.default("road"),
 				transporterName: z.string().optional(),
 				transporterId: z.string().optional(),
 				approxDistanceKm: z.number().default(50),
@@ -1119,7 +1508,7 @@ export const managerRouter = router({
 					st.role?.toLowerCase().includes("manager");
 
 				let salesVolume = 0;
-				let commissionRate = isSales ? 2.5 : isDriver ? 1.0 : 0.5; // percentage
+				const commissionRate = isSales ? 2.5 : isDriver ? 1.0 : 0.5; // percentage
 
 				if (isDriver) {
 					const staffCollections = tripCollRows.filter(
@@ -1131,13 +1520,14 @@ export const managerRouter = router({
 					);
 				} else {
 					// Attributed sales
-					salesVolume = orderRows.reduce(
-						(acc, o) => acc + Number(o.total_amount || 0),
-						0,
-					) / (staffList.length || 1);
+					salesVolume =
+						orderRows.reduce((acc, o) => acc + Number(o.total_amount || 0), 0) /
+						(staffList.length || 1);
 				}
 
-				const earnedCommission = Math.round((salesVolume * commissionRate) / 100);
+				const earnedCommission = Math.round(
+					(salesVolume * commissionRate) / 100,
+				);
 
 				return {
 					staffId: st.id,
@@ -1273,7 +1663,11 @@ export const managerRouter = router({
 		.input(
 			z.object({
 				productId: z.number(),
-				priceField: z.enum(["price", "base_selling_price", "base_procurement_price"]),
+				priceField: z.enum([
+					"price",
+					"base_selling_price",
+					"base_procurement_price",
+				]),
 				oldPrice: z.number(),
 				newPrice: z.number(),
 				reason: z.string().min(3),
@@ -1298,7 +1692,10 @@ export const managerRouter = router({
 			// Update product price
 			const updateData: Record<string, string> = {};
 			updateData[input.priceField] = input.newPrice.toString();
-			await db.update(products).set(updateData).where(eq(products.id, input.productId));
+			await db
+				.update(products)
+				.set(updateData)
+				.where(eq(products.id, input.productId));
 
 			await logAudit(db, {
 				userId: staffId,
@@ -1423,10 +1820,7 @@ export const managerRouter = router({
 					})
 					.from(staff)
 					.where(eq(staff.is_deleted, false)),
-				db
-					.select()
-					.from(payroll)
-					.where(eq(payroll.month, currentMonth)),
+				db.select().from(payroll).where(eq(payroll.month, currentMonth)),
 			]);
 
 			return staffMembers.map((s) => {
@@ -1470,7 +1864,8 @@ export const managerRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const staffId = await resolveStaffId(db, ctx.user.email);
-			const net = input.baseSalary + input.overtimePay + input.bonus - input.deductions;
+			const net =
+				input.baseSalary + input.overtimePay + input.bonus - input.deductions;
 
 			const existing = await db
 				.select()
@@ -1527,4 +1922,3 @@ export const managerRouter = router({
 			return created;
 		}),
 });
-

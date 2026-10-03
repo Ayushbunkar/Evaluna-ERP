@@ -549,11 +549,21 @@ export function DashboardHeader({
 						</div>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onSelect={() => setProfileOpen(true)}
-							className="flex cursor-pointer items-center text-xs"
+							onSelect={() => {
+								setIsEditingProfile(true);
+								setProfileOpen(true);
+							}}
+							className="flex cursor-pointer items-center gap-2.5 py-2 text-xs"
 						>
-							<UserCircle className="mr-2 h-4 w-4 text-slate-500" />
-							<span>My Profile & Edit</span>
+							<UserCircle className="h-4 w-4 shrink-0 text-blue-500" />
+							<div className="flex min-w-0 flex-col">
+								<span className="font-semibold text-foreground">
+									My Profile & Edit
+								</span>
+								<span className="truncate text-[10px] text-muted-foreground">
+									View & update your account details
+								</span>
+							</div>
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							onSelect={() => {
@@ -561,10 +571,17 @@ export function DashboardHeader({
 								setConfirmPwd("");
 								setSettingsOpen(true);
 							}}
-							className="flex cursor-pointer items-center text-xs"
+							className="flex cursor-pointer items-center gap-2.5 py-2 text-xs"
 						>
-							<Settings className="mr-2 h-4 w-4 text-slate-500" />
-							<span>Account Security</span>
+							<Settings className="h-4 w-4 shrink-0 text-slate-500" />
+							<div className="flex min-w-0 flex-col">
+								<span className="font-semibold text-foreground">
+									Account Security
+								</span>
+								<span className="truncate text-[10px] text-muted-foreground">
+									Change password & security settings
+								</span>
+							</div>
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem

@@ -218,8 +218,8 @@ export const ordersRouter = router({
 						.where(
 							and(
 								eq(tripStops.customer_id, result.customer_id),
-								ne(deliveryTrips.status, "cancelled")
-							)
+								ne(deliveryTrips.status, "cancelled"),
+							),
 						)
 						.orderBy(desc(tripStops.created_at))
 						.limit(1);
@@ -305,7 +305,10 @@ export const ordersRouter = router({
 							if (Array.isArray(p.returns) && p.returns.length > 0) {
 								parsedReturns = p.returns;
 							}
-							if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
+							if (
+								Array.isArray(p.deliveredItems) &&
+								p.deliveredItems.length > 0
+							) {
 								parsedDeliveredItems = p.deliveredItems;
 							}
 							if (p.cashAmount) cashAmount = Number(p.cashAmount);
@@ -324,10 +327,16 @@ export const ordersRouter = router({
 								qty: oi.quantity,
 								price: Number(oi.price || 0),
 							}));
-						} else if (Array.isArray(result.original_items) && result.original_items.length > 0) {
+						} else if (
+							Array.isArray(result.original_items) &&
+							result.original_items.length > 0
+						) {
 							parsedDeliveredItems = result.original_items.map((oi: any) => ({
 								id: oi.id || Math.random(),
-								name: oi.name || oi.product?.name || `Item #${oi.id || oi.product_id}`,
+								name:
+									oi.name ||
+									oi.product?.name ||
+									`Item #${oi.id || oi.product_id}`,
 								qty: Number(oi.quantity || 1),
 								price: Number(oi.price || 0),
 							}));
@@ -379,7 +388,10 @@ export const ordersRouter = router({
 					}
 
 					deliveryHandover = {
-						deliveredAt: pod?.delivered_at || pod?.created_at || (result.status === "completed" ? result.updated_at : null),
+						deliveredAt:
+							pod?.delivered_at ||
+							pod?.created_at ||
+							(result.status === "completed" ? result.updated_at : null),
 						deliveryStatus:
 							pod?.delivery_status ||
 							(result.status === "completed" ? "delivered" : "pending"),
@@ -400,7 +412,9 @@ export const ordersRouter = router({
 							amount: Number(t.amount || 0),
 							type: t.reference_type || t.category || "Payment",
 							status: t.status,
-							date: t.created_at ? new Date(t.created_at).toLocaleString() : "—",
+							date: t.created_at
+								? new Date(t.created_at).toLocaleString()
+								: "—",
 						})),
 					};
 				}
@@ -425,7 +439,7 @@ export const ordersRouter = router({
 							name: assignedDriver.name,
 							phone: assignedDriver.phone,
 							email: assignedDriver.email,
-					  }
+						}
 					: null,
 				route,
 				deliveryHandover,
@@ -537,7 +551,10 @@ export const ordersRouter = router({
 			]);
 
 			const todaySales = Number(salesAgg?.todayTotal) || 0;
-			const progress = Math.min(Math.round((todaySales / dailyGoal) * 100), 100);
+			const progress = Math.min(
+				Math.round((todaySales / dailyGoal) * 100),
+				100,
+			);
 
 			return {
 				todaySales,
@@ -652,9 +669,7 @@ export const ordersRouter = router({
 						]),
 					);
 				} else if (status === "completed") {
-					conditions.push(
-						inArray(orders.status, ["completed", "delivered"]),
-					);
+					conditions.push(inArray(orders.status, ["completed", "delivered"]));
 				} else if (status === "cancelled") {
 					conditions.push(eq(orders.status, "cancelled"));
 				} else {
@@ -740,7 +755,7 @@ export const ordersRouter = router({
 				seenOrderIds.add(r.id);
 
 				const route = r.customer_id
-					? customerRouteMap.get(r.customer_id) ?? null
+					? (customerRouteMap.get(r.customer_id) ?? null)
 					: null;
 
 				uniqueOrders.push({
@@ -1157,7 +1172,10 @@ export const ordersRouter = router({
 				where: and(
 					inArray(orders.status, ["pending_review", "under_review"]),
 					branchId
-						? or(eq(orders.branch_id, branchId), sql`${orders.branch_id} IS NULL`)
+						? or(
+								eq(orders.branch_id, branchId),
+								sql`${orders.branch_id} IS NULL`,
+							)
 						: undefined,
 				),
 				orderBy: [desc(orders.created_at)],
@@ -1312,11 +1330,7 @@ export const ordersRouter = router({
 	// ERP pricing. Recomputes the running total and moves the order to
 	// `under_review`. Rejected once the order is confirmed/locked. Does NOT touch
 	// stock — inventory is only committed at confirmOrder.
-	updateReviewItems: roleProcedure([
-		"admin",
-		"manager",
-		"sales_person",
-	])
+	updateReviewItems: roleProcedure(["admin", "manager", "sales_person"])
 		.input(
 			z.object({
 				id: z.number(),
@@ -1550,8 +1564,7 @@ export const ordersRouter = router({
 							inv = newInv;
 							stockMap.set(it.productId, newInv);
 						} else {
-							const available =
-								(inv.in_stock ?? 0) - (inv.reserved_stock ?? 0);
+							const available = (inv.in_stock ?? 0) - (inv.reserved_stock ?? 0);
 							if (available < it.quantity) {
 								const [updatedInv] = await tx
 									.update(branchInventory)
@@ -1679,12 +1692,7 @@ export const ordersRouter = router({
 						igst_amount: igst.toString(),
 						payment_method_id: safePaymentMethodId,
 					})
-					.where(
-						and(
-							eq(orders.id, input.id),
-							eq(orders.locked, false),
-						),
-					)
+					.where(and(eq(orders.id, input.id), eq(orders.locked, false)))
 					.returning();
 
 				if (confirmed.length === 0) {
@@ -1987,7 +1995,10 @@ export const ordersRouter = router({
 						sql`LOWER(${orders.status}) = 'canceled'`,
 					),
 					branchId
-						? or(eq(orders.branch_id, branchId), sql`${orders.branch_id} IS NULL`)
+						? or(
+								eq(orders.branch_id, branchId),
+								sql`${orders.branch_id} IS NULL`,
+							)
 						: undefined,
 				),
 				orderBy: [desc(orders.created_at)],
@@ -2054,11 +2065,552 @@ export const ordersRouter = router({
 							price: Number(it.price || it.product?.price || 0),
 							unit: it.product?.unit || "Pcs",
 						})),
-						cancelReason: cancelAudit?.reason || "Customer requested cancellation",
+						cancelReason:
+							cancelAudit?.reason || "Customer requested cancellation",
 						cancelledBy: cancelAudit?.changedBy?.name || "Sales Team",
 						cancelledAt: cancelAudit?.created_at || o.created_at,
 					};
 				});
 		}),
-});
 
+	// ── Comprehensive Sales Analytics & Report Data Aggregator ────────────────
+	getComprehensiveSalesReport: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"sales_person",
+		"salesperson",
+		"sales",
+		"biller",
+	])
+		.input(
+			z.object({
+				startDate: z.string().optional(),
+				endDate: z.string().optional(),
+				search: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = ctx.user?.branchId ?? null;
+			const privilegedRoles = [
+				"admin",
+				"super_admin",
+				"manager",
+				"finance",
+				"warehouse_manager",
+				"accountant",
+			];
+			const isPrivileged =
+				ctx.user?.isSuperadmin ||
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+
+			const baseScope = branchId
+				? isPrivileged
+					? eq(orders.branch_id, branchId)
+					: and(
+							eq(orders.branch_id, branchId),
+							eq(orders.user_uid, ctx.user?.id),
+						)
+				: isPrivileged
+					? undefined
+					: eq(orders.user_uid, ctx.user?.id);
+
+			const conditions = [
+				ne(orders.status, "cancelled"),
+				ne(orders.status, "canceled"),
+			];
+			if (baseScope) conditions.push(baseScope);
+
+			if (input.startDate) {
+				const fromDate = new Date(input.startDate);
+				fromDate.setHours(0, 0, 0, 0);
+				conditions.push(gte(orders.created_at, fromDate));
+			}
+			if (input.endDate) {
+				const toDate = new Date(input.endDate);
+				toDate.setHours(23, 59, 59, 999);
+				conditions.push(lte(orders.created_at, toDate));
+			}
+
+			if (input.search?.trim()) {
+				const term = `%${input.search.trim().toLowerCase()}%`;
+				conditions.push(
+					or(
+						ilike(customers.name, term),
+						sql`${orders.id}::text ILIKE ${term}`,
+					)!,
+				);
+			}
+
+			// Fetch all matching non-cancelled orders with full relations
+			const matchingOrders = await db.query.orders.findMany({
+				where: and(...conditions),
+				orderBy: [desc(orders.created_at)],
+				with: {
+					customer: true,
+					orderItems: {
+						with: {
+							product: true,
+						},
+					},
+				},
+			});
+
+			// Fetch all staff users for salesperson mapping
+			const staffList = await db.select().from(staff);
+			const staffMap = new Map<
+				string,
+				{ id: number; name: string; email: string }
+			>();
+			for (const s of staffList) {
+				if (s.email)
+					staffMap.set(s.email.toLowerCase(), {
+						id: s.id,
+						name: s.name,
+						email: s.email,
+					});
+			}
+
+			// Fetch customer route mapping
+			const customerIds = Array.from(
+				new Set(matchingOrders.map((o) => o.customer_id).filter(Boolean)),
+			) as number[];
+
+			const customerRouteMap = new Map<
+				number,
+				{ routeId: number; routeName: string; villageName: string }
+			>();
+
+			if (customerIds.length > 0) {
+				try {
+					const stops = await db
+						.select({
+							customer_id: routeStops.customer_id,
+							route_id: deliveryRoutes.id,
+							route_name: deliveryRoutes.name,
+						})
+						.from(routeStops)
+						.innerJoin(
+							deliveryRoutes,
+							eq(deliveryRoutes.id, routeStops.route_id),
+						)
+						.where(inArray(routeStops.customer_id, customerIds));
+
+					for (const s of stops) {
+						if (!customerRouteMap.has(s.customer_id)) {
+							customerRouteMap.set(s.customer_id, {
+								routeId: s.route_id,
+								routeName: s.route_name,
+								villageName: "General Area",
+							});
+						}
+					}
+				} catch (e) {}
+			}
+
+			// Aggregations
+			let totalSalesAmount = 0;
+			let totalItemsSoldQuantity = 0;
+			const uniqueCustomerSet = new Set<number>();
+			const uniqueRouteSet = new Set<string>();
+			const uniqueVillageSet = new Set<string>();
+
+			// Detailed Order Lines Array for Operational CSV
+			const detailedOrderLines: any[] = [];
+
+			// Customer Performance Aggregation
+			const customerAggMap = new Map<
+				number,
+				{
+					id: number;
+					name: string;
+					code: string;
+					phone: string;
+					address: string;
+					village: string;
+					route: string;
+					salesPerson: string;
+					orderCount: number;
+					totalQty: number;
+					totalAmount: number;
+					firstOrderDate: Date | null;
+					lastOrderDate: Date | null;
+				}
+			>();
+
+			// Product Performance Aggregation
+			const productAggMap = new Map<
+				number,
+				{
+					id: number;
+					name: string;
+					category: string;
+					unit: string;
+					price: number;
+					orderCount: number;
+					uniqueCustomerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+				}
+			>();
+
+			// Route Demand Aggregation
+			const routeAggMap = new Map<
+				string,
+				{
+					routeName: string;
+					orderCount: number;
+					customerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+					productQtyMap: Map<string, number>;
+				}
+			>();
+
+			// Village / Area Demand Aggregation
+			const villageAggMap = new Map<
+				string,
+				{
+					villageName: string;
+					routeName: string;
+					orderCount: number;
+					customerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+				}
+			>();
+
+			// Salesperson Performance Aggregation
+			const salespersonAggMap = new Map<
+				string,
+				{
+					salesPersonName: string;
+					userUid: string;
+					orderCount: number;
+					customerSet: Set<number>;
+					totalQty: number;
+					totalSalesAmount: number;
+					routeSet: Set<string>;
+				}
+			>();
+
+			// Time Trend Aggregation (by Date YYYY-MM-DD)
+			const dailyTrendMap = new Map<
+				string,
+				{ date: string; orders: number; sales: number }
+			>();
+
+			for (const o of matchingOrders) {
+				const orderAmount = Number(o.total_amount || 0);
+				totalSalesAmount += orderAmount;
+
+				const orderDateObj = o.created_at ? new Date(o.created_at) : new Date();
+				const dateKey = orderDateObj.toISOString().substring(0, 10);
+
+				const trend = dailyTrendMap.get(dateKey) || {
+					date: dateKey,
+					orders: 0,
+					sales: 0,
+				};
+				trend.orders += 1;
+				trend.sales += orderAmount;
+				dailyTrendMap.set(dateKey, trend);
+
+				const custId = o.customer_id || 0;
+				const custName = o.customer?.name || "Walk-in Customer";
+				const custPhone = o.customer?.phone || "—";
+				const custAddress = o.customer?.address || "—";
+				const custCode = o.customer?.customer_code || `CUST-${o.customer_id}`;
+
+				if (o.customer_id) {
+					uniqueCustomerSet.add(o.customer_id);
+				}
+
+				// Extract village & route
+				const routeInfo = o.customer_id
+					? customerRouteMap.get(o.customer_id)
+					: null;
+				const routeName = routeInfo?.routeName || "Unassigned Route";
+
+				// Extract village from address string if available
+				let villageName = "General Village";
+				if (custAddress && custAddress.includes(",")) {
+					const parts = custAddress.split(",");
+					villageName = parts[0].trim() || "General Village";
+				} else if (custAddress && custAddress.trim()) {
+					villageName = custAddress.trim();
+				}
+
+				uniqueRouteSet.add(routeName);
+				uniqueVillageSet.add(villageName);
+
+				// Salesperson resolution
+				const spName =
+					staffMap.get(o.user_uid?.toLowerCase())?.name ||
+					(o.user_uid === ctx.user?.id
+						? ctx.user?.name || "Sales Agent"
+						: "Sales Team");
+
+				// Update Customer Aggregation
+				if (o.customer_id) {
+					const cAgg = customerAggMap.get(o.customer_id) || {
+						id: o.customer_id,
+						name: custName,
+						code: custCode,
+						phone: custPhone,
+						address: custAddress,
+						village: villageName,
+						route: routeName,
+						salesPerson: spName,
+						orderCount: 0,
+						totalQty: 0,
+						totalAmount: 0,
+						firstOrderDate: orderDateObj,
+						lastOrderDate: orderDateObj,
+					};
+					cAgg.orderCount += 1;
+					cAgg.totalAmount += orderAmount;
+					if (!cAgg.firstOrderDate || orderDateObj < cAgg.firstOrderDate) {
+						cAgg.firstOrderDate = orderDateObj;
+					}
+					if (!cAgg.lastOrderDate || orderDateObj > cAgg.lastOrderDate) {
+						cAgg.lastOrderDate = orderDateObj;
+					}
+					customerAggMap.set(o.customer_id, cAgg);
+				}
+
+				// Update Route Aggregation
+				const rAgg = routeAggMap.get(routeName) || {
+					routeName,
+					orderCount: 0,
+					customerSet: new Set<number>(),
+					totalQty: 0,
+					totalSalesAmount: 0,
+					productQtyMap: new Map<string, number>(),
+				};
+				rAgg.orderCount += 1;
+				rAgg.totalSalesAmount += orderAmount;
+				if (o.customer_id) rAgg.customerSet.add(o.customer_id);
+
+				// Update Village Aggregation
+				const vAgg = villageAggMap.get(villageName) || {
+					villageName,
+					routeName,
+					orderCount: 0,
+					customerSet: new Set<number>(),
+					totalQty: 0,
+					totalSalesAmount: 0,
+				};
+				vAgg.orderCount += 1;
+				vAgg.totalSalesAmount += orderAmount;
+				if (o.customer_id) vAgg.customerSet.add(o.customer_id);
+
+				// Update Salesperson Aggregation
+				const spKey = o.user_uid || spName;
+				const spAgg = salespersonAggMap.get(spKey) || {
+					salesPersonName: spName,
+					userUid: o.user_uid || "—",
+					orderCount: 0,
+					customerSet: new Set<number>(),
+					totalQty: 0,
+					totalSalesAmount: 0,
+					routeSet: new Set<string>(),
+				};
+				spAgg.orderCount += 1;
+				spAgg.totalSalesAmount += orderAmount;
+				spAgg.routeSet.add(routeName);
+				if (o.customer_id) spAgg.customerSet.add(o.customer_id);
+
+				// Process Order Items
+				const items = o.orderItems || [];
+				let orderTotalQty = 0;
+
+				for (const item of items) {
+					const qty = Number(item.quantity || 0);
+					const price = Number(item.price || 0);
+					const lineAmount = qty * price;
+					orderTotalQty += qty;
+					totalItemsSoldQuantity += qty;
+
+					const pId = item.product_id || 0;
+					const pName = item.product?.name || `Product #${pId}`;
+					const pCategory = item.product?.category || "General";
+					const pUnit = item.product?.unit || "Pcs";
+
+					// Add to Product Aggregation
+					if (pId > 0) {
+						const pAgg = productAggMap.get(pId) || {
+							id: pId,
+							name: pName,
+							category: pCategory,
+							unit: pUnit,
+							price,
+							orderCount: 0,
+							uniqueCustomerSet: new Set<number>(),
+							totalQty: 0,
+							totalSalesAmount: 0,
+						};
+						pAgg.orderCount += 1;
+						pAgg.totalQty += qty;
+						pAgg.totalSalesAmount += lineAmount;
+						if (o.customer_id) pAgg.uniqueCustomerSet.add(o.customer_id);
+						productAggMap.set(pId, pAgg);
+					}
+
+					// Route Top Product tracking
+					const currentProductQty = rAgg.productQtyMap.get(pName) || 0;
+					rAgg.productQtyMap.set(pName, currentProductQty + qty);
+
+					// Detailed Order CSV Row
+					detailedOrderLines.push({
+						orderId: o.id,
+						orderRef: `ORD-${o.id}`,
+						orderDate: orderDateObj.toLocaleDateString(),
+						orderTime: orderDateObj.toLocaleTimeString(),
+						salesPerson: spName,
+						customerId: o.customer_id || "—",
+						customerName: custName,
+						customerPhone: custPhone,
+						village: villageName,
+						route: routeName,
+						productId: pId,
+						productName: pName,
+						category: pCategory,
+						quantity: qty,
+						unit: pUnit,
+						unitPrice: price,
+						lineAmount,
+						orderTotal: orderAmount,
+						orderStatus: o.status || "confirmed",
+						paymentStatus: o.finance_status || "pending_collection",
+					});
+				}
+
+				rAgg.totalQty += orderTotalQty;
+				vAgg.totalQty += orderTotalQty;
+				spAgg.totalQty += orderTotalQty;
+
+				if (o.customer_id && customerAggMap.has(o.customer_id)) {
+					const cObj = customerAggMap.get(o.customer_id)!;
+					cObj.totalQty += orderTotalQty;
+				}
+
+				routeAggMap.set(routeName, rAgg);
+				villageAggMap.set(villageName, vAgg);
+				salespersonAggMap.set(spKey, spAgg);
+			}
+
+			// Format aggregated arrays
+			const customerList = Array.from(customerAggMap.values()).sort(
+				(a, b) => b.totalAmount - a.totalAmount,
+			);
+
+			const productList = Array.from(productAggMap.values())
+				.map((p) => ({
+					...p,
+					uniqueCustomerCount: p.uniqueCustomerSet.size,
+				}))
+				.sort((a, b) => b.totalQty - a.totalQty);
+
+			const mostSellingProducts = [...productList].sort(
+				(a, b) => b.totalQty - a.totalQty,
+			);
+			const highestRevenueProducts = [...productList].sort(
+				(a, b) => b.totalSalesAmount - a.totalSalesAmount,
+			);
+			const leastSellingProducts = [...productList]
+				.filter((p) => p.totalQty > 0)
+				.sort((a, b) => a.totalQty - b.totalQty);
+
+			const routeList = Array.from(routeAggMap.values())
+				.map((r) => {
+					let topProduct = "None";
+					let topQty = 0;
+					for (const [pName, q] of r.productQtyMap.entries()) {
+						if (q > topQty) {
+							topQty = q;
+							topProduct = pName;
+						}
+					}
+					return {
+						routeName: r.routeName,
+						orderCount: r.orderCount,
+						customerCount: r.customerSet.size,
+						totalQty: r.totalQty,
+						totalSalesAmount: r.totalSalesAmount,
+						avgOrderValue:
+							r.orderCount > 0
+								? Math.round(r.totalSalesAmount / r.orderCount)
+								: 0,
+						topProduct,
+					};
+				})
+				.sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+
+			const villageList = Array.from(villageAggMap.values())
+				.map((v) => ({
+					villageName: v.villageName,
+					routeName: v.routeName,
+					orderCount: v.orderCount,
+					customerCount: v.customerSet.size,
+					totalQty: v.totalQty,
+					totalSalesAmount: v.totalSalesAmount,
+				}))
+				.sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+
+			const salespersonList = Array.from(salespersonAggMap.values())
+				.map((s) => ({
+					salesPersonName: s.salesPersonName,
+					userUid: s.userUid,
+					orderCount: s.orderCount,
+					customerCount: s.customerSet.size,
+					totalQty: s.totalQty,
+					totalSalesAmount: s.totalSalesAmount,
+					avgOrderValue:
+						s.orderCount > 0
+							? Math.round(s.totalSalesAmount / s.orderCount)
+							: 0,
+					routesCoveredCount: s.routeSet.size,
+				}))
+				.sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+
+			const dailyTrend = Array.from(dailyTrendMap.values()).sort((a, b) =>
+				a.date.localeCompare(b.date),
+			);
+
+			const totalOrders = matchingOrders.length;
+			const uniqueCustomers = uniqueCustomerSet.size;
+			const avgOrderValue =
+				totalOrders > 0 ? Math.round(totalSalesAmount / totalOrders) : 0;
+			const avgItemsPerOrder =
+				totalOrders > 0
+					? Math.round((totalItemsSoldQuantity / totalOrders) * 10) / 10
+					: 0;
+
+			return {
+				period: {
+					startDate: input.startDate || "All Time",
+					endDate: input.endDate || "Present",
+				},
+				overall: {
+					totalOrders,
+					uniqueCustomers,
+					totalSalesAmount,
+					totalItemsSoldQuantity,
+					avgOrderValue,
+					avgItemsPerOrder,
+					routesCovered: uniqueRouteSet.size,
+					villagesCovered: uniqueVillageSet.size,
+				},
+				mostSellingProducts,
+				highestRevenueProducts,
+				leastSellingProducts,
+				routeList,
+				villageList,
+				customerList,
+				salespersonList,
+				dailyTrend,
+				detailedOrderLines,
+			};
+		}),
+});

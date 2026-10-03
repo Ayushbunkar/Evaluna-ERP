@@ -67,12 +67,12 @@ export default function ApprovalsPage() {
 
 			<div className="grid gap-6 md:grid-cols-2">
 				{/* Pending Approvals */}
-				<Card className="shadow-sm">
-					<CardHeader className="border-b bg-slate-50/50 pb-3">
-						<CardTitle className="font-bold text-sm">
+				<Card className="border-slate-200 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+					<CardHeader className="border-slate-100 border-b bg-slate-50/70 pb-3 dark:border-slate-800 dark:bg-slate-900/50">
+						<CardTitle className="font-bold text-slate-900 text-sm dark:text-slate-100">
 							{t("pendingReviewHeader", { count: pending.length })}
 						</CardTitle>
-						<CardDescription className="text-xs">
+						<CardDescription className="text-slate-500 text-xs dark:text-slate-400">
 							{t("pendingReviewSub")}
 						</CardDescription>
 					</CardHeader>
@@ -87,14 +87,14 @@ export default function ApprovalsPage() {
 									<div key={app.id} className="space-y-3 p-4">
 										<div className="flex items-center justify-between">
 											<div className="flex items-center gap-2">
-												<Badge className="border border-amber-200 bg-amber-50 font-bold text-[10px] text-amber-700 capitalize tracking-wide">
+												<Badge className="border border-amber-200 bg-amber-50 font-bold text-[10px] text-amber-700 capitalize tracking-wide dark:border-amber-800/50 dark:bg-amber-950/60 dark:text-amber-300">
 													{app.reference_type}
 												</Badge>
 												<span className="font-bold text-slate-900 text-xs dark:text-slate-100">
 													ID #{app.reference_id}
 												</span>
 											</div>
-											<span className="text-[10px] text-slate-400">
+											<span className="text-[10px] text-slate-400 dark:text-slate-500">
 												{t("createdLabel", {
 													date: app.created_at
 														? new Date(app.created_at).toLocaleDateString()
@@ -111,7 +111,7 @@ export default function ApprovalsPage() {
 												variant="outline"
 												onClick={() => handleAction(app.id, "rejected")}
 												disabled={reviewApprovalMutation.isPending}
-												className="h-7 flex-1 border-red-200 text-[11px] text-red-600 hover:bg-red-50"
+												className="h-7 flex-1 border-red-200 text-[11px] text-red-600 hover:bg-red-50 dark:border-red-800/60 dark:text-red-400 dark:hover:bg-red-950/50"
 											>
 												<XCircleIcon className="mr-1 h-3.5 w-3.5" />{" "}
 												{t("reject")}
@@ -120,7 +120,7 @@ export default function ApprovalsPage() {
 												size="sm"
 												onClick={() => handleAction(app.id, "approved")}
 												disabled={reviewApprovalMutation.isPending}
-												className="h-7 flex-1 bg-blue-600 text-[11px] hover:bg-blue-700"
+												className="h-7 flex-1 bg-blue-600 text-[11px] text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
 											>
 												<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" />{" "}
 												{t("approve")}
@@ -130,7 +130,7 @@ export default function ApprovalsPage() {
 								))}
 							</div>
 						) : (
-							<div className="py-12 text-center text-slate-400 text-xs">
+							<div className="py-12 text-center text-slate-400 text-xs dark:text-slate-500">
 								{t("noPendingRequestsGreatJob")}
 							</div>
 						)}
@@ -138,12 +138,12 @@ export default function ApprovalsPage() {
 				</Card>
 
 				{/* Recently Approved / History */}
-				<Card className="shadow-sm">
-					<CardHeader className="border-b bg-slate-50/50 pb-3">
-						<CardTitle className="font-bold text-sm">
+				<Card className="border-slate-200 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+					<CardHeader className="border-slate-100 border-b bg-slate-50/70 pb-3 dark:border-slate-800 dark:bg-slate-900/50">
+						<CardTitle className="font-bold text-slate-900 text-sm dark:text-slate-100">
 							{t("approvedHistoryHeader", { count: approved.length })}
 						</CardTitle>
-						<CardDescription className="text-xs">
+						<CardDescription className="text-slate-500 text-xs dark:text-slate-400">
 							{t("approvedHistorySub")}
 						</CardDescription>
 					</CardHeader>
@@ -159,15 +159,15 @@ export default function ApprovalsPage() {
 											<div className="flex items-center gap-2">
 												<Badge
 													variant="outline"
-													className="text-[10px] capitalize"
+													className="border-slate-200 text-[10px] text-slate-700 capitalize dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
 												>
 													{app.reference_type}
 												</Badge>
-												<span className="font-bold text-slate-800 text-xs">
+												<span className="font-bold text-slate-900 text-xs dark:text-slate-100">
 													ID #{app.reference_id}
 												</span>
 											</div>
-											<p className="mt-1 text-[10px] text-slate-400">
+											<p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
 												{t("approvedOnLabel", {
 													date: app.resolved_at
 														? new Date(app.resolved_at).toLocaleDateString()
@@ -175,14 +175,14 @@ export default function ApprovalsPage() {
 												})}
 											</p>
 										</div>
-										<Badge className="border-green-200 bg-green-100 text-[10px] text-green-800 capitalize">
+										<Badge className="border-emerald-200 bg-emerald-100 text-[10px] text-emerald-800 capitalize dark:border-emerald-800/60 dark:bg-emerald-950/80 dark:text-emerald-300">
 											{t("approve")}
 										</Badge>
 									</div>
 								))}
 							</div>
 						) : (
-							<div className="py-12 text-center text-slate-400 text-xs">
+							<div className="py-12 text-center text-slate-400 text-xs dark:text-slate-500">
 								{t("noPastApprovalsFound")}
 							</div>
 						)}

@@ -609,14 +609,23 @@ export function SaleCompletionScreen({
 								<Text style={styles.title}>{STORE.name}</Text>
 								<Text style={styles.subtitle}>{STORE.address}</Text>
 								<Text style={styles.subtitle}>{STORE.city}</Text>
-								<Text style={{ ...styles.subtitle, fontWeight: "bold", color: "#1e40af", marginTop: 2 }}>
+								<Text
+									style={{
+										...styles.subtitle,
+										fontWeight: "bold",
+										color: "#1e40af",
+										marginTop: 2,
+									}}
+								>
 									PHONE: {STORE.phone}
 								</Text>
 							</View>
 						</View>
 						<View style={styles.invoiceMeta}>
 							<Text style={styles.metaTitle}>TAX INVOICE / BILL</Text>
-							<Text style={styles.subtitle}>Order / Bill / Inv #: {order.id}</Text>
+							<Text style={styles.subtitle}>
+								Order / Bill / Inv #: {order.id}
+							</Text>
 							<Text style={styles.subtitle}>Date: {formattedDate}</Text>
 							<Text style={styles.subtitle}>
 								Cashier: {order.cashierName || "Counter 1"}
@@ -710,7 +719,10 @@ export function SaleCompletionScreen({
 								<Text>{order.cashierName || "Counter 1"}</Text>
 							</View>
 
-							{order.customerName || order.customerPhone || order.shopName || order.address ? (
+							{order.customerName ||
+							order.customerPhone ||
+							order.shopName ||
+							order.address ? (
 								<>
 									<View style={styles.separator} />
 									<Text style={[styles.bold, { marginBottom: 4 }]}>
@@ -857,7 +869,9 @@ export function SaleCompletionScreen({
 								{orderDiscount > 0 ? (
 									<View style={styles.row}>
 										<Text style={styles.tdText}>
-											Discount{order.discountReason ? ` (${order.discountReason})` : ""}:
+											Discount
+											{order.discountReason ? ` (${order.discountReason})` : ""}
+											:
 										</Text>
 										<Text style={styles.tdText}>
 											-Rs.{orderDiscount.toFixed(2)}
@@ -867,7 +881,11 @@ export function SaleCompletionScreen({
 								{orderOtherCharges > 0 ? (
 									<View style={styles.row}>
 										<Text style={styles.tdText}>
-											Extra Charges{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
+											Extra Charges
+											{order.otherChargesReason
+												? ` (${order.otherChargesReason})`
+												: ""}
+											:
 										</Text>
 										<Text style={styles.tdText}>
 											+Rs.{orderOtherCharges.toFixed(2)}
@@ -1252,7 +1270,7 @@ export function SaleCompletionScreen({
 								<div className="font-black text-base leading-none tracking-tight">
 									Billing Checkout
 								</div>
-								<div className="mt-1 flex flex-wrap items-center gap-1.5 text-blue-200 text-xs font-semibold">
+								<div className="mt-1 flex flex-wrap items-center gap-1.5 font-semibold text-blue-200 text-xs">
 									<span>Order #{order.id}</span>
 									<span>•</span>
 									<span>Bill #{order.id}</span>
@@ -1365,10 +1383,12 @@ export function SaleCompletionScreen({
 															{STORE.city}
 														</p>
 														<div className="mt-1.5 flex items-center gap-1.5">
-															<span className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-bold text-xs text-blue-900 shadow-xs print:border-black print:bg-transparent print:text-black">
+															<span className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-bold text-blue-900 text-xs shadow-xs print:border-black print:bg-transparent print:text-black">
 																<Phone className="h-3 w-3 text-blue-600 print:text-black" />
 																<span>PHONE / HELPLINE:</span>
-																<span className="font-extrabold tracking-wider text-blue-700 print:text-black">{STORE.phone}</span>
+																<span className="font-extrabold text-blue-700 tracking-wider print:text-black">
+																	{STORE.phone}
+																</span>
 															</span>
 														</div>
 													</div>
@@ -1380,7 +1400,7 @@ export function SaleCompletionScreen({
 													<h2 className="font-black text-slate-900 text-xl">
 														#{order.id}
 													</h2>
-													<p className="mt-0.5 text-slate-500 text-[11px] font-medium">
+													<p className="mt-0.5 font-medium text-[11px] text-slate-500">
 														Order #{order.id}
 													</p>
 													<p className="mt-1 text-slate-500 text-xs">
@@ -1583,9 +1603,19 @@ export function SaleCompletionScreen({
 														<span>₹{grandTotal.toFixed(2)}</span>
 													</div>
 
-													<div className="mt-2 pt-2 border-t border-dashed border-slate-300 print:border-black space-y-1 font-medium text-xs">
+													<div className="mt-2 space-y-1 border-slate-300 border-t border-dashed pt-2 font-medium text-xs print:border-black">
 														<div className="flex justify-between text-emerald-700 print:text-black">
-															<span>Paid / Advance Received ({order.payments.map((p) => PAYMENT_METHOD_LABELS[p.methodId] || "Cash").join(", ") || "Unpaid"})</span>
+															<span>
+																Paid / Advance Received (
+																{order.payments
+																	.map(
+																		(p) =>
+																			PAYMENT_METHOD_LABELS[p.methodId] ||
+																			"Cash",
+																	)
+																	.join(", ") || "Unpaid"}
+																)
+															</span>
 															<span>₹{totalPaid.toFixed(2)}</span>
 														</div>
 														{balanceDue > 0 ? (
@@ -1702,8 +1732,7 @@ export function SaleCompletionScreen({
 																		{getItemName(item)}
 																	</div>
 																	<div className="mt-0.5 pl-1 text-[10px] text-slate-600">
-																		{formatQty(item.qty)}{" "}
-																		x Rs.{rate.toFixed(2)}
+																		{formatQty(item.qty)} x Rs.{rate.toFixed(2)}
 																	</div>
 																</td>
 																<td className="py-2 text-center align-middle">
@@ -1729,7 +1758,11 @@ export function SaleCompletionScreen({
 												{orderDiscount > 0 && (
 													<div className="flex justify-between">
 														<span>
-															DISCOUNT{order.discountReason ? ` (${order.discountReason})` : ""}:
+															DISCOUNT
+															{order.discountReason
+																? ` (${order.discountReason})`
+																: ""}
+															:
 														</span>
 														<span>-Rs.{orderDiscount.toFixed(2)}</span>
 													</div>
@@ -1737,7 +1770,11 @@ export function SaleCompletionScreen({
 												{orderOtherCharges > 0 && (
 													<div className="flex justify-between">
 														<span>
-															EXTRA CHG{order.otherChargesReason ? ` (${order.otherChargesReason})` : ""}:
+															EXTRA CHG
+															{order.otherChargesReason
+																? ` (${order.otherChargesReason})`
+																: ""}
+															:
 														</span>
 														<span>+Rs.{orderOtherCharges.toFixed(2)}</span>
 													</div>
@@ -1755,12 +1792,12 @@ export function SaleCompletionScreen({
 													<span>GRAND TOTAL:</span>
 													<span>Rs.{grandTotal.toFixed(2)}</span>
 												</div>
-												<div className="flex justify-between text-[11px] font-semibold text-emerald-800 print:text-black">
+												<div className="flex justify-between font-semibold text-[11px] text-emerald-800 print:text-black">
 													<span>PAID / ADVANCE:</span>
 													<span>Rs.{totalPaid.toFixed(2)}</span>
 												</div>
 												{balanceDue > 0 ? (
-													<div className="flex justify-between text-[11px] font-bold text-amber-800 print:text-black">
+													<div className="flex justify-between font-bold text-[11px] text-amber-800 print:text-black">
 														<span>BALANCE DUE:</span>
 														<span>Rs.{balanceDue.toFixed(2)}</span>
 													</div>
@@ -1787,98 +1824,98 @@ export function SaleCompletionScreen({
 						</div>
 
 						{/* ── Right Actions Panel ── */}
-						<div className="flex w-full shrink-0 flex-col gap-3 border-slate-200 border-t bg-slate-50 p-4 md:w-64 md:overflow-y-auto md:border-t-0 md:border-l print:hidden">
-							<div className="mb-1 font-bold text-slate-400 text-xs uppercase tracking-wider">
+						<div className="flex w-full shrink-0 flex-col gap-3 border-slate-200 border-t bg-slate-50 p-4 md:w-64 md:overflow-y-auto md:border-t-0 md:border-l dark:border-slate-800 dark:bg-slate-900 print:hidden">
+							<div className="mb-1 font-bold text-slate-500 text-xs uppercase tracking-wider dark:text-slate-400">
 								Actions
 							</div>
 
 							<Button
 								size="lg"
-								className="h-12 w-full bg-blue-800 font-bold text-base text-white shadow-md hover:bg-blue-900"
+								className="h-12 w-full bg-blue-600 font-bold text-base text-white shadow-md hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
 								onClick={onNewSale}
 							>
 								<ShoppingBag className="mr-2 h-5 w-5" />
 								New Sale
 							</Button>
 
-							<hr className="my-1 border-slate-200" />
-							<div className="font-bold text-slate-400 text-xs uppercase tracking-wider">
+							<hr className="my-1 border-slate-200 dark:border-slate-800" />
+							<div className="font-bold text-slate-500 text-xs uppercase tracking-wider dark:text-slate-400">
 								Print &amp; Share
 							</div>
 
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handlePrint}
 							>
-								<Printer className="h-4 w-4 text-blue-800" />
+								<Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								Print Receipt
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handlePrint}
 							>
-								<RotateCcw className="h-4 w-4 text-blue-800" />
+								<RotateCcw className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								Reprint
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleDownloadPDF}
 							>
-								<Download className="h-4 w-4 text-blue-800" />
+								<Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								Download PDF
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleWhatsApp}
 							>
-								<MessageCircle className="h-4 w-4 text-green-600" />
+								<MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
 								Send WhatsApp
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleEmail}
 							>
-								<Mail className="h-4 w-4 text-blue-500" />
+								<Mail className="h-4 w-4 text-blue-500 dark:text-blue-400" />
 								Send Email
 							</Button>
 
-							<hr className="my-1 border-slate-200" />
-							<div className="font-bold text-slate-400 text-xs uppercase tracking-wider">
+							<hr className="my-1 border-slate-200 dark:border-slate-800" />
+							<div className="font-bold text-slate-500 text-xs uppercase tracking-wider dark:text-slate-400">
 								Invoice Actions
 							</div>
 
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleDuplicate}
 							>
-								<Copy className="h-4 w-4 text-slate-500" />
+								<Copy className="h-4 w-4 text-slate-500 dark:text-slate-400" />
 								Duplicate Invoice
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleReturn}
 							>
-								<ArrowLeftRight className="h-4 w-4 text-orange-500" />
+								<ArrowLeftRight className="h-4 w-4 text-orange-500 dark:text-orange-400" />
 								Return Items
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-slate-200 font-semibold text-slate-700 text-xs hover:bg-blue-50 hover:text-blue-900"
+								className="w-full justify-start gap-2 border-slate-200 bg-white font-semibold text-slate-800 text-xs hover:bg-blue-50 hover:text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:text-white"
 								onClick={handleExchange}
 							>
-								<ArrowLeftRight className="h-4 w-4 text-purple-500" />
+								<ArrowLeftRight className="h-4 w-4 text-purple-500 dark:text-purple-400" />
 								Exchange Items
 							</Button>
 							<Button
 								variant="outline"
-								className="w-full justify-start gap-2 border-red-200 font-semibold text-red-600 text-xs hover:bg-red-50 hover:text-red-700"
+								className="w-full justify-start gap-2 border-red-200 bg-white font-semibold text-red-600 text-xs hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-950/40"
 								onClick={handleCancel}
 							>
 								<XCircle className="h-4 w-4" />
@@ -1888,7 +1925,7 @@ export function SaleCompletionScreen({
 					</div>
 
 					{/* ── Bottom Info Bar ── */}
-					<div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-slate-200 border-t bg-slate-50 px-4 py-2 text-[10px] text-slate-400 sm:px-6 sm:py-3 sm:text-xs print:hidden">
+					<div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-slate-200 border-t bg-slate-50 px-4 py-2 text-[10px] text-slate-500 sm:px-6 sm:py-3 sm:text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 print:hidden">
 						<span>
 							Invoice #{order.id} • {formattedDate}
 						</span>

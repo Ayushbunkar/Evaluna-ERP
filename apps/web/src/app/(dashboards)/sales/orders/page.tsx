@@ -34,6 +34,7 @@ import { Skeleton } from "@evaluna/ui/components/skeleton";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+	BarChart3Icon,
 	CalendarDaysIcon,
 	CalendarIcon,
 	EyeIcon,
@@ -67,7 +68,6 @@ export default function OrdersPage() {
 	const [datePreset, setDatePreset] = useState("all");
 	const [page, setPage] = useState(1);
 	const pageSize = 50;
-
 
 	const {
 		data: orders = [],
@@ -180,8 +180,9 @@ export default function OrdersPage() {
 			render: (row) => (
 				<div className="flex flex-col">
 					<span className="font-bold text-foreground">#{row.id}</span>
-					<span className="text-[11px] text-muted-foreground font-medium whitespace-nowrap">
-						{locale === "hi" ? "बिल & इनवॉइस: #" : "Bill & Inv: #"}{row.id}
+					<span className="whitespace-nowrap font-medium text-[11px] text-muted-foreground">
+						{locale === "hi" ? "बिल & इनवॉइस: #" : "Bill & Inv: #"}
+						{row.id}
 					</span>
 				</div>
 			),
@@ -206,7 +207,10 @@ export default function OrdersPage() {
 			sortable: true,
 			render: (row) => {
 				const s = (row.status ?? "pending").toLowerCase();
-				const statusConfig: Record<string, { label: string; cls: string; bg: string }> = {
+				const statusConfig: Record<
+					string,
+					{ label: string; cls: string; bg: string }
+				> = {
 					confirmed: {
 						label: "Sent to Picker",
 						cls: "text-blue-700 dark:text-blue-400 font-semibold",
@@ -280,28 +284,29 @@ export default function OrdersPage() {
 			sortable: false,
 			render: (row: any) => {
 				const fs = row.finance_status ?? "pending_collection";
-				const map: Record<string, { label: string; cls: string; bg: string }> = {
-					pending_collection: {
-						label: "Pending Driver Collection",
-						cls: "text-yellow-700 dark:text-yellow-400 font-medium",
-						bg: "bg-yellow-500/10 border border-yellow-500/20",
-					},
-					driver_collected: {
-						label: "Driver Collected ✓",
-						cls: "text-blue-700 dark:text-blue-400 font-medium",
-						bg: "bg-blue-500/10 border border-blue-500/20",
-					},
-					finance_submitted: {
-						label: "Submitted to Finance",
-						cls: "text-purple-700 dark:text-purple-400 font-medium",
-						bg: "bg-purple-500/10 border border-purple-500/20",
-					},
-					reconciled: {
-						label: "Reconciled (Completed) ✓",
-						cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
-						bg: "bg-emerald-500/10 border border-emerald-500/20",
-					},
-				};
+				const map: Record<string, { label: string; cls: string; bg: string }> =
+					{
+						pending_collection: {
+							label: "Pending Driver Collection",
+							cls: "text-yellow-700 dark:text-yellow-400 font-medium",
+							bg: "bg-yellow-500/10 border border-yellow-500/20",
+						},
+						driver_collected: {
+							label: "Driver Collected ✓",
+							cls: "text-blue-700 dark:text-blue-400 font-medium",
+							bg: "bg-blue-500/10 border border-blue-500/20",
+						},
+						finance_submitted: {
+							label: "Submitted to Finance",
+							cls: "text-purple-700 dark:text-purple-400 font-medium",
+							bg: "bg-purple-500/10 border border-purple-500/20",
+						},
+						reconciled: {
+							label: "Reconciled (Completed) ✓",
+							cls: "text-emerald-700 dark:text-emerald-400 font-semibold",
+							bg: "bg-emerald-500/10 border border-emerald-500/20",
+						},
+					};
 				const { label, cls, bg } = map[fs] ?? map.pending_collection;
 				return (
 					<span
@@ -391,7 +396,7 @@ export default function OrdersPage() {
 			toast.success(
 				locale === "hi"
 					? `ऑर्डर ORD-${deleteId} सफलतापूर्वक निरस्त किया गया और निरस्त ऑर्डर संग्रह में सुरक्षित किया गया.`
-					: `Order ORD-${deleteId} cancelled and archived under Cancelled Orders.`
+					: `Order ORD-${deleteId} cancelled and archived under Cancelled Orders.`,
 			);
 			setIsDeleteOpen(false);
 			setDeleteId(null);
@@ -402,7 +407,7 @@ export default function OrdersPage() {
 			toast.error(
 				locale === "hi"
 					? `ऑर्डर निरस्त करने में विफल: ${err.message}`
-					: `Failed to cancel order: ${err.message}`
+					: `Failed to cancel order: ${err.message}`,
 			);
 		},
 	});
@@ -417,7 +422,10 @@ export default function OrdersPage() {
 	];
 
 	const getFinalCancelReason = (): string => {
-		if (cancelReasonPreset === "Other Reason / Write Below" || !cancelReasonPreset) {
+		if (
+			cancelReasonPreset === "Other Reason / Write Below" ||
+			!cancelReasonPreset
+		) {
 			return customCancelReason.trim();
 		}
 		if (customCancelReason.trim()) {
@@ -432,7 +440,7 @@ export default function OrdersPage() {
 			toast.error(
 				locale === "hi"
 					? "कृपया ऑर्डर निरस्त करने का कारण चुनें या दर्ज करें!"
-					: "Please select or type a reason before cancelling!"
+					: "Please select or type a reason before cancelling!",
 			);
 			return;
 		}
@@ -519,7 +527,11 @@ export default function OrdersPage() {
 								setDeleteId(row.id);
 								setIsDeleteOpen(true);
 							}}
-							title={locale === "hi" ? "ऑर्डर निरस्त करें (Cancelled Orders)" : "Cancel & Archive Order"}
+							title={
+								locale === "hi"
+									? "ऑर्डर निरस्त करें (Cancelled Orders)"
+									: "Cancel & Archive Order"
+							}
 						>
 							<TrashIcon className="h-4 w-4" />
 							<span className="sr-only">{tc("cancel")}</span>
@@ -563,8 +575,12 @@ export default function OrdersPage() {
 						<ShoppingCartIcon className="h-6 w-6" />
 					</div>
 					<div>
-						<p className="font-semibold text-base text-foreground">No Customer Orders Available</p>
-						<p className="text-muted-foreground text-sm">There are currently no orders in the system.</p>
+						<p className="font-semibold text-base text-foreground">
+							No Customer Orders Available
+						</p>
+						<p className="text-muted-foreground text-sm">
+							There are currently no orders in the system.
+						</p>
 					</div>
 				</CardContent>
 			</Card>
@@ -573,25 +589,41 @@ export default function OrdersPage() {
 
 	return (
 		<Card className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
-			<CardHeader className="p-0 space-y-3">
-				<SearchFilter
-					search={searchTerm}
-					onSearchChange={(val) => {
-						setSearchTerm(val);
-						setPage(1);
-					}}
-					searchPlaceholder={t("searchPlaceholder")}
-					filters={[
-						{
-							options: statusFilterOptions,
-							value: statusFilter,
-							onChange: (val) => {
-								setStatusFilter(val);
+			<CardHeader className="space-y-3 p-0">
+				<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+					<div className="flex-1">
+						<SearchFilter
+							search={searchTerm}
+							onSearchChange={(val) => {
+								setSearchTerm(val);
 								setPage(1);
-							},
-						},
-					]}
-				/>
+							}}
+							searchPlaceholder={t("searchPlaceholder")}
+							filters={[
+								{
+									options: statusFilterOptions,
+									value: statusFilter,
+									onChange: (val) => {
+										setStatusFilter(val);
+										setPage(1);
+									},
+								},
+							]}
+						/>
+					</div>
+					<Link href="/sales/reports">
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-10 gap-2 border-blue-200 bg-blue-50/50 font-semibold text-blue-700 text-xs hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-400"
+						>
+							<BarChart3Icon className="h-4 w-4" />
+							{locale === "hi"
+								? "बिक्री रिपोर्ट व एनालिटिक्स"
+								: "Sales Reports & Analytics"}
+						</Button>
+					</Link>
+				</div>
 
 				<DateFilterBar
 					startDate={startDate}
@@ -619,7 +651,7 @@ export default function OrdersPage() {
 					emptyIcon={<ShoppingCartIcon className="h-8 w-8" />}
 					defaultSort={[{ id: "created_at", desc: true }]}
 				/>
-				<div className="flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
+				<div className="flex items-center justify-between border-t pt-4 text-muted-foreground text-xs">
 					<span>
 						{orders.length === pageSize
 							? `Showing ${(page - 1) * pageSize + 1} - ${page * pageSize}`
@@ -634,7 +666,9 @@ export default function OrdersPage() {
 						>
 							{tc("previous") || "Previous"}
 						</Button>
-						<span className="font-medium text-foreground px-2">Page {page}</span>
+						<span className="px-2 font-medium text-foreground">
+							Page {page}
+						</span>
 						<Button
 							variant="outline"
 							size="sm"
@@ -771,11 +805,13 @@ export default function OrdersPage() {
 			>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-lg">
+						<DialogTitle className="flex items-center gap-2 font-bold text-lg text-red-600 dark:text-red-400">
 							<TrashIcon className="h-5 w-5 text-red-600" />
-							{locale === "hi" ? `ऑर्डर ORD-${deleteId} निरस्त करें` : `Cancel Order ORD-${deleteId}`}
+							{locale === "hi"
+								? `ऑर्डर ORD-${deleteId} निरस्त करें`
+								: `Cancel Order ORD-${deleteId}`}
 						</DialogTitle>
-						<div className="text-xs text-muted-foreground mt-1">
+						<div className="mt-1 text-muted-foreground text-xs">
 							{locale === "hi"
 								? "यह ऑर्डर 'निरस्त ऑर्डर (Cancelled Orders)' पेज पर आर्काइव में स्टोर रहेगा. आगे बढ़ने के लिए निरस्तीकरण का कारण चुनें या लिखें."
 								: "This order will be stored safely in 'Cancelled Orders' page. Please select or write a reason to proceed."}
@@ -785,11 +821,17 @@ export default function OrdersPage() {
 					<div className="space-y-4 py-2">
 						{/* Preset Reasons Radio List */}
 						<div className="space-y-1.5">
-							<Label className="text-xs font-bold flex items-center justify-between text-foreground">
-								<span>{locale === "hi" ? "निरस्त करने का कारण चुनें *" : "Select Cancellation Reason *"}</span>
-								<span className="text-[10px] text-amber-600 font-semibold">{locale === "hi" ? "आवश्यक" : "Mandatory"}</span>
+							<Label className="flex items-center justify-between font-bold text-foreground text-xs">
+								<span>
+									{locale === "hi"
+										? "निरस्त करने का कारण चुनें *"
+										: "Select Cancellation Reason *"}
+								</span>
+								<span className="font-semibold text-[10px] text-amber-600">
+									{locale === "hi" ? "आवश्यक" : "Mandatory"}
+								</span>
 							</Label>
-							<div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-1">
+							<div className="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto pr-1">
 								{CANCEL_REASON_PRESETS.map((reason) => (
 									<button
 										key={reason}
@@ -797,10 +839,10 @@ export default function OrdersPage() {
 										onClick={() => {
 											setCancelReasonPreset(reason);
 										}}
-										className={`text-left text-xs p-2.5 rounded-lg border transition-all ${
+										className={`rounded-lg border p-2.5 text-left text-xs transition-all ${
 											cancelReasonPreset === reason
-												? "border-red-500 bg-red-50 font-semibold text-red-950 dark:bg-red-950/40 dark:text-red-200 dark:border-red-800 shadow-xs"
-												: "border-border hover:bg-muted/60 text-foreground"
+												? "border-red-500 bg-red-50 font-semibold text-red-950 shadow-xs dark:border-red-800 dark:bg-red-950/40 dark:text-red-200"
+												: "border-border text-foreground hover:bg-muted/60"
 										}`}
 									>
 										{reason}
@@ -811,8 +853,13 @@ export default function OrdersPage() {
 
 						{/* Custom Reason Text Input */}
 						<div className="space-y-1.5">
-							<Label htmlFor="customCancelNote" className="text-xs font-semibold text-foreground">
-								{locale === "hi" ? "अपना कारण लिखें (या अतिरिक्त टिप्पणी):" : "Write your own reason / Additional note:"}
+							<Label
+								htmlFor="customCancelNote"
+								className="font-semibold text-foreground text-xs"
+							>
+								{locale === "hi"
+									? "अपना कारण लिखें (या अतिरिक्त टिप्पणी):"
+									: "Write your own reason / Additional note:"}
 							</Label>
 							<textarea
 								id="customCancelNote"
@@ -824,14 +871,16 @@ export default function OrdersPage() {
 								}
 								value={customCancelReason}
 								onChange={(e) => setCustomCancelReason(e.target.value)}
-								className="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								className="w-full rounded-md border border-input bg-background p-2.5 text-foreground text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 							/>
 						</div>
 
 						{/* Live selection preview */}
 						{getFinalCancelReason() && (
-							<div className="rounded-lg bg-red-50/80 border border-red-200/60 p-2.5 text-xs text-red-900 dark:bg-red-950/30 dark:border-red-900 dark:text-red-300">
-								<span className="font-bold">{locale === "hi" ? "दर्ज कारण:" : "Selected Reason:"} </span>
+							<div className="rounded-lg border border-red-200/60 bg-red-50/80 p-2.5 text-red-900 text-xs dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+								<span className="font-bold">
+									{locale === "hi" ? "दर्ज कारण:" : "Selected Reason:"}{" "}
+								</span>
 								<span className="italic">{getFinalCancelReason()}</span>
 							</div>
 						)}
@@ -851,13 +900,17 @@ export default function OrdersPage() {
 						</Button>
 						<Button
 							variant="destructive"
-							className="bg-red-600 hover:bg-red-700 font-bold"
+							className="bg-red-600 font-bold hover:bg-red-700"
 							onClick={handleDelete}
 							disabled={!getFinalCancelReason() || cancelMutation.isPending}
 						>
 							{cancelMutation.isPending
-								? (locale === "hi" ? "निरस्त हो रहा है..." : "Cancelling...")
-								: (locale === "hi" ? "निरस्त करें और सहेजें" : "Cancel & Archive Order")}
+								? locale === "hi"
+									? "निरस्त हो रहा है..."
+									: "Cancelling..."
+								: locale === "hi"
+									? "निरस्त करें और सहेजें"
+									: "Cancel & Archive Order"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

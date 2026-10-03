@@ -222,7 +222,7 @@ export const payslipRouter = router({
 			return { success: true };
 		}),
 
-	// Generated Payslip Management
+	// Generated Payslip Management & Archive Query
 	getGeneratedPayslips: roleProcedure(["admin", "hr", "manager", "employee"])
 		.input(
 			z.object({
@@ -232,11 +232,36 @@ export const payslipRouter = router({
 				isPublished: z.boolean().optional(),
 				month: z.string().optional(),
 				year: z.string().optional(),
+				search: z.string().optional(),
 			}),
 		)
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			let query = db
+			const conditions = [];
+
+			if (input.payrollId) {
+				conditions.push(eq(generatedPayslip.payrollId, input.payrollId));
+			}
+			if (input.employeeId) {
+				conditions.push(eq(generatedPayslip.employeeId, input.employeeId));
+			}
+			if (input.isPublished !== undefined) {
+				conditions.push(eq(generatedPayslip.isPublished, input.isPublished));
+			}
+			if (input.month) {
+				conditions.push(eq(payroll.month, input.month));
+			}
+			if (input.year) {
+				conditions.push(eq(payroll.year, input.year));
+			}
+			if (input.search?.trim()) {
+				const term = `%${input.search.trim().toLowerCase()}%`;
+				conditions.push(
+					sql`(${employees.name} ILIKE ${term} OR ${employees.employee_code} ILIKE ${term})`,
+				);
+			}
+
+			const results = await db
 				.select({
 					id: generatedPayslip.id,
 					payrollId: generatedPayslip.payrollId,
@@ -245,6 +270,25 @@ export const payslipRouter = router({
 					employeeId: generatedPayslip.employeeId,
 					employeeName: employees.name,
 					employeeCode: employees.employee_code,
+					employeeDepartment: staff.department,
+					employeeDesignation: staff.role,
+					payType: payroll.pay_type,
+					workingDays: payroll.working_days,
+					presentDays: payroll.present_days,
+					halfDays: payroll.half_days,
+					paidLeaveDays: payroll.paid_leave_days,
+					absentDays: payroll.absent_days,
+					overtimeHours: payroll.overtime_hours,
+					baseSalary: payroll.base_salary,
+					systemCalculatedAmount: payroll.system_calculated_amount,
+					adjustmentAmount: payroll.adjustment_amount,
+					adjustmentReason: payroll.adjustment_reason,
+					grossPayable: payroll.gross_payable,
+					totalDeductions: payroll.total_deductions,
+					netPayable: payroll.net_payable,
+					payrollStatus: payroll.status,
+					paymentDate: payroll.payment_date,
+					transactionReference: payroll.transaction_reference,
 					templateId: generatedPayslip.templateId,
 					templateName: payslipTemplate.name,
 					contentUrl: generatedPayslip.contentUrl,
@@ -255,39 +299,14 @@ export const payslipRouter = router({
 				.from(generatedPayslip)
 				.innerJoin(employees, eq(generatedPayslip.employeeId, employees.id))
 				.innerJoin(payroll, eq(generatedPayslip.payrollId, payroll.id))
+				.leftJoin(staff, eq(staff.employeeId, employees.id))
 				.leftJoin(
 					payslipTemplate,
 					eq(generatedPayslip.templateId, payslipTemplate.id),
-				);
+				)
+				.where(conditions.length > 0 ? and(...conditions) : undefined)
+				.orderBy(desc(generatedPayslip.generatedAt));
 
-			if (input.payrollId) {
-				query = query.where(eq(generatedPayslip.payrollId, input.payrollId));
-			}
-			if (input.employeeId) {
-				query = query.where(eq(generatedPayslip.employeeId, input.employeeId));
-			}
-			if (input.branchId) {
-				// Join with payroll to get branch
-				query = query
-					.innerJoin(
-						payroll.as("payrollBranch"),
-						eq(generatedPayslip.payrollId, payrollBranch.id),
-					)
-					.where(eq(payrollBranch.branch_id, input.branchId));
-			}
-			if (input.isPublished !== undefined) {
-				query = query.where(
-					eq(generatedPayslip.isPublished, input.isPublished),
-				);
-			}
-			if (input.month) {
-				query = query.where(eq(payroll.month, input.month));
-			}
-			if (input.year) {
-				query = query.where(eq(payroll.year, input.year));
-			}
-
-			const results = await query.orderBy(desc(generatedPayslip.generatedAt));
 			return results;
 		}),
 

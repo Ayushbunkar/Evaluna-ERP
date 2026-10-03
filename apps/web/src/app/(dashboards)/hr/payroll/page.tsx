@@ -36,6 +36,7 @@ import {
 	Download,
 	Edit3,
 	Eye,
+	FileText,
 	Filter,
 	History,
 	IndianRupee,
@@ -48,6 +49,7 @@ import {
 	ShieldCheck,
 	Users,
 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -364,6 +366,16 @@ export default function HRPayrollPage() {
 							className="h-7 w-36 cursor-pointer border-0 bg-transparent p-0 font-medium text-foreground text-xs focus:outline-none sm:w-40 sm:text-sm dark:text-slate-100"
 						/>
 					</div>
+					<Link href="/hr/payslips">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-1.5 border-blue-200 bg-blue-50/60 font-semibold text-blue-700 text-xs hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
+						>
+							<FileText className="h-4 w-4" />
+							Payslips Archive
+						</Button>
+					</Link>
 					<Button
 						variant="outline"
 						size="sm"
@@ -1081,10 +1093,81 @@ export default function HRPayrollPage() {
 									</span>
 								</div>
 							) : (
-								<div className="space-y-3 border-t pt-3">
-									<h5 className="font-bold text-slate-700 text-xs uppercase dark:text-slate-300">
-										{t("hrAdjustment")}
-									</h5>
+								<div className="space-y-4 border-t pt-3">
+									<div className="flex items-center justify-between">
+										<h5 className="font-bold text-slate-800 text-xs uppercase dark:text-slate-200">
+											{t("hrAdjustment")} & Custom Deductions / Overtime
+										</h5>
+										<span className="font-medium text-[11px] text-slate-400">
+											Mandatory reason required for HR changes
+										</span>
+									</div>
+
+									{/* Quick Action Presets */}
+									<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 dark:border-slate-800 dark:bg-slate-900/40">
+										<span className="font-bold text-[11px] text-slate-600 dark:text-slate-400">
+											Quick Presets:
+										</span>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="h-7 border-rose-200 bg-rose-50/50 text-[11px] text-rose-700 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300"
+											onClick={() => {
+												const currentNet =
+													Number.parseFloat(adjustAmountInput) ||
+													Number(
+														selectedRecord.system_calculated_amount ||
+															selectedRecord.base_salary,
+													);
+												const ded = prompt(
+													"Enter deduction amount (₹) (e.g., advance recovery, fine):",
+												);
+												if (ded && !Number.isNaN(Number.parseFloat(ded))) {
+													const val = Math.max(
+														0,
+														currentNet - Number.parseFloat(ded),
+													);
+													setAdjustAmountInput(val.toString());
+													if (!adjustReasonInput) {
+														setAdjustReasonInput(
+															`Advance salary / custom deduction of ₹${ded}`,
+														);
+													}
+												}
+											}}
+										>
+											- Add Custom Deduction / Advance Recovery
+										</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="h-7 border-purple-200 bg-purple-50/50 text-[11px] text-purple-700 hover:bg-purple-100 dark:border-purple-900/40 dark:bg-purple-950/30 dark:text-purple-300"
+											onClick={() => {
+												const currentNet =
+													Number.parseFloat(adjustAmountInput) ||
+													Number(
+														selectedRecord.system_calculated_amount ||
+															selectedRecord.base_salary,
+													);
+												const ot = prompt(
+													"Enter extra overtime / bonus amount (₹):",
+												);
+												if (ot && !Number.isNaN(Number.parseFloat(ot))) {
+													const val = currentNet + Number.parseFloat(ot);
+													setAdjustAmountInput(val.toString());
+													if (!adjustReasonInput) {
+														setAdjustReasonInput(
+															`Extra overtime / manual incentive of ₹${ot}`,
+														);
+													}
+												}
+											}}
+										>
+											+ Add Overtime / Extra Bonus
+										</Button>
+									</div>
 
 									<div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-3">
 										<div>
@@ -1103,7 +1186,7 @@ export default function HRPayrollPage() {
 												htmlFor="adjAmount"
 												className="font-bold text-slate-800 text-xs dark:text-slate-200"
 											>
-												{t("newAmount")} (₹) *
+												{t("newAmount")} (Net Payable ₹) *
 											</Label>
 											<Input
 												id="adjAmount"
@@ -1115,7 +1198,7 @@ export default function HRPayrollPage() {
 										</div>
 										<div>
 											<Label className="text-slate-500 text-xs">
-												{t("difference")}
+												{t("difference")} (Deduction/Addition)
 											</Label>
 											<div className="font-bold text-sm">
 												{(() => {
@@ -1134,8 +1217,8 @@ export default function HRPayrollPage() {
 															}
 														>
 															{diff > 0
-																? `+${formatINR(diff)}`
-																: formatINR(diff)}
+																? `+${formatINR(diff)} (Addition)`
+																: `${formatINR(diff)} (Deduction)`}
 														</span>
 													);
 												})()}
@@ -1148,11 +1231,12 @@ export default function HRPayrollPage() {
 											htmlFor="adjReason"
 											className="font-bold text-slate-800 text-xs dark:text-slate-200"
 										>
-											{t("adjustmentReason")} *
+											Adjustment Reason (Mandatory for advance deduction /
+											overtime) *
 										</Label>
 										<Textarea
 											id="adjReason"
-											placeholder={t("mandatoryReasonHint")}
+											placeholder="Enter reason (e.g. advance payment recovery, penalty deduction, or approved extra overtime)..."
 											value={adjustReasonInput}
 											onChange={(e) => setAdjustReasonInput(e.target.value)}
 											rows={2}

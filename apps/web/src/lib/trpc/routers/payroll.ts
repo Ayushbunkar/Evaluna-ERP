@@ -1077,13 +1077,54 @@ export const payrollRouter = router({
 					reason: `Disbursement completed via payment method #${input.payment_method_id} with UTR: ${input.transaction_reference.trim()}`,
 				});
 
+				// Automatic Payslip Generation upon successful payment/disbursement
+				try {
+					let empId = record.staff?.employeeId;
+					if (!empId && record.staff_id) {
+						const [empObj] = await tx
+							.select({ id: employees.id })
+							.from(employees)
+							.where(eq(employees.id, record.staff_id))
+							.limit(1);
+						if (empObj) empId = empObj.id;
+					}
+
+					if (empId) {
+						const [existingPayslip] = await tx
+							.select()
+							.from(generatedPayslip)
+							.where(
+								and(
+									eq(generatedPayslip.payrollId, paidRecord.id),
+									eq(generatedPayslip.employeeId, empId),
+								),
+							)
+							.limit(1);
+
+						if (!existingPayslip) {
+							const contentUrl = `generated-payslip-${paidRecord.id}-${empId}.pdf`;
+							await tx.insert(generatedPayslip).values({
+								payrollId: paidRecord.id,
+								employeeId: empId,
+								templateId: null,
+								contentUrl: contentUrl,
+								isPublished: true,
+								publishedAt: payDate,
+								generatedAt: new Date(),
+							});
+						}
+					}
+				} catch (payslipErr) {
+					console.error("Automatic payslip generation error:", payslipErr);
+				}
+
 				// Notification to HR & Manager
 				await tx.insert(notifications).values({
 					branch_id: record.branch_id,
 					type: "payroll",
 					channel: "in_app",
-					title: "Payroll Payment Completed",
-					message: `Salary of ₹${Number(record.net_payable).toLocaleString("en-IN")} disbursed to ${record.staff?.name || "Staff"} (Ref: ${input.transaction_reference.trim()}). Record is now locked.`,
+					title: "Payroll Payment & Payslip Completed",
+					message: `Salary of ₹${Number(record.net_payable).toLocaleString("en-IN")} disbursed to ${record.staff?.name || "Staff"} (Ref: ${input.transaction_reference.trim()}). Official Payslip generated and published to HR Archive.`,
 					priority: "normal",
 				});
 

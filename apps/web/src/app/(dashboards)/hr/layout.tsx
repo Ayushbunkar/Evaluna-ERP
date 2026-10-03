@@ -6,6 +6,7 @@ import {
 	CalendarDays,
 	Clock,
 	FileBarChart,
+	FileText,
 	LayoutDashboard,
 	Users,
 	X,
@@ -21,6 +22,7 @@ const navItems = [
 	{ href: "/hr/leave", label: "Leave Management", icon: CalendarDays },
 	{ href: "/hr/attendance", label: "Attendance", icon: Clock },
 	{ href: "/hr/payroll", label: "Payroll", icon: Banknote },
+	{ href: "/hr/payslips", label: "Payslips", icon: FileText },
 	{ href: "/hr/reports", label: "Reports", icon: FileBarChart },
 ];
 
