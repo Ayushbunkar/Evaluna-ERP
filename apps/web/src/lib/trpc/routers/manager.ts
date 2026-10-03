@@ -231,33 +231,168 @@ export const managerRouter = router({
 				image: empRow.image || null,
 			};
 
-			// Query leave requests
-			const leaves = await db
+			// Query leaves from approvals and leaveApplications
+			const approvalLeaves = await db
+				.select()
+				.from(approvals)
+				.where(
+					or(
+						eq(approvals.requested_by, input.staffId),
+						eq(approvals.created_by, input.staffId),
+					),
+				)
+				.catch(() => []);
+
+			const leaveApps = await db
+				.select()
+				.from(leaveApplications)
+				.where(
+					or(
+						eq(leaveApplications.staff_id, input.staffId),
+						eq(leaveApplications.employee_id, input.staffId),
+					),
+				)
+				.catch(() => []);
+
+			const leaves = [
+				...approvalLeaves
+					.filter(
+						(a) =>
+							a.reference_type === "leave" ||
+							a.reference_type === "LEAVE" ||
+							(a.notes && a.notes.toLowerCase().includes("leave")),
+					)
+					.map((a) => ({
+						id: a.id,
+						status: a.status || "pending",
+						resolved_at: a.updated_at || a.created_at,
+						created_at: a.created_at,
+					})),
+				...leaveApps.map((la) => ({
+					id: la.id,
+					status: la.status || "pending",
+					resolved_at: la.approved_at || la.updated_at || la.created_at,
+					created_at: la.created_at,
+				})),
+			];
+
+			// Query tasks across upcTasks, orders, pickLists, packages, deliveryTrips
+			const upcList = await db
+				.select()
+				.from(upcTasks)
+				.where(eq(upcTasks.assigned_to, input.staffId))
+				.catch(() => []);
+
+			const assignedOrders = await db
+				.select()
+				.from(orders)
+				.where(
+					or(
+						eq(orders.driver_id, input.staffId),
+						eq(orders.picker_id, input.staffId),
+						eq(orders.packer_id, input.staffId),
+					),
+				)
+				.limit(10)
+				.catch(() => []);
+
+			const assignedPickLists = await db
+				.select()
+				.from(pickLists)
+				.where(eq(pickLists.picker_id, input.staffId))
+				.limit(10)
+				.catch(() => []);
+
+			const assignedPackages = await db
+				.select()
+				.from(packages)
+				.where(eq(packages.packer_id, input.staffId))
+				.limit(10)
+				.catch(() => []);
+
+			const assignedTrips = await db
+				.select()
+				.from(deliveryTrips)
+				.where(eq(deliveryTrips.driver_id, input.staffId))
+				.limit(10)
+				.catch(() => []);
+
+			const tasks = [
+				...upcList.map((t) => ({
+					id: t.id,
+					task_type: t.task_type || "UPC Task",
+					status: t.status || "PENDING",
+					due_at: t.due_at || t.created_at,
+				})),
+				...assignedOrders.map((o) => ({
+					id: o.id + 10000,
+					task_type: `Order #${o.order_number || o.id}`,
+					status: o.status || "PROCESSING",
+					due_at: o.delivery_date || o.created_at,
+				})),
+				...assignedPickLists.map((p) => ({
+					id: p.id + 20000,
+					task_type: `Picking Batch #${p.id}`,
+					status: p.status || "PENDING",
+					due_at: p.created_at,
+				})),
+				...assignedPackages.map((pkg) => ({
+					id: pkg.id + 30000,
+					task_type: `Packing #${pkg.package_number || pkg.id}`,
+					status: pkg.status || "PENDING",
+					due_at: pkg.created_at,
+				})),
+				...assignedTrips.map((dt) => ({
+					id: dt.id + 40000,
+					task_type: `Delivery Trip #${dt.trip_number || dt.id}`,
+					status: dt.status || "PENDING",
+					due_at: dt.created_at,
+				})),
+			];
+
+			// Query expenses from employeeExpenses and approvals
+			const expenseRows = await db
+				.select()
+				.from(employeeExpenses)
+				.where(eq(employeeExpenses.staff_id, input.staffId))
+				.catch(() => []);
+
+			const approvalExpenses = await db
 				.select()
 				.from(approvals)
 				.where(
 					and(
-						eq(approvals.reference_type, "leave"),
-						eq(approvals.requested_by, input.staffId),
+						or(
+							eq(approvals.reference_type, "expense"),
+							eq(approvals.reference_type, "reimbursement"),
+						),
+						or(
+							eq(approvals.requested_by, input.staffId),
+							eq(approvals.created_by, input.staffId),
+						),
 					),
-				);
+				)
+				.catch(() => []);
 
-			// Query assigned tasks
-			const assignedTasks = await db
-				.select()
-				.from(upcTasks)
-				.where(eq(upcTasks.assigned_to, input.staffId));
-
-			// Query expense claims
-			const expenses = await db
-				.select()
-				.from(employeeExpenses)
-				.where(eq(employeeExpenses.staff_id, input.staffId));
+			const expenses = [
+				...expenseRows.map((e) => ({
+					id: e.id,
+					amount: e.amount || "0",
+					custom_category_name: e.category || "Expense",
+					status: e.status || "PENDING",
+				})),
+				...approvalExpenses.map((ae) => ({
+					id: ae.id + 10000,
+					amount: ae.amount || "0",
+					custom_category_name: "Reimbursement",
+					status: ae.status || "PENDING",
+				})),
+			];
 
 			return {
 				employee,
 				leaves,
-				tasks: assignedTasks,
+				tasks,
 				expenses,
 			};
 		}),

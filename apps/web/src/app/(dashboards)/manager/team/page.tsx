@@ -63,7 +63,7 @@ export default function TeamPage() {
 				</div>
 			</div>
 
-			<div className="grid gap-6 md:grid-cols-3">
+			<div className="grid items-start gap-6 md:grid-cols-3">
 				{/* Main Employee List */}
 				<div className="md:col-span-2">
 					<Card className="shadow-sm">
@@ -95,7 +95,7 @@ export default function TeamPage() {
 													<img
 														src={(emp as any).image}
 														alt={emp.name}
-														className="h-10 w-10 rounded-full object-cover ring-1 ring-border shadow-2xs"
+														className="h-10 w-10 rounded-full object-cover shadow-2xs ring-1 ring-border"
 														loading="lazy"
 													/>
 												) : (
@@ -131,8 +131,8 @@ export default function TeamPage() {
 					</Card>
 				</div>
 
-				{/* Slide-Over Side Audits Panel */}
-				<div>
+				{/* Slide-Over Side Audits Panel (Sticky on scroll) */}
+				<div className="md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
 					{selectedStaffId ? (
 						<Card className="border-l-4 border-l-blue-500 shadow-sm">
 							<CardHeader className="flex flex-row items-center justify-between border-b pb-4">
@@ -167,7 +167,7 @@ export default function TeamPage() {
 												<img
 													src={(detail.employee as any).image}
 													alt={detail.employee?.name}
-													className="h-12 w-12 rounded-full object-cover ring-2 ring-primary/30 shadow-xs"
+													className="h-12 w-12 rounded-full object-cover shadow-xs ring-2 ring-primary/30"
 												/>
 											) : (
 												<div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-800 text-lg">

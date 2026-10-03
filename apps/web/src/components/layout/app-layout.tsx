@@ -54,6 +54,8 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { LogoutModal } from "@/components/shared/logout-modal";
+import { ProfileModal } from "@/components/shared/profile-modal";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/hooks/use-session";
 import { BranchProvider, useBranch } from "@/lib/branch-context";
@@ -212,8 +214,20 @@ export function AppLayout({
 	const [isOffline, setIsOffline] = useState(false);
 	const [isSyncing, setIsSyncing] = useState(false);
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+	const [isProfileOpen, setIsProfileOpen] = useState(false);
+	const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 	const { session } = useSession();
-	const t = useTranslations(namespace);
+
+	let t: unknown;
+	try {
+		t = useTranslations(namespace);
+	} catch (_e) {
+		t = undefined;
+	}
+
+	const { data: userProfile } = trpc.users.getMyProfile.useQuery(undefined, {
+		refetchOnWindowFocus: false,
+	});
 
 	const { data: statusData } = trpc.attendance.myStatus.useQuery();
 	const activeShift = statusData?.activeShift;
@@ -256,8 +270,16 @@ export function AppLayout({
 
 	const formatNavLabel = (key: string) => {
 		try {
-			if (t && typeof (t as any).has === "function" && (t as any).has(key)) {
-				const translated = t(key as any);
+			const translator = t as unknown as Record<
+				string,
+				(k: string) => unknown
+			> & { has?: (k: string) => boolean };
+			if (
+				translator &&
+				typeof translator.has === "function" &&
+				translator.has(key)
+			) {
+				const translated = translator(key);
 				if (
 					translated &&
 					typeof translated === "string" &&
@@ -381,25 +403,54 @@ export function AppLayout({
 								size="icon"
 								className="h-9 w-9 overflow-hidden rounded-full shadow-sm ring-1 ring-border/50 transition-all hover:ring-2 hover:ring-primary/20"
 							>
-								<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-									<UserIcon className="h-5 w-5" />
-								</div>
+								{userProfile?.image || session?.user?.image ? (
+									<img
+										src={userProfile?.image || session?.user?.image || ""}
+										alt={
+											userProfile?.name || session?.user?.name || "User Profile"
+										}
+										className="h-full w-full rounded-full object-cover"
+									/>
+								) : (
+									<div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+										<UserIcon className="h-5 w-5" />
+									</div>
+								)}
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="end"
 							className="w-56 rounded-xl border-border/50 shadow-xl"
 						>
-							<DropdownMenuLabel className="font-normal">
-								<div className="flex flex-col space-y-1">
-									<p className="font-medium text-sm leading-none">
-										{session?.user?.name || "My Account"}
-									</p>
-									<p className="text-muted-foreground text-xs leading-none">
-										{session?.user?.email || ""}
-									</p>
+							<DropdownMenuLabel
+								onClick={() => setIsProfileOpen(true)}
+								className="cursor-pointer rounded-lg p-2 font-normal transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70"
+							>
+								<div className="flex items-center justify-between gap-2">
+									<div className="flex flex-col space-y-1">
+										<p className="font-semibold text-slate-900 text-sm leading-none dark:text-slate-100">
+											{userProfile?.name || session?.user?.name || "My Account"}
+										</p>
+										<p className="text-muted-foreground text-xs leading-none">
+											{userProfile?.email || session?.user?.email || ""}
+										</p>
+									</div>
+									<Badge
+										variant="outline"
+										className="border-blue-200 font-semibold text-[10px] text-blue-600 dark:border-blue-800 dark:text-blue-400"
+									>
+										View
+									</Badge>
 								</div>
 							</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={() => setIsProfileOpen(true)}
+								className="flex cursor-pointer items-center gap-2 rounded-md font-medium text-blue-600 focus:bg-blue-50 dark:text-blue-400 dark:focus:bg-blue-950/50"
+							>
+								<UserIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+								My Profile & Edit
+							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							{session?.user?.isSuperadmin || role === "admin" ? (
 								<>
@@ -468,15 +519,17 @@ export function AppLayout({
 								</>
 							)}
 							<DropdownMenuItem
-								onClick={() => {
-									window.location.href = "/api/logout";
-								}}
+								onClick={() => setIsLogoutOpen(true)}
 								className="cursor-pointer rounded-md text-destructive focus:bg-destructive/10 focus:text-destructive"
 							>
 								Logout
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+
+					{/* Modals */}
+					<ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+					<LogoutModal open={isLogoutOpen} onOpenChange={setIsLogoutOpen} />
 				</div>
 			</header>
 
@@ -515,7 +568,7 @@ export function AppLayout({
 									</span>
 									<Badge
 										variant="secondary"
-										className="bg-emerald-100 font-bold text-emerald-800 text-[10px] uppercase tracking-wider hover:bg-emerald-100/80"
+										className="bg-emerald-100 font-bold text-[10px] text-emerald-800 uppercase tracking-wider hover:bg-emerald-100/80"
 									>
 										{role
 											? role.replace("_", " ")
@@ -549,7 +602,7 @@ export function AppLayout({
 													setMobileMenuOpen(false);
 													router.push(href);
 												}}
-												className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all cursor-pointer select-none active:scale-[0.98] ${
+												className={`group flex cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all active:scale-[0.98] ${
 													isActive
 														? "bg-primary/10 font-medium text-primary"
 														: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"

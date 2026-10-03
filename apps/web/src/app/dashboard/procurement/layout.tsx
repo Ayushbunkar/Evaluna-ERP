@@ -23,8 +23,10 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTRPC } from "@/lib/trpc/client";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { LogoutModal } from "@/components/shared/logout-modal";
+import { ProfileModal } from "@/components/shared/profile-modal";
+import { useTRPC } from "@/lib/trpc/client";
 
 export default function ProcurementLayout({
 	children,
@@ -39,10 +41,17 @@ export default function ProcurementLayout({
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	// Mobile drawer state
 	const [mobileOpen, setMobileOpen] = useState(false);
+	const [isProfileOpen, setIsProfileOpen] = useState(false);
+	const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
 	// Sync state
 	const [syncTime, setSyncTime] = useState<string>("now");
 	const [isSyncing, setIsSyncing] = useState(false);
+
+	// Query for user profile photo sync
+	const { data: myProfile } = trpc.users.getMyProfile.useQuery(undefined, {
+		refetchOnWindowFocus: false,
+	});
 
 	// Queries for dynamic counters
 	const { data: pos, refetch: refetchPOs } =
@@ -309,28 +318,36 @@ export default function ProcurementLayout({
 						<NotificationBell />
 
 						{/* Profile & Logout triggers */}
-						<div className="flex items-center gap-1 rounded-lg border bg-slate-50 p-1 shadow-inner dark:bg-slate-700">
-							<Link href="/profile">
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-7 gap-1.5 px-2 font-semibold text-xs hover:bg-white dark:hover:bg-slate-600"
-								>
-									<UserIcon className="h-3.5 w-3.5 text-gray-500" />
-									<span className="hidden sm:inline">Profile</span>
-								</Button>
-							</Link>
+						<div className="flex items-center gap-1.5 rounded-lg border bg-slate-50 p-1 shadow-inner dark:bg-slate-700">
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={() => setIsProfileOpen(true)}
+								className="h-7 w-7 rounded-full p-0 transition-transform hover:scale-105 hover:bg-white dark:hover:bg-slate-600"
+								title="My Profile & Edit"
+							>
+								{myProfile?.image ? (
+									<img
+										src={myProfile.image}
+										alt="Profile"
+										className="h-6 w-6 rounded-full object-cover shadow-2xs ring-1 ring-blue-500/50"
+									/>
+								) : (
+									<div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-600">
+										<UserIcon className="h-3.5 w-3.5 text-gray-600 dark:text-gray-300" />
+									</div>
+								)}
+							</Button>
 							<span className="text-gray-300">|</span>
-							<a href="/api/logout">
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-7 gap-1.5 px-2 font-semibold text-red-600 text-xs hover:bg-red-50 dark:hover:bg-red-950/25"
-								>
-									<LogOutIcon className="h-3.5 w-3.5" />
-									<span className="hidden sm:inline">Logout</span>
-								</Button>
-							</a>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setIsLogoutOpen(true)}
+								className="h-7 gap-1.5 px-2 font-semibold text-red-600 text-xs hover:bg-red-50 dark:hover:bg-red-950/25"
+							>
+								<LogOutIcon className="h-3.5 w-3.5" />
+								<span className="hidden sm:inline">Logout</span>
+							</Button>
 						</div>
 					</div>
 				</header>
@@ -339,6 +356,10 @@ export default function ProcurementLayout({
 				<main className="flex-1 overflow-y-auto bg-gray-50 focus:outline-none dark:bg-gray-900">
 					{children}
 				</main>
+
+				{/* Modals */}
+				<ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+				<LogoutModal open={isLogoutOpen} onOpenChange={setIsLogoutOpen} />
 			</div>
 		</div>
 	);

@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { LogoutModal } from "@/components/shared/logout-modal";
 import { useSession } from "@/hooks/use-session";
 import { authClient } from "@/lib/auth-client";
 import { useBranch } from "@/lib/branch-context";
@@ -80,6 +81,7 @@ export function DashboardHeader({
 
 	// Modals for Profile, Account Settings, and Attendance
 	const [profileOpen, setProfileOpen] = useState(false);
+	const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [attendanceOpen, setAttendanceOpen] = useState(false);
 	const [workNotes, setWorkNotes] = useState("");
@@ -522,7 +524,13 @@ export function DashboardHeader({
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="w-[230px]">
-						<div className="flex items-center justify-start gap-2.5 p-2.5">
+						<div
+							onClick={() => {
+								setIsEditingProfile(true);
+								setProfileOpen(true);
+							}}
+							className="flex cursor-pointer items-center justify-start gap-2.5 rounded-lg p-2.5 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70"
+						>
 							{effectiveAvatar ? (
 								<img
 									src={effectiveAvatar}
@@ -585,7 +593,7 @@ export function DashboardHeader({
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onSelect={handleLogout}
+							onSelect={() => setLogoutModalOpen(true)}
 							className="flex cursor-pointer items-center font-medium text-destructive text-xs focus:bg-destructive focus:text-destructive-foreground"
 						>
 							<LogOut className="mr-2 h-4 w-4" />
@@ -1187,6 +1195,7 @@ export function DashboardHeader({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+			<LogoutModal open={logoutModalOpen} onOpenChange={setLogoutModalOpen} />
 		</header>
 	);
 }
