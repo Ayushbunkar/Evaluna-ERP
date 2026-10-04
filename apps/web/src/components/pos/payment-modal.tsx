@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { offlineDb } from "@/lib/offline-db";
 import { useTRPC } from "@/lib/trpc/client";
 
 interface CustomerOption {
@@ -64,6 +65,34 @@ export function PaymentModal({
 	const { data: customerList = [] } = trpc.customers.list.useQuery(undefined, {
 		enabled: open,
 	});
+
+	const [effectiveCustomerList, setEffectiveCustomerList] = useState<CustomerOption[]>([]);
+
+	useEffect(() => {
+		if (customerList && customerList.length > 0) {
+			setEffectiveCustomerList(customerList as CustomerOption[]);
+			offlineDb.customers
+				.clear()
+				.then(() => {
+					offlineDb.customers.bulkPut(customerList as any[]);
+				})
+				.catch(() => {});
+		} else {
+			offlineDb.customers
+				.toArray()
+				.then((offlineCusts) => {
+					if (offlineCusts && offlineCusts.length > 0) {
+						setEffectiveCustomerList(offlineCusts as any[]);
+					}
+				})
+				.catch(() => {});
+		}
+	}, [customerList, open]);
+
+	const displayCustomerList = useMemo(
+		() => (effectiveCustomerList.length > 0 ? effectiveCustomerList : customerList),
+		[effectiveCustomerList, customerList],
+	);
 
 	const { data: routes = [] } = trpc.delivery.listRoutes.useQuery(
 		{},
@@ -224,7 +253,7 @@ export function PaymentModal({
 		const q = customerName.toLowerCase().trim();
 		const digits = q.replace(/[^0-9]/g, "");
 
-		return (customerList as CustomerOption[])
+		return (displayCustomerList as CustomerOption[])
 			.filter((c) => {
 				const nameMatch = c.name?.toLowerCase().includes(q);
 				const phoneMatch =

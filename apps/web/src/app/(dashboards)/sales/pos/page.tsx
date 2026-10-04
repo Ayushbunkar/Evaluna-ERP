@@ -59,6 +59,7 @@ import {
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
+import { offlineDb } from "@/lib/offline-db";
 import { trpc } from "@/lib/trpc/client";
 
 // Reusable Devanagari Parser to localize dynamic product content
@@ -372,6 +373,34 @@ function POSContent() {
 	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
 		staleTime: 1000 * 60 * 5, // 5 minutes
 	});
+
+	const [effectiveCatalog, setEffectiveCatalog] = useState<any[]>([]);
+
+	useEffect(() => {
+		if (catalog && catalog.length > 0) {
+			setEffectiveCatalog(catalog);
+			offlineDb.products
+				.clear()
+				.then(() => {
+					offlineDb.products.bulkPut(catalog);
+				})
+				.catch((err) => console.warn("Failed to cache products:", err));
+		} else {
+			offlineDb.products
+				.toArray()
+				.then((offlineProducts) => {
+					if (offlineProducts && offlineProducts.length > 0) {
+						setEffectiveCatalog(offlineProducts);
+					}
+				})
+				.catch((err) => console.warn("Failed to load offline products:", err));
+		}
+	}, [catalog]);
+
+	const displayCatalog = useMemo(
+		() => (effectiveCatalog.length > 0 ? effectiveCatalog : catalog || []),
+		[effectiveCatalog, catalog],
+	);
 
 	// Mutations
 	const deleteHoldBillMutation = trpc.orders.delete.useMutation();
@@ -873,7 +902,7 @@ function POSContent() {
 			if (!items || items.length === 0) return;
 			let addedCount = 0;
 			for (const item of items) {
-				const matchedProduct = catalog?.find(
+				const matchedProduct = displayCatalog?.find(
 					(p) => p.id === item.productId || p.id === item.id,
 				);
 				if (matchedProduct) {
@@ -899,23 +928,23 @@ function POSContent() {
 				);
 			}
 		},
-		[catalog, addToCart, locale],
+		[displayCatalog, addToCart, locale],
 	);
 
 	const categories = useMemo(() => {
-		if (!catalog) return [];
+		if (!displayCatalog) return [];
 		const cats = new Set<string>();
-		for (const p of catalog) {
+		for (const p of displayCatalog) {
 			if (p.category && p.category.trim()) {
 				cats.add(p.category.trim());
 			}
 		}
 		return Array.from(cats).sort();
-	}, [catalog]);
+	}, [displayCatalog]);
 
 	const filteredCatalog = useMemo(() => {
-		if (!catalog) return [];
-		let result = catalog;
+		if (!displayCatalog) return [];
+		let result = displayCatalog;
 		if (selectedCategory !== "all") {
 			result = result.filter((p) => p.category === selectedCategory);
 		}
@@ -1029,9 +1058,9 @@ function POSContent() {
 				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
 					<div className="flex items-center gap-2">
 						<h1 className="font-bold text-xl sm:text-2xl">{t.posTitle}</h1>
-						{catalog && catalog.length > 0 && (
+						{displayCatalog && displayCatalog.length > 0 && (
 							<span className="rounded-md border bg-muted px-2 py-0.5 font-semibold text-muted-foreground text-xs">
-								{catalog.length} Products
+								{displayCatalog.length} Products
 							</span>
 						)}
 					</div>
