@@ -5,11 +5,11 @@ import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { motion } from "framer-motion";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, Suspense, useRef, useState } from "react";
+import { type FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { login } from "./actions";
@@ -25,6 +25,21 @@ function LoginForm() {
 	const [localError, setLocalError] = useState<string | null>(
 		searchParams.get("error"),
 	);
+	const [isOffline, setIsOffline] = useState(false);
+
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			setIsOffline(!window.navigator.onLine);
+		}
+		const handleOnline = () => setIsOffline(false);
+		const handleOffline = () => setIsOffline(true);
+		window.addEventListener("online", handleOnline);
+		window.addEventListener("offline", handleOffline);
+		return () => {
+			window.removeEventListener("online", handleOnline);
+			window.removeEventListener("offline", handleOffline);
+		};
+	}, []);
 
 	async function handleSubmit(e: FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -48,6 +63,44 @@ function LoginForm() {
 	return (
 		<form onSubmit={handleSubmit}>
 			<CardContent className="space-y-4 pt-6">
+				{isOffline && (
+					<motion.div
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-600 text-xs sm:p-4 sm:text-sm dark:text-amber-400"
+					>
+						<div className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-300">
+							<WifiOff className="h-4 w-4 shrink-0 animate-pulse" />
+							<span>Offline Mode Active</span>
+						</div>
+						<p className="text-muted-foreground text-xs">
+							Internet disconnected. If you were logged in previously, you can launch your offline workspace tabs directly:
+						</p>
+						<div className="pt-1 space-y-1.5 font-medium">
+							<Link
+								href="/driver"
+								className="flex items-center justify-between rounded-lg bg-amber-500/20 px-3 py-2 text-amber-900 transition-colors hover:bg-amber-500/30 dark:text-amber-100"
+							>
+								<span>🚚 Driver Delivery Tab</span>
+								<span>→</span>
+							</Link>
+							<Link
+								href="/sales"
+								className="flex items-center justify-between rounded-lg bg-amber-500/20 px-3 py-2 text-amber-900 transition-colors hover:bg-amber-500/30 dark:text-amber-100"
+							>
+								<span>🛒 Sales & POS Dashboard</span>
+								<span>→</span>
+							</Link>
+							<Link
+								href="/dashboard"
+								className="flex items-center justify-between rounded-lg bg-amber-500/20 px-3 py-2 text-amber-900 transition-colors hover:bg-amber-500/30 dark:text-amber-100"
+							>
+								<span>📊 Main Owner ERP</span>
+								<span>→</span>
+							</Link>
+						</div>
+					</motion.div>
+				)}
 				{localError && (
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}

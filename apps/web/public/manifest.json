@@ -1,16 +1,23 @@
 {
 	"name": "Evaluna ERP",
-	"short_name": "Evaluna",
-	"description": "Enterprise Resource Planning system for field workers.",
+	"short_name": "Evaluna ERP",
+	"description": "Enterprise Resource Planning & Field Operations System",
 	"start_url": "/",
 	"display": "standalone",
-	"background_color": "#ffffff",
-	"theme_color": "#2563eb",
+	"background_color": "#0f172a",
+	"theme_color": "#0f172a",
 	"icons": [
 		{
-			"src": "/favicon.ico",
-			"sizes": "64x64 32x32 24x24 16x16",
-			"type": "image/x-icon"
+			"src": "/logo.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any maskable"
+		},
+		{
+			"src": "/logo.jpg",
+			"sizes": "512x512",
+			"type": "image/jpeg",
+			"purpose": "any maskable"
 		}
 	]
 }

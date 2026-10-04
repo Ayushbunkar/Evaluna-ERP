@@ -26,7 +26,18 @@ const fallbackMessages: Record<Locale, any> = {
 
 export const metadata: Metadata = {
 	title: "Evaluna ERP",
-	description: "Open-source point of sale system",
+	description: "Enterprise Resource Planning & Field Operations System",
+	manifest: "/manifest.json",
+	icons: {
+		icon: "/logo.png",
+		shortcut: "/logo.png",
+		apple: "/logo.png",
+	},
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: "black-translucent",
+		title: "Evaluna ERP",
+	},
 };
 
 export default async function RootLayout({
@@ -55,7 +66,16 @@ export default async function RootLayout({
 		<html lang={locale} suppressHydrationWarning>
 			<head>
 				<link rel="manifest" href="/manifest.json" />
-				<meta name="theme-color" content="#000000" />
+				<link rel="icon" type="image/png" href="/logo.png" />
+				<link rel="shortcut icon" href="/logo.png" />
+				<link rel="apple-touch-icon" href="/logo.png" />
+				<meta name="theme-color" content="#0f172a" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta
+					name="apple-mobile-web-app-status-bar-style"
+					content="black-translucent"
+				/>
+				<meta name="apple-mobile-web-app-title" content="Evaluna ERP" />
 			</head>
 			<body
 				className={`${inter.className} ${notoDevanagari.variable} ${inter.variable}`}

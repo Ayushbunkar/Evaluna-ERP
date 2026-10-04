@@ -6,6 +6,12 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const withPWA = withPWAInit({
 	dest: "public",
 	disable: process.env.NODE_ENV === "development",
+	fallbacks: {
+		document: "/offline.html",
+	},
+	cacheOnFrontEndNav: true,
+	aggressiveFrontEndNavCaching: true,
+	reloadOnOnline: true,
 	workboxOptions: {
 		exclude: [/\/api\//], // Exclude API routes from precaching
 		runtimeCaching: [
@@ -22,12 +28,26 @@ const withPWA = withPWAInit({
 				},
 			},
 			{
-				urlPattern: /^(?!.*\/api\/trpc\/).*/i,
-				handler: "NetworkFirst",
+				// Cache static images
+				urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+				handler: "StaleWhileRevalidate",
+				options: {
+					cacheName: "static-images",
+					expiration: {
+						maxEntries: 100,
+						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+					},
+				},
+			},
+			{
+				// Cache pages with StaleWhileRevalidate to guarantee offline availability
+				urlPattern: /^(?!.*\/api\/).*/i,
+				handler: "StaleWhileRevalidate",
 				options: {
 					cacheName: "offlineCache",
 					expiration: {
 						maxEntries: 200,
+						maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
 					},
 				},
 			},

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Evaluna ERP — Offline Mode</title>
+	<link rel="icon" type="image/png" href="/logo.png">
+	<style>
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		body {
+			font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			background-color: #0f172a;
+			color: #f8fafc;
+			display: flex;
+			min-height: 100vh;
+			align-items: center;
+			justify-content: center;
+			padding: 1.5rem;
+		}
+		.card {
+			background: #1e293b;
+			border: 1px solid #334155;
+			border-radius: 1.25rem;
+			max-width: 480px;
+			width: 100%;
+			padding: 2rem;
+			text-align: center;
+			box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+		}
+		.logo {
+			width: 72px;
+			height: 72px;
+			border-radius: 1rem;
+			object-fit: cover;
+			margin: 0 auto 1.25rem auto;
+			box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+			border: 2px solid #3b82f6;
+		}
+		.badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.375rem;
+			background: rgba(245, 158, 11, 0.15);
+			color: #fbbf24;
+			border: 1px solid rgba(245, 158, 11, 0.3);
+			padding: 0.25rem 0.75rem;
+			border-radius: 9999px;
+			font-size: 0.75rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			margin-bottom: 1rem;
+		}
+		.dot {
+			width: 8px;
+			height: 8px;
+			background-color: #f59e0b;
+			border-radius: 50%;
+			display: inline-block;
+			animation: pulse 2s infinite;
+		}
+		@keyframes pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.4; }
+		}
+		h1 {
+			font-size: 1.5rem;
+			font-weight: 800;
+			color: #ffffff;
+			margin-bottom: 0.5rem;
+			letter-spacing: -0.025em;
+		}
+		p {
+			font-size: 0.875rem;
+			color: #94a3b8;
+			line-height: 1.5;
+			margin-bottom: 1.75rem;
+		}
+		.nav-grid {
+			display: grid;
+			gap: 0.75rem;
+		}
+		.btn {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+			padding: 0.75rem 1rem;
+			border-radius: 0.75rem;
+			font-size: 0.875rem;
+			font-weight: 600;
+			text-decoration: none;
+			transition: all 0.2s ease;
+		}
+		.btn-primary {
+			background: #2563eb;
+			color: #ffffff;
+		}
+		.btn-primary:hover {
+			background: #1d4ed8;
+		}
+		.btn-secondary {
+			background: #334155;
+			color: #f1f5f9;
+		}
+		.btn-secondary:hover {
+			background: #475569;
+		}
+	</style>
+</head>
+<body>
+	<div class="card">
+		<img src="/logo.png" alt="Evaluna ERP" class="logo" onerror="this.src='/logo.jpg'">
+		<div class="badge">
+			<span class="dot"></span> Offline Mode Active
+		</div>
+		<h1>Evaluna ERP Workspace</h1>
+		<p>You are currently offline. Sales POS, Driver Handover, and Offline Order Queues are running locally on your device.</p>
+		
+		<div class="nav-grid">
+			<a href="/sales" class="btn btn-primary">🛒 Open Sales & POS Console</a>
+			<a href="/driver" class="btn btn-secondary">🚚 Open Driver Logistics</a>
+			<a href="/manager" class="btn btn-secondary">🏢 Open Manager Dashboard</a>
+		</div>
+	</div>
+</body>
+</html>
