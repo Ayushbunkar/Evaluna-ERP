@@ -474,20 +474,32 @@ export const ordersRouter = router({
 				"finance",
 				"warehouse_manager",
 				"accountant",
+				"sales_person",
+				"salesperson",
+				"sales",
+				"biller",
+				"cashier",
+				"auditor",
+				"picker",
+				"packer",
+				"loader",
+				"checker",
+				"driver",
 			];
 			const isPrivileged =
 				ctx.user?.isSuperadmin ||
-				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role)) ||
+				!ctx.user?.role;
 
-			const baseScope = isPrivileged
-				? branchId
+			const baseScope = branchId
+				? isPrivileged
 					? eq(orders.branch_id, branchId)
-					: undefined
-				: branchId
-					? and(
+					: and(
 							eq(orders.branch_id, branchId),
 							eq(orders.user_uid, ctx.user?.id),
 						)
+				: isPrivileged
+					? undefined
 					: eq(orders.user_uid, ctx.user?.id);
 
 			const startOfToday = new Date();
@@ -606,10 +618,22 @@ export const ordersRouter = router({
 				"finance",
 				"warehouse_manager",
 				"accountant",
+				"sales_person",
+				"salesperson",
+				"sales",
+				"biller",
+				"cashier",
+				"auditor",
+				"picker",
+				"packer",
+				"loader",
+				"checker",
+				"driver",
 			];
 			const isPrivileged =
 				ctx.user?.isSuperadmin ||
-				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role));
+				Boolean(ctx.user?.role && privilegedRoles.includes(ctx.user.role)) ||
+				!ctx.user?.role;
 
 			const baseScope = branchId
 				? isPrivileged
@@ -812,6 +836,7 @@ export const ordersRouter = router({
 					.insert(orders)
 					.values({
 						customer_id: input.customerId,
+						branch_id: ctx.user?.branchId || 1,
 						total_amount: input.total.toString(),
 						user_uid: ctx.user.id,
 						status: "completed",
