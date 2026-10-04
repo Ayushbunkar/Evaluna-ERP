@@ -13,7 +13,9 @@ const withPWA = withPWAInit({
 	aggressiveFrontEndNavCaching: true,
 	reloadOnOnline: true,
 	workboxOptions: {
-		exclude: [/\/api\//], // Exclude API routes from precaching
+		navigateFallback: "/offline.html",
+		navigateFallbackDenylist: [/^\/api\//],
+		exclude: [/\/api\//],
 		runtimeCaching: [
 			{
 				// Cache fonts with a long TTL - fonts never change
@@ -22,7 +24,7 @@ const withPWA = withPWAInit({
 				options: {
 					cacheName: "fonts-cache",
 					expiration: {
-						maxEntries: 20,
+						maxEntries: 30,
 						maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
 					},
 				},
@@ -34,7 +36,19 @@ const withPWA = withPWAInit({
 				options: {
 					cacheName: "static-images",
 					expiration: {
-						maxEntries: 100,
+						maxEntries: 150,
+						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+					},
+				},
+			},
+			{
+				// Cache Next.js App Router RSC data payloads and JS chunks
+				urlPattern: /\/_next\/data\/|.*[?&]_rsc=|\/_next\/static\//i,
+				handler: "StaleWhileRevalidate",
+				options: {
+					cacheName: "rsc-static-chunks",
+					expiration: {
+						maxEntries: 300,
 						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
 					},
 				},
@@ -46,8 +60,8 @@ const withPWA = withPWAInit({
 				options: {
 					cacheName: "offlineCache",
 					expiration: {
-						maxEntries: 200,
-						maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+						maxEntries: 300,
+						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
 					},
 				},
 			},
