@@ -23,16 +23,21 @@ export async function flushSyncQueue() {
 	);
 
 	let syncedCount = 0;
+	const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 	for (const item of pendingItems) {
 		try {
-			const res = await fetch(`/api/trpc/${item.action}`, {
+			const url = `${basePath}/api/trpc/${item.action}?batch=1`;
+			const res = await fetch(url, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
+				credentials: "include",
 				body: JSON.stringify({
-					json: item.payload,
+					"0": {
+						json: item.payload,
+					},
 				}),
 			});
 
@@ -47,7 +52,9 @@ export async function flushSyncQueue() {
 					`[Offline Sync] Item ${item.id} sync status non-200:`,
 					res.status,
 				);
-				await db.sync_queue.update(item.id!, { status: "failed" });
+				if (res.status >= 400 && res.status < 500 && res.status !== 401) {
+					await db.sync_queue.update(item.id!, { status: "failed" });
+				}
 			}
 		} catch (err) {
 			console.error("[Offline Sync] Failed to sync item", item, err);
@@ -58,6 +65,11 @@ export async function flushSyncQueue() {
 		toast.success(
 			`Completed sync! ${syncedCount} records pushed to main ERP database.`,
 		);
+		setTimeout(() => {
+			if (typeof window !== "undefined") {
+				window.location.reload();
+			}
+		}, 1500);
 	}
 }
 

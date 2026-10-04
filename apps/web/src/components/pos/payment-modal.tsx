@@ -369,8 +369,8 @@ export function PaymentModal({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-				<DialogHeader>
+			<DialogContent className="sm:max-w-[520px] max-h-[92vh] sm:max-h-[88vh] flex flex-col p-4 sm:p-6 overflow-hidden gap-0">
+				<DialogHeader className="pb-3 border-b shrink-0">
 					<DialogTitle className="text-xl font-bold flex items-center justify-between">
 						<span className="flex items-center gap-2">
 							<UserIcon className="h-5 w-5 text-emerald-600" />
@@ -388,7 +388,7 @@ export function PaymentModal({
 					</DialogTitle>
 				</DialogHeader>
 
-				<div className="grid gap-4 py-2">
+				<div className="flex-1 overflow-y-auto pr-1 py-3 space-y-4">
 					{/* Total Due Card */}
 					{!isInitialSelection && (
 						<div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-3.5 border border-emerald-500/20">
@@ -992,8 +992,8 @@ export function PaymentModal({
 				</div>
 
 				{/* Dialog Footer */}
-				<div className="flex justify-end gap-3 pt-2 border-t">
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
+				<div className="flex justify-end items-center gap-3 pt-3 border-t shrink-0 bg-background z-10">
+					<Button variant="outline" onClick={() => onOpenChange(false)} className="h-10">
 						{t.cancel}
 					</Button>
 					<Button
@@ -1002,8 +1002,8 @@ export function PaymentModal({
 						onClick={handleConfirm}
 						className={
 							paymentStatus === "unpaid"
-								? "bg-amber-600 text-white hover:bg-amber-700 font-semibold"
-								: "bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+								? "bg-amber-600 text-white hover:bg-amber-700 font-semibold h-10 px-4 sm:px-6 shadow-md"
+								: "bg-emerald-600 text-white hover:bg-emerald-700 font-semibold h-10 px-4 sm:px-6 shadow-md"
 						}
 					>
 						{isInitialSelection

@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import { db as syncDb } from "./offline/db";
 
 export interface OfflineProduct {
 	id: number;
@@ -96,6 +97,10 @@ export async function queueOfflineDriverStop(
  */
 export async function getPendingOfflineQueueCount() {
 	try {
+		const pendingSyncQueue = await syncDb.sync_queue
+			.where("status")
+			.equals("pending")
+			.count();
 		const pendingOrders = await offlineDb.offlineOrders
 			.where("synced")
 			.equals(0)
@@ -104,7 +109,7 @@ export async function getPendingOfflineQueueCount() {
 			.where("synced")
 			.equals(0)
 			.count();
-		return pendingOrders + pendingStops;
+		return pendingSyncQueue + pendingOrders + pendingStops;
 	} catch {
 		return 0;
 	}
