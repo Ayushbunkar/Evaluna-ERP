@@ -59,7 +59,7 @@ import {
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
-import { offlineDb } from "@/lib/offline-db";
+import { offlineDb, queueOfflineOrder } from "@/lib/offline-db";
 import { trpc } from "@/lib/trpc/client";
 
 // Reusable Devanagari Parser to localize dynamic product content
@@ -867,12 +867,53 @@ function POSContent() {
 		if (customer) setCustomerDetails(customer);
 
 		if (isOffline) {
-			toast.info("Saved offline bill. Will sync when online.");
+			const tempId = `OFF-ORD-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 899 + 100)}`;
+			void queueOfflineOrder({
+				clientTempId: tempId,
+				customerId: customer?.customerId,
+				customerName: customer?.customerName || "Walk-in Customer",
+				items: cart.map((c) => ({
+					productId: c.id,
+					productName: c.name,
+					quantity: c.qty,
+					unitPrice: Number(c.price) || 0,
+				})),
+				totalAmount: total,
+				paymentMethod: payments?.[0]?.methodId === 1 ? "Cash" : "Other",
+				createdAt: new Date().toISOString(),
+			});
+
+			toast.success(
+				locale === "hi"
+					? "ऑफ़लाइन बिल सेव हो गया! (नेट आते ही सिंक होगा)"
+					: "Offline order saved! Will sync when online.",
+			);
+
+			setLastCompletedOrder({
+				id: tempId,
+				createdAt: new Date().toISOString(),
+				items: cart,
+				total: total,
+				subtotal: subtotal,
+				discount: discountValue,
+				discountReason: discountReason || undefined,
+				otherCharges: extraChargesValue,
+				otherChargesReason: extraChargesReason || undefined,
+				payments: payments,
+				finance_status: payments && payments.length > 0 ? "paid" : "pending",
+				customerName: customer?.customerName || "Walk-in Customer",
+				customerPhone: customer?.customerPhone || "",
+				address: customer?.address || "",
+				shopName: customer?.shopName || "",
+				offline: true,
+			});
+
 			setCart([]);
 			setDiscountAmount(0);
 			setDiscountReason("");
 			setExtraChargesAmount(0);
 			setExtraChargesReason("");
+			checkingOutRef.current = false;
 			return;
 		}
 

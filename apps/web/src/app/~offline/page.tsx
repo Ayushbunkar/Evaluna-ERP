@@ -10,9 +10,11 @@ import {
 } from "@evaluna/ui/components/card";
 import {
 	ArrowLeft,
+	Package,
 	RefreshCw,
 	ShoppingCart,
 	Truck,
+	Users,
 	WifiOff,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,17 +32,35 @@ export default function OfflineFallbackPage() {
 						Evaluna ERP — Offline Mode
 					</CardTitle>
 					<CardDescription className="mt-1 text-slate-400 text-xs">
-						You are currently offline. Your Sales POS, Driver Handover, and
+						You are currently offline. Your Sales POS, Driver Deliveries, and
 						Offline Order Outbox are operating locally on your device.
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="space-y-3 pt-4">
+				<CardContent className="space-y-2.5 pt-4">
 					<Button
 						asChild
-						className="w-full bg-blue-600 font-semibold text-xs hover:bg-blue-700"
+						className="w-full bg-emerald-600 font-semibold text-xs hover:bg-emerald-700"
 					>
-						<Link href="/sales">
-							<ShoppingCart className="mr-2 h-4 w-4" /> Open Sales & POS Console
+						<Link href="/sales/pos">
+							<ShoppingCart className="mr-2 h-4 w-4" /> Point of Sale (POS Billing)
+						</Link>
+					</Button>
+					<Button
+						asChild
+						variant="outline"
+						className="w-full border-slate-700 bg-slate-800 text-slate-200 text-xs hover:bg-slate-700"
+					>
+						<Link href="/sales/orders">
+							<Package className="mr-2 h-4 w-4" /> Sales Orders List
+						</Link>
+					</Button>
+					<Button
+						asChild
+						variant="outline"
+						className="w-full border-slate-700 bg-slate-800 text-slate-200 text-xs hover:bg-slate-700"
+					>
+						<Link href="/sales/customers">
+							<Users className="mr-2 h-4 w-4" /> Customers Directory
 						</Link>
 					</Button>
 					<Button
@@ -49,7 +69,7 @@ export default function OfflineFallbackPage() {
 						className="w-full border-slate-700 bg-slate-800 text-slate-200 text-xs hover:bg-slate-700"
 					>
 						<Link href="/driver">
-							<Truck className="mr-2 h-4 w-4" /> Open Driver Logistics
+							<Truck className="mr-2 h-4 w-4" /> Driver Delivery App
 						</Link>
 					</Button>
 					<Button

@@ -5,6 +5,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { Toaster } from "sonner";
 import TRPCProvider from "@/app/_trpc/provider";
 import { CookieConsent } from "@/components/cookie-consent";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { defaultLocale, type Locale } from "@/i18n/config";
@@ -93,6 +94,7 @@ export default async function RootLayout({
 								<main>{children}</main>
 								<Toaster richColors position="top-right" />
 								<CookieConsent />
+								<ServiceWorkerRegister />
 							</SmoothScrollProvider>
 						</TRPCProvider>
 					</ThemeProvider>
