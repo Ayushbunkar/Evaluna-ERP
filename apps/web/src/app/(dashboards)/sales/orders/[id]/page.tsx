@@ -45,7 +45,7 @@ import {
 	User,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { use, useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
@@ -55,15 +55,26 @@ import { generateOrderWhatsAppLink } from "@/lib/whatsapp";
 export default function OrderDetailPage({
 	params,
 }: {
-	params: Promise<{ id: string }>;
+	params?: Promise<{ id: string }> | { id: string };
 }) {
-	const { id } = use(params);
-	const orderId = Number.parseInt(id, 10);
+	const routeParams = useParams<{ id: string }>();
+	let rawId = routeParams?.id;
+	if (!rawId && params) {
+		try {
+			if (typeof (params as any)?.then === "function") {
+				rawId = (use(params as Promise<{ id: string }>) as any)?.id;
+			} else {
+				rawId = (params as { id: string })?.id;
+			}
+		} catch (e) {}
+	}
+	const orderId = Number.parseInt(String(rawId || ""), 10);
 	const router = useRouter();
 
-	const { data: order, isLoading } = trpc.orders.get.useQuery({
-		id: orderId,
-	}) as { data: any; isLoading: boolean };
+	const { data: order, isLoading } = trpc.orders.get.useQuery(
+		{ id: orderId },
+		{ enabled: Number.isFinite(orderId) && orderId > 0 },
+	) as { data: any; isLoading: boolean };
 
 	const hasHandover =
 		!!order?.deliveryHandover &&

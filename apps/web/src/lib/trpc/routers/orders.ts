@@ -93,25 +93,25 @@ const salesDashboardSummarySchema = z.object({
 });
 
 const orderDetailSchema = z.object({
-	id: z.number(),
-	customer_id: z.number().nullable(),
-	total_amount: z.string(),
-	status: z.string().nullable(),
+	id: z.coerce.number(),
+	customer_id: z.coerce.number().nullable().optional(),
+	total_amount: z.coerce.string(),
+	status: z.string().nullable().optional(),
 	finance_status: z.string().nullable().optional(),
-	discount_amount: z.string().nullable().optional(),
+	discount_amount: z.coerce.string().nullable().optional(),
 	discount_reason: z.string().nullable().optional(),
-	other_charges: z.string().nullable().optional(),
+	other_charges: z.coerce.string().nullable().optional(),
 	other_charges_reason: z.string().nullable().optional(),
-	cgst_amount: z.string().nullable().optional(),
-	sgst_amount: z.string().nullable().optional(),
-	igst_amount: z.string().nullable().optional(),
+	cgst_amount: z.coerce.string().nullable().optional(),
+	sgst_amount: z.coerce.string().nullable().optional(),
+	igst_amount: z.coerce.string().nullable().optional(),
 	notes: z.string().nullable().optional(),
-	user_uid: z.string(),
-	created_at: z.coerce.date().nullable(),
+	user_uid: z.string().nullable().optional(),
+	created_at: z.coerce.date().nullable().optional(),
 	original_items: z.any().nullable().optional(),
 	customer: z
 		.object({
-			id: z.number().optional(),
+			id: z.coerce.number().optional(),
 			name: z.string(),
 			phone: z.string().nullable().optional(),
 			address: z.string().nullable().optional(),
@@ -137,10 +137,10 @@ const orderDetailSchema = z.object({
 		.optional(),
 	orderItems: z.array(
 		z.object({
-			id: z.number(),
-			product_id: z.number().nullable(),
-			quantity: z.number(),
-			price: z.string(),
+			id: z.coerce.number(),
+			product_id: z.coerce.number().nullable(),
+			quantity: z.coerce.number(),
+			price: z.coerce.string(),
 			product: z
 				.object({
 					name: z.string(),
@@ -156,7 +156,16 @@ const orderDetailSchema = z.object({
 });
 
 export const ordersRouter = router({
-	get: roleProcedure(["admin", "manager", "auditor", "sales_person"])
+	get: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"sales_person",
+		"salesperson",
+		"sales",
+		"biller",
+		"cashier",
+	])
 		.meta({
 			openapi: {
 				method: "GET",
