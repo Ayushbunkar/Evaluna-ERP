@@ -492,47 +492,83 @@ export default function SalesReportsPage() {
 
 			y = (doc as any).lastAutoTable.finalY + 10;
 
-			// Top Selling Products Table
+			// All Products Sold & Dispatched Table (Complete Piece Breakdown)
 			doc.setFontSize(11);
 			doc.setFont("helvetica", "bold");
-			doc.text("2. TOP SELLING PRODUCTS (BY QUANTITY)", 14, y);
+			doc.text(
+				"2. ALL PRODUCTS SOLD & DISPATCHED (PIECE BREAKDOWN)",
+				14,
+				y,
+			);
+			y += 4;
+
+			doc.setFontSize(8.5);
+			doc.setFont("helvetica", "normal");
+			doc.setTextColor(100, 116, 139);
+			doc.text(
+				`Total Dispatched: ${overall.totalItemsSoldQuantity.toLocaleString("en-IN")} Pieces across ${(reportData.allProductsSold || reportData.mostSellingProducts || []).length} products during ${periodDisplay}`,
+				14,
+				y,
+			);
 			y += 5;
 
-			const topProductsRows = (reportData.mostSellingProducts || [])
-				.slice(0, 10)
-				.map((p) => [
-					p.name,
-					p.category,
-					String(p.totalQty) + " " + (p.unit || "Pcs"),
-					String(p.orderCount),
-					`Rs. ${p.totalSalesAmount.toLocaleString("en-IN")}`,
-				]);
+			const allProductList =
+				reportData.allProductsSold || reportData.mostSellingProducts || [];
+			const allProductsRows = allProductList.map((p, idx) => [
+				String(idx + 1),
+				p.name,
+				p.category || "General",
+				String(p.totalQty) + " " + (p.unit || "Pcs"),
+				String(p.orderCount),
+				`Rs. ${Number(p.price || 0).toLocaleString("en-IN")}`,
+				`Rs. ${Number(p.totalSalesAmount || 0).toLocaleString("en-IN")}`,
+			]);
 
 			autoTable(doc, {
 				startY: y,
 				head: [
 					[
+						"#",
 						"Product Name",
 						"Category",
-						"Quantity Sold",
+						"Pieces Sold",
 						"Orders",
-						"Total Revenue",
+						"Unit Rate",
+						"Total Sales",
 					],
 				],
-				body: topProductsRows,
+				body: allProductsRows,
+				foot: [
+					[
+						"",
+						"GRAND TOTAL",
+						`${allProductList.length} Items`,
+						`${overall.totalItemsSoldQuantity.toLocaleString("en-IN")} Pcs`,
+						`${overall.totalOrders}`,
+						"—",
+						`Rs. ${overall.totalSalesAmount.toLocaleString("en-IN")}`,
+					],
+				],
 				theme: "grid",
 				headStyles: {
 					fillColor: [16, 185, 129],
 					textColor: [255, 255, 255],
 					fontStyle: "bold",
 				},
-				styles: { fontSize: 8, overflow: "linebreak", cellPadding: 2 },
+				footStyles: {
+					fillColor: [241, 245, 249],
+					textColor: [15, 23, 42],
+					fontStyle: "bold",
+				},
+				styles: { fontSize: 7.5, overflow: "linebreak", cellPadding: 2 },
 				columnStyles: {
-					0: { cellWidth: 65 },
-					1: { cellWidth: 35 },
-					2: { cellWidth: 28 },
-					3: { cellWidth: 20 },
-					4: { cellWidth: 34 },
+					0: { cellWidth: 10, halign: "center" },
+					1: { cellWidth: 55 },
+					2: { cellWidth: 26 },
+					3: { cellWidth: 24, halign: "center", fontStyle: "bold" },
+					4: { cellWidth: 18, halign: "center" },
+					5: { cellWidth: 22, halign: "right" },
+					6: { cellWidth: 27, halign: "right", fontStyle: "bold" },
 				},
 				margin: { left: 14, right: 14 },
 			});
