@@ -2331,7 +2331,25 @@ export const ordersRouter = router({
 			// Time Trend Aggregation (by Date YYYY-MM-DD)
 			const dailyTrendMap = new Map<
 				string,
-				{ date: string; orders: number; sales: number }
+				{
+					date: string;
+					orders: number;
+					sales: number;
+					totalPieces: number;
+					productsMap: Map<
+						number,
+						{
+							id: number;
+							name: string;
+							category: string;
+							unit: string;
+							price: number;
+							totalQty: number;
+							totalAmount: number;
+							orderCount: number;
+						}
+					>;
+				}
 			>();
 
 			for (const o of matchingOrders) {
@@ -2345,6 +2363,8 @@ export const ordersRouter = router({
 					date: dateKey,
 					orders: 0,
 					sales: 0,
+					totalPieces: 0,
+					productsMap: new Map(),
 				};
 				trend.orders += 1;
 				trend.sales += orderAmount;
@@ -2491,6 +2511,24 @@ export const ordersRouter = router({
 						productAggMap.set(pId, pAgg);
 					}
 
+					trend.totalPieces += qty;
+					if (pId > 0) {
+						const dp = trend.productsMap.get(pId) || {
+							id: pId,
+							name: pName,
+							category: pCategory,
+							unit: pUnit,
+							price,
+							totalQty: 0,
+							totalAmount: 0,
+							orderCount: 0,
+						};
+						dp.totalQty += qty;
+						dp.totalAmount += lineAmount;
+						dp.orderCount += 1;
+						trend.productsMap.set(pId, dp);
+					}
+
 					// Route Top Product tracking
 					const currentProductQty = rAgg.productQtyMap.get(pName) || 0;
 					rAgg.productQtyMap.set(pName, currentProductQty + qty);
@@ -2608,9 +2646,17 @@ export const ordersRouter = router({
 				}))
 				.sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
 
-			const dailyTrend = Array.from(dailyTrendMap.values()).sort((a, b) =>
-				a.date.localeCompare(b.date),
-			);
+			const dailyTrend = Array.from(dailyTrendMap.values())
+				.map((d) => ({
+					date: d.date,
+					orders: d.orders,
+					sales: d.sales,
+					totalPieces: d.totalPieces || 0,
+					products: Array.from(d.productsMap.values()).sort(
+						(a, b) => b.totalQty - a.totalQty,
+					),
+				}))
+				.sort((a, b) => b.date.localeCompare(a.date));
 
 			const totalOrders = matchingOrders.length;
 			const uniqueCustomers = uniqueCustomerSet.size;
@@ -2636,6 +2682,7 @@ export const ordersRouter = router({
 					routesCovered: uniqueRouteSet.size,
 					villagesCovered: uniqueVillageSet.size,
 				},
+				allProductsSold: productList,
 				mostSellingProducts,
 				highestRevenueProducts,
 				leastSellingProducts,

@@ -10,6 +10,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@evaluna/ui/components/card";
+import { Input } from "@evaluna/ui/components/input";
 import {
 	Table,
 	TableBody,
@@ -22,16 +23,21 @@ import { jsPDF } from "jspdf";
 import {
 	ArrowLeftIcon,
 	BarChart3Icon,
+	CalendarDaysIcon,
 	CalendarIcon,
+	ChevronDownIcon,
+	ChevronUpIcon,
 	DownloadIcon,
 	FileSpreadsheetIcon,
 	FileTextIcon,
 	FilterIcon,
 	IndianRupeeIcon,
+	LayersIcon,
 	Loader2Icon,
 	MapPinIcon,
 	PackageIcon,
 	RefreshCwIcon,
+	SearchIcon,
 	ShoppingBagIcon,
 	StoreIcon,
 	TrendingUpIcon,
@@ -57,6 +63,19 @@ export default function SalesReportsPage() {
 	const [datePreset, setDatePreset] = useState("all");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+
+	// Product Demand & Pieces Breakdown States
+	const [productSearchTerm, setProductSearchTerm] = useState("");
+	const [productCategoryFilter, setProductCategoryFilter] = useState("all");
+	const [productViewTab, setProductViewTab] = useState<"allProducts" | "dayByDay">("allProducts");
+	const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+
+	const toggleExpandDay = (dateStr: string) => {
+		setExpandedDays((prev) => ({
+			...prev,
+			[dateStr]: prev[dateStr] === undefined ? false : !prev[dateStr],
+		}));
+	};
 
 	// Query Backend Server-Side Aggregation
 	const {
@@ -94,11 +113,122 @@ export default function SalesReportsPage() {
 		return "All Time History";
 	}, [startDate, endDate, datePreset]);
 
+	const allProductsList = useMemo(() => {
+		return reportData?.allProductsSold || reportData?.mostSellingProducts || [];
+	}, [reportData]);
+
+	const productCategories = useMemo(() => {
+		const cats = new Set<string>();
+		for (const p of allProductsList) {
+			if (p.category) cats.add(p.category);
+		}
+		return Array.from(cats);
+	}, [allProductsList]);
+
+	const filteredAllProducts = useMemo(() => {
+		return allProductsList.filter((p) => {
+			const matchesSearch =
+				!productSearchTerm.trim() ||
+				p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+				(p.category &&
+					p.category.toLowerCase().includes(productSearchTerm.toLowerCase()));
+			const matchesCategory =
+				productCategoryFilter === "all" || p.category === productCategoryFilter;
+			return matchesSearch && matchesCategory;
+		});
+	}, [allProductsList, productSearchTerm, productCategoryFilter]);
+
+	const filteredTotalPieces = useMemo(() => {
+		return filteredAllProducts.reduce(
+			(sum, p) => sum + (Number(p.totalQty) || 0),
+			0,
+		);
+	}, [filteredAllProducts]);
+
+	const filteredTotalAmount = useMemo(() => {
+		return filteredAllProducts.reduce(
+			(sum, p) => sum + (Number(p.totalSalesAmount) || 0),
+			0,
+		);
+	}, [filteredAllProducts]);
+
 	// Helper for escaping CSV fields
 	const escapeCsv = (val: any): string => {
 		if (val === null || val === undefined) return '""';
 		const str = String(val).replace(/"/g, '""');
 		return `"${str}"`;
+	};
+
+	// Download Product Pieces Breakdown CSV
+	const handleDownloadProductsCsv = () => {
+		const list = filteredAllProducts || [];
+		if (list.length === 0) {
+			toast.info("No products found for the selected period.");
+			return;
+		}
+
+		const rows: string[] = [];
+		rows.push("=== EVALUNA ERP - PRODUCT SALES & PIECES BREAKDOWN ===");
+		rows.push(`Period,${escapeCsv(periodDisplay)}`);
+		rows.push(`Total Pieces Sold,${filteredTotalPieces}`);
+		rows.push(`Total Sales Revenue,${filteredTotalAmount}`);
+		rows.push(`Total Products Listed,${list.length}`);
+		rows.push("");
+		rows.push(
+			"Product Name,Category,Quantity / Pieces Sold,Unit,Orders Count,Unique Customers,Unit Price (INR),Total Sales Revenue (INR)",
+		);
+
+		for (const p of list) {
+			rows.push(
+				[
+					escapeCsv(p.name),
+					escapeCsv(p.category || "General"),
+					escapeCsv(p.totalQty),
+					escapeCsv(p.unit || "Pcs"),
+					escapeCsv(p.orderCount),
+					escapeCsv(p.uniqueCustomerCount || 0),
+					escapeCsv(p.price || 0),
+					escapeCsv(p.totalSalesAmount || 0),
+				].join(","),
+			);
+		}
+
+		if (reportData?.dailyTrend && reportData.dailyTrend.length > 0) {
+			rows.push("");
+			rows.push("=== DAY-BY-DAY PRODUCT DISPATCH & PIECES BREAKDOWN ===");
+			rows.push(
+				"Date,Orders,Total Pieces,Daily Revenue (INR),Product Name,Product Category,Pieces Sold,Line Revenue (INR)",
+			);
+			for (const day of reportData.dailyTrend) {
+				if (day.products && day.products.length > 0) {
+					for (const dp of day.products) {
+						rows.push(
+							[
+								escapeCsv(day.date),
+								escapeCsv(day.orders),
+								escapeCsv(day.totalPieces),
+								escapeCsv(day.sales),
+								escapeCsv(dp.name),
+								escapeCsv(dp.category),
+								escapeCsv(dp.totalQty),
+								escapeCsv(dp.totalAmount),
+							].join(","),
+						);
+					}
+				}
+			}
+		}
+
+		const blob = new Blob([rows.join("\n")], {
+			type: "text/csv;charset=utf-8;",
+		});
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = `Product_Pieces_Report_${periodDisplay.replace(/\s+/g, "_")}.csv`;
+		link.click();
+		URL.revokeObjectURL(url);
+		toast.success("Product Pieces CSV downloaded successfully!");
 	};
 
 	// 1. Download Detailed Operational CSV
@@ -743,6 +873,374 @@ export default function SalesReportsPage() {
 							</CardContent>
 						</Card>
 					</div>
+
+					{/* All Products Sold (Piece by Piece & Day-by-Day View) */}
+					<Card className="border-slate-200 shadow-sm dark:border-slate-800">
+						<CardHeader className="border-b bg-slate-50/50 pb-4 dark:bg-slate-900/50">
+							<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+								<div>
+									<div className="flex flex-wrap items-center gap-2">
+										<PackageIcon className="h-5 w-5 text-amber-600" />
+										<CardTitle className="font-bold text-foreground text-lg">
+											{isHindi
+												? "सभी बिके हुए उत्पाद (पीस अनुसार विवरण)"
+												: "All Products Sold — Pieces & Dispatch Breakdown"}
+										</CardTitle>
+										<Badge
+											variant="secondary"
+											className="border-amber-300 bg-amber-100 font-bold text-amber-900 text-xs dark:bg-amber-950/60 dark:text-amber-200"
+										>
+											{overall.totalItemsSoldQuantity.toLocaleString("en-IN")} Total Pieces (कुल पीस)
+										</Badge>
+										<Badge variant="outline" className="text-xs">
+											{filteredAllProducts.length} Products
+										</Badge>
+									</div>
+									<CardDescription className="mt-1 text-xs">
+										{isHindi
+											? `${periodDisplay} में गए सभी उत्पादों के पीस, ऑर्डर काउंट और बिक्री राशि का पूरा विवरण।`
+											: `Full piece-by-piece tally of every product sold and dispatched during ${periodDisplay}.`}
+									</CardDescription>
+								</div>
+
+								{/* View Switcher Tabs & CSV Export */}
+								<div className="flex flex-wrap items-center gap-2">
+									<div className="flex rounded-lg border bg-slate-100 p-0.5 dark:bg-slate-800">
+										<button
+											type="button"
+											onClick={() => setProductViewTab("allProducts")}
+											className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-all ${
+												productViewTab === "allProducts"
+													? "bg-white font-bold text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
+													: "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+											}`}
+										>
+											<LayersIcon className="h-3.5 w-3.5" />
+											<span>{isHindi ? "सभी उत्पाद" : "All Products"}</span>
+											<span className="ml-1 rounded-full bg-slate-200 px-1.5 py-0.2 text-[10px] dark:bg-slate-600">
+												{filteredAllProducts.length}
+											</span>
+										</button>
+										<button
+											type="button"
+											onClick={() => setProductViewTab("dayByDay")}
+											className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-all ${
+												productViewTab === "dayByDay"
+													? "bg-white font-bold text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
+													: "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+											}`}
+										>
+											<CalendarDaysIcon className="h-3.5 w-3.5" />
+											<span>{isHindi ? "दिन-वार पीस (Day by Day)" : "Day by Day"}</span>
+											<span className="ml-1 rounded-full bg-slate-200 px-1.5 py-0.2 text-[10px] dark:bg-slate-600">
+												{reportData?.dailyTrend?.length || 0}
+											</span>
+										</button>
+									</div>
+
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleDownloadProductsCsv}
+										className="h-8 gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-50 text-xs dark:border-amber-800 dark:text-amber-300"
+									>
+										<FileSpreadsheetIcon className="h-3.5 w-3.5" />
+										<span>{isHindi ? "पीस CSV" : "Export Pieces CSV"}</span>
+									</Button>
+								</div>
+							</div>
+
+							{/* Search & Category Filter Toolbar */}
+							<div className="mt-4 flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+								<div className="relative flex-1 sm:max-w-xs">
+									<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+									<Input
+										type="text"
+										placeholder={isHindi ? "उत्पाद या श्रेणी खोजें..." : "Search product name or category..."}
+										value={productSearchTerm}
+										onChange={(e) => setProductSearchTerm(e.target.value)}
+										className="h-9 pl-9 text-xs"
+									/>
+								</div>
+
+								{/* Category Pills */}
+								<div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+									<span className="text-[11px] font-medium text-muted-foreground mr-1">
+										{isHindi ? "श्रेणी:" : "Category:"}
+									</span>
+									<button
+										type="button"
+										onClick={() => setProductCategoryFilter("all")}
+										className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+											productCategoryFilter === "all"
+												? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+												: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										All ({allProductsList.length})
+									</button>
+									{productCategories.map((cat) => (
+										<button
+											key={cat}
+											type="button"
+											onClick={() => setProductCategoryFilter(cat)}
+											className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-all ${
+												productCategoryFilter === cat
+													? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+													: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+											}`}
+										>
+											{cat}
+										</button>
+									))}
+								</div>
+							</div>
+						</CardHeader>
+
+						<CardContent className="p-0">
+							{productViewTab === "allProducts" ? (
+								/* View 1: Consolidated All Products Table */
+								<div className="w-full overflow-x-auto">
+									<Table className="min-w-[650px] text-xs">
+										<TableHeader>
+											<TableRow className="bg-slate-100/70 font-semibold dark:bg-slate-900/60">
+												<TableHead className="w-12 text-center">#</TableHead>
+												<TableHead className="font-bold">
+													{isHindi ? "उत्पाद नाम (Product Name)" : "Product Name"}
+												</TableHead>
+												<TableHead className="font-bold">
+													{isHindi ? "श्रेणी (Category)" : "Category"}
+												</TableHead>
+												<TableHead className="text-center font-bold text-amber-700 dark:text-amber-400">
+													{isHindi ? "कुल पीस (Pieces / Qty)" : "Total Pieces Sold"}
+												</TableHead>
+												<TableHead className="text-center font-bold">
+													{isHindi ? "ऑर्डर (Orders)" : "Orders"}
+												</TableHead>
+												<TableHead className="text-center font-bold">
+													{isHindi ? "ग्राहक (Customers)" : "Customers"}
+												</TableHead>
+												<TableHead className="text-right font-bold">
+													{isHindi ? "दर (Price)" : "Unit Price"}
+												</TableHead>
+												<TableHead className="text-right font-bold text-emerald-600">
+													{isHindi ? "कुल बिक्री (Total Sales)" : "Total Revenue"}
+												</TableHead>
+											</TableRow>
+										</TableHeader>
+										<TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+											{filteredAllProducts.length === 0 ? (
+												<TableRow>
+													<TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+														{isHindi
+															? "कोई उत्पाद नहीं मिला।"
+															: "No products match your search or filter."}
+													</TableCell>
+												</TableRow>
+											) : (
+												filteredAllProducts.map((p, idx) => (
+													<TableRow
+														key={p.id}
+														className="hover:bg-slate-50/80 dark:hover:bg-slate-900/40"
+													>
+														<TableCell className="text-center font-mono text-muted-foreground">
+															{idx + 1}
+														</TableCell>
+														<TableCell>
+															<div className="font-bold text-slate-900 dark:text-slate-100">
+																{p.name}
+															</div>
+															{p.unit && (
+																<span className="text-[10px] text-muted-foreground">
+																	Unit: {p.unit}
+																</span>
+															)}
+														</TableCell>
+														<TableCell>
+															<Badge
+																variant="outline"
+																className="text-[11px] font-normal capitalize"
+															>
+																{p.category || "General"}
+															</Badge>
+														</TableCell>
+														<TableCell className="text-center">
+															<span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 font-bold text-amber-700 text-xs shadow-2xs ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-700">
+																{p.totalQty} {p.unit || "Pcs"}
+															</span>
+														</TableCell>
+														<TableCell className="text-center font-medium">
+															{p.orderCount}
+														</TableCell>
+														<TableCell className="text-center text-muted-foreground">
+															{p.uniqueCustomerCount || "—"}
+														</TableCell>
+														<TableCell className="text-right text-muted-foreground">
+															{formatCurrency(p.price || 0, locale)}
+														</TableCell>
+														<TableCell className="text-right font-bold text-emerald-600">
+															{formatCurrency(p.totalSalesAmount, locale)}
+														</TableCell>
+													</TableRow>
+												))
+											)}
+										</TableBody>
+										{/* Table Summary Footer */}
+										{filteredAllProducts.length > 0 && (
+											<tfoot>
+												<TableRow className="border-t-2 border-slate-300 bg-slate-100/90 font-bold dark:border-slate-700 dark:bg-slate-900">
+													<TableCell colSpan={3} className="font-extrabold text-foreground uppercase">
+														{isHindi ? "कुल योग (Grand Total)" : "Grand Total"} ({filteredAllProducts.length} Items)
+													</TableCell>
+													<TableCell className="text-center font-black text-amber-700 text-sm dark:text-amber-400">
+														{filteredTotalPieces.toLocaleString("en-IN")} Pcs
+													</TableCell>
+													<TableCell className="text-center font-bold">
+														{overall.totalOrders}
+													</TableCell>
+													<TableCell className="text-center font-bold text-muted-foreground">
+														{overall.uniqueCustomers}
+													</TableCell>
+													<TableCell className="text-right text-muted-foreground">
+														—
+													</TableCell>
+													<TableCell className="text-right font-black text-emerald-700 text-sm dark:text-emerald-400">
+														{formatCurrency(filteredTotalAmount, locale)}
+													</TableCell>
+												</TableRow>
+											</tfoot>
+										)}
+									</Table>
+								</div>
+							) : (
+								/* View 2: Day-by-Day Pieces Breakdown */
+								<div className="space-y-4 p-4">
+									{(reportData?.dailyTrend || []).length === 0 ? (
+										<div className="py-8 text-center text-muted-foreground">
+											{isHindi ? "कोई दैनिक डेटा उपलब्ध नहीं है।" : "No daily records available."}
+										</div>
+									) : (
+										(reportData?.dailyTrend || []).map((day) => {
+											const isExpanded = expandedDays[day.date] ?? true;
+											const dayProducts = day.products || [];
+											const totalPiecesToday = day.totalPieces || dayProducts.reduce((s, p) => s + (Number(p.totalQty) || 0), 0);
+
+											return (
+												<Card
+													key={day.date}
+													className="border border-slate-200 shadow-2xs dark:border-slate-800"
+												>
+													<div
+														onClick={() => toggleExpandDay(day.date)}
+														className="flex cursor-pointer flex-col gap-2 bg-slate-50/70 p-3.5 transition-colors hover:bg-slate-100/70 sm:flex-row sm:items-center sm:justify-between dark:bg-slate-900/60 dark:hover:bg-slate-800/60"
+													>
+														<div className="flex items-center gap-3">
+															<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+																<CalendarDaysIcon className="h-4 w-4" />
+															</div>
+															<div>
+																<div className="font-bold text-foreground text-sm">
+																	{new Date(day.date + "T00:00:00").toLocaleDateString(
+																		locale === "hi" ? "hi-IN" : "en-IN",
+																		{
+																			weekday: "short",
+																			year: "numeric",
+																			month: "short",
+																			day: "numeric",
+																		},
+																	)}
+																</div>
+																<p className="text-[11px] text-muted-foreground font-mono">
+																	{day.date}
+																</p>
+															</div>
+														</div>
+
+														<div className="flex flex-wrap items-center gap-3 text-xs">
+															<Badge
+																variant="outline"
+																className="border-amber-300 bg-amber-50 font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+															>
+																📦 {totalPiecesToday} {isHindi ? "पीस गए" : "Pieces Sold"}
+															</Badge>
+															<Badge variant="outline" className="text-muted-foreground">
+																🛒 {day.orders} {isHindi ? "ऑर्डर" : "Orders"}
+															</Badge>
+															<span className="font-bold text-emerald-600 sm:text-sm">
+																{formatCurrency(day.sales, locale)}
+															</span>
+															{isExpanded ? (
+																<ChevronUpIcon className="h-4 w-4 text-muted-foreground" />
+															) : (
+																<ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+															)}
+														</div>
+													</div>
+
+													{isExpanded && (
+														<div className="border-t">
+															{dayProducts.length === 0 ? (
+																<div className="p-4 text-center text-muted-foreground text-xs">
+																	{isHindi ? "इस दिन कोई आइटम विवरण नहीं मिला।" : "No item line details found for this date."}
+																</div>
+															) : (
+																<Table className="text-xs">
+																	<TableHeader>
+																		<TableRow className="bg-slate-100/50 dark:bg-slate-900/40">
+																			<TableHead className="w-10">#</TableHead>
+																			<TableHead className="font-bold">
+																				{isHindi ? "उत्पाद" : "Product"}
+																			</TableHead>
+																			<TableHead className="font-bold">
+																				{isHindi ? "श्रेणी" : "Category"}
+																			</TableHead>
+																			<TableHead className="text-center font-bold text-amber-700 dark:text-amber-400">
+																				{isHindi ? "पीस मात्रा" : "Pieces (Qty)"}
+																			</TableHead>
+																			<TableHead className="text-center font-bold">
+																				{isHindi ? "ऑर्डर संख्या" : "Orders"}
+																			</TableHead>
+																			<TableHead className="text-right font-bold text-emerald-600">
+																				{isHindi ? "कुल राशि" : "Revenue"}
+																			</TableHead>
+																		</TableRow>
+																	</TableHeader>
+																	<TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+																		{dayProducts.map((dp, pIdx) => (
+																			<TableRow key={pIdx}>
+																				<TableCell className="text-muted-foreground font-mono">
+																					{pIdx + 1}
+																				</TableCell>
+																				<TableCell className="font-semibold text-foreground">
+																					{dp.name}
+																				</TableCell>
+																				<TableCell className="text-muted-foreground capitalize">
+																					{dp.category || "General"}
+																				</TableCell>
+																				<TableCell className="text-center font-bold text-amber-700 dark:text-amber-400">
+																					{dp.totalQty} {dp.unit || "Pcs"}
+																				</TableCell>
+																				<TableCell className="text-center">
+																					{dp.orderCount}
+																				</TableCell>
+																				<TableCell className="text-right font-medium text-emerald-600">
+																					{formatCurrency(dp.totalAmount, locale)}
+																				</TableCell>
+																			</TableRow>
+																		))}
+																	</TableBody>
+																</Table>
+															)}
+														</div>
+													)}
+												</Card>
+											);
+										})
+									)}
+								</div>
+							)}
+						</CardContent>
+					</Card>
 
 					{/* 2-Column Section: Product Demand (Most & Least Selling) */}
 					<div className="grid gap-6 lg:grid-cols-2">

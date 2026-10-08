@@ -27,6 +27,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { LogoutModal } from "@/components/shared/logout-modal";
@@ -390,6 +391,9 @@ export default function WarehouseWMSLayout({
 
 						{/* Hindi / English Language Switcher */}
 						<LocaleSwitcher />
+
+						{/* Light / Dark Mode Toggle */}
+						<ThemeToggle />
 
 						{/* Notifications icon */}
 						<NotificationBell />
