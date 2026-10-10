@@ -12,11 +12,24 @@ import {
 	WifiOff,
 	Zap,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Product Overview — Unified ERP Platform",
+	description:
+		"Discover Evaluna ERP modules: offline POS billing, real-time multi-warehouse inventory, procurement workflows, and field staff GPS tracking.",
+	canonicalPath: "/product",
+});
 
 export default function ProductPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Product", url: "/product" },
+	]);
 	const coreModules = [
 		{
 			title: "Point of Sale & Billing",
@@ -64,6 +77,10 @@ export default function ProductPage() {
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			<Navbar />
 
 			{/* Hero Section */}

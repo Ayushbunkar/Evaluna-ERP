@@ -842,6 +842,8 @@ export const notificationQueueRelations = relations(
 export const purchases = pgTable("purchases", {
 	branch_id: integer("branch_id").references(() => branches.id),
 	id: serial("id").primaryKey(),
+	po_number: varchar("po_number", { length: 50 }).unique(),
+	purchase_request_id: integer("purchase_request_id"),
 	grn_number: varchar("grn_number", { length: 50 }).unique(),
 	supplier_id: integer("supplier_id")
 		.references(() => suppliers.id)
@@ -852,6 +854,12 @@ export const purchases = pgTable("purchases", {
 	igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
 	user_uid: varchar("user_uid", { length: 255 }).notNull(),
 	status: varchar("status", { length: 20 }).default("pending"),
+	receiving_status: varchar("receiving_status", { length: 30 }).default("pending"),
+	invoice_status: varchar("invoice_status", { length: 30 }).default("pending"),
+	expected_delivery_date: timestamp("expected_delivery_date"),
+	confirmed_delivery_date: timestamp("confirmed_delivery_date"),
+	notes: text("notes"),
+	terms_and_conditions: text("terms_and_conditions"),
 	amount_paid: decimal("amount_paid", { precision: 10, scale: 2 }).default("0"),
 	payment_status: varchar("payment_status", { length: 20 }).default("unpaid"), // unpaid, partial, paid
 	created_at: timestamp("created_at").defaultNow(),
@@ -860,6 +868,7 @@ export const purchases = pgTable("purchases", {
 	supplierIdIdx: index("idx_purchases_supplier_id").on(table.supplier_id),
 	statusIdx: index("idx_purchases_status").on(table.status),
 	createdAtIdx: index("idx_purchases_created_at").on(table.created_at),
+	poNumberIdx: index("idx_purchases_po_number").on(table.po_number),
 }));
 
 export const purchasesRelations = relations(purchases, ({ one, many }) => ({
@@ -1491,15 +1500,25 @@ export const packListsRelations = relations(packLists, ({ one }) => ({
 // ── Stock Audits (Phase 10) ───────────────────────────────────────────────────────
 export const stockAudits = pgTable("stock_audits", {
 	id: serial("id").primaryKey(),
+	audit_number: varchar("audit_number", { length: 50 }),
+	title: varchar("title", { length: 255 }),
 	branch_id: integer("branch_id")
 		.references(() => branches.id)
 		.notNull(),
-	status: varchar("status", { length: 20 }).default("planned"), // planned, in_progress, submitted, completed, escalated, cancelled
+	status: varchar("status", { length: 30 }).default("planned"), // planned, scheduled, in_progress, submitted, under_review, completed, escalated, cancelled, reconciled
+	priority: varchar("priority", { length: 20 }).default("medium"), // low, medium, high, urgent
+	counting_method: varchar("counting_method", { length: 20 }).default("blind"), // blind, assisted
 	auditor_id: integer("auditor_id").references(() => staff.id),
+	assigned_by: integer("assigned_by").references(() => staff.id),
+	assigned_at: timestamp("assigned_at"),
+	start_date: timestamp("start_date"),
 	audit_type: varchar("audit_type", { length: 50 }).default("physical_count"),
 	location_name: varchar("location_name", { length: 255 }),
 	due_date: timestamp("due_date"),
 	notes: text("notes"),
+	review_notes: text("review_notes"),
+	reconciled_by: integer("reconciled_by").references(() => staff.id),
+	reconciled_at: timestamp("reconciled_at"),
 	created_at: timestamp("created_at").defaultNow(),
 	completed_at: timestamp("completed_at"),
 });
@@ -1511,6 +1530,14 @@ export const stockAuditsRelations = relations(stockAudits, ({ one, many }) => ({
 	}),
 	auditor: one(staff, {
 		fields: [stockAudits.auditor_id],
+		references: [staff.id],
+	}),
+	assigner: one(staff, {
+		fields: [stockAudits.assigned_by],
+		references: [staff.id],
+	}),
+	reconciler: one(staff, {
+		fields: [stockAudits.reconciled_by],
 		references: [staff.id],
 	}),
 	auditItems: many(stockAuditItems),
@@ -1528,9 +1555,18 @@ export const stockAuditItems = pgTable("stock_audit_items", {
 	location_id: integer("location_id").references(() => branchLocations.id),
 	expected_qty: integer("expected_qty").notNull(),
 	counted_qty: integer("counted_qty"),
-	status: varchar("status", { length: 20 }).default("pending"), // pending, match, mismatch, recounted, accepted, escalated
+	status: varchar("status", { length: 30 }).default("pending"), // pending, match, mismatch, recount_requested, recounted, accepted, escalated, reconciled
+	recount_qty: integer("recount_qty"),
+	recount_by: integer("recount_by").references(() => staff.id),
+	recount_notes: text("recount_notes"),
+	recount_requested_at: timestamp("recount_requested_at"),
+	final_accepted_qty: integer("final_accepted_qty"),
+	variance_qty: integer("variance_qty"),
+	adjustment_status: varchar("adjustment_status", { length: 30 }).default("none"), // none, pending_approval, approved, rejected, posted
+	adjustment_id: integer("adjustment_id").references(() => stockAdjustments.id),
 	discrepancy_reason: varchar("discrepancy_reason", { length: 100 }),
 	remarks: text("remarks"),
+	submitted_at: timestamp("submitted_at"),
 	created_at: timestamp("created_at").defaultNow(),
 });
 
@@ -1559,13 +1595,15 @@ export const auditDiscrepancies = pgTable("audit_discrepancies", {
 	audit_item_id: integer("audit_item_id")
 		.references(() => stockAuditItems.id)
 		.notNull(),
-	discrepancy_type: varchar("discrepancy_type", { length: 20 }).notNull(), // missing, damage, expiry, pna
+	discrepancy_type: varchar("discrepancy_type", { length: 30 }).notNull(), // shortage, excess, missing, damage, expiry, wrong_location, pna
 	quantity: integer("quantity").notNull(),
+	variance_value: decimal("variance_value", { precision: 10, scale: 2 }),
 	resolved_by: integer("resolved_by").references(() => staff.id),
 	resolution_status: varchar("resolution_status", { length: 20 }).default(
 		"pending",
-	), // pending, approved, rejected
+	), // pending, approved, rejected, investigated
 	reason: text("reason"),
+	investigation_notes: text("investigation_notes"),
 	created_at: timestamp("created_at").defaultNow(),
 	resolved_at: timestamp("resolved_at"),
 });
@@ -2808,5 +2846,6 @@ export * from "./schema/delivery";
 export * from "./schema/finance";
 export * from "./schema/hrms";
 export * from "./schema/salary";
+export * from "./schema/procurement";
 
 

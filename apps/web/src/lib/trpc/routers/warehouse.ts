@@ -4,12 +4,15 @@ import {
 	branchInventory,
 	branchLocations,
 	customers,
+	goodsReceiptItems,
+	goodsReceiptNotes,
 	orders,
 	packageItems,
 	packages,
 	pickListItems,
 	pickLists,
 	placementVerifications,
+	procurementExceptions,
 	productBatches,
 	products,
 	purchaseItems,
@@ -912,12 +915,16 @@ export const warehouseRouter = router({
 		const rows = await db
 			.select({
 				id: purchases.id,
+				po_number: purchases.po_number,
 				grn_number: purchases.grn_number,
 				supplier_id: purchases.supplier_id,
 				supplier_name: suppliers.name,
 				supplier_phone: suppliers.phone,
 				status: purchases.status,
+				receiving_status: purchases.receiving_status,
 				payment_status: purchases.payment_status,
+				expected_delivery_date: purchases.expected_delivery_date,
+				confirmed_delivery_date: purchases.confirmed_delivery_date,
 				created_at: purchases.created_at,
 				total_amount: purchases.total_amount,
 				item_count: count(purchaseItems.id),
@@ -1018,6 +1025,19 @@ export const warehouseRouter = router({
 			const grnGenerated = `GRN-${Math.floor(10000 + Math.random() * 90000)}`;
 
 			return await db.transaction(async (tx) => {
+				const [grn] = await tx
+					.insert(goodsReceiptNotes)
+					.values({
+						grn_number: grnGenerated,
+						purchase_id: input.purchaseId,
+						branch_id: ctx.user.branchId ?? 1,
+						received_by: staffId ? staffId.toString() : (ctx.user.name || ctx.user.email || ctx.user.id),
+						status: input.items.some((i) => i.condition !== "good")
+							? "partially_accepted"
+							: "accepted",
+					})
+					.returning();
+
 				for (const item of input.items) {
 					const [insp] = await tx
 						.insert(receivingInspections)
@@ -1033,6 +1053,33 @@ export const warehouseRouter = router({
 							verified_at: new Date(),
 						})
 						.returning();
+
+					const acceptedQty = item.condition === "good" ? item.receivedQty : 0;
+					const rejectedQty = item.condition !== "good" ? item.receivedQty : 0;
+
+					await tx.insert(goodsReceiptItems).values({
+						grn_id: grn.id,
+						product_id: item.productId,
+						ordered_quantity: item.expectedQty.toString(),
+						received_quantity: item.receivedQty.toString(),
+						accepted_quantity: acceptedQty.toString(),
+						rejected_quantity: rejectedQty.toString(),
+						damaged_quantity:
+							item.condition === "damaged" ? item.receivedQty.toString() : "0",
+						inspection_status: item.condition === "good" ? "passed" : "failed",
+					});
+
+					if (item.condition !== "good") {
+						await tx.insert(procurementExceptions).values({
+							purchase_id: input.purchaseId,
+							grn_id: grn.id,
+							exception_type:
+								item.condition === "damaged" ? "damage" : "shortage",
+							severity: "high",
+							description: `Item #${item.productId}: Inspection discrepancy condition=${item.condition}`,
+							status: "open",
+						});
+					}
 
 					const [batch] = await tx
 						.select()
@@ -1064,10 +1111,15 @@ export const warehouseRouter = router({
 					});
 				}
 
+				const allGood = input.items.every(
+					(i) => i.condition === "good" && i.receivedQty >= i.expectedQty,
+				);
+
 				await tx
 					.update(purchases)
 					.set({
-						status: "received",
+						status: allGood ? "received" : "partially_received",
+						receiving_status: allGood ? "received" : "partial",
 						grn_number: sql`COALESCE(${purchases.grn_number}, ${grnGenerated})`,
 					})
 					.where(eq(purchases.id, input.purchaseId));

@@ -12,11 +12,29 @@ import {
 	Shield,
 	User,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Contact Us — Sales Inquiries & Enterprise Support",
+	description:
+		"Get in touch with our solutions engineering team for custom ERP deployment, enterprise sales, or technical support across India.",
+	canonicalPath: "/contact",
+});
 
 export default function ContactPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Contact", url: "/contact" },
+	]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			{/* Navigation */}
 			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

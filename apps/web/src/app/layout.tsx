@@ -11,6 +11,12 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { defaultLocale, type Locale } from "@/i18n/config";
 import enMessages from "@/messages/en";
 import hiMessages from "@/messages/hi";
+import {
+	constructMetadata,
+	generateOrganizationSchema,
+	generateSoftwareApplicationSchema,
+	generateWebSiteSchema,
+} from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -25,9 +31,15 @@ const fallbackMessages: Record<Locale, any> = {
 	hi: hiMessages,
 };
 
+const baseSeo = constructMetadata({
+	title: "Evaluna ERP — Enterprise Resource Planning & POS Billing System",
+	description:
+		"Next-generation Enterprise Resource Planning and field operations platform built for retail chains, FMCG distribution, and warehouse logistics.",
+	canonicalPath: "/",
+});
+
 export const metadata: Metadata = {
-	title: "Evaluna ERP",
-	description: "Enterprise Resource Planning & Field Operations System",
+	...baseSeo,
 	manifest: "/manifest.json",
 	icons: {
 		icon: "/logo.png",
@@ -63,6 +75,10 @@ export default async function RootLayout({
 		messages = fallbackMessages[locale] || enMessages;
 	}
 
+	const orgSchema = generateOrganizationSchema();
+	const webSiteSchema = generateWebSiteSchema();
+	const appSchema = generateSoftwareApplicationSchema();
+
 	return (
 		<html lang={locale} suppressHydrationWarning>
 			<head>
@@ -77,6 +93,18 @@ export default async function RootLayout({
 					content="black-translucent"
 				/>
 				<meta name="apple-mobile-web-app-title" content="Evaluna ERP" />
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+				/>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
+				/>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(appSchema) }}
+				/>
 			</head>
 			<body
 				className={`${inter.className} ${notoDevanagari.variable} ${inter.variable}`}

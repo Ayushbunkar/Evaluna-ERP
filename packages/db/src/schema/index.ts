@@ -4,3 +4,4 @@ export * from "./finance";
 export * from "./hrms";
 export * from "./rbac";
 export * from "./salary";
+export * from "./procurement";

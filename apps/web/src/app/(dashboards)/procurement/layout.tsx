@@ -3,7 +3,9 @@
 import {
 	BarChart3Icon,
 	ClipboardListIcon,
+	FileTextIcon,
 	LayoutDashboardIcon,
+	ReceiptIcon,
 	TruckIcon,
 	UsersIcon,
 } from "lucide-react";
@@ -15,28 +17,38 @@ import {
 const procurementNavItems: NavItem[] = [
 	{
 		href: "/procurement",
-		labelKey: "dashboard",
+		labelKey: "Dashboard",
 		icon: LayoutDashboardIcon,
 	},
 	{
+		href: "/procurement/requests",
+		labelKey: "Purchase Requests",
+		icon: FileTextIcon,
+	},
+	{
 		href: "/procurement/purchase-orders",
-		labelKey: "purchaseOrders",
+		labelKey: "Purchase Orders",
 		icon: ClipboardListIcon,
 	},
 	{
+		href: "/procurement/invoices",
+		labelKey: "Supplier Invoices",
+		icon: ReceiptIcon,
+	},
+	{
 		href: "/procurement/suppliers",
-		labelKey: "suppliers",
+		labelKey: "Suppliers",
 		icon: UsersIcon,
 	},
 	{
-		href: "/procurement/analytics",
-		labelKey: "analytics",
-		icon: BarChart3Icon,
+		href: "/procurement/incoming",
+		labelKey: "Warehouse Receiving",
+		icon: TruckIcon,
 	},
 	{
-		href: "/procurement/incoming",
-		labelKey: "incomingInventory",
-		icon: TruckIcon,
+		href: "/procurement/analytics",
+		labelKey: "Analytics",
+		icon: BarChart3Icon,
 	},
 ];
 

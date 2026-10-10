@@ -1,11 +1,29 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
 import { CheckCircle2, Sparkles } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import {
+	constructMetadata,
+	generateBreadcrumbSchema,
+	generatePricingProductSchema,
+} from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Pricing Plans — Transparent ERP Subscriptions",
+	description:
+		"Affordable, transparent pricing plans for retailers, wholesalers, and FMCG distributors. Start your 14-day free trial with no lock-in.",
+	canonicalPath: "/pricing",
+});
 
 export default function PricingPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Pricing", url: "/pricing" },
+	]);
+	const productJson = generatePricingProductSchema();
 	const tiers = [
 		{
 			name: "Starter",
@@ -63,6 +81,14 @@ export default function PricingPage() {
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(productJson) }}
+			/>
 			<Navbar />
 
 			<section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">

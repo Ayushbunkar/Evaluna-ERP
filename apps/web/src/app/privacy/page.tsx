@@ -9,11 +9,29 @@ import {
 	Shield,
 	User,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Privacy Policy — Data Protection & Privacy Practices",
+	description:
+		"Read Evaluna ERP's privacy policy regarding data collection, encryption, geofencing coordinates, and enterprise security compliance.",
+	canonicalPath: "/privacy",
+});
 
 export default function PrivacyPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Privacy Policy", url: "/privacy" },
+	]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			{/* Navigation */}
 			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

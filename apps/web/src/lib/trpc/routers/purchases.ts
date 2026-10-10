@@ -56,32 +56,7 @@ export const purchasesRouter = router({
 					})),
 				);
 
-				// Batch fetch all products at once, then insert ledger entries in one query
-				const productIds = items.map((item) =>
-					Number.parseInt(item.productId, 10),
-				);
-				const foundProducts = await db.query.products.findMany({
-					where: inArray(products.id, productIds),
-				});
-				const productMap = new Map(foundProducts.map((p) => [p.id, p]));
-
-				const ledgerEntries = items
-					.map((item) => {
-						const product = productMap.get(Number.parseInt(item.productId, 10));
-						if (!product) return null;
-						return {
-							product_id: product.id,
-							transaction_type: "in" as const,
-							quantity: item.quantity,
-							unit_cost: item.price.toString(),
-							total_cost: (item.quantity * Number(item.price)).toString(),
-						};
-					})
-					.filter(Boolean) as any[];
-
-				if (ledgerEntries.length > 0) {
-					await db.insert(stockLedger).values(ledgerEntries);
-				}
+				// Note: Stock ledger entries must ONLY be posted when goods are inspected and accepted at warehouse receiving, NOT upon issuing a purchase order.
 
 				// Increase supplier outstanding balance
 				const supplier = await db.query.suppliers.findFirst({

@@ -109,26 +109,26 @@ export default function WMSDashboardOverview() {
 	return (
 		<PageTransition className="container mx-auto space-y-6 p-4 sm:p-6">
 			{/* Welcome Banner */}
-			<div className="flex flex-col items-start justify-between gap-4 rounded-xl border bg-white p-6 shadow-sm md:flex-row md:items-center dark:bg-slate-800">
+			<div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-border/60 bg-card/90 p-6 shadow-xs backdrop-blur-md md:flex-row md:items-center">
 				<div className="space-y-1">
-					<h2 className="font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
-						Welcome back, Warehouse Operations Supervisor
-					</h2>
+					<h1 className="font-bold text-2xl text-foreground tracking-tight sm:text-3xl">
+						Warehouse Operations Console
+					</h1>
 					<p className="text-muted-foreground text-sm">
 						Live orchestrator control console for{" "}
-						<strong>Bhopal Main Warehouse</strong>. Manage receipts, put-away
+						<strong className="text-foreground">Bhopal Main Warehouse</strong>. Manage receipts, put-away
 						tasks, picks, and exceptions below.
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
 					<Badge
 						variant="outline"
-						className="border-blue-200 bg-blue-50 text-blue-700"
+						className="border-primary/20 bg-primary/10 font-bold text-primary text-xs"
 					>
 						Branch ID: #1
 					</Badge>
-					<Badge variant="outline" className="bg-slate-50 text-slate-700">
-						System Level: supervisor
+					<Badge variant="outline" className="border-border bg-muted/40 text-muted-foreground text-xs font-semibold">
+						Role: Operations Supervisor
 					</Badge>
 				</div>
 			</div>
@@ -142,7 +142,7 @@ export default function WMSDashboardOverview() {
 							<AnimatedCard>
 								<Link href={kpi.href} className="block h-full">
 									<Card
-										className={`h-full border-l-4 ${kpi.color} cursor-pointer bg-white shadow-sm transition-all hover:scale-[1.02] hover:shadow-md dark:bg-slate-800`}
+										className={`h-full border-l-4 ${kpi.color} cursor-pointer border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:scale-[1.02] hover:border-border hover:shadow-md`}
 									>
 										<CardHeader className="flex flex-row items-center justify-between p-3.5 pb-1 sm:p-4 sm:pb-2">
 											<CardTitle className="font-semibold text-muted-foreground text-[11px] sm:text-xs uppercase tracking-wider truncate">
@@ -151,7 +151,7 @@ export default function WMSDashboardOverview() {
 											<Icon className={`h-4 w-4 shrink-0 ${kpi.iconColor}`} />
 										</CardHeader>
 										<CardContent className="p-3.5 pt-0 sm:p-4 sm:pt-0">
-											<div className="font-bold text-2xl text-slate-900 sm:text-3xl dark:text-slate-100 tracking-tight">
+											<div className="font-bold text-2xl text-foreground sm:text-3xl tracking-tight">
 												{statsLoading ? "..." : kpi.value}
 											</div>
 											<p className="mt-1 text-[11px] text-muted-foreground truncate">
@@ -170,32 +170,32 @@ export default function WMSDashboardOverview() {
 			<div className="grid gap-6 lg:grid-cols-3">
 				{/* Left Column: Live Operational Queues */}
 				<div className="space-y-6 lg:col-span-2">
-					<Card className="shadow-sm">
-						<CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+					<Card className="border-border/60 bg-card/90 shadow-xs backdrop-blur-md">
+						<CardHeader className="flex flex-row items-center justify-between border-border/60 border-b pb-4">
 							<div>
-								<CardTitle className="font-bold text-base">
+								<CardTitle className="font-bold text-base text-foreground">
 									Live Warehouse Operations Queue
 								</CardTitle>
-								<CardDescription>
-									Real-time orchestrator tracker of inbound and outbound flow
+								<CardDescription className="text-muted-foreground text-xs">
+									Real-time orchestrator tracker of inbound dock flow, bin placement, and order fulfillment
 								</CardDescription>
 							</div>
 							<Badge
 								variant="outline"
-								className="animate-pulse bg-green-50 text-green-700"
+								className="border-emerald-500/20 bg-emerald-500/10 font-semibold text-emerald-600 text-xs dark:text-emerald-400"
 							>
-								Auto-Updating
+								Live Auto-Updating
 							</Badge>
 						</CardHeader>
-						<CardContent className="divide-y divide-slate-100 p-0 dark:divide-slate-800">
+						<CardContent className="divide-y divide-border/60 p-0">
 							{/* Inbound PO Queue Row */}
-							<div className="flex items-start justify-between gap-4 p-4">
+							<div className="flex items-start justify-between gap-4 p-4 hover:bg-muted/30 transition-colors">
 								<div className="flex gap-3">
-									<div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-yellow-50 text-yellow-600">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
 										<TruckIcon className="h-5 w-5" />
 									</div>
 									<div>
-										<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+										<h4 className="font-bold text-foreground text-sm">
 											Inbound POs Awaiting Receipt
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
@@ -209,7 +209,7 @@ export default function WMSDashboardOverview() {
 									size="sm"
 									variant="ghost"
 									asChild
-									className="font-semibold text-xs"
+									className="font-semibold text-xs text-foreground hover:bg-muted"
 								>
 									<Link href="/dashboard/warehouse/receiving">
 										Manage Receiving{" "}
@@ -219,13 +219,13 @@ export default function WMSDashboardOverview() {
 							</div>
 
 							{/* Put-Away Row */}
-							<div className="flex items-start justify-between gap-4 p-4">
+							<div className="flex items-start justify-between gap-4 p-4 hover:bg-muted/30 transition-colors">
 								<div className="flex gap-3">
-									<div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
 										<BoxesIcon className="h-5 w-5" />
 									</div>
 									<div>
-										<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+										<h4 className="font-bold text-foreground text-sm">
 											Storage Bins Allocation (Put-Away)
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
@@ -239,7 +239,7 @@ export default function WMSDashboardOverview() {
 									size="sm"
 									variant="ghost"
 									asChild
-									className="font-semibold text-xs"
+									className="font-semibold text-xs text-foreground hover:bg-muted"
 								>
 									<Link href="/dashboard/warehouse/put-away">
 										Allocate Bins{" "}
@@ -249,13 +249,13 @@ export default function WMSDashboardOverview() {
 							</div>
 
 							{/* Picking Operations */}
-							<div className="flex items-start justify-between gap-4 p-4">
+							<div className="flex items-start justify-between gap-4 p-4 hover:bg-muted/30 transition-colors">
 								<div className="flex gap-3">
-									<div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
 										<CheckSquareIcon className="h-5 w-5" />
 									</div>
 									<div>
-										<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+										<h4 className="font-bold text-foreground text-sm">
 											Active Picking Lists
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
@@ -269,7 +269,7 @@ export default function WMSDashboardOverview() {
 									size="sm"
 									variant="ghost"
 									asChild
-									className="font-semibold text-xs"
+									className="font-semibold text-xs text-foreground hover:bg-muted"
 								>
 									<Link href="/dashboard/warehouse/picking">
 										Monitor Picker{" "}
@@ -279,13 +279,13 @@ export default function WMSDashboardOverview() {
 							</div>
 
 							{/* Packing Handoff */}
-							<div className="flex items-start justify-between gap-4 p-4">
+							<div className="flex items-start justify-between gap-4 p-4 hover:bg-muted/30 transition-colors">
 								<div className="flex gap-3">
-									<div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
 										<PackageIcon className="h-5 w-5" />
 									</div>
 									<div>
-										<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+										<h4 className="font-bold text-foreground text-sm">
 											Packing Queue Hand-off
 										</h4>
 										<p className="mt-0.5 text-muted-foreground text-xs">
@@ -299,10 +299,10 @@ export default function WMSDashboardOverview() {
 									size="sm"
 									variant="ghost"
 									asChild
-									className="font-semibold text-xs"
+									className="font-semibold text-xs text-foreground hover:bg-muted"
 								>
 									<Link href="/dashboard/warehouse/packing">
-										Handoff Packages{" "}
+										Manage Packing{" "}
 										<ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
 									</Link>
 								</Button>
@@ -312,23 +312,23 @@ export default function WMSDashboardOverview() {
 
 					{/* Real-time Storage capacity & Fifo utilization cards */}
 					<div className="grid gap-4 sm:grid-cols-2">
-						<Card className="shadow-sm">
-							<CardHeader className="pb-3">
-								<CardTitle className="font-bold text-sm">
+						<Card className="border-border/60 bg-card/90 shadow-xs backdrop-blur-md">
+							<CardHeader className="pb-3 border-border/60 border-b">
+								<CardTitle className="font-bold text-sm text-foreground">
 									Physical Storage Capacity
 								</CardTitle>
-								<CardDescription>
+								<CardDescription className="text-muted-foreground text-xs">
 									Bhopal Warehouse utilization index
 								</CardDescription>
 							</CardHeader>
-							<CardContent className="space-y-4">
+							<CardContent className="space-y-4 pt-4">
 								<div className="flex items-center justify-between font-semibold text-xs">
-									<span>Utilized Space</span>
-									<span className="text-blue-600">
+									<span className="text-muted-foreground">Utilized Space</span>
+									<span className="text-blue-600 dark:text-blue-400 font-bold">
 										{stats?.warehouseUtilization ?? 45}% Occupied
 									</span>
 								</div>
-								<div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800">
+								<div className="h-2 w-full rounded-full bg-muted">
 									<div
 										className="h-2 rounded-full bg-blue-600 transition-all"
 										style={{ width: `${stats?.warehouseUtilization ?? 45}%` }}
@@ -347,23 +347,23 @@ export default function WMSDashboardOverview() {
 							</CardContent>
 						</Card>
 
-						<Card className="shadow-sm">
-							<CardHeader className="pb-3">
-								<CardTitle className="font-bold text-sm">
+						<Card className="border-border/60 bg-card/90 shadow-xs backdrop-blur-md">
+							<CardHeader className="pb-3 border-border/60 border-b">
+								<CardTitle className="font-bold text-sm text-foreground">
 									First-In First-Out (FIFO) Index
 								</CardTitle>
-								<CardDescription>
+								<CardDescription className="text-muted-foreground text-xs">
 									Average shelf residency of batched stock
 								</CardDescription>
 							</CardHeader>
-							<CardContent className="space-y-4">
+							<CardContent className="space-y-4 pt-4">
 								<div className="flex items-center justify-between font-semibold text-xs">
-									<span>FIFO Compliance Rate</span>
-									<span className="text-green-600">97.8% On-Time</span>
+									<span className="text-muted-foreground">FIFO Compliance Rate</span>
+									<span className="text-emerald-600 dark:text-emerald-400 font-bold">97.8% On-Time</span>
 								</div>
-								<div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800">
+								<div className="h-2 w-full rounded-full bg-muted">
 									<div
-										className="h-2 rounded-full bg-green-500"
+										className="h-2 rounded-full bg-emerald-500"
 										style={{ width: "97.8%" }}
 									/>
 								</div>
@@ -378,14 +378,13 @@ export default function WMSDashboardOverview() {
 
 				{/* Right Column: Supervisor Critical Attention Console */}
 				<div className="space-y-6">
-					<Card className="border-red-200 bg-white shadow-md">
-						<CardHeader className="flex flex-row items-center justify-between border-red-500/10 border-b pb-4">
+					<Card className="border-rose-500/30 bg-card/90 shadow-xs backdrop-blur-md">
+						<CardHeader className="flex flex-row items-center justify-between border-rose-500/20 border-b pb-4">
 							<div>
-								<CardTitle className="flex items-center gap-2 font-bold text-base text-red-600">
-									<AlertTriangleIcon className="h-5 w-5" /> Supervisor Attention
-									Console
+								<CardTitle className="flex items-center gap-2 font-bold text-base text-rose-600 dark:text-rose-400">
+									<AlertTriangleIcon className="h-5 w-5" /> Supervisor Attention Console
 								</CardTitle>
-								<CardDescription>
+								<CardDescription className="text-muted-foreground text-xs">
 									Delayed tasks or inventory anomalies
 								</CardDescription>
 							</div>
@@ -398,13 +397,13 @@ export default function WMSDashboardOverview() {
 						<CardContent className="space-y-4 p-4">
 							{stats?.delayedTasks !== undefined && stats.delayedTasks > 0 ? (
 								<div className="space-y-3">
-									<div className="flex items-start gap-3 rounded-lg border border-red-100 bg-red-50 p-3">
-										<ClockIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+									<div className="flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3.5 text-rose-800 dark:text-rose-300">
+										<ClockIcon className="mt-0.5 h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" />
 										<div>
-											<h5 className="font-bold text-red-800 text-xs">
+											<h5 className="font-bold text-xs">
 												Delayed Inbound & Pick Lists Detected
 											</h5>
-											<p className="mt-1 text-[11px] text-red-700">
+											<p className="mt-1 text-[11px] leading-relaxed text-rose-700/90 dark:text-rose-300/80">
 												There are {stats.delayedTasks} WMS tasks currently past
 												their optimal operational SLA. Picker resources require
 												allocation adjustments.
@@ -412,7 +411,7 @@ export default function WMSDashboardOverview() {
 											<Button
 												size="sm"
 												variant="link"
-												className="mt-2 p-0 font-bold text-red-800 text-xs"
+												className="mt-2 p-0 font-bold text-rose-700 dark:text-rose-300 text-xs"
 												asChild
 											>
 												<Link href="/dashboard/warehouse/exceptions">
@@ -424,8 +423,8 @@ export default function WMSDashboardOverview() {
 									</div>
 								</div>
 							) : (
-								<div className="py-6 text-center text-slate-400">
-									<UserCheckIcon className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+								<div className="py-6 text-center text-muted-foreground">
+									<UserCheckIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
 									<p className="font-medium text-xs">
 										All tasks executing within normal SLA windows.
 									</p>
@@ -435,19 +434,19 @@ export default function WMSDashboardOverview() {
 							{/* Real inventory alert box */}
 							{genStats?.inventoryAlerts !== undefined &&
 								genStats.inventoryAlerts.length > 0 && (
-									<div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-										<InfoIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+									<div className="flex gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3.5 text-amber-800 dark:text-amber-300">
+										<InfoIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
 										<div>
-											<h5 className="font-bold text-amber-800 text-xs">
+											<h5 className="font-bold text-xs">
 												Reorder Threshold Alerts
 											</h5>
-											<p className="mt-1 text-[11px] text-amber-700">
+											<p className="mt-1 text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-300/80">
 												{genStats.inventoryAlerts.length} products have fallen
 												below minimum stock buffers.
 											</p>
 											<Link
 												href="/dashboard/warehouse/stock"
-												className="mt-1.5 inline-block font-bold text-amber-800 text-xs hover:underline"
+												className="mt-1.5 inline-block font-bold text-amber-700 dark:text-amber-300 text-xs hover:underline"
 											>
 												View Stock Ledger →
 											</Link>

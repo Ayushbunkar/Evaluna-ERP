@@ -9,13 +9,31 @@ import {
 	Truck,
 	Users,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Features & Systems — POS, WMS, Field Sales & HR",
+	description:
+		"Explore the modular ERP features: offline-first POS cash registers, intelligent warehouse bin routing, GPS geofenced workforce tracking, and automated GST reporting.",
+	canonicalPath: "/features",
+});
 
 export default function FeaturesPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Features", url: "/features" },
+	]);
+
 	return (
 		<div className="relative min-h-screen overflow-x-hidden bg-background text-foreground transition-colors selection:bg-primary/20">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			{/* Ambient background glow */}
 			<div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
 				<div className="absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/5 blur-[120px] dark:bg-primary/10" />

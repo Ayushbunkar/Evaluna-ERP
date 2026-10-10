@@ -1,11 +1,24 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
 import { ArrowRight, BookOpen, Download, FileText, HelpCircle, Layers } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Resources & Knowledge Hub — Documentation, Guides & FAQs",
+	description:
+		"Explore tutorials, setup guides, product release notes, and documentation for Evaluna ERP operations and hardware configuration.",
+	canonicalPath: "/resources",
+});
 
 export default function ResourcesPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Resources", url: "/resources" },
+	]);
 	const sections = [
 		{
 			title: "Documentation & API",
@@ -46,6 +59,10 @@ export default function ResourcesPage() {
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			<Navbar />
 
 			<section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">

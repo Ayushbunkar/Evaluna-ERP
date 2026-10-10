@@ -10,11 +10,29 @@ import {
 	Shield,
 	User,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Interactive Live Demo & System Sandbox",
+	description:
+		"Experience Evaluna ERP hands-on with role-based demo accounts: Retail Cashier POS, Warehouse Manager, Field Sales Agent, and Finance Officer.",
+	canonicalPath: "/demo",
+});
 
 export default function DemoPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Demo", url: "/demo" },
+	]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			{/* Navigation */}
 			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

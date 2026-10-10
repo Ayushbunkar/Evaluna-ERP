@@ -57,6 +57,7 @@ import { placementRouter } from "./placement";
 import { posRouter } from "./pos";
 import { priceAuditRouter } from "./price-audit";
 import { productsRouter } from "./products";
+import { procurementRouter } from "./procurement";
 import { purchaseReturnsRouter } from "./purchase-returns";
 import { purchasesRouter } from "./purchases";
 import { putterRouter } from "./putter";
@@ -137,6 +138,7 @@ export const appRouter = router({
 	placement: placementRouter,
 	pos: posRouter,
 	priceAudit: priceAuditRouter,
+	procurement: procurementRouter,
 	products: productsRouter,
 	purchaseReturns: purchaseReturnsRouter,
 	purchases: purchasesRouter,

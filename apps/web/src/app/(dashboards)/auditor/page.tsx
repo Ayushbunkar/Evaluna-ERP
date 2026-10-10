@@ -8,6 +8,7 @@ import {
 	ArrowRightIcon,
 	BarcodeIcon,
 	CheckCircle2Icon,
+	CheckSquareIcon,
 	ClipboardCheckIcon,
 	ClipboardListIcon,
 	ClockIcon,
@@ -259,31 +260,91 @@ export default function AuditorDashboard() {
 				<Card className="border-border/60 bg-card p-5 lg:col-span-2">
 					<h3 className="text-sm font-semibold text-foreground">Quick Action Workspaces</h3>
 					<p className="text-xs text-muted-foreground">
-						Jump into specific warehouse verification tasks
+						Jump into specific warehouse verification tasks and control centers
 					</p>
-					<div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+					<div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+						<Link
+							href="/dashboard/warehouse/audit-assignments"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-2.5 text-center transition-all hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
+						>
+							<ClipboardCheckIcon className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1 text-[11px] font-medium text-foreground">Manager Assignments</span>
+						</Link>
+						<Link
+							href="/dashboard/warehouse/my-audits"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-2.5 text-center transition-all hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-900/20"
+						>
+							<CheckSquareIcon className="h-4 w-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1 text-[11px] font-medium text-foreground">Count Workspace</span>
+						</Link>
 						<Link
 							href="/auditor/tasks"
-							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-3 text-center transition-all hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-2.5 text-center transition-all hover:bg-indigo-50 hover:border-indigo-300 dark:hover:bg-indigo-900/20"
 						>
-							<ClipboardListIcon className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
-							<span className="mt-1.5 text-xs font-medium text-foreground">Stock Count Tasks</span>
+							<ClipboardListIcon className="h-4 w-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1 text-[11px] font-medium text-foreground">Auditor Tasks</span>
 						</Link>
 						<Link
 							href="/auditor/upc"
-							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-3 text-center transition-all hover:bg-green-50 hover:border-green-300 dark:hover:bg-green-900/20"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-2.5 text-center transition-all hover:bg-green-50 hover:border-green-300 dark:hover:bg-green-900/20"
 						>
-							<BarcodeIcon className="h-5 w-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-							<span className="mt-1.5 text-xs font-medium text-foreground">UPC Verification</span>
+							<BarcodeIcon className="h-4 w-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1 text-[11px] font-medium text-foreground">UPC Verification</span>
 						</Link>
 						<Link
 							href="/auditor/receiving"
-							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-3 text-center transition-all hover:bg-purple-50 hover:border-purple-300 dark:hover:bg-purple-900/20"
+							className="group flex flex-col items-center justify-center rounded-lg border border-border/60 bg-muted/30 p-2.5 text-center transition-all hover:bg-purple-50 hover:border-purple-300 dark:hover:bg-purple-900/20"
 						>
-							<PackageIcon className="h-5 w-5 text-purple-600 group-hover:scale-110 transition-transform" />
-							<span className="mt-1.5 text-xs font-medium text-foreground">Receiving Inspection</span>
+							<PackageIcon className="h-4 w-4 text-purple-600 group-hover:scale-110 transition-transform" />
+							<span className="mt-1 text-[11px] font-medium text-foreground">Receiving Inspection</span>
 						</Link>
 					</div>
+				</Card>
+			</div>
+
+			{/* Discrepancy Breakdown & Financial Exposure Strip */}
+			<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+				<Card className="border-border/60 bg-card p-3">
+					<p className="text-[10px] uppercase font-semibold text-muted-foreground">Missing / Shortage</p>
+					<p className="text-lg font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+						{stats?.discrepancyBreakdown?.missing ?? 0}
+					</p>
+					<p className="text-[10px] text-muted-foreground">Shortage lines</p>
+				</Card>
+				<Card className="border-border/60 bg-card p-3">
+					<p className="text-[10px] uppercase font-semibold text-muted-foreground">Excess Stock</p>
+					<p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+						{stats?.discrepancyBreakdown?.excess ?? 0}
+					</p>
+					<p className="text-[10px] text-muted-foreground">Surplus lines</p>
+				</Card>
+				<Card className="border-border/60 bg-card p-3">
+					<p className="text-[10px] uppercase font-semibold text-muted-foreground">Damaged Goods</p>
+					<p className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+						{stats?.discrepancyBreakdown?.damage ?? 0}
+					</p>
+					<p className="text-[10px] text-muted-foreground">Damaged lines</p>
+				</Card>
+				<Card className="border-border/60 bg-card p-3">
+					<p className="text-[10px] uppercase font-semibold text-muted-foreground">Expired Stock</p>
+					<p className="text-lg font-bold text-orange-600 dark:text-orange-400 mt-0.5">
+						{stats?.discrepancyBreakdown?.expiry ?? 0}
+					</p>
+					<p className="text-[10px] text-muted-foreground">Past expiry</p>
+				</Card>
+				<Card className="border-border/60 bg-card p-3">
+					<p className="text-[10px] uppercase font-semibold text-muted-foreground">Recounts Active</p>
+					<p className="text-lg font-bold text-purple-600 dark:text-purple-400 mt-0.5">
+						{stats?.recountRequested ?? 0}
+					</p>
+					<p className="text-[10px] text-muted-foreground">In recount</p>
+				</Card>
+				<Card className="border-border/60 bg-card p-3">
+					<p className="text-[10px] uppercase font-semibold text-muted-foreground">Variance Exposure</p>
+					<p className="text-lg font-bold text-foreground mt-0.5 flex items-center">
+						₹{Number(stats?.totalVarianceExposure ?? 0).toLocaleString()}
+					</p>
+					<p className="text-[10px] text-muted-foreground">Est. discrepancy value</p>
 				</Card>
 			</div>
 

@@ -8,6 +8,7 @@ import {
 	BoxesIcon,
 	CheckSquareIcon,
 	ChevronDownIcon,
+	ClipboardCheckIcon,
 	ClipboardListIcon,
 	IndianRupeeIcon,
 	LogOutIcon,
@@ -195,6 +196,21 @@ export default function WarehouseWMSLayout({
 					icon: AlertTriangleIcon,
 					badge: stats?.delayedTasks,
 					badgeVariant: "destructive",
+				},
+			],
+		},
+		{
+			title: "Audits & Counting",
+			items: [
+				{
+					label: "Audit Assignments",
+					href: "/dashboard/warehouse/audit-assignments",
+					icon: ClipboardCheckIcon,
+				},
+				{
+					label: "My Count Tasks",
+					href: "/dashboard/warehouse/my-audits",
+					icon: CheckSquareIcon,
 				},
 			],
 		},

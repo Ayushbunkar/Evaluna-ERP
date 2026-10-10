@@ -8,11 +8,29 @@ import {
 	MountainIcon,
 	Shield,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Terms of Service — Enterprise Agreement & Usage Terms",
+	description:
+		"Review terms, conditions, subscription agreements, and SLA policies governing the use of Evaluna ERP software.",
+	canonicalPath: "/terms",
+});
 
 export default function TermsPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Terms of Service", url: "/terms" },
+	]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			{/* Navigation */}
 			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

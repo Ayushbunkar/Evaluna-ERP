@@ -126,6 +126,11 @@ export default function FinanceLayout({
 					badge: stats?.unpaidInvoicesCount,
 				},
 				{
+					label: "Supplier Payables",
+					href: "/finance/payables",
+					icon: ReceiptIcon,
+				},
+				{
 					label: "Payroll & Payouts",
 					href: "/finance/payroll",
 					icon: CalendarCheckIcon,

@@ -275,10 +275,10 @@ export const PERMISSION_MATRIX: PermissionSeed[] = [
 	// Note: auditor is deliberately NOT given products.write/accounting.write —
 	// pricing and financial records stay with manager/admin.
 
-	// Inventory inspection / cycle count / discrepancy handling
-	{ domain: "inventory_audit", action: "read", minRole: "auditor" },
-	{ domain: "inventory_audit", action: "write", minRole: "auditor" },
-	{ domain: "inventory_audit", action: "approve", minRole: "auditor" },
+	// Inventory inspection / cycle count / discrepancy handling (Warehouse & Auditor teams)
+	{ domain: "inventory_audit", action: "read", minRole: "loader" },
+	{ domain: "inventory_audit", action: "write", minRole: "loader" },
+	{ domain: "inventory_audit", action: "approve", minRole: "warehouse_supervisor" },
 
 	// Audit findings + corrective actions
 	{ domain: "audit", action: "read", minRole: "auditor" },

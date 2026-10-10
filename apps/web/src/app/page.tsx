@@ -14,9 +14,18 @@ import {
 	Truck,
 	Users,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { constructMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Evaluna ERP — Unified Retail POS, Warehouse WMS & Field Operations Platform",
+	description:
+		"Transform your supply chain with Evaluna ERP: offline-first POS billing, smart warehouse logistics, live field sales GPS tracking, and GST accounting.",
+	canonicalPath: "/",
+});
 
 export default function Home() {
 	return (

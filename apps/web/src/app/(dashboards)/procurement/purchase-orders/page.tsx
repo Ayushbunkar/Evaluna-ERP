@@ -55,10 +55,12 @@ export default function PurchaseOrdersPage() {
 	const { data: invData } = trpc.inventory.list.useQuery({ limit: 100 });
 
 	// Mutations
-	const createPOMutation = trpc.purchases.create.useMutation({
+	const createPOMutation = trpc.procurement.createPO.useMutation({
 		onSuccess: () => {
 			toast.success("Purchase Order successfully created & sent to warehouse!");
 			utils.warehouse.getReceivingPOs.invalidate();
+			utils.procurement.listPOs.invalidate();
+			utils.procurement.getProcurementKpis.invalidate();
 			setIsCreateModalOpen(false);
 			setSelectedSupplier("");
 			setOrderItems([{ productId: "", quantity: 1, price: 10 }]);
@@ -186,9 +188,12 @@ export default function PurchaseOrdersPage() {
 		}
 
 		await createPOMutation.mutateAsync({
-			supplierId: selectedSupplier,
-			total: totalAmount,
-			items: orderItems,
+			supplierId: Number.parseInt(selectedSupplier, 10),
+			items: orderItems.map((i) => ({
+				productId: Number.parseInt(i.productId, 10),
+				quantity: i.quantity,
+				price: i.price,
+			})),
 		});
 	};
 
@@ -203,18 +208,17 @@ export default function PurchaseOrdersPage() {
 		<PageTransition className="space-y-6 p-4 sm:p-6">
 			<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
 				<div>
-					<h2 className="font-bold text-slate-900 text-xl tracking-tight sm:text-2xl dark:text-slate-100">
+					<h1 className="font-bold text-2xl text-foreground tracking-tight sm:text-3xl">
 						Purchase Orders Ledger
-					</h2>
+					</h1>
 					<p className="text-muted-foreground text-sm">
-						Overview procurement purchase orders, create new reorder batches,
-						and track inbound deliveries.
+						Issue supplier purchase orders, track scheduled deliveries, and coordinate with warehouse receiving.
 					</p>
 				</div>
 				<div className="flex w-full gap-2 sm:w-auto">
 					<Button
 						onClick={() => setIsCreateModalOpen(true)}
-						className="h-9 font-bold text-xs shadow-sm"
+						className="h-9 bg-primary font-bold text-primary-foreground text-xs shadow-sm hover:bg-primary/90"
 					>
 						<PlusIcon className="mr-1.5 h-4 w-4" /> Create Purchase Order
 					</Button>
@@ -222,7 +226,7 @@ export default function PurchaseOrdersPage() {
 						<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 						<Input
 							placeholder="Search PO number, supplier..."
-							className="pl-9"
+							className="pl-9 bg-background/50 border-border/80"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -230,12 +234,11 @@ export default function PurchaseOrdersPage() {
 				</div>
 			</div>
 
-			<Card className="shadow-sm">
-				<CardHeader>
-					<CardTitle className="font-bold text-base">Purchase Orders</CardTitle>
-					<CardDescription>
-						Track status, delivery schedules, and outstanding balances of active
-						procurement lots
+			<Card className="border-border/60 bg-card/90 shadow-xs backdrop-blur-md">
+				<CardHeader className="border-border/60 border-b">
+					<CardTitle className="font-bold text-base text-foreground">Purchase Orders</CardTitle>
+					<CardDescription className="text-muted-foreground text-xs">
+						Active procurement contracts, supplier fulfillment status, and order values
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
@@ -247,46 +250,43 @@ export default function PurchaseOrdersPage() {
 						<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
-									<TableRow>
-										<TableHead>PO Reference</TableHead>
-										<TableHead>Supplier Partner</TableHead>
-										<TableHead>Date Issued</TableHead>
-										<TableHead>Total Cost</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead className="text-right">Actions</TableHead>
+									<TableRow className="border-border/60 bg-muted/30">
+										<TableHead className="font-semibold text-muted-foreground text-xs">PO Reference</TableHead>
+										<TableHead className="font-semibold text-muted-foreground text-xs">Supplier Partner</TableHead>
+										<TableHead className="font-semibold text-muted-foreground text-xs">Date Issued</TableHead>
+										<TableHead className="font-semibold text-muted-foreground text-xs">Total Cost</TableHead>
+										<TableHead className="font-semibold text-muted-foreground text-xs">Status</TableHead>
+										<TableHead className="text-right font-semibold text-muted-foreground text-xs">Actions</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{filteredPOs.map((po) => (
 										<TableRow
 											key={po.id}
-											className="cursor-pointer hover:bg-slate-50/50"
+											className="cursor-pointer border-border/40 hover:bg-muted/40 transition-colors"
 											onClick={() => openDetailsModal(po)}
 										>
-											<TableCell className="font-bold text-xs">
-												PO-#{po.id} — {po.grn_number || "Draft"}
+											<TableCell className="font-bold font-mono text-xs text-foreground">
+												{po.po_number || `PO-#${po.id}`} — {po.grn_number || "Draft"}
 											</TableCell>
-											<TableCell className="font-semibold text-slate-800 dark:text-slate-100">
+											<TableCell className="font-semibold text-foreground text-xs">
 												{po.supplier_name}
 											</TableCell>
-											<TableCell className="text-slate-500 text-xs">
+											<TableCell className="text-muted-foreground text-xs">
 												{new Date(po.created_at).toLocaleDateString()}
 											</TableCell>
-											<TableCell className="font-bold text-xs">
+											<TableCell className="font-bold text-foreground text-xs">
 												₹{Number(po.total_amount).toFixed(2)}
 											</TableCell>
 											<TableCell>
 												<Badge
-													variant={
-														po.status === "received" ||
-														po.status === "completed"
-															? "default"
-															: "outline"
-													}
+													variant="outline"
 													className={
-														po.status === "pending"
-															? "border-amber-200 bg-amber-50 text-amber-700"
-															: ""
+														po.status === "received" || po.status === "completed"
+															? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-[10px]"
+															: po.status === "confirmed"
+																? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium text-[10px]"
+																: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium text-[10px]"
 													}
 												>
 													{po.status}
@@ -296,7 +296,7 @@ export default function PurchaseOrdersPage() {
 												<Button
 													size="sm"
 													variant="ghost"
-													className="h-8 text-xs"
+													className="h-8 text-xs font-semibold hover:bg-muted"
 												>
 													View Items{" "}
 													<ChevronRightIcon className="ml-1 h-3.5 w-3.5" />
@@ -339,11 +339,11 @@ export default function PurchaseOrdersPage() {
 
 					<div className="my-2 space-y-4">
 						<div>
-							<Label className="font-bold text-slate-700 text-xs">
+							<Label className="font-bold text-foreground text-xs">
 								Select Supplier Partner
 							</Label>
 							<select
-								className="mt-1 w-full cursor-pointer rounded border bg-white p-2 font-bold text-xs"
+								className="mt-1 w-full cursor-pointer rounded-md border border-input bg-background p-2 font-semibold text-xs text-foreground focus:ring-2 focus:ring-primary/20 dark:bg-slate-900"
 								value={selectedSupplier}
 								onChange={(e) => setSelectedSupplier(e.target.value)}
 							>
@@ -357,13 +357,13 @@ export default function PurchaseOrdersPage() {
 						</div>
 
 						{/* Fast Item Quick-Add Bar */}
-						<div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900/50 dark:bg-blue-950/30">
+						<div className="rounded-xl border border-primary/20 bg-primary/5 p-3 dark:border-primary/20 dark:bg-primary/10">
 							<div className="mb-1.5 flex items-center justify-between">
-								<Label className="flex items-center gap-1.5 font-bold text-blue-950 text-xs dark:text-blue-200">
+								<Label className="flex items-center gap-1.5 font-bold text-foreground text-xs">
 									<ZapIcon className="h-3.5 w-3.5 text-amber-500" />
 									Fast Item Quick-Add (Type Name or SKU)
 								</Label>
-								<span className="font-medium text-[10px] text-blue-700 dark:text-blue-300">
+								<span className="font-medium text-[10px] text-muted-foreground">
 									Type & press Enter or Add
 								</span>
 							</div>

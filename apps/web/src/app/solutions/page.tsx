@@ -10,11 +10,24 @@ import {
 	Store,
 	Truck,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { Footer } from "@/components/public/footer";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "Industry Solutions — Retail, Wholesale & Logistics",
+	description:
+		"Tailored ERP architectures for retail supermarkets, FMCG bulk distributors, multi-branch franchises, and supply chain logistics.",
+	canonicalPath: "/solutions",
+});
 
 export default function SolutionsPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "Solutions", url: "/solutions" },
+	]);
 	const solutions = [
 		{
 			title: "Retail Stores & Supermarkets",
@@ -86,6 +99,10 @@ export default function SolutionsPage() {
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			<Navbar />
 
 			{/* Hero */}

@@ -8,11 +8,29 @@ import {
 	MountainIcon,
 	Users,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
+
+export const metadata: Metadata = constructMetadata({
+	title: "About Us — Mission & Architecture",
+	description:
+		"Learn about Evaluna ERP's mission to empower enterprise retailers, FMCG distributors, and warehouse networks across India with resilient cloud infrastructure.",
+	canonicalPath: "/about",
+});
 
 export default function AboutPage() {
+	const breadcrumbJson = generateBreadcrumbSchema([
+		{ name: "Home", url: "/" },
+		{ name: "About", url: "/about" },
+	]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
+			/>
 			{/* Navigation */}
 			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
