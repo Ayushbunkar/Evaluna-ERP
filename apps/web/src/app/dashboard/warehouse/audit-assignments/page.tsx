@@ -931,7 +931,7 @@ export default function WarehouseAuditAssignmentsPage() {
 										<label className="text-xs font-semibold text-foreground">
 											Select Inventory Scope
 										</label>
-										<div className="grid grid-cols-2 gap-3 mt-1.5">
+										<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1.5">
 											<div
 												onClick={() => setFormScopeMode("all")}
 												className={`cursor-pointer rounded-xl border p-3.5 text-xs transition-all ${
@@ -969,6 +969,25 @@ export default function WarehouseAuditAssignmentsPage() {
 													Target specific category (cycle count)
 												</p>
 											</div>
+
+											<div
+												onClick={() => setFormScopeMode("custom")}
+												className={`cursor-pointer rounded-xl border p-3.5 text-xs transition-all ${
+													formScopeMode === "custom"
+														? "border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 font-medium"
+														: "border-border/70 hover:bg-muted/40"
+												}`}
+											>
+												<div className="flex items-center gap-2">
+													<CheckSquareIcon className="h-4 w-4 text-blue-600" />
+													<p className="font-semibold text-foreground">
+														Select Products
+													</p>
+												</div>
+												<p className="text-[11px] text-muted-foreground mt-1">
+													Select & add specific items to count
+												</p>
+											</div>
 										</div>
 									</div>
 
@@ -992,6 +1011,201 @@ export default function WarehouseAuditAssignmentsPage() {
 												<option value="3">Dairy & Cold Storage</option>
 												<option value="4">Dry Provisions</option>
 											</select>
+										</div>
+									)}
+
+									{formScopeMode === "custom" && (
+										<div className="space-y-3 rounded-xl border border-border/80 bg-background/50 p-3.5">
+											<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+												<div>
+													<p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+														<CheckSquareIcon className="h-3.5 w-3.5 text-blue-600" />
+														Specific Products Selection ({formSelectedProductIds.length} Selected)
+													</p>
+													<p className="text-[11px] text-muted-foreground">
+														Search existing inventory or quickly create and add new products to count.
+													</p>
+												</div>
+
+												<Button
+													size="sm"
+													type="button"
+													onClick={() => setIsQuickAddProductOpen(!isQuickAddProductOpen)}
+													className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+												>
+													<PlusIcon className="h-3.5 w-3.5 mr-1" />
+													{isQuickAddProductOpen ? "Cancel New Product" : "Add New Product"}
+												</Button>
+											</div>
+
+											{/* Quick Create New Product Form */}
+											{isQuickAddProductOpen && (
+												<div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-3">
+													<div className="flex items-center justify-between">
+														<span className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1">
+															<PackageCheckIcon className="h-3.5 w-3.5" />
+															Quick Add Master Product to System
+														</span>
+														<span className="text-[10px] text-muted-foreground">
+															Saved immediately & included in audit
+														</span>
+													</div>
+
+													<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+														<div>
+															<label className="text-[10px] font-semibold text-foreground">Item Name *</label>
+															<Input
+																placeholder="e.g. Basmati Rice 5kg"
+																value={newProductName}
+																onChange={(e) => setNewProductName(e.target.value)}
+																className="h-7 text-xs bg-background mt-0.5"
+															/>
+														</div>
+
+														<div>
+															<label className="text-[10px] font-semibold text-foreground">SKU / Code</label>
+															<Input
+																placeholder="e.g. SKU-RICE-001"
+																value={newProductSku}
+																onChange={(e) => setNewProductSku(e.target.value)}
+																className="h-7 text-xs bg-background mt-0.5"
+															/>
+														</div>
+
+														<div>
+															<label className="text-[10px] font-semibold text-foreground">Barcode / EAN</label>
+															<Input
+																placeholder="e.g. 890123456789"
+																value={newProductBarcode}
+																onChange={(e) => setNewProductBarcode(e.target.value)}
+																className="h-7 text-xs bg-background mt-0.5"
+															/>
+														</div>
+
+														<div>
+															<label className="text-[10px] font-semibold text-foreground">Price (₹) *</label>
+															<Input
+																type="number"
+																placeholder="100"
+																value={newProductPrice}
+																onChange={(e) => setNewProductPrice(e.target.value)}
+																className="h-7 text-xs bg-background mt-0.5"
+															/>
+														</div>
+													</div>
+
+													<div className="flex justify-end gap-2 pt-1">
+														<Button
+															size="sm"
+															type="button"
+															variant="outline"
+															onClick={() => setIsQuickAddProductOpen(false)}
+															className="h-7 text-xs"
+														>
+															Close
+														</Button>
+														<Button
+															size="sm"
+															type="button"
+															disabled={!newProductName.trim() || quickCreateProductMutation.isPending}
+															onClick={() => {
+																if (!newProductName.trim()) {
+																	toast.error("Please enter product name.");
+																	return;
+																}
+																quickCreateProductMutation.mutate({
+																	name: newProductName.trim(),
+																	sku: newProductSku.trim() || undefined,
+																	barcode: newProductBarcode.trim() || undefined,
+																	price: Number(newProductPrice) || 0,
+																	category: newProductCategory || "General",
+																});
+															}}
+															className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+														>
+															<CheckIcon className="h-3.5 w-3.5 mr-1" />
+															{quickCreateProductMutation.isPending ? "Adding..." : "Save & Add to Audit"}
+														</Button>
+													</div>
+												</div>
+											)}
+
+											{/* Search & Selection Filter */}
+											<div className="relative">
+												<SearchIcon className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+												<Input
+													placeholder="Search products by title, SKU, or barcode..."
+													value={productSearchInput}
+													onChange={(e) => setProductSearchInput(e.target.value)}
+													className="pl-8 h-8 text-xs bg-background"
+												/>
+											</div>
+
+											{/* Available Products Selection Table */}
+											<div className="max-h-48 overflow-y-auto rounded-lg border border-border/60 bg-card">
+												<Table>
+													<TableHeader className="bg-muted/20">
+														<TableRow className="text-[10px]">
+															<TableHead className="w-10 text-center py-1">Pick</TableHead>
+															<TableHead className="py-1">Product Name</TableHead>
+															<TableHead className="py-1">SKU / Barcode</TableHead>
+															<TableHead className="py-1 text-right">System Stock</TableHead>
+														</TableRow>
+													</TableHeader>
+													<TableBody>
+														{availableProductsList && availableProductsList.length > 0 ? (
+															availableProductsList.map((prod) => {
+																const isChecked = formSelectedProductIds.includes(prod.id);
+																return (
+																	<TableRow
+																		key={prod.id}
+																		className={`text-[11px] cursor-pointer hover:bg-muted/40 transition-colors ${
+																			isChecked ? "bg-blue-50/40 dark:bg-blue-950/20" : ""
+																		}`}
+																		onClick={() => {
+																			setFormSelectedProductIds((prev) =>
+																				isChecked
+																					? prev.filter((id) => id !== prod.id)
+																					: [...prev, prod.id],
+																			);
+																		}}
+																	>
+																		<TableCell className="text-center py-1.5" onClick={(e) => e.stopPropagation()}>
+																			<input
+																				type="checkbox"
+																				checked={isChecked}
+																				onChange={(e) => {
+																					setFormSelectedProductIds((prev) =>
+																						e.target.checked
+																							? [...prev, prod.id]
+																							: prev.filter((id) => id !== prod.id),
+																					);
+																				}}
+																				className="rounded border-border text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+																			/>
+																		</TableCell>
+																		<TableCell className="py-1.5 font-medium text-foreground">
+																			{prod.name}
+																		</TableCell>
+																		<TableCell className="py-1.5 font-mono text-muted-foreground text-[10px]">
+																			{prod.sku || "-"}
+																		</TableCell>
+																		<TableCell className="py-1.5 text-right font-mono font-semibold">
+																			{prod.stock}
+																		</TableCell>
+																	</TableRow>
+																);
+															})
+														) : (
+															<TableRow>
+																<TableCell colSpan={4} className="py-4 text-center text-xs text-muted-foreground">
+																	No products found matching &quot;{productSearchInput}&quot;. Click &quot;Add New Product&quot; to create one!
+																</TableCell>
+															</TableRow>
+														)}
+													</TableBody>
+												</Table>
+											</div>
 										</div>
 									)}
 
