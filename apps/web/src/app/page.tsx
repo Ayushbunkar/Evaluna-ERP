@@ -115,7 +115,7 @@ const DISCIPLINES = [
 			"Tailored digital software platforms, secure role-based workforce architectures, and integrated financial controls designed to scale regional enterprises with architectural permanence.",
 		image: IMAGERY.identityFacade,
 		hoverImage:
-			"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=85",
+			"https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=85",
 		aspect: "aspect-[16/9]",
 		details: [
 			"Strict cryptographic audit trails",
