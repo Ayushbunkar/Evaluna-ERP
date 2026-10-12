@@ -9,12 +9,7 @@ import {
 	useSpring,
 	useTransform,
 } from "framer-motion";
-import {
-	ArrowDown,
-	ArrowRight,
-	Menu,
-	X,
-} from "lucide-react";
+import { ArrowDown, ArrowRight, Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -85,6 +80,8 @@ const DISCIPLINES = [
 		description:
 			"We architect high-fidelity inventory operating systems connecting regional transit centers. Automated First-Expired-First-Out (FEFO) picking, precise bin tracking, and discrepancy prevention designed specifically for central India’s distribution velocity.",
 		image: IMAGERY.spatialDepot,
+		hoverImage:
+			"https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1600&q=85",
 		aspect: "aspect-[16/10]",
 		details: [
 			"FEFO & FIFO physical picking rules",
@@ -100,6 +97,8 @@ const DISCIPLINES = [
 		description:
 			"Enterprise transaction platforms engineered to withstand network volatility. Client-side ledger caching guarantees retail billing moves at sub-second speeds, synchronizing quietly when regional connections restore.",
 		image: IMAGERY.precisionWorkspace,
+		hoverImage:
+			"https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=1600&q=85",
 		aspect: "aspect-[4/3]",
 		details: [
 			"Zero-latency point-of-sale checkout",
@@ -115,6 +114,8 @@ const DISCIPLINES = [
 		description:
 			"Tailored digital software platforms, secure role-based workforce architectures, and integrated financial controls designed to scale regional enterprises with architectural permanence.",
 		image: IMAGERY.identityFacade,
+		hoverImage:
+			"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=85",
 		aspect: "aspect-[16/9]",
 		details: [
 			"Strict cryptographic audit trails",
@@ -711,13 +712,14 @@ export default function HomePage() {
 									isEven ? "" : "lg:flex-row-reverse"
 								}`}
 							>
-								{/* Photographic Plate */}
+								{/* Photographic Plate with Smooth Left-to-Right Wipe Effect on Hover */}
 								<div
 									className={`lg:col-span-7 ${isEven ? "lg:order-1" : "lg:order-2"}`}
 								>
 									<div
-										className={`relative w-full ${item.aspect} group overflow-hidden border border-[#DEDEDA] bg-[#F0F0ED] shadow-sm dark:border-[#292929] dark:bg-[#111111]`}
+										className={`relative w-full ${item.aspect} group cursor-pointer overflow-hidden border border-[#DEDEDA] bg-[#F0F0ED] shadow-sm dark:border-[#292929] dark:bg-[#111111]`}
 									>
+										{/* Primary / Base Image */}
 										<Image
 											src={item.image}
 											alt={item.title}
@@ -725,8 +727,36 @@ export default function HomePage() {
 											sizes="(max-width: 1024px) 100vw, 58vw"
 											className="object-cover contrast-[1.04] saturate-[1.18] transition-transform duration-700 group-hover:scale-105"
 										/>
-										<div className="absolute bottom-3 left-3 border border-[#DEDEDA] bg-[#F7F7F4]/90 px-2.5 py-1 font-mono text-[#111111] text-[9px] uppercase tracking-widest dark:border-[#292929] dark:bg-[#080808]/90 dark:text-[#F5F5F2]">
-											{item.coordinates}
+
+										{/* Secondary Image — Wipes in from Left on Hover */}
+										{item.hoverImage && (
+											<div className="pointer-events-none absolute inset-0 z-10 transition-[clip-path] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] [clip-path:inset(0_100%_0_0)] group-hover:[clip-path:inset(0_0_0_0)]">
+												<Image
+													src={item.hoverImage}
+													alt={`${item.title} — Operational Perspective`}
+													fill
+													sizes="(max-width: 1024px) 100vw, 58vw"
+													className="object-cover contrast-[1.05] saturate-[1.2] transition-transform duration-700 group-hover:scale-105"
+												/>
+												{/* Illuminated Vertical Scanline at Wipe Leading Edge */}
+												<div className="absolute top-0 right-0 bottom-0 w-[2px] bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.9)]" />
+											</div>
+										)}
+
+										{/* Geographic Coordinates Metadata */}
+										<div className="absolute bottom-3 left-3 z-20 flex items-center gap-2 border border-[#DEDEDA] bg-[#F7F7F4]/90 px-2.5 py-1 font-mono text-[#111111] text-[9px] uppercase tracking-widest backdrop-blur-xs transition-colors dark:border-[#292929] dark:bg-[#080808]/90 dark:text-[#F5F5F2]">
+											<span>{item.coordinates}</span>
+										</div>
+
+										{/* Interactive Wipe Status Indicator */}
+										<div className="absolute top-3 right-3 z-20 hidden items-center gap-1.5 border border-[#DEDEDA] bg-[#F7F7F4]/90 px-2 py-0.5 font-mono text-[#111111] text-[9px] uppercase tracking-widest backdrop-blur-xs sm:flex dark:border-[#292929] dark:bg-[#080808]/90 dark:text-[#F5F5F2]">
+											<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+											<span className="group-hover:hidden">
+												HOVER TO REVEAL
+											</span>
+											<span className="hidden text-emerald-600 group-hover:inline dark:text-emerald-400">
+												PERSPECTIVE 02
+											</span>
 										</div>
 									</div>
 								</div>
@@ -793,7 +823,7 @@ export default function HomePage() {
 
 						{/* Right Principles Stack */}
 						<div className="divide-y divide-[#DEDEDA] border-[#DEDEDA] border-t border-b lg:col-span-8 dark:divide-[#292929] dark:border-[#292929]">
-							{PRINCIPLES.map((principle, pIdx) => (
+							{PRINCIPLES.map((principle) => (
 								<div
 									key={principle.number}
 									className="grid grid-cols-1 items-baseline gap-6 px-2 py-10 transition-colors hover:bg-[#F0F0ED]/40 sm:grid-cols-12 sm:px-4 sm:py-14 dark:hover:bg-[#111111]/40"
