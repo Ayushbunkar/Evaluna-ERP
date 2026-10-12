@@ -440,10 +440,10 @@ export default function HomePage() {
 										fill
 										priority
 										sizes="(max-width: 1024px) 100vw, 42vw"
-										className="object-cover grayscale contrast-[1.08] transition-transform duration-700 hover:scale-105"
+										className="object-cover saturate-[1.15] contrast-[1.04] transition-transform duration-700 hover:scale-105"
 									/>
 									{/* Subtle tonal grain & overlay */}
-									<div className="absolute inset-0 bg-[#111111]/5 dark:bg-[#080808]/20 mix-blend-multiply pointer-events-none" />
+									<div className="absolute inset-0 bg-[#111111]/5 dark:bg-black/10 mix-blend-multiply pointer-events-none" />
 								</motion.div>
 
 								{/* Photographic Metadata Badge */}
@@ -524,7 +524,7 @@ export default function HomePage() {
 										alt="Evaluna Physical Architectural Form"
 										fill
 										sizes="(max-width: 1024px) 100vw, 58vw"
-										className="object-cover grayscale contrast-[1.05]"
+										className="object-cover saturate-[1.12] contrast-[1.02]"
 									/>
 								</motion.div>
 							</div>
@@ -574,7 +574,7 @@ export default function HomePage() {
 							alt="Evaluna Spatial Logistics & Warehouse Architecture"
 							fill
 							sizes="100vw"
-							className="object-cover grayscale contrast-[1.10]"
+							className="object-cover saturate-[1.18] contrast-[1.05]"
 						/>
 						{/* Subtle gradient vignette */}
 						<div className="absolute inset-0 bg-gradient-to-t from-[#080808]/70 via-transparent to-transparent pointer-events-none" />
@@ -640,7 +640,7 @@ export default function HomePage() {
 											alt={item.title}
 											fill
 											sizes="(max-width: 1024px) 100vw, 58vw"
-											className="object-cover grayscale contrast-[1.06] transition-transform duration-700 group-hover:scale-105"
+											className="object-cover saturate-[1.14] contrast-[1.04] transition-transform duration-700 group-hover:scale-105"
 										/>
 										<div className="absolute bottom-3 left-3 text-[9px] font-mono tracking-widest uppercase bg-[#F7F7F4]/90 dark:bg-[#080808]/90 px-2.5 py-1 text-[#111111] dark:text-[#F5F5F2] border border-[#DEDEDA] dark:border-[#292929]">
 											{item.coordinates}
@@ -772,7 +772,7 @@ export default function HomePage() {
 									alt="Central India Topography & Geographic Horizon"
 									fill
 									sizes="(max-width: 1024px) 100vw, 50vw"
-									className="object-cover grayscale contrast-[1.08]"
+									className="object-cover saturate-[1.20] contrast-[1.05]"
 								/>
 								<div className="absolute bottom-3 left-3 text-[9px] font-mono tracking-widest uppercase bg-[#F7F7F4]/90 dark:bg-[#080808]/90 px-3 py-1 text-[#111111] dark:text-[#F5F5F2] border border-[#DEDEDA] dark:border-[#292929]">
 									CENTRAL PLATEAU • MADHYA PRADESH
