@@ -1,7 +1,12 @@
 import { Button } from "@evaluna/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@evaluna/ui/components/card";
 import {
-	ArrowLeft,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@evaluna/ui/components/card";
+import {
 	ArrowRight,
 	Boxes,
 	Building2,
@@ -18,8 +23,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -128,89 +132,81 @@ export default function SolutionsPage() {
 				<div className="absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/5 blur-[120px] dark:bg-primary/10" />
 			</div>
 
-			{/* Navigation */}
-			<nav className="sticky top-0 z-50 border-b border-border/80 bg-background/80 backdrop-blur-md transition-colors">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex h-16 items-center justify-between">
-						<Link href="/" className="group flex items-center space-x-2.5" title="Evaluna ERP Home">
-							<img
-								src="/logo.jpg"
-								alt="Evaluna ERP"
-								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
-							/>
-							<span className="font-bold text-foreground text-xl tracking-tight">
-								Evaluna ERP
-							</span>
-						</Link>
-						<div className="flex items-center space-x-2 sm:space-x-3">
-							<LocaleSwitcher />
-							<ThemeToggle />
-							<Button asChild variant="outline" size="sm" className="border-border/70 hover:bg-muted text-xs">
-								<Link href="/">
-									<ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Home
-								</Link>
-							</Button>
-							<Button asChild size="sm" className="text-xs">
-								<Link href="/login">Dashboard</Link>
-							</Button>
-						</div>
-					</div>
-				</div>
-			</nav>
+			{/* Synchronized Homepage Navigation */}
+			<PublicHeader />
 
 			{/* Main Content */}
-			<main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 space-y-16">
+			<main className="mx-auto max-w-7xl space-y-16 px-4 py-12 sm:px-6 lg:px-8">
 				{/* Hero Section */}
-				<section className="text-center space-y-5 max-w-3xl mx-auto pt-4">
-					<div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-medium text-primary">
-						<Building2 className="w-3.5 h-3.5" /> Tailored Industry Solutions
+				<section className="mx-auto max-w-3xl space-y-5 pt-4 text-center">
+					<div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 font-medium text-primary text-xs">
+						<Building2 className="h-3.5 w-3.5" /> Tailored Industry Solutions
 					</div>
-					<h1 className="font-extrabold text-3xl sm:text-5xl lg:text-6xl text-foreground tracking-tight leading-tight">
+					<h1 className="font-extrabold text-3xl text-foreground leading-tight tracking-tight sm:text-5xl lg:text-6xl">
 						Engineered For Your Specific{" "}
 						<span className="text-primary">Industry Needs</span>
 					</h1>
-					<p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-						Whether you run a fast-paced retail counter, a multi-warehouse distribution network, or a regional franchise, Evaluna ERP adapts directly to your operational workflow.
+					<p className="mx-auto max-w-2xl text-base text-muted-foreground leading-relaxed sm:text-lg">
+						Whether you run a fast-paced retail counter, a multi-warehouse
+						distribution network, or a regional franchise, Evaluna ERP adapts
+						directly to your operational workflow.
 					</p>
-					<div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-						<Button size="lg" asChild className="w-full sm:w-auto shadow-sm">
+					<div className="flex flex-col items-center justify-center gap-3 pt-2 sm:flex-row">
+						<Button size="lg" asChild className="w-full shadow-sm sm:w-auto">
 							<Link href="/login">
 								Open ERP Dashboard <ArrowRight className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
-						<Button size="lg" variant="outline" asChild className="border-border/80 w-full sm:w-auto hover:bg-muted">
+						<Button
+							size="lg"
+							variant="outline"
+							asChild
+							className="w-full border-border/80 hover:bg-muted sm:w-auto"
+						>
 							<Link href="/contact">Talk to an ERP Specialist</Link>
 						</Button>
 					</div>
 				</section>
 
 				{/* Key Architecture Badges */}
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
-					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-xs text-card-foreground shadow-xs">
-						<Zap className="h-5 w-5 text-primary shrink-0" />
+				<div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-4">
+					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-card-foreground text-xs shadow-xs">
+						<Zap className="h-5 w-5 shrink-0 text-primary" />
 						<div>
-							<span className="block font-semibold text-foreground">Zero-Lag POS</span>
+							<span className="block font-semibold text-foreground">
+								Zero-Lag POS
+							</span>
 							<span className="text-muted-foreground">Barcode & UPI sync</span>
 						</div>
 					</div>
-					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-xs text-card-foreground shadow-xs">
-						<ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-card-foreground text-xs shadow-xs">
+						<ShieldCheck className="h-5 w-5 shrink-0 text-primary" />
 						<div>
-							<span className="block font-semibold text-foreground">100% Offline</span>
-							<span className="text-muted-foreground">Auto-syncs on reconnect</span>
+							<span className="block font-semibold text-foreground">
+								100% Offline
+							</span>
+							<span className="text-muted-foreground">
+								Auto-syncs on reconnect
+							</span>
 						</div>
 					</div>
-					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-xs text-card-foreground shadow-xs">
-						<Layers className="h-5 w-5 text-primary shrink-0" />
+					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-card-foreground text-xs shadow-xs">
+						<Layers className="h-5 w-5 shrink-0 text-primary" />
 						<div>
-							<span className="block font-semibold text-foreground">Multi-Branch</span>
-							<span className="text-muted-foreground">Central stock control</span>
+							<span className="block font-semibold text-foreground">
+								Multi-Branch
+							</span>
+							<span className="text-muted-foreground">
+								Central stock control
+							</span>
 						</div>
 					</div>
-					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-xs text-card-foreground shadow-xs">
-						<Clock className="h-5 w-5 text-primary shrink-0" />
+					<div className="flex items-center space-x-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-card-foreground text-xs shadow-xs">
+						<Clock className="h-5 w-5 shrink-0 text-primary" />
 						<div>
-							<span className="block font-semibold text-foreground">GST Invoicing</span>
+							<span className="block font-semibold text-foreground">
+								GST Invoicing
+							</span>
 							<span className="text-muted-foreground">Instant compliance</span>
 						</div>
 					</div>
@@ -218,22 +214,23 @@ export default function SolutionsPage() {
 
 				{/* Solutions Grid */}
 				<section className="space-y-6">
-					<div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/70 pb-4">
+					<div className="flex flex-col justify-between gap-4 border-border/70 border-b pb-4 md:flex-row md:items-end">
 						<div>
-							<h2 className="font-bold text-2xl sm:text-3xl text-foreground tracking-tight">
+							<h2 className="font-bold text-2xl text-foreground tracking-tight sm:text-3xl">
 								Purpose-Built Deployments
 							</h2>
-							<p className="text-sm text-muted-foreground mt-1">
-								Choose your sector configuration or deploy combined multi-channel capabilities.
+							<p className="mt-1 text-muted-foreground text-sm">
+								Choose your sector configuration or deploy combined
+								multi-channel capabilities.
 							</p>
 						</div>
-						<div className="flex items-center gap-2 text-xs text-muted-foreground">
-							<Sparkles className="w-4 h-4 text-primary" />
+						<div className="flex items-center gap-2 text-muted-foreground text-xs">
+							<Sparkles className="h-4 w-4 text-primary" />
 							<span>Fully integrated with Evaluna Ledger & WMS</span>
 						</div>
 					</div>
 
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 						{solutions.map((item) => {
 							const Icon = item.icon;
 							return (
@@ -251,24 +248,29 @@ export default function SolutionsPage() {
 											</span>
 										</div>
 										<div>
-											<CardTitle className="text-lg font-bold text-foreground">
+											<CardTitle className="font-bold text-foreground text-lg">
 												{item.title}
 											</CardTitle>
-											<CardDescription className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+											<CardDescription className="mt-1.5 text-muted-foreground text-xs leading-relaxed">
 												{item.description}
 											</CardDescription>
 										</div>
 									</CardHeader>
 									<CardContent className="pt-0">
-										<div className="border-t border-border/60 pt-4 mt-2">
-											<h4 className="text-[11px] font-semibold text-foreground uppercase tracking-wider mb-2.5">
+										<div className="mt-2 border-border/60 border-t pt-4">
+											<h4 className="mb-2.5 font-semibold text-[11px] text-foreground uppercase tracking-wider">
 												Operational Capabilities
 											</h4>
 											<ul className="space-y-2">
 												{item.features.map((f) => (
-													<li key={f} className="flex items-start text-xs text-muted-foreground">
-														<CheckCircle2 className="w-3.5 h-3.5 text-primary mr-2 flex-shrink-0 mt-0.5" />
-														<span className="leading-tight text-foreground/90">{f}</span>
+													<li
+														key={f}
+														className="flex items-start text-muted-foreground text-xs"
+													>
+														<CheckCircle2 className="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0 text-primary" />
+														<span className="text-foreground/90 leading-tight">
+															{f}
+														</span>
 													</li>
 												))}
 											</ul>
@@ -281,23 +283,29 @@ export default function SolutionsPage() {
 				</section>
 
 				{/* Bottom CTA Card */}
-				<section className="rounded-2xl border border-border/80 bg-card p-8 sm:p-12 text-center shadow-xs space-y-6">
-					<div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-medium text-primary">
+				<section className="space-y-6 rounded-2xl border border-border/80 bg-card p-8 text-center shadow-xs sm:p-12">
+					<div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 font-medium text-primary text-xs">
 						Unified Cloud & Offline Infrastructure
 					</div>
-					<h2 className="text-2xl sm:text-4xl font-extrabold text-foreground tracking-tight">
+					<h2 className="font-extrabold text-2xl text-foreground tracking-tight sm:text-4xl">
 						Ready to streamline your enterprise operations?
 					</h2>
-					<p className="text-muted-foreground max-w-xl mx-auto text-sm sm:text-base leading-relaxed">
-						Experience seamless inventory routing, high-velocity POS counters, and real-time financial tracking built for Indian enterprises.
+					<p className="mx-auto max-w-xl text-muted-foreground text-sm leading-relaxed sm:text-base">
+						Experience seamless inventory routing, high-velocity POS counters,
+						and real-time financial tracking built for Indian enterprises.
 					</p>
-					<div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-						<Button size="lg" asChild className="w-full sm:w-auto shadow-sm">
+					<div className="flex flex-col items-center justify-center gap-3 pt-2 sm:flex-row">
+						<Button size="lg" asChild className="w-full shadow-sm sm:w-auto">
 							<Link href="/login">
 								Launch Evaluna ERP <ArrowRight className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
-						<Button size="lg" variant="outline" asChild className="border-border/80 w-full sm:w-auto hover:bg-muted">
+						<Button
+							size="lg"
+							variant="outline"
+							asChild
+							className="w-full border-border/80 hover:bg-muted sm:w-auto"
+						>
 							<Link href="/contact">Contact Support</Link>
 						</Button>
 					</div>
@@ -305,7 +313,7 @@ export default function SolutionsPage() {
 			</main>
 
 			{/* Footer */}
-			<footer className="mt-16 border-t border-border bg-card/40 py-10">
+			<footer className="mt-16 border-border border-t bg-card/40 py-10">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex flex-col items-center justify-between gap-4 md:flex-row">
 						<Link href="/" className="flex items-center space-x-2.5">
@@ -319,7 +327,8 @@ export default function SolutionsPage() {
 							</span>
 						</Link>
 						<div className="text-muted-foreground text-xs sm:text-sm">
-							© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. Central India Hub (Bhopal & Berasia).
+							© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd.
+							Central India Hub (Bhopal & Berasia).
 						</div>
 					</div>
 					<div className="mt-6 flex flex-wrap justify-center space-x-6 text-muted-foreground text-xs sm:text-sm md:justify-end">

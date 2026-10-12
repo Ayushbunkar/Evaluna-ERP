@@ -1,7 +1,6 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
-	ArrowLeft,
 	BarChart3,
 	Building2,
 	Package,
@@ -11,8 +10,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -39,37 +37,8 @@ export default function FeaturesPage() {
 				<div className="absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/5 blur-[120px] dark:bg-primary/10" />
 			</div>
 
-			{/* Navigation */}
-			<nav className="sticky top-0 z-50 border-border/80 border-b bg-background/80 backdrop-blur-md">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex h-16 items-center justify-between">
-						<Link href="/" className="group flex items-center space-x-2.5">
-							<img
-								src="/logo.jpg"
-								alt="Evaluna ERP"
-								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
-							/>
-							<span className="font-bold text-foreground text-xl tracking-tight">
-								Evaluna ERP
-							</span>
-						</Link>
-						<div className="flex items-center space-x-2 sm:space-x-3">
-							<LocaleSwitcher />
-							<ThemeToggle />
-							<Button
-								asChild
-								variant="outline"
-								size="sm"
-								className="font-medium text-sm"
-							>
-								<Link href="/">
-									<ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
-								</Link>
-							</Button>
-						</div>
-					</div>
-				</div>
-			</nav>
+			{/* Synchronized Homepage Navigation */}
+			<PublicHeader />
 
 			{/* Main Content */}
 			<main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
