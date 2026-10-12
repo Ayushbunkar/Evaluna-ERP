@@ -46,6 +46,46 @@ const IMAGERY = {
 		"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1800&q=80",
 };
 
+// ── Hero Smooth Auto-Rotating Photographic Gallery (6 Vibrant Slides) ──
+const HERO_SLIDES = [
+	{
+		url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=85",
+		alt: "Evaluna Modern Architectural Structure",
+		plate: "PLATE 01 / STRUCTURAL ORDER",
+		location: "BHOPAL TECH PARK NEXUS",
+	},
+	{
+		url: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=85",
+		alt: "Evaluna Multi-Warehouse Logistics & Bin Routing",
+		plate: "PLATE 02 / SPATIAL LOGISTICS",
+		location: "BERASIA TRANSIT CORRIDOR",
+	},
+	{
+		url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80",
+		alt: "Evaluna Modern Freight Hub & Architecture",
+		plate: "PLATE 03 / COMMERCE DEPOT",
+		location: "CENTRAL INDIA DISTRIBUTION",
+	},
+	{
+		url: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80",
+		alt: "Evaluna Precision Workspace & Digital Architecture",
+		plate: "PLATE 04 / DIGITAL SYSTEMS",
+		location: "HEADQUARTERS • VIDISHA ROAD",
+	},
+	{
+		url: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1600&q=80",
+		alt: "Evaluna Architectural Facade & Physical Space",
+		plate: "PLATE 05 / PHYSICAL FOUNDATION",
+		location: "REGIONAL OPERATIONAL BASE",
+	},
+	{
+		url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1800&q=80",
+		alt: "Central India Geographic Horizon & Landscape",
+		plate: "PLATE 06 / GEOGRAPHIC NEXUS",
+		location: "MADHYA PRADESH PLATEAU",
+	},
+];
+
 // ── Disciplines & Capabilities (Editorial image-led layout) ──
 const DISCIPLINES = [
 	{
@@ -122,8 +162,16 @@ const PRINCIPLES = [
 export default function HomePage() {
 	const [scrolled, setScrolled] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const [activeAccordion, setActiveAccordion] = useState<number | null>(0);
+	const [activeSlide, setActiveSlide] = useState(0);
 	const prefersReducedMotion = useReducedMotion();
+
+	// Auto-rotate hero photographic slides smoothly every 4.5 seconds
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+		}, 4500);
+		return () => clearInterval(interval);
+	}, []);
 
 	// Scroll listener for navigation elevation
 	useEffect(() => {
@@ -427,29 +475,51 @@ export default function HomePage() {
 								}}
 								className="relative w-full aspect-[4/5] sm:aspect-[1/1] lg:aspect-[4/5] overflow-hidden border border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111]"
 							>
-								{/* Clip-path entrance mask */}
-								<motion.div
-									initial={{ clipPath: "inset(100% 0% 0% 0%)" }}
-									animate={{ clipPath: "inset(0% 0% 0% 0%)" }}
-									transition={{ duration: 1.3, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-									className="relative w-full h-full"
-								>
-									<Image
-										src={IMAGERY.heroStructure}
-										alt="Evaluna Architectural Structure & Form"
-										fill
-										priority
-										sizes="(max-width: 1024px) 100vw, 42vw"
-										className="object-cover saturate-[1.15] contrast-[1.04] transition-transform duration-700 hover:scale-105"
-									/>
-									{/* Subtle tonal grain & overlay */}
-									<div className="absolute inset-0 bg-[#111111]/5 dark:bg-black/10 mix-blend-multiply pointer-events-none" />
-								</motion.div>
+								{/* Smooth Cross-Fading Photographic Showcase (6 Vivid Slides) */}
+								<AnimatePresence mode="wait">
+									<motion.div
+										key={activeSlide}
+										initial={{ opacity: 0, scale: 1.05 }}
+										animate={{ opacity: 1, scale: 1 }}
+										exit={{ opacity: 0, scale: 0.98 }}
+										transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+										className="relative w-full h-full"
+									>
+										<Image
+											src={HERO_SLIDES[activeSlide]?.url ?? IMAGERY.heroStructure}
+											alt={HERO_SLIDES[activeSlide]?.alt ?? "Evaluna Architecture"}
+											fill
+											priority
+											sizes="(max-width: 1024px) 100vw, 42vw"
+											className="object-cover saturate-[1.18] contrast-[1.04]"
+										/>
+										{/* Subtle tonal grain & overlay */}
+										<div className="absolute inset-0 bg-[#111111]/5 dark:bg-black/15 mix-blend-multiply pointer-events-none" />
+									</motion.div>
+								</AnimatePresence>
 
-								{/* Photographic Metadata Badge */}
-								<div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-[9px] font-mono tracking-widest uppercase bg-[#F7F7F4]/90 dark:bg-[#080808]/90 backdrop-blur-sm border border-[#DEDEDA] dark:border-[#292929] px-3 py-2 text-[#111111] dark:text-[#F5F5F2]">
-									<span>PLATE 01 / STRUCTURAL ORDER</span>
-									<span>BHOPAL TECH PARK NEXUS</span>
+								{/* Photographic Metadata Badge & Interactive Slide Indicators */}
+								<div className="absolute bottom-4 left-4 right-4 flex flex-col gap-2 bg-[#F7F7F4]/95 dark:bg-[#080808]/95 backdrop-blur-md border border-[#DEDEDA] dark:border-[#292929] p-3 text-[#111111] dark:text-[#F5F5F2]">
+									<div className="flex items-center justify-between text-[9px] font-mono tracking-widest uppercase">
+										<span>{HERO_SLIDES[activeSlide]?.plate}</span>
+										<span>{HERO_SLIDES[activeSlide]?.location}</span>
+									</div>
+									{/* Progress Dots / Bars */}
+									<div className="flex items-center space-x-1.5 pt-1">
+										{HERO_SLIDES.map((_, idx) => (
+											<button
+												key={`hero-dot-${idx}`}
+												type="button"
+												onClick={() => setActiveSlide(idx)}
+												className={`h-1 rounded-full transition-all duration-500 ${
+													activeSlide === idx
+														? "w-8 bg-[#111111] dark:bg-[#F5F5F2]"
+														: "w-2 bg-[#DEDEDA] dark:bg-[#404040] hover:bg-[#888888]"
+												}`}
+												title={`View Plate 0${idx + 1}`}
+											/>
+										))}
+									</div>
 								</div>
 							</motion.div>
 						</div>
