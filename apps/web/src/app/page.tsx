@@ -39,9 +39,9 @@ const IMAGERY = {
 	expandingLogistics:
 		"https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=2000&q=85",
 	spatialDepot:
-		"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80",
+		"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1600&q=80",
 	precisionWorkspace:
-		"https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80",
+		"https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80",
 	centralIndiaHorizon:
 		"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1800&q=80",
 };
@@ -690,12 +690,27 @@ export default function HomePage() {
 						</p>
 					</div>
 
-					{/* Editorial Sequence of Disciplines */}
+					{/* Editorial Sequence of Disciplines (Scroll-Triggered Directional Reveal) */}
 					{DISCIPLINES.map((item, index) => {
 						const isEven = index % 2 === 0;
 						return (
-							<div
+							<motion.div
 								key={item.number}
+								initial={{
+									opacity: 0,
+									x: prefersReducedMotion ? 0 : (isEven ? -60 : 60),
+									y: 20,
+								}}
+								whileInView={{
+									opacity: 1,
+									x: 0,
+									y: 0,
+								}}
+								viewport={{ once: false, amount: 0.25 }}
+								transition={{
+									duration: 0.95,
+									ease: [0.16, 1, 0.3, 1],
+								}}
 								className={`grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center ${
 									isEven ? "" : "lg:flex-row-reverse"
 								}`}
@@ -703,14 +718,14 @@ export default function HomePage() {
 								{/* Photographic Plate */}
 								<div className={`lg:col-span-7 ${isEven ? "lg:order-1" : "lg:order-2"}`}>
 									<div
-										className={`relative w-full ${item.aspect} overflow-hidden border border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111] group`}
+										className={`relative w-full ${item.aspect} overflow-hidden border border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111] group shadow-sm`}
 									>
 										<Image
 											src={item.image}
 											alt={item.title}
 											fill
 											sizes="(max-width: 1024px) 100vw, 58vw"
-											className="object-cover saturate-[1.14] contrast-[1.04] transition-transform duration-700 group-hover:scale-105"
+											className="object-cover saturate-[1.18] contrast-[1.04] transition-transform duration-700 group-hover:scale-105"
 										/>
 										<div className="absolute bottom-3 left-3 text-[9px] font-mono tracking-widest uppercase bg-[#F7F7F4]/90 dark:bg-[#080808]/90 px-2.5 py-1 text-[#111111] dark:text-[#F5F5F2] border border-[#DEDEDA] dark:border-[#292929]">
 											{item.coordinates}
@@ -745,7 +760,7 @@ export default function HomePage() {
 										))}
 									</ul>
 								</div>
-							</div>
+							</motion.div>
 						);
 					})}
 				</div>
