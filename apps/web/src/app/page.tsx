@@ -728,9 +728,15 @@ export default function HomePage() {
 											className="object-cover contrast-[1.04] saturate-[1.18] transition-transform duration-700 group-hover:scale-105"
 										/>
 
-										{/* Secondary Image — Wipes in from Left on Hover */}
+										{/* Secondary Image — Directional Wipe on Hover (Left-to-Right for left images, Right-to-Left for right images) */}
 										{item.hoverImage && (
-											<div className="pointer-events-none absolute inset-0 z-10 transition-[clip-path] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] [clip-path:inset(0_100%_0_0)] group-hover:[clip-path:inset(0_0_0_0)]">
+											<div
+												className={`pointer-events-none absolute inset-0 z-10 transition-[clip-path] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+													isEven
+														? "[clip-path:inset(0_100%_0_0)] group-hover:[clip-path:inset(0_0_0_0)]"
+														: "[clip-path:inset(0_0_0_100%)] group-hover:[clip-path:inset(0_0_0_0)]"
+												}`}
+											>
 												<Image
 													src={item.hoverImage}
 													alt={`${item.title} — Operational Perspective`}
@@ -739,7 +745,11 @@ export default function HomePage() {
 													className="object-cover contrast-[1.05] saturate-[1.2] transition-transform duration-700 group-hover:scale-105"
 												/>
 												{/* Illuminated Vertical Scanline at Wipe Leading Edge */}
-												<div className="absolute top-0 right-0 bottom-0 w-[2px] bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.9)]" />
+												<div
+													className={`absolute top-0 bottom-0 w-[2px] bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.9)] ${
+														isEven ? "right-0" : "left-0"
+													}`}
+												/>
 											</div>
 										)}
 
