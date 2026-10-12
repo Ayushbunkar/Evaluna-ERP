@@ -15,140 +15,117 @@ import {
 import {
 	ArrowDown,
 	ArrowRight,
-	Building2,
-	Check,
+	ArrowUpRight,
+	ChevronRight,
 	Compass,
-	Eye,
 	Globe,
-	Layers,
 	MapPin,
 	Menu,
 	Minus,
-	Mountain,
-	MoveRight,
-	Phone,
 	Plus,
-	ShieldCheck,
-	Sparkles,
-	Sun,
-	Moon,
+	Shield,
+	Terminal,
 	X,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 
-// ── Editorial Work Showcase Data ──
-const CAPABILITIES = [
+// ── Photographic Curation (High-Resolution Architectural & Spatial Series) ──
+const IMAGERY = {
+	heroStructure:
+		"https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=85",
+	identityFacade:
+		"https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1600&q=80",
+	expandingLogistics:
+		"https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=85",
+	spatialDepot:
+		"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80",
+	precisionWorkspace:
+		"https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80",
+	centralIndiaHorizon:
+		"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1800&q=80",
+};
+
+// ── Disciplines & Capabilities (Editorial image-led layout) ──
+const DISCIPLINES = [
 	{
 		number: "01",
-		title: "Commerce & Retail Infrastructure",
-		tagline: "High-throughput transaction systems",
+		title: "Spatial Logistics & Multi-Warehouse Control",
+		tagline: "Synchronized physical fulfillment across trade corridors",
 		description:
-			"Resilient point-of-sale architectures, real-time inventory reconciliation, and offline-first transactional reliability engineered for retail networks across Madhya Pradesh.",
-		stat: "0.2s",
-		statLabel: "Receipt sync latency",
-		highlights: [
-			"Offline-first POS ledger synchronization",
-			"Multi-tier GST compliant taxation engine",
-			"Real-time sales velocity analytics",
+			"We architect high-fidelity inventory operating systems connecting regional transit centers. Automated First-Expired-First-Out (FEFO) picking, precise bin tracking, and discrepancy prevention designed specifically for central India’s distribution velocity.",
+		image: IMAGERY.spatialDepot,
+		aspect: "aspect-[16/10]",
+		details: [
+			"FEFO & FIFO physical picking rules",
+			"Central India multi-depot transit routing",
+			"Immutable chain-of-custody transfer slips",
 		],
-		badge: "Commercial Technology",
+		coordinates: "DEPOT HUB • 23.6300° N, 77.4320° E",
 	},
 	{
 		number: "02",
-		title: "Supply Chain & Multi-Warehouse Logistics",
-		tagline: "Intelligent warehousing & spatial tracking",
+		title: "High-Integrity Commerce & Transaction Engines",
+		tagline: "Deterministic checkout speed without connectivity dependencies",
 		description:
-			"Enterprise warehouse operations connecting automated receiving, First-Expired-First-Out (FEFO) batch allocation, and multi-depot distribution centered around Bhopal and Berasia.",
-		stat: "100%",
-		statLabel: "Batch audit traceability",
-		highlights: [
-			"FEFO & FIFO automated lot picking",
-			"Geofenced logistics & dispatch tracking",
-			"Discrepancy prevention & physical stock audits",
+			"Enterprise transaction platforms engineered to withstand network volatility. Client-side ledger caching guarantees retail billing moves at sub-second speeds, synchronizing quietly when regional connections restore.",
+		image: IMAGERY.precisionWorkspace,
+		aspect: "aspect-[4/3]",
+		details: [
+			"Zero-latency point-of-sale checkout",
+			"Fault-tolerant local ledger persistence",
+			"Automated multi-slab tax & GST calculations",
 		],
-		badge: "Logistics Operations",
+		coordinates: "COMMERCE NEXUS • BHOPAL METRO",
 	},
 	{
 		number: "03",
-		title: "Digital Systems & Custom Engineering",
-		tagline: "Purpose-built platforms for modern enterprise",
+		title: "Bespoke Digital Systems & Enterprise Governance",
+		tagline: "Purpose-built architectures with zero generic bloat",
 		description:
-			"Tailored digital software platforms, secure role-based workforce architectures, and integrated financial controls designed to scale regional enterprises with modern web precision.",
-		stat: "99.9%",
-		statLabel: "System reliability",
-		highlights: [
-			"Strict role-based access & audit trails",
-			"Cloud-native resilient infrastructure",
-			"End-to-end departmental integration",
+			"Tailored digital software platforms, secure role-based workforce architectures, and integrated financial controls designed to scale regional enterprises with architectural permanence.",
+		image: IMAGERY.identityFacade,
+		aspect: "aspect-[16/9]",
+		details: [
+			"Strict cryptographic audit trails",
+			"Multi-tier departmental authorization",
+			"High-density reporting and cashbook discipline",
 		],
-		badge: "Digital Platform",
+		coordinates: "HEADQUARTERS • VIDISHA ROAD",
 	},
 ];
 
-const PROCESS_STEPS = [
+// ── Working Philosophy (The Four Principles) ──
+const PRINCIPLES = [
 	{
 		number: "01",
-		title: "Discover & Understand",
-		subtitle: "Deep architectural immersion",
-		description:
-			"We listen, analyze real-world ground operations, and understand operational bottlenecks before writing a single line of architecture.",
+		title: "Listen to the Ground",
+		body: "True operational architecture begins on the unloading dock and checkout counter, not in abstract boardroom presentations. We spend time observing physical movement before writing software.",
 	},
 	{
 		number: "02",
-		title: "Architect & Model",
-		subtitle: "Resilient systems design",
-		description:
-			"Designing high-reliability data models, intuitive human workflows, and offline-tolerant failover patterns.",
+		title: "Reject Ephemeral Fads",
+		body: "We deliberately avoid decorative trends and bloated dependencies. We choose tested engineering foundations, strict typing, and minimalist ergonomics that endure over decades.",
 	},
 	{
 		number: "03",
-		title: "Engineer & Validate",
-		subtitle: "Precision implementation",
-		description:
-			"Crafting robust codebases backed by rigorous automated verification, strict typing, and uncompromising speed.",
+		title: "Honor the Geography",
+		body: "Designing in central India requires accounting for real-world realities: intermittent connectivity, dust, temperature, and specific supply chain corridors linking Berasia to national transit routes.",
 	},
 	{
 		number: "04",
-		title: "Deploy & Elevate",
-		subtitle: "Long-term partnership",
-		description:
-			"Deploying alongside teams in Bhopal and central India, continuously refining workflows as regional enterprise scales.",
+		title: "Stewardship Across Cycles",
+		body: "Our responsibility does not conclude at deployment. We stand alongside operational teams through seasonal spikes, audits, and decades of steady commercial evolution.",
 	},
 ];
 
-const VALUES = [
-	{
-		title: "Built with Purpose",
-		description:
-			"Every system we engineer exists to solve real human workflow challenges, eliminating operational chaos with clarity.",
-	},
-	{
-		title: "Grounded in Craft",
-		description:
-			"We reject generic off-the-shelf templates in favor of deeply considered architectural rigor and aesthetic elegance.",
-	},
-	{
-		title: "Regional Pride & Proximity",
-		description:
-			"Deeply rooted in the heart of Madhya Pradesh, delivering global-tier digital craftsmanship with local accountability.",
-	},
-	{
-		title: "Uncompromising Reliability",
-		description:
-			"Zero tolerance for downtime, lost data, or disconnected teams. Our platforms are built to run without interruption.",
-	},
-];
-
-export default function PremiumHomePage() {
-	const { theme, setTheme } = useTheme();
-	const prefersReducedMotion = useReducedMotion();
-	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+export default function HomePage() {
 	const [scrolled, setScrolled] = useState(false);
-	const [activeProcess, setActiveProcess] = useState(0);
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [activeAccordion, setActiveAccordion] = useState<number | null>(0);
+	const prefersReducedMotion = useReducedMotion();
 
-	// Scroll position listener for sticky nav styling
+	// Scroll listener for navigation elevation
 	useEffect(() => {
 		const handleScroll = () => {
 			setScrolled(window.scrollY > 40);
@@ -157,197 +134,219 @@ export default function PremiumHomePage() {
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
-	// Hero mouse perspective coordinates
+	// Pointer-responsive subtle depth for Hero on desktop
 	const mouseX = useMotionValue(0);
 	const mouseY = useMotionValue(0);
-	const springX = useSpring(mouseX, { stiffness: 120, damping: 20 });
-	const springY = useSpring(mouseY, { stiffness: 120, damping: 20 });
+	const springX = useSpring(mouseX, { stiffness: 45, damping: 25 });
+	const springY = useSpring(mouseY, { stiffness: 45, damping: 25 });
 
 	const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-		if (prefersReducedMotion) return;
-		const rect = e.currentTarget.getBoundingClientRect();
-		const x = (e.clientX - rect.left) / rect.width - 0.5;
-		const y = (e.clientY - rect.top) / rect.height - 0.5;
-		mouseX.set(x * 20);
-		mouseY.set(y * 20);
+		if (prefersReducedMotion || typeof window === "undefined" || window.innerWidth < 1024) return;
+		const { clientX, clientY } = e;
+		const { innerWidth, innerHeight } = window;
+		const xPos = (clientX / innerWidth - 0.5) * 16;
+		const yPos = (clientY / innerHeight - 0.5) * 16;
+		mouseX.set(xPos);
+		mouseY.set(yPos);
 	};
 
-	const handleMouseLeave = () => {
-		mouseX.set(0);
-		mouseY.set(0);
-	};
+	// Scroll-driven expansion for Section D
+	const expansionContainerRef = useRef<HTMLDivElement>(null);
+	const { scrollYProgress: expansionProgress } = useScroll({
+		target: expansionContainerRef,
+		offset: ["start end", "end start"],
+	});
+	const expandWidth = useTransform(
+		expansionProgress,
+		[0.1, 0.55],
+		["84%", "100%"],
+	);
+	const expandScale = useTransform(
+		expansionProgress,
+		[0.1, 0.55],
+		[0.94, 1.0],
+	);
+	const expandRadius = useTransform(
+		expansionProgress,
+		[0.1, 0.55],
+		["16px", "0px"],
+	);
+
+	// Section 2 Parallax
+	const identityRef = useRef<HTMLDivElement>(null);
+	const { scrollYProgress: identityProgress } = useScroll({
+		target: identityRef,
+		offset: ["start end", "end start"],
+	});
+	const identityImageY = useTransform(identityProgress, [0, 1], ["-8%", "8%"]);
 
 	return (
 		<div
-			className="min-h-screen bg-[#F8F5EF] text-[#302720] dark:bg-[#191613] dark:text-[#F4EDE3] transition-colors duration-500 selection:bg-[#B87957]/20 selection:text-[#302720] dark:selection:text-[#F4EDE3] font-sans antialiased overflow-x-hidden"
-			style={{
-				// Warm architectural palette token targets
-				// Light: bg #F8F5EF, alt #EFE7DC, text #302720, muted #776A5D, accent #B87957, border #DED3C5, card #FFFCF7
-				// Dark:  bg #191613, alt #231E19, text #F4EDE3, muted #B5A695, accent #C99170, border #40362D, card #211C17
-			}}
+			onMouseMove={handleMouseMove}
+			className="min-h-screen bg-[#F7F7F4] dark:bg-[#080808] text-[#111111] dark:text-[#F5F5F2] selection:bg-[#111111] selection:text-[#F7F7F4] dark:selection:bg-[#F5F5F2] dark:selection:text-[#080808] transition-colors duration-500 font-sans"
 		>
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION A — REFINED EDITORIAL NAVIGATION
+			    SECTION A — REFINED MONOCHROME NAVIGATION
 			══════════════════════════════════════════════════════════════ */}
 			<header
-				className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+				className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
 					scrolled
-						? "bg-[#F8F5EF]/85 dark:bg-[#191613]/85 backdrop-blur-md border-b border-[#DED3C5] dark:border-[#40362D] py-3.5 shadow-xs"
+						? "bg-[#F7F7F4]/90 dark:bg-[#080808]/90 backdrop-blur-md border-b border-[#DEDEDA] dark:border-[#292929] py-3.5"
 						: "bg-transparent py-6"
 				}`}
 			>
 				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 flex items-center justify-between">
-					{/* Wordmark & Brand Identity */}
+					{/* Brand Lockup */}
 					<Link
 						href="/"
-						className="group flex items-center space-x-3 transition-opacity hover:opacity-90"
+						className="group flex items-center space-x-3.5 transition-opacity hover:opacity-80"
+						title="Evaluna — Home"
 					>
 						<img
 							src="/logo.jpg"
 							alt="Evaluna"
-							className="h-9 w-9 rounded-lg object-cover shadow-xs ring-1 ring-[#DED3C5] dark:ring-[#40362D] transition-transform duration-300 group-hover:scale-105"
+							className="h-8 w-8 rounded-md object-cover border border-[#DEDEDA] dark:border-[#292929] transition-transform duration-300 group-hover:scale-105"
 						/>
 						<div className="flex flex-col">
-							<span className="text-lg font-bold tracking-tight text-[#302720] dark:text-[#F4EDE3] font-serif">
+							<span className="text-base font-semibold tracking-tight text-[#111111] dark:text-[#F5F5F2] uppercase font-serif">
 								EVALUNA
 							</span>
-							<span className="text-[10px] tracking-widest uppercase text-[#776A5D] dark:text-[#B5A695] font-mono -mt-0.5">
-								Technologies • Bhopal
+							<span className="text-[9px] tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0] font-mono -mt-0.5">
+								Bhopal & Berasia • 23.26° N
 							</span>
 						</div>
 					</Link>
 
 					{/* Desktop Navigation Links */}
-					<nav className="hidden md:flex items-center space-x-8 text-xs tracking-wider uppercase font-medium text-[#776A5D] dark:text-[#B5A695]">
+					<nav className="hidden md:flex items-center space-x-8 text-[11px] tracking-widest uppercase font-mono text-[#666666] dark:text-[#A3A3A0]">
 						<Link
-							href="#about"
-							className="transition-colors hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+							href="#identity"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							About
+							01 Identity
 						</Link>
 						<Link
-							href="#capabilities"
-							className="transition-colors hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+							href="#disciplines"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							Capabilities
+							02 Disciplines
 						</Link>
 						<Link
 							href="#philosophy"
-							className="transition-colors hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							Philosophy
+							03 Philosophy
 						</Link>
 						<Link
-							href="#presence"
-							className="transition-colors hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+							href="#geography"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							Presence
+							04 Geography
 						</Link>
 						<Link
-							href="/contact"
-							className="transition-colors hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+							href="#dialogue"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							Contact
+							05 Dialogue
 						</Link>
 					</nav>
 
-					{/* Controls: Locale, Theme & Primary CTA */}
-					<div className="hidden sm:flex items-center space-x-3">
+					{/* Right Utility Actions */}
+					<div className="hidden md:flex items-center space-x-4">
+						<LocaleSwitcher />
 						<ThemeToggle />
 						<Link
 							href="/login"
-							className="text-xs font-mono uppercase tracking-wider text-[#776A5D] dark:text-[#B5A695] px-3 py-2 hover:text-[#302720] dark:hover:text-[#F4EDE3] transition-colors"
+							className="text-[11px] tracking-widest uppercase font-mono text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2] transition-colors px-2 py-1"
 						>
-							Portal
+							Sign-In
 						</Link>
 						<Link
-							href="/contact"
-							className="inline-flex items-center space-x-2 text-xs font-medium tracking-wide uppercase px-4 py-2.5 rounded-full bg-[#B87957] hover:bg-[#a66b4c] dark:bg-[#C99170] dark:hover:bg-[#b88060] text-white dark:text-[#191613] transition-all duration-300 shadow-xs hover:shadow-sm"
+							href="#dialogue"
+							className="text-xs uppercase tracking-wider font-mono px-4 py-2 border border-[#111111] dark:border-[#F5F5F2] text-[#111111] dark:text-[#F5F5F2] hover:bg-[#111111] hover:text-[#F7F7F4] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808] transition-all duration-200"
 						>
-							<span>Let’s Talk</span>
-							<ArrowRight className="h-3.5 w-3.5" />
+							Inquire
 						</Link>
 					</div>
 
-					{/* Mobile Menu Trigger */}
-					<div className="flex md:hidden items-center space-x-2">
+					{/* Mobile Menu Button */}
+					<div className="flex items-center space-x-2 md:hidden">
 						<ThemeToggle />
 						<button
 							type="button"
 							onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-							className="p-2 text-[#302720] dark:text-[#F4EDE3] hover:text-[#B87957] transition-colors"
-							aria-label="Toggle Navigation Menu"
+							className="p-2 text-[#111111] dark:text-[#F5F5F2] focus:outline-none"
+							aria-label="Toggle navigation menu"
 						>
 							{mobileMenuOpen ? (
-								<X className="h-5 w-5" />
+								<X className="h-6 w-6" />
 							) : (
-								<Menu className="h-5 w-5" />
+								<Menu className="h-6 w-6" />
 							)}
 						</button>
 					</div>
 				</div>
 
-				{/* Mobile Navigation Drawer */}
+				{/* Mobile Drawer */}
 				<AnimatePresence>
 					{mobileMenuOpen && (
 						<motion.div
 							initial={{ opacity: 0, height: 0 }}
 							animate={{ opacity: 1, height: "auto" }}
 							exit={{ opacity: 0, height: 0 }}
-							transition={{ duration: 0.3 }}
-							className="md:hidden border-b border-[#DED3C5] dark:border-[#40362D] bg-[#F8F5EF] dark:bg-[#191613] px-6 py-6"
+							transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+							className="md:hidden border-b border-[#DEDEDA] dark:border-[#292929] bg-[#F7F7F4] dark:bg-[#080808] px-6 py-8 overflow-hidden"
 						>
-							<div className="flex flex-col space-y-4 text-sm font-medium uppercase tracking-wider text-[#776A5D] dark:text-[#B5A695]">
+							<div className="flex flex-col space-y-6 text-sm tracking-widest uppercase font-mono">
 								<Link
-									href="#about"
+									href="#identity"
 									onClick={() => setMobileMenuOpen(false)}
-									className="hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									About
+									01 Identity
 								</Link>
 								<Link
-									href="#capabilities"
+									href="#disciplines"
 									onClick={() => setMobileMenuOpen(false)}
-									className="hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									Capabilities
+									02 Disciplines
 								</Link>
 								<Link
 									href="#philosophy"
 									onClick={() => setMobileMenuOpen(false)}
-									className="hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									Philosophy
+									03 Philosophy
 								</Link>
 								<Link
-									href="#presence"
+									href="#geography"
 									onClick={() => setMobileMenuOpen(false)}
-									className="hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									Presence
+									04 Geography
 								</Link>
 								<Link
-									href="/contact"
+									href="#dialogue"
 									onClick={() => setMobileMenuOpen(false)}
-									className="hover:text-[#302720] dark:hover:text-[#F4EDE3]"
+									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									Contact
+									05 Dialogue
 								</Link>
-								<Link
-									href="/login"
-									onClick={() => setMobileMenuOpen(false)}
-									className="hover:text-[#302720] dark:hover:text-[#F4EDE3]"
-								>
-									Employee Portal
-								</Link>
-								<div className="pt-2">
+								<div className="pt-4 border-t border-[#DEDEDA] dark:border-[#292929] flex flex-col space-y-3">
 									<Link
-										href="/contact"
+										href="/login"
 										onClick={() => setMobileMenuOpen(false)}
-										className="inline-flex w-full justify-center items-center space-x-2 text-xs font-medium tracking-wide uppercase px-4 py-3 rounded-full bg-[#B87957] text-white dark:bg-[#C99170] dark:text-[#191613]"
+										className="text-xs uppercase tracking-wider font-mono text-[#666666] dark:text-[#A3A3A0]"
 									>
-										<span>Let’s Talk</span>
-										<ArrowRight className="h-3.5 w-3.5" />
+										Employee Sign-In
+									</Link>
+									<Link
+										href="/docs"
+										onClick={() => setMobileMenuOpen(false)}
+										className="text-xs uppercase tracking-wider font-mono text-[#666666] dark:text-[#A3A3A0]"
+									>
+										Documentation & Manuals
 									</Link>
 								</div>
 							</div>
@@ -357,201 +356,182 @@ export default function PremiumHomePage() {
 			</header>
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION B — CINEMATIC HERO (Depth, Perspective & Editorial)
+			    SECTION B — CINEMATIC EDITORIAL HERO
 			══════════════════════════════════════════════════════════════ */}
-			<section
-				onMouseMove={handleMouseMove}
-				onMouseLeave={handleMouseLeave}
-				className="relative min-h-[92vh] sm:min-h-screen pt-32 pb-20 flex flex-col justify-between overflow-hidden"
-			>
-				{/* Ambient Warm Architectural Backdrop Glow */}
-				<div className="pointer-events-none absolute inset-0 -z-10">
-					<div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[550px] w-[900px] rounded-full bg-[#B87957]/10 dark:bg-[#C99170]/10 blur-[130px]" />
-					<div className="absolute bottom-10 right-10 h-[380px] w-[380px] rounded-full bg-[#EFE7DC] dark:bg-[#231E19] blur-[100px]" />
-				</div>
-
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 w-full flex-1 flex flex-col justify-center">
-					{/* Location badge */}
+			<section className="relative pt-32 sm:pt-40 lg:pt-44 pb-20 sm:pb-28 lg:pb-36 border-b border-[#DEDEDA] dark:border-[#292929] overflow-hidden">
+				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
+					{/* Editorial Header Metadata */}
 					<motion.div
 						initial={{ opacity: 0, y: 15 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.6 }}
-						className="inline-flex items-center space-x-2 text-xs font-mono tracking-widest uppercase text-[#B87957] dark:text-[#C99170] mb-6"
+						transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+						className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-10 border-b border-[#DEDEDA] dark:border-[#292929] text-[10px] sm:text-[11px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]"
 					>
-						<span className="h-1.5 w-1.5 rounded-full bg-[#B87957] dark:bg-[#C99170]" />
-						<span>Bhopal & Berasia • Madhya Pradesh, India</span>
+						<span className="flex items-center space-x-2">
+							<span className="h-1.5 w-1.5 rounded-full bg-[#111111] dark:bg-[#F5F5F2]" />
+							<span>INDEX 01 / ARCHITECTURAL IDENTITY</span>
+						</span>
+						<span>CENTRAL INDIA REGIONAL HUB • BHOPAL & BERASIA</span>
+						<span className="hidden lg:inline">COORDINATES: 23.2599° N, 77.4126° E</span>
 					</motion.div>
 
-					{/* Editorial Headline */}
-					<div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-end">
-						<motion.div
-							initial={{ opacity: 0, y: 25 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ duration: 0.8, delay: 0.1 }}
-							className="lg:col-span-8"
-						>
-							<h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-serif font-normal tracking-tight text-[#302720] dark:text-[#F4EDE3] leading-[1.05]">
-								Built with Purpose.
+					{/* Asymmetric Typography & Image Reveal Composition */}
+					<div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 pt-12 lg:pt-16 items-end">
+						{/* Left: Oversized Editorial Statement */}
+						<div className="lg:col-span-7 space-y-8 sm:space-y-10">
+							<motion.h1
+								initial={{ opacity: 0, y: 30 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+								className="text-5xl sm:text-7xl lg:text-8xl xl:text-9xl font-normal tracking-[-0.035em] text-[#111111] dark:text-[#F5F5F2] leading-[0.92] font-serif"
+							>
+								A clearer
 								<br />
-								<span className="italic font-light text-[#B87957] dark:text-[#C99170]">
-									Designed for
-								</span>{" "}
-								What’s Next.
-							</h1>
-						</motion.div>
+								<span className="italic font-light">way forward.</span>
+							</motion.h1>
 
-						<motion.div
-							initial={{ opacity: 0, y: 25 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ duration: 0.8, delay: 0.25 }}
-							className="lg:col-span-4 lg:pb-3 space-y-6"
-						>
-							<p className="text-base sm:text-lg text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-								Evaluna is a technology company engineered around craft, operational
-								resilience, and modern enterprise software. Rooted in central India,
-								creating digital systems that scale with poise.
-							</p>
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
+								className="max-w-xl space-y-6 pt-2"
+							>
+								<p className="text-base sm:text-lg text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+									Evaluna designs physical commerce systems, spatial logistics, and digital infrastructure built for permanence. Rooted in the central Indian transit corridor of Bhopal and Berasia, we build clarity into complex human operations.
+								</p>
 
-							<div className="flex flex-wrap items-center gap-3 pt-1">
-								<Link
-									href="#about"
-									className="inline-flex items-center space-x-2 text-xs uppercase tracking-wider font-semibold px-6 py-3.5 rounded-full bg-[#302720] dark:bg-[#F4EDE3] text-[#F8F5EF] dark:text-[#191613] hover:bg-[#B87957] dark:hover:bg-[#C99170] dark:hover:text-white transition-all shadow-sm"
-								>
-									<span>Discover Evaluna</span>
-									<ArrowRight className="h-3.5 w-3.5" />
-								</Link>
-								<Link
-									href="#capabilities"
-									className="inline-flex items-center space-x-2 text-xs uppercase tracking-wider font-semibold px-6 py-3.5 rounded-full border border-[#DED3C5] dark:border-[#40362D] text-[#302720] dark:text-[#F4EDE3] hover:bg-[#EFE7DC] dark:hover:bg-[#231E19] transition-all"
-								>
-									<span>Explore Our Work</span>
-								</Link>
-							</div>
-						</motion.div>
-					</div>
-
-					{/* Hero Layered Composition (3D depth without heavy WebGL) */}
-					<motion.div
-						style={{ x: springX, y: springY }}
-						initial={{ opacity: 0, y: 30 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 1, delay: 0.35 }}
-						className="mt-14 sm:mt-16 relative"
-					>
-						<div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] shadow-lg">
-							{/* Layer 1: Warm Architectural Composition Banner */}
-							<div className="h-64 sm:h-80 md:h-[420px] w-full bg-gradient-to-br from-[#EFE7DC] via-[#F8F5EF] to-[#DED3C5] dark:from-[#231E19] dark:via-[#191613] dark:to-[#40362D] relative flex items-center justify-between p-8 sm:p-12 overflow-hidden">
-								{/* Subtle geometric lines */}
-								<div className="absolute inset-0 opacity-15 dark:opacity-25 bg-[radial-gradient(#B87957_1px,transparent_1px)] [background-size:24px_24px]" />
-
-								<div className="relative z-10 max-w-lg space-y-4">
-									<span className="inline-block px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-widest bg-[#B87957]/10 dark:bg-[#C99170]/15 text-[#B87957] dark:text-[#C99170]">
-										Architectural Precision
-									</span>
-									<h3 className="text-2xl sm:text-4xl font-serif text-[#302720] dark:text-[#F4EDE3] leading-snug">
-										Where grounded engineering meets enduring aesthetic restraint.
-									</h3>
-									<p className="text-xs sm:text-sm text-[#776A5D] dark:text-[#B5A695] font-sans">
-										Designed in Vidisha Road, Berasia & Bhopal Technology Park to serve real business operations with modern digital clarity.
-									</p>
+								<div className="flex flex-wrap items-center gap-4 pt-2">
+									<Link
+										href="#identity"
+										className="group inline-flex items-center space-x-3 text-xs uppercase tracking-wider font-mono px-6 py-3.5 bg-[#111111] dark:bg-[#F5F5F2] text-[#F7F7F4] dark:text-[#080808] transition-transform duration-200 hover:scale-[1.02]"
+									>
+										<span>Explore The Work</span>
+										<ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+									</Link>
+									<Link
+										href="#dialogue"
+										className="inline-flex items-center space-x-2 text-xs uppercase tracking-wider font-mono px-6 py-3.5 border border-[#DEDEDA] dark:border-[#292929] text-[#111111] dark:text-[#F5F5F2] hover:border-[#111111] dark:hover:border-[#F5F5F2] transition-colors"
+									>
+										<span>Direct Inquiry</span>
+									</Link>
 								</div>
-
-								{/* Decorative architectural layout element */}
-								<div className="hidden md:flex flex-col items-end space-y-3 relative z-10 text-right font-mono text-[11px] text-[#776A5D] dark:text-[#B5A695]">
-									<div className="px-4 py-2 rounded-xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7]/80 dark:bg-[#211C17]/80 backdrop-blur-xs">
-										<span className="block font-bold text-[#302720] dark:text-[#F4EDE3]">
-											CENTRAL INDIA HUB
-										</span>
-										<span>Lat 23.63° N / Long 77.43° E</span>
-									</div>
-									<div className="px-4 py-2 rounded-xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7]/80 dark:bg-[#211C17]/80 backdrop-blur-xs">
-										<span className="block font-bold text-[#B87957] dark:text-[#C99170]">
-											RELIABILITY TARGET
-										</span>
-										<span>Sub-second transactional state</span>
-									</div>
-								</div>
-							</div>
-
-							{/* Overlapping Bottom Ribbon */}
-							<div className="border-t border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] px-6 sm:px-10 py-4 flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-[#776A5D] dark:text-[#B5A695]">
-								<div className="flex items-center space-x-6">
-									<span>01 / IDENTITY</span>
-									<span>02 / INFRASTRUCTURE</span>
-									<span>03 / VERIFIED SYSTEMS</span>
-								</div>
-								<div className="flex items-center space-x-2 text-[#B87957] dark:text-[#C99170]">
-									<span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-									<span>OPERATIONAL GROUND STATE ACTIVE</span>
-								</div>
-							</div>
+							</motion.div>
 						</div>
-					</motion.div>
-				</div>
 
-				{/* Minimal Scroll Indicator */}
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 w-full pt-8 flex items-center justify-between text-xs font-mono text-[#776A5D] dark:text-[#B5A695]">
-					<span className="hidden sm:inline">SCROLL TO EXPLORE STORY</span>
-					<div className="flex items-center space-x-2 animate-bounce">
-						<ArrowDown className="h-3.5 w-3.5 text-[#B87957] dark:text-[#C99170]" />
+						{/* Right: Architectural Photographic Plate (Masked Reveal & Desktop Pointer Shift) */}
+						<div className="lg:col-span-5 relative">
+							<motion.div
+								style={{
+									x: springX,
+									y: springY,
+								}}
+								className="relative w-full aspect-[4/5] sm:aspect-[1/1] lg:aspect-[4/5] overflow-hidden border border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111]"
+							>
+								{/* Clip-path entrance mask */}
+								<motion.div
+									initial={{ clipPath: "inset(100% 0% 0% 0%)" }}
+									animate={{ clipPath: "inset(0% 0% 0% 0%)" }}
+									transition={{ duration: 1.3, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+									className="relative w-full h-full"
+								>
+									<Image
+										src={IMAGERY.heroStructure}
+										alt="Evaluna Architectural Structure & Form"
+										fill
+										priority
+										sizes="(max-width: 1024px) 100vw, 42vw"
+										className="object-cover grayscale contrast-[1.08] transition-transform duration-700 hover:scale-105"
+									/>
+									{/* Subtle tonal grain & overlay */}
+									<div className="absolute inset-0 bg-[#111111]/5 dark:bg-[#080808]/20 mix-blend-multiply pointer-events-none" />
+								</motion.div>
+
+								{/* Photographic Metadata Badge */}
+								<div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-[9px] font-mono tracking-widest uppercase bg-[#F7F7F4]/90 dark:bg-[#080808]/90 backdrop-blur-sm border border-[#DEDEDA] dark:border-[#292929] px-3 py-2 text-[#111111] dark:text-[#F5F5F2]">
+									<span>PLATE 01 / STRUCTURAL ORDER</span>
+									<span>BHOPAL TECH PARK NEXUS</span>
+								</div>
+							</motion.div>
+						</div>
 					</div>
-					<span>EST. MADHYA PRADESH</span>
+
+					{/* Bottom Minimal Scroll Indicator */}
+					<div className="pt-16 sm:pt-20 flex items-center justify-between text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]">
+						<span className="flex items-center space-x-2">
+							<ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+							<span>SCROLL TO UNCOVER</span>
+						</span>
+						<span className="hidden sm:inline">ESTABLISHED FOR ENDURANCE</span>
+					</div>
 				</div>
 			</section>
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION C — BRAND INTRODUCTION / ABOUT EVALUNA
+			    SECTION C — COMPANY IDENTITY (Masked Scroll Reveal)
 			══════════════════════════════════════════════════════════════ */}
 			<section
-				id="about"
-				className="py-24 sm:py-32 border-t border-[#DED3C5] dark:border-[#40362D] bg-[#EFE7DC] dark:bg-[#231E19] transition-colors"
+				id="identity"
+				ref={identityRef}
+				className="py-24 sm:py-32 lg:py-40 border-b border-[#DEDEDA] dark:border-[#292929] relative overflow-hidden"
 			>
 				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
 					<div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-						{/* Editorial Left Column */}
-						<div className="lg:col-span-5 space-y-6">
-							<span className="text-xs font-mono uppercase tracking-widest text-[#B87957] dark:text-[#C99170] block">
-								01 — COMPANY PROFILE
-							</span>
-							<h2 className="text-3xl sm:text-5xl font-serif text-[#302720] dark:text-[#F4EDE3] leading-tight">
-								A company created to bring architectural clarity to commerce.
+						{/* Left: Identity Manifesto */}
+						<div className="lg:col-span-5 space-y-8 sticky top-28">
+							<div className="text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0] flex items-center space-x-2">
+								<span className="h-1.5 w-1.5 rounded-full bg-[#111111] dark:bg-[#F5F5F2]" />
+								<span>02 / THE PREMISE</span>
+							</div>
+
+							<h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#111111] dark:text-[#F5F5F2] font-normal leading-[1.08] tracking-[-0.02em]">
+								Software is empty without physical reality.
 							</h2>
-							<div className="h-px w-24 bg-[#B87957] dark:bg-[#C99170]" />
-							<p className="text-sm font-mono text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-								Evaluna Technologies Pvt. Ltd. operates at the intersection of robust regional supply chains and modern software systems.
-							</p>
+
+							<div className="space-y-4 text-sm sm:text-base text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+								<p>
+									Most commercial software is built in insulation—designed in air-conditioned offices for abstract metrics. When tested by warehouse dust, spotty cellular networks, or rural retail counter rushes, it stumbles.
+								</p>
+								<p>
+									Evaluna operates differently. Founded with deep operational ties to Bhopal and Berasia, our systems are born from active freight terminals, wholesale grain corridors, and real human transaction desks.
+								</p>
+							</div>
+
+							<div className="pt-6 border-t border-[#DEDEDA] dark:border-[#292929] space-y-4 font-mono text-xs">
+								<div className="flex items-center justify-between text-[#111111] dark:text-[#F5F5F2]">
+									<span>CENTRAL LOGISTICS HEADQUARTERS</span>
+									<span className="text-[#666666] dark:text-[#A3A3A0]">VIDISHA ROAD, BERASIA</span>
+								</div>
+								<div className="flex items-center justify-between text-[#111111] dark:text-[#F5F5F2]">
+									<span>CORE METROPOLITAN PRESENCE</span>
+									<span className="text-[#666666] dark:text-[#A3A3A0]">BHOPAL, MADHYA PRADESH</span>
+								</div>
+								<div className="flex items-center justify-between text-[#111111] dark:text-[#F5F5F2]">
+									<span>ARCHITECTURAL STANDARD</span>
+									<span className="text-[#666666] dark:text-[#A3A3A0]">DETERMINISTIC & IMMUTABLE</span>
+								</div>
+							</div>
 						</div>
 
-						{/* Narrative Right Column */}
-						<div className="lg:col-span-7 space-y-8">
-							<p className="text-lg sm:text-xl text-[#302720] dark:text-[#F4EDE3] leading-relaxed font-light">
-								Founded with deep roots in central India, Evaluna was established to solve real friction in regional distribution, wholesale commerce, and enterprise logistics. We build resilient operational infrastructure that allows businesses to operate without interruption, from retail storefronts to multi-acre distribution depots.
-							</p>
+						{/* Right: Editorial Masked Image Plate with Parallax */}
+						<div className="lg:col-span-7 space-y-6">
+							<div className="relative w-full aspect-[4/3] sm:aspect-[16/10] overflow-hidden border border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111]">
+								<motion.div
+									style={{ y: identityImageY }}
+									className="relative w-full h-[120%] -top-[10%]"
+								>
+									<Image
+										src={IMAGERY.identityFacade}
+										alt="Evaluna Physical Architectural Form"
+										fill
+										sizes="(max-width: 1024px) 100vw, 58vw"
+										className="object-cover grayscale contrast-[1.05]"
+									/>
+								</motion.div>
+							</div>
 
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-								<div className="p-6 rounded-2xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] space-y-2">
-									<span className="text-xs font-mono text-[#B87957] dark:text-[#C99170] uppercase">
-										Grounded Roots
-									</span>
-									<h4 className="text-base font-semibold text-[#302720] dark:text-[#F4EDE3]">
-										Bhopal & Berasia
-									</h4>
-									<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-										Directly present along Vidisha Road, Berasia and Bhopal Tech Park, understanding ground reality rather than detached theory.
-									</p>
-								</div>
-
-								<div className="p-6 rounded-2xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] space-y-2">
-									<span className="text-xs font-mono text-[#B87957] dark:text-[#C99170] uppercase">
-										Engineering Standard
-									</span>
-									<h4 className="text-base font-semibold text-[#302720] dark:text-[#F4EDE3]">
-										Zero Compromise
-									</h4>
-									<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-										Combining offline-first local performance with cloud enterprise synchronization, built for high transaction volume.
-									</p>
-								</div>
+							<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]">
+								<span>FIG. 02 — PHYSICAL SUBSTRATE & ARCHITECTURAL ANCHOR</span>
+								<span>LAT: 23.2599° N • ELEVATION: 527M</span>
 							</div>
 						</div>
 					</div>
@@ -559,446 +539,382 @@ export default function PremiumHomePage() {
 			</section>
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION D — WHAT EVALUNA DOES (Capabilities & Systems)
+			    SECTION D — SIGNATURE SCROLL-EXPANDING PHOTOGRAPHIC CANVAS
 			══════════════════════════════════════════════════════════════ */}
 			<section
-				id="capabilities"
-				className="py-24 sm:py-32 bg-[#F8F5EF] dark:bg-[#191613] transition-colors"
+				ref={expansionContainerRef}
+				className="py-28 sm:py-36 lg:py-44 border-b border-[#DEDEDA] dark:border-[#292929] relative overflow-hidden"
 			>
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-16">
-					{/* Section Header */}
-					<div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-						<div className="space-y-4 max-w-2xl">
-							<span className="text-xs font-mono uppercase tracking-widest text-[#B87957] dark:text-[#C99170] block">
-								02 — CAPABILITIES & SOLUTIONS
+				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 mb-12 sm:mb-16">
+					<div className="max-w-2xl space-y-4">
+						<span className="text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]">
+							03 / SCALE IN MOTION
+						</span>
+						<h2 className="text-3xl sm:text-5xl font-serif text-[#111111] dark:text-[#F5F5F2] font-normal leading-tight tracking-[-0.02em]">
+							Movement at the scale of real geography.
+						</h2>
+						<p className="text-sm sm:text-base text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+							Scale is not a server metric. It is the physical rhythm of goods arriving on trucks at sunrise, warehouse workers scanning pallets with precision, and transparent accounting closing at nightfall.
+						</p>
+					</div>
+				</div>
+
+				{/* Scroll-Driven Expanding Photographic Frame */}
+				<div className="w-full flex justify-center">
+					<motion.div
+						style={{
+							width: prefersReducedMotion ? "100%" : expandWidth,
+							scale: prefersReducedMotion ? 1 : expandScale,
+							borderRadius: prefersReducedMotion ? "0px" : expandRadius,
+						}}
+						className="relative aspect-[16/9] sm:aspect-[21/9] overflow-hidden border-y border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111]"
+					>
+						<Image
+							src={IMAGERY.expandingLogistics}
+							alt="Evaluna Spatial Logistics & Warehouse Architecture"
+							fill
+							sizes="100vw"
+							className="object-cover grayscale contrast-[1.10]"
+						/>
+						{/* Subtle gradient vignette */}
+						<div className="absolute inset-0 bg-gradient-to-t from-[#080808]/70 via-transparent to-transparent pointer-events-none" />
+
+						{/* Text overlay within expanding canvas */}
+						<div className="absolute bottom-6 sm:bottom-10 left-6 sm:left-12 right-6 sm:right-12 flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-white">
+							<div className="space-y-1">
+								<span className="text-[10px] font-mono tracking-widest uppercase opacity-75">
+									SYSTEM PERSPECTIVE
+								</span>
+								<h3 className="text-xl sm:text-3xl font-serif font-light tracking-tight">
+									Automated FEFO Lot Allocation & Multi-Warehouse Dispatch
+								</h3>
+							</div>
+							<span className="text-[10px] font-mono tracking-widest uppercase opacity-75 shrink-0">
+								BERASIA DISTRIBUTION CORRIDOR
 							</span>
-							<h2 className="text-3xl sm:text-5xl font-serif text-[#302720] dark:text-[#F4EDE3] leading-tight">
-								Engineered systems built for tangible operational reality.
+						</div>
+					</motion.div>
+				</div>
+			</section>
+
+			{/* ══════════════════════════════════════════════════════════════
+			    SECTION E — DISCIPLINES & CAPABILITIES (Asymmetric Editorial)
+			══════════════════════════════════════════════════════════════ */}
+			<section
+				id="disciplines"
+				className="py-24 sm:py-32 lg:py-40 border-b border-[#DEDEDA] dark:border-[#292929]"
+			>
+				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-24 sm:space-y-32">
+					{/* Section Header */}
+					<div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-[#DEDEDA] dark:border-[#292929]">
+						<div className="space-y-2">
+							<span className="text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]">
+								04 / DISCIPLINES
+							</span>
+							<h2 className="text-4xl sm:text-6xl font-serif text-[#111111] dark:text-[#F5F5F2] font-normal tracking-[-0.025em]">
+								What Evaluna engineers.
 							</h2>
 						</div>
-						<p className="text-xs sm:text-sm text-[#776A5D] dark:text-[#B5A695] max-w-md font-sans">
-							Our verified work encompasses transactional commerce, logistics routing, and bespoke enterprise systems engineered for stability and growth.
+						<p className="max-w-md text-xs sm:text-sm text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+							Three integrated pillars designed to replace operational chaos with quiet, uncompromising structural clarity.
 						</p>
 					</div>
 
-					{/* Capabilities Cards (Editorial Composition) */}
-					<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-						{CAPABILITIES.map((cap, i) => (
-							<motion.div
-								key={cap.number}
-								initial={{ opacity: 0, y: 20 }}
-								whileInView={{ opacity: 1, y: 0 }}
-								viewport={{ once: true }}
-								transition={{ duration: 0.6, delay: i * 0.15 }}
-								className="group rounded-3xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] p-8 flex flex-col justify-between hover:border-[#B87957] dark:hover:border-[#C99170] transition-all duration-300 shadow-xs hover:shadow-md"
+					{/* Editorial Sequence of Disciplines */}
+					{DISCIPLINES.map((item, index) => {
+						const isEven = index % 2 === 0;
+						return (
+							<div
+								key={item.number}
+								className={`grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center ${
+									isEven ? "" : "lg:flex-row-reverse"
+								}`}
 							>
-								<div className="space-y-6">
-									<div className="flex items-center justify-between border-b border-[#DED3C5]/60 dark:border-[#40362D]/60 pb-4">
-										<span className="font-mono text-sm text-[#B87957] dark:text-[#C99170]">
-											{cap.number}
+								{/* Photographic Plate */}
+								<div className={`lg:col-span-7 ${isEven ? "lg:order-1" : "lg:order-2"}`}>
+									<div
+										className={`relative w-full ${item.aspect} overflow-hidden border border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111] group`}
+									>
+										<Image
+											src={item.image}
+											alt={item.title}
+											fill
+											sizes="(max-width: 1024px) 100vw, 58vw"
+											className="object-cover grayscale contrast-[1.06] transition-transform duration-700 group-hover:scale-105"
+										/>
+										<div className="absolute bottom-3 left-3 text-[9px] font-mono tracking-widest uppercase bg-[#F7F7F4]/90 dark:bg-[#080808]/90 px-2.5 py-1 text-[#111111] dark:text-[#F5F5F2] border border-[#DEDEDA] dark:border-[#292929]">
+											{item.coordinates}
+										</div>
+									</div>
+								</div>
+
+								{/* Editorial Content Column */}
+								<div className={`lg:col-span-5 space-y-6 ${isEven ? "lg:order-2" : "lg:order-1"}`}>
+									<div className="flex items-center space-x-3 text-xs font-mono text-[#666666] dark:text-[#A3A3A0]">
+										<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">
+											[{item.number}]
 										</span>
-										<span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#EFE7DC] dark:bg-[#231E19] text-[#776A5D] dark:text-[#B5A695]">
-											{cap.badge}
-										</span>
+										<span className="h-px w-8 bg-[#DEDEDA] dark:bg-[#292929]" />
+										<span className="tracking-widest uppercase">{item.tagline}</span>
 									</div>
 
-									<div className="space-y-2">
-										<h3 className="text-xl font-serif font-bold text-[#302720] dark:text-[#F4EDE3]">
-											{cap.title}
-										</h3>
-										<p className="text-xs font-mono text-[#B87957] dark:text-[#C99170]">
-											{cap.tagline}
-										</p>
-									</div>
+									<h3 className="text-2xl sm:text-3xl font-serif text-[#111111] dark:text-[#F5F5F2] font-normal leading-snug">
+										{item.title}
+									</h3>
 
-									<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-										{cap.description}
+									<p className="text-sm sm:text-base text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+										{item.description}
 									</p>
 
-									<ul className="space-y-2 pt-2 border-t border-[#DED3C5]/40 dark:border-[#40362D]/40 text-xs text-[#776A5D] dark:text-[#B5A695]">
-										{cap.highlights.map((h, idx) => (
-											<li key={idx} className="flex items-center space-x-2">
-												<span className="h-1 w-1 rounded-full bg-[#B87957] dark:bg-[#C99170]" />
-												<span>{h}</span>
+									<ul className="space-y-2.5 pt-4 border-t border-[#DEDEDA] dark:border-[#292929] text-xs font-mono text-[#666666] dark:text-[#A3A3A0]">
+										{item.details.map((detail, dIdx) => (
+											<li key={dIdx} className="flex items-center space-x-2.5">
+												<span className="h-1 w-1 bg-[#111111] dark:bg-[#F5F5F2]" />
+												<span>{detail}</span>
 											</li>
 										))}
 									</ul>
 								</div>
-
-								<div className="mt-8 pt-6 border-t border-[#DED3C5]/60 dark:border-[#40362D]/60 flex items-center justify-between">
-									<div>
-										<span className="block text-2xl font-mono font-bold text-[#302720] dark:text-[#F4EDE3]">
-											{cap.stat}
-										</span>
-										<span className="text-[10px] font-mono text-[#776A5D] dark:text-[#B5A695]">
-											{cap.statLabel}
-										</span>
-									</div>
-									<div className="h-8 w-8 rounded-full border border-[#DED3C5] dark:border-[#40362D] flex items-center justify-center text-[#776A5D] dark:text-[#B5A695] group-hover:bg-[#B87957] group-hover:text-white dark:group-hover:bg-[#C99170] dark:group-hover:text-[#191613] transition-colors">
-										<ArrowRight className="h-3.5 w-3.5" />
-									</div>
-								</div>
-							</motion.div>
-						))}
-					</div>
+							</div>
+						);
+					})}
 				</div>
 			</section>
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION E — FEATURED SHOWCASE (Visual Editorial Narrative)
-			══════════════════════════════════════════════════════════════ */}
-			<section className="py-24 sm:py-32 border-t border-[#DED3C5] dark:border-[#40362D] bg-[#EFE7DC] dark:bg-[#231E19] transition-colors">
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-16">
-					<div className="max-w-2xl space-y-4">
-						<span className="text-xs font-mono uppercase tracking-widest text-[#B87957] dark:text-[#C99170] block">
-							03 — VISUAL SHOWCASE
-						</span>
-						<h2 className="text-3xl sm:text-5xl font-serif text-[#302720] dark:text-[#F4EDE3] leading-tight">
-							Designed for human hands on the warehouse floor and boardroom screens.
-						</h2>
-					</div>
-
-					{/* Asymmetrical Showcase Composition */}
-					<div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-						{/* Large Featured Canvas */}
-						<div className="lg:col-span-8 rounded-3xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] p-8 sm:p-12 flex flex-col justify-between shadow-xs">
-							<div className="space-y-4 max-w-xl">
-								<span className="text-[11px] font-mono uppercase tracking-widest px-3 py-1 rounded-full bg-[#B87957]/10 dark:bg-[#C99170]/15 text-[#B87957] dark:text-[#C99170]">
-									Flagship Implementation
-								</span>
-								<h3 className="text-2xl sm:text-3xl font-serif text-[#302720] dark:text-[#F4EDE3]">
-									Unified Operational Architecture
-								</h3>
-								<p className="text-sm text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-									Connecting offline-first POS counters directly to central warehouse lot tracking (FEFO), driver dispatch delivery routes, and real-time GST tax compliance in one unified source of truth.
-								</p>
-							</div>
-
-							<div className="mt-12 grid grid-cols-2 sm:grid-cols-3 gap-6 pt-8 border-t border-[#DED3C5]/60 dark:border-[#40362D]/60 font-mono text-xs">
-								<div>
-									<span className="block text-xl font-bold text-[#302720] dark:text-[#F4EDE3]">
-										100%
-									</span>
-									<span className="text-[#776A5D] dark:text-[#B5A695]">
-										Offline-First Resilient
-									</span>
-								</div>
-								<div>
-									<span className="block text-xl font-bold text-[#302720] dark:text-[#F4EDE3]">
-										FEFO
-									</span>
-									<span className="text-[#776A5D] dark:text-[#B5A695]">
-										Batch Shelf Surveillance
-									</span>
-								</div>
-								<div>
-									<span className="block text-xl font-bold text-[#302720] dark:text-[#F4EDE3]">
-										Sub-Second
-									</span>
-									<span className="text-[#776A5D] dark:text-[#B5A695]">
-										Synchronized Ledger
-									</span>
-								</div>
-							</div>
-						</div>
-
-						{/* Stacked Supporting Cards */}
-						<div className="lg:col-span-4 flex flex-col gap-6">
-							<div className="rounded-3xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] p-8 flex-1 flex flex-col justify-between shadow-xs">
-								<div className="space-y-3">
-									<span className="text-xs font-mono text-[#B87957] dark:text-[#C99170]">
-										HARDWARE INTEGRATION
-									</span>
-									<h4 className="text-lg font-serif font-bold text-[#302720] dark:text-[#F4EDE3]">
-										Thermal & Barcode Scanning
-									</h4>
-									<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-										Direct 2-inch and 3-inch ESC/POS thermal receipt printing, handheld barcode validation, and automated weigh-scale integration.
-									</p>
-								</div>
-								<div className="pt-4 flex items-center justify-between text-xs font-mono text-[#776A5D] dark:text-[#B5A695]">
-									<span>PLUG & PLAY</span>
-									<Check className="h-4 w-4 text-[#B87957] dark:text-[#C99170]" />
-								</div>
-							</div>
-
-							<div className="rounded-3xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] p-8 flex-1 flex flex-col justify-between shadow-xs">
-								<div className="space-y-3">
-									<span className="text-xs font-mono text-[#B87957] dark:text-[#C99170]">
-										FIELD OPERATIONS
-									</span>
-									<h4 className="text-lg font-serif font-bold text-[#302720] dark:text-[#F4EDE3]">
-										Geofenced Attendance & GPS
-									</h4>
-									<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-										Location-locked warehouse operator check-ins and delivery route tracking tailored for central Madhya Pradesh logistics corridors.
-									</p>
-								</div>
-								<div className="pt-4 flex items-center justify-between text-xs font-mono text-[#776A5D] dark:text-[#B5A695]">
-									<span>GEOFENCE VERIFIED</span>
-									<MapPin className="h-4 w-4 text-[#B87957] dark:text-[#C99170]" />
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
-
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION F — WHY EVALUNA / WORKING PHILOSOPHY
+			    SECTION F — WORKING PHILOSOPHY (The Four Principles)
 			══════════════════════════════════════════════════════════════ */}
 			<section
 				id="philosophy"
-				className="py-24 sm:py-32 bg-[#F8F5EF] dark:bg-[#191613] transition-colors"
-			>
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-16">
-					<div className="max-w-2xl space-y-4">
-						<span className="text-xs font-mono uppercase tracking-widest text-[#B87957] dark:text-[#C99170] block">
-							04 — GUIDING VALUES
-						</span>
-						<h2 className="text-3xl sm:text-5xl font-serif text-[#302720] dark:text-[#F4EDE3] leading-tight">
-							Our Working Philosophy
-						</h2>
-						<p className="text-sm text-[#776A5D] dark:text-[#B5A695] font-sans">
-							What we prioritize when engineering software for enterprises in central India.
-						</p>
-					</div>
-
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-						{VALUES.map((val, idx) => (
-							<div
-								key={idx}
-								className="rounded-3xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] p-8 space-y-4 shadow-xs"
-							>
-								<span className="text-xs font-mono text-[#B87957] dark:text-[#C99170]">
-									0{idx + 1}
-								</span>
-								<h3 className="text-lg font-serif font-bold text-[#302720] dark:text-[#F4EDE3]">
-									{val.title}
-								</h3>
-								<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-									{val.description}
-								</p>
-							</div>
-						))}
-					</div>
-				</div>
-			</section>
-
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION G — PROCESS / APPROACH TIMELINE
-			══════════════════════════════════════════════════════════════ */}
-			<section className="py-24 sm:py-32 border-t border-[#DED3C5] dark:border-[#40362D] bg-[#EFE7DC] dark:bg-[#231E19] transition-colors">
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-16">
-					<div className="max-w-2xl space-y-4">
-						<span className="text-xs font-mono uppercase tracking-widest text-[#B87957] dark:text-[#C99170] block">
-							05 — METHODOLOGY
-						</span>
-						<h2 className="text-3xl sm:text-5xl font-serif text-[#302720] dark:text-[#F4EDE3] leading-tight">
-							From ground reality to resilient code.
-						</h2>
-					</div>
-
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-						{PROCESS_STEPS.map((step, idx) => (
-							<div
-								key={step.number}
-								className="rounded-2xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] p-6 space-y-3 relative shadow-xs"
-							>
-								<div className="flex items-center justify-between">
-									<span className="text-xs font-mono text-[#B87957] dark:text-[#C99170]">
-										{step.number}
-									</span>
-									<span className="text-[10px] font-mono text-[#776A5D] dark:text-[#B5A695]">
-										STAGE
-									</span>
-								</div>
-								<h4 className="text-base font-serif font-bold text-[#302720] dark:text-[#F4EDE3]">
-									{step.title}
-								</h4>
-								<p className="text-[11px] font-mono text-[#B87957] dark:text-[#C99170]">
-									{step.subtitle}
-								</p>
-								<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-									{step.description}
-								</p>
-							</div>
-						))}
-					</div>
-				</div>
-			</section>
-
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION H — LOCAL PRESENCE & REGIONAL IDENTITY
-			══════════════════════════════════════════════════════════════ */}
-			<section
-				id="presence"
-				className="py-24 sm:py-32 bg-[#F8F5EF] dark:bg-[#191613] transition-colors"
+				className="py-24 sm:py-32 lg:py-40 border-b border-[#DEDEDA] dark:border-[#292929]"
 			>
 				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-					<div className="rounded-3xl border border-[#DED3C5] dark:border-[#40362D] bg-[#FFFCF7] dark:bg-[#211C17] p-8 sm:p-14 lg:p-16 space-y-10 shadow-sm">
-						<div className="max-w-2xl space-y-4">
-							<span className="text-xs font-mono uppercase tracking-widest text-[#B87957] dark:text-[#C99170] block">
-								06 — REGIONAL PRESENCE
+					<div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+						{/* Left Sticky Header */}
+						<div className="lg:col-span-4 space-y-4 lg:sticky lg:top-28 self-start">
+							<span className="text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]">
+								05 / PHILOSOPHY
 							</span>
-							<h2 className="text-3xl sm:text-5xl font-serif text-[#302720] dark:text-[#F4EDE3] leading-tight">
-								Anchored in Bhopal & Berasia.
+							<h2 className="text-3xl sm:text-5xl font-serif text-[#111111] dark:text-[#F5F5F2] font-normal leading-tight tracking-[-0.02em]">
+								How we approach design.
 							</h2>
-							<p className="text-sm text-[#776A5D] dark:text-[#B5A695] font-sans leading-relaxed">
-								Evaluna operates with authentic local presence across the key commercial hubs of Madhya Pradesh. We are physically close to our users, our distribution partners, and our engineering roots.
+							<p className="text-xs sm:text-sm text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+								Every engineering decision balances functional durability with aesthetic restraint.
 							</p>
 						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-[#DED3C5]/60 dark:border-[#40362D]/60">
-							<div className="space-y-3 p-6 rounded-2xl bg-[#EFE7DC]/50 dark:bg-[#231E19]/50 border border-[#DED3C5]/50 dark:border-[#40362D]/50">
-								<div className="flex items-center space-x-2 text-[#B87957] dark:text-[#C99170]">
-									<MapPin className="h-4 w-4" />
-									<span className="text-xs font-mono uppercase font-bold">
-										Berasia Facility & Main Depot
+						{/* Right Principles Stack */}
+						<div className="lg:col-span-8 divide-y divide-[#DEDEDA] dark:divide-[#292929] border-t border-b border-[#DEDEDA] dark:border-[#292929]">
+							{PRINCIPLES.map((principle, pIdx) => (
+								<div
+									key={principle.number}
+									className="py-10 sm:py-14 grid grid-cols-1 sm:grid-cols-12 gap-6 items-baseline transition-colors hover:bg-[#F0F0ED]/40 dark:hover:bg-[#111111]/40 px-2 sm:px-4"
+								>
+									<span className="sm:col-span-2 text-xs font-mono font-semibold text-[#666666] dark:text-[#A3A3A0]">
+										[{principle.number}]
 									</span>
+									<h3 className="sm:col-span-4 text-xl sm:text-2xl font-serif text-[#111111] dark:text-[#F5F5F2]">
+										{principle.title}
+									</h3>
+									<p className="sm:col-span-6 text-sm text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+										{principle.body}
+									</p>
 								</div>
-								<h4 className="text-lg font-serif text-[#302720] dark:text-[#F4EDE3]">
-									Vidisha Road Operations Hub
-								</h4>
-								<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-									Near Bank of India, Vidisha Road, Berasia, Bhopal, Madhya Pradesh — 463106
-								</p>
-								<div className="pt-2 text-[11px] font-mono text-[#776A5D] dark:text-[#B5A695]">
-									Direct Logistics & Multi-depot Receiving Gateway
-								</div>
-							</div>
-
-							<div className="space-y-3 p-6 rounded-2xl bg-[#EFE7DC]/50 dark:bg-[#231E19]/50 border border-[#DED3C5]/50 dark:border-[#40362D]/50">
-								<div className="flex items-center space-x-2 text-[#B87957] dark:text-[#C99170]">
-									<Building2 className="h-4 w-4" />
-									<span className="text-xs font-mono uppercase font-bold">
-										Bhopal Technology Presence
-									</span>
-								</div>
-								<h4 className="text-lg font-serif text-[#302720] dark:text-[#F4EDE3]">
-									Bhopal Central Technology Network
-								</h4>
-								<p className="text-xs text-[#776A5D] dark:text-[#B5A695] leading-relaxed">
-									Bhopal Technology Network, Central Madhya Pradesh, India
-								</p>
-								<div className="pt-2 text-[11px] font-mono text-[#776A5D] dark:text-[#B5A695]">
-									Cloud Architecture, Solutions Engineering & Support
-								</div>
-							</div>
+							))}
 						</div>
 					</div>
 				</div>
 			</section>
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION I — FINAL CALL TO ACTION
+			    SECTION G — GEOGRAPHY & CENTRAL INDIA NEXUS
 			══════════════════════════════════════════════════════════════ */}
-			<section className="py-24 sm:py-32 border-t border-[#DED3C5] dark:border-[#40362D] bg-[#EFE7DC] dark:bg-[#231E19] transition-colors">
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center space-y-8">
-					<span className="text-xs font-mono uppercase tracking-widest text-[#B87957] dark:text-[#C99170] block">
-						07 — COLLABORATION
-					</span>
-					<h2 className="text-4xl sm:text-6xl lg:text-7xl font-serif text-[#302720] dark:text-[#F4EDE3] max-w-3xl mx-auto leading-tight">
-						Have something meaningful to build?
-					</h2>
-					<p className="text-base sm:text-lg text-[#776A5D] dark:text-[#B5A695] max-w-xl mx-auto leading-relaxed">
-						Connect with our team in Bhopal and Berasia to discuss your enterprise requirements, supply chain infrastructure, or digital initiatives.
-					</p>
+			<section
+				id="geography"
+				className="py-24 sm:py-32 lg:py-40 border-b border-[#DEDEDA] dark:border-[#292929] relative overflow-hidden"
+			>
+				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-16">
+					<div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+						{/* Left Column: Geographic Context */}
+						<div className="lg:col-span-6 space-y-6">
+							<span className="text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]">
+								06 / GEOGRAPHIC GROUNDING
+							</span>
+							<h2 className="text-3xl sm:text-5xl font-serif text-[#111111] dark:text-[#F5F5F2] font-normal leading-tight tracking-[-0.025em]">
+								Bhopal, Berasia, and the central corridor.
+							</h2>
+							<div className="space-y-4 text-sm sm:text-base text-[#666666] dark:text-[#A3A3A0] font-light leading-relaxed">
+								<p>
+									Located at the geographic center of India, Madhya Pradesh connects northern transport arteries with southern commercial markets. Our operations in Berasia and Bhopal stand at this vital crossroads.
+								</p>
+								<p>
+									By rooting ourselves here rather than in distant technology hubs, we maintain direct daily contact with the realities of central Indian commerce: grain wholesale yards, high-frequency consumer distribution, and local enterprise leadership.
+								</p>
+							</div>
 
-					<div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-						<Link
-							href="/contact"
-							className="inline-flex items-center space-x-2 text-xs uppercase tracking-wider font-semibold px-8 py-4 rounded-full bg-[#302720] dark:bg-[#F4EDE3] text-[#F8F5EF] dark:text-[#191613] hover:bg-[#B87957] dark:hover:bg-[#C99170] dark:hover:text-white transition-all shadow-md"
-						>
-							<span>Start a Conversation</span>
-							<ArrowRight className="h-4 w-4" />
-						</Link>
-						<Link
-							href="/login"
-							className="inline-flex items-center space-x-2 text-xs uppercase tracking-wider font-semibold px-8 py-4 rounded-full border border-[#DED3C5] dark:border-[#40362D] text-[#302720] dark:text-[#F4EDE3] hover:bg-[#FFFCF7] dark:hover:bg-[#211C17] transition-all"
-						>
-							<span>Employee Sign-In</span>
-						</Link>
-					</div>
-				</div>
-			</section>
+							<div className="pt-6 border-t border-[#DEDEDA] dark:border-[#292929] grid grid-cols-2 gap-4 text-xs font-mono">
+								<div>
+									<span className="block text-[#666666] dark:text-[#A3A3A0]">COORDINATES</span>
+									<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">23.2599° N, 77.4126° E</span>
+								</div>
+								<div>
+									<span className="block text-[#666666] dark:text-[#A3A3A0]">ELEVATION</span>
+									<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">527 METERS MSL</span>
+								</div>
+							</div>
+						</div>
 
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION J — FOOTER (Refined Editorial Finisher)
-			══════════════════════════════════════════════════════════════ */}
-			<footer className="border-t border-[#DED3C5] dark:border-[#40362D] bg-[#F8F5EF] dark:bg-[#191613] py-16 transition-colors">
-				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-12">
-					<div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start justify-between">
-						<div className="md:col-span-6 space-y-4">
-							<div className="flex items-center space-x-3">
-								<img
-									src="/logo.jpg"
-									alt="Evaluna"
-									className="h-8 w-8 rounded-lg object-cover shadow-xs ring-1 ring-[#DED3C5] dark:ring-[#40362D]"
+						{/* Right Column: Landscape Photographic Plate */}
+						<div className="lg:col-span-6">
+							<div className="relative w-full aspect-[4/3] sm:aspect-[16/10] overflow-hidden border border-[#DEDEDA] dark:border-[#292929] bg-[#F0F0ED] dark:bg-[#111111]">
+								<Image
+									src={IMAGERY.centralIndiaHorizon}
+									alt="Central India Topography & Geographic Horizon"
+									fill
+									sizes="(max-width: 1024px) 100vw, 50vw"
+									className="object-cover grayscale contrast-[1.08]"
 								/>
-								<span className="text-xl font-bold font-serif text-[#302720] dark:text-[#F4EDE3]">
-									EVALUNA
-								</span>
+								<div className="absolute bottom-3 left-3 text-[9px] font-mono tracking-widest uppercase bg-[#F7F7F4]/90 dark:bg-[#080808]/90 px-3 py-1 text-[#111111] dark:text-[#F5F5F2] border border-[#DEDEDA] dark:border-[#292929]">
+									CENTRAL PLATEAU • MADHYA PRADESH
+								</div>
 							</div>
-							<p className="text-xs text-[#776A5D] dark:text-[#B5A695] max-w-sm leading-relaxed">
-								Evaluna Technologies Pvt. Ltd. — Engineering resilient commerce, multi-warehouse logistics, and digital systems across Madhya Pradesh, India.
-							</p>
-						</div>
-
-						<div className="md:col-span-3 space-y-3 text-xs font-mono text-[#776A5D] dark:text-[#B5A695]">
-							<span className="block font-bold uppercase text-[#302720] dark:text-[#F4EDE3]">
-								Navigation
-							</span>
-							<ul className="space-y-2">
-								<li>
-									<Link href="/about" className="hover:text-[#B87957] transition-colors">
-										About Company
-									</Link>
-								</li>
-								<li>
-									<Link href="/features" className="hover:text-[#B87957] transition-colors">
-										Capabilities & Features
-									</Link>
-								</li>
-								<li>
-									<Link href="/contact" className="hover:text-[#B87957] transition-colors">
-										Contact & Support
-									</Link>
-								</li>
-								<li>
-									<Link href="/login" className="hover:text-[#B87957] transition-colors">
-										Employee Portal
-									</Link>
-								</li>
-							</ul>
-						</div>
-
-						<div className="md:col-span-3 space-y-3 text-xs font-mono text-[#776A5D] dark:text-[#B5A695]">
-							<span className="block font-bold uppercase text-[#302720] dark:text-[#F4EDE3]">
-								Operations
-							</span>
-							<p className="text-[11px] leading-relaxed">
-								Vidisha Road, Berasia
-								<br />
-								Bhopal, MP — 463106
-								<br />
-								Ph: 9630649277
-							</p>
 						</div>
 					</div>
+				</div>
+			</section>
 
-					<div className="pt-8 border-t border-[#DED3C5]/60 dark:border-[#40362D]/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-mono text-[#776A5D] dark:text-[#B5A695]">
-						<span>
-							© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. All rights reserved.
-						</span>
-						<div className="flex items-center space-x-6">
-							<Link href="/privacy" className="hover:text-[#B87957] transition-colors">
+			{/* ══════════════════════════════════════════════════════════════
+			    SECTION H — CLOSING DIALOGUE & DIRECT INQUIRY
+			══════════════════════════════════════════════════════════════ */}
+			<section
+				id="dialogue"
+				className="py-28 sm:py-36 lg:py-48 border-b border-[#DEDEDA] dark:border-[#292929] relative"
+			>
+				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
+					<div className="max-w-4xl space-y-12">
+						<div className="space-y-4">
+							<span className="text-[10px] font-mono tracking-widest uppercase text-[#666666] dark:text-[#A3A3A0]">
+								07 / INITIATE DIALOGUE
+							</span>
+							<h2 className="text-5xl sm:text-7xl lg:text-8xl font-serif text-[#111111] dark:text-[#F5F5F2] font-normal tracking-[-0.035em] leading-[0.95]">
+								Start a conversation.
+							</h2>
+						</div>
+
+						<p className="text-base sm:text-xl text-[#666666] dark:text-[#A3A3A0] font-light max-w-2xl leading-relaxed">
+							Whether discussing enterprise logistics, bespoke digital architecture, or physical distribution systems, our leadership team welcomes direct, thoughtful exchange.
+						</p>
+
+						<div className="flex flex-wrap items-center gap-4 pt-4">
+							<Link
+								href="/contact"
+								className="group inline-flex items-center space-x-3 text-xs uppercase tracking-wider font-mono px-8 py-4 bg-[#111111] dark:bg-[#F5F5F2] text-[#F7F7F4] dark:text-[#080808] transition-transform duration-200 hover:scale-[1.02]"
+							>
+								<span>Initiate Inquiry</span>
+								<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+							</Link>
+							<Link
+								href="/login"
+								className="inline-flex items-center space-x-2 text-xs uppercase tracking-wider font-mono px-8 py-4 border border-[#DEDEDA] dark:border-[#292929] text-[#111111] dark:text-[#F5F5F2] hover:border-[#111111] dark:hover:border-[#F5F5F2] transition-colors"
+							>
+								<span>Employee Portal</span>
+							</Link>
+							<Link
+								href="/docs"
+								className="inline-flex items-center space-x-2 text-xs uppercase tracking-wider font-mono px-8 py-4 border border-[#DEDEDA] dark:border-[#292929] text-[#111111] dark:text-[#F5F5F2] hover:border-[#111111] dark:hover:border-[#F5F5F2] transition-colors"
+							>
+								<span>Documentation & SOPs</span>
+							</Link>
+						</div>
+
+						<div className="pt-12 border-t border-[#DEDEDA] dark:border-[#292929] grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs font-mono text-[#666666] dark:text-[#A3A3A0]">
+							<div>
+								<span className="block text-[10px] uppercase text-[#111111] dark:text-[#F5F5F2] mb-1">
+									PHYSICAL HEADQUARTERS
+								</span>
+								<p className="leading-relaxed">
+									Near Bank of India, Vidisha Road
+									<br />
+									Berasia, Bhopal, MP — 463106
+								</p>
+							</div>
+							<div>
+								<span className="block text-[10px] uppercase text-[#111111] dark:text-[#F5F5F2] mb-1">
+									ELECTRONIC DISPATCH
+								</span>
+								<p className="leading-relaxed">
+									support@evaluna.com
+									<br />
+									contact@evaluna.com
+								</p>
+							</div>
+							<div>
+								<span className="block text-[10px] uppercase text-[#111111] dark:text-[#F5F5F2] mb-1">
+									DIRECT INQUIRY LINE
+								</span>
+								<p className="leading-relaxed">
+									+91 96306 49277
+									<br />
+									Mon — Sat • 09:00 - 19:00 IST
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			{/* ══════════════════════════════════════════════════════════════
+			    SECTION I — UNDERSTATED MONOCHROME FOOTER
+			══════════════════════════════════════════════════════════════ */}
+			<footer className="py-16 sm:py-20 bg-[#F7F7F4] dark:bg-[#080808] transition-colors">
+				<div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 space-y-12">
+					<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-8 border-b border-[#DEDEDA] dark:border-[#292929]">
+						<div className="flex items-center space-x-3.5">
+							<img
+								src="/logo.jpg"
+								alt="Evaluna"
+								className="h-7 w-7 rounded-md object-cover border border-[#DEDEDA] dark:border-[#292929]"
+							/>
+							<span className="font-semibold text-sm tracking-tight text-[#111111] dark:text-[#F5F5F2] uppercase font-serif">
+								EVALUNA TECHNOLOGIES PVT. LTD.
+							</span>
+						</div>
+
+						<div className="flex flex-wrap items-center gap-6 text-[11px] font-mono text-[#666666] dark:text-[#A3A3A0]">
+							<Link
+								href="/privacy"
+								className="hover:text-[#111111] dark:hover:text-[#F5F5F2] transition-colors"
+							>
 								Privacy Policy
 							</Link>
-							<Link href="/terms" className="hover:text-[#B87957] transition-colors">
+							<Link
+								href="/terms"
+								className="hover:text-[#111111] dark:hover:text-[#F5F5F2] transition-colors"
+							>
 								Terms of Service
 							</Link>
+							<Link
+								href="/status"
+								className="hover:text-[#111111] dark:hover:text-[#F5F5F2] transition-colors"
+							>
+								System Status
+							</Link>
+							<Link
+								href="/docs"
+								className="hover:text-[#111111] dark:hover:text-[#F5F5F2] transition-colors"
+							>
+								Documentation
+							</Link>
 						</div>
+					</div>
+
+					<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-[10px] font-mono text-[#666666] dark:text-[#A3A3A0]">
+						<span>
+							© {new Date().getFullYear()} EVALUNA TECHNOLOGIES PVT. LTD. ALL RIGHTS RESERVED.
+						</span>
+						<span>
+							DESIGNED & ENGINEERED IN BHOPAL & BERASIA, MADHYA PRADESH
+						</span>
 					</div>
 				</div>
 			</footer>
