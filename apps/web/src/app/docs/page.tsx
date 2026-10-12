@@ -15,6 +15,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { UserGuidesSection } from "@/components/docs/UserGuidesSection";
 import { ModuleDocumentationSection } from "@/components/docs/ModuleDocumentationSection";
+import { GettingStartedSection } from "@/components/docs/GettingStartedSection";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -115,80 +116,7 @@ export default function DocsPage() {
 				</section>
 
 				{/* Getting Started */}
-				<section className="mb-16">
-					<h2 className="mb-8 font-bold text-3xl text-foreground tracking-tight">
-						Getting Started
-					</h2>
-					<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-						<Card>
-							<CardHeader className="text-center">
-								<BookOpen className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">System Overview</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Learn about our ERP system architecture, modules, and key
-									features.
-								</p>
-								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-									<li>System architecture</li>
-									<li>Module descriptions</li>
-									<li>User roles and permissions</li>
-									<li>System requirements</li>
-									<li>Navigation guide</li>
-								</ul>
-								<Button className="mt-4 w-full" variant="outline" size="sm">
-									Read Overview
-								</Button>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader className="text-center">
-								<HelpCircle className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Quick Start Guide</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Step-by-step guide to get you up and running quickly with our
-									ERP system.
-								</p>
-								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-									<li>First-time login</li>
-									<li>Dashboard setup</li>
-									<li>Basic navigation</li>
-									<li>Common tasks</li>
-									<li>Tips and best practices</li>
-								</ul>
-								<Button className="mt-4 w-full" variant="outline" size="sm">
-									Start Quick Guide
-								</Button>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader className="text-center">
-								<Video className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Video Tutorials</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Visual guides and walkthroughs for key system features.
-								</p>
-								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-									<li>System tour (5:32)</li>
-									<li>Dashboard setup (4:18)</li>
-									<li>Basic workflows (6:45)</li>
-									<li>Reporting tools (7:22)</li>
-									<li>Advanced features (8:10)</li>
-								</ul>
-								<Button className="mt-4 w-full" variant="outline" size="sm">
-									Watch Tutorials
-								</Button>
-							</CardContent>
-						</Card>
-					</div>
-				</section>
+				<GettingStartedSection />
 
 				{/* Module Documentation */}
 				<ModuleDocumentationSection />

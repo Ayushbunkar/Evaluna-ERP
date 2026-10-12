@@ -1155,4 +1155,280 @@ export const DOCS_GUIDES: Record<string, GuideContent> = {
 			],
 		},
 	},
+	"system-overview": {
+		id: "system-overview",
+		category: "department",
+		title: {
+			en: "Evaluna ERP Architecture & System Overview Manual",
+			hi: "इवालूना ईआरपी आर्किटेक्चर एवं सिस्टम अवलोकन नियमावली",
+		},
+		subtitle: {
+			en: "Complete Enterprise Architectural Blueprint, Offline Resilience & Modular Hierarchy",
+			hi: "संपूर्ण एंटरप्राइज आर्किटेक्चर ब्लूप्रिंट, ऑफलाइन सहनशीलता एवं मॉड्यूलर पदानुक्रम",
+		},
+		badge: {
+			en: "Architecture Guide",
+			hi: "आर्किटेक्चर गाइड",
+		},
+		summary: {
+			en: "A comprehensive guide to Evaluna ERP architecture, high-availability data flow, role-based security barriers, and offline-first synchronization protocols across all operational modules.",
+			hi: "इवालूना ईआरपी की तकनीकी संरचना, उच्च-उपलब्धता डेटा प्रवाह, भूमिका-आधारित सुरक्षा और ऑफलाइन-प्रथम सिंक्रोनाइज़ेशन का व्यापक मार्गदर्शक विवरण।",
+		},
+		ethicsHighlights: {
+			en: [
+				"Deterministic audit logs recording all balance sheet entries and inventory shifts.",
+				"Zero unauthorized data tampering; ledger entries are immutable once approved.",
+				"Multi-tier encryption for customer identifiable records and financial summaries.",
+				"Strict adherence to least-privilege security principle across all dashboards.",
+			],
+			hi: [
+				"लेखा-जोखा और स्टॉक में प्रत्येक बदलाव का अपरिवर्तनीय ऑडिट ट्रेल।",
+				"मंजूरी के उपरांत वित्तीय प्रविष्टियों में अनधिकृत फेरबदल की पूर्ण मनाही।",
+				"ग्राहक डेटा एवं वित्तीय सारांश पर बहुस्तरीय एन्क्रिप्शन सुरक्षा।",
+				"सभी डैशबोर्ड्स पर न्यूनतम विशेषाधिकार सुरक्षा सिद्धांत का कड़ाई से पालन।",
+			],
+		},
+		responsibilities: {
+			en: [
+				{
+					area: "Core Engine & Database",
+					standard: "Maintains real-time consistency with localized SQLite caching.",
+					rule: "Never bypass application transactions with unverified raw SQL scripts.",
+				},
+				{
+					area: "Authentication & RBAC",
+					standard: "Validates cryptographic sessions and role authorizations per request.",
+					rule: "Session credentials must never be shared across concurrent staff members.",
+				},
+				{
+					area: "Hardware Integration",
+					standard: "Direct thermal printer ESC/POS and 2D barcode scanner connectivity.",
+					rule: "Verify peripheral drivers before commencing high-volume daily shifts.",
+				},
+				{
+					area: "Disaster Recovery",
+					standard: "Automated incremental offsite snapshots and ledger verification.",
+					rule: "Test rollback and synchronization integrity on scheduled audit cycles.",
+				},
+			],
+			hi: [
+				{
+					area: "मुख्य इंजन एवं डेटाबेस",
+					standard: "स्थानीय SQLite कैशिंग के साथ रीयल-टाइम डेटा संतुलन बनाए रखना।",
+					rule: "बिना जांचे कच्चे SQL स्क्रिप्ट द्वारा सीधे डेटाबेस में छेड़छाड़ न करें।",
+				},
+				{
+					area: "सत्यापन एवं भूमिका नियंत्रण",
+					standard: "प्रत्येक अनुरोध पर उपयोगकर्ता की भूमिका एवं डिजिटल सत्र की पुष्टि।",
+					rule: "लॉगिन क्रेडेंशियल्स को अन्य कर्मचारियों के साथ कभी साझा न करें।",
+				},
+				{
+					area: "हार्डवेयर एकीकरण",
+					standard: "थर्मल प्रिंटर और 2D बारकोड स्कैनर के साथ सीधा निर्बाध कनेक्शन।",
+					rule: "दैनिक बिक्री प्रारंभ करने से पूर्व प्रिंटर और स्कैनर की जांच अनिवार्य है।",
+				},
+				{
+					area: "आपदा प्रबंधन एवं बैकअप",
+					standard: "नियमित अंतराल पर सुरक्षित बैकअप और ऑडिट संतुलन का सत्यापन।",
+					rule: "निर्धारित समय चक्र पर बैकअप रिकवरी और डेटा मिलान की जांच करें।",
+				},
+			],
+		},
+		sopSteps: {
+			en: [
+				{
+					step: "Phase 1: Environment Boot",
+					action: "Initialize client database caches and authenticate station master token.",
+					compliance: "Prevents unauthorized terminals from accessing company ledger.",
+				},
+				{
+					step: "Phase 2: Service Health Check",
+					action: "Ping regional sync endpoint (Bhopal/Berasia cloud gateway).",
+					compliance: "Establishes online/offline operating status seamlessly.",
+				},
+				{
+					step: "Phase 3: Module Activation",
+					action: "Load role-designated interfaces (POS, Inventory, Finance, or HR).",
+					compliance: "Enforces compartmentalized privilege boundaries.",
+				},
+				{
+					step: "Phase 4: Delta Sync",
+					action: "Synchronize pending transactions and pull recent catalogue updates.",
+					compliance: "Guarantees unified inventory figures across branches.",
+				},
+			],
+			hi: [
+				{
+					step: "चरण 1: सिस्टम शुरुआत",
+					action: "स्थानीय कैश डेटाबेस प्रारंभ करें और अधिकृत स्टेशन टोकन सत्यापित करें।",
+					compliance: "अनाधिकृत कंप्यूटरों को मुख्य डेटाबेस से दूर रखता है।",
+				},
+				{
+					step: "चरण 2: नेटवर्क स्वास्थ्य जांच",
+					action: "केंद्रीय गेटवे (भोपाल/बैरसिया सर्वर) के साथ कनेक्टिविटी जांचें।",
+					compliance: "ऑनलाइन अथवा ऑफलाइन संचालन मोड का तुरंत निर्धारण करता है।",
+				},
+				{
+					step: "चरण 3: मॉड्यूल लोडिंग",
+					action: "कर्मचारी की भूमिका के अनुसार अधिकृत डैशबोर्ड (पीओएस, स्टॉक आदि) खोलें।",
+					compliance: "सुरक्षा सीमाओं और अधिकारों का कड़ाई से पालन सुनिश्चित करता है।",
+				},
+				{
+					step: "चरण 4: डेटा सिंक्रोनाइज़ेशन",
+					action: "लंबित लेन-देन अपलोड करें और नए उत्पादों की सूची डाउनलोड करें।",
+					compliance: "सभी शाखाओं में स्टॉक की सही व एकसमान संख्या सुनिश्चित करता है।",
+				},
+			],
+		},
+		securityDirectives: {
+			en: [
+				"All client requests authenticate via signed session tokens with origin validation.",
+				"Automated rate-limiting shields financial APIs from credential stuffing and scraping.",
+				"Production database access is strictly restricted to senior infrastructure staff.",
+			],
+			hi: [
+				"सभी अनुरोध डिजिटल हस्ताक्षर और वैध सत्र टोकन के माध्यम से जांचे जाते हैं।",
+				"रेट-लिमिटिंग सुरक्षा वित्तीय डेटा को बाहरी हमलों से सुरक्षित रखती है।",
+				"मुख्य डेटाबेस का नियंत्रण केवल अधिकृत तकनीकी प्रशासकों के पास रहता है।",
+			],
+		},
+	},
+	"quick-start-guide": {
+		id: "quick-start-guide",
+		category: "department",
+		title: {
+			en: "Dashboard Quick Start Guide & Operations SOP",
+			hi: "डैशबोर्ड क्विक स्टार्ट गाइड एवं संचालन नियमावली",
+		},
+		subtitle: {
+			en: "Step-by-Step Operator Onboarding: First-Time Login, Navigation & Daily Workflows",
+			hi: "ऑपरेटर ऑनबोर्डिंग: प्रथम लॉगिन, डैशबोर्ड नेविगेशन एवं दैनिक कार्यप्रवाह",
+		},
+		badge: {
+			en: "Operator Guide",
+			hi: "ऑपरेटर गाइड",
+		},
+		summary: {
+			en: "An essential operator handbook walking through dashboard setup, first login, shift initialization, shortcuts, and daily operational best practices across Evaluna ERP.",
+			hi: "डैशबोर्ड सेटअप, प्रथम लॉगिन, शिफ्ट शुरुआत, शॉर्टकट कुंजी और दैनिक संचालन की श्रेष्ठ कार्यप्रणालियों की संपूर्ण मार्गदर्शिका।",
+		},
+		ethicsHighlights: {
+			en: [
+				"Daily lock-down of active terminal before leaving designated workstations.",
+				"Complete transparency when counting and verifying physical opening till cash.",
+				"Prompt notification to branch manager upon discovering discrepancy or barcode error.",
+				"Polite and attentive assistance to all store customers and suppliers.",
+			],
+			hi: [
+				"कार्यस्थल छोड़ने से पूर्व कंप्यूटर टर्मिनल को लॉक करना अनिवार्य।",
+				"शिफ्ट की शुरुआत में शुरुआती नकदी की निष्पक्ष एवं सटीक गिनती।",
+				"बारकोड अथवा बिलिंग त्रुटि दिखने पर तुरंत शाखा प्रबंधक को सूचित करना।",
+				"सभी ग्राहकों और आपूर्तिकर्ताओं के साथ शालीन और निष्पक्ष व्यवहार।",
+			],
+		},
+		responsibilities: {
+			en: [
+				{
+					area: "Station Setup",
+					standard: "Verify thermal receipt paper roll and barcode scanner cable seating.",
+					rule: "Never yank printer cables or operate equipment with wet hands.",
+				},
+				{
+					area: "Daily Opening",
+					standard: "Perform initial cash drawer float count and submit digital opening slip.",
+					rule: "Discrepancies in float must be logged prior to the first sale.",
+				},
+				{
+					area: "Customer Care",
+					standard: "Offer printed or WhatsApp receipt with every finalized checkout transaction.",
+					rule: "Never ask customers for confidential UPI PINs or card CVVs.",
+				},
+				{
+					area: "Shift Handover",
+					standard: "Print shift settlement report and cross-verify actual drawer currency.",
+					rule: "Handover requires co-signatures of both outgoing and incoming cashiers.",
+				},
+			],
+			hi: [
+				{
+					area: "स्टेशन सेटअप",
+					standard: "प्रिंटर में पेपर रोल और बारकोड स्कैनर की केबल की जांच करें।",
+					rule: "गीले हाथों से उपकरण न छुएं और तारों को कभी जोर से न खींचें।",
+				},
+				{
+					area: "दैनिक शुरुआत",
+					standard: "शुरुआती कैश दराज राशि गिनें और डिजिटल ओपनिंग स्लिप जमा करें।",
+					rule: "शुरुआती नकदी में अंतर होने पर पहली बिक्री से पहले रिपोर्ट करें।",
+				},
+				{
+					area: "ग्राहक सेवा",
+					standard: "प्रत्येक बिल के बाद ग्राहक को पक्की रसीद या व्हाट्सएप बिल प्रदान करें।",
+					rule: "ग्राहक से उनका गोपनीय यूपीआई पिन या कार्ड सीवीवी कभी न पूछें।",
+				},
+				{
+					area: "शिफ्ट हस्तांतरण",
+					standard: "शिफ्ट समाप्ति रिपोर्ट निकालें और दराज के नकद से मिलान करें।",
+					rule: "शिफ्ट हैंडओवर पर दोनों कैशियरों के डिजिटल हस्ताक्षर अनिवार्य हैं।",
+				},
+			],
+		},
+		sopSteps: {
+			en: [
+				{
+					step: "Step 1: Sign In",
+					action: "Navigate to /login, input corporate email/ID and authenticate via password.",
+					compliance: "Never save passwords in public shared browser profile.",
+				},
+				{
+					step: "Step 2: Role Landing",
+					action: "Dashboard automatically loads your branch workspace and assigned duties.",
+					compliance: "Verify that assigned branch location matches your physical depot.",
+				},
+				{
+					step: "Step 3: Begin Workflow",
+					action: "Open POS counter or warehouse receiving queue using top navigation shortcut.",
+					compliance: "Ensure camera/scanner permissions are granted for barcode entry.",
+				},
+				{
+					step: "Step 4: Shift Closure",
+					action: "Submit day-end reconciliation report and log out securely.",
+					compliance: "Never leave an active unlocked session unattended.",
+				},
+			],
+			hi: [
+				{
+					step: "चरण 1: साइन इन",
+					action: "/login पर जाएं, अपनी आईडी व पासवर्ड दर्ज कर सुरक्षित लॉगिन करें।",
+					compliance: "साझा कंप्यूटर ब्राउज़र में पासवर्ड कभी सेव न करें।",
+				},
+				{
+					step: "चरण 2: डैशबोर्ड पहुंच",
+					action: "सिस्टम आपकी शाखा और जिम्मेदारियों के अनुसार डैशबोर्ड खोलेगा।",
+					compliance: "जांचें कि प्रदर्शित शाखा आपके कार्यस्थल से मेल खाती है।",
+				},
+				{
+					step: "चरण 3: कार्य प्रारंभ",
+					action: "नेविगेशन बार से पीओएस काउंटर या स्टॉक इनवर्ड सूची खोलें।",
+					compliance: "बारकोड स्कैनिंग हेतु स्कैनर अनुमति चालू रखें।",
+				},
+				{
+					step: "चरण 4: शिफ्ट समापन",
+					action: "दिन के अंत की रसीद बनाएं, नकद मिलान करें और लॉगआउट करें।",
+					compliance: "खुले कंप्यूटर को बिना लॉक किए कभी अकेला न छोड़ें।",
+				},
+			],
+		},
+		securityDirectives: {
+			en: [
+				"Operators must lock screen (Win + L) when away from cash desk.",
+				"Immediately report suspicious returns or unbilled stock clearances to security.",
+				"All transactions include cryptographic audit timestamps that cannot be erased.",
+			],
+			hi: [
+				"काउंटर से दूर जाते समय स्क्रीन लॉक (Win + L) करना अनिवार्य है।",
+				"बिना बिल के माल ले जाने की किसी भी कोशिश की सूचना सुरक्षा दल को दें।",
+				"सभी लेन-देन में मिटाए न जा सकने वाले डिजिटल टाइमस्टैम्प दर्ज होते हैं।",
+			],
+		},
+	},
 };
