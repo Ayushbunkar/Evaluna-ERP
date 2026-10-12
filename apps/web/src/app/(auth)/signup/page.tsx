@@ -139,18 +139,6 @@ export default function SignupPage() {
 					{/* Desktop Navigation Links */}
 					<nav className="hidden items-center space-x-8 font-mono text-[#666666] text-[11px] uppercase tracking-widest md:flex dark:text-[#A3A3A0]">
 						<Link
-							href="/#identity"
-							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-						>
-							01 Identity
-						</Link>
-						<Link
-							href="/#disciplines"
-							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-						>
-							02 Disciplines
-						</Link>
-						<Link
 							href="/features"
 							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
@@ -216,20 +204,6 @@ export default function SignupPage() {
 							className="overflow-hidden border-[#DEDEDA] border-b bg-[#F7F7F4] px-6 py-8 md:hidden dark:border-[#292929] dark:bg-[#080808]"
 						>
 							<div className="flex flex-col space-y-6 font-mono text-sm uppercase tracking-widest">
-								<Link
-									href="/#identity"
-									onClick={() => setMobileMenuOpen(false)}
-									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
-								>
-									01 Identity
-								</Link>
-								<Link
-									href="/#disciplines"
-									onClick={() => setMobileMenuOpen(false)}
-									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
-								>
-									02 Disciplines
-								</Link>
 								<Link
 									href="/features"
 									onClick={() => setMobileMenuOpen(false)}
