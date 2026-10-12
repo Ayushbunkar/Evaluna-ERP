@@ -222,6 +222,7 @@ export default function HomePage() {
 
 	return (
 		<div
+			suppressHydrationWarning
 			onMouseMove={handleMouseMove}
 			className="min-h-screen bg-[#F7F7F4] font-sans text-[#111111] transition-colors duration-500 selection:bg-[#111111] selection:text-[#F7F7F4] dark:bg-[#080808] dark:text-[#F5F5F2] dark:selection:bg-[#F5F5F2] dark:selection:text-[#080808]"
 		>
@@ -229,6 +230,7 @@ export default function HomePage() {
 			    SECTION A — REFINED MONOCHROME NAVIGATION
 			══════════════════════════════════════════════════════════════ */}
 			<header
+				suppressHydrationWarning
 				className={`fixed top-0 right-0 left-0 z-50 transition-all duration-300 ${
 					scrolled
 						? "border-[#DEDEDA] border-b bg-[#F7F7F4]/90 py-3.5 backdrop-blur-md dark:border-[#292929] dark:bg-[#080808]/90"
@@ -1053,9 +1055,8 @@ export default function HomePage() {
 					</div>
 
 					<div className="flex flex-col items-start justify-between gap-4 font-mono text-[#666666] text-[10px] sm:flex-row sm:items-center dark:text-[#A3A3A0]">
-						<span>
-							© {new Date().getFullYear()} EVALUNA TECHNOLOGIES PVT. LTD. ALL
-							RIGHTS RESERVED.
+						<span suppressHydrationWarning>
+							© 2026 EVALUNA TECHNOLOGIES PVT. LTD. ALL RIGHTS RESERVED.
 						</span>
 						<span>
 							DESIGNED & ENGINEERED IN BHOPAL & BERASIA, MADHYA PRADESH

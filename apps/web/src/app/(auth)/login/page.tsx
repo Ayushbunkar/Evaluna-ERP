@@ -222,9 +222,15 @@ export default function LoginPage() {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	return (
-		<div className="min-h-screen bg-background text-foreground transition-colors selection:bg-primary/20">
+		<div
+			suppressHydrationWarning
+			className="min-h-screen bg-background text-foreground transition-colors selection:bg-primary/20"
+		>
 			{/* Unified Homepage Navigation */}
-			<header className="sticky top-0 z-50 w-full border-[#DEDEDA] border-b bg-[#F7F7F4]/90 py-3.5 backdrop-blur-md transition-colors dark:border-[#292929] dark:bg-[#080808]/90">
+			<header
+				suppressHydrationWarning
+				className="sticky top-0 z-50 w-full border-[#DEDEDA] border-b bg-[#F7F7F4]/90 py-3.5 backdrop-blur-md transition-colors dark:border-[#292929] dark:bg-[#080808]/90"
+			>
 				<div className="mx-auto flex max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-12">
 					{/* Brand Lockup */}
 					<Link
