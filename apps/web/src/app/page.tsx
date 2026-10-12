@@ -279,22 +279,22 @@ export default function HomePage() {
 							02 Disciplines
 						</Link>
 						<Link
-							href="#philosophy"
+							href="/features"
 							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							03 Philosophy
+							Features
 						</Link>
 						<Link
-							href="#geography"
+							href="/solutions"
 							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							04 Geography
+							Solutions
 						</Link>
 						<Link
-							href="#dialogue"
+							href="/about"
 							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 						>
-							05 Dialogue
+							Company
 						</Link>
 					</nav>
 
@@ -359,25 +359,25 @@ export default function HomePage() {
 									02 Disciplines
 								</Link>
 								<Link
-									href="#philosophy"
+									href="/features"
 									onClick={() => setMobileMenuOpen(false)}
 									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									03 Philosophy
+									Features
 								</Link>
 								<Link
-									href="#geography"
+									href="/solutions"
 									onClick={() => setMobileMenuOpen(false)}
 									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									04 Geography
+									Solutions
 								</Link>
 								<Link
-									href="#dialogue"
+									href="/about"
 									onClick={() => setMobileMenuOpen(false)}
 									className="text-[#666666] dark:text-[#A3A3A0] hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 								>
-									05 Dialogue
+									Company
 								</Link>
 								<div className="pt-4 border-t border-[#DEDEDA] dark:border-[#292929] flex flex-col space-y-3">
 									<Link
