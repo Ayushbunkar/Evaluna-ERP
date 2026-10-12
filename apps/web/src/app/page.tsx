@@ -28,7 +28,6 @@ import {
 	X,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LocaleSwitcher } from "@/components/locale-switcher";
 
 // ── Photographic Curation (High-Resolution Architectural & Spatial Series) ──
 const IMAGERY = {
@@ -301,7 +300,6 @@ export default function HomePage() {
 
 					{/* Right Utility Actions */}
 					<div className="hidden md:flex items-center space-x-4">
-						<LocaleSwitcher />
 						<ThemeToggle />
 						<Link
 							href="/login"
