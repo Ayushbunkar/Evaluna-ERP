@@ -149,6 +149,11 @@ export default function WarehouseWMSLayout({
 					icon: BoxesIcon,
 				},
 				{
+					label: "Batches & Expiry (FEFO)",
+					href: "/dashboard/warehouse/batches",
+					icon: LayersIcon,
+				},
+				{
 					label: "Discount Offers",
 					href: "/dashboard/warehouse/discounts",
 					icon: TagIcon,
