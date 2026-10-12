@@ -5,11 +5,12 @@ import {
 	ArrowLeft,
 	FileText,
 	Gavel,
-	MountainIcon,
 	Shield,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -26,25 +27,31 @@ export default function TermsPage() {
 	]);
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+		<div className="min-h-screen bg-background text-foreground transition-colors duration-300">
 			<script
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
 			/>
 			{/* Navigation */}
-			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
+			<nav className="sticky top-0 z-50 border-b border-border/80 bg-background/80 backdrop-blur-md transition-colors">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex h-16 items-center justify-between">
-						<div className="flex items-center space-x-2">
-							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-xl">
+						<Link href="/" className="group flex items-center space-x-2.5">
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
+							/>
+							<span className="font-bold text-foreground text-xl tracking-tight">
 								Evaluna ERP
 							</span>
-						</div>
-						<div className="flex items-center space-x-4">
-							<Button asChild variant="outline" className="text-sm">
+						</Link>
+						<div className="flex items-center space-x-2 sm:space-x-3">
+							<LocaleSwitcher />
+							<ThemeToggle />
+							<Button asChild variant="outline" size="sm" className="border-border/70 hover:bg-muted text-xs">
 								<Link href="/">
-									<ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+									<ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Home
 								</Link>
 							</Button>
 						</div>
@@ -405,38 +412,29 @@ export default function TermsPage() {
 			</main>
 
 			{/* Footer */}
-			<footer className="mt-16 border-slate-200 border-t bg-white py-8">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex flex-col items-center justify-between md:flex-row">
-						<div className="mb-4 flex items-center space-x-2 md:mb-0">
-							<MountainIcon className="h-6 w-6 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-lg">
-								Evaluna ERP
-							</span>
-						</div>
-						<div className="text-muted-foreground text-sm">
-							Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use
-							Only.
-						</div>
+			<footer className="mt-16 border-t border-border/60 bg-muted/20 py-8 transition-colors">
+				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+					<div className="flex items-center space-x-2">
+						<img
+							src="/logo.jpg"
+							alt="Evaluna ERP"
+							className="h-5 w-5 rounded-md object-cover"
+						/>
+						<span className="font-bold text-foreground">Evaluna ERP</span>
+						<span>• Terms & Compliance</span>
 					</div>
-					<div className="mt-4 flex flex-wrap justify-center space-x-6 text-muted-foreground text-sm md:justify-end">
-						<Link
-							href="/privacy"
-							className="transition-colors hover:text-foreground"
-						>
-							Privacy Policy
+					<div>
+						© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. All rights reserved.
+					</div>
+					<div className="flex items-center space-x-4">
+						<Link href="/privacy" className="hover:text-foreground transition-colors">
+							Privacy
 						</Link>
-						<Link
-							href="/contact"
-							className="transition-colors hover:text-foreground"
-						>
-							Contact IT Support
+						<Link href="/contact" className="hover:text-foreground transition-colors">
+							Contact
 						</Link>
-						<Link
-							href="/docs"
-							className="transition-colors hover:text-foreground"
-						>
-							Internal Documentation
+						<Link href="/about" className="hover:text-foreground transition-colors">
+							About
 						</Link>
 					</div>
 				</div>

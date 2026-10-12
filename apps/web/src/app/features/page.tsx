@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
 	ArrowLeft,
 	BarChart3,
-	MountainIcon,
+	Building2,
 	Package,
 	ShoppingCart,
 	Truck,
@@ -44,9 +44,11 @@ export default function FeaturesPage() {
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex h-16 items-center justify-between">
 						<Link href="/" className="group flex items-center space-x-2.5">
-							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs transition-transform group-hover:scale-105">
-								<MountainIcon className="h-5 w-5" strokeWidth={2.5} />
-							</div>
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
+							/>
 							<span className="font-bold text-foreground text-xl tracking-tight">
 								Evaluna ERP
 							</span>
@@ -121,7 +123,7 @@ export default function FeaturesPage() {
 							id: "supply-chain",
 						},
 						{
-							icon: <MountainIcon className="h-8 w-8 text-primary" />,
+							icon: <Building2 className="h-8 w-8 text-primary" />,
 							title: "Multi-Branch Operations",
 							description:
 								"Centralized management system for all our branches with role-based access control tailored to our organizational structure.",
@@ -251,9 +253,11 @@ export default function FeaturesPage() {
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex flex-col items-center justify-between gap-4 md:flex-row">
 						<div className="flex items-center space-x-2.5">
-							<div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-								<MountainIcon className="h-4 w-4" strokeWidth={2.5} />
-							</div>
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-7 w-7 rounded-lg object-cover"
+							/>
 							<span className="font-bold text-foreground text-lg">
 								Evaluna ERP
 							</span>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { motion } from "framer-motion";
-import { AlertCircle, Loader2, MountainIcon } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";

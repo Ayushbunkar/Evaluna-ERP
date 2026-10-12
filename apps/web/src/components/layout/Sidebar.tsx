@@ -104,14 +104,18 @@ export function Sidebar({
 		>
 			<div className="flex-1 space-y-4 overflow-y-auto py-4">
 				<div className="px-3 py-2">
-					<h2 className="mb-2 flex items-center gap-2.5 px-4 font-semibold text-lg tracking-tight">
+					<Link
+						href="/"
+						className="group mb-2 flex items-center gap-2.5 px-4 font-semibold text-lg tracking-tight transition-opacity hover:opacity-90"
+						title="Go to Home"
+					>
 						<img
 							src="/logo.jpg"
 							alt="Evaluna ERP"
-							className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+							className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 						/>
 						Evaluna ERP
-					</h2>
+					</Link>
 					<div className="mt-6 space-y-1">
 						{filteredItems.map((item) => {
 							const isActive =

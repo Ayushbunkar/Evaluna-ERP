@@ -226,16 +226,20 @@ export default function LoginPage() {
 			<nav className="border-border border-b bg-background/80 backdrop-blur-sm">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex h-16 items-center justify-between">
-						<div className="flex items-center space-x-2.5">
+						<Link
+							href="/"
+							className="group flex items-center space-x-2.5 transition-opacity hover:opacity-90"
+							title="Go to Home"
+						>
 							<img
 								src="/logo.jpg"
 								alt="Evaluna ERP"
-								className="h-8 w-8 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+								className="h-8 w-8 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 							/>
 							<span className="font-bold text-foreground text-xl">
 								Evaluna ERP
 							</span>
-						</div>
+						</Link>
 						<div className="flex items-center space-x-4">
 							<Link
 								href="/"

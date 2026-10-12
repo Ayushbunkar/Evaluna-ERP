@@ -317,11 +317,15 @@ export function AppLayout({
 					<span className="sr-only">Open Menu</span>
 				</Button>
 
-				<div className="flex shrink-0 items-center gap-2 md:w-[240px]">
+				<Link
+					href="/"
+					className="group flex shrink-0 items-center gap-2 md:w-[240px] transition-opacity hover:opacity-90 cursor-pointer"
+					title="Go to Home"
+				>
 					<img
 						src="/logo.jpg"
 						alt="Evaluna ERP"
-						className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+						className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 					/>
 					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base text-transparent tracking-tight sm:text-lg md:inline-block">
 						Evaluna ERP
@@ -333,7 +337,7 @@ export function AppLayout({
 							{ROLE_CONFIG[role].label}
 						</span>
 					)}
-				</div>
+				</Link>
 
 				<div className="hidden items-center gap-1 font-medium text-muted-foreground text-xs sm:text-sm md:flex">
 					<span>/</span>
@@ -557,11 +561,16 @@ export function AppLayout({
 							className="relative z-10 flex h-full w-[280px] max-w-[85vw] flex-col gap-2 overflow-y-auto border-border/40 border-r bg-background p-4 shadow-2xl"
 						>
 							<div className="mb-6 flex items-center justify-between px-2">
-								<div className="flex items-center gap-3">
+								<Link
+									href="/"
+									onClick={() => setMobileOpen(false)}
+									className="group flex items-center gap-3 transition-opacity hover:opacity-90"
+									title="Go to Home"
+								>
 									<img
 										src="/logo.jpg"
 										alt="Evaluna ERP"
-										className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
+										className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 									/>
 									<span className="font-bold text-lg tracking-tight">
 										Evaluna ERP
@@ -574,7 +583,7 @@ export function AppLayout({
 											? role.replace("_", " ")
 											: session?.user?.role?.replace("_", " ") || "Salesperson"}
 									</Badge>
-								</div>
+								</Link>
 								<Button
 									variant="ghost"
 									size="icon"

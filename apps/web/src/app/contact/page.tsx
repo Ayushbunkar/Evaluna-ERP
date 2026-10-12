@@ -2,18 +2,19 @@ import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
 import {
 	ArrowLeft,
-	FileText,
+	Clock,
 	Headset,
 	Laptop,
 	Mail,
 	MapPin,
-	MountainIcon,
 	Phone,
 	Shield,
 	User,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -30,25 +31,32 @@ export default function ContactPage() {
 	]);
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+		<div className="min-h-screen bg-background text-foreground transition-colors duration-300">
 			<script
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
 			/>
+
 			{/* Navigation */}
-			<nav className="border-slate-200 border-b bg-white/80 backdrop-blur-sm">
+			<nav className="sticky top-0 z-50 border-b border-border/80 bg-background/80 backdrop-blur-md transition-colors">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex h-16 items-center justify-between">
-						<div className="flex items-center space-x-2">
-							<MountainIcon className="h-8 w-8 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-xl">
+						<Link href="/" className="group flex items-center space-x-2.5">
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
+							/>
+							<span className="font-bold text-foreground text-xl tracking-tight">
 								Evaluna ERP
 							</span>
-						</div>
-						<div className="flex items-center space-x-4">
-							<Button asChild variant="outline" className="text-sm">
+						</Link>
+						<div className="flex items-center space-x-2 sm:space-x-3">
+							<LocaleSwitcher />
+							<ThemeToggle />
+							<Button asChild variant="outline" size="sm" className="border-border/70 hover:bg-muted text-xs">
 								<Link href="/">
-									<ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+									<ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Home
 								</Link>
 							</Button>
 						</div>
@@ -57,471 +65,349 @@ export default function ContactPage() {
 			</nav>
 
 			{/* Main Content */}
-			<main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-				<div className="mb-12 text-center">
-					<h1 className="mb-6 font-bold text-4xl text-foreground tracking-tight sm:text-5xl">
-						Contact IT Support
+			<main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 space-y-16">
+				{/* Header */}
+				<div className="text-center space-y-4 max-w-3xl mx-auto">
+					<div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-medium text-primary">
+						Enterprise Support & Inquiries
+					</div>
+					<h1 className="font-extrabold text-3xl sm:text-5xl text-foreground tracking-tight">
+						Get in Touch with Evaluna
 					</h1>
-					<p className="mx-auto mb-8 max-w-3xl text-lg text-muted-foreground">
-						Need assistance with our ERP system? Our IT support team is here to
-						help with any technical issues, questions, or training needs.
+					<p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
+						Need assistance with our systems or planning a regional enterprise deployment? Our technical and solutions team is here to support you.
 					</p>
 				</div>
 
-				{/* Contact Options */}
-				<section className="mb-16">
-					<h2 className="mb-8 text-center font-bold text-3xl text-foreground tracking-tight">
-						How to Reach Us
+				{/* Primary Contact Channels */}
+				<section className="space-y-6">
+					<h2 className="text-center font-bold text-2xl text-foreground tracking-tight">
+						Direct Support Channels
 					</h2>
-					<div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-						<Card>
-							<CardHeader className="text-center">
-								<Mail className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-xl">Email Support</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									For non-urgent issues and detailed requests
+					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+						{/* Email Channel */}
+						<Card className="border border-border/70 bg-card text-card-foreground shadow-xs hover:border-primary/40 transition-colors">
+							<CardHeader className="text-center pb-4">
+								<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
+									<Mail className="h-6 w-6" />
+								</div>
+								<h3 className="font-bold text-xl text-foreground">Email Support</h3>
+								<p className="text-xs text-muted-foreground">
+									For technical documentation, account queries, and enterprise inquiries
 								</p>
-								<div className="space-y-3">
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-										<span className="font-medium">General Support</span>
-										<span className="text-muted-foreground text-sm">
+							</CardHeader>
+							<CardContent className="space-y-3 pt-0">
+								<div className="space-y-2.5">
+									<div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+										<span className="font-medium text-foreground">General Support</span>
+										<a
+											href="mailto:support@evaluna.com"
+											className="font-mono text-primary hover:underline"
+										>
 											support@evaluna.com
-										</span>
+										</a>
 									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-										<span className="font-medium">ERP Issues</span>
-										<span className="text-muted-foreground text-sm">
+									<div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+										<span className="font-medium text-foreground">ERP Operations</span>
+										<a
+											href="mailto:erp-support@evaluna.com"
+											className="font-mono text-primary hover:underline"
+										>
 											erp-support@evaluna.com
-										</span>
+										</a>
 									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-										<span className="font-medium">Security Concerns</span>
-										<span className="text-muted-foreground text-sm">
+									<div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+										<span className="font-medium text-foreground">Security & Audit</span>
+										<a
+											href="mailto:security@evaluna.com"
+											className="font-mono text-primary hover:underline"
+										>
 											security@evaluna.com
-										</span>
+										</a>
 									</div>
 								</div>
-								<p className="mt-4 text-center text-muted-foreground text-xs">
-									Response time: 1-2 business days
-								</p>
+								<div className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-muted-foreground">
+									<Clock className="h-3.5 w-3.5" />
+									<span>Average response time: 1–2 business hours</span>
+								</div>
 							</CardContent>
 						</Card>
 
-						<Card>
-							<CardHeader className="text-center">
-								<Phone className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-xl">Phone Support</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									For urgent issues requiring immediate assistance
+						{/* Phone Channel */}
+						<Card className="border border-border/70 bg-card text-card-foreground shadow-xs hover:border-primary/40 transition-colors">
+							<CardHeader className="text-center pb-4">
+								<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+									<Phone className="h-6 w-6" />
+								</div>
+								<h3 className="font-bold text-xl text-foreground">Phone Support</h3>
+								<p className="text-xs text-muted-foreground">
+									For critical warehouse line issues and real-time operational assistance
 								</p>
-								<div className="space-y-3">
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-										<span className="font-medium">IT Help Desk</span>
-										<span className="text-muted-foreground text-sm">
-											Ext. 1500
+							</CardHeader>
+							<CardContent className="space-y-3 pt-0">
+								<div className="space-y-2.5">
+									<div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+										<span className="font-medium text-foreground">Direct Desk</span>
+										<span className="font-mono font-bold text-foreground">
+											+91 96306 49277
 										</span>
 									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-										<span className="font-medium">ERP Hotline</span>
-										<span className="text-muted-foreground text-sm">
+									<div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+										<span className="font-medium text-foreground">Warehouse Hotline</span>
+										<span className="font-mono text-muted-foreground">
 											Ext. 1501
 										</span>
 									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-										<span className="font-medium">After Hours</span>
-										<span className="text-muted-foreground text-sm">
+									<div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+										<span className="font-medium text-foreground">After Hours Emergency</span>
+										<span className="font-mono text-muted-foreground">
 											Ext. 1502
 										</span>
 									</div>
 								</div>
-								<p className="mt-4 text-center text-muted-foreground text-xs">
-									Available: Mon-Fri, 8 AM - 6 PM
-								</p>
+								<div className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-muted-foreground">
+									<Clock className="h-3.5 w-3.5" />
+									<span>Hours: Monday to Saturday, 8:00 AM – 8:00 PM IST</span>
+								</div>
 							</CardContent>
 						</Card>
 					</div>
 				</section>
 
-				{/* Support Teams */}
-				<section className="mb-16">
-					<h2 className="mb-8 text-center font-bold text-3xl text-foreground tracking-tight">
-						Our Support Teams
+				{/* Specialized Support Teams */}
+				<section className="space-y-6">
+					<h2 className="text-center font-bold text-2xl text-foreground tracking-tight">
+						Our Dedicated Support Units
 					</h2>
 					<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-						<Card>
-							<CardHeader className="text-center">
-								<User className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">User Support</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Assistance with system navigation, features, and general
-									usage.
+						<Card className="border border-border/70 bg-card text-card-foreground shadow-xs">
+							<CardHeader className="text-center pb-3">
+								<div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+									<User className="h-5 w-5" />
+								</div>
+								<h3 className="font-bold text-lg text-foreground">Field & POS Support</h3>
+								<p className="text-xs text-muted-foreground">
+									Assistance for store cashiers, sales agents & operators
 								</p>
-								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-									<li>Account access issues</li>
-									<li>Feature explanations</li>
-									<li>Basic troubleshooting</li>
-									<li>User guide assistance</li>
-									<li>Password resets</li>
+							</CardHeader>
+							<CardContent className="space-y-4 pt-0">
+								<ul className="space-y-2 text-xs text-muted-foreground">
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Offline POS receipt sync issues</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>ESC/POS Thermal printer setup</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Field GPS agent app support</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Staff PIN & password resets</span>
+									</li>
 								</ul>
-								<Button className="mt-4 w-full" variant="outline" size="sm">
-									Contact User Support
+								<Button className="w-full text-xs h-9" variant="outline" asChild>
+									<Link href="mailto:support@evaluna.com?subject=Field%20POS%20Support">
+										Contact Field Support
+									</Link>
 								</Button>
 							</CardContent>
 						</Card>
 
-						<Card>
-							<CardHeader className="text-center">
-								<Laptop className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Technical Support</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Help with technical issues, system errors, and performance
-									problems.
+						<Card className="border border-border/70 bg-card text-card-foreground shadow-xs">
+							<CardHeader className="text-center pb-3">
+								<div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+									<Laptop className="h-5 w-5" />
+								</div>
+								<h3 className="font-bold text-lg text-foreground">Technical & WMS</h3>
+								<p className="text-xs text-muted-foreground">
+									Depot inventory, FEFO batching & database sync
 								</p>
-								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-									<li>System errors</li>
-									<li>Performance issues</li>
-									<li>Integration problems</li>
-									<li>Data import/export</li>
-									<li>Browser compatibility</li>
+							</CardHeader>
+							<CardContent className="space-y-4 pt-0">
+								<ul className="space-y-2 text-xs text-muted-foreground">
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Warehouse bin & batch tracking</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>GST tax ledger reconciliation</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Bulk SKU data import/export</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Discrepancy audit investigations</span>
+									</li>
 								</ul>
-								<Button className="mt-4 w-full" variant="outline" size="sm">
-									Contact Technical Support
+								<Button className="w-full text-xs h-9" variant="outline" asChild>
+									<Link href="mailto:erp-support@evaluna.com?subject=WMS%20Technical%20Query">
+										Contact Technical Support
+									</Link>
 								</Button>
 							</CardContent>
 						</Card>
 
-						<Card>
-							<CardHeader className="text-center">
-								<Shield className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Security Team</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Report security concerns, access issues, and compliance
-									questions.
+						<Card className="border border-border/70 bg-card text-card-foreground shadow-xs">
+							<CardHeader className="text-center pb-3">
+								<div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+									<Shield className="h-5 w-5" />
+								</div>
+								<h3 className="font-bold text-lg text-foreground">Security & Compliance</h3>
+								<p className="text-xs text-muted-foreground">
+									Permissions, audit trails & access oversight
 								</p>
-								<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-									<li>Suspicious activity</li>
-									<li>Access violations</li>
-									<li>Data breaches</li>
-									<li>Compliance questions</li>
-									<li>Security training</li>
+							</CardHeader>
+							<CardContent className="space-y-4 pt-0">
+								<ul className="space-y-2 text-xs text-muted-foreground">
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Role-based permission elevation</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Two-factor authentication setup</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Financial payment approval logs</span>
+									</li>
+									<li className="flex items-center gap-2">
+										<span className="h-1.5 w-1.5 rounded-full bg-primary" />
+										<span>Data privacy compliance requests</span>
+									</li>
 								</ul>
-								<Button className="mt-4 w-full" variant="outline" size="sm">
-									Contact Security Team
+								<Button className="w-full text-xs h-9" variant="outline" asChild>
+									<Link href="mailto:security@evaluna.com?subject=Security%20Compliance">
+										Contact Security Team
+									</Link>
 								</Button>
 							</CardContent>
 						</Card>
 					</div>
 				</section>
 
-				{/* Common Issues */}
-				<section className="mb-16">
-					<h2 className="mb-8 text-center font-bold text-3xl text-foreground tracking-tight">
-						Common Issues & Solutions
-					</h2>
-					<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-						<Card>
-							<CardHeader>
-								<h3 className="flex items-center font-semibold text-xl">
-									<Headset className="mr-2 h-5 w-5 text-primary" />
-									Login Problems
-								</h3>
-							</CardHeader>
-							<CardContent>
-								<div className="space-y-4">
-									<div>
-										<h4 className="mb-1 font-medium">Forgot Password:</h4>
-										<p className="mb-2 text-muted-foreground text-sm">
-											Use the "Forgot Password" link on the login page or
-											contact IT support.
-										</p>
-										<Button variant="outline" size="sm">
-											Reset Password
-										</Button>
-									</div>
-									<div>
-										<h4 className="mb-1 font-medium">Account Locked:</h4>
-										<p className="mb-2 text-muted-foreground text-sm">
-											After 5 failed attempts, your account will be locked for
-											30 minutes.
-										</p>
-										<Button variant="outline" size="sm">
-											Unlock Account
-										</Button>
-									</div>
-									<div>
-										<h4 className="mb-1 font-medium">Access Denied:</h4>
-										<p className="text-muted-foreground text-sm">
-											Contact your manager or IT support to verify your access
-											permissions.
-										</p>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader>
-								<h3 className="flex items-center font-semibold text-xl">
-									<Laptop className="mr-2 h-5 w-5 text-primary" />
-									System Performance
-								</h3>
-							</CardHeader>
-							<CardContent>
-								<div className="space-y-4">
-									<div>
-										<h4 className="mb-1 font-medium">Slow Performance:</h4>
-										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-											<li>Clear your browser cache</li>
-											<li>Try a different browser</li>
-											<li>Check your internet connection</li>
-											<li>Close unused tabs</li>
-										</ul>
-									</div>
-									<div>
-										<h4 className="mb-1 font-medium">Error Messages:</h4>
-										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-											<li>Note the exact error message</li>
-											<li>Try refreshing the page</li>
-											<li>Check if others are experiencing issues</li>
-											<li>Report to IT with screenshots</li>
-										</ul>
-									</div>
-									<div>
-										<h4 className="mb-1 font-medium">Data Not Saving:</h4>
-										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-											<li>Check your internet connection</li>
-											<li>Verify you have edit permissions</li>
-											<li>Try saving smaller batches of data</li>
-											<li>Contact IT if issues persist</li>
-										</ul>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-				</section>
-
-				{/* Support Resources */}
-				<section className="mb-16">
-					<h2 className="mb-8 text-center font-bold text-3xl text-foreground tracking-tight">
-						Self-Help Resources
+				{/* Physical Office & Depot Locations */}
+				<section className="space-y-6">
+					<h2 className="text-center font-bold text-2xl text-foreground tracking-tight">
+						Our Facilities & Presence
 					</h2>
 					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-						<Card>
-							<CardHeader className="flex flex-col items-center text-center">
-								<MapPin className="mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">IT Support Portal</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Access our comprehensive support portal for knowledge base
-									articles, FAQs, and troubleshooting guides.
+						<Card className="border border-border/70 bg-card text-card-foreground shadow-xs">
+							<CardHeader className="pb-3">
+								<div className="flex items-center gap-2 text-primary">
+									<MapPin className="h-5 w-5" />
+									<h3 className="font-bold text-lg text-foreground">Berasia Central Depot</h3>
+								</div>
+								<p className="text-xs text-muted-foreground">
+									Primary Warehouse & Receiving Hub
 								</p>
-								<Button className="w-full" variant="outline">
-									Visit Support Portal
-								</Button>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader className="flex flex-col items-center text-center">
-								<Headset className="mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Training Videos</h3>
 							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Watch step-by-step video tutorials on using our ERP system
-									features and best practices.
-								</p>
-								<Button className="w-full" variant="outline">
-									View Training Videos
-								</Button>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader className="flex flex-col items-center text-center">
-								<FileText className="mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">User Guides</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Download comprehensive user manuals and quick reference guides
-									for all system modules.
-								</p>
-								<Button className="w-full" variant="outline">
-									Download User Guides
-								</Button>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader className="flex flex-col items-center text-center">
-								<User className="mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Community Forum</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Connect with other users, share tips, and get answers from our
-									community of experienced ERP users.
-								</p>
-								<Button className="w-full" variant="outline">
-									Join Community Forum
-								</Button>
-							</CardContent>
-						</Card>
-					</div>
-				</section>
-
-				{/* Office Locations */}
-				<section className="mb-16">
-					<h2 className="mb-8 text-center font-bold text-3xl text-foreground tracking-tight">
-						Our Office Locations
-					</h2>
-					<div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-2">
-						<Card>
-							<CardHeader>
-								<h3 className="flex items-center font-semibold text-xl">
-									<MapPin className="mr-2 h-5 w-5 text-primary" />
-									Headquarters
-								</h3>
-							</CardHeader>
-							<CardContent>
-								<div className="space-y-3">
-									<div>
-										<h4 className="font-medium">Address:</h4>
-										<p className="text-muted-foreground text-sm">
-											Evaluna Business Park
-											<br />
-											123 Tech Avenue, Suite 500
-											<br />
-											Innovation City, ST 12345
-										</p>
-									</div>
-									<div>
-										<h4 className="font-medium">Contact:</h4>
-										<p className="text-muted-foreground text-sm">
-											Phone: (555) 123-4567
-											<br />
-											Fax: (555) 123-4568
-										</p>
-									</div>
-									<div>
-										<h4 className="font-medium">IT Support:</h4>
-										<p className="text-muted-foreground text-sm">
-											Ext. 1500 (Internal)
-											<br />
-											support@evaluna.com
-										</p>
-									</div>
+							<CardContent className="space-y-3 pt-0 text-xs">
+								<div className="space-y-1">
+									<p className="font-medium text-foreground">Physical Address:</p>
+									<p className="text-muted-foreground leading-relaxed">
+										Near Bank of India, Vidisha Road, Berasia,
+										<br />
+										Bhopal, Madhya Pradesh — 463106, India
+									</p>
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-foreground">Direct Desk:</p>
+									<p className="font-mono text-muted-foreground">+91 96306 49277</p>
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-foreground">Operations:</p>
+									<p className="text-muted-foreground">
+										Inbound Supplier Receiving, Batch Allocation & Quality Inspection
+									</p>
 								</div>
 							</CardContent>
 						</Card>
 
-						<Card>
-							<CardHeader>
-								<h3 className="flex items-center font-semibold text-xl">
-									<MapPin className="mr-2 h-5 w-5 text-primary" />
-									Regional Office
-								</h3>
+						<Card className="border border-border/70 bg-card text-card-foreground shadow-xs">
+							<CardHeader className="pb-3">
+								<div className="flex items-center gap-2 text-primary">
+									<MapPin className="h-5 w-5" />
+									<h3 className="font-bold text-lg text-foreground">Bhopal Technology Network</h3>
+								</div>
+								<p className="text-xs text-muted-foreground">
+									Solutions Engineering & Architecture
+								</p>
 							</CardHeader>
-							<CardContent>
-								<div className="space-y-3">
-									<div>
-										<h4 className="font-medium">Address:</h4>
-										<p className="text-muted-foreground text-sm">
-											Evaluna Tech Center
-											<br />
-											456 Innovation Drive
-											<br />
-											Business City, ST 67890
-										</p>
-									</div>
-									<div>
-										<h4 className="font-medium">Contact:</h4>
-										<p className="text-muted-foreground text-sm">
-											Phone: (555) 234-5678
-											<br />
-											Fax: (555) 234-5679
-										</p>
-									</div>
-									<div>
-										<h4 className="font-medium">IT Support:</h4>
-										<p className="text-muted-foreground text-sm">
-											Ext. 1501 (Internal)
-											<br />
-											regional-support@evaluna.com
-										</p>
-									</div>
+							<CardContent className="space-y-3 pt-0 text-xs">
+								<div className="space-y-1">
+									<p className="font-medium text-foreground">Location:</p>
+									<p className="text-muted-foreground leading-relaxed">
+										Bhopal Technology Network,
+										<br />
+										Central Madhya Pradesh, India
+									</p>
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-foreground">Inquiries:</p>
+									<p className="font-mono text-muted-foreground">support@evaluna-erp.com</p>
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-foreground">Scope:</p>
+									<p className="text-muted-foreground">
+										Platform Engineering, Cloud Infrastructure & Central Analytics
+									</p>
 								</div>
 							</CardContent>
 						</Card>
 					</div>
 				</section>
 
-				{/* CTA Section */}
-				<section className="text-center">
-					<h2 className="mb-4 font-bold text-2xl text-foreground tracking-tight">
-						Need Immediate Assistance?
-					</h2>
-					<p className="mx-auto mb-6 max-w-2xl text-muted-foreground">
-						Our IT support team is available to help with any issues you're
-						experiencing. Don't hesitate to reach out for prompt assistance.
+				{/* Final Callout */}
+				<div className="rounded-2xl border border-border/80 bg-muted/30 p-8 sm:p-10 text-center space-y-4">
+					<h3 className="font-bold text-2xl text-foreground">
+						Ready to streamline your enterprise operations?
+					</h3>
+					<p className="text-sm text-muted-foreground max-w-xl mx-auto">
+						Whether you need a custom multi-store POS rollout or multi-depot WMS integration, our engineering team is ready to assist.
 					</p>
-					<div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-						<Button asChild size="lg" className="shadow-lg">
-							<Link href="mailto:support@evaluna.com">Email Support Team</Link>
+					<div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+						<Button asChild size="default" className="shadow-xs">
+							<Link href="mailto:support@evaluna.com">Email Us Directly</Link>
 						</Button>
-						<Button asChild size="lg" variant="outline">
-							<Link href="/docs">View Documentation</Link>
+						<Button asChild variant="outline" size="default" className="border-border/70 hover:bg-muted">
+							<Link href="/login">Employee Login</Link>
 						</Button>
 					</div>
-				</section>
+				</div>
 			</main>
 
 			{/* Footer */}
-			<footer className="mt-16 border-slate-200 border-t bg-white py-8">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex flex-col items-center justify-between md:flex-row">
-						<div className="mb-4 flex items-center space-x-2 md:mb-0">
-							<MountainIcon className="h-6 w-6 text-primary" strokeWidth={2} />
-							<span className="font-bold text-foreground text-lg">
-								Evaluna ERP
-							</span>
-						</div>
-						<div className="text-muted-foreground text-sm">
-							Â© {new Date().getFullYear()} Evaluna Technologies. Internal Use
-							Only.
-						</div>
+			<footer className="mt-16 border-t border-border/60 bg-muted/20 py-8 transition-colors">
+				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+					<div className="flex items-center space-x-2">
+						<img
+							src="/logo.jpg"
+							alt="Evaluna ERP"
+							className="h-5 w-5 rounded-md object-cover"
+						/>
+						<span className="font-bold text-foreground">Evaluna ERP</span>
+						<span>• Bhopal & Berasia, MP</span>
 					</div>
-					<div className="mt-4 flex flex-wrap justify-center space-x-6 text-muted-foreground text-sm md:justify-end">
-						<Link
-							href="/privacy"
-							className="transition-colors hover:text-foreground"
-						>
-							Privacy Policy
+					<div>
+						© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. All rights reserved.
+					</div>
+					<div className="flex items-center space-x-4">
+						<Link href="/privacy" className="hover:text-foreground transition-colors">
+							Privacy
 						</Link>
-						<Link
-							href="/terms"
-							className="transition-colors hover:text-foreground"
-						>
-							Terms of Service
+						<Link href="/terms" className="hover:text-foreground transition-colors">
+							Terms
 						</Link>
-						<Link
-							href="/docs"
-							className="transition-colors hover:text-foreground"
-						>
-							Internal Documentation
+						<Link href="/about" className="hover:text-foreground transition-colors">
+							About
 						</Link>
 					</div>
 				</div>

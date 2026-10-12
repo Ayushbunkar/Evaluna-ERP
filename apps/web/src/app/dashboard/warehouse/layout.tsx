@@ -11,6 +11,7 @@ import {
 	ClipboardCheckIcon,
 	ClipboardListIcon,
 	IndianRupeeIcon,
+	LayersIcon,
 	LogOutIcon,
 	MenuIcon,
 	PackageIcon,

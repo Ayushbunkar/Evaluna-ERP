@@ -4,10 +4,8 @@ import {
 	ArrowLeft,
 	BookOpen,
 	Database,
-	Download,
 	FileText,
 	HelpCircle,
-	MountainIcon,
 	Search,
 	Video,
 } from "lucide-react";
@@ -15,6 +13,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { UserGuidesSection } from "@/components/docs/UserGuidesSection";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -46,9 +45,11 @@ export default function DocsPage() {
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex h-16 items-center justify-between">
 						<Link href="/" className="group flex items-center space-x-2.5">
-							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs transition-transform group-hover:scale-105">
-								<MountainIcon className="h-5 w-5" strokeWidth={2.5} />
-							</div>
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
+							/>
 							<span className="font-bold text-foreground text-xl tracking-tight">
 								Evaluna ERP
 							</span>
@@ -98,7 +99,7 @@ export default function DocsPage() {
 								<input
 									type="text"
 									placeholder="Search for topics, features, or keywords..."
-									className="flex-1 rounded-lg border border-input px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+									className="flex-1 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
 								/>
 								<Button type="submit">
 									<Search className="mr-2 h-4 w-4" /> Search
@@ -270,89 +271,8 @@ export default function DocsPage() {
 					</div>
 				</section>
 
-				{/* User Guides */}
-				<section className="mb-16">
-					<h2 className="mb-8 font-bold text-3xl text-foreground tracking-tight">
-						User Guides & Manuals
-					</h2>
-					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-						<Card>
-							<CardHeader className="flex flex-col items-center text-center">
-								<Download className="mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Department Guides</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Role-specific guides tailored to different departments.
-								</p>
-								<div className="space-y-2 text-sm">
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>Sales Team Guide</span>
-										<Button variant="outline" size="sm">
-											Download
-										</Button>
-									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>Finance Guide</span>
-										<Button variant="outline" size="sm">
-											Download
-										</Button>
-									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>Operations Guide</span>
-										<Button variant="outline" size="sm">
-											Download
-										</Button>
-									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>HR Guide</span>
-										<Button variant="outline" size="sm">
-											Download
-										</Button>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader className="flex flex-col items-center text-center">
-								<HelpCircle className="mx-auto mb-2 h-8 w-8 text-primary" />
-								<h3 className="font-semibold text-lg">Quick Reference</h3>
-							</CardHeader>
-							<CardContent>
-								<p className="mb-4 text-center text-muted-foreground">
-									Handy cheat sheets and quick reference guides.
-								</p>
-								<div className="space-y-2 text-sm">
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>Keyboard Shortcuts</span>
-										<Button variant="outline" size="sm">
-											View
-										</Button>
-									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>Common Workflows</span>
-										<Button variant="outline" size="sm">
-											View
-										</Button>
-									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>Error Codes</span>
-										<Button variant="outline" size="sm">
-											View
-										</Button>
-									</div>
-									<div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-										<span>Data Entry Tips</span>
-										<Button variant="outline" size="sm">
-											View
-										</Button>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-				</section>
+				{/* User Guides & Manuals (Bilingual PDF Generation) */}
+				<UserGuidesSection />
 
 				{/* API Documentation */}
 				<section className="mb-16">
@@ -624,9 +544,11 @@ export default function DocsPage() {
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 					<div className="flex flex-col items-center justify-between gap-4 md:flex-row">
 						<div className="flex items-center space-x-2.5">
-							<div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-								<MountainIcon className="h-4 w-4" strokeWidth={2.5} />
-							</div>
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-7 w-7 rounded-lg object-cover"
+							/>
 							<span className="font-bold text-foreground text-lg">
 								Evaluna ERP
 							</span>
