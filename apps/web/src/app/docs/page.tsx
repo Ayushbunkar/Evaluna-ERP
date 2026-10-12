@@ -14,6 +14,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { UserGuidesSection } from "@/components/docs/UserGuidesSection";
+import { ModuleDocumentationSection } from "@/components/docs/ModuleDocumentationSection";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -190,86 +191,7 @@ export default function DocsPage() {
 				</section>
 
 				{/* Module Documentation */}
-				<section className="mb-16">
-					<h2 className="mb-8 font-bold text-3xl text-foreground tracking-tight">
-						Module Documentation
-					</h2>
-					<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-						<Card>
-							<CardHeader>
-								<h3 className="flex items-center font-semibold text-xl">
-									<Database className="mr-2 h-5 w-5 text-primary" />
-									Core Modules
-								</h3>
-							</CardHeader>
-							<CardContent>
-								<div className="space-y-4">
-									<div>
-										<h4 className="mb-2 font-medium">Financial Management:</h4>
-										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-											<li>Accounts payable/receivable</li>
-											<li>General ledger</li>
-											<li>Budget management</li>
-											<li>Financial reporting</li>
-										</ul>
-										<Button className="mt-2" variant="outline" size="sm">
-											View Docs
-										</Button>
-									</div>
-									<div>
-										<h4 className="mb-2 font-medium">Inventory Management:</h4>
-										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-											<li>Stock tracking</li>
-											<li>Supplier management</li>
-											<li>Reorder automation</li>
-											<li>Warehouse operations</li>
-										</ul>
-										<Button className="mt-2" variant="outline" size="sm">
-											View Docs
-										</Button>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader>
-								<h3 className="flex items-center font-semibold text-xl">
-									<FileText className="mr-2 h-5 w-5 text-primary" />
-									Business Operations
-								</h3>
-							</CardHeader>
-							<CardContent>
-								<div className="space-y-4">
-									<div>
-										<h4 className="mb-2 font-medium">Sales & POS:</h4>
-										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-											<li>Point of sale system</li>
-											<li>Order management</li>
-											<li>Customer records</li>
-											<li>Sales analytics</li>
-										</ul>
-										<Button className="mt-2" variant="outline" size="sm">
-											View Docs
-										</Button>
-									</div>
-									<div>
-										<h4 className="mb-2 font-medium">Human Resources:</h4>
-										<ul className="list-disc space-y-2 pl-5 text-muted-foreground text-sm">
-											<li>Employee management</li>
-											<li>Payroll processing</li>
-											<li>Attendance tracking</li>
-											<li>Performance reviews</li>
-										</ul>
-										<Button className="mt-2" variant="outline" size="sm">
-											View Docs
-										</Button>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-				</section>
+				<ModuleDocumentationSection />
 
 				{/* User Guides & Manuals (Bilingual PDF Generation) */}
 				<UserGuidesSection />
