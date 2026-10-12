@@ -4,13 +4,13 @@ import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
-import { motion } from "framer-motion";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, Loader2, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useRef, useState } from "react";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { signup } from "./actions";
 
 function SignupForm() {
@@ -108,58 +108,218 @@ function SignupForm() {
 
 export default function SignupPage() {
 	const t = useTranslations("signup");
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	return (
-		<div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background selection:bg-primary/20">
-			{/* Background gradients for premium feel */}
-			<div className="pointer-events-none absolute top-0 left-0 -z-10 h-full w-full overflow-hidden">
-				<div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
-				<div className="absolute right-[-10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
-			</div>
-
-			<div className="absolute top-6 right-6">
-				<LocaleSwitcher />
-			</div>
-
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-				className="mx-auto w-full max-w-md space-y-8 px-4"
-			>
-				<div className="flex flex-col items-center space-y-3 text-center">
-					<motion.div
-						initial={{ scale: 0.8, opacity: 0 }}
-						animate={{ scale: 1, opacity: 1 }}
-						transition={{ delay: 0.1, duration: 0.5 }}
-						className="mb-2"
+		<div className="min-h-screen bg-background text-foreground transition-colors selection:bg-primary/20">
+			{/* Unified Homepage Navigation */}
+			<header className="sticky top-0 z-50 w-full border-[#DEDEDA] border-b bg-[#F7F7F4]/90 py-3.5 backdrop-blur-md transition-colors dark:border-[#292929] dark:bg-[#080808]/90">
+				<div className="mx-auto flex max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-12">
+					{/* Brand Lockup */}
+					<Link
+						href="/"
+						className="group flex items-center space-x-3.5 transition-opacity hover:opacity-80"
+						title="Evaluna — Home"
 					>
 						<img
 							src="/logo.jpg"
-							alt="Evaluna ERP"
-							className="h-14 w-14 rounded-2xl object-cover shadow-md ring-1 ring-border"
+							alt="Evaluna"
+							className="h-8 w-8 rounded-md border border-[#DEDEDA] object-cover transition-transform duration-300 group-hover:scale-105 dark:border-[#292929]"
 						/>
-					</motion.div>
-					<h2 className="font-semibold text-3xl text-foreground tracking-tight">
-						{t("title")}
-					</h2>
-					<p className="max-w-sm text-base text-muted-foreground">
-						{t("subtitle")}
-					</p>
+						<div className="flex flex-col">
+							<span className="font-semibold font-serif text-[#111111] text-base uppercase tracking-tight dark:text-[#F5F5F2]">
+								EVALUNA
+							</span>
+							<span className="-mt-0.5 font-mono text-[#666666] text-[9px] uppercase tracking-widest dark:text-[#A3A3A0]">
+								Bhopal & Berasia • 23.26° N
+							</span>
+						</div>
+					</Link>
+
+					{/* Desktop Navigation Links */}
+					<nav className="hidden items-center space-x-8 font-mono text-[#666666] text-[11px] uppercase tracking-widest md:flex dark:text-[#A3A3A0]">
+						<Link
+							href="/#identity"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							01 Identity
+						</Link>
+						<Link
+							href="/#disciplines"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							02 Disciplines
+						</Link>
+						<Link
+							href="/features"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							Features
+						</Link>
+						<Link
+							href="/solutions"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							Solutions
+						</Link>
+						<Link
+							href="/about"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							Company
+						</Link>
+					</nav>
+
+					{/* Right Utility Actions */}
+					<div className="hidden items-center space-x-4 md:flex">
+						<ThemeToggle />
+						<Link
+							href="/login"
+							className="px-2 py-1 font-mono text-[#666666] text-[11px] uppercase tracking-widest transition-colors hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+						>
+							Sign-In
+						</Link>
+						<Link
+							href="/#dialogue"
+							className="border border-[#111111] px-4 py-2 font-mono text-[#111111] text-xs uppercase tracking-wider transition-all duration-200 hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
+						>
+							Inquire
+						</Link>
+					</div>
+
+					{/* Mobile Menu Button */}
+					<div className="flex items-center space-x-2 md:hidden">
+						<ThemeToggle />
+						<button
+							type="button"
+							onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+							className="p-2 text-[#111111] focus:outline-none dark:text-[#F5F5F2]"
+							aria-label="Toggle navigation menu"
+						>
+							{mobileMenuOpen ? (
+								<X className="h-6 w-6" />
+							) : (
+								<Menu className="h-6 w-6" />
+							)}
+						</button>
+					</div>
 				</div>
 
-				<Card className="border-border/50 bg-card/80 shadow-xl backdrop-blur-xl">
-					<Suspense
-						fallback={
-							<div className="flex justify-center p-10">
-								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+				{/* Mobile Drawer */}
+				<AnimatePresence>
+					{mobileMenuOpen && (
+						<motion.div
+							initial={{ opacity: 0, height: 0 }}
+							animate={{ opacity: 1, height: "auto" }}
+							exit={{ opacity: 0, height: 0 }}
+							transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+							className="overflow-hidden border-[#DEDEDA] border-b bg-[#F7F7F4] px-6 py-8 md:hidden dark:border-[#292929] dark:bg-[#080808]"
+						>
+							<div className="flex flex-col space-y-6 font-mono text-sm uppercase tracking-widest">
+								<Link
+									href="/#identity"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									01 Identity
+								</Link>
+								<Link
+									href="/#disciplines"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									02 Disciplines
+								</Link>
+								<Link
+									href="/features"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									Features
+								</Link>
+								<Link
+									href="/solutions"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									Solutions
+								</Link>
+								<Link
+									href="/about"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									Company
+								</Link>
+								<div className="flex flex-col space-y-3 border-[#DEDEDA] border-t pt-4 dark:border-[#292929]">
+									<Link
+										href="/login"
+										onClick={() => setMobileMenuOpen(false)}
+										className="font-mono text-[#666666] text-xs uppercase tracking-wider dark:text-[#A3A3A0]"
+									>
+										Employee Sign-In
+									</Link>
+									<Link
+										href="/docs"
+										onClick={() => setMobileMenuOpen(false)}
+										className="font-mono text-[#666666] text-xs uppercase tracking-wider dark:text-[#A3A3A0]"
+									>
+										Documentation & Manuals
+									</Link>
+								</div>
 							</div>
-						}
-					>
-						<SignupForm />
-					</Suspense>
-				</Card>
-			</motion.div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</header>
+
+			<div className="relative flex min-h-[calc(100vh-80px)] flex-col items-center justify-center overflow-hidden bg-background py-12 selection:bg-primary/20">
+				{/* Background gradients for premium feel */}
+				<div className="pointer-events-none absolute top-0 left-0 -z-10 h-full w-full overflow-hidden">
+					<div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
+					<div className="absolute right-[-10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
+				</div>
+
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+					className="mx-auto w-full max-w-md space-y-8 px-4"
+				>
+					<div className="flex flex-col items-center space-y-3 text-center">
+						<motion.div
+							initial={{ scale: 0.8, opacity: 0 }}
+							animate={{ scale: 1, opacity: 1 }}
+							transition={{ delay: 0.1, duration: 0.5 }}
+							className="mb-2"
+						>
+							<img
+								src="/logo.jpg"
+								alt="Evaluna ERP"
+								className="h-14 w-14 rounded-2xl object-cover shadow-md ring-1 ring-border"
+							/>
+						</motion.div>
+						<h2 className="font-semibold text-3xl text-foreground tracking-tight">
+							{t("title")}
+						</h2>
+						<p className="max-w-sm text-base text-muted-foreground">
+							{t("subtitle")}
+						</p>
+					</div>
+
+					<Card className="border-border/50 bg-card/80 shadow-xl backdrop-blur-xl">
+						<Suspense
+							fallback={
+								<div className="flex justify-center p-10">
+									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+								</div>
+							}
+						>
+							<SignupForm />
+						</Suspense>
+					</Card>
+				</motion.div>
+			</div>
 		</div>
 	);
 }

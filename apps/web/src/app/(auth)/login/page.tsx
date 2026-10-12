@@ -4,14 +4,13 @@ import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
-import { motion } from "framer-motion";
-import { AlertCircle, Loader2, WifiOff } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, Loader2, Menu, WifiOff, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LocaleSwitcher } from "@/components/locale-switcher";
 import { login } from "./actions";
 
 function LoginForm() {
@@ -74,9 +73,10 @@ function LoginForm() {
 							<span>Offline Mode Active</span>
 						</div>
 						<p className="text-muted-foreground text-xs">
-							Internet disconnected. If you were logged in previously, you can launch your offline workspace tabs directly:
+							Internet disconnected. If you were logged in previously, you can
+							launch your offline workspace tabs directly:
 						</p>
-						<div className="pt-1 space-y-1.5 font-medium">
+						<div className="space-y-1.5 pt-1 font-medium">
 							<Link
 								href="/driver"
 								className="flex items-center justify-between rounded-lg bg-amber-500/20 px-3 py-2 text-amber-900 transition-colors hover:bg-amber-500/30 dark:text-amber-100"
@@ -219,71 +219,176 @@ function LoginForm() {
 
 export default function LoginPage() {
 	const t = useTranslations("login");
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	return (
-		<div className="min-h-screen bg-background">
-			{/* Navigation */}
-			<nav className="border-border border-b bg-background/80 backdrop-blur-sm">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex h-16 items-center justify-between">
-						<Link
-							href="/"
-							className="group flex items-center space-x-2.5 transition-opacity hover:opacity-90"
-							title="Go to Home"
-						>
-							<img
-								src="/logo.jpg"
-								alt="Evaluna ERP"
-								className="h-8 w-8 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
-							/>
-							<span className="font-bold text-foreground text-xl">
-								Evaluna ERP
+		<div className="min-h-screen bg-background text-foreground transition-colors selection:bg-primary/20">
+			{/* Unified Homepage Navigation */}
+			<header className="sticky top-0 z-50 w-full border-[#DEDEDA] border-b bg-[#F7F7F4]/90 py-3.5 backdrop-blur-md transition-colors dark:border-[#292929] dark:bg-[#080808]/90">
+				<div className="mx-auto flex max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-12">
+					{/* Brand Lockup */}
+					<Link
+						href="/"
+						className="group flex items-center space-x-3.5 transition-opacity hover:opacity-80"
+						title="Evaluna — Home"
+					>
+						<img
+							src="/logo.jpg"
+							alt="Evaluna"
+							className="h-8 w-8 rounded-md border border-[#DEDEDA] object-cover transition-transform duration-300 group-hover:scale-105 dark:border-[#292929]"
+						/>
+						<div className="flex flex-col">
+							<span className="font-semibold font-serif text-[#111111] text-base uppercase tracking-tight dark:text-[#F5F5F2]">
+								EVALUNA
 							</span>
-						</Link>
-						<div className="flex items-center space-x-4">
-							<Link
-								href="/"
-								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-							>
-								Home
-							</Link>
-							<Link
-								href="/features"
-								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-							>
-								Features
-							</Link>
-							<Link
-								href="/solutions"
-								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-							>
-								Solutions
-							</Link>
-							<Link
-								href="/about"
-								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-							>
-								Company
-							</Link>
-							<ThemeToggle />
-							<Button asChild variant="outline" className="text-sm">
-								<Link href="/signup">Sign Up</Link>
-							</Button>
+							<span className="-mt-0.5 font-mono text-[#666666] text-[9px] uppercase tracking-widest dark:text-[#A3A3A0]">
+								Bhopal & Berasia • 23.26° N
+							</span>
 						</div>
+					</Link>
+
+					{/* Desktop Navigation Links */}
+					<nav className="hidden items-center space-x-8 font-mono text-[#666666] text-[11px] uppercase tracking-widest md:flex dark:text-[#A3A3A0]">
+						<Link
+							href="/#identity"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							01 Identity
+						</Link>
+						<Link
+							href="/#disciplines"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							02 Disciplines
+						</Link>
+						<Link
+							href="/features"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							Features
+						</Link>
+						<Link
+							href="/solutions"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							Solutions
+						</Link>
+						<Link
+							href="/about"
+							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+						>
+							Company
+						</Link>
+					</nav>
+
+					{/* Right Utility Actions */}
+					<div className="hidden items-center space-x-4 md:flex">
+						<ThemeToggle />
+						<Link
+							href="/login"
+							className="px-2 py-1 font-mono text-[#666666] text-[11px] uppercase tracking-widest transition-colors hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+						>
+							Sign-In
+						</Link>
+						<Link
+							href="/#dialogue"
+							className="border border-[#111111] px-4 py-2 font-mono text-[#111111] text-xs uppercase tracking-wider transition-all duration-200 hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
+						>
+							Inquire
+						</Link>
+					</div>
+
+					{/* Mobile Menu Button */}
+					<div className="flex items-center space-x-2 md:hidden">
+						<ThemeToggle />
+						<button
+							type="button"
+							onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+							className="p-2 text-[#111111] focus:outline-none dark:text-[#F5F5F2]"
+							aria-label="Toggle navigation menu"
+						>
+							{mobileMenuOpen ? (
+								<X className="h-6 w-6" />
+							) : (
+								<Menu className="h-6 w-6" />
+							)}
+						</button>
 					</div>
 				</div>
-			</nav>
 
-			<div className="relative flex min-h-[calc(100vh-64px)] flex-col items-center justify-center overflow-hidden bg-background selection:bg-primary/20">
+				{/* Mobile Drawer */}
+				<AnimatePresence>
+					{mobileMenuOpen && (
+						<motion.div
+							initial={{ opacity: 0, height: 0 }}
+							animate={{ opacity: 1, height: "auto" }}
+							exit={{ opacity: 0, height: 0 }}
+							transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+							className="overflow-hidden border-[#DEDEDA] border-b bg-[#F7F7F4] px-6 py-8 md:hidden dark:border-[#292929] dark:bg-[#080808]"
+						>
+							<div className="flex flex-col space-y-6 font-mono text-sm uppercase tracking-widest">
+								<Link
+									href="/#identity"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									01 Identity
+								</Link>
+								<Link
+									href="/#disciplines"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									02 Disciplines
+								</Link>
+								<Link
+									href="/features"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									Features
+								</Link>
+								<Link
+									href="/solutions"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									Solutions
+								</Link>
+								<Link
+									href="/about"
+									onClick={() => setMobileMenuOpen(false)}
+									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
+								>
+									Company
+								</Link>
+								<div className="flex flex-col space-y-3 border-[#DEDEDA] border-t pt-4 dark:border-[#292929]">
+									<Link
+										href="/login"
+										onClick={() => setMobileMenuOpen(false)}
+										className="font-mono text-[#666666] text-xs uppercase tracking-wider dark:text-[#A3A3A0]"
+									>
+										Employee Sign-In
+									</Link>
+									<Link
+										href="/docs"
+										onClick={() => setMobileMenuOpen(false)}
+										className="font-mono text-[#666666] text-xs uppercase tracking-wider dark:text-[#A3A3A0]"
+									>
+										Documentation & Manuals
+									</Link>
+								</div>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</header>
+
+			<div className="relative flex min-h-[calc(100vh-80px)] flex-col items-center justify-center overflow-hidden bg-background py-12 selection:bg-primary/20">
 				{/* Background gradients for premium feel */}
 				<div className="pointer-events-none absolute top-0 left-0 -z-10 h-full w-full overflow-hidden">
 					<div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
 					<div className="absolute right-[-10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
-				</div>
-
-				<div className="absolute top-6 right-6 flex items-center gap-2">
-					<LocaleSwitcher />
-					<ThemeToggle />
 				</div>
 
 				<motion.div
