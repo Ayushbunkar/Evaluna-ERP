@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { motion } from "framer-motion";
@@ -49,7 +49,7 @@ export function Hero() {
 							className="flex flex-col gap-4 sm:flex-row"
 						>
 							<Button size="lg" asChild>
-								<Link href="/product">
+								<Link href="/features">
 									Explore Evalona <ArrowRight className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>

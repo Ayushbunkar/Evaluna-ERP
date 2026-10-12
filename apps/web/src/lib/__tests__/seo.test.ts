@@ -64,7 +64,7 @@ describe("Technical SEO Architecture & Validation", () => {
 		it("attaches OpenGraph and Twitter cards with correct dimensions", () => {
 			const meta = constructMetadata({
 				title: "POS Billing",
-				canonicalPath: "/product",
+				canonicalPath: "/features",
 			});
 
 			const og = meta.openGraph as any;
@@ -183,8 +183,8 @@ describe("Technical SEO Architecture & Validation", () => {
 	describe("XML Sitemap (apps/web/src/app/sitemap.ts)", () => {
 		const sitemapEntries = sitemap();
 
-		it("generates entries for all 18 indexable public routes", () => {
-			expect(sitemapEntries.length).toBe(18);
+		it("generates entries for all 17 indexable public routes", () => {
+			expect(sitemapEntries.length).toBe(17);
 		});
 
 		it("every sitemap entry has a valid absolute URL, priority, and changeFrequency", () => {

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@evaluna/ui/components/button";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,7 +20,6 @@ export function Navbar() {
 	}, []);
 
 	const navItems = [
-		{ name: "Product", href: "/product" },
 		{ name: "Solutions", href: "/solutions" },
 		{ name: "Features", href: "/features" },
 		{ name: "Company", href: "/about" },

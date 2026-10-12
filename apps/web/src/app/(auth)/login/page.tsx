@@ -248,12 +248,6 @@ export default function LoginPage() {
 								Home
 							</Link>
 							<Link
-								href="/product"
-								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-							>
-								Product
-							</Link>
-							<Link
 								href="/features"
 								className="font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
 							>
