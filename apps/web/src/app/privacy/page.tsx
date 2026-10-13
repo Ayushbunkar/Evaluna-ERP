@@ -1,17 +1,9 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
-import {
-	ArrowLeft,
-	Eye,
-	FileText,
-	Lock,
-	Shield,
-	User,
-} from "lucide-react";
+import { Eye, FileText, Lock, Shield, User } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -33,32 +25,8 @@ export default function PrivacyPage() {
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJson) }}
 			/>
-			{/* Navigation */}
-			<nav className="sticky top-0 z-50 border-b border-border/80 bg-background/80 backdrop-blur-md transition-colors">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex h-16 items-center justify-between">
-						<Link href="/" className="group flex items-center space-x-2.5">
-							<img
-								src="/logo.jpg"
-								alt="Evaluna ERP"
-								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
-							/>
-							<span className="font-bold text-foreground text-xl tracking-tight">
-								Evaluna ERP
-							</span>
-						</Link>
-						<div className="flex items-center space-x-2 sm:space-x-3">
-							<LocaleSwitcher />
-							<ThemeToggle />
-							<Button asChild variant="outline" size="sm" className="border-border/70 hover:bg-muted text-xs">
-								<Link href="/">
-									<ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to Home
-								</Link>
-							</Button>
-						</div>
-					</div>
-				</div>
-			</nav>
+			{/* Synchronized Homepage Navigation */}
+			<PublicHeader />
 
 			{/* Main Content */}
 			<main className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -394,8 +362,8 @@ export default function PrivacyPage() {
 			</main>
 
 			{/* Footer */}
-			<footer className="mt-16 border-t border-border/60 bg-muted/20 py-8 transition-colors">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+			<footer className="mt-16 border-border/60 border-t bg-muted/20 py-8 transition-colors">
+				<div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 text-muted-foreground text-xs sm:flex-row sm:px-6 lg:px-8">
 					<div className="flex items-center space-x-2">
 						<img
 							src="/logo.jpg"
@@ -406,16 +374,26 @@ export default function PrivacyPage() {
 						<span>• Privacy & Compliance</span>
 					</div>
 					<div>
-						© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. All rights reserved.
+						© {new Date().getFullYear()} Evaluna Technologies Pvt. Ltd. All
+						rights reserved.
 					</div>
 					<div className="flex items-center space-x-4">
-						<Link href="/terms" className="hover:text-foreground transition-colors">
+						<Link
+							href="/terms"
+							className="transition-colors hover:text-foreground"
+						>
 							Terms
 						</Link>
-						<Link href="/contact" className="hover:text-foreground transition-colors">
+						<Link
+							href="/contact"
+							className="transition-colors hover:text-foreground"
+						>
 							Contact
 						</Link>
-						<Link href="/about" className="hover:text-foreground transition-colors">
+						<Link
+							href="/about"
+							className="transition-colors hover:text-foreground"
+						>
 							About
 						</Link>
 					</div>

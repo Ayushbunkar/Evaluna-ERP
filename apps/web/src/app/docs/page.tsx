@@ -1,21 +1,12 @@
 import { Button } from "@evaluna/ui/components/button";
 import { Card, CardContent, CardHeader } from "@evaluna/ui/components/card";
-import {
-	ArrowLeft,
-	BookOpen,
-	Database,
-	FileText,
-	HelpCircle,
-	Search,
-	Video,
-} from "lucide-react";
+import { Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import { UserGuidesSection } from "@/components/docs/UserGuidesSection";
-import { ModuleDocumentationSection } from "@/components/docs/ModuleDocumentationSection";
 import { GettingStartedSection } from "@/components/docs/GettingStartedSection";
+import { ModuleDocumentationSection } from "@/components/docs/ModuleDocumentationSection";
+import { UserGuidesSection } from "@/components/docs/UserGuidesSection";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = constructMetadata({
@@ -43,36 +34,8 @@ export default function DocsPage() {
 			</div>
 
 			{/* Navigation */}
-			<nav className="sticky top-0 z-50 border-border/80 border-b bg-background/80 backdrop-blur-md">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-					<div className="flex h-16 items-center justify-between">
-						<Link href="/" className="group flex items-center space-x-2.5">
-							<img
-								src="/logo.jpg"
-								alt="Evaluna ERP"
-								className="h-9 w-9 rounded-xl object-cover shadow-xs transition-transform group-hover:scale-105"
-							/>
-							<span className="font-bold text-foreground text-xl tracking-tight">
-								Evaluna ERP
-							</span>
-						</Link>
-						<div className="flex items-center space-x-2 sm:space-x-3">
-							<LocaleSwitcher />
-							<ThemeToggle />
-							<Button
-								asChild
-								variant="outline"
-								size="sm"
-								className="font-medium text-sm"
-							>
-								<Link href="/">
-									<ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
-								</Link>
-							</Button>
-						</div>
-					</div>
-				</div>
-			</nav>
+			{/* Synchronized Homepage Navigation */}
+			<PublicHeader />
 
 			{/* Main Content */}
 			<main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
@@ -101,7 +64,7 @@ export default function DocsPage() {
 								<input
 									type="text"
 									placeholder="Search for topics, features, or keywords..."
-									className="flex-1 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+									className="flex-1 rounded-lg border border-input bg-background px-4 py-2 text-foreground shadow-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
 								/>
 								<Button type="submit">
 									<Search className="mr-2 h-4 w-4" /> Search

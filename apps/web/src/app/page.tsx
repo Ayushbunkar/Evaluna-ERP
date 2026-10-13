@@ -9,11 +9,11 @@ import {
 	useSpring,
 	useTransform,
 } from "framer-motion";
-import { ArrowDown, ArrowRight, Menu, X } from "lucide-react";
+import { ArrowDown, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 
 // ── Photographic Curation (High-Resolution Architectural & Spatial Series) ──
 const IMAGERY = {
@@ -151,8 +151,6 @@ const PRINCIPLES = [
 ];
 
 export default function HomePage() {
-	const [scrolled, setScrolled] = useState(false);
-	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [activeSlide, setActiveSlide] = useState(0);
 	const prefersReducedMotion = useReducedMotion();
 
@@ -162,15 +160,6 @@ export default function HomePage() {
 			setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
 		}, 4500);
 		return () => clearInterval(interval);
-	}, []);
-
-	// Scroll listener for navigation elevation
-	useEffect(() => {
-		const handleScroll = () => {
-			setScrolled(window.scrollY > 40);
-		};
-		window.addEventListener("scroll", handleScroll, { passive: true });
-		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
 	// Pointer-responsive subtle depth for Hero on desktop
@@ -221,166 +210,28 @@ export default function HomePage() {
 	const identityImageY = useTransform(identityProgress, [0, 1], ["-8%", "8%"]);
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: Ambient cursor coordinates parallax effect on homepage
 		<div
 			suppressHydrationWarning
 			onMouseMove={handleMouseMove}
 			className="min-h-screen bg-[#F7F7F4] font-sans text-[#111111] transition-colors duration-500 selection:bg-[#111111] selection:text-[#F7F7F4] dark:bg-[#080808] dark:text-[#F5F5F2] dark:selection:bg-[#F5F5F2] dark:selection:text-[#080808]"
 		>
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION A — REFINED MONOCHROME NAVIGATION
+			    SECTION A — REFINED SYNCHRONIZED NAVIGATION
 			══════════════════════════════════════════════════════════════ */}
-			<header
-				suppressHydrationWarning
-				className={`fixed top-0 right-0 left-0 z-50 transition-all duration-300 ${
-					scrolled
-						? "border-[#DEDEDA] border-b bg-[#F7F7F4]/90 py-3.5 backdrop-blur-md dark:border-[#292929] dark:bg-[#080808]/90"
-						: "bg-transparent py-6"
-				}`}
-			>
-				<div className="mx-auto flex max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-12">
-					{/* Brand Lockup */}
-					<Link
-						href="/"
-						className="group flex items-center space-x-3.5 transition-opacity hover:opacity-80"
-						title="Evaluna — Home"
-					>
-						<img
-							src="/logo.jpg"
-							alt="Evaluna"
-							className="h-8 w-8 rounded-md border border-[#DEDEDA] object-cover transition-transform duration-300 group-hover:scale-105 dark:border-[#292929]"
-						/>
-						<div className="flex flex-col">
-							<span className="font-semibold font-serif text-[#111111] text-base uppercase tracking-tight dark:text-[#F5F5F2]">
-								EVALUNA
-							</span>
-							<span className="-mt-0.5 font-mono text-[#666666] text-[9px] uppercase tracking-widest dark:text-[#A3A3A0]">
-								Bhopal & Berasia • 23.26° N
-							</span>
-						</div>
-					</Link>
-
-					{/* Desktop Navigation Links */}
-					<nav className="hidden items-center space-x-8 font-mono text-[#666666] text-[11px] uppercase tracking-widest md:flex dark:text-[#A3A3A0]">
-						<Link
-							href="/features"
-							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-						>
-							Features
-						</Link>
-						<Link
-							href="/solutions"
-							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-						>
-							Solutions
-						</Link>
-						<Link
-							href="/about"
-							className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-						>
-							Company
-						</Link>
-					</nav>
-
-					{/* Right Utility Actions */}
-					<div className="hidden items-center space-x-4 md:flex">
-						<ThemeToggle />
-						<Link
-							href="/login"
-							className="px-2 py-1 font-mono text-[#666666] text-[11px] uppercase tracking-widest transition-colors hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
-						>
-							Sign-In
-						</Link>
-						<Link
-							href="#dialogue"
-							className="border border-[#111111] px-4 py-2 font-mono text-[#111111] text-xs uppercase tracking-wider transition-all duration-200 hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
-						>
-							Inquire
-						</Link>
-					</div>
-
-					{/* Mobile Menu Button */}
-					<div className="flex items-center space-x-2 md:hidden">
-						<ThemeToggle />
-						<button
-							type="button"
-							onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-							className="p-2 text-[#111111] focus:outline-none dark:text-[#F5F5F2]"
-							aria-label="Toggle navigation menu"
-						>
-							{mobileMenuOpen ? (
-								<X className="h-6 w-6" />
-							) : (
-								<Menu className="h-6 w-6" />
-							)}
-						</button>
-					</div>
-				</div>
-
-				{/* Mobile Drawer */}
-				<AnimatePresence>
-					{mobileMenuOpen && (
-						<motion.div
-							initial={{ opacity: 0, height: 0 }}
-							animate={{ opacity: 1, height: "auto" }}
-							exit={{ opacity: 0, height: 0 }}
-							transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-							className="overflow-hidden border-[#DEDEDA] border-b bg-[#F7F7F4] px-6 py-8 md:hidden dark:border-[#292929] dark:bg-[#080808]"
-						>
-							<div className="flex flex-col space-y-6 font-mono text-sm uppercase tracking-widest">
-								<Link
-									href="/features"
-									onClick={() => setMobileMenuOpen(false)}
-									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
-								>
-									Features
-								</Link>
-								<Link
-									href="/solutions"
-									onClick={() => setMobileMenuOpen(false)}
-									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
-								>
-									Solutions
-								</Link>
-								<Link
-									href="/about"
-									onClick={() => setMobileMenuOpen(false)}
-									className="text-[#666666] hover:text-[#111111] dark:text-[#A3A3A0] dark:hover:text-[#F5F5F2]"
-								>
-									Company
-								</Link>
-								<div className="flex flex-col space-y-3 border-[#DEDEDA] border-t pt-4 dark:border-[#292929]">
-									<Link
-										href="/login"
-										onClick={() => setMobileMenuOpen(false)}
-										className="font-mono text-[#666666] text-xs uppercase tracking-wider dark:text-[#A3A3A0]"
-									>
-										Employee Sign-In
-									</Link>
-									<Link
-										href="/docs"
-										onClick={() => setMobileMenuOpen(false)}
-										className="font-mono text-[#666666] text-xs uppercase tracking-wider dark:text-[#A3A3A0]"
-									>
-										Documentation & Manuals
-									</Link>
-								</div>
-							</div>
-						</motion.div>
-					)}
-				</AnimatePresence>
-			</header>
+			<PublicHeader />
 
 			{/* ══════════════════════════════════════════════════════════════
 			    SECTION B — CINEMATIC EDITORIAL HERO
 			══════════════════════════════════════════════════════════════ */}
-			<section className="relative overflow-hidden border-[#DEDEDA] border-b pt-32 pb-20 sm:pt-40 sm:pb-28 lg:pt-44 lg:pb-36 dark:border-[#292929]">
-				<div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+			<section className="relative overflow-hidden border-[#DEDEDA] border-b pt-8 pb-16 sm:pt-16 sm:pb-24 lg:pt-20 lg:pb-32 dark:border-[#292929]">
+				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
 					{/* Editorial Header Metadata */}
 					<motion.div
 						initial={{ opacity: 0, y: 15 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-						className="flex flex-col justify-between gap-4 border-[#DEDEDA] border-b pb-10 font-mono text-[#666666] text-[10px] uppercase tracking-widest sm:flex-row sm:items-center sm:text-[11px] dark:border-[#292929] dark:text-[#A3A3A0]"
+						className="flex flex-col justify-between gap-3 border-[#DEDEDA] border-b pb-6 font-mono text-[#666666] text-[10px] uppercase tracking-widest sm:flex-row sm:items-center sm:text-[11px] dark:border-[#292929] dark:text-[#A3A3A0]"
 					>
 						<span className="flex items-center space-x-2">
 							<span className="h-1.5 w-1.5 rounded-full bg-[#111111] dark:bg-[#F5F5F2]" />
@@ -393,9 +244,9 @@ export default function HomePage() {
 					</motion.div>
 
 					{/* Asymmetric Typography & Image Reveal Composition */}
-					<div className="grid grid-cols-1 items-end gap-12 pt-12 lg:grid-cols-12 lg:gap-8 lg:pt-16">
+					<div className="grid grid-cols-1 items-end gap-10 pt-8 sm:gap-12 lg:grid-cols-12 lg:gap-8 lg:pt-14">
 						{/* Left: Oversized Editorial Statement */}
-						<div className="space-y-8 sm:space-y-10 lg:col-span-7">
+						<div className="space-y-6 sm:space-y-10 lg:col-span-7">
 							<motion.h1
 								initial={{ opacity: 0, y: 30 }}
 								animate={{ opacity: 1, y: 0 }}
@@ -404,7 +255,7 @@ export default function HomePage() {
 									ease: [0.16, 1, 0.3, 1],
 									delay: 0.1,
 								}}
-								className="font-normal font-serif text-5xl text-[#111111] leading-[0.92] tracking-[-0.035em] sm:text-7xl lg:text-8xl xl:text-9xl dark:text-[#F5F5F2]"
+								className="font-normal font-serif text-4xl text-[#111111] leading-[0.95] tracking-[-0.035em] sm:text-7xl lg:text-8xl xl:text-9xl dark:text-[#F5F5F2]"
 							>
 								A clearer
 								<br />
@@ -421,24 +272,24 @@ export default function HomePage() {
 								}}
 								className="max-w-xl space-y-6 pt-2"
 							>
-								<p className="font-light text-[#666666] text-base leading-relaxed sm:text-lg dark:text-[#A3A3A0]">
+								<p className="font-light text-[#666666] text-sm leading-relaxed sm:text-lg dark:text-[#A3A3A0]">
 									Evaluna designs physical commerce systems, spatial logistics,
 									and digital infrastructure built for permanence. Rooted in the
 									central Indian transit corridor of Bhopal and Berasia, we
 									build clarity into complex human operations.
 								</p>
 
-								<div className="flex flex-wrap items-center gap-4 pt-2">
+								<div className="flex flex-col items-stretch gap-3 pt-2 sm:flex-row sm:items-center sm:gap-4">
 									<Link
-										href="#identity"
-										className="group inline-flex items-center space-x-3 bg-[#111111] px-6 py-3.5 font-mono text-[#F7F7F4] text-xs uppercase tracking-wider transition-transform duration-200 hover:scale-[1.02] dark:bg-[#F5F5F2] dark:text-[#080808]"
+										href="/#philosophy"
+										className="group inline-flex items-center justify-center space-x-3 bg-[#111111] px-6 py-3.5 font-mono text-[#F7F7F4] text-xs uppercase tracking-wider transition-transform duration-200 hover:scale-[1.02] dark:bg-[#F5F5F2] dark:text-[#080808]"
 									>
 										<span>Explore The Work</span>
 										<ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
 									</Link>
 									<Link
-										href="#dialogue"
-										className="inline-flex items-center space-x-2 border border-[#DEDEDA] px-6 py-3.5 font-mono text-[#111111] text-xs uppercase tracking-wider transition-colors hover:border-[#111111] dark:border-[#292929] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
+										href="/contact"
+										className="inline-flex items-center justify-center space-x-2 border border-[#DEDEDA] px-6 py-3.5 font-mono text-[#111111] text-xs uppercase tracking-wider transition-colors hover:border-[#111111] dark:border-[#292929] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
 									>
 										<span>Direct Inquiry</span>
 									</Link>
@@ -526,7 +377,7 @@ export default function HomePage() {
 			<section
 				id="identity"
 				ref={identityRef}
-				className="relative overflow-hidden border-[#DEDEDA] border-b py-24 sm:py-32 lg:py-40 dark:border-[#292929]"
+				className="relative scroll-mt-20 overflow-hidden border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-40 dark:border-[#292929]"
 			>
 				<div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
 					<div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-16">
@@ -815,7 +666,7 @@ export default function HomePage() {
 			══════════════════════════════════════════════════════════════ */}
 			<section
 				id="philosophy"
-				className="border-[#DEDEDA] border-b py-24 sm:py-32 lg:py-40 dark:border-[#292929]"
+				className="scroll-mt-20 border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-40 dark:border-[#292929]"
 			>
 				<div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
 					<div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
@@ -861,7 +712,7 @@ export default function HomePage() {
 			══════════════════════════════════════════════════════════════ */}
 			<section
 				id="geography"
-				className="relative overflow-hidden border-[#DEDEDA] border-b py-24 sm:py-32 lg:py-40 dark:border-[#292929]"
+				className="relative scroll-mt-20 overflow-hidden border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-40 dark:border-[#292929]"
 			>
 				<div className="mx-auto max-w-7xl space-y-16 px-6 sm:px-8 lg:px-12">
 					<div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
@@ -932,7 +783,7 @@ export default function HomePage() {
 			══════════════════════════════════════════════════════════════ */}
 			<section
 				id="dialogue"
-				className="relative border-[#DEDEDA] border-b py-28 sm:py-36 lg:py-48 dark:border-[#292929]"
+				className="relative scroll-mt-20 border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-44 dark:border-[#292929]"
 			>
 				<div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
 					<div className="max-w-4xl space-y-12">
