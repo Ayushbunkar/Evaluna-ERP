@@ -1,8 +1,8 @@
 import {
 	bankAccounts,
 	batchStock,
-	branchInventory,
 	branches,
+	branchInventory,
 	goodsReceiptItems,
 	goodsReceiptNotes,
 	payments,
@@ -162,19 +162,35 @@ export const procurementRouter = router({
 				priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
 				requiredByDate: z.date().optional(),
 				notes: z.string().optional(),
-				items: z.array(
-					z.object({
-						productId: z.number(),
-						quantity: z.number().min(0.001),
-						estimatedUnitCost: z.number().min(0).default(0),
-						preferredSupplierId: z.number().optional(),
-						notes: z.string().optional(),
-					}),
-				).min(1),
+				items: z
+					.array(
+						z.object({
+							productId: z.number().default(0),
+							customProductName: z.string().optional(),
+							customSku: z.string().optional(),
+							customCategory: z.string().optional(),
+							customUnit: z.string().optional(),
+							quantity: z.number().min(0.001),
+							estimatedUnitCost: z.number().min(0).default(0),
+							preferredSupplierId: z.number().optional(),
+							notes: z.string().optional(),
+						}),
+					)
+					.min(1),
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
 			const reqNumber = `REQ-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+			// Safe branch resolution: if user has branchId, use it; otherwise check if branch 1 exists or first branch in DB
+			let effectiveBranchId: number | null = ctx.user.branchId ?? null;
+			if (!effectiveBranchId) {
+				const [firstBranch] = await db
+					.select({ id: branches.id })
+					.from(branches)
+					.limit(1);
+				effectiveBranchId = firstBranch ? firstBranch.id : null;
+			}
 
 			// Accurate total calculation
 			const estimatedTotal = input.items.reduce(
@@ -187,9 +203,13 @@ export const procurementRouter = router({
 					.insert(purchaseRequests)
 					.values({
 						request_number: reqNumber,
-						branch_id: ctx.user.branchId ?? 1,
+						branch_id: effectiveBranchId,
 						department: input.department,
-						requested_by: ctx.user.name || ctx.user.email || ctx.user.id,
+						requested_by:
+							ctx.user.name ||
+							ctx.user.email ||
+							ctx.user.id ||
+							"Procurement Staff",
 						priority: input.priority,
 						status: "pending_approval",
 						notes: input.notes,
@@ -198,16 +218,59 @@ export const procurementRouter = router({
 					})
 					.returning();
 
-				await tx.insert(purchaseRequestItems).values(
-					input.items.map((it) => ({
+				// Process items: if custom product was specified, register it in products table and branch inventory
+				for (const it of input.items) {
+					let resolvedProductId = it.productId;
+
+					if (!resolvedProductId || resolvedProductId === 0) {
+						const prodName =
+							it.customProductName?.trim() || "New Requested Product";
+						const autoSku =
+							it.customSku?.trim() || `SKU-${Date.now().toString().slice(-6)}`;
+
+						// Create new product in master catalog
+						const [newProd] = await tx
+							.insert(products)
+							.values({
+								name: prodName,
+								description: `Created via Purchase Request ${reqNumber}`,
+								price: it.estimatedUnitCost.toFixed(2),
+								base_procurement_price: it.estimatedUnitCost.toFixed(2),
+								base_selling_price: (it.estimatedUnitCost * 1.25).toFixed(2),
+								user_uid: ctx.user.id || "system",
+								category: it.customCategory?.trim() || "General",
+								sku: autoSku,
+								unit: it.customUnit?.trim() || "pcs",
+								is_hidden: false,
+								is_deleted: false,
+							})
+							.returning();
+
+						resolvedProductId = newProd.id;
+
+						// Initialize inventory in branchInventory if branch is present
+						if (effectiveBranchId) {
+							await tx
+								.insert(branchInventory)
+								.values({
+									branch_id: effectiveBranchId,
+									product_id: resolvedProductId,
+									in_stock: 0,
+									reserved_stock: 0,
+								})
+								.onConflictDoNothing();
+						}
+					}
+
+					await tx.insert(purchaseRequestItems).values({
 						request_id: pr.id,
-						product_id: it.productId,
+						product_id: resolvedProductId,
 						quantity: it.quantity.toString(),
 						estimated_unit_cost: it.estimatedUnitCost.toFixed(2),
 						preferred_supplier_id: it.preferredSupplierId,
 						notes: it.notes,
-					})),
-				);
+					});
+				}
 
 				return pr;
 			});
@@ -223,8 +286,13 @@ export const procurementRouter = router({
 				.limit(1);
 
 			if (!existing) throw new Error("Purchase request not found");
-			if (existing.status !== "pending_approval" && existing.status !== "draft") {
-				throw new Error(`Cannot approve a request with status ${existing.status}`);
+			if (
+				existing.status !== "pending_approval" &&
+				existing.status !== "draft"
+			) {
+				throw new Error(
+					`Cannot approve a request with status ${existing.status}`,
+				);
 			}
 
 			const [updated] = await db
@@ -287,7 +355,9 @@ export const procurementRouter = router({
 
 				if (!pr) throw new Error("Purchase request not found");
 				if (pr.status !== "approved") {
-					throw new Error("Only approved purchase requests can be converted to PO");
+					throw new Error(
+						"Only approved purchase requests can be converted to PO",
+					);
 				}
 
 				const prItems = await tx
@@ -642,7 +712,9 @@ export const procurementRouter = router({
 				.update(purchases)
 				.set({
 					expected_delivery_date: input.expectedDeliveryDate,
-					notes: input.notes ? sql`COALESCE(${purchases.notes}, '') || '\n' || ${input.notes}` : undefined,
+					notes: input.notes
+						? sql`COALESCE(${purchases.notes}, '') || '\n' || ${input.notes}`
+						: undefined,
 				})
 				.where(eq(purchases.id, input.purchaseId))
 				.returning();
@@ -664,7 +736,9 @@ export const procurementRouter = router({
 				.set({
 					status: "ordered",
 					confirmed_delivery_date: input.confirmedDeliveryDate,
-					notes: input.notes ? sql`COALESCE(${purchases.notes}, '') || '\n' || ${input.notes}` : undefined,
+					notes: input.notes
+						? sql`COALESCE(${purchases.notes}, '') || '\n' || ${input.notes}`
+						: undefined,
 				})
 				.where(eq(purchases.id, input.purchaseId))
 				.returning();
@@ -697,6 +771,88 @@ export const procurementRouter = router({
 
 			return updated;
 		}),
+
+	deletePO: protectedProcedure
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				reason: z
+					.string()
+					.min(1, "Reason is mandatory to delete or cancel this order"),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const [po] = await db
+				.select()
+				.from(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.limit(1);
+
+			if (!po) throw new Error("Purchase order not found");
+			if (po.receiving_status === "received" || po.status === "completed") {
+				throw new Error("Cannot delete an already received or completed order");
+			}
+
+			// Check if any goods receipts exist
+			const [grn] = await db
+				.select()
+				.from(goodsReceiptNotes)
+				.where(eq(goodsReceiptNotes.purchase_id, input.purchaseId))
+				.limit(1);
+
+			if (grn) {
+				const [updated] = await db
+					.update(purchases)
+					.set({
+						status: "cancelled",
+						notes: sql`COALESCE(${purchases.notes}, '') || '\nDeletion / Cancellation Reason: ' || ${input.reason}`,
+					})
+					.where(eq(purchases.id, input.purchaseId))
+					.returning();
+				return { success: true, mode: "cancelled", po: updated };
+			}
+
+			await db
+				.delete(purchaseItems)
+				.where(eq(purchaseItems.purchase_id, input.purchaseId));
+			const [deleted] = await db
+				.delete(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return { success: true, mode: "deleted", po: deleted };
+		}),
+
+	updatePOSupplier: protectedProcedure
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				supplierId: z.number(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const [supplier] = await db
+				.select()
+				.from(suppliers)
+				.where(eq(suppliers.id, input.supplierId))
+				.limit(1);
+
+			if (!supplier) throw new Error("Selected supplier does not exist");
+
+			const [updated] = await db
+				.update(purchases)
+				.set({
+					supplier_id: input.supplierId,
+				})
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return updated;
+		}),
+
+	listSuppliers: protectedProcedure.query(async () => {
+		return await db.select().from(suppliers).orderBy(asc(suppliers.name));
+	}),
 
 	// ───────────────────────────────────────────────────────────────────────────
 	// 3. WAREHOUSE GOODS RECEIVING & INSPECTION (GRN)
@@ -807,7 +963,11 @@ export const procurementRouter = router({
 					.array(
 						z.object({
 							purchaseItemId: z.number().optional(),
-							productId: z.number(),
+							productId: z.number().optional(),
+							customProductName: z.string().optional(),
+							customSku: z.string().optional(),
+							customCategory: z.string().optional(),
+							customUnit: z.string().optional(),
 							orderedQuantity: z.number().min(0),
 							receivedQuantity: z.number().min(0),
 							acceptedQuantity: z.number().min(0),
@@ -839,6 +999,7 @@ export const procurementRouter = router({
 				let hasDiscrepancy = false;
 				let totalAccepted = 0;
 				let totalOrdered = 0;
+				let extraAddedCost = 0;
 
 				for (const item of input.items) {
 					totalOrdered += item.orderedQuantity;
@@ -871,10 +1032,72 @@ export const procurementRouter = router({
 
 				// 2. Insert items and post to stock ledger for ACCEPTED goods only
 				for (const item of input.items) {
+					let resolvedProductId = item.productId;
+					let resolvedPurchaseItemId = item.purchaseItemId;
+
+					// If new/custom product was sent by supplier that doesn't exist in product catalog
+					if (!resolvedProductId || resolvedProductId === 0) {
+						const prodName =
+							item.customProductName?.trim() || "Supplier Delivered Item";
+						const autoSku =
+							item.customSku?.trim() ||
+							`SKU-${Date.now().toString().slice(-6)}`;
+
+						const [newProd] = await tx
+							.insert(products)
+							.values({
+								name: prodName,
+								description: `Delivered via Goods Receipt for PO #${po.po_number || po.id}`,
+								price: item.unitCost.toFixed(2),
+								base_procurement_price: item.unitCost.toFixed(2),
+								base_selling_price: (item.unitCost * 1.25).toFixed(2),
+								user_uid: ctx.user.id || "system",
+								category: item.customCategory?.trim() || "General",
+								sku: autoSku,
+								unit: item.customUnit?.trim() || "pcs",
+								is_hidden: false,
+								is_deleted: false,
+							})
+							.returning();
+
+						resolvedProductId = newProd.id;
+
+						// Initialize inventory in branchInventory
+						await tx
+							.insert(branchInventory)
+							.values({
+								branch_id: branchId,
+								product_id: resolvedProductId,
+								in_stock: 0,
+								reserved_stock: 0,
+								reorder_level: 10,
+							})
+							.onConflictDoNothing();
+					}
+
+					// If an unexpected or extra item was sent by supplier (not previously in PO)
+					if (!resolvedPurchaseItemId) {
+						const [newPI] = await tx
+							.insert(purchaseItems)
+							.values({
+								purchase_id: input.purchaseId,
+								product_id: resolvedProductId,
+								quantity: (
+									item.receivedQuantity || item.orderedQuantity
+								).toString(),
+								price: item.unitCost.toFixed(2),
+							})
+							.returning();
+
+						resolvedPurchaseItemId = newPI.id;
+						extraAddedCost +=
+							(item.receivedQuantity || item.orderedQuantity) * item.unitCost;
+					}
+
 					await tx.insert(goodsReceiptItems).values({
 						grn_id: grn.id,
-						purchase_item_id: item.purchaseItemId,
-						product_id: item.productId,
+						purchase_item_id: resolvedPurchaseItemId,
+						product_id: resolvedProductId,
 						ordered_quantity: item.orderedQuantity.toString(),
 						received_quantity: item.receivedQuantity.toString(),
 						accepted_quantity: item.acceptedQuantity.toString(),
@@ -895,7 +1118,7 @@ export const procurementRouter = router({
 					if (item.acceptedQuantity > 0) {
 						await tx.insert(stockLedger).values({
 							branch_id: branchId,
-							product_id: item.productId,
+							product_id: resolvedProductId,
 							transaction_type: "in",
 							quantity: item.acceptedQuantity,
 							unit_cost: item.unitCost.toFixed(2),
@@ -910,7 +1133,7 @@ export const procurementRouter = router({
 							.from(branchInventory)
 							.where(
 								and(
-									eq(branchInventory.product_id, item.productId),
+									eq(branchInventory.product_id, resolvedProductId),
 									eq(branchInventory.branch_id, branchId),
 								),
 							)
@@ -920,13 +1143,14 @@ export const procurementRouter = router({
 							await tx
 								.update(branchInventory)
 								.set({
-									in_stock: (Number(existingInv.in_stock) || 0) + item.acceptedQuantity,
+									in_stock:
+										(Number(existingInv.in_stock) || 0) + item.acceptedQuantity,
 								})
 								.where(eq(branchInventory.id, existingInv.id));
 						} else {
 							await tx.insert(branchInventory).values({
 								branch_id: branchId,
-								product_id: item.productId,
+								product_id: resolvedProductId,
 								in_stock: item.acceptedQuantity,
 								reserved_stock: 0,
 								reorder_level: 10,
@@ -941,13 +1165,13 @@ export const procurementRouter = router({
 							grn_id: grn.id,
 							exception_type: item.damagedQuantity > 0 ? "damage" : "shortage",
 							severity: item.damagedQuantity > 5 ? "high" : "medium",
-							description: `Item #${item.productId}: Rejected ${item.rejectedQuantity}, Damaged ${item.damagedQuantity}, Shortage ${item.shortageQuantity}`,
+							description: `Item #${resolvedProductId}: Rejected ${item.rejectedQuantity}, Damaged ${item.damagedQuantity}, Shortage ${item.shortageQuantity}`,
 							status: "open",
 						});
 					}
 				}
 
-				// 3. Update PO receiving status
+				// 3. Update PO receiving status and total amount if extra items were added
 				const newReceivingStatus =
 					totalAccepted >= totalOrdered
 						? "received"
@@ -955,11 +1179,17 @@ export const procurementRouter = router({
 							? "partial"
 							: "inspection_failed";
 
+				const updatedTotal =
+					extraAddedCost > 0
+						? (Number(po.total_amount || 0) + extraAddedCost).toFixed(2)
+						: po.total_amount;
+
 				await tx
 					.update(purchases)
 					.set({
 						status: newReceivingStatus === "received" ? "received" : po.status,
 						receiving_status: newReceivingStatus,
+						total_amount: updatedTotal,
 					})
 					.where(eq(purchases.id, input.purchaseId));
 
@@ -1002,7 +1232,9 @@ export const procurementRouter = router({
 				filters.push(eq(supplierInvoices.status, input.status));
 			}
 			if (input?.matchingStatus) {
-				filters.push(eq(supplierInvoices.matching_status, input.matchingStatus));
+				filters.push(
+					eq(supplierInvoices.matching_status, input.matchingStatus),
+				);
 			}
 			if (input?.paymentStatus) {
 				filters.push(eq(supplierInvoices.payment_status, input.paymentStatus));
@@ -1213,7 +1445,8 @@ export const procurementRouter = router({
 				const poQty = poItem ? Number(poItem.quantity) : 0;
 
 				const priceVariance = item.unitPrice - poPrice;
-				const qtyVariance = item.billedQuantity - (grnAccepted > 0 ? grnAccepted : poQty);
+				const qtyVariance =
+					item.billedQuantity - (grnAccepted > 0 ? grnAccepted : poQty);
 
 				if (Math.abs(priceVariance) > 0.01) {
 					isPriceMismatch = true;
@@ -1374,7 +1607,8 @@ export const procurementRouter = router({
 
 				if (sup) {
 					const newBalance =
-						Number(sup.outstanding_balance || 0) + Number(inv.outstanding_amount);
+						Number(sup.outstanding_balance || 0) +
+						Number(inv.outstanding_amount);
 					await tx
 						.update(suppliers)
 						.set({ outstanding_balance: newBalance.toFixed(2) })
@@ -1473,7 +1707,10 @@ export const procurementRouter = router({
 
 				// Update Invoice Amount Paid and Status
 				const newInvPaid = Number(inv.amount_paid) + input.amount;
-				const newInvOutstanding = Math.max(0, currentOutstanding - input.amount);
+				const newInvOutstanding = Math.max(
+					0,
+					currentOutstanding - input.amount,
+				);
 				const isFullyPaid = newInvOutstanding <= 0.01;
 
 				await tx
@@ -1546,64 +1783,63 @@ export const procurementRouter = router({
 	getProcurementKpis: protectedProcedure.query(async ({ ctx }) => {
 		const branchId = ctx.user.branchId;
 
-		const [
-			poStats,
-			prStats,
-			invoiceStats,
-			exceptionStats,
-			supplierStats,
-		] = await Promise.all([
-			// PO aggregations
-			db
-				.select({
-					totalPOs: count(purchases.id),
-					draftPOs: sql<number>`count(*) filter (where ${purchases.status} = 'draft')`,
-					pendingApproval: sql<number>`count(*) filter (where ${purchases.status} = 'pending')`,
-					awaitingConfirmation: sql<number>`count(*) filter (where ${purchases.status} = 'ordered' and ${purchases.confirmed_delivery_date} is null)`,
-					upcomingDeliveries: sql<number>`count(*) filter (where ${purchases.receiving_status} = 'pending' and ${purchases.expected_delivery_date} >= CURRENT_DATE)`,
-					partiallyReceived: sql<number>`count(*) filter (where ${purchases.receiving_status} = 'partial')`,
-					receivedAwaitingInvoice: sql<number>`count(*) filter (where ${purchases.receiving_status} = 'received' and ${purchases.invoice_status} = 'pending')`,
-					closedPOs: sql<number>`count(*) filter (where ${purchases.status} in ('completed', 'closed'))`,
-					totalSpend: sql<number>`coalesce(sum(${purchases.total_amount}::numeric), 0)`,
-				})
-				.from(purchases)
-				.where(branchId ? eq(purchases.branch_id, branchId) : undefined),
+		const [poStats, prStats, invoiceStats, exceptionStats, supplierStats] =
+			await Promise.all([
+				// PO aggregations
+				db
+					.select({
+						totalPOs: count(purchases.id),
+						draftPOs: sql<number>`count(*) filter (where ${purchases.status} = 'draft')`,
+						pendingApproval: sql<number>`count(*) filter (where ${purchases.status} = 'pending')`,
+						awaitingConfirmation: sql<number>`count(*) filter (where ${purchases.status} = 'ordered' and ${purchases.confirmed_delivery_date} is null)`,
+						upcomingDeliveries: sql<number>`count(*) filter (where ${purchases.receiving_status} = 'pending' and ${purchases.expected_delivery_date} >= CURRENT_DATE)`,
+						partiallyReceived: sql<number>`count(*) filter (where ${purchases.receiving_status} = 'partial')`,
+						receivedAwaitingInvoice: sql<number>`count(*) filter (where ${purchases.receiving_status} = 'received' and ${purchases.invoice_status} = 'pending')`,
+						closedPOs: sql<number>`count(*) filter (where ${purchases.status} in ('completed', 'closed'))`,
+						totalSpend: sql<number>`coalesce(sum(${purchases.total_amount}::numeric), 0)`,
+					})
+					.from(purchases)
+					.where(branchId ? eq(purchases.branch_id, branchId) : undefined),
 
-			// PR aggregations
-			db
-				.select({
-					pendingPRs: sql<number>`count(*) filter (where ${purchaseRequests.status} = 'pending_approval')`,
-					approvedPRs: sql<number>`count(*) filter (where ${purchaseRequests.status} = 'approved')`,
-				})
-				.from(purchaseRequests)
-				.where(branchId ? eq(purchaseRequests.branch_id, branchId) : undefined),
+				// PR aggregations
+				db
+					.select({
+						pendingPRs: sql<number>`count(*) filter (where ${purchaseRequests.status} = 'pending_approval')`,
+						approvedPRs: sql<number>`count(*) filter (where ${purchaseRequests.status} = 'approved')`,
+					})
+					.from(purchaseRequests)
+					.where(
+						branchId ? eq(purchaseRequests.branch_id, branchId) : undefined,
+					),
 
-			// Invoice & Payables aggregations
-			db
-				.select({
-					totalInvoiced: sql<number>`coalesce(sum(${supplierInvoices.total_amount}::numeric), 0)`,
-					totalOutstanding: sql<number>`coalesce(sum(${supplierInvoices.outstanding_amount}::numeric), 0)`,
-					pendingMatching: sql<number>`count(*) filter (where ${supplierInvoices.matching_status} = 'pending')`,
-					mismatchedInvoices: sql<number>`count(*) filter (where ${supplierInvoices.matching_status} not in ('matched', 'variance_approved'))`,
-					awaitingFinanceApproval: sql<number>`count(*) filter (where ${supplierInvoices.status} in ('draft', 'verified'))`,
-				})
-				.from(supplierInvoices)
-				.where(branchId ? eq(supplierInvoices.branch_id, branchId) : undefined),
+				// Invoice & Payables aggregations
+				db
+					.select({
+						totalInvoiced: sql<number>`coalesce(sum(${supplierInvoices.total_amount}::numeric), 0)`,
+						totalOutstanding: sql<number>`coalesce(sum(${supplierInvoices.outstanding_amount}::numeric), 0)`,
+						pendingMatching: sql<number>`count(*) filter (where ${supplierInvoices.matching_status} = 'pending')`,
+						mismatchedInvoices: sql<number>`count(*) filter (where ${supplierInvoices.matching_status} not in ('matched', 'variance_approved'))`,
+						awaitingFinanceApproval: sql<number>`count(*) filter (where ${supplierInvoices.status} in ('draft', 'verified'))`,
+					})
+					.from(supplierInvoices)
+					.where(
+						branchId ? eq(supplierInvoices.branch_id, branchId) : undefined,
+					),
 
-			// Exception aggregations
-			db
-				.select({
-					openExceptions: sql<number>`count(*) filter (where ${procurementExceptions.status} = 'open')`,
-				})
-				.from(procurementExceptions),
+				// Exception aggregations
+				db
+					.select({
+						openExceptions: sql<number>`count(*) filter (where ${procurementExceptions.status} = 'open')`,
+					})
+					.from(procurementExceptions),
 
-			// Active Suppliers
-			db
-				.select({
-					activeSuppliers: count(suppliers.id),
-				})
-				.from(suppliers),
-		]);
+				// Active Suppliers
+				db
+					.select({
+						activeSuppliers: count(suppliers.id),
+					})
+					.from(suppliers),
+			]);
 
 		return {
 			totalPOs: Number(poStats[0]?.totalPOs) || 0,
@@ -1623,7 +1859,8 @@ export const procurementRouter = router({
 			totalOutstanding: Number(invoiceStats[0]?.totalOutstanding) || 0,
 			pendingMatching: Number(invoiceStats[0]?.pendingMatching) || 0,
 			mismatchedInvoices: Number(invoiceStats[0]?.mismatchedInvoices) || 0,
-			awaitingFinanceApproval: Number(invoiceStats[0]?.awaitingFinanceApproval) || 0,
+			awaitingFinanceApproval:
+				Number(invoiceStats[0]?.awaitingFinanceApproval) || 0,
 
 			openExceptions: Number(exceptionStats[0]?.openExceptions) || 0,
 			activeSuppliers: Number(supplierStats[0]?.activeSuppliers) || 0,

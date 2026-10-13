@@ -36,7 +36,7 @@ import {
 	FileTextIcon,
 	IndianRupeeIcon,
 	Loader2Icon,
-	ReceiptIcon,
+	ReceiptIndianRupeeIcon,
 	SearchIcon,
 	ShieldCheckIcon,
 	TrendingUpIcon,
@@ -66,7 +66,9 @@ export default function SupplierPayablesPage() {
 	const { data: bankAccountsList } = trpc.finance.getBankAccounts.useQuery({});
 
 	// Dialog States
-	const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+	const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
+		null,
+	);
 	const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 	const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
@@ -76,7 +78,9 @@ export default function SupplierPayablesPage() {
 		"bank_transfer" | "cheque" | "cash" | "upi" | "neft"
 	>("bank_transfer");
 	const [paymentReference, setPaymentReference] = useState("");
-	const [selectedBankId, setSelectedBankId] = useState<number | undefined>(undefined);
+	const [selectedBankId, setSelectedBankId] = useState<number | undefined>(
+		undefined,
+	);
 	const [paymentNotes, setPaymentNotes] = useState("");
 
 	// Override Form State
@@ -150,7 +154,10 @@ export default function SupplierPayablesPage() {
 				return inv.status === "paid";
 			}
 			if (statusFilter === "mismatch") {
-				return inv.matching_status !== "matched" && inv.matching_status !== "variance_approved";
+				return (
+					inv.matching_status !== "matched" &&
+					inv.matching_status !== "variance_approved"
+				);
 			}
 			return true;
 		}) || [];
@@ -171,7 +178,8 @@ export default function SupplierPayablesPage() {
 							Supplier Payables & 3-Way Matching
 						</h1>
 						<p className="text-muted-foreground text-sm">
-							Review vendor bills, verify against Purchase Orders & Warehouse Goods Receipts, approve payables, and execute disbursements.
+							Review vendor bills, verify against Purchase Orders & Warehouse
+							Goods Receipts, approve payables, and execute disbursements.
 						</p>
 					</div>
 				</div>
@@ -193,7 +201,7 @@ export default function SupplierPayablesPage() {
 									</p>
 								</div>
 								<div className="rounded-xl bg-blue-500/10 p-3 text-blue-600 dark:text-blue-400">
-									<ReceiptIcon className="h-6 w-6" />
+									<ReceiptIndianRupeeIcon className="h-6 w-6" />
 								</div>
 							</div>
 						</CardContent>
@@ -299,7 +307,9 @@ export default function SupplierPayablesPage() {
 				{/* Invoices Table */}
 				<Card className="shadow-sm">
 					<CardHeader className="p-4">
-						<CardTitle className="text-base">Supplier Invoices Register</CardTitle>
+						<CardTitle className="text-base">
+							Supplier Invoices Register
+						</CardTitle>
 						<CardDescription className="text-xs">
 							Showing {filteredInvoices.length} supplier invoices
 						</CardDescription>
@@ -325,12 +335,17 @@ export default function SupplierPayablesPage() {
 										<TableRow>
 											<TableCell colSpan={9} className="h-32 text-center">
 												<Loader2Icon className="mx-auto h-6 w-6 animate-spin text-gray-400" />
-												<p className="mt-2 text-gray-500 text-xs">Loading payables ledger...</p>
+												<p className="mt-2 text-gray-500 text-xs">
+													Loading payables ledger...
+												</p>
 											</TableCell>
 										</TableRow>
 									) : filteredInvoices.length === 0 ? (
 										<TableRow>
-											<TableCell colSpan={9} className="h-32 text-center text-gray-500 text-sm">
+											<TableCell
+												colSpan={9}
+												className="h-32 text-center text-gray-500 text-sm"
+											>
 												No supplier invoices found matching current filters.
 											</TableCell>
 										</TableRow>
@@ -340,9 +355,13 @@ export default function SupplierPayablesPage() {
 												<TableCell className="font-semibold text-gray-900 dark:text-gray-100">
 													{inv.invoice_number}
 												</TableCell>
-												<TableCell>{inv.supplier_name || "Unknown Supplier"}</TableCell>
 												<TableCell>
-													<span className="font-mono text-xs">{inv.po_number || "Direct PO"}</span>
+													{inv.supplier_name || "Unknown Supplier"}
+												</TableCell>
+												<TableCell>
+													<span className="font-mono text-xs">
+														{inv.po_number || "Direct PO"}
+													</span>
 												</TableCell>
 												<TableCell className="text-xs text-gray-500">
 													{inv.invoice_date
@@ -423,11 +442,12 @@ export default function SupplierPayablesPage() {
 					<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
-								<ReceiptIcon className="h-5 w-5 text-blue-600" />
+								<ReceiptIndianRupeeIcon className="h-5 w-5 text-blue-600" />
 								Supplier Invoice Audit & 3-Way Matching
 							</DialogTitle>
 							<DialogDescription>
-								Comparing Purchase Order, Warehouse Goods Receipt (GRN), and Vendor Billed quantities and prices.
+								Comparing Purchase Order, Warehouse Goods Receipt (GRN), and
+								Vendor Billed quantities and prices.
 							</DialogDescription>
 						</DialogHeader>
 
@@ -440,45 +460,68 @@ export default function SupplierPayablesPage() {
 								{/* Summary header */}
 								<div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/40 p-4 sm:grid-cols-4">
 									<div>
-										<p className="text-xs text-muted-foreground">Invoice Number</p>
+										<p className="text-xs text-muted-foreground">
+											Invoice Number
+										</p>
 										<p className="font-bold">{invoiceDetail.invoice_number}</p>
 									</div>
 									<div>
 										<p className="text-xs text-muted-foreground">Supplier</p>
-										<p className="font-semibold">{invoiceDetail.supplier_name}</p>
+										<p className="font-semibold">
+											{invoiceDetail.supplier_name}
+										</p>
 									</div>
 									<div>
 										<p className="text-xs text-muted-foreground">PO Number</p>
-										<p className="font-mono text-sm">{invoiceDetail.po_number || "Direct"}</p>
+										<p className="font-mono text-sm">
+											{invoiceDetail.po_number || "Direct"}
+										</p>
 									</div>
 									<div>
-										<p className="text-xs text-muted-foreground">Total / Outstanding</p>
+										<p className="text-xs text-muted-foreground">
+											Total / Outstanding
+										</p>
 										<p className="font-bold text-red-600">
-											{formatCurrency(invoiceDetail.outstanding_amount)} / {formatCurrency(invoiceDetail.total_amount)}
+											{formatCurrency(invoiceDetail.outstanding_amount)} /{" "}
+											{formatCurrency(invoiceDetail.total_amount)}
 										</p>
 									</div>
 								</div>
 
 								{/* Line items comparison */}
 								<div>
-									<h4 className="font-semibold text-sm mb-2">Line-by-Line 3-Way Matching Comparison</h4>
+									<h4 className="font-semibold text-sm mb-2">
+										Line-by-Line 3-Way Matching Comparison
+									</h4>
 									<div className="rounded-md border overflow-hidden">
 										<Table>
 											<TableHeader className="bg-muted/50">
 												<TableRow>
 													<TableHead>Product</TableHead>
 													<TableHead className="text-center">PO Qty</TableHead>
-													<TableHead className="text-center">GRN Accepted</TableHead>
-													<TableHead className="text-center">Billed Qty</TableHead>
-													<TableHead className="text-right">Unit Price</TableHead>
-													<TableHead className="text-center">Variances</TableHead>
-													<TableHead className="text-right">Line Total</TableHead>
+													<TableHead className="text-center">
+														GRN Accepted
+													</TableHead>
+													<TableHead className="text-center">
+														Billed Qty
+													</TableHead>
+													<TableHead className="text-right">
+														Unit Price
+													</TableHead>
+													<TableHead className="text-center">
+														Variances
+													</TableHead>
+													<TableHead className="text-right">
+														Line Total
+													</TableHead>
 												</TableRow>
 											</TableHeader>
 											<TableBody>
 												{invoiceDetail.items?.map((it: any) => {
-													const hasPriceVar = Math.abs(Number(it.price_variance || 0)) > 0.01;
-													const hasQtyVar = Math.abs(Number(it.quantity_variance || 0)) > 0.001;
+													const hasPriceVar =
+														Math.abs(Number(it.price_variance || 0)) > 0.01;
+													const hasQtyVar =
+														Math.abs(Number(it.quantity_variance || 0)) > 0.001;
 
 													return (
 														<TableRow key={it.id}>
@@ -504,18 +547,28 @@ export default function SupplierPayablesPage() {
 																{hasPriceVar || hasQtyVar ? (
 																	<div className="flex flex-col gap-1 items-center">
 																		{hasPriceVar && (
-																			<Badge variant="destructive" className="text-[10px] py-0">
-																				Price: ₹{Number(it.price_variance).toFixed(2)}
+																			<Badge
+																				variant="destructive"
+																				className="text-[10px] py-0"
+																			>
+																				Price: ₹
+																				{Number(it.price_variance).toFixed(2)}
 																			</Badge>
 																		)}
 																		{hasQtyVar && (
-																			<Badge variant="destructive" className="text-[10px] py-0">
+																			<Badge
+																				variant="destructive"
+																				className="text-[10px] py-0"
+																			>
 																				Qty: {Number(it.quantity_variance)}
 																			</Badge>
 																		)}
 																	</div>
 																) : (
-																	<Badge variant="outline" className="text-emerald-600 border-emerald-500 text-[10px]">
+																	<Badge
+																		variant="outline"
+																		className="text-emerald-600 border-emerald-500 text-[10px]"
+																	>
 																		Exact Match
 																	</Badge>
 																)}
@@ -532,41 +585,44 @@ export default function SupplierPayablesPage() {
 								</div>
 
 								{/* Payment Allocations history */}
-								{invoiceDetail.allocations && invoiceDetail.allocations.length > 0 && (
-									<div>
-										<h4 className="font-semibold text-sm mb-2">Payment Disbursements History</h4>
-										<div className="rounded-md border overflow-hidden">
-											<Table>
-												<TableHeader className="bg-muted/50">
-													<TableRow>
-														<TableHead>Date</TableHead>
-														<TableHead>Reference</TableHead>
-														<TableHead>Mode</TableHead>
-														<TableHead>Amount</TableHead>
-													</TableRow>
-												</TableHeader>
-												<TableBody>
-													{invoiceDetail.allocations.map((a: any) => (
-														<TableRow key={a.id}>
-															<TableCell className="text-xs">
-																{new Date(a.payment_date).toLocaleString()}
-															</TableCell>
-															<TableCell className="font-mono text-xs">
-																{a.reference_number || "N/A"}
-															</TableCell>
-															<TableCell className="text-xs uppercase">
-																{a.payment_mode}
-															</TableCell>
-															<TableCell className="font-bold text-emerald-600">
-																{formatCurrency(a.allocated_amount)}
-															</TableCell>
+								{invoiceDetail.allocations &&
+									invoiceDetail.allocations.length > 0 && (
+										<div>
+											<h4 className="font-semibold text-sm mb-2">
+												Payment Disbursements History
+											</h4>
+											<div className="rounded-md border overflow-hidden">
+												<Table>
+													<TableHeader className="bg-muted/50">
+														<TableRow>
+															<TableHead>Date</TableHead>
+															<TableHead>Reference</TableHead>
+															<TableHead>Mode</TableHead>
+															<TableHead>Amount</TableHead>
 														</TableRow>
-													))}
-												</TableBody>
-											</Table>
+													</TableHeader>
+													<TableBody>
+														{invoiceDetail.allocations.map((a: any) => (
+															<TableRow key={a.id}>
+																<TableCell className="text-xs">
+																	{new Date(a.payment_date).toLocaleString()}
+																</TableCell>
+																<TableCell className="font-mono text-xs">
+																	{a.reference_number || "N/A"}
+																</TableCell>
+																<TableCell className="text-xs uppercase">
+																	{a.payment_mode}
+																</TableCell>
+																<TableCell className="font-bold text-emerald-600">
+																	{formatCurrency(a.allocated_amount)}
+																</TableCell>
+															</TableRow>
+														))}
+													</TableBody>
+												</Table>
+											</div>
 										</div>
-									</div>
-								)}
+									)}
 
 								{/* Finance Approval Action */}
 								{invoiceDetail.status !== "approved_for_payment" &&
@@ -576,29 +632,39 @@ export default function SupplierPayablesPage() {
 												Finance Verification & Approval
 											</h4>
 											<p className="text-xs text-amber-700 dark:text-amber-300 mb-3">
-												Approving this invoice registers the payable into the general ledger and unlocks payout disbursement.
+												Approving this invoice registers the payable into the
+												general ledger and unlocks payout disbursement.
 											</p>
 
 											{invoiceDetail.matching_status !== "matched" &&
-												invoiceDetail.matching_status !== "variance_approved" && (
+												invoiceDetail.matching_status !==
+													"variance_approved" && (
 													<div className="space-y-3 mb-3">
 														<div className="flex items-center gap-2">
 															<input
 																type="checkbox"
 																id="overrideCheck"
 																checked={allowOverride}
-																onChange={(e) => setAllowOverride(e.target.checked)}
+																onChange={(e) =>
+																	setAllowOverride(e.target.checked)
+																}
 																className="h-4 w-4 rounded border-gray-300"
 															/>
-															<Label htmlFor="overrideCheck" className="text-xs font-semibold text-amber-900">
-																I authorize variance override approval for this invoice
+															<Label
+																htmlFor="overrideCheck"
+																className="text-xs font-semibold text-amber-900"
+															>
+																I authorize variance override approval for this
+																invoice
 															</Label>
 														</div>
 														{allowOverride && (
 															<Input
 																placeholder="Enter audit rationale for accepting the variance..."
 																value={overrideNotes}
-																onChange={(e) => setOverrideNotes(e.target.value)}
+																onChange={(e) =>
+																	setOverrideNotes(e.target.value)
+																}
 																className="text-xs bg-white"
 															/>
 														)}
@@ -616,7 +682,8 @@ export default function SupplierPayablesPage() {
 												disabled={
 													approveMutation.isPending ||
 													(invoiceDetail.matching_status !== "matched" &&
-														invoiceDetail.matching_status !== "variance_approved" &&
+														invoiceDetail.matching_status !==
+															"variance_approved" &&
 														!allowOverride)
 												}
 												className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5"
@@ -633,7 +700,10 @@ export default function SupplierPayablesPage() {
 						)}
 
 						<DialogFooter>
-							<Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+							<Button
+								variant="outline"
+								onClick={() => setIsDetailDialogOpen(false)}
+							>
 								Close Audit
 							</Button>
 						</DialogFooter>
@@ -641,7 +711,10 @@ export default function SupplierPayablesPage() {
 				</Dialog>
 
 				{/* Execute Payment Disbursement Dialog */}
-				<Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+				<Dialog
+					open={isPaymentDialogOpen}
+					onOpenChange={setIsPaymentDialogOpen}
+				>
 					<DialogContent className="max-w-md">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
@@ -655,31 +728,42 @@ export default function SupplierPayablesPage() {
 
 						<div className="space-y-4 py-2">
 							<div>
-								<Label className="text-xs font-medium">Disbursement Amount (₹)</Label>
+								<Label className="text-xs font-medium">
+									Disbursement Amount (₹)
+								</Label>
 								<Input
 									type="number"
 									step="0.01"
 									value={paymentAmount}
-									onChange={(e) => setPaymentAmount(Number.parseFloat(e.target.value) || 0)}
+									onChange={(e) =>
+										setPaymentAmount(Number.parseFloat(e.target.value) || 0)
+									}
 									className="font-bold text-base mt-1"
 								/>
 							</div>
 
 							<div>
-								<Label className="text-xs font-medium">Select Source Bank / Cash Account</Label>
+								<Label className="text-xs font-medium">
+									Select Source Bank / Cash Account
+								</Label>
 								<select
 									className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
 									value={selectedBankId || ""}
 									onChange={(e) =>
 										setSelectedBankId(
-											e.target.value ? Number.parseInt(e.target.value, 10) : undefined,
+											e.target.value
+												? Number.parseInt(e.target.value, 10)
+												: undefined,
 										)
 									}
 								>
-									<option value="">-- Direct External Payment (No Bank Deduction) --</option>
+									<option value="">
+										-- Direct External Payment (No Bank Deduction) --
+									</option>
 									{bankAccountsList?.items?.map((acc: any) => (
 										<option key={acc.id} value={acc.id}>
-											{acc.account_name} ({acc.bank_name || "Cash"}) — Balance: ₹{Number(acc.current_balance).toLocaleString()}
+											{acc.account_name} ({acc.bank_name || "Cash"}) — Balance:
+											₹{Number(acc.current_balance).toLocaleString()}
 										</option>
 									))}
 								</select>
@@ -692,7 +776,9 @@ export default function SupplierPayablesPage() {
 									value={paymentMode}
 									onChange={(e: any) => setPaymentMode(e.target.value)}
 								>
-									<option value="bank_transfer">Bank Transfer (NEFT/RTGS/IMPS)</option>
+									<option value="bank_transfer">
+										Bank Transfer (NEFT/RTGS/IMPS)
+									</option>
 									<option value="upi">UPI</option>
 									<option value="cheque">Cheque</option>
 									<option value="cash">Cash</option>
@@ -700,7 +786,9 @@ export default function SupplierPayablesPage() {
 							</div>
 
 							<div>
-								<Label className="text-xs font-medium">Transaction / UTR Reference #</Label>
+								<Label className="text-xs font-medium">
+									Transaction / UTR Reference #
+								</Label>
 								<Input
 									value={paymentReference}
 									onChange={(e) => setPaymentReference(e.target.value)}
@@ -721,7 +809,10 @@ export default function SupplierPayablesPage() {
 						</div>
 
 						<DialogFooter>
-							<Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+							<Button
+								variant="outline"
+								onClick={() => setIsPaymentDialogOpen(false)}
+							>
 								Cancel
 							</Button>
 							<Button

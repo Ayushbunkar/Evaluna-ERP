@@ -5,7 +5,7 @@ import {
 	ClipboardListIcon,
 	FileTextIcon,
 	LayoutDashboardIcon,
-	ReceiptIcon,
+	ReceiptIndianRupeeIcon,
 	TruckIcon,
 	UsersIcon,
 } from "lucide-react";
@@ -33,7 +33,7 @@ const procurementNavItems: NavItem[] = [
 	{
 		href: "/procurement/invoices",
 		labelKey: "Supplier Invoices",
-		icon: ReceiptIcon,
+		icon: ReceiptIndianRupeeIcon,
 	},
 	{
 		href: "/procurement/suppliers",

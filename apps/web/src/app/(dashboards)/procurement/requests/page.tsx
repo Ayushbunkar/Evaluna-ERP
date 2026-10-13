@@ -66,21 +66,41 @@ export default function PurchaseRequestsPage() {
 	const [isConvertOpen, setIsConvertOpen] = useState(false);
 	const [isRejectOpen, setIsRejectOpen] = useState(false);
 
-	const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
+	const [selectedRequestId, setSelectedRequestId] = useState<number | null>(
+		null,
+	);
 
 	// Create PR Form State
 	const [department, setDepartment] = useState("Warehouse");
-	const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
+	const [priority, setPriority] = useState<
+		"low" | "medium" | "high" | "urgent"
+	>("medium");
 	const [prNotes, setPrNotes] = useState("");
 	const [requestItems, setRequestItems] = useState<
 		Array<{
 			productId: number;
+			isCustom: boolean;
+			customProductName: string;
+			customSku: string;
+			customCategory: string;
+			customUnit: string;
 			quantity: number;
 			estimatedUnitCost: number;
 			preferredSupplierId?: number;
 			notes?: string;
 		}>
-	>([{ productId: 0, quantity: 1, estimatedUnitCost: 10 }]);
+	>([
+		{
+			productId: 0,
+			isCustom: false,
+			customProductName: "",
+			customSku: "",
+			customCategory: "General",
+			customUnit: "pcs",
+			quantity: 1,
+			estimatedUnitCost: 10,
+		},
+	]);
 
 	// Convert Form State
 	const [targetSupplierId, setTargetSupplierId] = useState<number>(0);
@@ -95,8 +115,20 @@ export default function PurchaseRequestsPage() {
 			toast.success("Purchase Request submitted for approval!");
 			utils.procurement.listRequests.invalidate();
 			utils.procurement.getProcurementKpis.invalidate();
+			utils.inventory.list.invalidate();
 			setIsCreateOpen(false);
-			setRequestItems([{ productId: 0, quantity: 1, estimatedUnitCost: 10 }]);
+			setRequestItems([
+				{
+					productId: 0,
+					isCustom: false,
+					customProductName: "",
+					customSku: "",
+					customCategory: "General",
+					customUnit: "pcs",
+					quantity: 1,
+					estimatedUnitCost: 10,
+				},
+			]);
 			setPrNotes("");
 		},
 		onError: (err) => {
@@ -130,7 +162,9 @@ export default function PurchaseRequestsPage() {
 
 	const convertMutation = trpc.procurement.convertToPO.useMutation({
 		onSuccess: (po) => {
-			toast.success(`Purchase Request converted to PO #${po.po_number || po.id}!`);
+			toast.success(
+				`Purchase Request converted to PO #${po.po_number || po.id}!`,
+			);
 			utils.procurement.listRequests.invalidate();
 			utils.procurement.listPOs.invalidate();
 			utils.procurement.getProcurementKpis.invalidate();
@@ -144,7 +178,16 @@ export default function PurchaseRequestsPage() {
 	const handleAddItemRow = () => {
 		setRequestItems((prev) => [
 			...prev,
-			{ productId: 0, quantity: 1, estimatedUnitCost: 10 },
+			{
+				productId: 0,
+				isCustom: false,
+				customProductName: "",
+				customSku: "",
+				customCategory: "General",
+				customUnit: "pcs",
+				quantity: 1,
+				estimatedUnitCost: 10,
+			},
 		]);
 	};
 
@@ -159,11 +202,20 @@ export default function PurchaseRequestsPage() {
 			const current = { ...updated[index], [field]: val };
 
 			if (field === "productId") {
-				const prod = invData?.items?.find((p: any) => p.id === Number(val));
-				if (prod) {
-					current.estimatedUnitCost = Number(
-						prod.base_procurement_price || prod.procurement_price || prod.price || 10,
-					);
+				if (val === -1) {
+					current.isCustom = true;
+					current.productId = 0;
+				} else {
+					current.isCustom = false;
+					const prod = invData?.items?.find((p: any) => p.id === Number(val));
+					if (prod) {
+						current.estimatedUnitCost = Number(
+							prod.base_procurement_price ||
+								prod.procurement_price ||
+								prod.price ||
+								10,
+						);
+					}
 				}
 			}
 
@@ -194,7 +246,9 @@ export default function PurchaseRequestsPage() {
 							Purchase Requests (PR)
 						</h1>
 						<p className="text-muted-foreground text-sm">
-							Internal material requisitions initiated by warehouse or department teams, awaiting manager approval before converting to POs.
+							Internal material requisitions initiated by warehouse or
+							department teams, awaiting manager approval before converting to
+							POs.
 						</p>
 					</div>
 					<Button
@@ -211,11 +265,15 @@ export default function PurchaseRequestsPage() {
 					<Card className="border-l-4 border-l-amber-500 border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Pending Approval</p>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Pending Approval
+								</p>
 								<h3 className="mt-1 font-bold text-2xl text-amber-600 dark:text-amber-400 tracking-tight">
 									{kpis?.pendingPRs ?? 0}
 								</h3>
-								<p className="mt-1 text-[11px] text-muted-foreground">Requires manager authorization</p>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Requires manager authorization
+								</p>
 							</div>
 							<div className="rounded-xl bg-amber-500/10 p-3 text-amber-600 dark:text-amber-400">
 								<ClockIcon className="h-6 w-6" />
@@ -226,11 +284,15 @@ export default function PurchaseRequestsPage() {
 					<Card className="border-l-4 border-l-emerald-500 border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Approved Requests</p>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Approved Requests
+								</p>
 								<h3 className="mt-1 font-bold text-2xl text-emerald-600 dark:text-emerald-400 tracking-tight">
 									{kpis?.approvedPRs ?? 0}
 								</h3>
-								<p className="mt-1 text-[11px] text-muted-foreground">Ready for conversion to PO</p>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Ready for conversion to PO
+								</p>
 							</div>
 							<div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600 dark:text-emerald-400">
 								<CheckCircle2Icon className="h-6 w-6" />
@@ -241,11 +303,15 @@ export default function PurchaseRequestsPage() {
 					<Card className="border-l-4 border-l-purple-500 border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Total Requests</p>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Total Requests
+								</p>
 								<h3 className="mt-1 font-bold text-2xl text-foreground tracking-tight">
 									{requests?.length ?? 0}
 								</h3>
-								<p className="mt-1 text-[11px] text-muted-foreground">All logged requisitions</p>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									All logged requisitions
+								</p>
 							</div>
 							<div className="rounded-xl bg-purple-500/10 p-3 text-purple-600 dark:text-purple-400">
 								<FileTextIcon className="h-6 w-6" />
@@ -316,12 +382,17 @@ export default function PurchaseRequestsPage() {
 										<TableRow>
 											<TableCell colSpan={9} className="h-32 text-center">
 												<Loader2Icon className="mx-auto h-6 w-6 animate-spin text-gray-400" />
-												<p className="mt-2 text-gray-500 text-xs">Loading requests...</p>
+												<p className="mt-2 text-gray-500 text-xs">
+													Loading requests...
+												</p>
 											</TableCell>
 										</TableRow>
 									) : filteredRequests.length === 0 ? (
 										<TableRow>
-											<TableCell colSpan={9} className="h-32 text-center text-gray-500 text-sm">
+											<TableCell
+												colSpan={9}
+												className="h-32 text-center text-gray-500 text-sm"
+											>
 												No purchase requests found.
 											</TableCell>
 										</TableRow>
@@ -332,7 +403,9 @@ export default function PurchaseRequestsPage() {
 													{req.request_number}
 												</TableCell>
 												<TableCell>{req.department}</TableCell>
-												<TableCell className="text-xs">{req.requested_by}</TableCell>
+												<TableCell className="text-xs">
+													{req.requested_by}
+												</TableCell>
 												<TableCell>
 													<Badge
 														variant="outline"
@@ -347,7 +420,9 @@ export default function PurchaseRequestsPage() {
 														{req.priority.toUpperCase()}
 													</Badge>
 												</TableCell>
-												<TableCell className="text-xs">{req.item_count} items</TableCell>
+												<TableCell className="text-xs">
+													{req.item_count} items
+												</TableCell>
 												<TableCell className="font-semibold">
 													{formatCurrency(req.estimated_total)}
 												</TableCell>
@@ -378,7 +453,9 @@ export default function PurchaseRequestsPage() {
 															<>
 																<Button
 																	size="sm"
-																	onClick={() => approveMutation.mutate({ id: req.id })}
+																	onClick={() =>
+																		approveMutation.mutate({ id: req.id })
+																	}
 																	disabled={approveMutation.isPending}
 																	className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
 																>
@@ -431,7 +508,8 @@ export default function PurchaseRequestsPage() {
 								New Purchase Request
 							</DialogTitle>
 							<DialogDescription>
-								Submit required goods for review before raising a supplier Purchase Order.
+								Submit required goods for review before raising a supplier
+								Purchase Order.
 							</DialogDescription>
 						</DialogHeader>
 
@@ -468,7 +546,9 @@ export default function PurchaseRequestsPage() {
 
 							<div>
 								<div className="flex items-center justify-between mb-2">
-									<Label className="text-xs font-semibold">Requested Items</Label>
+									<Label className="text-xs font-semibold">
+										Requested Items
+									</Label>
 									<Button
 										type="button"
 										variant="ghost"
@@ -481,79 +561,168 @@ export default function PurchaseRequestsPage() {
 									</Button>
 								</div>
 
-								<div className="space-y-2">
+								<div className="space-y-3">
 									{requestItems.map((row, idx) => (
 										<div
 											key={idx}
-											className="grid grid-cols-12 gap-2 items-center rounded-lg border p-2 bg-muted/20"
+											className="rounded-lg border p-3 bg-muted/20 space-y-2.5 transition-all"
 										>
-											<div className="col-span-5">
-												<select
-													className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-													value={row.productId}
-													onChange={(e) =>
-														handleItemChange(idx, "productId", Number(e.target.value))
-													}
-												>
-													<option value={0}>-- Select Product --</option>
-													{invData?.items?.map((p: any) => (
-														<option key={p.id} value={p.id}>
-															{p.product} (SKU: {p.sku})
+											<div className="grid grid-cols-12 gap-2 items-center">
+												<div className="col-span-5">
+													<select
+														className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs font-medium"
+														value={row.isCustom ? -1 : row.productId}
+														onChange={(e) =>
+															handleItemChange(
+																idx,
+																"productId",
+																Number(e.target.value),
+															)
+														}
+													>
+														<option value={0}>
+															-- Select Existing Product --
 														</option>
-													))}
-												</select>
+														<option
+															value={-1}
+															className="font-bold text-blue-600 dark:text-blue-400"
+														>
+															✨ + Enter New / Custom Product
+														</option>
+														<optgroup label="Registered Inventory Products">
+															{invData?.items?.map((p: any) => (
+																<option key={p.id} value={p.id}>
+																	{p.product} (SKU: {p.sku || "N/A"})
+																</option>
+															))}
+														</optgroup>
+													</select>
+												</div>
+
+												<div className="col-span-2">
+													<Input
+														type="number"
+														min="0.01"
+														step="any"
+														placeholder="Qty"
+														value={row.quantity}
+														onChange={(e) =>
+															handleItemChange(
+																idx,
+																"quantity",
+																Number.parseFloat(e.target.value) || 1,
+															)
+														}
+														className="h-8 text-xs text-center"
+													/>
+												</div>
+
+												<div className="col-span-2">
+													<Input
+														type="number"
+														min="0"
+														step="any"
+														placeholder="Est. Cost"
+														value={row.estimatedUnitCost}
+														onChange={(e) =>
+															handleItemChange(
+																idx,
+																"estimatedUnitCost",
+																Number.parseFloat(e.target.value) || 0,
+															)
+														}
+														className="h-8 text-xs text-right"
+													/>
+												</div>
+
+												<div className="col-span-2 font-mono text-xs font-bold text-right text-emerald-600 dark:text-emerald-400">
+													₹{(row.quantity * row.estimatedUnitCost).toFixed(2)}
+												</div>
+
+												<div className="col-span-1 text-right">
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														onClick={() => handleRemoveItemRow(idx)}
+														disabled={requestItems.length <= 1}
+														className="h-7 w-7 text-red-500 hover:text-red-700"
+													>
+														<Trash2Icon className="h-3.5 w-3.5" />
+													</Button>
+												</div>
 											</div>
 
-											<div className="col-span-2">
-												<Input
-													type="number"
-													min="1"
-													placeholder="Qty"
-													value={row.quantity}
-													onChange={(e) =>
-														handleItemChange(
-															idx,
-															"quantity",
-															Number.parseFloat(e.target.value) || 1,
-														)
-													}
-													className="h-8 text-xs text-center"
-												/>
-											</div>
-
-											<div className="col-span-2">
-												<Input
-													type="number"
-													min="0"
-													placeholder="Est. Cost"
-													value={row.estimatedUnitCost}
-													onChange={(e) =>
-														handleItemChange(
-															idx,
-															"estimatedUnitCost",
-															Number.parseFloat(e.target.value) || 0,
-														)
-													}
-													className="h-8 text-xs text-right"
-												/>
-											</div>
-
-											<div className="col-span-2 font-mono text-xs font-bold text-right">
-												₹{(row.quantity * row.estimatedUnitCost).toFixed(2)}
-											</div>
-
-											<div className="col-span-1 text-right">
-												<Button
-													type="button"
-													variant="ghost"
-													size="icon"
-													onClick={() => handleRemoveItemRow(idx)}
-													disabled={requestItems.length <= 1}
-													className="h-7 w-7 text-red-500 hover:text-red-700"
-												>
-													<Trash2Icon className="h-3.5 w-3.5" />
-												</Button>
-											</div>
+											{/* Custom Product Details Input Row */}
+											{row.isCustom && (
+												<div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1 border-t border-dashed border-border/70">
+													<div className="sm:col-span-2">
+														<Label className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+															New Product Name *
+														</Label>
+														<Input
+															placeholder="e.g. Premium Basmati Rice 5kg"
+															value={row.customProductName}
+															onChange={(e) =>
+																handleItemChange(
+																	idx,
+																	"customProductName",
+																	e.target.value,
+																)
+															}
+															className="h-7 text-xs mt-0.5"
+														/>
+													</div>
+													<div>
+														<Label className="text-[10px] text-muted-foreground">
+															SKU Code (Optional)
+														</Label>
+														<Input
+															placeholder="e.g. SKU-RICE-01"
+															value={row.customSku}
+															onChange={(e) =>
+																handleItemChange(
+																	idx,
+																	"customSku",
+																	e.target.value,
+																)
+															}
+															className="h-7 text-xs mt-0.5"
+														/>
+													</div>
+													<div>
+														<Label className="text-[10px] text-muted-foreground">
+															Unit & Category
+														</Label>
+														<div className="flex gap-1 mt-0.5">
+															<Input
+																placeholder="Unit (pcs/kg)"
+																value={row.customUnit}
+																onChange={(e) =>
+																	handleItemChange(
+																		idx,
+																		"customUnit",
+																		e.target.value,
+																	)
+																}
+																className="h-7 text-xs w-1/2"
+															/>
+															<Input
+																placeholder="Category"
+																value={row.customCategory}
+																onChange={(e) =>
+																	handleItemChange(
+																		idx,
+																		"customCategory",
+																		e.target.value,
+																	)
+																}
+																className="h-7 text-xs w-1/2"
+															/>
+														</div>
+													</div>
+												</div>
+											)}
 										</div>
 									))}
 								</div>
@@ -580,12 +749,26 @@ export default function PurchaseRequestsPage() {
 										department,
 										priority,
 										notes: prNotes,
-										items: requestItems.filter((i) => i.productId > 0),
+										items: requestItems.map((i) => ({
+											productId: i.productId,
+											customProductName: i.isCustom
+												? i.customProductName
+												: undefined,
+											customSku: i.isCustom ? i.customSku : undefined,
+											customCategory: i.isCustom ? i.customCategory : undefined,
+											customUnit: i.isCustom ? i.customUnit : undefined,
+											quantity: i.quantity,
+											estimatedUnitCost: i.estimatedUnitCost,
+										})),
 									})
 								}
 								disabled={
 									createMutation.isPending ||
-									requestItems.some((i) => i.productId === 0)
+									requestItems.some(
+										(i) =>
+											(!i.isCustom && i.productId === 0) ||
+											(i.isCustom && !i.customProductName?.trim()),
+									)
 								}
 								className="bg-blue-600 hover:bg-blue-700 text-white gap-1"
 							>
@@ -629,7 +812,9 @@ export default function PurchaseRequestsPage() {
 							</div>
 
 							<div>
-								<Label className="text-xs font-medium">Expected Delivery Date</Label>
+								<Label className="text-xs font-medium">
+									Expected Delivery Date
+								</Label>
 								<Input
 									type="date"
 									value={expectedDeliveryDate}

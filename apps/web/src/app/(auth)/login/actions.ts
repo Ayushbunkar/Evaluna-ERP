@@ -1,15 +1,18 @@
 "use server";
 
+import { sendOTPEmailMessage } from "@evaluna/auth/email";
 import { UserManagement } from "@evaluna/db";
 // DB tables for auto-profile creation
 import {
 	roles,
+	session as sessionTable,
 	staff as staffTable,
 	userRoles,
 	user as userTable,
+	verification as verificationTable,
 } from "@evaluna/db/schema";
 import { employees as employeesTable } from "@evaluna/db/schema/hrms";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -19,72 +22,72 @@ import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
 import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
 import { invalidateCachedSession } from "@/lib/session-cache";
 
+const predefinedAccounts: Record<string, string> = {
+	"superadmin@evaluna.com": "super_admin",
+	"superadmin@evaluna.dev": "super_admin",
+	"admin@evaluna.com": "admin",
+	"admin@evaluna.dev": "admin",
+	"executive@evaluna.dev": "admin",
+	"manager@evaluna.com": "manager",
+	"manager@evaluna.dev": "manager",
+	"finance@evaluna.dev": "finance",
+	"finance@evaluna.com": "finance",
+	"hr@evaluna.com": "hr",
+	"hr@evaluna.dev": "hr",
+	"auditor@evaluna.com": "auditor",
+	"auditor@evaluna.dev": "auditor",
+	"sales@evaluna.com": "sales_person",
+	"sales@evaluna.dev": "sales_person",
+	"billing@evaluna.com": "biller",
+	"billing@evaluna.dev": "biller",
+	"picker@evaluna.com": "picker",
+	"picker@evaluna.dev": "picker",
+	"packer@evaluna.com": "packer",
+	"packer@evaluna.dev": "packer",
+	"loader@evaluna.com": "loader",
+	"loader@evaluna.dev": "loader",
+	"checker@evaluna.com": "checker",
+	"checker@evaluna.dev": "checker",
+	"putter@evaluna.com": "putter",
+	"putter@evaluna.dev": "putter",
+	"driver@evaluna.com": "driver",
+	"driver@evaluna.dev": "driver",
+	"sunil.driver@evaluna.com": "driver",
+	"vikram.driver@evaluna.com": "driver",
+	"amit.driver@evaluna.com": "driver",
+	"rajesh.driver@evaluna.com": "driver",
+	"marketing@evaluna.com": "marketing",
+	"marketing@evaluna.dev": "marketing",
+	"procurement@evaluna.com": "procurement",
+	"procurement@evaluna.dev": "procurement",
+	"warehouse@evaluna.com": "warehouse_supervisor",
+	"warehouse@evaluna.dev": "warehouse_supervisor",
+	"inventory@evaluna.dev": "warehouse_supervisor",
+	"dispatch@evaluna.dev": "packer",
+	"verma.berasia@gmail.com": "customer",
+	"patel.lalariya@gmail.com": "customer",
+	"sharma.runaha@gmail.com": "customer",
+	"choudhary.gunga@gmail.com": "customer",
+	"bundela.harrakheda@gmail.com": "customer",
+	"customer@evaluna.dev": "customer",
+};
+
 export async function login(formData: FormData) {
 	const rawEmail = formData.get("email") as string;
 	const password = formData.get("password") as string;
 	const email = (rawEmail || "").toLowerCase().trim();
 	const rememberMe = true;
 
-	const predefinedAccounts: Record<string, string> = {
-		"superadmin@evaluna.com": "super_admin",
-		"superadmin@evaluna.dev": "super_admin",
-		"admin@evaluna.com": "admin",
-		"admin@evaluna.dev": "admin",
-		"executive@evaluna.dev": "admin",
-		"manager@evaluna.com": "manager",
-		"manager@evaluna.dev": "manager",
-		"finance@evaluna.dev": "finance",
-		"finance@evaluna.com": "finance",
-		"hr@evaluna.com": "hr",
-		"hr@evaluna.dev": "hr",
-		"auditor@evaluna.com": "auditor",
-		"auditor@evaluna.dev": "auditor",
-		"sales@evaluna.com": "sales_person",
-		"sales@evaluna.dev": "sales_person",
-		"billing@evaluna.com": "biller",
-		"billing@evaluna.dev": "biller",
-		"picker@evaluna.com": "picker",
-		"picker@evaluna.dev": "picker",
-		"packer@evaluna.com": "packer",
-		"packer@evaluna.dev": "packer",
-		"loader@evaluna.com": "loader",
-		"loader@evaluna.dev": "loader",
-		"checker@evaluna.com": "checker",
-		"checker@evaluna.dev": "checker",
-		"putter@evaluna.com": "putter",
-		"putter@evaluna.dev": "putter",
-		"driver@evaluna.com": "driver",
-		"driver@evaluna.dev": "driver",
-		"sunil.driver@evaluna.com": "driver",
-		"vikram.driver@evaluna.com": "driver",
-		"amit.driver@evaluna.com": "driver",
-		"rajesh.driver@evaluna.com": "driver",
-		"marketing@evaluna.com": "marketing",
-		"marketing@evaluna.dev": "marketing",
-		"procurement@evaluna.com": "procurement",
-		"procurement@evaluna.dev": "procurement",
-		"warehouse@evaluna.com": "warehouse_supervisor",
-		"warehouse@evaluna.dev": "warehouse_supervisor",
-		"inventory@evaluna.dev": "warehouse_supervisor",
-		"dispatch@evaluna.dev": "packer",
-		"verma.berasia@gmail.com": "customer",
-		"patel.lalariya@gmail.com": "customer",
-		"sharma.runaha@gmail.com": "customer",
-		"choudhary.gunga@gmail.com": "customer",
-		"bundela.harrakheda@gmail.com": "customer",
-		"customer@evaluna.dev": "customer",
-	};
+	const isEvalunaAccount =
+		!!predefinedAccounts[email] ||
+		email.endsWith("@evaluna.com") ||
+		email.endsWith("@evaluna.dev");
 
 	let user:
 		| Awaited<ReturnType<typeof auth.api.signInEmail>>["user"]
 		| undefined;
 
-	let reqHeaders: Headers | undefined;
-	try {
-		reqHeaders = await headers();
-	} catch {
-		reqHeaders = undefined;
-	}
+	const reqHeaders = await headers();
 
 	try {
 		// Sign out any existing session first to avoid stale session redirect loops
@@ -169,12 +172,13 @@ export async function login(formData: FormData) {
 				}
 			}
 
-			// Force their role in DB
+			// Force their role in DB and ensure demo accounts are verified
 			await db
 				.update(userTable)
 				.set({
 					role: resolvedRole,
 					status: "ACTIVE",
+					emailVerified: true,
 					is_superadmin:
 						resolvedRole === "superadmin" || resolvedRole === "super_admin",
 				} as any)
@@ -250,7 +254,7 @@ export async function login(formData: FormData) {
 				if (staffRecord) {
 					await db
 						.update(userTable)
-						.set({ staff_id: staffRecord.id } as any)
+						.set({ staff_id: staffRecord.id, emailVerified: true } as any)
 						.where(eq(userTable.id, user.id));
 				}
 
@@ -291,12 +295,25 @@ export async function login(formData: FormData) {
 		}
 	} catch (err: any) {
 		console.error("Login Server Action Error:", err);
-		const msg = err.body?.message || "invalid-credentials";
+		const rawMsg = err.body?.message || err.message || "";
+		const msg = String(rawMsg).toLowerCase();
 		if (msg.includes("suspended")) {
 			return { success: false, error: "suspended" };
 		}
 		if (msg.includes("locked")) {
 			return { success: false, error: "locked" };
+		}
+		if (
+			msg.includes("verify") ||
+			msg.includes("verification") ||
+			msg.includes("email not verified") ||
+			err.body?.code === "EMAIL_NOT_VERIFIED"
+		) {
+			return {
+				success: false,
+				error: "email-not-verified",
+				email,
+			};
 		}
 		return { success: false, error: "invalid-credentials" };
 	}
@@ -304,6 +321,42 @@ export async function login(formData: FormData) {
 	if (!user) {
 		return { success: false, error: "invalid-credentials" };
 	}
+
+	// Strict server-side verification barrier:
+	// If the user's email is not verified, terminate session immediately and require verification
+	if (!user.emailVerified) {
+		try {
+			await auth.api.signOut({ headers: reqHeaders });
+		} catch {}
+		return {
+			success: false,
+			error: "email-not-verified",
+			email,
+		};
+	}
+
+	const isSeedAccount = isEvalunaAccount && password === "Password@123";
+
+	// 2FA Challenge: All non-seed user accounts require secondary email OTP factor
+	if (!isSeedAccount) {
+		await sendTwoFactorOTPAction(email);
+		return {
+			success: true,
+			requires2FA: true,
+			email,
+		};
+	}
+
+	// For seed/demo accounts, set 2FA cookie immediately
+	const cookieStore = await cookies();
+	const isProd = process.env.NODE_ENV === "production";
+	cookieStore.set("evaluna_2fa_verified", "true", {
+		httpOnly: true,
+		secure: isProd,
+		sameSite: "lax",
+		path: "/",
+		maxAge: 60 * 60 * 24 * 30,
+	});
 
 	// Superadmins are globally scoped and get their own dashboard
 	if (
@@ -318,7 +371,11 @@ export async function login(formData: FormData) {
 
 	// Fetch role directly from DB security profile to bypass session caching issues
 	const profile = await UserManagement.getSecurityProfileByUserId(user.id);
-	let role = predefinedAccounts[email] || profile?.role || (user as any)?.role || "customer";
+	const role =
+		predefinedAccounts[email] ||
+		profile?.role ||
+		(user as any)?.role ||
+		"customer";
 
 	const destination = getCanonicalDashboardRoute(role);
 	try {
@@ -353,4 +410,334 @@ export async function logout() {
 		revalidatePath("/", "layout");
 	} catch {}
 	redirect("/");
+}
+
+export async function resendVerificationEmailAction(email: string) {
+	const normalizedEmail = (email || "").toLowerCase().trim();
+	if (!normalizedEmail || !normalizedEmail.includes("@")) {
+		return {
+			success: false,
+			error: "Please provide a valid email address.",
+		};
+	}
+
+	try {
+		const reqHeaders = await headers();
+
+		await auth.api.sendVerificationEmail({
+			body: {
+				email: normalizedEmail,
+				callbackURL: "/login?verified=true",
+			},
+			headers: reqHeaders,
+		});
+
+		return { success: true };
+	} catch (err: any) {
+		console.error("Resend Verification Email Action Error:", err);
+		return {
+			success: false,
+			error:
+				err?.body?.message ||
+				err?.message ||
+				"Failed to resend verification email.",
+		};
+	}
+}
+
+export async function sendTwoFactorOTPAction(email: string) {
+	const normalizedEmail = (email || "").toLowerCase().trim();
+	if (!normalizedEmail || !normalizedEmail.includes("@")) {
+		return { success: false, error: "Please provide a valid email address." };
+	}
+
+	try {
+		const [user] = await db
+			.select()
+			.from(userTable)
+			.where(eq(userTable.email, normalizedEmail))
+			.limit(1);
+
+		if (!user) {
+			return { success: false, error: "User not found." };
+		}
+
+		// Generate 6-digit OTP
+		const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+		// Remove any existing active 2FA codes for this user
+		await db
+			.delete(verificationTable)
+			.where(eq(verificationTable.identifier, `2fa:${normalizedEmail}`));
+
+		// Insert new verification record with 5-minute expiration
+		await db.insert(verificationTable).values({
+			id: crypto.randomUUID(),
+			identifier: `2fa:${normalizedEmail}`,
+			value: otp,
+			expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+		});
+
+		// Send email via Resend / development fallback
+		await sendOTPEmailMessage({
+			to: normalizedEmail,
+			name: user.name,
+			otp,
+			type: "two-factor",
+		});
+
+		return { success: true };
+	} catch (err: any) {
+		console.error("sendTwoFactorOTPAction error:", err);
+		return {
+			success: false,
+			error: err?.message || "Failed to send verification code.",
+		};
+	}
+}
+
+export async function verifyTwoFactorOTPAction(email: string, code: string) {
+	const normalizedEmail = (email || "").toLowerCase().trim();
+	const trimmedCode = (code || "").trim();
+
+	if (!normalizedEmail || !trimmedCode) {
+		return { success: false, error: "Please enter the verification code." };
+	}
+
+	try {
+		const [record] = await db
+			.select()
+			.from(verificationTable)
+			.where(eq(verificationTable.identifier, `2fa:${normalizedEmail}`))
+			.orderBy(desc(verificationTable.createdAt))
+			.limit(1);
+
+		if (!record || record.value !== trimmedCode) {
+			return {
+				success: false,
+				error: "Invalid verification code. Please check and try again.",
+			};
+		}
+
+		if (new Date() > record.expiresAt) {
+			return {
+				success: false,
+				error: "Verification code has expired. Please request a new one.",
+			};
+		}
+
+		// Consume OTP immediately (single use)
+		await db
+			.delete(verificationTable)
+			.where(eq(verificationTable.id, record.id));
+
+		// Set 2FA verified cookie
+		const cookieStore = await cookies();
+		const isProd = process.env.NODE_ENV === "production";
+		cookieStore.set("evaluna_2fa_verified", "true", {
+			httpOnly: true,
+			secure: isProd,
+			sameSite: "lax",
+			path: "/",
+			maxAge: 60 * 60 * 24 * 30, // 30 days
+		});
+
+		// Find user and destination
+		const [user] = await db
+			.select()
+			.from(userTable)
+			.where(eq(userTable.email, normalizedEmail))
+			.limit(1);
+
+		if (!user) {
+			return { success: true, redirectUrl: "/customer" };
+		}
+
+		// Update last login
+		await db
+			.update(userTable)
+			.set({ last_login_at: new Date() } as any)
+			.where(eq(userTable.id, user.id));
+
+		const profile = await UserManagement.getSecurityProfileByUserId(user.id);
+		const role =
+			predefinedAccounts[normalizedEmail] ||
+			profile?.role ||
+			(user as any)?.role ||
+			"customer";
+
+		const destination = getCanonicalDashboardRoute(role);
+		try {
+			revalidatePath(destination, "layout");
+		} catch {}
+
+		return { success: true, redirectUrl: destination };
+	} catch (err: any) {
+		console.error("verifyTwoFactorOTPAction error:", err);
+		return {
+			success: false,
+			error: err?.message || "Failed to verify code.",
+		};
+	}
+}
+
+export async function requestEmailOTPAction(email: string) {
+	const normalizedEmail = (email || "").toLowerCase().trim();
+	if (!normalizedEmail || !normalizedEmail.includes("@")) {
+		return { success: false, error: "Please enter a valid email address." };
+	}
+
+	try {
+		const [user] = await db
+			.select()
+			.from(userTable)
+			.where(eq(userTable.email, normalizedEmail))
+			.limit(1);
+
+		if (!user) {
+			return {
+				success: false,
+				error: "No account found with this email. Please sign up first.",
+			};
+		}
+
+		const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+		await db
+			.delete(verificationTable)
+			.where(eq(verificationTable.identifier, `email-otp:${normalizedEmail}`));
+
+		await db.insert(verificationTable).values({
+			id: crypto.randomUUID(),
+			identifier: `email-otp:${normalizedEmail}`,
+			value: otp,
+			expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+		});
+
+		await sendOTPEmailMessage({
+			to: normalizedEmail,
+			name: user.name,
+			otp,
+			type: "sign-in",
+		});
+
+		return { success: true };
+	} catch (err: any) {
+		console.error("requestEmailOTPAction error:", err);
+		return {
+			success: false,
+			error: err?.message || "Failed to send sign-in code.",
+		};
+	}
+}
+
+export async function verifyEmailOTPAction(email: string, otp: string) {
+	const normalizedEmail = (email || "").toLowerCase().trim();
+	const trimmedOtp = (otp || "").trim();
+
+	if (!normalizedEmail || !trimmedOtp) {
+		return { success: false, error: "Please enter the verification code." };
+	}
+
+	try {
+		const [record] = await db
+			.select()
+			.from(verificationTable)
+			.where(eq(verificationTable.identifier, `email-otp:${normalizedEmail}`))
+			.orderBy(desc(verificationTable.createdAt))
+			.limit(1);
+
+		if (!record || record.value !== trimmedOtp) {
+			return {
+				success: false,
+				error: "Invalid verification code. Please check and try again.",
+			};
+		}
+
+		if (new Date() > record.expiresAt) {
+			return {
+				success: false,
+				error: "Verification code has expired. Please request a new one.",
+			};
+		}
+
+		// Single-use: delete record immediately
+		await db
+			.delete(verificationTable)
+			.where(eq(verificationTable.id, record.id));
+
+		const [user] = await db
+			.select()
+			.from(userTable)
+			.where(eq(userTable.email, normalizedEmail))
+			.limit(1);
+
+		if (!user) {
+			return { success: false, error: "User account not found." };
+		}
+
+		// Mark email as verified and update last_login_at
+		await db
+			.update(userTable)
+			.set({
+				emailVerified: true,
+				last_login_at: new Date(),
+			} as any)
+			.where(eq(userTable.id, user.id));
+
+		// Establish session
+		const sessionToken = crypto.randomUUID();
+		const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
+		await db.insert(sessionTable).values({
+			id: crypto.randomUUID(),
+			token: sessionToken,
+			userId: user.id,
+			expiresAt,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+
+		const cookieStore = await cookies();
+		const isProd = process.env.NODE_ENV === "production";
+		const cookieName = isProd
+			? "__Secure-evaluna.session_token"
+			: "evaluna.session_token";
+
+		cookieStore.set(cookieName, sessionToken, {
+			httpOnly: true,
+			secure: isProd,
+			sameSite: "lax",
+			path: "/",
+			expires: expiresAt,
+		});
+
+		// Set 2FA verified cookie as OTP was primary factor
+		cookieStore.set("evaluna_2fa_verified", "true", {
+			httpOnly: true,
+			secure: isProd,
+			sameSite: "lax",
+			path: "/",
+			expires: expiresAt,
+		});
+
+		const profile = await UserManagement.getSecurityProfileByUserId(user.id);
+		const role =
+			predefinedAccounts[normalizedEmail] ||
+			profile?.role ||
+			(user as any)?.role ||
+			"customer";
+
+		const destination = getCanonicalDashboardRoute(role);
+		try {
+			revalidatePath(destination, "layout");
+		} catch {}
+
+		return { success: true, redirectUrl: destination };
+	} catch (err: any) {
+		console.error("verifyEmailOTPAction error:", err);
+		return {
+			success: false,
+			error: err?.message || "Failed to verify code.",
+		};
+	}
 }

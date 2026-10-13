@@ -33,7 +33,7 @@ const navItems = [
 	{ href: "/auditor/placement", label: "Placement", icon: ActivityIcon },
 	{ href: "/auditor/history", label: "Audit History", icon: History },
 	{ href: "/auditor/reports", label: "Reports", icon: BarChart3 },
-	{ href: "/settings", label: "Settings", icon: Settings },
+	{ href: "/auditor/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AuditorLayout({
@@ -101,7 +101,9 @@ export default function AuditorLayout({
 								>
 									<Icon
 										className={`mr-3 h-5 w-5 shrink-0 ${
-											isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-400"
+											isActive
+												? "text-blue-600 dark:text-blue-400"
+												: "text-gray-400"
 										}`}
 									/>
 									<span className="truncate">{item.label}</span>
@@ -141,9 +143,7 @@ export default function AuditorLayout({
 
 				{/* Scrollable Content */}
 				<main className="flex-1 overflow-y-auto p-3 sm:p-6">
-					<div className="mx-auto w-full max-w-7xl min-w-0">
-						{children}
-					</div>
+					<div className="mx-auto w-full max-w-7xl min-w-0">{children}</div>
 				</main>
 			</div>
 		</div>

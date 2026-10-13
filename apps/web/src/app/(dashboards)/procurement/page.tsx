@@ -28,7 +28,7 @@ import {
 	FileTextIcon,
 	IndianRupeeIcon,
 	PlusIcon,
-	ReceiptIcon,
+	ReceiptIndianRupeeIcon,
 	TrendingUpIcon,
 	TruckIcon,
 	UsersIcon,
@@ -56,9 +56,14 @@ export default function ProcurementDashboardOverview() {
 	const { data: procKpis } = trpc.procurement.getProcurementKpis.useQuery();
 
 	// Calculate dynamic KPIs from DB
-	const activeSuppliersCount = procKpis?.activeSuppliers ?? (suppliersList?.length || 0);
-	const openPOsCount = procKpis?.pendingApproval ?? (pos?.filter((p) => p.status === "pending").length || 0);
-	const receivedPOsCount = pos?.filter((p) => p.status === "completed" || p.status === "received").length || 0;
+	const activeSuppliersCount =
+		procKpis?.activeSuppliers ?? (suppliersList?.length || 0);
+	const openPOsCount =
+		procKpis?.pendingApproval ??
+		(pos?.filter((p) => p.status === "pending").length || 0);
+	const receivedPOsCount =
+		pos?.filter((p) => p.status === "completed" || p.status === "received")
+			.length || 0;
 	const totalSpend =
 		procKpis?.totalSpend ??
 		(pos?.reduce((acc, curr) => acc + Number(curr.total_amount), 0) || 0);
@@ -67,7 +72,8 @@ export default function ProcurementDashboardOverview() {
 		(suppliersList?.reduce(
 			(acc, curr) => acc + Number(curr.outstanding_balance || 0),
 			0,
-		) || 0);
+		) ||
+			0);
 
 	// Filter low stock items requiring immediate procurement
 	const lowStockItems =
@@ -82,7 +88,8 @@ export default function ProcurementDashboardOverview() {
 			desc: "Accumulated procurement volume",
 			icon: TrendingUpIcon,
 			color: "border-l-blue-500",
-			badgeColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+			badgeColor:
+				"bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
 			iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
 		},
 		{
@@ -91,7 +98,8 @@ export default function ProcurementDashboardOverview() {
 			desc: "Active inbound shipments",
 			icon: TruckIcon,
 			color: "border-l-amber-500",
-			badgeColor: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+			badgeColor:
+				"bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
 			iconBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 		},
 		{
@@ -100,7 +108,8 @@ export default function ProcurementDashboardOverview() {
 			desc: "Requisitions awaiting approval",
 			icon: ClipboardListIcon,
 			color: "border-l-purple-500",
-			badgeColor: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+			badgeColor:
+				"bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
 			iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
 		},
 		{
@@ -109,7 +118,8 @@ export default function ProcurementDashboardOverview() {
 			desc: "Due on supplier invoices",
 			icon: IndianRupeeIcon,
 			color: "border-l-rose-500",
-			badgeColor: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+			badgeColor:
+				"bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
 			iconBg: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
 		},
 	];
@@ -138,7 +148,8 @@ export default function ProcurementDashboardOverview() {
 							Procurement & Payables Hub
 						</h1>
 						<p className="max-w-2xl text-muted-foreground text-sm">
-							Unified purchase requisitions, orders, dock receiving, 3-way matching, and finance settlements in one end-to-end ERP flow.
+							Unified purchase requisitions, orders, dock receiving, 3-way
+							matching, and finance settlements in one end-to-end ERP flow.
 						</p>
 					</div>
 
@@ -161,7 +172,7 @@ export default function ProcurementDashboardOverview() {
 							className="h-9 border-border/80 bg-background/50 font-semibold text-xs shadow-xs hover:bg-muted"
 						>
 							<Link href="/procurement/invoices">
-								<ReceiptIcon className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+								<ReceiptIndianRupeeIcon className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
 								Supplier Bills
 							</Link>
 						</Button>
@@ -234,7 +245,8 @@ export default function ProcurementDashboardOverview() {
 									Low-Stock Procurement Advisor
 								</CardTitle>
 								<CardDescription className="text-muted-foreground text-xs">
-									Inventory materials falling below reorder safety thresholds. Order replenishment to avoid stockouts.
+									Inventory materials falling below reorder safety thresholds.
+									Order replenishment to avoid stockouts.
 								</CardDescription>
 							</div>
 							<Badge
@@ -249,16 +261,29 @@ export default function ProcurementDashboardOverview() {
 								<Table>
 									<TableHeader>
 										<TableRow className="border-border/60 bg-muted/30">
-											<TableHead className="font-semibold text-muted-foreground text-xs">Product Material</TableHead>
-											<TableHead className="font-semibold text-muted-foreground text-xs">SKU</TableHead>
-											<TableHead className="font-semibold text-muted-foreground text-xs">Current Stock</TableHead>
-											<TableHead className="font-semibold text-muted-foreground text-xs">Reorder Level</TableHead>
-											<TableHead className="text-right font-semibold text-muted-foreground text-xs">Action</TableHead>
+											<TableHead className="font-semibold text-muted-foreground text-xs">
+												Product Material
+											</TableHead>
+											<TableHead className="font-semibold text-muted-foreground text-xs">
+												SKU
+											</TableHead>
+											<TableHead className="font-semibold text-muted-foreground text-xs">
+												Current Stock
+											</TableHead>
+											<TableHead className="font-semibold text-muted-foreground text-xs">
+												Reorder Level
+											</TableHead>
+											<TableHead className="text-right font-semibold text-muted-foreground text-xs">
+												Action
+											</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
 										{lowStockItems.map((item) => (
-											<TableRow key={item.id} className="border-border/40 hover:bg-muted/40 transition-colors">
+											<TableRow
+												key={item.id}
+												className="border-border/40 hover:bg-muted/40 transition-colors"
+											>
 												<TableCell className="font-bold text-foreground text-xs">
 													{item.product}
 												</TableCell>
@@ -272,7 +297,12 @@ export default function ProcurementDashboardOverview() {
 													{item.reorder_level} units
 												</TableCell>
 												<TableCell className="text-right">
-													<Button size="sm" variant="outline" asChild className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10">
+													<Button
+														size="sm"
+														variant="outline"
+														asChild
+														className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
+													>
 														<Link href="/procurement/purchase-orders">
 															Replenish
 														</Link>
@@ -313,13 +343,17 @@ export default function ProcurementDashboardOverview() {
 						</CardHeader>
 						<CardContent className="space-y-4 pt-4">
 							<div className="flex items-center justify-between border-border/40 border-b pb-2 text-xs">
-								<span className="text-muted-foreground">Completed / Received Purchases</span>
+								<span className="text-muted-foreground">
+									Completed / Received Purchases
+								</span>
 								<span className="font-bold text-emerald-600 dark:text-emerald-400">
 									{receivedPOsCount} POs
 								</span>
 							</div>
 							<div className="flex items-center justify-between border-border/40 border-b pb-2 text-xs">
-								<span className="text-muted-foreground">Pending Expected Deliveries</span>
+								<span className="text-muted-foreground">
+									Pending Expected Deliveries
+								</span>
 								<span className="font-bold text-amber-600 dark:text-amber-400">
 									{openPOsCount} POs
 								</span>
@@ -333,7 +367,8 @@ export default function ProcurementDashboardOverview() {
 											Pending Dock Inspections (GRN)
 										</h5>
 										<p className="text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-300/80">
-											{openPOsCount} purchase orders are awaiting physical receiving and quality checks at warehouse docks.
+											{openPOsCount} purchase orders are awaiting physical
+											receiving and quality checks at warehouse docks.
 										</p>
 									</div>
 								</div>
@@ -345,14 +380,20 @@ export default function ProcurementDashboardOverview() {
 											Dock Receiving Up to Date
 										</h5>
 										<p className="text-[11px] leading-relaxed text-emerald-700/90 dark:text-emerald-300/80">
-											All purchase order deliveries have been inspected and receipt notes generated.
+											All purchase order deliveries have been inspected and
+											receipt notes generated.
 										</p>
 									</div>
 								</div>
 							)}
 
 							<div className="pt-2">
-								<Button variant="outline" size="sm" asChild className="w-full text-xs font-semibold">
+								<Button
+									variant="outline"
+									size="sm"
+									asChild
+									className="w-full text-xs font-semibold"
+								>
 									<Link href="/procurement/incoming">
 										Open Receiving Console
 										<ArrowRightIcon className="ml-1.5 h-3.5 w-3.5" />

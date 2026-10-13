@@ -12,7 +12,7 @@ import {
 	LayoutDashboardIcon,
 	LogOutIcon,
 	MenuIcon,
-	ReceiptIcon,
+	ReceiptIndianRupeeIcon,
 	RefreshCwIcon,
 	ShieldCheckIcon,
 	TruckIcon,
@@ -128,7 +128,7 @@ export default function FinanceLayout({
 				{
 					label: "Supplier Payables",
 					href: "/finance/payables",
-					icon: ReceiptIcon,
+					icon: ReceiptIndianRupeeIcon,
 				},
 				{
 					label: "Payroll & Payouts",

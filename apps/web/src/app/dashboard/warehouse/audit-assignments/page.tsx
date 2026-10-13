@@ -109,7 +109,9 @@ export default function WarehouseAuditAssignmentsPage() {
 	const [formCategoryId, setFormCategoryId] = useState<number | undefined>(
 		undefined,
 	);
-	const [formSelectedProductIds, setFormSelectedProductIds] = useState<number[]>([]);
+	const [formSelectedProductIds, setFormSelectedProductIds] = useState<
+		number[]
+	>([]);
 	const [productSearchInput, setProductSearchInput] = useState("");
 	const [isQuickAddProductOpen, setIsQuickAddProductOpen] = useState(false);
 	const [newProductName, setNewProductName] = useState("");
@@ -145,20 +147,25 @@ export default function WarehouseAuditAssignmentsPage() {
 				search: productSearchInput || undefined,
 				limit: 50,
 			},
-			{ enabled: isCreateModalOpen && createStep === 2 && formScopeMode === "custom" },
+			{
+				enabled:
+					isCreateModalOpen && createStep === 2 && formScopeMode === "custom",
+			},
 		);
 
-	const { data: scopePreview, isLoading: scopePreviewLoading, refetch: refetchScopePreview } =
-		trpc.audit.getAuditScopePreview.useQuery(
-			{
-				branchId: formBranchId,
-				categoryId:
-					formScopeMode === "category" ? formCategoryId : undefined,
-				productIds:
-					formScopeMode === "custom" ? formSelectedProductIds : undefined,
-			},
-			{ enabled: isCreateModalOpen && createStep === 2 },
-		);
+	const {
+		data: scopePreview,
+		isLoading: scopePreviewLoading,
+		refetch: refetchScopePreview,
+	} = trpc.audit.getAuditScopePreview.useQuery(
+		{
+			branchId: formBranchId,
+			categoryId: formScopeMode === "category" ? formCategoryId : undefined,
+			productIds:
+				formScopeMode === "custom" ? formSelectedProductIds : undefined,
+		},
+		{ enabled: isCreateModalOpen && createStep === 2 },
+	);
 
 	const {
 		data: activeAuditDetail,
@@ -297,8 +304,7 @@ export default function WarehouseAuditAssignmentsPage() {
 			location_name: formLocationName || undefined,
 			due_date: formDueDate || undefined,
 			notes: formNotes || undefined,
-			category_id:
-				formScopeMode === "category" ? formCategoryId : undefined,
+			category_id: formScopeMode === "category" ? formCategoryId : undefined,
 			product_ids:
 				formScopeMode === "custom" ? formSelectedProductIds : undefined,
 		});
@@ -345,7 +351,9 @@ export default function WarehouseAuditAssignmentsPage() {
 								Inventory Audit & Stock Control
 							</h1>
 							<p className="text-muted-foreground text-xs sm:text-sm">
-								Configure physical count plans, enforce blind counting integrity, investigate variances, and execute ledger reconciliation.
+								Configure physical count plans, enforce blind counting
+								integrity, investigate variances, and execute ledger
+								reconciliation.
 							</p>
 						</div>
 					</div>
@@ -399,7 +407,7 @@ export default function WarehouseAuditAssignmentsPage() {
 							</CardHeader>
 							<CardContent className="p-3.5 pt-0 sm:p-4 sm:pt-0">
 								<div className="font-bold text-2xl text-foreground sm:text-3xl tracking-tight">
-									{statsLoading ? "..." : stats?.totalAudits ?? 0}
+									{statsLoading ? "..." : (stats?.totalAudits ?? 0)}
 								</div>
 								<p className="mt-1 text-[11px] text-muted-foreground truncate">
 									All registered cycles
@@ -421,7 +429,7 @@ export default function WarehouseAuditAssignmentsPage() {
 							</CardHeader>
 							<CardContent className="p-3.5 pt-0 sm:p-4 sm:pt-0">
 								<div className="font-bold text-2xl text-amber-600 dark:text-amber-400 sm:text-3xl tracking-tight">
-									{statsLoading ? "..." : stats?.inProgress ?? 0}
+									{statsLoading ? "..." : (stats?.inProgress ?? 0)}
 								</div>
 								<p className="mt-1 text-[11px] text-muted-foreground truncate">
 									In field verification
@@ -443,7 +451,7 @@ export default function WarehouseAuditAssignmentsPage() {
 							</CardHeader>
 							<CardContent className="p-3.5 pt-0 sm:p-4 sm:pt-0">
 								<div className="font-bold text-2xl text-rose-600 dark:text-rose-400 sm:text-3xl tracking-tight">
-									{statsLoading ? "..." : stats?.varianceFound ?? 0}
+									{statsLoading ? "..." : (stats?.varianceFound ?? 0)}
 								</div>
 								<p className="mt-1 text-[11px] text-muted-foreground truncate">
 									Mismatches flagged
@@ -465,7 +473,7 @@ export default function WarehouseAuditAssignmentsPage() {
 							</CardHeader>
 							<CardContent className="p-3.5 pt-0 sm:p-4 sm:pt-0">
 								<div className="font-bold text-2xl text-purple-600 dark:text-purple-400 sm:text-3xl tracking-tight">
-									{statsLoading ? "..." : stats?.recountRequested ?? 0}
+									{statsLoading ? "..." : (stats?.recountRequested ?? 0)}
 								</div>
 								<p className="mt-1 text-[11px] text-muted-foreground truncate">
 									Second count pending
@@ -487,7 +495,7 @@ export default function WarehouseAuditAssignmentsPage() {
 							</CardHeader>
 							<CardContent className="p-3.5 pt-0 sm:p-4 sm:pt-0">
 								<div className="font-bold text-2xl text-emerald-600 dark:text-emerald-400 sm:text-3xl tracking-tight">
-									{statsLoading ? "..." : stats?.completedAudits ?? 0}
+									{statsLoading ? "..." : (stats?.completedAudits ?? 0)}
 								</div>
 								<p className="mt-1 text-[11px] text-muted-foreground truncate">
 									Adjustments posted
@@ -551,7 +559,8 @@ export default function WarehouseAuditAssignmentsPage() {
 								Audit Register & Lifecycle Status
 							</CardTitle>
 							<CardDescription className="text-xs text-muted-foreground">
-								Frozen inventory benchmarks, assigned personnel, count progression, and reconciliation triggers
+								Frozen inventory benchmarks, assigned personnel, count
+								progression, and reconciliation triggers
 							</CardDescription>
 						</div>
 
@@ -576,7 +585,8 @@ export default function WarehouseAuditAssignmentsPage() {
 								No audit plans found
 							</p>
 							<p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-								Create a new stock verification plan to initiate blind counting or cycle counts across warehouse zones.
+								Create a new stock verification plan to initiate blind counting
+								or cycle counts across warehouse zones.
 							</p>
 							<Button
 								size="sm"
@@ -597,11 +607,17 @@ export default function WarehouseAuditAssignmentsPage() {
 										<TableHead className="font-semibold">Audit Code</TableHead>
 										<TableHead className="font-semibold">Plan & Zone</TableHead>
 										<TableHead className="font-semibold">Protocol</TableHead>
-										<TableHead className="font-semibold">Assigned Counter</TableHead>
-										<TableHead className="font-semibold">Count Progress</TableHead>
+										<TableHead className="font-semibold">
+											Assigned Counter
+										</TableHead>
+										<TableHead className="font-semibold">
+											Count Progress
+										</TableHead>
 										<TableHead className="font-semibold">Status</TableHead>
 										<TableHead className="font-semibold">Variances</TableHead>
-										<TableHead className="font-semibold text-right">Actions</TableHead>
+										<TableHead className="font-semibold text-right">
+											Actions
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 
@@ -610,12 +626,16 @@ export default function WarehouseAuditAssignmentsPage() {
 										const progressPct =
 											audit.totalItemsCount > 0
 												? Math.round(
-														(audit.countedItemsCount / audit.totalItemsCount) * 100,
+														(audit.countedItemsCount / audit.totalItemsCount) *
+															100,
 													)
 												: 0;
 
 										return (
-											<TableRow key={audit.id} className="hover:bg-muted/40 transition-colors">
+											<TableRow
+												key={audit.id}
+												className="hover:bg-muted/40 transition-colors"
+											>
 												{/* Code */}
 												<TableCell className="font-mono text-xs font-bold text-foreground">
 													{audit.audit_number || `AUD-${audit.id}`}
@@ -698,7 +718,8 @@ export default function WarehouseAuditAssignmentsPage() {
 													<div className="w-28 space-y-1">
 														<div className="flex justify-between text-[10px] text-muted-foreground font-mono">
 															<span>
-																{audit.countedItemsCount}/{audit.totalItemsCount}
+																{audit.countedItemsCount}/
+																{audit.totalItemsCount}
 															</span>
 															<span>{progressPct}%</span>
 														</div>
@@ -746,13 +767,17 @@ export default function WarehouseAuditAssignmentsPage() {
 															<AlertTriangleIcon className="mr-1 h-3 w-3" />
 															{audit.varianceItemsCount} lines
 														</Badge>
-													) : audit.countedItemsCount === audit.totalItemsCount &&
+													) : audit.countedItemsCount ===
+															audit.totalItemsCount &&
 														audit.totalItemsCount > 0 ? (
 														<Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-300 dark:border-emerald-800 text-[11px]">
-															<CheckCircle2Icon className="mr-1 h-3 w-3" /> 100% Match
+															<CheckCircle2Icon className="mr-1 h-3 w-3" /> 100%
+															Match
 														</Badge>
 													) : (
-														<span className="text-xs text-muted-foreground">—</span>
+														<span className="text-xs text-muted-foreground">
+															—
+														</span>
 													)}
 												</TableCell>
 
@@ -847,12 +872,20 @@ export default function WarehouseAuditAssignmentsPage() {
 											</label>
 											<select
 												value={formAuditType}
-												onChange={(e) => setFormAuditType(e.target.value as any)}
+												onChange={(e) =>
+													setFormAuditType(e.target.value as any)
+												}
 												className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
 											>
-												<option value="cycle_count">Cycle Count (Periodic)</option>
-												<option value="full_physical">Full Physical Inventory</option>
-												<option value="spot_check">Spot Check (High Risk)</option>
+												<option value="cycle_count">
+													Cycle Count (Periodic)
+												</option>
+												<option value="full_physical">
+													Full Physical Inventory
+												</option>
+												<option value="spot_check">
+													Spot Check (High Risk)
+												</option>
 												<option value="discrepancy_followup">
 													Discrepancy Follow-up
 												</option>
@@ -1020,21 +1053,27 @@ export default function WarehouseAuditAssignmentsPage() {
 												<div>
 													<p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
 														<CheckSquareIcon className="h-3.5 w-3.5 text-blue-600" />
-														Specific Products Selection ({formSelectedProductIds.length} Selected)
+														Specific Products Selection (
+														{formSelectedProductIds.length} Selected)
 													</p>
 													<p className="text-[11px] text-muted-foreground">
-														Search existing inventory or quickly create and add new products to count.
+														Search existing inventory or quickly create and add
+														new products to count.
 													</p>
 												</div>
 
 												<Button
 													size="sm"
 													type="button"
-													onClick={() => setIsQuickAddProductOpen(!isQuickAddProductOpen)}
+													onClick={() =>
+														setIsQuickAddProductOpen(!isQuickAddProductOpen)
+													}
 													className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
 												>
 													<PlusIcon className="h-3.5 w-3.5 mr-1" />
-													{isQuickAddProductOpen ? "Cancel New Product" : "Add New Product"}
+													{isQuickAddProductOpen
+														? "Cancel New Product"
+														: "Add New Product"}
 												</Button>
 											</div>
 
@@ -1053,42 +1092,58 @@ export default function WarehouseAuditAssignmentsPage() {
 
 													<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
 														<div>
-															<label className="text-[10px] font-semibold text-foreground">Item Name *</label>
+															<label className="text-[10px] font-semibold text-foreground">
+																Item Name *
+															</label>
 															<Input
 																placeholder="e.g. Basmati Rice 5kg"
 																value={newProductName}
-																onChange={(e) => setNewProductName(e.target.value)}
+																onChange={(e) =>
+																	setNewProductName(e.target.value)
+																}
 																className="h-7 text-xs bg-background mt-0.5"
 															/>
 														</div>
 
 														<div>
-															<label className="text-[10px] font-semibold text-foreground">SKU / Code</label>
+															<label className="text-[10px] font-semibold text-foreground">
+																SKU / Code
+															</label>
 															<Input
 																placeholder="e.g. SKU-RICE-001"
 																value={newProductSku}
-																onChange={(e) => setNewProductSku(e.target.value)}
+																onChange={(e) =>
+																	setNewProductSku(e.target.value)
+																}
 																className="h-7 text-xs bg-background mt-0.5"
 															/>
 														</div>
 
 														<div>
-															<label className="text-[10px] font-semibold text-foreground">Barcode / EAN</label>
+															<label className="text-[10px] font-semibold text-foreground">
+																Barcode / EAN
+															</label>
 															<Input
 																placeholder="e.g. 890123456789"
 																value={newProductBarcode}
-																onChange={(e) => setNewProductBarcode(e.target.value)}
+																onChange={(e) =>
+																	setNewProductBarcode(e.target.value)
+																}
 																className="h-7 text-xs bg-background mt-0.5"
 															/>
 														</div>
 
 														<div>
-															<label className="text-[10px] font-semibold text-foreground">Price (₹) *</label>
+															<label className="text-[10px] font-semibold text-foreground">
+																Price (₹) *
+															</label>
 															<Input
 																type="number"
 																placeholder="100"
 																value={newProductPrice}
-																onChange={(e) => setNewProductPrice(e.target.value)}
+																onChange={(e) =>
+																	setNewProductPrice(e.target.value)
+																}
 																className="h-7 text-xs bg-background mt-0.5"
 															/>
 														</div>
@@ -1107,7 +1162,10 @@ export default function WarehouseAuditAssignmentsPage() {
 														<Button
 															size="sm"
 															type="button"
-															disabled={!newProductName.trim() || quickCreateProductMutation.isPending}
+															disabled={
+																!newProductName.trim() ||
+																quickCreateProductMutation.isPending
+															}
 															onClick={() => {
 																if (!newProductName.trim()) {
 																	toast.error("Please enter product name.");
@@ -1116,7 +1174,8 @@ export default function WarehouseAuditAssignmentsPage() {
 																quickCreateProductMutation.mutate({
 																	name: newProductName.trim(),
 																	sku: newProductSku.trim() || undefined,
-																	barcode: newProductBarcode.trim() || undefined,
+																	barcode:
+																		newProductBarcode.trim() || undefined,
 																	price: Number(newProductPrice) || 0,
 																	category: newProductCategory || "General",
 																});
@@ -1124,7 +1183,9 @@ export default function WarehouseAuditAssignmentsPage() {
 															className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
 														>
 															<CheckIcon className="h-3.5 w-3.5 mr-1" />
-															{quickCreateProductMutation.isPending ? "Adding..." : "Save & Add to Audit"}
+															{quickCreateProductMutation.isPending
+																? "Adding..."
+																: "Save & Add to Audit"}
 														</Button>
 													</div>
 												</div>
@@ -1136,7 +1197,9 @@ export default function WarehouseAuditAssignmentsPage() {
 												<Input
 													placeholder="Search products by title, SKU, or barcode..."
 													value={productSearchInput}
-													onChange={(e) => setProductSearchInput(e.target.value)}
+													onChange={(e) =>
+														setProductSearchInput(e.target.value)
+													}
 													className="pl-8 h-8 text-xs bg-background"
 												/>
 											</div>
@@ -1146,21 +1209,33 @@ export default function WarehouseAuditAssignmentsPage() {
 												<Table>
 													<TableHeader className="bg-muted/20">
 														<TableRow className="text-[10px]">
-															<TableHead className="w-10 text-center py-1">Pick</TableHead>
-															<TableHead className="py-1">Product Name</TableHead>
-															<TableHead className="py-1">SKU / Barcode</TableHead>
-															<TableHead className="py-1 text-right">System Stock</TableHead>
+															<TableHead className="w-10 text-center py-1">
+																Pick
+															</TableHead>
+															<TableHead className="py-1">
+																Product Name
+															</TableHead>
+															<TableHead className="py-1">
+																SKU / Barcode
+															</TableHead>
+															<TableHead className="py-1 text-right">
+																System Stock
+															</TableHead>
 														</TableRow>
 													</TableHeader>
 													<TableBody>
-														{availableProductsList && availableProductsList.length > 0 ? (
+														{availableProductsList &&
+														availableProductsList.length > 0 ? (
 															availableProductsList.map((prod) => {
-																const isChecked = formSelectedProductIds.includes(prod.id);
+																const isChecked =
+																	formSelectedProductIds.includes(prod.id);
 																return (
 																	<TableRow
 																		key={prod.id}
 																		className={`text-[11px] cursor-pointer hover:bg-muted/40 transition-colors ${
-																			isChecked ? "bg-blue-50/40 dark:bg-blue-950/20" : ""
+																			isChecked
+																				? "bg-blue-50/40 dark:bg-blue-950/20"
+																				: ""
 																		}`}
 																		onClick={() => {
 																			setFormSelectedProductIds((prev) =>
@@ -1170,7 +1245,10 @@ export default function WarehouseAuditAssignmentsPage() {
 																			);
 																		}}
 																	>
-																		<TableCell className="text-center py-1.5" onClick={(e) => e.stopPropagation()}>
+																		<TableCell
+																			className="text-center py-1.5"
+																			onClick={(e) => e.stopPropagation()}
+																		>
 																			<input
 																				type="checkbox"
 																				checked={isChecked}
@@ -1178,7 +1256,9 @@ export default function WarehouseAuditAssignmentsPage() {
 																					setFormSelectedProductIds((prev) =>
 																						e.target.checked
 																							? [...prev, prod.id]
-																							: prev.filter((id) => id !== prod.id),
+																							: prev.filter(
+																									(id) => id !== prod.id,
+																								),
 																					);
 																				}}
 																				className="rounded border-border text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
@@ -1198,8 +1278,13 @@ export default function WarehouseAuditAssignmentsPage() {
 															})
 														) : (
 															<TableRow>
-																<TableCell colSpan={4} className="py-4 text-center text-xs text-muted-foreground">
-																	No products found matching &quot;{productSearchInput}&quot;. Click &quot;Add New Product&quot; to create one!
+																<TableCell
+																	colSpan={4}
+																	className="py-4 text-center text-xs text-muted-foreground"
+																>
+																	No products found matching &quot;
+																	{productSearchInput}&quot;. Click &quot;Add
+																	New Product&quot; to create one!
 																</TableCell>
 															</TableRow>
 														)}
@@ -1221,14 +1306,19 @@ export default function WarehouseAuditAssignmentsPage() {
 													Calculating scope...
 												</span>
 											) : (
-												<Badge variant="outline" className="text-xs font-mono font-bold">
+												<Badge
+													variant="outline"
+													className="text-xs font-mono font-bold"
+												>
 													{scopePreview?.totalProducts ?? 0} SKUs Included
 												</Badge>
 											)}
 										</div>
 
 										<p className="text-[11px] text-muted-foreground">
-											Upon publishing, current inventory quantities will be frozen as the immutable benchmark snapshot for variance calculation.
+											Upon publishing, current inventory quantities will be
+											frozen as the immutable benchmark snapshot for variance
+											calculation.
 										</p>
 
 										{scopePreview?.sampleProducts &&
@@ -1282,10 +1372,11 @@ export default function WarehouseAuditAssignmentsPage() {
 											}
 											className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
 										>
-											<option value="">Select counting personnel...</option>
+											<option value="">Select authorized auditor...</option>
 											{assignableStaff?.map((s) => (
 												<option key={s.id} value={s.id}>
-													{s.name} ({s.staff_code || s.role})
+													{s.name} ({s.staff_code ? `${s.staff_code} • ` : ""}
+													{s.role?.toUpperCase() || "AUDITOR"})
 												</option>
 											))}
 										</select>
@@ -1311,7 +1402,10 @@ export default function WarehouseAuditAssignmentsPage() {
 												Immutable Snapshot Protocol
 											</p>
 											<p className="text-[11px] mt-0.5 text-blue-800/80 dark:text-blue-300/80">
-												Expected inventory snapshot will be locked upon publishing. Discrepancies between physical counts and this frozen snapshot will require manager authorization to reconcile.
+												Expected inventory snapshot will be locked upon
+												publishing. Discrepancies between physical counts and
+												this frozen snapshot will require manager authorization
+												to reconcile.
 											</p>
 										</div>
 									</div>
@@ -1386,7 +1480,9 @@ export default function WarehouseAuditAssignmentsPage() {
 								<div>
 									<div className="flex items-center gap-2">
 										<CardTitle className="text-lg font-bold text-foreground">
-											Audit Review: {activeAuditDetail.audit?.audit_number || `#${selectedAuditId}`}
+											Audit Review:{" "}
+											{activeAuditDetail.audit?.audit_number ||
+												`#${selectedAuditId}`}
 										</CardTitle>
 										<Badge
 											variant="outline"
@@ -1402,7 +1498,8 @@ export default function WarehouseAuditAssignmentsPage() {
 
 									<p className="text-xs text-muted-foreground mt-0.5">
 										{activeAuditDetail.audit?.title} • Counter:{" "}
-										{activeAuditDetail.audit?.auditor?.name || "Unassigned"} • Method:{" "}
+										{activeAuditDetail.audit?.auditor?.name || "Unassigned"} •
+										Method:{" "}
 										{activeAuditDetail.audit?.counting_method?.toUpperCase()}
 									</p>
 								</div>
@@ -1433,7 +1530,11 @@ export default function WarehouseAuditAssignmentsPage() {
 										Counted Lines
 									</p>
 									<p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-										{activeAuditDetail.items.filter((i) => i.counted_qty !== null).length}
+										{
+											activeAuditDetail.items.filter(
+												(i) => i.counted_qty !== null,
+											).length
+										}
 									</p>
 								</div>
 
@@ -1442,7 +1543,11 @@ export default function WarehouseAuditAssignmentsPage() {
 										Matched Lines
 									</p>
 									<p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-										{activeAuditDetail.items.filter((i) => i.status === "match").length}
+										{
+											activeAuditDetail.items.filter(
+												(i) => i.status === "match",
+											).length
+										}
 									</p>
 								</div>
 
@@ -1455,7 +1560,8 @@ export default function WarehouseAuditAssignmentsPage() {
 											activeAuditDetail.items.filter(
 												(i) =>
 													i.status === "mismatch" ||
-													(i.counted_qty !== null && i.counted_qty !== i.expected_qty),
+													(i.counted_qty !== null &&
+														i.counted_qty !== i.expected_qty),
 											).length
 										}
 									</p>
@@ -1473,7 +1579,8 @@ export default function WarehouseAuditAssignmentsPage() {
 										onClick={handleSelectAllDiscrepantLines}
 										className="text-xs h-7.5"
 									>
-										Select All Variances ({selectedLinesForRecount.length} selected)
+										Select All Variances ({selectedLinesForRecount.length}{" "}
+										selected)
 									</Button>
 									{selectedLinesForRecount.length > 0 && (
 										<Button
@@ -1496,8 +1603,8 @@ export default function WarehouseAuditAssignmentsPage() {
 											disabled={selectedLinesForRecount.length === 0}
 											className="text-xs h-7.5 border-purple-500/20 bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20"
 										>
-											<RotateCcwIcon className="mr-1 h-3.5 w-3.5" /> Request Recount (
-											{selectedLinesForRecount.length})
+											<RotateCcwIcon className="mr-1 h-3.5 w-3.5" /> Request
+											Recount ({selectedLinesForRecount.length})
 										</Button>
 
 										<Button
@@ -1505,7 +1612,8 @@ export default function WarehouseAuditAssignmentsPage() {
 											onClick={() => setIsReconcileModalOpen(true)}
 											className="text-xs h-7.5 bg-emerald-600 hover:bg-emerald-700 text-white"
 										>
-											<ShieldCheckIcon className="mr-1 h-3.5 w-3.5" /> Finalize & Reconcile
+											<ShieldCheckIcon className="mr-1 h-3.5 w-3.5" /> Finalize
+											& Reconcile
 										</Button>
 									</div>
 								)}
@@ -1518,7 +1626,9 @@ export default function WarehouseAuditAssignmentsPage() {
 										<TableRow className="text-xs">
 											<TableHead className="w-8"></TableHead>
 											<TableHead>SKU & Product Name</TableHead>
-											<TableHead className="text-right">Snapshot Expected</TableHead>
+											<TableHead className="text-right">
+												Snapshot Expected
+											</TableHead>
 											<TableHead className="text-right">Counted</TableHead>
 											<TableHead className="text-right">Recount</TableHead>
 											<TableHead className="text-right">Variance</TableHead>
@@ -1528,7 +1638,9 @@ export default function WarehouseAuditAssignmentsPage() {
 
 									<TableBody>
 										{activeAuditDetail.items.map((item) => {
-											const isSelected = selectedLinesForRecount.includes(item.id);
+											const isSelected = selectedLinesForRecount.includes(
+												item.id,
+											);
 											const isMismatch =
 												item.status === "mismatch" ||
 												(item.counted_qty !== null &&
@@ -1548,7 +1660,9 @@ export default function WarehouseAuditAssignmentsPage() {
 															<input
 																type="checkbox"
 																checked={isSelected}
-																onChange={() => handleToggleLineRecount(item.id)}
+																onChange={() =>
+																	handleToggleLineRecount(item.id)
+																}
 																className="rounded border-border text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
 															/>
 														)}
@@ -1557,7 +1671,8 @@ export default function WarehouseAuditAssignmentsPage() {
 													<TableCell>
 														<div>
 															<p className="font-semibold text-foreground">
-																{item.product?.name || `Product #${item.product_id}`}
+																{item.product?.name ||
+																	`Product #${item.product_id}`}
 															</p>
 															<p className="font-mono text-[10px] text-muted-foreground">
 																SKU: {item.product?.sku || "N/A"} • Barcode:{" "}
@@ -1605,7 +1720,9 @@ export default function WarehouseAuditAssignmentsPage() {
 																			: "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300"
 																}`}
 															>
-																{item.variance > 0 ? `+${item.variance}` : item.variance}
+																{item.variance > 0
+																	? `+${item.variance}`
+																	: item.variance}
 															</Badge>
 														) : (
 															<span className="text-muted-foreground">—</span>
@@ -1663,7 +1780,8 @@ export default function WarehouseAuditAssignmentsPage() {
 										disabled={selectedLinesForRecount.length === 0}
 										className="text-xs h-8 border-purple-500/20 bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20"
 									>
-										<RotateCcwIcon className="mr-1.5 h-3.5 w-3.5" /> Request Recount
+										<RotateCcwIcon className="mr-1.5 h-3.5 w-3.5" /> Request
+										Recount
 									</Button>
 
 									<Button
@@ -1671,7 +1789,8 @@ export default function WarehouseAuditAssignmentsPage() {
 										onClick={() => setIsReconcileModalOpen(true)}
 										className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
 									>
-										<ShieldCheckIcon className="mr-1.5 h-3.5 w-3.5" /> Reconcile & Post Adjustments
+										<ShieldCheckIcon className="mr-1.5 h-3.5 w-3.5" /> Reconcile
+										& Post Adjustments
 									</Button>
 								</div>
 							)}
@@ -1694,7 +1813,8 @@ export default function WarehouseAuditAssignmentsPage() {
 								</CardTitle>
 							</div>
 							<CardDescription className="text-xs text-muted-foreground mt-0.5">
-								Dispatch {selectedLinesForRecount.length} item line(s) back to the assigned auditor for physical verification.
+								Dispatch {selectedLinesForRecount.length} item line(s) back to
+								the assigned auditor for physical verification.
 							</CardDescription>
 						</CardHeader>
 
@@ -1713,7 +1833,9 @@ export default function WarehouseAuditAssignmentsPage() {
 							</div>
 
 							<div className="rounded-xl border border-purple-500/20 bg-purple-500/10 p-2.5 text-[11px] text-purple-800 dark:text-purple-300">
-								Original physical counts are preserved in audit history. The counter will submit an updated recount without overwriting the previous entry.
+								Original physical counts are preserved in audit history. The
+								counter will submit an updated recount without overwriting the
+								previous entry.
 							</div>
 						</CardContent>
 
@@ -1755,7 +1877,8 @@ export default function WarehouseAuditAssignmentsPage() {
 								</CardTitle>
 							</div>
 							<CardDescription className="text-xs text-muted-foreground mt-0.5">
-								Reconciliation posts atomic stock adjustments and updates warehouse ledgers.
+								Reconciliation posts atomic stock adjustments and updates
+								warehouse ledgers.
 							</CardDescription>
 						</CardHeader>
 
@@ -1766,7 +1889,10 @@ export default function WarehouseAuditAssignmentsPage() {
 									Ledger Impact Notice
 								</p>
 								<p className="text-[11px] text-amber-800/80 dark:text-amber-200/80">
-									This action will insert records into <strong>stock_adjustments</strong> and <strong>stock_ledger</strong>, adjust warehouse on-hand inventory, and close this audit cycle.
+									This action will insert records into{" "}
+									<strong>stock_adjustments</strong> and{" "}
+									<strong>stock_ledger</strong>, adjust warehouse on-hand
+									inventory, and close this audit cycle.
 								</p>
 							</div>
 

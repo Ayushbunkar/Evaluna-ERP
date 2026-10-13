@@ -42,7 +42,13 @@ import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
-type FilterTab = "all" | "active" | "resolved" | "damage" | "missing" | "mismatch";
+type FilterTab =
+	| "all"
+	| "active"
+	| "resolved"
+	| "damage"
+	| "missing"
+	| "mismatch";
 
 interface ActiveIncident {
 	id: string;
@@ -127,14 +133,22 @@ export default function ExceptionsPage() {
 
 	// Resolve Modal State
 	const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
-	const [selectedIncident, setSelectedIncident] = useState<ActiveIncident | null>(null);
+	const [selectedIncident, setSelectedIncident] =
+		useState<ActiveIncident | null>(null);
 	const [resolveActionType, setResolveActionType] = useState<
-		"quarantine_isolated" | "write_off" | "supplier_claim" | "adjusted_counts" | "passed_override"
+		| "quarantine_isolated"
+		| "write_off"
+		| "supplier_claim"
+		| "adjusted_counts"
+		| "passed_override"
 	>("quarantine_isolated");
 	const [resolveNotes, setResolveNotes] = useState("");
 
 	const handleRaiseException = async () => {
-		const prodId = Number.parseInt(selectedProductId || (productsList?.[0]?.id?.toString() ?? "1"), 10);
+		const prodId = Number.parseInt(
+			selectedProductId || (productsList?.[0]?.id?.toString() ?? "1"),
+			10,
+		);
 		const qty = Number.parseInt(reportQty, 10) || 1;
 
 		if (!reportReason.trim()) {
@@ -169,7 +183,9 @@ export default function ExceptionsPage() {
 		}
 
 		if (selectedIncident.source === "sla_delay") {
-			toast.info("SLA delays automatically resolve when the underlying pick list is fulfilled.");
+			toast.info(
+				"SLA delays automatically resolve when the underlying pick list is fulfilled.",
+			);
 			setIsResolveModalOpen(false);
 			return;
 		}
@@ -213,11 +229,16 @@ export default function ExceptionsPage() {
 						rawId: adj.id,
 						source: "adjustment",
 						title: `RESOLVED: ${adj.type.toUpperCase()} — ${adj.product_name || `Product #${adj.product_id}`}`,
-						resolutionNotes: adj.reference_document?.replace(/^RESOLVED:\s*/, "") || adj.reason || "Resolved",
+						resolutionNotes:
+							adj.reference_document?.replace(/^RESOLVED:\s*/, "") ||
+							adj.reason ||
+							"Resolved",
 						productName: adj.product_name || `Product #${adj.product_id}`,
 						productSku: adj.product_sku || "N/A",
 						quantity: Math.abs(adj.quantity),
-						resolvedAt: adj.created_at ? new Date(adj.created_at).toLocaleDateString() : "—",
+						resolvedAt: adj.created_at
+							? new Date(adj.created_at).toLocaleDateString()
+							: "—",
 						reportedBy: adj.created_by_name || "Supervisor",
 					});
 				} else {
@@ -238,12 +259,16 @@ export default function ExceptionsPage() {
 						source: "adjustment",
 						type: adj.type,
 						title,
-						description: adj.reason || "Physical lot discrepancy flagged by warehouse operator.",
+						description:
+							adj.reason ||
+							"Physical lot discrepancy flagged by warehouse operator.",
 						productName: adj.product_name || `Product #${adj.product_id}`,
 						productSku: adj.product_sku || "N/A",
 						quantity: Math.abs(adj.quantity),
 						reportedBy: adj.created_by_name || "Depot Staff",
-						createdAt: adj.created_at ? new Date(adj.created_at).toLocaleString() : "—",
+						createdAt: adj.created_at
+							? new Date(adj.created_at).toLocaleString()
+							: "—",
 					});
 				}
 			});
@@ -257,7 +282,9 @@ export default function ExceptionsPage() {
 					(insp.notes && insp.notes.includes("RESOLVED:"));
 
 				if (insp.condition === "damaged" || insp.status === "quarantined") {
-					totalDamagedUnits += Math.max(0, (insp.expected_qty || 0) - (insp.received_qty || 0)) || 1;
+					totalDamagedUnits +=
+						Math.max(0, (insp.expected_qty || 0) - (insp.received_qty || 0)) ||
+						1;
 				}
 
 				if (isResolved) {
@@ -266,11 +293,18 @@ export default function ExceptionsPage() {
 						rawId: insp.id,
 						source: "inspection",
 						title: `RESOLVED: GRN ${insp.grn_number || `PO-${insp.purchase_id}`} Receiving Inspection`,
-						resolutionNotes: insp.notes || "Verified with supplier. GRN counts reconciled.",
+						resolutionNotes:
+							insp.notes || "Verified with supplier. GRN counts reconciled.",
 						productName: insp.product_name || `Product #${insp.product_id}`,
 						productSku: insp.product_sku || "N/A",
-						quantity: Math.abs((insp.expected_qty || 0) - (insp.received_qty || 0)),
-						resolvedAt: insp.verified_at ? new Date(insp.verified_at).toLocaleDateString() : (insp.created_at ? new Date(insp.created_at).toLocaleDateString() : "—"),
+						quantity: Math.abs(
+							(insp.expected_qty || 0) - (insp.received_qty || 0),
+						),
+						resolvedAt: insp.verified_at
+							? new Date(insp.verified_at).toLocaleDateString()
+							: insp.created_at
+								? new Date(insp.created_at).toLocaleDateString()
+								: "—",
 						reportedBy: insp.inspector_name || "QA Inspector",
 					});
 				} else {
@@ -286,14 +320,23 @@ export default function ExceptionsPage() {
 						id: `INC-INSP-${insp.id}`,
 						rawId: insp.id,
 						source: "inspection",
-						type: insp.condition === "damaged" ? "damage" : (diff > 0 ? "mismatch" : "quarantine"),
+						type:
+							insp.condition === "damaged"
+								? "damage"
+								: diff > 0
+									? "mismatch"
+									: "quarantine",
 						title,
-						description: insp.notes ? `${insp.notes} (Expected: ${insp.expected_qty}, Received: ${insp.received_qty})` : `Discrepancy on Inbound GRN ${insp.grn_number || `#${insp.purchase_id}`}. Condition: ${insp.condition}.`,
+						description: insp.notes
+							? `${insp.notes} (Expected: ${insp.expected_qty}, Received: ${insp.received_qty})`
+							: `Discrepancy on Inbound GRN ${insp.grn_number || `#${insp.purchase_id}`}. Condition: ${insp.condition}.`,
 						productName: insp.product_name || `Product #${insp.product_id}`,
 						productSku: insp.product_sku || "N/A",
 						quantity: Math.abs(diff) || 1,
 						reportedBy: insp.inspector_name || "QA Staff",
-						createdAt: insp.created_at ? new Date(insp.created_at).toLocaleString() : "—",
+						createdAt: insp.created_at
+							? new Date(insp.created_at).toLocaleString()
+							: "—",
 						reference: insp.grn_number || `PO #${insp.purchase_id}`,
 					});
 				}
@@ -312,7 +355,9 @@ export default function ExceptionsPage() {
 					description: `Fulfillment pick for Order ORD-${op.order_id} has exceeded the 2-hour SLA window on warehouse racks. Assigned to: ${op.worker_name || "Unassigned"}.`,
 					quantity: 1,
 					reportedBy: "Automated SLA Monitor",
-					createdAt: op.created_at ? new Date(op.created_at).toLocaleString() : "—",
+					createdAt: op.created_at
+						? new Date(op.created_at).toLocaleString()
+						: "—",
 					reference: `ORD-${op.order_id}`,
 				});
 			});
@@ -339,7 +384,12 @@ export default function ExceptionsPage() {
 	const filteredActive = useMemo(() => {
 		return activeIncidents.filter((inc) => {
 			if (activeTab === "resolved") return false;
-			if (activeTab === "damage" && inc.type !== "damage" && inc.type !== "quarantine") return false;
+			if (
+				activeTab === "damage" &&
+				inc.type !== "damage" &&
+				inc.type !== "quarantine"
+			)
+				return false;
 			if (activeTab === "missing" && inc.type !== "missing") return false;
 			if (activeTab === "mismatch" && inc.type !== "mismatch") return false;
 
@@ -361,7 +411,12 @@ export default function ExceptionsPage() {
 	// Filtered Resolved Incidents
 	const filteredResolved = useMemo(() => {
 		return resolvedIncidents.filter((res) => {
-			if (activeTab === "active" || activeTab === "damage" || activeTab === "missing" || activeTab === "mismatch") {
+			if (
+				activeTab === "active" ||
+				activeTab === "damage" ||
+				activeTab === "missing" ||
+				activeTab === "mismatch"
+			) {
 				if (activeTab !== "all" && activeTab !== "resolved") return false;
 			}
 
@@ -401,7 +456,7 @@ export default function ExceptionsPage() {
 					<Button
 						variant="destructive"
 						onClick={() => setIsReportModalOpen(true)}
-						className="h-9 gap-1.5 font-bold text-xs shadow-sm"
+						className="h-9 gap-1.5 font-bold text-xs shadow-sm bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:text-white dark:hover:bg-red-700"
 					>
 						<ShieldAlertIcon className="h-4 w-4" />
 						Report New Exception
@@ -443,7 +498,9 @@ export default function ExceptionsPage() {
 							<BoxesIcon className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="font-medium text-muted-foreground text-xs">Total Incidents</p>
+							<p className="font-medium text-muted-foreground text-xs">
+								Total Incidents
+							</p>
 							<p className="font-bold text-slate-900 text-xl dark:text-slate-100">
 								{stats.totalCount}
 							</p>
@@ -460,7 +517,9 @@ export default function ExceptionsPage() {
 							<AlertCircleIcon className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="font-medium text-muted-foreground text-xs">Active Tickets</p>
+							<p className="font-medium text-muted-foreground text-xs">
+								Active Tickets
+							</p>
 							<p className="font-bold text-red-600 text-xl dark:text-red-400">
 								{stats.activeCount}
 							</p>
@@ -477,7 +536,9 @@ export default function ExceptionsPage() {
 							<PackageXIcon className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="font-medium text-muted-foreground text-xs">Damaged Units</p>
+							<p className="font-medium text-muted-foreground text-xs">
+								Damaged Units
+							</p>
 							<p className="font-bold text-rose-600 text-xl dark:text-rose-400">
 								{stats.totalDamagedUnits}
 							</p>
@@ -494,7 +555,9 @@ export default function ExceptionsPage() {
 							<AlertTriangleIcon className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="font-medium text-muted-foreground text-xs">Missing Units</p>
+							<p className="font-medium text-muted-foreground text-xs">
+								Missing Units
+							</p>
 							<p className="font-bold text-amber-600 text-xl dark:text-amber-400">
 								{stats.totalMissingUnits}
 							</p>
@@ -511,7 +574,9 @@ export default function ExceptionsPage() {
 							<ShieldCheckIcon className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="font-medium text-muted-foreground text-xs">Resolved Log</p>
+							<p className="font-medium text-muted-foreground text-xs">
+								Resolved Log
+							</p>
 							<p className="font-bold text-emerald-600 text-xl dark:text-emerald-400">
 								{stats.resolvedCount}
 							</p>
@@ -583,7 +648,8 @@ export default function ExceptionsPage() {
 										Active Incident Tickets
 									</CardTitle>
 									<CardDescription>
-										Live quality deviations currently pending supervisor investigation
+										Live quality deviations currently pending supervisor
+										investigation
 									</CardDescription>
 								</div>
 								<Badge variant="destructive" className="font-bold text-xs">
@@ -594,7 +660,8 @@ export default function ExceptionsPage() {
 						<CardContent className="space-y-3 p-4">
 							{filteredActive.map((inc) => {
 								const isSla = inc.source === "sla_delay" || inc.type === "sla";
-								const isDamage = inc.type === "damage" || inc.type === "quarantine";
+								const isDamage =
+									inc.type === "damage" || inc.type === "quarantine";
 
 								return (
 									<div
@@ -650,8 +717,12 @@ export default function ExceptionsPage() {
 														SKU: {inc.productSku}
 													</span>
 												)}
-												<span>Qty: <b>{inc.quantity}</b></span>
-												<span>By: <b>{inc.reportedBy}</b></span>
+												<span>
+													Qty: <b>{inc.quantity}</b>
+												</span>
+												<span>
+													By: <b>{inc.reportedBy}</b>
+												</span>
 											</div>
 
 											{inc.source !== "sla_delay" && (
@@ -672,7 +743,9 @@ export default function ExceptionsPage() {
 							{filteredActive.length === 0 && (
 								<div className="py-12 text-center text-muted-foreground">
 									<CheckCircle2Icon className="mx-auto mb-2 h-8 w-8 text-emerald-500 opacity-60" />
-									<p className="font-bold text-sm">No active incident tickets</p>
+									<p className="font-bold text-sm">
+										No active incident tickets
+									</p>
 									<p className="text-xs">
 										All warehouse quality and inventory records are clean.
 									</p>
@@ -723,9 +796,13 @@ export default function ExceptionsPage() {
 													SKU: {res.productSku}
 												</span>
 											)}
-											<span>Resolved Qty: <b>{res.quantity}</b></span>
+											<span>
+												Resolved Qty: <b>{res.quantity}</b>
+											</span>
 										</div>
-										<span>Resolved On: <b>{res.resolvedAt}</b></span>
+										<span>
+											Resolved On: <b>{res.resolvedAt}</b>
+										</span>
 									</div>
 								</div>
 							))}
@@ -733,7 +810,9 @@ export default function ExceptionsPage() {
 							{filteredResolved.length === 0 && (
 								<div className="py-12 text-center text-muted-foreground">
 									<ArchiveIcon className="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-slate-700" />
-									<p className="font-bold text-sm">No resolved exceptions in log</p>
+									<p className="font-bold text-sm">
+										No resolved exceptions in log
+									</p>
 									<p className="text-xs">
 										Resolved tickets and adjustments will appear here.
 									</p>
@@ -774,7 +853,9 @@ export default function ExceptionsPage() {
 										</option>
 									))
 								) : (
-									<option value="1">High-Grade Steel Widget (SKU: WID-001)</option>
+									<option value="1">
+										High-Grade Steel Widget (SKU: WID-001)
+									</option>
 								)}
 							</select>
 						</div>
@@ -802,10 +883,14 @@ export default function ExceptionsPage() {
 								value={reportType}
 								onChange={(e) => setReportType(e.target.value as any)}
 							>
-								<option value="damage">Physical Damaged Stock (Dented, Broken, Leaking)</option>
+								<option value="damage">
+									Physical Damaged Stock (Dented, Broken, Leaking)
+								</option>
 								<option value="missing">Missing units from Shelf / Rack</option>
 								<option value="mismatch">Lot Receipt Count Mismatch</option>
-								<option value="quarantine">Quality Quarantine (Failed QA / Isolation)</option>
+								<option value="quarantine">
+									Quality Quarantine (Failed QA / Isolation)
+								</option>
 							</select>
 						</div>
 
@@ -852,7 +937,8 @@ export default function ExceptionsPage() {
 							Resolve Exception Incident Ticket
 						</DialogTitle>
 						<DialogDescription>
-							Reconcile inventory discrepancy, execute write-offs or quarantine isolation, and record supervisor resolution.
+							Reconcile inventory discrepancy, execute write-offs or quarantine
+							isolation, and record supervisor resolution.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -866,8 +952,12 @@ export default function ExceptionsPage() {
 									{selectedIncident.description}
 								</p>
 								<div className="mt-2 flex gap-4 text-[11px]">
-									<span>Qty: <b>{selectedIncident.quantity}</b></span>
-									<span>Reported by: <b>{selectedIncident.reportedBy}</b></span>
+									<span>
+										Qty: <b>{selectedIncident.quantity}</b>
+									</span>
+									<span>
+										Reported by: <b>{selectedIncident.reportedBy}</b>
+									</span>
 								</div>
 							</div>
 

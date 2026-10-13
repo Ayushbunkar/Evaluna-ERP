@@ -5,13 +5,28 @@ import { Card, CardContent, CardFooter } from "@evaluna/ui/components/card";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { motion } from "framer-motion";
-import { AlertCircle, Loader2, WifiOff } from "lucide-react";
+import {
+	AlertCircle,
+	ArrowLeft,
+	KeyRound,
+	Loader2,
+	Mail,
+	WifiOff,
+} from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { OTPVerificationForm } from "@/components/auth/OTPVerificationForm";
 import { PublicHeader } from "@/components/layout/PublicHeader";
-import { login } from "./actions";
+import {
+	login,
+	requestEmailOTPAction,
+	sendTwoFactorOTPAction,
+	verifyEmailOTPAction,
+	verifyTwoFactorOTPAction,
+} from "./actions";
 
 function LoginForm() {
 	const emailRef = useRef<HTMLInputElement>(null);
@@ -20,11 +35,28 @@ function LoginForm() {
 	const searchParams = useSearchParams();
 	const expired = searchParams.get("expired");
 	const suspended = searchParams.get("suspended");
+	const verified = searchParams.get("verified") === "true";
+	const unverified = searchParams.get("unverified") === "true";
+	const initialStep = searchParams.get("step");
+	const initialEmail = searchParams.get("email") || "";
+
+	const [authMode, setAuthMode] = useState<
+		"password" | "otp-request" | "otp-verify" | "2fa"
+	>(initialStep === "2fa" ? "2fa" : "password");
+	const [emailForOtp, setEmailForOtp] = useState<string>(initialEmail);
+
 	const [isPending, setIsPending] = useState(false);
 	const [localError, setLocalError] = useState<string | null>(
-		searchParams.get("error"),
+		unverified ? "email-not-verified" : searchParams.get("error"),
 	);
+	const [unverifiedEmail, setUnverifiedEmail] = useState<string>(initialEmail);
 	const [isOffline, setIsOffline] = useState(false);
+
+	useEffect(() => {
+		if (initialStep === "2fa" && initialEmail) {
+			sendTwoFactorOTPAction(initialEmail).catch(() => {});
+		}
+	}, [initialStep, initialEmail]);
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -45,9 +77,17 @@ function LoginForm() {
 		setIsPending(true);
 		setLocalError(null);
 		const formData = new FormData(e.currentTarget);
+		const emailVal = formData.get("email") as string;
 		const res = await login(formData);
 		if (res && !res.success) {
 			setLocalError(res.error || "invalid-credentials");
+			if (res.error === "email-not-verified") {
+				setUnverifiedEmail(res.email || emailVal || "");
+			}
+			setIsPending(false);
+		} else if (res && (res as any).requires2FA) {
+			setEmailForOtp((res as any).email || emailVal || "");
+			setAuthMode("2fa");
 			setIsPending(false);
 		} else if (res && res.success && res.redirectUrl) {
 			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -57,6 +97,191 @@ function LoginForm() {
 			}
 			window.location.href = target;
 		}
+	}
+
+	async function handleRequestOtp(e: FormEvent<HTMLFormElement>) {
+		e.preventDefault();
+		const cleanEmail = emailForOtp.toLowerCase().trim();
+		if (!cleanEmail || !cleanEmail.includes("@")) {
+			setLocalError("Please enter a valid email address.");
+			return;
+		}
+
+		setIsPending(true);
+		setLocalError(null);
+		try {
+			const res = await requestEmailOTPAction(cleanEmail);
+			if (res.success) {
+				setAuthMode("otp-verify");
+			} else {
+				setLocalError(res.error || "Failed to send verification code.");
+			}
+		} catch {
+			setLocalError("An unexpected error occurred. Please try again.");
+		} finally {
+			setIsPending(false);
+		}
+	}
+
+	if (authMode === "2fa") {
+		return (
+			<CardContent className="pt-6 pb-6">
+				<OTPVerificationForm
+					email={emailForOtp}
+					title="Two-Factor Authentication"
+					subtitle="Enter the 6-digit verification code sent to your email to verify your identity."
+					type="2fa"
+					onVerify={async (code) => {
+						const res = await verifyTwoFactorOTPAction(emailForOtp, code);
+						if (res.success && res.redirectUrl) {
+							const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+							let target = res.redirectUrl;
+							if (
+								basePath &&
+								target.startsWith("/") &&
+								!target.startsWith(basePath)
+							) {
+								target = basePath + target;
+							}
+							window.location.href = target;
+						}
+						return res;
+					}}
+					onResend={async () => {
+						return sendTwoFactorOTPAction(emailForOtp);
+					}}
+					onBack={() => {
+						setAuthMode("password");
+						setLocalError(null);
+					}}
+				/>
+			</CardContent>
+		);
+	}
+
+	if (authMode === "otp-verify") {
+		return (
+			<CardContent className="pt-6 pb-6">
+				<OTPVerificationForm
+					email={emailForOtp}
+					title="Passwordless Email Login"
+					subtitle="Enter the 6-digit sign-in code sent to your email."
+					type="sign-in"
+					onVerify={async (code) => {
+						const res = await verifyEmailOTPAction(emailForOtp, code);
+						if (res.success && res.redirectUrl) {
+							const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+							let target = res.redirectUrl;
+							if (
+								basePath &&
+								target.startsWith("/") &&
+								!target.startsWith(basePath)
+							) {
+								target = basePath + target;
+							}
+							window.location.href = target;
+						}
+						return res;
+					}}
+					onResend={async () => {
+						return requestEmailOTPAction(emailForOtp);
+					}}
+					onBack={() => {
+						setAuthMode("otp-request");
+						setLocalError(null);
+					}}
+				/>
+			</CardContent>
+		);
+	}
+
+	if (authMode === "otp-request") {
+		return (
+			<form onSubmit={handleRequestOtp}>
+				<CardContent className="space-y-4 pt-6">
+					<div className="mb-2 flex flex-col items-center space-y-1.5 text-center">
+						<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+							<Mail className="h-5 w-5" />
+						</div>
+						<h3 className="font-bold text-foreground text-lg">
+							Sign in with Email OTP
+						</h3>
+						<p className="max-w-xs text-muted-foreground text-xs">
+							Enter your registered email. We will send a 6-digit one-time
+							security code.
+						</p>
+					</div>
+
+					{localError && (
+						<motion.div
+							initial={{ opacity: 0, y: -10 }}
+							animate={{ opacity: 1, y: 0 }}
+							className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-2.5 text-red-500 text-xs"
+						>
+							<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+							<p>{localError}</p>
+						</motion.div>
+					)}
+
+					<div className="grid gap-1 sm:gap-2">
+						<Label htmlFor="otp-email-input" className="text-xs sm:text-sm">
+							{t("email")}
+						</Label>
+						<Input
+							id="otp-email-input"
+							type="email"
+							value={emailForOtp}
+							onChange={(e) => setEmailForOtp(e.target.value)}
+							placeholder={t("emailPlaceholder")}
+							required
+							autoFocus
+							className="text-xs transition-all focus-visible:ring-primary sm:text-sm"
+						/>
+					</div>
+				</CardContent>
+				<CardFooter className="flex flex-col gap-3 pb-4 sm:gap-4 sm:pb-6">
+					<Button
+						className="w-full text-xs shadow-sm sm:text-sm"
+						type="submit"
+						disabled={isPending}
+					>
+						{isPending ? (
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+						) : (
+							<Mail className="mr-2 h-4 w-4" />
+						)}
+						{isPending ? "Sending code..." : "Send Sign-in Code"}
+					</Button>
+
+					<div className="relative my-0.5 flex w-full items-center justify-center">
+						<div className="absolute inset-0 flex items-center">
+							<span className="w-full border-border border-t" />
+						</div>
+						<div className="relative flex justify-center text-xs uppercase">
+							<span className="bg-card px-2 font-medium text-[11px] text-muted-foreground">
+								Or continue with
+							</span>
+						</div>
+					</div>
+
+					<GoogleSignInButton
+						disabled={isPending}
+						onError={(err) => setLocalError(err)}
+					/>
+
+					<button
+						type="button"
+						onClick={() => {
+							setLocalError(null);
+							setAuthMode("password");
+						}}
+						className="mt-1 text-center font-medium text-muted-foreground text-xs transition-colors hover:text-foreground"
+					>
+						← Back to password login
+					</button>
+				</CardFooter>
+			</form>
+		);
 	}
 
 	return (
@@ -101,7 +326,47 @@ function LoginForm() {
 						</div>
 					</motion.div>
 				)}
-				{localError && (
+				{verified && (
+					<motion.div
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-emerald-600 text-xs sm:p-3 sm:text-sm dark:text-emerald-400"
+					>
+						<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+						<p>
+							Email verified successfully! You can now sign in to your account.
+						</p>
+					</motion.div>
+				)}
+				{localError === "email-not-verified" && (
+					<motion.div
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 text-xs sm:p-3.5 sm:text-sm dark:text-amber-300"
+					>
+						<div className="flex items-start gap-2">
+							<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+							<div>
+								<span className="font-semibold">
+									Please verify your email address before signing in.
+								</span>
+								<p className="mt-1 text-muted-foreground text-xs">
+									A verification link was sent to your email. Please check your
+									inbox or spam folder.
+								</p>
+							</div>
+						</div>
+						<div className="pt-1">
+							<Link
+								href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
+								className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-4 hover:opacity-80"
+							>
+								<span>Resend verification email →</span>
+							</Link>
+						</div>
+					</motion.div>
+				)}
+				{localError && localError !== "email-not-verified" && (
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -202,6 +467,37 @@ function LoginForm() {
 					{isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
 					{isPending ? "Logging in..." : t("submit")}
 				</Button>
+
+				<div className="relative my-0.5 flex w-full items-center justify-center">
+					<div className="absolute inset-0 flex items-center">
+						<span className="w-full border-border border-t" />
+					</div>
+					<div className="relative flex justify-center text-xs uppercase">
+						<span className="bg-card px-2 font-medium text-[11px] text-muted-foreground">
+							Or continue with
+						</span>
+					</div>
+				</div>
+
+				<GoogleSignInButton
+					disabled={isPending}
+					onError={(err) => setLocalError(err)}
+				/>
+
+				<div className="pt-0.5 text-center">
+					<button
+						type="button"
+						onClick={() => {
+							setLocalError(null);
+							setEmailForOtp(emailRef.current?.value || "");
+							setAuthMode("otp-request");
+						}}
+						className="inline-flex items-center gap-1.5 font-medium text-primary text-xs transition-opacity hover:opacity-80"
+					>
+						<Mail className="h-3.5 w-3.5" />
+						Sign in with Email OTP instead
+					</button>
+				</div>
 
 				<p className="mt-1 text-center text-muted-foreground text-xs sm:mt-2 sm:text-sm">
 					{t("noAccount")}{" "}

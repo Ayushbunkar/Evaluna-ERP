@@ -1,4 +1,6 @@
 import {
+	account,
+	comparePassword,
 	ROLES,
 	type Role,
 	securityAuditLog,
@@ -34,7 +36,9 @@ export const usersRouter = router({
 				.default({}),
 		)
 		.query(async ({ ctx, input }) => {
-			const isSuperAdmin = Boolean(ctx.user.isSuperadmin || ctx.user.role === "super_admin");
+			const isSuperAdmin = Boolean(
+				ctx.user.isSuperadmin || ctx.user.role === "super_admin",
+			);
 			const effectiveBranchId = isSuperAdmin
 				? input.branchId
 				: ctx.user.branchId
@@ -116,7 +120,9 @@ export const usersRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const isSuperAdmin = Boolean(ctx.user.isSuperadmin || ctx.user.role === "super_admin");
+			const isSuperAdmin = Boolean(
+				ctx.user.isSuperadmin || ctx.user.role === "super_admin",
+			);
 
 			// Privilege Escalation Prevention (Requirement 17)
 			if (input.roleName === "super_admin" && !isSuperAdmin) {
@@ -485,6 +491,7 @@ export const usersRouter = router({
 		}
 
 		let phone = "";
+		let employeeCode = "";
 		if (u.staff_id) {
 			const [s] = await ctx.db
 				.select()
@@ -501,14 +508,32 @@ export const usersRouter = router({
 			if (s?.phone) phone = s.phone;
 		}
 
+		try {
+			const { employees } = await import("@evaluna/db/schema/hrms");
+			const [emp] = await ctx.db
+				.select()
+				.from(employees)
+				.where(eq(employees.email, u.email))
+				.limit(1);
+			if (emp?.employeeCode) {
+				employeeCode = emp.employeeCode;
+			}
+		} catch {
+			// ignore HRMS schema resolution if not available
+		}
+
 		return {
 			id: u.id,
+			employeeCode: employeeCode || `AUD-${u.id.slice(0, 8).toUpperCase()}`,
 			name: u.name,
 			email: u.email,
 			image: u.image || null,
 			phone: phone,
-			role: (ctx.user as any).role || "staff",
+			role: (ctx.user as any).role || "auditor",
 			status: u.status,
+			createdAt: u.createdAt,
+			updatedAt: u.updatedAt,
+			branchId: (ctx.user as any).branchId || null,
 		};
 	}),
 
@@ -517,16 +542,17 @@ export const usersRouter = router({
 		.input(
 			z.object({
 				name: z.string().min(1, "Full Name is required."),
-				email: z.string().email("Invalid email address."),
+				email: z.string().email("Invalid email address.").optional(),
 				phone: z.string().optional(),
 				image: z.string().optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
+			const targetEmail = input.email || ctx.user.email;
 
 			// Check email uniqueness if email is changed
-			if (input.email !== ctx.user.email) {
+			if (input.email && input.email !== ctx.user.email) {
 				const existing = await ctx.db
 					.select()
 					.from(user)
@@ -545,7 +571,7 @@ export const usersRouter = router({
 				.update(user)
 				.set({
 					name: input.name,
-					email: input.email,
+					...(input.email ? { email: input.email } : {}),
 					...(input.image !== undefined ? { image: input.image } : {}),
 					updatedAt: new Date(),
 				})
@@ -565,23 +591,79 @@ export const usersRouter = router({
 					.update(staff)
 					.set({
 						name: input.name,
-						email: input.email,
+						...(input.email ? { email: input.email } : {}),
 						...(input.phone !== undefined ? { phone: input.phone } : {}),
 						updated_at: new Date(),
 					})
 					.where(eq(staff.id, staffId));
-			} else if (ctx.user.email) {
+			} else if (targetEmail) {
 				await ctx.db
 					.update(staff)
 					.set({
 						name: input.name,
-						email: input.email,
+						...(input.email ? { email: input.email } : {}),
 						...(input.phone !== undefined ? { phone: input.phone } : {}),
 						updated_at: new Date(),
 					})
-					.where(eq(staff.email, ctx.user.email));
+					.where(eq(staff.email, targetEmail));
 			}
 
 			return { success: true };
+		}),
+
+	// ── Change Logged-In User Password ─────────────────────────────────────────
+	changeMyPassword: protectedProcedure
+		.input(
+			z.object({
+				currentPassword: z.string().optional(),
+				newPassword: z
+					.string()
+					.min(6, "New password must be at least 6 characters."),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const userId = ctx.user.id;
+
+			// If current password provided, verify against credential account
+			if (input.currentPassword) {
+				const [acc] = await ctx.db
+					.select()
+					.from(account)
+					.where(
+						and(
+							eq(account.userId, userId),
+							eq(account.providerId, "credential"),
+						),
+					)
+					.limit(1);
+
+				if (acc?.password) {
+					const isValid = await comparePassword(
+						input.currentPassword,
+						acc.password,
+					);
+					if (!isValid) {
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message: "Current password does not match our records.",
+						});
+					}
+				}
+			}
+
+			try {
+				await UserManagement.updateUserCredentials(
+					userId,
+					input.newPassword,
+					false,
+					userId,
+				);
+				return { success: true };
+			} catch (error: any) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: error.message || "Failed to update password.",
+				});
+			}
 		}),
 });

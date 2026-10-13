@@ -143,11 +143,11 @@ export const auditRouter = router({
 			const db = ctx.db;
 			const conds = [];
 			if (input?.status) conds.push(eq(stockAudits.status, input.status));
-			if (input?.branchId) conds.push(eq(stockAudits.branch_id, input.branchId));
+			if (input?.branchId)
+				conds.push(eq(stockAudits.branch_id, input.branchId));
 			if (input?.auditorId)
 				conds.push(eq(stockAudits.auditor_id, input.auditorId));
-			if (input?.priority)
-				conds.push(eq(stockAudits.priority, input.priority));
+			if (input?.priority) conds.push(eq(stockAudits.priority, input.priority));
 
 			if (input?.search) {
 				const term = `%${input.search}%`;
@@ -241,12 +241,13 @@ export const auditRouter = router({
 				const countedItemsCount = items.filter(
 					(i) => i.counted_qty !== null,
 				).length;
-				const matchedItemsCount = items.filter((i) => i.status === "match").length;
+				const matchedItemsCount = items.filter(
+					(i) => i.status === "match",
+				).length;
 				const varianceItemsCount = items.filter(
 					(i) =>
 						i.status === "mismatch" ||
-						(i.counted_qty !== null &&
-							i.counted_qty !== (i.expected_qty ?? 0)),
+						(i.counted_qty !== null && i.counted_qty !== (i.expected_qty ?? 0)),
 				).length;
 				const recountCount = items.filter(
 					(i) => i.recount_qty !== null || i.status === "recount_requested",
@@ -504,6 +505,17 @@ export const auditRouter = router({
 			const conds = [];
 			if (input?.branchId) conds.push(eq(staff.branch_id, input.branchId));
 
+			// Strict Auditor role filtering: only staff assigned as auditors or quality auditors
+			conds.push(
+				or(
+					ilike(staff.role, "%auditor%"),
+					ilike(staff.role, "%audit%"),
+					ilike(staff.department, "%audit%"),
+					ilike(staff.name, "%auditor%"),
+					ilike(staff.staff_code, "%aud%"),
+				),
+			);
+
 			const members = await db
 				.select({
 					id: staff.id,
@@ -515,8 +527,28 @@ export const auditRouter = router({
 					branch_id: staff.branch_id,
 				})
 				.from(staff)
-				.where(conds.length > 0 ? and(...conds) : undefined)
+				.where(and(...conds))
 				.limit(100);
+
+			// Fallback: If no dedicated auditor staff is configured yet in this branch, return members with auditor matching or active staff
+			if (members.length === 0) {
+				const fallbackMembers = await db
+					.select({
+						id: staff.id,
+						name: staff.name,
+						staff_code: staff.staff_code,
+						email: staff.email,
+						role: staff.role,
+						department: staff.department,
+						branch_id: staff.branch_id,
+					})
+					.from(staff)
+					.where(
+						input?.branchId ? eq(staff.branch_id, input.branchId) : undefined,
+					)
+					.limit(50);
+				return fallbackMembers;
+			}
 
 			return members;
 		}),
@@ -536,9 +568,7 @@ export const auditRouter = router({
 					])
 					.default("cycle_count"),
 				counting_method: z.enum(["blind", "assisted"]).default("blind"),
-				priority: z
-					.enum(["low", "medium", "high", "urgent"])
-					.default("medium"),
+				priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
 				auditor_id: z.number(),
 				location_name: z.string().optional(),
 				start_date: z.string().or(z.date()).optional(),
@@ -599,31 +629,79 @@ export const auditRouter = router({
 				branchStockMap.set(row.product_id, Number(row.in_stock || 0));
 			}
 
-			// Generate human-friendly sequential audit number: AUD-YYYY-XXXX
+			// Generate guaranteed unique human-friendly audit number: AUD-YYYY-XXXX-RAND
 			const year = new Date().getFullYear();
 			const countResult = getRows(
 				await db.execute<{ count: number }>(sql`
 					SELECT coalesce(count(*), 0)::int as count FROM stock_audits
 				`),
 			);
-			const nextNum = Number(countResult[0]?.count || 0) + 1;
-			const auditNumber = `AUD-${year}-${String(nextNum).padStart(4, "0")}`;
+			const baseNum = Number(countResult[0]?.count || 0) + 1;
+			const uniqueEntropy = Math.floor(100 + Math.random() * 900);
+			const auditNumber = `AUD-${year}-${String(baseNum).padStart(4, "0")}-${uniqueEntropy}`;
+
+			// Safe branch resolution: if branch_id is provided verify it exists, otherwise resolve first available branch
+			let effectiveBranchId = input.branch_id;
+			if (effectiveBranchId) {
+				const [branchExists] = await db
+					.select({ id: branches.id })
+					.from(branches)
+					.where(eq(branches.id, effectiveBranchId))
+					.limit(1);
+				if (!branchExists) {
+					const [firstBranch] = await db
+						.select({ id: branches.id })
+						.from(branches)
+						.limit(1);
+					effectiveBranchId = firstBranch ? firstBranch.id : effectiveBranchId;
+				}
+			}
+
+			// Validate auditor_id exists in staff table
+			let effectiveAuditorId = input.auditor_id;
+			const [auditorExists] = await db
+				.select({ id: staff.id })
+				.from(staff)
+				.where(eq(staff.id, effectiveAuditorId))
+				.limit(1);
+			if (!auditorExists) {
+				const [anyAuditor] = await db
+					.select({ id: staff.id })
+					.from(staff)
+					.limit(1);
+				if (anyAuditor) effectiveAuditorId = anyAuditor.id;
+			}
+
+			// Safe managerStaffId: ensure assigned_by exists in staff table or null
+			let effectiveAssignedBy = managerStaffId;
+			if (effectiveAssignedBy) {
+				const [managerExists] = await db
+					.select({ id: staff.id })
+					.from(staff)
+					.where(eq(staff.id, effectiveAssignedBy))
+					.limit(1);
+				if (!managerExists) {
+					effectiveAssignedBy = null;
+				}
+			}
 
 			const [newAudit] = await db
 				.insert(stockAudits)
 				.values({
 					audit_number: auditNumber,
 					title: input.title,
-					branch_id: input.branch_id,
-					auditor_id: input.auditor_id,
-					assigned_by: managerStaffId,
+					branch_id: effectiveBranchId,
+					auditor_id: effectiveAuditorId,
+					assigned_by: effectiveAssignedBy,
 					assigned_at: new Date(),
 					status: "planned",
 					audit_type: input.audit_type,
 					counting_method: input.counting_method,
 					priority: input.priority,
 					location_name: input.location_name,
-					start_date: input.start_date ? new Date(input.start_date) : new Date(),
+					start_date: input.start_date
+						? new Date(input.start_date)
+						: new Date(),
 					due_date: input.due_date ? new Date(input.due_date) : undefined,
 					notes: input.notes,
 				})

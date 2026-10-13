@@ -327,7 +327,7 @@ export function DashboardHeader({
 	const [newPwd, setNewPwd] = useState("");
 	const [confirmPwd, setConfirmPwd] = useState("");
 
-	const changePasswordMutation = trpc.users.resetCredentials.useMutation({
+	const changePasswordMutation = trpc.users.changeMyPassword.useMutation({
 		onSuccess: () => {
 			toast.success("Password changed successfully!");
 			setNewPwd("");
@@ -895,9 +895,7 @@ export function DashboardHeader({
 								return;
 							}
 							changePasswordMutation.mutate({
-								userId: user?.id || "",
 								newPassword: newPwd,
-								forcePasswordChange: false,
 							});
 						}}
 						className="space-y-4 py-2"

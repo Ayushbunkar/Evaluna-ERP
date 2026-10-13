@@ -10,9 +10,18 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function signup(formData: FormData) {
-	const name = formData.get("name") as string;
-	const email = formData.get("email") as string;
+	const name = ((formData.get("name") as string) || "").trim();
+	const rawEmail = formData.get("email") as string;
 	const password = formData.get("password") as string;
+	const email = (rawEmail || "").toLowerCase().trim();
+
+	// Server-side validation
+	if (!email || !email.includes("@")) {
+		redirect("/signup?error=invalid-email");
+	}
+	if (!password || password.length < 8) {
+		redirect("/signup?error=weak-password");
+	}
 
 	let user: any = null;
 
@@ -37,7 +46,8 @@ export async function signup(formData: FormData) {
 				.update(userTable)
 				.set({
 					is_superadmin: false,
-					status: "ACTIVE", // Activate self-registered customers immediately
+					status: "PENDING", // Pending email verification
+					emailVerified: false,
 				} as any)
 				.where(eq(userTable.id, user.id));
 
@@ -52,7 +62,7 @@ export async function signup(formData: FormData) {
 				const customerCode = `CUST-${Date.now()}`;
 				// Create the linked customer account record
 				await db.insert(customers).values({
-					name: name,
+					name: name || email.split("@")[0],
 					email: email,
 					user_uid: user.id,
 					customer_code: customerCode,
@@ -69,14 +79,23 @@ export async function signup(formData: FormData) {
 					})
 					.where(eq(customers.email, email));
 			}
+
+			// Clear any active session created before verification is completed
+			try {
+				await auth.api.signOut({ headers: await headers() });
+			} catch {}
 		}
 	} catch (error: any) {
 		console.error("Signup Server Action Error:", error);
+		const errStr = String(
+			error?.body?.message || error?.message || "",
+		).toLowerCase();
+		if (errStr.includes("already exists") || errStr.includes("duplicate")) {
+			redirect("/signup?error=email-exists");
+		}
 		redirect("/signup?error=signup-failed");
 	}
 
-	// Always redirect to the Customer Portal after self-registration
-	const role = "customer";
-	revalidatePath(`/${role}`, "layout");
-	redirect(`/${role}`);
+	// Redirect newly registered user to verify email instruction screen
+	redirect(`/verify-email?email=${encodeURIComponent(email)}&sent=true`);
 }

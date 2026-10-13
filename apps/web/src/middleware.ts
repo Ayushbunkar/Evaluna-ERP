@@ -1,11 +1,11 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { UserManagement } from "@evaluna/db";
 import { session as sessionTable } from "@evaluna/db/schema";
 import { and, eq, gte, or } from "drizzle-orm";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
 
 /**
  * Node.js middleware that protects all routes.
@@ -73,7 +73,8 @@ export default async function middleware(request: NextRequest) {
 		pathname === "/login" ||
 		pathname === "/signup" ||
 		pathname === "/forgot-password" ||
-		pathname === "/reset-password";
+		pathname === "/reset-password" ||
+		pathname === "/verify-email";
 
 	// Fast-fail: check session token cookie before any DB/auth work
 	const sessionToken =
@@ -99,7 +100,8 @@ export default async function middleware(request: NextRequest) {
 	//
 	//    Role location: Better Auth session getters place the result in session.data.
 	//    We resolve role from session.data.role → session.role → user.role in order.
-	let sessionData: { user: any; session: any; role: string | null } | null = null;
+	let sessionData: { user: any; session: any; role: string | null } | null =
+		null;
 	try {
 		const result = await auth.api.getSession({
 			headers: request.headers,
@@ -127,7 +129,10 @@ export default async function middleware(request: NextRequest) {
 			const tokenOnly = sessionToken.split(".")[0];
 			const dbSession = await db.query.session.findFirst({
 				where: and(
-					or(eq(sessionTable.token, sessionToken), eq(sessionTable.token, tokenOnly)),
+					or(
+						eq(sessionTable.token, sessionToken),
+						eq(sessionTable.token, tokenOnly),
+					),
 					gte(sessionTable.expiresAt, new Date()),
 				),
 				with: {
@@ -135,7 +140,9 @@ export default async function middleware(request: NextRequest) {
 				},
 			});
 			if (dbSession?.user) {
-				const resolvedRole = dbSession.user.role || ((dbSession.user as any)?.is_superadmin ? "super_admin" : "customer");
+				const resolvedRole =
+					(dbSession.user as any)?.role ||
+					((dbSession.user as any)?.is_superadmin ? "super_admin" : "customer");
 				sessionData = {
 					user: dbSession.user,
 					session: dbSession,
@@ -162,7 +169,9 @@ export default async function middleware(request: NextRequest) {
 	// Enrich role from security profile if not explicitly populated by session getter
 	if (sessionData.user?.id) {
 		try {
-			const profile = await UserManagement.getSecurityProfileByUserId(sessionData.user.id);
+			const profile = await UserManagement.getSecurityProfileByUserId(
+				sessionData.user.id,
+			);
 			if (profile?.role) {
 				sessionData.role = profile.role;
 			}
@@ -175,9 +184,55 @@ export default async function middleware(request: NextRequest) {
 		}
 	}
 
-	// 4. If logged in and hitting an auth page, always redirect to their dashboard.
-	// The user is authenticated — send them home regardless of error/expired params.
+	// 3.5. Strict Email Verification Barrier
+	// Users with unverified emails must not establish access to ERP operations
+	const isEmailVerified = Boolean(sessionData.user?.emailVerified);
+	if (!isEmailVerified) {
+		// If already on /verify-email, let them complete verification
+		if (pathname === "/verify-email") {
+			return NextResponse.next();
+		}
+
+		// Redirect any unverified session to the verify-email page
+		const url = request.nextUrl.clone();
+		url.pathname = "/verify-email";
+		if (sessionData.user?.email) {
+			url.searchParams.set("email", sessionData.user.email);
+		}
+		url.searchParams.set("unverified", "true");
+		return NextResponse.redirect(url);
+	}
+
+	// 3.6. Mandatory Two-Factor Authentication (2FA) Barrier
+	// Non-seed sessions must complete 2FA verification before accessing ERP routes
+	const userEmail = (sessionData.user?.email || "").toLowerCase().trim();
+	const isSeedAccount =
+		userEmail.endsWith("@evaluna.dev") || userEmail.endsWith("@evaluna.com");
+	const is2FAVerified =
+		isSeedAccount ||
+		Boolean(request.cookies.get("evaluna_2fa_verified")?.value);
+
+	if (!is2FAVerified) {
+		// If already on login completing 2FA, allow request
+		if (pathname === "/login") {
+			return NextResponse.next();
+		}
+
+		const url = request.nextUrl.clone();
+		url.pathname = "/login";
+		url.searchParams.set("step", "2fa");
+		if (userEmail) {
+			url.searchParams.set("email", userEmail);
+		}
+		return NextResponse.redirect(url);
+	}
+
+	// 4. If logged in and hitting an auth page, redirect to their dashboard.
+	// Allow staying on login page if explicitly completing 2FA verification.
 	if (isAuthPage) {
+		if (request.nextUrl.searchParams.get("step") === "2fa" && !is2FAVerified) {
+			return NextResponse.next();
+		}
 		const url = request.nextUrl.clone();
 		let rawRole = sessionData.role || "customer";
 		if (rawRole) {
@@ -309,10 +364,7 @@ export default async function middleware(request: NextRequest) {
 		"X-User-Id",
 		sessionData.user?.id || (sessionData.session as any)?.userId || "",
 	);
-	response.headers.set(
-		"X-User-Role",
-		sessionData.role || "customer",
-	);
+	response.headers.set("X-User-Role", sessionData.role || "customer");
 	if ((sessionData.user as any)?.branchId) {
 		response.headers.set(
 			"X-Branch-Id",

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useRef, useState } from "react";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { signup } from "./actions";
 
@@ -19,13 +20,19 @@ function SignupForm() {
 	const error = searchParams.get("error");
 	const formRef = useRef<HTMLFormElement>(null);
 	const [isPending, setIsPending] = useState(false);
+	const [socialError, setSocialError] = useState<string | null>(null);
 
 	const errorMessage =
-		error === "signup-failed"
-			? "Registration failed. The email may already be in use, or the password is too weak (min 8 characters)."
+		socialError ||
+		(error === "signup-failed"
+			? "Registration failed. Please verify your details and try again."
 			: error === "email-exists"
 				? "An account with this email already exists. Please log in instead."
-				: null;
+				: error === "invalid-email"
+					? "Please provide a valid email address."
+					: error === "weak-password"
+						? "Password must be at least 8 characters."
+						: null);
 
 	async function handleSubmit(formData: FormData) {
 		setIsPending(true);
@@ -87,12 +94,29 @@ function SignupForm() {
 					<p className="text-muted-foreground text-xs">Minimum 8 characters</p>
 				</div>
 			</CardContent>
-			<CardFooter className="flex flex-col gap-4 pb-6">
+			<CardFooter className="flex flex-col gap-3 pb-6">
 				<Button className="w-full shadow-sm" type="submit" disabled={isPending}>
 					{isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
 					{isPending ? "Creating account..." : t("submit")}
 				</Button>
-				<p className="mt-2 text-center text-muted-foreground text-sm">
+
+				<div className="relative my-0.5 flex w-full items-center justify-center">
+					<div className="absolute inset-0 flex items-center">
+						<span className="w-full border-border border-t" />
+					</div>
+					<div className="relative flex justify-center text-xs uppercase">
+						<span className="bg-card px-2 font-medium text-[11px] text-muted-foreground">
+							Or continue with
+						</span>
+					</div>
+				</div>
+
+				<GoogleSignInButton
+					disabled={isPending}
+					onError={(err) => setSocialError(err)}
+				/>
+
+				<p className="mt-1 text-center text-muted-foreground text-sm">
 					{t("hasAccount")}{" "}
 					<Link
 						href="/login"

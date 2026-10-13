@@ -34,7 +34,7 @@ import {
 	FileTextIcon,
 	Loader2Icon,
 	PlusIcon,
-	ReceiptIcon,
+	ReceiptIndianRupeeIcon,
 	SearchIcon,
 	ShieldAlertIcon,
 } from "lucide-react";
@@ -62,7 +62,9 @@ export default function ProcurementInvoicesPage() {
 	// Modal States
 	const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 	const [isDetailOpen, setIsDetailOpen] = useState(false);
-	const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+	const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
+		null,
+	);
 
 	// Register Invoice Form State
 	const [selectedPOId, setSelectedPOId] = useState<number>(0);
@@ -108,7 +110,10 @@ export default function ProcurementInvoicesPage() {
 					productName: it.product_name,
 					billedQuantity: Number(it.quantity),
 					unitPrice: Number(it.price),
-					taxRate: Number(it.cgst_rate || 0) + Number(it.sgst_rate || 0) + Number(it.igst_rate || 0),
+					taxRate:
+						Number(it.cgst_rate || 0) +
+						Number(it.sgst_rate || 0) +
+						Number(it.igst_rate || 0),
 				})),
 			);
 		}
@@ -145,7 +150,10 @@ export default function ProcurementInvoicesPage() {
 			if (statusFilter === "all") return true;
 			if (statusFilter === "matched") return inv.matching_status === "matched";
 			if (statusFilter === "mismatch") {
-				return inv.matching_status !== "matched" && inv.matching_status !== "variance_approved";
+				return (
+					inv.matching_status !== "matched" &&
+					inv.matching_status !== "variance_approved"
+				);
 			}
 			return inv.status === statusFilter;
 		}) || [];
@@ -166,7 +174,9 @@ export default function ProcurementInvoicesPage() {
 							Supplier Invoices & 3-Way Matching
 						</h1>
 						<p className="text-muted-foreground text-sm">
-							Register vendor bills, run automated 3-way reconciliation against PO commitments and warehouse receipts, and route for finance approval.
+							Register vendor bills, run automated 3-way reconciliation against
+							PO commitments and warehouse receipts, and route for finance
+							approval.
 						</p>
 					</div>
 					<Button
@@ -183,14 +193,18 @@ export default function ProcurementInvoicesPage() {
 					<Card className="border-l-4 border-l-blue-500 border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Total Registered</p>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Total Registered
+								</p>
 								<h3 className="mt-1 font-bold text-2xl text-foreground tracking-tight">
 									{invoices?.length ?? 0}
 								</h3>
-								<p className="mt-1 text-[11px] text-muted-foreground">Vendor invoices on file</p>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Vendor invoices on file
+								</p>
 							</div>
 							<div className="rounded-xl bg-blue-500/10 p-3 text-blue-600 dark:text-blue-400">
-								<ReceiptIcon className="h-6 w-6" />
+								<ReceiptIndianRupeeIcon className="h-6 w-6" />
 							</div>
 						</CardContent>
 					</Card>
@@ -198,11 +212,16 @@ export default function ProcurementInvoicesPage() {
 					<Card className="border-l-4 border-l-emerald-500 border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">3-Way Matched</p>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									3-Way Matched
+								</p>
 								<h3 className="mt-1 font-bold text-2xl text-emerald-600 dark:text-emerald-400 tracking-tight">
-									{invoices?.filter((i) => i.matching_status === "matched").length ?? 0}
+									{invoices?.filter((i) => i.matching_status === "matched")
+										.length ?? 0}
 								</h3>
-								<p className="mt-1 text-[11px] text-muted-foreground">Zero variance verified</p>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Zero variance verified
+								</p>
 							</div>
 							<div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600 dark:text-emerald-400">
 								<CheckCircle2Icon className="h-6 w-6" />
@@ -213,11 +232,15 @@ export default function ProcurementInvoicesPage() {
 					<Card className="border-l-4 border-l-purple-500 border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Price / Qty Variances</p>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Price / Qty Variances
+								</p>
 								<h3 className="mt-1 font-bold text-2xl text-purple-600 dark:text-purple-400 tracking-tight">
 									{kpis?.mismatchedInvoices ?? 0}
 								</h3>
-								<p className="mt-1 text-[11px] text-muted-foreground">Exceptions flagged</p>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Exceptions flagged
+								</p>
 							</div>
 							<div className="rounded-xl bg-purple-500/10 p-3 text-purple-600 dark:text-purple-400">
 								<AlertTriangleIcon className="h-6 w-6" />
@@ -228,14 +251,18 @@ export default function ProcurementInvoicesPage() {
 					<Card className="border-l-4 border-l-rose-500 border-border/60 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
-								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Outstanding Payables</p>
+								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+									Outstanding Payables
+								</p>
 								<h3 className="mt-1 font-bold text-2xl text-rose-600 dark:text-rose-400 tracking-tight">
 									{formatCurrency(kpis?.totalOutstanding)}
 								</h3>
-								<p className="mt-1 text-[11px] text-muted-foreground">Awaiting settlement</p>
+								<p className="mt-1 text-[11px] text-muted-foreground">
+									Awaiting settlement
+								</p>
 							</div>
 							<div className="rounded-xl bg-rose-500/10 p-3 text-rose-600 dark:text-rose-400">
-								<ReceiptIcon className="h-6 w-6" />
+								<ReceiptIndianRupeeIcon className="h-6 w-6" />
 							</div>
 						</CardContent>
 					</Card>
@@ -277,7 +304,9 @@ export default function ProcurementInvoicesPage() {
 				{/* Invoices Table */}
 				<Card className="shadow-sm">
 					<CardHeader className="p-4">
-						<CardTitle className="text-base">Supplier Invoices Register</CardTitle>
+						<CardTitle className="text-base">
+							Supplier Invoices Register
+						</CardTitle>
 						<CardDescription className="text-xs">
 							Showing {filteredInvoices.length} invoices
 						</CardDescription>
@@ -303,12 +332,17 @@ export default function ProcurementInvoicesPage() {
 										<TableRow>
 											<TableCell colSpan={9} className="h-32 text-center">
 												<Loader2Icon className="mx-auto h-6 w-6 animate-spin text-gray-400" />
-												<p className="mt-2 text-gray-500 text-xs">Loading invoices...</p>
+												<p className="mt-2 text-gray-500 text-xs">
+													Loading invoices...
+												</p>
 											</TableCell>
 										</TableRow>
 									) : filteredInvoices.length === 0 ? (
 										<TableRow>
-											<TableCell colSpan={9} className="h-32 text-center text-gray-500 text-sm">
+											<TableCell
+												colSpan={9}
+												className="h-32 text-center text-gray-500 text-sm"
+											>
 												No supplier invoices found matching current criteria.
 											</TableCell>
 										</TableRow>
@@ -390,18 +424,21 @@ export default function ProcurementInvoicesPage() {
 					<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
-								<ReceiptIcon className="h-5 w-5 text-blue-600" />
+								<ReceiptIndianRupeeIcon className="h-5 w-5 text-blue-600" />
 								Register Supplier Bill
 							</DialogTitle>
 							<DialogDescription>
-								Link the vendor invoice to a Purchase Order to verify quantities, costs, and taxes.
+								Link the vendor invoice to a Purchase Order to verify
+								quantities, costs, and taxes.
 							</DialogDescription>
 						</DialogHeader>
 
 						<div className="space-y-4 py-2">
 							<div className="grid grid-cols-2 gap-4">
 								<div>
-									<Label className="text-xs font-semibold">Select Purchase Order</Label>
+									<Label className="text-xs font-semibold">
+										Select Purchase Order
+									</Label>
 									<select
 										className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
 										value={selectedPOId}
@@ -410,14 +447,17 @@ export default function ProcurementInvoicesPage() {
 										<option value={0}>-- Select PO to bill against --</option>
 										{pos?.map((p) => (
 											<option key={p.id} value={p.id}>
-												{p.po_number || `PO-${p.id}`} — {p.supplier_name} (₹{Number(p.total_amount).toFixed(2)})
+												{p.po_number || `PO-${p.id}`} — {p.supplier_name} (₹
+												{Number(p.total_amount).toFixed(2)})
 											</option>
 										))}
 									</select>
 								</div>
 
 								<div>
-									<Label className="text-xs font-semibold">Supplier Bill / Invoice #</Label>
+									<Label className="text-xs font-semibold">
+										Supplier Bill / Invoice #
+									</Label>
 									<Input
 										placeholder="e.g. INV-2026-981"
 										value={invoiceNumber}
@@ -434,7 +474,9 @@ export default function ProcurementInvoicesPage() {
 											Supplier: {selectedPO.supplier_name}
 										</p>
 										<p className="text-blue-700 dark:text-blue-400">
-											Receiving Status: {selectedPO.receiving_status.toUpperCase()} | Total PO Value: ₹{Number(selectedPO.total_amount).toFixed(2)}
+											Receiving Status:{" "}
+											{selectedPO.receiving_status.toUpperCase()} | Total PO
+											Value: ₹{Number(selectedPO.total_amount).toFixed(2)}
 										</p>
 									</div>
 									<Button
@@ -480,16 +522,23 @@ export default function ProcurementInvoicesPage() {
 											<TableHeader className="bg-muted/50">
 												<TableRow>
 													<TableHead>Product</TableHead>
-													<TableHead className="text-center">Billed Qty</TableHead>
-													<TableHead className="text-right">Unit Price (₹)</TableHead>
+													<TableHead className="text-center">
+														Billed Qty
+													</TableHead>
+													<TableHead className="text-right">
+														Unit Price (₹)
+													</TableHead>
 													<TableHead className="text-center">Tax %</TableHead>
-													<TableHead className="text-right">Line Total</TableHead>
+													<TableHead className="text-right">
+														Line Total
+													</TableHead>
 												</TableRow>
 											</TableHeader>
 											<TableBody>
 												{invoiceItems.map((row, idx) => {
 													const lineBase = row.billedQuantity * row.unitPrice;
-													const lineTotal = lineBase + lineBase * (row.taxRate / 100);
+													const lineTotal =
+														lineBase + lineBase * (row.taxRate / 100);
 													return (
 														<TableRow key={idx}>
 															<TableCell className="font-medium text-xs">
@@ -542,7 +591,10 @@ export default function ProcurementInvoicesPage() {
 						</div>
 
 						<DialogFooter>
-							<Button variant="outline" onClick={() => setIsRegisterOpen(false)}>
+							<Button
+								variant="outline"
+								onClick={() => setIsRegisterOpen(false)}
+							>
 								Cancel
 							</Button>
 							<Button
@@ -583,7 +635,7 @@ export default function ProcurementInvoicesPage() {
 					<DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
-								<ReceiptIcon className="h-5 w-5 text-blue-600" />
+								<ReceiptIndianRupeeIcon className="h-5 w-5 text-blue-600" />
 								Invoice 3-Way Match Verification
 							</DialogTitle>
 						</DialogHeader>
@@ -596,15 +648,25 @@ export default function ProcurementInvoicesPage() {
 							<div className="space-y-4">
 								<div className="grid grid-cols-3 gap-4 rounded-lg bg-muted/40 p-3 text-xs">
 									<div>
-										<span className="text-muted-foreground block">Invoice #</span>
-										<span className="font-bold text-sm">{invoiceDetail.invoice_number}</span>
+										<span className="text-muted-foreground block">
+											Invoice #
+										</span>
+										<span className="font-bold text-sm">
+											{invoiceDetail.invoice_number}
+										</span>
 									</div>
 									<div>
-										<span className="text-muted-foreground block">Supplier</span>
-										<span className="font-semibold">{invoiceDetail.supplier_name}</span>
+										<span className="text-muted-foreground block">
+											Supplier
+										</span>
+										<span className="font-semibold">
+											{invoiceDetail.supplier_name}
+										</span>
 									</div>
 									<div>
-										<span className="text-muted-foreground block">Matching Result</span>
+										<span className="text-muted-foreground block">
+											Matching Result
+										</span>
 										<span className="font-bold uppercase text-emerald-600">
 											{invoiceDetail.matching_status}
 										</span>
@@ -617,8 +679,12 @@ export default function ProcurementInvoicesPage() {
 											<TableRow>
 												<TableHead>Product</TableHead>
 												<TableHead className="text-center">PO Qty</TableHead>
-												<TableHead className="text-center">GRN Accepted</TableHead>
-												<TableHead className="text-center">Billed Qty</TableHead>
+												<TableHead className="text-center">
+													GRN Accepted
+												</TableHead>
+												<TableHead className="text-center">
+													Billed Qty
+												</TableHead>
 												<TableHead className="text-right">Unit Price</TableHead>
 												<TableHead className="text-right">Variances</TableHead>
 											</TableRow>
@@ -643,12 +709,16 @@ export default function ProcurementInvoicesPage() {
 													</TableCell>
 													<TableCell className="text-right text-xs">
 														{Math.abs(Number(it.price_variance || 0)) > 0.01 ||
-														Math.abs(Number(it.quantity_variance || 0)) > 0.001 ? (
+														Math.abs(Number(it.quantity_variance || 0)) >
+															0.001 ? (
 															<span className="text-red-600 font-bold">
-																ΔP: ₹{Number(it.price_variance).toFixed(2)} | ΔQ: {Number(it.quantity_variance)}
+																ΔP: ₹{Number(it.price_variance).toFixed(2)} |
+																ΔQ: {Number(it.quantity_variance)}
 															</span>
 														) : (
-															<span className="text-emerald-600 font-semibold">Matched</span>
+															<span className="text-emerald-600 font-semibold">
+																Matched
+															</span>
 														)}
 													</TableCell>
 												</TableRow>
