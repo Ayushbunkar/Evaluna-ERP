@@ -29,7 +29,6 @@ import {
 } from "@evaluna/ui/components/table";
 import { Textarea } from "@evaluna/ui/components/textarea";
 import {
-	CheckCircle2Icon,
 	CreditCardIcon,
 	HistoryIcon,
 	Loader2Icon,
@@ -125,13 +124,20 @@ export default function SuppliersPage() {
 	};
 
 	const handleCreateSupplier = async () => {
-		if (!newSupplierName) return;
-		await createSupplierMutation.mutateAsync({
-			name: newSupplierName,
-			email: newSupplierEmail || undefined,
-			phone: newSupplierPhone || undefined,
-			address: newSupplierAddress || undefined,
-		});
+		if (!newSupplierName.trim()) {
+			toast.error("Please enter a supplier partner name");
+			return;
+		}
+		try {
+			await createSupplierMutation.mutateAsync({
+				name: newSupplierName.trim(),
+				email: newSupplierEmail.trim() || undefined,
+				phone: newSupplierPhone.trim() || undefined,
+				address: newSupplierAddress.trim() || undefined,
+			});
+		} catch {
+			// Mutation onError handles the toast display
+		}
 	};
 
 	const filteredSuppliers =

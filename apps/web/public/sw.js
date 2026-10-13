@@ -1,4 +1,4 @@
-const CACHE_NAME = "evaluna-erp-v2";
+const CACHE_NAME = "evaluna-erp-v3";
 
 const PRECACHE_ASSETS = [
 	"/offline.html",
@@ -61,6 +61,11 @@ self.addEventListener("fetch", (event) => {
 	const { request } = event;
 	const url = new URL(request.url);
 
+	// Ignore non-http/https requests (e.g. chrome-extension://, data:, blob:)
+	if (!url.protocol.startsWith("http")) {
+		return;
+	}
+
 	// 1. Skip non-GET requests for standard caching, handle tRPC offline mutations
 	if (request.method !== "GET") {
 		if (url.pathname.startsWith("/api/trpc/")) {
@@ -95,38 +100,34 @@ self.addEventListener("fetch", (event) => {
 	// 2. Navigation requests (Page loads & route changes)
 	if (request.mode === "navigate") {
 		event.respondWith(
-			fetch(request)
-				.then((response) => {
-					// Cache fresh copy of visited pages
-					if (response.status === 200) {
+			(async () => {
+				try {
+					const response = await fetch(request);
+					if (response && response.status === 200) {
 						const responseClone = response.clone();
 						caches.open(CACHE_NAME).then((cache) => {
 							cache.put(request, responseClone);
 						});
 					}
 					return response;
-				})
-				.catch(async () => {
+				} catch (_err) {
 					// Offline fallback: Check cache first, then fallback to offline.html
 					const cachedResponse = await caches.match(request);
-					if (cachedResponse) {
-						return cachedResponse;
-					}
-					// Check exact path match
+					if (cachedResponse) return cachedResponse;
+
 					const pathCached = await caches.match(url.pathname);
-					if (pathCached) {
-						return pathCached;
-					}
-					// Fallback to offline shell
+					if (pathCached) return pathCached;
+
 					const offlineShell = await caches.match("/offline.html");
-					if (offlineShell) {
-						return offlineShell;
-					}
+					if (offlineShell) return offlineShell;
+
 					return new Response("Offline — Please reconnect to the internet", {
 						status: 503,
+						statusText: "Service Unavailable",
 						headers: { "Content-Type": "text/plain" },
 					});
-				}),
+				}
+			})(),
 		);
 		return;
 	}
@@ -140,10 +141,11 @@ self.addEventListener("fetch", (event) => {
 
 	if (isStaticAsset) {
 		event.respondWith(
-			caches.match(request).then((cachedResponse) => {
+			(async () => {
+				const cachedResponse = await caches.match(request);
 				const fetchPromise = fetch(request)
 					.then((networkResponse) => {
-						if (networkResponse.status === 200) {
+						if (networkResponse && networkResponse.status === 200) {
 							const responseClone = networkResponse.clone();
 							caches.open(CACHE_NAME).then((cache) => {
 								cache.put(request, responseClone);
@@ -151,14 +153,22 @@ self.addEventListener("fetch", (event) => {
 						}
 						return networkResponse;
 					})
-					.catch(() => {
-						// Network failed, return cached if available
-						return cachedResponse;
-					});
+					.catch(() => null);
 
-				// Return cached immediately if available (Stale-While-Revalidate)
-				return cachedResponse || fetchPromise;
-			}),
+				if (cachedResponse) {
+					// Return cached immediately (Stale-While-Revalidate)
+					void fetchPromise;
+					return cachedResponse;
+				}
+
+				const networkResponse = await fetchPromise;
+				if (networkResponse) return networkResponse;
+
+				return new Response("", {
+					status: 504,
+					statusText: "Gateway Timeout",
+				});
+			})(),
 		);
 		return;
 	}
@@ -166,40 +176,59 @@ self.addEventListener("fetch", (event) => {
 	// 4. API GET requests (tRPC queries)
 	if (url.pathname.startsWith("/api/")) {
 		event.respondWith(
-			fetch(request)
-				.then((response) => {
-					if (response.status === 200) {
+			(async () => {
+				try {
+					const response = await fetch(request);
+					if (response && response.status === 200) {
 						const responseClone = response.clone();
 						caches.open(CACHE_NAME).then((cache) => {
 							cache.put(request, responseClone);
 						});
 					}
 					return response;
-				})
-				.catch(async () => {
+				} catch (_err) {
 					const cached = await caches.match(request);
 					if (cached) return cached;
 					return new Response(JSON.stringify({ result: { data: [] } }), {
 						status: 200,
 						headers: { "Content-Type": "application/json" },
 					});
-				}),
+				}
+			})(),
 		);
 		return;
 	}
 
-	// 5. Default: Network with cache fallback
+	// 5. Default: Network with guaranteed cache fallback (never returns undefined)
 	event.respondWith(
-		fetch(request)
-			.then((response) => {
-				if (response.status === 200) {
+		(async () => {
+			try {
+				const response = await fetch(request);
+				if (response && response.status === 200) {
 					const responseClone = response.clone();
 					caches.open(CACHE_NAME).then((cache) => {
 						cache.put(request, responseClone);
 					});
 				}
 				return response;
-			})
-			.catch(() => caches.match(request)),
+			} catch (_err) {
+				const cached = await caches.match(request);
+				if (cached) return cached;
+
+				const pathnameCached = await caches.match(url.pathname);
+				if (pathnameCached) return pathnameCached;
+
+				if (request.headers.get("accept")?.includes("text/html")) {
+					const offlineShell = await caches.match("/offline.html");
+					if (offlineShell) return offlineShell;
+				}
+
+				return new Response("Network unavailable", {
+					status: 503,
+					statusText: "Service Unavailable",
+					headers: { "Content-Type": "text/plain" },
+				});
+			}
+		})(),
 	);
 });

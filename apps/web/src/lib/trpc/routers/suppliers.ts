@@ -5,11 +5,17 @@ import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";
 
 export const suppliersRouter = router({
-	create: roleProcedure(["admin", "manager", "auditor"])
+	create: roleProcedure([
+		"super_admin",
+		"admin",
+		"manager",
+		"procurement",
+		"auditor",
+	])
 		.input(
 			z.object({
 				name: z.string().min(1),
-				email: z.string().email().optional(),
+				email: z.string().email().optional().or(z.literal("")),
 				phone: z.string().optional(),
 				address: z.string().optional(),
 				gst_number: z.string().optional(),
@@ -17,25 +23,42 @@ export const suppliersRouter = router({
 				supplier_category: z.string().optional(),
 			}),
 		)
-		.mutation(async ({ input, ctx }) => {
+		.mutation(async ({ input }) => {
 			const code = `SUPP-${Math.floor(1000 + Math.random() * 9000)}`;
 			const newSupplier = await db
 				.insert(suppliers)
 				.values({
 					...input,
+					email: input.email || undefined,
 					supplier_code: code,
 				})
 				.returning();
 			return newSupplier[0];
 		}),
 
-	list: roleProcedure(["admin", "manager", "auditor"])
+	list: roleProcedure([
+		"super_admin",
+		"admin",
+		"manager",
+		"procurement",
+		"auditor",
+		"finance",
+		"warehouse_supervisor",
+	])
 		.input(z.void())
 		.query(async () => {
 			return await db.select().from(suppliers);
 		}),
 
-	getById: roleProcedure(["admin", "manager", "auditor"])
+	getById: roleProcedure([
+		"super_admin",
+		"admin",
+		"manager",
+		"procurement",
+		"auditor",
+		"finance",
+		"warehouse_supervisor",
+	])
 		.input(z.object({ id: z.number() }))
 		.query(async ({ input }) => {
 			const supplier = await db.query.suppliers.findFirst({
@@ -60,7 +83,14 @@ export const suppliersRouter = router({
 			return { supplier, ledger, purchaseHistory };
 		}),
 
-	paySupplier: roleProcedure(["admin", "manager", "auditor"])
+	paySupplier: roleProcedure([
+		"super_admin",
+		"admin",
+		"manager",
+		"procurement",
+		"finance",
+		"auditor",
+	])
 		.input(
 			z.object({
 				supplier_id: z.number(),
@@ -100,12 +130,18 @@ export const suppliersRouter = router({
 			return { success: true };
 		}),
 
-	update: roleProcedure(["admin", "manager", "auditor"])
+	update: roleProcedure([
+		"super_admin",
+		"admin",
+		"manager",
+		"procurement",
+		"auditor",
+	])
 		.input(
 			z.object({
 				id: z.number(),
 				name: z.string().optional(),
-				email: z.string().email().optional(),
+				email: z.string().email().optional().or(z.literal("")),
 				phone: z.string().optional(),
 				address: z.string().optional(),
 				gst_number: z.string().optional(),
@@ -116,13 +152,16 @@ export const suppliersRouter = router({
 			const { id, ...data } = input;
 			const updatedSupplier = await db
 				.update(suppliers)
-				.set(data)
+				.set({
+					...data,
+					email: data.email || undefined,
+				})
 				.where(eq(suppliers.id, id))
 				.returning();
 			return updatedSupplier[0];
 		}),
 
-	delete: roleProcedure(["admin", "manager", "auditor"])
+	delete: roleProcedure(["super_admin", "admin", "manager", "procurement"])
 		.input(z.object({ id: z.number() }))
 		.mutation(async ({ input }) => {
 			await db.delete(suppliers).where(eq(suppliers.id, input.id));
