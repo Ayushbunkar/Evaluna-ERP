@@ -28,9 +28,6 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
-	AlertTriangleIcon,
-	ArrowRightIcon,
-	CalendarIcon,
 	CheckCircle2Icon,
 	ClockIcon,
 	EyeIcon,
@@ -189,16 +186,6 @@ export default function IncomingShipmentsPage() {
 							inspect quality, and post accepted stock to the warehouse ledger.
 						</p>
 					</div>
-					<Button
-						asChild
-						variant="outline"
-						className="gap-2 border-border/80 bg-background/50 font-semibold text-xs shadow-xs hover:bg-muted"
-					>
-						<Link href="/dashboard/warehouse/receiving">
-							<PackageCheckIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-							Warehouse Receiving Console
-						</Link>
-					</Button>
 				</div>
 
 				{/* KPI Cards */}
