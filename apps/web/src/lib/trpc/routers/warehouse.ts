@@ -908,42 +908,69 @@ export const warehouseRouter = router({
 			};
 		}),
 
-	getReceivingPOs: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
-		const db = ctx.db;
-		const branchId = ctx.user.branchId;
+	getReceivingPOs: protectedProcedure
+		.input(
+			z
+				.object({
+					includeAll: z.boolean().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const branchId = ctx.user.branchId;
 
-		const rows = await db
-			.select({
-				id: purchases.id,
-				po_number: purchases.po_number,
-				grn_number: purchases.grn_number,
-				supplier_id: purchases.supplier_id,
-				supplier_name: suppliers.name,
-				supplier_phone: suppliers.phone,
-				status: purchases.status,
-				receiving_status: purchases.receiving_status,
-				payment_status: purchases.payment_status,
-				expected_delivery_date: purchases.expected_delivery_date,
-				confirmed_delivery_date: purchases.confirmed_delivery_date,
-				created_at: purchases.created_at,
-				total_amount: purchases.total_amount,
-				item_count: count(purchaseItems.id),
-				total_quantity: sum(purchaseItems.quantity),
-			})
-			.from(purchases)
-			.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
-			.leftJoin(purchaseItems, eq(purchases.id, purchaseItems.purchase_id))
-			.where(branchId ? eq(purchases.branch_id, branchId) : undefined)
-			.groupBy(purchases.id, suppliers.id, suppliers.name, suppliers.phone)
-			.orderBy(desc(purchases.created_at))
-			.limit(100);
+			const filters: any[] = [];
+			if (branchId) {
+				filters.push(eq(purchases.branch_id, branchId));
+			}
 
-		return rows.map((r) => ({
-			...r,
-			item_count: Number(r.item_count) || 0,
-			total_quantity: Number(r.total_quantity) || 0,
-		}));
-	}),
+			// For physical warehouse receiving, exclude POs that have not been approved/issued yet
+			if (!input?.includeAll) {
+				filters.push(
+					notInArray(purchases.status, [
+						"pending_finance",
+						"pending_approval",
+						"rejected",
+						"cancelled",
+					]),
+				);
+			}
+
+			const whereClause = filters.length > 0 ? and(...filters) : undefined;
+
+			const rows = await db
+				.select({
+					id: purchases.id,
+					po_number: purchases.po_number,
+					grn_number: purchases.grn_number,
+					supplier_id: purchases.supplier_id,
+					supplier_name: suppliers.name,
+					supplier_phone: suppliers.phone,
+					status: purchases.status,
+					receiving_status: purchases.receiving_status,
+					payment_status: purchases.payment_status,
+					expected_delivery_date: purchases.expected_delivery_date,
+					confirmed_delivery_date: purchases.confirmed_delivery_date,
+					created_at: purchases.created_at,
+					total_amount: purchases.total_amount,
+					item_count: count(purchaseItems.id),
+					total_quantity: sum(purchaseItems.quantity),
+				})
+				.from(purchases)
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.leftJoin(purchaseItems, eq(purchases.id, purchaseItems.purchase_id))
+				.where(whereClause)
+				.groupBy(purchases.id, suppliers.id, suppliers.name, suppliers.phone)
+				.orderBy(desc(purchases.created_at))
+				.limit(100);
+
+			return rows.map((r) => ({
+				...r,
+				item_count: Number(r.item_count) || 0,
+				total_quantity: Number(r.total_quantity) || 0,
+			}));
+		}),
 
 	getReceivingInspections: protectedProcedure
 		.input(

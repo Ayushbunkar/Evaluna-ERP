@@ -389,7 +389,7 @@ export const procurementRouter = router({
 						supplier_id: input.supplierId,
 						total_amount: total.toFixed(2),
 						user_uid: ctx.user.id,
-						status: "pending",
+						status: "pending_finance",
 						receiving_status: "pending",
 						invoice_status: "pending",
 						expected_delivery_date: input.expectedDeliveryDate,
@@ -666,7 +666,7 @@ export const procurementRouter = router({
 						sgst_amount: totalSgst.toFixed(2),
 						igst_amount: totalIgst.toFixed(2),
 						user_uid: ctx.user.id,
-						status: "pending",
+						status: "pending_finance",
 						receiving_status: "pending",
 						invoice_status: "pending",
 						amount_paid: "0",
@@ -739,6 +739,82 @@ export const procurementRouter = router({
 					notes: input.notes
 						? sql`COALESCE(${purchases.notes}, '') || '\n' || ${input.notes}`
 						: undefined,
+				})
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return updated;
+		}),
+
+	approvePO: protectedProcedure
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const [po] = await db
+				.select()
+				.from(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.limit(1);
+
+			if (!po) throw new Error("Purchase order not found");
+			if (
+				po.status !== "pending_finance" &&
+				po.status !== "pending" &&
+				po.status !== "pending_approval"
+			) {
+				throw new Error(
+					`Cannot verify and issue a PO with status '${po.status}'`,
+				);
+			}
+
+			const approverName = ctx.user.name || ctx.user.email || "Finance";
+			const noteText = input.notes
+				? `\n[Finance Verified & Issued by ${approverName} on ${new Date().toLocaleString("en-IN")}]: ${input.notes}`
+				: `\n[Finance Verified & Issued by ${approverName} on ${new Date().toLocaleString("en-IN")}]`;
+
+			const [updated] = await db
+				.update(purchases)
+				.set({
+					status: "issued",
+					notes: sql`COALESCE(${purchases.notes}, '') || ${noteText}`,
+				})
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return updated;
+		}),
+
+	rejectPO: protectedProcedure
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				reason: z.string().min(1, "Reason is mandatory to reject this order"),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const [po] = await db
+				.select()
+				.from(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.limit(1);
+
+			if (!po) throw new Error("Purchase order not found");
+			if (po.receiving_status === "received" || po.status === "completed") {
+				throw new Error("Cannot reject an already received or completed order");
+			}
+
+			const rejectorName = ctx.user.name || ctx.user.email || "Finance";
+			const noteText = `\n[Finance Rejected by ${rejectorName} on ${new Date().toLocaleString("en-IN")}]: ${input.reason}`;
+
+			const [updated] = await db
+				.update(purchases)
+				.set({
+					status: "rejected",
+					notes: sql`COALESCE(${purchases.notes}, '') || ${noteText}`,
 				})
 				.where(eq(purchases.id, input.purchaseId))
 				.returning();
@@ -1034,6 +1110,23 @@ export const procurementRouter = router({
 				for (const item of input.items) {
 					let resolvedProductId = item.productId;
 					let resolvedPurchaseItemId = item.purchaseItemId;
+
+					// If purchaseItemId was not explicitly provided, try to match by productId on this PO
+					if (!resolvedPurchaseItemId && resolvedProductId) {
+						const [matchedPI] = await tx
+							.select({ id: purchaseItems.id })
+							.from(purchaseItems)
+							.where(
+								and(
+									eq(purchaseItems.purchase_id, input.purchaseId),
+									eq(purchaseItems.product_id, resolvedProductId),
+								),
+							)
+							.limit(1);
+						if (matchedPI) {
+							resolvedPurchaseItemId = matchedPI.id;
+						}
+					}
 
 					// If new/custom product was sent by supplier that doesn't exist in product catalog
 					if (!resolvedProductId || resolvedProductId === 0) {

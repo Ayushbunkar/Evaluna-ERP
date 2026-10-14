@@ -13,7 +13,7 @@ import {
 	stockAudits,
 	stockLedger,
 } from "@/lib/db/schema";
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 import { TRPCError } from "@trpc/server";
@@ -510,6 +510,9 @@ export const auditRouter = router({
 				or(
 					ilike(staff.role, "%auditor%"),
 					ilike(staff.role, "%audit%"),
+					ilike(staff.role, "%warehouse%"),
+					ilike(staff.role, "%loader%"),
+					ilike(staff.role, "%picker%"),
 					ilike(staff.department, "%audit%"),
 					ilike(staff.name, "%auditor%"),
 					ilike(staff.staff_code, "%aud%"),

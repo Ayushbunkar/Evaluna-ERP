@@ -3,13 +3,28 @@ import {
 	customers,
 	expenses,
 	orders,
+	products,
 	proofOfDeliveries,
+	purchaseItems,
+	purchases,
 	suppliers,
 	transactions,
 	tripCollections,
 	tripStops,
 } from "@evaluna/db/schema";
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import {
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	lte,
+	or,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -397,6 +412,7 @@ export const financeRouter = router({
 					(SELECT coalesce(sum(credit_used), 0) FROM customers) AS receivables,
 					(SELECT coalesce(sum(outstanding_balance), 0) FROM suppliers) AS payables,
 					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS unpaid_invoices_count,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status IN ('pending', 'pending_finance', 'pending_approval') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS pending_purchases_count,
 					(SELECT coalesce(sum(CASE WHEN created_at < NOW() - INTERVAL '30 days' THEN total_amount ELSE 0 END), 0) FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS overdue_receivables,
 					(
 						SELECT coalesce(json_agg(t), '[]'::json)
@@ -476,6 +492,9 @@ export const financeRouter = router({
 			const cashFlow = todaysCash - totalExpenses;
 
 			const unpaidInvoicesCount = Number(scalarRes?.unpaid_invoices_count || 0);
+			const pendingPurchasesCount = Number(
+				scalarRes?.pending_purchases_count || 0,
+			);
 			const overdueReceivables = Number(scalarRes?.overdue_receivables || 0);
 			const overduePayables = totalPayables * 0.2; // Mocked portion since due date not explicit in schema
 
@@ -501,7 +520,8 @@ export const financeRouter = router({
 				month: string;
 				revenue: number | string;
 			}>;
-			const expenseBreakdownRes = (scalarRes?.expense_breakdown || []) as Array<{
+			const expenseBreakdownRes = (scalarRes?.expense_breakdown ||
+				[]) as Array<{
 				category: string | null;
 				amount: number | string;
 			}>;
@@ -566,6 +586,7 @@ export const financeRouter = router({
 				totalPayables,
 				cashFlow,
 				unpaidInvoicesCount,
+				pendingPurchasesCount,
 				overdueReceivables,
 				overduePayables,
 				profitChart,
@@ -785,4 +806,305 @@ export const financeRouter = router({
 			};
 		});
 	}),
+
+	// ───────────────────────────────────────────────────────────────────────────
+	// PURCHASE ORDER VERIFICATION & APPROVAL (FINANCE)
+	// ───────────────────────────────────────────────────────────────────────────
+
+	listPurchases: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(
+			z
+				.object({
+					status: z.string().optional(),
+					search: z.string().optional(),
+					limit: z.number().min(1).max(100).default(50),
+					page: z.number().default(1),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const branchId = ctx.user.branchId ?? null;
+			const { status = "pending", search, limit = 50, page = 1 } = input || {};
+
+			const filters: any[] = [];
+			if (branchId != null) {
+				filters.push(
+					or(
+						eq(purchases.branch_id, branchId),
+						sql`${purchases.branch_id} IS NULL`,
+					),
+				);
+			}
+
+			if (status && status !== "all") {
+				if (status === "pending" || status === "pending_finance") {
+					filters.push(
+						inArray(purchases.status, [
+							"pending",
+							"pending_finance",
+							"pending_approval",
+						]),
+					);
+				} else {
+					filters.push(eq(purchases.status, status));
+				}
+			}
+
+			if (search) {
+				filters.push(
+					or(
+						ilike(purchases.po_number, `%${search}%`),
+						ilike(purchases.grn_number, `%${search}%`),
+						ilike(suppliers.name, `%${search}%`),
+					),
+				);
+			}
+
+			const whereClause = filters.length > 0 ? and(...filters) : undefined;
+
+			// Get summary counts
+			const baseBranchFilter =
+				branchId != null ? sql`AND branch_id = ${branchId}` : sql``;
+
+			const statsRes: any = await ctx.db.execute(sql`
+				SELECT
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status IN ('pending', 'pending_finance', 'pending_approval') ${baseBranchFilter}) as pending_count,
+					(SELECT coalesce(sum(total_amount), 0)::numeric FROM purchases WHERE status IN ('pending', 'pending_finance', 'pending_approval') ${baseBranchFilter}) as pending_amount,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status = 'issued' ${baseBranchFilter}) as issued_count,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status = 'rejected' ${baseBranchFilter}) as rejected_count,
+					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE 1=1 ${baseBranchFilter}) as total_count
+			`);
+			const statsRow = Array.isArray(statsRes)
+				? statsRes[0]
+				: statsRes?.rows?.[0];
+
+			const countRes = await ctx.db
+				.select({ count: count(purchases.id) })
+				.from(purchases)
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.where(whereClause);
+			const total = Number(countRes[0]?.count || 0);
+
+			const rows = await ctx.db
+				.select({
+					id: purchases.id,
+					po_number: purchases.po_number,
+					grn_number: purchases.grn_number,
+					purchase_request_id: purchases.purchase_request_id,
+					supplier_id: purchases.supplier_id,
+					supplier_name: suppliers.name,
+					supplier_phone: suppliers.phone,
+					supplier_email: suppliers.email,
+					status: purchases.status,
+					receiving_status: purchases.receiving_status,
+					payment_status: purchases.payment_status,
+					total_amount: purchases.total_amount,
+					cgst_amount: purchases.cgst_amount,
+					sgst_amount: purchases.sgst_amount,
+					igst_amount: purchases.igst_amount,
+					amount_paid: purchases.amount_paid,
+					expected_delivery_date: purchases.expected_delivery_date,
+					notes: purchases.notes,
+					created_at: purchases.created_at,
+					item_count: count(purchaseItems.id),
+					total_quantity: sum(purchaseItems.quantity),
+				})
+				.from(purchases)
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.leftJoin(purchaseItems, eq(purchases.id, purchaseItems.purchase_id))
+				.where(whereClause)
+				.groupBy(
+					purchases.id,
+					suppliers.id,
+					suppliers.name,
+					suppliers.phone,
+					suppliers.email,
+				)
+				.orderBy(desc(purchases.created_at))
+				.limit(limit)
+				.offset((page - 1) * limit);
+
+			return {
+				items: rows.map((r) => ({
+					...r,
+					total_amount: Number(r.total_amount || 0),
+					cgst_amount: Number(r.cgst_amount || 0),
+					sgst_amount: Number(r.sgst_amount || 0),
+					igst_amount: Number(r.igst_amount || 0),
+					amount_paid: Number(r.amount_paid || 0),
+					item_count: Number(r.item_count || 0),
+					total_quantity: Number(r.total_quantity || 0),
+				})),
+				total,
+				pages: Math.ceil(total / limit),
+				stats: {
+					pendingCount: Number(statsRow?.pending_count || 0),
+					pendingAmount: Number(statsRow?.pending_amount || 0),
+					issuedCount: Number(statsRow?.issued_count || 0),
+					rejectedCount: Number(statsRow?.rejected_count || 0),
+					totalCount: Number(statsRow?.total_count || 0),
+				},
+			};
+		}),
+
+	getPurchaseDetails: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(z.object({ id: z.number() }))
+		.query(async ({ ctx, input }) => {
+			const [po] = await ctx.db
+				.select({
+					id: purchases.id,
+					po_number: purchases.po_number,
+					grn_number: purchases.grn_number,
+					purchase_request_id: purchases.purchase_request_id,
+					branch_id: purchases.branch_id,
+					supplier_id: purchases.supplier_id,
+					supplier_name: suppliers.name,
+					supplier_phone: suppliers.phone,
+					supplier_email: suppliers.email,
+					supplier_address: suppliers.address,
+					total_amount: purchases.total_amount,
+					cgst_amount: purchases.cgst_amount,
+					sgst_amount: purchases.sgst_amount,
+					igst_amount: purchases.igst_amount,
+					status: purchases.status,
+					receiving_status: purchases.receiving_status,
+					payment_status: purchases.payment_status,
+					amount_paid: purchases.amount_paid,
+					expected_delivery_date: purchases.expected_delivery_date,
+					notes: purchases.notes,
+					terms_and_conditions: purchases.terms_and_conditions,
+					created_at: purchases.created_at,
+				})
+				.from(purchases)
+				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
+				.where(eq(purchases.id, input.id))
+				.limit(1);
+
+			if (!po) throw new Error("Purchase order not found");
+
+			const items = await ctx.db
+				.select({
+					id: purchaseItems.id,
+					purchase_id: purchaseItems.purchase_id,
+					product_id: purchaseItems.product_id,
+					product_name: products.name,
+					product_sku: products.sku,
+					quantity: purchaseItems.quantity,
+					price: purchaseItems.price,
+					cgst_rate: purchaseItems.cgst_rate,
+					sgst_rate: purchaseItems.sgst_rate,
+					igst_rate: purchaseItems.igst_rate,
+					cgst_amount: purchaseItems.cgst_amount,
+					sgst_amount: purchaseItems.sgst_amount,
+					igst_amount: purchaseItems.igst_amount,
+				})
+				.from(purchaseItems)
+				.leftJoin(products, eq(purchaseItems.product_id, products.id))
+				.where(eq(purchaseItems.purchase_id, input.id));
+
+			return {
+				...po,
+				total_amount: Number(po.total_amount || 0),
+				cgst_amount: Number(po.cgst_amount || 0),
+				sgst_amount: Number(po.sgst_amount || 0),
+				igst_amount: Number(po.igst_amount || 0),
+				items: items.map((it) => ({
+					...it,
+					product_name: it.product_name || `Product #${it.product_id}`,
+					product_sku: it.product_sku || "—",
+					quantity: Number(it.quantity || 0),
+					price: Number(it.price || 0),
+					cgst_rate: Number(it.cgst_rate || 0),
+					sgst_rate: Number(it.sgst_rate || 0),
+					igst_rate: Number(it.igst_rate || 0),
+					cgst_amount: Number(it.cgst_amount || 0),
+					sgst_amount: Number(it.sgst_amount || 0),
+					igst_amount: Number(it.igst_amount || 0),
+					total:
+						Number(it.quantity || 0) * Number(it.price || 0) +
+						Number(it.cgst_amount || 0) +
+						Number(it.sgst_amount || 0) +
+						Number(it.igst_amount || 0),
+				})),
+			};
+		}),
+
+	approvePO: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [existing] = await ctx.db
+				.select()
+				.from(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.limit(1);
+
+			if (!existing) throw new Error("Purchase order not found");
+			if (
+				existing.status !== "pending_finance" &&
+				existing.status !== "pending" &&
+				existing.status !== "pending_approval"
+			) {
+				throw new Error(
+					`Cannot verify and issue a PO with status '${existing.status}'`,
+				);
+			}
+
+			const approverName = ctx.user.name || ctx.user.email || "Finance";
+			const noteText = input.notes
+				? `\n[Finance Verified & Issued by ${approverName} on ${new Date().toLocaleString("en-IN")}]: ${input.notes}`
+				: `\n[Finance Verified & Issued by ${approverName} on ${new Date().toLocaleString("en-IN")}]`;
+
+			const [updated] = await ctx.db
+				.update(purchases)
+				.set({
+					status: "issued",
+					notes: sql`COALESCE(${purchases.notes}, '') || ${noteText}`,
+				})
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return updated;
+		}),
+
+	rejectPO: roleProcedure(["admin", "manager", "auditor", "finance"])
+		.input(
+			z.object({
+				purchaseId: z.number(),
+				reason: z.string().min(1, "Reason is mandatory to reject this order"),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [existing] = await ctx.db
+				.select()
+				.from(purchases)
+				.where(eq(purchases.id, input.purchaseId))
+				.limit(1);
+
+			if (!existing) throw new Error("Purchase order not found");
+			if (
+				existing.receiving_status === "received" ||
+				existing.status === "completed"
+			) {
+				throw new Error("Cannot reject an already received or completed order");
+			}
+
+			const rejectorName = ctx.user.name || ctx.user.email || "Finance";
+			const noteText = `\n[Finance Rejected by ${rejectorName} on ${new Date().toLocaleString("en-IN")}]: ${input.reason}`;
+
+			const [updated] = await ctx.db
+				.update(purchases)
+				.set({
+					status: "rejected",
+					notes: sql`COALESCE(${purchases.notes}, '') || ${noteText}`,
+				})
+				.where(eq(purchases.id, input.purchaseId))
+				.returning();
+
+			return updated;
+		}),
 });

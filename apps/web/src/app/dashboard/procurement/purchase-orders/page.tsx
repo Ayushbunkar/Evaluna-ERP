@@ -50,14 +50,16 @@ export default function PurchaseOrdersPage() {
 
 	// Queries
 	const { data: pos, isLoading: posLoading } =
-		trpc.warehouse.getReceivingPOs.useQuery();
+		trpc.warehouse.getReceivingPOs.useQuery({ includeAll: true });
 	const { data: suppliersList } = trpc.suppliers.list.useQuery();
 	const { data: invData } = trpc.inventory.list.useQuery({ limit: 100 });
 
 	// Mutations
 	const createPOMutation = trpc.purchases.create.useMutation({
 		onSuccess: () => {
-			toast.success("Purchase Order successfully created & sent to warehouse!");
+			toast.success(
+				"Purchase Order created & sent to Finance for verification!",
+			);
 			utils.warehouse.getReceivingPOs.invalidate();
 			setIsCreateModalOpen(false);
 			setSelectedSupplier("");
@@ -284,12 +286,24 @@ export default function PurchaseOrdersPage() {
 															: "outline"
 													}
 													className={
-														po.status === "pending"
-															? "border-amber-200 bg-amber-50 text-amber-700"
-															: ""
+														po.status === "received" || po.status === "completed"
+															? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-[10px]"
+															: po.status === "issued" || po.status === "approved"
+																? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-[10px]"
+																: po.status === "rejected"
+																	? "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px]"
+																	: po.status === "ordered" || po.status === "confirmed"
+																		? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium text-[10px]"
+																		: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium text-[10px]"
 													}
 												>
-													{po.status}
+													{po.status === "pending_finance" || po.status === "pending" || po.status === "pending_approval"
+														? "Pending Finance Approval"
+														: po.status === "issued" || po.status === "approved"
+															? "Approved & Issued"
+															: po.status === "rejected"
+																? "Rejected by Finance"
+																: po.status}
 												</Badge>
 											</TableCell>
 											<TableCell className="text-right">

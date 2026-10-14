@@ -31,14 +31,20 @@ export const purchasesRouter = router({
 			} = input;
 
 			const grn = `GRN-${Math.floor(10000 + Math.random() * 90000)}`;
+			const poNumber = `PO-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
 			const newPurchase = await db
 				.insert(purchases)
 				.values({
 					...purchaseData,
+					branch_id: ctx.user.branchId ?? 1,
+					po_number: poNumber,
 					supplier_id: Number.parseInt(supplierId, 10),
 					total_amount: total.toString(),
 					user_uid: ctx.user.id,
+					status: "pending_finance",
+					receiving_status: "pending",
+					invoice_status: "pending",
 					grn_number: grn,
 					amount_paid: "0",
 					payment_status: "unpaid",

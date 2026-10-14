@@ -15,6 +15,7 @@ import {
 	ReceiptIndianRupeeIcon,
 	RefreshCwIcon,
 	ShieldCheckIcon,
+	ShoppingCartIcon,
 	TruckIcon,
 	UserIcon,
 	UsersIcon,
@@ -124,6 +125,12 @@ export default function FinanceLayout({
 					href: "/finance/expenses",
 					icon: WalletCardsIcon,
 					badge: stats?.unpaidInvoicesCount,
+				},
+				{
+					label: "Purchase Approvals",
+					href: "/finance/purchases",
+					icon: ShoppingCartIcon,
+					badge: stats?.pendingPurchasesCount,
 				},
 				{
 					label: "Supplier Payables",

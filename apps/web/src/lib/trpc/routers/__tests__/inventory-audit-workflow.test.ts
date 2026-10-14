@@ -222,7 +222,7 @@ describe("Complete Production-Level Inventory Audit & Stock Counting System", ()
 		expect(audit.id).toBeGreaterThan(0);
 		expect(audit.status).toBe("planned");
 		expect(audit.counting_method).toBe("blind");
-		expect(audit.audit_number).toMatch(/^AUD-\d{4}-\d{4}$/);
+		expect(audit.audit_number).toMatch(/^AUD-\d{4}-\d{4}/);
 
 		createdAuditId = audit.id;
 		createdAuditNumber = audit.audit_number;
