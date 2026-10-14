@@ -82,7 +82,12 @@ export default function PurchaseOrderInspectionPage() {
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
 
-	const poId = Number.parseInt(params?.id || "0", 10);
+	const rawParam = params?.id ? decodeURIComponent(params.id) : "0";
+	const parsedId = Number.parseInt(rawParam, 10);
+	const queryId =
+		!Number.isNaN(parsedId) && String(parsedId) === rawParam
+			? parsedId
+			: rawParam;
 
 	// Queries
 	const {
@@ -90,9 +95,11 @@ export default function PurchaseOrderInspectionPage() {
 		isLoading: poLoading,
 		error: poError,
 	} = trpc.procurement.getPO.useQuery(
-		{ id: poId },
-		{ enabled: Number.isFinite(poId) && poId > 0 },
+		{ id: queryId },
+		{ enabled: Boolean(rawParam && rawParam !== "0") },
 	);
+
+	const resolvedPoId = po?.id || (Number.isFinite(parsedId) ? parsedId : 0);
 
 	const { data: suppliersList } = trpc.procurement.listSuppliers.useQuery();
 	const { data: catalogProducts } = trpc.products.list.useQuery({
@@ -172,7 +179,7 @@ export default function PurchaseOrderInspectionPage() {
 			toast.success(
 				`Goods Receipt #${grn.grn_number} posted successfully! Stock ledger and inventory updated.`,
 			);
-			utils.procurement.getPO.invalidate({ id: poId });
+			utils.procurement.getPO.invalidate({ id: queryId });
 			utils.procurement.listPOs.invalidate();
 			utils.procurement.listGRNs.invalidate();
 			utils.procurement.getProcurementKpis.invalidate();
@@ -188,7 +195,7 @@ export default function PurchaseOrderInspectionPage() {
 	const updateSupplierMutation = trpc.procurement.updatePOSupplier.useMutation({
 		onSuccess: () => {
 			toast.success("Order supplier updated successfully!");
-			utils.procurement.getPO.invalidate({ id: poId });
+			utils.procurement.getPO.invalidate({ id: queryId });
 			utils.procurement.listPOs.invalidate();
 			setIsSupplierModalOpen(false);
 		},
@@ -380,7 +387,7 @@ export default function PurchaseOrderInspectionPage() {
 			return;
 		}
 		updateSupplierMutation.mutate({
-			purchaseId: poId,
+			purchaseId: resolvedPoId,
 			supplierId: supIdNum,
 		});
 	};
@@ -394,7 +401,7 @@ export default function PurchaseOrderInspectionPage() {
 			return;
 		}
 		deletePOMutation.mutate({
-			purchaseId: poId,
+			purchaseId: resolvedPoId,
 			reason: deleteReason.trim(),
 		});
 	};
@@ -413,7 +420,7 @@ export default function PurchaseOrderInspectionPage() {
 		}
 
 		recordReceiptMutation.mutate({
-			purchaseId: poId,
+			purchaseId: resolvedPoId,
 			deliveryNoteNumber: deliveryNoteNumber || undefined,
 			vehicleNumber: vehicleNumber || undefined,
 			notes: gateNotes || undefined,
@@ -471,7 +478,7 @@ export default function PurchaseOrderInspectionPage() {
 			<div className="flex h-96 flex-col items-center justify-center gap-3">
 				<Loader2Icon className="h-8 w-8 animate-spin text-emerald-600" />
 				<p className="font-medium text-muted-foreground text-sm">
-					Loading Purchase Order #{poId} receiving console...
+					Loading Purchase Order #{rawParam} receiving console...
 				</p>
 			</div>
 		);
@@ -484,7 +491,7 @@ export default function PurchaseOrderInspectionPage() {
 				<div>
 					<h2 className="font-bold text-xl">Purchase Order Not Found</h2>
 					<p className="mt-1 text-muted-foreground text-sm">
-						The requested order #{poId} does not exist or may have been deleted.
+						The requested order #{rawParam} does not exist or may have been deleted.
 					</p>
 				</div>
 				<Button asChild variant="outline">

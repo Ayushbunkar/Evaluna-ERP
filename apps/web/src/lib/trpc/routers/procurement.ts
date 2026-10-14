@@ -507,8 +507,16 @@ export const procurementRouter = router({
 		}),
 
 	getPO: protectedProcedure
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.union([z.number(), z.string()]) }))
 		.query(async ({ input }) => {
+			const poIdNum =
+				typeof input.id === "number"
+					? input.id
+					: Number.parseInt(String(input.id).replace(/^PO-?/i, ""), 10);
+			const isNumeric =
+				typeof input.id === "number" ||
+				(!Number.isNaN(poIdNum) && String(poIdNum) === String(input.id));
+
 			const [po] = await db
 				.select({
 					id: purchases.id,
@@ -538,19 +546,26 @@ export const procurementRouter = router({
 				})
 				.from(purchases)
 				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
-				.where(eq(purchases.id, input.id))
+				.where(
+					isNumeric
+						? or(
+								eq(purchases.id, poIdNum),
+								eq(purchases.po_number, String(input.id)),
+							)
+						: eq(purchases.po_number, String(input.id)),
+				)
 				.limit(1);
 
 			if (!po) throw new Error("Purchase order not found");
 
-			// Fetch items with product details
+			// Fetch items with product details (using leftJoin so missing product relations never drop items)
 			const items = await db
 				.select({
 					id: purchaseItems.id,
 					purchase_id: purchaseItems.purchase_id,
 					product_id: purchaseItems.product_id,
-					product_name: products.name,
-					product_sku: products.sku,
+					product_name: sql<string>`coalesce(${products.name}, 'Product #' || ${purchaseItems.product_id}::text)`,
+					product_sku: sql<string>`coalesce(${products.sku}, 'N/A')`,
 					quantity: purchaseItems.quantity,
 					price: purchaseItems.price,
 					cgst_rate: purchaseItems.cgst_rate,
@@ -561,35 +576,35 @@ export const procurementRouter = router({
 					igst_amount: purchaseItems.igst_amount,
 				})
 				.from(purchaseItems)
-				.innerJoin(products, eq(purchaseItems.product_id, products.id))
-				.where(eq(purchaseItems.purchase_id, input.id));
+				.leftJoin(products, eq(purchaseItems.product_id, products.id))
+				.where(eq(purchaseItems.purchase_id, po.id));
 
 			// Fetch associated Goods Receipts
 			const grns = await db
 				.select()
 				.from(goodsReceiptNotes)
-				.where(eq(goodsReceiptNotes.purchase_id, input.id))
+				.where(eq(goodsReceiptNotes.purchase_id, po.id))
 				.orderBy(desc(goodsReceiptNotes.received_at));
 
 			// Fetch associated Invoices
 			const invoices = await db
 				.select()
 				.from(supplierInvoices)
-				.where(eq(supplierInvoices.purchase_id, input.id))
+				.where(eq(supplierInvoices.purchase_id, po.id))
 				.orderBy(desc(supplierInvoices.invoice_date));
 
 			// Fetch Payment Allocations
 			const paymentAllocations = await db
 				.select()
 				.from(supplierPaymentAllocations)
-				.where(eq(supplierPaymentAllocations.purchase_id, input.id))
+				.where(eq(supplierPaymentAllocations.purchase_id, po.id))
 				.orderBy(desc(supplierPaymentAllocations.payment_date));
 
 			// Fetch Exceptions
 			const exceptions = await db
 				.select()
 				.from(procurementExceptions)
-				.where(eq(procurementExceptions.purchase_id, input.id))
+				.where(eq(procurementExceptions.purchase_id, po.id))
 				.orderBy(desc(procurementExceptions.created_at));
 
 			return {
