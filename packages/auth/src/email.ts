@@ -19,6 +19,8 @@ export interface SendBrevoEmailParams {
 	name?: string;
 	subject: string;
 	html: string;
+	text?: string;
+	priority?: "high" | "normal" | "low";
 	senderName?: string;
 	senderEmail?: string;
 }
@@ -110,6 +112,8 @@ export async function sendBrevoEmail({
 	name,
 	subject,
 	html,
+	text,
+	priority = "high",
 	senderName,
 	senderEmail,
 }: SendBrevoEmailParams): Promise<{
@@ -123,6 +127,13 @@ export async function sendBrevoEmail({
 		email: senderEmail || defaultSender.email,
 	};
 	const normalizedTo = to.toLowerCase().trim();
+	const plainText =
+		text ||
+		html
+			.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+			.replace(/<[^>]+>/g, " ")
+			.replace(/\s+/g, " ")
+			.trim();
 
 	// 1. Try Brevo SMTP Relay (Nodemailer) if SMTP credentials or xsmtpsib- key present
 	const transporter = getSmtpTransporter();
@@ -132,7 +143,16 @@ export async function sendBrevoEmail({
 				from: `"${sender.name}" <${sender.email}>`,
 				to: name ? `"${name}" <${normalizedTo}>` : normalizedTo,
 				subject,
+				text: plainText,
 				html,
+				priority: priority === "high" ? "high" : "normal",
+				headers: {
+					"X-Priority": priority === "high" ? "1 (Highest)" : "3 (Normal)",
+					"X-MSMail-Priority": priority === "high" ? "High" : "Normal",
+					Importance: priority === "high" ? "High" : "Normal",
+					Priority: priority === "high" ? "urgent" : "normal",
+					"X-Entity-Ref-ID": `evaluna-auth-${Date.now()}`,
+				},
 			});
 			console.log(
 				`[Brevo SMTP Service] Email dispatched to ${normalizedTo} (messageId: ${info.messageId || "ok"})`,
@@ -167,6 +187,12 @@ export async function sendBrevoEmail({
 					],
 					subject,
 					htmlContent: html,
+					textContent: plainText,
+					headers: {
+						"X-Priority": priority === "high" ? "1" : "3",
+						"X-MSMail-Priority": priority === "high" ? "High" : "Normal",
+						Importance: priority === "high" ? "High" : "Normal",
+					},
 				}),
 			});
 
@@ -234,6 +260,8 @@ export async function sendVerificationEmailMessage({
 		</div>
 	`;
 
+	const plainText = `Hello ${recipientName},\n\nThank you for registering with Evaluna.\nPlease verify your email address by visiting this link:\n${url}\n\nThis verification link expires in 24 hours.\n\nEvaluna`;
+
 	const isConfigured = Boolean(
 		process.env.BREVO_SMTP_KEY ||
 			process.env.BREVO_SMTP_PASS ||
@@ -249,6 +277,8 @@ export async function sendVerificationEmailMessage({
 			name: recipientName,
 			subject: "Verify your email address - Evaluna",
 			html,
+			text: plainText,
+			priority: "high",
 		});
 
 		if (result.success) {
@@ -329,6 +359,8 @@ export async function sendOTPEmailMessage({
 		</div>
 	`;
 
+	const plainText = `Your Evaluna security code is: ${otp}\n\nUse this one-time code to complete your ${purposeLabel} request. This code will expire in 5 minutes.\n\nEvaluna Security`;
+
 	const isConfigured = Boolean(
 		process.env.BREVO_SMTP_KEY ||
 			process.env.BREVO_SMTP_PASS ||
@@ -344,6 +376,8 @@ export async function sendOTPEmailMessage({
 			name: recipientName,
 			subject,
 			html,
+			text: plainText,
+			priority: "high",
 		});
 
 		if (result.success) {
