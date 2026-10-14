@@ -7,13 +7,16 @@ import {
 	productCategories,
 	productCategoryMapping,
 	products,
+	roles,
 	staff,
 	stockAdjustments,
 	stockAuditItems,
 	stockAudits,
 	stockLedger,
+	user,
+	userRoles,
 } from "@/lib/db/schema";
-import { and, desc, eq, ilike, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, like, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 import { TRPCError } from "@trpc/server";
@@ -502,58 +505,109 @@ export const auditRouter = router({
 		.input(z.object({ branchId: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const conds = [];
-			if (input?.branchId) conds.push(eq(staff.branch_id, input.branchId));
 
-			// Strict Auditor role filtering: only staff assigned as auditors or quality auditors
-			conds.push(
-				or(
-					ilike(staff.role, "%auditor%"),
-					ilike(staff.role, "%audit%"),
-					ilike(staff.role, "%warehouse%"),
-					ilike(staff.role, "%loader%"),
-					ilike(staff.role, "%picker%"),
-					ilike(staff.department, "%audit%"),
-					ilike(staff.name, "%auditor%"),
-					ilike(staff.staff_code, "%aud%"),
+			// Strict auditor matching:
+			// 1. Linked user account has role 'auditor' in user_roles table
+			// 2. OR staff.role matches auditor/audit
+			// 3. OR staff.department matches audit
+			// 4. OR staff.name matches auditor
+			// 5. OR staff.staff_code matches aud
+			const auditorCriteria = or(
+				eq(roles.name, "auditor"),
+				ilike(staff.role, "%auditor%"),
+				ilike(staff.role, "%audit%"),
+				ilike(staff.department, "%audit%"),
+				ilike(staff.name, "%auditor%"),
+				ilike(staff.staff_code, "%aud%"),
+			);
+
+			// Strict exclusion: loaders, pickers, packers, drivers, and warehouse supervisors/managers
+			// must never be assigned as inventory auditors unless their user role is explicitly 'auditor'.
+			const excludeOperationalRoles = or(
+				eq(roles.name, "auditor"),
+				and(
+					not(ilike(staff.role, "%loader%")),
+					not(ilike(staff.role, "%picker%")),
+					not(ilike(staff.role, "%packer%")),
+					not(ilike(staff.role, "%driver%")),
+					not(ilike(staff.role, "%warehouse%")),
 				),
 			);
 
-			const members = await db
+			// Branch filtering: match branch or organization-level auditors (branch_id IS NULL)
+			const branchCond = input?.branchId
+				? or(
+						eq(staff.branch_id, input.branchId),
+						sql`${staff.branch_id} IS NULL`,
+					)
+				: undefined;
+
+			const rows = await db
 				.select({
 					id: staff.id,
 					name: staff.name,
 					staff_code: staff.staff_code,
 					email: staff.email,
-					role: staff.role,
+					staffRole: staff.role,
+					userRole: roles.name,
 					department: staff.department,
 					branch_id: staff.branch_id,
 				})
 				.from(staff)
-				.where(and(...conds))
+				.leftJoin(user, sql`lower(${user.email}) = lower(${staff.email})`)
+				.leftJoin(userRoles, eq(user.id, userRoles.user_id))
+				.leftJoin(roles, eq(userRoles.role_id, roles.id))
+				.where(
+					branchCond
+						? and(branchCond, auditorCriteria, excludeOperationalRoles)
+						: and(auditorCriteria, excludeOperationalRoles),
+				)
 				.limit(100);
 
-			// Fallback: If no dedicated auditor staff is configured yet in this branch, return members with auditor matching or active staff
-			if (members.length === 0) {
-				const fallbackMembers = await db
+			let selectedRows = rows;
+
+			// If no auditor is found for this branch, fallback to any authorized auditor in the organization
+			if (selectedRows.length === 0 && input?.branchId) {
+				selectedRows = await db
 					.select({
 						id: staff.id,
 						name: staff.name,
 						staff_code: staff.staff_code,
 						email: staff.email,
-						role: staff.role,
+						staffRole: staff.role,
+						userRole: roles.name,
 						department: staff.department,
 						branch_id: staff.branch_id,
 					})
 					.from(staff)
-					.where(
-						input?.branchId ? eq(staff.branch_id, input.branchId) : undefined,
-					)
+					.leftJoin(user, sql`lower(${user.email}) = lower(${staff.email})`)
+					.leftJoin(userRoles, eq(user.id, userRoles.user_id))
+					.leftJoin(roles, eq(userRoles.role_id, roles.id))
+					.where(and(auditorCriteria, excludeOperationalRoles))
 					.limit(50);
-				return fallbackMembers;
 			}
 
-			return members;
+			// Deduplicate staff records and normalize display role
+			const staffMap = new Map<number, any>();
+			for (const r of selectedRows) {
+				if (!staffMap.has(r.id)) {
+					const isAuditor =
+						r.userRole?.toLowerCase() === "auditor" ||
+						r.staffRole?.toLowerCase().includes("audit") ||
+						r.name?.toLowerCase().includes("auditor");
+					staffMap.set(r.id, {
+						id: r.id,
+						name: r.name,
+						staff_code: r.staff_code,
+						email: r.email,
+						role: isAuditor ? "auditor" : r.staffRole,
+						department: r.department,
+						branch_id: r.branch_id,
+					});
+				}
+			}
+
+			return Array.from(staffMap.values());
 		}),
 
 	// ── Warehouse Manager: Create Audit Plan with Frozen Stock Snapshots ─────

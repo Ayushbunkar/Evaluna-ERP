@@ -14,6 +14,8 @@ const auditTables = [
 	schema.branches,
 	schema.staff,
 	schema.user,
+	schema.roles,
+	schema.userRoles,
 	schema.products,
 	schema.productCategories,
 	schema.productCategoryMapping,
@@ -46,7 +48,7 @@ const warehouseManager = makeFinanceUser({
 const warehouseCounter = makeFinanceUser({
 	id: "wh-counter-1",
 	email: "counter@warehouse.com",
-	role: "loader",
+	role: "auditor",
 	branchId: 1,
 	permissions: ["inventory_audit.read", "inventory_audit.write"],
 });
@@ -94,15 +96,27 @@ describe("Complete Production-Level Inventory Audit & Stock Counting System", ()
 			.insert(schema.staff)
 			.values({
 				name: "Inventory Auditor Staff",
-				staff_code: "STF-002",
+				staff_code: "AUD-002",
 				email: "counter@warehouse.com",
-				role: "loader",
+				role: "auditor",
 				branch_id: testBranchId,
 				salary: "25000.00",
 				join_date: new Date(),
 			})
 			.returning();
 		counterStaffId = cntStaff.id;
+
+		await db
+			.insert(schema.staff)
+			.values({
+				name: "Quality Auditor Staff",
+				staff_code: "AUD-003",
+				email: "auditor2@warehouse.com",
+				role: "auditor",
+				branch_id: testBranchId,
+				salary: "28000.00",
+				join_date: new Date(),
+			});
 
 		// Seed Products
 		const [p1] = await db
