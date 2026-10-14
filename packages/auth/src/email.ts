@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+
 export interface SendVerificationEmailParams {
 	to: string;
 	name?: string;
@@ -22,17 +24,60 @@ export interface SendBrevoEmailParams {
 }
 
 /**
+ * Cached nodemailer transporter for Brevo SMTP.
+ */
+let cachedTransporter: nodemailer.Transporter | null = null;
+
+function getSmtpTransporter(): nodemailer.Transporter | null {
+	if (cachedTransporter) return cachedTransporter;
+
+	const host =
+		process.env.BREVO_SMTP_HOST ||
+		process.env.SMTP_HOST ||
+		"smtp-relay.brevo.com";
+	const port = Number(
+		process.env.BREVO_SMTP_PORT || process.env.SMTP_PORT || 587,
+	);
+	const user =
+		process.env.BREVO_SMTP_USER ||
+		process.env.SMTP_USER ||
+		"be16e8001@smtp-brevo.com";
+	const pass =
+		process.env.BREVO_SMTP_KEY ||
+		process.env.BREVO_SMTP_PASS ||
+		process.env.SMTP_PASS ||
+		process.env.SMTP_PASSWORD ||
+		(process.env.BREVO_API_KEY?.startsWith("xsmtpsib-")
+			? process.env.BREVO_API_KEY
+			: undefined);
+
+	if (!pass) return null;
+
+	cachedTransporter = nodemailer.createTransport({
+		host,
+		port,
+		secure: port === 465,
+		auth: {
+			user,
+			pass,
+		},
+	});
+
+	return cachedTransporter;
+}
+
+/**
  * Parses email sender strings like:
- * - "Evaluna ERP <no-reply@evaluna-erp.com>"
- * - "no-reply@evaluna-erp.com"
- * Falls back to BREVO_SENDER_NAME / BREVO_SENDER_EMAIL or defaults.
+ * - "Evaluna <rahul.singh151893@gmail.com>"
+ * - "rahul.singh151893@gmail.com"
+ * Falls back to BREVO_SENDER_NAME / BREVO_SENDER_EMAIL or verified defaults.
  */
 export function parseEmailSender(fromStr?: string): {
 	name: string;
 	email: string;
 } {
 	const fallbackEmail =
-		process.env.BREVO_SENDER_EMAIL || "auth@evaluna-erp.com";
+		process.env.BREVO_SENDER_EMAIL || "rahul.singh151893@gmail.com";
 	const fallbackName = process.env.BREVO_SENDER_NAME || "Evaluna ERP";
 
 	if (!fromStr?.trim()) {
@@ -57,8 +102,8 @@ export function parseEmailSender(fromStr?: string): {
 }
 
 /**
- * Dispatches an email via the Brevo (formerly Sendinblue) v3 Transactional Email API.
- * Free tier offers 300 emails/day with high inbox deliverability.
+ * Dispatches an email via Brevo SMTP Relay (Nodemailer) or Brevo v3 Transactional REST API.
+ * High deliverability, supports Brevo SMTP relay (smtp-relay.brevo.com:587) and REST API.
  */
 export async function sendBrevoEmail({
 	to,
@@ -72,60 +117,86 @@ export async function sendBrevoEmail({
 	messageId?: string;
 	error?: string;
 }> {
-	const apiKey = process.env.BREVO_API_KEY;
-	if (!apiKey) {
-		return { success: false, error: "BREVO_API_KEY_NOT_CONFIGURED" };
-	}
-
 	const defaultSender = parseEmailSender(process.env.EMAIL_FROM);
 	const sender = {
 		name: senderName || defaultSender.name,
 		email: senderEmail || defaultSender.email,
 	};
-
 	const normalizedTo = to.toLowerCase().trim();
 
-	try {
-		const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-			method: "POST",
-			headers: {
-				accept: "application/json",
-				"api-key": apiKey,
-				"content-type": "application/json",
-			},
-			body: JSON.stringify({
-				sender,
-				to: [
-					{
-						email: normalizedTo,
-						name: name || undefined,
-					},
-				],
+	// 1. Try Brevo SMTP Relay (Nodemailer) if SMTP credentials or xsmtpsib- key present
+	const transporter = getSmtpTransporter();
+	if (transporter) {
+		try {
+			const info = await transporter.sendMail({
+				from: `"${sender.name}" <${sender.email}>`,
+				to: name ? `"${name}" <${normalizedTo}>` : normalizedTo,
 				subject,
-				htmlContent: html,
-			}),
-		});
-
-		if (res.ok) {
-			const data = (await res.json().catch(() => ({}))) as {
-				messageId?: string;
-			};
+				html,
+			});
 			console.log(
-				`[Brevo Email Service] Email dispatched to ${normalizedTo} (messageId: ${data?.messageId || "ok"})`,
+				`[Brevo SMTP Service] Email dispatched to ${normalizedTo} (messageId: ${info.messageId || "ok"})`,
 			);
-			return { success: true, messageId: data?.messageId };
+			return { success: true, messageId: info.messageId };
+		} catch (smtpErr: unknown) {
+			const msg =
+				smtpErr instanceof Error ? smtpErr.message : "SMTP send failed";
+			console.error("[Brevo SMTP Service] Send error:", msg, smtpErr);
+			// If SMTP fails, fall through to REST API if an API key is available
 		}
-
-		const errText = await res.text();
-		console.error(
-			`[Brevo Email Service] API error (${res.status}): ${errText}`,
-		);
-		return { success: false, error: errText };
-	} catch (err: unknown) {
-		const message = err instanceof Error ? err.message : "Unknown error";
-		console.error("[Brevo Email Service] Dispatch exception:", err);
-		return { success: false, error: message };
 	}
+
+	// 2. Try Brevo REST API v3 (for xkeysib- API keys)
+	const apiKey = process.env.BREVO_API_KEY;
+	if (apiKey?.startsWith("xkeysib-")) {
+		try {
+			const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+				method: "POST",
+				headers: {
+					accept: "application/json",
+					"api-key": apiKey,
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({
+					sender,
+					to: [
+						{
+							email: normalizedTo,
+							name: name || undefined,
+						},
+					],
+					subject,
+					htmlContent: html,
+				}),
+			});
+
+			if (res.ok) {
+				const data = (await res.json().catch(() => ({}))) as {
+					messageId?: string;
+				};
+				console.log(
+					`[Brevo API Service] Email dispatched to ${normalizedTo} (messageId: ${data?.messageId || "ok"})`,
+				);
+				return { success: true, messageId: data?.messageId };
+			}
+
+			const errText = await res.text();
+			console.error(
+				`[Brevo API Service] API error (${res.status}): ${errText}`,
+			);
+			return { success: false, error: errText };
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "Unknown error";
+			console.error("[Brevo API Service] Dispatch exception:", err);
+			return { success: false, error: message };
+		}
+	}
+
+	if (!transporter && !apiKey) {
+		return { success: false, error: "BREVO_CREDENTIALS_NOT_CONFIGURED" };
+	}
+
+	return { success: false, error: "Failed to dispatch email via Brevo" };
 }
 
 /**
@@ -163,8 +234,16 @@ export async function sendVerificationEmailMessage({
 		</div>
 	`;
 
-	// 1. If BREVO_API_KEY is configured, dispatch genuine email via Brevo
-	if (process.env.BREVO_API_KEY) {
+	const isConfigured = Boolean(
+		process.env.BREVO_SMTP_KEY ||
+			process.env.BREVO_SMTP_PASS ||
+			process.env.BREVO_API_KEY ||
+			process.env.SMTP_PASS ||
+			process.env.SMTP_PASSWORD,
+	);
+
+	// 1. If Brevo credentials are configured, dispatch genuine email
+	if (isConfigured) {
 		const result = await sendBrevoEmail({
 			to: normalizedEmail,
 			name: recipientName,
@@ -191,7 +270,7 @@ export async function sendVerificationEmailMessage({
 	console.log("Token:", token);
 	console.log("Expires: 24 Hours");
 	console.log(
-		"Note: Set BREVO_API_KEY in environment to dispatch real external emails via Brevo.",
+		"Note: Set BREVO_SMTP_KEY or BREVO_API_KEY in environment to dispatch real external emails via Brevo.",
 	);
 	console.log(
 		"===============================================================================",
@@ -250,8 +329,16 @@ export async function sendOTPEmailMessage({
 		</div>
 	`;
 
-	// 1. If BREVO_API_KEY is configured, dispatch genuine email via Brevo
-	if (process.env.BREVO_API_KEY) {
+	const isConfigured = Boolean(
+		process.env.BREVO_SMTP_KEY ||
+			process.env.BREVO_SMTP_PASS ||
+			process.env.BREVO_API_KEY ||
+			process.env.SMTP_PASS ||
+			process.env.SMTP_PASSWORD,
+	);
+
+	// 1. If Brevo credentials are configured, dispatch genuine email
+	if (isConfigured) {
 		const result = await sendBrevoEmail({
 			to: normalizedEmail,
 			name: recipientName,
@@ -278,7 +365,7 @@ export async function sendOTPEmailMessage({
 	console.log("Purpose:", purposeLabel);
 	console.log("Expires: 5 Minutes (300 seconds)");
 	console.log(
-		"Note: Set BREVO_API_KEY in environment to dispatch real external emails via Brevo.",
+		"Note: Set BREVO_SMTP_KEY or BREVO_API_KEY in environment to dispatch real external emails via Brevo.",
 	);
 	console.log(
 		"===============================================================================",

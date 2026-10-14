@@ -15,12 +15,14 @@
 		"check-types": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@evaluna/db": "workspace:*",
 		"better-auth": "catalog:",
-		"zod": "catalog:",
-		"@evaluna/db": "workspace:*"
+		"nodemailer": "^10.1.1",
+		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@evaluna/config": "workspace:*",
+		"@types/nodemailer": "^8.0.2",
 		"typescript": "^5"
 	}
 }
