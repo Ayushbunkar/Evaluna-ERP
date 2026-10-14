@@ -272,6 +272,7 @@ export default function PurchaseOrderInspectionPage() {
 			const current = { ...updated[index], [field]: val };
 
 			const numReceived = Math.max(0, Number(current.receivedQuantity) || 0);
+			const numAccepted = Math.max(0, Number(current.acceptedQuantity) || 0);
 			const numRejected = Math.max(0, Number(current.rejectedQuantity) || 0);
 			const numDamaged = Math.max(0, Number(current.damagedQuantity) || 0);
 
@@ -282,13 +283,25 @@ export default function PurchaseOrderInspectionPage() {
 					numReceived - (numRejected + numDamaged),
 				);
 				current.isVerified = numReceived > 0;
-			} else if (field === "rejectedQuantity" || field === "damagedQuantity") {
-				current.acceptedQuantity = Math.max(
-					0,
-					numReceived - (numRejected + numDamaged),
-				);
 			} else if (field === "acceptedQuantity") {
-				current.acceptedQuantity = Math.max(0, Number(val) || 0);
+				current.acceptedQuantity = numAccepted;
+				// Total received automatically syncs to accepted + damaged + rejected
+				current.receivedQuantity = numAccepted + numDamaged + numRejected;
+				current.isVerified = current.receivedQuantity > 0;
+			} else if (field === "damagedQuantity" || field === "rejectedQuantity") {
+				current.damagedQuantity = numDamaged;
+				current.rejectedQuantity = numRejected;
+
+				const badTotal = numDamaged + numRejected;
+				// If total bad items plus currently accepted exceeds previous received,
+				// auto-expand received so acceptedQuantity is NOT wiped out to zero!
+				if (numReceived < numAccepted + badTotal) {
+					current.receivedQuantity = numAccepted + badTotal;
+				} else {
+					// Received count was high enough, calculate accepted as remainder
+					current.acceptedQuantity = Math.max(0, numReceived - badTotal);
+				}
+				current.isVerified = current.receivedQuantity > 0;
 			}
 
 			updated[index] = current;

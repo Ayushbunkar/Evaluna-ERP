@@ -142,17 +142,30 @@ export default function IncomingShipmentsPage() {
 			const updated = [...prev];
 			const current = { ...updated[index], [field]: val };
 
+			const numReceived = Math.max(0, Number(current.receivedQuantity) || 0);
+			const numAccepted = Math.max(0, Number(current.acceptedQuantity) || 0);
+			const numRejected = Math.max(0, Number(current.rejectedQuantity) || 0);
+			const numDamaged = Math.max(0, Number(current.damagedQuantity) || 0);
+
 			if (field === "receivedQuantity") {
-				current.acceptedQuantity =
-					val - (current.rejectedQuantity + current.damagedQuantity);
-			} else if (field === "rejectedQuantity" || field === "damagedQuantity") {
-				const sumBad =
-					Number(current.rejectedQuantity || 0) +
-					Number(current.damagedQuantity || 0);
+				current.receivedQuantity = numReceived;
 				current.acceptedQuantity = Math.max(
 					0,
-					current.receivedQuantity - sumBad,
+					numReceived - (numRejected + numDamaged),
 				);
+			} else if (field === "acceptedQuantity") {
+				current.acceptedQuantity = numAccepted;
+				current.receivedQuantity = numAccepted + numDamaged + numRejected;
+			} else if (field === "rejectedQuantity" || field === "damagedQuantity") {
+				current.damagedQuantity = numDamaged;
+				current.rejectedQuantity = numRejected;
+
+				const badTotal = numDamaged + numRejected;
+				if (numReceived < numAccepted + badTotal) {
+					current.receivedQuantity = numAccepted + badTotal;
+				} else {
+					current.acceptedQuantity = Math.max(0, numReceived - badTotal);
+				}
 			}
 
 			updated[index] = current;
