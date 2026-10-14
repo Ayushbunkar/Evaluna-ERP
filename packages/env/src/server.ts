@@ -14,6 +14,8 @@ export const env = createEnv({
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
+		GROQ_API_KEY: z.string().optional(),
+		GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
 	},
 	runtimeEnv: process.env,
 	emptyStringAsUndefined: true,

@@ -1,6 +1,8 @@
-import { chatMessages, chatSessions, products } from "@evaluna/db/schema";
-import { eq, ilike } from "drizzle-orm";
+import { chatMessages, chatSessions, customers } from "@evaluna/db/schema";
+import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { processCustomerSupportQuery } from "@/lib/ai/customer-support-agent";
+import { escalateChatSession, OFFICIAL_COMPANY_INFO } from "@/lib/ai/customer-support-data";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
@@ -11,11 +13,25 @@ export const chatbotRouter = router({
 				customerId: z.number().optional(),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ ctx, input }) => {
+			let customerId = input.customerId;
+
+			if (!customerId && ctx.user?.id) {
+				const [customer] = await db
+					.select({ id: customers.id })
+					.from(customers)
+					.where(eq(customers.user_uid, ctx.user.id))
+					.limit(1);
+				if (customer) {
+					customerId = customer.id;
+				}
+			}
+
 			const [newSession] = await db
 				.insert(chatSessions)
 				.values({
-					customer_id: input.customerId,
+					customer_id: customerId || null,
+					status: "active",
 				})
 				.returning({ id: chatSessions.id });
 
@@ -26,56 +42,120 @@ export const chatbotRouter = router({
 		.input(
 			z.object({
 				sessionId: z.number(),
-				content: z.string(),
+				content: z.string().min(1),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ ctx, input }) => {
 			const { sessionId, content } = input;
 
-			// 1. Insert user message
+			// 1. Fetch session to get customer_id
+			const [session] = await db
+				.select()
+				.from(chatSessions)
+				.where(eq(chatSessions.id, sessionId))
+				.limit(1);
+
+			// 2. Insert user message
 			await db.insert(chatMessages).values({
 				session_id: sessionId,
 				sender: "user",
 				content,
 			});
 
-			// 2. Simple Heuristic / Bot Logic
-			let botResponseContent = "I'm sorry, I couldn't understand that.";
-			let matchedProducts: any = null;
+			// 3. Fetch past messages for conversation context
+			const rawHistory = await db
+				.select({
+					sender: chatMessages.sender,
+					content: chatMessages.content,
+				})
+				.from(chatMessages)
+				.where(eq(chatMessages.session_id, sessionId))
+				.orderBy(asc(chatMessages.created_at))
+				.limit(10);
 
-			const lowerContent = content.toLowerCase();
+			const conversationHistory = rawHistory
+				.filter((m) => m.content && m.sender)
+				.map((m) => ({
+					sender: m.sender as string,
+					content: m.content as string,
+				}));
 
-			if (lowerContent.includes("help") || lowerContent.includes("menu")) {
-				botResponseContent =
-					"Hello! I can help you search for products. Try asking for an item.";
-			} else {
-				// Try to match a product search term. We'll just search using the content as the term.
-				const searchResults = await db
-					.select()
-					.from(products)
-					.where(ilike(products.name, `%${content}%`))
-					.limit(3);
+			// 4. Run Grounded Groq AI Agent
+			const agentResult = await processCustomerSupportQuery({
+				sessionId,
+				userUid: ctx.user.id,
+				userEmail: ctx.user.email,
+				userName: ctx.user.name,
+				userRole: (ctx.user as any)?.role,
+				customerId: session?.customer_id,
+				content,
+				conversationHistory,
+			});
 
-				if (searchResults.length > 0) {
-					botResponseContent = `I found some products matching "${content}":`;
-					matchedProducts = searchResults;
-				} else {
-					botResponseContent = `I couldn't find any products matching "${content}".`;
-				}
+			// 5. If escalated, update session status
+			if (agentResult.escalated && session?.status !== "escalated") {
+				await db
+					.update(chatSessions)
+					.set({ status: "escalated" })
+					.where(eq(chatSessions.id, sessionId));
 			}
 
-			// 3. Insert bot response
+			// 6. Insert bot response
 			const [botMessage] = await db
 				.insert(chatMessages)
 				.values({
 					session_id: sessionId,
 					sender: "bot",
-					content: botResponseContent,
-					metadata: matchedProducts ? { products: matchedProducts } : null,
+					content: agentResult.text,
+					metadata: {
+						model: agentResult.modelUsed,
+						escalated: agentResult.escalated || false,
+						...agentResult.metadata,
+					},
 				})
 				.returning();
 
 			return botMessage;
+		}),
+
+	escalate: protectedProcedure
+		.input(
+			z.object({
+				sessionId: z.number(),
+				reason: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			const { ticketId } = await escalateChatSession(
+				input.sessionId,
+				input.reason,
+			);
+
+			const confirmationContent = `A support escalation request has been submitted.
+• **Ticket ID:** ${ticketId}
+• **Direct Support Line:** ${OFFICIAL_COMPANY_INFO.phone}
+• **Emergency Ext:** ${OFFICIAL_COMPANY_INFO.phoneExtensions}
+• **Email:** ${OFFICIAL_COMPANY_INFO.email}
+
+A customer support executive has been notified and will review your account details shortly.`;
+
+			const [botMessage] = await db
+				.insert(chatMessages)
+				.values({
+					session_id: input.sessionId,
+					sender: "bot",
+					content: confirmationContent,
+					metadata: {
+						ticketId,
+						escalated: true,
+					},
+				})
+				.returning();
+
+			return {
+				ticketId,
+				message: botMessage,
+			};
 		}),
 
 	getHistory: protectedProcedure
@@ -89,6 +169,6 @@ export const chatbotRouter = router({
 				.select()
 				.from(chatMessages)
 				.where(eq(chatMessages.session_id, input.sessionId))
-				.orderBy(chatMessages.created_at);
+				.orderBy(asc(chatMessages.created_at));
 		}),
 });
