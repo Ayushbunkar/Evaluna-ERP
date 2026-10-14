@@ -201,9 +201,9 @@ export function ChatWidget() {
 						</div>
 
 						{/* Sub-banner disclaimer */}
-						<div className="flex items-center justify-between bg-muted/60 px-3 py-1.5 text-[11px] text-muted-foreground border-b">
-							<span className="flex items-center gap-1">
-								<Sparkles className="h-3 w-3 text-primary" /> Powered by Groq AI • Live DB Grounded
+						<div className="flex items-center justify-between border-b bg-muted/60 px-3 py-1.5 text-[11px] text-muted-foreground">
+							<span className="flex items-center gap-1.5">
+								<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> 24/7 Verified Support
 							</span>
 							<button
 								onClick={handleEscalate}
