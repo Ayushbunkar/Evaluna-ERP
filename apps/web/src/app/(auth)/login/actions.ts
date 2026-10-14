@@ -533,7 +533,7 @@ export async function sendTwoFactorOTPAction(email: string) {
 			expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
 		});
 
-		// Send email via Resend / development fallback
+		// Send email via Brevo / development fallback
 		await sendOTPEmailMessage({
 			to: normalizedEmail,
 			name: user.name,

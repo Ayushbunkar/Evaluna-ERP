@@ -151,4 +151,22 @@ describe("Strict Authentication & Email Verification Architecture", () => {
 			expect(field in filtered).toBe(false);
 		}
 	});
+
+	it("should parse Brevo email sender accurately", async () => {
+		const { parseEmailSender } = await import(
+			"../../../../../packages/auth/src/email"
+		);
+
+		const parsed1 = parseEmailSender("Evaluna ERP <no-reply@evaluna-erp.com>");
+		expect(parsed1.name).toBe("Evaluna ERP");
+		expect(parsed1.email).toBe("no-reply@evaluna-erp.com");
+
+		const parsed2 = parseEmailSender("no-reply@evaluna-erp.com");
+		expect(parsed2.name).toBe("Evaluna ERP");
+		expect(parsed2.email).toBe("no-reply@evaluna-erp.com");
+
+		const parsedDefault = parseEmailSender("");
+		expect(parsedDefault.name).toBe("Evaluna ERP");
+		expect(parsedDefault.email).toBeDefined();
+	});
 });

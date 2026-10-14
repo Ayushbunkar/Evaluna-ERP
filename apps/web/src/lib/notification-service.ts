@@ -5,6 +5,7 @@
  * by business events (sales, purchases, low stock, etc.).
  */
 
+import { sendBrevoEmail } from "@evaluna/auth/email";
 import { notificationQueue, notifications } from "@evaluna/db/schema";
 import { and, eq, lt, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -121,9 +122,28 @@ async function dispatchEmail(
 	subject: string,
 	body: string,
 ): Promise<void> {
-	// Stub: integrate with Resend / SendGrid / Nodemailer
 	console.log(`[EMAIL → ${recipient}] Subject: ${subject}\n${body}`);
-	// await resend.emails.send({ from: 'noreply@evaluna.app', to: recipient, subject, html: body });
+
+	if (process.env.BREVO_API_KEY) {
+		const html = `
+			<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
+				<div style="margin-bottom: 16px;">
+					<h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0;">Evaluna ERP</h2>
+				</div>
+				<h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin-top: 16px;">${subject}</h3>
+				<div style="font-size: 14px; line-height: 1.6; color: #334155; margin-top: 12px; white-space: pre-wrap;">${body}</div>
+				<div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8;">
+					Evaluna ERP Automated Notification Service
+				</div>
+			</div>
+		`;
+
+		await sendBrevoEmail({
+			to: recipient,
+			subject,
+			html,
+		});
+	}
 }
 
 async function dispatchSMS(recipient: string, body: string): Promise<void> {
@@ -328,11 +348,15 @@ export async function notifyCustomerOrderPlaced(opts: {
 	// If specific staffId not passed, target all sales / manager staff
 	let targetStaffIds: number[] = opts.staffId ? [opts.staffId] : [];
 	if (targetStaffIds.length === 0) {
-		const salesStaff = await db.select({ id: staff.id, role: staff.role }).from(staff);
+		const salesStaff = await db
+			.select({ id: staff.id, role: staff.role })
+			.from(staff);
 		targetStaffIds = salesStaff
 			.filter((s) => {
 				const r = (s.role || "").toLowerCase();
-				return r.includes("sales") || r.includes("manager") || r.includes("admin");
+				return (
+					r.includes("sales") || r.includes("manager") || r.includes("admin")
+				);
 			})
 			.map((s) => s.id);
 	}
@@ -381,7 +405,11 @@ export async function notifyOrderCreated(opts: {
 		referenceType: "orders",
 		referenceId: opts.orderId,
 		channels: ["in_app"],
-		metadata: { order_id: opts.orderId, customer_name: opts.customerName, flow_event: "order_created" },
+		metadata: {
+			order_id: opts.orderId,
+			customer_name: opts.customerName,
+			flow_event: "order_created",
+		},
 	});
 }
 
@@ -405,7 +433,11 @@ export async function notifyPickComplete(opts: {
 		referenceType: "orders",
 		referenceId: opts.orderId,
 		channels: ["in_app"],
-		metadata: { order_id: opts.orderId, customer_name: opts.customerName, flow_event: "pick_complete" },
+		metadata: {
+			order_id: opts.orderId,
+			customer_name: opts.customerName,
+			flow_event: "pick_complete",
+		},
 	});
 }
 
@@ -462,7 +494,12 @@ export async function notifyTripAssigned(opts: {
 		referenceType: "trips",
 		referenceId: opts.tripId,
 		channels: ["in_app"],
-		metadata: { trip_id: opts.tripId, driver_name: opts.driverName, stops_count: opts.stopsCount, flow_event: "trip_assigned" },
+		metadata: {
+			trip_id: opts.tripId,
+			driver_name: opts.driverName,
+			stops_count: opts.stopsCount,
+			flow_event: "trip_assigned",
+		},
 	});
 }
 
@@ -562,7 +599,12 @@ export async function notifyTripCompleted(opts: {
 		referenceType: "trips",
 		referenceId: opts.tripId,
 		channels: ["in_app"],
-		metadata: { trip_id: opts.tripId, driver_name: opts.driverName, total_collected: opts.totalCollected, flow_event: "trip_completed" },
+		metadata: {
+			trip_id: opts.tripId,
+			driver_name: opts.driverName,
+			total_collected: opts.totalCollected,
+			flow_event: "trip_completed",
+		},
 	});
 }
 
