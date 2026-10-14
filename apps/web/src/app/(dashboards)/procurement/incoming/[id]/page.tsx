@@ -144,6 +144,7 @@ export default function PurchaseOrderInspectionPage() {
 			setSelectedSupplierId(po.supplier_id ? String(po.supplier_id) : "");
 
 			if (po.items && po.items.length > 0) {
+				const isAlreadyReceived = po.receiving_status === "received";
 				const initialItems: ReceivingLineItem[] = po.items.map((it: any) => {
 					const qty = Number(it.quantity) || 0;
 					const price = Number(it.price) || 0;
@@ -154,14 +155,14 @@ export default function PurchaseOrderInspectionPage() {
 						productName: it.product_name || "Unnamed Product",
 						productSku: it.product_sku || "N/A",
 						orderedQuantity: qty,
-						receivedQuantity: qty,
-						acceptedQuantity: qty,
+						receivedQuantity: isAlreadyReceived ? qty : 0,
+						acceptedQuantity: isAlreadyReceived ? qty : 0,
 						rejectedQuantity: 0,
 						damagedQuantity: 0,
 						unitCost: price,
 						batchNumber: `B-${Date.now().toString().slice(-4)}`,
-						inspectionNotes: "Inspected & in good condition",
-						isVerified: true,
+						inspectionNotes: isAlreadyReceived ? "Inspected & in good condition" : "",
+						isVerified: isAlreadyReceived,
 						isExtraItem: false,
 					};
 				});
@@ -719,7 +720,23 @@ export default function PurchaseOrderInspectionPage() {
 							<Table>
 								<TableHeader className="bg-muted/40">
 									<TableRow>
-										<TableHead className="w-12 text-center">Verify</TableHead>
+										<TableHead className="w-12 text-center">
+											<div className="flex items-center justify-center">
+												<Checkbox
+													checked={
+														lineItems.length > 0 &&
+														lineItems.every((it) => it.isVerified)
+													}
+													onCheckedChange={(checked) =>
+														handleMarkAllVerified(Boolean(checked))
+													}
+													disabled={isCompleted || lineItems.length === 0}
+													title="Tick / Untick All Items"
+													aria-label="Tick All Items"
+													className="h-4 w-4 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
+												/>
+											</div>
+										</TableHead>
 										<TableHead className="min-w-[180px]">
 											Product / SKU
 										</TableHead>
