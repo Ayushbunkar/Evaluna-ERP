@@ -15,7 +15,7 @@ import {
 	pickLists,
 	products,
 } from "@evaluna/db/schema";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 
 export interface AuthenticCustomerContext {
@@ -79,13 +79,12 @@ export const OFFICIAL_COMPANY_INFO = {
 			"Credit accounts have standard net-30 terms. Outstanding balances can be verified under Finance or with your assigned account manager.",
 	},
 	navigationGuide: {
-		viewOrders: "/sales/orders",
-		placeOrder: "/sales/pos or /sales/orders",
-		invoicesAndBilling: "/finance or /invoices",
-		warehouseReceiving: "/procurement/incoming",
-		stockAudit: "/warehouse/audit-assignments",
-		driverTracking: "/driver",
-		contactUs: "/contact",
+		viewOrders: "Dashboard > Orders tab",
+		placeOrder: "Dashboard > Products tab",
+		invoicesAndBilling: "Dashboard > Payments tab",
+		profile: "Dashboard > Profile tab",
+		contactPhone: "+91 96306 49277",
+		contactEmail: "support@evaluna.com",
 	},
 };
 
@@ -106,7 +105,7 @@ export async function fetchCustomerAuthContext(
 		if (found) customerRecord = found;
 	}
 
-	if (!customerRecord) {
+	if (!customerRecord && userUid) {
 		const [foundByUser] = await db
 			.select()
 			.from(customers)
@@ -124,18 +123,28 @@ export async function fetchCustomerAuthContext(
 		if (foundByEmail) customerRecord = foundByEmail;
 	}
 
-	// 2. Fetch Recent Orders if customer exists
+	// 2. Fetch Recent Orders for this specific customer
 	let recentOrdersData: AuthenticCustomerContext["recentOrders"] = [];
 
-	if (customerRecord) {
-		const orderRecords = await db
-			.select()
-			.from(orders)
-			.where(eq(orders.customer_id, customerRecord.id))
-			.orderBy(desc(orders.created_at))
-			.limit(5);
+	const conditions = [];
+	if (customerRecord?.id) {
+		conditions.push(eq(orders.customer_id, customerRecord.id));
+	}
+	if (userUid) {
+		conditions.push(eq(orders.user_uid, userUid));
+	}
 
-		if (orderRecords.length > 0) {
+	const orderRecords =
+		conditions.length > 0
+			? await db
+					.select()
+					.from(orders)
+					.where(or(...conditions))
+					.orderBy(desc(orders.created_at))
+					.limit(5)
+			: [];
+
+	if (orderRecords.length > 0) {
 			const orderIds = orderRecords.map((o) => o.id);
 
 			// Fetch items
@@ -221,7 +230,6 @@ export async function fetchCustomerAuthContext(
 				};
 			});
 		}
-	}
 
 	return {
 		customer: customerRecord

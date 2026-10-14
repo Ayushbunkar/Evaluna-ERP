@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { processCustomerSupportQuery } from "../ai/customer-support-agent";
 import { OFFICIAL_COMPANY_INFO } from "../ai/customer-support-data";
-import { generateGroqCompletion } from "../ai/groq";
 
 describe("Customer Support AI - Grounded Agent & Configuration", () => {
 	it("should have verified official company contact information", () => {
@@ -22,11 +21,30 @@ describe("Customer Support AI - Grounded Agent & Configuration", () => {
 
 		expect(response.text).toBeDefined();
 		expect(response.text.length).toBeGreaterThan(10);
-		// Must reference authentic phone or email or hours
 		expect(
 			response.text.includes("+91 96306 49277") ||
 				response.text.includes("support@evaluna.com") ||
 				response.text.includes("Evaluna"),
+		).toBe(true);
+	});
+
+	it("should guide payment inquiries to Payments tab and NOT show /finance slash route", async () => {
+		const response = await processCustomerSupportQuery({
+			sessionId: 999,
+			userUid: "test-user-123",
+			userName: "Test Customer",
+			content: "Check my payment status and invoices",
+			conversationHistory: [],
+		});
+
+		expect(response.text).toBeDefined();
+		// Must NOT expose internal /finance URL
+		expect(response.text.includes("/finance")).toBe(false);
+		// Must direct to Payments tab or mention call/email support
+		expect(
+			response.text.toLowerCase().includes("payment") ||
+				response.text.toLowerCase().includes("call") ||
+				response.text.includes("+91 96306 49277"),
 		).toBe(true);
 	});
 
@@ -40,11 +58,13 @@ describe("Customer Support AI - Grounded Agent & Configuration", () => {
 		});
 
 		expect(response.text).toBeDefined();
-		// Should either say order not found or instruct how to check orders
+		// Must NOT expose internal /sales/orders URL
+		expect(response.text.includes("/sales/orders")).toBe(false);
 		expect(
 			response.text.toLowerCase().includes("order") ||
 				response.text.toLowerCase().includes("not find") ||
-				response.text.toLowerCase().includes("active"),
+				response.text.toLowerCase().includes("active") ||
+				response.text.toLowerCase().includes("darj"),
 		).toBe(true);
 	});
 

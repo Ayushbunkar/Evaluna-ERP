@@ -1,6 +1,7 @@
 /**
  * Customer Support AI Agent Orchestrator
  * Integrates Groq LLM inference with authoritative ERP database context.
+ * Strict customer-facing terminology: no internal slash routes or operational department leaks.
  */
 
 import {
@@ -38,7 +39,7 @@ export async function processCustomerSupportQuery({
 	content,
 	conversationHistory = [],
 }: AgentRunParams): Promise<AgentResponse> {
-	// 1. Fetch real context from DB
+	// 1. Fetch real context from DB for this authenticated customer
 	const context: AuthenticCustomerContext = await fetchCustomerAuthContext(
 		userUid,
 		userEmail,
@@ -54,9 +55,9 @@ export async function processCustomerSupportQuery({
 							.map((i) => `${i.name} (Qty: ${i.quantity}, Price: ₹${i.price})`)
 							.join(", ");
 						const f = o.fulfillment;
-						return `- Order #${o.orderId}: Date: ${o.date}, Status: ${o.status}, Total: ₹${o.totalAmount}, Finance: ${o.financeStatus}, Delivery Estimated: ${o.deliveryTime || "Pending schedule"}.
+						return `- Order #${o.orderId}: Date: ${o.date}, Status: ${o.status}, Total: ₹${o.totalAmount}, Payment/Finance: ${o.financeStatus || "Pending"}, Expected Delivery: ${o.deliveryTime || "Scheduled soon"}.
    Items: [${itemsStr}]
-   Fulfillment: Picking: ${f.pickingStatus || "Not started"}, Packages: ${f.packages.length > 0 ? f.packages.map((p) => `${p.packageNumber} (${p.status})`).join(", ") : "None"}, Trip: ${f.deliveryTripStatus || "Not dispatched"}${f.dispatchedAt ? ` (Dispatched: ${f.dispatchedAt})` : ""}`;
+   Fulfillment Stage: ${f.stopStatus || f.deliveryTripStatus || f.pickingStatus || "In processing"}${f.dispatchedAt ? ` (Dispatched on ${f.dispatchedAt})` : ""}`;
 					})
 					.join("\n")
 			: "No orders found in database for this customer.";
@@ -65,49 +66,40 @@ export async function processCustomerSupportQuery({
 		? `Customer Name: ${context.customer.name} (ID: ${context.customer.id})
 Email: ${context.customer.email || "N/A"}, Phone: ${context.customer.phone || "N/A"}
 Loyalty Tier: ${context.customer.loyaltyTier || "Bronze"} (${context.customer.loyaltyPoints || 0} pts)
-Credit Balance: Limit ₹${context.customer.creditLimit || 0}, Used ₹${context.customer.creditUsed || 0}, Store Credit ₹${context.customer.storeCredit || 0}`
-		: `User Name: ${userName || "Valued User"} (Role: ${userRole || "User"})
-No linked customer account profile yet.`;
+Store Credit Balance: ₹${context.customer.storeCredit || 0}
+Credit Limit: ₹${context.customer.creditLimit || 0}, Credit Used: ₹${context.customer.creditUsed || 0}`
+		: `User: ${userName || "Customer"} (User ID: ${userUid})
+No separate customer profile record linked yet.`;
 
-	const systemPrompt = `You are the official Evaluna ERP AI Customer Support Assistant.
-You assist customers and users with tracking orders, delivery updates, payments, dashboard navigation, and company policies.
+	const systemPrompt = `You are the official Evaluna Customer Support Assistant on the Customer Portal.
+You assist customers with tracking their orders, payment information, delivery updates, and using their dashboard.
 
-=== STRICT FACTUAL GROUNDING RULES ===
-1. You MUST ONLY use the real database data provided in the CURRENT CONTEXT below.
-2. NEVER invent, fabricate, or hallucinate order numbers, dates, prices, delivery agents, or tracking numbers.
-3. If the user asks about an order number not listed in their context, tell them honestly: "I could not find Order #... under your account. Your recent orders are: ...".
-4. If the user asks for company contact information, provide ONLY the official contact info listed below.
-5. Language: You understand and reply in English, Hindi (हिन्दी), or natural conversational Hinglish depending on what the user speaks.
-6. Tone: Courteous, professional, empathetic, and clear. Use bullet points and bold highlights for readability.
-7. Escalation: If the customer is deeply dissatisfied, requests a human manager, or reports damaged goods, inform them:
-   - Our customer helpline: ${OFFICIAL_COMPANY_INFO.phone} (${OFFICIAL_COMPANY_INFO.phoneExtensions})
-   - Email: ${OFFICIAL_COMPANY_INFO.email}
-   - Offer to log a support escalation ticket.
+=== CRITICAL CUSTOMER-FACING RULES ===
+1. NEVER output technical URL slash paths (DO NOT say "/finance", "/sales/orders", "/sales/pos", etc.).
+2. DO NOT mention internal staff departments like "Finance Department", "Sales Department", or "Procurement System".
+3. To guide customers around their dashboard, ALWAYS use their Customer Portal navigation menu tabs:
+   - For bills, payments, and invoices: "Go to the **Payments** tab in your dashboard menu".
+   - For order status, item details, and live delivery: "Go to the **Orders** tab in your dashboard menu".
+   - For browsing items and placing new orders: "Go to the **Products** tab in your dashboard menu".
+   - For updating profile/address: "Go to the **Profile** tab in your dashboard menu".
+4. ALWAYS check the customer's specific orders first!
+   - Every customer has their own individual orders, amounts, and statuses.
+   - When asked about payments, bills, or order status, directly cite their actual Order ID, Date, Amount (in ₹), and Status from the context below.
+   - If they have no orders, state clearly: "Aapke account me abhi koi active order darj nahi hai."
+5. For payment and account support:
+   - Provide direct contact: Call **${OFFICIAL_COMPANY_INFO.phone}** or Email **${OFFICIAL_COMPANY_INFO.email}**.
+6. Language: You understand and reply in English, Hindi (हिन्दी), or natural conversational Hinglish depending on what the user speaks.
+7. Tone: Helpful, empathetic, accurate, and concise. Use bold text and bullet points.
 
 === OFFICIAL COMPANY CONTACT ===
-Company: ${OFFICIAL_COMPANY_INFO.companyName}
 Phone: ${OFFICIAL_COMPANY_INFO.phone} (${OFFICIAL_COMPANY_INFO.phoneExtensions})
 Email: ${OFFICIAL_COMPANY_INFO.email}
 Support Hours: ${OFFICIAL_COMPANY_INFO.operatingHours}
-Address: ${OFFICIAL_COMPANY_INFO.headquarters}
 
-=== POLICIES ===
-Cancellation: ${OFFICIAL_COMPANY_INFO.policies.cancellation}
-Returns: ${OFFICIAL_COMPANY_INFO.policies.returns}
-Credit Payments: ${OFFICIAL_COMPANY_INFO.policies.creditPayment}
-
-=== DASHBOARD NAVIGATION LINKS ===
-- View / Manage Orders: /sales/orders
-- Place New Order / POS: /sales/pos
-- Invoices & Billing: /finance
-- Warehouse Receiving (GRN): /procurement/incoming
-- Live Driver Route: /driver
-- Contact Helpdesk: /contact
-
-=== AUTHENTIC DATABASE CONTEXT ===
+=== AUTHENTIC DATABASE CONTEXT FOR THIS USER ===
 ${customerSummary}
 
-Recent Orders in System:
+Recent Orders for this Account:
 ${ordersContextStr}
 `;
 
@@ -162,24 +154,53 @@ ${ordersContextStr}
 	} catch (error: any) {
 		console.error("Groq AI Inference error, generating deterministic fallback:", error);
 
-		// Deterministic factual fallback if Groq network/limit is hit
+		// Grounded deterministic fallback tailored to this specific customer
 		let fallbackText = "";
 
-		if (lowerQuery.includes("order") || lowerQuery.includes("track")) {
+		if (
+			lowerQuery.includes("payment") ||
+			lowerQuery.includes("credit") ||
+			lowerQuery.includes("invoice") ||
+			lowerQuery.includes("bill") ||
+			lowerQuery.includes("paisa")
+		) {
 			if (context.recentOrders.length > 0) {
 				const latest = context.recentOrders[0];
-				fallbackText = `Here is your most recent order details from our database:
+				fallbackText = `Aapke account me order aur payment ka taja vivaran yeh hai:
 • **Order ID:** #${latest.orderId}
-• **Date:** ${latest.date}
+• **Tarikh:** ${latest.date}
+• **Total Rashi:** ₹${latest.totalAmount}
+• **Payment Status:** ${latest.financeStatus || "Pending"}
+• **Order Status:** ${latest.status.toUpperCase()}
+
+Aap apne sabhi bills aur payment receipts dekhne ke liye apne dashboard me **Payments** tab par ja sakte hain.
+Kisi bhi sahayata ke liye aap humare support number **${OFFICIAL_COMPANY_INFO.phone}** par call ya **${OFFICIAL_COMPANY_INFO.email}** par email kar sakte hain.`;
+			} else if (context.customer) {
+				fallbackText = `Aapke account me abhi koi pending bill darj nahi hai.
+• **Store Credit:** ₹${context.customer.storeCredit || "0"}
+• **Credit Limit:** ₹${context.customer.creditLimit || "0"}
+• **Loyalty Points:** ${context.customer.loyaltyPoints || 0} (${context.customer.loyaltyTier || "Bronze"})
+
+Aap apne dashboard me **Payments** tab par jakar purani payment history dekh sakte hain ya support team se **${OFFICIAL_COMPANY_INFO.phone}** par sampark kar sakte hain.`;
+			} else {
+				fallbackText = `Apne invoices aur payment details dekhne ke liye kripya apne dashboard me **Payments** tab par jayein.
+Aap humari billing aur support team se **${OFFICIAL_COMPANY_INFO.phone}** par call ya **${OFFICIAL_COMPANY_INFO.email}** par email dwara sampark kar sakte hain.`;
+			}
+		} else if (lowerQuery.includes("order") || lowerQuery.includes("track")) {
+			if (context.recentOrders.length > 0) {
+				const latest = context.recentOrders[0];
+				fallbackText = `Aapke order ka live update:
+• **Order ID:** #${latest.orderId}
+• **Tarikh:** ${latest.date}
 • **Status:** ${latest.status.toUpperCase()}
 • **Total Amount:** ₹${latest.totalAmount}
-• **Fulfillment Stage:** ${latest.fulfillment.stopStatus || latest.fulfillment.deliveryTripStatus || latest.fulfillment.pickingStatus || "In processing"}
-• **Expected Delivery:** ${latest.deliveryTime || "Scheduled soon"}
+• **Delivery Stage:** ${latest.fulfillment.stopStatus || latest.fulfillment.deliveryTripStatus || latest.fulfillment.pickingStatus || "Pratiksharat (Processing)"}
+• **Expected Delivery:** ${latest.deliveryTime || "Jald tay hogi"}
 
-You can view full details in your dashboard at **/sales/orders**.`;
+Puri detail aur item list dekhne ke liye apne dashboard me **Orders** tab par jayein.`;
 			} else {
 				fallbackText =
-					"You currently do not have any active orders in the system. You can place a new order at **/sales/pos** or browse products.";
+					"Aapke account me abhi koi active order darj nahi hai. Naya order place karne ke liye apne dashboard me **Products** tab par jayein.";
 			}
 		} else if (
 			lowerQuery.includes("contact") ||
@@ -187,35 +208,26 @@ You can view full details in your dashboard at **/sales/orders**.`;
 			lowerQuery.includes("email") ||
 			lowerQuery.includes("support")
 		) {
-			fallbackText = `You can reach our official customer support team directly:
+			fallbackText = `Aap humari customer support team se sidhe sampark kar sakte hain:
 • **Phone:** ${OFFICIAL_COMPANY_INFO.phone} (${OFFICIAL_COMPANY_INFO.phoneExtensions})
 • **Email:** ${OFFICIAL_COMPANY_INFO.email}
-• **Hours:** ${OFFICIAL_COMPANY_INFO.operatingHours}
-• **Office:** ${OFFICIAL_COMPANY_INFO.headquarters}`;
-		} else if (lowerQuery.includes("payment") || lowerQuery.includes("credit")) {
-			fallbackText = context.customer
-				? `Here is your current credit and payment balance:
-• **Credit Limit:** ₹${context.customer.creditLimit || "0"}
-• **Credit Used:** ₹${context.customer.creditUsed || "0"}
-• **Store Credit:** ₹${context.customer.storeCredit || "0"}
-• **Loyalty Tier:** ${context.customer.loyaltyTier || "Bronze"} (${context.customer.loyaltyPoints || 0} Points)
+• **Samay:** ${OFFICIAL_COMPANY_INFO.operatingHours}
 
-To view all invoices and payment receipts, please visit the **/finance** section.`
-				: `To check your invoices and payments, please visit the **/finance** section or contact our billing team at ${OFFICIAL_COMPANY_INFO.email}.`;
+Hum aapki sahayata ke liye sadaiv tatpar hain!`;
 		} else {
-			fallbackText = `Hello! I am your Evaluna Support Assistant. I can help you:
-• **Track your orders:** Ask "Where is my order?"
-• **Delivery updates:** Ask "When will my order arrive?"
-• **Payment & Credit info:** Ask "Check my payment status"
-• **Help with navigation:** Ask "How do I place an order?"
-• **Direct Support:** Call us at **${OFFICIAL_COMPANY_INFO.phone}**
+			fallbackText = `Namaste! Main aapka Evaluna Customer Support Assistant hoon.
+Main aapke account ke anusaar sahayata kar sakta hoon:
+• **Order Status:** "Mera order kahan hai?"
+• **Payment & Bills:** "Payment status check karein" (Aapke dashboard ke **Payments** tab me bhi upalabdha hai)
+• **Naya Order:** Dashboard ke **Products** tab me jayein
+• **Direct Support:** Hume call karein **${OFFICIAL_COMPANY_INFO.phone}** par
 
-How can I help you right now?`;
+Bataiye, main aapki kya madad kar sakta hoon?`;
 		}
 
 		return {
 			text: fallbackText,
-			modelUsed: "evaluna-grounded-fallback",
+			modelUsed: "evaluna-customer-grounded-fallback",
 			escalated: isEscalationRequest,
 			metadata: {
 				fallback: true,
