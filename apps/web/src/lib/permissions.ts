@@ -459,20 +459,19 @@ export function generateRolePermissionSeeds(): Array<{
 }
 
 // ── Route Permission Map ──────────────────────────────────────────────────────
-// Maps URL path prefixes to the minimum role allowed.
-// Used by middleware.ts for coarse-grained route protection.
+// Maps URL path prefixes to the minimum role allowed (legacy).
 export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	// Shared Routes
-	{ path: "/settings", minRole: "sales_person" }, // Fine-grained inside
+	{ path: "/settings", minRole: "sales_person" },
 	{ path: "/profile", minRole: "sales_person" },
 	{ path: "/notifications", minRole: "sales_person" },
-	{ path: "/attendance", minRole: "sales_person" }, // self-service; all staff, not customers
+	{ path: "/attendance", minRole: "sales_person" },
 	{ path: "/sync", minRole: "sales_person" },
 
 	// Role Dashboards
 	{ path: "/superadmin", minRole: "super_admin" },
 	{ path: "/admin/companies", minRole: "super_admin" },
-	{ path: "/admin", minRole: "admin" }, // Note: Both super_admin (0) and admin (1) can access the /admin prefix
+	{ path: "/admin", minRole: "admin" },
 	{ path: "/manager", minRole: "manager" },
 	{ path: "/executive", minRole: "manager" },
 	{ path: "/route-manager", minRole: "manager" },
@@ -497,3 +496,305 @@ export const ROUTE_ROLE_MAP: Array<{ path: string; minRole: Role }> = [
 	{ path: "/biller", minRole: "sales_person" },
 	{ path: "/customer", minRole: "customer" },
 ];
+
+/**
+ * Enterprise Strict RBAC Dashboard Route Access Matrix
+ * Each route prefix specifies the EXACT list of roles authorized to access it.
+ * Cross-dashboard leakage between independent operational departments (e.g. Finance -> HR, Warehouse, Picker)
+ * is strictly forbidden.
+ */
+export const DASHBOARD_ROUTE_PERMISSIONS: Array<{
+	path: string;
+	allowedRoles: Role[];
+}> = [
+	// Super Admin exclusive
+	{ path: "/superadmin", allowedRoles: ["super_admin"] },
+	{ path: "/admin/companies", allowedRoles: ["super_admin"] },
+
+	// Admin management
+	{ path: "/admin", allowedRoles: ["super_admin", "admin"] },
+
+	// Operations Management
+	{ path: "/manager", allowedRoles: ["super_admin", "admin", "manager"] },
+	{ path: "/executive", allowedRoles: ["super_admin", "admin", "manager"] },
+	{ path: "/route-manager", allowedRoles: ["super_admin", "admin", "manager"] },
+	{ path: "/staff", allowedRoles: ["super_admin", "admin", "manager", "hr"] },
+
+	// Auditor
+	{ path: "/auditor", allowedRoles: ["super_admin", "admin", "auditor"] },
+
+	// Human Resources
+	{ path: "/hr", allowedRoles: ["super_admin", "admin", "hr"] },
+
+	// Finance & Accounts
+	{ path: "/finance", allowedRoles: ["super_admin", "admin", "finance"] },
+
+	// Marketing
+	{ path: "/marketing", allowedRoles: ["super_admin", "admin", "marketing"] },
+
+	// Warehouse Operations
+	{
+		path: "/warehouse",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+		],
+	},
+	{
+		path: "/dashboard/warehouse",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+		],
+	},
+
+	// Inventory & Products
+	{
+		path: "/inventory",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"auditor",
+			"procurement",
+		],
+	},
+	{
+		path: "/products",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"procurement",
+			"sales_person",
+		],
+	},
+
+	// Procurement & Purchases
+	{
+		path: "/procurement",
+		allowedRoles: ["super_admin", "admin", "manager", "procurement"],
+	},
+	{
+		path: "/dashboard/procurement",
+		allowedRoles: ["super_admin", "admin", "manager", "procurement"],
+	},
+	{
+		path: "/purchases",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"procurement",
+			"warehouse_supervisor",
+		],
+	},
+	{
+		path: "/supplier",
+		allowedRoles: ["super_admin", "admin", "manager", "procurement"],
+	},
+
+	// Warehouse Floor Roles (Dedicated operational dashboards)
+	{
+		path: "/picker",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"picker",
+		],
+	},
+	{
+		path: "/packer",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"packer",
+		],
+	},
+	{
+		path: "/packing-dispatch",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"packer",
+		],
+	},
+	{
+		path: "/checker",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"packer",
+		],
+	},
+	{
+		path: "/loader",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"loader",
+		],
+	},
+	{
+		path: "/putter",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"warehouse_supervisor",
+			"putter",
+		],
+	},
+
+	// Logistics & Driver
+	{
+		path: "/driver",
+		allowedRoles: ["super_admin", "admin", "manager", "driver"],
+	},
+	{
+		path: "/delivery",
+		allowedRoles: ["super_admin", "admin", "manager", "driver"],
+	},
+
+	// Sales & Billing
+	{
+		path: "/sales",
+		allowedRoles: ["super_admin", "admin", "manager", "sales_person"],
+	},
+	{
+		path: "/pos",
+		allowedRoles: ["super_admin", "admin", "manager", "sales_person"],
+	},
+	{
+		path: "/biller",
+		allowedRoles: ["super_admin", "admin", "manager", "sales_person"],
+	},
+
+	// Customer Self-Service Portal
+	{ path: "/customer", allowedRoles: ["super_admin", "admin", "customer"] },
+
+	// Shared Staff Routes (All internal staff roles allowed; customer restricted)
+	{
+		path: "/attendance",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"auditor",
+			"hr",
+			"finance",
+			"marketing",
+			"warehouse_supervisor",
+			"putter",
+			"picker",
+			"packer",
+			"loader",
+			"procurement",
+			"driver",
+			"sales_person",
+		],
+	},
+	{
+		path: "/notifications",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"auditor",
+			"hr",
+			"finance",
+			"marketing",
+			"warehouse_supervisor",
+			"putter",
+			"picker",
+			"packer",
+			"loader",
+			"procurement",
+			"driver",
+			"sales_person",
+		],
+	},
+	{
+		path: "/settings",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"auditor",
+			"hr",
+			"finance",
+			"marketing",
+			"warehouse_supervisor",
+			"putter",
+			"picker",
+			"packer",
+			"loader",
+			"procurement",
+			"driver",
+			"sales_person",
+		],
+	},
+	{
+		path: "/sync",
+		allowedRoles: [
+			"super_admin",
+			"admin",
+			"manager",
+			"auditor",
+			"hr",
+			"finance",
+			"marketing",
+			"warehouse_supervisor",
+			"putter",
+			"picker",
+			"packer",
+			"loader",
+			"procurement",
+			"driver",
+			"sales_person",
+		],
+	},
+];
+
+/**
+ * Evaluates whether a given user role is authorized to access a specific route pathname.
+ * Handles exact matches, sub-routes (e.g. /hr/employees matches /hr),
+ * hierarchical priority (longest matching path first), and role normalization.
+ */
+export function isRouteAllowedForRole(role: string, pathname: string): boolean {
+	const normRole = normalizeRole(role);
+	if (normRole === "super_admin") return true;
+
+	// Sort rules by path length descending so more specific paths match first (e.g. /admin/companies before /admin)
+	const sortedRules = [...DASHBOARD_ROUTE_PERMISSIONS].sort(
+		(a, b) => b.path.length - a.path.length,
+	);
+
+	const matchedRule = sortedRules.find((r) =>
+		pathname === r.path || pathname.startsWith(r.path + "/"),
+	);
+
+	// If the route has no dashboard restriction (public, /profile, error pages), allow access
+	if (!matchedRule) {
+		return true;
+	}
+
+	return matchedRule.allowedRoles.includes(normRole);
+}
+

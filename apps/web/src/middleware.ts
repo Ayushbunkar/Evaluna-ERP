@@ -5,7 +5,12 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
+import {
+	isAtLeastRole,
+	isRouteAllowedForRole,
+	ROUTE_ROLE_MAP,
+	type Role,
+} from "@/lib/permissions";
 import { verifyTrustedDeviceToken } from "@/lib/trusted-device";
 
 /**
@@ -59,6 +64,7 @@ export default async function middleware(request: NextRequest) {
 		"/status",
 		"/docs",
 		"/demo",
+		"/error",
 	];
 
 	if (
@@ -305,51 +311,43 @@ export default async function middleware(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
-	// 5. Coarse-grained Role Checks (for pages)
-	const matchedRoute = ROUTE_ROLE_MAP.find((route) =>
-		pathname.startsWith(route.path),
-	);
-
-	if (matchedRoute) {
-		let userRole = (sessionData.role || "customer") as Role;
-		console.log("[MIDDLEWARE ROLE CHECK]", {
-			email: sessionData.user?.email,
-			sessionRole: (sessionData.session as any)?.role,
-			userRoleField: sessionData.user?.role,
-			resolvedUserRole: userRole,
-			matchedRoutePath: matchedRoute.path,
-			matchedRouteMinRole: matchedRoute.minRole,
-			isAtLeast: isAtLeastRole(userRole, matchedRoute.minRole),
-		});
-		if (userRole) {
-			const lower = (userRole as string).toLowerCase();
-			if (
-				lower === "salesperson" ||
-				lower === "sales" ||
-				lower === "sales_person"
-			) {
-				userRole = "sales_person" as Role;
-			}
-		}
+	// 5. Strict Compartmentalized RBAC Dashboard Route Protection
+	let userRole = (sessionData.role || "customer") as Role;
+	if (userRole) {
+		const lower = (userRole as string).toLowerCase();
 		if (
-			(userRole as string) === "superadmin" ||
-			(userRole as string) === "super_admin"
-		)
-			userRole = "super_admin" as Role;
+			lower === "salesperson" ||
+			lower === "sales" ||
+			lower === "sales_person"
+		) {
+			userRole = "sales_person" as Role;
+		}
+	}
+	if (
+		(userRole as string) === "superadmin" ||
+		(userRole as string) === "super_admin"
+	) {
+		userRole = "super_admin" as Role;
+	}
 
-		const isSuperadmin =
-			sessionData.user?.isSuperadmin === true ||
-			sessionData.user?.is_superadmin === true ||
-			sessionData.role === "superadmin" ||
-			sessionData.role === "super_admin";
+	const isSuperadmin =
+		sessionData.user?.isSuperadmin === true ||
+		sessionData.user?.is_superadmin === true ||
+		sessionData.role === "superadmin" ||
+		sessionData.role === "super_admin";
 
-		if (!isSuperadmin) {
-			if (!isAtLeastRole(userRole, matchedRoute.minRole)) {
-				// User lacks role for this section
-				const url = request.nextUrl.clone();
-				url.pathname = "/error/403";
-				return NextResponse.rewrite(url);
-			}
+	if (!isSuperadmin) {
+		const isAllowed = isRouteAllowedForRole(userRole, pathname);
+		if (!isAllowed) {
+			console.warn("[MIDDLEWARE 403 ACCESS DENIED]", {
+				email: sessionData.user?.email,
+				role: userRole,
+				attemptedPath: pathname,
+			});
+			const url = request.nextUrl.clone();
+			url.pathname = "/error/403";
+			url.searchParams.set("from", pathname);
+			return NextResponse.redirect(url);
 		}
 	}
 
