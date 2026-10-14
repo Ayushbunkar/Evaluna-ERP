@@ -570,7 +570,7 @@ export default function LoginPage() {
 						>
 							<img
 								src="/logo.jpg"
-								alt="Evaluna ERP"
+								alt="Evaluna"
 								className="h-14 w-14 rounded-2xl object-cover shadow-md ring-1 ring-border"
 							/>
 						</motion.div>

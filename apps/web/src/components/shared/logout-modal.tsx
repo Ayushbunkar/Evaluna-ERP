@@ -41,7 +41,7 @@ export function LogoutModal({ open, onOpenChange }: LogoutModalProps) {
 						<LogOut className="h-7 w-7 text-red-600 dark:text-red-400" />
 					</div>
 					<DialogTitle className="font-bold text-slate-900 text-xl dark:text-slate-100">
-						Log Out of Evaluna ERP?
+						Log Out of Evaluna?
 					</DialogTitle>
 					<DialogDescription className="mt-1.5 text-slate-500 text-sm dark:text-slate-400">
 						Are you sure you want to end your active session? You will need to

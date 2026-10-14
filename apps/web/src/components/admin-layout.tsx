@@ -231,7 +231,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 				>
 					<img
 						src="/logo.jpg"
-						alt="Evaluna ERP"
+						alt="Evaluna"
 						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
 					/>
 					<span className="sr-only">{t("adminPanel")}</span>
@@ -342,10 +342,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 								>
 									<img
 										src="/logo.jpg"
-										alt="Evaluna ERP"
+										alt="Evaluna"
 										className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
 									/>
-									<span>Evaluna ERP</span>
+									<span>Evaluna</span>
 								</Link>
 								<Button
 									variant="ghost"

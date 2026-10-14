@@ -408,11 +408,11 @@ export function DashboardHeader({
 				<Link href="/" className="flex items-center gap-2">
 					<img
 						src="/logo.jpg"
-						alt="Evaluna ERP"
+						alt="Evaluna"
 						className="h-7 w-7 rounded-lg object-cover shadow-sm ring-1 ring-border/50"
 					/>
 					<span className="hidden font-bold text-base text-foreground tracking-tight sm:inline-block">
-						Evaluna ERP
+						Evaluna
 					</span>
 				</Link>
 			</div>

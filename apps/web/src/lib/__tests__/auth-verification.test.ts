@@ -162,11 +162,11 @@ describe("Strict Authentication & Email Verification Architecture", () => {
 		expect(parsed1.email).toBe("no-reply@evaluna-erp.com");
 
 		const parsed2 = parseEmailSender("no-reply@evaluna-erp.com");
-		expect(parsed2.name).toBe("Evaluna ERP");
+		expect(parsed2.name).toBe("Evaluna");
 		expect(parsed2.email).toBe("no-reply@evaluna-erp.com");
 
 		const parsedDefault = parseEmailSender("");
-		expect(parsedDefault.name).toBe("Evaluna ERP");
+		expect(parsedDefault.name).toBe("Evaluna");
 		expect(parsedDefault.email).toBeDefined();
 	});
 

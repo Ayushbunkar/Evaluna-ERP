@@ -324,11 +324,11 @@ export function AppLayout({
 				>
 					<img
 						src="/logo.jpg"
-						alt="Evaluna ERP"
+						alt="Evaluna"
 						className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 					/>
 					<span className="hidden bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-base text-transparent tracking-tight sm:text-lg md:inline-block">
-						Evaluna ERP
+						Evaluna
 					</span>
 					{role && ROLE_CONFIG[role] && (
 						<span
@@ -569,11 +569,11 @@ export function AppLayout({
 								>
 									<img
 										src="/logo.jpg"
-										alt="Evaluna ERP"
+										alt="Evaluna"
 										className="h-7 w-7 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-border/50 transition-transform group-hover:scale-105"
 									/>
 									<span className="font-bold text-lg tracking-tight">
-										Evaluna ERP
+										Evaluna
 									</span>
 									<Badge
 										variant="secondary"
