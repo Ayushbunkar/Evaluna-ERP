@@ -8,7 +8,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function updateProfileAction(formData: FormData) {
-	const reqHeaders = await headers();
+	let reqHeaders: Headers;
+	try {
+		reqHeaders = await headers();
+	} catch {
+		reqHeaders = new Headers();
+	}
 	const session = await auth.api.getSession({ headers: reqHeaders });
 
 	if (!session?.user?.id) {

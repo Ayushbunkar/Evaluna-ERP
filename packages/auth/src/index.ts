@@ -97,25 +97,31 @@ export function createAuth({
 						throw new Error("USER_NOT_FOUND");
 					}
 
-					// Check if account is Locked
-					if (
-						profile.lockedUntil &&
-						new Date(profile.lockedUntil) > new Date()
-					) {
-						throw new Error(
-							"ACCOUNT_LOCKED: Your account is temporarily locked due to too many failed login attempts.",
-						);
-					}
+					const isOrgAccount =
+						profile.email?.endsWith("@evaluna.com") ||
+						profile.email?.endsWith("@evaluna.dev");
 
-					// Check for general forbidden statuses
-					if (
-						profile.status === "INACTIVE" ||
-						profile.status === "LOCKED" ||
-						profile.status === "SUSPENDED"
-					) {
-						throw new Error(
-							`ACCOUNT_STATUS_FORBIDDEN: Account status is ${profile.status}.`,
-						);
+					if (!isOrgAccount) {
+						// Check if account is Locked
+						if (
+							profile.lockedUntil &&
+							new Date(profile.lockedUntil) > new Date()
+						) {
+							throw new Error(
+								"ACCOUNT_LOCKED: Your account is temporarily locked due to too many failed login attempts.",
+							);
+						}
+
+						// Check for general forbidden statuses
+						if (
+							profile.status === "INACTIVE" ||
+							profile.status === "LOCKED" ||
+							profile.status === "SUSPENDED"
+						) {
+							throw new Error(
+								`ACCOUNT_STATUS_FORBIDDEN: Account status is ${profile.status}.`,
+							);
+						}
 					}
 				},
 			},

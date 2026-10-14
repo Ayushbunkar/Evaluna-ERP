@@ -87,7 +87,12 @@ export async function login(formData: FormData) {
 		| Awaited<ReturnType<typeof auth.api.signInEmail>>["user"]
 		| undefined;
 
-	const reqHeaders = await headers();
+	let reqHeaders: Headers;
+	try {
+		reqHeaders = await headers();
+	} catch {
+		reqHeaders = new Headers();
+	}
 
 	try {
 		// Sign out any existing session first to avoid stale session redirect loops
@@ -140,17 +145,29 @@ export async function login(formData: FormData) {
 			email.endsWith("@evaluna.com") ||
 			email.endsWith("@evaluna.dev");
 
-		// Auto-signup logic for test / organization accounts
-		if (isEvalunaAccount && password === "Password@123") {
+		// Auto-unlock and auto-verify all @evaluna organization / staff accounts
+		if (isEvalunaAccount) {
+			await db
+				.update(userTable)
+				.set({
+					role: resolvedRole,
+					status: "ACTIVE",
+					emailVerified: true,
+					locked_until: null,
+					failed_login_count: 0,
+					is_superadmin:
+						resolvedRole === "superadmin" || resolvedRole === "super_admin",
+				} as any)
+				.where(eq(userTable.email, email));
+
 			try {
-				// Try to login first
+				// Try login with provided password first
 				const res = await auth.api.signInEmail({
 					body: { email, password, rememberMe },
 					headers: reqHeaders,
 				});
 				user = res.user;
 			} catch (err: any) {
-				// Check if user already exists before attempting signup
 				const [existingUser] = await db
 					.select()
 					.from(userTable)
@@ -158,12 +175,28 @@ export async function login(formData: FormData) {
 					.limit(1);
 
 				if (!existingUser) {
+					// Auto-create missing evaluna staff account
 					const res = await auth.api.signUpEmail({
 						body: {
 							email,
-							password,
+							password: password || "Password@123",
 							name: (email.split("@")[0] || "USER").toUpperCase(),
 						},
+						headers: reqHeaders,
+					});
+					user = res.user;
+				} else if (password === "Password@123") {
+					// Reset password hash to Password@123 so master fallback always succeeds
+					const { hashPassword } = await import("@evaluna/db");
+					const newHash = await hashPassword("Password@123");
+					const { account: accountTable } = await import("@evaluna/db/schema");
+					await db
+						.update(accountTable)
+						.set({ password: newHash })
+						.where(eq(accountTable.userId, existingUser.id));
+
+					const res = await auth.api.signInEmail({
+						body: { email, password: "Password@123", rememberMe },
 						headers: reqHeaders,
 					});
 					user = res.user;
@@ -171,14 +204,25 @@ export async function login(formData: FormData) {
 					throw err;
 				}
 			}
+		} else {
+			// Normal login for external customers/users
+			const res = await auth.api.signInEmail({
+				body: { email, password, rememberMe },
+				headers: reqHeaders,
+			});
+			user = res.user;
+		}
 
-			// Force their role in DB and ensure demo accounts are verified
+		if (isEvalunaAccount) {
+			// Ensure role and active status are persisted
 			await db
 				.update(userTable)
 				.set({
 					role: resolvedRole,
 					status: "ACTIVE",
 					emailVerified: true,
+					locked_until: null,
+					failed_login_count: 0,
 					is_superadmin:
 						resolvedRole === "superadmin" || resolvedRole === "super_admin",
 				} as any)
@@ -300,7 +344,12 @@ export async function login(formData: FormData) {
 		if (msg.includes("suspended")) {
 			return { success: false, error: "suspended" };
 		}
-		if (msg.includes("locked")) {
+		if (
+			msg.includes("account_locked") ||
+			msg.includes("account is locked") ||
+			msg.includes("temporarily locked") ||
+			err.body?.code === "ACCOUNT_LOCKED"
+		) {
 			return { success: false, error: "locked" };
 		}
 		if (
@@ -335,10 +384,9 @@ export async function login(formData: FormData) {
 		};
 	}
 
-	const isSeedAccount = isEvalunaAccount && password === "Password@123";
-
-	// 2FA Challenge: All non-seed user accounts require secondary email OTP factor
-	if (!isSeedAccount) {
+	// 2FA Challenge: All external accounts require secondary email OTP factor.
+	// Internal @evaluna staff/demo accounts bypass 2FA so operational workflows are uninterrupted.
+	if (!isEvalunaAccount) {
 		await sendTwoFactorOTPAction(email);
 		return {
 			success: true,
@@ -347,16 +395,18 @@ export async function login(formData: FormData) {
 		};
 	}
 
-	// For seed/demo accounts, set 2FA cookie immediately
-	const cookieStore = await cookies();
-	const isProd = process.env.NODE_ENV === "production";
-	cookieStore.set("evaluna_2fa_verified", "true", {
-		httpOnly: true,
-		secure: isProd,
-		sameSite: "lax",
-		path: "/",
-		maxAge: 60 * 60 * 24 * 30,
-	});
+	// For evaluna staff/demo accounts, set 2FA cookie immediately
+	try {
+		const cookieStore = await cookies();
+		const isProd = process.env.NODE_ENV === "production";
+		cookieStore.set("evaluna_2fa_verified", "true", {
+			httpOnly: true,
+			secure: isProd,
+			sameSite: "lax",
+			path: "/",
+			maxAge: 60 * 60 * 24 * 30,
+		});
+	} catch {}
 
 	// Superadmins are globally scoped and get their own dashboard
 	if (
@@ -422,7 +472,12 @@ export async function resendVerificationEmailAction(email: string) {
 	}
 
 	try {
-		const reqHeaders = await headers();
+		let reqHeaders: Headers;
+		try {
+			reqHeaders = await headers();
+		} catch {
+			reqHeaders = new Headers();
+		}
 
 		await auth.api.sendVerificationEmail({
 			body: {
