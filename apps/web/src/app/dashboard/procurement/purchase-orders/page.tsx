@@ -84,11 +84,19 @@ export default function PurchaseOrdersPage() {
 	const [showQuickSuggestions, setShowQuickSuggestions] = useState(false);
 
 	const matchedProducts =
-		invData?.items?.filter(
-			(i: any) =>
-				i.product.toLowerCase().includes(quickProductSearch.toLowerCase()) ||
-				i.sku.toLowerCase().includes(quickProductSearch.toLowerCase()),
-		) || [];
+		quickProductSearch.trim() && invData?.items
+			? invData.items.filter(
+					(i: any) =>
+						(i.product &&
+							i.product
+								.toLowerCase()
+								.includes(quickProductSearch.trim().toLowerCase())) ||
+						(i.sku &&
+							i.sku
+								.toLowerCase()
+								.includes(quickProductSearch.trim().toLowerCase())),
+				)
+			: [];
 
 	const handleQuickAddProduct = (product: any) => {
 		const targetProductId = (product.productId || product.id).toString();
@@ -394,9 +402,18 @@ export default function PurchaseOrdersPage() {
 										onFocus={() => setShowQuickSuggestions(true)}
 										className="h-8.5 bg-white font-semibold text-xs shadow-xs dark:bg-slate-900"
 										onKeyDown={(e) => {
-											if (e.key === "Enter" && matchedProducts.length > 0) {
+											if (e.key === "Enter") {
 												e.preventDefault();
-												handleQuickAddProduct(matchedProducts[0]);
+												const query = quickProductSearch.trim();
+												if (!query) {
+													toast.error("Type a product name or SKU to quick-add.");
+													return;
+												}
+												if (matchedProducts.length > 0) {
+													handleQuickAddProduct(matchedProducts[0]);
+												} else {
+													toast.error(`No product found matching "${query}".`);
+												}
 											}
 										}}
 									/>
@@ -451,16 +468,22 @@ export default function PurchaseOrdersPage() {
 									<Button
 										type="button"
 										size="sm"
+										disabled={!quickProductSearch.trim()}
 										onClick={() => {
+											const query = quickProductSearch.trim();
+											if (!query) {
+												toast.error("Type a product name or SKU to quick-add.");
+												return;
+											}
 											if (matchedProducts.length > 0) {
 												handleQuickAddProduct(matchedProducts[0]);
 											} else {
-												toast.error("Type a product name or SKU to quick-add.");
+												toast.error(`No product found matching "${query}".`);
 											}
 										}}
-										className="h-8.5 bg-blue-600 px-3 font-bold text-white text-xs shadow-xs hover:bg-blue-700"
+										className="h-8.5 bg-blue-600 px-3 font-bold text-white text-xs shadow-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
 									>
-										<PlusIcon className="mr-1 h-3.5 w-3.5" /> + Quick Add
+										<PlusIcon className="mr-1.5 h-3.5 w-3.5" /> Quick Add
 									</Button>
 								</div>
 							</div>
