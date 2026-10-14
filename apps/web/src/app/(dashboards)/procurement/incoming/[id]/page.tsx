@@ -106,7 +106,7 @@ export default function PurchaseOrderInspectionPage() {
 
 	// Checklist line items state
 	const [lineItems, setLineItems] = useState<ReceivingLineItem[]>([]);
-	const [isInitialized, setIsInitialized] = useState(false);
+	const [initializedPoId, setInitializedPoId] = useState<number | null>(null);
 
 	// Supplier / Company change modal
 	const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
@@ -132,7 +132,7 @@ export default function PurchaseOrderInspectionPage() {
 
 	// Initialize form when PO loads
 	useEffect(() => {
-		if (po && !isInitialized) {
+		if (po && initializedPoId !== po.id) {
 			setDeliveryNoteNumber(`DN-${Date.now().toString().slice(-6)}`);
 			setSelectedSupplierId(po.supplier_id ? String(po.supplier_id) : "");
 
@@ -142,8 +142,8 @@ export default function PurchaseOrderInspectionPage() {
 					const price = Number(it.price) || 0;
 					return {
 						key: `item-${it.id}`,
-						purchaseItemId: it.id,
-						productId: it.product_id,
+						purchaseItemId: it.id ? Number(it.id) : undefined,
+						productId: it.product_id ? Number(it.product_id) : undefined,
 						productName: it.product_name || "Unnamed Product",
 						productSku: it.product_sku || "N/A",
 						orderedQuantity: qty,
@@ -159,10 +159,12 @@ export default function PurchaseOrderInspectionPage() {
 					};
 				});
 				setLineItems(initialItems);
+			} else {
+				setLineItems([]);
 			}
-			setIsInitialized(true);
+			setInitializedPoId(po.id);
 		}
-	}, [po, isInitialized]);
+	}, [po, initializedPoId]);
 
 	// Mutations
 	const recordReceiptMutation = trpc.procurement.recordReceipt.useMutation({
@@ -175,6 +177,7 @@ export default function PurchaseOrderInspectionPage() {
 			utils.procurement.listGRNs.invalidate();
 			utils.procurement.getProcurementKpis.invalidate();
 			utils.warehouse.getReceivingPOs.invalidate();
+			utils.inventory.list.invalidate();
 			router.push("/procurement/incoming");
 		},
 		onError: (err) => {
@@ -1000,7 +1003,7 @@ export default function PurchaseOrderInspectionPage() {
 								disabled={
 									recordReceiptMutation.isPending ||
 									isCompleted ||
-									totals.totalAccepted === 0
+									totals.totalReceived === 0
 								}
 								className="h-9 gap-2 bg-emerald-600 px-5 font-bold text-white hover:bg-emerald-700"
 							>
