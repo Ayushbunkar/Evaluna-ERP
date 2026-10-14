@@ -52,14 +52,45 @@ export const purchasesRouter = router({
 				.returning();
 
 			if (newPurchase[0] && items) {
+				const rawItemIds = items
+					.map((item) => Number.parseInt(item.productId, 10))
+					.filter((id) => !Number.isNaN(id));
+				const resolvedIdMap = new Map<number, number>();
+
+				if (rawItemIds.length > 0) {
+					const existingProds = await db
+						.select({ id: products.id })
+						.from(products)
+						.where(inArray(products.id, rawItemIds));
+					const validSet = new Set(existingProds.map((p) => p.id));
+					const missing = rawItemIds.filter((id) => !validSet.has(id));
+
+					if (missing.length > 0) {
+						const mappedInv = await db
+							.select({
+								id: branchInventory.id,
+								productId: branchInventory.product_id,
+							})
+							.from(branchInventory)
+							.where(inArray(branchInventory.id, missing));
+						for (const row of mappedInv) {
+							resolvedIdMap.set(row.id, row.productId);
+						}
+					}
+				}
+
 				// Insert purchase items (batch)
 				await db.insert(purchaseItems).values(
-					items.map((item) => ({
-						...item,
-						purchase_id: newPurchase[0].id,
-						product_id: Number.parseInt(item.productId, 10),
-						price: item.price.toString(),
-					})),
+					items.map((item) => {
+						const rawId = Number.parseInt(item.productId, 10);
+						const finalProdId = resolvedIdMap.get(rawId) ?? rawId;
+						return {
+							...item,
+							purchase_id: newPurchase[0].id,
+							product_id: finalProdId,
+							price: item.price.toString(),
+						};
+					}),
 				);
 
 				// Note: Stock ledger entries must ONLY be posted when goods are inspected and accepted at warehouse receiving, NOT upon issuing a purchase order.

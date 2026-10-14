@@ -91,6 +91,7 @@ export default function PurchaseOrdersPage() {
 		) || [];
 
 	const handleQuickAddProduct = (product: any) => {
+		const targetProductId = (product.productId || product.id).toString();
 		const unitCost = Number(
 			product.base_procurement_price ||
 				product.procurement_price ||
@@ -98,7 +99,7 @@ export default function PurchaseOrdersPage() {
 				10,
 		);
 		const existingIdx = orderItems.findIndex(
-			(i) => i.productId === product.id.toString(),
+			(i) => i.productId === targetProductId,
 		);
 
 		if (existingIdx >= 0) {
@@ -109,7 +110,7 @@ export default function PurchaseOrdersPage() {
 			if (orderItems.length === 1 && !orderItems[0].productId) {
 				setOrderItems([
 					{
-						productId: product.id.toString(),
+						productId: targetProductId,
 						quantity: quickQuantity || 1,
 						price: unitCost,
 					},
@@ -118,7 +119,7 @@ export default function PurchaseOrdersPage() {
 				setOrderItems([
 					...orderItems,
 					{
-						productId: product.id.toString(),
+						productId: targetProductId,
 						quantity: quickQuantity || 1,
 						price: unitCost,
 					},
@@ -494,7 +495,8 @@ export default function PurchaseOrdersPage() {
 												onChange={(e) => {
 													const selectedId = e.target.value;
 													const selectedProd = invData?.items?.find(
-														(i: any) => i.id.toString() === selectedId,
+														(i: any) =>
+															(i.productId || i.id).toString() === selectedId,
 													);
 													updateLineItem(idx, "productId", selectedId);
 													if (selectedProd && !item.price) {
@@ -511,11 +513,14 @@ export default function PurchaseOrdersPage() {
 												}}
 											>
 												<option value="">Choose Material</option>
-												{invData?.items?.map((i: any) => (
-													<option key={i.id} value={i.id}>
-														{i.product} (SKU: {i.sku}) — Stock: {i.qty_on_hand}
-													</option>
-												))}
+												{invData?.items?.map((i: any) => {
+													const pId = (i.productId || i.id).toString();
+													return (
+														<option key={pId} value={pId}>
+															{i.product} (SKU: {i.sku}) — Stock: {i.qty_on_hand}
+														</option>
+													);
+												})}
 											</select>
 										</div>
 										<div className="w-20">

@@ -627,6 +627,34 @@ export const procurementRouter = router({
 			const poNumber = `PO-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
 			const grnNumber = `GRN-${Math.floor(10000 + Math.random() * 90000)}`;
 
+			// Resolve product IDs in case branch_inventory.id was submitted instead of product.id
+			const rawProductIds = Array.from(
+				new Set(input.items.map((it) => it.productId)),
+			);
+			const resolvedProductIdMap = new Map<number, number>();
+
+			if (rawProductIds.length > 0) {
+				const existingProducts = await db
+					.select({ id: products.id })
+					.from(products)
+					.where(inArray(products.id, rawProductIds));
+				const existingSet = new Set(existingProducts.map((p) => p.id));
+				const missingIds = rawProductIds.filter((id) => !existingSet.has(id));
+
+				if (missingIds.length > 0) {
+					const mappedInv = await db
+						.select({
+							id: branchInventory.id,
+							productId: branchInventory.product_id,
+						})
+						.from(branchInventory)
+						.where(inArray(branchInventory.id, missingIds));
+					for (const row of mappedInv) {
+						resolvedProductIdMap.set(row.id, row.productId);
+					}
+				}
+			}
+
 			// Accurate calculation of taxes and totals
 			let subtotal = 0;
 			let totalCgst = 0;
@@ -634,6 +662,8 @@ export const procurementRouter = router({
 			let totalIgst = 0;
 
 			const calculatedItems = input.items.map((it) => {
+				const actualProductId =
+					resolvedProductIdMap.get(it.productId) ?? it.productId;
 				const lineBase = it.quantity * it.price;
 				subtotal += lineBase;
 				const cgst = lineBase * (it.cgstRate / 100);
@@ -645,6 +675,7 @@ export const procurementRouter = router({
 
 				return {
 					...it,
+					productId: actualProductId,
 					cgstAmount: cgst.toFixed(2),
 					sgstAmount: sgst.toFixed(2),
 					igstAmount: igst.toFixed(2),
