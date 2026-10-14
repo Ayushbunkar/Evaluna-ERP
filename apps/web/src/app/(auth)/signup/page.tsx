@@ -9,9 +9,10 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PublicHeader } from "@/components/layout/PublicHeader";
+import { authClient } from "@/lib/auth-client";
 import { signup } from "./actions";
 
 function SignupForm() {
@@ -21,6 +22,18 @@ function SignupForm() {
 	const formRef = useRef<HTMLFormElement>(null);
 	const [isPending, setIsPending] = useState(false);
 	const [socialError, setSocialError] = useState<string | null>(null);
+
+	// Seamlessly redirect if user is already authenticated (e.g. from Google OAuth)
+	useEffect(() => {
+		authClient
+			.getSession()
+			.then((res) => {
+				if (res?.data?.user) {
+					window.location.href = "/api/auth/oauth-success";
+				}
+			})
+			.catch(() => {});
+	}, []);
 
 	const errorMessage =
 		socialError ||

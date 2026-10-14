@@ -8,7 +8,7 @@ import {
 	TRUSTED_DEVICE_COOKIE_NAME,
 } from "@/lib/trusted-device";
 import { UserManagement } from "@evaluna/db";
-import { user as userTable } from "@evaluna/db/schema";
+import { customers, user as userTable } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -56,6 +56,35 @@ export async function GET(request: NextRequest) {
 				.where(eq(userTable.id, userId));
 		} catch (dbErr) {
 			console.error("[OAuth Success] Failed updating user active state:", dbErr);
+		}
+
+		// Ensure linked customer account profile exists for instant customer dashboard access
+		try {
+			const existingCustomer = await db
+				.select()
+				.from(customers)
+				.where(eq(customers.email, userEmail))
+				.limit(1);
+
+			if (existingCustomer.length === 0) {
+				const customerCode = `CUST-${Date.now()}`;
+				await db.insert(customers).values({
+					name: session.user.name || userEmail.split("@")[0],
+					email: userEmail,
+					user_uid: userId,
+					customer_code: customerCode,
+					status: "active",
+					is_deleted: false,
+					branch_id: 1, // Default branch
+				});
+			} else if (!existingCustomer[0]?.user_uid) {
+				await db
+					.update(customers)
+					.set({ user_uid: userId })
+					.where(eq(customers.email, userEmail));
+			}
+		} catch (custErr) {
+			console.error("[OAuth Success] Linked customer profile check:", custErr);
 		}
 
 		// Calculate canonical dashboard destination based on assigned role
