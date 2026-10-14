@@ -18,6 +18,7 @@ import { type FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { OTPVerificationForm } from "@/components/auth/OTPVerificationForm";
 import { PublicHeader } from "@/components/layout/PublicHeader";
+import { authClient } from "@/lib/auth-client";
 import {
 	login,
 	requestEmailOTPAction,
@@ -55,6 +56,20 @@ function LoginForm() {
 			sendTwoFactorOTPAction(initialEmail).catch(() => {});
 		}
 	}, [initialStep, initialEmail]);
+
+	// Seamlessly redirect if user already has an active session (e.g. from Google OAuth)
+	useEffect(() => {
+		if (initialStep !== "2fa" && !expired && !suspended) {
+			authClient
+				.getSession()
+				.then((res) => {
+					if (res?.data?.user) {
+						window.location.href = "/api/auth/oauth-success";
+					}
+				})
+				.catch(() => {});
+		}
+	}, [initialStep, expired, suspended]);
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {

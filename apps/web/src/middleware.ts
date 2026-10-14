@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isAtLeastRole, ROUTE_ROLE_MAP, type Role } from "@/lib/permissions";
+import { verifyTrustedDeviceToken } from "@/lib/trusted-device";
 
 /**
  * Node.js middleware that protects all routes.
@@ -208,14 +209,30 @@ export default async function middleware(request: NextRequest) {
 	const userEmail = (sessionData.user?.email || "").toLowerCase().trim();
 	const isSeedAccount =
 		userEmail.endsWith("@evaluna.dev") || userEmail.endsWith("@evaluna.com");
+	const isCustomer = (sessionData.role || "customer") === "customer";
+	const deviceToken = request.cookies.get("evaluna_trusted_device")?.value;
+	const isDeviceTrusted = sessionData.user?.id
+		? verifyTrustedDeviceToken(deviceToken, sessionData.user.id)
+		: false;
 	const is2FAVerified =
 		isSeedAccount ||
+		isCustomer ||
+		isDeviceTrusted ||
 		Boolean(request.cookies.get("evaluna_2fa_verified")?.value);
 
 	if (!is2FAVerified) {
 		// If already on login completing 2FA, allow request
 		if (pathname === "/login") {
-			return NextResponse.next();
+			if (request.nextUrl.searchParams.get("step") === "2fa") {
+				return NextResponse.next();
+			}
+			const url = request.nextUrl.clone();
+			url.pathname = "/login";
+			url.searchParams.set("step", "2fa");
+			if (userEmail) {
+				url.searchParams.set("email", userEmail);
+			}
+			return NextResponse.redirect(url);
 		}
 
 		const url = request.nextUrl.clone();

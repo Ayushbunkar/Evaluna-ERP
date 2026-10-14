@@ -64,8 +64,8 @@ export function GoogleSignInButton({
 			const targetCallback =
 				callbackUrl ||
 				(typeof window !== "undefined"
-					? `${window.location.origin}/login`
-					: "/login");
+					? `${window.location.origin}/api/auth/oauth-success`
+					: "/api/auth/oauth-success");
 
 			const res = await authClient.signIn.social({
 				provider: "google",
