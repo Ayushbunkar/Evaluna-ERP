@@ -24,6 +24,9 @@ import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
 import { invalidateCachedSession } from "@/lib/session-cache";
 import {
 	createTrustedDeviceToken,
+	TRUST_DURATION_DAYS,
+	TRUST_DURATION_SECONDS,
+	TRUSTED_DEVICE_COOKIE_NAME,
 	verifyTrustedDeviceToken,
 } from "@/lib/trusted-device";
 
@@ -81,7 +84,9 @@ export async function login(formData: FormData) {
 	const rawEmail = formData.get("email") as string;
 	const password = formData.get("password") as string;
 	const email = (rawEmail || "").toLowerCase().trim();
-	const rememberMe = true;
+	const rememberMeRaw = formData.get("rememberMe");
+	const rememberMe =
+		rememberMeRaw === "on" || rememberMeRaw === "true" || rememberMeRaw === "1";
 
 	const isEvalunaAccount =
 		!!predefinedAccounts[email] ||
@@ -390,12 +395,12 @@ export async function login(formData: FormData) {
 	}
 
 	// 2FA Challenge: All external accounts require secondary email OTP factor on untrusted devices.
-	// Internal @evaluna staff accounts and recognized 24-hour trusted devices bypass OTP.
+	// Internal @evaluna staff accounts and recognized 3-day trusted devices bypass OTP.
 	if (!isEvalunaAccount) {
 		let isTrusted = false;
 		try {
 			const cookieStore = await cookies();
-			const deviceToken = cookieStore.get("evaluna_trusted_device")?.value;
+			const deviceToken = cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value;
 			isTrusted = verifyTrustedDeviceToken(deviceToken, user.id);
 		} catch {}
 
@@ -420,6 +425,23 @@ export async function login(formData: FormData) {
 			path: "/",
 			maxAge: 60 * 60 * 24 * 30,
 		});
+
+		// Refresh or establish 3-day device trust if user selected rememberMe
+		if (user?.id && rememberMe) {
+			const trustedToken = createTrustedDeviceToken(
+				user.id,
+				TRUST_DURATION_DAYS,
+			);
+			cookieStore.set(TRUSTED_DEVICE_COOKIE_NAME, trustedToken, {
+				httpOnly: true,
+				secure: isProd,
+				sameSite: "lax",
+				path: "/",
+				maxAge: TRUST_DURATION_SECONDS, // 3 days
+			});
+		} else if (!rememberMe) {
+			cookieStore.delete(TRUSTED_DEVICE_COOKIE_NAME);
+		}
 	} catch {}
 
 	// Superadmins are globally scoped and get their own dashboard
@@ -565,7 +587,11 @@ export async function sendTwoFactorOTPAction(email: string) {
 	}
 }
 
-export async function verifyTwoFactorOTPAction(email: string, code: string) {
+export async function verifyTwoFactorOTPAction(
+	email: string,
+	code: string,
+	trustDevice = true,
+) {
 	const normalizedEmail = (email || "").toLowerCase().trim();
 	const trimmedCode = (code || "").trim();
 
@@ -607,7 +633,7 @@ export async function verifyTwoFactorOTPAction(email: string, code: string) {
 			.where(eq(userTable.email, normalizedEmail))
 			.limit(1);
 
-		// Set 2FA verified cookie & 24-hour trusted device cookie
+		// Set 2FA verified cookie & 3-day trusted device cookie
 		const cookieStore = await cookies();
 		const isProd = process.env.NODE_ENV === "production";
 		cookieStore.set("evaluna_2fa_verified", "true", {
@@ -618,15 +644,20 @@ export async function verifyTwoFactorOTPAction(email: string, code: string) {
 			maxAge: 60 * 60 * 24 * 30, // 30 days
 		});
 
-		if (user?.id) {
-			const trustedToken = createTrustedDeviceToken(user.id);
-			cookieStore.set("evaluna_trusted_device", trustedToken, {
+		if (user?.id && trustDevice) {
+			const trustedToken = createTrustedDeviceToken(
+				user.id,
+				TRUST_DURATION_DAYS,
+			);
+			cookieStore.set(TRUSTED_DEVICE_COOKIE_NAME, trustedToken, {
 				httpOnly: true,
 				secure: isProd,
 				sameSite: "lax",
 				path: "/",
-				maxAge: 60 * 60 * 24, // 24 hours
+				maxAge: TRUST_DURATION_SECONDS, // 3 days
 			});
+		} else if (!trustDevice) {
+			cookieStore.delete(TRUSTED_DEVICE_COOKIE_NAME);
 		}
 
 		if (!user) {
@@ -711,7 +742,11 @@ export async function requestEmailOTPAction(email: string) {
 	}
 }
 
-export async function verifyEmailOTPAction(email: string, otp: string) {
+export async function verifyEmailOTPAction(
+	email: string,
+	otp: string,
+	trustDevice = true,
+) {
 	const normalizedEmail = (email || "").toLowerCase().trim();
 	const trimmedOtp = (otp || "").trim();
 
@@ -799,6 +834,23 @@ export async function verifyEmailOTPAction(email: string, otp: string) {
 			path: "/",
 			expires: expiresAt,
 		});
+
+		// Establish or refresh 3-day device trust
+		if (user?.id && trustDevice) {
+			const trustedToken = createTrustedDeviceToken(
+				user.id,
+				TRUST_DURATION_DAYS,
+			);
+			cookieStore.set(TRUSTED_DEVICE_COOKIE_NAME, trustedToken, {
+				httpOnly: true,
+				secure: isProd,
+				sameSite: "lax",
+				path: "/",
+				maxAge: TRUST_DURATION_SECONDS, // 3 days
+			});
+		} else if (!trustDevice) {
+			cookieStore.delete(TRUSTED_DEVICE_COOKIE_NAME);
+		}
 
 		const profile = await UserManagement.getSecurityProfileByUserId(user.id);
 		const role =

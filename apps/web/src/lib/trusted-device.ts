@@ -3,11 +3,19 @@ import crypto from "node:crypto";
 const TRUSTED_DEVICE_SECRET =
 	process.env.BETTER_AUTH_SECRET || "evaluna_trusted_device_signing_secret";
 
+export const TRUSTED_DEVICE_COOKIE_NAME = "evaluna_trusted_device";
+export const TRUST_DURATION_DAYS = 3; // 3 Days trust duration
+export const TRUST_DURATION_SECONDS = 3 * 24 * 60 * 60; // 259,200 seconds
+
 /**
- * Creates a cryptographically signed 24-hour device trust token.
+ * Creates a cryptographically signed device trust token.
+ * Defaults to 3 days (72 hours).
  */
-export function createTrustedDeviceToken(userId: string): string {
-	const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+export function createTrustedDeviceToken(
+	userId: string,
+	days: number = TRUST_DURATION_DAYS,
+): string {
+	const expiresAt = Date.now() + days * 24 * 60 * 60 * 1000;
 	const payload = `${userId}:${expiresAt}`;
 	const signature = crypto
 		.createHmac("sha256", TRUSTED_DEVICE_SECRET)

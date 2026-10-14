@@ -21,6 +21,7 @@ interface OTPVerificationFormProps {
 	type?: "2fa" | "sign-in";
 	onVerify: (
 		otp: string,
+		trustDevice?: boolean,
 	) => Promise<{ success: boolean; error?: string; message?: string }>;
 	onResend: () => Promise<{ success: boolean; error?: string }>;
 	onBack: () => void;
@@ -38,6 +39,7 @@ export function OTPVerificationForm({
 	isPending = false,
 }: OTPVerificationFormProps) {
 	const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
+	const [trustDevice, setTrustDevice] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isResending, setIsResending] = useState(false);
@@ -160,7 +162,7 @@ export function OTPVerificationForm({
 		setError(null);
 
 		try {
-			const res = await onVerify(code);
+			const res = await onVerify(code, trustDevice);
 			if (!res.success) {
 				setError(res.message || "Invalid or expired verification code.");
 				setIsSubmitting(false);
@@ -285,6 +287,23 @@ export function OTPVerificationForm({
 						</span>
 					)}
 				</span>
+			</div>
+
+			{/* Trust device checkbox */}
+			<div className="flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+				<input
+					type="checkbox"
+					id="trustDeviceOtp"
+					checked={trustDevice}
+					onChange={(e) => setTrustDevice(e.target.checked)}
+					className="h-4 w-4 cursor-pointer rounded border-border bg-background accent-primary transition-all"
+				/>
+				<label
+					htmlFor="trustDeviceOtp"
+					className="cursor-pointer select-none font-medium text-muted-foreground text-xs transition-colors hover:text-foreground"
+				>
+					Trust this device for 3 days (Skip OTP next time)
+				</label>
 			</div>
 
 			{/* Submit button */}

@@ -7,8 +7,6 @@ import { Label } from "@evaluna/ui/components/label";
 import { motion } from "framer-motion";
 import {
 	AlertCircle,
-	ArrowLeft,
-	KeyRound,
 	Loader2,
 	Mail,
 	WifiOff,
@@ -131,8 +129,12 @@ function LoginForm() {
 					title="Two-Factor Authentication"
 					subtitle="Enter the 6-digit verification code sent to your email to verify your identity."
 					type="2fa"
-					onVerify={async (code) => {
-						const res = await verifyTwoFactorOTPAction(emailForOtp, code);
+					onVerify={async (code, trustDevice = true) => {
+						const res = await verifyTwoFactorOTPAction(
+							emailForOtp,
+							code,
+							trustDevice,
+						);
 						if (res.success && res.redirectUrl) {
 							const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 							let target = res.redirectUrl;
@@ -167,8 +169,12 @@ function LoginForm() {
 					title="Passwordless Email Login"
 					subtitle="Enter the 6-digit sign-in code sent to your email."
 					type="sign-in"
-					onVerify={async (code) => {
-						const res = await verifyEmailOTPAction(emailForOtp, code);
+					onVerify={async (code, trustDevice = true) => {
+						const res = await verifyEmailOTPAction(
+							emailForOtp,
+							code,
+							trustDevice,
+						);
 						if (res.success && res.redirectUrl) {
 							const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 							let target = res.redirectUrl;
@@ -449,14 +455,15 @@ function LoginForm() {
 						type="checkbox"
 						id="rememberMe"
 						name="rememberMe"
+						defaultChecked={true}
 						suppressHydrationWarning={true}
-						className="h-4 w-4 rounded border-border bg-background accent-primary transition-all"
+						className="h-4 w-4 cursor-pointer rounded border-border bg-background accent-primary transition-all"
 					/>
 					<Label
 						htmlFor="rememberMe"
-						className="cursor-pointer font-normal text-muted-foreground text-xs transition-colors hover:text-foreground sm:text-sm"
+						className="cursor-pointer select-none font-normal text-muted-foreground text-xs transition-colors hover:text-foreground sm:text-sm"
 					>
-						Remember me for 30 days
+						Trust this device for 3 days (Skip OTP on this browser)
 					</Label>
 				</div>
 			</CardContent>
