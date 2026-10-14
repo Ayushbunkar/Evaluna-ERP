@@ -169,4 +169,27 @@ describe("Strict Authentication & Email Verification Architecture", () => {
 		expect(parsedDefault.name).toBe("Evaluna ERP");
 		expect(parsedDefault.email).toBeDefined();
 	});
+
+	it("should create and verify 24-hour trusted device tokens correctly", async () => {
+		const { createTrustedDeviceToken, verifyTrustedDeviceToken } = await import(
+			"../trusted-device"
+		);
+
+		const userId = "user-test-uuid-123";
+		const token = createTrustedDeviceToken(userId);
+
+		// 1. Valid token matching the same user returns true
+		expect(verifyTrustedDeviceToken(token, userId)).toBe(true);
+
+		// 2. Token evaluated against a different user returns false
+		expect(verifyTrustedDeviceToken(token, "another-user-456")).toBe(false);
+
+		// 3. Tampered signature returns false
+		const tampered = token.slice(0, -4) + "beef";
+		expect(verifyTrustedDeviceToken(tampered, userId)).toBe(false);
+
+		// 4. Undefined or empty token returns false
+		expect(verifyTrustedDeviceToken(undefined, userId)).toBe(false);
+		expect(verifyTrustedDeviceToken("", userId)).toBe(false);
+	});
 });

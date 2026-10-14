@@ -31,11 +31,16 @@ export function createAuth({
 			"http://127.0.0.1:3000",
 			"http://127.0.0.1:3001",
 			"https://evaluna-erp.com",
+			"https://www.evaluna-erp.com",
+			"https://evalunaerp.vercel.app",
 			"https://evaluna-erp-web.vercel.app",
+			"https://evaluna.dev",
 			process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
 			process.env.NEXT_PUBLIC_VERCEL_URL
 				? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
 				: "",
+			process.env.NEXT_PUBLIC_APP_URL || "",
+			process.env.BASE_URL || "",
 			...(trustedOrigins || []),
 		].filter(Boolean),
 		database: drizzleAdapter(db, { provider: "pg" }),

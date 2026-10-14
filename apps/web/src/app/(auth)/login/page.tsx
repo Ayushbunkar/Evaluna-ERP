@@ -378,7 +378,9 @@ function LoginForm() {
 								? "Account locked due to too many failed attempts. Try again later."
 								: localError === "suspended"
 									? "Your account has been suspended."
-									: "Invalid email or password."}
+									: localError === "invalid"
+										? "Invalid email or password."
+										: localError}
 						</p>
 					</motion.div>
 				)}

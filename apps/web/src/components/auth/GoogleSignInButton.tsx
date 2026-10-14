@@ -55,6 +55,11 @@ export function GoogleSignInButton({
 		if (isLoading || disabled) return;
 		setIsLoading(true);
 
+		// 8-second watchdog to ensure button is never permanently stuck spinning
+		const watchdog = setTimeout(() => {
+			setIsLoading(false);
+		}, 8000);
+
 		try {
 			const targetCallback =
 				callbackUrl ||
@@ -62,15 +67,35 @@ export function GoogleSignInButton({
 					? `${window.location.origin}/login`
 					: "/login");
 
-			await authClient.signIn.social({
+			const res = await authClient.signIn.social({
 				provider: "google",
 				callbackURL: targetCallback,
 			});
-		} catch (error: any) {
-			console.error("[Google OAuth Error]:", error);
+
+			if (res?.error) {
+				clearTimeout(watchdog);
+				setIsLoading(false);
+				console.error("[Google OAuth Error Response]:", res.error);
+				const errorMsg =
+					res.error.message ||
+					"Failed to initialize Google authentication. Please verify Google credentials in environment.";
+				onError?.(errorMsg);
+				return;
+			}
+
+			if (res?.data?.url) {
+				clearTimeout(watchdog);
+				window.location.href = res.data.url;
+				return;
+			}
+		} catch (error: unknown) {
+			clearTimeout(watchdog);
 			setIsLoading(false);
+			console.error("[Google OAuth Error Exception]:", error);
 			const errorMsg =
-				error?.message || "Failed to initialize Google authentication.";
+				error instanceof Error
+					? error.message
+					: "Failed to initialize Google authentication.";
 			onError?.(errorMsg);
 		}
 	}

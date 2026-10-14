@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "node:crypto";
 import { sendOTPEmailMessage } from "@evaluna/auth/email";
 import { UserManagement } from "@evaluna/db";
 // DB tables for auto-profile creation
@@ -21,6 +22,10 @@ import { db } from "@/lib/db";
 import { ROLE_DASHBOARD_MAP, type Role } from "@/lib/permissions";
 import { getCanonicalDashboardRoute } from "@/lib/rbac-config";
 import { invalidateCachedSession } from "@/lib/session-cache";
+import {
+	createTrustedDeviceToken,
+	verifyTrustedDeviceToken,
+} from "@/lib/trusted-device";
 
 const predefinedAccounts: Record<string, string> = {
 	"superadmin@evaluna.com": "super_admin",
@@ -384,18 +389,27 @@ export async function login(formData: FormData) {
 		};
 	}
 
-	// 2FA Challenge: All external accounts require secondary email OTP factor.
-	// Internal @evaluna staff/demo accounts bypass 2FA so operational workflows are uninterrupted.
+	// 2FA Challenge: All external accounts require secondary email OTP factor on untrusted devices.
+	// Internal @evaluna staff accounts and recognized 24-hour trusted devices bypass OTP.
 	if (!isEvalunaAccount) {
-		await sendTwoFactorOTPAction(email);
-		return {
-			success: true,
-			requires2FA: true,
-			email,
-		};
+		let isTrusted = false;
+		try {
+			const cookieStore = await cookies();
+			const deviceToken = cookieStore.get("evaluna_trusted_device")?.value;
+			isTrusted = verifyTrustedDeviceToken(deviceToken, user.id);
+		} catch {}
+
+		if (!isTrusted) {
+			await sendTwoFactorOTPAction(email);
+			return {
+				success: true,
+				requires2FA: true,
+				email,
+			};
+		}
 	}
 
-	// For evaluna staff/demo accounts, set 2FA cookie immediately
+	// For evaluna staff/demo accounts or recognized trusted devices, set 2FA cookie immediately
 	try {
 		const cookieStore = await cookies();
 		const isProd = process.env.NODE_ENV === "production";
@@ -586,7 +600,14 @@ export async function verifyTwoFactorOTPAction(email: string, code: string) {
 			.delete(verificationTable)
 			.where(eq(verificationTable.id, record.id));
 
-		// Set 2FA verified cookie
+		// Find user and destination
+		const [user] = await db
+			.select()
+			.from(userTable)
+			.where(eq(userTable.email, normalizedEmail))
+			.limit(1);
+
+		// Set 2FA verified cookie & 24-hour trusted device cookie
 		const cookieStore = await cookies();
 		const isProd = process.env.NODE_ENV === "production";
 		cookieStore.set("evaluna_2fa_verified", "true", {
@@ -597,12 +618,16 @@ export async function verifyTwoFactorOTPAction(email: string, code: string) {
 			maxAge: 60 * 60 * 24 * 30, // 30 days
 		});
 
-		// Find user and destination
-		const [user] = await db
-			.select()
-			.from(userTable)
-			.where(eq(userTable.email, normalizedEmail))
-			.limit(1);
+		if (user?.id) {
+			const trustedToken = createTrustedDeviceToken(user.id);
+			cookieStore.set("evaluna_trusted_device", trustedToken, {
+				httpOnly: true,
+				secure: isProd,
+				sameSite: "lax",
+				path: "/",
+				maxAge: 60 * 60 * 24, // 24 hours
+			});
+		}
 
 		if (!user) {
 			return { success: true, redirectUrl: "/customer" };
