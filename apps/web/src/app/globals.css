@@ -481,11 +481,19 @@ html.dark input[type="time"]::-webkit-calendar-picker-indicator {
 /* Global Smooth Scrolling Architecture */
 /* 1. Hardware-accelerated smooth scrolling for dashboard overflow containers */
 .overflow-y-auto,
-.overflow-y-scroll,
+.overflow-y-scroll {
+	scroll-behavior: smooth;
+	overscroll-behavior-y: auto;
+}
+
 .overflow-x-auto,
 .overflow-x-scroll {
-	scroll-behavior: smooth;
-	overscroll-behavior: contain;
+	overscroll-behavior-x: contain;
+	overscroll-behavior-y: auto;
+}
+
+.overflow-auto {
+	overscroll-behavior: auto;
 }
 
 /* 2. Fallback native smooth scrolling when Lenis is not active */

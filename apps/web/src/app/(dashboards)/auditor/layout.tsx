@@ -142,7 +142,7 @@ export default function AuditorLayout({
 				<DashboardHeader onMenuClick={() => setMobileMenuOpen(true)} />
 
 				{/* Scrollable Content */}
-				<main className="flex-1 overflow-y-auto p-3 sm:p-6">
+				<main className="flex-1 overflow-y-auto p-3 sm:p-6" data-lenis-prevent>
 					<div className="mx-auto w-full max-w-7xl min-w-0">{children}</div>
 				</main>
 			</div>

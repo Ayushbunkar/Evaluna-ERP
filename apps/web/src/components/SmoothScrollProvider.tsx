@@ -23,7 +23,48 @@ function LenisPageChangeHandler() {
 	return null;
 }
 
+// Routes where internal overflow containers handle scrolling and window scroll is fixed (h-screen overflow-hidden)
+const DASHBOARD_PREFIXES = [
+	"/admin",
+	"/auditor",
+	"/manager",
+	"/hr",
+	"/finance",
+	"/warehouse",
+	"/procurement",
+	"/driver",
+	"/picker",
+	"/packer",
+	"/loader",
+	"/putter",
+	"/sales",
+	"/customer",
+	"/checker",
+	"/superadmin",
+	"/supplier",
+	"/route-manager",
+	"/inventory",
+	"/biller",
+	"/delivery",
+	"/settings",
+	"/profile",
+	"/attendance",
+	"/tasks",
+	"/dashboard",
+];
+
 export function SmoothScrollProvider({ children }: { children: ReactNode }) {
+	const pathname = usePathname();
+	const isDashboard = pathname
+		? DASHBOARD_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+		: false;
+
+	// In dashboards with fixed-height app shell layouts, native browser scroll
+	// provides optimal 120Hz scrolling without intercepting wheel events over tables & lists.
+	if (isDashboard) {
+		return <>{children}</>;
+	}
+
 	return (
 		<ReactLenis
 			root
@@ -40,13 +81,18 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
 				autoResize: true,
 				anchors: true,
 				prevent: (node) => {
-					// Prevent hijacking inside modals, dialogs, dropdowns, Radix ScrollAreas, range inputs, or data-lenis-prevent
+					// Prevent hijacking inside modals, dialogs, dropdowns, Radix ScrollAreas, range inputs, tables, or data-lenis-prevent
 					return (
 						node.hasAttribute("data-lenis-prevent") ||
 						Boolean(node.closest("[data-lenis-prevent]")) ||
 						Boolean(node.closest("[role=\"dialog\"]")) ||
 						Boolean(node.closest("[data-radix-scroll-area-viewport]")) ||
-						Boolean(node.closest("input[type=\"range\"]"))
+						Boolean(node.closest("input[type=\"range\"]")) ||
+						Boolean(node.closest("table")) ||
+						Boolean(node.closest("main")) ||
+						Boolean(node.closest(".overflow-y-auto")) ||
+						Boolean(node.closest(".overflow-auto")) ||
+						Boolean(node.closest(".overflow-x-auto"))
 					);
 				},
 			}}
