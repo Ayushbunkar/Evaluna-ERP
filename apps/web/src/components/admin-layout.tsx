@@ -49,7 +49,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ChatWidget } from "@/components/chat/ChatWidget";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -436,7 +435,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 					{children}
 				</motion.main>
 			</div>
-			<ChatWidget />
 		</div>
 	);
 }

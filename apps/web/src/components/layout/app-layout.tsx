@@ -752,7 +752,7 @@ export function AppLayout({
 				</main>
 			</div>
 
-			{!pathname?.includes("/pos") && <ChatWidget />}
+			{(pathname?.startsWith("/customer") || role === "customer") && <ChatWidget />}
 		</div>
 	);
 }

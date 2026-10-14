@@ -16,6 +16,7 @@ import {
 	User,
 	X,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 
@@ -76,6 +77,9 @@ function renderMessageContent(content: string) {
 }
 
 export function ChatWidget() {
+	const pathname = usePathname();
+	const isCustomerDashboard = Boolean(pathname?.startsWith("/customer"));
+
 	const [isOpen, setIsOpen] = useState(false);
 	const [input, setInput] = useState("");
 	const [sessionId, setSessionId] = useState<number | null>(null);
@@ -89,7 +93,7 @@ export function ChatWidget() {
 
 	const { data: history, refetch } = trpc.chatbot.getHistory.useQuery(
 		{ sessionId: sessionId! },
-		{ enabled: !!sessionId, refetchInterval: isOpen ? 8000 : false },
+		{ enabled: !!sessionId && isCustomerDashboard, refetchInterval: isOpen ? 8000 : false },
 	);
 
 	const sendMessage = trpc.chatbot.sendMessage.useMutation({
@@ -109,16 +113,20 @@ export function ChatWidget() {
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
-		if (isOpen && !sessionId && !createSession.isPending) {
+		if (isCustomerDashboard && isOpen && !sessionId && !createSession.isPending) {
 			createSession.mutate({});
 		}
-	}, [isOpen, sessionId, createSession]);
+	}, [isCustomerDashboard, isOpen, sessionId, createSession]);
 
 	useEffect(() => {
 		if (isOpen) {
 			messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 		}
 	}, [history, isOpen, sendMessage.isPending]);
+
+	if (!isCustomerDashboard) {
+		return null;
+	}
 
 	const handleSend = (text?: string) => {
 		const messageToSend = (text || input).trim();
