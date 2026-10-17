@@ -192,4 +192,77 @@ describe("Strict Authentication & Email Verification Architecture", () => {
 		expect(verifyTrustedDeviceToken(undefined, userId)).toBe(false);
 		expect(verifyTrustedDeviceToken("", userId)).toBe(false);
 	});
+
+	it("should enforce mandatory 2FA barrier for non-seed accounts on untrusted devices", () => {
+		// Simulates middleware and auth-guard 2FA check logic
+		const check2FAStatus = (params: {
+			email: string;
+			has2FACookie: boolean;
+			isDeviceTrusted: boolean;
+		}) => {
+			const emailLower = params.email.toLowerCase().trim();
+			const isSeedAccount =
+				emailLower.endsWith("@evaluna.dev") || emailLower.endsWith("@evaluna.com");
+			const is2FAVerified =
+				isSeedAccount || params.isDeviceTrusted || params.has2FACookie;
+			return is2FAVerified;
+		};
+
+		// 1. Internal seed account automatically bypasses 2FA
+		expect(
+			check2FAStatus({
+				email: "driver@evaluna.com",
+				has2FACookie: false,
+				isDeviceTrusted: false,
+			}),
+		).toBe(true);
+
+		// 2. Real user (@gmail.com) without 2FA cookie or trusted device MUST NOT be verified
+		expect(
+			check2FAStatus({
+				email: "naitiksahu6323@gmail.com",
+				has2FACookie: false,
+				isDeviceTrusted: false,
+			}),
+		).toBe(false);
+
+		// 3. Real user with 2FA cookie verified is allowed
+		expect(
+			check2FAStatus({
+				email: "naitiksahu6323@gmail.com",
+				has2FACookie: true,
+				isDeviceTrusted: false,
+			}),
+		).toBe(true);
+
+		// 4. Real user with recognized trusted device token is allowed
+		expect(
+			check2FAStatus({
+				email: "naitiksahu6323@gmail.com",
+				has2FACookie: false,
+				isDeviceTrusted: true,
+			}),
+		).toBe(true);
+	});
+
+	it("should prevent non-OAuth users from claiming OAuth 2FA bypass", () => {
+		// Simulates /api/auth/oauth-success provider verification
+		const canBypassViaOAuthSuccess = (accounts: { providerId: string }[]) => {
+			const hasSocialAccount = accounts.some(
+				(acc) => acc.providerId !== "credential",
+			);
+			return hasSocialAccount;
+		};
+
+		// Credential-only account (e.g. email/password login) cannot claim OAuth 2FA bypass
+		expect(canBypassViaOAuthSuccess([{ providerId: "credential" }])).toBe(false);
+
+		// Google OAuth account can claim OAuth 2FA bypass
+		expect(
+			canBypassViaOAuthSuccess([
+				{ providerId: "credential" },
+				{ providerId: "google" },
+			]),
+		).toBe(true);
+	});
 });

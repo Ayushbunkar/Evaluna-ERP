@@ -215,14 +215,12 @@ export default async function middleware(request: NextRequest) {
 	const userEmail = (sessionData.user?.email || "").toLowerCase().trim();
 	const isSeedAccount =
 		userEmail.endsWith("@evaluna.dev") || userEmail.endsWith("@evaluna.com");
-	const isCustomer = (sessionData.role || "customer") === "customer";
 	const deviceToken = request.cookies.get("evaluna_trusted_device")?.value;
 	const isDeviceTrusted = sessionData.user?.id
 		? verifyTrustedDeviceToken(deviceToken, sessionData.user.id)
 		: false;
 	const is2FAVerified =
 		isSeedAccount ||
-		isCustomer ||
 		isDeviceTrusted ||
 		Boolean(request.cookies.get("evaluna_2fa_verified")?.value);
 

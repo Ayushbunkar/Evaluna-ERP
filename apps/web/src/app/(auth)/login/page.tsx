@@ -41,7 +41,13 @@ function LoginForm() {
 
 	const [authMode, setAuthMode] = useState<
 		"password" | "otp-request" | "otp-verify" | "2fa"
-	>(initialStep === "2fa" ? "2fa" : "password");
+	>(
+		initialStep === "2fa"
+			? "2fa"
+			: initialStep === "otp-verify"
+				? "otp-verify"
+				: "password",
+	);
 	const [emailForOtp, setEmailForOtp] = useState<string>(initialEmail);
 
 	const [isPending, setIsPending] = useState(false);
@@ -53,23 +59,11 @@ function LoginForm() {
 
 	useEffect(() => {
 		if (initialStep === "2fa" && initialEmail) {
+			setEmailForOtp(initialEmail);
+			setAuthMode("2fa");
 			sendTwoFactorOTPAction(initialEmail).catch(() => {});
 		}
 	}, [initialStep, initialEmail]);
-
-	// Seamlessly redirect if user already has an active session (e.g. from Google OAuth)
-	useEffect(() => {
-		if (initialStep !== "2fa" && !expired && !suspended) {
-			authClient
-				.getSession()
-				.then((res) => {
-					if (res?.data?.user) {
-						window.location.href = "/api/auth/oauth-success";
-					}
-				})
-				.catch(() => {});
-		}
-	}, [initialStep, expired, suspended]);
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -99,9 +93,16 @@ function LoginForm() {
 			}
 			setIsPending(false);
 		} else if (res && (res as any).requires2FA) {
-			setEmailForOtp((res as any).email || emailVal || "");
+			const targetEmail = (res as any).email || emailVal || "";
+			setEmailForOtp(targetEmail);
 			setAuthMode("2fa");
 			setIsPending(false);
+			if (typeof window !== "undefined") {
+				const url = new URL(window.location.href);
+				url.searchParams.set("step", "2fa");
+				url.searchParams.set("email", targetEmail);
+				window.history.replaceState({}, "", url.toString());
+			}
 		} else if (res && res.success && res.redirectUrl) {
 			const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 			let target = res.redirectUrl;
@@ -126,6 +127,12 @@ function LoginForm() {
 			const res = await requestEmailOTPAction(cleanEmail);
 			if (res.success) {
 				setAuthMode("otp-verify");
+				if (typeof window !== "undefined") {
+					const url = new URL(window.location.href);
+					url.searchParams.set("step", "otp-verify");
+					url.searchParams.set("email", cleanEmail);
+					window.history.replaceState({}, "", url.toString());
+				}
 			} else {
 				setLocalError(res.error || "Failed to send verification code.");
 			}
@@ -165,11 +172,20 @@ function LoginForm() {
 						return res;
 					}}
 					onResend={async () => {
-						return sendTwoFactorOTPAction(emailForOtp);
+						return sendTwoFactorOTPAction(emailForOtp, true);
 					}}
-					onBack={() => {
+					onBack={async () => {
+						try {
+							await authClient.signOut();
+						} catch {}
 						setAuthMode("password");
 						setLocalError(null);
+						if (typeof window !== "undefined") {
+							const url = new URL(window.location.href);
+							url.searchParams.delete("step");
+							url.searchParams.delete("email");
+							window.history.replaceState({}, "", url.toString());
+						}
 					}}
 				/>
 			</CardContent>
@@ -210,6 +226,12 @@ function LoginForm() {
 					onBack={() => {
 						setAuthMode("otp-request");
 						setLocalError(null);
+						if (typeof window !== "undefined") {
+							const url = new URL(window.location.href);
+							url.searchParams.delete("step");
+							url.searchParams.delete("email");
+							window.history.replaceState({}, "", url.toString());
+						}
 					}}
 				/>
 			</CardContent>

@@ -8,8 +8,8 @@ import {
 	TRUSTED_DEVICE_COOKIE_NAME,
 } from "@/lib/trusted-device";
 import { UserManagement } from "@evaluna/db";
-import { customers, user as userTable } from "@evaluna/db/schema";
-import { eq } from "drizzle-orm";
+import { account as accountTable, customers, user as userTable } from "@evaluna/db/schema";
+import { and, eq, ne } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,26 @@ export async function GET(request: NextRequest) {
 
 		const userId = session.user.id;
 		const userEmail = (session.user.email || "").toLowerCase().trim();
+
+		// Security barrier: Verify that this session actually originated from a social/OAuth provider
+		const [oauthAccount] = await db
+			.select()
+			.from(accountTable)
+			.where(
+				and(
+					eq(accountTable.userId, userId),
+					ne(accountTable.providerId, "credential"),
+				),
+			)
+			.limit(1);
+
+		if (!oauthAccount) {
+			console.warn(
+				"[OAuth Success] Blocked non-OAuth session from claiming OAuth 2FA bypass:",
+				userId,
+			);
+			return NextResponse.redirect(new URL("/login?step=2fa&email=" + encodeURIComponent(userEmail), request.url));
+		}
 
 		// Fetch current role from security profile
 		let profile = await UserManagement.getSecurityProfileByUserId(userId);

@@ -536,7 +536,7 @@ export async function resendVerificationEmailAction(email: string) {
 	}
 }
 
-export async function sendTwoFactorOTPAction(email: string) {
+export async function sendTwoFactorOTPAction(email: string, force: boolean = false) {
 	const normalizedEmail = (email || "").toLowerCase().trim();
 	if (!normalizedEmail || !normalizedEmail.includes("@")) {
 		return { success: false, error: "Please provide a valid email address." };
@@ -551,6 +551,25 @@ export async function sendTwoFactorOTPAction(email: string) {
 
 		if (!user) {
 			return { success: false, error: "User not found." };
+		}
+
+		// Throttle: If not explicitly forcing resend, reuse active OTP if created < 45 seconds ago
+		if (!force) {
+			const [existing] = await db
+				.select()
+				.from(verificationTable)
+				.where(eq(verificationTable.identifier, `2fa:${normalizedEmail}`))
+				.orderBy(desc(verificationTable.createdAt))
+				.limit(1);
+
+			if (
+				existing &&
+				existing.createdAt &&
+				Date.now() < existing.expiresAt.getTime() &&
+				Date.now() - existing.createdAt.getTime() < 45000
+			) {
+				return { success: true };
+			}
 		}
 
 		// Generate 6-digit OTP

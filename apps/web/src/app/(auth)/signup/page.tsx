@@ -13,7 +13,6 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { WaitingForVerificationModal } from "@/components/auth/WaitingForVerificationModal";
 import { PublicHeader } from "@/components/layout/PublicHeader";
-import { authClient } from "@/lib/auth-client";
 import { signupAction } from "./actions";
 
 function SignupForm() {
@@ -26,18 +25,6 @@ function SignupForm() {
 	const [formError, setFormError] = useState<string | null>(null);
 	const [waitingEmail, setWaitingEmail] = useState<string | null>(null);
 	const [showModal, setShowModal] = useState(false);
-
-	// Seamlessly redirect if user is already authenticated (e.g. from Google OAuth)
-	useEffect(() => {
-		authClient
-			.getSession()
-			.then((res) => {
-				if (res?.data?.user) {
-					window.location.href = "/api/auth/oauth-success";
-				}
-			})
-			.catch(() => {});
-	}, []);
 
 	const errorMessage =
 		formError ||
