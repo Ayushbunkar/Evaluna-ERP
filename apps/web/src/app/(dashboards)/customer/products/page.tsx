@@ -29,14 +29,17 @@ import {
 	CheckCircle2Icon,
 	FlameIcon,
 	Loader2Icon,
+	MapPinIcon,
 	MinusIcon,
 	PackageIcon,
+	PhoneIcon,
 	PlusIcon,
 	SearchIcon,
 	ShoppingBagIcon,
 	SparklesIcon,
 	TagIcon,
 	Trash2Icon,
+	TruckIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -835,15 +838,18 @@ export default function CustomerProductsPage() {
 
 						{/* Delivery Information Section */}
 						<div className="space-y-3 rounded-lg border border-border/60 bg-muted/10 p-4">
-							<p className="font-bold text-foreground text-xs uppercase tracking-wide">
-								🚚{" "}
-								{locale === "hi"
-									? "वितरण और संपर्क जानकारी"
-									: "Delivery & Contact Information"}
-							</p>
+							<div className="flex items-center gap-2">
+								<TruckIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+								<p className="font-bold text-foreground text-xs uppercase tracking-wide">
+									{locale === "hi"
+										? "वितरण और संपर्क जानकारी"
+										: "Delivery & Contact Information"}
+								</p>
+							</div>
 							<div className="grid gap-3">
 								<div className="space-y-1">
-									<label className="flex items-center gap-1 font-semibold text-[11px] text-muted-foreground">
+									<label className="flex items-center gap-1.5 font-semibold text-[11px] text-muted-foreground">
+										<PhoneIcon className="h-3.5 w-3.5 text-muted-foreground" />
 										<span>
 											{locale === "hi"
 												? "फ़ोन नंबर (अनिवार्य)"
@@ -864,7 +870,8 @@ export default function CustomerProductsPage() {
 									/>
 								</div>
 								<div className="space-y-1">
-									<label className="flex items-center gap-1 font-semibold text-[11px] text-muted-foreground">
+									<label className="flex items-center gap-1.5 font-semibold text-[11px] text-muted-foreground">
+										<MapPinIcon className="h-3.5 w-3.5 text-muted-foreground" />
 										<span>
 											{locale === "hi"
 												? "वितरण का पता (अनिवार्य)"

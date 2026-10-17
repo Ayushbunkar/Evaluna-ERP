@@ -24,12 +24,15 @@ import {
 } from "@evaluna/ui/components/table";
 import {
 	CheckCircle2Icon,
+	ClipboardListIcon,
 	ClockIcon,
 	EyeIcon,
+	FileEditIcon,
 	PackageIcon,
 	PlusIcon,
 	ShoppingBagIcon,
 	TruckIcon,
+	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
@@ -491,10 +494,12 @@ export default function CustomerOrdersPage() {
 							{orderDetail.original_items && (
 								<div className="space-y-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs">
 									<p className="flex items-center gap-1.5 font-bold text-[11px] text-amber-700 uppercase tracking-wide dark:text-amber-400">
-										📋{" "}
-										{locale === "hi"
-											? "मूल ऑर्डर बनाम संशोधित बिल (अपडेट)"
-											: "Original Order vs Final Updated Bill"}
+										<ClipboardListIcon className="h-3.5 w-3.5" />
+										<span>
+											{locale === "hi"
+												? "मूल ऑर्डर बनाम संशोधित बिल (अपडेट)"
+												: "Original Order vs Final Updated Bill"}
+										</span>
 									</p>
 									<div className="space-y-1.5 pt-1 font-mono text-[11px]">
 										{(() => {
@@ -520,7 +525,9 @@ export default function CustomerOrdersPage() {
 															key={`rem-${orig.productId}`}
 															className="flex justify-between text-red-600 line-through"
 														>
-															<span>❌ {orig.name}</span>
+															<span className="flex items-center gap-1">
+																<XCircleIcon className="h-3.5 w-3.5" /> {orig.name}
+															</span>
 															<span>
 																Qty: {origQty} →{" "}
 																{locale === "hi" ? "हटाया गया" : "Removed"}
@@ -537,7 +544,9 @@ export default function CustomerOrdersPage() {
 															key={`mod-${orig.productId}`}
 															className="flex justify-between text-foreground"
 														>
-															<span>📝 {orig.name}</span>
+															<span className="flex items-center gap-1">
+																<FileEditIcon className="h-3.5 w-3.5 text-amber-600" /> {orig.name}
+															</span>
 															<span>
 																Qty: {origQty} →{" "}
 																<strong className={colorClass}>
@@ -552,7 +561,9 @@ export default function CustomerOrdersPage() {
 															key={`same-${orig.productId}`}
 															className="flex justify-between text-muted-foreground"
 														>
-															<span>✅ {orig.name}</span>
+															<span className="flex items-center gap-1">
+																<CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" /> {orig.name}
+															</span>
 															<span>
 																Qty: {origQty} (
 																{locale === "hi" ? "अपरिवर्तित" : "Unchanged"})
