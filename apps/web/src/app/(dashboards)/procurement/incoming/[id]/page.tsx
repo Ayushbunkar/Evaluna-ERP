@@ -727,13 +727,16 @@ export default function PurchaseOrderInspectionPage() {
 														lineItems.length > 0 &&
 														lineItems.every((it) => it.isVerified)
 													}
+													onChange={(e) =>
+														handleMarkAllVerified(e.target.checked)
+													}
 													onCheckedChange={(checked) =>
 														handleMarkAllVerified(Boolean(checked))
 													}
 													disabled={isCompleted || lineItems.length === 0}
 													title="Tick / Untick All Items"
 													aria-label="Tick All Items"
-													className="h-4 w-4 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
+													className="h-4 w-4 cursor-pointer"
 												/>
 											</div>
 										</TableHead>
@@ -782,13 +785,24 @@ export default function PurchaseOrderInspectionPage() {
 													}`}
 												>
 													{/* Checkbox Tick */}
-													<TableCell className="text-center">
-														<Checkbox
-															checked={item.isVerified}
-															onCheckedChange={() => handleToggleVerify(idx)}
-															disabled={isCompleted}
-															className="h-5 w-5 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
-														/>
+													<TableCell
+														className="text-center cursor-pointer select-none"
+														onClick={(e) => {
+															if ((e.target as HTMLElement).tagName !== "INPUT" && !isCompleted) {
+																handleToggleVerify(idx);
+															}
+														}}
+													>
+														<div className="flex items-center justify-center">
+															<Checkbox
+																checked={Boolean(item.isVerified)}
+																onChange={() => handleToggleVerify(idx)}
+																onCheckedChange={() => handleToggleVerify(idx)}
+																disabled={isCompleted}
+																className="h-5 w-5 cursor-pointer"
+																aria-label={`Tick ${item.productName}`}
+															/>
+														</div>
 													</TableCell>
 
 													{/* Product info */}
