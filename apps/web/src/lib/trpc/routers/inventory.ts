@@ -224,6 +224,7 @@ export const inventoryRouter = router({
 				unit: z.string().optional().nullable(),
 				barcode: z.string().optional().nullable(),
 				sku: z.string().optional().nullable(),
+				reorderLevel: z.number().min(0).optional().nullable(),
 				reason: z.string().optional().nullable(),
 			}),
 		)
@@ -300,18 +301,24 @@ export const inventoryRouter = router({
 							)
 							.limit(1);
 
+				const branchInvUpdates: any = {
+					in_stock: input.qtyOnHand,
+				};
+				if (input.reorderLevel !== undefined && input.reorderLevel !== null) {
+					branchInvUpdates.reorder_level = input.reorderLevel;
+				}
+
 				if (existing && existing.length > 0) {
 					await tx
 						.update(branchInventory)
-						.set({
-							in_stock: input.qtyOnHand,
-						})
+						.set(branchInvUpdates)
 						.where(eq(branchInventory.id, existing[0].id));
 				} else {
 					await tx.insert(branchInventory).values({
 						product_id: prodId,
 						branch_id: input.branchId,
 						in_stock: input.qtyOnHand,
+						reorder_level: input.reorderLevel ?? 10,
 					});
 				}
 
@@ -927,6 +934,10 @@ export const inventoryRouter = router({
 					.number()
 					.min(0, "Initial stock cannot be negative.")
 					.default(0),
+				reorderLevel: z
+					.number()
+					.min(0, "Reorder level cannot be negative.")
+					.default(10),
 				binLocation: z.string().optional(),
 				branchId: z.number().default(1),
 			}),
@@ -962,7 +973,7 @@ export const inventoryRouter = router({
 						branch_id: input.branchId,
 						product_id: newProd.id,
 						in_stock: input.initialStock,
-						reorder_level: 10,
+						reorder_level: input.reorderLevel,
 					})
 					.returning();
 

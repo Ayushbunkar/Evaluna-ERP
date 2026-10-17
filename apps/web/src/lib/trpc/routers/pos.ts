@@ -20,9 +20,10 @@ import { protectedProcedure, router } from "@/lib/trpc/init";
 
 export const posRouter = router({
 	catalog: protectedProcedure.query(async ({ ctx }) => {
+		const targetBranchId = ctx.user?.branchId || 1;
 		const todayStr = new Date().toISOString().split("T")[0];
 
-		// Fetch full products catalog (up to 1000 items) with today's active daily discounts
+		// Fetch full products catalog (up to 1000 items) with branch inventory stock and today's active daily discounts
 		const [catalog, activeDiscounts] = await Promise.all([
 			ctx.db
 				.select({
@@ -37,13 +38,35 @@ export const posRouter = router({
 					description: products.description,
 					is_weighted: products.is_weighted,
 					is_taxable: products.taxable,
+					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
+					reorder_level: sql<number>`coalesce(max(${branchInventory.reorder_level}), 10)::int`,
 				})
 				.from(products)
+				.leftJoin(
+					branchInventory,
+					and(
+						eq(products.id, branchInventory.product_id),
+						eq(branchInventory.branch_id, targetBranchId),
+					),
+				)
 				.where(
 					and(
 						or(eq(products.is_deleted, false), isNull(products.is_deleted)),
 						or(eq(products.is_hidden, false), isNull(products.is_hidden)),
 					),
+				)
+				.groupBy(
+					products.id,
+					products.name,
+					products.sku,
+					products.category,
+					products.unit,
+					products.barcode,
+					products.price,
+					products.base_selling_price,
+					products.description,
+					products.is_weighted,
+					products.taxable,
 				)
 				.orderBy(asc(products.name))
 				.limit(1000),
@@ -56,7 +79,16 @@ export const posRouter = router({
 						eq(dailyProductDiscounts.is_active, true),
 					),
 				)
-				.catch(() => [] as { product_id: number; is_active: boolean; discounted_price: string | null; reason: string; discount_percent: string | null }[]),
+				.catch(
+					() =>
+						[] as {
+							product_id: number;
+							is_active: boolean;
+							discounted_price: string | null;
+							reason: string;
+							discount_percent: string | null;
+						}[],
+				),
 		]);
 
 		const discountMap = new Map<number, (typeof activeDiscounts)[0]>();
@@ -72,6 +104,10 @@ export const posRouter = router({
 			const offerPrice = hasOffer
 				? Number.parseFloat(activeOffer.discounted_price || "0")
 				: originalPrice;
+			const currentStock = Number(item.qty_on_hand || 0);
+			const minThreshold = Number(item.reorder_level ?? 10);
+			const isOutOfStock = currentStock <= 0;
+			const isLowStock = !isOutOfStock && currentStock <= minThreshold;
 
 			return {
 				...item,
@@ -84,9 +120,20 @@ export const posRouter = router({
 					? Number.parseFloat(activeOffer.discount_percent)
 					: hasOffer && originalPrice > 0
 						? Number.parseFloat(
-								(((originalPrice - offerPrice) / originalPrice) * 100).toFixed(1),
+								(((originalPrice - offerPrice) / originalPrice) * 100).toFixed(
+									1,
+								),
 							)
 						: 0,
+				qty_on_hand: currentStock,
+				reorder_level: minThreshold,
+				isOutOfStock,
+				isLowStock,
+				stockStatus: isOutOfStock
+					? "out_of_stock"
+					: isLowStock
+						? "low_stock"
+						: "in_stock",
 			};
 		});
 	}),

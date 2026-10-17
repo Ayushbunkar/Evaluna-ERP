@@ -98,6 +98,7 @@ export default function StockPage() {
 	const [editSku, setEditSku] = useState<string>("");
 	const [editDescription, setEditDescription] = useState<string>("");
 	const [editStockQty, setEditStockQty] = useState<string>("");
+	const [editReorderLevel, setEditReorderLevel] = useState<string>("10");
 	const [editPrice, setEditPrice] = useState<string>("");
 	const [editCostPrice, setEditCostPrice] = useState<string>("");
 	const [editReason, setEditReason] = useState<string>("");
@@ -129,6 +130,7 @@ export default function StockPage() {
 		category: "General",
 		unit: "Pcs",
 		initialStock: "10",
+		reorderLevel: "10",
 		binLocation: "Aisle A - Bin A101",
 	});
 
@@ -257,10 +259,14 @@ export default function StockPage() {
 			items = items.filter((i) => i.category === selectedCategory);
 		}
 		if (statusFilter === "in_stock") {
-			items = items.filter((i) => (i.qty_on_hand || 0) > 10);
+			items = items.filter(
+				(i) => (i.qty_on_hand || 0) > (i.reorder_level ?? 10),
+			);
 		} else if (statusFilter === "low_stock") {
 			items = items.filter(
-				(i) => (i.qty_on_hand || 0) <= 10 && (i.qty_on_hand || 0) > 0,
+				(i) =>
+					(i.qty_on_hand || 0) <= (i.reorder_level ?? 10) &&
+					(i.qty_on_hand || 0) > 0,
 			);
 		} else if (statusFilter === "out_of_stock") {
 			items = items.filter((i) => (i.qty_on_hand || 0) <= 0);
@@ -288,7 +294,9 @@ export default function StockPage() {
 		0,
 	);
 	const lowStockCount = rawItems.filter(
-		(i) => (i.qty_on_hand || 0) <= 10 && (i.qty_on_hand || 0) > 0,
+		(i) =>
+			(i.qty_on_hand || 0) <= (i.reorder_level ?? 10) &&
+			(i.qty_on_hand || 0) > 0,
 	).length;
 	const outOfStockCount = rawItems.filter(
 		(i) => (i.qty_on_hand || 0) <= 0,
@@ -304,6 +312,7 @@ export default function StockPage() {
 		setEditSku(item.sku || "");
 		setEditDescription(item.description || "");
 		setEditStockQty(String(item.qty_on_hand ?? 0));
+		setEditReorderLevel(String(item.reorder_level ?? 10));
 		setEditPrice(String(item.price ?? 0));
 		setEditCostPrice(String(item.costPrice ?? 0));
 		setEditReason("Stock and product details updated by warehouse manager");
@@ -312,16 +321,25 @@ export default function StockPage() {
 	const handleSaveEdit = async () => {
 		if (!editItem) return;
 		if (!editName.trim()) {
-			toast.error(locale === "hi" ? "कृपया उत्पाद का नाम दर्ज करें" : "Please enter product name");
+			toast.error(
+				locale === "hi"
+					? "कृपया उत्पाद का नाम दर्ज करें"
+					: "Please enter product name",
+			);
 			return;
 		}
 
 		const qty = Number.parseInt(editStockQty, 10);
+		const reorder = Number.parseInt(editReorderLevel, 10);
 		const price = Number.parseFloat(editPrice);
 		const cost = Number.parseFloat(editCostPrice || "0");
 
 		if (Number.isNaN(qty) || qty < 0) {
 			toast.error("Stock quantity must be 0 or higher.");
+			return;
+		}
+		if (Number.isNaN(reorder) || reorder < 0) {
+			toast.error("Low stock alert threshold must be 0 or higher.");
 			return;
 		}
 		if (Number.isNaN(price) || price < 0) {
@@ -341,6 +359,7 @@ export default function StockPage() {
 			sku: editSku.trim() || undefined,
 			description: editDescription.trim(),
 			qtyOnHand: qty,
+			reorderLevel: reorder,
 			price: price,
 			costPrice: Number.isNaN(cost) ? 0 : cost,
 			reason: editReason || "Warehouse stock & specification update",
@@ -884,29 +903,36 @@ export default function StockPage() {
 															{item.unit || "Pcs"}
 														</span>
 													</div>
+													<div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+														Min: {item.reorder_level ?? 10} {item.unit || "Pcs"}
+													</div>
 												</TableCell>
 												<TableCell>
 													<Badge
 														variant={
-															(item.qty_on_hand || 0) > 10
+															(item.qty_on_hand || 0) >
+															(item.reorder_level ?? 10)
 																? "default"
 																: (item.qty_on_hand || 0) > 0
 																	? "secondary"
 																	: "destructive"
 														}
 														className={
-															(item.qty_on_hand || 0) <= 10 &&
+															(item.qty_on_hand || 0) <=
+																(item.reorder_level ?? 10) &&
 															(item.qty_on_hand || 0) > 0
-																? "border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-																: (item.qty_on_hand || 0) > 10
-																	? "bg-emerald-600 text-white"
-																	: ""
+																? "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-bold"
+																: (item.qty_on_hand || 0) >
+																		(item.reorder_level ?? 10)
+																	? "bg-emerald-600 text-white font-medium"
+																	: "font-bold"
 														}
 													>
-														{(item.qty_on_hand || 0) > 10
+														{(item.qty_on_hand || 0) >
+														(item.reorder_level ?? 10)
 															? "In Stock"
 															: (item.qty_on_hand || 0) > 0
-																? "Low Stock"
+																? `Low Stock (≤ ${item.reorder_level ?? 10})`
 																: "Out of Stock"}
 													</Badge>
 												</TableCell>
@@ -1185,8 +1211,8 @@ export default function StockPage() {
 								</div>
 							</div>
 
-							{/* Stock Qty & Audit Reason */}
-							<div className="grid grid-cols-2 gap-3">
+							{/* Stock Qty, Low Stock Threshold & Audit Reason */}
+							<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 								<div className="space-y-1.5">
 									<Label htmlFor="stockQty" className="font-semibold text-xs">
 										Physical Stock Quantity ({editUnit || "Units"}) *
@@ -1200,6 +1226,27 @@ export default function StockPage() {
 										onChange={(e) => setEditStockQty(e.target.value)}
 										className="font-bold font-mono text-sm"
 									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label
+										htmlFor="editReorderLevel"
+										className="font-semibold text-xs flex items-center gap-1 text-amber-700 dark:text-amber-400"
+									>
+										<AlertTriangleIcon className="h-3 w-3 text-amber-500" />
+										<span>Low Stock Threshold *</span>
+									</Label>
+									<Input
+										id="editReorderLevel"
+										type="number"
+										min="0"
+										placeholder="e.g. 10"
+										value={editReorderLevel}
+										onChange={(e) => setEditReorderLevel(e.target.value)}
+										className="font-bold font-mono text-sm border-amber-300 bg-amber-50/50 text-amber-950 focus:border-amber-500 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-200"
+									/>
+									<span className="text-[10px] text-muted-foreground block leading-tight">
+										Low stock alert below this
+									</span>
 								</div>
 								<div className="space-y-1.5">
 									<Label htmlFor="editReason" className="font-semibold text-xs">
@@ -1694,10 +1741,10 @@ export default function StockPage() {
 							</div>
 						</div>
 
-						{/* Initial Stock & Bin Location */}
-						<div className="grid grid-cols-2 gap-3">
+						{/* Initial Stock, Low Stock Threshold & Bin Location */}
+						<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 							<div className="space-y-1.5">
-								<Label htmlFor="newItemStock" className="font-semibold text-sm">
+								<Label htmlFor="newItemStock" className="font-semibold text-xs">
 									Initial Stock Qty / प्रारंभिक स्टॉक{" "}
 									<span className="text-red-500">*</span>
 								</Label>
@@ -1716,8 +1763,29 @@ export default function StockPage() {
 							</div>
 
 							<div className="space-y-1.5">
-								<Label htmlFor="newItemBin" className="font-semibold text-sm">
-									Bin Location / लेआउट (Optional)
+								<Label
+									htmlFor="newItemReorder"
+									className="font-semibold text-xs flex items-center gap-1 text-amber-700 dark:text-amber-400"
+								>
+									<AlertTriangleIcon className="h-3 w-3 text-amber-500" />
+									<span>Low Stock Threshold *</span>
+								</Label>
+								<Input
+									id="newItemReorder"
+									type="number"
+									min="0"
+									placeholder="e.g. 10"
+									value={newItem.reorderLevel}
+									onChange={(e) =>
+										setNewItem({ ...newItem, reorderLevel: e.target.value })
+									}
+									className="font-bold font-mono text-sm border-amber-300 bg-amber-50/50 text-amber-950 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-200"
+								/>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="newItemBin" className="font-semibold text-xs">
+									Bin Location / लेआउट
 								</Label>
 								<Input
 									id="newItemBin"
@@ -1753,6 +1821,8 @@ export default function StockPage() {
 									: undefined;
 								const parsedStock =
 									Number.parseFloat(newItem.initialStock) || 0;
+								const parsedReorder =
+									Number.parseInt(newItem.reorderLevel, 10) || 10;
 
 								if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
 									toast.error("Please enter a valid positive selling price.");
@@ -1766,6 +1836,7 @@ export default function StockPage() {
 									costPrice: parsedCost,
 									unit: newItem.unit,
 									initialStock: parsedStock,
+									reorderLevel: parsedReorder,
 									binLocation: newItem.binLocation,
 									branchId: 1,
 								});

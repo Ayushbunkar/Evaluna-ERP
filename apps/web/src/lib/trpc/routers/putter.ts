@@ -9,7 +9,7 @@ import {
 	stockAdjustments,
 	suppliers,
 } from "@evaluna/db/schema";
-import { and, avg, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
+import { and, avg, count, desc, eq, inArray, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -237,7 +237,8 @@ export const putterRouter = router({
 					id: branchInventory.id,
 					product: products.name,
 					sku: products.sku,
-					quantity_needed: sql`${branchInventory.reserved_stock} - ${branchInventory.in_stock}`,
+					quantity_needed: sql<number>`GREATEST(1, GREATEST(COALESCE(${branchInventory.reserved_stock}, 0) - COALESCE(${branchInventory.in_stock}, 0), COALESCE(${branchInventory.reorder_level}, 10) - COALESCE(${branchInventory.in_stock}, 0)))`,
+					reason_text: sql<string>`CASE WHEN COALESCE(${branchInventory.in_stock}, 0) <= 0 THEN 'Out of Stock' WHEN COALESCE(${branchInventory.in_stock}, 0) <= COALESCE(${branchInventory.reorder_level}, 10) THEN 'Below Reorder Threshold' ELSE 'Reserved Deficit' END`,
 					updated_at: branchInventory.created_at,
 				})
 				.from(branchInventory)
@@ -245,7 +246,10 @@ export const putterRouter = router({
 				.where(
 					and(
 						branchId ? eq(branchInventory.branch_id, branchId) : undefined,
-						sql`${branchInventory.in_stock} < ${branchInventory.reserved_stock}`,
+						or(
+							sql`${branchInventory.in_stock} < ${branchInventory.reserved_stock}`,
+							sql`${branchInventory.in_stock} <= ${branchInventory.reorder_level}`,
+						),
 					),
 				)
 				.orderBy(desc(branchInventory.created_at))
@@ -257,7 +261,7 @@ export const putterRouter = router({
 				sku: r.sku || "N/A",
 				quantity_needed: Number(r.quantity_needed) || 0,
 				location: "Warehouse",
-				reason: "Insufficient stock",
+				reason: r.reason_text || "Insufficient stock",
 				date: r.updated_at?.toLocaleDateString() || "",
 			}));
 		}),
