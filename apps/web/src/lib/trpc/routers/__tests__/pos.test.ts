@@ -28,6 +28,10 @@ beforeAll(async () => {
 				schema.transactions,
 				schema.branchInventory,
 				schema.stockLedger,
+				schema.pickLists,
+				schema.pickListItems,
+				schema.pendingSync,
+				schema.coupons,
 			],
 			false,
 		),
@@ -81,5 +85,53 @@ describe("posRouter", () => {
 		expect(prodB).toBeDefined();
 		expect(prodDeleted).toBeUndefined();
 		expect(prodB.price).toBe("200.00");
+	});
+
+	it("checkout deducts stock from branch inventory and creates stock ledger entry", async () => {
+		// 1. Seed initial stock in branch inventory (100 units for Product A)
+		await db.insert(schema.branchInventory).values({
+			branch_id: 1,
+			product_id: 501,
+			in_stock: 100,
+			reserved_stock: 0,
+			reorder_level: 10,
+		});
+
+		// 2. Perform POS checkout selling 5 units of Product A
+		const order = await caller.checkout({
+			items: [
+				{
+					productId: 501,
+					quantity: 5,
+					price: "100.00",
+				},
+			],
+			payments: [
+				{
+					methodId: 1,
+					amount: "500.00",
+				},
+			],
+		});
+
+		expect(order).toBeDefined();
+		expect(order.id).toBeDefined();
+
+		// 3. Verify branch inventory is decremented: 100 - 5 = 95
+		const inv = await db.query.branchInventory.findFirst({
+			where: (t, { and, eq }) =>
+				and(eq(t.branch_id, 1), eq(t.product_id, 501)),
+		});
+		expect(inv).toBeDefined();
+		expect(Number(inv!.in_stock)).toBe(95);
+
+		// 4. Verify stock ledger entry was created
+		const ledger = await db.query.stockLedger.findFirst({
+			where: (t, { and, eq }) =>
+				and(eq(t.product_id, 501), eq(t.reference_id, order.id)),
+		});
+		expect(ledger).toBeDefined();
+		expect(Number(ledger!.quantity)).toBe(-5);
+		expect(ledger!.transaction_type).toBe("out");
 	});
 });

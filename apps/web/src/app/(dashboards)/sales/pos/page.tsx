@@ -504,6 +504,10 @@ function POSContent() {
 			utils.orders.list.invalidate();
 			utils.cashbook.getLedger.invalidate();
 			utils.cashbook.getDailySummary.invalidate();
+			utils.pos.catalog.invalidate();
+			utils.inventory.list.invalidate();
+			utils.warehouse.invalidate();
+			utils.dashboard.invalidate();
 
 			if (resumeId) {
 				window.history.replaceState({}, "", "/sales/pos");

@@ -912,7 +912,7 @@ export const ordersRouter = router({
 							.values({
 								branch_id: branchId,
 								product_id: product.id,
-								in_stock: 10000,
+								in_stock: -product.quantity,
 								reserved_stock: product.quantity,
 								reorder_level: 10,
 							})
@@ -923,10 +923,26 @@ export const ordersRouter = router({
 						await tx
 							.update(branchInventory)
 							.set({
+								in_stock: sql`${branchInventory.in_stock} - ${product.quantity}`,
 								reserved_stock: (inv.reserved_stock || 0) + product.quantity,
 							})
 							.where(eq(branchInventory.id, inv.id));
 					}
+				}
+
+				// Stock ledger (out movement)
+				const ledgerEntries = input.products.map((p) => ({
+					product_id: p.id,
+					transaction_type: "out" as const,
+					quantity: -p.quantity,
+					unit_cost: p.price.toString(),
+					total_cost: (p.price * p.quantity).toString(),
+					reference_id: orderData.id,
+					reference_type: "sale",
+					branch_id: branchId,
+				}));
+				if (ledgerEntries.length > 0) {
+					await tx.insert(stockLedger).values(ledgerEntries);
 				}
 
 				// Audit Log
