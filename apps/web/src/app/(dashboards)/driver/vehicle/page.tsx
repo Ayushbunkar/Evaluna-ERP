@@ -20,9 +20,12 @@ import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import {
 	AlertTriangleIcon,
+	BoxIcon,
 	CheckCircle2Icon,
 	ClockIcon,
 	FileTextIcon,
+	PackageIcon,
+	RefreshCwIcon,
 	ShieldCheckIcon,
 	TruckIcon,
 	WrenchIcon,
@@ -39,6 +42,13 @@ export default function DriverVehiclePage() {
 		isLoading,
 		refetch,
 	} = trpc.driver.getMobileDashboard.useQuery({});
+	const {
+		data: vanStock,
+		isLoading: isVanStockLoading,
+		refetch: refetchVanStock,
+	} = trpc.driver.getVanStock.useQuery(undefined, {
+		refetchInterval: 10000,
+	});
 
 	const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 	const [issueCategory, setIssueCategory] = useState("Tyre / Brakes");
@@ -213,6 +223,117 @@ export default function DriverVehiclePage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Current Van Inventory & Customer Returns */}
+			<Card className="border-border/60 shadow-sm">
+				<CardHeader className="border-b bg-gray-50/50 pb-4 dark:bg-gray-800/40">
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<CardTitle className="flex items-center gap-2 font-bold text-lg">
+								<BoxIcon className="h-5 w-5 text-blue-600" />
+								Current Van Stock & Customer Returns
+							</CardTitle>
+							<CardDescription className="text-xs">
+								Inventory physically present in your vehicle: warehouse buffer stock and items returned by customers on this route.
+							</CardDescription>
+						</div>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => refetchVanStock()}
+								className="h-8 gap-1.5 text-xs font-medium"
+							>
+								<RefreshCwIcon
+									className={`h-3.5 w-3.5 ${isVanStockLoading ? "animate-spin" : ""}`}
+								/>
+								Sync Van Stock
+							</Button>
+						</div>
+					</div>
+					<div className="flex flex-wrap gap-2 pt-2">
+						<span className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+							<PackageIcon className="h-3.5 w-3.5" /> Total Items: {vanStock?.totalQty ?? 0} units
+						</span>
+						<span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+							Est. Value: ₹{vanStock?.totalValue ?? 0}
+						</span>
+						{(vanStock?.returnedCount ?? 0) > 0 && (
+							<span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+								🔄 Customer Returns: {vanStock?.returnedCount} item(s)
+							</span>
+						)}
+					</div>
+				</CardHeader>
+
+				<CardContent className="p-0">
+					{!vanStock?.items || vanStock.items.length === 0 ? (
+						<div className="p-8 text-center text-slate-500 text-xs">
+							<BoxIcon className="mx-auto mb-2 h-7 w-7 opacity-30 text-blue-500" />
+							<p className="font-semibold text-sm text-slate-700 dark:text-slate-300">
+								No extra stock or returned goods in vehicle
+							</p>
+							<p className="mt-1 text-slate-400 max-w-sm mx-auto">
+								When customers reject or return items during delivery stops, or when the warehouse putter allocates buffer stock, they will immediately appear here.
+							</p>
+						</div>
+					) : (
+						<div className="overflow-x-auto">
+							<table className="w-full text-left text-sm">
+								<thead className="border-b bg-gray-100/50 font-semibold text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300">
+									<tr>
+										<th className="p-3 pl-4">Product Name</th>
+										<th className="p-3">Source & Category</th>
+										<th className="p-3">Unit Price</th>
+										<th className="p-3">Available in Van</th>
+										<th className="p-3 pr-4 text-right">Reason / Notes</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y">
+									{vanStock.items.map((item, idx) => {
+										const isReturn = item.source === "customer_return";
+										return (
+											<tr
+												key={idx}
+												className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+											>
+												<td className="p-3 pl-4">
+													<div className="font-semibold text-slate-900 dark:text-white">
+														{item.name}
+													</div>
+													{isReturn && item.customerName && (
+														<div className="text-[11px] text-amber-700 dark:text-amber-400">
+															Returned by: {item.customerName}
+														</div>
+													)}
+												</td>
+												<td className="p-3">
+													{isReturn ? (
+														<span className="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+															🔄 Customer Return
+														</span>
+													) : (
+														<span className="inline-flex items-center rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+															📦 Van Buffer
+														</span>
+													)}
+												</td>
+												<td className="p-3 font-mono font-medium">₹{item.price}</td>
+												<td className="p-3 font-bold font-mono text-blue-600 dark:text-blue-400">
+													{item.availableQty} units
+												</td>
+												<td className="p-3 pr-4 text-right text-xs text-slate-600 dark:text-slate-400">
+													{item.reason || "Available for delivery"}
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
+						</div>
+					)}
+				</CardContent>
+			</Card>
 
 			{/* Report Issue Modal */}
 			<Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>

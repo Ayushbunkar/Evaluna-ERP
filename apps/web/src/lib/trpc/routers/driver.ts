@@ -1,4 +1,13 @@
-import { branches, orders, staff, transactions, user } from "@evaluna/db/schema";
+import {
+	branches,
+	orders,
+	salesReturnItems,
+	salesReturns,
+	staff,
+	stockAdjustments,
+	transactions,
+	user,
+} from "@evaluna/db/schema";
 import {
 	deliveryTrips,
 	driverSupportTickets,
@@ -7,7 +16,7 @@ import {
 	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
-import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -1537,8 +1546,10 @@ export const driverRouter = router({
 					.array(
 						z.object({
 							id: z.coerce.number().optional(),
+							product_id: z.coerce.number().optional(),
 							name: z.string(),
 							qty: z.coerce.number(),
+							price: z.coerce.number().optional(),
 							reason: z.string().optional(),
 						}),
 					)
@@ -1547,9 +1558,11 @@ export const driverRouter = router({
 					.array(
 						z.object({
 							id: z.coerce.number().optional(),
+							product_id: z.coerce.number().optional(),
 							name: z.string(),
 							qty: z.coerce.number(),
 							price: z.coerce.number(),
+							isVanStock: z.boolean().optional(),
 						}),
 					)
 					.optional(),
@@ -1687,6 +1700,62 @@ export const driverRouter = router({
 					}
 				}
 
+				// Record return in salesReturns and salesReturnItems if customer returned any items
+				if (hasReturns && orderIdToUpdate) {
+					try {
+						const orderRecord = await db.query.orders?.findFirst({
+							where: eq(orders.id, orderIdToUpdate),
+						});
+						if (orderRecord) {
+							const returnTotal = (input.damagedOrReturnedItems || []).reduce(
+								(acc, it) =>
+									acc + (Number(it.price || 0) * (Number(it.qty) || 0)),
+								0,
+							);
+							const [insertedReturn] = await db
+								.insert(salesReturns)
+								.values({
+									order_id: orderIdToUpdate,
+									customer_id: orderRecord.customer_id,
+									branch_id: orderRecord.branch_id || ctx.user?.branchId || 1,
+									total_amount: String(returnTotal),
+									status: "pending",
+									user_uid: ctx.user?.id || "driver-1",
+								})
+								.returning();
+
+							if (insertedReturn) {
+								for (const item of input.damagedOrReturnedItems || []) {
+									if (item.product_id && (Number(item.qty) || 0) > 0) {
+										await db.insert(salesReturnItems).values({
+											return_id: insertedReturn.id,
+											product_id: Number(item.product_id),
+											quantity: Number(item.qty),
+											price: String(item.price || 0),
+											refund_amount: String(
+												Number(item.price || 0) * Number(item.qty),
+											),
+											condition: String(item.reason || "")
+												.toLowerCase()
+												.includes("damage")
+												? "damaged"
+												: "good",
+											reason:
+												item.reason ||
+												"Customer Refused / Delivery Return",
+										});
+									}
+								}
+							}
+						}
+					} catch (srErr) {
+						console.warn(
+							"[submitDeliveryHandover] salesReturns insertion fallback:",
+							srErr,
+						);
+					}
+				}
+
 				// Create cash collection if cash > 0
 				if (input.cashAmount > 0) {
 					await db.insert(tripCollections).values({
@@ -1784,6 +1853,268 @@ export const driverRouter = router({
 			}
 
 			return { success: true };
+		}),
+
+	getVanStock: protectedProcedure
+		.input(
+			z
+				.object({
+					trip_id: z.number().optional(),
+					vehicle_id: z.number().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ input, ctx }) => {
+			try {
+				const { ids: driverIds } = await getDriverIdentifiers(ctx);
+				let targetTripId = input?.trip_id ?? null;
+				let vehiclePlate = "Assigned Vehicle";
+
+				// If trip_id not provided, find active trip for this driver
+				if (!targetTripId) {
+					const tripConditions = [];
+					if (driverIds.length > 0) {
+						tripConditions.push(inArray(deliveryTrips.driver_id, driverIds));
+					}
+					if (ctx.user?.email) {
+						tripConditions.push(
+							sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${ctx.user.email}))`,
+						);
+					}
+
+					const activeTrip = await db.query.deliveryTrips.findFirst({
+						where:
+							tripConditions.length > 0
+								? and(
+										or(...tripConditions),
+										inArray(deliveryTrips.status, [
+											"active",
+											"out_for_delivery",
+											"dispatched",
+											"in_progress",
+											"loaded",
+											"pending",
+										]),
+									)
+								: inArray(deliveryTrips.status, [
+										"active",
+										"out_for_delivery",
+										"dispatched",
+										"in_progress",
+										"loaded",
+										"pending",
+									]),
+						orderBy: [desc(deliveryTrips.created_at)],
+						with: {
+							vehicle: true,
+						},
+					});
+
+					if (activeTrip) {
+						targetTripId = activeTrip.id;
+						if (activeTrip.vehicle?.registration_number) {
+							vehiclePlate = activeTrip.vehicle.registration_number;
+						}
+					}
+				}
+
+				// If we have a targetTripId, find vehicle and plate if not already found
+				let targetVehicleId = input?.vehicle_id ?? null;
+				if (targetTripId && (!targetVehicleId || vehiclePlate === "Assigned Vehicle")) {
+					const tripObj = await db.query.deliveryTrips.findFirst({
+						where: eq(deliveryTrips.id, targetTripId),
+						with: { vehicle: true },
+					});
+					if (tripObj?.vehicle_id) targetVehicleId = tripObj.vehicle_id;
+					if (tripObj?.vehicle?.registration_number)
+						vehiclePlate = tripObj.vehicle.registration_number;
+				}
+
+				// 1. Gather all returned items from stops of this trip
+				const returnedItems: Array<{
+					id: number | string;
+					product_id?: number | null;
+					name: string;
+					qty: number;
+					price: number;
+					reason: string;
+					source: "customer_return";
+					customerName?: string;
+					stopId?: number;
+					stopSequence?: number;
+					returnedAt?: string;
+				}> = [];
+
+				// Also track if any van stock was re-delivered at subsequent stops
+				const redeliveredVanStockMap = new Map<string, number>();
+
+				if (targetTripId) {
+					// Find all stops for this trip
+					const stops = await db.query.tripStops.findMany({
+						where: eq(tripStops.trip_id, targetTripId),
+						orderBy: [asc(tripStops.sequence)],
+						with: {
+							customer: true,
+							proofOfDeliveries: true,
+						},
+					});
+
+					for (const stop of stops) {
+						for (const pod of stop.proofOfDeliveries || []) {
+							if (!pod.notes) continue;
+							try {
+								const parsed = JSON.parse(pod.notes);
+								// Collect returns
+								if (Array.isArray(parsed.returns)) {
+									for (let idx = 0; idx < parsed.returns.length; idx++) {
+										const ret = parsed.returns[idx];
+										const retQty = Number(ret.qty) || 0;
+										if (retQty > 0) {
+											returnedItems.push({
+												id: ret.id ? Number(ret.id) : `ret-${pod.id}-${idx}`,
+												product_id: ret.product_id
+													? Number(ret.product_id)
+													: undefined,
+												name: String(ret.name || "Returned Item"),
+												qty: retQty,
+												price: Number(ret.price) || 0,
+												reason: String(
+													ret.reason || "Customer Refused / Damaged",
+												),
+												source: "customer_return",
+												customerName:
+													stop.customer?.name ||
+													`Customer (Stop #${stop.sequence})`,
+												stopId: stop.id,
+												stopSequence: stop.sequence,
+												returnedAt: pod.delivered_at
+													? new Date(pod.delivered_at).toISOString()
+													: undefined,
+											});
+										}
+									}
+								}
+
+								// Collect van stock re-delivered
+								if (Array.isArray(parsed.deliveredItems)) {
+									for (const d of parsed.deliveredItems) {
+										if (d.isVanStock || String(d.name).includes("Van Stock")) {
+											const cleanName = String(d.name)
+												.replace(/\s*\(Van Stock\)\s*/gi, "")
+												.trim()
+												.toLowerCase();
+											const dQty = Number(d.qty) || 0;
+											redeliveredVanStockMap.set(
+												cleanName,
+												(redeliveredVanStockMap.get(cleanName) || 0) + dQty,
+											);
+										}
+									}
+								}
+							} catch {
+								// Ignore invalid JSON notes
+							}
+						}
+					}
+				}
+
+				// 2. Gather any buffer stock allocated by putter for this vehicle
+				const bufferStockItems: Array<{
+					id: number | string;
+					product_id?: number | null;
+					name: string;
+					qty: number;
+					price: number;
+					reason: string;
+					source: "allocated_buffer";
+					customerName?: string;
+					stopId?: number;
+					stopSequence?: number;
+					returnedAt?: string;
+				}> = [];
+
+				if (targetVehicleId) {
+					try {
+						// Query stock adjustments for this vehicle
+						const adjustments = await db.query.stockAdjustments.findMany({
+							where: and(
+								eq(stockAdjustments.adjustment_type, "van_stock_transfer"),
+								ilike(stockAdjustments.reason, `%Vehicle #${targetVehicleId}%`),
+							),
+							with: {
+								product: true,
+							},
+							orderBy: [desc(stockAdjustments.created_at)],
+						});
+
+						for (const adj of adjustments) {
+							const loadedQty = Math.abs(Number(adj.quantity) || 0);
+							if (loadedQty > 0 && adj.product) {
+								bufferStockItems.push({
+									id: `buf-${adj.id}`,
+									product_id: adj.product_id,
+									name: adj.product.name,
+									qty: loadedQty,
+									price: Number(adj.product.base_selling_price) || 0,
+									reason: "Warehouse Buffer Stock",
+									source: "allocated_buffer",
+								});
+							}
+						}
+					} catch (e) {
+						console.warn("[getVanStock] buffer stock query fallback:", e);
+					}
+				}
+
+				// 3. Deduct any re-delivered items from returned / buffer items
+				const consolidatedItems = [...returnedItems, ...bufferStockItems]
+					.map((item) => {
+						const key = item.name.toLowerCase().trim();
+						const alreadyDelivered = redeliveredVanStockMap.get(key) || 0;
+						const remainingQty = Math.max(0, item.qty - alreadyDelivered);
+						if (alreadyDelivered > 0) {
+							redeliveredVanStockMap.set(
+								key,
+								Math.max(0, alreadyDelivered - item.qty),
+							);
+						}
+						return {
+							...item,
+							availableQty: remainingQty,
+						};
+					})
+					.filter((item) => item.availableQty > 0);
+
+				const totalQty = consolidatedItems.reduce(
+					(acc, i) => acc + i.availableQty,
+					0,
+				);
+				const totalValue = consolidatedItems.reduce(
+					(acc, i) => acc + i.price * i.availableQty,
+					0,
+				);
+
+				return {
+					tripId: targetTripId,
+					vehiclePlate,
+					items: consolidatedItems,
+					returnedCount: returnedItems.length,
+					bufferCount: bufferStockItems.length,
+					totalQty,
+					totalValue,
+				};
+			} catch (e) {
+				console.warn("[getVanStock] unexpected error:", e);
+				return {
+					tripId: null,
+					vehiclePlate: "Assigned Vehicle",
+					items: [],
+					returnedCount: 0,
+					bufferCount: 0,
+					totalQty: 0,
+					totalValue: 0,
+				};
+			}
 		}),
 
 	getSupportTickets: protectedProcedure.query(async ({ ctx }) => {

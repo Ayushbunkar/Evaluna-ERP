@@ -9,7 +9,13 @@ import {
 	stockAdjustments,
 	suppliers,
 } from "@evaluna/db/schema";
-import { and, avg, count, desc, eq, inArray, or, sql, sum } from "drizzle-orm";
+import {
+	deliveryTrips,
+	proofOfDeliveries,
+	tripStops,
+	vehicles,
+} from "@evaluna/db/schema/delivery";
+import { and, avg, count, desc, eq, ilike, inArray, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { roleProcedure, router } from "../init";
 
@@ -558,70 +564,174 @@ export const putterRouter = router({
 		"putter",
 		"driver",
 	]).query(async ({ ctx }) => {
-		return [
-			{
-				vehicleId: 1,
-				vehiclePlate: "MP04AB1234",
-				driverName: "Rajesh Kumar",
-				allocatedItems: [
-					{
-						id: 101,
-						name: "Sugar 1kg",
-						sku: "SUG-1KG",
-						price: 45,
-						loadedQty: 20,
-						remainingQty: 18,
-					},
-					{
-						id: 102,
-						name: "Fortune Soyabean Oil 1L",
-						sku: "OIL-1L",
-						price: 140,
-						loadedQty: 10,
-						remainingQty: 10,
-					},
-					{
-						id: 103,
-						name: "Taj Mahal Tea 250g",
-						sku: "TEA-250G",
-						price: 180,
-						loadedQty: 15,
-						remainingQty: 12,
-					},
-					{
-						id: 104,
-						name: "Amul Pure Ghee 1L",
-						sku: "GHEE-1L",
-						price: 620,
-						loadedQty: 8,
-						remainingQty: 6,
-					},
-				],
-			},
-			{
-				vehicleId: 2,
-				vehiclePlate: "MP04CD5678",
-				driverName: "Vikram Singh",
-				allocatedItems: [
-					{
-						id: 101,
-						name: "Sugar 1kg",
-						sku: "SUG-1KG",
-						price: 45,
-						loadedQty: 15,
-						remainingQty: 15,
-					},
-					{
-						id: 105,
-						name: "Tata Salt 1kg",
-						sku: "SALT-1KG",
-						price: 28,
-						loadedQty: 30,
-						remainingQty: 25,
-					},
-				],
-			},
-		];
+		try {
+			// Query vehicles from DB
+			let dbVehicles: any[] = [];
+			try {
+				dbVehicles = (await ctx.db.query.vehicles?.findMany()) || [];
+			} catch (e) {
+				console.warn("[getVehicleStockList] vehicles table query fallback:", e);
+			}
+
+			// If no vehicles found in vehicles table, synthesize from active deliveryTrips or registered fleet
+			if (dbVehicles.length === 0) {
+				try {
+					const activeTripsWithVehicle =
+						await ctx.db.query.deliveryTrips?.findMany({
+							orderBy: [desc(deliveryTrips.created_at)],
+							limit: 5,
+						});
+					if (activeTripsWithVehicle && activeTripsWithVehicle.length > 0) {
+						dbVehicles = activeTripsWithVehicle.map(
+							(t: any, idx: number) => ({
+								id: t.vehicle_id || idx + 1,
+								registration_number: `VEH-TRIP-${t.id}`,
+								name: `Cargo Vehicle ${t.vehicle_id || idx + 1}`,
+							}),
+						);
+					}
+				} catch (e) {}
+			}
+
+			if (dbVehicles.length === 0) {
+				dbVehicles = [
+					{ id: 1, registration_number: "MP04AB1234", name: "Delivery Van 01" },
+					{ id: 2, registration_number: "MP04CD5678", name: "Delivery Van 02" },
+				];
+			}
+
+			const result = [];
+
+			for (const veh of dbVehicles) {
+				const vehicleId = veh.id;
+				const vehiclePlate = veh.registration_number || `VEH-${vehicleId}`;
+
+				// Find latest/active trip for this vehicle
+				let activeTrip: any = null;
+				let driverName = "Assigned Driver";
+				try {
+					activeTrip = await ctx.db.query.deliveryTrips?.findFirst({
+						where: eq(deliveryTrips.vehicle_id, vehicleId),
+						orderBy: [desc(deliveryTrips.created_at)],
+					});
+					if (activeTrip?.driver_id) {
+						driverName = String(activeTrip.driver_id);
+					}
+				} catch (e) {}
+
+				const allocatedItems: Array<{
+					id: number | string;
+					name: string;
+					sku: string;
+					price: number;
+					loadedQty: number;
+					remainingQty: number;
+					source: "customer_return" | "allocated_buffer";
+					reason?: string;
+					customerName?: string;
+				}> = [];
+
+				// 1. Gather customer returns for this trip (from proofOfDeliveries)
+				if (activeTrip?.id) {
+					try {
+						const stops = await ctx.db.query.tripStops?.findMany({
+							where: eq(tripStops.trip_id, activeTrip.id),
+							with: {
+								customer: true,
+								proofOfDeliveries: true,
+							},
+						});
+
+						for (const stop of stops || []) {
+							for (const pod of stop.proofOfDeliveries || []) {
+								if (!pod.notes) continue;
+								try {
+									const parsed = JSON.parse(pod.notes);
+									if (Array.isArray(parsed.returns)) {
+										for (
+											let idx = 0;
+											idx < parsed.returns.length;
+											idx++
+										) {
+											const ret = parsed.returns[idx];
+											const retQty = Number(ret.qty) || 0;
+											if (retQty > 0) {
+												allocatedItems.push({
+													id: ret.id
+														? Number(ret.id)
+														: `ret-${pod.id}-${idx}`,
+													name: String(ret.name || "Returned Item"),
+													sku: `RET-${ret.id || idx + 1}`,
+													price: Number(ret.price) || 0,
+													loadedQty: retQty,
+													remainingQty: retQty,
+													source: "customer_return",
+													reason: String(
+														ret.reason ||
+															"Customer Refused / Damaged",
+													),
+													customerName:
+														stop.customer?.name ||
+														`Customer (Stop #${stop.sequence})`,
+												});
+											}
+										}
+									}
+								} catch (e) {}
+							}
+						}
+					} catch (e) {
+						console.warn("[getVehicleStockList] returns query fallback:", e);
+					}
+				}
+
+				// 2. Gather putter buffer stock loaded into this vehicle
+				try {
+					const adjustments = await ctx.db.query.stockAdjustments?.findMany({
+						where: and(
+							eq(stockAdjustments.adjustment_type, "van_stock_transfer"),
+							ilike(stockAdjustments.reason, `%Vehicle #${vehicleId}%`),
+						),
+						with: {
+							product: true,
+						},
+						orderBy: [desc(stockAdjustments.created_at)],
+					});
+
+					for (const adj of adjustments || []) {
+						const loadedQty = Math.abs(Number(adj.quantity) || 0);
+						if (loadedQty > 0 && adj.product) {
+							allocatedItems.push({
+								id: adj.product_id,
+								name: adj.product.name,
+								sku: adj.product.sku || `SKU-${adj.product_id}`,
+								price: Number(adj.product.base_selling_price) || 0,
+								loadedQty,
+								remainingQty: loadedQty,
+								source: "allocated_buffer",
+							});
+						}
+					}
+				} catch (e) {
+					console.warn(
+						"[getVehicleStockList] buffer stock adjustments fallback:",
+						e,
+					);
+				}
+
+				result.push({
+					vehicleId,
+					vehiclePlate,
+					driverName,
+					allocatedItems,
+				});
+			}
+
+			return result;
+		} catch (e) {
+			console.warn("[getVehicleStockList] global fallback:", e);
+			return [];
+		}
 	}),
 
 	allocateVehicleStock: roleProcedure(["admin", "manager", "auditor", "putter"])

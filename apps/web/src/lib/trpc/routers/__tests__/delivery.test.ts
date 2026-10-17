@@ -8,6 +8,7 @@ mock.module("@/lib/db", () => ({ db, pglite: pg }));
 
 const { deliveryRouter } = await import("../delivery");
 const { driverRouter } = await import("../driver");
+const { putterRouter } = await import("../putter");
 const { createCallerFactory } = await import("../../init");
 const schema = await import("@/lib/db/schema");
 
@@ -36,6 +37,15 @@ const driverAppCaller = createCallerFactory(driverRouter)({
 	db,
 });
 
+const putterCaller = createCallerFactory(putterRouter)({
+	user: {
+		...makeUser("putter-1"),
+		id: "putter-1",
+		role: "putter",
+	},
+	db,
+});
+
 // Delivery-focused test DDL - tables used by delivery router
 const DELIVERY_DDL = buildDDL(
 	[
@@ -56,6 +66,8 @@ const DELIVERY_DDL = buildDDL(
 		schema.products,
 		schema.salesReturns,
 		schema.salesReturnItems,
+		schema.stockAdjustments,
+		schema.transactions,
 		schema.vehicles,
 	],
 	false,
@@ -863,6 +875,106 @@ describe("delivery router core functionality", () => {
 
 			const res = await managerCaller.dispatchTrip({ tripId: unloadedTrip.id });
 			expect(res.success).toBe(true);
+		});
+	});
+
+	describe("Driver Handover Returns to Extra Van Stock & Dynamic Truck Stock", () => {
+		it("records customer returns at handover and reflects them in driver's extra van stock", async () => {
+			// Setup customer and trip
+			const [customer] = await db
+				.insert(schema.customers)
+				.values({
+					id: 991,
+					name: "Pappu Ji Store",
+					phone: "9876543210",
+					address: "Bhopal MP",
+					user_uid: "customer-pappu-1",
+				})
+				.returning();
+
+			const [trip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					id: 991,
+					driver_id: "driver-1",
+					vehicle_id: 1,
+					status: "active",
+				})
+				.returning();
+
+			const [stop] = await db
+				.insert(schema.tripStops)
+				.values({
+					id: 991,
+					trip_id: trip.id,
+					customer_id: customer.id,
+					sequence: 1,
+					status: "pending",
+				})
+				.returning();
+
+			// Initial van stock should have zero items (no hardcoded dummy items)
+			const initialStock = await driverAppCaller.getVanStock({
+				trip_id: trip.id,
+			});
+			expect(initialStock.items).toHaveLength(0);
+			expect(initialStock.totalQty).toBe(0);
+
+			// Submit delivery handover where customer returns 1 item
+			const handoverRes = await driverAppCaller.submitDeliveryHandover({
+				trip_id: trip.id,
+				stop_id: stop.id,
+				cashAmount: 500,
+				onlineAmount: 0,
+				deliveryNotes: "Customer refused damaged rice",
+				damagedOrReturnedItems: [
+					{
+						id: 1,
+						name: "Basmati Rice Special 5kg",
+						qty: 1,
+						price: 580,
+						reason: "Damaged Packaging (पैकेजिंग क्षति)",
+					},
+				],
+				deliveredItems: [
+					{
+						id: 2,
+						name: "Sugar 1kg",
+						qty: 5,
+						price: 45,
+					},
+				],
+			});
+			expect(handoverRes.success).toBe(true);
+
+			// Check driver van stock again - the returned item MUST now be present in extra van stock!
+			const updatedStock = await driverAppCaller.getVanStock({
+				trip_id: trip.id,
+			});
+			expect(updatedStock.items.length).toBeGreaterThanOrEqual(1);
+			const returnedItem = updatedStock.items.find(
+				(i) => i.name === "Basmati Rice Special 5kg",
+			);
+			expect(returnedItem).toBeDefined();
+			expect(returnedItem?.qty).toBe(1);
+			expect(returnedItem?.availableQty).toBe(1);
+			expect(returnedItem?.source).toBe("customer_return");
+			expect(returnedItem?.customerName).toContain("Pappu");
+			expect(returnedItem?.reason).toContain("Damaged Packaging");
+			expect(updatedStock.totalQty).toBe(1);
+			expect(updatedStock.totalValue).toBe(580);
+
+			// Verify putter vehicle stock list also surfaces this returned item dynamically
+			const vehicleStockList = await putterCaller.getVehicleStockList();
+			expect(Array.isArray(vehicleStockList)).toBe(true);
+			const targetVeh = vehicleStockList.find((v) => v.vehicleId === 1);
+			expect(targetVeh).toBeDefined();
+			const returnedInVeh = targetVeh?.allocatedItems.find(
+				(i) => i.name === "Basmati Rice Special 5kg",
+			);
+			expect(returnedInVeh).toBeDefined();
+			expect(returnedInVeh?.source).toBe("customer_return");
+			expect(returnedInVeh?.loadedQty).toBe(1);
 		});
 	});
 });

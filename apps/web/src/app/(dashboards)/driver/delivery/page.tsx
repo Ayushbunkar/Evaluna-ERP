@@ -108,47 +108,6 @@ function getStatusLabel(status: string): string {
 	return "Pending";
 }
 
-// ─── Default items ────────────────────────────────────────────────────────────
-
-const DEFAULT_ITEMS: OrderItemHandover[] = [
-	{
-		id: 1,
-		order_id: 595,
-		name: "Whole Wheat Atta 10kg",
-		originalQty: 2,
-		deliveredQty: 2,
-		returnedQty: 0,
-		price: 420,
-	},
-	{
-		id: 2,
-		order_id: 595,
-		name: "Refined Soyabean Oil 5L",
-		originalQty: 1,
-		deliveredQty: 1,
-		returnedQty: 0,
-		price: 650,
-	},
-	{
-		id: 3,
-		order_id: 574,
-		name: "Basmati Rice Special 5kg",
-		originalQty: 1,
-		deliveredQty: 0,
-		returnedQty: 1,
-		price: 580,
-		returnReason: "Damaged Packaging (पैकेजिंग क्षति)",
-	},
-];
-
-const TRUCK_STOCK_ITEMS = [
-	{ id: 101, name: "Sugar 1kg", price: 45 },
-	{ id: 102, name: "Fortune Soyabean Oil 1L", price: 140 },
-	{ id: 103, name: "Taj Mahal Tea 250g", price: 180 },
-	{ id: 104, name: "Amul Pure Ghee 1L", price: 620 },
-	{ id: 105, name: "Tata Salt 1kg", price: 28 },
-];
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DriverLiveDeliveryPage() {
@@ -199,6 +158,7 @@ export default function DriverLiveDeliveryPage() {
 	const refetch = () => {
 		refetchDashboard();
 		refetchStops();
+		refetchVanStock();
 	};
 
 	const submitHandover = trpc.driver.submitDeliveryHandover.useMutation({
@@ -226,9 +186,9 @@ export default function DriverLiveDeliveryPage() {
 	const [billModalOpen, setBillModalOpen] = useState(false);
 	const [extraModalOpen, setExtraModalOpen] = useState(false);
 	const [selectedTruckItems, setSelectedTruckItems] = useState<
-		Record<number, number>
+		Record<string, number>
 	>({});
-	const [items, setItems] = useState<OrderItemHandover[]>(DEFAULT_ITEMS);
+	const [items, setItems] = useState<OrderItemHandover[]>([]);
 
 	// Order filtering & Search states
 	const [selectedOrderFilter, setSelectedOrderFilter] = useState<
@@ -244,6 +204,16 @@ export default function DriverLiveDeliveryPage() {
 			? directRouteStops
 			: (dashboardData?.routeStops ?? []);
 	const activeStop = routeStops.find((s) => s.id === handoverStopId) ?? null;
+
+	const { data: vanStockData, refetch: refetchVanStock } =
+		trpc.driver.getVanStock.useQuery(
+			activeStop?.trip_id ? { trip_id: activeStop.trip_id } : undefined,
+			{ refetchInterval: 10000 },
+		);
+
+	const availableVanItems = useMemo(() => {
+		return vanStockData?.items || [];
+	}, [vanStockData]);
 
 	const [stopDateFilter, setStopDateFilter] = useState<string>("all");
 	const [stopSearchQuery, setStopSearchQuery] = useState<string>("");
@@ -599,41 +569,50 @@ export default function DriverLiveDeliveryPage() {
 
 	// ── Van stock helpers ──────────────────────────────────────────────────────
 
-	const toggleTruckItem = (id: number) => {
+	const toggleTruckItem = (id: string | number) => {
 		setSelectedTruckItems((prev) => {
+			const key = String(id);
 			const copy = { ...prev };
-			if (copy[id]) {
-				delete copy[id];
+			if (copy[key]) {
+				delete copy[key];
 			} else {
-				copy[id] = 1;
+				copy[key] = 1;
 			}
 			return copy;
 		});
 	};
 
-	const updateTruckItemQty = (id: number, delta: number) => {
+	const updateTruckItemQty = (id: string | number, delta: number) => {
 		setSelectedTruckItems((prev) => {
-			const current = prev[id] || 0;
-			const next = Math.max(1, current + delta);
-			return { ...prev, [id]: next };
+			const key = String(id);
+			const current = prev[key] || 0;
+			const truckItem = availableVanItems.find((t) => String(t.id) === key);
+			const maxQty = truckItem?.availableQty || 999;
+			const next = Math.min(maxQty, Math.max(1, current + delta));
+			return { ...prev, [key]: next };
 		});
 	};
 
 	const handleAddMultipleTruckItemsToBill = () => {
 		const newEntries: OrderItemHandover[] = [];
 		for (const [idStr, qty] of Object.entries(selectedTruckItems)) {
-			const id = Number(idStr);
-			const truckItem = TRUCK_STOCK_ITEMS.find((t) => t.id === id);
+			const truckItem = availableVanItems.find((t) => String(t.id) === idStr);
 			if (truckItem && qty > 0) {
+				const isReturn = truckItem.source === "customer_return";
 				newEntries.push({
-					id: id + Date.now() + Math.floor(Math.random() * 1000),
+					id: Date.now() + Math.floor(Math.random() * 10000),
+					product_id: truckItem.product_id
+						? Number(truckItem.product_id)
+						: undefined,
 					order_id: null,
 					isVanStock: true,
-					name: `${truckItem.name} (Van Stock)`,
+					name: isReturn
+						? `${truckItem.name} (Van Stock - Returned)`
+						: `${truckItem.name} (Van Stock)`,
 					originalQty: qty,
 					deliveredQty: qty,
 					returnedQty: 0,
-					price: truckItem.price,
+					price: Number(truckItem.price) || 0,
 					checked: true,
 				});
 			}
@@ -779,17 +758,21 @@ export default function DriverLiveDeliveryPage() {
 				.filter((i) => (Number(i.returnedQty) || 0) > 0)
 				.map((i) => ({
 					id: Number(i.id),
+					product_id: i.product_id ? Number(i.product_id) : undefined,
 					name: String(i.name || ""),
 					qty: Number(i.returnedQty) || 0,
+					price: Number(i.price) || 0,
 					reason: i.returnReason || "Item Returned / Damaged",
 				})),
 			deliveredItems: items
 				.filter((i) => (Number(i.deliveredQty) || 0) > 0)
 				.map((i) => ({
 					id: Number(i.id),
+					product_id: i.product_id ? Number(i.product_id) : undefined,
 					name: String(i.name || ""),
 					qty: Number(i.deliveredQty) || 0,
 					price: Number(i.price) || 0,
+					isVanStock: Boolean(i.isVanStock),
 				})),
 		});
 	};
@@ -809,7 +792,28 @@ export default function DriverLiveDeliveryPage() {
 			setCashAmount(0);
 			setOnlineAmount(0);
 			setNotes("");
-			setItems(DEFAULT_ITEMS);
+			if (nextStop && nextStop.orderItems && nextStop.orderItems.length > 0) {
+				setItems(
+					nextStop.orderItems.map((oi: any) => ({
+						id: oi.id,
+						order_id:
+							oi.order_id ??
+							(nextStop.orders && nextStop.orders.length === 1
+								? nextStop.orders[0].id
+								: null),
+						product_id: oi.product_id,
+						name: oi.name,
+						originalQty: Number(oi.qty) || 0,
+						deliveredQty: Number(oi.qty) || 0,
+						returnedQty: 0,
+						price: Number(oi.price || 0),
+						checked: Boolean(oi.checked),
+						isVanStock: false,
+					})),
+				);
+			} else {
+				setItems([]);
+			}
 			setSelectedOrderFilter("all");
 			setSearchQuery("");
 			setHandoverStopId(nextStop.id);
@@ -859,7 +863,7 @@ export default function DriverLiveDeliveryPage() {
 				})),
 			);
 		} else {
-			setItems(DEFAULT_ITEMS);
+			setItems([]);
 		}
 		setHandoverStopId(stopId);
 	};
@@ -1524,24 +1528,50 @@ export default function DriverLiveDeliveryPage() {
 
 								<CardContent className="p-3 space-y-4">
 									{filteredItems.length === 0 ? (
-										<div className="py-12 text-center text-muted-foreground text-xs">
-											<Package className="mx-auto mb-2 h-8 w-8 opacity-40" />
-											<p className="font-semibold text-sm">
-												{locale === "hi"
-													? "कोई सामान नहीं मिला"
-													: "No items match current order filter or search query"}
+										<div className="py-12 text-center text-muted-foreground text-xs space-y-2">
+											<Package className="mx-auto mb-2 h-8 w-8 opacity-40 text-blue-500" />
+											<p className="font-semibold text-sm text-foreground">
+												{items.length === 0
+													? locale === "hi"
+														? "इस ग्राहक स्टॉप के लिए कोई पूर्व-आबंटित सामान नहीं है"
+														: "No pre-allocated items assigned to this customer stop"
+													: locale === "hi"
+														? "कोई सामान नहीं मिला"
+														: "No items match current order filter or search query"}
 											</p>
-											<Button
-												variant="link"
-												size="sm"
-												onClick={() => {
-													setSelectedOrderFilter("all");
-													setSearchQuery("");
-												}}
-												className="mt-2 text-xs"
-											>
-												{locale === "hi" ? "फ़िल्टर रीसेट करें" : "Reset Filters"}
-											</Button>
+											<p className="text-gray-500 text-xs max-w-sm mx-auto">
+												{items.length === 0
+													? locale === "hi"
+														? "यदि ग्राहक सामान लेना चाहता है, तो वैन में रखे अतिरिक्त बफ़र या पिछले स्टॉप से लौटाए गए सामान को जोड़ने के लिए नीचे दिए गए बटन पर क्लिक करें।"
+														: "If this customer wishes to purchase goods on-the-spot, click below to add items from extra van buffer stock or customer returns."
+													: locale === "hi"
+														? "कृपया फ़िल्टर रीसेट करें या दूसरा खोज शब्द दर्ज करें।"
+														: "Please reset order filter or search for a different item."}
+											</p>
+											{items.length === 0 ? (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => setExtraModalOpen(true)}
+													className="mt-3 gap-1.5 border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
+												>
+													<Plus className="h-3.5 w-3.5" />
+													{locale === "hi" ? "+ वैन स्टॉक से सामान जोड़ें" : "+ Add from Van Stock"}
+												</Button>
+											) : (
+												<Button
+													variant="link"
+													size="sm"
+													onClick={() => {
+														setSelectedOrderFilter("all");
+														setSearchQuery("");
+													}}
+													className="mt-2 text-xs"
+												>
+													{locale === "hi" ? "फ़िल्टर रीसेट करें" : "Reset Filters"}
+												</Button>
+											)}
 										</div>
 									) : (
 										groupedItemsByOrder.map((group) => {
@@ -2080,73 +2110,114 @@ export default function DriverLiveDeliveryPage() {
 								</span>
 							</div>
 
-							<div className="grid max-h-64 gap-2.5 overflow-y-auto rounded-lg border bg-muted/20 p-2">
-								{TRUCK_STOCK_ITEMS.map((truckItem) => {
-									const isSelected = !!selectedTruckItems[truckItem.id];
-									const qty = selectedTruckItems[truckItem.id] || 1;
-									return (
-										<div
-											key={truckItem.id}
-											className={`space-y-2 rounded-lg border p-3 text-xs transition-all ${
-												isSelected
-													? "border-blue-500 bg-card shadow-xs"
-													: "border-border bg-card/60 hover:border-border"
-											}`}
-										>
-											<div className="flex items-center justify-between">
-												<label className="flex flex-1 cursor-pointer items-center space-x-2.5">
-													<input
-														type="checkbox"
-														checked={isSelected}
-														onChange={() => toggleTruckItem(truckItem.id)}
-														className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-													/>
-													<span className="font-semibold text-foreground">
-														{truckItem.name}
+							<div className="grid max-h-72 gap-2.5 overflow-y-auto rounded-lg border bg-muted/20 p-2">
+								{availableVanItems.length === 0 ? (
+									<div className="py-8 px-4 text-center rounded-lg border border-dashed text-xs text-muted-foreground bg-muted/10">
+										<Package className="mx-auto mb-2 h-7 w-7 opacity-30 text-blue-500" />
+										<p className="font-semibold text-sm text-foreground">
+											{locale === "hi"
+												? "वैन में कोई अतिरिक्त बफ़र या रिटर्न सामान नहीं है"
+												: "No buffer stock or returned items in vehicle"}
+										</p>
+										<p className="mt-1 text-muted-foreground text-[11px] max-w-xs mx-auto">
+											{locale === "hi"
+												? "जब वेयरहाउस पुटर अतिरिक्त सामान लोड करता है या किसी ग्राहक स्टॉप पर सामान लौटाया जाता है, तो वह सीधे यहाँ उपलब्ध होगा।"
+												: "When putter loads buffer stock or when a customer refuses/returns items at previous delivery stops, they will automatically appear here."}
+										</p>
+									</div>
+								) : (
+									availableVanItems.map((truckItem) => {
+										const key = String(truckItem.id);
+										const isSelected = !!selectedTruckItems[key];
+										const qty = selectedTruckItems[key] || 1;
+										const isReturn = truckItem.source === "customer_return";
+										return (
+											<div
+												key={key}
+												className={`space-y-2 rounded-lg border p-3 text-xs transition-all ${
+													isSelected
+														? "border-blue-500 bg-card shadow-xs"
+														: "border-border bg-card/60 hover:border-border"
+												}`}
+											>
+												<div className="flex items-center justify-between gap-2">
+													<label className="flex flex-1 cursor-pointer items-start space-x-2.5">
+														<input
+															type="checkbox"
+															checked={isSelected}
+															onChange={() => toggleTruckItem(key)}
+															className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+														/>
+														<div>
+															<span className="font-semibold text-foreground">
+																{truckItem.name}
+															</span>
+															<div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+																{isReturn ? (
+																	<span className="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+																		🔄 {locale === "hi" ? "ग्राहक रिटर्न" : "Customer Return"}
+																		{truckItem.customerName ? ` (${truckItem.customerName})` : ""}
+																	</span>
+																) : (
+																	<span className="inline-flex items-center rounded border border-blue-300 bg-blue-50 px-1.5 py-0.2 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+																		📦 {locale === "hi" ? "वैन बफ़र" : "Van Buffer"}
+																	</span>
+																)}
+																{truckItem.reason && (
+																	<span className="text-[10px] text-muted-foreground line-clamp-1">
+																		{truckItem.reason}
+																	</span>
+																)}
+																<span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+																	({truckItem.availableQty} available)
+																</span>
+															</div>
+														</div>
+													</label>
+													<span className="font-bold font-mono text-foreground shrink-0">
+														₹{truckItem.price} / unit
 													</span>
-												</label>
-												<span className="font-bold font-mono text-foreground">
-													₹{truckItem.price} / unit
-												</span>
-											</div>
-
-											{isSelected && (
-												<div className="flex items-center justify-between border-t pt-1.5">
-													<span className="text-[11px] text-muted-foreground">
-														{locale === "hi" ? "जोड़ी जाने वाली मात्रा:" : "Quantity to add:"}
-													</span>
-													<div className="flex items-center space-x-1.5">
-														<Button
-															type="button"
-															variant="outline"
-															size="icon"
-															className="h-6 w-6"
-															onClick={() =>
-																updateTruckItemQty(truckItem.id, -1)
-															}
-														>
-															<Minus className="h-3 w-3" />
-														</Button>
-														<span className="w-7 text-center font-bold font-mono text-xs text-foreground">
-															{qty}
-														</span>
-														<Button
-															type="button"
-															variant="outline"
-															size="icon"
-															className="h-6 w-6"
-															onClick={() =>
-																updateTruckItemQty(truckItem.id, 1)
-															}
-														>
-															<Plus className="h-3 w-3" />
-														</Button>
-													</div>
 												</div>
-											)}
-										</div>
-									);
-								})}
+
+												{isSelected && (
+													<div className="flex items-center justify-between border-t pt-1.5">
+														<span className="text-[11px] text-muted-foreground">
+															{locale === "hi" ? "जोड़ी जाने वाली मात्रा:" : "Quantity to add:"}
+														</span>
+														<div className="flex items-center space-x-1.5">
+															<Button
+																type="button"
+																variant="outline"
+																size="icon"
+																className="h-6 w-6"
+																onClick={() =>
+																	updateTruckItemQty(key, -1)
+																}
+															>
+																<Minus className="h-3 w-3" />
+															</Button>
+															<span className="w-7 text-center font-bold font-mono text-xs text-foreground">
+																{qty}
+															</span>
+															<Button
+																type="button"
+																variant="outline"
+																size="icon"
+																className="h-6 w-6"
+																disabled={qty >= (truckItem.availableQty || 999)}
+																onClick={() =>
+																	updateTruckItemQty(key, 1)
+																}
+															>
+																<Plus className="h-3 w-3" />
+															</Button>
+														</div>
+													</div>
+												)}
+											</div>
+										);
+									})
+								)}
 							</div>
 						</div>
 
@@ -2160,10 +2231,10 @@ export default function DriverLiveDeliveryPage() {
 									Subtotal: ₹
 									{Object.entries(selectedTruckItems).reduce(
 										(acc, [idStr, qty]) => {
-											const item = TRUCK_STOCK_ITEMS.find(
-												(t) => t.id === Number(idStr),
+											const item = availableVanItems.find(
+												(t) => String(t.id) === idStr,
 											);
-											return acc + (item ? item.price * qty : 0);
+											return acc + (item ? Number(item.price) * qty : 0);
 										},
 										0,
 									)}
