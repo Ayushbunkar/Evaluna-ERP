@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 
 const QUICK_ACTIONS = [
+	{ label: "🏷️ Check product rates", query: "Products ka rate list aur prices check karna hai" },
 	{ label: "📦 Track my order", query: "Where is my order and what is its status?" },
 	{ label: "📋 Show recent orders", query: "Show my recent orders" },
 	{ label: "🚚 When will my order arrive?", query: "When will my order arrive?" },
@@ -395,7 +396,7 @@ export function ChatWidget() {
 										handleSend();
 									}
 								}}
-								placeholder="Ask about orders, delivery, payments..."
+								placeholder="Ask about product rates, orders, delivery, payments..."
 								className="h-10 flex-1 rounded-full border border-input bg-muted/40 px-3.5 text-xs placeholder:text-muted-foreground focus:border-primary focus:bg-background focus:outline-hidden sm:text-sm"
 								disabled={sendMessage.isPending}
 							/>

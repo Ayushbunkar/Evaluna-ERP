@@ -78,4 +78,37 @@ describe("Customer Support AI - Grounded Agent & Configuration", () => {
 
 		expect(response.escalated).toBe(true);
 	});
+
+	it("should correctly extract product search terms from natural language queries", async () => {
+		const { extractProductSearchTerms } = await import(
+			"../ai/customer-support-data"
+		);
+
+		const terms1 = extractProductSearchTerms("mujhe 20-20 biscuit ka rate batao");
+		expect(terms1).toContain("20-20");
+		expect(terms1).toContain("biscuit");
+
+		const terms2 = extractProductSearchTerms("20 20 biscuit price");
+		expect(terms2).toContain("20-20");
+		expect(terms2).toContain("biscuit");
+
+		const terms3 = extractProductSearchTerms("Sugar aur Atta ka rate kya hai?");
+		expect(terms3).toContain("sugar");
+		expect(terms3).toContain("atta");
+	});
+
+	it("should return actual product rates when user asks for product pricing", async () => {
+		const response = await processCustomerSupportQuery({
+			sessionId: 999,
+			userUid: "test-user-123",
+			userName: "Test Customer",
+			content: "mujhe 20-20 biscuit ka rate batao",
+			conversationHistory: [],
+		});
+
+		expect(response.text).toBeDefined();
+		expect(response.text.includes("20-20") || response.text.includes("20‑20")).toBe(true);
+		expect(response.text.includes("55") || response.text.includes("54.50") || response.text.includes("650")).toBe(true);
+		expect(response.text.includes("₹")).toBe(true);
+	});
 });

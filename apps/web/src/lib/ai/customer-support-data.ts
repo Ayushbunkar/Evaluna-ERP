@@ -15,7 +15,7 @@ import {
 	pickLists,
 	products,
 } from "@evaluna/db/schema";
-import { desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 
 export interface AuthenticCustomerContext {
@@ -270,3 +270,106 @@ export async function escalateChatSession(
 
 	return { ticketId };
 }
+
+export interface SupportProductItem {
+	id: number;
+	name: string;
+	price: string;
+	sellingPrice: string | null;
+	unit: string | null;
+	category: string | null;
+}
+
+export function extractProductSearchTerms(query: string): string[] {
+	const cleaned = query
+		.toLowerCase()
+		.replace(/(\d+)\s+(\d+)/g, "$1-$2") // e.g. "20 20" -> "20-20"
+		.replace(/[^a-z0-9\- \u0900-\u097F]/g, " ");
+
+	const stopWords = new Set([
+		"mujhe", "humko", "hume", "mera", "meri", "mere", "aap", "aapka", "aapki",
+		"ka", "ki", "ke", "ko", "se", "me", "mein", "par", "pe",
+		"rate", "rates", "price", "prices", "cost", "bhav", "bhao", "dam", "daam",
+		"kimat", "keemat", "mrp", "batao", "bataiye", "bata", "do", "de", "dijiye",
+		"kya", "hai", "hain", "kitne", "kitna", "kitni", "show", "tell", "what",
+		"is", "the", "of", "for", "please", "chahiye", "available", "milega",
+		"mil", "sakta", "wali", "wala", "vale", "vali", "order", "item", "product",
+		"karen", "karein", "dekhna", "jana", "jan", "janna", "pucho", "pucha",
+	]);
+
+	const words = cleaned
+		.split(/\s+/)
+		.map((w) => w.trim())
+		.filter((w) => w.length >= 2 && !stopWords.has(w));
+
+	return words;
+}
+
+export async function searchProductsForSupport(
+	query: string,
+	limit: number = 8,
+): Promise<SupportProductItem[]> {
+	const terms = extractProductSearchTerms(query);
+	if (terms.length === 0) return [];
+
+	// Try matching all terms first (e.g. "20-20" AND "biscuit")
+	const andConditions = terms.map((t) =>
+		or(
+			ilike(products.name, `%${t}%`),
+			ilike(products.category, `%${t}%`),
+			ilike(products.product_family, `%${t}%`),
+		),
+	);
+
+	let rows = await db
+		.select({
+			id: products.id,
+			name: products.name,
+			price: products.price,
+			sellingPrice: products.base_selling_price,
+			unit: products.unit,
+			category: products.category,
+		})
+		.from(products)
+		.where(
+			and(
+				eq(products.is_deleted, false),
+				eq(products.is_hidden, false),
+				and(...andConditions),
+			),
+		)
+		.limit(limit);
+
+	// If no strict AND match found, try matching any of the terms (OR)
+	if (rows.length === 0 && terms.length > 1) {
+		const orConditions = terms.map((t) =>
+			or(
+				ilike(products.name, `%${t}%`),
+				ilike(products.category, `%${t}%`),
+				ilike(products.product_family, `%${t}%`),
+			),
+		);
+
+		rows = await db
+			.select({
+				id: products.id,
+				name: products.name,
+				price: products.price,
+				sellingPrice: products.base_selling_price,
+				unit: products.unit,
+				category: products.category,
+			})
+			.from(products)
+			.where(
+				and(
+					eq(products.is_deleted, false),
+					eq(products.is_hidden, false),
+					or(...orConditions),
+				),
+			)
+			.limit(limit);
+	}
+
+	return rows;
+}
+

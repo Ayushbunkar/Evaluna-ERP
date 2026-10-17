@@ -8,6 +8,8 @@ import {
 	type AuthenticCustomerContext,
 	fetchCustomerAuthContext,
 	OFFICIAL_COMPANY_INFO,
+	searchProductsForSupport,
+	type SupportProductItem,
 } from "./customer-support-data";
 import { type ChatMessage, generateGroqCompletion } from "./groq";
 
@@ -46,6 +48,12 @@ export async function processCustomerSupportQuery({
 		customerId,
 	);
 
+	// 1.5. Search products in DB matching the user's query for rate inquiries
+	const matchedProducts: SupportProductItem[] = await searchProductsForSupport(
+		content,
+		8,
+	);
+
 	// 2. Build Grounded System Prompt
 	const ordersContextStr =
 		context.recentOrders.length > 0
@@ -62,6 +70,19 @@ export async function processCustomerSupportQuery({
 					.join("\n")
 			: "No orders found in database for this customer.";
 
+	const productsContextStr =
+		matchedProducts.length > 0
+			? matchedProducts
+					.map((p) => {
+						const rate =
+							p.sellingPrice && Number(p.sellingPrice) > 0
+								? p.sellingPrice
+								: p.price;
+						return `- **${p.name}**: Rate ₹${rate}${p.unit ? ` per ${p.unit}` : ""}${p.category ? ` (Category: ${p.category})` : ""}`;
+					})
+					.join("\n")
+			: "No matching products found in database catalogue for this query.";
+
 	const customerSummary = context.customer
 		? `Customer Name: ${context.customer.name} (ID: ${context.customer.id})
 Email: ${context.customer.email || "N/A"}, Phone: ${context.customer.phone || "N/A"}
@@ -72,7 +93,7 @@ Credit Limit: ₹${context.customer.creditLimit || 0}, Credit Used: ₹${context
 No separate customer profile record linked yet.`;
 
 	const systemPrompt = `You are the official Evaluna Customer Support Assistant on the Customer Portal.
-You assist customers with tracking their orders, payment information, delivery updates, and using their dashboard.
+You assist customers with product rates & prices, tracking their orders, payment information, delivery updates, and using their dashboard.
 
 === CRITICAL CUSTOMER-FACING RULES ===
 1. NEVER output technical URL slash paths (DO NOT say "/finance", "/sales/orders", "/sales/pos", etc.).
@@ -82,14 +103,21 @@ You assist customers with tracking their orders, payment information, delivery u
    - For order status, item details, and live delivery: "Go to the **Orders** tab in your dashboard menu".
    - For browsing items and placing new orders: "Go to the **Products** tab in your dashboard menu".
    - For updating profile/address: "Go to the **Profile** tab in your dashboard menu".
-4. ALWAYS check the customer's specific orders first!
+4. PRODUCT RATES & PRICING RULES:
+   - When a customer asks for the rate, price, or cost of ANY product (e.g. "20-20 biscuit ka rate batao", "sugar price", "oil kitne ka hai", etc.):
+     a) ALWAYS directly provide the exact product name and rate/price in ₹ from the "Relevant Products & Rates in Database" section below!
+     b) Use clean bullet points, bold product names, and ₹ prices (e.g. • **20-20 Biscuit Blue:** ₹55.00).
+     c) Mention that they can add these items to their cart from the **Products** tab in their dashboard to place an order.
+     d) NEVER just tell them to "Go to products tab" without quoting the actual rate when rates are in the database context below!
+     e) If no products match their query, state politely that the item was not found in the current catalogue, and encourage them to check the **Products** tab or call support at ${OFFICIAL_COMPANY_INFO.phone}.
+5. ALWAYS check the customer's specific orders first!
    - Every customer has their own individual orders, amounts, and statuses.
    - When asked about payments, bills, or order status, directly cite their actual Order ID, Date, Amount (in ₹), and Status from the context below.
    - If they have no orders, state clearly: "Aapke account me abhi koi active order darj nahi hai."
-5. For payment and account support:
+6. For payment and account support:
    - Provide direct contact: Call **${OFFICIAL_COMPANY_INFO.phone}** or Email **${OFFICIAL_COMPANY_INFO.email}**.
-6. Language: You understand and reply in English, Hindi (हिन्दी), or natural conversational Hinglish depending on what the user speaks.
-7. Tone: Helpful, empathetic, accurate, and concise. Use bold text and bullet points.
+7. Language: You understand and reply in English, Hindi (हिन्दी), or natural conversational Hinglish depending on what the user speaks.
+8. Tone: Helpful, empathetic, accurate, and concise. Use bold text and bullet points.
 
 === OFFICIAL COMPANY CONTACT ===
 Phone: ${OFFICIAL_COMPANY_INFO.phone} (${OFFICIAL_COMPANY_INFO.phoneExtensions})
@@ -101,6 +129,9 @@ ${customerSummary}
 
 Recent Orders for this Account:
 ${ordersContextStr}
+
+Relevant Products & Rates in Database:
+${productsContextStr}
 `;
 
 	// 3. Assemble chat message history for Groq
@@ -157,7 +188,41 @@ ${ordersContextStr}
 		// Grounded deterministic fallback tailored to this specific customer
 		let fallbackText = "";
 
-		if (
+		const isRateQuery =
+			lowerQuery.includes("rate") ||
+			lowerQuery.includes("price") ||
+			lowerQuery.includes("cost") ||
+			lowerQuery.includes("bhav") ||
+			lowerQuery.includes("bhao") ||
+			lowerQuery.includes("kitne") ||
+			lowerQuery.includes("kitna") ||
+			lowerQuery.includes("dam") ||
+			lowerQuery.includes("daam") ||
+			lowerQuery.includes("kimat") ||
+			lowerQuery.includes("keemat") ||
+			lowerQuery.includes("mrp") ||
+			matchedProducts.length > 0;
+
+		if (isRateQuery && matchedProducts.length > 0) {
+			const productListStr = matchedProducts
+				.map((p) => {
+					const rate =
+						p.sellingPrice && Number(p.sellingPrice) > 0
+							? p.sellingPrice
+							: p.price;
+					return `• **${p.name}:** ₹${rate}${p.unit ? ` per ${p.unit}` : ""}`;
+				})
+				.join("\n");
+
+			fallbackText = `Evaluna par aapke poochhe gaye product ke rates yeh hain:
+${productListStr}
+
+Aap in items ko apne dashboard me **Products** tab par jaakar cart me add kar sakte hain aur order place kar sakte hain.
+Kisi bhi sahayata ke liye aap humari support team se **${OFFICIAL_COMPANY_INFO.phone}** par call kar sakte hain.`;
+		} else if (isRateQuery && matchedProducts.length === 0) {
+			fallbackText = `Aapne jis item ke baare me poocha hai, uska rate abhi catalogue me uplabdh nahi mila.
+Aap apne dashboard me **Products** tab par jaakar sabhi items aur unke rates dekh sakte hain, ya humare helpline number **${OFFICIAL_COMPANY_INFO.phone}** par sampark kar sakte hain.`;
+		} else if (
 			lowerQuery.includes("payment") ||
 			lowerQuery.includes("credit") ||
 			lowerQuery.includes("invoice") ||
