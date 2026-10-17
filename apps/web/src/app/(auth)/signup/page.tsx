@@ -11,9 +11,10 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { WaitingForVerificationModal } from "@/components/auth/WaitingForVerificationModal";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { authClient } from "@/lib/auth-client";
-import { signup } from "./actions";
+import { signupAction } from "./actions";
 
 function SignupForm() {
 	const t = useTranslations("signup");
@@ -22,6 +23,9 @@ function SignupForm() {
 	const formRef = useRef<HTMLFormElement>(null);
 	const [isPending, setIsPending] = useState(false);
 	const [socialError, setSocialError] = useState<string | null>(null);
+	const [formError, setFormError] = useState<string | null>(null);
+	const [waitingEmail, setWaitingEmail] = useState<string | null>(null);
+	const [showModal, setShowModal] = useState(false);
 
 	// Seamlessly redirect if user is already authenticated (e.g. from Google OAuth)
 	useEffect(() => {
@@ -36,6 +40,7 @@ function SignupForm() {
 	}, []);
 
 	const errorMessage =
+		formError ||
 		socialError ||
 		(error === "signup-failed"
 			? "Registration failed. Please verify your details and try again."
@@ -47,14 +52,35 @@ function SignupForm() {
 						? "Password must be at least 8 characters."
 						: null);
 
-	async function handleSubmit(formData: FormData) {
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+		e.preventDefault();
 		setIsPending(true);
-		await signup(formData);
-		setIsPending(false);
+		setFormError(null);
+		setSocialError(null);
+
+		try {
+			const formData = new FormData(e.currentTarget);
+			const res = await signupAction(formData);
+
+			if (res.waitingForVerification && res.email) {
+				setWaitingEmail(res.email);
+				setShowModal(true);
+			} else if (!res.success) {
+				setFormError(
+					res.error || "Registration failed. Please verify your details and try again.",
+				);
+			}
+		} catch (err: any) {
+			setFormError(
+				err?.message || "An unexpected error occurred. Please try again.",
+			);
+		} finally {
+			setIsPending(false);
+		}
 	}
 
 	return (
-		<form ref={formRef} action={handleSubmit}>
+		<form ref={formRef} onSubmit={handleSubmit}>
 			<CardContent className="space-y-4 pt-6">
 				{errorMessage && (
 					<motion.div
@@ -139,6 +165,16 @@ function SignupForm() {
 					</Link>
 				</p>
 			</CardFooter>
+
+			{/* Waiting for Verification Modal */}
+			<WaitingForVerificationModal
+				isOpen={showModal}
+				email={waitingEmail || ""}
+				onClose={() => setShowModal(false)}
+				onVerified={() => {
+					window.location.href = "/customer";
+				}}
+			/>
 		</form>
 	);
 }
