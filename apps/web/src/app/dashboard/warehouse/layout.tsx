@@ -218,6 +218,11 @@ export default function WarehouseWMSLayout({
 					href: "/dashboard/warehouse/my-audits",
 					icon: CheckSquareIcon,
 				},
+				{
+					label: "Variance & Loss Reports",
+					href: "/dashboard/warehouse/reports",
+					icon: BarChart3Icon,
+				},
 			],
 		},
 		{

@@ -16,7 +16,7 @@ import {
 	user,
 	userRoles,
 } from "@/lib/db/schema";
-import { and, desc, eq, ilike, inArray, like, not, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, like, lt, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 import { TRPCError } from "@trpc/server";
@@ -30,6 +30,57 @@ const getRows = <T = any>(res: any): T[] => {
 	if (Array.isArray(res.rows)) return res.rows;
 	return [];
 };
+
+export function normalizeDiscrepancyType(
+	rawTypeOrReason?: string | null,
+	variance: number = 0,
+): string {
+	const text = (rawTypeOrReason || "").toLowerCase().trim();
+	if (
+		text.includes("theft") ||
+		text.includes("chori") ||
+		text.includes("steal") ||
+		text.includes("stolen")
+	) {
+		return "theft";
+	}
+	if (
+		text.includes("damage") ||
+		text.includes("damaged") ||
+		text.includes("broken") ||
+		text.includes("toot") ||
+		text.includes("khrab") ||
+		text.includes("kharab")
+	) {
+		return "damage";
+	}
+	if (
+		text.includes("expir") ||
+		text.includes("expired") ||
+		text.includes("samapt")
+	) {
+		return "expiry";
+	}
+	if (
+		text.includes("wrong_location") ||
+		text.includes("misplaced") ||
+		text.includes("galat")
+	) {
+		return "wrong_location";
+	}
+	if (
+		text.includes("counting_error") ||
+		text.includes("count_error") ||
+		text.includes("human_error") ||
+		text.includes("ginti")
+	) {
+		return "counting_error";
+	}
+	if (text === "excess" || variance > 0) {
+		return "excess";
+	}
+	return "missing";
+}
 
 export const auditRouter = router({
 	// ── Summary KPI Stats for Auditor & Warehouse Dashboards ─────────────────
@@ -953,6 +1004,7 @@ export const auditRouter = router({
 					z.object({
 						item_id: z.number(),
 						counted_qty: z.number().min(0),
+						discrepancy_reason: z.string().optional(),
 						remarks: z.string().optional(),
 					}),
 				),
@@ -967,6 +1019,9 @@ export const auditRouter = router({
 					.update(stockAuditItems)
 					.set({
 						counted_qty: item.counted_qty,
+						...(item.discrepancy_reason !== undefined
+							? { discrepancy_reason: item.discrepancy_reason }
+							: {}),
 						remarks: item.remarks,
 						status: "counted",
 					})
@@ -1065,7 +1120,20 @@ export const auditRouter = router({
 						);
 						const varianceValue = Math.abs(variance) * unitCost;
 
-						const discType = variance < 0 ? "missing" : "excess";
+						const discType = normalizeDiscrepancyType(
+							item.discrepancy_reason || item.remarks,
+							variance,
+						);
+
+						// Clean up any stale unapproved discrepancies for this audit item
+						await db
+							.delete(auditDiscrepancies)
+							.where(
+								and(
+									eq(auditDiscrepancies.audit_item_id, item.item_id),
+									eq(auditDiscrepancies.resolution_status, "pending"),
+								),
+							);
 
 						await db.insert(auditDiscrepancies).values({
 							audit_item_id: item.item_id,
@@ -1714,16 +1782,42 @@ export const auditRouter = router({
 					if (item.counted_qty !== expected) {
 						hasDiscrepancy = true;
 						const variance = item.counted_qty - expected;
-						const discType = variance < 0 ? "missing" : "damage";
+
+						// Fetch product cost price for valuation
+						const [prod] = await db
+							.select()
+							.from(products)
+							.where(eq(products.id, existing.product_id))
+							.limit(1);
+
+						const unitCost = Number(
+							prod?.base_procurement_price || prod?.price || 0,
+						);
+						const varianceValue = Math.abs(variance) * unitCost;
+						const discType = normalizeDiscrepancyType(
+							item.discrepancy_reason || item.remarks,
+							variance,
+						);
+
+						// Clean up any stale unapproved discrepancies for this audit item
+						await db
+							.delete(auditDiscrepancies)
+							.where(
+								and(
+									eq(auditDiscrepancies.audit_item_id, item.item_id),
+									eq(auditDiscrepancies.resolution_status, "pending"),
+								),
+							);
 
 						await db.insert(auditDiscrepancies).values({
 							audit_item_id: item.item_id,
 							discrepancy_type: discType,
 							quantity: Math.abs(variance),
+							variance_value: String(varianceValue),
 							reason:
 								item.discrepancy_reason ||
 								item.remarks ||
-								"Physical count variance",
+								`Physical count variance (${variance > 0 ? "+" : ""}${variance})`,
 							resolution_status: "pending",
 						});
 					}
@@ -1952,5 +2046,409 @@ export const auditRouter = router({
 			});
 
 			return result[0];
+		}),
+
+	// ── Warehouse Manager: Update Discrepancy Reason / Classification ──────────
+	updateDiscrepancyReason: permProcedure("inventory_audit", "write")
+		.input(
+			z.object({
+				audit_item_id: z.number(),
+				discrepancy_reason: z.string(),
+				remarks: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+			const normType = normalizeDiscrepancyType(input.discrepancy_reason);
+
+			// Update stockAuditItems
+			await db
+				.update(stockAuditItems)
+				.set({
+					discrepancy_reason: input.discrepancy_reason,
+					...(input.remarks !== undefined ? { remarks: input.remarks } : {}),
+				})
+				.where(eq(stockAuditItems.id, input.audit_item_id));
+
+			// Update existing auditDiscrepancies if present, or insert one if missing
+			const existingDisc = await db
+				.select()
+				.from(auditDiscrepancies)
+				.where(eq(auditDiscrepancies.audit_item_id, input.audit_item_id));
+
+			if (existingDisc.length > 0) {
+				await db
+					.update(auditDiscrepancies)
+					.set({
+						discrepancy_type: normType,
+						reason: input.discrepancy_reason,
+					})
+					.where(eq(auditDiscrepancies.audit_item_id, input.audit_item_id));
+			} else {
+				const [auditItem] = await db
+					.select()
+					.from(stockAuditItems)
+					.where(eq(stockAuditItems.id, input.audit_item_id))
+					.limit(1);
+
+				if (auditItem) {
+					const variance =
+						(auditItem.counted_qty ?? 0) - (auditItem.expected_qty ?? 0);
+					const [prod] = await db
+						.select()
+						.from(products)
+						.where(eq(products.id, auditItem.product_id))
+						.limit(1);
+					const unitCost = Number(
+						prod?.base_procurement_price || prod?.price || 0,
+					);
+					const varianceValue = Math.abs(variance) * unitCost;
+
+					await db.insert(auditDiscrepancies).values({
+						audit_item_id: input.audit_item_id,
+						discrepancy_type: normType,
+						quantity: Math.abs(variance) || 1,
+						variance_value: String(varianceValue),
+						reason: input.discrepancy_reason,
+						resolution_status: "pending",
+					});
+				}
+			}
+
+			await logAudit(db, {
+				userId: staffId,
+				action: "DISCREPANCY_REASON_UPDATED",
+				entityType: "stock_audit_items",
+				entityId: input.audit_item_id,
+				newValues: {
+					discrepancy_reason: input.discrepancy_reason,
+					discrepancy_type: normType,
+				},
+			});
+
+			return { success: true, discrepancy_type: normType };
+		}),
+
+	// ── Warehouse / Accounting: Monthly Stock Discrepancy & Loss Report ───────
+	getMonthlyDiscrepancyReport: permProcedure("inventory_audit", "read")
+		.input(
+			z
+				.object({
+					month: z.number().min(1).max(12).optional(),
+					year: z.number().optional(),
+					branchId: z.number().optional(),
+					discrepancyType: z.string().optional(),
+					search: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const targetYear = input?.year ?? new Date().getFullYear();
+			const targetMonth = input?.month ?? new Date().getMonth() + 1;
+
+			const startDate = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0);
+			const endDate = new Date(targetYear, targetMonth, 1, 0, 0, 0, 0);
+
+			// 1. Fetch audits in date range (or all audits if matching branch)
+			const auditFilters: any[] = [
+				gte(stockAudits.created_at, startDate),
+				lt(stockAudits.created_at, endDate),
+			];
+			if (input?.branchId) {
+				auditFilters.push(eq(stockAudits.branch_id, input.branchId));
+			}
+
+			const matchingAudits = await db
+				.select()
+				.from(stockAudits)
+				.where(and(...auditFilters));
+
+			const auditIds = matchingAudits.map((a) => a.id);
+			if (auditIds.length === 0) {
+				return {
+					summary: {
+						totalLossValue: 0,
+						totalVarianceUnits: 0,
+						theftCount: 0,
+						theftLossValue: 0,
+						theftLineCount: 0,
+						damageCount: 0,
+						damageLossValue: 0,
+						damageLineCount: 0,
+						missingCount: 0,
+						missingLossValue: 0,
+						missingLineCount: 0,
+						expiryCount: 0,
+						expiryLossValue: 0,
+						excessCount: 0,
+						excessGainValue: 0,
+						auditsWithDiscrepancyCount: 0,
+					},
+					byCategory: [],
+					items: [],
+					month: targetMonth,
+					year: targetYear,
+				};
+			}
+
+			const auditMap = new Map(matchingAudits.map((a) => [a.id, a]));
+
+			// 2. Fetch all audit items for matching audits
+			const itemsList = await db
+				.select()
+				.from(stockAuditItems)
+				.where(inArray(stockAuditItems.audit_id, auditIds));
+
+			const itemIds = itemsList.map((i) => i.id);
+
+			// 3. Fetch discrepancies for those items
+			let discrepanciesList: any[] = [];
+			if (itemIds.length > 0) {
+				discrepanciesList = await db
+					.select()
+					.from(auditDiscrepancies)
+					.where(inArray(auditDiscrepancies.audit_item_id, itemIds));
+			}
+			const discrepancyByItemId = new Map<number, any>();
+			for (const d of discrepanciesList) {
+				discrepancyByItemId.set(d.audit_item_id, d);
+			}
+
+			// 4. Fetch products, branches, and staff
+			const productIds = [
+				...new Set(itemsList.map((i) => i.product_id).filter(Boolean)),
+			];
+			let productMap = new Map<number, any>();
+			if (productIds.length > 0) {
+				const prods = await db
+					.select()
+					.from(products)
+					.where(inArray(products.id, productIds));
+				productMap = new Map(prods.map((p) => [p.id, p]));
+			}
+
+			const branchIds = [
+				...new Set(matchingAudits.map((a) => a.branch_id).filter(Boolean)),
+			];
+			let branchMap = new Map<number, any>();
+			if (branchIds.length > 0) {
+				const brs = await db
+					.select()
+					.from(branches)
+					.where(inArray(branches.id, branchIds as number[]));
+				branchMap = new Map(brs.map((b) => [b.id, b]));
+			}
+
+			const auditorIds = [
+				...new Set(matchingAudits.map((a) => a.auditor_id).filter(Boolean)),
+			];
+			let staffMap = new Map<number, any>();
+			if (auditorIds.length > 0) {
+				const staffs = await db
+					.select()
+					.from(staff)
+					.where(inArray(staff.id, auditorIds as number[]));
+				staffMap = new Map(staffs.map((s) => [s.id, s]));
+			}
+
+			// Fetch categories
+			const allCats = await db.select().from(productCategories);
+			const categoryMap = new Map(allCats.map((c) => [c.id, c.name]));
+
+			// 5. Aggregate metrics
+			let totalLossValue = 0;
+			let totalVarianceUnits = 0;
+			let theftCount = 0;
+			let theftLossValue = 0;
+			let theftLineCount = 0;
+			let damageCount = 0;
+			let damageLossValue = 0;
+			let damageLineCount = 0;
+			let missingCount = 0;
+			let missingLossValue = 0;
+			let missingLineCount = 0;
+			let expiryCount = 0;
+			let expiryLossValue = 0;
+			let excessCount = 0;
+			let excessGainValue = 0;
+			const auditsWithDiscrepancies = new Set<number>();
+			const categoryLossMap = new Map<
+				string,
+				{ category: string; units: number; lossValue: number }
+			>();
+
+			const reportRows: any[] = [];
+
+			for (const item of itemsList) {
+				const audit = auditMap.get(item.audit_id);
+				const prod = productMap.get(item.product_id);
+				const disc = discrepancyByItemId.get(item.id);
+
+				const expected = item.expected_qty ?? 0;
+				const counted =
+					item.recount_qty !== null && item.recount_qty !== undefined
+						? Number(item.recount_qty)
+						: item.counted_qty !== null && item.counted_qty !== undefined
+							? Number(item.counted_qty)
+							: null;
+
+				const variance =
+					counted !== null ? counted - expected : (item.variance_qty ?? 0);
+
+				// Only process lines that have a variance or an explicit discrepancy record
+				if (variance === 0 && !disc && item.status !== "mismatch") {
+					continue;
+				}
+
+				const absQty = disc?.quantity ?? Math.abs(variance);
+				const unitCost = Number(
+					prod?.base_procurement_price || prod?.price || 0,
+				);
+				const calculatedValue = Number(
+					disc?.variance_value || absQty * unitCost,
+				);
+
+				// Determine normalized type from discrepancy_type or reasons
+				const rawTypeOrReason =
+					item.discrepancy_reason ||
+					disc?.discrepancy_type ||
+					disc?.reason ||
+					item.remarks;
+				const discType = normalizeDiscrepancyType(rawTypeOrReason, variance);
+
+				auditsWithDiscrepancies.add(item.audit_id);
+				totalVarianceUnits += absQty;
+
+				if (discType === "theft") {
+					theftCount += absQty;
+					theftLossValue += calculatedValue;
+					theftLineCount++;
+					totalLossValue += calculatedValue;
+				} else if (discType === "damage") {
+					damageCount += absQty;
+					damageLossValue += calculatedValue;
+					damageLineCount++;
+					totalLossValue += calculatedValue;
+				} else if (discType === "expiry") {
+					expiryCount += absQty;
+					expiryLossValue += calculatedValue;
+					totalLossValue += calculatedValue;
+				} else if (discType === "excess") {
+					excessCount += absQty;
+					excessGainValue += calculatedValue;
+				} else {
+					// missing or unaccounted
+					missingCount += absQty;
+					missingLossValue += calculatedValue;
+					missingLineCount++;
+					totalLossValue += calculatedValue;
+				}
+
+				// Category breakdown
+				const catName =
+					prod?.category ||
+					(prod?.category_id ? categoryMap.get(prod.category_id) : null) ||
+					"General";
+				const currentCat = categoryLossMap.get(catName) || {
+					category: catName,
+					units: 0,
+					lossValue: 0,
+				};
+				currentCat.units += absQty;
+				if (discType !== "excess") {
+					currentCat.lossValue += calculatedValue;
+				}
+				categoryLossMap.set(catName, currentCat);
+
+				const branch = audit?.branch_id ? branchMap.get(audit.branch_id) : null;
+				const auditorStaff = audit?.auditor_id
+					? staffMap.get(audit.auditor_id)
+					: null;
+
+				reportRows.push({
+					id: disc?.id ?? item.id,
+					auditItemId: item.id,
+					auditId: item.audit_id,
+					auditNumber: audit?.audit_number || `AUD-${item.audit_id}`,
+					auditDate: audit?.completed_at || audit?.created_at,
+					branchId: audit?.branch_id || null,
+					branchName: branch?.name || "Main Warehouse",
+					productId: item.product_id,
+					productName: prod?.name || `Product #${item.product_id}`,
+					sku: prod?.sku || "N/A",
+					barcode: prod?.barcode || "N/A",
+					category: catName,
+					expectedQty: expected,
+					countedQty: counted,
+					varianceQty: variance,
+					discrepancyType: discType,
+					discrepancyReason:
+						item.discrepancy_reason ||
+						disc?.reason ||
+						item.remarks ||
+						(discType === "theft"
+							? "Theft / चोरी"
+							: discType === "damage"
+								? "Damaged / क्षतिग्रस्त"
+								: "Missing / गायब"),
+					unitPrice: unitCost,
+					lossValue: calculatedValue,
+					resolutionStatus:
+						disc?.resolution_status ||
+						(audit?.status === "completed" ? "approved" : "pending"),
+					auditorName: auditorStaff?.name || "Auditor",
+				});
+			}
+
+			// Filter reportRows by input criteria if provided
+			let filteredRows = reportRows;
+			if (input?.discrepancyType && input.discrepancyType !== "all") {
+				filteredRows = filteredRows.filter(
+					(r) => r.discrepancyType === input.discrepancyType,
+				);
+			}
+			if (input?.search) {
+				const q = input.search.toLowerCase();
+				filteredRows = filteredRows.filter(
+					(r) =>
+						r.productName.toLowerCase().includes(q) ||
+						r.sku.toLowerCase().includes(q) ||
+						r.auditNumber.toLowerCase().includes(q) ||
+						(r.discrepancyReason &&
+							r.discrepancyReason.toLowerCase().includes(q)),
+				);
+			}
+
+			return {
+				summary: {
+					totalLossValue,
+					totalVarianceUnits,
+					theftCount,
+					theftLossValue,
+					theftLineCount,
+					damageCount,
+					damageLossValue,
+					damageLineCount,
+					missingCount,
+					missingLossValue,
+					missingLineCount,
+					expiryCount,
+					expiryLossValue,
+					excessCount,
+					excessGainValue,
+					auditsWithDiscrepancyCount: auditsWithDiscrepancies.size,
+				},
+				byCategory: Array.from(categoryLossMap.values()).sort(
+					(a, b) => b.lossValue - a.lossValue,
+				),
+				items: filteredRows.sort(
+					(a, b) =>
+						new Date(b.auditDate).getTime() - new Date(a.auditDate).getTime(),
+				),
+				month: targetMonth,
+				year: targetYear,
+			};
 		}),
 });

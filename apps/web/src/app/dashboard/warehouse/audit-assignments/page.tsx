@@ -222,6 +222,20 @@ export default function WarehouseAuditAssignmentsPage() {
 		},
 	});
 
+	const updateDiscrepancyReasonMutation =
+		trpc.audit.updateDiscrepancyReason.useMutation({
+			onSuccess: (res) => {
+				toast.success(
+					`Discrepancy classification updated to "${res.discrepancy_type.toUpperCase()}".`,
+				);
+				refetchAuditDetail();
+				refetchStats();
+			},
+			onError: (err) => {
+				toast.error(err.message || "Failed to update discrepancy reason.");
+			},
+		});
+
 	const quickCreateProductMutation = trpc.products.create.useMutation({
 		onSuccess: (newProd) => {
 			toast.success(`Product "${newProd.name}" created successfully!`);
@@ -1567,6 +1581,117 @@ export default function WarehouseAuditAssignmentsPage() {
 									</p>
 								</div>
 							</div>
+
+							{/* Discrepancy Breakdown Strip (Theft, Damage, Missing, Total Loss) */}
+							{(() => {
+								const discrepantItems = activeAuditDetail.items.filter(
+									(i) =>
+										i.status === "mismatch" ||
+										(i.counted_qty !== null &&
+											i.counted_qty !== i.expected_qty),
+								);
+
+								if (discrepantItems.length === 0) return null;
+
+								let theftCount = 0;
+								let theftVal = 0;
+								let damageCount = 0;
+								let damageVal = 0;
+								let missingCount = 0;
+								let missingVal = 0;
+								let totalLoss = 0;
+
+								for (const item of discrepantItems) {
+									const expected = item.expected_qty ?? 0;
+									const effective =
+										item.recount_qty !== null && item.recount_qty !== undefined
+											? Number(item.recount_qty)
+											: item.counted_qty !== null && item.counted_qty !== undefined
+												? Number(item.counted_qty)
+												: 0;
+									const variance = effective - expected;
+									const absVar = Math.abs(variance);
+									const unitCost = Number(
+										item.product?.base_procurement_price ||
+											item.product?.price ||
+											0,
+									);
+									const val = absVar * unitCost;
+
+									const r = (
+										item.discrepancy_reason ||
+										item.remarks ||
+										item.discrepancies?.[0]?.discrepancy_type ||
+										item.discrepancies?.[0]?.reason ||
+										""
+									).toLowerCase();
+
+									if (
+										r.includes("theft") ||
+										r.includes("chori") ||
+										r.includes("steal")
+									) {
+										theftCount += absVar;
+										theftVal += val;
+										totalLoss += val;
+									} else if (
+										r.includes("damage") ||
+										r.includes("broken") ||
+										r.includes("toot")
+									) {
+										damageCount += absVar;
+										damageVal += val;
+										totalLoss += val;
+									} else {
+										missingCount += absVar;
+										missingVal += val;
+										if (variance < 0) totalLoss += val;
+									}
+								}
+
+								return (
+									<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 pt-2 border-t border-border/50">
+										<div className="rounded-xl border border-rose-500/25 bg-rose-500/10 p-2.5">
+											<div className="flex items-center justify-between text-[11px] font-bold text-rose-700 dark:text-rose-300">
+												<span>🚨 Theft (चोरी)</span>
+												<span className="font-mono">{theftCount} pcs</span>
+											</div>
+											<p className="text-base font-bold text-rose-800 dark:text-rose-200 mt-0.5">
+												₹{theftVal.toLocaleString("en-IN")}
+											</p>
+										</div>
+
+										<div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-2.5">
+											<div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-300">
+												<span>💥 Damaged (टूटा)</span>
+												<span className="font-mono">{damageCount} pcs</span>
+											</div>
+											<p className="text-base font-bold text-amber-800 dark:text-amber-200 mt-0.5">
+												₹{damageVal.toLocaleString("en-IN")}
+											</p>
+										</div>
+
+										<div className="rounded-xl border border-slate-500/25 bg-slate-500/10 p-2.5">
+											<div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+												<span>❓ Missing (गायब)</span>
+												<span className="font-mono">{missingCount} pcs</span>
+											</div>
+											<p className="text-base font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+												₹{missingVal.toLocaleString("en-IN")}
+											</p>
+										</div>
+
+										<div className="rounded-xl border border-red-500/35 bg-red-500/15 p-2.5">
+											<div className="text-[11px] font-bold text-red-700 dark:text-red-300">
+												📉 Discrepancy Loss
+											</div>
+											<p className="text-base font-bold text-red-700 dark:text-red-300 mt-0.5">
+												₹{totalLoss.toLocaleString("en-IN")}
+											</p>
+										</div>
+									</div>
+								);
+							})()}
 						</CardHeader>
 
 						<CardContent className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
@@ -1730,24 +1855,170 @@ export default function WarehouseAuditAssignmentsPage() {
 													</TableCell>
 
 													<TableCell>
-														<div>
-															<Badge
-																variant="outline"
-																className={`text-[10px] capitalize ${
-																	item.status === "match"
-																		? "border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-																		: item.status === "mismatch"
-																			? "border-amber-500/20 text-amber-700 dark:text-amber-300"
-																			: item.status === "recounted"
-																				? "border-purple-500/20 text-purple-700 dark:text-purple-300"
-																				: "border-border text-muted-foreground"
-																}`}
-															>
-																{item.status}
-															</Badge>
+														<div className="space-y-1.5 min-w-[150px]">
+															<div className="flex items-center gap-1.5 flex-wrap">
+																<Badge
+																	variant="outline"
+																	className={`text-[10px] capitalize font-medium ${
+																		item.status === "match"
+																			? "border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+																			: item.status === "mismatch"
+																				? "border-amber-500/20 text-amber-700 dark:text-amber-300"
+																				: item.status === "recounted"
+																					? "border-purple-500/20 text-purple-700 dark:text-purple-300"
+																					: "border-border text-muted-foreground"
+																	}`}
+																>
+																	{item.status}
+																</Badge>
+
+																{/* Prominent Discrepancy Reason Badge */}
+																{isMismatch &&
+																	(() => {
+																		const reasonKey = (
+																			item.discrepancy_reason ||
+																			item.remarks ||
+																			item.discrepancies?.[0]?.discrepancy_type ||
+																			item.discrepancies?.[0]?.reason ||
+																			""
+																		).toLowerCase();
+
+																		if (
+																			reasonKey.includes("theft") ||
+																			reasonKey.includes("chori") ||
+																			reasonKey.includes("steal")
+																		) {
+																			return (
+																				<Badge className="bg-rose-500/15 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-[10px] font-semibold gap-1">
+																					<AlertTriangleIcon className="h-3 w-3" />{" "}
+																					🚨 Theft / चोरी
+																				</Badge>
+																			);
+																		}
+																		if (
+																			reasonKey.includes("damage") ||
+																			reasonKey.includes("broken") ||
+																			reasonKey.includes("toot")
+																		) {
+																			return (
+																				<Badge className="bg-amber-500/15 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-semibold gap-1">
+																					<AlertOctagonIcon className="h-3 w-3" />{" "}
+																					💥 Damaged / टूटा
+																				</Badge>
+																			);
+																		}
+																		if (reasonKey.includes("expir")) {
+																			return (
+																				<Badge className="bg-yellow-500/15 hover:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30 text-[10px] font-semibold gap-1">
+																					<ClockIcon className="h-3 w-3" /> ⏳ Expired
+																				</Badge>
+																			);
+																		}
+																		if (
+																			reasonKey.includes("wrong_location") ||
+																			reasonKey.includes("misplaced")
+																		) {
+																			return (
+																				<Badge className="bg-blue-500/15 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[10px] font-semibold gap-1">
+																					📍 Misplaced
+																				</Badge>
+																			);
+																		}
+																		return (
+																			<Badge className="bg-slate-500/15 hover:bg-slate-500/20 text-slate-700 dark:text-slate-300 border border-slate-500/30 text-[10px] font-semibold gap-1">
+																				❓ Missing / गायब
+																			</Badge>
+																		);
+																	})()}
+															</div>
+
+															{/* Estimated Loss Amount */}
+															{isMismatch && item.variance !== null && (
+																<p className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400">
+																	Est. Loss: ₹
+																	{(
+																		Math.abs(item.variance) *
+																		Number(
+																			item.product?.base_procurement_price ||
+																				item.product?.price ||
+																				0,
+																		)
+																	).toLocaleString("en-IN")}
+																</p>
+															)}
+
+															{/* Inline Classification Editor for Warehouse Supervisor */}
+															{isMismatch &&
+																activeAuditDetail.audit?.status !== "completed" && (
+																	<div className="flex items-center gap-1 pt-0.5">
+																		<select
+																			value={
+																				(
+																					item.discrepancy_reason ||
+																					item.discrepancies?.[0]
+																						?.discrepancy_type ||
+																					""
+																				)
+																					.toLowerCase()
+																					.includes("theft")
+																					? "theft"
+																					: (
+																								item.discrepancy_reason ||
+																								item.discrepancies?.[0]
+																									?.discrepancy_type ||
+																								""
+																						  )
+																								.toLowerCase()
+																								.includes("damage")
+																						? "damage"
+																						: (
+																									item.discrepancy_reason ||
+																									item.discrepancies?.[0]
+																										?.discrepancy_type ||
+																									""
+																							  )
+																									.toLowerCase()
+																									.includes("expiry")
+																							? "expiry"
+																							: (
+																										item.discrepancy_reason ||
+																										item.discrepancies?.[0]
+																											?.discrepancy_type ||
+																										""
+																								  )
+																										.toLowerCase()
+																										.includes(
+																											"wrong_location",
+																										)
+																								? "wrong_location"
+																								: "missing"
+																			}
+																			onChange={(e) => {
+																				updateDiscrepancyReasonMutation.mutate({
+																					audit_item_id: item.id,
+																					discrepancy_reason: e.target.value,
+																				});
+																			}}
+																			disabled={
+																				updateDiscrepancyReasonMutation.isPending
+																			}
+																			className="h-6 text-[10px] rounded border border-border/80 bg-background px-1.5 text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+																			title="Classify discrepancy reason"
+																		>
+																			<option value="missing">❓ Missing / गायब</option>
+																			<option value="theft">🚨 Theft / चोरी</option>
+																			<option value="damage">💥 Damaged / क्षतिग्रस्त</option>
+																			<option value="expiry">⏳ Expired / समाप्त</option>
+																			<option value="wrong_location">📍 Misplaced / गलत स्थान</option>
+																		</select>
+																	</div>
+																)}
 
 															{(item.discrepancy_reason || item.remarks) && (
-																<p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[150px]">
+																<p
+																	className="text-[10px] text-muted-foreground truncate max-w-[170px]"
+																	title={item.discrepancy_reason || item.remarks}
+																>
 																	{item.discrepancy_reason || item.remarks}
 																</p>
 															)}

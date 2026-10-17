@@ -201,6 +201,7 @@ export default function EmployeeAuditCountWorkspace() {
 			.map(([id, val]) => ({
 				item_id: Number(id),
 				counted_qty: Number(val.count),
+				discrepancy_reason: val.reason || undefined,
 				remarks: val.remarks,
 			}));
 
@@ -679,7 +680,9 @@ export default function EmployeeAuditCountWorkspace() {
 													Recount Entry
 												</TableHead>
 											)}
-											<TableHead>Condition / Notes</TableHead>
+											<TableHead className="min-w-[200px]">
+												Reason & Remarks
+											</TableHead>
 											<TableHead className="w-24 text-center">Status</TableHead>
 										</TableRow>
 									</TableHeader>
@@ -812,22 +815,72 @@ export default function EmployeeAuditCountWorkspace() {
 														</TableCell>
 													)}
 
-													{/* Remarks */}
+													{/* Discrepancy Reason & Remarks */}
 													<TableCell>
-														<Input
-															placeholder="Damage, expiry, location notes..."
-															value={countsMap[item.id]?.remarks ?? ""}
-															onChange={(e) =>
-																setCountsMap((prev) => ({
-																	...prev,
-																	[item.id]: {
-																		...prev[item.id],
-																		remarks: e.target.value,
-																	},
-																}))
-															}
-															className="h-7 text-[11px] bg-background"
-														/>
+														<div className="space-y-1.5 py-1">
+															<div className="flex items-center gap-1.5">
+																<select
+																	value={countsMap[item.id]?.reason ?? ""}
+																	onChange={(e) =>
+																		setCountsMap((prev) => ({
+																			...prev,
+																			[item.id]: {
+																				...prev[item.id],
+																				reason: e.target.value,
+																			},
+																		}))
+																	}
+																	className={`h-7 rounded-md border text-[11px] font-medium bg-background px-2 transition-colors ${
+																		countsMap[item.id]?.reason === "theft"
+																			? "border-rose-500/50 bg-rose-500/10 text-rose-700 dark:text-rose-300 font-semibold"
+																			: countsMap[item.id]?.reason === "damage"
+																				? "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold"
+																				: countsMap[item.id]?.reason === "missing"
+																					? "border-slate-500/50 bg-slate-500/10 text-slate-700 dark:text-slate-300"
+																					: countsMap[item.id]?.reason === "expiry"
+																						? "border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
+																						: !isBlindAudit &&
+																							  currentCount !== null &&
+																							  currentCount < (item.expected_qty ?? 0)
+																							? "border-amber-500 ring-1 ring-amber-500/30 text-amber-800 dark:text-amber-300"
+																							: "border-border/80 text-foreground"
+																	}`}
+																>
+																	<option value="">Reason: Normal / Auto</option>
+																	<option value="theft">🚨 Theft / चोरी</option>
+																	<option value="damage">💥 Damaged / क्षतिग्रस्त</option>
+																	<option value="missing">❓ Missing / गायब</option>
+																	<option value="expiry">⏳ Expired / समाप्त</option>
+																	<option value="wrong_location">📍 Misplaced / गलत जगह</option>
+																	<option value="counting_error">⚖️ Counting Error / त्रुटि</option>
+																	<option value="other">📝 Other / अन्य</option>
+																</select>
+
+																{!isBlindAudit &&
+																	currentCount !== null &&
+																	currentCount < (item.expected_qty ?? 0) &&
+																	!countsMap[item.id]?.reason && (
+																		<span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold animate-pulse whitespace-nowrap">
+																			Tag reason!
+																		</span>
+																	)}
+															</div>
+
+															<Input
+																placeholder="Notes, box #, damage details..."
+																value={countsMap[item.id]?.remarks ?? ""}
+																onChange={(e) =>
+																	setCountsMap((prev) => ({
+																		...prev,
+																		[item.id]: {
+																			...prev[item.id],
+																			remarks: e.target.value,
+																		},
+																	}))
+																}
+																className="h-7 text-[11px] bg-background"
+															/>
+														</div>
 													</TableCell>
 
 													{/* Status */}
