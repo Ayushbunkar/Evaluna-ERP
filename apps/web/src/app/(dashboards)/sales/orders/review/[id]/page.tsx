@@ -604,14 +604,16 @@ export default function CustomerOrderReviewPage() {
 								<Label className="text-xs sm:sr-only">Quantity</Label>
 								<Input
 									type="number"
-									min={1}
+									min="0.001"
+									step="any"
 									value={l.quantity}
 									disabled={locked}
-									onChange={(e) =>
+									onChange={(e) => {
+										const val = parseFloat(e.target.value);
 										setLine(l.productId, {
-											quantity: Math.max(1, Number(e.target.value) || 1),
-										})
-									}
+											quantity: isNaN(val) || val <= 0 ? 0.001 : Number(val.toFixed(3)),
+										});
+									}}
 									className="h-9"
 								/>
 							</div>

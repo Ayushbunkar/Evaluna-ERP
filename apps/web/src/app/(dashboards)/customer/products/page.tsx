@@ -62,7 +62,7 @@ export default function CustomerProductsPage() {
 	const [search, setSearch] = useState("");
 	const [category, setCategory] = useState<string>("all");
 	const [cart, setCart] = useState<Record<number, CartItem>>({});
-	const [quantities, setQuantities] = useState<Record<number, number>>({});
+	const [quantities, setQuantities] = useState<Record<number, number | string>>({});
 	const [reviewOpen, setReviewOpen] = useState(false);
 	const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 	const submittingRef = useRef(false);
@@ -92,7 +92,12 @@ export default function CustomerProductsPage() {
 
 	const cartItemsList = useMemo(() => Object.values(cart), [cart]);
 	const totalCartCount = useMemo(
-		() => cartItemsList.reduce((sum, item) => sum + item.quantity, 0),
+		() =>
+			Number(
+				cartItemsList
+					.reduce((sum, item) => sum + item.quantity, 0)
+					.toFixed(3),
+			),
 		[cartItemsList],
 	);
 	const totalCartAmount = useMemo(
@@ -104,13 +109,41 @@ export default function CustomerProductsPage() {
 		[cartItemsList],
 	);
 
-	const getQty = (pid: number) => quantities[pid] ?? 1;
+	const getQty = (pid: number): number => {
+		const raw = quantities[pid];
+		if (raw === undefined || raw === "") return 1;
+		const parsed = typeof raw === "number" ? raw : parseFloat(raw);
+		return isNaN(parsed) || parsed <= 0 ? 1 : Number(parsed.toFixed(3));
+	};
 
-	const setQty = (pid: number, val: number) => {
+	const setQty = (pid: number, val: number | string) => {
 		setQuantities((prev) => ({
 			...prev,
-			[pid]: Math.max(1, val),
+			[pid]: typeof val === "string" ? val : Math.max(0.001, Number(val.toFixed(3))),
 		}));
+	};
+
+	const handleIncrement = (pid: number) => {
+		const current = getQty(pid);
+		const next =
+			current < 1
+				? Number((current + 0.5).toFixed(3))
+				: Number((current + 1).toFixed(3));
+		setQty(pid, next);
+	};
+
+	const handleDecrement = (pid: number) => {
+		const current = getQty(pid);
+		if (current <= 0.1) return;
+		let next: number;
+		if (current > 1) {
+			next = Number((current - 1).toFixed(3));
+		} else if (current > 0.5) {
+			next = 0.5;
+		} else {
+			next = current > 0.25 ? 0.25 : 0.1;
+		}
+		setQty(pid, next);
 	};
 
 	const handleAddToCart = (product: {
@@ -123,6 +156,7 @@ export default function CustomerProductsPage() {
 		const qtyToAdd = getQty(product.id);
 		setCart((prev) => {
 			const existingQty = prev[product.id]?.quantity ?? 0;
+			const newQty = Number((existingQty + qtyToAdd).toFixed(3));
 			return {
 				...prev,
 				[product.id]: {
@@ -131,7 +165,7 @@ export default function CustomerProductsPage() {
 					sku: product.sku,
 					unit: product.unit,
 					price: product.price || 0,
-					quantity: existingQty + qtyToAdd,
+					quantity: newQty,
 				},
 			};
 		});
@@ -140,18 +174,48 @@ export default function CustomerProductsPage() {
 		);
 	};
 
-	const updateCartQty = (pid: number, val: number) => {
-		const finalVal = Math.max(1, val);
+	const updateCartQty = (pid: number, val: number | string) => {
 		setCart((prev) => {
 			if (!prev[pid]) return prev;
+			let finalQty: number;
+			if (typeof val === "string") {
+				const p = parseFloat(val);
+				finalQty = isNaN(p) || p <= 0 ? 0.001 : Number(p.toFixed(3));
+			} else {
+				finalQty = Math.max(0.001, Number(val.toFixed(3)));
+			}
 			return {
 				...prev,
 				[pid]: {
 					...prev[pid],
-					quantity: finalVal,
+					quantity: finalQty,
 				},
 			};
 		});
+	};
+
+	const handleCartIncrement = (pid: number) => {
+		const item = cart[pid];
+		if (!item) return;
+		const next =
+			item.quantity < 1
+				? Number((item.quantity + 0.5).toFixed(3))
+				: Number((item.quantity + 1).toFixed(3));
+		updateCartQty(pid, next);
+	};
+
+	const handleCartDecrement = (pid: number) => {
+		const item = cart[pid];
+		if (!item || item.quantity <= 0.1) return;
+		let next: number;
+		if (item.quantity > 1) {
+			next = Number((item.quantity - 1).toFixed(3));
+		} else if (item.quantity > 0.5) {
+			next = 0.5;
+		} else {
+			next = item.quantity > 0.25 ? 0.25 : 0.1;
+		}
+		updateCartQty(pid, next);
 	};
 
 	const handleRemoveFromCart = (pid: number) => {
@@ -535,7 +599,7 @@ export default function CustomerProductsPage() {
 											</span>
 										</div>
 
-										{currentQty > 1 && (
+										{currentQty !== 1 && (
 											<div className="mt-1 flex items-center justify-between border-border/40 border-t pt-1 text-[11px]">
 												<span className="text-muted-foreground">
 													{locale === "hi" ? "उप-योग:" : "Subtotal:"}
@@ -562,30 +626,38 @@ export default function CustomerProductsPage() {
 												variant="ghost"
 												size="icon"
 												className="h-7 w-7 rounded-none"
-												onClick={() => setQty(product.id, currentQty - 1)}
-												disabled={currentQty <= 1 || !isAvailable}
+												onClick={() => handleDecrement(product.id)}
+												disabled={currentQty <= 0.1 || !isAvailable}
+												title="Decrease quantity (supports 0.5)"
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
 											<Input
 												type="number"
-												min={1}
-												value={currentQty}
+												min="0.001"
+												step="any"
+												value={quantities[product.id] ?? 1}
 												onChange={(e) => {
-													const val = parseInt(e.target.value, 10);
-													if (!isNaN(val) && val >= 1) {
-														setQty(product.id, val);
+													setQty(product.id, e.target.value);
+												}}
+												onBlur={(e) => {
+													const val = parseFloat(e.target.value);
+													if (isNaN(val) || val <= 0) {
+														setQty(product.id, 1);
+													} else {
+														setQty(product.id, Number(val.toFixed(3)));
 													}
 												}}
-												className="h-7 w-12 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+												className="h-7 w-14 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 												disabled={!isAvailable}
 											/>
 											<Button
 												variant="ghost"
 												size="icon"
 												className="h-7 w-7 rounded-none"
-												onClick={() => setQty(product.id, currentQty + 1)}
+												onClick={() => handleIncrement(product.id)}
 												disabled={!isAvailable}
+												title="Increase quantity"
 											>
 												<PlusIcon className="h-3 w-3" />
 											</Button>
@@ -694,30 +766,34 @@ export default function CustomerProductsPage() {
 												size="icon"
 												className="h-6 w-6 rounded-none"
 												onClick={() =>
-													updateCartQty(item.productId, item.quantity - 1)
+													handleCartDecrement(item.productId)
 												}
+												disabled={item.quantity <= 0.1}
+												title="Decrease quantity"
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
 											<Input
 												type="number"
-												min={1}
+												min="0.001"
+												step="any"
 												value={item.quantity}
 												onChange={(e) => {
-													const val = parseInt(e.target.value, 10);
-													if (!isNaN(val) && val >= 1) {
+													const val = parseFloat(e.target.value);
+													if (!isNaN(val) && val > 0) {
 														updateCartQty(item.productId, val);
 													}
 												}}
-												className="h-6 w-12 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+												className="h-6 w-14 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 											/>
 											<Button
 												variant="ghost"
 												size="icon"
 												className="h-6 w-6 rounded-none"
 												onClick={() =>
-													updateCartQty(item.productId, item.quantity + 1)
+													handleCartIncrement(item.productId)
 												}
+												title="Increase quantity"
 											>
 												<PlusIcon className="h-3 w-3" />
 											</Button>

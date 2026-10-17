@@ -505,12 +505,15 @@ export default function CustomerOrdersPage() {
 												sku: string;
 											}>;
 											const finalMap = new Map(
-												orderDetail.items.map((i) => [i.productId, i.quantity]),
+												orderDetail.items.map((i) => [i.productId, Number(i.quantity)]),
 											);
 											const comparisons: React.ReactNode[] = [];
 
 											origList.forEach((orig) => {
-												const finalQty = finalMap.get(orig.productId) ?? 0;
+												const origQty = Number(orig.quantity);
+												const finalQty = Number(finalMap.get(orig.productId) ?? 0);
+												const diff = Number((finalQty - origQty).toFixed(3));
+
 												if (finalQty === 0) {
 													comparisons.push(
 														<div
@@ -519,13 +522,12 @@ export default function CustomerOrdersPage() {
 														>
 															<span>❌ {orig.name}</span>
 															<span>
-																Qty: {orig.quantity} →{" "}
+																Qty: {origQty} →{" "}
 																{locale === "hi" ? "हटाया गया" : "Removed"}
 															</span>
 														</div>,
 													);
-												} else if (finalQty !== orig.quantity) {
-													const diff = finalQty - orig.quantity;
+												} else if (Math.abs(diff) > 0.0001) {
 													const colorClass =
 														diff > 0
 															? "text-emerald-600 font-semibold"
@@ -537,7 +539,7 @@ export default function CustomerOrdersPage() {
 														>
 															<span>📝 {orig.name}</span>
 															<span>
-																Qty: {orig.quantity} →{" "}
+																Qty: {origQty} →{" "}
 																<strong className={colorClass}>
 																	{finalQty} ({diff > 0 ? `+${diff}` : diff})
 																</strong>
@@ -552,7 +554,7 @@ export default function CustomerOrdersPage() {
 														>
 															<span>✅ {orig.name}</span>
 															<span>
-																Qty: {orig.quantity} (
+																Qty: {origQty} (
 																{locale === "hi" ? "अपरिवर्तित" : "Unchanged"})
 															</span>
 														</div>,

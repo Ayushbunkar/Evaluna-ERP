@@ -493,9 +493,9 @@ export const customerRouter = router({
 					productId: it.product_id,
 					name: it.product?.name ?? "Item",
 					unit: it.product?.unit ?? null,
-					quantity: it.quantity,
+					quantity: Number(it.quantity),
 					price: Number(it.price || 0),
-					lineTotal: Number(it.price || 0) * it.quantity,
+					lineTotal: Number(it.price || 0) * Number(it.quantity),
 				})),
 			};
 		}),
@@ -549,9 +549,9 @@ export const customerRouter = router({
 			const items = order.orderItems.map((it) => ({
 				name: it.product?.name ?? "Item",
 				unit: it.product?.unit ?? null,
-				quantity: it.quantity,
+				quantity: Number(it.quantity),
 				price: Number(it.price),
-				lineTotal: Number(it.price) * it.quantity,
+				lineTotal: Number(it.price) * Number(it.quantity),
 			}));
 
 			const subtotal = items.reduce((a, i) => a + i.lineTotal, 0);
@@ -664,7 +664,7 @@ export const customerRouter = router({
 						recent.orderItems.map((oi: any) => [oi.product_id, oi.quantity]),
 					);
 					const isExactDuplicate = cleanItems.every(
-						(it) => recentItemMap.get(it.productId) === it.quantity,
+						(it) => Number(recentItemMap.get(it.productId)) === Number(it.quantity),
 					);
 					if (isExactDuplicate) {
 						return {
