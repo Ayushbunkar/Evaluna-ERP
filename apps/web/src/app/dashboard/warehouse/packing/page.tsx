@@ -892,10 +892,10 @@ export default function PackingPage() {
 								value={issueType}
 								onChange={(e) => setIssueType(e.target.value as any)}
 							>
-								<option value="damaged_item">💥 Damaged Item / Broken Packaging</option>
-								<option value="stockout">📦 Missing Line Items in Package</option>
-								<option value="barcode_mismatch">🔍 Barcode / Box Label Mismatch</option>
-								<option value="order_hold">🛑 Dispatch Hold Request</option>
+								<option value="damaged_item">Damaged Item / Broken Packaging</option>
+								<option value="stockout">Missing Line Items in Package</option>
+								<option value="barcode_mismatch">Barcode / Box Label Mismatch</option>
+								<option value="order_hold">Dispatch Hold Request</option>
 							</select>
 						</div>
 

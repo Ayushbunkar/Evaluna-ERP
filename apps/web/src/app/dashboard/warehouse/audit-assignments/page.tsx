@@ -37,8 +37,10 @@ import {
 	EyeIcon,
 	EyeOffIcon,
 	FilterIcon,
+	HelpCircleIcon,
 	IndianRupeeIcon,
 	LayersIcon,
+	MapPinIcon,
 	PackageCheckIcon,
 	PlusIcon,
 	RefreshCwIcon,
@@ -48,6 +50,7 @@ import {
 	ShieldCheckIcon,
 	SlidersHorizontalIcon,
 	SparklesIcon,
+	TrendingDownIcon,
 	UserCheckIcon,
 	UsersIcon,
 	WarehouseIcon,
@@ -1653,7 +1656,10 @@ export default function WarehouseAuditAssignmentsPage() {
 									<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 pt-2 border-t border-border/50">
 										<div className="rounded-xl border border-rose-500/25 bg-rose-500/10 p-2.5">
 											<div className="flex items-center justify-between text-[11px] font-bold text-rose-700 dark:text-rose-300">
-												<span>🚨 Theft (चोरी)</span>
+												<span className="flex items-center gap-1.5">
+													<ShieldAlertIcon className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+													Theft (चोरी)
+												</span>
 												<span className="font-mono">{theftCount} pcs</span>
 											</div>
 											<p className="text-base font-bold text-rose-800 dark:text-rose-200 mt-0.5">
@@ -1663,7 +1669,10 @@ export default function WarehouseAuditAssignmentsPage() {
 
 										<div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-2.5">
 											<div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-300">
-												<span>💥 Damaged (टूटा)</span>
+												<span className="flex items-center gap-1.5">
+													<AlertOctagonIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+													Damaged (टूटा)
+												</span>
 												<span className="font-mono">{damageCount} pcs</span>
 											</div>
 											<p className="text-base font-bold text-amber-800 dark:text-amber-200 mt-0.5">
@@ -1673,7 +1682,10 @@ export default function WarehouseAuditAssignmentsPage() {
 
 										<div className="rounded-xl border border-slate-500/25 bg-slate-500/10 p-2.5">
 											<div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
-												<span>❓ Missing (गायब)</span>
+												<span className="flex items-center gap-1.5">
+													<HelpCircleIcon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+													Missing (गायब)
+												</span>
 												<span className="font-mono">{missingCount} pcs</span>
 											</div>
 											<p className="text-base font-bold text-slate-800 dark:text-slate-200 mt-0.5">
@@ -1682,8 +1694,9 @@ export default function WarehouseAuditAssignmentsPage() {
 										</div>
 
 										<div className="rounded-xl border border-red-500/35 bg-red-500/15 p-2.5">
-											<div className="text-[11px] font-bold text-red-700 dark:text-red-300">
-												📉 Discrepancy Loss
+											<div className="flex items-center gap-1.5 text-[11px] font-bold text-red-700 dark:text-red-300">
+												<TrendingDownIcon className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+												Discrepancy Loss
 											</div>
 											<p className="text-base font-bold text-red-700 dark:text-red-300 mt-0.5">
 												₹{totalLoss.toLocaleString("en-IN")}
@@ -1889,9 +1902,9 @@ export default function WarehouseAuditAssignmentsPage() {
 																			reasonKey.includes("steal")
 																		) {
 																			return (
-																				<Badge className="bg-rose-500/15 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-[10px] font-semibold gap-1">
-																					<AlertTriangleIcon className="h-3 w-3" />{" "}
-																					🚨 Theft / चोरी
+																				<Badge className="bg-rose-500/15 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-[10px] font-semibold gap-1.5">
+																					<ShieldAlertIcon className="h-3 w-3" />
+																					Theft / चोरी
 																				</Badge>
 																			);
 																		}
@@ -1901,16 +1914,16 @@ export default function WarehouseAuditAssignmentsPage() {
 																			reasonKey.includes("toot")
 																		) {
 																			return (
-																				<Badge className="bg-amber-500/15 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-semibold gap-1">
-																					<AlertOctagonIcon className="h-3 w-3" />{" "}
-																					💥 Damaged / टूटा
+																				<Badge className="bg-amber-500/15 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-semibold gap-1.5">
+																					<AlertOctagonIcon className="h-3 w-3" />
+																					Damaged / टूटा
 																				</Badge>
 																			);
 																		}
 																		if (reasonKey.includes("expir")) {
 																			return (
-																				<Badge className="bg-yellow-500/15 hover:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30 text-[10px] font-semibold gap-1">
-																					<ClockIcon className="h-3 w-3" /> ⏳ Expired
+																				<Badge className="bg-yellow-500/15 hover:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30 text-[10px] font-semibold gap-1.5">
+																					<ClockIcon className="h-3 w-3" /> Expired / समाप्त
 																				</Badge>
 																			);
 																		}
@@ -1919,14 +1932,14 @@ export default function WarehouseAuditAssignmentsPage() {
 																			reasonKey.includes("misplaced")
 																		) {
 																			return (
-																				<Badge className="bg-blue-500/15 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[10px] font-semibold gap-1">
-																					📍 Misplaced
+																				<Badge className="bg-blue-500/15 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[10px] font-semibold gap-1.5">
+																					<MapPinIcon className="h-3 w-3" /> Misplaced / गलत स्थान
 																				</Badge>
 																			);
 																		}
 																		return (
-																			<Badge className="bg-slate-500/15 hover:bg-slate-500/20 text-slate-700 dark:text-slate-300 border border-slate-500/30 text-[10px] font-semibold gap-1">
-																				❓ Missing / गायब
+																			<Badge className="bg-slate-500/15 hover:bg-slate-500/20 text-slate-700 dark:text-slate-300 border border-slate-500/30 text-[10px] font-semibold gap-1.5">
+																				<HelpCircleIcon className="h-3 w-3" /> Missing / गायब
 																			</Badge>
 																		);
 																	})()}
@@ -2005,11 +2018,11 @@ export default function WarehouseAuditAssignmentsPage() {
 																			className="h-6 text-[10px] rounded border border-border/80 bg-background px-1.5 text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
 																			title="Classify discrepancy reason"
 																		>
-																			<option value="missing">❓ Missing / गायब</option>
-																			<option value="theft">🚨 Theft / चोरी</option>
-																			<option value="damage">💥 Damaged / क्षतिग्रस्त</option>
-																			<option value="expiry">⏳ Expired / समाप्त</option>
-																			<option value="wrong_location">📍 Misplaced / गलत स्थान</option>
+																			<option value="missing">Missing / गायब</option>
+																			<option value="theft">Theft / चोरी</option>
+																			<option value="damage">Damaged / क्षतिग्रस्त</option>
+																			<option value="expiry">Expired / समाप्त</option>
+																			<option value="wrong_location">Misplaced / गलत स्थान</option>
 																		</select>
 																	</div>
 																)}

@@ -978,11 +978,11 @@ export default function PickingPage() {
 								value={issueType}
 								onChange={(e) => setIssueType(e.target.value as any)}
 							>
-								<option value="stockout">📦 Stockout / Item Not on Shelf Bin</option>
-								<option value="damaged_item">💥 Damaged SKU / Unfit for Shipment</option>
-								<option value="barcode_mismatch">🔍 Barcode / SKU Discrepancy</option>
-								<option value="picker_unresponsive">⏳ Picker Unresponsive / Stalled Task</option>
-								<option value="order_hold">🛑 Customer / Sales Order Hold Request</option>
+								<option value="stockout">Stockout / Item Not on Shelf Bin</option>
+								<option value="damaged_item">Damaged SKU / Unfit for Shipment</option>
+								<option value="barcode_mismatch">Barcode / SKU Discrepancy</option>
+								<option value="picker_unresponsive">Picker Unresponsive / Stalled Task</option>
+								<option value="order_hold">Customer / Sales Order Hold Request</option>
 							</select>
 						</div>
 

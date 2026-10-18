@@ -847,13 +847,13 @@ export default function EmployeeAuditCountWorkspace() {
 																	}`}
 																>
 																	<option value="">Reason: Normal / Auto</option>
-																	<option value="theft">🚨 Theft / चोरी</option>
-																	<option value="damage">💥 Damaged / क्षतिग्रस्त</option>
-																	<option value="missing">❓ Missing / गायब</option>
-																	<option value="expiry">⏳ Expired / समाप्त</option>
-																	<option value="wrong_location">📍 Misplaced / गलत जगह</option>
-																	<option value="counting_error">⚖️ Counting Error / त्रुटि</option>
-																	<option value="other">📝 Other / अन्य</option>
+																	<option value="theft">Theft / चोरी</option>
+																	<option value="damage">Damaged / क्षतिग्रस्त</option>
+																	<option value="missing">Missing / गायब</option>
+																	<option value="expiry">Expired / समाप्त</option>
+																	<option value="wrong_location">Misplaced / गलत जगह</option>
+																	<option value="counting_error">Counting Error / त्रुटि</option>
+																	<option value="other">Other / अन्य</option>
 																</select>
 
 																{!isBlindAudit &&

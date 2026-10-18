@@ -33,6 +33,7 @@ import {
 	IndianRupeeIcon,
 	LayersIcon,
 	PackageCheckIcon,
+	PlusIcon,
 	RefreshCwIcon,
 	SearchIcon,
 	ShieldAlertIcon,
@@ -306,31 +307,35 @@ export default function WarehouseDiscrepancyReportPage() {
 							Classification:
 						</span>
 						{[
-							{ id: "all", label: "All Discrepancies" },
-							{ id: "theft", label: "🚨 Theft / चोरी" },
-							{ id: "damage", label: "💥 Damaged / क्षतिग्रस्त" },
-							{ id: "missing", label: "❓ Missing / गायब" },
-							{ id: "expiry", label: "⏳ Expired / समाप्त" },
-							{ id: "excess", label: "➕ Excess / अधिशेष" },
-						].map((tab) => (
-							<Button
-								key={tab.id}
-								variant={selectedType === tab.id ? "default" : "outline"}
-								size="sm"
-								onClick={() => setSelectedType(tab.id)}
-								className={`h-7 rounded-lg text-xs font-medium px-2.5 ${
-									selectedType === tab.id
-										? tab.id === "theft"
-											? "bg-rose-600 hover:bg-rose-700 text-white"
-											: tab.id === "damage"
-												? "bg-amber-600 hover:bg-amber-700 text-white"
-												: ""
-										: "text-muted-foreground hover:text-foreground"
-								}`}
-							>
-								{tab.label}
-							</Button>
-						))}
+							{ id: "all", label: "All Discrepancies", icon: null },
+							{ id: "theft", label: "Theft / चोरी", icon: ShieldAlertIcon },
+							{ id: "damage", label: "Damaged / क्षतिग्रस्त", icon: AlertOctagonIcon },
+							{ id: "missing", label: "Missing / गायब", icon: HelpCircleIcon },
+							{ id: "expiry", label: "Expired / समाप्त", icon: ClockIcon },
+							{ id: "excess", label: "Excess / अधिशेष", icon: PlusIcon },
+						].map((tab) => {
+							const TabIcon = tab.icon;
+							return (
+								<Button
+									key={tab.id}
+									variant={selectedType === tab.id ? "default" : "outline"}
+									size="sm"
+									onClick={() => setSelectedType(tab.id)}
+									className={`h-7 rounded-lg text-xs font-medium px-2.5 gap-1.5 ${
+										selectedType === tab.id
+											? tab.id === "theft"
+												? "bg-rose-600 hover:bg-rose-700 text-white"
+												: tab.id === "damage"
+													? "bg-amber-600 hover:bg-amber-700 text-white"
+													: ""
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									{TabIcon && <TabIcon className="h-3 w-3" />}
+									{tab.label}
+								</Button>
+							);
+						})}
 					</div>
 				</CardContent>
 			</Card>
@@ -341,7 +346,8 @@ export default function WarehouseDiscrepancyReportPage() {
 				<StaggerItem>
 					<AnimatedCard className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 shadow-xs">
 						<div className="flex items-center justify-between">
-							<span className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
+							<span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
+								<TrendingDownIcon className="h-4 w-4" />
 								Total Discrepancy Loss (कुल नुकसान)
 							</span>
 							<span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
@@ -366,8 +372,9 @@ export default function WarehouseDiscrepancyReportPage() {
 				<StaggerItem>
 					<AnimatedCard className="rounded-2xl border border-rose-500/25 bg-card p-4 shadow-xs">
 						<div className="flex items-center justify-between">
-							<span className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-								🚨 Theft Loss (चोरी)
+							<span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+								<ShieldAlertIcon className="h-4 w-4" />
+								Theft Loss (चोरी)
 							</span>
 							<Badge
 								variant="outline"
@@ -394,8 +401,9 @@ export default function WarehouseDiscrepancyReportPage() {
 				<StaggerItem>
 					<AnimatedCard className="rounded-2xl border border-amber-500/25 bg-card p-4 shadow-xs">
 						<div className="flex items-center justify-between">
-							<span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-								💥 Damaged (टूटा-फूटा)
+							<span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+								<AlertOctagonIcon className="h-4 w-4" />
+								Damaged (टूटा-फूटा)
 							</span>
 							<Badge
 								variant="outline"
@@ -422,8 +430,9 @@ export default function WarehouseDiscrepancyReportPage() {
 				<StaggerItem>
 					<AnimatedCard className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
 						<div className="flex items-center justify-between">
-							<span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-								❓ Missing / Unaccounted
+							<span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+								<HelpCircleIcon className="h-4 w-4" />
+								Missing / Unaccounted
 							</span>
 							<Badge
 								variant="outline"
@@ -633,26 +642,26 @@ export default function WarehouseDiscrepancyReportPage() {
 												<TableCell>
 													<div className="space-y-1">
 														{isTheft ? (
-															<Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-[10px] font-semibold gap-1">
-																<AlertTriangleIcon className="h-3 w-3" /> 🚨
+															<Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-[10px] font-semibold gap-1.5">
+																<ShieldAlertIcon className="h-3 w-3" />
 																Theft / चोरी
 															</Badge>
 														) : isDamage ? (
-															<Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-semibold gap-1">
-																<AlertOctagonIcon className="h-3 w-3" /> 💥
+															<Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-semibold gap-1.5">
+																<AlertOctagonIcon className="h-3 w-3" />
 																Damaged / टूटा
 															</Badge>
 														) : isExpiry ? (
-															<Badge className="bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30 text-[10px] font-semibold gap-1">
-																<ClockIcon className="h-3 w-3" /> ⏳ Expired
+															<Badge className="bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30 text-[10px] font-semibold gap-1.5">
+																<ClockIcon className="h-3 w-3" /> Expired / समाप्त
 															</Badge>
 														) : row.discrepancyType === "excess" ? (
-															<Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[10px] font-semibold">
-																➕ Excess / अधिशेष
+															<Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[10px] font-semibold gap-1.5">
+																<PlusIcon className="h-3 w-3" /> Excess / अधिशेष
 															</Badge>
 														) : (
-															<Badge className="bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30 text-[10px] font-semibold">
-																❓ Missing / गायब
+															<Badge className="bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30 text-[10px] font-semibold gap-1.5">
+																<HelpCircleIcon className="h-3 w-3" /> Missing / गायब
 															</Badge>
 														)}
 
