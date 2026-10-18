@@ -28,6 +28,7 @@ import {
 	TableRow,
 } from "@evaluna/ui/components/table";
 import {
+	AlertCircleIcon,
 	AlertTriangleIcon,
 	CheckCircle2Icon,
 	ChevronRightIcon,
@@ -564,15 +565,17 @@ export default function PurchaseOrdersPage() {
 											<h4 className="font-bold text-xs text-rose-900 dark:text-rose-200">
 												Urgent Low Stock Items ({lowStockItems.length} Products Need Reordering)
 											</h4>
-											<div className="flex items-center gap-2 mt-0.5 text-[11px]">
+											<div className="flex items-center gap-3 mt-0.5 text-[11px]">
 												{outOfStockCount > 0 && (
-													<span className="font-bold text-rose-600 dark:text-rose-400">
-														🔴 {outOfStockCount} Out of Stock (0 units)
+													<span className="flex items-center gap-1 font-bold text-rose-600 dark:text-rose-400">
+														<AlertCircleIcon className="h-3 w-3" />
+														{outOfStockCount} Out of Stock (0 units)
 													</span>
 												)}
 												{belowReorderCount > 0 && (
-													<span className="font-semibold text-amber-700 dark:text-amber-400">
-														🟡 {belowReorderCount} Below Min Threshold
+													<span className="flex items-center gap-1 font-semibold text-amber-700 dark:text-amber-400">
+														<AlertTriangleIcon className="h-3 w-3" />
+														{belowReorderCount} Below Min Threshold
 													</span>
 												)}
 											</div>
@@ -778,7 +781,7 @@ export default function PurchaseOrdersPage() {
 															</span>
 															<div className="flex items-center gap-1 justify-end mt-0.5">
 																<span
-																	className={`text-[10px] font-bold ${
+																	className={`text-[10px] font-bold flex items-center gap-1 ${
 																		(prod.qty_on_hand || 0) <= 0
 																			? "text-rose-600 bg-rose-50 px-1 rounded dark:bg-rose-950/40"
 																			: (prod.qty_on_hand || 0) <=
@@ -787,12 +790,20 @@ export default function PurchaseOrdersPage() {
 																				: "text-muted-foreground"
 																	}`}
 																>
-																	{(prod.qty_on_hand || 0) <= 0
-																		? "🔴 Out of Stock (0)"
-																		: (prod.qty_on_hand || 0) <=
-																				(prod.reorder_level || 10)
-																			? `🟡 Low: ${prod.qty_on_hand} (Min: ${prod.reorder_level || 10})`
-																			: `${prod.qty_on_hand || 0} in stock`}
+																	{(prod.qty_on_hand || 0) <= 0 ? (
+																		<>
+																			<AlertCircleIcon className="h-2.5 w-2.5 text-rose-600 shrink-0" />
+																			Out of Stock (0)
+																		</>
+																	) : (prod.qty_on_hand || 0) <=
+																			(prod.reorder_level || 10) ? (
+																		<>
+																			<AlertTriangleIcon className="h-2.5 w-2.5 text-amber-600 shrink-0" />
+																			Low: {prod.qty_on_hand} (Min: {prod.reorder_level || 10})
+																		</>
+																	) : (
+																		`${prod.qty_on_hand || 0} in stock`
+																	)}
 																</span>
 															</div>
 														</div>
@@ -889,9 +900,9 @@ export default function PurchaseOrdersPage() {
 														(i.qty_on_hand ?? 0) <= (i.reorder_level ?? 10);
 													const isOut = (i.qty_on_hand ?? 0) <= 0;
 													const prefix = isOut
-														? "🔴 [OUT OF STOCK: 0 left] "
+														? "[OUT OF STOCK: 0 left] "
 														: isLow
-															? `🟡 [LOW STOCK: ${i.qty_on_hand} left] `
+															? `[LOW STOCK: ${i.qty_on_hand} left] `
 															: "";
 													return (
 														<option key={pId} value={pId}>

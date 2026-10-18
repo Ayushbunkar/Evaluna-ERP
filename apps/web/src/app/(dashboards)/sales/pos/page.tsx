@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
+	AlertCircle,
 	AlertTriangle,
 	Calendar,
 	ChevronDown,
@@ -1360,12 +1361,13 @@ function POSContent() {
 													{/* Stock Status & Low Stock Alert */}
 													<div className="mt-1 flex items-center justify-between gap-1 text-[10px]">
 														{product.isOutOfStock ? (
-															<span className="font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 px-1.5 py-0.5 rounded text-[10px]">
-																🔴 {locale === "hi" ? "स्टॉक समाप्त (0)" : "Out of Stock"}
+															<span className="font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1">
+																<AlertCircle className="h-2.5 w-2.5 text-rose-600 dark:text-rose-400 shrink-0" />
+																<span>{locale === "hi" ? "स्टॉक समाप्त (0)" : "Out of Stock (0)"}</span>
 															</span>
 														) : product.isLowStock ? (
-															<span className="font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1">
-																<AlertTriangle className="h-2.5 w-2.5 text-amber-600 shrink-0" />
+															<span className="font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1">
+																<AlertTriangle className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
 																<span>
 																	{locale === "hi"
 																		? `कम स्टॉक: ${product.qty_on_hand}`
