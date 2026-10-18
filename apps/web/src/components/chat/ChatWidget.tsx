@@ -9,6 +9,7 @@ import {
 	Clock,
 	Copy,
 	Headphones,
+	Loader2,
 	MessageCircle,
 	RefreshCw,
 	Send,
@@ -21,14 +22,14 @@ import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 
 const QUICK_ACTIONS = [
-	{ label: "🏷️ Check product rates", query: "Products ka rate list aur prices check karna hai" },
-	{ label: "📦 Track my order", query: "Where is my order and what is its status?" },
-	{ label: "📋 Show recent orders", query: "Show my recent orders" },
-	{ label: "🚚 When will my order arrive?", query: "When will my order arrive?" },
-	{ label: "💳 Check payment status", query: "Check my payment and credit status" },
-	{ label: "🛒 How to place an order?", query: "How do I place a new order in the dashboard?" },
-	{ label: "🧭 Help me use my dashboard", query: "Help me navigate my dashboard" },
-	{ label: "📞 Contact customer support", query: "What is your official customer support contact information?" },
+	{ label: "Check product rates", query: "Products ka rate list aur prices check karna hai" },
+	{ label: "Track my order", query: "Where is my order and what is its status?" },
+	{ label: "Show recent orders", query: "Show my recent orders" },
+	{ label: "When will order arrive?", query: "When will my order arrive?" },
+	{ label: "Check payment status", query: "Check my payment and credit status" },
+	{ label: "How to place an order?", query: "How do I place a new order in the dashboard?" },
+	{ label: "Help navigate dashboard", query: "Help me navigate my dashboard" },
+	{ label: "Contact customer support", query: "What is your official customer support contact information?" },
 ];
 
 function formatTime(dateStr?: string | Date | null) {
@@ -129,10 +130,29 @@ export function ChatWidget() {
 		return null;
 	}
 
+	const lastSentTimeRef = useRef<number>(0);
+	const isSubmittingRef = useRef<boolean>(false);
+
 	const handleSend = (text?: string) => {
+		const now = Date.now();
+		// Throttle / Debounce rapid double clicks: at least 1200ms cooldown
+		if (now - lastSentTimeRef.current < 1200 || isSubmittingRef.current || sendMessage.isPending) {
+			return;
+		}
+
 		const messageToSend = (text || input).trim();
-		if (!messageToSend || !sessionId || sendMessage.isPending) return;
-		sendMessage.mutate({ sessionId, content: messageToSend });
+		if (!messageToSend || !sessionId) return;
+
+		lastSentTimeRef.current = now;
+		isSubmittingRef.current = true;
+		sendMessage.mutate(
+			{ sessionId, content: messageToSend },
+			{
+				onSettled: () => {
+					isSubmittingRef.current = false;
+				},
+			},
+		);
 		if (!text) setInput("");
 	};
 
@@ -408,7 +428,11 @@ export function ChatWidget() {
 								disabled={sendMessage.isPending || !input.trim()}
 								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-40"
 							>
-								<Send className="h-4 w-4" />
+								{sendMessage.isPending ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Send className="h-4 w-4" />
+								)}
 							</motion.button>
 						</div>
 					</motion.div>

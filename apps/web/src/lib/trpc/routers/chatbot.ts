@@ -6,6 +6,15 @@ import { escalateChatSession, OFFICIAL_COMPANY_INFO } from "@/lib/ai/customer-su
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
+interface RateLimitRecord {
+	lastTimestamp: number;
+	recentTimestamps: number[];
+	lastContent?: string;
+	lastBotResponse?: any;
+}
+
+const userSessionRateLimits = new Map<string, RateLimitRecord>();
+
 export const chatbotRouter = router({
 	createSession: protectedProcedure
 		.input(
@@ -47,6 +56,81 @@ export const chatbotRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const { sessionId, content } = input;
+			const trimmedContent = content.trim();
+
+			// 0. Rate limiting & Token protection
+			const rateLimitKey = `${ctx.user.id}:${sessionId}`;
+			const now = Date.now();
+			const record = userSessionRateLimits.get(rateLimitKey) || {
+				lastTimestamp: 0,
+				recentTimestamps: [],
+			};
+
+			// Deduplication: prevent identical rapid double-clicks (within 3s)
+			if (
+				record.lastContent === trimmedContent &&
+				now - record.lastTimestamp < 3000 &&
+				record.lastBotResponse
+			) {
+				return record.lastBotResponse;
+			}
+
+			// Minimum interval cooldown between rapid clicks (1200ms)
+			if (now - record.lastTimestamp < 1200) {
+				await db.insert(chatMessages).values({
+					session_id: sessionId,
+					sender: "user",
+					content: trimmedContent,
+				});
+
+				const [rateLimitBotMsg] = await db
+					.insert(chatMessages)
+					.values({
+						session_id: sessionId,
+						sender: "bot",
+						content:
+							"Aap bohot tezi se message bhej rahe hain. Kripya thoda dhairya rakhein taaki hum aapke pichle prashn ka sahi uttar taiyar kar sakein.",
+						metadata: { rateLimited: true, reason: "fast_clicks" },
+					})
+					.returning();
+
+				record.lastTimestamp = now;
+				record.lastBotResponse = rateLimitBotMsg;
+				userSessionRateLimits.set(rateLimitKey, record);
+				return rateLimitBotMsg;
+			}
+
+			// Sliding window: maximum 12 messages per 60 seconds
+			record.recentTimestamps = record.recentTimestamps.filter((t) => now - t < 60000);
+			if (record.recentTimestamps.length >= 12) {
+				await db.insert(chatMessages).values({
+					session_id: sessionId,
+					sender: "user",
+					content: trimmedContent,
+				});
+
+				const [cooldownBotMsg] = await db
+					.insert(chatMessages)
+					.values({
+						session_id: sessionId,
+						sender: "bot",
+						content:
+							"Aapne pichle 1 minute me kayi messages bheje hain. Token suraksha aur behtar sewa ke liye kripya 1 minute ruk kar dobara prashn poochein, ya helpline +91 96306 49277 par call karein.",
+						metadata: { rateLimited: true, reason: "sliding_window" },
+					})
+					.returning();
+
+				record.lastTimestamp = now;
+				record.lastBotResponse = cooldownBotMsg;
+				userSessionRateLimits.set(rateLimitKey, record);
+				return cooldownBotMsg;
+			}
+
+			// Update rate limit tracking for legitimate request
+			record.lastTimestamp = now;
+			record.lastContent = trimmedContent;
+			record.recentTimestamps.push(now);
+			userSessionRateLimits.set(rateLimitKey, record);
 
 			// 1. Fetch session to get customer_id
 			const [session] = await db
@@ -114,6 +198,9 @@ export const chatbotRouter = router({
 					},
 				})
 				.returning();
+
+			record.lastBotResponse = botMessage;
+			userSessionRateLimits.set(rateLimitKey, record);
 
 			return botMessage;
 		}),

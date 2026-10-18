@@ -287,36 +287,90 @@ export function extractProductSearchTerms(query: string): string[] {
 		.replace(/[^a-z0-9\- \u0900-\u097F]/g, " ");
 
 	const stopWords = new Set([
+		// English Conversational / Structural Stop Words
+		"write", "writing", "written", "message", "messages", "msg", "text", "type",
+		"send", "sending", "say", "saying", "speak", "tell", "telling", "hindi",
+		"hinid", "english", "hinglish", "in", "a", "an", "the", "to", "from",
+		"with", "by", "for", "at", "about", "can", "you", "me", "my", "i", "we",
+		"our", "us", "he", "she", "they", "them", "it", "is", "am", "are", "was",
+		"were", "be", "been", "have", "has", "had", "do", "does", "did", "hello",
+		"hi", "hey", "thanks", "thank", "good", "morning", "evening", "night",
+		"afternoon", "please", "help", "support", "assist", "sir", "mam", "madam",
+		"ok", "okay", "yes", "no", "yeah", "yep", "here", "there", "what", "how",
+		"when", "where", "why", "who", "show", "give", "available",
+
+		// Hindi / Hinglish Conversational Stop Words
 		"mujhe", "humko", "hume", "mera", "meri", "mere", "aap", "aapka", "aapki",
-		"ka", "ki", "ke", "ko", "se", "me", "mein", "par", "pe",
-		"rate", "rates", "price", "prices", "cost", "bhav", "bhao", "dam", "daam",
-		"kimat", "keemat", "mrp", "batao", "bataiye", "bata", "do", "de", "dijiye",
-		"kya", "hai", "hain", "kitne", "kitna", "kitni", "show", "tell", "what",
-		"is", "the", "of", "for", "please", "chahiye", "available", "milega",
-		"mil", "sakta", "wali", "wala", "vale", "vali", "order", "item", "product",
-		"karen", "karein", "dekhna", "jana", "jan", "janna", "pucho", "pucha",
+		"aapke", "tum", "tumhara", "tumhari", "ka", "ki", "ke", "ko", "se", "me",
+		"mein", "par", "pe", "rate", "rates", "price", "prices", "cost", "bhav",
+		"bhao", "dam", "daam", "kimat", "keemat", "mrp", "batao", "bataiye", "bata",
+		"do", "de", "dijiye", "dena", "dona", "le", "lo", "lijiye", "kya", "hai",
+		"hain", "tha", "thi", "the", "hoga", "hogi", "hoge", "kitne", "kitna",
+		"kitni", "chahiye", "milega", "mil", "sakta", "sakti", "sakte", "wali",
+		"wala", "vale", "vali", "order", "item", "product", "karen", "karein",
+		"karo", "karna", "dekhna", "jana", "jan", "janna", "pucho", "pucha",
+		"likho", "likh", "bhejo", "bolo", "boliye", "namaste", "namaskar", "pranam",
+		"dhanyavad", "shukriya", "kripya", "baat", "suno", "sunen", "accha", "theek",
+		"thik", "sahi", "nahi", "mat",
 	]);
 
 	const words = cleaned
 		.split(/\s+/)
 		.map((w) => w.trim())
-		.filter((w) => w.length >= 2 && !stopWords.has(w));
+		.filter((w) => {
+			if (w.length < 3 && !/^\d+$/.test(w)) return false;
+			return !stopWords.has(w);
+		});
 
 	return words;
+}
+
+export function isProductInquiry(query: string): boolean {
+	const lower = query.toLowerCase();
+
+	// Exclude pure conversational / greeting / language prompt patterns
+	const isPureConversation =
+		/^(hi|hello|hey|namaste|pranam|good\s*(morning|evening|afternoon)|thanks|thank\s*you|dhanyavad)\b/i.test(lower.trim()) ||
+		/\b(write|message|msg|text|bolo|likho|baat)\b.*\b(in\s+hindi|hindi\s+me|english\s+me)\b/i.test(lower) ||
+		/^(write|type|send)\s+(a\s+)?(message|text)\b/i.test(lower.trim());
+
+	if (isPureConversation) {
+		return false;
+	}
+
+	// Explicit rate & pricing keywords
+	const hasPriceKeyword =
+		/\b(rate|rates|price|prices|cost|bhav|bhao|dam|daam|kimat|keemat|mrp|quote|quotation)\b/i.test(lower) ||
+		/\b(kitne|kitna|kitni)\s*(ka|ki|ke|me|mein|padega|hoga|hai)\b/i.test(lower);
+
+	if (hasPriceKeyword) return true;
+
+	// Product inquiry keywords
+	const hasProductKeyword =
+		/\b(product|products|item|items|goods|maal|stock|available|catalogue|catalog|menu)\b/i.test(lower) ||
+		/\b(kya\s*kya\s*(hai|milega))\b/i.test(lower);
+
+	if (hasProductKeyword) return true;
+
+	const terms = extractProductSearchTerms(query);
+	return terms.length >= 1;
 }
 
 export async function searchProductsForSupport(
 	query: string,
 	limit: number = 8,
 ): Promise<SupportProductItem[]> {
+	if (!isProductInquiry(query)) {
+		return [];
+	}
+
 	const terms = extractProductSearchTerms(query);
 	if (terms.length === 0) return [];
 
-	// Try matching all terms first (e.g. "20-20" AND "biscuit")
+	// Match against product name or family (NOT loose category like %in%)
 	const andConditions = terms.map((t) =>
 		or(
 			ilike(products.name, `%${t}%`),
-			ilike(products.category, `%${t}%`),
 			ilike(products.product_family, `%${t}%`),
 		),
 	);
@@ -340,12 +394,11 @@ export async function searchProductsForSupport(
 		)
 		.limit(limit);
 
-	// If no strict AND match found, try matching any of the terms (OR)
+	// If no strict AND match found and multiple terms exist, try matching OR
 	if (rows.length === 0 && terms.length > 1) {
 		const orConditions = terms.map((t) =>
 			or(
 				ilike(products.name, `%${t}%`),
-				ilike(products.category, `%${t}%`),
 				ilike(products.product_family, `%${t}%`),
 			),
 		);

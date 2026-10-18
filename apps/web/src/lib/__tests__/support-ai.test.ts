@@ -95,6 +95,30 @@ describe("Customer Support AI - Grounded Agent & Configuration", () => {
 		const terms3 = extractProductSearchTerms("Sugar aur Atta ka rate kya hai?");
 		expect(terms3).toContain("sugar");
 		expect(terms3).toContain("atta");
+
+		const termsConversational = extractProductSearchTerms("write a message in hinid");
+		expect(termsConversational.length).toBe(0);
+	});
+
+	it("should NOT treat language requests or greetings as product rate lookups", async () => {
+		const { isProductInquiry } = await import("../ai/customer-support-data");
+
+		expect(isProductInquiry("write a message in hinid")).toBe(false);
+		expect(isProductInquiry("write a message in hindi")).toBe(false);
+		expect(isProductInquiry("hello how are you")).toBe(false);
+
+		const response = await processCustomerSupportQuery({
+			sessionId: 999,
+			userUid: "test-user-123",
+			userName: "Test Customer",
+			content: "write a message in hinid",
+			conversationHistory: [],
+		});
+
+		expect(response.text).toBeDefined();
+		expect(response.text.toLowerCase().includes("ajwain")).toBe(false);
+		expect(response.text.toLowerCase().includes("amina")).toBe(false);
+		expect(response.text.toLowerCase().includes("baking soda")).toBe(false);
 	});
 
 	it("should return actual product rates when user asks for product pricing", async () => {

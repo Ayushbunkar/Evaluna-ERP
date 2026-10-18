@@ -7,6 +7,7 @@
 import {
 	type AuthenticCustomerContext,
 	fetchCustomerAuthContext,
+	isProductInquiry,
 	OFFICIAL_COMPANY_INFO,
 	searchProductsForSupport,
 	type SupportProductItem,
@@ -48,11 +49,10 @@ export async function processCustomerSupportQuery({
 		customerId,
 	);
 
-	// 1.5. Search products in DB matching the user's query for rate inquiries
-	const matchedProducts: SupportProductItem[] = await searchProductsForSupport(
-		content,
-		8,
-	);
+	// 1.5. Search products in DB matching the user's query for rate inquiries ONLY if query has product intent
+	const matchedProducts: SupportProductItem[] = isProductInquiry(content)
+		? await searchProductsForSupport(content, 8)
+		: [];
 
 	// 2. Build Grounded System Prompt
 	const ordersContextStr =
@@ -188,22 +188,48 @@ ${productsContextStr}
 		// Grounded deterministic fallback tailored to this specific customer
 		let fallbackText = "";
 
-		const isRateQuery =
-			lowerQuery.includes("rate") ||
-			lowerQuery.includes("price") ||
-			lowerQuery.includes("cost") ||
-			lowerQuery.includes("bhav") ||
-			lowerQuery.includes("bhao") ||
-			lowerQuery.includes("kitne") ||
-			lowerQuery.includes("kitna") ||
-			lowerQuery.includes("dam") ||
-			lowerQuery.includes("daam") ||
-			lowerQuery.includes("kimat") ||
-			lowerQuery.includes("keemat") ||
-			lowerQuery.includes("mrp") ||
-			matchedProducts.length > 0;
+		const isLanguageOrMessageRequest =
+			/\b(write|message|msg|text|bolo|likho|baat)\b.*\b(in\s+hindi|hindi\s+me|hindi\s+mein|hindi\s+mai|english\s+me)\b/i.test(lowerQuery) ||
+			/^(write|type|send)\s+(a\s+)?(message|text)\b/i.test(lowerQuery.trim()) ||
+			lowerQuery.includes("hindi me") ||
+			lowerQuery.includes("hindi mein") ||
+			lowerQuery.includes("hindi mai") ||
+			lowerQuery.includes("message in hindi") ||
+			lowerQuery.includes("message in hinid");
 
-		if (isRateQuery && matchedProducts.length > 0) {
+		const isGreeting =
+			/^(hi|hello|hey|namaste|namaskar|pranam|good\s*(morning|evening|afternoon)|suno)\b/i.test(lowerQuery.trim());
+
+		const isRateQuery =
+			!isLanguageOrMessageRequest &&
+			!isGreeting &&
+			(lowerQuery.includes("rate") ||
+				lowerQuery.includes("price") ||
+				lowerQuery.includes("cost") ||
+				lowerQuery.includes("bhav") ||
+				lowerQuery.includes("bhao") ||
+				lowerQuery.includes("dam") ||
+				lowerQuery.includes("daam") ||
+				lowerQuery.includes("kimat") ||
+				lowerQuery.includes("keemat") ||
+				lowerQuery.includes("mrp") ||
+				/\b(kitne|kitna|kitni)\s*(ka|ki|ke|me|mein|padega|hoga|hai)\b/i.test(lowerQuery) ||
+				(isProductInquiry(lowerQuery) && matchedProducts.length > 0));
+
+		if (isLanguageOrMessageRequest) {
+			fallbackText = `नमस्ते! Evaluna AI सपोर्ट में आपका स्वागत है। मैं आपकी हिन्दी में पूरी सहायता कर सकता हूँ।
+आप मुझसे कभी भी:
+• **ऑर्डर्स और डिलीवरी स्थिति** (Orders tab)
+• **पेमेंट्स, बिल और चालान** (Payments tab)
+• **प्रोडक्ट्स और उनके ताज़ा रेट्स** (Products tab)
+के बारे में पूछ सकते हैं।
+
+बताइए, आज मैं आपकी क्या सहायता करूँ?`;
+		} else if (isGreeting) {
+			fallbackText = `नमस्ते! मैं Evaluna AI सपोर्ट असिस्टेंट हूँ।
+मैं आपके ऑर्डर्स, लाइव डिलीवरी ट्रैकिंग, पेमेंट्स और प्रोडक्ट्स के रेट्स से जुड़ी हर जानकारी में सहायता कर सकता हूँ।
+बताइए, मैं आपकी क्या मदद करूँ?`;
+		} else if (isRateQuery && matchedProducts.length > 0) {
 			const productListStr = matchedProducts
 				.map((p) => {
 					const rate =
