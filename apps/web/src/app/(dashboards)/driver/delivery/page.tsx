@@ -324,11 +324,12 @@ export default function DriverLiveDeliveryPage() {
 			return activeStop.orders.map((ord: any) => {
 				const ordItems = items.filter((it) => it.order_id === ord.id);
 				const ordDeliveredTotal = ordItems.reduce(
-					(sum, it) => sum + it.deliveredQty * it.price,
+					(sum, it) =>
+						sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
 					0,
 				);
 				const ordOriginalTotal = ordItems.reduce(
-					(sum, it) => sum + it.originalQty * it.price,
+					(sum, it) => sum + (Number(it.originalQty) || 0) * Number(it.price || 0),
 					0,
 				);
 				const allChecked =
@@ -362,11 +363,12 @@ export default function DriverLiveDeliveryPage() {
 		if (groupedMap.size > 0) {
 			return Array.from(groupedMap.entries()).map(([ordId, ordItems]) => {
 				const ordDeliveredTotal = ordItems.reduce(
-					(sum, it) => sum + it.deliveredQty * it.price,
+					(sum, it) =>
+						sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
 					0,
 				);
 				const ordOriginalTotal = ordItems.reduce(
-					(sum, it) => sum + it.originalQty * it.price,
+					(sum, it) => sum + (Number(it.originalQty) || 0) * Number(it.price || 0),
 					0,
 				);
 				return {
@@ -387,7 +389,12 @@ export default function DriverLiveDeliveryPage() {
 		// Single order fallback
 		const fallbackId = activeStop.orderId || activeStop.id;
 		const ordDeliveredTotal = items.reduce(
-			(sum, it) => sum + it.deliveredQty * it.price,
+			(sum, it) =>
+				sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
+			0,
+		);
+		const ordOriginalTotal = items.reduce(
+			(sum, it) => sum + (Number(it.originalQty) || 0) * Number(it.price || 0),
 			0,
 		);
 		return [
@@ -399,7 +406,7 @@ export default function DriverLiveDeliveryPage() {
 				status: activeStop.rawStatus || "in_transit",
 				itemsCount: items.length,
 				deliveredTotal: ordDeliveredTotal,
-				originalTotal: ordDeliveredTotal,
+				originalTotal: ordOriginalTotal,
 				allChecked: items.length > 0 && items.every((it) => it.checked),
 				checkedCount: items.filter((it) => it.checked).length,
 				items: items,
@@ -415,7 +422,11 @@ export default function DriverLiveDeliveryPage() {
 		() =>
 			items
 				.filter((i) => i.isVanStock)
-				.reduce((sum, it) => sum + it.deliveredQty * it.price, 0),
+				.reduce(
+					(sum, it) =>
+						sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
+					0,
+				),
 		[items],
 	);
 
@@ -472,7 +483,8 @@ export default function DriverLiveDeliveryPage() {
 							: selectedOrderFilter
 					}`;
 			const total = filteredItems.reduce(
-				(sum, it) => sum + it.deliveredQty * it.price,
+				(sum, it) =>
+					sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
 				0,
 			);
 			groups.push({
@@ -510,7 +522,8 @@ export default function DriverLiveDeliveryPage() {
 
 		for (const [ordId, ordItems] of orderMap.entries()) {
 			const total = ordItems.reduce(
-				(sum, it) => sum + it.deliveredQty * it.price,
+				(sum, it) =>
+					sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
 				0,
 			);
 			groups.push({
@@ -528,7 +541,8 @@ export default function DriverLiveDeliveryPage() {
 
 		if (vanStockList.length > 0) {
 			const total = vanStockList.reduce(
-				(sum, it) => sum + it.deliveredQty * it.price,
+				(sum, it) =>
+					sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
 				0,
 			);
 			groups.push({
@@ -549,7 +563,8 @@ export default function DriverLiveDeliveryPage() {
 
 		if (otherList.length > 0) {
 			const total = otherList.reduce(
-				(sum, it) => sum + it.deliveredQty * it.price,
+				(sum, it) =>
+					sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
 				0,
 			);
 			groups.push({
@@ -646,10 +661,19 @@ export default function DriverLiveDeliveryPage() {
 						Math.min(item.originalQty, item.deliveredQty + delta),
 					);
 					const newReturned = item.originalQty - newDelivered;
+					const nextChecked = newDelivered > 0;
 					return {
 						...item,
+						checked: nextChecked,
 						deliveredQty: newDelivered,
 						returnedQty: newReturned,
+						returnReason:
+							newReturned > 0
+								? item.returnReason ||
+									(locale === "hi"
+										? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+										: "Customer refused / unselected (stays in van stock)")
+								: "",
 					};
 				}
 				return item;
@@ -667,9 +691,26 @@ export default function DriverLiveDeliveryPage() {
 
 	const handleToggleCheck = (id: number) => {
 		setItems((prev) =>
-			prev.map((item) =>
-				item.id === id ? { ...item, checked: !item.checked } : item,
-			),
+			prev.map((item) => {
+				if (item.id === id) {
+					const nextChecked = !item.checked;
+					const newDelivered = nextChecked ? item.originalQty : 0;
+					const newReturned = nextChecked ? 0 : item.originalQty;
+					return {
+						...item,
+						checked: nextChecked,
+						deliveredQty: newDelivered,
+						returnedQty: newReturned,
+						returnReason: nextChecked
+							? ""
+							: item.returnReason ||
+								(locale === "hi"
+									? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+									: "Customer refused / unselected (stays in van stock)"),
+					};
+				}
+				return item;
+			}),
 		);
 	};
 
@@ -677,27 +718,56 @@ export default function DriverLiveDeliveryPage() {
 		const targetList = filteredItems;
 		const allTargetChecked =
 			targetList.length > 0 && targetList.every((i) => i.checked);
+		const nextChecked = !allTargetChecked;
 		const targetIds = new Set(targetList.map((i) => i.id));
 		setItems((prev) =>
-			prev.map((item) =>
-				targetIds.has(item.id)
-					? { ...item, checked: !allTargetChecked }
-					: item,
-			),
+			prev.map((item) => {
+				if (targetIds.has(item.id)) {
+					const newDelivered = nextChecked ? item.originalQty : 0;
+					const newReturned = nextChecked ? 0 : item.originalQty;
+					return {
+						...item,
+						checked: nextChecked,
+						deliveredQty: newDelivered,
+						returnedQty: newReturned,
+						returnReason: nextChecked
+							? ""
+							: item.returnReason ||
+								(locale === "hi"
+									? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+									: "Customer refused / unselected (stays in van stock)"),
+					};
+				}
+				return item;
+			}),
 		);
 	};
 
 	const handleToggleGroupChecks = (groupKey: string) => {
 		const group = groupedItemsByOrder.find((g) => g.orderIdKey === groupKey);
 		if (!group) return;
-		const allGroupChecked = group.allChecked;
+		const nextChecked = !group.allChecked;
 		const groupItemIds = new Set(group.items.map((i) => i.id));
 		setItems((prev) =>
-			prev.map((item) =>
-				groupItemIds.has(item.id)
-					? { ...item, checked: !allGroupChecked }
-					: item,
-			),
+			prev.map((item) => {
+				if (groupItemIds.has(item.id)) {
+					const newDelivered = nextChecked ? item.originalQty : 0;
+					const newReturned = nextChecked ? 0 : item.originalQty;
+					return {
+						...item,
+						checked: nextChecked,
+						deliveredQty: newDelivered,
+						returnedQty: newReturned,
+						returnReason: nextChecked
+							? ""
+							: item.returnReason ||
+								(locale === "hi"
+									? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+									: "Customer refused / unselected (stays in van stock)"),
+					};
+				}
+				return item;
+			}),
 		);
 	};
 
@@ -710,12 +780,25 @@ export default function DriverLiveDeliveryPage() {
 
 	// ── Bill calculations ──────────────────────────────────────────────────────
 
+	const originalTotal = items.reduce(
+		(acc, item) =>
+			acc + (Number(item.originalQty) || 0) * Number(item.price || 0),
+		0,
+	);
 	const subtotal = items.reduce(
-		(acc, item) => acc + item.deliveredQty * item.price,
+		(acc, item) =>
+			acc +
+			(item.checked
+				? (Number(item.deliveredQty) || 0) * Number(item.price || 0)
+				: 0),
 		0,
 	);
 	const totalReturnedValue = items.reduce(
-		(acc, item) => acc + item.returnedQty * item.price,
+		(acc, item) =>
+			acc +
+			(!item.checked
+				? (Number(item.originalQty) || 0) * Number(item.price || 0)
+				: (Number(item.returnedQty) || 0) * Number(item.price || 0)),
 		0,
 	);
 	const finalTotal = subtotal;
@@ -748,32 +831,45 @@ export default function DriverLiveDeliveryPage() {
 			);
 			return;
 		}
+
+		// Items returned or unselected automatically go into driver's vehicle van stock
+		const returnsList = items
+			.filter((i) => !i.checked || (Number(i.returnedQty) || 0) > 0)
+			.map((i) => ({
+				id: Number(i.id),
+				product_id: i.product_id ? Number(i.product_id) : undefined,
+				name: String(i.name || ""),
+				qty: !i.checked
+					? (Number(i.originalQty) || Number(i.returnedQty) || 1)
+					: (Number(i.returnedQty) || 0),
+				price: Number(i.price) || 0,
+				reason:
+					i.returnReason ||
+					(locale === "hi"
+						? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+						: "Customer refused / unselected (stays in van stock)"),
+			}));
+
+		// Only checked and accepted items are billed to the customer
+		const deliveredList = items
+			.filter((i) => Boolean(i.checked) && (Number(i.deliveredQty) || 0) > 0)
+			.map((i) => ({
+				id: Number(i.id),
+				product_id: i.product_id ? Number(i.product_id) : undefined,
+				name: String(i.name || ""),
+				qty: Number(i.deliveredQty) || 0,
+				price: Number(i.price) || 0,
+				isVanStock: Boolean(i.isVanStock),
+			}));
+
 		submitHandover.mutate({
 			trip_id: activeStop?.trip_id || 1,
 			stop_id: activeStop?.id || 1,
 			cashAmount: Number(cashAmount) || 0,
 			onlineAmount: Number(onlineAmount) || 0,
 			deliveryNotes: notes,
-			damagedOrReturnedItems: items
-				.filter((i) => (Number(i.returnedQty) || 0) > 0)
-				.map((i) => ({
-					id: Number(i.id),
-					product_id: i.product_id ? Number(i.product_id) : undefined,
-					name: String(i.name || ""),
-					qty: Number(i.returnedQty) || 0,
-					price: Number(i.price) || 0,
-					reason: i.returnReason || "Item Returned / Damaged",
-				})),
-			deliveredItems: items
-				.filter((i) => (Number(i.deliveredQty) || 0) > 0)
-				.map((i) => ({
-					id: Number(i.id),
-					product_id: i.product_id ? Number(i.product_id) : undefined,
-					name: String(i.name || ""),
-					qty: Number(i.deliveredQty) || 0,
-					price: Number(i.price) || 0,
-					isVanStock: Boolean(i.isVanStock),
-				})),
+			damagedOrReturnedItems: returnsList,
+			deliveredItems: deliveredList,
 		});
 	};
 
@@ -794,22 +890,34 @@ export default function DriverLiveDeliveryPage() {
 			setNotes("");
 			if (nextStop && nextStop.orderItems && nextStop.orderItems.length > 0) {
 				setItems(
-					nextStop.orderItems.map((oi: any) => ({
-						id: oi.id,
-						order_id:
-							oi.order_id ??
-							(nextStop.orders && nextStop.orders.length === 1
-								? nextStop.orders[0].id
-								: null),
-						product_id: oi.product_id,
-						name: oi.name,
-						originalQty: Number(oi.qty) || 0,
-						deliveredQty: Number(oi.qty) || 0,
-						returnedQty: 0,
-						price: Number(oi.price || 0),
-						checked: Boolean(oi.checked),
-						isVanStock: false,
-					})),
+					nextStop.orderItems.map((oi: any) => {
+						const isChecked =
+							oi.checked !== undefined ? Boolean(oi.checked) : true;
+						const origQty = Number(oi.qty) || 0;
+						const delQty = isChecked ? origQty : 0;
+						const retQty = isChecked ? 0 : origQty;
+						return {
+							id: oi.id,
+							order_id:
+								oi.order_id ??
+								(nextStop.orders && nextStop.orders.length === 1
+									? nextStop.orders[0].id
+									: null),
+							product_id: oi.product_id,
+							name: oi.name,
+							originalQty: origQty,
+							deliveredQty: delQty,
+							returnedQty: retQty,
+							price: Number(oi.price || 0),
+							checked: isChecked,
+							isVanStock: false,
+							returnReason: isChecked
+								? ""
+								: (locale === "hi"
+									? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+									: "Customer refused / unselected (stays in van stock)"),
+						};
+					}),
 				);
 			} else {
 				setItems([]);
@@ -845,22 +953,34 @@ export default function DriverLiveDeliveryPage() {
 		const targetStop = routeStops.find((s) => s.id === stopId);
 		if (targetStop && targetStop.orderItems && targetStop.orderItems.length > 0) {
 			setItems(
-				targetStop.orderItems.map((oi: any) => ({
-					id: oi.id,
-					order_id:
-						oi.order_id ??
-						(targetStop.orders && targetStop.orders.length === 1
-							? targetStop.orders[0].id
-							: null),
-					product_id: oi.product_id,
-					name: oi.name,
-					originalQty: Number(oi.qty) || 0,
-					deliveredQty: Number(oi.qty) || 0,
-					returnedQty: 0,
-					price: Number(oi.price || 0),
-					checked: Boolean(oi.checked),
-					isVanStock: false,
-				})),
+				targetStop.orderItems.map((oi: any) => {
+					const isChecked =
+						oi.checked !== undefined ? Boolean(oi.checked) : true;
+					const origQty = Number(oi.qty) || 0;
+					const delQty = isChecked ? origQty : 0;
+					const retQty = isChecked ? 0 : origQty;
+					return {
+						id: oi.id,
+						order_id:
+							oi.order_id ??
+							(targetStop.orders && targetStop.orders.length === 1
+								? targetStop.orders[0].id
+								: null),
+						product_id: oi.product_id,
+						name: oi.name,
+						originalQty: origQty,
+						deliveredQty: delQty,
+						returnedQty: retQty,
+						price: Number(oi.price || 0),
+						checked: isChecked,
+						isVanStock: false,
+						returnReason: isChecked
+							? ""
+							: (locale === "hi"
+								? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+								: "Customer refused / unselected (stays in van stock)"),
+					};
+				}),
 			);
 		} else {
 			setItems([]);
@@ -1668,10 +1788,10 @@ export default function DriverLiveDeliveryPage() {
 																				<div className="flex flex-wrap items-center gap-1.5">
 																					<h4
 																						onClick={() => handleToggleCheck(item.id)}
-																						className={`cursor-pointer font-semibold text-xs sm:text-sm transition-colors ${
+																						className={`cursor-pointer text-xs sm:text-sm transition-colors ${
 																							item.checked
-																								? "text-emerald-950 dark:text-emerald-200 line-through decoration-emerald-500/50"
-																								: "text-foreground"
+																								? "text-foreground font-semibold"
+																								: "text-muted-foreground line-through decoration-muted-foreground/60"
 																						}`}
 																					>
 																						{item.name}
@@ -1692,12 +1812,19 @@ export default function DriverLiveDeliveryPage() {
 																							Van Stock
 																						</Badge>
 																					)}
-																					{item.checked && (
+																					{item.checked ? (
 																						<Badge
 																							variant="outline"
 																							className="border-emerald-300 bg-emerald-100/80 text-[10px] font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 py-0"
 																						>
-																							✓ Handed Over
+																							✓ {locale === "hi" ? "स्वीकृत (बिल में)" : "Billed"}
+																						</Badge>
+																					) : (
+																						<Badge
+																							variant="outline"
+																							className="border-amber-300 bg-amber-50 text-[10px] font-bold text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 py-0"
+																						>
+																							↩ {locale === "hi" ? "वैन स्टॉक (बिल से बाहर)" : "Van Stock Return"}
 																						</Badge>
 																					)}
 																				</div>
@@ -1709,8 +1836,16 @@ export default function DriverLiveDeliveryPage() {
 																			</div>
 																		</div>
 
-																		<span className="font-bold font-mono text-foreground text-xs sm:text-sm shrink-0">
-																			₹{item.deliveredQty * item.price}
+																		<span className="font-bold font-mono text-xs sm:text-sm shrink-0">
+																			{item.checked ? (
+																				<span className="text-foreground">
+																					₹{(Number(item.deliveredQty) || 0) * Number(item.price || 0)}
+																				</span>
+																			) : (
+																				<span className="text-muted-foreground line-through text-xs font-normal">
+																					₹{(Number(item.originalQty) || 0) * Number(item.price || 0)}
+																				</span>
+																			)}
 																		</span>
 																	</div>
 
@@ -1743,10 +1878,15 @@ export default function DriverLiveDeliveryPage() {
 																			</div>
 																		</div>
 
-																		{item.returnedQty > 0 ? (
+																		{!item.checked || item.deliveredQty === 0 ? (
+																			<Badge variant="outline" className="gap-1 font-semibold text-[11px] border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+																				<Truck className="h-3 w-3 text-amber-600" />
+																				{item.originalQty || item.returnedQty} {locale === "hi" ? "पीस वैन स्टॉक में जुड़ेंगे" : "pcs staying in Van Stock"}
+																			</Badge>
+																		) : item.returnedQty > 0 ? (
 																			<Badge variant="destructive" className="gap-1 font-semibold text-[11px]">
 																				<AlertTriangle className="h-3 w-3" />
-																				{item.returnedQty} {locale === "hi" ? "वापस / क्षतिग्रस्त" : "Returned / Damaged"}
+																				{item.returnedQty} {locale === "hi" ? "वापस / वैन स्टॉक" : "Returned to Van Stock"}
 																			</Badge>
 																		) : (
 																			<span className="text-[11px] text-emerald-600 font-medium">
@@ -1756,11 +1896,11 @@ export default function DriverLiveDeliveryPage() {
 																	</div>
 
 																	{/* Reason selection for returns */}
-																	{item.returnedQty > 0 && (
-																		<div className="space-y-1.5 rounded-lg border border-red-200 bg-red-50/50 p-2.5 dark:border-red-900/50 dark:bg-red-950/20">
-																			<Label className="font-bold text-red-700 text-[11px] dark:text-red-400 flex items-center justify-between">
-																				<span>{locale === "hi" ? "वापसी / क्षति का कारण चुनें:" : "Reason for Return / Damage:"}</span>
-																				<span className="text-[10px] font-normal text-red-500">Required</span>
+																	{(!item.checked || item.returnedQty > 0) && (
+																		<div className="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/50 p-2.5 dark:border-amber-900/50 dark:bg-amber-950/20">
+																			<Label className="font-bold text-amber-800 text-[11px] dark:text-amber-400 flex items-center justify-between">
+																				<span>{locale === "hi" ? "वैन स्टॉक में वापसी / अस्वीकृति का कारण:" : "Reason for Van Stock Return / Refusal:"}</span>
+																				<span className="text-[10px] font-normal text-amber-600">Auto-assigned</span>
 																			</Label>
 																			<div className="grid gap-1.5 sm:grid-cols-2">
 																				<select
@@ -1775,7 +1915,7 @@ export default function DriverLiveDeliveryPage() {
 																							handleReasonChange(item.id, val);
 																						}
 																					}}
-																					className="h-8 rounded-md border border-red-200 bg-white px-2 text-xs text-red-950 dark:border-red-800 dark:bg-gray-900 dark:text-red-200 focus:outline-none focus:ring-1 focus:ring-red-500"
+																					className="h-8 rounded-md border border-amber-200 bg-white px-2 text-xs text-foreground dark:border-amber-800 dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
 																				>
 																					{RETURN_PRESET_REASONS.map((r) => (
 																						<option key={r} value={r}>
@@ -1793,7 +1933,7 @@ export default function DriverLiveDeliveryPage() {
 																					onChange={(e) =>
 																						handleReasonChange(item.id, e.target.value)
 																					}
-																					className="h-8 border-red-200 bg-white text-xs text-red-950 dark:border-red-800 dark:bg-gray-900 dark:text-red-200 focus:border-red-500"
+																					className="h-8 border-amber-200 bg-white text-xs text-foreground dark:border-amber-800 dark:bg-gray-900 focus:border-amber-500"
 																				/>
 																			</div>
 																		</div>
@@ -1912,12 +2052,12 @@ export default function DriverLiveDeliveryPage() {
 									{/* Total calculations */}
 									<div className="space-y-2 text-xs sm:text-sm">
 										<div className="flex justify-between text-muted-foreground">
-											<span>{locale === "hi" ? "सामान उप-योग (Subtotal)" : "Items Subtotal"}</span>
-											<span className="font-mono font-semibold text-foreground">₹{subtotal}</span>
+											<span>{locale === "hi" ? "मूल आर्डर कुल (Order Total)" : "Order Total Value"}</span>
+											<span className="font-mono font-semibold text-foreground">₹{originalTotal}</span>
 										</div>
 										{totalReturnedValue > 0 && (
-											<div className="flex justify-between font-semibold text-red-600 dark:text-red-400">
-												<span>{locale === "hi" ? "वापसी / क्षति कटौती" : "Return / Damage Deduction"}</span>
+											<div className="flex justify-between font-semibold text-amber-600 dark:text-amber-400">
+												<span>{locale === "hi" ? "वैन स्टॉक में वापसी (कटौती)" : "Van Stock Return (Deduction)"}</span>
 												<span className="font-mono">
 													-₹{totalReturnedValue}
 												</span>
@@ -1925,7 +2065,7 @@ export default function DriverLiveDeliveryPage() {
 										)}
 										<div className="flex justify-between border-t pt-2 font-bold text-base text-foreground">
 											<span>{locale === "hi" ? "कुल देय राशि (Net Payable)" : "Net Payable Amount"}</span>
-											<span className="font-mono text-blue-600 dark:text-blue-400 text-lg">
+											<span className="font-mono text-emerald-600 dark:text-emerald-400 text-lg">
 												₹{finalTotal}
 											</span>
 										</div>
@@ -2047,13 +2187,19 @@ export default function DriverLiveDeliveryPage() {
 							activeStop?.orderId ||
 							Date.now().toString().slice(-6)) as any,
 						createdAt: new Date().toISOString(),
-						items: items.map((i) => ({
-							id: i.id,
-							name: i.name,
-							productName: i.name,
-							qty: Number(i.deliveredQty) || 0,
-							price: String(i.price),
-						})),
+						items: items
+							.filter(
+								(i) =>
+									Boolean(i.checked) &&
+									(Number(i.deliveredQty) || 0) > 0,
+							)
+							.map((i) => ({
+								id: i.id,
+								name: i.name,
+								productName: i.name,
+								qty: Number(i.deliveredQty) || 0,
+								price: String(i.price),
+							})),
 						total: finalTotal,
 						subtotal: subtotal,
 						discount: 0,
