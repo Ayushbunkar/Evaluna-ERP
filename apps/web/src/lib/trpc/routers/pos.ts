@@ -15,6 +15,7 @@ import {
 	transactions,
 } from "@evaluna/db/schema";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
@@ -184,6 +185,36 @@ export const posRouter = router({
 				const extra = Number.parseFloat(input.otherCharges || "0");
 				const total = Math.max(0, subtotal - discount + extra);
 				const status = "confirmed";
+
+				// Strict Inventory Check: verify items do not exceed available stock
+				if (effectiveBranchId && !input.isOfflineSync && input.items.length > 0) {
+					const productIds = input.items.map((item) => item.productId);
+					const existingStocks = await tx
+						.select()
+						.from(branchInventory)
+						.where(
+							and(
+								eq(branchInventory.branch_id, effectiveBranchId),
+								inArray(branchInventory.product_id, productIds),
+							),
+						);
+
+					const stockMap = new Map(
+						existingStocks.map((s) => [s.product_id, Number(s.in_stock || 0)]),
+					);
+
+					for (const item of input.items) {
+						if (stockMap.has(item.productId)) {
+							const available = stockMap.get(item.productId) ?? 0;
+							if (item.quantity > available) {
+								throw new TRPCError({
+									code: "BAD_REQUEST",
+									message: `Cannot place order: item #${item.productId} quantity (${item.quantity}) exceeds available stock (${available})!`,
+								});
+							}
+						}
+					}
+				}
 
 				// Custom backdate handling if sales person selected a custom bill date
 				const createdAtDate = input.customBillDate

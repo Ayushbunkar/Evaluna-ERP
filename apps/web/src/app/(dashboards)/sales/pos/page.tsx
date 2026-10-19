@@ -628,21 +628,63 @@ function POSContent() {
 	}, []);
 
 	// Callbacks
-	const addToCart = useCallback((product: any, qty = 1) => {
-		const effectivePrice =
-			product.hasDailyOffer && product.offerPrice
-				? product.offerPrice
-				: product.price;
+	const addToCart = useCallback(
+		(product: any, qty = 1) => {
+			const effectivePrice =
+				product.hasDailyOffer && product.offerPrice
+					? product.offerPrice
+					: product.price;
 
-		setCart((prev) => {
-			const existing = prev.find((item) => item.id === product.id);
-			if (existing) {
-				const updatedItem = { ...existing, qty: existing.qty + qty };
-				return [updatedItem, ...prev.filter((item) => item.id !== product.id)];
+			const catalogItem = displayCatalog?.find((p) => p.id === product.id);
+			const rawStock = catalogItem?.qty_on_hand ?? product.qty_on_hand;
+			const maxStock = rawStock !== undefined ? Number(rawStock) : 999999;
+
+			if (maxStock <= 0) {
+				toast.error(
+					locale === "hi"
+						? `${getLocalizedProductName(product.name, locale)} स्टॉक में उपलब्ध नहीं है (Out of Stock)!`
+						: `${getLocalizedProductName(product.name, locale)} is out of stock!`,
+				);
+				return;
 			}
-			return [{ ...product, price: effectivePrice, qty: qty }, ...prev];
-		});
-	}, []);
+
+			setCart((prev) => {
+				const existing = prev.find((item) => item.id === product.id);
+				if (existing) {
+					if (existing.qty >= maxStock) {
+						toast.warning(
+							locale === "hi"
+								? `उपलब्ध स्टॉक केवल ${maxStock} है! इससे अधिक नहीं जोड़ सकते।`
+								: `Only ${maxStock} in stock! Cannot add more.`,
+						);
+						return prev;
+					}
+					const requested = existing.qty + qty;
+					const newQty = Math.min(maxStock, requested);
+					if (requested > maxStock) {
+						toast.warning(
+							locale === "hi"
+								? `मात्रा उपलब्ध स्टॉक (${maxStock}) तक सीमित की गई।`
+								: `Quantity capped at available stock (${maxStock}).`,
+						);
+					}
+					const updatedItem = { ...existing, qty: newQty };
+					return [updatedItem, ...prev.filter((item) => item.id !== product.id)];
+				}
+
+				const newQty = Math.min(maxStock, qty);
+				if (qty > maxStock) {
+					toast.warning(
+						locale === "hi"
+							? `मात्रा उपलब्ध स्टॉक (${maxStock}) तक सीमित की गई।`
+							: `Quantity capped at available stock (${maxStock}).`,
+					);
+				}
+				return [{ ...product, price: effectivePrice, qty: newQty }, ...prev];
+			});
+		},
+		[displayCatalog, locale],
+	);
 
 	useEffect(() => {
 		let barcode = "";
@@ -727,12 +769,28 @@ function POSContent() {
 	}, [catalog, addToCart, locale]);
 
 	const updateQty = (id: number, delta: number) => {
+		const product = displayCatalog?.find((p) => p.id === id);
+		const rawStock = product?.qty_on_hand;
+		const maxStock = rawStock !== undefined ? Number(rawStock) : 999999;
+
 		setCart((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
+					if (delta > 0 && item.qty >= maxStock) {
+						toast.warning(
+							locale === "hi"
+								? `उपलब्ध स्टॉक केवल ${maxStock} है! इससे अधिक नहीं जोड़ सकते।`
+								: `Stock limit reached! Only ${maxStock} units available.`,
+						);
+						return item;
+					}
+					const calculated = item.qty + delta;
 					const newQty = Math.max(
 						0.001,
-						Number.parseFloat((item.qty + delta).toFixed(3)),
+						Math.min(
+							maxStock,
+							Number.parseFloat(calculated.toFixed(3)),
+						),
 					);
 					return { ...item, qty: newQty };
 				}
@@ -743,6 +801,19 @@ function POSContent() {
 
 	const setDirectQty = (id: number, val: number) => {
 		if (isNaN(val) || val <= 0) return;
+		const product = displayCatalog?.find((p) => p.id === id);
+		const rawStock = product?.qty_on_hand;
+		const maxStock = rawStock !== undefined ? Number(rawStock) : 999999;
+
+		if (val > maxStock) {
+			toast.warning(
+				locale === "hi"
+					? `मात्रा उपलब्ध स्टॉक (${maxStock}) से अधिक नहीं हो सकती!`
+					: `Quantity cannot exceed available stock (${maxStock})!`,
+			);
+			val = maxStock;
+		}
+
 		setCart((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
@@ -855,6 +926,23 @@ function POSContent() {
 
 	const handleCheckout = () => {
 		if (cart.length === 0) return toast.error(t.emptyCart);
+
+		// Strict Stock Validation: Ensure no cart item exceeds warehouse/branch inventory
+		for (const item of cart) {
+			const prod = displayCatalog?.find((p) => p.id === item.id);
+			if (prod && prod.qty_on_hand !== undefined) {
+				const available = Number(prod.qty_on_hand);
+				if (item.qty > available) {
+					toast.error(
+						locale === "hi"
+							? `त्रुटि: ${getLocalizedProductName(item.name, locale)} की मात्रा (${item.qty}) उपलब्ध स्टॉक (${available}) से अधिक है! कृपया मात्रा घटाएं।`
+							: `Error: Quantity for ${getLocalizedProductName(item.name, locale)} (${item.qty}) exceeds available stock (${available})! Please reduce quantity.`,
+					);
+					return;
+				}
+			}
+		}
+
 		setPaymentModalOpen(true);
 	};
 
@@ -1268,11 +1356,21 @@ function POSContent() {
 										<AnimatedCard>
 											<Card
 												className={`group relative flex h-full cursor-pointer flex-col justify-between transition-all duration-200 ${
-													isInCart
-														? "border-emerald-500 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-500/30 dark:border-emerald-500 dark:bg-emerald-950/20"
-														: "border-transparent shadow-xs hover:border-primary/40 hover:shadow-sm"
+													product.isOutOfStock || Number(product.qty_on_hand ?? 0) <= 0
+														? "opacity-60 cursor-not-allowed border-rose-200/50 bg-gray-50/50 dark:bg-gray-900/50"
+														: isInCart
+															? "border-emerald-500 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-500/30 dark:border-emerald-500 dark:bg-emerald-950/20"
+															: "border-transparent shadow-xs hover:border-primary/40 hover:shadow-sm"
 												}`}
 												onClick={() => {
+													if (product.isOutOfStock || Number(product.qty_on_hand ?? 0) <= 0) {
+														toast.error(
+															locale === "hi"
+																? `${getLocalizedProductName(product.name, locale)} का स्टॉक समाप्त हो चुका है!`
+																: `${getLocalizedProductName(product.name, locale)} is out of stock!`,
+														);
+														return;
+													}
 													addToCart(product);
 												}}
 											>
@@ -1454,8 +1552,16 @@ function POSContent() {
 																	}
 																}}
 																onIncrement={() => {
-																	// Pure integer scroll: 1, 2, 3, 4, 5, 6... (no decimals in scroll)
-																	const nextQty = Math.floor(cartQty) + 1;
+																	const maxStock = Number(product.qty_on_hand !== undefined ? product.qty_on_hand : 999999);
+																	if (cartQty >= maxStock) {
+																		toast.warning(
+																			locale === "hi"
+																				? `केवल ${maxStock} पीस उपलब्ध हैं!`
+																				: `Only ${maxStock} units available in stock!`,
+																		);
+																		return;
+																	}
+																	const nextQty = Math.min(maxStock, Math.floor(cartQty) + 1);
 																	setDirectQty(product.id, nextQty);
 																}}
 																onDecrement={() => {
@@ -1472,16 +1578,26 @@ function POSContent() {
 
 															<button
 																type="button"
-																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 transition-all hover:bg-emerald-100 hover:text-emerald-600 active:scale-95 dark:bg-gray-700 dark:text-gray-200"
+																disabled={cartQty >= Number(product.qty_on_hand !== undefined ? product.qty_on_hand : 999999)}
+																className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-700 transition-all hover:bg-emerald-100 hover:text-emerald-600 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200"
 																onClick={(e) => {
 																	e.stopPropagation();
-																	const nextQty = Math.floor(cartQty) + 1;
+																	const maxStock = Number(product.qty_on_hand !== undefined ? product.qty_on_hand : 999999);
+																	if (cartQty >= maxStock) {
+																		toast.warning(
+																			locale === "hi"
+																				? `केवल ${maxStock} पीस उपलब्ध हैं!`
+																				: `Only ${maxStock} units available!`,
+																		);
+																		return;
+																	}
+																	const nextQty = Math.min(maxStock, Math.floor(cartQty) + 1);
 																	setDirectQty(product.id, nextQty);
 																}}
 																title={
-																	locale === "hi"
-																		? "बढ़ाएं (1 बढ़ाएं)"
-																		: "Increase by 1"
+																	cartQty >= Number(product.qty_on_hand !== undefined ? product.qty_on_hand : 999999)
+																		? (locale === "hi" ? "स्टॉक सीमा समाप्त" : "Stock limit reached")
+																		: (locale === "hi" ? "बढ़ाएं (1 बढ़ाएं)" : "Increase by 1")
 																}
 															>
 																<Plus className="h-3 w-3" />
@@ -1489,10 +1605,16 @@ function POSContent() {
 														</div>
 													) : (
 														<div className="mt-2.5 flex items-center justify-end">
-															<span className="inline-flex items-center gap-1 rounded-md border border-gray-300 border-dashed bg-gray-50/50 px-2 py-0.5 font-semibold text-[11px] text-gray-500 transition-colors group-hover:border-primary group-hover:text-primary dark:border-gray-700 dark:bg-gray-800/40">
-																<Plus className="h-2.5 w-2.5" />
-																{locale === "hi" ? "जोड़ें" : "Add"}
-															</span>
+															{product.isOutOfStock || Number(product.qty_on_hand ?? 0) <= 0 ? (
+																<span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50/70 px-2 py-0.5 font-bold text-[10px] text-rose-600 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-400">
+																	{locale === "hi" ? "स्टॉक समाप्त" : "Out of Stock"}
+																</span>
+															) : (
+																<span className="inline-flex items-center gap-1 rounded-md border border-gray-300 border-dashed bg-gray-50/50 px-2 py-0.5 font-semibold text-[11px] text-gray-500 transition-colors group-hover:border-primary group-hover:text-primary dark:border-gray-700 dark:bg-gray-800/40">
+																	<Plus className="h-2.5 w-2.5" />
+																	{locale === "hi" ? "जोड़ें" : "Add"}
+																</span>
+															)}
 														</div>
 													)}
 												</CardContent>
@@ -1692,92 +1814,107 @@ function POSContent() {
 							</motion.div>
 						) : (
 							<div className="touch-pan-y space-y-2.5 pr-1.5 pb-4 sm:pr-4">
-								{cart.map((item, index) => (
-									<motion.div
-										key={item.id}
-										initial={{ opacity: 0, scale: 0.95, y: 10 }}
-										animate={{ opacity: 1, scale: 1, y: 0 }}
-										exit={{ opacity: 0, scale: 0.95, y: -10 }}
-										className="group flex w-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm"
-									>
-										<div className="flex w-full min-w-0 items-center justify-between gap-2">
-											<div className="flex min-w-0 flex-1 items-center gap-1.5">
-												<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary dark:bg-primary/20">
-													#{index + 1}
-												</span>
-												<div
-													className="min-w-0 flex-1 truncate font-semibold text-foreground text-sm"
-													title={getLocalizedProductName(item.name, locale)}
-												>
-													{getLocalizedProductName(item.name, locale)}
+								{cart.map((item, index) => {
+									const prod = displayCatalog?.find((p) => p.id === item.id);
+									const maxStock = Number(prod?.qty_on_hand !== undefined ? prod.qty_on_hand : 999999);
+									const isAtMaxStock = item.qty >= maxStock;
+
+									return (
+										<motion.div
+											key={item.id}
+											initial={{ opacity: 0, scale: 0.95, y: 10 }}
+											animate={{ opacity: 1, scale: 1, y: 0 }}
+											exit={{ opacity: 0, scale: 0.95, y: -10 }}
+											className="group flex w-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm"
+										>
+											<div className="flex w-full min-w-0 items-center justify-between gap-2">
+												<div className="flex min-w-0 flex-1 items-center gap-1.5">
+													<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-[10px] text-primary dark:bg-primary/20">
+														#{index + 1}
+													</span>
+													<div className="flex flex-col min-w-0 flex-1">
+														<div
+															className="min-w-0 truncate font-semibold text-foreground text-sm"
+															title={getLocalizedProductName(item.name, locale)}
+														>
+															{getLocalizedProductName(item.name, locale)}
+														</div>
+														{prod && prod.qty_on_hand !== undefined && (
+															<span className="text-[10px] text-muted-foreground font-mono">
+																{locale === "hi" ? "स्टॉक" : "Stock"}: {prod.qty_on_hand}
+															</span>
+														)}
+													</div>
+												</div>
+												<div className="shrink-0 whitespace-nowrap font-medium text-muted-foreground text-xs">
+													₹{Number.parseFloat(item.price).toFixed(2)}{" "}
+													{t.unitLabel}
 												</div>
 											</div>
-											<div className="shrink-0 whitespace-nowrap font-medium text-muted-foreground text-xs">
-												₹{Number.parseFloat(item.price).toFixed(2)}{" "}
-												{t.unitLabel}
-											</div>
-										</div>
 
-										<div className="flex w-full min-w-0 items-center justify-between gap-2">
-											<WheelStepperWrapper
-												onIncrement={() => updateQty(item.id, 1)}
-												onDecrement={() => updateQty(item.id, -1)}
-												className="flex h-8 items-center rounded-md border bg-background"
-											>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8 rounded-none rounded-l-md hover:bg-muted"
-													onClick={() => updateQty(item.id, -1)}
-													disabled={checkoutMutation.isPending}
+											<div className="flex w-full min-w-0 items-center justify-between gap-2">
+												<WheelStepperWrapper
+													onIncrement={() => updateQty(item.id, 1)}
+													onDecrement={() => updateQty(item.id, -1)}
+													className="flex h-8 items-center rounded-md border bg-background"
 												>
-													<Minus className="h-3 w-3" />
-												</Button>
-												<Input
-													type="number"
-													min={1}
-													step="any"
-													value={item.qty}
-													onChange={(e) => {
-														const val = Number.parseFloat(e.target.value);
-														if (!isNaN(val) && val > 0) {
-															setDirectQty(item.id, val);
-														}
-													}}
-													className="h-8 w-14 cursor-ns-resize border-0 p-0 text-center font-bold text-sm [appearance:textfield] focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-													disabled={checkoutMutation.isPending}
-													title="Scroll mouse wheel to adjust"
-												/>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8 rounded-none rounded-r-md hover:bg-muted"
-													onClick={() => updateQty(item.id, 1)}
-													disabled={checkoutMutation.isPending}
-												>
-													<Plus className="h-3 w-3" />
-												</Button>
-											</WheelStepperWrapper>
-											<div className="flex items-center gap-3">
-												<span className="font-extrabold text-foreground text-sm">
-													₹
-													{(Number.parseFloat(item.price) * item.qty).toFixed(
-														2,
-													)}
-												</span>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8 text-destructive hover:bg-destructive/10"
-													onClick={() => removeFromCart(item.id)}
-													disabled={checkoutMutation.isPending}
-												>
-													<Trash2 className="h-4 w-4" />
-												</Button>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8 rounded-none rounded-l-md hover:bg-muted"
+														onClick={() => updateQty(item.id, -1)}
+														disabled={checkoutMutation.isPending}
+													>
+														<Minus className="h-3 w-3" />
+													</Button>
+													<Input
+														type="number"
+														min={1}
+														max={maxStock}
+														step="any"
+														value={item.qty}
+														onChange={(e) => {
+															const val = Number.parseFloat(e.target.value);
+															if (!isNaN(val) && val > 0) {
+																setDirectQty(item.id, val);
+															}
+														}}
+														className="h-8 w-14 cursor-ns-resize border-0 p-0 text-center font-bold text-sm [appearance:textfield] focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+														disabled={checkoutMutation.isPending}
+														title="Scroll mouse wheel to adjust"
+													/>
+													<Button
+														variant="ghost"
+														size="icon"
+														className={`h-8 w-8 rounded-none rounded-r-md hover:bg-muted ${isAtMaxStock ? "opacity-40 cursor-not-allowed" : ""}`}
+														onClick={() => updateQty(item.id, 1)}
+														disabled={checkoutMutation.isPending || isAtMaxStock}
+														title={isAtMaxStock ? (locale === "hi" ? `अधिकतम उपलब्ध स्टॉक: ${maxStock}` : `Maximum available stock: ${maxStock}`) : undefined}
+													>
+														<Plus className="h-3 w-3" />
+													</Button>
+												</WheelStepperWrapper>
+												<div className="flex items-center gap-3">
+													<span className="font-extrabold text-foreground text-sm">
+														₹
+														{(Number.parseFloat(item.price) * item.qty).toFixed(
+															2,
+														)}
+													</span>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8 text-destructive hover:bg-destructive/10"
+														onClick={() => removeFromCart(item.id)}
+														disabled={checkoutMutation.isPending}
+													>
+														<Trash2 className="h-4 w-4" />
+													</Button>
+												</div>
 											</div>
-										</div>
-									</motion.div>
-								))}
+										</motion.div>
+									);
+								})}
 							</div>
 						)}
 					</AnimatePresence>

@@ -134,4 +134,30 @@ describe("posRouter", () => {
 		expect(Number(ledger!.quantity)).toBe(-5);
 		expect(ledger!.transaction_type).toBe("out");
 	});
+
+	it("checkout throws BAD_REQUEST when quantity exceeds available stock", async () => {
+		// Available stock is 95 after previous test. Attempting to buy 150 units must fail.
+		let threw = false;
+		try {
+			await caller.checkout({
+				items: [
+					{
+						productId: 501,
+						quantity: 150,
+						price: "100.00",
+					},
+				],
+				payments: [
+					{
+						methodId: 1,
+						amount: "15000.00",
+					},
+				],
+			});
+		} catch (err: any) {
+			threw = true;
+			expect(err.code).toBe("BAD_REQUEST");
+		}
+		expect(threw).toBe(true);
+	});
 });
