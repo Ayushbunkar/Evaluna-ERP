@@ -322,7 +322,10 @@ export function createAuth({
 		// ── Advanced ─────────────────────────────────────────────────────────────
 		advanced: {
 			cookiePrefix: "evaluna",
-			useSecureCookies: process.env.NODE_ENV === "production",
+			useSecureCookies:
+				process.env.NODE_ENV === "production" &&
+				!baseURL?.includes("localhost") &&
+				!baseURL?.includes("127.0.0.1"),
 			generateId: () => crypto.randomUUID(),
 		},
 	});

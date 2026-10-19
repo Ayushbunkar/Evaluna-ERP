@@ -30,6 +30,7 @@ export default function DriverLayout({
 
 	const navItems = [
 		{ href: "/driver", label: "Dashboard", icon: LayoutDashboard },
+		{ href: "/driver/van-stock", label: "My Van Stock", icon: Truck },
 		{ href: "/driver/route", label: "Route Navigation", icon: Navigation },
 		{
 			href: "/driver/delivery",

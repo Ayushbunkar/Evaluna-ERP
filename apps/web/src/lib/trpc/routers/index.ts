@@ -76,6 +76,7 @@ import { transactionsRouter } from "./transactions";
 import { transfersRouter } from "./transfers";
 import { upcRouter } from "./upc";
 import { usersRouter } from "./users";
+import { vanStockRouter } from "./van-stock";
 import { vehiclesRouter } from "./vehicles";
 import { warehouseRouter } from "./warehouse";
 import { whatsappSmsRouter } from "./whatsapp-sms";
@@ -160,6 +161,7 @@ export const appRouter = router({
 	vehicles: vehiclesRouter,
 	warehouse: warehouseRouter,
 	users: usersRouter,
+	vanStock: vanStockRouter,
 	whatsappSms: whatsappSmsRouter,
 });
 

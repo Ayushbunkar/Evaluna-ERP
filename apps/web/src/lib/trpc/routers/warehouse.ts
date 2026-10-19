@@ -1018,18 +1018,69 @@ export const warehouseRouter = router({
 		.input(z.object({ purchaseId: z.number() }))
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			return await db
+			const pItems = await db
 				.select({
 					id: purchaseItems.id,
 					product_id: purchaseItems.product_id,
-					product_name: products.name,
-					product_sku: products.sku,
+					product_name: sql<string>`coalesce(${products.name}, 'Product #' || ${purchaseItems.product_id}::text)`,
+					product_sku: sql<string>`coalesce(${products.sku}, 'N/A')`,
 					quantity: purchaseItems.quantity,
 					price: purchaseItems.price,
 				})
 				.from(purchaseItems)
-				.innerJoin(products, eq(purchaseItems.product_id, products.id))
+				.leftJoin(products, eq(purchaseItems.product_id, products.id))
 				.where(eq(purchaseItems.purchase_id, input.purchaseId));
+
+			// Fetch any goods receipts for this PO
+			const grns = await db
+				.select({ id: goodsReceiptNotes.id })
+				.from(goodsReceiptNotes)
+				.where(eq(goodsReceiptNotes.purchase_id, input.purchaseId));
+
+			let grnItems: any[] = [];
+			if (grns.length > 0) {
+				grnItems = await db
+					.select()
+					.from(goodsReceiptItems)
+					.where(inArray(goodsReceiptItems.grn_id, grns.map((g: any) => g.id)));
+			}
+
+			return pItems.map((item: any) => {
+				const matched = grnItems.filter(
+					(g: any) =>
+						(g.purchase_item_id && g.purchase_item_id === item.id) ||
+						(!g.purchase_item_id && g.product_id === item.product_id),
+				);
+				const received_quantity = matched.reduce(
+					(s: number, m: any) => s + (Number(m.received_quantity) || 0),
+					0,
+				);
+				const accepted_quantity = matched.reduce(
+					(s: number, m: any) => s + (Number(m.accepted_quantity) || 0),
+					0,
+				);
+				const damaged_quantity = matched.reduce(
+					(s: number, m: any) => s + (Number(m.damaged_quantity) || 0),
+					0,
+				);
+				const rejected_quantity = matched.reduce(
+					(s: number, m: any) => s + (Number(m.rejected_quantity) || 0),
+					0,
+				);
+				const latestBatch = matched[0]?.batch_number || "";
+				const latestNotes = matched[0]?.inspection_notes || "";
+
+				return {
+					...item,
+					received_quantity,
+					accepted_quantity,
+					damaged_quantity,
+					rejected_quantity,
+					batch_number: latestBatch,
+					inspection_notes: latestNotes,
+					has_receipt: matched.length > 0,
+				};
+			});
 		}),
 
 	receivePO: protectedProcedure

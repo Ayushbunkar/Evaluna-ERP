@@ -140,14 +140,52 @@ export default function PurchaseOrderInspectionPage() {
 	// Initialize form when PO loads
 	useEffect(() => {
 		if (po && initializedPoId !== po.id) {
-			setDeliveryNoteNumber(`DN-${Date.now().toString().slice(-6)}`);
+			setDeliveryNoteNumber(
+				po.grns?.[0]?.delivery_note_number ||
+					`DN-${Date.now().toString().slice(-6)}`,
+			);
+			if (po.grns?.[0]?.vehicle_number) {
+				setVehicleNumber(po.grns[0].vehicle_number);
+			}
+			if (po.grns?.[0]?.notes) {
+				setGateNotes(po.grns[0].notes);
+			}
 			setSelectedSupplierId(po.supplier_id ? String(po.supplier_id) : "");
 
 			if (po.items && po.items.length > 0) {
-				const isAlreadyReceived = po.receiving_status === "received";
+				const isAlreadyReceived =
+					po.receiving_status === "received" || po.receiving_status === "partial";
 				const initialItems: ReceivingLineItem[] = po.items.map((it: any) => {
 					const qty = Number(it.quantity) || 0;
 					const price = Number(it.price) || 0;
+					const hasGrn =
+						it.has_grn_record ||
+						(it.received_quantity !== undefined && Number(it.received_quantity) > 0) ||
+						(it.damaged_quantity !== undefined && Number(it.damaged_quantity) > 0) ||
+						(it.rejected_quantity !== undefined && Number(it.rejected_quantity) > 0);
+
+					const receivedQty = hasGrn
+						? Number(it.received_quantity) || 0
+						: isAlreadyReceived
+							? qty
+							: 0;
+					const acceptedQty = hasGrn
+						? Number(it.accepted_quantity) || 0
+						: isAlreadyReceived
+							? qty
+							: 0;
+					const damagedQty = hasGrn ? Number(it.damaged_quantity) || 0 : 0;
+					const rejectedQty = hasGrn ? Number(it.rejected_quantity) || 0 : 0;
+					const batchNum =
+						it.batch_number || `B-${Date.now().toString().slice(-4)}`;
+					const notes =
+						it.inspection_notes ||
+						(damagedQty > 0
+							? `Damaged: ${damagedQty} units`
+							: isAlreadyReceived
+								? "Inspected & in good condition"
+								: "");
+
 					return {
 						key: `item-${it.id}`,
 						purchaseItemId: it.id ? Number(it.id) : undefined,
@@ -155,14 +193,14 @@ export default function PurchaseOrderInspectionPage() {
 						productName: it.product_name || "Unnamed Product",
 						productSku: it.product_sku || "N/A",
 						orderedQuantity: qty,
-						receivedQuantity: isAlreadyReceived ? qty : 0,
-						acceptedQuantity: isAlreadyReceived ? qty : 0,
-						rejectedQuantity: 0,
-						damagedQuantity: 0,
+						receivedQuantity: receivedQty,
+						acceptedQuantity: acceptedQty,
+						rejectedQuantity: rejectedQty,
+						damagedQuantity: damagedQty,
 						unitCost: price,
-						batchNumber: `B-${Date.now().toString().slice(-4)}`,
-						inspectionNotes: isAlreadyReceived ? "Inspected & in good condition" : "",
-						isVerified: isAlreadyReceived,
+						batchNumber: batchNum,
+						inspectionNotes: notes,
+						isVerified: isAlreadyReceived || hasGrn,
 						isExtraItem: false,
 					};
 				});
@@ -222,11 +260,12 @@ export default function PurchaseOrderInspectionPage() {
 	});
 
 	// Checkbox toggle for item verification
-	const handleToggleVerify = (index: number) => {
+	const handleToggleVerify = (index: number, forceValue?: boolean) => {
 		setLineItems((prev) => {
 			const updated = [...prev];
 			const current = { ...updated[index] };
-			const nextVerified = !current.isVerified;
+			const nextVerified =
+				typeof forceValue === "boolean" ? forceValue : !current.isVerified;
 			current.isVerified = nextVerified;
 
 			if (nextVerified) {
@@ -727,9 +766,6 @@ export default function PurchaseOrderInspectionPage() {
 														lineItems.length > 0 &&
 														lineItems.every((it) => it.isVerified)
 													}
-													onChange={(e) =>
-														handleMarkAllVerified(e.target.checked)
-													}
 													onCheckedChange={(checked) =>
 														handleMarkAllVerified(Boolean(checked))
 													}
@@ -788,7 +824,7 @@ export default function PurchaseOrderInspectionPage() {
 													<TableCell
 														className="text-center cursor-pointer select-none"
 														onClick={(e) => {
-															if ((e.target as HTMLElement).tagName !== "INPUT" && !isCompleted) {
+															if (!isCompleted && !(e.target as HTMLElement).closest("input")) {
 																handleToggleVerify(idx);
 															}
 														}}
@@ -796,8 +832,9 @@ export default function PurchaseOrderInspectionPage() {
 														<div className="flex items-center justify-center">
 															<Checkbox
 																checked={Boolean(item.isVerified)}
-																onChange={() => handleToggleVerify(idx)}
-																onCheckedChange={() => handleToggleVerify(idx)}
+																onCheckedChange={(checked) =>
+																	handleToggleVerify(idx, Boolean(checked))
+																}
 																disabled={isCompleted}
 																className="h-5 w-5 cursor-pointer"
 																aria-label={`Tick ${item.productName}`}
@@ -1073,6 +1110,210 @@ export default function PurchaseOrderInspectionPage() {
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* ─────────────────────────────────────────────────────────────────── */}
+				{/* GOODS RECEIPT & INSPECTION HISTORY */}
+				{/* ─────────────────────────────────────────────────────────────────── */}
+				{po.grns && po.grns.length > 0 && (
+					<Card className="border-border/60 bg-card/90 shadow-xs backdrop-blur-md">
+						<CardHeader className="border-border/60 border-b p-4">
+							<div className="flex items-center justify-between">
+								<div className="flex items-center gap-2">
+									<PackageCheckIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+									<div>
+										<CardTitle className="font-bold text-base text-foreground">
+											Goods Receipt & Quality Inspection History ({po.grns.length})
+										</CardTitle>
+										<CardDescription className="text-muted-foreground text-xs">
+											Saved warehouse receiving logs, batches, and inspected damaged / rejected breakdown
+										</CardDescription>
+									</div>
+								</div>
+								<Badge
+									variant="outline"
+									className="border-emerald-500/30 bg-emerald-500/10 font-bold text-emerald-600 text-xs dark:text-emerald-400"
+								>
+									{po.grns.length} Receipt{po.grns.length > 1 ? "s" : ""} Recorded
+								</Badge>
+							</div>
+						</CardHeader>
+						<CardContent className="space-y-6 p-4">
+							{po.grns.map((grn: any) => {
+								const grnItems = grn.items || [];
+								const totalRcvd = grnItems.reduce(
+									(acc: number, it: any) =>
+										acc + (Number(it.received_quantity) || 0),
+									0,
+								);
+								const totalAcc = grnItems.reduce(
+									(acc: number, it: any) =>
+										acc + (Number(it.accepted_quantity) || 0),
+									0,
+								);
+								const totalDmg = grnItems.reduce(
+									(acc: number, it: any) =>
+										acc + (Number(it.damaged_quantity) || 0),
+									0,
+								);
+								const totalRej = grnItems.reduce(
+									(acc: number, it: any) =>
+										acc + (Number(it.rejected_quantity) || 0),
+									0,
+								);
+
+								return (
+									<div
+										key={grn.id}
+										className="space-y-3 rounded-lg border border-border/70 bg-background/60 p-4"
+									>
+										<div className="flex flex-wrap items-center justify-between gap-2 border-border/40 border-b pb-3">
+											<div className="flex flex-wrap items-center gap-2">
+												<span className="font-bold font-mono text-foreground text-sm">
+													{grn.grn_number}
+												</span>
+												<Badge
+													variant="outline"
+													className={
+														grn.status === "accepted"
+															? "border-emerald-500/30 bg-emerald-500/10 font-bold text-[10px] text-emerald-600 dark:text-emerald-400"
+															: "border-amber-500/30 bg-amber-500/10 font-bold text-[10px] text-amber-600 dark:text-amber-400"
+													}
+												>
+													{(grn.status || "ACCEPTED").toUpperCase()}
+												</Badge>
+												<span className="text-muted-foreground text-xs">
+													Received:{" "}
+													<strong className="text-foreground">
+														{grn.received_at
+															? new Date(grn.received_at).toLocaleString()
+															: "N/A"}
+													</strong>
+												</span>
+												<span className="text-muted-foreground text-xs">
+													By:{" "}
+													<strong className="text-foreground">
+														{grn.received_by || "Staff"}
+													</strong>
+												</span>
+											</div>
+
+											<div className="flex flex-wrap items-center gap-2 text-xs">
+												{grn.delivery_note_number && (
+													<span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
+														Challan: {grn.delivery_note_number}
+													</span>
+												)}
+												{grn.vehicle_number && (
+													<span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
+														Vehicle: {grn.vehicle_number}
+													</span>
+												)}
+											</div>
+										</div>
+
+										{/* Items inspection table */}
+										{grnItems.length > 0 ? (
+											<div className="overflow-x-auto rounded border border-border/40">
+												<Table>
+													<TableHeader className="bg-muted/40">
+														<TableRow>
+															<TableHead className="text-xs">
+																Product Line Item
+															</TableHead>
+															<TableHead className="text-center text-xs">
+																Ordered
+															</TableHead>
+															<TableHead className="text-center text-xs">
+																Delivered
+															</TableHead>
+															<TableHead className="text-center text-xs">
+																Accepted (Stock+)
+															</TableHead>
+															<TableHead className="text-center text-xs">
+																Damaged
+															</TableHead>
+															<TableHead className="text-center text-xs">
+																Rejected
+															</TableHead>
+															<TableHead className="text-xs">Batch #</TableHead>
+															<TableHead className="text-xs">
+																Remarks / Notes
+															</TableHead>
+														</TableRow>
+													</TableHeader>
+													<TableBody>
+														{grnItems.map((gi: any) => (
+															<TableRow key={gi.id} className="text-xs">
+																<TableCell className="font-semibold text-foreground">
+																	<div>{gi.product_name}</div>
+																	<div className="font-mono text-[10px] text-muted-foreground">
+																		{gi.product_sku}
+																	</div>
+																</TableCell>
+																<TableCell className="text-center font-mono">
+																	{Number(gi.ordered_quantity) || 0}
+																</TableCell>
+																<TableCell className="text-center font-bold font-mono text-blue-600 dark:text-blue-400">
+																	{Number(gi.received_quantity) || 0}
+																</TableCell>
+																<TableCell className="text-center font-mono">
+																	<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-600 dark:text-emerald-400">
+																		{Number(gi.accepted_quantity) || 0}
+																	</span>
+																</TableCell>
+																<TableCell className="text-center font-mono">
+																	{Number(gi.damaged_quantity) > 0 ? (
+																		<span className="rounded-full bg-amber-500/10 px-2 py-0.5 font-bold text-amber-600 dark:text-amber-400">
+																			{Number(gi.damaged_quantity)}
+																		</span>
+																	) : (
+																		<span className="text-muted-foreground">
+																			0
+																		</span>
+																	)}
+																</TableCell>
+																<TableCell className="text-center font-mono">
+																	{Number(gi.rejected_quantity) > 0 ? (
+																		<span className="rounded-full bg-red-500/10 px-2 py-0.5 font-bold text-red-600 dark:text-red-400">
+																			{Number(gi.rejected_quantity)}
+																		</span>
+																	) : (
+																		<span className="text-muted-foreground">
+																			0
+																		</span>
+																	)}
+																</TableCell>
+																<TableCell className="font-mono text-[11px] text-foreground">
+																	{gi.batch_number || "—"}
+																</TableCell>
+																<TableCell className="text-[11px] text-muted-foreground">
+																	{gi.inspection_notes || "—"}
+																</TableCell>
+															</TableRow>
+														))}
+													</TableBody>
+												</Table>
+											</div>
+										) : (
+											<p className="text-muted-foreground text-xs italic">
+												No line items recorded for this receipt.
+											</p>
+										)}
+
+										{grn.notes && (
+											<div className="rounded bg-muted/40 p-2 text-muted-foreground text-xs">
+												<strong className="text-foreground">
+													Gate / Receiving Remarks:{" "}
+												</strong>
+												{grn.notes}
+											</div>
+										)}
+									</div>
+								);
+							})}
+						</CardContent>
+					</Card>
+				)}
 
 				{/* ─────────────────────────────────────────────────────────────────── */}
 				{/* MODAL 1: CHANGE SUPPLIER / COMPANY */}

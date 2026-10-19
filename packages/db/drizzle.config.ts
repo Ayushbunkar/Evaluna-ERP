@@ -14,6 +14,7 @@ export default defineConfig({
 		"./src/schema/rbac.ts",
 		"./src/schema/attendance-enhanced.ts",
 		"./src/schema/procurement.ts",
+		"./src/schema/van-stock.ts",
 	],
 	dbCredentials: {
 		url: process.env.DATABASE_URL!,

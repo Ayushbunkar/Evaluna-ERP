@@ -38,6 +38,26 @@ export default function ManagerLayout({
 
 	const navItems = [
 		{ href: "/manager", label: "Dashboard", icon: LayoutDashboard },
+		{
+			href: "/manager/van-stock-planning",
+			label: "Van Stock Planning",
+			icon: Truck,
+		},
+		{
+			href: "/manager/van-verification",
+			label: "Van Verification & Assign",
+			icon: CheckSquare,
+		},
+		{
+			href: "/manager/dispatch-approval",
+			label: "Final Dispatch Approval",
+			icon: FileCheck,
+		},
+		{
+			href: "/manager/van-return-verification",
+			label: "Van Return Verification",
+			icon: History,
+		},
 		{ href: "/manager/dispatch", label: "Assign Route", icon: Truck },
 		{ href: "/manager/team", label: "My Team", icon: Users },
 		{

@@ -103,7 +103,7 @@ export default function CustomerOrdersPage() {
 	const { data: orderDetail, isLoading: detailLoading } =
 		trpc.customer.getMyOrder.useQuery(
 			{ id: selectedOrderId! },
-			{ enabled: selectedOrderId !== null },
+			{ enabled: selectedOrderId !== null, refetchInterval: 5000 },
 		);
 
 	const filteredOrders = useMemo(() => {

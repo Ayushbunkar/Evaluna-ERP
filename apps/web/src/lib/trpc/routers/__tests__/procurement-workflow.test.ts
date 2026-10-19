@@ -629,4 +629,255 @@ describe("End-to-End Procurement, Warehouse & Finance Integration Workflow", () 
 			expect(typeof kpis.openExceptions).toBe("number");
 		});
 	});
+
+	// ───────────────────────────────────────────────────────────────────────────
+	// 7. NEW PRODUCT CATALOG AUTO-REGISTRATION & WAREHOUSE/SALES ACTIVATION
+	// ───────────────────────────────────────────────────────────────────────────
+	describe("7. New Non-Catalog Product Ordering & Auto-Registration into Products, Warehouse & Sales", () => {
+		let newPOId: number;
+		let createdProductId: number;
+
+		it("allows procurement manager to order a brand new product not in catalog and registers it", async () => {
+			const caller = callProcurement(procurementManager);
+
+			const po = await caller.createPO({
+				supplierId: testSupplierId,
+				notes: "Special order for new organic line",
+				items: [
+					{
+						isNewProduct: true,
+						newProductName: "Organic Almond Milk 1L",
+						newProductCategory: "Beverages",
+						newProductUnit: "ltr",
+						newProductSellingPrice: 350,
+						quantity: 40,
+						price: 260,
+						cgstRate: 2.5,
+						sgstRate: 2.5,
+					},
+				],
+			});
+
+			expect(po.id).toBeDefined();
+			expect(po.po_number).toContain("PO-");
+			expect(po.receiving_status).toBe("pending");
+			newPOId = po.id;
+
+			// Verify PO items contains the newly registered product
+			const poDetails = await caller.getPO({ id: po.id });
+			expect(poDetails.items.length).toBe(1);
+			expect(poDetails.items[0].product_name).toBe("Organic Almond Milk 1L");
+			expect(Number(poDetails.items[0].quantity)).toBe(40);
+			expect(Number(poDetails.items[0].price)).toBe(260);
+
+			createdProductId = poDetails.items[0].product_id;
+			expect(createdProductId).toBeGreaterThan(0);
+
+			// Verify product is in products table with active status & pricing
+			const [prod] = await db
+				.select()
+				.from(schema.products)
+				.where(eq(schema.products.id, createdProductId));
+			expect(prod).toBeDefined();
+			expect(prod.name).toBe("Organic Almond Milk 1L");
+			expect(prod.category).toBe("Beverages");
+			expect(prod.unit).toBe("ltr");
+			expect(Number(prod.base_procurement_price)).toBe(260);
+			expect(Number(prod.base_selling_price)).toBe(350);
+			expect(prod.is_hidden).toBe(false);
+			expect(prod.is_deleted).toBe(false);
+
+			// Verify branchInventory is initialized with 0 stock (not yet received)
+			const [inv] = await db
+				.select()
+				.from(schema.branchInventory)
+				.where(eq(schema.branchInventory.product_id, createdProductId));
+			expect(inv).toBeDefined();
+			expect(Number(inv.in_stock)).toBe(0);
+		});
+
+		it("credits warehouse inventory and creates product batch when new product is received", async () => {
+			const caller = callProcurement(warehouseStaff);
+
+			// Warehouse accepts all 40 units of the new product
+			const grn = await caller.recordReceipt({
+				purchaseId: newPOId,
+				deliveryNoteNumber: "DN-NEW-ALMOND-001",
+				vehicleNumber: "DL-1A-9988",
+				items: [
+					{
+						productId: createdProductId,
+						orderedQuantity: 40,
+						receivedQuantity: 40,
+						acceptedQuantity: 40,
+						unitCost: 260,
+						batchNumber: "BATCH-ALM-2026",
+					},
+				],
+			});
+
+			expect(grn.id).toBeDefined();
+			expect(grn.status).toBe("accepted");
+
+			// 1. Verify branchInventory in_stock is now 40
+			const [inv] = await db
+				.select()
+				.from(schema.branchInventory)
+				.where(eq(schema.branchInventory.product_id, createdProductId));
+			expect(Number(inv.in_stock)).toBe(40);
+
+			// 2. Verify Stock Ledger has inbound transaction
+			const [ledger] = await db
+				.select()
+				.from(schema.stockLedger)
+				.where(eq(schema.stockLedger.product_id, createdProductId));
+			expect(ledger).toBeDefined();
+			expect(ledger.transaction_type).toBe("in");
+			expect(Number(ledger.quantity)).toBe(40);
+			expect(Number(ledger.unit_cost)).toBe(260);
+
+			// 3. Verify Product Batch created for sales & van loading
+			const [batch] = await db
+				.select()
+				.from(schema.productBatches)
+				.where(eq(schema.productBatches.product_id, createdProductId));
+			expect(batch).toBeDefined();
+			expect(batch.batch_number).toBe("BATCH-ALM-2026");
+			expect(Number(batch.purchase_price)).toBe(260);
+			expect(Number(batch.selling_price)).toBeGreaterThan(260);
+
+			// 4. Verify PO receiving status updated to 'received'
+			const updatedPO = await caller.getPO({ id: newPOId });
+			expect(updatedPO.receiving_status).toBe("received");
+		});
+	});
+
+	describe("8. Damaged & Rejected Goods Inspection Persistence & History Display", () => {
+		let damagedPOId: number;
+		let damagedProductId: number;
+
+		beforeAll(async () => {
+			const caller = callProcurement(procurementManager);
+			const po = await caller.createPO({
+				supplierId: 1,
+				items: [
+					{
+						isNewProduct: true,
+						newProductName: "Fragile Glass Bottles 500ml",
+						newProductSku: "GLS-500-FRG",
+						newProductCategory: "Packaging",
+						newProductUnit: "pcs",
+						newProductSellingPrice: 75,
+						quantity: 20,
+						price: 45,
+					},
+				],
+			});
+			damagedPOId = po.id;
+			const createdPO = await caller.getPO({ id: damagedPOId });
+			damagedProductId = createdPO.items[0].product_id;
+		});
+
+		it("persists damaged, rejected, and accepted quantities upon receiving inspection", async () => {
+			const caller = callProcurement(warehouseStaff);
+
+			// Inspect: 20 delivered, 14 accepted, 4 damaged during transit, 2 rejected for defects
+			const grn = await caller.recordReceipt({
+				purchaseId: damagedPOId,
+				deliveryNoteNumber: "CHALLAN-FRG-009",
+				vehicleNumber: "HR-55-AB-1234",
+				notes: "4 bottles broken during unloading, 2 seal broken",
+				items: [
+					{
+						productId: damagedProductId,
+						orderedQuantity: 20,
+						receivedQuantity: 20,
+						acceptedQuantity: 14,
+						damagedQuantity: 4,
+						rejectedQuantity: 2,
+						shortageQuantity: 0,
+						unitCost: 45,
+						batchNumber: "LOT-GLS-04",
+						inspectionNotes: "4 broken, 2 defective seal",
+					},
+				],
+			});
+
+			expect(grn.id).toBeDefined();
+			expect(grn.status).toBe("partially_accepted");
+		});
+
+		it("returns accurate damaged, rejected, and accepted quantities in procurement.getPO items", async () => {
+			const caller = callProcurement(procurementManager);
+			const po = await caller.getPO({ id: damagedPOId });
+
+			expect(po.items).toBeDefined();
+			expect(po.items.length).toBe(1);
+
+			const item = po.items[0];
+			expect(Number(item.quantity)).toBe(20); // Ordered quantity
+			expect(Number(item.received_quantity)).toBe(20);
+			expect(Number(item.accepted_quantity)).toBe(14);
+			expect(Number(item.damaged_quantity)).toBe(4);
+			expect(Number(item.rejected_quantity)).toBe(2);
+			expect(item.has_grn_record).toBe(true);
+			expect(item.batch_number).toBe("LOT-GLS-04");
+		});
+
+		it("attaches item-level inspection records to each GRN in procurement.getPO grns", async () => {
+			const caller = callProcurement(procurementManager);
+			const po = await caller.getPO({ id: damagedPOId });
+
+			expect(po.grns).toBeDefined();
+			expect(po.grns.length).toBeGreaterThan(0);
+
+			const latestGRN = po.grns[0];
+			expect(latestGRN.items).toBeDefined();
+			expect(latestGRN.items.length).toBe(1);
+
+			const grnItem = latestGRN.items[0];
+			expect(Number(grnItem.ordered_quantity)).toBe(20);
+			expect(Number(grnItem.received_quantity)).toBe(20);
+			expect(Number(grnItem.accepted_quantity)).toBe(14);
+			expect(Number(grnItem.damaged_quantity)).toBe(4);
+			expect(Number(grnItem.rejected_quantity)).toBe(2);
+			expect(grnItem.batch_number).toBe("LOT-GLS-04");
+			expect(grnItem.inspection_notes).toBe("4 broken, 2 defective seal");
+		});
+
+		it("returns damaged and rejected quantities in warehouse.getPurchaseItems for PO details modal", async () => {
+			const whCaller = callWarehouse(warehouseStaff);
+			const items = await whCaller.getPurchaseItems({ purchaseId: damagedPOId });
+
+			expect(items.length).toBe(1);
+			const item = items[0];
+			expect(Number(item.quantity)).toBe(20);
+			expect(Number(item.received_quantity)).toBe(20);
+			expect(Number(item.accepted_quantity)).toBe(14);
+			expect(Number(item.damaged_quantity)).toBe(4);
+			expect(Number(item.rejected_quantity)).toBe(2);
+			expect(item.has_receipt).toBe(true);
+			expect(item.batch_number).toBe("LOT-GLS-04");
+		});
+
+		it("only credits the accepted quantity to warehouse inventory and stock ledger", async () => {
+			// Branch inventory should only be incremented by the 14 accepted items, NOT all 20
+			const [inv] = await db
+				.select()
+				.from(schema.branchInventory)
+				.where(eq(schema.branchInventory.product_id, damagedProductId));
+
+			expect(inv).toBeDefined();
+			expect(Number(inv.in_stock)).toBe(14);
+
+			// Stock ledger should reflect only 14 accepted units
+			const [ledger] = await db
+				.select()
+				.from(schema.stockLedger)
+				.where(eq(schema.stockLedger.product_id, damagedProductId));
+
+			expect(ledger).toBeDefined();
+			expect(Number(ledger.quantity)).toBe(14);
+		});
+	});
 });

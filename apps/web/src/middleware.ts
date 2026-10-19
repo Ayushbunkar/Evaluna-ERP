@@ -11,7 +11,10 @@ import {
 	ROUTE_ROLE_MAP,
 	type Role,
 } from "@/lib/permissions";
-import { verifyTrustedDeviceToken } from "@/lib/trusted-device";
+import {
+	verify2FAToken,
+	verifyTrustedDeviceToken,
+} from "@/lib/trusted-device";
 
 /**
  * Node.js middleware that protects all routes.
@@ -219,10 +222,11 @@ export default async function middleware(request: NextRequest) {
 	const isDeviceTrusted = sessionData.user?.id
 		? verifyTrustedDeviceToken(deviceToken, sessionData.user.id)
 		: false;
-	const is2FAVerified =
-		isSeedAccount ||
-		isDeviceTrusted ||
-		Boolean(request.cookies.get("evaluna_2fa_verified")?.value);
+	const twoFAToken = request.cookies.get("evaluna_2fa_verified")?.value;
+	const is2FAValid = sessionData.user?.id
+		? verify2FAToken(twoFAToken, sessionData.user.id)
+		: false;
+	const is2FAVerified = isSeedAccount || isDeviceTrusted || is2FAValid;
 
 	if (!is2FAVerified) {
 		// If already on login completing 2FA, allow request

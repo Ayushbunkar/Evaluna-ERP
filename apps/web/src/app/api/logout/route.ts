@@ -21,6 +21,8 @@ const COOKIE_NAMES = [
 	"evaluna.dont_remember",
 	"better-auth.session_token",
 	"__Secure-better-auth.session_token",
+	"evaluna_2fa_verified",
+	"evaluna_trusted_device",
 ];
 
 async function handleLogout(request: NextRequest) {
@@ -78,13 +80,14 @@ async function handleLogout(request: NextRequest) {
 		);
 	}
 
-	// 3. Explicitly expire all known Better Auth cookies as a safety net
+	// 3. Explicitly expire all known Better Auth & 2FA cookies as a safety net
+	const isHttps = request.nextUrl.protocol === "https:";
 	for (const name of COOKIE_NAMES) {
 		response.cookies.set(name, "", {
 			expires: new Date(0),
 			path: "/",
 			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
+			secure: isHttps,
 			sameSite: "lax",
 		});
 	}

@@ -2847,5 +2847,4 @@ export * from "./schema/finance";
 export * from "./schema/hrms";
 export * from "./schema/salary";
 export * from "./schema/procurement";
-
-
+export * from "./schema/van-stock";

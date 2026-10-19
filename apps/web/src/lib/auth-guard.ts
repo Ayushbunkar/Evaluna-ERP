@@ -18,6 +18,7 @@ import {
 } from "./session-cache";
 import {
 	TRUSTED_DEVICE_COOKIE_NAME,
+	verify2FAToken,
 	verifyTrustedDeviceToken,
 } from "./trusted-device";
 
@@ -168,20 +169,24 @@ export async function getAuthUser(
 			let is2FAVerified = false;
 			try {
 				const cookieStore = await cookies();
-				const has2FACookie = Boolean(cookieStore.get("evaluna_2fa_verified")?.value);
+				const twoFAToken = cookieStore.get("evaluna_2fa_verified")?.value;
+				const is2FAValid = verify2FAToken(twoFAToken, cached.userId);
 				const deviceToken = cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value;
 				const isDeviceTrusted = verifyTrustedDeviceToken(deviceToken, cached.userId);
-				is2FAVerified = has2FACookie || isDeviceTrusted;
+				is2FAVerified = is2FAValid || isDeviceTrusted;
 			} catch {}
 
 			if (!is2FAVerified && req) {
 				const cookieHeader = req.headers.get("cookie") || "";
-				const has2FACookie = cookieHeader.includes("evaluna_2fa_verified=true");
+				const twoFAMatch = cookieHeader.match(/evaluna_2fa_verified=([^;]+)/);
+				const is2FAValid = twoFAMatch?.[1]
+					? verify2FAToken(decodeURIComponent(twoFAMatch[1]), cached.userId)
+					: false;
 				const deviceMatch = cookieHeader.match(/evaluna_trusted_device=([^;]+)/);
 				const isDeviceTrusted = deviceMatch?.[1]
 					? verifyTrustedDeviceToken(decodeURIComponent(deviceMatch[1]), cached.userId)
 					: false;
-				is2FAVerified = has2FACookie || isDeviceTrusted;
+				is2FAVerified = is2FAValid || isDeviceTrusted;
 			}
 
 			if (!is2FAVerified) {
@@ -309,20 +314,24 @@ export async function getAuthUser(
 		let is2FAVerified = false;
 		try {
 			const cookieStore = await cookies();
-			const has2FACookie = Boolean(cookieStore.get("evaluna_2fa_verified")?.value);
+			const twoFAToken = cookieStore.get("evaluna_2fa_verified")?.value;
+			const is2FAValid = verify2FAToken(twoFAToken, dbUser.id);
 			const deviceToken = cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value;
 			const isDeviceTrusted = verifyTrustedDeviceToken(deviceToken, dbUser.id);
-			is2FAVerified = has2FACookie || isDeviceTrusted;
+			is2FAVerified = is2FAValid || isDeviceTrusted;
 		} catch {}
 
 		if (!is2FAVerified && req) {
 			const cookieHeader = req.headers.get("cookie") || "";
-			const has2FACookie = cookieHeader.includes("evaluna_2fa_verified=true");
+			const twoFAMatch = cookieHeader.match(/evaluna_2fa_verified=([^;]+)/);
+			const is2FAValid = twoFAMatch?.[1]
+				? verify2FAToken(decodeURIComponent(twoFAMatch[1]), dbUser.id)
+				: false;
 			const deviceMatch = cookieHeader.match(/evaluna_trusted_device=([^;]+)/);
 			const isDeviceTrusted = deviceMatch?.[1]
 				? verifyTrustedDeviceToken(decodeURIComponent(deviceMatch[1]), dbUser.id)
 				: false;
-			is2FAVerified = has2FACookie || isDeviceTrusted;
+			is2FAVerified = is2FAValid || isDeviceTrusted;
 		}
 
 		if (!is2FAVerified) {

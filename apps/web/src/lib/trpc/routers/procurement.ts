@@ -586,6 +586,133 @@ export const procurementRouter = router({
 				.where(eq(goodsReceiptNotes.purchase_id, po.id))
 				.orderBy(desc(goodsReceiptNotes.received_at));
 
+			// Fetch items for all GRNs
+			let grnItems: Array<{
+				id: number;
+				grn_id: number;
+				purchase_item_id: number | null;
+				product_id: number;
+				product_name: string;
+				product_sku: string;
+				ordered_quantity: string;
+				received_quantity: string;
+				accepted_quantity: string;
+				rejected_quantity: string;
+				damaged_quantity: string;
+				shortage_quantity: string;
+				unit_cost: string;
+				batch_number: string | null;
+				inspection_status: string | null;
+				inspection_notes: string | null;
+			}> = [];
+
+			const grnIds = grns.map((g) => g.id);
+			if (grnIds.length > 0) {
+				grnItems = await db
+					.select({
+						id: goodsReceiptItems.id,
+						grn_id: goodsReceiptItems.grn_id,
+						purchase_item_id: goodsReceiptItems.purchase_item_id,
+						product_id: goodsReceiptItems.product_id,
+						product_name: sql<string>`coalesce(${products.name}, 'Product #' || ${goodsReceiptItems.product_id}::text)`,
+						product_sku: sql<string>`coalesce(${products.sku}, 'N/A')`,
+						ordered_quantity: goodsReceiptItems.ordered_quantity,
+						received_quantity: goodsReceiptItems.received_quantity,
+						accepted_quantity: goodsReceiptItems.accepted_quantity,
+						rejected_quantity: goodsReceiptItems.rejected_quantity,
+						damaged_quantity: goodsReceiptItems.damaged_quantity,
+						shortage_quantity: goodsReceiptItems.shortage_quantity,
+						unit_cost: goodsReceiptItems.unit_cost,
+						batch_number: goodsReceiptItems.batch_number,
+						inspection_status: goodsReceiptItems.inspection_status,
+						inspection_notes: goodsReceiptItems.inspection_notes,
+					})
+					.from(goodsReceiptItems)
+					.leftJoin(products, eq(goodsReceiptItems.product_id, products.id))
+					.where(inArray(goodsReceiptItems.grn_id, grnIds));
+			}
+
+			// Attach items to each GRN
+			const grnsWithItems = grns.map((g) => ({
+				...g,
+				items: grnItems.filter((gi) => gi.grn_id === g.id),
+			}));
+
+			// Aggregate inspected quantities per purchase item
+			const itemsWithInspection = items.map((it) => {
+				const matchingGrnItems = grnItems.filter(
+					(gi) =>
+						(gi.purchase_item_id && gi.purchase_item_id === it.id) ||
+						(!gi.purchase_item_id && gi.product_id === it.product_id),
+				);
+
+				const received_quantity = matchingGrnItems.reduce(
+					(sum, gi) => sum + (Number(gi.received_quantity) || 0),
+					0,
+				);
+				const accepted_quantity = matchingGrnItems.reduce(
+					(sum, gi) => sum + (Number(gi.accepted_quantity) || 0),
+					0,
+				);
+				const damaged_quantity = matchingGrnItems.reduce(
+					(sum, gi) => sum + (Number(gi.damaged_quantity) || 0),
+					0,
+				);
+				const rejected_quantity = matchingGrnItems.reduce(
+					(sum, gi) => sum + (Number(gi.rejected_quantity) || 0),
+					0,
+				);
+				const shortage_quantity = matchingGrnItems.reduce(
+					(sum, gi) => sum + (Number(gi.shortage_quantity) || 0),
+					0,
+				);
+				const latestBatch = matchingGrnItems[0]?.batch_number || null;
+				const latestNotes = matchingGrnItems[0]?.inspection_notes || null;
+
+				return {
+					...it,
+					received_quantity,
+					accepted_quantity,
+					damaged_quantity,
+					rejected_quantity,
+					shortage_quantity,
+					batch_number: latestBatch,
+					inspection_notes: latestNotes,
+					has_grn_record: matchingGrnItems.length > 0,
+				};
+			});
+
+			// Check if any GRN items aren't mapped to purchaseItems
+			const existingItemIds = new Set(items.map((i) => i.id));
+			const unmappedGrnItems = grnItems.filter(
+				(gi) => gi.purchase_item_id && !existingItemIds.has(gi.purchase_item_id),
+			);
+			for (const unmapped of unmappedGrnItems) {
+				itemsWithInspection.push({
+					id: unmapped.purchase_item_id!,
+					purchase_id: po.id,
+					product_id: unmapped.product_id,
+					product_name: unmapped.product_name,
+					product_sku: unmapped.product_sku,
+					quantity: unmapped.ordered_quantity,
+					price: unmapped.unit_cost,
+					cgst_rate: "0",
+					sgst_rate: "0",
+					igst_rate: "0",
+					cgst_amount: "0",
+					sgst_amount: "0",
+					igst_amount: "0",
+					received_quantity: Number(unmapped.received_quantity) || 0,
+					accepted_quantity: Number(unmapped.accepted_quantity) || 0,
+					damaged_quantity: Number(unmapped.damaged_quantity) || 0,
+					rejected_quantity: Number(unmapped.rejected_quantity) || 0,
+					shortage_quantity: Number(unmapped.shortage_quantity) || 0,
+					batch_number: unmapped.batch_number,
+					inspection_notes: unmapped.inspection_notes,
+					has_grn_record: true,
+				});
+			}
+
 			// Fetch associated Invoices
 			const invoices = await db
 				.select()
@@ -609,8 +736,8 @@ export const procurementRouter = router({
 
 			return {
 				...po,
-				items,
-				grns,
+				items: itemsWithInspection,
+				grns: grnsWithItems,
 				invoices,
 				paymentAllocations,
 				exceptions,
@@ -627,7 +754,13 @@ export const procurementRouter = router({
 				items: z
 					.array(
 						z.object({
-							productId: z.number(),
+							productId: z.number().optional(),
+							isNewProduct: z.boolean().optional(),
+							newProductName: z.string().optional(),
+							newProductSku: z.string().optional(),
+							newProductCategory: z.string().optional(),
+							newProductUnit: z.string().optional(),
+							newProductSellingPrice: z.number().optional(),
 							quantity: z.number().min(0.001),
 							price: z.number().min(0),
 							cgstRate: z.number().optional().default(0),
@@ -641,10 +774,15 @@ export const procurementRouter = router({
 		.mutation(async ({ input, ctx }) => {
 			const poNumber = `PO-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
 			const grnNumber = `GRN-${Math.floor(10000 + Math.random() * 90000)}`;
+			const branchId = ctx.user.branchId ?? 1;
 
 			// Resolve product IDs in case branch_inventory.id was submitted instead of product.id
 			const rawProductIds = Array.from(
-				new Set(input.items.map((it) => it.productId)),
+				new Set(
+					input.items
+						.filter((it) => it.productId && !it.isNewProduct)
+						.map((it) => it.productId as number),
+				),
 			);
 			const resolvedProductIdMap = new Map<number, number>();
 
@@ -670,40 +808,97 @@ export const procurementRouter = router({
 				}
 			}
 
-			// Accurate calculation of taxes and totals
-			let subtotal = 0;
-			let totalCgst = 0;
-			let totalSgst = 0;
-			let totalIgst = 0;
-
-			const calculatedItems = input.items.map((it) => {
-				const actualProductId =
-					resolvedProductIdMap.get(it.productId) ?? it.productId;
-				const lineBase = it.quantity * it.price;
-				subtotal += lineBase;
-				const cgst = lineBase * (it.cgstRate / 100);
-				const sgst = lineBase * (it.sgstRate / 100);
-				const igst = lineBase * (it.igstRate / 100);
-				totalCgst += cgst;
-				totalSgst += sgst;
-				totalIgst += igst;
-
-				return {
-					...it,
-					productId: actualProductId,
-					cgstAmount: cgst.toFixed(2),
-					sgstAmount: sgst.toFixed(2),
-					igstAmount: igst.toFixed(2),
-				};
-			});
-
-			const grandTotal = subtotal + totalCgst + totalSgst + totalIgst;
-
 			return await db.transaction(async (tx) => {
+				let subtotal = 0;
+				let totalCgst = 0;
+				let totalSgst = 0;
+				let totalIgst = 0;
+
+				const calculatedItems = [];
+
+				for (const it of input.items) {
+					let actualProductId = it.productId
+						? (resolvedProductIdMap.get(it.productId) ?? it.productId)
+						: 0;
+
+					// If new product requested or no existing product ID provided: register in master catalog
+					if (it.isNewProduct || !actualProductId || actualProductId === 0) {
+						const prodName = it.newProductName?.trim() || "New Ordered Product";
+						const autoSku =
+							it.newProductSku?.trim() ||
+							`SKU-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+						const costPrice = it.price.toFixed(2);
+						const sellingPrice = (
+							it.newProductSellingPrice && it.newProductSellingPrice > 0
+								? it.newProductSellingPrice
+								: it.price * 1.25
+						).toFixed(2);
+						const unit = it.newProductUnit?.trim() || "pcs";
+						const category = it.newProductCategory?.trim() || "General";
+
+						const [newProd] = await tx
+							.insert(products)
+							.values({
+								name: prodName,
+								description: `New catalog product ordered via Purchase Order ${poNumber}`,
+								price: sellingPrice,
+								base_procurement_price: costPrice,
+								base_selling_price: sellingPrice,
+								user_uid: ctx.user.id || "system",
+								category: category,
+								sku: autoSku,
+								unit: unit,
+								is_hidden: false,
+								is_deleted: false,
+							})
+							.returning();
+
+						actualProductId = newProd.id;
+
+						// Initialize branch_inventory with 0 stock so it is cataloged and ready for warehouse receiving & sales
+						await tx
+							.insert(branchInventory)
+							.values({
+								branch_id: branchId,
+								product_id: actualProductId,
+								in_stock: 0,
+								reserved_stock: 0,
+								reorder_level: 10,
+							})
+							.onConflictDoNothing();
+					}
+
+					const cgstRate = it.cgstRate ?? 0;
+					const sgstRate = it.sgstRate ?? 0;
+					const igstRate = it.igstRate ?? 0;
+					const lineBase = it.quantity * it.price;
+					subtotal += lineBase;
+					const cgst = lineBase * (cgstRate / 100);
+					const sgst = lineBase * (sgstRate / 100);
+					const igst = lineBase * (igstRate / 100);
+					totalCgst += cgst;
+					totalSgst += sgst;
+					totalIgst += igst;
+
+					calculatedItems.push({
+						productId: actualProductId,
+						quantity: it.quantity,
+						price: it.price,
+						cgstRate,
+						sgstRate,
+						igstRate,
+						cgstAmount: cgst.toFixed(2),
+						sgstAmount: sgst.toFixed(2),
+						igstAmount: igst.toFixed(2),
+					});
+				}
+
+				const grandTotal = subtotal + totalCgst + totalSgst + totalIgst;
+
 				const [newPurchase] = await tx
 					.insert(purchases)
 					.values({
-						branch_id: ctx.user.branchId ?? 1,
+						branch_id: branchId,
 						po_number: poNumber,
 						grn_number: grnNumber,
 						supplier_id: input.supplierId,
@@ -1293,6 +1488,27 @@ export const procurementRouter = router({
 								in_stock: item.acceptedQuantity,
 								reserved_stock: 0,
 								reorder_level: 10,
+							});
+						}
+
+						// Ensure productBatches exists for sales, POS, and dispatch workflows
+						const [existingBatch] = await tx
+							.select({ id: productBatches.id })
+							.from(productBatches)
+							.where(eq(productBatches.product_id, resolvedProductId))
+							.limit(1);
+
+						if (!existingBatch) {
+							await tx.insert(productBatches).values({
+								product_id: resolvedProductId,
+								batch_number:
+									item.batchNumber?.trim() ||
+									`B-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`,
+								mrp: (item.unitCost * 1.3).toFixed(2),
+								selling_price: (item.unitCost * 1.25).toFixed(2),
+								purchase_price: item.unitCost.toFixed(2),
+								expiry_date: item.expiryDate,
+								created_at: new Date(),
 							});
 						}
 					}

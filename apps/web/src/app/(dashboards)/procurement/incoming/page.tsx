@@ -120,19 +120,43 @@ export default function IncomingShipmentsPage() {
 	const handleInitInspection = () => {
 		if (poDetail?.items) {
 			setReceivedItems(
-				poDetail.items.map((it: any) => ({
-					purchaseItemId: it.id,
-					productId: it.product_id,
-					productName: it.product_name,
-					orderedQuantity: Number(it.quantity),
-					receivedQuantity: Number(it.quantity),
-					acceptedQuantity: Number(it.quantity),
-					rejectedQuantity: 0,
-					damagedQuantity: 0,
-					unitCost: Number(it.price),
-					batchNumber: `B-${Date.now().toString().slice(-4)}`,
-					inspectionNotes: "Good condition upon inspection",
-				})),
+				poDetail.items.map((it: any) => {
+					const hasGrn =
+						it.has_grn_record ||
+						(it.received_quantity !== undefined && Number(it.received_quantity) > 0) ||
+						(it.damaged_quantity !== undefined && Number(it.damaged_quantity) > 0) ||
+						(it.rejected_quantity !== undefined && Number(it.rejected_quantity) > 0);
+
+					const receivedQty = hasGrn
+						? Number(it.received_quantity) || 0
+						: Number(it.quantity);
+					const acceptedQty = hasGrn
+						? Number(it.accepted_quantity) || 0
+						: Number(it.quantity);
+					const damagedQty = hasGrn ? Number(it.damaged_quantity) || 0 : 0;
+					const rejectedQty = hasGrn ? Number(it.rejected_quantity) || 0 : 0;
+					const batchNum =
+						it.batch_number || `B-${Date.now().toString().slice(-4)}`;
+					const notes =
+						it.inspection_notes ||
+						(damagedQty > 0
+							? `Damaged: ${damagedQty} units`
+							: "Good condition upon inspection");
+
+					return {
+						purchaseItemId: it.id,
+						productId: it.product_id,
+						productName: it.product_name,
+						orderedQuantity: Number(it.quantity),
+						receivedQuantity: receivedQty,
+						acceptedQuantity: acceptedQty,
+						rejectedQuantity: rejectedQty,
+						damagedQuantity: damagedQty,
+						unitCost: Number(it.price),
+						batchNumber: batchNum,
+						inspectionNotes: notes,
+					};
+				}),
 			);
 		}
 	};
@@ -173,6 +197,19 @@ export default function IncomingShipmentsPage() {
 		});
 	};
 
+	const filteredGRNs =
+		grns?.filter((g) => {
+			if (!searchQuery) return true;
+			const q = searchQuery.toLowerCase();
+			return (
+				g.grn_number?.toLowerCase().includes(q) ||
+				g.po_number?.toLowerCase().includes(q) ||
+				g.supplier_name?.toLowerCase().includes(q) ||
+				g.delivery_note_number?.toLowerCase().includes(q) ||
+				g.vehicle_number?.toLowerCase().includes(q)
+			);
+		}) || [];
+
 	const filteredPOs =
 		pos?.filter((p) => {
 			if (statusFilter === "all") return p.status !== "cancelled";
@@ -203,7 +240,10 @@ export default function IncomingShipmentsPage() {
 
 				{/* KPI Cards */}
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-					<Card className="border-border/60 border-l-4 border-l-amber-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
+					<Card
+						onClick={() => setStatusFilter("pending")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-amber-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
 								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
@@ -223,7 +263,10 @@ export default function IncomingShipmentsPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-border/60 border-l-4 border-l-blue-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
+					<Card
+						onClick={() => setStatusFilter("partial")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-blue-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
 								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
@@ -242,7 +285,10 @@ export default function IncomingShipmentsPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-border/60 border-l-4 border-l-emerald-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
+					<Card
+						onClick={() => setStatusFilter("received")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-emerald-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
 								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
@@ -262,7 +308,10 @@ export default function IncomingShipmentsPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-border/60 border-l-4 border-l-purple-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md">
+					<Card
+						onClick={() => setStatusFilter("grn_history")}
+						className="cursor-pointer border-border/60 border-l-4 border-l-purple-500 bg-card/90 shadow-xs backdrop-blur-md transition-all hover:border-border hover:shadow-md"
+					>
 						<CardContent className="flex items-center justify-between p-5">
 							<div>
 								<p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
@@ -272,7 +321,7 @@ export default function IncomingShipmentsPage() {
 									{grns?.length ?? 0}
 								</h3>
 								<p className="mt-1 text-[11px] text-muted-foreground">
-									Official GRNs logged
+									Official GRNs logged (Click to view)
 								</p>
 							</div>
 							<div className="rounded-xl bg-purple-500/10 p-3 text-purple-600 dark:text-purple-400">
@@ -287,7 +336,11 @@ export default function IncomingShipmentsPage() {
 					<div className="relative w-full max-w-sm">
 						<SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 						<Input
-							placeholder="Search by PO # or supplier..."
+							placeholder={
+								statusFilter === "grn_history"
+									? "Search GRN #, PO #, challan..."
+									: "Search by PO # or supplier..."
+							}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="border-border/80 bg-background/50 pl-9"
@@ -301,6 +354,10 @@ export default function IncomingShipmentsPage() {
 							{ id: "partial", label: "Partially Received" },
 							{ id: "received", label: "Fully Received" },
 							{ id: "cancelled", label: "Cancelled" },
+							{
+								id: "grn_history",
+								label: `GRN Inspection History (${grns?.length ?? 0})`,
+							},
 						].map((tab) => (
 							<Button
 								key={tab.id}
@@ -318,156 +375,262 @@ export default function IncomingShipmentsPage() {
 				<Card className="border-border/60 bg-card/90 shadow-xs backdrop-blur-md">
 					<CardHeader className="border-border/60 border-b p-4">
 						<CardTitle className="font-bold text-base text-foreground">
-							Inbound PO Shipments Queue
+							{statusFilter === "grn_history"
+								? `Goods Receipt Notes (GRN) Inspection History (${filteredGRNs.length})`
+								: `Inbound PO Shipments Queue (${filteredPOs.length})`}
 						</CardTitle>
 						<CardDescription className="text-muted-foreground text-xs">
-							Showing {filteredPOs.length} purchase orders ready for gate
-							check-in & inspection. Click any row to inspect.
+							{statusFilter === "grn_history"
+								? "Official warehouse check-ins, recorded lot batches, and physical inspection receipts. Click any row to view full item breakdown."
+								: `Showing ${filteredPOs.length} purchase orders ready for gate check-in & inspection. Click any row to inspect.`}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="p-0">
 						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>PO Number</TableHead>
-										<TableHead>Supplier</TableHead>
-										<TableHead>Expected Delivery</TableHead>
-										<TableHead>Confirmed Delivery</TableHead>
-										<TableHead>Items / Qty</TableHead>
-										<TableHead>Receiving Status</TableHead>
-										<TableHead className="text-right">Action</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{posLoading ? (
+							{statusFilter === "grn_history" ? (
+								<Table>
+									<TableHeader>
 										<TableRow>
-											<TableCell colSpan={7} className="h-32 text-center">
-												<Loader2Icon className="mx-auto h-6 w-6 animate-spin text-gray-400" />
-												<p className="mt-2 text-gray-500 text-xs">
-													Loading inbound queue...
-												</p>
-											</TableCell>
+											<TableHead>GRN Number</TableHead>
+											<TableHead>PO Reference</TableHead>
+											<TableHead>Supplier Partner</TableHead>
+											<TableHead>Received Date</TableHead>
+											<TableHead>Received By</TableHead>
+											<TableHead>Challan / Vehicle</TableHead>
+											<TableHead>Status</TableHead>
+											<TableHead className="text-right">Action</TableHead>
 										</TableRow>
-									) : filteredPOs.length === 0 ? (
-										<TableRow>
-											<TableCell
-												colSpan={7}
-												className="h-32 text-center text-gray-500 text-sm"
-											>
-												No inbound purchase orders found matching current
-												criteria.
-											</TableCell>
-										</TableRow>
-									) : (
-										filteredPOs.map((po) => {
-											const isOverdue =
-												po.expected_delivery_date &&
-												new Date(po.expected_delivery_date) < new Date() &&
-												po.receiving_status !== "received";
-
-											return (
+									</TableHeader>
+									<TableBody>
+										{filteredGRNs.length === 0 ? (
+											<TableRow>
+												<TableCell
+													colSpan={8}
+													className="h-32 text-center text-muted-foreground text-sm"
+												>
+													No goods receipt notes found matching search.
+												</TableCell>
+											</TableRow>
+										) : (
+											filteredGRNs.map((grn) => (
 												<TableRow
-													key={po.id}
+													key={grn.id}
 													onClick={() =>
-														router.push(`/procurement/incoming/${po.id}`)
+														router.push(
+															`/procurement/incoming/${grn.purchase_id}`,
+														)
 													}
 													className="group cursor-pointer transition-colors hover:bg-muted/60"
 												>
-													<TableCell className="font-mono font-semibold text-foreground text-xs group-hover:text-primary">
-														{po.po_number || `PO-${po.id}`}
+													<TableCell className="font-bold font-mono text-foreground text-xs group-hover:text-primary">
+														{grn.grn_number}
 													</TableCell>
-													<TableCell className="font-medium text-foreground">
-														{po.supplier_name}
+													<TableCell className="font-mono text-xs">
+														{grn.po_number || `PO-${grn.purchase_id}`}
 													</TableCell>
-													<TableCell className="text-xs">
-														{po.expected_delivery_date ? (
-															<span
-																className={
-																	isOverdue
-																		? "font-bold text-red-600"
-																		: "text-foreground/80"
-																}
-															>
-																{new Date(
-																	po.expected_delivery_date,
-																).toLocaleDateString()}
-																{isOverdue && " (Overdue)"}
-															</span>
-														) : (
-															<span className="text-muted-foreground">
-																Not set
-															</span>
-														)}
+													<TableCell className="font-semibold text-xs text-foreground">
+														{grn.supplier_name || "Supplier"}
 													</TableCell>
 													<TableCell className="text-muted-foreground text-xs">
-														{po.confirmed_delivery_date
-															? new Date(
-																	po.confirmed_delivery_date,
-																).toLocaleDateString()
-															: "Pending Supplier"}
+														{grn.received_at
+															? new Date(grn.received_at).toLocaleString()
+															: "N/A"}
 													</TableCell>
-													<TableCell className="font-medium text-xs">
-														{po.item_count} items ({po.total_quantity} units)
+													<TableCell className="text-xs">
+														{grn.received_by || "Staff"}
+													</TableCell>
+													<TableCell className="text-xs">
+														<div className="flex flex-col font-mono text-[11px]">
+															<span>
+																{grn.delivery_note_number || "No Challan"}
+															</span>
+															{grn.vehicle_number && (
+																<span className="text-muted-foreground">
+																	{grn.vehicle_number}
+																</span>
+															)}
+														</div>
 													</TableCell>
 													<TableCell>
 														<Badge
 															variant="outline"
 															className={
-																po.status === "cancelled"
-																	? "border-destructive/30 bg-destructive/10 font-bold text-[10px] text-destructive"
-																	: po.receiving_status === "received"
-																		? "border-emerald-500/30 bg-emerald-500/10 font-bold text-[10px] text-emerald-600 dark:text-emerald-400"
-																		: po.receiving_status === "partial"
-																			? "border-blue-500/30 bg-blue-500/10 font-bold text-[10px] text-blue-600 dark:text-blue-400"
-																			: "border-amber-500/30 bg-amber-500/10 font-bold text-[10px] text-amber-600 dark:text-amber-400"
+																grn.status === "accepted"
+																	? "border-emerald-500/30 bg-emerald-500/10 font-bold text-[10px] text-emerald-600 dark:text-emerald-400"
+																	: "border-amber-500/30 bg-amber-500/10 font-bold text-[10px] text-amber-600 dark:text-amber-400"
 															}
 														>
-															{po.status === "cancelled"
-																? "CANCELLED"
-																: po.receiving_status.toUpperCase()}
+															{(grn.status || "ACCEPTED").toUpperCase()}
 														</Badge>
 													</TableCell>
 													<TableCell
 														className="text-right"
 														onClick={(e) => e.stopPropagation()}
 													>
-														{po.receiving_status !== "received" &&
-														po.status !== "cancelled" ? (
-															<Button
-																size="sm"
-																asChild
-																className="h-8 gap-1 bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
+														<Button
+															size="sm"
+															variant="outline"
+															asChild
+															className="h-8 gap-1 border-emerald-500/30 font-semibold text-emerald-600 text-xs hover:bg-emerald-50 dark:text-emerald-400"
+														>
+															<Link
+																href={`/procurement/incoming/${grn.purchase_id}`}
 															>
-																<Link href={`/procurement/incoming/${po.id}`}>
-																	<PackageCheckIcon className="h-3.5 w-3.5" />
-																	Inspect & Receive
-																</Link>
-															</Button>
-														) : po.status === "cancelled" ? (
-															<span className="font-semibold text-destructive text-xs">
-																Cancelled
-															</span>
-														) : (
-															<Button
-																size="sm"
-																variant="outline"
-																asChild
-																className="h-8 gap-1 border-emerald-500/30 font-semibold text-emerald-600 text-xs dark:text-emerald-400"
-															>
-																<Link href={`/procurement/incoming/${po.id}`}>
-																	<EyeIcon className="h-3.5 w-3.5" />
-																	Inspect / View
-																</Link>
-															</Button>
-														)}
+																<EyeIcon className="h-3.5 w-3.5" />
+																View Receipt Details
+															</Link>
+														</Button>
 													</TableCell>
 												</TableRow>
-											);
-										})
-									)}
-								</TableBody>
-							</Table>
+											))
+										)}
+									</TableBody>
+								</Table>
+							) : (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>PO Number</TableHead>
+											<TableHead>Supplier</TableHead>
+											<TableHead>Expected Delivery</TableHead>
+											<TableHead>Confirmed Delivery</TableHead>
+											<TableHead>Items / Qty</TableHead>
+											<TableHead>Receiving Status</TableHead>
+											<TableHead className="text-right">Action</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{posLoading ? (
+											<TableRow>
+												<TableCell colSpan={7} className="h-32 text-center">
+													<Loader2Icon className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+													<p className="mt-2 text-gray-500 text-xs">
+														Loading inbound queue...
+													</p>
+												</TableCell>
+											</TableRow>
+										) : filteredPOs.length === 0 ? (
+											<TableRow>
+												<TableCell
+													colSpan={7}
+													className="h-32 text-center text-gray-500 text-sm"
+												>
+													No inbound purchase orders found matching current
+													criteria.
+												</TableCell>
+											</TableRow>
+										) : (
+											filteredPOs.map((po) => {
+												const isOverdue =
+													po.expected_delivery_date &&
+													new Date(po.expected_delivery_date) < new Date() &&
+													po.receiving_status !== "received";
+
+												return (
+													<TableRow
+														key={po.id}
+														onClick={() =>
+															router.push(`/procurement/incoming/${po.id}`)
+														}
+														className="group cursor-pointer transition-colors hover:bg-muted/60"
+													>
+														<TableCell className="font-mono font-semibold text-foreground text-xs group-hover:text-primary">
+															{po.po_number || `PO-${po.id}`}
+														</TableCell>
+														<TableCell className="font-medium text-foreground">
+															{po.supplier_name}
+														</TableCell>
+														<TableCell className="text-xs">
+															{po.expected_delivery_date ? (
+																<span
+																	className={
+																		isOverdue
+																			? "font-bold text-red-600"
+																			: "text-foreground/80"
+																	}
+																>
+																	{new Date(
+																		po.expected_delivery_date,
+																	).toLocaleDateString()}
+																	{isOverdue && " (Overdue)"}
+																</span>
+															) : (
+																<span className="text-muted-foreground">
+																	Not set
+																</span>
+															)}
+														</TableCell>
+														<TableCell className="text-muted-foreground text-xs">
+															{po.confirmed_delivery_date
+																? new Date(
+																		po.confirmed_delivery_date,
+																	).toLocaleDateString()
+																: "Pending Supplier"}
+														</TableCell>
+														<TableCell className="font-medium text-xs">
+															{po.item_count} items ({po.total_quantity} units)
+														</TableCell>
+														<TableCell>
+															<Badge
+																variant="outline"
+																className={
+																	po.status === "cancelled"
+																		? "border-destructive/30 bg-destructive/10 font-bold text-[10px] text-destructive"
+																		: po.receiving_status === "received"
+																			? "border-emerald-500/30 bg-emerald-500/10 font-bold text-[10px] text-emerald-600 dark:text-emerald-400"
+																			: po.receiving_status === "partial"
+																				? "border-blue-500/30 bg-blue-500/10 font-bold text-[10px] text-blue-600 dark:text-blue-400"
+																				: "border-amber-500/30 bg-amber-500/10 font-bold text-[10px] text-amber-600 dark:text-amber-400"
+																}
+															>
+																{po.status === "cancelled"
+																	? "CANCELLED"
+																	: (
+																			po.receiving_status || "pending"
+																		).toUpperCase()}
+															</Badge>
+														</TableCell>
+														<TableCell
+															className="text-right"
+															onClick={(e) => e.stopPropagation()}
+														>
+															{po.receiving_status !== "received" &&
+															po.status !== "cancelled" ? (
+																<Button
+																	size="sm"
+																	asChild
+																	className="h-8 gap-1 bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
+																>
+																	<Link href={`/procurement/incoming/${po.id}`}>
+																		<PackageCheckIcon className="h-3.5 w-3.5" />
+																		Inspect & Receive
+																	</Link>
+																</Button>
+															) : po.status === "cancelled" ? (
+																<span className="font-semibold text-destructive text-xs">
+																	Cancelled
+																</span>
+															) : (
+																<Button
+																	size="sm"
+																	variant="outline"
+																	asChild
+																	className="h-8 gap-1 border-emerald-500/30 font-semibold text-emerald-600 text-xs dark:text-emerald-400"
+																>
+																	<Link href={`/procurement/incoming/${po.id}`}>
+																		<EyeIcon className="h-3.5 w-3.5" />
+																		Inspect / View
+																	</Link>
+																</Button>
+															)}
+														</TableCell>
+													</TableRow>
+												);
+											})
+										)}
+									</TableBody>
+								</Table>
+							)}
 						</div>
 					</CardContent>
 				</Card>

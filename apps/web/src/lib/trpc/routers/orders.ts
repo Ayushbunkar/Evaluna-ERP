@@ -1340,6 +1340,33 @@ export const ordersRouter = router({
 				}
 			}
 
+			const productIds = (order.orderItems ?? [])
+				.map((it) => it.product_id)
+				.filter(Boolean) as number[];
+
+			const stockMap = new Map<number, number>();
+			if (productIds.length > 0) {
+				const stocks = await db
+					.select({
+						productId: branchInventory.product_id,
+						stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
+					})
+					.from(branchInventory)
+					.where(
+						and(
+							inArray(branchInventory.product_id, productIds),
+							order.branch_id
+								? eq(branchInventory.branch_id, order.branch_id)
+								: sql`true`,
+						),
+					)
+					.groupBy(branchInventory.product_id);
+
+				for (const s of stocks) {
+					stockMap.set(s.productId, Number(s.stock));
+				}
+			}
+
 			return {
 				id: order.id,
 				orderRef: `ORD-${order.id}`,
@@ -1370,6 +1397,7 @@ export const ordersRouter = router({
 					price: Number(it.price || it.product?.price || 0),
 					basePrice: Number(it.product?.buying_price ?? 0),
 					catalogPrice: Number(it.product?.price ?? 0),
+					stock: Number(stockMap.get(it.product_id as number) ?? 0),
 				})),
 			};
 		}),
@@ -1435,6 +1463,42 @@ export const ordersRouter = router({
 							code: "BAD_REQUEST",
 							message: `Product ${it.productId} is not available.`,
 						});
+					}
+				}
+
+				// Preserve customer's initial submitted items as original_items for dashboard diffing
+				if (!existing.original_items) {
+					const prevItems = await tx
+						.select()
+						.from(orderItems)
+						.where(eq(orderItems.order_id, input.id));
+					if (prevItems.length > 0) {
+						const prodIds = prevItems
+							.map((p) => p.product_id)
+							.filter(Boolean) as number[];
+						const prods =
+							prodIds.length > 0
+								? await tx
+										.select({
+											id: products.id,
+											name: products.name,
+											sku: products.sku,
+										})
+										.from(products)
+										.where(inArray(products.id, prodIds))
+								: [];
+						const prodMap = new Map(prods.map((p) => [p.id, p]));
+						const origList = prevItems.map((pi) => ({
+							productId: pi.product_id,
+							quantity: Number(pi.quantity),
+							price: Number(pi.price),
+							name: prodMap.get(pi.product_id as number)?.name ?? "Product",
+							sku: prodMap.get(pi.product_id as number)?.sku ?? "",
+						}));
+						await tx
+							.update(orders)
+							.set({ original_items: origList })
+							.where(eq(orders.id, input.id));
 					}
 				}
 
@@ -1551,6 +1615,43 @@ export const ordersRouter = router({
 				}[];
 				if (input.items && input.items.length > 0) {
 					finalItems = input.items;
+
+					// Preserve customer's initial submitted items as original_items for dashboard diffing
+					if (!existing.original_items) {
+						const prevItems = await tx
+							.select()
+							.from(orderItems)
+							.where(eq(orderItems.order_id, input.id));
+						if (prevItems.length > 0) {
+							const prodIds = prevItems
+								.map((p) => p.product_id)
+								.filter(Boolean) as number[];
+							const prods =
+								prodIds.length > 0
+									? await tx
+											.select({
+												id: products.id,
+												name: products.name,
+												sku: products.sku,
+											})
+											.from(products)
+											.where(inArray(products.id, prodIds))
+									: [];
+							const prodMap = new Map(prods.map((p) => [p.id, p]));
+							const origList = prevItems.map((pi) => ({
+								productId: pi.product_id,
+								quantity: Number(pi.quantity),
+								price: Number(pi.price),
+								name: prodMap.get(pi.product_id as number)?.name ?? "Product",
+								sku: prodMap.get(pi.product_id as number)?.sku ?? "",
+							}));
+							await tx
+								.update(orders)
+								.set({ original_items: origList })
+								.where(eq(orders.id, input.id));
+						}
+					}
+
 					await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
 					await tx.insert(orderItems).values(
 						finalItems.map((it) => ({
@@ -1829,17 +1930,20 @@ export const ordersRouter = router({
 						.from(pickListItems)
 						.where(eq(pickListItems.pick_list_id, pl.id));
 
-					if (existingItems.length === 0) {
-						await db.insert(pickListItems).values(
-							result.items.map((it) => ({
-								pick_list_id: pl!.id,
-								product_id: it.productId,
-								quantity_ordered: it.quantity,
-								quantity_picked: 0,
-								status: "pending",
-							})),
-						);
+					if (existingItems.length > 0) {
+						await db
+							.delete(pickListItems)
+							.where(eq(pickListItems.pick_list_id, pl.id));
 					}
+					await db.insert(pickListItems).values(
+						result.items.map((it) => ({
+							pick_list_id: pl!.id,
+							product_id: it.productId,
+							quantity_ordered: it.quantity,
+							quantity_picked: 0,
+							status: "pending",
+						})),
+					);
 				}
 
 				// ── Send targeted, WMS-scoped in-app notifications to pickers & packers (Batched) ──
