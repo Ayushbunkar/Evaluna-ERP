@@ -629,7 +629,7 @@ export default function PurchaseOrdersPage() {
 
 			{/* CREATE PO MODAL DIALOG */}
 			<Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-				<DialogContent className="flex flex-col max-h-[90vh] w-[95vw] max-w-3xl min-w-0 overflow-hidden p-0 border-border bg-white dark:bg-slate-900 gap-0 sm:max-w-3xl">
+				<DialogContent className="flex flex-col max-h-[90vh] w-[95vw] max-w-2xl min-w-0 overflow-hidden p-0 border-border bg-white dark:bg-slate-900 gap-0 sm:max-w-2xl">
 					<DialogHeader className="p-4 sm:p-5 pb-2.5 border-b border-border/50 shrink-0 text-left">
 						<DialogTitle className="font-bold text-base sm:text-lg">
 							Create Purchase Order (PO)
