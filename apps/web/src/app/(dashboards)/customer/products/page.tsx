@@ -57,6 +57,96 @@ type CartItem = {
 	quantity: number;
 };
 
+function getNextDecrement(current: number): number {
+	if (current > 1) {
+		const intPart = Math.floor(current);
+		if (current - intPart > 0.001) {
+			return Number(intPart.toFixed(3));
+		}
+		return Number((current - 1).toFixed(3));
+	}
+	if (current > 0.5) {
+		return 0.5;
+	}
+	if (current > 0.25) {
+		return 0.25;
+	}
+	return 0.1;
+}
+
+function getNextIncrement(current: number): number {
+	if (current < 1) {
+		if (current < 0.25) return 0.25;
+		if (current < 0.5) return 0.5;
+		return 1;
+	}
+	return Number((current + 1).toFixed(3));
+}
+
+function DecimalQuantityInput({
+	value,
+	onChange,
+	onRemove,
+	disabled = false,
+	className = "",
+}: {
+	value: number;
+	onChange: (val: number) => void;
+	onRemove?: () => void;
+	disabled?: boolean;
+	className?: string;
+}) {
+	const [text, setText] = useState<string>(() => String(value));
+	const isFocusedRef = useRef(false);
+
+	useEffect(() => {
+		if (!isFocusedRef.current) {
+			setText(String(value));
+		}
+	}, [value]);
+
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const raw = e.target.value;
+		setText(raw);
+		const parsed = parseFloat(raw);
+		if (!isNaN(parsed) && parsed > 0) {
+			onChange(Number(parsed.toFixed(3)));
+		}
+	};
+
+	const handleBlur = () => {
+		isFocusedRef.current = false;
+		const parsed = parseFloat(text);
+		if (isNaN(parsed) || parsed <= 0) {
+			if (onRemove && (parsed === 0 || text === "0")) {
+				onRemove();
+			} else {
+				setText(String(value || 1));
+				onChange(value || 1);
+			}
+		} else {
+			const clean = Number(parsed.toFixed(3));
+			setText(String(clean));
+			onChange(clean);
+		}
+	};
+
+	return (
+		<Input
+			type="text"
+			inputMode="decimal"
+			value={text}
+			disabled={disabled}
+			onChange={handleInputChange}
+			onFocus={() => {
+				isFocusedRef.current = true;
+			}}
+			onBlur={handleBlur}
+			className={className}
+		/>
+	);
+}
+
 export default function CustomerProductsPage() {
 	const trpc = useTRPC();
 	const router = useRouter();
@@ -112,7 +202,8 @@ export default function CustomerProductsPage() {
 		[cartItemsList],
 	);
 
-	const getQty = (pid: number): number => {
+	const getCardQty = (pid: number): number => {
+		if (cart[pid]) return cart[pid].quantity;
 		const raw = quantities[pid];
 		if (raw === undefined || raw === "") return 1;
 		const parsed = typeof raw === "number" ? raw : parseFloat(raw);
@@ -126,27 +217,58 @@ export default function CustomerProductsPage() {
 		}));
 	};
 
-	const handleIncrement = (pid: number) => {
-		const current = getQty(pid);
-		const next =
-			current < 1
-				? Number((current + 0.5).toFixed(3))
-				: Number((current + 1).toFixed(3));
-		setQty(pid, next);
+	const handleCardQtyChange = (
+		product: {
+			id: number;
+			name: string;
+			sku: string | null;
+			unit: string | null;
+			price: number;
+		},
+		val: number,
+	) => {
+		if (cart[product.id]) {
+			if (val <= 0) {
+				handleRemoveFromCart(product.id);
+			} else {
+				updateCartQty(product.id, val);
+			}
+		} else {
+			setQty(product.id, val);
+		}
 	};
 
-	const handleDecrement = (pid: number) => {
-		const current = getQty(pid);
-		if (current <= 0.1) return;
-		let next: number;
-		if (current > 1) {
-			next = Number((current - 1).toFixed(3));
-		} else if (current > 0.5) {
-			next = 0.5;
+	const handleCardIncrement = (product: {
+		id: number;
+		name: string;
+		sku: string | null;
+		unit: string | null;
+		price: number;
+	}) => {
+		const current = getCardQty(product.id);
+		const next = getNextIncrement(current);
+		if (cart[product.id]) {
+			updateCartQty(product.id, next);
 		} else {
-			next = current > 0.25 ? 0.25 : 0.1;
+			setQty(product.id, next);
 		}
-		setQty(pid, next);
+	};
+
+	const handleCardDecrement = (product: {
+		id: number;
+		name: string;
+		sku: string | null;
+		unit: string | null;
+		price: number;
+	}) => {
+		const current = getCardQty(product.id);
+		if (current <= 0.1) return;
+		const next = getNextDecrement(current);
+		if (cart[product.id]) {
+			updateCartQty(product.id, next);
+		} else {
+			setQty(product.id, next);
+		}
 	};
 
 	const handleAddToCart = (product: {
@@ -156,24 +278,22 @@ export default function CustomerProductsPage() {
 		unit: string | null;
 		price: number;
 	}) => {
-		const qtyToAdd = getQty(product.id);
-		setCart((prev) => {
-			const existingQty = prev[product.id]?.quantity ?? 0;
-			const newQty = Number((existingQty + qtyToAdd).toFixed(3));
-			return {
-				...prev,
-				[product.id]: {
-					productId: product.id,
-					name: product.name,
-					sku: product.sku,
-					unit: product.unit,
-					price: product.price || 0,
-					quantity: newQty,
-				},
-			};
-		});
+		const qtyToAdd = getCardQty(product.id);
+		setCart((prev) => ({
+			...prev,
+			[product.id]: {
+				productId: product.id,
+				name: product.name,
+				sku: product.sku,
+				unit: product.unit,
+				price: product.price || 0,
+				quantity: qtyToAdd,
+			},
+		}));
 		toast.success(
-			locale === "hi" ? "आइटम ऑर्डर में जोड़ा गया!" : "Added items to order!",
+			locale === "hi"
+				? `${product.name} (${qtyToAdd}) ऑर्डर में जोड़ा गया!`
+				: `Added ${product.name} (${qtyToAdd}) to order!`,
 		);
 	};
 
@@ -200,24 +320,14 @@ export default function CustomerProductsPage() {
 	const handleCartIncrement = (pid: number) => {
 		const item = cart[pid];
 		if (!item) return;
-		const next =
-			item.quantity < 1
-				? Number((item.quantity + 0.5).toFixed(3))
-				: Number((item.quantity + 1).toFixed(3));
+		const next = getNextIncrement(item.quantity);
 		updateCartQty(pid, next);
 	};
 
 	const handleCartDecrement = (pid: number) => {
 		const item = cart[pid];
 		if (!item || item.quantity <= 0.1) return;
-		let next: number;
-		if (item.quantity > 1) {
-			next = Number((item.quantity - 1).toFixed(3));
-		} else if (item.quantity > 0.5) {
-			next = 0.5;
-		} else {
-			next = item.quantity > 0.25 ? 0.25 : 0.1;
-		}
+		const next = getNextDecrement(item.quantity);
 		updateCartQty(pid, next);
 	};
 
@@ -493,8 +603,8 @@ export default function CustomerProductsPage() {
 				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 					{(products ?? []).map((product) => {
 						const isAvailable = product.available !== false;
-						const currentQty = getQty(product.id);
 						const inCart = cart[product.id];
+						const currentQty = inCart ? inCart.quantity : getCardQty(product.id);
 						const hasOffer = Boolean(product.hasActiveOffer);
 
 						return (
@@ -629,36 +739,24 @@ export default function CustomerProductsPage() {
 												variant="ghost"
 												size="icon"
 												className="h-7 w-7 rounded-none"
-												onClick={() => handleDecrement(product.id)}
+												onClick={() => handleCardDecrement(product)}
 												disabled={currentQty <= 0.1 || !isAvailable}
-												title="Decrease quantity (supports 0.5)"
+												title="Decrease quantity (supports 0.5, 0.25)"
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<Input
-												type="number"
-												min="0.001"
-												step="any"
-												value={quantities[product.id] ?? 1}
-												onChange={(e) => {
-													setQty(product.id, e.target.value);
-												}}
-												onBlur={(e) => {
-													const val = parseFloat(e.target.value);
-													if (isNaN(val) || val <= 0) {
-														setQty(product.id, 1);
-													} else {
-														setQty(product.id, Number(val.toFixed(3)));
-													}
-												}}
-												className="h-7 w-14 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+											<DecimalQuantityInput
+												value={currentQty}
+												onChange={(val) => handleCardQtyChange(product, val)}
+												onRemove={inCart ? () => handleRemoveFromCart(product.id) : undefined}
 												disabled={!isAvailable}
+												className="h-7 w-14 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
 											/>
 											<Button
 												variant="ghost"
 												size="icon"
 												className="h-7 w-7 rounded-none"
-												onClick={() => handleIncrement(product.id)}
+												onClick={() => handleCardIncrement(product)}
 												disabled={!isAvailable}
 												title="Increase quantity"
 											>
@@ -669,14 +767,42 @@ export default function CustomerProductsPage() {
 								</CardContent>
 
 								<CardFooter className="p-4 pt-0">
-									<Button
-										className="w-full text-xs"
-										size="sm"
-										onClick={() => handleAddToCart(product)}
-										disabled={!isAvailable}
-									>
-										{inCart ? t.addMore(inCart.quantity) : t.addToOrder}
-									</Button>
+									{inCart ? (
+										<div className="flex w-full items-center gap-1.5">
+											<Button
+												className="flex-1 border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 text-xs font-semibold hover:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
+												size="sm"
+												variant="outline"
+												onClick={() => setReviewOpen(true)}
+											>
+												<CheckCircle2Icon className="mr-1.5 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+												{locale === "hi"
+													? `ऑर्डर में (${inCart.quantity})`
+													: `In Order (${inCart.quantity})`}
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+												onClick={() => handleRemoveFromCart(product.id)}
+												title={locale === "hi" ? "ऑर्डर से हटाएं" : "Remove from order"}
+											>
+												<Trash2Icon className="h-4 w-4" />
+											</Button>
+										</div>
+									) : (
+										<Button
+											className="w-full text-xs"
+											size="sm"
+											onClick={() => handleAddToCart(product)}
+											disabled={!isAvailable}
+										>
+											<PlusIcon className="mr-1 h-3.5 w-3.5" />
+											{locale === "hi"
+												? `ऑर्डर में जोड़ें (${currentQty})`
+												: `Add to Order (${currentQty})`}
+										</Button>
+									)}
 								</CardFooter>
 							</Card>
 						);
@@ -772,22 +898,15 @@ export default function CustomerProductsPage() {
 													handleCartDecrement(item.productId)
 												}
 												disabled={item.quantity <= 0.1}
-												title="Decrease quantity"
+												title="Decrease quantity (supports 0.5, 0.25)"
 											>
 												<MinusIcon className="h-3 w-3" />
 											</Button>
-											<Input
-												type="number"
-												min="0.001"
-												step="any"
+											<DecimalQuantityInput
 												value={item.quantity}
-												onChange={(e) => {
-													const val = parseFloat(e.target.value);
-													if (!isNaN(val) && val > 0) {
-														updateCartQty(item.productId, val);
-													}
-												}}
-												className="h-6 w-14 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+												onChange={(val) => updateCartQty(item.productId, val)}
+												onRemove={() => handleRemoveFromCart(item.productId)}
+												className="h-6 w-14 border-0 p-0 text-center font-semibold text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
 											/>
 											<Button
 												variant="ghost"

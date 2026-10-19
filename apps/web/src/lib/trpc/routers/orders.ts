@@ -1366,7 +1366,7 @@ export const ordersRouter = router({
 					productName: it.product?.name ?? "Unknown",
 					sku: it.product?.sku ?? "—",
 					unit: it.product?.unit ?? "pcs",
-					quantity: it.quantity,
+					quantity: Number(it.quantity),
 					price: Number(it.price || it.product?.price || 0),
 					basePrice: Number(it.product?.buying_price ?? 0),
 					catalogPrice: Number(it.product?.price ?? 0),
@@ -1556,7 +1556,7 @@ export const ordersRouter = router({
 						finalItems.map((it) => ({
 							order_id: input.id,
 							product_id: it.productId,
-							quantity: it.quantity,
+							quantity: it.quantity.toString(),
 							price: it.price.toString(),
 						})),
 					);
@@ -1567,7 +1567,7 @@ export const ordersRouter = router({
 						.where(eq(orderItems.order_id, input.id));
 					finalItems = stored.map((it) => ({
 						productId: it.product_id as number,
-						quantity: it.quantity,
+						quantity: Number(it.quantity),
 						price: Number(it.price),
 					}));
 				}

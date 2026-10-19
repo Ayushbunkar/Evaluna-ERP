@@ -631,7 +631,7 @@ export const customerRouter = router({
 						const itemPrice = Number(p.price || p.base_selling_price || 0);
 						return {
 							productId: i.productId,
-							quantity: i.quantity,
+							quantity: Number(Number(i.quantity).toFixed(3)),
 							name: p.name,
 							sku: p.sku,
 							price: itemPrice,
@@ -704,7 +704,7 @@ export const customerRouter = router({
 					cleanItems.map((i) => ({
 						order_id: order.id,
 						product_id: i.productId,
-						quantity: i.quantity,
+						quantity: i.quantity.toString(),
 						price: i.price.toFixed(2),
 					})),
 				);

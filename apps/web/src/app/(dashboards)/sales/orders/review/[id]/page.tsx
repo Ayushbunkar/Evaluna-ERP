@@ -109,7 +109,7 @@ export default function CustomerOrderReviewPage() {
 					productId: it.productId as number,
 					name: it.name || it.productName || it.product?.name || "Product",
 					unit: it.unit,
-					quantity: it.quantity,
+					quantity: Number(it.quantity),
 					price:
 						Number(it.price) > 0
 							? Number(it.price)
