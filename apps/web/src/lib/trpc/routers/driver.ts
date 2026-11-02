@@ -1,6 +1,12 @@
 import {
 	branches,
+	customers,
+	deliveryRoutes,
+	orderItems,
 	orders,
+	packages,
+	paymentMethods,
+	products,
 	salesReturnItems,
 	salesReturns,
 	staff,
@@ -16,7 +22,19 @@ import {
 	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
-import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	lte,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
@@ -110,7 +128,9 @@ type VehicleStatus = {
 	maintenanceDue: boolean;
 };
 
-async function getDriverIdentifiers(ctx: any): Promise<{ ids: string[]; numericStaffIds: number[] }> {
+async function getDriverIdentifiers(
+	ctx: any,
+): Promise<{ ids: string[]; numericStaffIds: number[] }> {
 	const currentUser = ctx.user;
 	if (!currentUser) return { ids: [], numericStaffIds: [] };
 
@@ -363,7 +383,7 @@ export const driverRouter = router({
 											},
 										},
 									},
-							  })
+								})
 							: [];
 
 					if (directOrders.length > 0) {
@@ -404,7 +424,9 @@ export const driverRouter = router({
 								rawStatus: firstOrd.status,
 								time: "--:--",
 								date: stopDate,
-								created_at: firstOrd.created_at ? String(firstOrd.created_at) : undefined,
+								created_at: firstOrd.created_at
+									? String(firstOrd.created_at)
+									: undefined,
 								address: cust?.address || firstOrd.shipping_address || "N/A",
 								customerName: cust?.name || "Customer",
 								phone: cust?.phone || null,
@@ -560,7 +582,10 @@ export const driverRouter = router({
 										"returned",
 									]),
 									trip.created_at
-										? lte(orders.created_at, new Date(new Date(trip.created_at).getTime() + 120_000))
+										? lte(
+												orders.created_at,
+												new Date(new Date(trip.created_at).getTime() + 120_000),
+											)
 										: undefined,
 								),
 								orderBy: [desc(orders.created_at)],
@@ -702,9 +727,7 @@ export const driverRouter = router({
 					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
 
 					const resolvedCustName =
-						s.customer?.name ||
-						matchingOrder?.customer?.name ||
-						"Customer";
+						s.customer?.name || matchingOrder?.customer?.name || "Customer";
 					const resolvedCustPhone =
 						s.customer?.phone ||
 						matchingOrder?.customer?.phone ||
@@ -1030,7 +1053,7 @@ export const driverRouter = router({
 										},
 									},
 								},
-						  })
+							})
 						: [];
 
 				if (directOrders.length === 0) return [];
@@ -1071,7 +1094,9 @@ export const driverRouter = router({
 						rawStatus: firstOrd.status,
 						time: "--:--",
 						date: stopDate,
-						created_at: firstOrd.created_at ? String(firstOrd.created_at) : undefined,
+						created_at: firstOrd.created_at
+							? String(firstOrd.created_at)
+							: undefined,
 						address: cust?.address || firstOrd.shipping_address || "N/A",
 						customerName: cust?.name || "Customer",
 						phone: cust?.phone || null,
@@ -1169,7 +1194,9 @@ export const driverRouter = router({
 							.where(
 								or(
 									eq(proofOfDeliveries.trip_stop_id, s.id),
-									matchingOrder ? eq(proofOfDeliveries.order_id, matchingOrder.id) : undefined,
+									matchingOrder
+										? eq(proofOfDeliveries.order_id, matchingOrder.id)
+										: undefined,
 								),
 							)
 							.orderBy(desc(proofOfDeliveries.created_at))
@@ -1177,7 +1204,10 @@ export const driverRouter = router({
 
 						if (pod?.notes) {
 							const p = JSON.parse(pod.notes);
-							if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
+							if (
+								Array.isArray(p.deliveredItems) &&
+								p.deliveredItems.length > 0
+							) {
 								podDeliveredItems = p.deliveredItems.map((it: any) => ({
 									id: it.id || Math.random(),
 									product_id: it.productId || it.id,
@@ -1187,26 +1217,28 @@ export const driverRouter = router({
 								}));
 							}
 							if (p.totalCollected || p.cashAmount || p.onlineAmount) {
-								podCollectedTotal = Number(p.totalCollected || (Number(p.cashAmount || 0) + Number(p.onlineAmount || 0)));
+								podCollectedTotal = Number(
+									p.totalCollected ||
+										Number(p.cashAmount || 0) + Number(p.onlineAmount || 0),
+								);
 							}
 						}
 					} catch (e) {}
 
-					const resolvedOrderItems = podDeliveredItems.length > 0
-						? podDeliveredItems
-						: allItems.map((item) => ({
-								id: item.id,
-								order_id: item.order_id,
-								product_id: item.product_id,
-								name: item.product?.name ?? "Product",
-								qty: item.quantity,
-								price: Number(item.price || 0),
-							}));
+					const resolvedOrderItems =
+						podDeliveredItems.length > 0
+							? podDeliveredItems
+							: allItems.map((item) => ({
+									id: item.id,
+									order_id: item.order_id,
+									product_id: item.product_id,
+									name: item.product?.name ?? "Product",
+									qty: item.quantity,
+									price: Number(item.price || 0),
+								}));
 
 					const resolvedCustName =
-						s.customer?.name ||
-						matchingOrder?.customer?.name ||
-						"Customer";
+						s.customer?.name || matchingOrder?.customer?.name || "Customer";
 					const resolvedCustPhone =
 						s.customer?.phone ||
 						matchingOrder?.customer?.phone ||
@@ -1219,10 +1251,13 @@ export const driverRouter = router({
 						"N/A";
 
 					const calculatedItemsSum = resolvedOrderItems.reduce(
-						(sum: number, it: any) => sum + Math.round(Number(it.price || 0) * Number(it.qty || 0)),
+						(sum: number, it: any) =>
+							sum + Math.round(Number(it.price || 0) * Number(it.qty || 0)),
 						0,
 					);
-					const finalAmountToCollect = podCollectedTotal || (calculatedItemsSum > 0 ? calculatedItemsSum : totalAmount);
+					const finalAmountToCollect =
+						podCollectedTotal ||
+						(calculatedItemsSum > 0 ? calculatedItemsSum : totalAmount);
 
 					const stopRawDate = s.created_at || matchingOrder?.created_at;
 					const stopDate = stopRawDate
@@ -1258,7 +1293,8 @@ export const driverRouter = router({
 							itemsCount: o.orderItems?.length || 0,
 						})),
 						amountToCollect: finalAmountToCollect,
-						packages: resolvedOrderItems.length > 0 ? resolvedOrderItems.length : 1,
+						packages:
+							resolvedOrderItems.length > 0 ? resolvedOrderItems.length : 1,
 						orderItems: resolvedOrderItems,
 					};
 				}),
@@ -1288,7 +1324,10 @@ export const driverRouter = router({
 
 			if (input?.startDate) {
 				conditions.push(
-					gte(deliveryTrips.created_at, new Date(`${input.startDate}T00:00:00`)),
+					gte(
+						deliveryTrips.created_at,
+						new Date(`${input.startDate}T00:00:00`),
+					),
 				);
 			}
 			if (input?.endDate) {
@@ -1314,184 +1353,192 @@ export const driverRouter = router({
 				},
 			});
 
-		if (!trips || trips.length === 0) return [];
+			if (!trips || trips.length === 0) return [];
 
-		return Promise.all(
-			trips.map(async (t: any) => {
-				let totalCash = 0;
-				let totalOnline = 0;
+			return Promise.all(
+				trips.map(async (t: any) => {
+					let totalCash = 0;
+					let totalOnline = 0;
 
-				if (t.collections && t.collections.length > 0) {
-					for (const c of t.collections) {
-						const amt = Number(c.amount || 0);
-						if (c.payment_method?.toLowerCase().includes("cash")) {
-							totalCash += amt;
-						} else {
-							totalOnline += amt;
-						}
-					}
-				}
-
-				const stops = await Promise.all(
-					(t.stops || []).map(async (s: any, idx: number) => {
-						const stopCollections = (t.collections || []).filter(
-							(c: any) => c.trip_id === t.id,
-						);
-						let cash = 0;
-						let online = 0;
-						for (const col of stopCollections) {
-							const amt = Number(col.amount || 0);
-							if (col.payment_method?.toLowerCase().includes("cash")) {
-								cash += amt;
+					if (t.collections && t.collections.length > 0) {
+						for (const c of t.collections) {
+							const amt = Number(c.amount || 0);
+							if (c.payment_method?.toLowerCase().includes("cash")) {
+								totalCash += amt;
 							} else {
-								online += amt;
+								totalOnline += amt;
 							}
 						}
-
-						const isDelivered =
-							s.status === "delivered" || s.status === "completed";
-
-						// Fetch POD notes / items if available
-						let deliveredItems: any[] = [];
-						let initialItems: any[] = [];
-						let stopDiscountAmount = 0;
-						let stopDiscountReason = "";
-						let stopExtraCharges = 0;
-						let stopExtraChargesReason = "";
-						try {
-							const [pod] = await db
-								.select()
-								.from(proofOfDeliveries)
-								.where(
-									or(
-										eq(proofOfDeliveries.trip_stop_id, s.id),
-										s.customer_id ? eq(proofOfDeliveries.order_id, s.customer_id) : undefined,
-									),
-								)
-								.orderBy(desc(proofOfDeliveries.created_at))
-								.limit(1);
-
-						if (pod?.notes) {
-							const p = JSON.parse(pod.notes);
-							if (Array.isArray(p.deliveredItems) && p.deliveredItems.length > 0) {
-								deliveredItems = p.deliveredItems.map((it: any) => ({
-									id: it.id || Math.random(),
-									name: it.name || it.productName || "Delivered Item",
-									qty: Number(it.qty || it.quantity || 1),
-									price: Number(it.price || it.unitPrice || 0),
-								}));
-							}
-							if (p.discountAmount || p.discountReason) {
-								stopDiscountAmount = Number(p.discountAmount || 0);
-								stopDiscountReason = String(p.discountReason || "");
-							}
-							if (p.extraCharges || p.extraChargesReason) {
-								stopExtraCharges = Number(p.extraCharges || 0);
-								stopExtraChargesReason = String(p.extraChargesReason || "");
-							}
-						}
-					} catch (e) {}
-
-					// Fallback: If no POD deliveredItems, query real orderItems for this customer/stop
-					if (deliveredItems.length === 0 && s.customer_id) {
-						try {
-							const custOrder = await db.query.orders.findFirst({
-								where: eq(orders.customer_id, s.customer_id),
-								orderBy: [desc(orders.created_at)],
-								with: {
-									orderItems: {
-										with: {
-											product: true,
-										},
-									},
-								},
-							});
-
-							if (custOrder?.orderItems && custOrder.orderItems.length > 0) {
-								deliveredItems = custOrder.orderItems.map((oi: any) => ({
-									id: oi.id,
-									name: oi.product?.name || `Product #${oi.product_id}`,
-									qty: Number(oi.quantity || 1),
-									price: Number(oi.price || 0),
-								}));
-							}
-						} catch (e) {}
 					}
 
-					// Calculate initial dispatched items
-					initialItems = deliveredItems.map((it: any) => ({ ...it }));
+					const stops = await Promise.all(
+						(t.stops || []).map(async (s: any, idx: number) => {
+							const stopCollections = (t.collections || []).filter(
+								(c: any) => c.trip_id === t.id,
+							);
+							let cash = 0;
+							let online = 0;
+							for (const col of stopCollections) {
+								const amt = Number(col.amount || 0);
+								if (col.payment_method?.toLowerCase().includes("cash")) {
+									cash += amt;
+								} else {
+									online += amt;
+								}
+							}
+
+							const isDelivered =
+								s.status === "delivered" || s.status === "completed";
+
+							// Fetch POD notes / items if available
+							let deliveredItems: any[] = [];
+							let initialItems: any[] = [];
+							let stopDiscountAmount = 0;
+							let stopDiscountReason = "";
+							let stopExtraCharges = 0;
+							let stopExtraChargesReason = "";
+							try {
+								const [pod] = await db
+									.select()
+									.from(proofOfDeliveries)
+									.where(
+										or(
+											eq(proofOfDeliveries.trip_stop_id, s.id),
+											s.customer_id
+												? eq(proofOfDeliveries.order_id, s.customer_id)
+												: undefined,
+										),
+									)
+									.orderBy(desc(proofOfDeliveries.created_at))
+									.limit(1);
+
+								if (pod?.notes) {
+									const p = JSON.parse(pod.notes);
+									if (
+										Array.isArray(p.deliveredItems) &&
+										p.deliveredItems.length > 0
+									) {
+										deliveredItems = p.deliveredItems.map((it: any) => ({
+											id: it.id || Math.random(),
+											name: it.name || it.productName || "Delivered Item",
+											qty: Number(it.qty || it.quantity || 1),
+											price: Number(it.price || it.unitPrice || 0),
+										}));
+									}
+									if (p.discountAmount || p.discountReason) {
+										stopDiscountAmount = Number(p.discountAmount || 0);
+										stopDiscountReason = String(p.discountReason || "");
+									}
+									if (p.extraCharges || p.extraChargesReason) {
+										stopExtraCharges = Number(p.extraCharges || 0);
+										stopExtraChargesReason = String(p.extraChargesReason || "");
+									}
+								}
+							} catch (e) {}
+
+							// Fallback: If no POD deliveredItems, query real orderItems for this customer/stop
+							if (deliveredItems.length === 0 && s.customer_id) {
+								try {
+									const custOrder = await db.query.orders.findFirst({
+										where: eq(orders.customer_id, s.customer_id),
+										orderBy: [desc(orders.created_at)],
+										with: {
+											orderItems: {
+												with: {
+													product: true,
+												},
+											},
+										},
+									});
+
+									if (
+										custOrder?.orderItems &&
+										custOrder.orderItems.length > 0
+									) {
+										deliveredItems = custOrder.orderItems.map((oi: any) => ({
+											id: oi.id,
+											name: oi.product?.name || `Product #${oi.product_id}`,
+											qty: Number(oi.quantity || 1),
+											price: Number(oi.price || 0),
+										}));
+									}
+								} catch (e) {}
+							}
+
+							// Calculate initial dispatched items
+							initialItems = deliveredItems.map((it: any) => ({ ...it }));
+
+							return {
+								stopId: s.id,
+								sequence: idx + 1,
+								customerName: s.customer?.name || "Customer",
+								customerPhone: s.customer?.phone || "N/A",
+								address: s.customer?.address || "N/A",
+								orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
+								status: isDelivered
+									? "Delivered"
+									: s.status === "failed"
+										? "Failed"
+										: "Pending",
+								cashCollected: cash,
+								onlineCollected: online,
+								discountAmount: stopDiscountAmount,
+								discountReason: stopDiscountReason,
+								extraCharges: stopExtraCharges,
+								extraChargesReason: stopExtraChargesReason,
+								deliveredAt: isDelivered
+									? s.resolved_at
+										? new Date(s.resolved_at).toLocaleTimeString()
+										: new Date().toLocaleTimeString()
+									: "—",
+								items: deliveredItems,
+								deliveredItems,
+								initialItems,
+							};
+						}),
+					);
+
+					const completedStops = stops.filter(
+						(s: any) => s.status === "Delivered",
+					).length;
+					const totalStops = stops.length;
+					const isTripCompleted =
+						(completedStops === totalStops && totalStops > 0) ||
+						t.status === "completed";
+
+					totalCash = stops.reduce(
+						(acc: number, st: any) => acc + st.cashCollected,
+						0,
+					);
+					totalOnline = stops.reduce(
+						(acc: number, st: any) => acc + st.onlineCollected,
+						0,
+					);
 
 					return {
-						stopId: s.id,
-						sequence: idx + 1,
-						customerName: s.customer?.name || "Customer",
-						customerPhone: s.customer?.phone || "N/A",
-						address: s.customer?.address || "N/A",
-						orderRef: `ORD-${s.customer_id ? s.customer_id * 10 + 440 : s.id}`,
-						status: isDelivered
-							? "Delivered"
-							: s.status === "failed"
-								? "Failed"
-								: "Pending",
-						cashCollected: cash,
-						onlineCollected: online,
-						discountAmount: stopDiscountAmount,
-						discountReason: stopDiscountReason,
-						extraCharges: stopExtraCharges,
-						extraChargesReason: stopExtraChargesReason,
-						deliveredAt: isDelivered
-							? s.resolved_at
-								? new Date(s.resolved_at).toLocaleTimeString()
-								: new Date().toLocaleTimeString()
-							: "—",
-						items: deliveredItems,
-						deliveredItems,
-						initialItems,
+						id: t.id,
+						tripNumber: `TRIP-#${t.id}`,
+						routeName: t.route?.name || `Route #${t.id}`,
+						vehiclePlate: t.vehicle?.registration_number || "MP04AB1234",
+						driverName: t.driver?.name || ctx.user?.name || "Rajesh Kumar",
+						status: isTripCompleted
+							? "Completed"
+							: t.status === "cancelled"
+								? "Cancelled"
+								: "In Progress",
+						date: t.created_at
+							? new Date(t.created_at).toLocaleDateString()
+							: new Date().toLocaleDateString(),
+						totalStops,
+						completedStops,
+						totalCashCollected: totalCash,
+						totalOnlineCollected: totalOnline,
+						totalCollected: totalCash + totalOnline,
+						stops,
 					};
-					}),
-				);
-
-				const completedStops = stops.filter(
-					(s: any) => s.status === "Delivered",
-				).length;
-				const totalStops = stops.length;
-				const isTripCompleted =
-					(completedStops === totalStops && totalStops > 0) ||
-					t.status === "completed";
-
-				totalCash = stops.reduce(
-					(acc: number, st: any) => acc + st.cashCollected,
-					0,
-				);
-				totalOnline = stops.reduce(
-					(acc: number, st: any) => acc + st.onlineCollected,
-					0,
-				);
-
-				return {
-					id: t.id,
-					tripNumber: `TRIP-#${t.id}`,
-					routeName: t.route?.name || `Route #${t.id}`,
-					vehiclePlate: t.vehicle?.registration_number || "MP04AB1234",
-					driverName: t.driver?.name || ctx.user?.name || "Rajesh Kumar",
-					status: isTripCompleted
-						? "Completed"
-						: t.status === "cancelled"
-							? "Cancelled"
-							: "In Progress",
-					date: t.created_at
-						? new Date(t.created_at).toLocaleDateString()
-						: new Date().toLocaleDateString(),
-					totalStops,
-					completedStops,
-					totalCashCollected: totalCash,
-					totalOnlineCollected: totalOnline,
-					totalCollected: totalCash + totalOnline,
-					stops,
-				};
-			}),
-		);
-	}),
+				}),
+			);
+		}),
 
 	updateStopStatus: protectedProcedure
 		.input(
@@ -1709,7 +1756,7 @@ export const driverRouter = router({
 						if (orderRecord) {
 							const returnTotal = (input.damagedOrReturnedItems || []).reduce(
 								(acc, it) =>
-									acc + (Number(it.price || 0) * (Number(it.qty) || 0)),
+									acc + Number(it.price || 0) * (Number(it.qty) || 0),
 								0,
 							);
 							const [insertedReturn] = await db
@@ -1741,8 +1788,7 @@ export const driverRouter = router({
 												? "damaged"
 												: "good",
 											reason:
-												item.reason ||
-												"Customer Refused / Delivery Return",
+												item.reason || "Customer Refused / Delivery Return",
 										});
 									}
 								}
@@ -1832,7 +1878,9 @@ export const driverRouter = router({
 					});
 					if (allStopsForTrip.length > 0) {
 						const allFinished = allStopsForTrip.every((s: any) =>
-							["delivered", "completed", "skipped", "failed"].includes(s.status),
+							["delivered", "completed", "skipped", "failed"].includes(
+								s.status,
+							),
 						);
 						if (allFinished) {
 							await db
@@ -1920,7 +1968,10 @@ export const driverRouter = router({
 
 				// If we have a targetTripId, find vehicle and plate if not already found
 				let targetVehicleId = input?.vehicle_id ?? null;
-				if (targetTripId && (!targetVehicleId || vehiclePlate === "Assigned Vehicle")) {
+				if (
+					targetTripId &&
+					(!targetVehicleId || vehiclePlate === "Assigned Vehicle")
+				) {
 					const tripObj = await db.query.deliveryTrips.findFirst({
 						where: eq(deliveryTrips.id, targetTripId),
 						with: { vehicle: true },
@@ -2159,4 +2210,326 @@ export const driverRouter = router({
 			},
 		];
 	}),
+
+	lookupOrderByScan: protectedProcedure
+		.input(
+			z.object({
+				code: z.string().min(1, "Please provide a barcode or QR code"),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const rawCode = input.code.trim();
+			if (!rawCode) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Invalid or empty scan code",
+				});
+			}
+
+			// Try to parse JSON if QR contains a JSON payload
+			let pkgCode = rawCode;
+			let orderNum: number | null = null;
+
+			if (rawCode.startsWith("{") && rawCode.endsWith("}")) {
+				try {
+					const parsed = JSON.parse(rawCode);
+					if (parsed.pkg || parsed.packageNumber || parsed.package_number) {
+						pkgCode = String(
+							parsed.pkg || parsed.packageNumber || parsed.package_number,
+						).trim();
+					}
+					if (
+						parsed.orderId ||
+						parsed.order_id ||
+						parsed.orderRef ||
+						parsed.order
+					) {
+						const o = String(
+							parsed.orderId ||
+								parsed.order_id ||
+								parsed.orderRef ||
+								parsed.order,
+						);
+						const num = Number.parseInt(o.replace(/\D/g, ""), 10);
+						if (!Number.isNaN(num)) orderNum = num;
+					}
+				} catch {
+					// Not valid JSON, continue with string search
+				}
+			}
+
+			// 1. Try finding package by package_number (case-insensitive)
+			let foundPackage: any = null;
+			let targetOrderId: number | null = orderNum;
+
+			const packageResults = await db
+				.select()
+				.from(packages)
+				.where(
+					sql`LOWER(TRIM(${packages.package_number})) = LOWER(TRIM(${pkgCode}))`,
+				)
+				.limit(1);
+
+			if (packageResults.length > 0) {
+				foundPackage = packageResults[0];
+				targetOrderId = foundPackage.order_id;
+			}
+
+			// 2. If not found by package_number, check if code is an order ref: "ORD-123", "ORD123", or pure digits "123"
+			if (!targetOrderId) {
+				const cleaned = rawCode.toUpperCase();
+				if (
+					cleaned.startsWith("ORD-") ||
+					cleaned.startsWith("ORD") ||
+					/^\d+$/.test(cleaned)
+				) {
+					const num = Number.parseInt(cleaned.replace(/\D/g, ""), 10);
+					if (!Number.isNaN(num)) {
+						targetOrderId = num;
+					}
+				}
+			}
+
+			// 3. Fallback partial package number search
+			if (!targetOrderId) {
+				const partialPackages = await db
+					.select()
+					.from(packages)
+					.where(ilike(packages.package_number, `%${rawCode}%`))
+					.limit(1);
+
+				if (partialPackages.length > 0) {
+					foundPackage = partialPackages[0];
+					targetOrderId = foundPackage.order_id;
+				}
+			}
+
+			if (!targetOrderId) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `No package or order found matching code: "${rawCode}"`,
+				});
+			}
+
+			// Query full order
+			const [orderRow] = await db
+				.select()
+				.from(orders)
+				.where(eq(orders.id, targetOrderId))
+				.limit(1);
+
+			if (!orderRow) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: `Order #${targetOrderId} not found for scanned code.`,
+				});
+			}
+
+			// If package wasn't found before, look up package by order_id
+			if (!foundPackage) {
+				const [pkg] = await db
+					.select()
+					.from(packages)
+					.where(eq(packages.order_id, targetOrderId))
+					.orderBy(desc(packages.created_at))
+					.limit(1);
+				if (pkg) foundPackage = pkg;
+			}
+
+			// Fetch Customer
+			let customerRow: any = null;
+			if (orderRow.customer_id) {
+				const [c] = await db
+					.select()
+					.from(customers)
+					.where(eq(customers.id, orderRow.customer_id))
+					.limit(1);
+				customerRow = c;
+			}
+
+			// Fetch Items with Products
+			const itemsData = await db
+				.select({
+					id: orderItems.id,
+					productId: orderItems.product_id,
+					quantity: orderItems.quantity,
+					price: orderItems.price,
+					cgstRate: orderItems.cgst_rate,
+					sgstRate: orderItems.sgst_rate,
+					cgstAmount: orderItems.cgst_amount,
+					sgstAmount: orderItems.sgst_amount,
+					name: products.name,
+					sku: products.sku,
+					unit: products.unit,
+				})
+				.from(orderItems)
+				.leftJoin(products, eq(orderItems.product_id, products.id))
+				.where(eq(orderItems.order_id, targetOrderId));
+
+			// Fetch Packed by staff name
+			let packedByName = "Warehouse Staff";
+			if (foundPackage?.packed_by) {
+				const [st] = await db
+					.select({ name: staff.name })
+					.from(staff)
+					.where(eq(staff.id, foundPackage.packed_by))
+					.limit(1);
+				if (st?.name) packedByName = st.name;
+			}
+
+			// Fetch Assigned Driver staff name
+			let driverName = "Unassigned";
+			if (orderRow.driver_id) {
+				const [dSt] = await db
+					.select({ name: staff.name })
+					.from(staff)
+					.where(eq(staff.id, orderRow.driver_id))
+					.limit(1);
+				if (dSt?.name) driverName = dSt.name;
+			}
+
+			// Fetch Payment Method name
+			let paymentMethodName = "Cash on Delivery";
+			if (orderRow.payment_method_id) {
+				const [pm] = await db
+					.select({ name: paymentMethods.name })
+					.from(paymentMethods)
+					.where(eq(paymentMethods.id, orderRow.payment_method_id))
+					.limit(1);
+				if (pm?.name) paymentMethodName = pm.name;
+			}
+
+			// Fetch Route & Trip Info if available
+			let routeName: string | null = null;
+			let vehiclePlate: string | null = null;
+			let tripId: number | null = null;
+			let tripStatus: string | null = null;
+			if (orderRow.customer_id) {
+				try {
+					const [stop] = await db
+						.select({
+							tripId: deliveryTrips.id,
+							tripStatus: deliveryTrips.status,
+							routeName: deliveryRoutes.name,
+							vehiclePlate: vehicles.registration_number,
+						})
+						.from(tripStops)
+						.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
+						.leftJoin(
+							deliveryRoutes,
+							eq(deliveryRoutes.id, deliveryTrips.route_id),
+						)
+						.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
+						.where(
+							and(
+								eq(tripStops.customer_id, orderRow.customer_id),
+								inArray(deliveryTrips.status, ["pending", "active"]),
+							),
+						)
+						.limit(1);
+
+					if (stop) {
+						tripId = stop.tripId;
+						tripStatus = stop.tripStatus;
+						routeName = stop.routeName;
+						vehiclePlate = stop.vehiclePlate;
+					}
+				} catch {
+					// Fallback ignored
+				}
+			}
+
+			// Calculate item subtotals and overall bill
+			const items = itemsData.map((it) => {
+				const qty = Number(it.quantity || 0);
+				const rate = Number(it.price || 0);
+				const itemTotal = Math.round(qty * rate * 100) / 100;
+				return {
+					id: it.id,
+					productId: it.productId,
+					name: it.name || `Product #${it.productId}`,
+					sku: it.sku || "N/A",
+					unit: it.unit || "PCS",
+					quantity: qty,
+					price: rate,
+					itemTotal,
+					cgstRate: Number(it.cgstRate || 0),
+					sgstRate: Number(it.sgstRate || 0),
+				};
+			});
+
+			const subtotal = items.reduce((acc, it) => acc + it.itemTotal, 0);
+			const discountAmount = Number(orderRow.discount_amount || 0);
+			const otherCharges = Number(orderRow.other_charges || 0);
+			const cgstAmount = Number(orderRow.cgst_amount || 0);
+			const sgstAmount = Number(orderRow.sgst_amount || 0);
+			const igstAmount = Number(orderRow.igst_amount || 0);
+			const totalTax = cgstAmount + sgstAmount + igstAmount;
+			const totalAmount = Number(
+				orderRow.total_amount ||
+					subtotal - discountAmount + otherCharges + totalTax,
+			);
+
+			// Determine payment status
+			const isDeliveredOrComplete =
+				orderRow.status === "completed" ||
+				orderRow.status === "delivered" ||
+				orderRow.finance_status === "verified" ||
+				(Number(orderRow.driver_collected_amount || 0) >= totalAmount &&
+					totalAmount > 0);
+
+			return {
+				success: true,
+				order: {
+					id: orderRow.id,
+					orderNumber: `ORD-${orderRow.id}`,
+					status: orderRow.status || "pending",
+					createdAt: orderRow.created_at,
+					subtotal: Math.round(subtotal * 100) / 100,
+					discountAmount,
+					discountReason: orderRow.discount_reason,
+					otherCharges,
+					otherChargesReason: orderRow.other_charges_reason,
+					cgstAmount,
+					sgstAmount,
+					igstAmount,
+					totalTax,
+					totalAmount: Math.round(totalAmount * 100) / 100,
+					paymentMethod: paymentMethodName,
+					paymentStatus: isDeliveredOrComplete
+						? "Paid"
+						: "Pending Collection / COD",
+					isPaid: isDeliveredOrComplete,
+					driverCollectedAmount: Number(orderRow.driver_collected_amount || 0),
+					financeStatus: orderRow.finance_status || "pending_collection",
+				},
+				customer: {
+					id: customerRow?.id ?? null,
+					name: customerRow?.name || "Customer",
+					phone: customerRow?.phone || "N/A",
+					email: customerRow?.email || "",
+					address: customerRow?.address || "Delivery Address on File",
+					city: customerRow?.city || "",
+					pincode: customerRow?.pincode || "",
+				},
+				package: {
+					packageNumber:
+						foundPackage?.package_number || `PKG-ORD-${orderRow.id}`,
+					status: foundPackage?.status || "packed",
+					weight: foundPackage?.weight ? Number(foundPackage.weight) : null,
+					dimensions: foundPackage?.dimensions || "Standard Box",
+					packedBy: packedByName,
+					packedAt: foundPackage?.packed_at || null,
+					notes: foundPackage?.notes || null,
+				},
+				items,
+				deliveryInfo: {
+					driverName,
+					routeName: routeName || "Direct Dispatch",
+					vehiclePlate: vehiclePlate || "N/A",
+					tripId,
+					tripStatus,
+				},
+			};
+		}),
 });

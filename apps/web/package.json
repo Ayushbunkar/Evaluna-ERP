@@ -67,6 +67,8 @@
 		"next-intl": "^4.13.2",
 		"next-themes": "^0.4.6",
 		"postgres": "^3.4.5",
+		"qrcode": "^1.5.4",
+		"@types/qrcode": "^1.5.5",
 		"react": "catalog:",
 		"react-barcode": "^1.6.1",
 		"react-dom": "catalog:",

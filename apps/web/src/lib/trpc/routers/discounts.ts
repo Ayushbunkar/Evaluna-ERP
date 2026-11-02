@@ -4,7 +4,7 @@ import {
 	priceChangeHistory,
 	products,
 } from "@evaluna/db/schema";
-import { and, asc, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
@@ -27,8 +27,7 @@ export const discountsRouter = router({
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const targetDate =
-				input?.date || new Date().toISOString().split("T")[0];
+			const targetDate = input?.date || new Date().toISOString().split("T")[0];
 			const search = input?.search?.trim()?.toLowerCase();
 			const category = input?.category;
 			const branchId = input?.branchId || ctx.user?.branchId || 1;
@@ -101,7 +100,7 @@ export const discountsRouter = router({
 				discountMap.set(disc.product_id, disc);
 			}
 
-			return productRows.map((p) => {
+			const mapped = productRows.map((p) => {
 				const originalPriceNum = Number.parseFloat(p.price || "0");
 				const activeDiscount = discountMap.get(p.id);
 
@@ -149,6 +148,14 @@ export const discountsRouter = router({
 						: null,
 				};
 			});
+
+			if (input?.status === "active") {
+				return mapped.filter((p) => p.hasActiveOffer);
+			}
+			if (input?.status === "no_offer") {
+				return mapped.filter((p) => !p.hasActiveOffer);
+			}
+			return mapped;
 		}),
 
 	/**
@@ -163,8 +170,7 @@ export const discountsRouter = router({
 				.optional(),
 		)
 		.query(async ({ input }) => {
-			const targetDate =
-				input?.date || new Date().toISOString().split("T")[0];
+			const targetDate = input?.date || new Date().toISOString().split("T")[0];
 
 			const activeOffers = await db
 				.select({
@@ -222,7 +228,7 @@ export const discountsRouter = router({
 				notes: z.string().optional().nullable(),
 			}),
 		)
-		.mutation(async ({ ctx, input }) => {
+		.mutation(async ({ input }) => {
 			const {
 				productId,
 				branchId,
@@ -273,7 +279,7 @@ export const discountsRouter = router({
 					)
 					.limit(1);
 
-				let savedOffer;
+				let savedOffer: typeof dailyProductDiscounts.$inferSelect | undefined;
 				if (existingOffer) {
 					const [updated] = await tx
 						.update(dailyProductDiscounts)
@@ -347,7 +353,7 @@ export const discountsRouter = router({
 				date: z.string().optional(),
 			}),
 		)
-		.mutation(async ({ ctx, input }) => {
+		.mutation(async ({ input }) => {
 			const { offerId, productId, date } = input;
 
 			if (offerId) {

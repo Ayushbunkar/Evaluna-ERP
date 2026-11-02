@@ -47,6 +47,7 @@ import {
 	ZapIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
@@ -68,7 +69,9 @@ export default function PackerPendingPage() {
 
 	const claimPackMutation = trpc.packer.claimNextPackTask.useMutation({
 		onSuccess: (data) => {
-			toast.success(`Claimed parcel ${data.parcel.order_ref} from packing queue!`);
+			toast.success(
+				`Claimed parcel ${data.parcel.order_ref} from packing queue!`,
+			);
 			setSelectedPickList(data.parcel);
 		},
 		onError: (err) => {
@@ -90,6 +93,7 @@ export default function PackerPendingPage() {
 		items?: Array<{ productName: string; sku: string; quantity: number }>;
 	} | null>(null);
 	const printSvgRef = useRef<SVGSVGElement | null>(null);
+	const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
 
 	const packMutation = trpc.packer.packOrder.useMutation({
 		onSuccess: (data) => {
@@ -136,6 +140,17 @@ export default function PackerPendingPage() {
 			}
 		}
 	}, [printPackage]);
+	useEffect(() => {
+		if (printPackage?.number) {
+			QRCode.toDataURL(
+				printPackage.number,
+				{ width: 140, margin: 1, color: { dark: "#000000", light: "#ffffff" } },
+				(err, url) => {
+					if (!err && url) setQrCodeDataUrl(url);
+				},
+			);
+		}
+	}, [printPackage]);
 
 	const [selectedPickList, setSelectedPickList] = useState<any | null>(null);
 	const [weight, setWeight] = useState("1.5");
@@ -169,13 +184,13 @@ export default function PackerPendingPage() {
 				{printPackage && (
 					<div className="mx-auto max-w-[580px] rounded-lg border-2 border-black p-6 font-sans text-black shadow-none">
 						{/* Header */}
-						<div className="mb-5 flex items-start justify-between border-b-2 border-black pb-4">
+						<div className="mb-5 flex items-start justify-between border-black border-b-2 pb-4">
 							<div className="flex items-center gap-3">
 								<div className="flex h-10 w-10 items-center justify-center rounded-md border border-black bg-black text-white">
 									<Building2Icon className="h-6 w-6" />
 								</div>
 								<div>
-									<h1 className="font-extrabold text-2xl tracking-tight text-black">
+									<h1 className="font-extrabold text-2xl text-black tracking-tight">
 										EVALUNA LOGISTICS
 									</h1>
 									<p className="text-gray-600 text-xs">
@@ -184,11 +199,11 @@ export default function PackerPendingPage() {
 								</div>
 							</div>
 							<div className="text-right">
-								<p className="inline-flex items-center gap-1.5 rounded bg-black px-2.5 py-1 font-bold text-xs text-white uppercase tracking-wider">
+								<p className="inline-flex items-center gap-1.5 rounded bg-black px-2.5 py-1 font-bold text-white text-xs uppercase tracking-wider">
 									<PackageIcon className="h-3.5 w-3.5" />
 									SHIPPING LABEL
 								</p>
-								<p className="mt-1 font-bold font-mono text-xs text-black">
+								<p className="mt-1 font-bold font-mono text-black text-xs">
 									Ref: {printPackage.orderRef}
 								</p>
 							</div>
@@ -197,14 +212,14 @@ export default function PackerPendingPage() {
 						{/* Grid for details - Ship To & Parcel Specs only */}
 						<div className="mb-6 grid grid-cols-2 gap-4 text-xs">
 							{/* Ship To Box */}
-							<div className="rounded-lg border-2 border-black/80 bg-gray-50/50 p-3.5 space-y-2">
-								<p className="border-b border-gray-300 pb-1.5 font-bold text-black text-xs uppercase tracking-wide flex items-center gap-1.5">
+							<div className="space-y-2 rounded-lg border-2 border-black/80 bg-gray-50/50 p-3.5">
+								<p className="flex items-center gap-1.5 border-gray-300 border-b pb-1.5 font-bold text-black text-xs uppercase tracking-wide">
 									<TruckIcon className="h-4 w-4 text-black" />
 									SHIP TO / RECIPIENT
 								</p>
 								<div className="flex items-center gap-1.5">
 									<UserIcon className="h-3.5 w-3.5 shrink-0 text-gray-700" />
-									<span className="font-extrabold text-sm text-black">
+									<span className="font-extrabold text-black text-sm">
 										{printPackage.customerName || "Customer"}
 									</span>
 								</div>
@@ -215,11 +230,14 @@ export default function PackerPendingPage() {
 									</div>
 								)}
 								<div className="flex items-start gap-1.5 text-gray-700 leading-relaxed">
-									<MapPinIcon className="h-3.5 w-3.5 shrink-0 text-gray-700 mt-0.5" />
-									<span>{printPackage.customerAddress || "Standard Warehouse Delivery"}</span>
+									<MapPinIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-700" />
+									<span>
+										{printPackage.customerAddress ||
+											"Standard Warehouse Delivery"}
+									</span>
 								</div>
 								{printPackage.routeName && (
-									<div className="flex items-center gap-1.5 font-semibold text-gray-800 pt-1 border-t border-gray-200">
+									<div className="flex items-center gap-1.5 border-gray-200 border-t pt-1 font-semibold text-gray-800">
 										<RouteIcon className="h-3.5 w-3.5 shrink-0 text-gray-700" />
 										<span>Route: {printPackage.routeName}</span>
 									</div>
@@ -233,8 +251,8 @@ export default function PackerPendingPage() {
 							</div>
 
 							{/* Parcel Specs Box */}
-							<div className="rounded-lg border-2 border-black/80 bg-gray-50/50 p-3.5 space-y-2">
-								<p className="border-b border-gray-300 pb-1.5 font-bold text-black text-xs uppercase tracking-wide flex items-center gap-1.5">
+							<div className="space-y-2 rounded-lg border-2 border-black/80 bg-gray-50/50 p-3.5">
+								<p className="flex items-center gap-1.5 border-gray-300 border-b pb-1.5 font-bold text-black text-xs uppercase tracking-wide">
 									<PackageIcon className="h-4 w-4 text-black" />
 									PARCEL SPECIFICATIONS
 								</p>
@@ -243,50 +261,77 @@ export default function PackerPendingPage() {
 										<TagIcon className="h-3 w-3 text-gray-600" />
 										Package #:
 									</span>
-									<span className="font-bold text-black">{printPackage.number}</span>
+									<span className="font-bold text-black">
+										{printPackage.number}
+									</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="flex items-center gap-1 text-gray-700">
 										<ScaleIcon className="h-3 w-3 text-gray-600" />
 										Weight:
 									</span>
-									<span className="font-bold text-black">{printPackage.weight} kg</span>
+									<span className="font-bold text-black">
+										{printPackage.weight} kg
+									</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="flex items-center gap-1 text-gray-700">
 										<BoxIcon className="h-3 w-3 text-gray-600" />
 										Box Size:
 									</span>
-									<span className="font-bold text-black">{printPackage.dimensions}</span>
+									<span className="font-bold text-black">
+										{printPackage.dimensions}
+									</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="flex items-center gap-1 text-gray-700">
 										<CalendarIcon className="h-3 w-3 text-gray-600" />
 										Date:
 									</span>
-									<span className="font-medium text-black">{new Date().toLocaleDateString()}</span>
+									<span className="font-medium text-black">
+										{new Date().toLocaleDateString()}
+									</span>
 								</div>
-								<div className="flex items-center justify-between pt-1 border-t border-gray-200">
+								<div className="flex items-center justify-between border-gray-200 border-t pt-1">
 									<span className="flex items-center gap-1 text-gray-700">
 										<ShieldCheckIcon className="h-3.5 w-3.5 text-emerald-700" />
 										Status:
 									</span>
-									<span className="font-semibold text-emerald-700">Passed & Verified</span>
+									<span className="font-semibold text-emerald-700">
+										Passed & Verified
+									</span>
 								</div>
 							</div>
 						</div>
 
 						{/* Barcode Shipment Sticker */}
-						<div className="flex flex-col items-center justify-center border-t-2 border-black pt-4">
+						<div className="flex flex-col items-center justify-center border-black border-t-2 pt-4">
 							<p className="mb-1.5 font-bold text-[11px] text-gray-700 tracking-wider">
-								SCAN BARCODE TO CONFIRM LOADING / DELIVERY
+								SCAN BARCODE OR QR CODE FOR INSTANT ORDER & BILL
 							</p>
-							<div className="bg-white p-1">
-								<svg ref={printSvgRef} className="my-1 max-w-full" />
+							<div className="flex flex-wrap items-center justify-center gap-6 bg-white p-2">
+								<div className="flex flex-col items-center">
+									<svg ref={printSvgRef} className="my-1 max-w-[240px]" />
+									<span className="font-bold font-mono text-[10px] text-gray-800">
+										{printPackage.number}
+									</span>
+								</div>
+								{qrCodeDataUrl && (
+									<div className="flex flex-col items-center rounded border-2 border-black bg-white p-1.5">
+										<img
+											src={qrCodeDataUrl}
+											alt="QR Code"
+											className="h-20 w-20 object-contain"
+										/>
+										<span className="font-bold font-mono text-[9px] text-black uppercase tracking-wide">
+											Driver QR
+										</span>
+									</div>
+								)}
 							</div>
-							<p className="mt-2 text-[10px] font-semibold text-gray-600 tracking-wide flex items-center gap-1">
+							<p className="mt-2 flex items-center gap-1 font-semibold text-[10px] text-gray-600 tracking-wide">
 								<ShieldCheckIcon className="h-3 w-3 text-gray-600" />
-								PACKED & VERIFIED BY EVALUNA LOGISTICS SYSTEM
+								PACKED & VERIFIED BY EVALUNA LOGISTICS • DRIVER APP COMPLIANT
 							</p>
 						</div>
 					</div>
@@ -306,12 +351,18 @@ export default function PackerPendingPage() {
 				</div>
 				<div className="flex items-center gap-2">
 					<Button
-						className="bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-sm"
-						disabled={claimPackMutation.isPending || !pendingList || pendingList.length === 0}
+						className="bg-emerald-600 font-semibold text-white shadow-sm hover:bg-emerald-700"
+						disabled={
+							claimPackMutation.isPending ||
+							!pendingList ||
+							pendingList.length === 0
+						}
 						onClick={() => claimPackMutation.mutate()}
 					>
 						<ZapIcon className="mr-2 h-4 w-4" />
-						{claimPackMutation.isPending ? "Claiming Parcel..." : "Claim & Pack Next Parcel"}
+						{claimPackMutation.isPending
+							? "Claiming Parcel..."
+							: "Claim & Pack Next Parcel"}
 					</Button>
 				</div>
 			</div>
@@ -430,7 +481,7 @@ export default function PackerPendingPage() {
 								<TableBody>
 									{filteredList.map((pl, idx) => (
 										<TableRow key={pl.id} className="hover:bg-muted/50">
-											<TableCell className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
+											<TableCell className="font-bold font-mono text-blue-600 text-xs dark:text-blue-400">
 												#{idx + 1}
 											</TableCell>
 											<TableCell className="font-mono font-semibold text-xs">
@@ -439,7 +490,7 @@ export default function PackerPendingPage() {
 											<TableCell className="font-semibold text-sm">
 												{pl.order_ref}
 											</TableCell>
-											<TableCell className="font-medium text-xs text-foreground">
+											<TableCell className="font-medium text-foreground text-xs">
 												<div className="flex items-center gap-1.5">
 													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
 													<span className="font-semibold text-gray-900 dark:text-gray-100">

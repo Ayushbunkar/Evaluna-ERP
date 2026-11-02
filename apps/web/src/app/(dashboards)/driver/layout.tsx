@@ -1,12 +1,13 @@
 "use client";
 
+import { Button } from "@evaluna/ui/components/button";
 import {
 	Headphones,
-	Hexagon,
 	History,
 	IndianRupee,
 	LayoutDashboard,
 	Navigation,
+	QrCode,
 	Truck,
 	User,
 	X,
@@ -15,7 +16,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { Button } from "@evaluna/ui/components/button";
 import { DriverProfileModal } from "./driver-profile-modal";
 
 export default function DriverLayout({
@@ -36,6 +36,11 @@ export default function DriverLayout({
 			href: "/driver/delivery",
 			label: "Live Delivery & Bill",
 			icon: IndianRupee,
+		},
+		{
+			href: "/driver/scanner",
+			label: "Scan Package / Bill",
+			icon: QrCode,
 		},
 		{ href: "/driver/history", label: "Delivery History", icon: History },
 		{ href: "/driver/vehicle", label: "Vehicle Status", icon: Truck },
@@ -81,11 +86,11 @@ export default function DriverLayout({
 							<li key={item.href}>
 								<Link
 									href={item.href}
-									onClick={(e) => {
+									onClick={(_e) => {
 										setMobileMenuOpen(false);
 										router.push(item.href);
 									}}
-									className={`flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors cursor-pointer select-none active:scale-[0.98] ${
+									className={`flex w-full cursor-pointer select-none items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors active:scale-[0.98] ${
 										isActive
 											? "bg-blue-50 font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
 											: "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -93,7 +98,9 @@ export default function DriverLayout({
 								>
 									<Icon
 										className={`h-5 w-5 shrink-0 ${
-											isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-400"
+											isActive
+												? "text-blue-600 dark:text-blue-400"
+												: "text-gray-400"
 										}`}
 									/>
 									<span className="ml-3 truncate">{item.label}</span>
@@ -105,11 +112,12 @@ export default function DriverLayout({
 					{/* Custom Profile Trigger in Sidebar */}
 					<li>
 						<button
+							type="button"
 							onClick={() => {
 								setMobileMenuOpen(false);
 								setProfileOpen(true);
 							}}
-							className="flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
+							className="flex w-full cursor-pointer items-center rounded-lg px-3 py-2.5 font-medium text-gray-700 text-sm transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
 							<User className="h-5 w-5 shrink-0 text-gray-400" />
 							<span className="ml-3 truncate">Update Profile Info</span>
@@ -130,8 +138,9 @@ export default function DriverLayout({
 			{/* Mobile Drawer Overlay */}
 			{mobileMenuOpen && (
 				<div className="fixed inset-0 z-50 flex md:hidden">
-					<div
-						className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"
+					<button
+						type="button"
+						className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm cursor-default w-full h-full border-none p-0"
 						onClick={() => setMobileMenuOpen(false)}
 						aria-label="Close backdrop"
 					/>
@@ -148,9 +157,7 @@ export default function DriverLayout({
 
 				{/* Content Workspace */}
 				<main className="flex-1 overflow-y-auto p-3 sm:p-6">
-					<div className="mx-auto w-full max-w-7xl min-w-0">
-						{children}
-					</div>
+					<div className="mx-auto w-full min-w-0 max-w-7xl">{children}</div>
 				</main>
 			</div>
 

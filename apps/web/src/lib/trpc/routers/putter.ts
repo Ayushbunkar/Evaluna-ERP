@@ -15,9 +15,22 @@ import {
 	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
-import { and, avg, count, desc, eq, ilike, inArray, or, sql, sum } from "drizzle-orm";
+import {
+	and,
+	avg,
+	count,
+	desc,
+	eq,
+	ilike,
+	inArray,
+	or,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { roleProcedure, router } from "../init";
+import { audit, notify, resolveStaffId } from "../util/audit";
 
 export const putterRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "auditor", "putter"])
@@ -241,6 +254,7 @@ export const putterRouter = router({
 			const results = await db
 				.select({
 					id: branchInventory.id,
+					product_id: branchInventory.product_id,
 					product: products.name,
 					sku: products.sku,
 					quantity_needed: sql<number>`GREATEST(1, GREATEST(COALESCE(${branchInventory.reserved_stock}, 0) - COALESCE(${branchInventory.in_stock}, 0), COALESCE(${branchInventory.reorder_level}, 10) - COALESCE(${branchInventory.in_stock}, 0)))`,
@@ -262,7 +276,8 @@ export const putterRouter = router({
 				.limit(50);
 
 			return results.map((r) => ({
-				id: `MS-${r.id}`,
+				id: `MS-${r.product_id}`,
+				product_id: r.product_id,
 				product: r.product || "Unknown",
 				sku: r.sku || "N/A",
 				quantity_needed: Number(r.quantity_needed) || 0,
@@ -452,18 +467,16 @@ export const putterRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user?.email);
 			const diff = input.expected_qty - input.found_qty;
 			const [adj] = await db
 				.insert(stockAdjustments)
 				.values({
 					product_id: input.product_id,
-					branch_id: ctx.user.branchId || 1,
 					quantity: diff,
 					adjustment_type: "missing",
 					reason: input.notes || "Missing stock reported during put-away audit",
-					created_by: ctx.user.id
-						? Number.parseInt(ctx.user.id.replace(/\D/g, "") || "1", 10)
-						: 1,
+					created_by: staffId,
 				})
 				.returning();
 			return adj;
@@ -481,17 +494,15 @@ export const putterRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user?.email);
 			const [adj] = await db
 				.insert(stockAdjustments)
 				.values({
 					product_id: input.product_id,
-					branch_id: ctx.user.branchId || 1,
 					quantity: input.qty_damaged,
 					adjustment_type: "damage",
 					reason: `[${input.damage_type}] ${input.notes || "Damaged goods reported"}`,
-					created_by: ctx.user.id
-						? Number.parseInt(ctx.user.id.replace(/\D/g, "") || "1", 10)
-						: 1,
+					created_by: staffId,
 				})
 				.returning();
 			return adj;
@@ -513,19 +524,83 @@ export const putterRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+
+			// Verify product exists in catalog
+			const [existingProduct] = await db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+				})
+				.from(products)
+				.where(eq(products.id, input.product_id))
+				.limit(1);
+
+			if (!existingProduct) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message:
+						"The selected product does not exist in the active catalog. Please refresh your inventory list.",
+				});
+			}
+
+			// Safely resolve valid staff record ID (avoids foreign key constraint violations)
+			const staffId = await resolveStaffId(db, ctx.user?.email);
+
 			const [adj] = await db
 				.insert(stockAdjustments)
 				.values({
-					product_id: input.product_id,
-					branch_id: ctx.user.branchId || 1,
+					product_id: existingProduct.id,
 					quantity: input.quantity,
 					adjustment_type: "replenish_request",
 					reason: `[Sales Request] ${input.notes || "Stock replenishment requested by salesperson"}`,
-					created_by: ctx.user.id
-						? Number.parseInt(ctx.user.id.replace(/\D/g, "") || "1", 10)
-						: 1,
+					created_by: staffId,
 				})
 				.returning();
+
+			// Dispatch in-app notification to warehouse & inventory supervisors
+			try {
+				await notify(db, {
+					branchId: ctx.user.branchId || 1,
+					type: "stock_replenishment",
+					priority: "high",
+					title: `Stock Replenishment Request: ${existingProduct.name}`,
+					message: `Salesperson ${ctx.user.name || ctx.user.email} requested ${input.quantity} units for ${existingProduct.name} (SKU: ${existingProduct.sku || existingProduct.id}). Notes: ${input.notes || "Urgent stock required for customer orders."}`,
+					referenceType: "product",
+					referenceId: existingProduct.id,
+					metadata: {
+						productId: existingProduct.id,
+						productName: existingProduct.name,
+						sku: existingProduct.sku,
+						quantity: input.quantity,
+						notes: input.notes,
+						adjustmentId: adj?.id,
+						requestedBy: ctx.user.name || ctx.user.email,
+					},
+				});
+			} catch (e) {
+				console.warn("[requestReplenishment] Notification failed:", e);
+			}
+
+			// Record immutable audit log
+			try {
+				await audit(db, {
+					userId: staffId,
+					action: "STOCK_REPLENISHMENT_REQUESTED",
+					entityType: "product",
+					entityId: existingProduct.id,
+					newValues: {
+						productId: existingProduct.id,
+						productName: existingProduct.name,
+						quantity: input.quantity,
+						notes: input.notes,
+						adjustmentId: adj?.id,
+					},
+				});
+			} catch (e) {
+				console.warn("[requestReplenishment] Audit failed:", e);
+			}
+
 			return adj;
 		}),
 
@@ -582,13 +657,11 @@ export const putterRouter = router({
 							limit: 5,
 						});
 					if (activeTripsWithVehicle && activeTripsWithVehicle.length > 0) {
-						dbVehicles = activeTripsWithVehicle.map(
-							(t: any, idx: number) => ({
-								id: t.vehicle_id || idx + 1,
-								registration_number: `VEH-TRIP-${t.id}`,
-								name: `Cargo Vehicle ${t.vehicle_id || idx + 1}`,
-							}),
-						);
+						dbVehicles = activeTripsWithVehicle.map((t: any, idx: number) => ({
+							id: t.vehicle_id || idx + 1,
+							registration_number: `VEH-TRIP-${t.id}`,
+							name: `Cargo Vehicle ${t.vehicle_id || idx + 1}`,
+						}));
 					}
 				} catch (e) {}
 			}
@@ -648,18 +721,12 @@ export const putterRouter = router({
 								try {
 									const parsed = JSON.parse(pod.notes);
 									if (Array.isArray(parsed.returns)) {
-										for (
-											let idx = 0;
-											idx < parsed.returns.length;
-											idx++
-										) {
+										for (let idx = 0; idx < parsed.returns.length; idx++) {
 											const ret = parsed.returns[idx];
 											const retQty = Number(ret.qty) || 0;
 											if (retQty > 0) {
 												allocatedItems.push({
-													id: ret.id
-														? Number(ret.id)
-														: `ret-${pod.id}-${idx}`,
+													id: ret.id ? Number(ret.id) : `ret-${pod.id}-${idx}`,
 													name: String(ret.name || "Returned Item"),
 													sku: `RET-${ret.id || idx + 1}`,
 													price: Number(ret.price) || 0,
@@ -667,8 +734,7 @@ export const putterRouter = router({
 													remainingQty: retQty,
 													source: "customer_return",
 													reason: String(
-														ret.reason ||
-															"Customer Refused / Damaged",
+														ret.reason || "Customer Refused / Damaged",
 													),
 													customerName:
 														stop.customer?.name ||

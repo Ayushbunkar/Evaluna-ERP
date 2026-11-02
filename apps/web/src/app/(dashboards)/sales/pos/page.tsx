@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import { PaymentModal } from "@/components/pos/payment-modal";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
+import { WarehouseOffersModal } from "@/components/pos/warehouse-offers-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -321,6 +322,19 @@ function POSContent() {
 	);
 	const [discountReason, setDiscountReason] = useState<string>("");
 	const [discountModalOpen, setDiscountModalOpen] = useState(false);
+
+	// Warehouse Daily Offers Modal State & Count
+	const [warehouseOffersOpen, setWarehouseOffersOpen] = useState(false);
+	const { data: dailyOffersData } = trpc.discounts.listDailyOffers.useQuery(
+		{
+			date: customBillDate || new Date().toISOString().split("T")[0],
+			status: "active",
+		},
+		{
+			refetchInterval: 30000,
+		},
+	);
+	const activeOffersCount = dailyOffersData?.length || 0;
 
 	// Temp state in Discount modal
 	const [tempDiscountVal, setTempDiscountVal] = useState<string>("");
@@ -684,6 +698,33 @@ function POSContent() {
 			});
 		},
 		[displayCatalog, locale],
+	);
+
+	const handleAddFromOfferModal = useCallback(
+		(item: any) => {
+			addToCart(
+				{
+					id: item.id,
+					name: item.name,
+					price: item.originalPrice.toString(),
+					offerPrice: item.currentPrice.toString(),
+					hasDailyOffer: true,
+					dailyOfferReason: item.offer?.reason || "Warehouse Offer",
+					dailyOfferPercent: item.offer?.discountPercent || 0,
+					qty_on_hand: item.stock,
+					unit: item.unit,
+					barcode: item.barcode,
+					sku: item.sku,
+				},
+				1,
+			);
+			toast.success(
+				locale === "hi"
+					? `${getLocalizedProductName(item.name, locale)} ऑफ़र मूल्य ₹${item.currentPrice} पर जोड़ा गया!`
+					: `Added ${item.name} at offer price ₹${item.currentPrice}!`,
+			);
+		},
+		[addToCart, locale],
 	);
 
 	useEffect(() => {
@@ -1243,6 +1284,29 @@ function POSContent() {
 								</div>
 							</div>
 						</div>
+
+						{/* Warehouse Daily Offers Button */}
+						<Button
+							type="button"
+							size="sm"
+							onClick={() => setWarehouseOffersOpen(true)}
+							className="h-8 gap-1.5 border border-amber-500 bg-amber-500/15 font-bold text-amber-900 text-xs shadow-2xs hover:bg-amber-500/25 dark:border-amber-600 dark:bg-amber-950/60 dark:text-amber-200"
+							title={
+								locale === "hi"
+									? "गोदाम द्वारा जोड़े गए आज के सभी उत्पाद ऑफ़र और छूट देखें"
+									: "View all discounted products and today's offers from Warehouse"
+							}
+						>
+							<Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-600 animate-pulse dark:text-amber-400" />
+							<span>
+								{locale === "hi" ? "आज के ऑफ़र & छूट" : "Today's Offers & Discounts"}
+							</span>
+							{activeOffersCount > 0 && (
+								<span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-600 px-1 text-[10px] font-black text-white">
+									{activeOffersCount}
+								</span>
+							)}
+						</Button>
 
 						{/* Customer / Route Action Button */}
 						<Button
@@ -2135,6 +2199,14 @@ function POSContent() {
 					onAddItemsToCart={handleAddItemsFromHistory}
 				/>
 			)}
+
+			{/* Warehouse Daily Offers Modal */}
+			<WarehouseOffersModal
+				open={warehouseOffersOpen}
+				onOpenChange={setWarehouseOffersOpen}
+				onAddToCart={handleAddFromOfferModal}
+				initialDate={customBillDate || undefined}
+			/>
 
 			{/* Checkout Payment Modal */}
 			{paymentModalOpen && (

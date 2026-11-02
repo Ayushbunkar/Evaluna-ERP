@@ -49,6 +49,7 @@ export default function SalesShortagesPage() {
 	const [requestOpen, setRequestOpen] = useState(false);
 	const [selectedItem, setSelectedItem] = useState<{
 		id: string;
+		product_id?: number;
 		product: string;
 		sku: string;
 		quantity_needed: number;
@@ -83,13 +84,22 @@ export default function SalesShortagesPage() {
 			},
 			onError: (err) => {
 				toast.error(err.message || "Failed to submit request.");
+				if (err.data?.code === "NOT_FOUND") {
+					utils.putter.getMissingStock.invalidate();
+					setRequestOpen(false);
+				}
 			},
 		},
 	);
 
-	const handleOpenRequest = (item: typeof selectedItem) => {
+	const handleOpenRequest = (item: {
+		id: string;
+		product_id?: number;
+		product: string;
+		sku: string;
+		quantity_needed: number;
+	}) => {
 		if (!item) return;
-		// Extract raw product ID from the item ID (which is 'MS-ID')
 		setSelectedItem(item);
 		setQuantity(item.quantity_needed || 10);
 		setNotes("Urgent stock required for customer orders.");
@@ -98,8 +108,10 @@ export default function SalesShortagesPage() {
 
 	const handleSendRequest = () => {
 		if (!selectedItem) return;
-		const rawId = Number.parseInt(selectedItem.id.replace("MS-", ""), 10);
-		if (Number.isNaN(rawId)) {
+		const rawId =
+			selectedItem.product_id ||
+			Number.parseInt(selectedItem.id.replace("MS-", ""), 10);
+		if (!rawId || Number.isNaN(rawId)) {
 			toast.error("Invalid product reference.");
 			return;
 		}
@@ -275,7 +287,8 @@ export default function SalesShortagesPage() {
 									<p className="text-muted-foreground">
 										Product Number/ID:{" "}
 										<strong className="font-bold font-mono text-foreground">
-											{selectedItem.id.replace("MS-", "")}
+											{selectedItem.product_id ||
+												selectedItem.id.replace("MS-", "")}
 										</strong>
 									</p>
 									<p className="flex items-center gap-1 pt-0.5 font-semibold text-amber-600">

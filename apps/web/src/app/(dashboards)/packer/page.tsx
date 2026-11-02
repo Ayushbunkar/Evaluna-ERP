@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import {
 	AnimatedCard,
@@ -91,6 +92,7 @@ export default function PackerDashboard() {
 		orderRef: string;
 	} | null>(null);
 	const printSvgRef = useRef<SVGSVGElement | null>(null);
+	const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
 
 	useEffect(() => {
 		if (printSvgRef.current && printPackage?.number) {
@@ -106,6 +108,17 @@ export default function PackerDashboard() {
 			} catch (e) {
 				console.error("Barcode print error:", e);
 			}
+		}
+	}, [printPackage]);
+	useEffect(() => {
+		if (printPackage?.number) {
+			QRCode.toDataURL(
+				printPackage.number,
+				{ width: 140, margin: 1, color: { dark: "#000000", light: "#ffffff" } },
+				(err, url) => {
+					if (!err && url) setQrCodeDataUrl(url);
+				},
+			);
 		}
 	}, [printPackage]);
 
@@ -138,7 +151,21 @@ export default function PackerDashboard() {
 						<p className="mt-1 font-semibold text-gray-700 text-xs">
 							Ref: {printPackage.orderRef}
 						</p>
-						<svg ref={printSvgRef} className="my-2" />
+						<div className="my-2 flex flex-col items-center">
+							<svg ref={printSvgRef} className="max-w-[240px]" />
+							{qrCodeDataUrl && (
+								<div className="mt-2 flex flex-col items-center border border-black bg-white p-1">
+									<img
+										src={qrCodeDataUrl}
+										alt="QR Code"
+										className="h-20 w-20 object-contain"
+									/>
+									<span className="font-bold font-mono text-[8px] text-black uppercase">
+										Driver Scan QR
+									</span>
+								</div>
+							)}
+						</div>
 						<p className="text-[10px] text-gray-500">
 							PACKED & VERIFIED BY EVALUNA LOGISTICS
 						</p>
@@ -325,7 +352,7 @@ export default function PackerDashboard() {
 												<TableCell className="font-semibold text-sm">
 													{pl.order_ref}
 												</TableCell>
-												<TableCell className="font-medium text-xs text-foreground">
+												<TableCell className="font-medium text-foreground text-xs">
 													<div className="flex items-center gap-1.5">
 														<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
 														<span className="font-semibold text-gray-900 dark:text-gray-100">
@@ -415,7 +442,7 @@ export default function PackerDashboard() {
 												<TableCell className="font-semibold text-sm">
 													{pkg.orderId}
 												</TableCell>
-												<TableCell className="font-medium text-xs text-foreground">
+												<TableCell className="font-medium text-foreground text-xs">
 													<div className="flex items-center gap-1.5">
 														<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
 														<span className="font-semibold text-foreground">

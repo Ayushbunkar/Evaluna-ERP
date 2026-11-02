@@ -115,6 +115,8 @@ export async function logAudit(
 	}
 }
 
+export const audit = logAudit;
+
 /**
  * Dispatch an in-app notification. `type` and `reference_type` are free
  * varchars, so auditor-specific values need no migration. Deep-link via

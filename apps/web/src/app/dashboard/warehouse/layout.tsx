@@ -4,18 +4,14 @@ import { Button } from "@evaluna/ui/components/button";
 import {
 	AlertTriangleIcon,
 	BarChart3Icon,
-	BellIcon,
 	BoxesIcon,
 	CheckSquareIcon,
-	ChevronDownIcon,
 	ClipboardCheckIcon,
 	ClipboardListIcon,
-	IndianRupeeIcon,
 	LayersIcon,
 	LogOutIcon,
 	MenuIcon,
 	PackageIcon,
-	PercentIcon,
 	QrCodeIcon,
 	RefreshCwIcon,
 	TagIcon,
@@ -82,7 +78,7 @@ export default function WarehouseWMSLayout({
 			]);
 			setSyncTime(new Date().toLocaleTimeString());
 			toast.success("All WMS queues synced in real-time.");
-		} catch (e) {
+		} catch (_e) {
 			toast.error("Live sync failed.");
 		} finally {
 			setIsSyncing(false);
@@ -158,11 +154,6 @@ export default function WarehouseWMSLayout({
 					label: "Discount Offers",
 					href: "/dashboard/warehouse/discounts",
 					icon: TagIcon,
-				},
-				{
-					label: "Cash Book",
-					href: "/dashboard/warehouse/cashbook",
-					icon: IndianRupeeIcon,
 				},
 				{
 					label: "UPC Generator",
@@ -343,7 +334,12 @@ export default function WarehouseWMSLayout({
 			{mobileOpen && (
 				<div className="fixed inset-0 z-50 flex bg-gray-900/60 backdrop-blur-sm md:hidden">
 					<div className="h-full w-64 animate-slide-in">{sidebarContent}</div>
-					<div className="flex-1" onClick={() => setMobileOpen(false)} />
+					<button
+						type="button"
+						aria-label="Close mobile sidebar"
+						className="flex-1 cursor-default border-none bg-transparent p-0"
+						onClick={() => setMobileOpen(false)}
+					/>
 				</div>
 			)}
 

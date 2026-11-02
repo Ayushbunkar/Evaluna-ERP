@@ -63,6 +63,8 @@ const DELIVERY_DDL = buildDDL(
 		schema.customers,
 		schema.orders,
 		schema.orderItems,
+		schema.packages,
+		schema.paymentMethods,
 		schema.products,
 		schema.salesReturns,
 		schema.salesReturnItems,
@@ -141,7 +143,9 @@ beforeAll(async () => {
 		},
 	]);
 	try {
-		await pg.exec(`SELECT setval('customers_id_seq', (SELECT MAX(id) FROM customers));`);
+		await pg.exec(
+			`SELECT setval('customers_id_seq', (SELECT MAX(id) FROM customers));`,
+		);
 	} catch (e) {}
 
 	// Setup products
@@ -301,7 +305,12 @@ describe("delivery router core functionality", () => {
 				vehicleId: 1,
 				stops: [
 					{ customerId: 1, sequence: 1 },
-					{ name: "Extra Stop Shop", phone: "9812345678", address: "Market Road", sequence: 2 },
+					{
+						name: "Extra Stop Shop",
+						phone: "9812345678",
+						address: "Market Road",
+						sequence: 2,
+					},
 				],
 			});
 
@@ -649,9 +658,9 @@ describe("delivery router core functionality", () => {
 				})
 				.returning();
 
-			await db.insert(schema.tripStops).values([
-				{ trip_id: trip.id, customer_id: 1, sequence: 1 },
-			]);
+			await db
+				.insert(schema.tripStops)
+				.values([{ trip_id: trip.id, customer_id: 1, sequence: 1 }]);
 
 			const result = await caller.deleteTrip({ tripId: trip.id });
 			expect(result.success).toBe(true);
@@ -671,9 +680,9 @@ describe("delivery router core functionality", () => {
 				})
 				.returning();
 
-			await db.insert(schema.routeStops).values([
-				{ route_id: route.id, customer_id: 1, sequence: 1 },
-			]);
+			await db
+				.insert(schema.routeStops)
+				.values([{ route_id: route.id, customer_id: 1, sequence: 1 }]);
 
 			const result = await caller.deleteRoute({ routeId: route.id });
 			expect(result.success).toBe(true);
@@ -692,8 +701,16 @@ describe("delivery router core functionality", () => {
 				description: "Created via bulk address paste",
 				branchId: 1,
 				stops: [
-					{ name: "Super Bakery", phone: "9876543210", address: "Shop 10, Station Road" },
-					{ name: "Apex Electronics", phone: "9123456780", address: "Plot 42, MIDC" },
+					{
+						name: "Super Bakery",
+						phone: "9876543210",
+						address: "Shop 10, Station Road",
+					},
+					{
+						name: "Apex Electronics",
+						phone: "9123456780",
+						address: "Plot 42, MIDC",
+					},
 				],
 			});
 
@@ -799,7 +816,11 @@ describe("delivery router core functionality", () => {
 					id: testUserUuid,
 					email: testEmail,
 					name: "Lookup Driver",
-					primaryRole: { name: "driver", dashboardRoute: "/driver", permissions: [] },
+					primaryRole: {
+						name: "driver",
+						dashboardRoute: "/driver",
+						permissions: [],
+					},
 				},
 				db,
 			});
@@ -975,6 +996,117 @@ describe("delivery router core functionality", () => {
 			expect(returnedInVeh).toBeDefined();
 			expect(returnedInVeh?.source).toBe("customer_return");
 			expect(returnedInVeh?.loadedQty).toBe(1);
+		});
+	});
+
+	describe("lookupOrderByScan (Driver Package & Bill Scanner)", () => {
+		it("looks up an order and full bill by package number", async () => {
+			// Seed customer
+			const [testCustomer] = await db
+				.insert(schema.customers)
+				.values({
+					name: "Ramesh Kirana Store",
+					phone: "+91 9876543210",
+					email: "ramesh@kirana.test",
+					address: "Shop 14, Main Market, MP Nagar",
+					city: "Bhopal",
+					pincode: "462011",
+					user_uid: "test-user",
+				})
+				.returning();
+
+			// Seed product with unique ID to avoid serial collision
+			const [testProduct] = await db
+				.insert(schema.products)
+				.values({
+					id: 8888,
+					name: "Fortune Sunflower Oil 1L",
+					sku: "OIL-FORT-1L",
+					unit: "PCS",
+					price: "150.00",
+					user_uid: "test-user",
+				})
+				.returning();
+
+			// Seed order with unique ID
+			const [testOrder] = await db
+				.insert(schema.orders)
+				.values({
+					id: 8888,
+					customer_id: testCustomer.id,
+					total_amount: "300.00",
+					status: "ready_for_dispatch",
+					user_uid: "test-user",
+					discount_amount: "0.00",
+					other_charges: "0.00",
+					cgst_amount: "7.50",
+					sgst_amount: "7.50",
+				})
+				.returning();
+
+			// Seed order items
+			await db.insert(schema.orderItems).values({
+				order_id: testOrder.id,
+				product_id: testProduct.id,
+				quantity: "2",
+				price: "150.00",
+				cgst_rate: "2.5",
+				sgst_rate: "2.5",
+			});
+
+			// Seed package
+			const packageNumber = "PKG-2026-TESTSCAN01";
+			await db.insert(schema.packages).values({
+				order_id: testOrder.id,
+				package_number: packageNumber,
+				status: "packed",
+				weight: "2.5",
+				dimensions: "30x20x15 cm",
+			});
+
+			// Test lookup by exact package number
+			const resByPkg = await driverAppCaller.lookupOrderByScan({
+				code: packageNumber,
+			});
+
+			expect(resByPkg.success).toBe(true);
+			expect(resByPkg.order.id).toBe(testOrder.id);
+			expect(resByPkg.order.orderNumber).toBe(`ORD-${testOrder.id}`);
+			expect(resByPkg.customer.name).toBe("Ramesh Kirana Store");
+			expect(resByPkg.customer.phone).toBe("+91 9876543210");
+			expect(resByPkg.package.packageNumber).toBe(packageNumber);
+			expect(resByPkg.package.weight).toBe(2.5);
+			expect(resByPkg.items).toHaveLength(1);
+			expect(resByPkg.items[0].name).toBe("Fortune Sunflower Oil 1L");
+			expect(resByPkg.items[0].quantity).toBe(2);
+			expect(resByPkg.items[0].price).toBe(150);
+			expect(resByPkg.items[0].itemTotal).toBe(300);
+
+			// Test lookup by order reference: ORD-{id}
+			const resByOrd = await driverAppCaller.lookupOrderByScan({
+				code: `ORD-${testOrder.id}`,
+			});
+			expect(resByOrd.success).toBe(true);
+			expect(resByOrd.order.id).toBe(testOrder.id);
+
+			// Test lookup by JSON payload from QR Code
+			const jsonQr = JSON.stringify({
+				pkg: packageNumber,
+				orderId: testOrder.id,
+			});
+			const resByJson = await driverAppCaller.lookupOrderByScan({
+				code: jsonQr,
+			});
+			expect(resByJson.success).toBe(true);
+			expect(resByJson.package.packageNumber).toBe(packageNumber);
+		});
+
+		it("throws NOT_FOUND when scanning non-existent package or order code", async () => {
+			await expect(
+				driverAppCaller.lookupOrderByScan({
+					code: "PKG-9999-DOESNOTEXIST",
+				}),
+			).rejects.toThrow();
 		});
 	});
 });

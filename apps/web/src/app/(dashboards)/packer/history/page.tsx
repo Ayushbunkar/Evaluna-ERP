@@ -28,9 +28,10 @@ import {
 	UserIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
-import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
+import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerHistoryPage() {
@@ -57,6 +58,7 @@ export default function PackerHistoryPage() {
 		customerName?: string;
 	} | null>(null);
 	const printSvgRef = useRef<SVGSVGElement | null>(null);
+	const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
 
 	useEffect(() => {
 		if (printSvgRef.current && printPackage?.number) {
@@ -74,8 +76,23 @@ export default function PackerHistoryPage() {
 			}
 		}
 	}, [printPackage]);
+	useEffect(() => {
+		if (printPackage?.number) {
+			QRCode.toDataURL(
+				printPackage.number,
+				{ width: 140, margin: 1, color: { dark: "#000000", light: "#ffffff" } },
+				(err, url) => {
+					if (!err && url) setQrCodeDataUrl(url);
+				},
+			);
+		}
+	}, [printPackage]);
 
-	const handlePrintLabel = (pkgNum: string, orderRef: string, customerName?: string) => {
+	const handlePrintLabel = (
+		pkgNum: string,
+		orderRef: string,
+		customerName?: string,
+	) => {
 		setPrintPackage({ number: pkgNum, orderRef, customerName });
 		setTimeout(() => {
 			window.print();
@@ -86,8 +103,10 @@ export default function PackerHistoryPage() {
 		(p) =>
 			p.packageNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			p.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			(p.customerName && p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-			(p.routeName && p.routeName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+			(p.customerName &&
+				p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+			(p.routeName &&
+				p.routeName.toLowerCase().includes(searchQuery.toLowerCase())) ||
 			p.packedBy.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
@@ -106,7 +125,21 @@ export default function PackerHistoryPage() {
 								{printPackage.customerName}
 							</p>
 						)}
-						<svg ref={printSvgRef} className="my-2" />
+						<div className="my-2 flex flex-col items-center">
+							<svg ref={printSvgRef} className="max-w-[240px]" />
+							{qrCodeDataUrl && (
+								<div className="mt-2 flex flex-col items-center border border-black bg-white p-1">
+									<img
+										src={qrCodeDataUrl}
+										alt="QR Code"
+										className="h-20 w-20 object-contain"
+									/>
+									<span className="font-bold font-mono text-[8px] text-black uppercase">
+										Driver Scan QR
+									</span>
+								</div>
+							)}
+						</div>
 						<p className="text-[10px] text-gray-500">
 							PACKED & VERIFIED BY EVALUNA LOGISTICS
 						</p>
@@ -260,7 +293,7 @@ export default function PackerHistoryPage() {
 											<TableCell className="font-semibold text-sm">
 												{pkg.orderId}
 											</TableCell>
-											<TableCell className="font-medium text-xs text-foreground">
+											<TableCell className="font-medium text-foreground text-xs">
 												<div className="flex items-center gap-1.5">
 													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
 													<span className="font-semibold text-foreground">
@@ -270,7 +303,8 @@ export default function PackerHistoryPage() {
 											</TableCell>
 											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
 												<div className="flex items-center gap-1">
-													<MapPinIcon className="h-3 w-3" /> {pkg.routeName || "Delivery Route"}
+													<MapPinIcon className="h-3 w-3" />{" "}
+													{pkg.routeName || "Delivery Route"}
 												</div>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
@@ -298,7 +332,11 @@ export default function PackerHistoryPage() {
 													size="sm"
 													className="h-8 gap-1"
 													onClick={() =>
-														handlePrintLabel(pkg.packageNumber, pkg.orderId, pkg.customerName)
+														handlePrintLabel(
+															pkg.packageNumber,
+															pkg.orderId,
+															pkg.customerName,
+														)
 													}
 												>
 													<PrinterIcon className="h-3.5 w-3.5" />{" "}

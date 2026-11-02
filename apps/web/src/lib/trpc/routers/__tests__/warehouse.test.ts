@@ -9,9 +9,11 @@ mock.module("@/lib/db", () => ({ db, pglite: pg }));
 const { warehouseRouter } = await import("../warehouse");
 const { pickerRouter } = await import("../picker");
 const { staffRouter } = await import("../staff");
+const { putterRouter } = await import("../putter");
 const { createCallerFactory } = await import("../../init");
 
 const warehouseTables = [
+	schema.user,
 	schema.branches,
 	schema.staff,
 	schema.products,
@@ -56,7 +58,15 @@ const staffWorker = makeFinanceUser({
 	branchId: 1,
 });
 
+const salesperson = makeFinanceUser({
+	id: "sales-1",
+	email: "sales@test.com",
+	role: "sales_person",
+	branchId: 1,
+});
+
 const callAs = (u) => createCallerFactory(warehouseRouter)({ user: u, db });
+const callPutterAs = (u) => createCallerFactory(putterRouter)({ user: u, db });
 
 beforeAll(async () => {
 	await pg.exec(WAREHOUSE_SCHEMA_DDL);
@@ -67,7 +77,8 @@ beforeAll(async () => {
 		
 		INSERT INTO staff (id, name, email, role, join_date, salary, branch_id) VALUES
 		(1, 'Admin User', 'warehouse-admin@test.com', 'admin', NOW(), 50000, 1),
-		(2, 'Warehouse Worker', 'worker@test.com', 'picker', NOW(), 30000, 1);
+		(2, 'Warehouse Worker', 'worker@test.com', 'picker', NOW(), 30000, 1),
+		(3, 'Sales Rep', 'sales@test.com', 'sales_person', NOW(), 40000, 1);
 		
 		INSERT INTO suppliers (id, name, outstanding_balance) VALUES (1, 'Acme Corp', 0.00);
 		
@@ -280,7 +291,10 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 	});
 
 	it("pickerRouter.getDashboardStats calculates assignedToday, completed, and pending accurately", async () => {
-		const pickerCaller = createCallerFactory(pickerRouter)({ user: staffWorker, db });
+		const pickerCaller = createCallerFactory(pickerRouter)({
+			user: staffWorker,
+			db,
+		});
 		const stats = await pickerCaller.getDashboardStats({});
 		expect(stats).toBeDefined();
 		expect(typeof stats.assignedToday).toBe("number");
@@ -353,6 +367,47 @@ describe("Complete Warehouse Operations Workflow Unit Tests", () => {
 		const pl400 = queue.find((q) => q.id === 400);
 		expect(pl400?.priority).toBe("urgent");
 	});
+
+	it("putter.getMissingStock returns correct product_id and MS- prefix", async () => {
+		await pg.exec(`
+			INSERT INTO branch_inventory (id, branch_id, product_id, in_stock, reserved_stock, reorder_level)
+			VALUES (99, 1, 1, 2, 5, 10);
+		`);
+
+		const shortages = await callPutterAs(salesperson).getMissingStock({});
+		const widgetShortage = shortages.find((s) => s.product_id === 1);
+		expect(widgetShortage).toBeDefined();
+		expect(widgetShortage?.id).toBe("MS-1");
+		expect(widgetShortage?.product).toBe("High-Grade Steel Widget");
+		expect(widgetShortage?.quantity_needed).toBeGreaterThan(0);
+	});
+
+	it("putter.requestReplenishment creates stock_adjustments and notifies supervisors", async () => {
+		const result = await callPutterAs(salesperson).requestReplenishment({
+			product_id: 1,
+			quantity: 15,
+			notes: "Customer order #400 urgent requirement",
+		});
+
+		expect(result).toBeDefined();
+		expect(result.product_id).toBe(1);
+		expect(result.adjustment_type).toBe("replenish_request");
+		expect(result.created_by).toBe(3); // staff id for sales@test.com
+
+		// Verify notification was recorded
+		const notifs = await db.select().from(schema.notifications);
+		const repNotif = notifs.find((n) => n.type === "stock_replenishment");
+		expect(repNotif).toBeDefined();
+		expect(repNotif?.reference_id).toBe(1);
+	});
+
+	it("putter.requestReplenishment throws NOT_FOUND for non-existent product", async () => {
+		expect(
+			callPutterAs(salesperson).requestReplenishment({
+				product_id: 99999,
+				quantity: 5,
+				notes: "Non-existent item",
+			}),
+		).rejects.toThrow("does not exist in the active catalog");
+	});
 });
-
-

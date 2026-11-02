@@ -10,15 +10,18 @@ import {
 } from "@evaluna/ui/components/card";
 import {
 	ArrowRightIcon,
-	BanknoteIcon,
 	ClipboardListIcon,
 	ReceiptTextIcon,
 	SearchIcon,
 	ShoppingCart,
+	Sparkles,
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
+import { useState } from "react";
+import { WarehouseOffersModal } from "@/components/pos/warehouse-offers-modal";
 import {
 	AnimatedCard,
 	motion,
@@ -32,7 +35,14 @@ import { formatCurrency } from "@/lib/utils";
 export default function SalesDashboard() {
 	const trpc = useTRPC();
 	const locale = useLocale();
+	const router = useRouter();
+	const [offersModalOpen, setOffersModalOpen] = useState(false);
 	const { data: summary } = trpc.orders.getDashboardSummary.useQuery();
+	const { data: dailyOffersData } = trpc.discounts.listDailyOffers.useQuery(
+		{ status: "active" },
+		{ refetchInterval: 30000 },
+	);
+	const activeOffersCount = dailyOffersData?.length || 0;
 
 	const recentOrders = summary?.recentOrders || [];
 	const dailyGoal = summary?.dailyGoal ?? 50000;
@@ -94,7 +104,20 @@ export default function SalesDashboard() {
 						{t.subtitle}
 					</p>
 				</div>
-				<div className="flex gap-1 sm:gap-2">
+				<div className="flex flex-wrap items-center gap-1 sm:gap-2">
+					<Button
+						variant="outline"
+						onClick={() => setOffersModalOpen(true)}
+						className="border-amber-500/50 bg-amber-500/10 font-bold text-amber-800 text-xs shadow-2xs hover:bg-amber-500/20 sm:text-sm dark:bg-amber-950/40 dark:text-amber-300"
+					>
+						<Sparkles className="mr-1.5 h-4 w-4 animate-pulse text-amber-500" />
+						{locale === "hi" ? "दैनिक ऑफ़र & छूट" : "Warehouse Offers"}
+						{activeOffersCount > 0 && (
+							<span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-600 px-1 font-black text-[10px] text-white">
+								{activeOffersCount}
+							</span>
+						)}
+					</Button>
 					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
 						<SearchIcon className="mr-2 h-4 w-4" /> {t.lookupOrder}
 					</Button>
@@ -184,8 +207,12 @@ export default function SalesDashboard() {
 									<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 transition-transform group-hover:scale-110">
 										<ClipboardListIcon className="h-6 w-6 text-emerald-500" />
 									</div>
-									<h3 className="font-semibold text-lg">{t.customerOrdersTitle || "Customer Orders"}</h3>
-									<p className="text-muted-foreground text-xs">{t.customerOrdersDesc || "Review and price incoming orders"}</p>
+									<h3 className="font-semibold text-lg">
+										{t.customerOrdersTitle || "Customer Orders"}
+									</h3>
+									<p className="text-muted-foreground text-xs">
+										{t.customerOrdersDesc || "Review and price incoming orders"}
+									</p>
 								</div>
 							</CardContent>
 						</Card>
@@ -307,6 +334,11 @@ export default function SalesDashboard() {
 					</Card>
 				</motion.div>
 			</div>
+			<WarehouseOffersModal
+				open={offersModalOpen}
+				onOpenChange={setOffersModalOpen}
+				onAddToCart={() => router.push("/sales/pos")}
+			/>
 		</PageTransition>
 	);
 }
