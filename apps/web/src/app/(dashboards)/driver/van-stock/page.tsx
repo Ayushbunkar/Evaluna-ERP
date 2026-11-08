@@ -228,9 +228,16 @@ export default function DriverVanStockPage() {
 													: plan.status}
 											</Badge>
 										</div>
-										<CardTitle className="text-sm font-semibold flex items-center gap-1.5 mt-1">
-											<Truck className="h-3.5 w-3.5 text-muted-foreground" />
-											{plan.vehicle?.registrationNumber || "Van"}
+										<CardTitle className="text-sm font-semibold flex items-center justify-between gap-1.5 mt-1">
+											<span className="flex items-center gap-1.5">
+												<Truck className="h-3.5 w-3.5 text-muted-foreground" />
+												{plan.vehicle?.registrationNumber || "Van"}
+											</span>
+											{plan.tripNumber && (
+												<Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-mono">
+													Trip #{plan.tripNumber}
+												</Badge>
+											)}
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="p-4 pt-1 space-y-2 text-xs">

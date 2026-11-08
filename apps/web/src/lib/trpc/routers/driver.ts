@@ -2551,6 +2551,66 @@ export const driverRouter = router({
 					}
 				}
 
+				// 2b. Query modern approved & dispatched van stock plans for this vehicle / driver
+				try {
+					const planConditions: any[] = [
+						sql`${vanStockPlans.status} IN ('DISPATCHED', 'RETURN_IN_PROGRESS', 'PENDING_RETURN_VERIFICATION', 'COMPLETED')`,
+					];
+
+					const targetClauses: any[] = [];
+					if (targetVehicleId) {
+						targetClauses.push(eq(vanStockPlans.vehicle_id, targetVehicleId));
+					}
+					if (driverIds.length > 0) {
+						targetClauses.push(inArray(vanStockPlans.driver_id, driverIds));
+					}
+					if (ctx.user?.email) {
+						targetClauses.push(
+							sql`LOWER(TRIM(${vanStockPlans.driver_id})) = LOWER(TRIM(${ctx.user.email}))`,
+						);
+					}
+					if (targetClauses.length > 0) {
+						planConditions.push(or(...targetClauses));
+					}
+
+					const activePlans = await db.query.vanStockPlans.findMany({
+						where: and(...planConditions),
+						orderBy: [desc(vanStockPlans.dispatched_at), desc(vanStockPlans.id)],
+						limit: 5,
+						with: {
+							items: {
+								with: {
+									product: true,
+								},
+							},
+						},
+					});
+
+					for (const plan of activePlans) {
+						for (const item of plan.items) {
+							const loadedQty = Number(
+								item.loaded_quantity ||
+								item.verified_quantity ||
+								item.planned_quantity ||
+								0,
+							);
+							if (loadedQty > 0 && item.product) {
+								bufferStockItems.push({
+									id: `vsp-${item.id}`,
+									product_id: item.product_id,
+									name: item.product.name,
+									qty: loadedQty,
+									price: Number(item.product.price || item.product.base_selling_price || 0),
+									reason: `Van Stock (${plan.plan_code})`,
+									source: "allocated_buffer",
+								});
+							}
+						}
+					}
+				} catch (e) {
+					console.warn("[getVanStock] vanStockPlans query error:", e);
+				}
+
 				// 3. Deduct any re-delivered items from returned / buffer items
 				const consolidatedItems = [...returnedItems, ...bufferStockItems]
 					.map((item) => {

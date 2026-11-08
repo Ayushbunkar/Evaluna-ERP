@@ -15,7 +15,8 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
-import { roleProcedure, router } from "../init";
+import { deliveryTrips } from "@evaluna/db/schema/delivery";
+import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const vanStockRouter = router({
 	// ── 1. Planning Metadata (Vehicles, Drivers, Products with live stock) ───
@@ -1584,51 +1585,194 @@ export const vanStockRouter = router({
 					success: true,
 					dispatchReference: dispatchRef,
 					status: "DISPATCHED",
+					planVehicleId: plan.vehicle_id,
+					planDriverId: plan.driver_id,
 				};
 			});
+
+			// Safely sync with active or pending delivery trip for this vehicle outside core transaction
+			if (result.status === "DISPATCHED" && result.planVehicleId) {
+				try {
+					if (db.query?.deliveryTrips) {
+						const matchingTrip = await db.query.deliveryTrips.findFirst({
+							where: and(
+								eq(deliveryTrips.vehicle_id, result.planVehicleId),
+								sql`${deliveryTrips.status} IN ('pending', 'draft', 'loaded', 'active', 'in_progress', 'dispatched')`,
+							),
+							orderBy: [desc(deliveryTrips.created_at)],
+						});
+
+						if (matchingTrip) {
+							const tripUpdates: any = {
+								dispatched_at: new Date(),
+								dispatched_by_id: ctx.user.id,
+							};
+							if (
+								matchingTrip.status === "pending" ||
+								matchingTrip.status === "draft" ||
+								matchingTrip.status === "loaded"
+							) {
+								tripUpdates.status = "dispatched";
+							}
+							if (matchingTrip.driver_id && !result.planDriverId) {
+								await db
+									.update(vanStockPlans)
+									.set({ driver_id: matchingTrip.driver_id })
+									.where(eq(vanStockPlans.id, input.planId));
+							} else if (result.planDriverId && !matchingTrip.driver_id) {
+								tripUpdates.driver_id = result.planDriverId;
+							}
+							await db
+								.update(deliveryTrips)
+								.set(tripUpdates)
+								.where(eq(deliveryTrips.id, matchingTrip.id));
+						}
+					}
+				} catch (tripSyncErr) {
+					console.warn("[approveFinalDispatch] trip sync warning:", tripSyncErr);
+				}
+			}
+
+			return {
+				success: result.success,
+				dispatchReference: result.dispatchReference,
+				status: result.status,
+			};
 		}),
 
 	// ── 15. Driver: Get Assigned Dispatches ──────────────────────────────────
-	getMyDispatches: roleProcedure(["admin", "manager", "driver"])
+	getMyDispatches: protectedProcedure
 		.query(async ({ ctx }) => {
 			const db: any = ctx.db || defaultDb;
-			const userId = ctx.user.id;
-
-			const userRole = (ctx.user?.role || "").toLowerCase();
+			const userId = ctx.user?.id;
+			const userEmail = ctx.user?.email;
+			const userName = ctx.user?.name;
+			const userRole = (ctx.user?.role || (ctx.user as any)?.primaryRole?.name || "").toLowerCase();
 			const branchId = Number(ctx.user?.branchId || 1);
 
-			// Match driver by id, email, or staff record
-			const staffRecord = await db.query.staff.findFirst({
-				where: (s: any, { eq, or }: any) =>
-					or(
-						eq(s.email, ctx.user.email || ""),
-						eq(s.name, ctx.user.name || ""),
-					),
-			});
-
-			const driverMatches = [userId];
-			if (staffRecord) {
-				driverMatches.push(String(staffRecord.id));
+			// Match driver by all possible identifiers (userId, email, name, staff id, staff code)
+			const driverMatches = new Set<string>();
+			if (userId) {
+				driverMatches.add(String(userId));
+				driverMatches.add(String(userId).toLowerCase());
+			}
+			if (userEmail) {
+				driverMatches.add(userEmail);
+				driverMatches.add(userEmail.toLowerCase());
+				const prefix = userEmail.split("@")[0];
+				if (prefix) {
+					driverMatches.add(prefix);
+					driverMatches.add(prefix.toLowerCase());
+				}
+			}
+			if (userName) {
+				driverMatches.add(userName);
+				driverMatches.add(userName.toLowerCase());
 			}
 
+			// Staff record lookups
+			try {
+				const staffConditions = [];
+				if (userEmail) staffConditions.push(sql`LOWER(TRIM(${staff.email})) = LOWER(TRIM(${userEmail}))`);
+				if (userName) staffConditions.push(sql`LOWER(TRIM(${staff.name})) = LOWER(TRIM(${userName}))`);
+				if (userId && !isNaN(Number(userId))) staffConditions.push(eq(staff.id, Number(userId)));
+
+				if (staffConditions.length > 0) {
+					const staffRecords = await db.query.staff.findMany({
+						where: or(...staffConditions),
+					});
+					for (const s of staffRecords) {
+						if (s.id) driverMatches.add(String(s.id));
+						if (s.staff_code) driverMatches.add(s.staff_code);
+						if (s.name) {
+							driverMatches.add(s.name);
+							driverMatches.add(s.name.toLowerCase());
+						}
+						if (s.email) {
+							driverMatches.add(s.email);
+							driverMatches.add(s.email.toLowerCase());
+						}
+					}
+				}
+			} catch (e) {
+				console.warn("[getMyDispatches] staff lookup error:", e);
+			}
+
+			const driverMatchList = Array.from(driverMatches).filter(Boolean);
+
+			// Query deliveryTrips for this driver to find assigned vehicles and active trip IDs
+			const driverVehicleIds = new Set<number>();
+			const vehicleToTripMap = new Map<number, { id: number; tripNumber: string; status: string }>();
+
+			try {
+				if (db.query?.deliveryTrips) {
+					const tripOrClauses: any[] = [];
+					if (driverMatchList.length > 0) {
+						tripOrClauses.push(inArray(deliveryTrips.driver_id, driverMatchList));
+					}
+					if (userEmail) {
+						tripOrClauses.push(sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userEmail}))`);
+					}
+					if (userName) {
+						tripOrClauses.push(sql`LOWER(TRIM(${deliveryTrips.driver_id})) = LOWER(TRIM(${userName}))`);
+					}
+
+					if (tripOrClauses.length > 0) {
+						const trips = await db.query.deliveryTrips.findMany({
+							where: or(...tripOrClauses),
+							orderBy: [desc(deliveryTrips.created_at)],
+							limit: 20,
+						});
+
+						for (const trip of trips) {
+							if (trip.vehicle_id) {
+								driverVehicleIds.add(trip.vehicle_id);
+								if (!vehicleToTripMap.has(trip.vehicle_id)) {
+									vehicleToTripMap.set(trip.vehicle_id, {
+										id: trip.id,
+										tripNumber: `TRIP-${trip.id}`,
+										status: trip.status || "active",
+									});
+								}
+							}
+						}
+					}
+				}
+			} catch (e) {
+				console.warn("[getMyDispatches] trips lookup error:", e);
+			}
+
+			const assignedVehicleList = Array.from(driverVehicleIds);
+
 			// If manager or admin, see all dispatches for this branch
-			// If driver, see assigned dispatches OR branch dispatches where driver_id is unassigned
-			const driverCondition =
-				userRole === "admin" || userRole === "manager"
-					? eq(vanStockPlans.branch_id, branchId)
-					: or(
-							inArray(vanStockPlans.driver_id, driverMatches),
-							and(
-								isNull(vanStockPlans.driver_id),
-								eq(vanStockPlans.branch_id, branchId),
-							),
-					  );
+			// If driver, see assigned dispatches OR branch dispatches where driver_id is unassigned OR plans matching assigned vehicles
+			const conditions = [];
+			if (userRole === "admin" || userRole === "manager" || userRole === "super_admin") {
+				conditions.push(eq(vanStockPlans.branch_id, branchId));
+			} else {
+				const orClauses: any[] = [];
+				if (driverMatchList.length > 0) {
+					orClauses.push(inArray(vanStockPlans.driver_id, driverMatchList));
+				}
+				if (assignedVehicleList.length > 0) {
+					orClauses.push(inArray(vanStockPlans.vehicle_id, assignedVehicleList));
+				}
+				// Also include unassigned plans in the branch so driver can see & execute vehicle dispatch
+				orClauses.push(
+					and(
+						isNull(vanStockPlans.driver_id),
+						eq(vanStockPlans.branch_id, branchId),
+					),
+				);
+				conditions.push(or(...orClauses));
+			}
+
+			conditions.push(
+				sql`${vanStockPlans.status} IN ('DISPATCHED', 'RETURN_IN_PROGRESS', 'PENDING_RETURN_VERIFICATION', 'RETURN_REJECTED', 'RETURN_VERIFIED', 'COMPLETED', 'RECONCILED')`,
+			);
 
 			const plans = await db.query.vanStockPlans.findMany({
-				where: and(
-					driverCondition,
-					sql`${vanStockPlans.status} IN ('DISPATCHED', 'RETURN_IN_PROGRESS', 'PENDING_RETURN_VERIFICATION', 'RETURN_REJECTED', 'RETURN_VERIFIED', 'COMPLETED', 'RECONCILED')`,
-				),
+				where: and(...conditions),
 				orderBy: [desc(vanStockPlans.dispatched_at), desc(vanStockPlans.id)],
 				with: {
 					vehicle: true,
@@ -1641,53 +1785,59 @@ export const vanStockRouter = router({
 				},
 			});
 
-			return plans.map((p: any) => ({
-				id: p.id,
-				planCode: p.plan_code,
-				planNumber: p.plan_code,
-				dispatchReference: p.dispatch_reference,
-				dispatchDate: p.dispatch_date,
-				status: p.status,
-				vehicle: {
-					id: p.vehicle.id,
-					name: p.vehicle.name,
-					registrationNumber: p.vehicle.registration_number,
-				},
-				driver: p.driver
-					? { id: p.driver.id, name: p.driver.name, email: p.driver.email }
-					: null,
-				dispatchedAt: p.dispatched_at ? p.dispatched_at.toISOString() : null,
-				returnedAt: p.returned_at ? p.returned_at.toISOString() : null,
-				items: p.items.map((i: any) => ({
-					id: i.id,
-					productId: i.product_id,
-					productName: i.product.name,
-					sku: i.product.sku || `SKU-${i.product_id}`,
-					unit: i.product.unit || "pcs",
-					product: {
-						id: i.product.id,
-						name: i.product.name,
-						sku: i.product.sku,
-						unit: i.product.unit,
-						price: Number(i.product.price || 0),
+			return plans.map((p: any) => {
+				const linkedTrip = vehicleToTripMap.get(p.vehicle_id);
+				return {
+					id: p.id,
+					planCode: p.plan_code,
+					planNumber: p.plan_code,
+					dispatchReference: p.dispatch_reference,
+					dispatchDate: p.dispatch_date,
+					status: p.status,
+					tripId: linkedTrip?.id || null,
+					tripNumber: linkedTrip?.tripNumber || (linkedTrip ? `TRIP-${linkedTrip.id}` : null),
+					tripStatus: linkedTrip?.status || null,
+					vehicle: {
+						id: p.vehicle.id,
+						name: p.vehicle.name,
+						registrationNumber: p.vehicle.registration_number,
 					},
-					plannedQty: Number(i.planned_quantity || 0),
-					loadedQuantity: Number(i.loaded_quantity),
-					loadedQty: Number(i.loaded_quantity),
-					deliveredQuantity: Number(i.delivered_quantity),
-					deliveredQty: Number(i.delivered_quantity),
-					returnedQuantity: Number(i.returned_quantity),
-					returnedQty: Number(i.returned_quantity),
-					damagedReturnQuantity: Number(i.damaged_return_quantity),
-					returnReasonCode: i.return_reason_code,
-					returnReason: i.return_reason_code,
-					returnNotes: i.return_notes,
-				})),
-			}));
+					driver: p.driver
+						? { id: p.driver.id, name: p.driver.name, email: p.driver.email }
+						: null,
+					dispatchedAt: p.dispatched_at ? p.dispatched_at.toISOString() : null,
+					returnedAt: p.returned_at ? p.returned_at.toISOString() : null,
+					items: p.items.map((i: any) => ({
+						id: i.id,
+						productId: i.product_id,
+						productName: i.product.name,
+						sku: i.product.sku || `SKU-${i.product_id}`,
+						unit: i.product.unit || "pcs",
+						product: {
+							id: i.product.id,
+							name: i.product.name,
+							sku: i.product.sku,
+							unit: i.product.unit,
+							price: Number(i.product.price || 0),
+						},
+						plannedQty: Number(i.planned_quantity || 0),
+						loadedQuantity: Number(i.loaded_quantity),
+						loadedQty: Number(i.loaded_quantity),
+						deliveredQuantity: Number(i.delivered_quantity),
+						deliveredQty: Number(i.delivered_quantity),
+						returnedQuantity: Number(i.returned_quantity),
+						returnedQty: Number(i.returned_quantity),
+						damagedReturnQuantity: Number(i.damaged_return_quantity),
+						returnReasonCode: i.return_reason_code,
+						returnReason: i.return_reason_code,
+						returnNotes: i.return_notes,
+					})),
+				};
+			});
 		}),
 
 	// ── 16. Driver: Submit Return Stock ──────────────────────────────────────
-	submitReturnStock: roleProcedure(["admin", "manager", "driver"])
+	submitReturnStock: protectedProcedure
 		.input(
 			z.object({
 				planId: z.union([z.number(), z.string()]).transform(Number),

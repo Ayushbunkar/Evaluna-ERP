@@ -287,6 +287,11 @@ export default function DriverDashboard() {
 									<span className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300">
 										{activeDispatch.planCode || activeDispatch.planNumber}
 									</span>
+									{activeDispatch.tripNumber && (
+										<Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-300 font-mono">
+											Trip #{activeDispatch.tripNumber}
+										</Badge>
+									)}
 								</div>
 								<CardTitle className="text-base sm:text-lg flex items-center gap-2 text-foreground">
 									<Truck className="h-5 w-5 text-emerald-600" />
