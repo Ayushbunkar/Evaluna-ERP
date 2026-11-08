@@ -1802,6 +1802,8 @@ export const salesReturns = pgTable("sales_returns", {
 	sgst_amount: decimal("sgst_amount", { precision: 10, scale: 2 }).default("0"),
 	igst_amount: decimal("igst_amount", { precision: 10, scale: 2 }).default("0"),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, processed, cancelled
+	reason: text("reason"),
+	notes: text("notes"),
 	user_uid: varchar("user_uid", { length: 255 }).notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });
@@ -1868,6 +1870,8 @@ export const purchaseReturns = pgTable("purchase_returns", {
 		.notNull(),
 	total_amount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
 	status: varchar("status", { length: 20 }).default("pending"), // pending, processed, cancelled
+	reason: text("reason"),
+	notes: text("notes"),
 	user_uid: varchar("user_uid", { length: 255 }).notNull(),
 	created_at: timestamp("created_at").defaultNow(),
 });

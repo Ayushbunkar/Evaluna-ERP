@@ -19,6 +19,8 @@ const salesReturnItemSchema = z.object({
 	quantity: z.number().positive(),
 	price: z.number(),
 	refundAmount: z.number(),
+	condition: z.string().optional(),
+	reason: z.string().optional(),
 });
 
 export const salesReturnsRouter = router({
@@ -132,6 +134,8 @@ export const salesReturnsRouter = router({
 				cgstAmount: z.number().default(0),
 				sgstAmount: z.number().default(0),
 				igstAmount: z.number().default(0),
+				reason: z.string().optional(),
+				notes: z.string().optional(),
 			}),
 		)
 		.output(z.any())
@@ -148,6 +152,8 @@ export const salesReturnsRouter = router({
 						sgst_amount: input.sgstAmount.toString(),
 						igst_amount: input.igstAmount.toString(),
 						status: "pending",
+						reason: input.reason || null,
+						notes: input.notes || null,
 						user_uid: ctx.user.id,
 						branch_id: ctx.user.branchId || 1, // Assuming branch context is available or default to 1
 					})
@@ -158,9 +164,11 @@ export const salesReturnsRouter = router({
 					input.items.map((item: any) => ({
 						return_id: newReturn.id,
 						product_id: item.productId,
-						quantity: item.quantity,
+						quantity: item.quantity.toString(),
 						price: item.price.toString(),
 						refund_amount: item.refundAmount.toString(),
+						condition: item.condition || "good",
+						reason: item.reason || input.reason || null,
 					})),
 				);
 
@@ -222,17 +230,21 @@ export const salesReturnsRouter = router({
 						),
 					});
 
+					const currentStock = Number(inventory?.in_stock || 0);
+					const returnQty = Number(item.quantity || 0);
+					const nextStock = (currentStock + returnQty).toFixed(3);
+
 					if (inventory) {
 						await tx
 							.update(branchInventory)
-							.set({ in_stock: inventory.in_stock + item.quantity })
+							.set({ in_stock: nextStock.toString() })
 							.where(eq(branchInventory.id, inventory.id));
 					} else {
 						await tx.insert(branchInventory).values({
 							branch_id: branchId,
 							product_id: item.product_id,
-							in_stock: item.quantity,
-							reorder_level: 10,
+							in_stock: nextStock.toString(),
+							reorder_level: "10",
 						});
 					}
 				}
