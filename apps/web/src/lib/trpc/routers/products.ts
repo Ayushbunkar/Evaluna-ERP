@@ -156,6 +156,8 @@ export const productsRouter = router({
 				name: z.string().min(1),
 				description: z.string().optional(),
 				price: z.number(),
+				cost_price: z.number().optional(),
+				base_procurement_price: z.number().optional(),
 				category: z.string().optional(),
 				barcode: z.string().optional(),
 				sku: z.string().optional(),
@@ -167,12 +169,16 @@ export const productsRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			const costPriceVal =
+				input.cost_price ?? input.base_procurement_price ?? input.price;
 			const [product] = await db
 				.insert(products)
 				.values({
 					name: input.name,
 					description: input.description,
 					price: input.price.toString(),
+					base_selling_price: input.price.toString(),
+					base_procurement_price: costPriceVal.toString(),
 					user_uid: ctx.user.id,
 					category: input.category,
 					barcode: input.barcode,

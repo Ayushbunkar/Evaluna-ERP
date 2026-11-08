@@ -1090,6 +1090,88 @@ export const ordersRouter = router({
 						);
 					}
 				}
+			} else if (updated.status === "cancelled") {
+				await db
+					.update(pickLists)
+					.set({ status: "cancelled" })
+					.where(eq(pickLists.order_id, updated.id));
+
+				let itemsToRestore = await db
+					.select()
+					.from(orderItems)
+					.where(eq(orderItems.order_id, updated.id));
+
+				if ((!itemsToRestore || itemsToRestore.length === 0) && updated.original_items) {
+					try {
+						const parsed =
+							typeof updated.original_items === "string"
+								? JSON.parse(updated.original_items)
+								: updated.original_items;
+						if (Array.isArray(parsed)) {
+							itemsToRestore = parsed.map((it: any) => ({
+								order_id: updated.id,
+								product_id: it.productId || it.product_id || it.id,
+								quantity: it.quantity || it.qty || 1,
+								price: String(it.price || 0),
+							}));
+						}
+					} catch (e) {
+						console.warn("[updateStatus:cancelled] Fallback parsing original_items:", e);
+					}
+				}
+
+				const targetBranchId = updated.branch_id || ctx.user?.branchId || 1;
+
+				for (const item of itemsToRestore) {
+					const pid = Number(item.product_id);
+					const qty = Number(item.quantity || 0);
+					if (pid && qty > 0) {
+						const [existingInv] = await db
+							.select()
+							.from(branchInventory)
+							.where(
+								and(
+									eq(branchInventory.product_id, pid),
+									eq(branchInventory.branch_id, targetBranchId),
+								),
+							)
+							.limit(1);
+
+						if (existingInv) {
+							await db
+								.update(branchInventory)
+								.set({
+									in_stock: sql`COALESCE(${branchInventory.in_stock}, 0) + ${qty}`,
+									reserved_stock: sql`GREATEST(0, COALESCE(${branchInventory.reserved_stock}, 0) - ${qty})`,
+								})
+								.where(eq(branchInventory.id, existingInv.id));
+						} else {
+							await db.insert(branchInventory).values({
+								branch_id: targetBranchId,
+								product_id: pid,
+								in_stock: qty,
+								reserved_stock: 0,
+								reorder_level: 10,
+							});
+						}
+
+						await db.insert(stockLedger).values({
+							branch_id: targetBranchId,
+							product_id: pid,
+							transaction_type: "in",
+							quantity: qty,
+							unit_cost: String(item.price || "0"),
+							total_cost: String(Number(item.price || 0) * qty),
+							reference_id: updated.id,
+							reference_type: "order_cancellation",
+						});
+					}
+				}
+
+				await db
+					.update(transactions)
+					.set({ status: "cancelled" })
+					.where(eq(transactions.order_id, updated.id));
 			}
 
 			const customer = updated?.customer_id
@@ -1115,6 +1197,56 @@ export const ordersRouter = router({
 		.output(z.object({ success: z.boolean() }))
 		.mutation(async ({ ctx, input }) => {
 			await db.transaction(async (tx: any) => {
+				const existingOrder = await tx.query.orders.findFirst({
+					where: eq(orders.id, input.id),
+				});
+
+				// If order was active/completed/confirmed (not already cancelled), restore stock to branch inventory
+				if (existingOrder && existingOrder.status !== "cancelled") {
+					const items = await tx
+						.select()
+						.from(orderItems)
+						.where(eq(orderItems.order_id, input.id));
+
+					const targetBranchId =
+						existingOrder.branch_id || ctx.user?.branchId || 1;
+
+					for (const item of items) {
+						const pid = Number(item.product_id);
+						const qty = Number(item.quantity || 0);
+						if (pid && qty > 0) {
+							const [existingInv] = await tx
+								.select()
+								.from(branchInventory)
+								.where(
+									and(
+										eq(branchInventory.product_id, pid),
+										eq(branchInventory.branch_id, targetBranchId),
+									),
+								)
+								.limit(1);
+
+							if (existingInv) {
+								await tx
+									.update(branchInventory)
+									.set({
+										in_stock: sql`COALESCE(${branchInventory.in_stock}, 0) + ${qty}`,
+										reserved_stock: sql`GREATEST(0, COALESCE(${branchInventory.reserved_stock}, 0) - ${qty})`,
+									})
+									.where(eq(branchInventory.id, existingInv.id));
+							} else {
+								await tx.insert(branchInventory).values({
+									branch_id: targetBranchId,
+									product_id: pid,
+									in_stock: qty,
+									reserved_stock: 0,
+									reorder_level: 10,
+								});
+							}
+						}
+					}
+				}
+
 				await tx
 					.delete(transactions)
 					.where(eq(transactions.order_id, input.id));
@@ -2082,6 +2214,13 @@ export const ordersRouter = router({
 				});
 			}
 
+			if (existing.status === "cancelled") {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "This order is already cancelled.",
+				});
+			}
+
 			let changedBy: number | null = null;
 			if (ctx.user?.email) {
 				const staffRec = await db.query.staff.findFirst({
@@ -2109,6 +2248,79 @@ export const ordersRouter = router({
 					})
 					.where(eq(orders.id, input.id));
 
+				// Restore branch inventory & stock ledger for all items in the cancelled order
+				let itemsToRestore = await tx
+					.select()
+					.from(orderItems)
+					.where(eq(orderItems.order_id, input.id));
+
+				if ((!itemsToRestore || itemsToRestore.length === 0) && existing.original_items) {
+					try {
+						const parsed =
+							typeof existing.original_items === "string"
+								? JSON.parse(existing.original_items)
+								: existing.original_items;
+						if (Array.isArray(parsed)) {
+							itemsToRestore = parsed.map((it: any) => ({
+								order_id: input.id,
+								product_id: it.productId || it.product_id || it.id,
+								quantity: it.quantity || it.qty || 1,
+								price: String(it.price || 0),
+							}));
+						}
+					} catch (e) {
+						console.warn("[cancelOrder] Fallback parsing original_items:", e);
+					}
+				}
+
+				const targetBranchId = existing.branch_id || ctx.user?.branchId || 1;
+
+				for (const item of itemsToRestore) {
+					const pid = Number(item.product_id);
+					const qty = Number(item.quantity || 0);
+					if (pid && qty > 0) {
+						const [existingInv] = await tx
+							.select()
+							.from(branchInventory)
+							.where(
+								and(
+									eq(branchInventory.product_id, pid),
+									eq(branchInventory.branch_id, targetBranchId),
+								),
+							)
+							.limit(1);
+
+						if (existingInv) {
+							await tx
+								.update(branchInventory)
+								.set({
+									in_stock: sql`COALESCE(${branchInventory.in_stock}, 0) + ${qty}`,
+									reserved_stock: sql`GREATEST(0, COALESCE(${branchInventory.reserved_stock}, 0) - ${qty})`,
+								})
+								.where(eq(branchInventory.id, existingInv.id));
+						} else {
+							await tx.insert(branchInventory).values({
+								branch_id: targetBranchId,
+								product_id: pid,
+								in_stock: qty,
+								reserved_stock: 0,
+								reorder_level: 10,
+							});
+						}
+
+						await tx.insert(stockLedger).values({
+							branch_id: targetBranchId,
+							product_id: pid,
+							transaction_type: "in",
+							quantity: qty,
+							unit_cost: String(item.price || "0"),
+							total_cost: String(Number(item.price || 0) * qty),
+							reference_id: input.id,
+							reference_type: "order_cancellation",
+						});
+					}
+				}
+
 				// If there is any associated pick list, mark it as cancelled
 				await tx
 					.update(pickLists)
@@ -2116,6 +2328,12 @@ export const ordersRouter = router({
 						status: "cancelled",
 					})
 					.where(eq(pickLists.order_id, input.id));
+
+				// Void/cancel transactions for this order
+				await tx
+					.update(transactions)
+					.set({ status: "cancelled" })
+					.where(eq(transactions.order_id, input.id));
 			});
 
 			return { success: true, orderId: input.id };

@@ -11,6 +11,9 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@evaluna/ui/components/dialog";
+import { Input } from "@evaluna/ui/components/input";
+import { Label } from "@evaluna/ui/components/label";
 import {
 	Table,
 	TableBody,
@@ -40,6 +43,7 @@ import {
 	Printer,
 	QrCode,
 	RotateCcw,
+	XCircle,
 	ShoppingCart,
 	Truck,
 	User,
@@ -49,6 +53,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { use, useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { generateOrderWhatsAppLink } from "@/lib/whatsapp";
 
@@ -81,7 +86,25 @@ export default function OrderDetailPage({
 		(order.status === "completed" ||
 			order.deliveryHandover?.deliveryStatus === "delivered");
 
-	const [activeTab, setActiveTab] = useState<string>("stage3");
+		const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+	const [cancelReason, setCancelReason] = useState("");
+	const utils = trpc.useUtils();
+	const cancelMutation = trpc.orders.cancelOrder.useMutation({
+		onSuccess: () => {
+			toast.success(`Order ORD-${orderId} cancelled. Stock restored to inventory.`);
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
+			setCancelDialogOpen(false);
+		},
+		onError: (err) => {
+			toast.error(`Failed to cancel order: ${err.message}`);
+		},
+	});
+
+const [activeTab, setActiveTab] = useState<string>("stage3");
 
 	useEffect(() => {
 		if (order) {
@@ -284,10 +307,16 @@ export default function OrderDetailPage({
 		});
 	}
 
-	const finalDeliveredSum = deliveredItemsList.reduce(
+	const finalDeliveredItemsSubtotal = deliveredItemsList.reduce(
 		(sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)),
 		0
 	);
+
+	const finalDeliveredNetTotal = hasHandover && deliveryHandover?.totalCollected
+		? Number(deliveryHandover.totalCollected)
+		: Math.max(0, finalDeliveredItemsSubtotal - discountAmount + otherCharges + cgstAmount + sgstAmount + igstAmount);
+
+	const finalDeliveredSum = finalDeliveredNetTotal;
 
 	// Unified 4-Stage Comparison List across all order items & doorstep additions
 	const compMap = new Map<string, any>();
@@ -414,7 +443,7 @@ export default function OrderDetailPage({
 							href={generateOrderWhatsAppLink(
 								{
 									id: order.id,
-									totalAmount: hasHandover ? totalCollected : invoicedTotal,
+									totalAmount: hasHandover ? finalDeliveredNetTotal : invoicedTotal,
 									items: order.orderItems?.map((item: any) => ({
 										name: item.product?.name,
 										quantity: item.quantity,
@@ -446,6 +475,18 @@ export default function OrderDetailPage({
 						<Printer className="h-4 w-4" />
 						{hasHandover ? "Print Final Settled Bill" : "Print Commercial Invoice"}
 					</Button>
+
+					{order.status !== "cancelled" && (
+						<Button
+							variant="destructive"
+							size="sm"
+							onClick={() => setCancelDialogOpen(true)}
+							className="gap-2 font-semibold shadow-sm"
+						>
+							<XCircle className="h-4 w-4" />
+							Cancel Order
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -528,7 +569,7 @@ export default function OrderDetailPage({
 								)}
 							</div>
 							<div className={`font-extrabold text-xl mt-0.5 ${hasHandover ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-								{formatCurrency(hasHandover ? totalCollected : invoicedTotal, locale)}
+								{formatCurrency(hasHandover ? finalDeliveredNetTotal : invoicedTotal, locale)}
 							</div>
 							{hasHandover ? (
 								<div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
@@ -1045,6 +1086,43 @@ export default function OrderDetailPage({
 															</TableRow>
 														);
 													})}
+													<TableRow className="bg-muted/10 font-medium border-t">
+														<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
+															Items Subtotal (सामान का कुल मूल्य)
+														</TableCell>
+														<TableCell className="text-right text-foreground text-sm font-semibold">
+															{formatCurrency(reviewedSubtotal, locale)}
+														</TableCell>
+													</TableRow>
+													{discountAmount > 0 && (
+														<TableRow className="bg-emerald-500/5 font-medium text-emerald-700 dark:text-emerald-400">
+															<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider">
+																Discount Applied (लागू छूट)
+																{discountReason && <span className="block text-[10px] font-normal text-muted-foreground">({discountReason})</span>}
+															</TableCell>
+															<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm font-semibold">
+																- {formatCurrency(discountAmount, locale)}
+															</TableCell>
+														</TableRow>
+													)}
+													{otherCharges > 0 && (
+														<TableRow className="bg-blue-500/5 font-medium text-blue-700 dark:text-blue-400">
+															<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider">
+																Other Charges (अतिरिक्त शुल्क)
+															</TableCell>
+															<TableCell className="text-right text-blue-700 dark:text-blue-400 text-sm font-semibold">
+																+ {formatCurrency(otherCharges, locale)}
+															</TableCell>
+														</TableRow>
+													)}
+													<TableRow className="bg-amber-500/10 font-bold border-t-2 border-amber-500/30">
+														<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider text-amber-950 dark:text-amber-200">
+															Expected Doorstep Handover Total (अपेक्षित कुल संग्रह)
+														</TableCell>
+														<TableCell className="text-right text-amber-700 dark:text-amber-400 text-base font-extrabold">
+															{formatCurrency(invoicedTotal, locale)}
+														</TableCell>
+													</TableRow>
 												</TableBody>
 											</Table>
 										</div>
@@ -1200,14 +1278,54 @@ export default function OrderDetailPage({
 															</TableRow>
 														);
 													})}
-													<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
-														<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
-															Total Settled Doorstep Bill (कुल अंतिम बिल)
-														</TableCell>
-														<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm">
-															{formatCurrency(finalDeliveredSum, locale)}
-														</TableCell>
-													</TableRow>
+													{discountAmount > 0 ? (
+														<>
+															<TableRow className="bg-muted/10 font-medium border-t">
+																<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
+																	Delivered Items Subtotal (सामान का कुल मूल्य)
+																</TableCell>
+																<TableCell className="text-right text-foreground text-sm font-semibold">
+																	{formatCurrency(finalDeliveredItemsSubtotal, locale)}
+																</TableCell>
+															</TableRow>
+															<TableRow className="bg-emerald-500/5 font-medium text-emerald-700 dark:text-emerald-400">
+																<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
+																	Discount Applied (लागू छूट)
+																	{discountReason && <span className="block text-[10px] font-normal text-muted-foreground">({discountReason})</span>}
+																</TableCell>
+																<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm font-semibold">
+																	- {formatCurrency(discountAmount, locale)}
+																</TableCell>
+															</TableRow>
+															{otherCharges > 0 && (
+																<TableRow className="bg-blue-500/5 font-medium text-blue-700 dark:text-blue-400">
+																	<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
+																		Other Charges (अतिरिक्त शुल्क)
+																	</TableCell>
+																	<TableCell className="text-right text-blue-700 dark:text-blue-400 text-sm font-semibold">
+																		+ {formatCurrency(otherCharges, locale)}
+																	</TableCell>
+																</TableRow>
+															)}
+															<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
+																<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
+																	Total Settled Doorstep Bill (कुल अंतिम बिल)
+																</TableCell>
+																<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-base font-extrabold">
+																	{formatCurrency(finalDeliveredNetTotal, locale)}
+																</TableCell>
+															</TableRow>
+														</>
+													) : (
+														<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
+															<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
+																Total Settled Doorstep Bill (कुल अंतिम बिल)
+															</TableCell>
+															<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm">
+																{formatCurrency(finalDeliveredNetTotal, locale)}
+															</TableCell>
+														</TableRow>
+													)}
 												</TableBody>
 											</Table>
 										</div>
@@ -1426,7 +1544,7 @@ export default function OrderDetailPage({
 									</div>
 									<div className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
 										{hasHandover
-											? formatCurrency(totalCollected, locale)
+											? formatCurrency(finalDeliveredNetTotal, locale)
 											: `Pending (Est: ${formatCurrency(invoicedTotal, locale)})`}
 									</div>
 								</div>
@@ -1435,6 +1553,56 @@ export default function OrderDetailPage({
 					</Card>
 				</TabsContent>
 			</Tabs>
+		
+			<Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-destructive">
+							<XCircle className="h-5 w-5" /> Cancel Order ORD-{orderId}
+						</DialogTitle>
+						<DialogDescription>
+							Cancelling this bill will immediately restore all items back to branch inventory stock and cancel any linked picklists.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-2">
+						<div className="space-y-1.5">
+							<Label htmlFor="cancel-reason">Reason for Cancellation</Label>
+							<Input
+								id="cancel-reason"
+								placeholder="e.g. Customer cancelled, Billing mistake..."
+								value={cancelReason}
+								onChange={(e) => setCancelReason(e.target.value)}
+							/>
+						</div>
+					</div>
+					<DialogFooter className="gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setCancelDialogOpen(false)}
+							disabled={cancelMutation.isPending}
+						>
+							Close
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() => {
+								if (!cancelReason.trim()) {
+									toast.error("Please enter a cancellation reason.");
+									return;
+								}
+								cancelMutation.mutate({
+									id: orderId,
+									reason: cancelReason.trim(),
+									notes: "Cancelled from order detail page",
+								});
+							}}
+							disabled={cancelMutation.isPending}
+						>
+							{cancelMutation.isPending ? "Cancelling..." : "Confirm Cancellation"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

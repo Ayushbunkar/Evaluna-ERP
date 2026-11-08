@@ -342,6 +342,8 @@ export default function DriverLiveDeliveryPage() {
 					itemsCount: ordItems.length,
 					deliveredTotal: ordDeliveredTotal,
 					originalTotal: ordOriginalTotal || ord.total_amount,
+					discountAmount: Number(ord.discount_amount || 0),
+					discountReason: ord.discount_reason || null,
 					allChecked,
 					checkedCount,
 					items: ordItems,
@@ -801,7 +803,60 @@ export default function DriverLiveDeliveryPage() {
 				: (Number(item.returnedQty) || 0) * Number(item.price || 0)),
 		0,
 	);
-	const finalTotal = subtotal;
+	// Total discount configured on the bill
+	const billDiscount = useMemo(() => {
+		if (!activeStop) return 0;
+		const ordersDiscount = (activeStop.orders || []).reduce(
+			(sum: number, o: any) => sum + (Number(o.discount_amount) || 0),
+			0,
+		);
+		if (ordersDiscount > 0) return ordersDiscount;
+		if (activeStop.discountAmount && activeStop.discountAmount > 0) {
+			return activeStop.discountAmount;
+		}
+		if (
+			activeStop.amountToCollect !== undefined &&
+			originalTotal > activeStop.amountToCollect
+		) {
+			return originalTotal - activeStop.amountToCollect;
+		}
+		return 0;
+	}, [activeStop, originalTotal]);
+
+	const discountReasonText = useMemo(() => {
+		if (!activeStop) return "";
+		if (activeStop.discountReason) return activeStop.discountReason;
+		const reasons = (activeStop.orders || [])
+			.map((o: any) => o.discount_reason)
+			.filter(Boolean);
+		if (reasons.length > 0) return Array.from(new Set(reasons)).join("; ");
+		return "";
+	}, [activeStop]);
+
+	const finalTotal = useMemo(() => {
+		// When all items delivered with no extra changes
+		if (
+			totalReturnedValue === 0 &&
+			vanStockDeliveredTotal === 0 &&
+			activeStop?.amountToCollect !== undefined &&
+			activeStop.amountToCollect > 0
+		) {
+			// If activeStop.amountToCollect was stored pre-discount, subtract billDiscount
+			if (billDiscount > 0 && Math.abs(activeStop.amountToCollect - originalTotal) < 0.01) {
+				return Math.max(0, activeStop.amountToCollect - billDiscount);
+			}
+			return activeStop.amountToCollect;
+		}
+		// If partial returns or van stock additions occurred, preserve discount on delivered items
+		return Math.max(0, subtotal - billDiscount);
+	}, [
+		activeStop,
+		totalReturnedValue,
+		vanStockDeliveredTotal,
+		subtotal,
+		billDiscount,
+		originalTotal,
+	]);
 	const remainingBalance = finalTotal - (cashAmount + onlineAmount);
 
 	const handleQuickFillPayment = (
@@ -865,8 +920,15 @@ export default function DriverLiveDeliveryPage() {
 		submitHandover.mutate({
 			trip_id: activeStop?.trip_id || 1,
 			stop_id: activeStop?.id || 1,
+			order_id:
+				activeStop?.orders?.[0]?.id ||
+				(typeof activeStop?.orderId === "number"
+					? activeStop.orderId
+					: undefined),
 			cashAmount: Number(cashAmount) || 0,
 			onlineAmount: Number(onlineAmount) || 0,
+			discountAmount: billDiscount,
+			discountReason: discountReasonText || undefined,
 			deliveryNotes: notes,
 			damagedOrReturnedItems: returnsList,
 			deliveredItems: deliveredList,
@@ -2026,13 +2088,18 @@ export default function DriverLiveDeliveryPage() {
 															}`}
 															title="Click to isolate this order's items"
 														>
-															<div className="flex items-center gap-1.5">
+															<div className="flex items-center gap-1.5 flex-wrap">
 																<span className="font-mono font-bold text-blue-700 dark:text-blue-300">
 																	{ord.orderIdStr}
 																</span>
 																<span className="text-[10px] text-muted-foreground">
 																	({ord.itemsCount} {locale === "hi" ? "सामान" : "items"})
 																</span>
+																{ord.discountAmount > 0 && (
+																	<span className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+																		🏷️ -₹{ord.discountAmount}
+																	</span>
+																)}
 															</div>
 															<div className="flex items-center gap-1.5">
 																<span className="font-mono font-semibold">
@@ -2049,12 +2116,50 @@ export default function DriverLiveDeliveryPage() {
 										</div>
 									)}
 
+									{/* Applied Discount Banner (exact match with Sales Order Invoice) */}
+									{billDiscount > 0 && (
+										<div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-950 dark:text-emerald-200 space-y-1.5">
+											<div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+												<span className="flex items-center gap-1.5">
+													<Tag className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+													{locale === "hi" ? "बिल पर लागू छूट (Applied Discount):" : "Applied Discount:"}
+												</span>
+												<span className="font-extrabold font-mono text-emerald-700 dark:text-emerald-300 text-sm sm:text-base">
+													-₹{billDiscount}
+												</span>
+											</div>
+											{discountReasonText && (
+												<div className="rounded border border-emerald-500/20 bg-white/70 p-2 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+													<span className="font-bold text-emerald-800 dark:text-emerald-300">
+														{locale === "hi" ? "छूट कारण / उत्पाद विवरण (Reason): " : "Discount Breakdown / Reason: "}
+													</span>
+													<span>{discountReasonText}</span>
+												</div>
+											)}
+										</div>
+									)}
+
 									{/* Total calculations */}
 									<div className="space-y-2 text-xs sm:text-sm">
 										<div className="flex justify-between text-muted-foreground">
-											<span>{locale === "hi" ? "मूल आर्डर कुल (Order Total)" : "Order Total Value"}</span>
+											<span>{locale === "hi" ? "सामान का कुल मूल्य / सबटोटल (Items Subtotal)" : "Items Subtotal"}</span>
 											<span className="font-mono font-semibold text-foreground">₹{originalTotal}</span>
 										</div>
+										{billDiscount > 0 && (
+											<div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400">
+												<div className="flex flex-col">
+													<span>{locale === "hi" ? "लागू छूट (Discount Applied)" : "Discount Applied"}</span>
+													{discountReasonText && (
+														<span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 font-normal max-w-[220px] truncate">
+															{discountReasonText}
+														</span>
+													)}
+												</div>
+												<span className="font-mono">
+													-₹{billDiscount}
+												</span>
+											</div>
+										)}
 										{totalReturnedValue > 0 && (
 											<div className="flex justify-between font-semibold text-amber-600 dark:text-amber-400">
 												<span>{locale === "hi" ? "वैन स्टॉक में वापसी (कटौती)" : "Van Stock Return (Deduction)"}</span>
@@ -2064,7 +2169,7 @@ export default function DriverLiveDeliveryPage() {
 											</div>
 										)}
 										<div className="flex justify-between border-t pt-2 font-bold text-base text-foreground">
-											<span>{locale === "hi" ? "कुल देय राशि (Net Payable)" : "Net Payable Amount"}</span>
+											<span>{locale === "hi" ? "अंतिम देय राशि (Invoice Grand Total)" : "Invoice Grand Total (To Collect)"}</span>
 											<span className="font-mono text-emerald-600 dark:text-emerald-400 text-lg">
 												₹{finalTotal}
 											</span>
@@ -2201,8 +2306,9 @@ export default function DriverLiveDeliveryPage() {
 								price: String(i.price),
 							})),
 						total: finalTotal,
-						subtotal: subtotal,
-						discount: 0,
+						subtotal: originalTotal,
+						discount: billDiscount,
+						discountReason: discountReasonText || undefined,
 						payments: [
 							...(cashAmount > 0
 								? [{ methodId: 1, amount: String(cashAmount) }]

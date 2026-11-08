@@ -161,9 +161,11 @@ export default function PackerPendingPage() {
 		if (!selectedPickList) return;
 		packMutation.mutate({
 			pick_list_id: selectedPickList.pick_list_id,
-			order_id: selectedPickList.id
-				? Number.parseInt(selectedPickList.id.replace(/\D/g, "") || "1", 10)
-				: 1,
+			order_id:
+				selectedPickList.order_id ||
+				(selectedPickList.id
+					? Number.parseInt(selectedPickList.id.replace(/\D/g, "") || "1", 10)
+					: 1),
 			weight: Number.parseFloat(weight) || 1.0,
 			dimensions: dimensions || "Standard Box",
 		});
@@ -179,58 +181,68 @@ export default function PackerPendingPage() {
 
 	return (
 		<PageTransition className="container mx-auto space-y-6">
-			{/* Printable A4-Optimized Unified Packing Slip & Shipping Label */}
-			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:block print:bg-white print:p-8">
+			{/* Printable Thermal-Optimized Unified Packing Slip & Shipping Label */}
+			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:flex print:items-start print:justify-center print:bg-white print:p-2">
+				<style
+					dangerouslySetInnerHTML={{
+						__html: `
+					@media print {
+						@page { size: 100mm 150mm; margin: 2mm; }
+						body { margin: 0; padding: 0; }
+					}
+				`,
+					}}
+				/>
 				{printPackage && (
-					<div className="mx-auto max-w-[580px] rounded-lg border-2 border-black p-6 font-sans text-black shadow-none">
+					<div className="w-full max-w-[360px] rounded-lg border-2 border-black p-3 font-sans text-black shadow-none bg-white">
 						{/* Header */}
-						<div className="mb-5 flex items-start justify-between border-black border-b-2 pb-4">
-							<div className="flex items-center gap-3">
-								<div className="flex h-10 w-10 items-center justify-center rounded-md border border-black bg-black text-white">
-									<Building2Icon className="h-6 w-6" />
+						<div className="mb-3 flex items-start justify-between border-black border-b-2 pb-2">
+							<div className="flex items-center gap-2">
+								<div className="flex h-8 w-8 items-center justify-center rounded border border-black bg-black text-white">
+									<Building2Icon className="h-5 w-5" />
 								</div>
 								<div>
-									<h1 className="font-extrabold text-2xl text-black tracking-tight">
+									<h1 className="font-extrabold text-lg text-black tracking-tight leading-tight">
 										EVALUNA LOGISTICS
 									</h1>
-									<p className="text-gray-600 text-xs">
-										Fast, Verified & Reliable Warehouse Delivery
+									<p className="text-gray-600 text-[10px]">
+										Warehouse Packing Slip
 									</p>
 								</div>
 							</div>
 							<div className="text-right">
-								<p className="inline-flex items-center gap-1.5 rounded bg-black px-2.5 py-1 font-bold text-white text-xs uppercase tracking-wider">
-									<PackageIcon className="h-3.5 w-3.5" />
-									SHIPPING LABEL
+								<p className="inline-flex items-center gap-1 rounded bg-black px-2 py-0.5 font-bold text-white text-[10px] uppercase tracking-wider">
+									<PackageIcon className="h-3 w-3" />
+									SLIP
 								</p>
-								<p className="mt-1 font-bold font-mono text-black text-xs">
+								<p className="mt-0.5 font-bold font-mono text-black text-[11px]">
 									Ref: {printPackage.orderRef}
 								</p>
 							</div>
 						</div>
 
-						{/* Grid for details - Ship To & Parcel Specs only */}
-						<div className="mb-6 grid grid-cols-2 gap-4 text-xs">
+						{/* Grid for details - Compact Thermal Format */}
+						<div className="mb-3 grid grid-cols-1 gap-2 text-[11px]">
 							{/* Ship To Box */}
-							<div className="space-y-2 rounded-lg border-2 border-black/80 bg-gray-50/50 p-3.5">
-								<p className="flex items-center gap-1.5 border-gray-300 border-b pb-1.5 font-bold text-black text-xs uppercase tracking-wide">
-									<TruckIcon className="h-4 w-4 text-black" />
+							<div className="space-y-1.5 rounded border border-black/80 bg-gray-50/50 p-2">
+								<p className="flex items-center gap-1 border-gray-300 border-b pb-1 font-bold text-black text-[10px] uppercase tracking-wide">
+									<TruckIcon className="h-3 w-3 text-black" />
 									SHIP TO / RECIPIENT
 								</p>
 								<div className="flex items-center gap-1.5">
-									<UserIcon className="h-3.5 w-3.5 shrink-0 text-gray-700" />
-									<span className="font-extrabold text-black text-sm">
+									<UserIcon className="h-3 w-3 shrink-0 text-gray-700" />
+									<span className="font-extrabold text-black text-xs">
 										{printPackage.customerName || "Customer"}
 									</span>
 								</div>
 								{printPackage.customerPhone && (
 									<div className="flex items-center gap-1.5 font-medium text-gray-800">
-										<PhoneIcon className="h-3.5 w-3.5 shrink-0 text-gray-700" />
+										<PhoneIcon className="h-3 w-3 shrink-0 text-gray-700" />
 										<span>{printPackage.customerPhone}</span>
 									</div>
 								)}
-								<div className="flex items-start gap-1.5 text-gray-700 leading-relaxed">
-									<MapPinIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-700" />
+								<div className="flex items-start gap-1.5 text-gray-700 leading-snug">
+									<MapPinIcon className="mt-0.5 h-3 w-3 shrink-0 text-gray-700" />
 									<span>
 										{printPackage.customerAddress ||
 											"Standard Warehouse Delivery"}
@@ -238,100 +250,57 @@ export default function PackerPendingPage() {
 								</div>
 								{printPackage.routeName && (
 									<div className="flex items-center gap-1.5 border-gray-200 border-t pt-1 font-semibold text-gray-800">
-										<RouteIcon className="h-3.5 w-3.5 shrink-0 text-gray-700" />
+										<RouteIcon className="h-3 w-3 shrink-0 text-gray-700" />
 										<span>Route: {printPackage.routeName}</span>
-									</div>
-								)}
-								{printPackage.driverName && (
-									<div className="flex items-center gap-1.5 text-gray-700">
-										<TruckIcon className="h-3.5 w-3.5 shrink-0 text-gray-700" />
-										<span>Driver: {printPackage.driverName}</span>
 									</div>
 								)}
 							</div>
 
 							{/* Parcel Specs Box */}
-							<div className="space-y-2 rounded-lg border-2 border-black/80 bg-gray-50/50 p-3.5">
-								<p className="flex items-center gap-1.5 border-gray-300 border-b pb-1.5 font-bold text-black text-xs uppercase tracking-wide">
-									<PackageIcon className="h-4 w-4 text-black" />
-									PARCEL SPECIFICATIONS
-								</p>
-								<div className="flex items-center justify-between font-mono text-xs">
-									<span className="flex items-center gap-1 text-gray-700">
-										<TagIcon className="h-3 w-3 text-gray-600" />
-										Package #:
-									</span>
-									<span className="font-bold text-black">
-										{printPackage.number}
-									</span>
+							<div className="space-y-1 rounded border border-black/80 bg-gray-50/50 p-2 text-[11px]">
+								<div className="flex items-center justify-between font-mono">
+									<span className="text-gray-700">Pkg #:</span>
+									<span className="font-bold text-black">{printPackage.number}</span>
 								</div>
 								<div className="flex items-center justify-between">
-									<span className="flex items-center gap-1 text-gray-700">
-										<ScaleIcon className="h-3 w-3 text-gray-600" />
-										Weight:
-									</span>
+									<span className="text-gray-700">Weight & Size:</span>
 									<span className="font-bold text-black">
-										{printPackage.weight} kg
+										{printPackage.weight} kg • {printPackage.dimensions}
 									</span>
 								</div>
-								<div className="flex items-center justify-between">
-									<span className="flex items-center gap-1 text-gray-700">
-										<BoxIcon className="h-3 w-3 text-gray-600" />
-										Box Size:
-									</span>
-									<span className="font-bold text-black">
-										{printPackage.dimensions}
-									</span>
-								</div>
-								<div className="flex items-center justify-between">
-									<span className="flex items-center gap-1 text-gray-700">
-										<CalendarIcon className="h-3 w-3 text-gray-600" />
-										Date:
-									</span>
+								<div className="flex items-center justify-between border-gray-200 border-t pt-0.5">
+									<span className="text-gray-700">Date:</span>
 									<span className="font-medium text-black">
 										{new Date().toLocaleDateString()}
-									</span>
-								</div>
-								<div className="flex items-center justify-between border-gray-200 border-t pt-1">
-									<span className="flex items-center gap-1 text-gray-700">
-										<ShieldCheckIcon className="h-3.5 w-3.5 text-emerald-700" />
-										Status:
-									</span>
-									<span className="font-semibold text-emerald-700">
-										Passed & Verified
 									</span>
 								</div>
 							</div>
 						</div>
 
-						{/* Barcode Shipment Sticker */}
-						<div className="flex flex-col items-center justify-center border-black border-t-2 pt-4">
-							<p className="mb-1.5 font-bold text-[11px] text-gray-700 tracking-wider">
-								SCAN BARCODE OR QR CODE FOR INSTANT ORDER & BILL
-							</p>
-							<div className="flex flex-wrap items-center justify-center gap-6 bg-white p-2">
+						{/* Barcode & Driver QR Code Section */}
+						<div className="flex flex-col items-center justify-center border-black border-t pt-2">
+							<div className="flex items-center justify-center gap-3 bg-white p-1">
 								<div className="flex flex-col items-center">
-									<svg ref={printSvgRef} className="my-1 max-w-[240px]" />
-									<span className="font-bold font-mono text-[10px] text-gray-800">
+									<svg ref={printSvgRef} className="my-0.5 max-w-[190px]" />
+									<span className="font-bold font-mono text-[9px] text-gray-800">
 										{printPackage.number}
 									</span>
 								</div>
 								{qrCodeDataUrl && (
-									<div className="flex flex-col items-center rounded border-2 border-black bg-white p-1.5">
+									<div className="flex flex-col items-center rounded border border-black bg-white p-1">
 										<img
 											src={qrCodeDataUrl}
 											alt="QR Code"
-											className="h-20 w-20 object-contain"
+											className="h-14 w-14 object-contain"
 										/>
-										<span className="font-bold font-mono text-[9px] text-black uppercase tracking-wide">
-											Driver QR
+										<span className="font-bold font-mono text-[8px] text-black uppercase">
+											SCAN QR
 										</span>
 									</div>
 								)}
 							</div>
-							<p className="mt-2 flex items-center gap-1 font-semibold text-[10px] text-gray-600 tracking-wide">
-								<ShieldCheckIcon className="h-3 w-3 text-gray-600" />
-								PACKED & VERIFIED BY EVALUNA LOGISTICS • DRIVER APP COMPLIANT
+							<p className="mt-1 font-semibold text-[9px] text-gray-600 text-center tracking-tight">
+								PACKED & VERIFIED • EVALUNA LOGISTICS
 							</p>
 						</div>
 					</div>

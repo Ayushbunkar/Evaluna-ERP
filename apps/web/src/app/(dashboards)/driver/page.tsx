@@ -54,6 +54,12 @@ export default function DriverDashboard() {
 	const deliveredOrders = dashboard?.delivered || 0;
 	const pendingOrders = dashboard?.pending || 0;
 
+	const { data: dispatches = [] } = trpc.vanStock.getMyDispatches.useQuery(
+		undefined,
+		{ refetchInterval: 15000 }
+	);
+	const activeDispatch = (dispatches as any[]).find((d: any) => d.status === "DISPATCHED") || (dispatches as any[])[0];
+
 	return (
 		<PageTransition className="container max-w-6xl mx-auto space-y-6 p-4 sm:p-6">
 			{/* Header Banner */}
@@ -237,8 +243,106 @@ export default function DriverDashboard() {
 							</CardContent>
 						</Card>
 					</Link>
+
+					{/* Action 7: Van Stock & Route Manifest */}
+					<Link href="/driver/van-stock" className="group">
+						<Card className="h-full border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-background hover:border-emerald-600 hover:shadow-md transition-all rounded-xl cursor-pointer">
+							<CardContent className="p-4 flex items-center justify-between">
+								<div className="flex items-center gap-3">
+									<div className="p-3 rounded-xl bg-emerald-600 text-white shadow-md group-hover:scale-105 transition-transform">
+										<Truck className="h-6 w-6" />
+									</div>
+									<div>
+										<h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1.5">
+											Van Stock Manifest
+										</h3>
+										<p className="text-xs text-muted-foreground mt-0.5">
+											{activeDispatch
+												? `${activeDispatch.items?.length || 0} items loaded (${activeDispatch.vehicle?.registrationNumber || "Van"})`
+												: "View loaded van stock & returns"}
+										</p>
+									</div>
+								</div>
+								<ArrowRightIcon className="h-5 w-5 text-emerald-600 group-hover:translate-x-1 transition-transform shrink-0" />
+							</CardContent>
+						</Card>
+					</Link>
 				</div>
 			</div>
+
+			{/* Active Van Stock Manifest Banner (Live loaded vehicle inventory) */}
+			{activeDispatch && (
+				<motion.div
+					initial={{ opacity: 0, y: 15 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.4 }}
+				>
+					<Card className="border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-50/50 via-background to-teal-50/30 dark:from-emerald-950/20 dark:to-teal-950/10 shadow-md">
+						<CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b bg-emerald-500/5 dark:bg-emerald-500/10">
+							<div className="space-y-1">
+								<div className="flex items-center gap-2">
+									<Badge className="bg-emerald-600 text-white text-xs">
+										{activeDispatch.status === "DISPATCHED" ? "Active Dispatched Stock" : activeDispatch.status}
+									</Badge>
+									<span className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300">
+										{activeDispatch.planCode || activeDispatch.planNumber}
+									</span>
+								</div>
+								<CardTitle className="text-base sm:text-lg flex items-center gap-2 text-foreground">
+									<Truck className="h-5 w-5 text-emerald-600" />
+									Loaded Van Stock: {activeDispatch.vehicle?.registrationNumber || "Delivery Van"}
+								</CardTitle>
+								<CardDescription className="text-xs">
+									Dispatch Ref: {activeDispatch.dispatchReference || "Pending"} | Date: {activeDispatch.dispatchDate}
+								</CardDescription>
+							</div>
+							<div className="mt-3 sm:mt-0 flex items-center gap-2">
+								<Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs" asChild>
+									<Link href="/driver/van-stock">
+										<Package className="mr-1.5 h-3.5 w-3.5" /> Manage Van Stock & Returns
+									</Link>
+								</Button>
+							</div>
+						</CardHeader>
+						<CardContent className="pt-4">
+							<div className="overflow-x-auto border rounded-lg bg-card">
+								<table className="w-full text-left text-xs">
+									<thead className="bg-muted text-muted-foreground font-semibold border-b">
+										<tr>
+											<th className="p-2.5">Product Name</th>
+											<th className="p-2.5">SKU</th>
+											<th className="p-2.5 text-center">Loaded Qty</th>
+											<th className="p-2.5 text-center">Delivered</th>
+											<th className="p-2.5 text-center">Returns</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y">
+										{(activeDispatch.items || []).map((it: any) => (
+											<tr key={it.id} className="hover:bg-muted/30">
+												<td className="p-2.5 font-medium text-foreground">
+													{it.productName || it.product?.name || "Product"}
+												</td>
+												<td className="p-2.5 font-mono text-muted-foreground">
+													{it.sku || it.product?.sku || "-"}
+												</td>
+												<td className="p-2.5 text-center font-bold text-emerald-700 dark:text-emerald-400">
+													{it.loadedQty ?? it.loadedQuantity ?? 0} {it.unit || "pcs"}
+												</td>
+												<td className="p-2.5 text-center font-medium">
+													{it.deliveredQty ?? it.deliveredQuantity ?? 0}
+												</td>
+												<td className="p-2.5 text-center font-medium text-amber-600">
+													{it.returnedQty ?? it.returnedQuantity ?? 0}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						</CardContent>
+					</Card>
+				</motion.div>
+			)}
 
 			{/* Driver Summary Metrics (Completely removed Online/Offline status) */}
 			<motion.div
@@ -394,15 +498,37 @@ export default function DriverDashboard() {
 										</p>
 									</div>
 									<div className="rounded-lg border p-3 bg-emerald-50/50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900">
-										<p className="text-emerald-700 dark:text-emerald-400 font-semibold mb-1">
-											Amount to Collect
-										</p>
+										<div className="flex items-center justify-between mb-1">
+											<p className="text-emerald-700 dark:text-emerald-400 font-semibold text-xs">
+												Amount to Collect
+											</p>
+											{dashboard.nextDelivery.discountAmount && dashboard.nextDelivery.discountAmount > 0 ? (
+												<span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200">
+													🏷️ -₹{dashboard.nextDelivery.discountAmount} Off
+												</span>
+											) : null}
+										</div>
 										<p className="font-extrabold font-mono text-emerald-900 dark:text-emerald-200 text-base">
 											{formatCurrency(
 												dashboard.nextDelivery.amountToCollect,
 												locale,
 											)}
 										</p>
+										{dashboard.nextDelivery.discountAmount && dashboard.nextDelivery.discountAmount > 0 ? (
+											<div className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
+												<span className="line-through text-muted-foreground mr-1.5 font-mono">
+													{formatCurrency(
+														(dashboard.nextDelivery.subtotal || dashboard.nextDelivery.amountToCollect + dashboard.nextDelivery.discountAmount),
+														locale,
+													)}
+												</span>
+												{dashboard.nextDelivery.discountReason ? (
+													<span className="truncate block font-medium mt-0.5 text-[10px]" title={dashboard.nextDelivery.discountReason}>
+														Reason: {dashboard.nextDelivery.discountReason}
+													</span>
+												) : null}
+											</div>
+										) : null}
 									</div>
 								</div>
 
@@ -487,13 +613,25 @@ export default function DriverDashboard() {
 												<p className="font-semibold text-sm text-foreground">
 													{stop.customerName}
 												</p>
-												<p className="text-muted-foreground text-xs">
-													{stop.status === "completed"
-														? "Delivered ✓"
-														: stop.status === "next"
-															? "Next Stop"
-															: "Pending"}
-												</p>
+												<div className="flex items-center gap-1.5 text-xs flex-wrap">
+													<span className="text-muted-foreground">
+														{stop.status === "completed"
+															? "Delivered ✓"
+															: stop.status === "next"
+																? "Next Stop"
+																: "Pending"}
+													</span>
+													{stop.amountToCollect ? (
+														<span className="font-mono font-bold text-foreground">
+															• ₹{stop.amountToCollect}
+														</span>
+													) : null}
+													{stop.discountAmount && stop.discountAmount > 0 ? (
+														<span className="text-[10px] px-1 rounded bg-emerald-100 text-emerald-800 font-semibold dark:bg-emerald-950 dark:text-emerald-300">
+															🏷️ -₹{stop.discountAmount}
+														</span>
+													) : null}
+												</div>
 											</div>
 										</div>
 										<div className="flex items-center gap-2 text-right">

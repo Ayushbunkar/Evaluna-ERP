@@ -22,6 +22,7 @@ import {
 	tripStops,
 	vehicles,
 } from "@evaluna/db/schema/delivery";
+import { vanStockPlanItems, vanStockPlans } from "@evaluna/db/schema/van-stock";
 import { TRPCError } from "@trpc/server";
 import {
 	and,
@@ -55,6 +56,9 @@ type NextDelivery = {
 	orders?: Array<{
 		id: number;
 		total_amount: number;
+		subtotal?: number;
+		discount_amount?: number;
+		discount_reason?: string | null;
 		status: string;
 		itemsCount: number;
 	}>;
@@ -66,6 +70,9 @@ type NextDelivery = {
 	contactName: string;
 	contactPhone: string;
 	paymentType: string;
+	subtotal?: number;
+	discountAmount?: number;
+	discountReason?: string | null;
 	amountToCollect: number;
 	packages: number;
 	estimatedDuration: string;
@@ -92,9 +99,15 @@ type RouteStop = {
 	orders?: Array<{
 		id: number;
 		total_amount: number;
+		subtotal?: number;
+		discount_amount?: number;
+		discount_reason?: string | null;
 		status: string;
 		itemsCount: number;
 	}>;
+	subtotal?: number;
+	discountAmount?: number;
+	discountReason?: string | null;
 	amountToCollect: number;
 	packages: number;
 	orderItems: {
@@ -407,11 +420,41 @@ export const driverRouter = router({
 							const formattedOrderIds = orderIdList
 								.map((id) => `ORD-${id}`)
 								.join(", ");
-							const totalAmount = ords.reduce(
-								(sum, o) => sum + Number(o.total_amount || 0),
+							const allItems = ords.flatMap((o) => o.orderItems || []);
+							const stopSubtotal = ords.reduce(
+								(sum, o) =>
+									sum +
+									(o.orderItems || []).reduce(
+										(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+										0,
+									),
 								0,
 							);
-							const allItems = ords.flatMap((o) => o.orderItems || []);
+							const stopDiscount = ords.reduce(
+								(sum, o) => sum + Number(o.discount_amount || 0),
+								0,
+							);
+							const stopDiscountReason =
+								Array.from(
+									new Set(
+										ords
+											.map((o) => o.discount_reason)
+											.filter(Boolean),
+									),
+								).join("; ") || null;
+
+							const totalAmount = ords.reduce((sum, o) => {
+								const itSubtotal = (o.orderItems || []).reduce(
+									(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+									0,
+								);
+								const disc = Number(o.discount_amount || 0);
+								const rawTotal = Number(o.total_amount || 0);
+								if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+									return sum + Math.max(0, itSubtotal - disc);
+								}
+								return sum + rawTotal;
+							}, 0);
 
 							const stopDate = firstOrd.created_at
 								? new Date(firstOrd.created_at).toISOString().split("T")[0]
@@ -433,12 +476,29 @@ export const driverRouter = router({
 								orderId: formattedOrderIds,
 								orderIds: orderIdList,
 								ordersCount: ords.length,
-								orders: ords.map((o) => ({
-									id: o.id,
-									total_amount: Number(o.total_amount || 0),
-									status: o.status,
-									itemsCount: o.orderItems?.length || 0,
-								})),
+								orders: ords.map((o) => {
+									const itSubtotal = (o.orderItems || []).reduce(
+										(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+										0,
+									);
+									const disc = Number(o.discount_amount || 0);
+									let net = Number(o.total_amount || 0);
+									if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+										net = Math.max(0, itSubtotal - disc);
+									}
+									return {
+										id: o.id,
+										total_amount: net,
+										subtotal: itSubtotal,
+										discount_amount: disc,
+										discount_reason: o.discount_reason || null,
+										status: o.status,
+										itemsCount: o.orderItems?.length || 0,
+									};
+								}),
+								subtotal: stopSubtotal,
+								discountAmount: stopDiscount,
+								discountReason: stopDiscountReason,
 								amountToCollect: totalAmount,
 								packages: allItems.length > 0 ? allItems.length : ords.length,
 								orderItems: allItems.map((item) => ({
@@ -469,6 +529,9 @@ export const driverRouter = router({
 							contactName: firstStop.customerName,
 							contactPhone: firstStop.phone || "N/A",
 							paymentType: "Cash on Delivery / UPI",
+							subtotal: firstStop.subtotal,
+							discountAmount: firstStop.discountAmount,
+							discountReason: firstStop.discountReason,
 							amountToCollect: firstStop.amountToCollect,
 							packages: firstStop.packages,
 							estimatedDuration: "~15 min",
@@ -489,10 +552,27 @@ export const driverRouter = router({
 							batteryLevel: null as number | null,
 							currentLocation: null as string | null,
 							assignedOrders: directOrders.length,
-							delivered: 0,
-							pending: directOrders.length,
-							codCollected: 0,
-							successfulCollections: 0,
+							delivered: directOrders.filter(
+								(o) => o.status === "delivered" || o.status === "completed",
+							).length,
+							pending: directOrders.filter(
+								(o) => o.status !== "delivered" && o.status !== "completed",
+							).length,
+							codCollected: directOrders
+								.filter(
+									(o) => o.status === "delivered" || o.status === "completed",
+								)
+								.reduce(
+									(sum, o) =>
+										sum +
+										Number(
+											o.driver_collected_amount || (o as any).total_amount || 0,
+										),
+									0,
+								),
+							successfulCollections: directOrders.filter(
+								(o) => o.status === "delivered" || o.status === "completed",
+							).length,
 							returnsProcessed: 0,
 							returnRate: 0,
 							customerRating: 4.9,
@@ -618,11 +698,25 @@ export const driverRouter = router({
 						: null,
 				]);
 
-				const codCollected = collections.reduce(
+				const tripCash = collections.reduce(
 					(acc, curr) => acc + Number(curr.amount || 0),
 					0,
 				);
-				const successfulCollections = collections.length;
+				const ordersCash = ordersForStops
+					.filter((o) => o.status === "delivered" || o.status === "completed")
+					.reduce(
+						(acc, o) =>
+							acc +
+							Number(o.driver_collected_amount || (o as any).total_amount || 0),
+						0,
+					);
+				const codCollected = tripCash > 0 ? tripCash : ordersCash;
+				const successfulCollections = Math.max(
+					collections.length,
+					ordersForStops.filter(
+						(o) => o.status === "delivered" || o.status === "completed",
+					).length,
+				);
 
 				let nextDelivery: NextDelivery | null = null;
 				if (nextStop) {
@@ -643,11 +737,41 @@ export const driverRouter = router({
 							: activeOrder?.id
 								? `ORD-${activeOrder.id}`
 								: `ORD-${nextStop.id}`;
-					const totalAmount = activeOrders.reduce(
-						(sum, o) => sum + Number(o.total_amount || 0),
+					const allItems = activeOrders.flatMap((o) => o.orderItems || []);
+					const stopSubtotal = activeOrders.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
 						0,
 					);
-					const allItems = activeOrders.flatMap((o) => o.orderItems || []);
+					const stopDiscount = activeOrders.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								activeOrders
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
+
+					const totalAmount = activeOrders.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
 
 					const resolvedCustName =
 						nextStop.customer?.name ||
@@ -670,12 +794,26 @@ export const driverRouter = router({
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: activeOrders.length,
-						orders: activeOrders.map((o) => ({
-							id: o.id,
-							total_amount: Number(o.total_amount || 0),
-							status: o.status,
-							itemsCount: o.orderItems?.length || 0,
-						})),
+						orders: activeOrders.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
 						stop_id: nextStop.id,
 						customerName: resolvedCustName,
 						phone: resolvedCustPhone,
@@ -684,6 +822,9 @@ export const driverRouter = router({
 						contactName: resolvedCustName,
 						contactPhone: resolvedCustPhone,
 						paymentType: "Cash on Delivery / UPI",
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
 						amountToCollect: totalAmount,
 						packages: allItems.length > 0 ? allItems.length : 1,
 						estimatedDuration: "~15 min",
@@ -720,11 +861,42 @@ export const driverRouter = router({
 						orderIdList.length > 0
 							? orderIdList.map((id) => `ORD-${id}`).join(", ")
 							: `ORD-${s.id || 460 + idx}`;
-					const totalAmount = matchingOrders.reduce(
-						(sum, o) => sum + Number(o.total_amount || 0),
+					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+
+					const stopSubtotal = matchingOrders.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
 						0,
 					);
-					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
+					const stopDiscount = matchingOrders.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								matchingOrders
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
+
+					const totalAmount = matchingOrders.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
 
 					const resolvedCustName =
 						s.customer?.name || matchingOrder?.customer?.name || "Customer";
@@ -759,12 +931,29 @@ export const driverRouter = router({
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: matchingOrders.length,
-						orders: matchingOrders.map((o) => ({
-							id: o.id,
-							total_amount: Number(o.total_amount || 0),
-							status: o.status,
-							itemsCount: o.orderItems?.length || 0,
-						})),
+						orders: matchingOrders.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
 						amountToCollect: totalAmount,
 						packages: allItems.length > 0 ? allItems.length : 1,
 						orderItems:
@@ -1077,10 +1266,41 @@ export const driverRouter = router({
 					const formattedOrderIds = orderIdList
 						.map((id) => `ORD-${id}`)
 						.join(", ");
-					const totalAmount = ords.reduce(
-						(sum, o) => sum + Number(o.total_amount || 0),
+					const stopSubtotal = ords.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) =>
+									s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
 						0,
 					);
+					const stopDiscount = ords.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								ords
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
+
+					const totalAmount = ords.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
 					const allItems = ords.flatMap((o) => o.orderItems || []);
 
 					const stopDate = firstOrd.created_at
@@ -1103,12 +1323,29 @@ export const driverRouter = router({
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: ords.length,
-						orders: ords.map((o) => ({
-							id: o.id,
-							total_amount: Number(o.total_amount || 0),
-							status: o.status,
-							itemsCount: o.orderItems?.length || 0,
-						})),
+						orders: ords.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
 						amountToCollect: totalAmount,
 						packages: allItems.length > 0 ? allItems.length : ords.length,
 						orderItems: allItems.map((item) => ({
@@ -1178,10 +1415,41 @@ export const driverRouter = router({
 						orderIdList.length > 0
 							? orderIdList.map((id) => `ORD-${id}`).join(", ")
 							: `ORD-${s.order_id || 460 + idx}`;
-					const totalAmount = matchingOrders.reduce(
-						(sum, o) => sum + Number(o.total_amount || 0),
+					const stopSubtotal = matchingOrders.reduce(
+						(sum, o) =>
+							sum +
+							(o.orderItems || []).reduce(
+								(s, it) =>
+									s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							),
 						0,
 					);
+					const stopDiscount = matchingOrders.reduce(
+						(sum, o) => sum + Number(o.discount_amount || 0),
+						0,
+					);
+					const stopDiscountReason =
+						Array.from(
+							new Set(
+								matchingOrders
+									.map((o) => o.discount_reason)
+									.filter(Boolean),
+							),
+						).join("; ") || null;
+
+					const totalAmount = matchingOrders.reduce((sum, o) => {
+						const itSubtotal = (o.orderItems || []).reduce(
+							(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+							0,
+						);
+						const disc = Number(o.discount_amount || 0);
+						const rawTotal = Number(o.total_amount || 0);
+						if (disc > 0 && Math.abs(rawTotal - itSubtotal) < 0.01) {
+							return sum + Math.max(0, itSubtotal - disc);
+						}
+						return sum + rawTotal;
+					}, 0);
 					const allItems = matchingOrders.flatMap((o) => o.orderItems || []);
 
 					// Check proof of delivery for edited doorstep items
@@ -1257,7 +1525,9 @@ export const driverRouter = router({
 					);
 					const finalAmountToCollect =
 						podCollectedTotal ||
-						(calculatedItemsSum > 0 ? calculatedItemsSum : totalAmount);
+						(totalAmount > 0
+							? totalAmount
+							: Math.max(0, calculatedItemsSum - stopDiscount));
 
 					const stopRawDate = s.created_at || matchingOrder?.created_at;
 					const stopDate = stopRawDate
@@ -1286,12 +1556,29 @@ export const driverRouter = router({
 						orderId: formattedOrderIds,
 						orderIds: orderIdList,
 						ordersCount: matchingOrders.length,
-						orders: matchingOrders.map((o) => ({
-							id: o.id,
-							total_amount: Number(o.total_amount || 0),
-							status: o.status,
-							itemsCount: o.orderItems?.length || 0,
-						})),
+						orders: matchingOrders.map((o) => {
+							const itSubtotal = (o.orderItems || []).reduce(
+								(s, it) => s + Number(it.price || 0) * Number(it.quantity || 0),
+								0,
+							);
+							const disc = Number(o.discount_amount || 0);
+							let net = Number(o.total_amount || 0);
+							if (disc > 0 && Math.abs(net - itSubtotal) < 0.01) {
+								net = Math.max(0, itSubtotal - disc);
+							}
+							return {
+								id: o.id,
+								total_amount: net,
+								subtotal: itSubtotal,
+								discount_amount: disc,
+								discount_reason: o.discount_reason || null,
+								status: o.status,
+								itemsCount: o.orderItems?.length || 0,
+							};
+						}),
+						subtotal: stopSubtotal,
+						discountAmount: stopDiscount,
+						discountReason: stopDiscountReason,
 						amountToCollect: finalAmountToCollect,
 						packages:
 							resolvedOrderItems.length > 0 ? resolvedOrderItems.length : 1,
@@ -1373,22 +1660,31 @@ export const driverRouter = router({
 
 					const stops = await Promise.all(
 						(t.stops || []).map(async (s: any, idx: number) => {
-							const stopCollections = (t.collections || []).filter(
-								(c: any) => c.trip_id === t.id,
-							);
-							let cash = 0;
-							let online = 0;
-							for (const col of stopCollections) {
-								const amt = Number(col.amount || 0);
-								if (col.payment_method?.toLowerCase().includes("cash")) {
-									cash += amt;
-								} else {
-									online += amt;
-								}
-							}
-
 							const isDelivered =
 								s.status === "delivered" || s.status === "completed";
+
+							let cash = 0;
+							let online = 0;
+
+							// If stop is delivered, match specific collections for this stop
+							if (isDelivered) {
+								const stopCollections = (t.collections || []).filter(
+									(c: any) =>
+										c.reference_number === `STOP-${s.id}` ||
+										c.reference_number === String(s.id) ||
+										(s.order_id &&
+											(c.reference_number === `ORD-${s.order_id}` ||
+												c.reference_number === String(s.order_id))),
+								);
+								for (const col of stopCollections) {
+									const amt = Number(col.amount || 0);
+									if (col.payment_method?.toLowerCase().includes("cash")) {
+										cash += amt;
+									} else {
+										online += amt;
+									}
+								}
+							}
 
 							// Fetch POD notes / items if available
 							let deliveredItems: any[] = [];
@@ -1433,6 +1729,14 @@ export const driverRouter = router({
 										stopExtraCharges = Number(p.extraCharges || 0);
 										stopExtraChargesReason = String(p.extraChargesReason || "");
 									}
+									if (isDelivered && (p.cashAmount !== undefined || p.onlineAmount !== undefined)) {
+										const pCash = Number(p.cashAmount || 0);
+										const pOnline = Number(p.onlineAmount || 0);
+										if (pCash > 0 || pOnline > 0 || (cash === 0 && online === 0)) {
+											cash = pCash;
+											online = pOnline;
+										}
+									}
 								}
 							} catch (e) {}
 
@@ -1462,7 +1766,20 @@ export const driverRouter = router({
 											price: Number(oi.price || 0),
 										}));
 									}
+									if (custOrder?.discount_amount && stopDiscountAmount === 0) {
+										stopDiscountAmount = Number(custOrder.discount_amount || 0);
+										stopDiscountReason = String(custOrder.discount_reason || "");
+									}
+									if (isDelivered && cash === 0 && online === 0 && custOrder?.driver_collected_amount) {
+										cash = Number(custOrder.driver_collected_amount || 0);
+									}
 								} catch (e) {}
+							}
+
+							// Crucial: Only actually delivered stops have collections!
+							if (!isDelivered) {
+								cash = 0;
+								online = 0;
 							}
 
 							// Calculate initial dispatched items
@@ -1498,22 +1815,42 @@ export const driverRouter = router({
 						}),
 					);
 
-					const completedStops = stops.filter(
+					const deliveredStops = stops.filter(
 						(s: any) => s.status === "Delivered",
-					).length;
+					);
+					const completedStops = deliveredStops.length;
 					const totalStops = stops.length;
 					const isTripCompleted =
 						(completedStops === totalStops && totalStops > 0) ||
 						t.status === "completed";
 
-					totalCash = stops.reduce(
-						(acc: number, st: any) => acc + st.cashCollected,
+					const sumStopCash = deliveredStops.reduce(
+						(acc: number, st: any) => acc + (Number(st.cashCollected) || 0),
 						0,
 					);
-					totalOnline = stops.reduce(
-						(acc: number, st: any) => acc + st.onlineCollected,
+					const sumStopOnline = deliveredStops.reduce(
+						(acc: number, st: any) => acc + (Number(st.onlineCollected) || 0),
 						0,
 					);
+
+					let totalCash = sumStopCash;
+					let totalOnline = sumStopOnline;
+
+					// If stops had 0 recorded collections but trip-level collections exist,
+					// use trip collections summed ONCE without duplicating per stop
+					if (totalCash === 0 && totalOnline === 0 && t.collections && t.collections.length > 0) {
+						totalCash = (t.collections || [])
+							.filter((c: any) => c.payment_method?.toLowerCase().includes("cash"))
+							.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
+						totalOnline = (t.collections || [])
+							.filter((c: any) => !c.payment_method?.toLowerCase().includes("cash"))
+							.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
+
+						if (deliveredStops.length === 1) {
+							deliveredStops[0].cashCollected = totalCash;
+							deliveredStops[0].onlineCollected = totalOnline;
+						}
+					}
 
 					return {
 						id: t.id,
@@ -1613,6 +1950,7 @@ export const driverRouter = router({
 						}),
 					)
 					.optional(),
+				order_id: z.coerce.number().optional(),
 				discountAmount: z.coerce.number().optional(),
 				discountReason: z.string().optional(),
 				extraCharges: z.coerce.number().optional(),
@@ -1686,8 +2024,8 @@ export const driverRouter = router({
 				}
 
 				// Find associated order and sync its status & finance status
-				let orderIdToUpdate: number | null = null;
-				if (input.stop_id) {
+				let orderIdToUpdate: number | null = input.order_id || null;
+				if (!orderIdToUpdate && input.stop_id) {
 					const stopObj = await db.query.tripStops?.findFirst({
 						where: eq(tripStops.id, input.stop_id),
 					});
@@ -1700,18 +2038,24 @@ export const driverRouter = router({
 							orderIdToUpdate = matchingOrder.id;
 						}
 					}
+					if (!orderIdToUpdate) {
+						const directOrder = await db.query.orders?.findFirst({
+							where: eq(orders.id, input.stop_id),
+						});
+						if (directOrder) {
+							orderIdToUpdate = directOrder.id;
+						}
+					}
 				}
 
 				if (orderIdToUpdate) {
-					const totalCollected = input.cashAmount + input.onlineAmount;
 					await db
 						.update(orders)
 						.set({
 							status: "completed",
 							finance_status: "driver_collected",
-							...(totalCollected > 0
-								? { total_amount: String(totalCollected) }
-								: {}),
+							driver_collected_amount: String(input.cashAmount),
+							driver_collected_at: new Date(),
 						} as any)
 						.where(eq(orders.id, orderIdToUpdate));
 				}
@@ -1748,6 +2092,94 @@ export const driverRouter = router({
 				}
 
 				// Record return in salesReturns and salesReturnItems if customer returned any items
+				// Also sync returned items to vehicle's active van stock plan if one exists
+				if (hasReturns && targetTripId) {
+					try {
+						const tripRecord = await db.query.deliveryTrips?.findFirst({
+							where: eq(deliveryTrips.id, targetTripId),
+						});
+						if (tripRecord?.vehicle_id) {
+							const activeVanPlan = await db.query.vanStockPlans?.findFirst({
+								where: and(
+									eq(vanStockPlans.vehicle_id, tripRecord.vehicle_id),
+									inArray(vanStockPlans.status, [
+										"DISPATCHED",
+										"ACTIVE",
+										"LOADED",
+										"RETURN_IN_PROGRESS",
+										"PENDING_RETURN_VERIFICATION",
+									]),
+								),
+								orderBy: [desc(vanStockPlans.created_at)],
+							});
+							if (activeVanPlan) {
+								for (const item of input.damagedOrReturnedItems || []) {
+									if (item.product_id && (Number(item.qty) || 0) > 0) {
+										const isDamaged = String(item.reason || "")
+											.toLowerCase()
+											.includes("damage");
+										const existingPlanItem =
+											await db.query.vanStockPlanItems?.findFirst({
+												where: and(
+													eq(vanStockPlanItems.plan_id, activeVanPlan.id),
+													eq(
+														vanStockPlanItems.product_id,
+														Number(item.product_id),
+													),
+												),
+											});
+										if (existingPlanItem) {
+											const currRet = Number(
+												existingPlanItem.returned_quantity || 0,
+											);
+											const currDam = Number(
+												existingPlanItem.damaged_return_quantity || 0,
+											);
+											await db
+												.update(vanStockPlanItems)
+												.set({
+													returned_quantity: (
+														currRet + Number(item.qty)
+													).toString(),
+													damaged_return_quantity: isDamaged
+														? (currDam + Number(item.qty)).toString()
+														: existingPlanItem.damaged_return_quantity,
+													return_reason_code:
+														item.reason || existingPlanItem.return_reason_code,
+													return_notes:
+														item.reason || existingPlanItem.return_notes,
+												})
+												.where(eq(vanStockPlanItems.id, existingPlanItem.id));
+										} else {
+											await db.insert(vanStockPlanItems).values({
+												plan_id: activeVanPlan.id,
+												product_id: Number(item.product_id),
+												is_additional: true,
+												planned_quantity: "0",
+												picked_quantity: "0",
+												packed_quantity: "0",
+												loaded_quantity: "0",
+												returned_quantity: String(item.qty),
+												damaged_return_quantity: isDamaged
+													? String(item.qty)
+													: "0",
+												return_reason_code: item.reason || "Delivery Return",
+												return_notes:
+													item.reason || "Customer Refused / Delivery Return",
+											});
+										}
+									}
+								}
+							}
+						}
+					} catch (vanErr) {
+						console.warn(
+							"[submitDeliveryHandover] van stock return sync fallback:",
+							vanErr,
+						);
+					}
+				}
+
 				if (hasReturns && orderIdToUpdate) {
 					try {
 						const orderRecord = await db.query.orders?.findFirst({
@@ -1799,6 +2231,22 @@ export const driverRouter = router({
 							"[submitDeliveryHandover] salesReturns insertion fallback:",
 							srErr,
 						);
+					}
+				}
+
+				// Clean up any prior collection records for this specific stop on this trip before inserting fresh ones
+				if (input.stop_id && targetTripId) {
+					try {
+						await db
+							.delete(tripCollections)
+							.where(
+								and(
+									eq(tripCollections.trip_id, targetTripId),
+									eq(tripCollections.reference_number, `STOP-${input.stop_id}`),
+								),
+							);
+					} catch (delErr) {
+						console.warn("[submitDeliveryHandover] tripCollections cleanup fallback:", delErr);
 					}
 				}
 
@@ -2465,10 +2913,13 @@ export const driverRouter = router({
 			const sgstAmount = Number(orderRow.sgst_amount || 0);
 			const igstAmount = Number(orderRow.igst_amount || 0);
 			const totalTax = cgstAmount + sgstAmount + igstAmount;
-			const totalAmount = Number(
-				orderRow.total_amount ||
-					subtotal - discountAmount + otherCharges + totalTax,
-			);
+			let finalOrderTotal = Number(orderRow.total_amount || 0);
+			if (discountAmount > 0 && Math.abs(finalOrderTotal - subtotal) < 0.01) {
+				finalOrderTotal = Math.max(0, subtotal - discountAmount + otherCharges + totalTax);
+			} else if (!finalOrderTotal) {
+				finalOrderTotal = Math.max(0, subtotal - discountAmount + otherCharges + totalTax);
+			}
+			const totalAmount = Math.round(finalOrderTotal * 100) / 100;
 
 			// Determine payment status
 			const isDeliveredOrComplete =

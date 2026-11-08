@@ -470,11 +470,11 @@ export const packerRouter = router({
 					finalPackage = newPackage;
 				}
 
-				// Update pick list if applicable
+				// Update pick list status to "packed" so it leaves the packer queue
 				if (input.pick_list_id) {
 					await ctx.db
 						.update(pickLists)
-						.set({ status: "completed", completed_at: new Date() })
+						.set({ status: "packed", completed_at: new Date() })
 						.where(eq(pickLists.id, input.pick_list_id));
 				}
 

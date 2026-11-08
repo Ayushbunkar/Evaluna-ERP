@@ -9,7 +9,7 @@ import {
 	salesReturns,
 	transactions,
 } from "@evaluna/db/schema";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";
@@ -31,17 +31,51 @@ export const salesReturnsRouter = router({
 				summary: "List all sales returns",
 			},
 		})
-		.input(z.void())
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+					branchId: z.number().optional(),
+				})
+				.optional(),
+		)
 		.output(z.any())
-		.query(async ({ ctx }) => {
+		.query(async ({ ctx, input }) => {
+			const conditions: any[] = [];
+			const branchId = input?.branchId || ctx.user.branchId;
+			if (branchId && ctx.user.role === "sales_person") {
+				conditions.push(eq(salesReturns.branch_id, branchId));
+			} else if (input?.branchId) {
+				conditions.push(eq(salesReturns.branch_id, input.branchId));
+			}
+
+			if (input?.startDate) {
+				conditions.push(
+					gte(salesReturns.created_at, new Date(`${input.startDate}T00:00:00`)),
+				);
+			}
+			if (input?.endDate) {
+				conditions.push(
+					lte(salesReturns.created_at, new Date(`${input.endDate}T23:59:59`)),
+				);
+			}
+
 			const returns = await db.query.salesReturns.findMany({
-				where: eq(salesReturns.user_uid, ctx.user.id),
+				where: conditions.length > 0 ? and(...conditions) : undefined,
 				with: {
 					customer: {
-						columns: { name: true },
+						columns: { id: true, name: true, phone: true },
 					},
 					order: {
-						columns: { id: true, total_amount: true },
+						columns: { id: true, total_amount: true, bill_number: true },
+					},
+					returnItems: {
+						with: {
+							product: {
+								columns: { id: true, name: true, sku: true, unit: true },
+							},
+						},
 					},
 				},
 				orderBy: [desc(salesReturns.created_at)],
@@ -60,18 +94,19 @@ export const salesReturnsRouter = router({
 		})
 		.input(z.object({ id: z.number() }))
 		.output(z.any())
-		.query(async ({ ctx, input }) => {
+		.query(async ({ input }) => {
 			const returnData = await db.query.salesReturns.findFirst({
-				where: and(
-					eq(salesReturns.id, input.id),
-					eq(salesReturns.user_uid, ctx.user.id),
-				),
+				where: eq(salesReturns.id, input.id),
 				with: {
-					customer: { columns: { name: true } },
-					order: { columns: { id: true, total_amount: true } },
+					customer: { columns: { id: true, name: true, phone: true } },
+					order: {
+						columns: { id: true, total_amount: true, bill_number: true },
+					},
 					returnItems: {
 						with: {
-							product: { columns: { name: true, sku: true } },
+							product: {
+								columns: { id: true, name: true, sku: true, unit: true },
+							},
 						},
 					},
 				},

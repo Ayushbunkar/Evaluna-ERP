@@ -280,8 +280,11 @@ export const cashbookRouter = router({
 						tx.category === "expense" ||
 						tx.category === "purchase" ||
 						tx.category === "payroll" ||
+						tx.category === "payment" ||
 						tx.reference_type === "expense" ||
-						tx.reference_type === "purchase"
+						tx.reference_type === "purchase" ||
+						tx.reference_type === "payment" ||
+						tx.reference_type === "employee_expense"
 					) {
 						expenses += amt;
 					}
@@ -312,7 +315,12 @@ export const cashbookRouter = router({
 					if (
 						tx.category === "expense" ||
 						tx.category === "purchase" ||
-						tx.reference_type === "expense"
+						tx.category === "payroll" ||
+						tx.category === "payment" ||
+						tx.reference_type === "expense" ||
+						tx.reference_type === "purchase" ||
+						tx.reference_type === "payment" ||
+						tx.reference_type === "employee_expense"
 					) {
 						allTimeExpenses += amt;
 					}

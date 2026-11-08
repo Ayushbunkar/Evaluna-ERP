@@ -109,12 +109,15 @@ export default function VanReturnVerificationPage() {
 		});
 	};
 
-	const returnQueue = (plansData?.items || []).filter(
-		(p) => p.status === "PENDING_RETURN_VERIFICATION"
+	// Safely normalize all plans
+	const allPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+
+	const returnQueue = allPlans.filter(
+		(p: any) => p.status === "PENDING_RETURN_VERIFICATION"
 	);
 
-	const reconciledPlans = (plansData?.items || []).filter(
-		(p) => p.status === "RECONCILED"
+	const reconciledPlans = allPlans.filter(
+		(p: any) => p.status === "RECONCILED"
 	);
 
 	return (

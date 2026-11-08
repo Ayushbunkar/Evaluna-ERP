@@ -238,6 +238,11 @@ export default function CustomerOrderReviewPage() {
 			utils.orders.getPendingCount.invalidate();
 			utils.orders.listCancelledOrders.invalidate();
 			utils.orders.list.invalidate();
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
 			setCancelDialogOpen(false);
 			router.push("/sales/orders/review");
 		},

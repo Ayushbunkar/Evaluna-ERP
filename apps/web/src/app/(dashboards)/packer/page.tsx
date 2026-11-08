@@ -144,7 +144,17 @@ export default function PackerDashboard() {
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
 			{/* Printable Thermal Shipping Label */}
-			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:block print:bg-white print:p-4">
+			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:flex print:items-start print:justify-center print:bg-white print:p-2">
+				<style
+					dangerouslySetInnerHTML={{
+						__html: `
+					@media print {
+						@page { size: 100mm 150mm; margin: 2mm; }
+						body { margin: 0; padding: 0; }
+					}
+				`,
+					}}
+				/>
 				{printPackage && (
 					<div className="mx-auto flex w-[280px] flex-col items-center justify-center border-2 border-black p-4 text-center font-sans">
 						<p className="font-bold text-sm">SHIPMENT PARCEL LABEL</p>

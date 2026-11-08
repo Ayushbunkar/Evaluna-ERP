@@ -30,6 +30,7 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CompletedOrder {
@@ -1132,7 +1133,25 @@ export function SaleCompletionScreen({
 	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 	const [managerPin, setManagerPin] = useState("");
 	const [cancelReason, setCancelReason] = useState("");
-	const [isCancelling, setIsCancelling] = useState(false);
+	const utils = trpc.useUtils();
+	const cancelMutation = trpc.orders.cancelOrder.useMutation({
+		onSuccess: () => {
+			toast.success(
+				`Invoice #${order.id} cancelled successfully! Stock restored to inventory.`,
+			);
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
+			setCancelDialogOpen(false);
+			onNewSale();
+		},
+		onError: (err) => {
+			toast.error(`Failed to cancel invoice: ${err.message}`);
+		},
+	});
+	const isCancelling = cancelMutation.isPending;
 
 	const handleDuplicate = () => {
 		toast.info("Duplicate invoice created.");
@@ -1151,28 +1170,16 @@ export function SaleCompletionScreen({
 	};
 
 	const executeCancelInvoice = async () => {
-		if (!managerPin || managerPin.length < 4) {
-			toast.error("Valid Manager PIN (4+ digits) is required!");
-			return;
-		}
 		if (!cancelReason.trim()) {
 			toast.error("Please enter a cancellation reason!");
 			return;
 		}
 
-		setIsCancelling(true);
-		try {
-			// In production, PIN validation connects to manager validation service
-			toast.success(
-				`Invoice #${order.id} cancelled successfully! Stock & ledger restored.`,
-			);
-			setCancelDialogOpen(false);
-			onNewSale();
-		} catch (err: any) {
-			toast.error("Failed to cancel invoice. Invalid Manager PIN.");
-		} finally {
-			setIsCancelling(false);
-		}
+		await cancelMutation.mutateAsync({
+			id: order.id,
+			reason: cancelReason.trim(),
+			notes: managerPin ? `Manager PIN: ${managerPin}. Reason: ${cancelReason}` : cancelReason,
+		});
 	};
 
 	return (

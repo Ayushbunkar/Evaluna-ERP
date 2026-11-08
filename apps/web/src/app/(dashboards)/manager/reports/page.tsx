@@ -21,9 +21,19 @@ import { jsPDF } from "jspdf";
 import {
 	ArchiveIcon,
 	CheckCircle2Icon,
+	ChevronDownIcon,
+	ChevronUpIcon,
 	ClockIcon,
 	DownloadIcon,
 	FileBarChartIcon,
+	TrendingUpIcon,
+	TrendingDownIcon,
+	IndianRupeeIcon,
+	LayersIcon,
+	PackageIcon,
+	PercentIcon,
+	CalendarDaysIcon,
+	EyeIcon,
 	FileSpreadsheetIcon,
 	FileTextIcon,
 	FilterIcon,
@@ -36,7 +46,14 @@ import {
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
+import { Input } from "@evaluna/ui/components/input";
+import {
+	DateFilterBar,
+	getDaysAgoStr,
+	getMonthStartStr,
+	getTodayStr,
+	getYesterdayStr,
+} from "@/components/shared/filters/date-filter-bar";
 import { downloadCsv } from "@/lib/admin/csv";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -112,13 +129,30 @@ export default function ReportsPage() {
 	const [datePreset, setDatePreset] = useState("all");
 	const [selectedTeam, setSelectedTeam] = useState("all");
 	const [searchQuery, setSearchQuery] = useState("");
-	const [activeTab, setActiveTab] = useState<"live" | "archive">("live");
+	const [activeTab, setActiveTab] = useState<"sales_strategy" | "live" | "archive">("sales_strategy");
+	const [selectedDayOrders, setSelectedDayOrders] = useState<any | null>(null);
 	const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+
+	// Products Sold breakdown states (identical feature-set to sales reports + cost & profit visibility)
+	const [productViewTab, setProductViewTab] = useState<"allProducts" | "dayByDay">("allProducts");
+	const [productSearchTerm, setProductSearchTerm] = useState<string>("");
+	const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
+	const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+	const [selectedDayModalTab, setSelectedDayModalTab] = useState<"products" | "bills">("products");
 
 	// Saved Reports Archive State
 	const [savedArchives, setSavedArchives] = useState<SavedReportArchive[]>([]);
 
 	// Sourced directly from backend procedure with filtering & multi-tier aggregations
+	const {
+		data: salesStrategyReport,
+		isLoading: isSalesLoading,
+		refetch: refetchSales,
+	} = trpc.reports.getDayWiseSalesMarginReport.useQuery({
+		startDate: startDate || undefined,
+		endDate: endDate || undefined,
+	});
+
 	const {
 		data: reportResponse,
 		isLoading,
@@ -239,6 +273,282 @@ export default function ReportsPage() {
 		if (val === null || val === undefined) return '""';
 		const str = String(val).replace(/"/g, '""');
 		return `"${str}"`;
+	};
+
+	// Strategic Sales & Margin CSV Export
+	const handleExportSalesCSV = () => {
+		if (!salesStrategyReport || salesStrategyReport.dayWise.length === 0) {
+			toast.info("No sales data available to export for selected period.");
+			return;
+		}
+
+		const sections: string[] = [];
+		const summary = salesStrategyReport.summary;
+
+		sections.push("=== EVALUNA ERP - STRATEGIC SALES & PROFITABILITY REPORT ===");
+		sections.push(`Report Period,${escapeCsv(periodDisplay)}`);
+		sections.push(`Generated On,${escapeCsv(new Date().toLocaleString())}`);
+		sections.push(`Total Orders,${summary.totalOrders}`);
+		sections.push(`Total Quantity Sold,${summary.totalQuantity}`);
+		sections.push(`Total Revenue / Selling Price (INR),${summary.totalSelling}`);
+		sections.push(`Total Cost Price / COGS (INR),${summary.totalCost}`);
+		sections.push(`Total Gross Profit (INR),${summary.grossProfit}`);
+		sections.push(`Overall Profit Margin (%),${summary.overallMarginPercent}%`);
+		sections.push(`Total Discounts Given (INR),${summary.totalDiscounts}`);
+		sections.push(`Average Order Value (INR),${summary.averageOrderValue}`);
+		sections.push("");
+
+		sections.push("=== DAY-WISE SALES & MARGIN BREAKDOWN ===");
+		sections.push(
+			"Date,Total Orders,Units Sold,Revenue / Selling Price (INR),Cost Price (INR),Gross Profit (INR),Margin (%),Discounts (INR)"
+		);
+		for (const d of salesStrategyReport.dayWise) {
+			sections.push(
+				[
+					escapeCsv(d.date),
+					escapeCsv(d.orderCount),
+					escapeCsv(d.totalQuantity),
+					escapeCsv(d.sellingTotal),
+					escapeCsv(d.costTotal),
+					escapeCsv(d.grossProfit),
+					escapeCsv(`${d.marginPercent}%`),
+					escapeCsv(d.discountTotal),
+				].join(",")
+			);
+		}
+		sections.push("");
+
+		sections.push("=== TOP PROFITABLE PRODUCTS ===");
+		sections.push(
+			"Product Name,SKU,Category,Units Sold,Revenue (INR),Cost (INR),Gross Profit (INR),Margin (%)"
+		);
+		for (const p of salesStrategyReport.topProducts) {
+			sections.push(
+				[
+					escapeCsv(p.name),
+					escapeCsv(p.sku),
+					escapeCsv(p.category),
+					escapeCsv(p.qty),
+					escapeCsv(p.revenue),
+					escapeCsv(p.cost),
+					escapeCsv(p.profit),
+					escapeCsv(`${p.marginPercent}%`),
+				].join(",")
+			);
+		}
+
+		const csvContent = "\uFEFF" + sections.join("\n");
+		downloadCsv(
+			csvContent,
+			`Daywise_Sales_Profit_Report_${periodDisplay.replace(/\s+/g, "_")}.csv`
+		);
+		toast.success("Strategic sales & margin report exported successfully.");
+	};
+
+	// Strategic Sales PDF Export
+	const handleExportSalesPDF = () => {
+		if (!salesStrategyReport || salesStrategyReport.dayWise.length === 0) {
+			toast.info("No sales data available to export for selected period.");
+			return;
+		}
+
+		const doc = new jsPDF();
+		doc.setFont("helvetica", "bold");
+		doc.setFontSize(16);
+		doc.text("Evaluna ERP - Strategic Sales & Profit Report", 14, 18);
+		
+		doc.setFont("helvetica", "normal");
+		doc.setFontSize(10);
+		doc.text(`Period: ${periodDisplay} | Generated: ${new Date().toLocaleDateString()}`, 14, 25);
+
+		// Executive Summary Box
+		doc.setFillColor(243, 244, 246);
+		doc.rect(14, 30, 182, 28, "F");
+		doc.setFont("helvetica", "bold");
+		doc.setFontSize(9);
+		const sum = salesStrategyReport.summary;
+		doc.text(`Total Revenue: INR ${sum.totalSelling}`, 18, 38);
+		doc.text(`Cost of Goods: INR ${sum.totalCost}`, 80, 38);
+		doc.text(`Gross Profit: INR ${sum.grossProfit} (${sum.overallMarginPercent}% Margin)`, 140, 38);
+		doc.text(`Total Orders: ${sum.totalOrders}`, 18, 48);
+		doc.text(`Units Sold: ${sum.totalQuantity}`, 80, 48);
+		doc.text(`Avg Order Value: INR ${sum.averageOrderValue}`, 140, 48);
+
+		// Day-wise Table
+		doc.setFont("helvetica", "bold");
+		doc.setFontSize(11);
+		doc.text("Day-Wise Sales & Margin Breakdown", 14, 68);
+
+		let y = 76;
+		doc.setFontSize(8);
+		doc.setFont("helvetica", "bold");
+		doc.text("Date", 14, y);
+		doc.text("Orders", 45, y);
+		doc.text("Units", 65, y);
+		doc.text("Selling Price", 85, y);
+		doc.text("Cost Price", 120, y);
+		doc.text("Gross Profit", 155, y);
+		doc.text("Margin", 185, y);
+		y += 4;
+		doc.line(14, y, 196, y);
+		y += 5;
+
+		doc.setFont("helvetica", "normal");
+		for (const d of salesStrategyReport.dayWise) {
+			if (y > 275) {
+				doc.addPage();
+				y = 20;
+			}
+			doc.text(d.date, 14, y);
+			doc.text(String(d.orderCount), 45, y);
+			doc.text(String(d.totalQuantity), 65, y);
+			doc.text(`INR ${d.sellingTotal}`, 85, y);
+			doc.text(`INR ${d.costTotal}`, 120, y);
+			doc.text(`INR ${d.grossProfit}`, 155, y);
+			doc.text(`${d.marginPercent}%`, 185, y);
+			y += 6;
+		}
+
+		doc.save(`Sales_Strategy_Report_${periodDisplay.replace(/\s+/g, "_")}.pdf`);
+		toast.success("Strategic sales PDF exported successfully.");
+	};
+
+	// Product Pieces Breakdown Computations
+	const allProductsList = useMemo(() => {
+		return salesStrategyReport?.allProducts || [];
+	}, [salesStrategyReport?.allProducts]);
+
+	const productCategories = useMemo(() => {
+		const cats = new Set<string>();
+		for (const p of allProductsList) {
+			if (p.category) cats.add(p.category);
+		}
+		return Array.from(cats).sort();
+	}, [allProductsList]);
+
+	const filteredAllProducts = useMemo(() => {
+		return allProductsList.filter((p) => {
+			const matchesCategory =
+				productCategoryFilter === "all" ||
+				p.category?.toLowerCase() === productCategoryFilter.toLowerCase();
+			const matchesSearch =
+				!productSearchTerm ||
+				p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+				p.sku?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+				p.category?.toLowerCase().includes(productSearchTerm.toLowerCase());
+			return matchesCategory && matchesSearch;
+		});
+	}, [allProductsList, productCategoryFilter, productSearchTerm]);
+
+	const filteredTotalPieces = useMemo(() => {
+		return filteredAllProducts.reduce((s, p) => s + (p.totalQty || 0), 0);
+	}, [filteredAllProducts]);
+
+	const filteredTotalRevenue = useMemo(() => {
+		return filteredAllProducts.reduce((s, p) => s + (p.totalRevenue || 0), 0);
+	}, [filteredAllProducts]);
+
+	const filteredTotalCost = useMemo(() => {
+		return filteredAllProducts.reduce((s, p) => s + (p.totalCost || 0), 0);
+	}, [filteredAllProducts]);
+
+	const filteredTotalProfit = useMemo(() => {
+		return filteredAllProducts.reduce((s, p) => s + (p.netProfit || 0), 0);
+	}, [filteredAllProducts]);
+
+	const toggleExpandDay = (dateStr: string) => {
+		setExpandedDays((prev) => ({
+			...prev,
+			[dateStr]: prev[dateStr] === undefined ? false : !prev[dateStr],
+		}));
+	};
+
+	const handleSelectPreset = (
+		preset: "all" | "today" | "yesterday" | "7days" | "month",
+	) => {
+		if (preset === "all") {
+			setStartDate("");
+			setEndDate("");
+			setDatePreset("all");
+		} else if (preset === "today") {
+			const today = getTodayStr();
+			setStartDate(today);
+			setEndDate(today);
+			setDatePreset("today");
+		} else if (preset === "yesterday") {
+			const yesterday = getYesterdayStr();
+			setStartDate(yesterday);
+			setEndDate(yesterday);
+			setDatePreset("yesterday");
+		} else if (preset === "7days") {
+			setStartDate(getDaysAgoStr(7));
+			setEndDate(getTodayStr());
+			setDatePreset("last7");
+		} else if (preset === "month") {
+			setStartDate(getMonthStartStr());
+			setEndDate(getTodayStr());
+			setDatePreset("thisMonth");
+		}
+	};
+
+	const handleDownloadPiecesCsv = () => {
+		if (!filteredAllProducts.length) {
+			toast.info("No product data to export.");
+			return;
+		}
+
+		const headers = [
+			"Product Name",
+			"SKU",
+			"Category",
+			"Unit",
+			"Total Pieces Sold",
+			"Orders Count",
+			"Unique Customers",
+			"Unit Selling Price (INR)",
+			"Unit Cost Price (INR)",
+			"Total Revenue (INR)",
+			"Total Procurement Cost (INR)",
+			"Net Profit (INR)",
+			"Margin (%)",
+		];
+
+		const rows = filteredAllProducts.map((p) => [
+			escapeCsv(p.name),
+			escapeCsv(p.sku),
+			escapeCsv(p.category || "General"),
+			escapeCsv(p.unit || "Pcs"),
+			escapeCsv(p.totalQty),
+			escapeCsv(p.orderCount),
+			escapeCsv(p.uniqueCustomerCount || 0),
+			escapeCsv(p.unitSellingPrice),
+			escapeCsv(p.unitCostPrice),
+			escapeCsv(p.totalRevenue),
+			escapeCsv(p.totalCost),
+			escapeCsv(p.netProfit),
+			escapeCsv(`${p.marginPercent}%`),
+		]);
+
+		const csvContent =
+			"\uFEFF" +
+			[
+				`=== EVALUNA ERP - ALL PRODUCTS SOLD PIECES, COST & NET PROFIT REPORT ===`,
+				`Period: ${periodDisplay}`,
+				`Generated: ${new Date().toLocaleString()}`,
+				`Total Pieces: ${filteredTotalPieces}`,
+				`Total Revenue: INR ${filteredTotalRevenue}`,
+				`Total Procurement Cost: INR ${filteredTotalCost}`,
+				`Net Profit: INR ${filteredTotalProfit}`,
+				"",
+				headers.join(","),
+				...rows.map((r) => r.join(",")),
+			].join("\n");
+
+		downloadCsv(
+			csvContent,
+			`All_Products_Pieces_Cost_Profit_${periodDisplay.replace(/\s+/g, "_")}.csv`,
+		);
+		toast.success(`Exported ${filteredAllProducts.length} products to CSV.`);
 	};
 
 	// 1. Download Multi-Tier Company CSV Report
@@ -606,43 +916,69 @@ export default function ReportsPage() {
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleSaveReportToArchive}
-						disabled={isLoading || employeeDetails.length === 0}
-						className="gap-1.5"
-					>
-						<ArchiveIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-						Save Report Archive
-					</Button>
+					{activeTab === "sales_strategy" ? (
+						<>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleExportSalesCSV}
+								disabled={isSalesLoading || !salesStrategyReport?.dayWise?.length}
+								className="gap-1.5 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+							>
+								<FileSpreadsheetIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+								Export Sales CSV / एक्सेल
+							</Button>
+							<Button
+								size="sm"
+								onClick={handleExportSalesPDF}
+								disabled={isSalesLoading || !salesStrategyReport?.dayWise?.length}
+								className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+							>
+								<FileTextIcon className="h-4 w-4" />
+								Export Sales PDF / रिपोर्ट
+							</Button>
+						</>
+					) : (
+						<>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleSaveReportToArchive}
+								disabled={isLoading || employeeDetails.length === 0}
+								className="gap-1.5"
+							>
+								<ArchiveIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+								Save Report Archive
+							</Button>
 
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleExportCSV}
-						disabled={isLoading || employeeDetails.length === 0}
-						className="gap-1.5"
-					>
-						<FileSpreadsheetIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-						{t("exportTeamPerformanceCSV")}
-					</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleExportCSV}
+								disabled={isLoading || employeeDetails.length === 0}
+								className="gap-1.5"
+							>
+								<FileSpreadsheetIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+								{t("exportTeamPerformanceCSV")}
+							</Button>
 
-					<Button
-						size="sm"
-						onClick={handleExportPDF}
-						disabled={
-							isLoading || isPdfGenerating || employeeDetails.length === 0
-						}
-						className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
-					>
-						{isPdfGenerating ? (
-							<Loader2Icon className="h-4 w-4 animate-spin" />
-						) : (
-							<FileTextIcon className="h-4 w-4" />
-						)}
-						Export Vector PDF
-					</Button>
+							<Button
+								size="sm"
+								onClick={handleExportPDF}
+								disabled={
+									isLoading || isPdfGenerating || employeeDetails.length === 0
+								}
+								className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+							>
+								{isPdfGenerating ? (
+									<Loader2Icon className="h-4 w-4 animate-spin" />
+								) : (
+									<FileTextIcon className="h-4 w-4" />
+								)}
+								Export Vector PDF
+							</Button>
+						</>
+					)}
 				</div>
 			</div>
 
@@ -701,6 +1037,17 @@ export default function ReportsPage() {
 						<div className="flex items-center rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
 							<button
 								type="button"
+								onClick={() => setActiveTab("sales_strategy")}
+								className={`rounded-md px-3 py-1 font-semibold text-xs transition-colors ${
+									activeTab === "sales_strategy"
+										? "bg-white text-blue-700 shadow-sm dark:bg-slate-900 dark:text-blue-400"
+										: "text-slate-600 hover:text-slate-900 dark:text-slate-400"
+								}`}
+							>
+								📊 Sales & Profit Strategy / बिक्री व लाभ रणनीति
+							</button>
+							<button
+								type="button"
 								onClick={() => setActiveTab("live")}
 								className={`rounded-md px-3 py-1 font-semibold text-xs transition-colors ${
 									activeTab === "live"
@@ -708,7 +1055,7 @@ export default function ReportsPage() {
 										: "text-slate-600 hover:text-slate-900 dark:text-slate-400"
 								}`}
 							>
-								Live Performance
+								Live Team Performance
 							</button>
 							<button
 								type="button"
@@ -719,14 +1066,882 @@ export default function ReportsPage() {
 										: "text-slate-600 hover:text-slate-900 dark:text-slate-400"
 								}`}
 							>
-								Historical Reports Archive ({savedArchives.length})
+								Historical Archives ({savedArchives.length})
 							</button>
 						</div>
 					</div>
 				</CardContent>
 			</Card>
 
-			{activeTab === "archive" ? (
+			{activeTab === "sales_strategy" ? (
+				/* Sales & Profit Strategy Tab - Daywise Sales & Product Margin Report */
+				<div className="space-y-6">
+					{/* KPI Summary Cards */}
+					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+						<Card className="border-border/60 bg-card shadow-sm">
+							<CardContent className="p-4">
+								<div className="flex items-center justify-between">
+									<p className="font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
+										Total Revenue / विक्रय
+									</p>
+									<span className="rounded-lg bg-blue-500/10 p-1.5 text-blue-600 dark:text-blue-400">
+										<IndianRupeeIcon className="h-4 w-4" />
+									</span>
+								</div>
+								<h3 className="mt-2 font-bold text-xl tracking-tight text-foreground">
+									{formatCurrency(salesStrategyReport?.summary?.totalSelling || 0, "hi")}
+								</h3>
+								<p className="mt-1 text-muted-foreground text-[11px]">
+									Across {salesStrategyReport?.summary?.totalOrders || 0} orders
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-card shadow-sm">
+							<CardContent className="p-4">
+								<div className="flex items-center justify-between">
+									<p className="font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
+										Cost Price / लागत (COGS)
+									</p>
+									<span className="rounded-lg bg-slate-500/10 p-1.5 text-slate-600 dark:text-slate-400">
+										<PackageIcon className="h-4 w-4" />
+									</span>
+								</div>
+								<h3 className="mt-2 font-bold text-xl tracking-tight text-slate-700 dark:text-slate-300">
+									{formatCurrency(salesStrategyReport?.summary?.totalCost || 0, "hi")}
+								</h3>
+								<p className="mt-1 text-muted-foreground text-[11px]">
+									Base procurement cost
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-card shadow-sm">
+							<CardContent className="p-4">
+								<div className="flex items-center justify-between">
+									<p className="font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
+										Net Profit / शुद्ध लाभ
+									</p>
+									<span className="rounded-lg bg-emerald-500/10 p-1.5 text-emerald-600 dark:text-emerald-400">
+										<TrendingUpIcon className="h-4 w-4" />
+									</span>
+								</div>
+								<h3 className="mt-2 font-bold text-xl tracking-tight text-emerald-600 dark:text-emerald-400">
+									+{formatCurrency(salesStrategyReport?.summary?.grossProfit || 0, "hi")}
+								</h3>
+								<p className="mt-1 text-muted-foreground text-[11px]">
+									Revenue minus cost price
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-card shadow-sm">
+							<CardContent className="p-4">
+								<div className="flex items-center justify-between">
+									<p className="font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
+										Margin / मार्जिन (%)
+									</p>
+									<span className="rounded-lg bg-purple-500/10 p-1.5 text-purple-600 dark:text-purple-400">
+										<PercentIcon className="h-4 w-4" />
+									</span>
+								</div>
+								<h3 className="mt-2 font-bold text-xl tracking-tight text-purple-600 dark:text-purple-400">
+									{salesStrategyReport?.summary?.overallMarginPercent || 0}%
+								</h3>
+								<p className="mt-1 text-muted-foreground text-[11px]">
+									Avg order: {formatCurrency(salesStrategyReport?.summary?.averageOrderValue || 0, "hi")}
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-card shadow-sm">
+							<CardContent className="p-4">
+								<div className="flex items-center justify-between">
+									<p className="font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
+										Pieces Sold / कुल पीस
+									</p>
+									<span className="rounded-lg bg-amber-500/10 p-1.5 text-amber-600 dark:text-amber-400">
+										<LayersIcon className="h-4 w-4" />
+									</span>
+								</div>
+								<h3 className="mt-2 font-bold text-xl tracking-tight text-amber-700 dark:text-amber-400">
+									{(salesStrategyReport?.summary?.totalQuantity || 0).toLocaleString("en-IN")}
+								</h3>
+								<p className="mt-1 text-muted-foreground text-[11px]">
+									Total units dispatched
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-card shadow-sm">
+							<CardContent className="p-4">
+								<div className="flex items-center justify-between">
+									<p className="font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
+										Products / कुल उत्पाद
+									</p>
+									<span className="rounded-lg bg-indigo-500/10 p-1.5 text-indigo-600 dark:text-indigo-400">
+										<PackageIcon className="h-4 w-4" />
+									</span>
+								</div>
+								<h3 className="mt-2 font-bold text-xl tracking-tight text-indigo-600 dark:text-indigo-400">
+									{allProductsList.length}
+								</h3>
+								<p className="mt-1 text-muted-foreground text-[11px]">
+									Distinct items sold
+								</p>
+							</CardContent>
+						</Card>
+					</div>
+
+					{/* All Products Sold (Piece by Piece, Cost Price & Day-by-Day View) */}
+					<Card className="border-slate-200 shadow-sm dark:border-slate-800">
+						<CardHeader className="border-b bg-slate-50/50 pb-4 dark:bg-slate-900/50">
+							<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+								<div>
+									<div className="flex flex-wrap items-center gap-2">
+										<PackageIcon className="h-5 w-5 text-amber-600" />
+										<CardTitle className="font-bold text-foreground text-lg">
+											All Products Sold — Pieces, Cost & Net Profit Breakdown
+										</CardTitle>
+										<Badge
+											variant="secondary"
+											className="border-amber-300 bg-amber-100 font-bold text-amber-900 text-xs dark:bg-amber-950/60 dark:text-amber-200"
+										>
+											{(salesStrategyReport?.summary?.totalQuantity || 0).toLocaleString("en-IN")} Total Pieces (कुल पीस)
+										</Badge>
+										<Badge variant="outline" className="text-xs">
+											{filteredAllProducts.length} Products
+										</Badge>
+										<Badge
+											variant="outline"
+											className="border-emerald-300 bg-emerald-50 text-emerald-800 text-xs dark:bg-emerald-950/40 dark:text-emerald-300"
+										>
+											+{formatCurrency(salesStrategyReport?.summary?.grossProfit || 0, "hi")} Net Profit
+										</Badge>
+									</div>
+									<CardDescription className="mt-1 text-xs">
+										{periodDisplay} में गए सभी उत्पादों के पीस, ऑर्डर काउंट, लागत मूल्य, बिक्री व शुद्ध लाभ (Net Profit) का पूरा विवरण।
+									</CardDescription>
+								</div>
+
+								{/* View Switcher Tabs & CSV Export */}
+								<div className="flex flex-wrap items-center gap-2">
+									<div className="flex rounded-lg border bg-slate-100 p-0.5 dark:bg-slate-800">
+										<button
+											type="button"
+											onClick={() => setProductViewTab("allProducts")}
+											className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-all ${
+												productViewTab === "allProducts"
+													? "bg-white font-bold text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
+													: "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+											}`}
+										>
+											<LayersIcon className="h-3.5 w-3.5" />
+											<span>All Products (सभी उत्पाद)</span>
+											<span className="ml-1 rounded-full bg-slate-200 px-1.5 py-0.2 text-[10px] dark:bg-slate-600">
+												{filteredAllProducts.length}
+											</span>
+										</button>
+										<button
+											type="button"
+											onClick={() => setProductViewTab("dayByDay")}
+											className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-all ${
+												productViewTab === "dayByDay"
+													? "bg-white font-bold text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
+													: "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+											}`}
+										>
+											<CalendarDaysIcon className="h-3.5 w-3.5" />
+											<span>Day by Day (दिन-वार पीस)</span>
+											<span className="ml-1 rounded-full bg-slate-200 px-1.5 py-0.2 text-[10px] dark:bg-slate-600">
+												{salesStrategyReport?.dayWise?.length || 0}
+											</span>
+										</button>
+									</div>
+
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleDownloadPiecesCsv}
+										disabled={isSalesLoading || !filteredAllProducts.length}
+										className="h-8 gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-50 text-xs dark:border-amber-800 dark:text-amber-300"
+									>
+										<FileSpreadsheetIcon className="h-3.5 w-3.5" />
+										<span>Export Pieces CSV</span>
+									</Button>
+								</div>
+							</div>
+
+							{/* Toolbar: Quick Preset Buttons + Search + Category Filter */}
+							<div className="mt-4 space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+								{/* Quick Date Presets Row */}
+								<div className="flex flex-wrap items-center gap-1.5">
+									<span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
+										<CalendarDaysIcon className="h-3 w-3" /> Quick Period:
+									</span>
+									<button
+										type="button"
+										onClick={() => handleSelectPreset("all")}
+										className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+											datePreset === "all"
+												? "bg-blue-600 text-white font-bold shadow-xs"
+												: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										All Days (सभी दिन)
+									</button>
+									<button
+										type="button"
+										onClick={() => handleSelectPreset("today")}
+										className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+											datePreset === "today"
+												? "bg-blue-600 text-white font-bold shadow-xs"
+												: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										Today (आज)
+									</button>
+									<button
+										type="button"
+										onClick={() => handleSelectPreset("yesterday")}
+										className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+											datePreset === "yesterday"
+												? "bg-blue-600 text-white font-bold shadow-xs"
+												: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										Yesterday (कल)
+									</button>
+									<button
+										type="button"
+										onClick={() => handleSelectPreset("7days")}
+										className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+											datePreset === "last7"
+												? "bg-blue-600 text-white font-bold shadow-xs"
+												: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										Last 7 Days (7 दिन)
+									</button>
+									<button
+										type="button"
+										onClick={() => handleSelectPreset("month")}
+										className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+											datePreset === "thisMonth"
+												? "bg-blue-600 text-white font-bold shadow-xs"
+												: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										This Month (इस माह)
+									</button>
+								</div>
+
+								{/* Search & Category Pills */}
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+									<div className="relative flex-1 sm:max-w-xs">
+										<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+										<Input
+											type="text"
+											placeholder="Search product name, SKU or category..."
+											value={productSearchTerm}
+											onChange={(e) => setProductSearchTerm(e.target.value)}
+											className="h-9 pl-9 text-xs"
+										/>
+									</div>
+
+									{/* Category Pills */}
+									<div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+										<span className="text-[11px] font-medium text-muted-foreground mr-1">
+											Category:
+										</span>
+										<button
+											type="button"
+											onClick={() => setProductCategoryFilter("all")}
+											className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+												productCategoryFilter === "all"
+													? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+													: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+											}`}
+										>
+											All ({allProductsList.length})
+										</button>
+										{productCategories.map((cat) => (
+											<button
+												key={cat}
+												type="button"
+												onClick={() => setProductCategoryFilter(cat)}
+												className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-all ${
+													productCategoryFilter === cat
+														? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+														: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+												}`}
+											>
+												{cat}
+											</button>
+										))}
+									</div>
+								</div>
+							</div>
+						</CardHeader>
+
+						<CardContent className="p-0">
+							{isSalesLoading ? (
+								<div className="py-16 text-center text-muted-foreground">
+									<Loader2Icon className="mx-auto mb-2 h-6 w-6 animate-spin text-blue-600" />
+									Loading product pieces, cost price and profit breakdown...
+								</div>
+							) : productViewTab === "allProducts" ? (
+								/* View 1: Consolidated All Products Table with Cost Price & Net Profit */
+								<div className="w-full overflow-x-auto">
+									<Table className="min-w-[850px] text-xs">
+										<TableHeader>
+											<TableRow className="bg-slate-100/70 font-semibold dark:bg-slate-900/60">
+												<TableHead className="w-10 text-center">#</TableHead>
+												<TableHead className="font-bold">
+													Product Name (उत्पाद नाम)
+												</TableHead>
+												<TableHead className="font-bold">
+													Category
+												</TableHead>
+												<TableHead className="text-center font-bold text-amber-700 dark:text-amber-400">
+													Pieces Sold (पीस)
+												</TableHead>
+												<TableHead className="text-center font-bold">
+													Orders
+												</TableHead>
+												<TableHead className="text-center font-bold">
+													Customers
+												</TableHead>
+												<TableHead className="text-right font-bold">
+													Selling Rate (दर)
+												</TableHead>
+												<TableHead className="text-right font-bold text-slate-600 dark:text-slate-400">
+													Cost Price (लागत)
+												</TableHead>
+												<TableHead className="text-right font-bold">
+													Revenue (विक्रय)
+												</TableHead>
+												<TableHead className="text-right font-bold text-slate-600 dark:text-slate-400">
+													Total Cost (कुल लागत)
+												</TableHead>
+												<TableHead className="text-right font-bold text-emerald-600">
+													Net Profit (लाभ)
+												</TableHead>
+												<TableHead className="text-center font-bold">
+													Margin %
+												</TableHead>
+											</TableRow>
+										</TableHeader>
+										<TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+											{filteredAllProducts.length === 0 ? (
+												<TableRow>
+													<TableCell colSpan={12} className="py-10 text-center text-muted-foreground">
+														No products found matching your search or filters for {periodDisplay}.
+													</TableCell>
+												</TableRow>
+											) : (
+												filteredAllProducts.map((p, idx) => (
+													<TableRow
+														key={p.id}
+														className="hover:bg-slate-50/80 dark:hover:bg-slate-900/40"
+													>
+														<TableCell className="text-center font-mono text-muted-foreground">
+															{idx + 1}
+														</TableCell>
+														<TableCell>
+															<div className="font-bold text-slate-900 dark:text-slate-100">
+																{p.name}
+															</div>
+															<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+																{p.sku && <span>SKU: {p.sku}</span>}
+																{p.unit && <span>• Unit: {p.unit}</span>}
+															</div>
+														</TableCell>
+														<TableCell>
+															<Badge
+																variant="outline"
+																className="text-[11px] font-normal capitalize"
+															>
+																{p.category || "General"}
+															</Badge>
+														</TableCell>
+														<TableCell className="text-center">
+															<span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 font-bold text-amber-700 text-xs shadow-2xs ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-700">
+																{p.totalQty} {p.unit || "Pcs"}
+															</span>
+														</TableCell>
+														<TableCell className="text-center font-medium">
+															{p.orderCount}
+														</TableCell>
+														<TableCell className="text-center text-muted-foreground">
+															{p.uniqueCustomerCount || "—"}
+														</TableCell>
+														<TableCell className="text-right font-medium">
+															{formatCurrency(p.unitSellingPrice || 0, "hi")}
+														</TableCell>
+														<TableCell className="text-right font-medium text-slate-600 dark:text-slate-400">
+															{formatCurrency(p.unitCostPrice || 0, "hi")}
+														</TableCell>
+														<TableCell className="text-right font-bold text-foreground">
+															{formatCurrency(p.totalRevenue, "hi")}
+														</TableCell>
+														<TableCell className="text-right font-medium text-slate-600 dark:text-slate-400">
+															{formatCurrency(p.totalCost, "hi")}
+														</TableCell>
+														<TableCell className={`text-right font-bold ${
+															p.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+														}`}>
+															{p.netProfit >= 0 ? "+" : ""}{formatCurrency(p.netProfit, "hi")}
+														</TableCell>
+														<TableCell className="text-center">
+															<span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+																p.marginPercent >= 20
+																	? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+																	: p.marginPercent >= 10
+																		? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+																		: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+															}`}>
+																{p.marginPercent}%
+															</span>
+														</TableCell>
+													</TableRow>
+												))
+											)}
+										</TableBody>
+										{/* Table Summary Footer */}
+										{filteredAllProducts.length > 0 && (
+											<tfoot>
+												<TableRow className="border-t-2 border-slate-300 bg-slate-100/90 font-bold dark:border-slate-700 dark:bg-slate-900">
+													<TableCell colSpan={3} className="font-extrabold text-foreground uppercase">
+														Grand Total ({filteredAllProducts.length} Items)
+													</TableCell>
+													<TableCell className="text-center font-black text-amber-700 text-sm dark:text-amber-400">
+														{filteredTotalPieces.toLocaleString("en-IN")} Pcs
+													</TableCell>
+													<TableCell className="text-center font-bold">
+														{salesStrategyReport?.summary?.totalOrders || 0}
+													</TableCell>
+													<TableCell className="text-center font-bold text-muted-foreground">
+														—
+													</TableCell>
+													<TableCell className="text-right text-muted-foreground">
+														—
+													</TableCell>
+													<TableCell className="text-right text-muted-foreground">
+														—
+													</TableCell>
+													<TableCell className="text-right font-black text-foreground text-sm">
+														{formatCurrency(filteredTotalRevenue, "hi")}
+													</TableCell>
+													<TableCell className="text-right font-black text-slate-700 text-sm dark:text-slate-300">
+														{formatCurrency(filteredTotalCost, "hi")}
+													</TableCell>
+													<TableCell className="text-right font-black text-emerald-600 text-sm dark:text-emerald-400">
+														+{formatCurrency(filteredTotalProfit, "hi")}
+													</TableCell>
+													<TableCell className="text-center font-black text-purple-700 dark:text-purple-400">
+														{filteredTotalRevenue > 0
+															? Math.round((filteredTotalProfit / filteredTotalRevenue) * 100)
+															: 0}%
+													</TableCell>
+												</TableRow>
+											</tfoot>
+										)}
+									</Table>
+								</div>
+							) : (
+								/* View 2: Day-by-Day Pieces, Cost & Margin Breakdown */
+								<div className="space-y-4 p-4">
+									{(salesStrategyReport?.dayWise || []).length === 0 ? (
+										<div className="py-10 text-center text-muted-foreground">
+											No daily sales records found for {periodDisplay}.
+										</div>
+									) : (
+										(salesStrategyReport?.dayWise || []).map((day) => {
+											const isExpanded = expandedDays[day.date] ?? true;
+											const dayProducts = day.dayProducts || [];
+
+											return (
+												<Card
+													key={day.date}
+													className="border border-slate-200 shadow-2xs dark:border-slate-800"
+												>
+													<div
+														onClick={() => toggleExpandDay(day.date)}
+														className="flex cursor-pointer flex-col gap-2 bg-slate-50/70 p-3.5 transition-colors hover:bg-slate-100/70 sm:flex-row sm:items-center sm:justify-between dark:bg-slate-900/60 dark:hover:bg-slate-800/60"
+													>
+														<div className="flex items-center gap-3">
+															<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+																<CalendarDaysIcon className="h-4 w-4" />
+															</div>
+															<div>
+																<div className="font-bold text-foreground text-sm">
+																	{new Date(day.date + "T00:00:00").toLocaleDateString(
+																		"hi-IN",
+																		{
+																			weekday: "short",
+																			year: "numeric",
+																			month: "short",
+																			day: "numeric",
+																		},
+																	)}
+																</div>
+																<p className="text-[11px] text-muted-foreground font-mono">
+																	{day.date} • {day.orderCount} Orders
+																</p>
+															</div>
+														</div>
+
+														<div className="flex flex-wrap items-center gap-3 text-xs">
+															<Badge
+																variant="outline"
+																className="border-amber-300 bg-amber-50 font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+															>
+																📦 {day.totalQuantity} Pieces Sold
+															</Badge>
+															<span className="font-semibold text-slate-700 dark:text-slate-300">
+																Rev: {formatCurrency(day.sellingTotal, "hi")}
+															</span>
+															<span className="text-slate-500 text-[11px]">
+																Cost: {formatCurrency(day.costTotal, "hi")}
+															</span>
+															<span className="font-bold text-emerald-600 sm:text-sm">
+																+{formatCurrency(day.grossProfit, "hi")} ({day.marginPercent}%)
+															</span>
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setSelectedDayOrders(day);
+																}}
+																className="h-7 gap-1 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300"
+															>
+																<EyeIcon className="h-3 w-3" />
+																Inspect Bills ({day.orders.length})
+															</Button>
+															{isExpanded ? (
+																<ChevronUpIcon className="h-4 w-4 text-muted-foreground" />
+															) : (
+																<ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+															)}
+														</div>
+													</div>
+
+													{isExpanded && (
+														<div className="border-t">
+															{dayProducts.length === 0 ? (
+																<div className="p-4 text-center text-muted-foreground text-xs">
+																	No item line details found for this date.
+																</div>
+															) : (
+																<Table className="text-xs">
+																	<TableHeader>
+																		<TableRow className="bg-slate-100/50 dark:bg-slate-900/40">
+																			<TableHead className="w-10">#</TableHead>
+																			<TableHead className="font-bold">
+																				Product
+																			</TableHead>
+																			<TableHead className="font-bold">
+																				Category
+																			</TableHead>
+																			<TableHead className="text-center font-bold text-amber-700 dark:text-amber-400">
+																				Pieces (Qty)
+																			</TableHead>
+																			<TableHead className="text-right font-bold">
+																				Unit Price
+																			</TableHead>
+																			<TableHead className="text-right font-bold text-slate-500">
+																				Unit Cost
+																			</TableHead>
+																			<TableHead className="text-right font-bold">
+																				Revenue
+																			</TableHead>
+																			<TableHead className="text-right font-bold text-slate-500">
+																				Cost
+																			</TableHead>
+																			<TableHead className="text-right font-bold text-emerald-600">
+																				Net Profit
+																			</TableHead>
+																			<TableHead className="text-center font-bold">
+																				Margin %
+																			</TableHead>
+																		</TableRow>
+																	</TableHeader>
+																	<TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+																		{dayProducts.map((dp, pIdx) => (
+																			<TableRow key={pIdx}>
+																				<TableCell className="text-muted-foreground font-mono">
+																					{pIdx + 1}
+																				</TableCell>
+																				<TableCell className="font-semibold text-foreground">
+																					{dp.name}
+																				</TableCell>
+																				<TableCell className="text-muted-foreground capitalize">
+																					{dp.category || "General"}
+																				</TableCell>
+																				<TableCell className="text-center font-bold text-amber-700 dark:text-amber-400">
+																					{dp.qty} {dp.unit || "Pcs"}
+																				</TableCell>
+																				<TableCell className="text-right">
+																					{formatCurrency(dp.unitSellingPrice || (dp.qty > 0 ? dp.revenue / dp.qty : 0), "hi")}
+																				</TableCell>
+																				<TableCell className="text-right text-slate-500">
+																					{formatCurrency(dp.unitCostPrice || (dp.qty > 0 ? dp.cost / dp.qty : 0), "hi")}
+																				</TableCell>
+																				<TableCell className="text-right font-medium">
+																					{formatCurrency(dp.revenue, "hi")}
+																				</TableCell>
+																				<TableCell className="text-right text-slate-500">
+																					{formatCurrency(dp.cost, "hi")}
+																				</TableCell>
+																				<TableCell className="text-right font-bold text-emerald-600">
+																					+{formatCurrency(dp.profit, "hi")}
+																				</TableCell>
+																				<TableCell className="text-center">
+																					<span className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold ${
+																						dp.marginPercent >= 20
+																							? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+																							: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+																					}`}>
+																						{dp.marginPercent}%
+																					</span>
+																				</TableCell>
+																			</TableRow>
+																		))}
+																	</TableBody>
+																</Table>
+															)}
+														</div>
+													)}
+												</Card>
+											);
+										})
+									)}
+								</div>
+							)}
+						</CardContent>
+					</Card>
+
+					{/* Top Profitable Products Strategic Matrix */}
+					{salesStrategyReport?.topProducts && salesStrategyReport.topProducts.length > 0 && (
+						<Card className="shadow-sm border-border/60">
+							<CardHeader>
+								<CardTitle className="font-bold text-base flex items-center gap-2">
+									<TrendingUpIcon className="h-5 w-5 text-emerald-600" />
+									Top Profitable Products (रणनीतिक रूप से सबसे अधिक लाभदायक उत्पाद)
+								</CardTitle>
+								<CardDescription>
+									Products ranked by total net profit generated in {periodDisplay}
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<div className="overflow-x-auto rounded-lg border border-border/60">
+									<Table>
+										<TableHeader className="bg-muted/50">
+											<TableRow>
+												<TableHead>Product Name</TableHead>
+												<TableHead>SKU</TableHead>
+												<TableHead>Category</TableHead>
+												<TableHead className="text-center">Units Sold</TableHead>
+												<TableHead className="text-right">Revenue (विक्रय)</TableHead>
+												<TableHead className="text-right">Cost (लागत)</TableHead>
+												<TableHead className="text-right">Gross Profit (लाभ)</TableHead>
+												<TableHead className="text-center">Margin %</TableHead>
+											</TableRow>
+										</TableHeader>
+										<TableBody>
+											{salesStrategyReport.topProducts.map((p) => (
+												<TableRow key={p.id} className="hover:bg-muted/10">
+													<TableCell className="font-medium text-foreground">
+														{p.name}
+													</TableCell>
+													<TableCell className="font-mono text-xs text-muted-foreground">
+														{p.sku}
+													</TableCell>
+													<TableCell>
+														<Badge variant="outline" className="text-xs">
+															{p.category}
+														</Badge>
+													</TableCell>
+													<TableCell className="text-center font-semibold">
+														{p.qty}
+													</TableCell>
+													<TableCell className="text-right font-medium">
+														{formatCurrency(p.revenue, "hi")}
+													</TableCell>
+													<TableCell className="text-right text-slate-600 dark:text-slate-400">
+														{formatCurrency(p.cost, "hi")}
+													</TableCell>
+													<TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+														+{formatCurrency(p.profit, "hi")}
+													</TableCell>
+													<TableCell className="text-center">
+														<Badge
+															variant="outline"
+															className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+														>
+															{p.marginPercent}%
+														</Badge>
+													</TableCell>
+												</TableRow>
+											))}
+										</TableBody>
+									</Table>
+								</div>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Modal to inspect orders & products of a specific day */}
+					{selectedDayOrders && (
+						<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+							<div className="w-full max-w-3xl rounded-xl border border-border bg-card p-6 shadow-2xl max-h-[85vh] flex flex-col">
+								<div className="flex items-center justify-between border-b pb-3">
+									<div>
+										<h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+											<CalendarDaysIcon className="h-5 w-5 text-primary" />
+											Day Details for {selectedDayOrders.date}
+										</h3>
+										<p className="text-xs text-muted-foreground mt-0.5">
+											{selectedDayOrders.orders.length} orders • {selectedDayOrders.totalQuantity} pieces • Selling: {formatCurrency(selectedDayOrders.sellingTotal, "hi")} • Cost: {formatCurrency(selectedDayOrders.costTotal, "hi")} • Profit: {formatCurrency(selectedDayOrders.grossProfit, "hi")} ({selectedDayOrders.marginPercent}%)
+										</p>
+									</div>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => setSelectedDayOrders(null)}
+										className="h-8 w-8 p-0"
+									>
+										✕
+									</Button>
+								</div>
+
+								{/* Modal Tab Switcher: Products vs Bills */}
+								<div className="flex items-center gap-2 pt-3">
+									<button
+										type="button"
+										onClick={() => setSelectedDayModalTab("products")}
+										className={`rounded-md px-3 py-1 font-semibold text-xs transition-colors ${
+											selectedDayModalTab === "products"
+												? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+												: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										📦 Products Sold ({(selectedDayOrders.dayProducts || []).length})
+									</button>
+									<button
+										type="button"
+										onClick={() => setSelectedDayModalTab("bills")}
+										className={`rounded-md px-3 py-1 font-semibold text-xs transition-colors ${
+											selectedDayModalTab === "bills"
+												? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+												: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+										}`}
+									>
+										🧾 Invoices / Bills ({(selectedDayOrders.orders || []).length})
+									</button>
+								</div>
+
+								<div className="flex-1 overflow-y-auto py-3 space-y-2">
+									{selectedDayModalTab === "products" ? (
+										<table className="w-full text-xs text-left">
+											<thead className="bg-muted/50">
+												<tr>
+													<th className="p-2">#</th>
+													<th className="p-2">Product Name</th>
+													<th className="p-2 text-center">Qty / Pcs</th>
+													<th className="p-2 text-right">Selling Price</th>
+													<th className="p-2 text-right">Cost Price</th>
+													<th className="p-2 text-right">Net Profit</th>
+													<th className="p-2 text-center">Margin</th>
+												</tr>
+											</thead>
+											<tbody className="divide-y divide-border/40">
+												{(selectedDayOrders.dayProducts || []).map((dp: any, idx: number) => (
+													<tr key={idx} className="hover:bg-muted/10">
+														<td className="p-2 text-muted-foreground font-mono">{idx + 1}</td>
+														<td className="p-2 font-medium">
+															<div>{dp.name}</div>
+															<span className="text-[10px] text-muted-foreground">{dp.category || "General"}</span>
+														</td>
+														<td className="p-2 text-center font-bold text-amber-700 dark:text-amber-400">
+															{dp.qty} {dp.unit || "Pcs"}
+														</td>
+														<td className="p-2 text-right font-semibold">
+															{formatCurrency(dp.revenue, "hi")}
+														</td>
+														<td className="p-2 text-right text-muted-foreground">
+															{formatCurrency(dp.cost, "hi")}
+														</td>
+														<td className="p-2 text-right font-bold text-emerald-600">
+															+{formatCurrency(dp.profit, "hi")}
+														</td>
+														<td className="p-2 text-center">
+															<Badge variant="outline" className="text-[10px]">
+																{dp.marginPercent}%
+															</Badge>
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									) : (
+										<table className="w-full text-xs text-left">
+											<thead className="bg-muted/50">
+												<tr>
+													<th className="p-2">Bill #</th>
+													<th className="p-2">Customer</th>
+													<th className="p-2 text-right">Selling Price</th>
+													<th className="p-2 text-right">Cost Price</th>
+													<th className="p-2 text-right">Profit</th>
+													<th className="p-2 text-center">Margin</th>
+												</tr>
+											</thead>
+											<tbody className="divide-y divide-border/40">
+												{selectedDayOrders.orders.map((o: any) => (
+													<tr key={o.id} className="hover:bg-muted/10">
+														<td className="p-2 font-mono font-semibold text-primary">
+															{o.billNumber}
+														</td>
+														<td className="p-2 font-medium">
+															{o.customerName}
+														</td>
+														<td className="p-2 text-right font-semibold">
+															{formatCurrency(o.sellingTotal, "hi")}
+														</td>
+														<td className="p-2 text-right text-muted-foreground">
+															{formatCurrency(o.costTotal, "hi")}
+														</td>
+														<td className="p-2 text-right font-bold text-emerald-600">
+															+{formatCurrency(o.grossProfit, "hi")}
+														</td>
+														<td className="p-2 text-center">
+															<Badge variant="outline" className="text-[10px]">
+																{o.marginPercent}%
+															</Badge>
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									)}
+								</div>
+
+								<div className="pt-3 border-t text-right">
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => setSelectedDayOrders(null)}
+									>
+										Close / बंद करें
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
+				</div>
+			) : activeTab === "archive" ? (
 				/* Historical Reports Archive Tab */
 				<Card className="shadow-sm">
 					<CardHeader>

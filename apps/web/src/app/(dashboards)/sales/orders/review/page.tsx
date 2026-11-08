@@ -97,12 +97,13 @@ export default function CustomerOrderInboxPage() {
 	const cancelMutation = trpc.orders.cancelOrder.useMutation({
 		onSuccess: () => {
 			toast.success(
-				`Order ORD-${cancellingOrder?.id} cancelled and moved to Cancelled Orders archive.`,
+				`Order ORD-${cancellingOrder?.id} cancelled and items immediately restored to inventory.`,
 			);
-			utils.orders.listPendingReview.invalidate();
-			utils.orders.getPendingCount.invalidate();
-			utils.orders.listCancelledOrders.invalidate();
-			utils.orders.list.invalidate();
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
 			refetch();
 			setCancellingOrder(null);
 			setSelectedReason(PRESET_CANCEL_REASONS[0]);

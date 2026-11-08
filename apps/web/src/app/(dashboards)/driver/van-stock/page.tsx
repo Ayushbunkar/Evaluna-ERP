@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
@@ -60,28 +60,67 @@ export default function DriverVanStockPage() {
 		onError: (err) => toast.error(err.message || "Failed to submit return"),
 	});
 
+	// Sync items whenever planDetail changes
+	useEffect(() => {
+		if (planDetail?.items && planDetail.items.length > 0) {
+			const mapped: ReturnItemState[] = planDetail.items.map((it: any) => {
+				const loaded = parseFloat(it.loadedQty ?? it.loadedQuantity ?? it.verifiedQty ?? it.plannedQty) || 0;
+				const delivered =
+					it.deliveredQty !== null && it.deliveredQty !== undefined
+						? parseFloat(it.deliveredQty)
+						: it.deliveredQuantity !== null && it.deliveredQuantity !== undefined
+						? parseFloat(it.deliveredQuantity)
+						: loaded;
+				const returned =
+					it.returnedQty !== null && it.returnedQty !== undefined
+						? parseFloat(it.returnedQty)
+						: it.returnedQuantity !== null && it.returnedQuantity !== undefined
+						? parseFloat(it.returnedQuantity)
+						: Math.max(0, loaded - delivered);
+				return {
+					id: it.id,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					loadedQty: loaded,
+					deliveredQty: delivered,
+					returnedQty: returned,
+					returnReason: it.returnReason || it.returnReasonCode || "CUSTOMER_REJECTED",
+				};
+			});
+			setActiveItems(mapped);
+		}
+	}, [planDetail]);
+
 	const handleOpenPlan = (plan: any) => {
 		setSelectedPlanId(plan.id);
-		setDriverReturnNotes(plan.driverReturnNotes || "");
-		const mapped: ReturnItemState[] = (plan.items || []).map((it: any) => {
-			const loaded = parseFloat(it.loadedQty || it.verifiedQty || it.plannedQty);
-			const delivered = it.deliveredQty !== null && it.deliveredQty !== undefined
-				? parseFloat(it.deliveredQty)
-				: loaded;
-			const returned = it.returnedQty !== null && it.returnedQty !== undefined
-				? parseFloat(it.returnedQty)
-				: Math.max(0, loaded - delivered);
-			return {
-				id: it.id,
-				productName: it.product?.name || "Product",
-				sku: it.product?.sku || "",
-				loadedQty: loaded,
-				deliveredQty: delivered,
-				returnedQty: returned,
-				returnReason: it.returnReason || "CUSTOMER_REJECTED",
-			};
-		});
-		setActiveItems(mapped);
+		setDriverReturnNotes(plan.driverReturnNotes || plan.notes || "");
+		if (plan.items && plan.items.length > 0) {
+			const mapped: ReturnItemState[] = plan.items.map((it: any) => {
+				const loaded = parseFloat(it.loadedQty ?? it.loadedQuantity ?? it.verifiedQty ?? it.plannedQty) || 0;
+				const delivered =
+					it.deliveredQty !== null && it.deliveredQty !== undefined
+						? parseFloat(it.deliveredQty)
+						: it.deliveredQuantity !== null && it.deliveredQuantity !== undefined
+						? parseFloat(it.deliveredQuantity)
+						: loaded;
+				const returned =
+					it.returnedQty !== null && it.returnedQty !== undefined
+						? parseFloat(it.returnedQty)
+						: it.returnedQuantity !== null && it.returnedQuantity !== undefined
+						? parseFloat(it.returnedQuantity)
+						: Math.max(0, loaded - delivered);
+				return {
+					id: it.id,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					loadedQty: loaded,
+					deliveredQty: delivered,
+					returnedQty: returned,
+					returnReason: it.returnReason || it.returnReasonCode || "CUSTOMER_REJECTED",
+				};
+			});
+			setActiveItems(mapped);
+		}
 	};
 
 	const handleDeliveredChange = (idx: number, del: number) => {
@@ -171,7 +210,7 @@ export default function DriverVanStockPage() {
 									<CardHeader className="p-4 pb-2">
 										<div className="flex items-center justify-between">
 											<span className="font-mono font-bold text-xs text-primary">
-												{plan.planNumber}
+												{plan.planCode || plan.planNumber}
 											</span>
 											<Badge
 												className={

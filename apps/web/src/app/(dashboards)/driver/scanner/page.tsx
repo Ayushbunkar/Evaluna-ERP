@@ -638,6 +638,28 @@ export default function DriverScannerPage() {
 
 								{/* Right: Detailed Bill Calculations */}
 								<div className="space-y-2 text-xs">
+									{result.order.discountAmount > 0 && (
+										<div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-950 dark:text-emerald-200 space-y-1.5 mb-2">
+											<div className="flex items-center justify-between font-bold text-xs sm:text-sm">
+												<span className="flex items-center gap-1.5">
+													<Tag className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+													Applied Discount:
+												</span>
+												<span className="font-extrabold font-mono text-emerald-700 dark:text-emerald-300 text-sm">
+													-₹{result.order.discountAmount.toFixed(2)}
+												</span>
+											</div>
+											{result.order.discountReason && (
+												<div className="rounded border border-emerald-500/20 bg-white/70 p-2 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+													<span className="font-bold text-emerald-800 dark:text-emerald-300">
+														Reason / Products:{" "}
+													</span>
+													<span>{result.order.discountReason}</span>
+												</div>
+											)}
+										</div>
+									)}
+
 									<div className="flex justify-between border-border/50 border-b py-1 text-muted-foreground">
 										<span>Items Subtotal (कर-पूर्व राशि):</span>
 										<span className="font-medium font-mono text-foreground">

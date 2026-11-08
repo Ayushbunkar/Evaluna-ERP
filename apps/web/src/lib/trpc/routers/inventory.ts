@@ -8,7 +8,19 @@ import {
 	products,
 	stockAdjustments,
 } from "@evaluna/db/schema";
-import { and, asc, count, desc, eq, ilike, lte, or, sql, sum } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	lte,
+	or,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
 import { stockLedger } from "@/lib/db/schema";
 import {
@@ -182,6 +194,9 @@ export const inventoryRouter = router({
 					barcode: d.barcode || "",
 					price: originalPrice,
 					costPrice: Number.parseFloat(d.baseProcurementPrice || "0"),
+					cost_price: Number.parseFloat(d.baseProcurementPrice || "0"),
+					baseProcurementPrice: Number.parseFloat(d.baseProcurementPrice || "0"),
+					base_procurement_price: Number.parseFloat(d.baseProcurementPrice || "0"),
 					currentPrice: hasActiveOffer ? offerPrice : originalPrice,
 					hasActiveOffer,
 					offerPrice,
@@ -610,7 +625,9 @@ export const inventoryRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 			const branchId = input.branch_id;
-			const branchFilter = branchId ? sql`WHERE bi.branch_id = ${branchId}` : sql``;
+			const branchFilter = branchId
+				? sql`WHERE bi.branch_id = ${branchId}`
+				: sql``;
 
 			const [
 				[scalarStats],
@@ -929,6 +946,7 @@ export const inventoryRouter = router({
 				sku: z.string().optional(),
 				price: z.number().min(0, "Price must be non-negative."),
 				costPrice: z.number().optional(),
+				category: z.string().optional(),
 				unit: z.string().default("Pcs"),
 				initialStock: z
 					.number()
@@ -949,6 +967,11 @@ export const inventoryRouter = router({
 					? input.sku.trim()
 					: `SKU-${Date.now().toString().slice(-6)}`;
 
+			const costVal =
+				input.costPrice !== undefined && input.costPrice !== null
+					? input.costPrice
+					: input.price;
+
 			return await db.transaction(async (tx) => {
 				// 1. Create product record
 				const [newProd] = await tx
@@ -957,6 +980,9 @@ export const inventoryRouter = router({
 						name: input.name.trim(),
 						sku: generatedSku,
 						price: input.price.toString(),
+						base_selling_price: input.price.toString(),
+						base_procurement_price: costVal.toString(),
+						category: input.category || "General",
 						user_uid: ctx.user.id,
 						unit: input.unit || "Pcs",
 					})
@@ -985,17 +1011,128 @@ export const inventoryRouter = router({
 						quantity: input.initialStock,
 						reference_type: "initial_stock",
 						branch_id: input.branchId,
-						unit_cost: (input.costPrice ?? input.price).toString(),
-						total_cost: (
-							(input.costPrice ?? input.price) * input.initialStock
-						).toString(),
+						unit_cost: costVal.toString(),
+						total_cost: (costVal * input.initialStock).toString(),
 					});
 				}
 
 				return {
 					success: true,
-					product: newProd,
+					product: {
+						...newProd,
+						costPrice: costVal,
+						cost_price: costVal,
+						baseProcurementPrice: costVal,
+						base_procurement_price: costVal.toString(),
+					},
 					inventory: newInv,
+				};
+			});
+		}),
+
+	getHistoricalStockSnapshot: roleProcedure([
+		"admin",
+		"manager",
+		"warehouse_manager",
+		"inventory_manager",
+		"auditor",
+		"staff",
+	])
+		.input(
+			z.object({
+				date: z.string(), // YYYY-MM-DD
+				branchId: z.number().optional(),
+				search: z.string().optional(),
+				category: z.string().optional(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const bId = input.branchId || ctx.user.branchId || 1;
+			const targetDateEnd = new Date(`${input.date}T23:59:59.999Z`);
+
+			// 1. Get current catalogue with branchInventory for this branch
+			const currentInventory = await ctx.db
+				.select({
+					productId: products.id,
+					productName: products.name,
+					sku: products.sku,
+					category: products.category,
+					unit: products.unit,
+					currentStock: branchInventory.in_stock,
+					reorderLevel: branchInventory.reorder_level,
+					sellingPrice: products.selling_price,
+					costPrice: products.base_procurement_price,
+				})
+				.from(products)
+				.leftJoin(
+					branchInventory,
+					and(
+						eq(branchInventory.product_id, products.id),
+						eq(branchInventory.branch_id, bId),
+					),
+				)
+				.where(
+					and(
+						input.category && input.category !== "all"
+							? eq(products.category, input.category)
+							: undefined,
+						input.search
+							? or(
+									ilike(products.name, `%${input.search}%`),
+									ilike(products.sku, `%${input.search}%`),
+								)
+							: undefined,
+					),
+				)
+				.orderBy(asc(products.name));
+
+			// 2. Fetch stock movements from stockLedger that occurred AFTER targetDateEnd
+			const ledgerAfter = await ctx.db
+				.select({
+					productId: stockLedger.product_id,
+					quantity: stockLedger.quantity,
+					transactionType: stockLedger.transaction_type,
+				})
+				.from(stockLedger)
+				.where(
+					and(
+						eq(stockLedger.branch_id, bId),
+						gte(stockLedger.created_at, targetDateEnd),
+					),
+				);
+
+			const deltaMap = new Map<number, number>();
+			for (const entry of ledgerAfter) {
+				if (!entry.productId) continue;
+				const currentDelta = deltaMap.get(entry.productId) || 0;
+				const q = Number(entry.quantity) || 0;
+				const signedDelta =
+					entry.transactionType === "out"
+						? -Math.abs(q)
+						: q > 0
+							? q
+							: -Math.abs(q);
+				deltaMap.set(entry.productId, currentDelta + signedDelta);
+			}
+
+			// 3. For each product, historical stock = currentStock - deltaAfter
+			return currentInventory.map((item) => {
+				const current = Number(item.currentStock || 0);
+				const deltaAfter = deltaMap.get(item.productId) || 0;
+				const historical = Math.max(0, current - deltaAfter);
+				return {
+					productId: item.productId,
+					productName: item.productName,
+					sku: item.sku,
+					category: item.category,
+					unit: item.unit,
+					currentStock: current,
+					historicalStock: historical,
+					changeSince: current - historical,
+					reorderLevel: item.reorderLevel,
+					sellingPrice: item.sellingPrice,
+					costPrice: item.costPrice,
+					date: input.date,
 				};
 			});
 		}),

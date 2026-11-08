@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
@@ -78,25 +78,55 @@ export default function PickerVanStockPage() {
 		onError: (err) => toast.error(err.message || "Failed to submit picking"),
 	});
 
+	// Sync items whenever planDetail changes
+	useEffect(() => {
+		if (planDetail?.items && planDetail.items.length > 0) {
+			const mapped: PickRowState[] = planDetail.items.map((it: any) => ({
+				id: it.id,
+				productId: it.productId,
+				productName: it.productName || it.product?.name || "Product",
+				sku: it.sku || it.product?.sku || "",
+				plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+				pickedQty:
+					it.pickedQty !== null && it.pickedQty !== undefined
+						? parseFloat(it.pickedQty)
+						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
+						? parseFloat(it.pickedQuantity)
+						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+				shortageQty: parseFloat(it.shortageQty ?? it.pickingShortage) || 0,
+				shortageReason: it.shortageReason || it.pickingNotes || "",
+				notes: it.notes || "",
+				isAdditional: !!it.isAdditional,
+				additionalReason: it.additionalReason,
+			}));
+			setActiveItems(mapped);
+		}
+	}, [planDetail]);
+
 	const handleOpenPlan = (plan: any) => {
 		setSelectedPlanId(plan.id);
-		setPickerNotes(plan.pickerNotes || "");
-		const mapped: PickRowState[] = (plan.items || []).map((it: any) => ({
-			id: it.id,
-			productId: it.productId,
-			productName: it.product?.name || "Product",
-			sku: it.product?.sku || "",
-			plannedQty: parseFloat(it.plannedQty) || 0,
-			pickedQty: it.pickedQty !== null && it.pickedQty !== undefined
-				? parseFloat(it.pickedQty)
-				: parseFloat(it.plannedQty),
-			shortageQty: parseFloat(it.shortageQty) || 0,
-			shortageReason: it.shortageReason || "",
-			notes: it.notes || "",
-			isAdditional: !!it.isAdditional,
-			additionalReason: it.additionalReason,
-		}));
-		setActiveItems(mapped);
+		setPickerNotes(plan.pickerNotes || plan.notes || "");
+		if (plan.items && plan.items.length > 0) {
+			const mapped: PickRowState[] = plan.items.map((it: any) => ({
+				id: it.id,
+				productId: it.productId,
+				productName: it.productName || it.product?.name || "Product",
+				sku: it.sku || it.product?.sku || "",
+				plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+				pickedQty:
+					it.pickedQty !== null && it.pickedQty !== undefined
+						? parseFloat(it.pickedQty)
+						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
+						? parseFloat(it.pickedQuantity)
+						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+				shortageQty: parseFloat(it.shortageQty ?? it.pickingShortage) || 0,
+				shortageReason: it.shortageReason || it.pickingNotes || "",
+				notes: it.notes || "",
+				isAdditional: !!it.isAdditional,
+				additionalReason: it.additionalReason,
+			}));
+			setActiveItems(mapped);
+		}
 	};
 
 	const handleQtyChange = (idx: number, picked: number) => {
@@ -147,12 +177,15 @@ export default function PickerVanStockPage() {
 		});
 	};
 
+	// Safely normalize all plans
+	const allPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+
 	// Filter active picking queue vs past
-	const pickingQueue = (plansData?.items || []).filter(
+	const pickingQueue = allPlans.filter(
 		(p: any) => p.status === "PENDING_PICKING" || p.status === "PICKING_IN_PROGRESS"
 	);
 
-	const otherPlans = (plansData?.items || []).filter(
+	const otherPlans = allPlans.filter(
 		(p: any) => p.status !== "PENDING_PICKING" && p.status !== "PICKING_IN_PROGRESS"
 	);
 
@@ -210,7 +243,7 @@ export default function PickerVanStockPage() {
 									<CardHeader className="p-4 pb-2">
 										<div className="flex items-center justify-between">
 											<span className="font-mono font-bold text-xs text-primary">
-												{plan.planNumber}
+												{plan.planCode || plan.planNumber}
 											</span>
 											<Badge
 												className={
@@ -236,7 +269,7 @@ export default function PickerVanStockPage() {
 										</div>
 										<div className="flex justify-between text-muted-foreground">
 											<span>Total Items:</span>
-											<span className="font-medium text-foreground">{plan.items?.length || 0}</span>
+											<span className="font-medium text-foreground">{plan.itemCount ?? plan.items?.length ?? 0}</span>
 										</div>
 										{plan.notes && (
 											<div className="text-[11px] bg-muted/60 p-2 rounded text-muted-foreground line-clamp-2">

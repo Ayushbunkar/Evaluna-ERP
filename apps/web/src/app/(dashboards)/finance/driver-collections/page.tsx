@@ -50,6 +50,8 @@ import {
 	RefreshCwIcon,
 	SearchIcon,
 	ShoppingCart,
+	TrendingUp,
+	TrendingUpIcon,
 	Truck,
 	TruckIcon,
 	User,
@@ -59,20 +61,31 @@ import {
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
 export default function FinanceDriverCollectionsPage() {
 	const t = useTranslations();
 	const trpc = useTRPC();
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [datePreset, setDatePreset] = useState("all");
+
 	const {
 		data: collections = [],
 		isLoading,
 		isFetching,
 		refetch,
-	} = trpc.finance.getDriverCollections.useQuery(undefined, {
-		refetchInterval: 15000,
-	});
+	} = trpc.finance.getDriverCollections.useQuery(
+		{
+			startDate: startDate || undefined,
+			endDate: endDate || undefined,
+		},
+		{
+			refetchInterval: 15000,
+		},
+	);
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [methodFilter, setMethodFilter] = useState("all");
@@ -154,40 +167,124 @@ export default function FinanceDriverCollectionsPage() {
 			if (group.cashAmount > 0 && group.onlineAmount > 0) {
 				displayMethod = "Online/UPI & Cash";
 			}
+
+			// Calculate cost price and selling price taking doorstep returns into account
+			let groupCost = 0;
+			let groupSelling = 0;
+
+			if (group.orders && group.orders.length > 0) {
+				for (const o of group.orders) {
+					let ordDeliveredCost = 0;
+					let ordDeliveredSelling = 0;
+					for (const it of o.items || []) {
+						const ret = (group.returnedItems || []).find(
+							(r: any) =>
+								(r.name || r.productName)?.toLowerCase() ===
+								(it.productName || "").toLowerCase(),
+						);
+						const retQty = ret ? Number(ret.qty || ret.quantity || 1) : 0;
+						const acceptedQty = Math.max(0, Number(it.quantity || 1) - retQty);
+						const itCost =
+							acceptedQty * Number(it.costPrice || Number(it.unitPrice || 0) * 0.8);
+						const itSelling = acceptedQty * Number(it.unitPrice || 0);
+						ordDeliveredCost += itCost;
+						ordDeliveredSelling += itSelling;
+					}
+					groupCost += ordDeliveredCost;
+					groupSelling +=
+						ordDeliveredSelling > 0
+							? ordDeliveredSelling
+							: Number(o.sellingPrice || o.totalAmount || 0);
+				}
+			}
+
+			if (groupSelling === 0 && group.amount > 0) {
+				groupSelling = group.amount;
+				if (groupCost === 0) {
+					groupCost = group.amount * 0.8;
+				}
+			}
+
+			const groupNetProfit = groupSelling - groupCost;
+			const groupMargin =
+				groupSelling > 0 ? (groupNetProfit / groupSelling) * 100 : 0;
+
 			return {
 				...group,
 				paymentMethodLabel: displayMethod,
 				transactionIdLabel: group.transactionIds.join(", "),
+				costPrice: Number(groupCost.toFixed(2)),
+				sellingPrice: Number(groupSelling.toFixed(2)),
+				netProfit: Number(groupNetProfit.toFixed(2)),
+				marginPercent: Number(groupMargin.toFixed(1)),
 			};
 		});
 	}, [collections]);
 
-	const totalCash = collections
-		.filter((c: any) => (c.paymentMethod || "").toLowerCase().includes("cash"))
-		.reduce((acc: number, c: any) => acc + (c.amount || 0), 0);
+	const filteredCollections = useMemo(() => {
+		return groupedCollections.filter((c: any) => {
+			const q = searchQuery.toLowerCase();
+			const matchesSearch =
+				!searchQuery ||
+				c.driverName?.toLowerCase().includes(q) ||
+				c.customerName?.toLowerCase().includes(q) ||
+				c.transactionIdLabel?.toLowerCase().includes(q) ||
+				c.referenceNumber?.toLowerCase().includes(q);
 
-	const totalOnline = collections
-		.filter((c: any) => !(c.paymentMethod || "").toLowerCase().includes("cash"))
-		.reduce((acc: number, c: any) => acc + (c.amount || 0), 0);
+			const matchesMethod =
+				methodFilter === "all"
+					? true
+					: methodFilter === "cash"
+						? c.cashAmount > 0
+						: c.onlineAmount > 0;
+
+			let matchesDate = true;
+			if (startDate) {
+				const itemDate = (c.rawCollectedAt || "").substring(0, 10);
+				if (itemDate && itemDate < startDate) matchesDate = false;
+			}
+			if (endDate) {
+				const itemDate = (c.rawCollectedAt || "").substring(0, 10);
+				if (itemDate && itemDate > endDate) matchesDate = false;
+			}
+
+			return matchesSearch && matchesMethod && matchesDate;
+		});
+	}, [groupedCollections, searchQuery, methodFilter, startDate, endDate]);
+
+	const totalCash = useMemo(() => {
+		return filteredCollections.reduce(
+			(acc: number, c: any) => acc + (Number(c.cashAmount) || 0),
+			0,
+		);
+	}, [filteredCollections]);
+
+	const totalOnline = useMemo(() => {
+		return filteredCollections.reduce(
+			(acc: number, c: any) => acc + (Number(c.onlineAmount) || 0),
+			0,
+		);
+	}, [filteredCollections]);
 
 	const totalCollected = totalCash + totalOnline;
 
-	const filteredCollections = groupedCollections.filter((c: any) => {
-		const q = searchQuery.toLowerCase();
-		const matchesSearch =
-			c.driverName?.toLowerCase().includes(q) ||
-			c.customerName?.toLowerCase().includes(q) ||
-			c.transactionIdLabel?.toLowerCase().includes(q) ||
-			c.referenceNumber?.toLowerCase().includes(q);
+	const totalSellingPrice = useMemo(() => {
+		return filteredCollections.reduce(
+			(acc: number, c: any) => acc + (Number(c.sellingPrice) || 0),
+			0,
+		);
+	}, [filteredCollections]);
 
-		const matchesMethod =
-			methodFilter === "all"
-				? true
-				: methodFilter === "cash"
-					? c.cashAmount > 0
-					: c.onlineAmount > 0;
-		return matchesSearch && matchesMethod;
-	});
+	const totalCostPrice = useMemo(() => {
+		return filteredCollections.reduce(
+			(acc: number, c: any) => acc + (Number(c.costPrice) || 0),
+			0,
+		);
+	}, [filteredCollections]);
+
+	const totalNetProfit = totalSellingPrice - totalCostPrice;
+	const netProfitMargin =
+		totalSellingPrice > 0 ? (totalNetProfit / totalSellingPrice) * 100 : 0;
 
 	return (
 		<PageTransition className="container mx-auto space-y-6 p-4 md:p-6">
@@ -217,9 +314,10 @@ export default function FinanceDriverCollectionsPage() {
 			</div>
 
 			{/* Metric Cards */}
-			<StaggerList className="grid gap-4 sm:grid-cols-3" slow>
+			<StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" slow>
+				{/* 1. Total Collections */}
 				<StaggerItem>
-					<Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
+					<Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20 shadow-xs">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
@@ -230,7 +328,7 @@ export default function FinanceDriverCollectionsPage() {
 										₹{totalCollected.toLocaleString("en-IN")}
 									</p>
 									<p className="mt-1 font-medium text-emerald-600 text-xs">
-										{groupedCollections.length} Handover Collections
+										{filteredCollections.length} Handover Collections
 									</p>
 								</div>
 								<IndianRupeeIcon className="h-8 w-8 text-emerald-600" />
@@ -239,8 +337,9 @@ export default function FinanceDriverCollectionsPage() {
 					</Card>
 				</StaggerItem>
 
+				{/* 2. Cash Collected */}
 				<StaggerItem>
-					<Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+					<Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20 shadow-xs">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
@@ -260,8 +359,9 @@ export default function FinanceDriverCollectionsPage() {
 					</Card>
 				</StaggerItem>
 
+				{/* 3. Online / UPI Collected */}
 				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+					<Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20 shadow-xs">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
@@ -280,44 +380,102 @@ export default function FinanceDriverCollectionsPage() {
 						</CardContent>
 					</Card>
 				</StaggerItem>
+
+				{/* 4. Net Profit Card (Selling Price - Cost Price) */}
+				<StaggerItem>
+					<Card className="border-purple-200 bg-purple-50/60 dark:border-purple-900/50 dark:bg-purple-950/20 shadow-xs">
+						<CardContent className="p-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<div className="flex items-center gap-1.5">
+										<p className="font-medium text-purple-700 text-sm dark:text-purple-400">
+											Net Profit (शुद्ध लाभ)
+										</p>
+										<span
+											className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+												totalNetProfit >= 0
+													? "bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300"
+													: "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300"
+											}`}
+										>
+											{netProfitMargin.toFixed(1)}% Margin
+										</span>
+									</div>
+									<p
+										className={`font-bold text-3xl font-mono mt-0.5 ${
+											totalNetProfit >= 0
+												? "text-purple-950 dark:text-purple-100"
+												: "text-rose-700 dark:text-rose-400"
+										}`}
+									>
+										{totalNetProfit >= 0 ? "+" : ""}₹{totalNetProfit.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+									</p>
+									<p className="mt-1 font-medium text-purple-700/80 text-xs dark:text-purple-300/80">
+										Selling ₹{totalSellingPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })} − Cost ₹{totalCostPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+									</p>
+								</div>
+								<div className="rounded-xl bg-purple-100 p-2.5 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300">
+									<TrendingUp className="h-7 w-7" />
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+				</StaggerItem>
 			</StaggerList>
 
 			{/* Main Data Table */}
 			<Card className="shadow-sm">
-				<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<CardTitle className="text-lg">
-							{t("finance.routePaymentAuditLedger")}
-						</CardTitle>
-						<CardDescription>
-							{filteredCollections.length} Customer Handovers Completed.
-						</CardDescription>
-					</div>
+				<CardHeader className="space-y-4">
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<CardTitle className="text-lg">
+								{t("finance.routePaymentAuditLedger")}
+							</CardTitle>
+							<CardDescription>
+								{filteredCollections.length} Customer Handovers Completed.
+							</CardDescription>
+						</div>
 
-					<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-						<select
-							className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
-							value={methodFilter}
-							onChange={(e) => setMethodFilter(e.target.value)}
-						>
-							<option value="all">
-								{t("common.all")} {t("sales.paymentMode")}
-							</option>
-							<option value="cash">{t("driver.fullCash")}</option>
-							<option value="online">{t("driver.fullOnline")}</option>
-						</select>
+						<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+							<select
+								className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
+								value={methodFilter}
+								onChange={(e) => setMethodFilter(e.target.value)}
+							>
+								<option value="all">
+									{t("common.all")} {t("sales.paymentMode")}
+								</option>
+								<option value="cash">{t("driver.fullCash")}</option>
+								<option value="online">{t("driver.fullOnline")}</option>
+							</select>
 
-						<div className="relative w-full sm:w-64">
-							<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-							<input
-								type="text"
-								placeholder={t("common.search")}
-								className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-							/>
+							<div className="relative w-full sm:w-64">
+								<SearchIcon className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+								<input
+									type="text"
+									placeholder={t("common.search")}
+									className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm shadow-sm"
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+								/>
+							</div>
 						</div>
 					</div>
+
+					<DateFilterBar
+						startDate={startDate}
+						endDate={endDate}
+						datePreset={datePreset}
+						totalCount={filteredCollections.length}
+						countLabel="handovers"
+						totalAmount={totalCollected}
+						amountLabel="Total Collections:"
+						onDateChange={(start, end, preset) => {
+							setStartDate(start);
+							setEndDate(end);
+							setDatePreset(preset);
+						}}
+					/>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
@@ -339,6 +497,7 @@ export default function FinanceDriverCollectionsPage() {
 										<TableHead>{t("sales.customerName")}</TableHead>
 										<TableHead>{t("sales.paymentMode")}</TableHead>
 										<TableHead>{t("common.amount")}</TableHead>
+										<TableHead>Net Profit (शुद्ध लाभ)</TableHead>
 										<TableHead>Ref / Txn ID</TableHead>
 										<TableHead>{t("common.date")}</TableHead>
 										<TableHead>{t("common.status")}</TableHead>
@@ -398,6 +557,23 @@ export default function FinanceDriverCollectionsPage() {
 														</span>
 													</div>
 												)}
+											</TableCell>
+											<TableCell className="text-sm font-medium">
+												<div
+													className={`font-bold font-mono ${
+														(col.netProfit ?? 0) >= 0
+															? "text-purple-700 dark:text-purple-400"
+															: "text-rose-600"
+													}`}
+												>
+													{(col.netProfit ?? 0) >= 0 ? "+" : ""}₹
+													{(col.netProfit || 0).toLocaleString("en-IN", {
+														maximumFractionDigits: 0,
+													})}
+												</div>
+												<div className="text-[11px] text-muted-foreground whitespace-nowrap">
+													Cost: ₹{(col.costPrice || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })} • {col.marginPercent || 0}%
+												</div>
 											</TableCell>
 											<TableCell className="font-mono text-muted-foreground text-xs max-w-[180px] truncate">
 												{col.transactionIdLabel}
@@ -704,7 +880,9 @@ export default function FinanceDriverCollectionsPage() {
 																			<TableHead className="text-center">Dispatched Qty</TableHead>
 																			<TableHead className="text-center">Accepted / Delivered Qty</TableHead>
 																			<TableHead className="text-right">Unit Rate</TableHead>
+																			<TableHead className="text-right">Unit Cost</TableHead>
 																			<TableHead className="text-right">Final Subtotal</TableHead>
+																			<TableHead className="text-right">Net Profit</TableHead>
 																		</TableRow>
 																	</TableHeader>
 																	<TableBody>
@@ -715,6 +893,9 @@ export default function FinanceDriverCollectionsPage() {
 																			const retQty = ret ? Number(ret.qty || ret.quantity || 1) : 0;
 																			const acceptedQty = Math.max(0, Number(item.quantity || 1) - retQty);
 																			const subtotal = acceptedQty * Number(item.unitPrice || 0);
+																			const itemCostRate = Number(item.costPrice || Number(item.unitPrice || 0) * 0.8);
+																			const totalItemCost = acceptedQty * itemCostRate;
+																			const itemProfit = subtotal - totalItemCost;
 
 																			return (
 																				<TableRow key={item.id} className="text-xs">
@@ -735,8 +916,20 @@ export default function FinanceDriverCollectionsPage() {
 																					<TableCell className="text-right">
 																						₹{(item.unitPrice || 0).toLocaleString("en-IN")}
 																					</TableCell>
+																					<TableCell className="text-right font-mono text-muted-foreground">
+																						₹{itemCostRate.toLocaleString("en-IN")}
+																					</TableCell>
 																					<TableCell className="text-right font-bold text-slate-900 dark:text-slate-100">
 																						₹{subtotal.toLocaleString("en-IN")}
+																					</TableCell>
+																					<TableCell
+																						className={`text-right font-bold font-mono ${
+																							itemProfit >= 0
+																								? "text-purple-700 dark:text-purple-400"
+																								: "text-rose-600"
+																						}`}
+																					>
+																						{itemProfit >= 0 ? "+" : ""}₹{itemProfit.toLocaleString("en-IN")}
 																					</TableCell>
 																				</TableRow>
 																			);
@@ -771,8 +964,8 @@ export default function FinanceDriverCollectionsPage() {
 													</div>
 												)}
 
-												{/* Payment Breakdown Cards */}
-												<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+												{/* Payment & Profit Breakdown Cards */}
+												<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
 													<div className="p-3 rounded-lg bg-card border shadow-xs flex items-center gap-3">
 														<div className="p-2 rounded-full bg-amber-500/10 text-amber-600">
 															<Banknote className="h-5 w-5" />
@@ -805,6 +998,30 @@ export default function FinanceDriverCollectionsPage() {
 															<div className="text-[11px] text-white/80">Total Bill Settled</div>
 															<div className="text-lg font-black">
 																₹{(selectedCollection.amount || 0).toLocaleString("en-IN")}
+															</div>
+														</div>
+													</div>
+
+													<div className="p-3 rounded-lg bg-purple-50 border border-purple-200 dark:bg-purple-950/30 dark:border-purple-900/50 shadow-xs flex items-center gap-3">
+														<div className="p-2 rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-300">
+															<TrendingUp className="h-5 w-5" />
+														</div>
+														<div>
+															<div className="text-[11px] font-semibold text-purple-700 dark:text-purple-400">
+																Net Profit ({selectedCollection.marginPercent || 0}% Margin)
+															</div>
+															<div
+																className={`text-base font-bold font-mono ${
+																	(selectedCollection.netProfit ?? 0) >= 0
+																		? "text-purple-950 dark:text-purple-200"
+																		: "text-rose-600"
+																}`}
+															>
+																{(selectedCollection.netProfit ?? 0) >= 0 ? "+" : ""}₹
+																{(selectedCollection.netProfit || 0).toLocaleString("en-IN")}
+															</div>
+															<div className="text-[10px] text-purple-600/80 dark:text-purple-400/80">
+																Cost: ₹{(selectedCollection.costPrice || 0).toLocaleString("en-IN")}
 															</div>
 														</div>
 													</div>

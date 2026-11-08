@@ -344,6 +344,20 @@ describe("orders.cancelOrder and listCancelledOrders", () => {
 		expect(found?.totalAmount).toBe(500);
 		expect(found?.cancelReason).toContain("Customer changed mind");
 		expect(found?.items.length).toBe(1);
+		// Verify inventory was restored immediately to branchInventory
+		const restoredInv = await db.query.branchInventory.findFirst({
+			where: eq(schema.branchInventory.product_id, productId),
+		});
+		expect(restoredInv).toBeDefined();
+		expect(Number(restoredInv?.in_stock)).toBeGreaterThanOrEqual(2);
+
+		// Verify duplicate cancellation is rejected
+		await expect(
+			salesCaller.cancelOrder({
+				id: order.id,
+				reason: "Duplicate cancel attempt",
+			}),
+		).rejects.toThrow("This order is already cancelled");
 	});
 });
 

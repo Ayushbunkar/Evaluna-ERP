@@ -375,7 +375,10 @@ export default function OrdersPage() {
 
 	const updateMutation = trpc.orders.update.useMutation({
 		onSuccess: () => {
-			utils.orders.list.invalidate();
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
 			utils.picker.getPending.invalidate();
 			utils.picker.getDashboardStats.invalidate();
 			utils.warehouse.getPickingQueue.invalidate();
@@ -389,14 +392,16 @@ export default function OrdersPage() {
 
 	const cancelMutation = trpc.orders.cancelOrder.useMutation({
 		onSuccess: () => {
-			utils.orders.list.invalidate();
-			utils.orders.listCancelledOrders.invalidate();
-			utils.orders.listPendingReview.invalidate();
-			utils.orders.getPendingCount.invalidate();
+			utils.orders.invalidate();
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
+			utils.warehouse.invalidate();
+			utils.dashboard.invalidate();
 			toast.success(
 				locale === "hi"
-					? `ऑर्डर ORD-${deleteId} सफलतापूर्वक निरस्त किया गया और निरस्त ऑर्डर संग्रह में सुरक्षित किया गया.`
-					: `Order ORD-${deleteId} cancelled and archived under Cancelled Orders.`,
+					? `ऑर्डर ORD-${deleteId} सफलतापूर्वक निरस्त किया गया और स्टॉक इन्वेंट्री में तुरंत वापस जोड़ दिया गया.`
+					: `Order ORD-${deleteId} cancelled and items immediately restored to inventory.`,
 			);
 			setIsDeleteOpen(false);
 			setDeleteId(null);

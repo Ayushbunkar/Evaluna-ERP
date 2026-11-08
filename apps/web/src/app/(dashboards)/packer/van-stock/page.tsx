@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
@@ -86,34 +86,79 @@ export default function PackerVanStockPage() {
 		onError: (err) => toast.error(err.message || "Failed to submit packing"),
 	});
 
+	// Sync items whenever planDetail changes
+	useEffect(() => {
+		if (planDetail?.items && planDetail.items.length > 0) {
+			const mapped: PackRowState[] = planDetail.items.map((it: any) => {
+				const picked =
+					it.pickedQty !== null && it.pickedQty !== undefined
+						? parseFloat(it.pickedQty)
+						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
+						? parseFloat(it.pickedQuantity)
+						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const packed =
+					it.packedQty !== null && it.packedQty !== undefined
+						? parseFloat(it.packedQty)
+						: it.packedQuantity !== null && it.packedQuantity !== undefined
+						? parseFloat(it.packedQuantity)
+						: picked;
+				const damaged = parseFloat(it.damagedQty ?? it.packingDamaged) || 0;
+				return {
+					id: it.id,
+					productId: it.productId,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+					pickedQty: picked,
+					packedQty: packed,
+					damagedQty: damaged,
+					packingStatus: (it.packingStatus as any) || (packed === picked ? "PACKED" : "SHORT"),
+					discrepancyReason: it.discrepancyReason || it.packingNotes || "",
+					notes: it.notes || "",
+					isAdditional: !!it.isAdditional,
+					additionalReason: it.additionalReason,
+				};
+			});
+			setActiveItems(mapped);
+		}
+	}, [planDetail]);
+
 	const handleOpenPlan = (plan: any) => {
 		setSelectedPlanId(plan.id);
-		setPackerNotes(plan.packerNotes || "");
-		const mapped: PackRowState[] = (plan.items || []).map((it: any) => {
-			const picked = it.pickedQty !== null && it.pickedQty !== undefined
-				? parseFloat(it.pickedQty)
-				: parseFloat(it.plannedQty);
-			const packed = it.packedQty !== null && it.packedQty !== undefined
-				? parseFloat(it.packedQty)
-				: picked;
-			const damaged = parseFloat(it.damagedQty) || 0;
-			return {
-				id: it.id,
-				productId: it.productId,
-				productName: it.product?.name || "Product",
-				sku: it.product?.sku || "",
-				plannedQty: parseFloat(it.plannedQty) || 0,
-				pickedQty: picked,
-				packedQty: packed,
-				damagedQty: damaged,
-				packingStatus: (it.packingStatus as any) || (packed === picked ? "PACKED" : "SHORT"),
-				discrepancyReason: it.discrepancyReason || "",
-				notes: it.notes || "",
-				isAdditional: !!it.isAdditional,
-				additionalReason: it.additionalReason,
-			};
-		});
-		setActiveItems(mapped);
+		setPackerNotes(plan.packerNotes || plan.notes || "");
+		if (plan.items && plan.items.length > 0) {
+			const mapped: PackRowState[] = plan.items.map((it: any) => {
+				const picked =
+					it.pickedQty !== null && it.pickedQty !== undefined
+						? parseFloat(it.pickedQty)
+						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
+						? parseFloat(it.pickedQuantity)
+						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const packed =
+					it.packedQty !== null && it.packedQty !== undefined
+						? parseFloat(it.packedQty)
+						: it.packedQuantity !== null && it.packedQuantity !== undefined
+						? parseFloat(it.packedQuantity)
+						: picked;
+				const damaged = parseFloat(it.damagedQty ?? it.packingDamaged) || 0;
+				return {
+					id: it.id,
+					productId: it.productId,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+					pickedQty: picked,
+					packedQty: packed,
+					damagedQty: damaged,
+					packingStatus: (it.packingStatus as any) || (packed === picked ? "PACKED" : "SHORT"),
+					discrepancyReason: it.discrepancyReason || it.packingNotes || "",
+					notes: it.notes || "",
+					isAdditional: !!it.isAdditional,
+					additionalReason: it.additionalReason,
+				};
+			});
+			setActiveItems(mapped);
+		}
 	};
 
 	const handlePackedQtyChange = (idx: number, packed: number) => {
@@ -181,7 +226,10 @@ export default function PackerVanStockPage() {
 		});
 	};
 
-	const packingQueue = (plansData?.items || []).filter(
+	// Safely normalize all plans
+	const allPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+
+	const packingQueue = allPlans.filter(
 		(p: any) => p.status === "PENDING_PACKING" || p.status === "PACKING_IN_PROGRESS"
 	);
 
@@ -235,7 +283,7 @@ export default function PackerVanStockPage() {
 									<CardHeader className="p-4 pb-2">
 										<div className="flex items-center justify-between">
 											<span className="font-mono font-bold text-xs text-primary">
-												{plan.planNumber}
+												{plan.planCode || plan.planNumber}
 											</span>
 											<Badge
 												className={
@@ -261,7 +309,7 @@ export default function PackerVanStockPage() {
 										</div>
 										<div className="flex justify-between text-muted-foreground">
 											<span>Total Items:</span>
-											<span className="font-medium text-foreground">{plan.items?.length || 0}</span>
+											<span className="font-medium text-foreground">{plan.itemCount ?? plan.items?.length ?? 0}</span>
 										</div>
 										{plan.pickerNotes && (
 											<div className="text-[11px] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-2 rounded text-amber-900 dark:text-amber-200">

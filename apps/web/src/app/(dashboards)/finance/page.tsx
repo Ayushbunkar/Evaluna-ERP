@@ -18,11 +18,16 @@ import {
 	ChartLineIcon,
 	CreditCardIcon,
 	FileTextIcon,
+	FuelIcon,
 	IndianRupee,
+	PlusCircle,
 	TrendingUpIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import { useState } from "react";
+import { QuickExpenseModal } from "@/components/finance/QuickExpenseModal";
+import { TransportFuelExpenseModal } from "@/components/finance/TransportFuelExpenseModal";
 import {
 	AnimatedCard,
 	PageTransition,
@@ -35,6 +40,8 @@ import { formatCurrency } from "@/lib/utils";
 export default function FinanceDashboard() {
 	const trpc = useTRPC();
 	const locale = useLocale();
+	const [fuelModalOpen, setFuelModalOpen] = useState(false);
+	const [quickExpenseModalOpen, setQuickExpenseModalOpen] = useState(false);
 	const {
 		data: stats,
 		isLoading,
@@ -78,7 +85,21 @@ export default function FinanceDashboard() {
 						Financial overview and monetary management
 					</p>
 				</div>
-				<div className="flex gap-1 sm:gap-2">
+				<div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+					<Button
+						onClick={() => setFuelModalOpen(true)}
+						className="bg-amber-600 font-semibold text-white text-xs shadow-sm hover:bg-amber-700 sm:text-sm"
+					>
+						<FuelIcon className="mr-1.5 h-4 w-4" />
+						{locale === "hi" ? "वाहन व ईंधन खर्च" : "Transport & Fuel Expense"}
+					</Button>
+					<Button
+						onClick={() => setQuickExpenseModalOpen(true)}
+						className="bg-blue-600 font-semibold text-white text-xs shadow-sm hover:bg-blue-700 sm:text-sm"
+					>
+						<PlusCircle className="mr-1.5 h-4 w-4" />
+						{locale === "hi" ? "खर्च दर्ज करें" : "Record Expense"}
+					</Button>
 					<Button
 						variant="outline"
 						className="text-xs shadow-sm sm:text-sm"
@@ -258,6 +279,18 @@ export default function FinanceDashboard() {
 					</CardContent>
 				</Card>
 			</motion.div>
+
+			{/* Transport & Fuel Expense Modal */}
+			<TransportFuelExpenseModal
+				open={fuelModalOpen}
+				onOpenChange={setFuelModalOpen}
+			/>
+
+			{/* Quick Business Expense Modal */}
+			<QuickExpenseModal
+				open={quickExpenseModalOpen}
+				onOpenChange={setQuickExpenseModalOpen}
+			/>
 		</PageTransition>
 	);
 }

@@ -46,6 +46,7 @@ interface PlannedItem {
 export default function VanStockPlanningPage() {
 	const utils = trpc.useUtils();
 	const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+	const [selectedDriverId, setSelectedDriverId] = useState<string>("");
 	const [dispatchDate, setDispatchDate] = useState<string>(
 		new Date().toISOString().split("T")[0]
 	);
@@ -78,6 +79,7 @@ export default function VanStockPlanningPage() {
 			utils.vanStock.getPlanningMetadata.invalidate();
 			// Reset form
 			setSelectedVehicleId("");
+			setSelectedDriverId("");
 			setItems([]);
 			setGeneralNotes("");
 		},
@@ -86,11 +88,13 @@ export default function VanStockPlanningPage() {
 		},
 	});
 
-	const selectedVehicle = metadata?.vehicles.find((v: any) => v.id === selectedVehicleId);
+	const selectedVehicle = metadata?.vehicles.find(
+		(v: any) => String(v.id) === String(selectedVehicleId),
+	);
 	const filteredProducts = (metadata?.products || []).filter(
 		(p: any) =>
 			p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+			p.sku.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
 	const handleAddItem = () => {
@@ -107,12 +111,19 @@ export default function VanStockPlanningPage() {
 			return;
 		}
 
-		const prod = metadata?.products.find((p: any) => p.id === selectedProductId);
-		if (!prod) return;
+		const prod = metadata?.products.find(
+			(p: any) => String(p.id) === String(selectedProductId),
+		);
+		if (!prod) {
+			toast.error("Selected product not found");
+			return;
+		}
 
 		// Check if already in items
 		const existingIndex = items.findIndex(
-			(i) => i.productId === selectedProductId && i.isAdditional === isAdditionalItem
+			(i) =>
+				String(i.productId) === String(selectedProductId) &&
+				i.isAdditional === isAdditionalItem,
 		);
 
 		if (existingIndex >= 0) {
@@ -123,7 +134,7 @@ export default function VanStockPlanningPage() {
 			setItems([
 				...items,
 				{
-					productId: prod.id,
+					productId: String(prod.id),
 					productName: prod.name,
 					sku: prod.sku,
 					availableStock: prod.availableStock,
@@ -168,6 +179,7 @@ export default function VanStockPlanningPage() {
 
 		createPlanMutation.mutate({
 			vehicleId: selectedVehicleId,
+			driverId: selectedDriverId && selectedDriverId !== "none" ? selectedDriverId : undefined,
 			dispatchDate,
 			notes: generalNotes,
 			submitForPicking,
@@ -276,7 +288,7 @@ export default function VanStockPlanningPage() {
 									</SelectTrigger>
 									<SelectContent>
 										{metadata?.vehicles.map((v: any) => (
-											<SelectItem key={v.id} value={v.id}>
+											<SelectItem key={v.id} value={String(v.id)}>
 												{v.registrationNumber} ({v.type || "Van"} - Cap: {v.capacityKg || 0} kg)
 											</SelectItem>
 										))}
@@ -301,6 +313,29 @@ export default function VanStockPlanningPage() {
 										</div>
 									</div>
 								)}
+							</div>
+
+							<div>
+								<label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+									Assigned Driver (Optional)
+								</label>
+								<Select
+									value={selectedDriverId}
+									onValueChange={setSelectedDriverId}
+									disabled={loadingMeta}
+								>
+									<SelectTrigger className="w-full">
+										<SelectValue placeholder="Select delivery driver (optional)..." />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="none">-- Assign Driver Later --</SelectItem>
+										{(metadata?.drivers || []).map((d: any) => (
+											<SelectItem key={d.id} value={String(d.id)}>
+												{d.name} {d.phone ? `(${d.phone})` : ""}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 
 							<div>
@@ -364,7 +399,7 @@ export default function VanStockPlanningPage() {
 									</SelectTrigger>
 									<SelectContent className="max-h-56">
 										{filteredProducts.map((p: any) => (
-											<SelectItem key={p.id} value={p.id} className="text-xs">
+											<SelectItem key={p.id} value={String(p.id)} className="text-xs">
 												{p.name} [{p.sku}] (Avail: {p.availableStock} {p.unit || p.uom || "pcs"})
 											</SelectItem>
 										))}
@@ -577,7 +612,7 @@ export default function VanStockPlanningPage() {
 				<CardContent>
 					{loadingPlans ? (
 						<div className="py-8 text-center text-xs text-muted-foreground">Loading plans...</div>
-					) : plansData?.items?.length === 0 ? (
+					) : (Array.isArray(plansData) ? plansData : (plansData?.items || [])).length === 0 ? (
 						<div className="py-8 text-center text-xs text-muted-foreground">
 							No stock plans created yet.
 						</div>
@@ -596,10 +631,10 @@ export default function VanStockPlanningPage() {
 									</tr>
 								</thead>
 								<tbody className="divide-y">
-									{plansData?.items?.map((plan: any) => (
+									{(Array.isArray(plansData) ? plansData : (plansData?.items || [])).map((plan: any) => (
 										<tr key={plan.id} className="hover:bg-muted/30">
 											<td className="p-2.5 font-mono font-medium text-foreground">
-												{plan.planNumber}
+												{plan.planCode || plan.planNumber}
 												<div className="text-[10px] text-muted-foreground">
 													Rev: {plan.revision}
 												</div>
@@ -619,7 +654,7 @@ export default function VanStockPlanningPage() {
 											</td>
 											<td className="p-2.5 font-medium">{plan.dispatchDate}</td>
 											<td className="p-2.5 text-center font-mono font-medium">
-												{plan.items?.length || 0}
+												{plan.itemCount ?? plan.items?.length ?? 0}
 											</td>
 											<td className="p-2.5 text-center">
 												{getStatusBadge(plan.status)}

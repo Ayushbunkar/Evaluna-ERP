@@ -119,6 +119,9 @@ export default function DispatchApprovalPage() {
 	const pendingExceptions = (planDetail?.exceptions || []).filter((e) => e.status === "PENDING");
 	const checklist = (planDetail?.checklist as any) || {};
 
+	// Safely normalize plans
+	const allPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+
 	return (
 		<div className="space-y-6 pb-12">
 			{/* Page Header */}
@@ -139,7 +142,7 @@ export default function DispatchApprovalPage() {
 				<CardHeader className="bg-orange-50/50 dark:bg-orange-950/20">
 					<CardTitle className="text-base flex items-center gap-2 text-orange-900 dark:text-orange-200">
 						<Clock className="h-4 w-4 text-orange-600" />
-						Ready for Final Dispatch Authorization ({plansData?.items?.length || 0} Vehicles)
+						Ready for Final Dispatch Authorization ({allPlans.length} Vehicles)
 					</CardTitle>
 					<CardDescription>
 						Vehicles fully loaded by warehouse staff awaiting managerial clearance and gate pass.
@@ -148,7 +151,7 @@ export default function DispatchApprovalPage() {
 				<CardContent className="pt-4">
 					{loadingPlans ? (
 						<div className="py-8 text-center text-xs text-muted-foreground">Loading queue...</div>
-					) : plansData?.items?.length === 0 ? (
+					) : allPlans.length === 0 ? (
 						<div className="py-12 text-center text-muted-foreground">
 							<CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-2 opacity-80" />
 							<div className="font-semibold text-sm text-foreground">No vehicles waiting for dispatch!</div>
@@ -156,7 +159,7 @@ export default function DispatchApprovalPage() {
 						</div>
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{plansData?.items?.map((plan) => (
+							{allPlans.map((plan: any) => (
 								<Card
 									key={plan.id}
 									className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-orange-400"
@@ -165,7 +168,7 @@ export default function DispatchApprovalPage() {
 									<CardHeader className="p-4 pb-2">
 										<div className="flex items-center justify-between">
 											<span className="font-mono font-bold text-xs text-primary">
-												{plan.planNumber}
+												{plan.planCode || plan.planNumber}
 											</span>
 											<Badge className="bg-orange-600 hover:bg-orange-700 animate-pulse">
 												Awaiting Clearance
@@ -189,7 +192,7 @@ export default function DispatchApprovalPage() {
 										</div>
 										<div className="flex justify-between text-muted-foreground">
 											<span>Loaded Items:</span>
-											<span className="font-medium text-foreground">{plan.items?.length || 0}</span>
+											<span className="font-medium text-foreground">{plan.itemCount ?? plan.items?.length ?? 0}</span>
 										</div>
 										{plan.loaderNotes && (
 											<div className="text-[11px] bg-muted/60 p-2 rounded text-muted-foreground">
@@ -223,7 +226,7 @@ export default function DispatchApprovalPage() {
 						<div className="flex items-center justify-between">
 							<DialogTitle className="text-lg font-bold flex items-center gap-2">
 								<Send className="h-5 w-5 text-primary" />
-								Final Dispatch Gate: {planDetail?.vehicle?.registrationNumber} ({planDetail?.planNumber})
+								Final Dispatch Gate: {planDetail?.vehicle?.registrationNumber} ({planDetail?.planCode || planDetail?.planNumber})
 							</DialogTitle>
 							<Badge variant="outline" className="font-mono">
 								Rev: {planDetail?.revision}

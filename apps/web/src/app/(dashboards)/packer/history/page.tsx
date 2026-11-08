@@ -113,7 +113,17 @@ export default function PackerHistoryPage() {
 	return (
 		<PageTransition className="container mx-auto space-y-6">
 			{/* Printable Thermal Label */}
-			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:block print:bg-white print:p-4">
+			<div className="hidden print:fixed print:inset-0 print:z-[9999] print:flex print:items-start print:justify-center print:bg-white print:p-2">
+				<style
+					dangerouslySetInnerHTML={{
+						__html: `
+					@media print {
+						@page { size: 100mm 150mm; margin: 2mm; }
+						body { margin: 0; padding: 0; }
+					}
+				`,
+					}}
+				/>
 				{printPackage && (
 					<div className="mx-auto flex w-[280px] flex-col items-center justify-center border-2 border-black p-4 text-center font-sans">
 						<p className="font-bold text-sm">SHIPMENT PARCEL LABEL</p>

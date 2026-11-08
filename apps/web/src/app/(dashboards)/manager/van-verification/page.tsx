@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
@@ -89,34 +89,78 @@ export default function VanVerificationPage() {
 		onError: (err) => toast.error(err.message || "Failed to process verification"),
 	});
 
+	// Sync items whenever planDetail changes
+	useEffect(() => {
+		if (planDetail?.items && planDetail.items.length > 0) {
+			const mapped: VerifyRowState[] = planDetail.items.map((it: any) => {
+				const packed =
+					it.packedQty !== null && it.packedQty !== undefined
+						? parseFloat(it.packedQty)
+						: it.packedQuantity !== null && it.packedQuantity !== undefined
+						? parseFloat(it.packedQuantity)
+						: parseFloat(it.pickedQty ?? it.pickedQuantity ?? it.plannedQty ?? it.plannedQuantity) || 0;
+				const verified =
+					it.verifiedQty !== null && it.verifiedQty !== undefined
+						? parseFloat(it.verifiedQty)
+						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
+						? parseFloat(it.verifiedQuantity)
+						: packed;
+				return {
+					id: it.id,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+					pickedQty: parseFloat(it.pickedQty ?? it.pickedQuantity) || 0,
+					packedQty: packed,
+					damagedQty: parseFloat(it.damagedQty ?? it.packingDamaged) || 0,
+					verifiedQty: verified,
+					isAdditional: !!it.isAdditional,
+					additionalReason: it.additionalReason,
+					shortageReason: it.shortageReason || it.pickingNotes,
+					discrepancyReason: it.discrepancyReason || it.packingNotes,
+				};
+			});
+			setActiveItems(mapped);
+		}
+	}, [planDetail]);
+
 	const handleOpenPlan = (plan: any) => {
 		setSelectedPlanId(plan.id);
-		setAssignedVehicleId(plan.vehicleId || "");
-		setAssignedDriverId(plan.driverId || "");
-		setManagerNotes(plan.verificationNotes || "");
+		setAssignedVehicleId(plan.vehicleId || plan.vehicle?.id ? String(plan.vehicleId || plan.vehicle?.id) : "");
+		setAssignedDriverId(plan.driverId || plan.driver?.id ? String(plan.driverId || plan.driver?.id) : "");
+		setManagerNotes(plan.verificationNotes || plan.notes || "");
 
-		const mapped: VerifyRowState[] = (plan.items || []).map((it: any) => {
-			const packed = it.packedQty !== null && it.packedQty !== undefined
-				? parseFloat(it.packedQty)
-				: parseFloat(it.pickedQty || it.plannedQty);
-			return {
-				id: it.id,
-				productName: it.product?.name || "Product",
-				sku: it.product?.sku || "",
-				plannedQty: parseFloat(it.plannedQty) || 0,
-				pickedQty: parseFloat(it.pickedQty || 0),
-				packedQty: packed,
-				damagedQty: parseFloat(it.damagedQty || 0),
-				verifiedQty: it.verifiedQty !== null && it.verifiedQty !== undefined
-					? parseFloat(it.verifiedQty)
-					: packed,
-				isAdditional: !!it.isAdditional,
-				additionalReason: it.additionalReason,
-				shortageReason: it.shortageReason,
-				discrepancyReason: it.discrepancyReason,
-			};
-		});
-		setActiveItems(mapped);
+		if (plan.items && plan.items.length > 0) {
+			const mapped: VerifyRowState[] = plan.items.map((it: any) => {
+				const packed =
+					it.packedQty !== null && it.packedQty !== undefined
+						? parseFloat(it.packedQty)
+						: it.packedQuantity !== null && it.packedQuantity !== undefined
+						? parseFloat(it.packedQuantity)
+						: parseFloat(it.pickedQty ?? it.pickedQuantity ?? it.plannedQty ?? it.plannedQuantity) || 0;
+				const verified =
+					it.verifiedQty !== null && it.verifiedQty !== undefined
+						? parseFloat(it.verifiedQty)
+						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
+						? parseFloat(it.verifiedQuantity)
+						: packed;
+				return {
+					id: it.id,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
+					pickedQty: parseFloat(it.pickedQty ?? it.pickedQuantity) || 0,
+					packedQty: packed,
+					damagedQty: parseFloat(it.damagedQty ?? it.packingDamaged) || 0,
+					verifiedQty: verified,
+					isAdditional: !!it.isAdditional,
+					additionalReason: it.additionalReason,
+					shortageReason: it.shortageReason || it.pickingNotes,
+					discrepancyReason: it.discrepancyReason || it.packingNotes,
+				};
+			});
+			setActiveItems(mapped);
+		}
 	};
 
 	const handleVerifiedQtyChange = (idx: number, qty: number) => {
@@ -160,6 +204,9 @@ export default function VanVerificationPage() {
 		});
 	};
 
+	// Safely normalize plans
+	const allPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+
 	return (
 		<div className="space-y-6 pb-12">
 			{/* Page Header */}
@@ -180,7 +227,7 @@ export default function VanVerificationPage() {
 				<CardHeader className="bg-blue-50/50 dark:bg-blue-950/20">
 					<CardTitle className="text-base flex items-center gap-2 text-blue-900 dark:text-blue-200">
 						<Clock className="h-4 w-4 text-blue-600" />
-						Awaiting Manager Approval ({plansData?.items?.length || 0} Ready)
+						Awaiting Manager Approval ({allPlans.length} Ready)
 					</CardTitle>
 					<CardDescription>
 						Manifests packed by warehouse staff requiring managerial audit and vehicle/driver confirmation.
@@ -189,7 +236,7 @@ export default function VanVerificationPage() {
 				<CardContent className="pt-4">
 					{loadingPlans ? (
 						<div className="py-8 text-center text-xs text-muted-foreground">Loading queue...</div>
-					) : plansData?.items?.length === 0 ? (
+					) : allPlans.length === 0 ? (
 						<div className="py-12 text-center text-muted-foreground">
 							<CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-2 opacity-80" />
 							<div className="font-semibold text-sm text-foreground">All manifests verified!</div>
@@ -197,7 +244,7 @@ export default function VanVerificationPage() {
 						</div>
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{plansData?.items?.map((plan) => (
+							{allPlans.map((plan: any) => (
 								<Card
 									key={plan.id}
 									className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
@@ -206,7 +253,7 @@ export default function VanVerificationPage() {
 									<CardHeader className="p-4 pb-2">
 										<div className="flex items-center justify-between">
 											<span className="font-mono font-bold text-xs text-primary">
-												{plan.planNumber}
+												{plan.planCode || plan.planNumber}
 											</span>
 											<Badge className="bg-blue-600 hover:bg-blue-700">
 												Ready for Review
@@ -224,7 +271,7 @@ export default function VanVerificationPage() {
 										</div>
 										<div className="flex justify-between text-muted-foreground">
 											<span>Total Items:</span>
-											<span className="font-medium text-foreground">{plan.items?.length || 0}</span>
+											<span className="font-medium text-foreground">{plan.itemCount ?? plan.items?.length ?? 0}</span>
 										</div>
 										<div className="flex justify-between text-muted-foreground">
 											<span>Driver:</span>

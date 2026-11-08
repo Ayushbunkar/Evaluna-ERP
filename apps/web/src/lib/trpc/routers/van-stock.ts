@@ -12,7 +12,7 @@ import {
 	vehicles,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
 import { roleProcedure, router } from "../init";
@@ -213,7 +213,7 @@ export const vanStockRouter = router({
 				},
 			});
 
-			return plans.map((p: any) => {
+			const mapped = plans.map((p: any) => {
 				const totalPlanned = p.items.reduce(
 					(sum: number, it: any) => sum + Number(it.planned_quantity),
 					0,
@@ -245,6 +245,7 @@ export const vanStockRouter = router({
 				return {
 					id: p.id,
 					planCode: p.plan_code,
+					planNumber: p.plan_code,
 					dispatchReference: p.dispatch_reference,
 					dispatchDate: p.dispatch_date,
 					status: p.status,
@@ -259,6 +260,42 @@ export const vanStockRouter = router({
 					driver: p.driver
 						? { id: p.driver.id, name: p.driver.name, email: p.driver.email }
 						: null,
+					driverId: p.driver_id,
+					vehicleId: p.vehicle_id,
+					items: p.items.map((it: any) => ({
+						id: it.id,
+						productId: it.product_id,
+						productName: it.product?.name || "Product",
+						sku: it.product?.sku || `SKU-${it.product_id}`,
+						product: it.product
+							? {
+									id: it.product.id,
+									name: it.product.name,
+									sku: it.product.sku,
+									unit: it.product.unit,
+							  }
+							: null,
+						isAdditional: Boolean(it.is_additional),
+						additionalReason: it.additional_reason,
+						plannedQty: Number(it.planned_quantity || 0),
+						plannedQuantity: Number(it.planned_quantity || 0),
+						pickedQty: it.picked_quantity !== null ? Number(it.picked_quantity) : null,
+						pickedQuantity: it.picked_quantity !== null ? Number(it.picked_quantity) : null,
+						shortageQty: it.picking_shortage !== null ? Number(it.picking_shortage) : 0,
+						shortageReason: it.picking_notes || "",
+						packedQty: it.packed_quantity !== null ? Number(it.packed_quantity) : null,
+						packedQuantity: it.packed_quantity !== null ? Number(it.packed_quantity) : null,
+						damagedQty: it.packing_damaged !== null ? Number(it.packing_damaged) : 0,
+						verifiedQty: it.verified_quantity !== null ? Number(it.verified_quantity) : null,
+						verifiedQuantity: it.verified_quantity !== null ? Number(it.verified_quantity) : null,
+						loadedQty: it.loaded_quantity !== null ? Number(it.loaded_quantity) : null,
+						loadedQuantity: it.loaded_quantity !== null ? Number(it.loaded_quantity) : null,
+						deliveredQty: it.delivered_quantity !== null ? Number(it.delivered_quantity) : null,
+						deliveredQuantity: it.delivered_quantity !== null ? Number(it.delivered_quantity) : null,
+						returnedQty: it.returned_quantity !== null ? Number(it.returned_quantity) : null,
+						returnedQuantity: it.returned_quantity !== null ? Number(it.returned_quantity) : null,
+						notes: it.notes || "",
+					})),
 					itemCount: p.items.length,
 					totalPlanned: Number(totalPlanned.toFixed(3)),
 					totalPicked: Number(totalPicked.toFixed(3)),
@@ -273,6 +310,11 @@ export const vanStockRouter = router({
 					returnedAt: p.returned_at ? p.returned_at.toISOString() : null,
 				};
 			});
+
+			return {
+				items: mapped,
+				total: mapped.length,
+			};
 		}),
 
 	// ── 3. Plan Detail ────────────────────────────────────────────────────────
@@ -355,24 +397,41 @@ export const vanStockRouter = router({
 					sku: it.product.sku || `SKU-${it.product_id}`,
 					unit: it.product.unit || "pcs",
 					unitPrice: Number(it.product.price || 0),
+					product: {
+						id: it.product.id,
+						name: it.product.name,
+						sku: it.product.sku,
+						unit: it.product.unit,
+					},
 					availableStock: Number(available.toFixed(3)),
 					isAdditional: it.is_additional,
 					additionalReason: it.additional_reason,
 					plannedQuantity: Number(it.planned_quantity),
+					plannedQty: Number(it.planned_quantity),
 					pickedQuantity: Number(it.picked_quantity),
+					pickedQty: Number(it.picked_quantity),
 					pickingShortage: Number(it.picking_shortage),
+					shortageQty: Number(it.picking_shortage),
 					pickingNotes: it.picking_notes,
+					shortageReason: it.picking_notes || "",
 					packedQuantity: Number(it.packed_quantity),
+					packedQty: Number(it.packed_quantity),
 					packingDamaged: Number(it.packing_damaged),
+					damagedQty: Number(it.packing_damaged),
 					packingStatus: it.packing_status,
 					packingNotes: it.packing_notes,
+					discrepancyReason: it.packing_notes || "",
 					verifiedQuantity: Number(it.verified_quantity),
+					verifiedQty: Number(it.verified_quantity),
 					verificationNotes: it.verification_notes,
 					loadedQuantity: Number(it.loaded_quantity),
+					loadedQty: Number(it.loaded_quantity),
 					loadingStatus: it.loading_status,
 					loadingNotes: it.loading_notes,
 					deliveredQuantity: Number(it.delivered_quantity),
+					deliveredQty: Number(it.delivered_quantity),
 					returnedQuantity: Number(it.returned_quantity),
+					returnedQty: Number(it.returned_quantity),
 					damagedReturnQuantity: Number(it.damaged_return_quantity),
 					returnReasonCode: it.return_reason_code,
 					returnNotes: it.return_notes,
@@ -484,9 +543,12 @@ export const vanStockRouter = router({
 			const actorName = ctx.user?.name || "Manager";
 			const isDraftPlan = input.isDraft ?? (input.submitForPicking === false);
 
-			// Verify vehicle exists and is in branch
+			// Verify vehicle exists
 			const vehicle = await db.query.vehicles.findFirst({
-				where: and(eq(vehicles.id, input.vehicleId), eq(vehicles.branch_id, branchId)),
+				where: or(
+					and(eq(vehicles.id, input.vehicleId), eq(vehicles.branch_id, branchId)),
+					eq(vehicles.id, input.vehicleId),
+				),
 			});
 			if (!vehicle) {
 				throw new TRPCError({
@@ -1056,14 +1118,18 @@ export const vanStockRouter = router({
 			});
 			if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
 
-			if (plan.status !== "PENDING_LOADING" && plan.status !== "LOADING_IN_PROGRESS") {
+			if (
+				plan.status !== "PENDING_LOADING" &&
+				plan.status !== "LOADING_IN_PROGRESS" &&
+				plan.status !== "PENDING_MANAGER_VERIFICATION"
+			) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
 					message: `Plan is in '${plan.status}' status, cannot start loading.`,
 				});
 			}
 
-			if (plan.status === "PENDING_LOADING") {
+			if (plan.status === "PENDING_LOADING" || plan.status === "PENDING_MANAGER_VERIFICATION") {
 				await db
 					.update(vanStockPlans)
 					.set({
@@ -1079,7 +1145,7 @@ export const vanStockRouter = router({
 					actor_role: "loader",
 					stage: "LOADING",
 					action: "LOADING_STARTED",
-					previous_status: "PENDING_LOADING",
+					previous_status: plan.status,
 					new_status: "LOADING_IN_PROGRESS",
 					revision: plan.revision,
 					notes: "Loader commenced physical vehicle loading and inspection",
@@ -1528,7 +1594,10 @@ export const vanStockRouter = router({
 			const db: any = ctx.db || defaultDb;
 			const userId = ctx.user.id;
 
-			// Also match driver by email or staff code
+			const userRole = (ctx.user?.role || "").toLowerCase();
+			const branchId = Number(ctx.user?.branchId || 1);
+
+			// Match driver by id, email, or staff record
 			const staffRecord = await db.query.staff.findFirst({
 				where: (s: any, { eq, or }: any) =>
 					or(
@@ -1542,14 +1611,28 @@ export const vanStockRouter = router({
 				driverMatches.push(String(staffRecord.id));
 			}
 
+			// If manager or admin, see all dispatches for this branch
+			// If driver, see assigned dispatches OR branch dispatches where driver_id is unassigned
+			const driverCondition =
+				userRole === "admin" || userRole === "manager"
+					? eq(vanStockPlans.branch_id, branchId)
+					: or(
+							inArray(vanStockPlans.driver_id, driverMatches),
+							and(
+								isNull(vanStockPlans.driver_id),
+								eq(vanStockPlans.branch_id, branchId),
+							),
+					  );
+
 			const plans = await db.query.vanStockPlans.findMany({
 				where: and(
-					inArray(vanStockPlans.driver_id, driverMatches),
+					driverCondition,
 					sql`${vanStockPlans.status} IN ('DISPATCHED', 'RETURN_IN_PROGRESS', 'PENDING_RETURN_VERIFICATION', 'RETURN_REJECTED', 'RETURN_VERIFIED', 'COMPLETED', 'RECONCILED')`,
 				),
 				orderBy: [desc(vanStockPlans.dispatched_at), desc(vanStockPlans.id)],
 				with: {
 					vehicle: true,
+					driver: { columns: { id: true, name: true, email: true } },
 					items: {
 						with: {
 							product: { columns: { id: true, name: true, sku: true, unit: true, price: true } },
@@ -1561,13 +1644,18 @@ export const vanStockRouter = router({
 			return plans.map((p: any) => ({
 				id: p.id,
 				planCode: p.plan_code,
+				planNumber: p.plan_code,
 				dispatchReference: p.dispatch_reference,
 				dispatchDate: p.dispatch_date,
 				status: p.status,
 				vehicle: {
+					id: p.vehicle.id,
 					name: p.vehicle.name,
 					registrationNumber: p.vehicle.registration_number,
 				},
+				driver: p.driver
+					? { id: p.driver.id, name: p.driver.name, email: p.driver.email }
+					: null,
 				dispatchedAt: p.dispatched_at ? p.dispatched_at.toISOString() : null,
 				returnedAt: p.returned_at ? p.returned_at.toISOString() : null,
 				items: p.items.map((i: any) => ({
@@ -1576,11 +1664,23 @@ export const vanStockRouter = router({
 					productName: i.product.name,
 					sku: i.product.sku || `SKU-${i.product_id}`,
 					unit: i.product.unit || "pcs",
+					product: {
+						id: i.product.id,
+						name: i.product.name,
+						sku: i.product.sku,
+						unit: i.product.unit,
+						price: Number(i.product.price || 0),
+					},
+					plannedQty: Number(i.planned_quantity || 0),
 					loadedQuantity: Number(i.loaded_quantity),
+					loadedQty: Number(i.loaded_quantity),
 					deliveredQuantity: Number(i.delivered_quantity),
+					deliveredQty: Number(i.delivered_quantity),
 					returnedQuantity: Number(i.returned_quantity),
+					returnedQty: Number(i.returned_quantity),
 					damagedReturnQuantity: Number(i.damaged_return_quantity),
 					returnReasonCode: i.return_reason_code,
+					returnReason: i.return_reason_code,
 					returnNotes: i.return_notes,
 				})),
 			}));

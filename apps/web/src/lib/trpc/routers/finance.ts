@@ -20,6 +20,7 @@ import {
 	gte,
 	ilike,
 	inArray,
+	isNull,
 	lte,
 	or,
 	sql,
@@ -611,23 +612,77 @@ export const financeRouter = router({
 		"manager",
 		"auditor",
 		"finance",
-	]).query(async ({ ctx }) => {
-		const collections = await ctx.db.query.tripCollections?.findMany({
-			orderBy: [desc(tripCollections.collected_at)],
-			limit: 100,
-			with: {
-				trip: {
-					with: {
-						driver: true,
-						stops: {
-							with: {
-								customer: true,
+	])
+		.input(
+			z
+				.object({
+					startDate: z.string().optional(),
+					endDate: z.string().optional(),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
+			const conditions: any[] = [];
+			if (input?.startDate) {
+				conditions.push(
+					or(
+						gte(
+							tripCollections.collected_at,
+							new Date(`${input.startDate}T00:00:00`),
+						),
+						and(
+							isNull(tripCollections.collected_at),
+							gte(
+								tripCollections.created_at,
+								new Date(`${input.startDate}T00:00:00`),
+							),
+						),
+					),
+				);
+			}
+			if (input?.endDate) {
+				conditions.push(
+					or(
+						lte(
+							tripCollections.collected_at,
+							new Date(`${input.endDate}T23:59:59`),
+						),
+						and(
+							isNull(tripCollections.collected_at),
+							lte(
+								tripCollections.created_at,
+								new Date(`${input.endDate}T23:59:59`),
+							),
+						),
+					),
+				);
+			}
+
+			let collections: any[] = [];
+			try {
+				if (ctx.db?.query?.tripCollections) {
+					collections = await ctx.db.query.tripCollections.findMany({
+						where: conditions.length > 0 ? and(...conditions) : undefined,
+						orderBy: [desc(tripCollections.collected_at)],
+						limit: 200,
+						with: {
+							trip: {
+								with: {
+									driver: true,
+									stops: {
+										with: {
+											customer: true,
+										},
+									},
+								},
 							},
 						},
-					},
-				},
-			},
-		});
+					});
+				}
+			} catch (e) {
+				console.warn("[getDriverCollections] DB query fallback:", e);
+				return [];
+			}
 
 		if (!collections || collections.length === 0) return [];
 
@@ -738,6 +793,35 @@ export const financeRouter = router({
 				}
 			}
 
+			const colAmt = Number(col.amount || 0);
+			let totalColCost = 0;
+			let totalColSelling = 0;
+
+			if (linkedOrders.length > 0) {
+				for (const o of linkedOrders) {
+					for (const it of o.orderItems || []) {
+						const qty = Number(it.quantity || 1);
+						const unitSelling = Number(it.price || it.unit_price || 0);
+						const unitCost = it.product
+							? Number(
+									it.product.base_procurement_price ||
+										Number(it.product.price || unitSelling) * 0.8,
+								)
+							: unitSelling * 0.8;
+						totalColCost += qty * unitCost;
+						totalColSelling += qty * unitSelling;
+					}
+				}
+			}
+
+			if (totalColSelling === 0 && colAmt > 0) {
+				totalColSelling = colAmt;
+				totalColCost = colAmt * 0.8;
+			}
+			const totalColProfit = totalColSelling - totalColCost;
+			const totalColMargin =
+				totalColSelling > 0 ? (totalColProfit / totalColSelling) * 100 : 0;
+
 			return {
 				id: col.id,
 				tripId: col.trip_id,
@@ -746,6 +830,10 @@ export const financeRouter = router({
 				customerId: stopCustomer?.id || null,
 				paymentMethod: col.payment_method || "Cash",
 				amount: Number(col.amount || 0),
+				costPrice: Number(totalColCost.toFixed(2)),
+				sellingPrice: Number(totalColSelling.toFixed(2)),
+				netProfit: Number(totalColProfit.toFixed(2)),
+				marginPercent: Number(totalColMargin.toFixed(1)),
 				transactionId: col.transaction_id || `COL-${col.id}`,
 				referenceNumber: col.reference_number || `REF-${col.id}`,
 				collectedAt: col.collected_at
@@ -777,32 +865,68 @@ export const financeRouter = router({
 								: null,
 						}
 					: null,
-				orders: linkedOrders.map((o: any) => ({
-					id: o.id,
-					orderRef: `ORD-${o.id}`,
-					totalAmount: Number(o.total_amount || 0),
-					discountAmount: Number(o.discount_amount || 0),
-					discountReason: o.discount_reason || null,
-					otherCharges: Number(o.other_charges || 0),
-					otherChargesReason: o.other_charges_reason || null,
-					status: o.status || "completed",
-					financeStatus: o.finance_status || "driver_collected",
-					createdAt: o.created_at
-						? new Date(o.created_at).toLocaleString("en-IN")
-						: "N/A",
-					items: (o.orderItems || []).map((it: any) => ({
-						id: it.id,
-						productId: it.product_id,
-						productName: it.product?.name || `Item #${it.product_id || it.id}`,
-						category: it.product?.category || "General",
-						unit: it.product?.unit || "pcs",
-						sku: it.product?.sku || "—",
-						quantity: Number(it.quantity || 1),
-						unitPrice: Number(it.price || it.unit_price || 0),
-						totalPrice:
-							Number(it.price || it.unit_price || 0) * Number(it.quantity || 1),
-					})),
-				})),
+				orders: linkedOrders.map((o: any) => {
+					let orderCost = 0;
+					let orderSelling = 0;
+
+					const items = (o.orderItems || []).map((it: any) => {
+						const qty = Number(it.quantity || 1);
+						const unitSelling = Number(it.price || it.unit_price || 0);
+						const unitCost = it.product
+							? Number(
+									it.product.base_procurement_price ||
+										Number(it.product.price || unitSelling) * 0.8,
+								)
+							: unitSelling * 0.8;
+						const totalItemSelling = unitSelling * qty;
+						const totalItemCost = unitCost * qty;
+						const itemProfit = totalItemSelling - totalItemCost;
+
+						orderCost += totalItemCost;
+						orderSelling += totalItemSelling;
+
+						return {
+							id: it.id,
+							productId: it.product_id,
+							productName: it.product?.name || `Item #${it.product_id || it.id}`,
+							category: it.product?.category || "General",
+							unit: it.product?.unit || "pcs",
+							sku: it.product?.sku || "—",
+							quantity: qty,
+							unitPrice: unitSelling,
+							costPrice: Number(unitCost.toFixed(2)),
+							totalPrice: Number(totalItemSelling.toFixed(2)),
+							totalCost: Number(totalItemCost.toFixed(2)),
+							profit: Number(itemProfit.toFixed(2)),
+						};
+					});
+
+					const totalAmount = Number(o.total_amount || orderSelling);
+					const netSelling = totalAmount > 0 ? totalAmount : orderSelling;
+					const netProfit = netSelling - orderCost;
+					const marginPercent =
+						netSelling > 0 ? (netProfit / netSelling) * 100 : 0;
+
+					return {
+						id: o.id,
+						orderRef: `ORD-${o.id}`,
+						totalAmount,
+						costPrice: Number(orderCost.toFixed(2)),
+						sellingPrice: Number(netSelling.toFixed(2)),
+						netProfit: Number(netProfit.toFixed(2)),
+						marginPercent: Number(marginPercent.toFixed(1)),
+						discountAmount: Number(o.discount_amount || 0),
+						discountReason: o.discount_reason || null,
+						otherCharges: Number(o.other_charges || 0),
+						otherChargesReason: o.other_charges_reason || null,
+						status: o.status || "completed",
+						financeStatus: o.finance_status || "driver_collected",
+						createdAt: o.created_at
+							? new Date(o.created_at).toLocaleString("en-IN")
+							: "N/A",
+						items,
+					};
+				}),
 			};
 		});
 	}),

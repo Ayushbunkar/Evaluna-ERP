@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
@@ -99,26 +99,63 @@ export default function LoaderVanLoadingPage() {
 		onError: (err) => toast.error(err.message || "Failed to sign off loading"),
 	});
 
+	// Sync items whenever planDetail changes
+	useEffect(() => {
+		if (planDetail?.items && planDetail.items.length > 0) {
+			const mapped: LoadItemRow[] = planDetail.items.map((it: any) => {
+				const verified =
+					it.verifiedQty !== null && it.verifiedQty !== undefined
+						? parseFloat(it.verifiedQty)
+						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
+						? parseFloat(it.verifiedQuantity)
+						: parseFloat(it.packedQty ?? it.packedQuantity ?? it.pickedQty ?? it.plannedQty ?? it.plannedQuantity) || 0;
+				const loaded =
+					it.loadedQty !== null && it.loadedQty !== undefined
+						? parseFloat(it.loadedQty)
+						: it.loadedQuantity !== null && it.loadedQuantity !== undefined
+						? parseFloat(it.loadedQuantity)
+						: verified;
+				return {
+					id: it.id,
+					productId: it.productId,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					verifiedQty: verified,
+					loadedQty: loaded,
+				};
+			});
+			setActiveItems(mapped);
+		}
+	}, [planDetail]);
+
 	const handleOpenPlan = (plan: any) => {
 		setSelectedPlanId(plan.id);
-		setLoaderNotes(plan.loaderNotes || "");
-		const mapped: LoadItemRow[] = (plan.items || []).map((it: any) => {
-			const verified = it.verifiedQty !== null && it.verifiedQty !== undefined
-				? parseFloat(it.verifiedQty)
-				: parseFloat(it.packedQty || it.plannedQty);
-			const loaded = it.loadedQty !== null && it.loadedQty !== undefined
-				? parseFloat(it.loadedQty)
-				: verified;
-			return {
-				id: it.id,
-				productId: it.productId,
-				productName: it.product?.name || "Product",
-				sku: it.product?.sku || "",
-				verifiedQty: verified,
-				loadedQty: loaded,
-			};
-		});
-		setActiveItems(mapped);
+		setLoaderNotes(plan.loaderNotes || plan.notes || "");
+		if (plan.items && plan.items.length > 0) {
+			const mapped: LoadItemRow[] = plan.items.map((it: any) => {
+				const verified =
+					it.verifiedQty !== null && it.verifiedQty !== undefined
+						? parseFloat(it.verifiedQty)
+						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
+						? parseFloat(it.verifiedQuantity)
+						: parseFloat(it.packedQty ?? it.packedQuantity ?? it.pickedQty ?? it.plannedQty ?? it.plannedQuantity) || 0;
+				const loaded =
+					it.loadedQty !== null && it.loadedQty !== undefined
+						? parseFloat(it.loadedQty)
+						: it.loadedQuantity !== null && it.loadedQuantity !== undefined
+						? parseFloat(it.loadedQuantity)
+						: verified;
+				return {
+					id: it.id,
+					productId: it.productId,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					verifiedQty: verified,
+					loadedQty: loaded,
+				};
+			});
+			setActiveItems(mapped);
+		}
 	};
 
 	const handleLoadedQtyChange = (idx: number, loaded: number) => {
@@ -169,8 +206,14 @@ export default function LoaderVanLoadingPage() {
 		});
 	};
 
-	const loadingQueue = (plansData?.items || []).filter(
-		(p) => p.status === "PENDING_LOADING" || p.status === "LOADING_IN_PROGRESS"
+	// Safely normalize all plans
+	const allPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+
+	const loadingQueue = allPlans.filter(
+		(p: any) =>
+			p.status === "PENDING_LOADING" ||
+			p.status === "LOADING_IN_PROGRESS" ||
+			p.status === "PENDING_MANAGER_VERIFICATION"
 	);
 
 	const pendingExceptions = (planDetail?.exceptions || []).filter((e) => e.status === "PENDING");
@@ -225,7 +268,7 @@ export default function LoaderVanLoadingPage() {
 									<CardHeader className="p-4 pb-2">
 										<div className="flex items-center justify-between">
 											<span className="font-mono font-bold text-xs text-primary">
-												{plan.planNumber}
+												{plan.planCode || plan.planNumber}
 											</span>
 											<Badge
 												className={
@@ -257,7 +300,7 @@ export default function LoaderVanLoadingPage() {
 										</div>
 										<div className="flex justify-between text-muted-foreground">
 											<span>Total Items:</span>
-											<span className="font-medium text-foreground">{plan.items?.length || 0}</span>
+											<span className="font-medium text-foreground">{plan.itemCount ?? plan.items?.length ?? 0}</span>
 										</div>
 										<Button
 											size="sm"

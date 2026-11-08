@@ -32,6 +32,7 @@ import {
 	BanknoteIcon,
 	CheckCircle2,
 	CheckCircle2Icon,
+	Clock,
 	CreditCardIcon,
 	EyeIcon,
 	FileTextIcon,
@@ -78,22 +79,22 @@ export default function DriverHistoryPage() {
 			t.vehiclePlate?.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
-	// Cumulative financial aggregates across all trips
+	// Cumulative financial aggregates across filtered trips
 	const completedTripsCount =
-		deliveryHistory?.filter((t: any) => t.status === "Completed").length ?? 0;
+		filteredList?.filter((t: any) => t.status === "Completed").length ?? 0;
 	const inProgressTripsCount =
-		deliveryHistory?.filter(
+		filteredList?.filter(
 			(t: any) => t.status === "In Progress" || t.status === "Active",
 		).length ?? 0;
 
 	const aggregateCash =
-		deliveryHistory?.reduce(
-			(acc: number, t: any) => acc + (t.totalCashCollected || 0),
+		filteredList?.reduce(
+			(acc: number, t: any) => acc + (Number(t.totalCashCollected) || 0),
 			0,
 		) || 0;
 	const aggregateOnline =
-		deliveryHistory?.reduce(
-			(acc: number, t: any) => acc + (t.totalOnlineCollected || 0),
+		filteredList?.reduce(
+			(acc: number, t: any) => acc + (Number(t.totalOnlineCollected) || 0),
 			0,
 		) || 0;
 	const aggregateTotal = aggregateCash + aggregateOnline;
@@ -563,7 +564,13 @@ export default function DriverHistoryPage() {
 																? st.items
 																: [{ name: "Doorstep Delivered Package", qty: 1, price: st.cashCollected + st.onlineCollected || st.amountToCollect || 0 }];
 													
-													const stopTotal = delItems.reduce((acc: number, it: any) => acc + (Number(it.price || 0) * Number(it.qty || 1)), 0);
+													const stopGrossTotal = delItems.reduce((acc: number, it: any) => acc + (Number(it.price || 0) * Number(it.qty || 1)), 0);
+													const stopDiscount = Number(st.discountAmount || 0);
+													const stopExtraCharges = Number(st.extraCharges || 0);
+													const stopCollected = Number(st.cashCollected || 0) + Number(st.onlineCollected || 0);
+													const stopFinalTotal = stopCollected > 0
+														? stopCollected
+														: Math.max(0, stopGrossTotal - stopDiscount + stopExtraCharges);
 
 													return (
 														<div key={st.stopId} className="rounded-lg border border-emerald-200/80 bg-white overflow-hidden space-y-0">
@@ -596,9 +603,21 @@ export default function DriverHistoryPage() {
 																			Online: ₹{st.onlineCollected.toFixed(2)}
 																		</span>
 																	)}
-																	<span className="rounded-full px-2 py-0.5 font-bold text-[10px] uppercase bg-emerald-100 text-emerald-800 flex items-center gap-1">
-																		<CheckCircle2 className="h-3 w-3 text-emerald-600" />
-																		{st.status} ({st.deliveredAt})
+																	<span
+																		className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase flex items-center gap-1 ${
+																			st.status === "Delivered"
+																				? "bg-emerald-100 text-emerald-800"
+																				: st.status === "Failed"
+																					? "bg-rose-100 text-rose-800"
+																					: "bg-amber-100 text-amber-800"
+																		}`}
+																	>
+																		{st.status === "Delivered" ? (
+																			<CheckCircle2 className="h-3 w-3 text-emerald-600" />
+																		) : (
+																			<Clock className="h-3 w-3 text-amber-600" />
+																		)}
+																		{st.status} {st.status === "Delivered" && st.deliveredAt ? `(${st.deliveredAt})` : "(Pending)"}
 																	</span>
 																</div>
 															</div>
@@ -630,14 +649,67 @@ export default function DriverHistoryPage() {
 																			</TableCell>
 																		</TableRow>
 																	))}
-																	<TableRow className="bg-emerald-500/10 font-bold border-t border-emerald-500/20">
-																		<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-emerald-950">
-																			Customer Handover Settled Total (ग्राहक कुल भुगतान)
-																		</TableCell>
-																		<TableCell className="text-right text-emerald-700 text-sm font-extrabold">
-																			₹{stopTotal.toLocaleString("en-IN")}
-																		</TableCell>
-																	</TableRow>
+																	{st.status !== "Delivered" ? (
+																		<TableRow className="bg-amber-500/10 font-bold border-t border-amber-500/20">
+																			<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-amber-950">
+																				Pending Handover Expected Bill (अपेक्षित संग्रह बिल)
+																			</TableCell>
+																			<TableCell className="text-right text-amber-700 text-sm font-extrabold">
+																				₹{stopFinalTotal.toLocaleString("en-IN")}
+																			</TableCell>
+																		</TableRow>
+																	) : stopDiscount > 0 ? (
+																		<>
+																			<TableRow className="bg-slate-50/50 font-medium">
+																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-slate-500">
+																					Delivered Items Subtotal (सामान का कुल मूल्य)
+																				</TableCell>
+																				<TableCell className="text-right text-slate-800 text-xs font-semibold">
+																					₹{stopGrossTotal.toLocaleString("en-IN")}
+																				</TableCell>
+																			</TableRow>
+																			<TableRow className="bg-emerald-50/40 font-medium text-emerald-700">
+																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
+																					Discount Applied (लागू छूट)
+																					{st.discountReason && (
+																						<span className="block text-[10px] font-normal text-slate-500">
+																							({st.discountReason})
+																						</span>
+																					)}
+																				</TableCell>
+																				<TableCell className="text-right text-emerald-700 text-xs font-semibold">
+																					- ₹{stopDiscount.toLocaleString("en-IN")}
+																				</TableCell>
+																			</TableRow>
+																			{stopExtraCharges > 0 && (
+																				<TableRow className="bg-blue-50/40 font-medium text-blue-700">
+																					<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
+																						Other Charges (अतिरिक्त शुल्क)
+																					</TableCell>
+																					<TableCell className="text-right text-blue-700 text-xs font-semibold">
+																						+ ₹{stopExtraCharges.toLocaleString("en-IN")}
+																					</TableCell>
+																				</TableRow>
+																			)}
+																			<TableRow className="bg-emerald-500/10 font-bold border-t border-emerald-500/20">
+																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-emerald-950">
+																					Customer Handover Settled Total (ग्राहक कुल भुगतान)
+																				</TableCell>
+																				<TableCell className="text-right text-emerald-700 text-sm font-extrabold">
+																					₹{stopFinalTotal.toLocaleString("en-IN")}
+																				</TableCell>
+																			</TableRow>
+																		</>
+																	) : (
+																		<TableRow className="bg-emerald-500/10 font-bold border-t border-emerald-500/20">
+																			<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-emerald-950">
+																				Customer Handover Settled Total (ग्राहक कुल भुगतान)
+																			</TableCell>
+																			<TableCell className="text-right text-emerald-700 text-sm font-extrabold">
+																				₹{stopFinalTotal.toLocaleString("en-IN")}
+																			</TableCell>
+																		</TableRow>
+																	)}
 																</TableBody>
 															</Table>
 														</div>
