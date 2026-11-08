@@ -66,9 +66,26 @@ import {
 } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
+function toDateKey(dateVal: string | Date | null | undefined): string {
+	if (!dateVal) return "";
+	const d = new Date(dateVal);
+	if (Number.isNaN(d.getTime())) return "";
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${m}-${day}`;
+}
+
 export default function FinanceExpensesPage() {
 	const trpc = useTRPC();
 	const utils = trpc.useUtils();
+
+	const todayKey = useMemo(() => toDateKey(new Date()), []);
+	const yesterdayKey = useMemo(() => {
+		const y = new Date();
+		y.setDate(y.getDate() - 1);
+		return toDateKey(y);
+	}, []);
 
 	const [fuelModalOpen, setFuelModalOpen] = useState(false);
 	const [quickExpenseModalOpen, setQuickExpenseModalOpen] = useState(false);
@@ -277,23 +294,6 @@ export default function FinanceExpensesPage() {
 			direct_payout: true,
 		});
 	};
-
-	const toDateKey = (dateVal: string | Date | null | undefined): string => {
-		if (!dateVal) return "";
-		const d = new Date(dateVal);
-		if (Number.isNaN(d.getTime())) return "";
-		const y = d.getFullYear();
-		const m = String(d.getMonth() + 1).padStart(2, "0");
-		const day = String(d.getDate()).padStart(2, "0");
-		return `${y}-${m}-${day}`;
-	};
-
-	const todayKey = useMemo(() => toDateKey(new Date()), []);
-	const yesterdayKey = useMemo(() => {
-		const y = new Date();
-		y.setDate(y.getDate() - 1);
-		return toDateKey(y);
-	}, []);
 
 	// 1. Base date-filtered expenses (before category filtering) so category breakdown stays complete
 	const baseExpensesForDate = useMemo(() => {

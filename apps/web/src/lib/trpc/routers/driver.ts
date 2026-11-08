@@ -1644,20 +1644,6 @@ export const driverRouter = router({
 
 			return Promise.all(
 				trips.map(async (t: any) => {
-					let totalCash = 0;
-					let totalOnline = 0;
-
-					if (t.collections && t.collections.length > 0) {
-						for (const c of t.collections) {
-							const amt = Number(c.amount || 0);
-							if (c.payment_method?.toLowerCase().includes("cash")) {
-								totalCash += amt;
-							} else {
-								totalOnline += amt;
-							}
-						}
-					}
-
 					const stops = await Promise.all(
 						(t.stops || []).map(async (s: any, idx: number) => {
 							const isDelivered =
