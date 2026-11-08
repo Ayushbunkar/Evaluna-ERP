@@ -67,7 +67,7 @@ export default function ManagerLayout({
 		},
 		{
 			href: "/manager/approvals",
-			label: "Expense Approvals",
+			label: "Approvals & Returns",
 			icon: CheckSquare,
 		},
 		{

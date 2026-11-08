@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
@@ -45,14 +45,44 @@ export default function VanReturnVerificationPage() {
 	const [managerNotes, setManagerNotes] = useState("");
 
 	// Queries
-	const { data: plansData, isLoading: loadingPlans } = trpc.vanStock.listPlans.useQuery({
-		limit: 50,
-	});
+	const { data: plansData, isLoading: loadingPlans } = trpc.vanStock.listPlans.useQuery(
+		{ limit: 100 },
+		{ refetchInterval: 10000 }
+	);
 
 	const { data: planDetail } = trpc.vanStock.getPlanDetail.useQuery(
 		{ planId: selectedPlanId || "" },
 		{ enabled: !!selectedPlanId }
 	);
+
+	// Sync items from planDetail when planDetail loads or updates
+	useEffect(() => {
+		if (planDetail?.items && planDetail.items.length > 0) {
+			const mapped: ReturnVerifyRowState[] = planDetail.items.map((it: any) => {
+				const loaded = parseFloat(it.loadedQty || it.verifiedQty || it.plannedQty || 0);
+				const delivered = parseFloat(it.deliveredQty || 0);
+				const returned = parseFloat(it.returnedQty || 0);
+				const verifiedReturn =
+					it.verifiedReturnQty !== null && it.verifiedReturnQty !== undefined
+						? parseFloat(it.verifiedReturnQty)
+						: returned;
+				return {
+					id: it.id,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					loadedQty: loaded,
+					deliveredQty: delivered,
+					returnedQty: returned,
+					verifiedReturnQty: verifiedReturn,
+					returnReason: it.returnReason,
+				};
+			});
+			setActiveItems(mapped);
+			if (planDetail.driverReturnNotes && !managerNotes) {
+				setManagerNotes(planDetail.driverReturnNotes);
+			}
+		}
+	}, [planDetail]);
 
 	// Mutations
 	const verifyReturnMutation = trpc.vanStock.verifyReturnStock.useMutation({
@@ -68,18 +98,19 @@ export default function VanReturnVerificationPage() {
 
 	const handleOpenPlan = (plan: any) => {
 		setSelectedPlanId(plan.id);
-		setManagerNotes(plan.returnNotes || "");
+		setManagerNotes(plan.returnNotes || plan.driverReturnNotes || "");
 		const mapped: ReturnVerifyRowState[] = (plan.items || []).map((it: any) => {
-			const loaded = parseFloat(it.loadedQty || it.verifiedQty || it.plannedQty);
+			const loaded = parseFloat(it.loadedQty || it.verifiedQty || it.plannedQty || 0);
 			const delivered = parseFloat(it.deliveredQty || 0);
 			const returned = parseFloat(it.returnedQty || 0);
-			const verifiedReturn = it.verifiedReturnQty !== null && it.verifiedReturnQty !== undefined
-				? parseFloat(it.verifiedReturnQty)
-				: returned;
+			const verifiedReturn =
+				it.verifiedReturnQty !== null && it.verifiedReturnQty !== undefined
+					? parseFloat(it.verifiedReturnQty)
+					: returned;
 			return {
 				id: it.id,
-				productName: it.product?.name || "Product",
-				sku: it.product?.sku || "",
+				productName: it.productName || it.product?.name || "Product",
+				sku: it.sku || it.product?.sku || "",
 				loadedQty: loaded,
 				deliveredQty: delivered,
 				returnedQty: returned,
