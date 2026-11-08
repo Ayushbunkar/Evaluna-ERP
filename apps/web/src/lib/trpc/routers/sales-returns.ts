@@ -185,7 +185,7 @@ export const salesReturnsRouter = router({
 			});
 		}),
 
-	process: roleProcedure(["admin", "manager"])
+	process: roleProcedure(["admin", "manager", "sales_person"])
 		.meta({
 			openapi: {
 				method: "POST",
@@ -257,7 +257,8 @@ export const salesReturnsRouter = router({
 					amount: returnData.total_amount,
 					description: `Refund for Sales Return #${updatedReturn.id}`,
 					user_uid: ctx.user.id,
-					// You would ideally link this to the appropriate payment method used for the refund
+					reference_id: updatedReturn.id,
+					reference_type: "sales_return",
 				});
 
 				// 5. Adjust original order total
@@ -281,6 +282,53 @@ export const salesReturnsRouter = router({
 					entity_id: updatedReturn.id,
 					action: "PROCESS_SALES_RETURN",
 					changes: JSON.stringify({ status: "processed" }),
+					user_uid: ctx.user.id,
+				});
+
+				return updatedReturn;
+			});
+		}),
+
+	reject: roleProcedure(["admin", "manager", "sales_person"])
+		.meta({
+			openapi: {
+				method: "POST",
+				path: "/sales-returns/{id}/reject",
+				tags: ["Sales Returns"],
+				summary: "Reject a pending sales return",
+			},
+		})
+		.input(z.object({ id: z.number(), reason: z.string().optional() }))
+		.output(z.any())
+		.mutation(async ({ ctx, input }) => {
+			return db.transaction(async (tx: any) => {
+				const returnData = await tx.query.salesReturns.findFirst({
+					where: eq(salesReturns.id, input.id),
+				});
+
+				if (!returnData) {
+					throw new Error("Sales Return not found");
+				}
+				if (returnData.status !== "pending") {
+					throw new Error("Only pending returns can be rejected");
+				}
+
+				const [updatedReturn] = await tx
+					.update(salesReturns)
+					.set({
+						status: "rejected",
+						notes: input.reason
+							? `${returnData.notes ? returnData.notes + " | Rejection: " : "Rejection: "}${input.reason}`
+							: returnData.notes,
+					})
+					.where(eq(salesReturns.id, input.id))
+					.returning();
+
+				await tx.insert(auditLogs).values({
+					entity_type: "sales_returns",
+					entity_id: updatedReturn.id,
+					action: "REJECT_SALES_RETURN",
+					changes: JSON.stringify({ status: "rejected", reason: input.reason }),
 					user_uid: ctx.user.id,
 				});
 

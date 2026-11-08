@@ -18,20 +18,26 @@ import {
 } from "@evaluna/ui/components/dialog";
 import { SearchFilter } from "@evaluna/ui/components/search-filter";
 import {
+	AlertTriangleIcon,
 	CalendarDaysIcon,
+	CheckCircle2Icon,
 	ChevronDownIcon,
 	ChevronRightIcon,
 	EyeIcon,
 	FileTextIcon,
+	Loader2Icon,
 	PackageIcon,
 	PlusIcon,
 	RefreshCcwIcon,
 	TableIcon,
 	UserIcon,
+	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Textarea } from "@evaluna/ui/components/textarea";
 import {
 	AnimatedCard,
 	PageTransition,
@@ -69,12 +75,59 @@ type SalesReturn = {
 };
 
 export default function SalesReturnsList() {
+	const utils = trpc.useUtils();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [activeView, setActiveView] = useState<"daywise" | "table">("daywise");
 	const [selectedReturn, setSelectedReturn] = useState<SalesReturn | null>(null);
+	const [rejectModalReturn, setRejectModalReturn] = useState<SalesReturn | null>(null);
+	const [rejectReason, setRejectReason] = useState("");
 	const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
 	const locale = useLocale();
+
+	const processMutation = trpc.salesReturns.process.useMutation({
+		onSuccess: (data: any) => {
+			toast.success(
+				locale === "hi"
+					? `वापसी #RET-${data.id} स्वीकृत हो गई और सामान स्टॉक में जोड़ दिया गया!`
+					: `Sales return #RET-${data.id} approved and stock restored to inventory!`
+			);
+			utils.salesReturns.list.invalidate();
+			setSelectedReturn((prev) => (prev && prev.id === data.id ? { ...prev, status: "processed" } : prev));
+		},
+		onError: (err) => {
+			toast.error(`Failed to process return: ${err.message}`);
+		},
+	});
+
+	const rejectMutation = trpc.salesReturns.reject.useMutation({
+		onSuccess: (data: any) => {
+			toast.success(
+				locale === "hi"
+					? `वापसी #RET-${data.id} अस्वीकृत (Rejected) कर दी गई।`
+					: `Sales return #RET-${data.id} rejected.`
+			);
+			utils.salesReturns.list.invalidate();
+			setRejectModalReturn(null);
+			setRejectReason("");
+			setSelectedReturn((prev) => (prev && prev.id === data.id ? { ...prev, status: "rejected" } : prev));
+		},
+		onError: (err) => {
+			toast.error(`Failed to reject return: ${err.message}`);
+		},
+	});
+
+	const handleProcessReturn = (id: number) => {
+		if (
+			confirm(
+				locale === "hi"
+					? `क्या आप वापसी #RET-${id} को स्वीकृत करके स्टॉक में जोड़ना चाहते हैं?`
+					: `Approve sales return #RET-${id} and restore returned items back into branch inventory?`
+			)
+		) {
+			processMutation.mutate({ id });
+		}
+	};
 
 	// Translations Dictionary
 	const t = {
@@ -312,6 +365,23 @@ export default function SalesReturnsList() {
 						label={t.viewDetails}
 						onClick={() => setSelectedReturn(row)}
 					/>
+					{row.status === "pending" && (
+						<>
+							<TableActionButton
+								icon={<CheckCircle2Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+								label={locale === "hi" ? "स्वीकारें (Approve & Stock)" : "Approve & Stock"}
+								onClick={() => handleProcessReturn(row.id)}
+							/>
+							<TableActionButton
+								icon={<XCircleIcon className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
+								label={locale === "hi" ? "अस्वीकार करें (Reject)" : "Reject"}
+								onClick={() => {
+									setRejectModalReturn(row);
+									setRejectReason("");
+								}}
+							/>
+						</>
+					)}
 				</TableActions>
 			),
 		},
@@ -625,15 +695,28 @@ export default function SalesReturnsList() {
 																{locale === "hi" ? "वापसी राशि" : "Refund Amount"}
 															</span>
 														</div>
-														<Button
-															variant="outline"
-															size="sm"
-															onClick={() => setSelectedReturn(ret)}
-															className="h-8 gap-1 text-xs"
-														>
-															<EyeIcon className="h-3.5 w-3.5" />
-															{t.viewDetails}
-														</Button>
+														<div className="flex items-center gap-1.5">
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => setSelectedReturn(ret)}
+																className="h-8 gap-1 text-xs"
+															>
+																<EyeIcon className="h-3.5 w-3.5" />
+																{t.viewDetails}
+															</Button>
+															{ret.status === "pending" && (
+																<Button
+																	size="sm"
+																	disabled={processMutation.isPending}
+																	onClick={() => handleProcessReturn(ret.id)}
+																	className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+																>
+																	<CheckCircle2Icon className="h-3.5 w-3.5" />
+																	{locale === "hi" ? "स्वीकारें" : "Approve"}
+																</Button>
+															)}
+														</div>
 													</div>
 												</div>
 											))}
@@ -802,8 +885,146 @@ export default function SalesReturnsList() {
 									</table>
 								</div>
 							</div>
+
+							{/* Action Footer for Pending or Processed Returns */}
+							{selectedReturn.status === "pending" ? (
+								<div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/30">
+									<div className="flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
+										<AlertTriangleIcon className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-600" />
+										<div>
+											<p className="font-semibold">
+												{locale === "hi" ? "समीक्षा और स्टॉक बहाली" : "Approval & Stock Restoration"}
+											</p>
+											<p className="text-[11px] text-muted-foreground">
+												{locale === "hi"
+													? "स्वीकृत करने पर यह सामान तुरंत इन्वेंटरी में जुड़ जाएगा और रिफंड वाउचर रिकॉर्ड होगा।"
+													: "Approving will restore all items into branch stock and record the refund entry."}
+											</p>
+										</div>
+									</div>
+									<div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+										<Button
+											variant="outline"
+											size="sm"
+											disabled={rejectMutation.isPending || processMutation.isPending}
+											onClick={() => {
+												setRejectModalReturn(selectedReturn);
+												setRejectReason("");
+											}}
+											className="h-8 border-rose-300 text-rose-700 hover:bg-rose-50 text-xs dark:border-rose-800 dark:text-rose-400"
+										>
+											<XCircleIcon className="mr-1 h-3.5 w-3.5" />
+											{locale === "hi" ? "अस्वीकार करें" : "Reject Return"}
+										</Button>
+										<Button
+											size="sm"
+											disabled={processMutation.isPending || rejectMutation.isPending}
+											onClick={() => handleProcessReturn(selectedReturn.id)}
+											className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-sm"
+										>
+											{processMutation.isPending ? (
+												<Loader2Icon className="mr-1 h-3.5 w-3.5 animate-spin" />
+											) : (
+												<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" />
+											)}
+											{locale === "hi" ? "वापसी स्वीकृत करें (स्टॉक में जोड़ें)" : "Approve & Add to Stock"}
+										</Button>
+									</div>
+								</div>
+							) : selectedReturn.status === "processed" || selectedReturn.status === "refunded" ? (
+								<div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+									<CheckCircle2Icon className="h-4 w-4 text-emerald-600" />
+									<span className="font-medium">
+										{locale === "hi"
+											? "यह बिक्री वापसी स्वीकृत हो चुकी है और सामान स्टॉक में जोड़ा जा चुका है।"
+											: "This sales return is approved and items have been restored to stock."}
+									</span>
+								</div>
+							) : selectedReturn.status === "rejected" ? (
+								<div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50/70 p-3 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+									<XCircleIcon className="h-4 w-4 text-rose-600" />
+									<span className="font-medium">
+										{locale === "hi"
+											? "यह वापसी अस्वीकृत (Rejected) कर दी गई है।"
+											: "This sales return was rejected."}
+									</span>
+								</div>
+							) : null}
 						</div>
 					)}
+				</DialogContent>
+			</Dialog>
+
+			{/* Rejection Reason Dialog */}
+			<Dialog
+				open={!!rejectModalReturn}
+				onOpenChange={(open) => {
+					if (!open) {
+						setRejectModalReturn(null);
+						setRejectReason("");
+					}
+				}}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-rose-600 text-base">
+							<XCircleIcon className="h-5 w-5" />
+							<span>
+								{locale === "hi" ? "वापसी अस्वीकार करें" : "Reject Sales Return"} #RET-
+								{rejectModalReturn?.id}
+							</span>
+						</DialogTitle>
+						<DialogDescription>
+							{locale === "hi"
+								? "कृपया इस बिक्री वापसी को अस्वीकार करने का कारण दर्ज करें:"
+								: "Please enter the reason for rejecting this return request:"}
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						<Textarea
+							placeholder={
+								locale === "hi"
+									? "अस्वीकृति का कारण (उदा. सील टूटी हुई, समयावधि समाप्त)..."
+									: "Rejection reason (e.g. Broken packaging, expired return window)..."
+							}
+							value={rejectReason}
+							onChange={(e) => setRejectReason(e.target.value)}
+							rows={3}
+							className="text-sm"
+						/>
+					</div>
+
+					<div className="flex justify-end gap-2 pt-2">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setRejectModalReturn(null)}
+							disabled={rejectMutation.isPending}
+						>
+							{locale === "hi" ? "रद्द करें" : "Cancel"}
+						</Button>
+						<Button
+							variant="destructive"
+							size="sm"
+							disabled={rejectMutation.isPending}
+							onClick={() => {
+								if (rejectModalReturn) {
+									rejectMutation.mutate({
+										id: rejectModalReturn.id,
+										reason: rejectReason || undefined,
+									});
+								}
+							}}
+						>
+							{rejectMutation.isPending ? (
+								<Loader2Icon className="mr-1 h-3.5 w-3.5 animate-spin" />
+							) : (
+								<XCircleIcon className="mr-1 h-3.5 w-3.5" />
+							)}
+							{locale === "hi" ? "अस्वीकार करें" : "Confirm Reject"}
+						</Button>
+					</div>
 				</DialogContent>
 			</Dialog>
 		</PageTransition>

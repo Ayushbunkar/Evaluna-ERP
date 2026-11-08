@@ -195,6 +195,30 @@ describe("Sales Returns Workflow & Error Prevention", () => {
 		expect(txs.length).toBeGreaterThan(0);
 	});
 
+	it("rejects a pending return with reason notes", async () => {
+		const newRet = await salesCaller.create({
+			orderId,
+			customerId,
+			items: [
+				{
+					productId: product1Id,
+					quantity: 1,
+					price: 190,
+					refundAmount: 190,
+					condition: "damaged",
+				},
+			],
+			totalAmount: 190,
+		});
+
+		const rejected = await adminCaller.reject({
+			id: newRet.id,
+			reason: "Packaging opened and damaged",
+		});
+		expect(rejected.status).toBe("rejected");
+		expect(rejected.notes).toContain("Packaging opened and damaged");
+	});
+
 	afterAll(async () => {
 		try {
 			await pg.close();
