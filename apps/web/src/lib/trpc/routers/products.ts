@@ -7,6 +7,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, count, eq, ilike, inArray, isNotNull, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 import { logAudit, resolveStaffId } from "../util/audit";
 import { permProcedure } from "../util/auditor-procedures";
@@ -170,7 +171,7 @@ export const productsRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			const trimmedName = input.name.trim();
+			const trimmedName = toBilingualProductName(input.name.trim());
 			const trimmedSku = input.sku?.trim() || "";
 			const trimmedBarcode = input.barcode?.trim() || "";
 
@@ -351,16 +352,19 @@ export const productsRouter = router({
 			if (input.products.length === 0) return { success: true, count: 0 };
 			// Batch insert all products in a single query
 			await db.insert(products).values(
-				input.products.map((p) => ({
-					name: p.name,
-					sku: p.sku,
-					description: p.name,
-					base_procurement_price: p.base_procurement_price.toString(),
-					base_selling_price: p.base_selling_price.toString(),
-					price: p.base_selling_price.toString(),
-					category: p.category,
-					user_uid: ctx.user.id,
-				})),
+				input.products.map((p) => {
+					const bilingual = toBilingualProductName(p.name);
+					return {
+						name: bilingual,
+						sku: p.sku,
+						description: bilingual,
+						base_procurement_price: p.base_procurement_price.toString(),
+						base_selling_price: p.base_selling_price.toString(),
+						price: p.base_selling_price.toString(),
+						category: p.category,
+						user_uid: ctx.user.id,
+					};
+				}),
 			);
 			return { success: true, count: input.products.length };
 		}),

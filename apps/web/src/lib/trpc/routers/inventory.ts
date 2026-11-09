@@ -28,6 +28,7 @@ import {
 	getDailyPricingMapForDate,
 	lockOrUpdateDailyPrice,
 } from "@/lib/daily-pricing";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { stockLedger } from "@/lib/db/schema";
 import {
 	protectedProcedure,
@@ -280,7 +281,7 @@ export const inventoryRouter = router({
 					base_selling_price: priceStr,
 				};
 				if (input.name !== undefined && input.name !== null && input.name.trim().length > 0) {
-					const trimmedNewName = input.name.trim();
+					const trimmedNewName = toBilingualProductName(input.name.trim());
 					const duplicateName = await tx
 						.select({ id: products.id, name: products.name })
 						.from(products)
@@ -1095,7 +1096,7 @@ export const inventoryRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const trimmedName = input.name.trim();
+			const trimmedName = toBilingualProductName(input.name.trim());
 			const trimmedSku = input.sku?.trim() || "";
 
 			// 0. Double Entry Prevention Check across products

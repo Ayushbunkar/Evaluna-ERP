@@ -64,6 +64,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 
 const PRESET_DISCOUNT_REASONS = [
 	"Excess Stock Clearance (अतिरिक्त स्टॉक निकासी)",
@@ -1147,17 +1148,45 @@ export default function StockPage() {
 													{rowNum}
 												</TableCell>
 												<TableCell>
-													<div className="font-bold text-slate-900 text-sm dark:text-slate-100">
-														{item.product}
-													</div>
-													{item.description && (
-														<div
-															className="text-[11px] text-muted-foreground line-clamp-1 italic max-w-xs"
-															title={item.description}
-														>
-															{item.description}
-														</div>
-													)}
+													{(() => {
+														const rawProd = item.product || "";
+														const bracketMatch = rawProd.match(/^(.*?)\s*\(([^)]+)\)$/);
+														if (bracketMatch) {
+															return (
+																<div>
+																	<div className="font-bold text-slate-900 text-sm dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+																		<span>{bracketMatch[1].trim()}</span>
+																		<span className="text-xs font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
+																			({bracketMatch[2].trim()})
+																		</span>
+																	</div>
+																	{item.description && item.description !== rawProd && (
+																		<div
+																			className="text-[11px] text-muted-foreground line-clamp-1 italic max-w-xs mt-0.5"
+																			title={item.description}
+																		>
+																			{item.description}
+																		</div>
+																	)}
+																</div>
+															);
+														}
+														return (
+															<div>
+																<div className="font-bold text-slate-900 text-sm dark:text-slate-100">
+																	{rawProd}
+																</div>
+																{item.description && item.description !== rawProd && (
+																	<div
+																		className="text-[11px] text-muted-foreground line-clamp-1 italic max-w-xs mt-0.5"
+																		title={item.description}
+																	>
+																		{item.description}
+																	</div>
+																)}
+															</div>
+														);
+													})()}
 													<div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
 														<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
 															{item.category || "General"}
@@ -1420,16 +1449,30 @@ export default function StockPage() {
 							{/* Product Name & Category */}
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1.5">
-									<Label htmlFor="editName" className="font-semibold text-xs">
-										Product Name (उत्पाद का नाम) *
-									</Label>
+									<div className="flex items-center justify-between">
+										<Label htmlFor="editName" className="font-semibold text-xs">
+											Product Name (उत्पाद का नाम) *
+										</Label>
+										<button
+											type="button"
+											onClick={() => setEditName(toBilingualProductName(editName))}
+											className="text-[11px] text-emerald-600 hover:text-emerald-700 font-medium hover:underline cursor-pointer"
+										>
+											+ Add Hindi (हिंदी जोड़ें)
+										</button>
+									</div>
 									<Input
 										id="editName"
 										value={editName}
 										onChange={(e) => setEditName(e.target.value)}
-										placeholder="e.g. 20-20 Biscuit Pack"
+										placeholder="e.g. Sarso Oil 1 Ltr (सरसों तेल 1 Ltr)"
 										className="font-bold text-sm"
 									/>
+									{editName && !editName.includes("(") && (
+										<p className="text-[11px] text-muted-foreground">
+											Suggested: <span className="font-semibold text-emerald-600">{toBilingualProductName(editName)}</span>
+										</p>
+									)}
 								</div>
 								<div className="space-y-1.5">
 									<Label htmlFor="editCategory" className="font-semibold text-xs">
@@ -2173,17 +2216,31 @@ export default function StockPage() {
 						{/* Product Name & Category */}
 						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 							<div className="space-y-1.5">
-								<Label htmlFor="newProdName" className="font-semibold text-xs">
-									Product Name (उत्पाद नाम) <span className="text-red-500">*</span>
-								</Label>
+								<div className="flex items-center justify-between">
+									<Label htmlFor="newProdName" className="font-semibold text-xs">
+										Product Name (उत्पाद नाम) <span className="text-red-500">*</span>
+									</Label>
+									<button
+										type="button"
+										onClick={() => setNewItem({ ...newItem, name: toBilingualProductName(newItem.name) })}
+										className="text-[11px] text-emerald-600 hover:text-emerald-700 font-medium hover:underline cursor-pointer"
+									>
+										+ Add Hindi (हिंदी जोड़ें)
+									</button>
+								</div>
 								<Input
 									id="newProdName"
-									placeholder="e.g. Amul Butter 500g"
+									placeholder="e.g. Sarso Oil 1 Ltr (सरसों तेल 1 Ltr)"
 									value={newItem.name}
 									onChange={(e) =>
 										setNewItem({ ...newItem, name: e.target.value })
 									}
 								/>
+								{newItem.name && !newItem.name.includes("(") && (
+									<p className="text-[11px] text-muted-foreground">
+										Suggested: <span className="font-semibold text-emerald-600">{toBilingualProductName(newItem.name)}</span>
+									</p>
+								)}
 							</div>
 
 							<div className="space-y-1.5">
