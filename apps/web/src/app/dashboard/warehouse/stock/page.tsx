@@ -44,6 +44,7 @@ import {
 	InfoIcon,
 	LayersIcon,
 	Loader2Icon,
+	LockIcon,
 	PackageCheckIcon,
 	PencilIcon,
 	PercentIcon,
@@ -119,6 +120,7 @@ export default function StockPage() {
 	const [editPrice, setEditPrice] = useState<string>("");
 	const [editCostPrice, setEditCostPrice] = useState<string>("");
 	const [editReason, setEditReason] = useState<string>("");
+	const [editPricingDate, setEditPricingDate] = useState<string>("");
 
 	// Manager Delete Product Modal States
 	const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -167,6 +169,11 @@ export default function StockPage() {
 		() => new Date().toISOString().split("T")[0],
 		[],
 	);
+	const yesterdayDateStr = useMemo(() => {
+		const y = new Date();
+		y.setDate(y.getDate() - 1);
+		return y.toISOString().split("T")[0];
+	}, []);
 
 	// Query full inventory catalogue (all ~560 products)
 	const {
@@ -311,6 +318,10 @@ export default function StockPage() {
 				costPrice: Number(h.costPrice || 0),
 				baseProcurementPrice: Number(h.costPrice || 0),
 				base_procurement_price: Number(h.costPrice || 0),
+				marginPercent: h.marginPercent,
+				isPriceLocked: h.isPriceLocked,
+				lockedAt: h.lockedAt,
+				pricingNotes: h.pricingNotes,
 				hasActiveOffer: false,
 				discount_offer_price: null,
 				isHistorical: true,
@@ -431,6 +442,7 @@ export default function StockPage() {
 				? String(rawCost)
 				: "0",
 		);
+		setEditPricingDate(item.historicalDate || historicalDate || todayDateStr);
 		setEditReason("Stock and product details updated by warehouse manager");
 	};
 
@@ -464,6 +476,7 @@ export default function StockPage() {
 		}
 
 		const targetProdId = editItem.productId ?? editItem.id;
+		const targetDate = editPricingDate || historicalDate || todayDateStr;
 		await updateMutation.mutateAsync({
 			inventoryId: editItem.id ? Number(editItem.id) : undefined,
 			productId: targetProdId ? Number(targetProdId) : undefined,
@@ -478,7 +491,8 @@ export default function StockPage() {
 			reorderLevel: reorder,
 			price: price,
 			costPrice: Number.isNaN(cost) ? 0 : cost,
-			reason: editReason || "Warehouse stock & specification update",
+			reason: editReason || `Warehouse stock & rate lock for ${targetDate}`,
+			pricingDate: targetDate,
 		});
 	};
 
@@ -773,6 +787,102 @@ export default function StockPage() {
 				</Card>
 			</div>
 
+			{/* Day-Wise Costing & Rate Lock Filter Bar */}
+			<Card className="border-blue-200/80 bg-blue-50/40 dark:border-blue-900/60 dark:bg-blue-950/20 shadow-xs">
+				<CardContent className="p-3.5">
+					<div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="flex items-center gap-1.5 text-xs font-bold text-blue-900 dark:text-blue-200 mr-1">
+								<CalendarDaysIcon className="h-4 w-4 text-blue-600" />
+								Day-Wise Rates & Stock (तारीख के अनुसार दर व लागत):
+							</span>
+							<Button
+								type="button"
+								size="sm"
+								variant={!historicalDate ? "default" : "outline"}
+								className={
+									!historicalDate
+										? "bg-blue-600 text-white hover:bg-blue-700 h-7 text-xs font-semibold shadow-xs"
+										: "h-7 text-xs font-medium"
+								}
+								onClick={() => {
+									setHistoricalDate("");
+									setCurrentPage(1);
+								}}
+							>
+								Live / Current (वर्तमान)
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={historicalDate === todayDateStr ? "default" : "outline"}
+								className={
+									historicalDate === todayDateStr
+										? "bg-blue-600 text-white hover:bg-blue-700 h-7 text-xs font-semibold shadow-xs"
+										: "h-7 text-xs font-medium"
+								}
+								onClick={() => {
+									setHistoricalDate(todayDateStr);
+									setCurrentPage(1);
+								}}
+							>
+								Today (आज)
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={historicalDate === yesterdayDateStr ? "default" : "outline"}
+								className={
+									historicalDate === yesterdayDateStr
+										? "bg-blue-600 text-white hover:bg-blue-700 h-7 text-xs font-semibold shadow-xs"
+										: "h-7 text-xs font-medium"
+								}
+								onClick={() => {
+									setHistoricalDate(yesterdayDateStr);
+									setCurrentPage(1);
+								}}
+							>
+								Yesterday (कल)
+							</Button>
+
+							<div className="flex items-center gap-1.5 pl-1">
+								<span className="text-xs text-muted-foreground font-medium">Custom Date:</span>
+								<input
+									type="date"
+									value={historicalDate}
+									onChange={(e) => {
+										setHistoricalDate(e.target.value);
+										setCurrentPage(1);
+									}}
+									className="h-7 rounded-md border border-input bg-background px-2 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+								/>
+							</div>
+						</div>
+
+						{/* Lock Status Pill */}
+						<div className="flex items-center gap-2">
+							<Badge
+								variant="secondary"
+								className="border border-blue-200 bg-white font-medium text-blue-900 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200 text-xs px-2.5 py-1 gap-1.5"
+							>
+								{isHistoricalMode ? (
+									<>
+										<LockIcon className="h-3 w-3 text-blue-600" />
+										<span>Day-Wise Locked Mode:</span>
+										<span className="font-bold">{historicalDate}</span>
+									</>
+								) : (
+									<>
+										<span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+										<span className="font-bold">Live Active Inventory</span>
+									</>
+								)}
+							</Badge>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
 			{/* Filter and Search Bar */}
 			<Card className="border-border/60 shadow-sm">
 				<CardContent className="p-4 sm:p-5">
@@ -955,19 +1065,37 @@ export default function StockPage() {
 							<Table>
 								<TableHeader>
 									<TableRow className="bg-muted/30">
-										<TableHead className="w-12">#</TableHead>
+										<TableHead className="w-10">#</TableHead>
 										<TableHead>Product Name & Category</TableHead>
 										<TableHead>SKU / Barcode</TableHead>
-										<TableHead>Selling Price (विक्रय मूल्य)</TableHead>
-										<TableHead>Daily Offer (ऑफर छूट)</TableHead>
+										<TableHead className="font-bold text-emerald-700 dark:text-emerald-400">
+											Selling Rate (विक्रय दर)
+										</TableHead>
+										<TableHead className="font-bold text-slate-700 dark:text-slate-300">
+											Cost Price (लागत दर)
+										</TableHead>
+										<TableHead className="font-bold text-center">
+											Margin %
+										</TableHead>
 										<TableHead>Warehouse Stock (स्टॉक)</TableHead>
-										<TableHead>Status</TableHead>
+										<TableHead>Lock Status</TableHead>
+										<TableHead>Daily Offer</TableHead>
 										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{paginatedItems.map((item, idx) => {
 										const rowNum = (currentPage - 1) * pageSize + idx + 1;
+										const sp = Number(item.price || 0);
+										const cp = Number(
+											item.cost_price ??
+												item.costPrice ??
+												item.base_procurement_price ??
+												0,
+										);
+										const margin =
+											sp > 0 ? Math.round(((sp - cp) / sp) * 100) : 0;
+
 										return (
 											<TableRow
 												key={item.productId || item.id}
@@ -1009,10 +1137,74 @@ export default function StockPage() {
 												<TableCell>
 													<div className="font-bold font-mono text-emerald-600 text-sm dark:text-emerald-400">
 														₹
-														{Number(item.price || 0).toLocaleString("en-IN", {
+														{sp.toLocaleString("en-IN", {
 															minimumFractionDigits: 2,
 														})}
 													</div>
+												</TableCell>
+												<TableCell>
+													<div className="font-bold font-mono text-slate-700 text-sm dark:text-slate-300">
+														₹
+														{cp.toLocaleString("en-IN", {
+															minimumFractionDigits: 2,
+														})}
+													</div>
+												</TableCell>
+												<TableCell className="text-center font-mono font-bold text-xs">
+													{sp > 0 ? (
+														<span
+															className={
+																sp >= cp
+																	? "text-emerald-600 font-bold"
+																	: "text-rose-600 font-bold"
+															}
+														>
+															{margin}%
+														</span>
+													) : (
+														<span className="text-muted-foreground">—</span>
+													)}
+												</TableCell>
+												<TableCell>
+													<div className="font-bold font-mono text-slate-900 text-sm dark:text-slate-100">
+														{item.qty_on_hand}{" "}
+														<span className="font-normal text-muted-foreground text-xs">
+															{item.unit || "Pcs"}
+														</span>
+													</div>
+													<div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+														Min: {item.reorder_level ?? 10} {item.unit || "Pcs"}
+													</div>
+												</TableCell>
+												<TableCell>
+													{item.isPriceLocked ? (
+														<Badge
+															variant="outline"
+															className="border-blue-300 bg-blue-50 text-blue-800 text-[10px] font-bold dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 gap-1"
+															title={
+																item.lockedAt
+																	? `Locked on ${item.lockedAt}`
+																	: "Rate locked"
+															}
+														>
+															<LockIcon className="h-2.5 w-2.5" />
+															<span>Locked</span>
+														</Badge>
+													) : isHistoricalMode ? (
+														<Badge
+															variant="outline"
+															className="text-[10px] text-amber-700 border-amber-300 bg-amber-50"
+														>
+															Historical
+														</Badge>
+													) : (
+														<Badge
+															variant="outline"
+															className="text-[10px] text-muted-foreground"
+														>
+															Live
+														</Badge>
+													)}
 												</TableCell>
 												<TableCell>
 													{item.hasActiveOffer ? (
@@ -1036,46 +1228,6 @@ export default function StockPage() {
 														</span>
 													)}
 												</TableCell>
-												<TableCell>
-													<div className="font-bold font-mono text-slate-900 text-sm dark:text-slate-100">
-														{item.qty_on_hand}{" "}
-														<span className="font-normal text-muted-foreground text-xs">
-															{item.unit || "Pcs"}
-														</span>
-													</div>
-													<div className="text-[10px] text-muted-foreground font-mono mt-0.5">
-														Min: {item.reorder_level ?? 10} {item.unit || "Pcs"}
-													</div>
-												</TableCell>
-												<TableCell>
-													<Badge
-														variant={
-															(item.qty_on_hand || 0) >
-															(item.reorder_level ?? 10)
-																? "default"
-																: (item.qty_on_hand || 0) > 0
-																	? "secondary"
-																	: "destructive"
-														}
-														className={
-															(item.qty_on_hand || 0) <=
-																(item.reorder_level ?? 10) &&
-															(item.qty_on_hand || 0) > 0
-																? "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-bold"
-																: (item.qty_on_hand || 0) >
-																		(item.reorder_level ?? 10)
-																	? "bg-emerald-600 text-white font-medium"
-																	: "font-bold"
-														}
-													>
-														{(item.qty_on_hand || 0) >
-														(item.reorder_level ?? 10)
-															? "In Stock"
-															: (item.qty_on_hand || 0) > 0
-																? `Low Stock (≤ ${item.reorder_level ?? 10})`
-																: "Out of Stock"}
-													</Badge>
-												</TableCell>
 												<TableCell className="text-right">
 													<div className="flex items-center justify-end gap-1.5">
 														<Button
@@ -1083,10 +1235,10 @@ export default function StockPage() {
 															variant="outline"
 															className="h-8 gap-1 border-slate-300 text-xs hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40"
 															onClick={() => handleOpenEdit(item)}
-															title="Edit Name, Description, Price & Stock"
+															title="Edit Details & Lock Rates"
 														>
 															<PencilIcon className="h-3.5 w-3.5 text-blue-600" />
-															<span>Edit Details</span>
+															<span>Edit & Lock Rate</span>
 														</Button>
 														<Button
 															size="sm"
@@ -1311,6 +1463,68 @@ export default function StockPage() {
 									placeholder="Enter full specification, ingredients, net weight, or details..."
 									className="text-xs font-medium leading-relaxed"
 								/>
+							</div>
+
+							{/* Day-Wise Pricing Lock Option */}
+							<div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900/60 dark:bg-blue-950/40">
+								<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+									<div>
+										<Label htmlFor="editPricingDate" className="font-bold text-xs text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+											<LockIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+											<span>Lock Rates For Date (दर लॉक करने की तारीख):</span>
+										</Label>
+										<p className="text-[11px] text-muted-foreground mt-0.5">
+											Selling Price & Cost Price will be locked for this date. Past/future reports in Manager & Warehouse will preserve this date's exact margin.
+										</p>
+									</div>
+									<div className="flex items-center gap-2">
+										<Input
+											id="editPricingDate"
+											type="date"
+											value={editPricingDate}
+											onChange={(e) => setEditPricingDate(e.target.value)}
+											className="w-auto h-8 text-xs font-mono font-bold bg-background border-blue-300 dark:border-blue-700"
+										/>
+										{editPricingDate && (
+											<Badge variant="outline" className="h-8 text-[11px] bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 shrink-0">
+												{editPricingDate === todayDateStr ? "Today" : editPricingDate === yesterdayDateStr ? "Yesterday" : editPricingDate}
+											</Badge>
+										)}
+									</div>
+								</div>
+								{Number.parseFloat(editPrice || "0") > 0 && (
+									<div className="mt-2.5 pt-2 border-t border-blue-200/60 dark:border-blue-800/60 flex flex-wrap items-center gap-4 text-xs">
+										<span className="text-muted-foreground">
+											Profit Per Unit:{" "}
+											<strong
+												className={
+													(Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")) >= 0
+														? "text-emerald-600 font-mono"
+														: "text-red-600 font-mono"
+												}
+											>
+												₹{(Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")).toFixed(2)}
+											</strong>
+										</span>
+										<span className="text-muted-foreground">
+											Margin %:{" "}
+											<strong
+												className={
+													(Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")) >= 0
+														? "text-emerald-600 font-mono"
+														: "text-red-600 font-mono"
+												}
+											>
+												{(
+													((Number.parseFloat(editPrice || "0") - Number.parseFloat(editCostPrice || "0")) /
+														Number.parseFloat(editPrice || "1")) *
+													100
+												).toFixed(1)}
+												%
+											</strong>
+										</span>
+									</div>
+								)}
 							</div>
 
 							{/* Selling Price & Cost Price */}

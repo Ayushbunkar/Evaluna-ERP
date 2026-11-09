@@ -14,6 +14,10 @@ import {
 } from "@evaluna/db/schema";
 import { and, desc, eq, gte, isNotNull, lte } from "drizzle-orm";
 import { z } from "zod";
+import {
+	getDailyPricingMapForMultipleDates,
+	resolveAndLockCostPriceForDate,
+} from "@/lib/daily-pricing";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
 
@@ -137,6 +141,22 @@ export const reportsRouter = router({
 				}
 			> = {};
 
+			// Extract distinct dates from order records to bulk-fetch locked daily pricing
+			const distinctDates = Array.from(
+				new Set(
+					ordersList.map((o) =>
+						(o.created_at ? new Date(o.created_at) : new Date())
+							.toISOString()
+							.split("T")[0],
+					),
+				),
+			);
+			const dailyPricingMap = await getDailyPricingMapForMultipleDates(
+				db,
+				distinctDates,
+				bId,
+			);
+
 			for (const o of ordersList) {
 				const dateKey = (o.created_at ? new Date(o.created_at) : new Date())
 					.toISOString()
@@ -175,12 +195,36 @@ export const reportsRouter = router({
 					orderQty += qty;
 
 					const prod = it.product;
-					const costPerUnit = prod
-						? Number(
-								prod.base_procurement_price ||
-									sellingPricePerUnit * 0.8,
-							)
-						: sellingPricePerUnit * 0.8;
+					const prodId = it.product_id || (prod ? prod.id : 0);
+					const pricingKey = `${prodId}_${dateKey}`;
+					const lockedRecord = dailyPricingMap.get(pricingKey);
+
+					let costPerUnit: number;
+					if (lockedRecord && lockedRecord.costPrice > 0) {
+						costPerUnit = lockedRecord.costPrice;
+					} else if (prodId > 0) {
+						costPerUnit = await resolveAndLockCostPriceForDate(
+							db,
+							prodId,
+							dateKey,
+							prod ? Number(prod.base_procurement_price || 0) : 0,
+							sellingPricePerUnit,
+							bId,
+						);
+						dailyPricingMap.set(pricingKey, {
+							costPrice: costPerUnit,
+							sellingPrice: sellingPricePerUnit,
+							isLocked: true,
+						});
+					} else {
+						costPerUnit = prod
+							? Number(
+									prod.base_procurement_price ||
+										sellingPricePerUnit * 0.8,
+								)
+							: sellingPricePerUnit * 0.8;
+					}
+
 					const itemCost = qty * costPerUnit;
 					orderCost += itemCost;
 

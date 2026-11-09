@@ -1,6 +1,6 @@
 import { vehicleStatusEnum, vehicles } from "@evaluna/db/schema/delivery";
 import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";

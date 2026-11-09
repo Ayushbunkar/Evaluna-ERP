@@ -1753,6 +1753,50 @@ export const dailyProductDiscountsRelations = relations(
 	}),
 );
 
+// ── Daily Product Pricing (Locked Day-Wise Selling & Cost Prices) ──────────────
+export const dailyProductPricing = pgTable(
+	"daily_product_pricing",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		pricing_date: varchar("pricing_date", { length: 10 }).notNull(), // 'YYYY-MM-DD'
+		cost_price: decimal("cost_price", { precision: 10, scale: 2 }).notNull(),
+		selling_price: decimal("selling_price", { precision: 10, scale: 2 }).notNull(),
+		is_locked: boolean("is_locked").default(true),
+		locked_at: timestamp("locked_at").defaultNow(),
+		notes: text("notes"),
+		created_by_uid: varchar("created_by_uid", { length: 255 }),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(t) => ({
+		idx_daily_pricing_prod_date: index("idx_daily_pricing_prod_date").on(
+			t.product_id,
+			t.pricing_date,
+			t.branch_id,
+		),
+	}),
+);
+
+export const dailyProductPricingRelations = relations(
+	dailyProductPricing,
+	({ one }) => ({
+		product: one(products, {
+			fields: [dailyProductPricing.product_id],
+			references: [products.id],
+		}),
+		branch: one(branches, {
+			fields: [dailyProductPricing.branch_id],
+			references: [branches.id],
+		}),
+	}),
+);
+
 
 // ── Balance Snapshots (Phase 12) ──────────────────────────────────────────────────
 export const balanceSnapshots = pgTable("balance_snapshots", {

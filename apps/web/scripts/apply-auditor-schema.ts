@@ -124,7 +124,29 @@ CREATE TABLE IF NOT EXISTS placement_verifications (
   verified_at timestamp
 );`,
 	},
+	{
+		label: "daily_product_pricing",
+		sql: `
+CREATE TABLE IF NOT EXISTS daily_product_pricing (
+  id serial PRIMARY KEY,
+  product_id integer NOT NULL REFERENCES products(id),
+  branch_id integer REFERENCES branches(id),
+  pricing_date varchar(10) NOT NULL,
+  cost_price numeric(10,2) NOT NULL,
+  selling_price numeric(10,2) NOT NULL,
+  is_locked boolean DEFAULT true,
+  locked_at timestamp DEFAULT NOW(),
+  notes text,
+  created_by_uid varchar(255),
+  created_at timestamp DEFAULT NOW(),
+  updated_at timestamp DEFAULT NOW()
+);`,
+	},
 	// ── Indexes ────────────────────────────────────────────────────────────────
+	{
+		label: "idx_daily_pricing_prod_date",
+		sql: "CREATE INDEX IF NOT EXISTS idx_daily_pricing_prod_date ON daily_product_pricing (product_id, pricing_date, branch_id);",
+	},
 	{
 		label: "idx_upc_tasks_product",
 		sql: "CREATE INDEX IF NOT EXISTS idx_upc_tasks_product ON upc_tasks (product_id);",

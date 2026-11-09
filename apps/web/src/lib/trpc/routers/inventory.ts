@@ -22,6 +22,11 @@ import {
 	sum,
 } from "drizzle-orm";
 import { z } from "zod";
+import {
+	ensureDailyPricingTable,
+	getDailyPricingMapForDate,
+	lockOrUpdateDailyPrice,
+} from "@/lib/daily-pricing";
 import { stockLedger } from "@/lib/db/schema";
 import {
 	protectedProcedure,
@@ -29,6 +34,7 @@ import {
 	roleProcedure,
 	router,
 } from "@/lib/trpc/init";
+import { resolveStaffId } from "../util/audit";
 
 export const inventoryRouter = router({
 	listByProduct: publicProcedure
@@ -241,6 +247,7 @@ export const inventoryRouter = router({
 				sku: z.string().optional().nullable(),
 				reorderLevel: z.number().min(0).optional().nullable(),
 				reason: z.string().optional().nullable(),
+				pricingDate: z.string().optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -346,6 +353,31 @@ export const inventoryRouter = router({
 					reference_type: "warehouse_stock_update",
 					unit_cost: priceStr,
 					total_cost: (input.price * input.qtyOnHand).toFixed(2),
+				});
+
+				// 4. Lock day-wise selling and cost price for specific date & append audit log
+				const effectiveDate =
+					input.pricingDate || new Date().toISOString().split("T")[0];
+				let staffId: number | undefined;
+				try {
+					staffId = await resolveStaffId(tx, ctx.user?.email);
+				} catch (e) {}
+
+				await lockOrUpdateDailyPrice(tx, {
+					productId: prodId,
+					pricingDate: effectiveDate,
+					costPrice:
+						input.costPrice !== undefined && input.costPrice !== null
+							? input.costPrice
+							: 0,
+					sellingPrice: input.price,
+					branchId: input.branchId,
+					notes:
+						input.reason ??
+						`Warehouse stock & rate lock for ${effectiveDate}`,
+					userUid: ctx.user?.id,
+					staffId,
+					source: "warehouse_stock_update",
 				});
 
 				return { success: true };
@@ -1115,11 +1147,35 @@ export const inventoryRouter = router({
 				deltaMap.set(entry.productId, currentDelta + signedDelta);
 			}
 
-			// 3. For each product, historical stock = currentStock - deltaAfter
+			// 3. Fetch day-wise locked prices for target date
+			const lockedPricingMap = await getDailyPricingMapForDate(
+				ctx.db,
+				input.date,
+				bId,
+			);
+
+			// 4. For each product, historical stock = currentStock - deltaAfter, with locked day pricing
 			return currentInventory.map((item) => {
 				const current = Number(item.currentStock || 0);
 				const deltaAfter = deltaMap.get(item.productId) || 0;
 				const historical = Math.max(0, current - deltaAfter);
+				const locked = lockedPricingMap.get(item.productId);
+
+				const effectiveSellingPrice = locked
+					? locked.sellingPrice
+					: Number(item.sellingPrice || 0);
+				const effectiveCostPrice = locked
+					? locked.costPrice
+					: Number(item.costPrice || 0);
+				const marginPercent =
+					effectiveSellingPrice > 0
+						? Math.round(
+								((effectiveSellingPrice - effectiveCostPrice) /
+									effectiveSellingPrice) *
+									100,
+							)
+						: 0;
+
 				return {
 					productId: item.productId,
 					productName: item.productName,
@@ -1130,10 +1186,53 @@ export const inventoryRouter = router({
 					historicalStock: historical,
 					changeSince: current - historical,
 					reorderLevel: item.reorderLevel,
-					sellingPrice: item.sellingPrice,
-					costPrice: item.costPrice,
+					sellingPrice: effectiveSellingPrice,
+					costPrice: effectiveCostPrice,
+					marginPercent,
+					isPriceLocked: Boolean(locked?.isLocked),
+					lockedAt: locked?.lockedAt ?? null,
+					pricingNotes: locked?.notes ?? null,
 					date: input.date,
 				};
+			});
+		}),
+
+	/**
+	 * Explicitly update & lock Cost Price and Selling Price for a particular day
+	 */
+	updateDailyCostAndSellingPrice: roleProcedure([
+		"admin",
+		"manager",
+		"warehouse_manager",
+		"inventory_manager",
+		"staff",
+	])
+		.input(
+			z.object({
+				productId: z.number(),
+				pricingDate: z.string(), // YYYY-MM-DD
+				costPrice: z.number().min(0),
+				sellingPrice: z.number().min(0),
+				branchId: z.number().optional().default(1),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			let staffId: number | undefined;
+			try {
+				staffId = await resolveStaffId(ctx.db, ctx.user?.email);
+			} catch (e) {}
+
+			return await lockOrUpdateDailyPrice(ctx.db, {
+				productId: input.productId,
+				pricingDate: input.pricingDate,
+				costPrice: input.costPrice,
+				sellingPrice: input.sellingPrice,
+				branchId: input.branchId,
+				notes: input.notes || `Day rate lock for ${input.pricingDate}`,
+				userUid: ctx.user?.id,
+				staffId,
+				source: "warehouse_daily_lock",
 			});
 		}),
 });
