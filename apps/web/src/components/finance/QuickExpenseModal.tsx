@@ -37,6 +37,14 @@ const COMMON_CATEGORIES = [
 	"Other",
 ];
 
+function getTodayLocalDateStr(): string {
+	const now = new Date();
+	const y = now.getFullYear();
+	const m = String(now.getMonth() + 1).padStart(2, "0");
+	const d = String(now.getDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
+}
+
 export function QuickExpenseModal({
 	open,
 	onOpenChange,
@@ -46,22 +54,25 @@ export function QuickExpenseModal({
 	const utils = trpc.useUtils();
 	const locale = useLocale();
 
-	const [amount, setAmount] = useState<string>("");
+	const [amount, setAmount] = useState<string>("" );
 	const [category, setCategory] = useState<string>("General Office");
 	const [description, setDescription] = useState<string>("");
-	const [expenseDate, setExpenseDate] = useState<string>(
-		new Date().toISOString().split("T")[0],
-	);
+	const [expenseDate, setExpenseDate] = useState<string>(getTodayLocalDateStr);
 
 	const createExpenseMutation = trpc.expenses.create.useMutation({
 		onSuccess: () => {
 			toast.success(
 				locale === "hi"
-					? `खर्च ₹${amount} सफलतापूर्वक दर्ज हुआ!`
-					: `Expense ₹${amount} logged successfully!`,
+					? `खर्च ₹${amount} सफलतापूर्वक दर्ज हुआ और कैशबुक में जुड़ गया!`
+					: `Expense ₹${amount} logged successfully and added to Cash Book!`,
 			);
 			utils.finance.getDashboardStats.invalidate();
 			utils.expenses.list.invalidate();
+			utils.employeeExpenses.list.invalidate();
+			utils.employeeExpenses.listMine.invalidate();
+			utils.cashbook.getDailySummary.invalidate();
+			utils.cashbook.getLedger.invalidate();
+			utils.reports.getDayWiseSalesMarginReport.invalidate();
 			onOpenChange(false);
 			setAmount("");
 			setDescription("");
@@ -97,12 +108,15 @@ export function QuickExpenseModal({
 			return;
 		}
 
+		const isToday = expenseDate === getTodayLocalDateStr();
+		const resolvedDate = isToday ? new Date() : new Date(`${expenseDate}T12:00:00`);
+
 		createExpenseMutation.mutate({
 			amount: amt,
 			description: description.trim(),
 			category: category,
 			expense_category: category,
-			date: new Date(expenseDate),
+			date: resolvedDate,
 		});
 	};
 

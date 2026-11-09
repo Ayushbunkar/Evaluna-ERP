@@ -117,6 +117,8 @@ export default function FinanceExpensesPage() {
 		trpc.employeeExpenses.list.useQuery({ status: "submitted" });
 	const { data: approvedClaims, isLoading: payoutsLoading } =
 		trpc.employeeExpenses.list.useQuery({ status: "approved" });
+	const { data: generalExpenses, isLoading: generalLoading } =
+		trpc.expenses.list.useQuery({ limit: 200 });
 	const { data: bankAccountsList } = trpc.finance.getBankAccounts.useQuery();
 
 	// Active date range calculation for sales & profit query
@@ -161,6 +163,7 @@ export default function FinanceExpensesPage() {
 			toast.success("Expense recorded and added to Cash Book successfully!");
 			utils.employeeExpenses.listMine.invalidate();
 			utils.employeeExpenses.list.invalidate();
+			utils.expenses.list.invalidate();
 			utils.finance.getDashboardStats.invalidate();
 			utils.cashbook.getDailySummary.invalidate();
 			utils.cashbook.getLedger.invalidate();
@@ -297,10 +300,47 @@ export default function FinanceExpensesPage() {
 
 	// 1. Base date-filtered expenses (before category filtering) so category breakdown stays complete
 	const baseExpensesForDate = useMemo(() => {
-		const base =
+		const rawClaims =
 			scope === "all" ? (allBranchClaims?.items ?? []) : (myExpenses ?? []);
 
-		return base.filter((exp: any) => {
+		// Merge any standalone business expenses from generalExpenses that aren't already represented in rawClaims
+		const merged = [...rawClaims];
+		if (generalExpenses?.items && Array.isArray(generalExpenses.items)) {
+			for (const gen of generalExpenses.items) {
+				const genAmt = Number(gen.amount) || 0;
+				const genDesc = (gen.description || "").trim().toLowerCase();
+				const genDate = toDateKey(gen.created_at);
+
+				const exists = rawClaims.some((claim: any) => {
+					const claimAmt = Number(claim.amount) || 0;
+					const claimDesc = (claim.description || claim.business_purpose || "").trim().toLowerCase();
+					const claimDate = toDateKey(claim.expense_date || claim.created_at);
+					return (
+						Math.abs(claimAmt - genAmt) < 0.01 &&
+						(claimDesc === genDesc || claimDesc.includes(genDesc) || genDesc.includes(claimDesc)) &&
+						claimDate === genDate
+					);
+				});
+
+				if (!exists) {
+					merged.push({
+						id: `gen-${gen.id}`,
+						expense_number: `EXP-DIR-${gen.id}`,
+						amount: gen.amount,
+						custom_category_name: gen.expense_category || "General",
+						description: gen.description,
+						business_purpose: gen.description,
+						expense_date: gen.created_at,
+						created_at: gen.created_at,
+						payment_method: "Cash",
+						status: "paid",
+						staffMember: { name: "Finance Admin" },
+					});
+				}
+			}
+		}
+
+		return merged.filter((exp: any) => {
 			const expDate = new Date(exp.expense_date || exp.created_at);
 			const expDateKey = toDateKey(expDate);
 
@@ -339,6 +379,7 @@ export default function FinanceExpensesPage() {
 		scope,
 		allBranchClaims?.items,
 		myExpenses,
+		generalExpenses?.items,
 		datePreset,
 		customDate,
 		searchQuery,
@@ -384,7 +425,12 @@ export default function FinanceExpensesPage() {
 				catText.includes("fare") ||
 				catText.includes("transport") ||
 				catText.includes("auto") ||
-				catText.includes("taxi")
+				catText.includes("taxi") ||
+				catText.includes("bus") ||
+				catText.includes("train") ||
+				catText.includes("flight") ||
+				catText.includes("logistics") ||
+				catText.includes("courier")
 			) {
 				cats.travel.total += amt;
 				cats.travel.count += 1;
@@ -394,7 +440,12 @@ export default function FinanceExpensesPage() {
 				catText.includes("lunch") ||
 				catText.includes("dinner") ||
 				catText.includes("tea") ||
-				catText.includes("snack")
+				catText.includes("snack") ||
+				catText.includes("pantry") ||
+				catText.includes("water") ||
+				catText.includes("beverage") ||
+				catText.includes("chai") ||
+				catText.includes("coffee")
 			) {
 				cats.food.total += amt;
 				cats.food.count += 1;
@@ -403,7 +454,10 @@ export default function FinanceExpensesPage() {
 				catText.includes("stationary") ||
 				catText.includes("stationery") ||
 				catText.includes("paper") ||
-				catText.includes("supplies")
+				catText.includes("supplies") ||
+				catText.includes("print") ||
+				catText.includes("printer") ||
+				catText.includes("hardware")
 			) {
 				cats.office.total += amt;
 				cats.office.count += 1;
@@ -450,7 +504,12 @@ export default function FinanceExpensesPage() {
 					catText.includes("fare") ||
 					catText.includes("transport") ||
 					catText.includes("auto") ||
-					catText.includes("taxi")
+					catText.includes("taxi") ||
+					catText.includes("bus") ||
+					catText.includes("train") ||
+					catText.includes("flight") ||
+					catText.includes("logistics") ||
+					catText.includes("courier")
 				);
 			}
 			if (selectedCategoryFilter === "food") {
@@ -460,7 +519,12 @@ export default function FinanceExpensesPage() {
 					catText.includes("lunch") ||
 					catText.includes("dinner") ||
 					catText.includes("tea") ||
-					catText.includes("snack")
+					catText.includes("snack") ||
+					catText.includes("pantry") ||
+					catText.includes("water") ||
+					catText.includes("beverage") ||
+					catText.includes("chai") ||
+					catText.includes("coffee")
 				);
 			}
 			if (selectedCategoryFilter === "office") {
@@ -469,7 +533,10 @@ export default function FinanceExpensesPage() {
 					catText.includes("stationary") ||
 					catText.includes("stationery") ||
 					catText.includes("paper") ||
-					catText.includes("supplies")
+					catText.includes("supplies") ||
+					catText.includes("print") ||
+					catText.includes("printer") ||
+					catText.includes("hardware")
 				);
 			}
 			if (selectedCategoryFilter === "other") {
@@ -487,20 +554,33 @@ export default function FinanceExpensesPage() {
 					catText.includes("fare") ||
 					catText.includes("transport") ||
 					catText.includes("auto") ||
-					catText.includes("taxi");
+					catText.includes("taxi") ||
+					catText.includes("bus") ||
+					catText.includes("train") ||
+					catText.includes("flight") ||
+					catText.includes("logistics") ||
+					catText.includes("courier");
 				const isFood =
 					catText.includes("food") ||
 					catText.includes("meal") ||
 					catText.includes("lunch") ||
 					catText.includes("dinner") ||
 					catText.includes("tea") ||
-					catText.includes("snack");
+					catText.includes("snack") ||
+					catText.includes("pantry") ||
+					catText.includes("water") ||
+					catText.includes("beverage") ||
+					catText.includes("chai") ||
+					catText.includes("coffee");
 				const isOffice =
 					catText.includes("office") ||
 					catText.includes("stationary") ||
 					catText.includes("stationery") ||
 					catText.includes("paper") ||
-					catText.includes("supplies");
+					catText.includes("supplies") ||
+					catText.includes("print") ||
+					catText.includes("printer") ||
+					catText.includes("hardware");
 				return !isFuel && !isTravel && !isFood && !isOffice;
 			}
 			return true;
@@ -1125,7 +1205,7 @@ export default function FinanceExpensesPage() {
 						</div>
 
 						{/* Day-wise Grouped or Single Day Table */}
-						{(myLoading || allLoading) ? (
+						{(myLoading || allLoading || generalLoading) ? (
 							<div className="flex justify-center py-12">
 								<Loader2Icon className="h-8 w-8 animate-spin text-primary" />
 							</div>

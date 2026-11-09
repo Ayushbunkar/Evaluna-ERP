@@ -1,8 +1,10 @@
-import { expenses, transactions } from "@evaluna/db/schema";
+import { employeeExpenses, expenses, transactions } from "@evaluna/db/schema";
 import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { generateDocNumber } from "@/lib/finance/service";
 import { expenseSchema } from "@/lib/validation/expense";
+import { requireStaff } from "./employee-expenses";
 import { protectedProcedure, router } from "../init";
 
 export const expensesRouter = router({
@@ -26,19 +28,58 @@ export const expensesRouter = router({
 				})
 				.returning();
 
-			// Record financial transaction ledger entry
+			// Record financial transaction ledger entry (Cash Book)
 			try {
 				await db.insert(transactions).values({
-					type: "debit",
+					branch_id: branchId,
 					amount: input.amount.toFixed(2),
-					description: `[Expense: ${category}] ${input.description}`,
+					original_amount: input.amount.toFixed(2),
+					adjustment_amount: "0",
 					user_uid: ctx.user.id,
+					type: "out",
+					category: "expense",
+					reference_type: "expense",
+					reference_id: newExpense.id,
+					status: "completed",
+					reconciliation_status: "pending",
+					description: `[Expense: ${category}] ${input.description}`,
+					payment_method_id: input.payment_method_id ?? null,
 					created_at: expenseDate,
 				});
 			} catch (txErr) {
 				console.warn(
 					"[expenses.create] Failed to record transaction ledger:",
 					txErr,
+				);
+			}
+
+			// Synchronize with Employee Expenses claims ledger & category breakdown
+			try {
+				const me = await requireStaff(ctx.user.email, ctx.user?.name);
+				const docNumber = generateDocNumber("EXP");
+				await db.insert(employeeExpenses).values({
+					branch_id: branchId,
+					expense_number: docNumber,
+					staff_id: me.id,
+					amount: input.amount.toFixed(2),
+					custom_category_name: category,
+					expense_date: expenseDate,
+					description: input.description,
+					business_purpose: input.description,
+					payment_method: "Cash",
+					status: "paid",
+					submitted_at: expenseDate,
+					reviewed_by: me.id,
+					reviewed_at: expenseDate,
+					review_notes: "Direct expense logged via Console",
+					paid_at: expenseDate,
+					created_by: ctx.user.id,
+					created_at: expenseDate,
+				});
+			} catch (empErr) {
+				console.warn(
+					"[expenses.create] Failed to sync employee_expenses:",
+					empErr,
 				);
 			}
 
@@ -87,18 +128,57 @@ export const expensesRouter = router({
 				})
 				.returning();
 
+			// Record financial transaction ledger entry (Cash Book)
 			try {
 				await db.insert(transactions).values({
-					type: "debit",
+					branch_id: branchId,
 					amount: input.totalAmount.toFixed(2),
-					description: `[Fuel Expense] ${input.vehicleRegistration} - ${input.liters}L ${input.fuelType}`,
+					original_amount: input.totalAmount.toFixed(2),
+					adjustment_amount: "0",
 					user_uid: ctx.user.id,
+					type: "out",
+					category: "expense",
+					reference_type: "expense",
+					reference_id: newExpense.id,
+					status: "completed",
+					reconciliation_status: "pending",
+					description: `[Fuel Expense] ${input.vehicleRegistration} - ${input.liters}L ${input.fuelType}`,
 					created_at: expenseDate,
 				});
 			} catch (txErr) {
 				console.warn(
 					"[recordTransportFuelExpense] transaction log fallback:",
 					txErr,
+				);
+			}
+
+			// Synchronize with Employee Expenses claims ledger & category breakdown
+			try {
+				const me = await requireStaff(ctx.user.email, ctx.user?.name);
+				const docNumber = generateDocNumber("EXP");
+				await db.insert(employeeExpenses).values({
+					branch_id: branchId,
+					expense_number: docNumber,
+					staff_id: me.id,
+					amount: input.totalAmount.toFixed(2),
+					custom_category_name: "Fuel & Logistics",
+					expense_date: expenseDate,
+					description: descText,
+					business_purpose: `Vehicle Fuel: ${input.vehicleRegistration} (${input.liters}L ${input.fuelType})`,
+					payment_method: "Cash",
+					status: "paid",
+					submitted_at: expenseDate,
+					reviewed_by: me.id,
+					reviewed_at: expenseDate,
+					review_notes: "Transport & fuel expense logged via Console",
+					paid_at: expenseDate,
+					created_by: ctx.user.id,
+					created_at: expenseDate,
+				});
+			} catch (empErr) {
+				console.warn(
+					"[recordTransportFuelExpense] employee_expenses sync fallback:",
+					empErr,
 				);
 			}
 

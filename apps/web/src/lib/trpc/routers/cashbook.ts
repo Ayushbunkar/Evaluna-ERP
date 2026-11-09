@@ -70,7 +70,19 @@ export const cashbookRouter = router({
 			}
 
 			if (input.category && input.category !== "all") {
-				conditions.push(eq(transactions.category, input.category));
+				if (input.category === "expense") {
+					conditions.push(
+						or(
+							eq(transactions.category, "expense"),
+							eq(transactions.reference_type, "expense"),
+							eq(transactions.reference_type, "employee_expense"),
+							ilike(transactions.description, "[Expense%"),
+							ilike(transactions.description, "[Fuel Expense%"),
+						),
+					);
+				} else {
+					conditions.push(eq(transactions.category, input.category));
+				}
 			}
 
 			if (input.search && input.search.trim() !== "") {
@@ -284,7 +296,12 @@ export const cashbookRouter = router({
 						tx.reference_type === "expense" ||
 						tx.reference_type === "purchase" ||
 						tx.reference_type === "payment" ||
-						tx.reference_type === "employee_expense"
+						tx.reference_type === "employee_expense" ||
+						tx.reference_type === "fuel" ||
+						(tx.description && (
+							tx.description.toLowerCase().includes("expense") ||
+							tx.description.toLowerCase().includes("fuel")
+						))
 					) {
 						expenses += amt;
 					}
@@ -320,7 +337,12 @@ export const cashbookRouter = router({
 						tx.reference_type === "expense" ||
 						tx.reference_type === "purchase" ||
 						tx.reference_type === "payment" ||
-						tx.reference_type === "employee_expense"
+						tx.reference_type === "employee_expense" ||
+						tx.reference_type === "fuel" ||
+						(tx.description && (
+							tx.description.toLowerCase().includes("expense") ||
+							tx.description.toLowerCase().includes("fuel")
+						))
 					) {
 						allTimeExpenses += amt;
 					}

@@ -1,6 +1,6 @@
 import { employeeExpenses, paymentCategories, payments, staff } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -28,7 +28,7 @@ const REVIEW_ROLES = [
 ] as const;
 
 /** Resolve the acting user's staff row (by email) or fallback gracefully. */
-async function requireStaff(email: string, userName?: string) {
+export async function requireStaff(email: string, userName?: string) {
 	const [row] = await db
 		.select({ id: staff.id, name: staff.name, branch_id: staff.branch_id })
 		.from(staff)
@@ -212,9 +212,14 @@ export const employeeExpensesRouter = router({
 			if (!staffRow[0]) {
 				return [];
 			}
-			const meId = staffRow[0].id;
+			const meId = staffRow[0]?.id;
 			const conds = [
-				eq(employeeExpenses.staff_id, meId),
+				meId
+					? or(
+							eq(employeeExpenses.staff_id, meId),
+							eq(employeeExpenses.created_by, ctx.user.id),
+						)
+					: eq(employeeExpenses.created_by, ctx.user.id),
 				eq(employeeExpenses.is_deleted, false),
 			];
 			if (input?.status) conds.push(eq(employeeExpenses.status, input.status));

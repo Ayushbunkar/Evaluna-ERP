@@ -33,6 +33,14 @@ interface TransportFuelExpenseModalProps {
 	onSuccess?: () => void;
 }
 
+function getTodayLocalDateStr(): string {
+	const now = new Date();
+	const y = now.getFullYear();
+	const m = String(now.getMonth() + 1).padStart(2, "0");
+	const d = String(now.getDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
+}
+
 export function TransportFuelExpenseModal({
 	open,
 	onOpenChange,
@@ -131,9 +139,7 @@ export function TransportFuelExpenseModal({
 	const [fuelStation, setFuelStation] = useState<string>("");
 	const [billNumber, setBillNumber] = useState<string>("");
 	const [notes, setNotes] = useState<string>("");
-	const [expenseDate, setExpenseDate] = useState<string>(
-		new Date().toISOString().split("T")[0],
-	);
+	const [expenseDate, setExpenseDate] = useState<string>(getTodayLocalDateStr);
 
 	// Currently selected vehicle object
 	const selectedVehicle = useMemo(() => {
@@ -175,11 +181,16 @@ export function TransportFuelExpenseModal({
 		onSuccess: () => {
 			toast.success(
 				locale === "hi"
-					? `वाहन ईंधन खर्च ₹${totalAmount} सफलतापूर्वक दर्ज हुआ!`
-					: `Transport & fuel expense ₹${totalAmount} logged successfully!`,
+					? `वाहन ईंधन खर्च ₹${totalAmount} सफलतापूर्वक दर्ज हुआ और कैशबुक में जुड़ गया!`
+					: `Transport & fuel expense ₹${totalAmount} logged successfully and added to Cash Book!`,
 			);
 			utils.finance.getDashboardStats.invalidate();
 			utils.expenses.list.invalidate();
+			utils.employeeExpenses.list.invalidate();
+			utils.employeeExpenses.listMine.invalidate();
+			utils.cashbook.getDailySummary.invalidate();
+			utils.cashbook.getLedger.invalidate();
+			utils.reports.getDayWiseSalesMarginReport.invalidate();
 			onOpenChange(false);
 			// Reset fields
 			setSelectedVehicleId("");
@@ -192,8 +203,8 @@ export function TransportFuelExpenseModal({
 			setTotalAmount("1850");
 			setOdometerReading("");
 			setFuelStation("");
-			setBillNumber("");
-			setNotes("");
+			billNumber && setBillNumber("");
+			notes && setNotes("");
 			onSuccess?.();
 		},
 		onError: (err) => {
@@ -228,6 +239,9 @@ export function TransportFuelExpenseModal({
 			return;
 		}
 
+		const isToday = expenseDate === getTodayLocalDateStr();
+		const resolvedDate = isToday ? undefined : `${expenseDate}T12:00:00`;
+
 		recordMutation.mutate({
 			vehicleId:
 				selectedVehicleId && selectedVehicleId !== "custom"
@@ -243,7 +257,7 @@ export function TransportFuelExpenseModal({
 			fuelStation: fuelStation.trim() || null,
 			billNumber: billNumber.trim() || null,
 			notes: notes.trim() || null,
-			date: expenseDate,
+			date: resolvedDate,
 		});
 	};
 
