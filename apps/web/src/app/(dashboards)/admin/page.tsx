@@ -430,7 +430,7 @@ export default function AdminDashboard() {
 					</CardHeader>
 					<CardContent className="pt-1 sm:pt-2">
 						<div className="flex flex-col gap-3 sm:gap-4">
-							{stats?.recentActivities?.map((activity) => (
+							{(Array.isArray((stats as any)?.recentActivities) ? (stats as any).recentActivities : []).map((activity: any) => (
 								<div
 									key={activity.id}
 									className="flex items-start gap-3 border-border/50 border-b pb-3 last:border-0 last:pb-0 sm:pb-4"
@@ -462,8 +462,8 @@ export default function AdminDashboard() {
 									</div>
 								</div>
 							))}
-							{(!stats?.recentActivities ||
-								stats.recentActivities.length === 0) && (
+							{(!(stats as any)?.recentActivities ||
+								(stats as any).recentActivities.length === 0) && (
 								<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
 									No recent activity found
 								</div>

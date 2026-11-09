@@ -17,7 +17,6 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
 import {
 	AnimatedCard,
 	motion,
@@ -28,53 +27,70 @@ import {
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
 
-export default function AdminDashboard() {
-	const t = useTranslations("admin");
+export default function AdminDashboardPage() {
 	const trpc = useTRPC();
-	const locale = useLocale();
+	const locale = "en";
 	const {
 		data: stats,
 		isLoading: statsLoading,
 		error: statsError,
 	} = trpc.admin.getDashboardStats.useQuery();
 	const {
-		data: employees,
+		data: employeesData,
 		isLoading: employeesLoading,
 		error: employeesError,
-	} = trpc.admin.getEmployees.useQuery();
+	} = trpc.admin.getEmployees.useQuery({ pageSize: 5 });
 	const {
-		data: suppliers,
+		data: suppliersData,
 		isLoading: suppliersLoading,
 		error: suppliersError,
-	} = trpc.admin.getSuppliers.useQuery();
+	} = trpc.admin.getSuppliers.useQuery({ pageSize: 5 });
 	const {
-		data: customers,
+		data: customersData,
 		isLoading: customersLoading,
 		error: customersError,
-	} = trpc.admin.getCustomers.useQuery();
+	} = trpc.admin.getCustomers.useQuery({ pageSize: 5 });
+
+	const employees = Array.isArray(employeesData)
+		? employeesData
+		: (employeesData as any)?.items || [];
+	const suppliers = Array.isArray(suppliersData)
+		? suppliersData
+		: (suppliersData as any)?.items || [];
+	const customers = Array.isArray(customersData)
+		? customersData
+		: (customersData as any)?.items || [];
 
 	return (
 		<PageTransition className="container grid min-w-0 flex-1 items-start gap-4 sm:gap-6">
 			<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<div className="flex flex-col gap-1">
 					<h1 className="font-bold text-foreground text-xl tracking-tight sm:text-2xl">
-						{t("dashboard")}
+						Admin Dashboard
 					</h1>
 					<p className="text-muted-foreground text-xs sm:text-sm">
-						{t("dashboardSub")}
+						Overview of company, employees, and system status
 					</p>
 				</div>
 				<div className="flex gap-1 sm:gap-2">
-					<Button variant="outline" className="text-xs shadow-sm sm:text-sm">
-						<ActivityIcon className="mr-2 h-4 w-4" /> {t("activityLog")}
+					<Button variant="outline" className="text-xs shadow-sm sm:text-sm" asChild>
+						<Link href="/admin/settings/activity-log">
+							<ActivityIcon className="mr-2 h-4 w-4" /> Activity Log
+						</Link>
 					</Button>
 					<Button className="text-xs shadow-sm sm:text-sm" asChild>
 						<Link href="/admin/settings">
-							<CalendarCheckIcon className="mr-2 h-4 w-4" /> {t("settings")}
+							<CalendarCheckIcon className="mr-2 h-4 w-4" /> Settings
 						</Link>
 					</Button>
 				</div>
 			</div>
+
+			{(statsError || employeesError || suppliersError || customersError) && (
+				<div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive text-sm">
+					Some dashboard data failed to load. Figures shown may be incomplete.
+				</div>
+			)}
 
 			{/* Stats Grid */}
 			<StaggerList
@@ -245,24 +261,26 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{employees?.slice(0, 5).map((emp) => (
-									<div
-										key={emp.id}
-										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
-									>
-										<div>
-											<p className="font-medium text-xs sm:text-sm">
-												{emp.name}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												{emp.role || "Staff"}
-											</p>
+								{(Array.isArray(employees) ? employees : [])
+									?.slice(0, 5)
+									.map((emp: any) => (
+										<div
+											key={emp.id}
+											className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
+										>
+											<div>
+												<p className="font-medium text-xs sm:text-sm">
+													{emp.name}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													{emp.role || "Staff"}
+												</p>
+											</div>
+											<div className="text-right">
+												<p className="text-xs sm:text-sm">{emp.status}</p>
+											</div>
 										</div>
-										<div className="text-right">
-											<p className="text-xs sm:text-sm">{emp.status}</p>
-										</div>
-									</div>
-								))}
+									))}
 								{(!employees || employees.length === 0) && (
 									<div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
 										No employees found
@@ -296,29 +314,31 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{suppliers?.slice(0, 5).map((sup) => (
-									<div
-										key={sup.id}
-										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
-									>
-										<div>
-											<p className="font-medium text-xs sm:text-sm">
-												{sup.name}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												{sup.email || "N/A"}
-											</p>
+								{(Array.isArray(suppliers) ? suppliers : [])
+									?.slice(0, 5)
+									.map((sup: any) => (
+										<div
+											key={sup.id}
+											className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
+										>
+											<div>
+												<p className="font-medium text-xs sm:text-sm">
+													{sup.name}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													{sup.email || "N/A"}
+												</p>
+											</div>
+											<div className="text-right">
+												<p className="text-xs sm:text-sm">
+													{formatCurrency(
+														Number(sup.outstanding_balance || 0),
+														locale,
+													)}
+												</p>
+											</div>
 										</div>
-										<div className="text-right">
-											<p className="text-xs sm:text-sm">
-												{formatCurrency(
-													Number(sup.outstanding_balance),
-													locale,
-												)}
-											</p>
-										</div>
-									</div>
-								))}
+									))}
 								{(!suppliers || suppliers.length === 0) && (
 									<div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
 										No suppliers found
@@ -352,29 +372,31 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent className="pt-1 sm:pt-2">
 							<div className="flex flex-col gap-3 sm:gap-4">
-								{customers?.slice(0, 5).map((cust) => (
-									<div
-										key={cust.id}
-										className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
-									>
-										<div>
-											<p className="font-medium text-xs sm:text-sm">
-												{cust.name}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												{cust.email || "N/A"}
-											</p>
+								{(Array.isArray(customers) ? customers : [])
+									?.slice(0, 5)
+									.map((cust: any) => (
+										<div
+											key={cust.id}
+											className="flex items-center justify-between border-border/50 border-b pb-1.5 last:border-0 last:pb-0 sm:pb-2"
+										>
+											<div>
+												<p className="font-medium text-xs sm:text-sm">
+													{cust.name}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													{cust.email || "N/A"}
+												</p>
+											</div>
+											<div className="text-right">
+												<p className="font-bold text-xs sm:text-sm">
+													{formatCurrency(Number(cust.credit_used || 0), locale)}
+												</p>
+												<p className="text-muted-foreground text-xs">
+													/ {formatCurrency(Number(cust.credit_limit || 0), locale)}
+												</p>
+											</div>
 										</div>
-										<div className="text-right">
-											<p className="font-bold text-xs sm:text-sm">
-												{formatCurrency(Number(cust.credit_used), locale)}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												/ {formatCurrency(Number(cust.credit_limit), locale)}
-											</p>
-										</div>
-									</div>
-								))}
+									))}
 								{(!customers || customers.length === 0) && (
 									<div className="flex h-[80px] items-center justify-center text-muted-foreground text-xs sm:h-[100px] sm:text-sm">
 										No customers found
@@ -403,14 +425,14 @@ export default function AdminDashboard() {
 							</CardDescription>
 						</div>
 						<Button variant="ghost" size="sm" asChild>
-							<Link href="/admin/activity-log">
+							<Link href="/admin/settings/activity-log">
 								View All <ArrowRightIcon className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
 					</CardHeader>
 					<CardContent className="pt-1 sm:pt-2">
 						<div className="flex flex-col gap-3 sm:gap-4">
-							{stats?.recentActivities?.map((activity) => (
+							{(Array.isArray((stats as any)?.recentActivities) ? (stats as any).recentActivities : []).map((activity: any) => (
 								<div
 									key={activity.id}
 									className="flex items-start gap-3 border-border/50 border-b pb-3 last:border-0 last:pb-0 sm:pb-4"
@@ -442,8 +464,8 @@ export default function AdminDashboard() {
 									</div>
 								</div>
 							))}
-							{(!stats?.recentActivities ||
-								stats.recentActivities.length === 0) && (
+							{(!(stats as any)?.recentActivities ||
+								(stats as any).recentActivities.length === 0) && (
 								<div className="flex h-[120px] items-center justify-center text-muted-foreground text-xs sm:h-[150px] sm:text-sm">
 									No recent activity found
 								</div>
