@@ -20,7 +20,7 @@ import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const vanStockRouter = router({
 	// ── 1. Planning Metadata (Vehicles, Drivers, Products with live stock) ───
-	getPlanningMetadata: roleProcedure(["admin", "manager"])
+	getPlanningMetadata: roleProcedure(["admin", "manager", "finance", "executive", "auditor"])
 		.input(z.object({ branchId: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const db: any = ctx.db || defaultDb;
@@ -28,7 +28,7 @@ export const vanStockRouter = router({
 
 			// Fetch branch vehicles
 			const vehicleRows = await db.query.vehicles.findMany({
-				where: eq(vehicles.branch_id, branchId),
+				where: or(eq(vehicles.branch_id, branchId), isNull(vehicles.branch_id)),
 				orderBy: [vehicles.name],
 			});
 

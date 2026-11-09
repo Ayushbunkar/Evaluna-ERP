@@ -6,13 +6,13 @@ import { db } from "@/lib/db";
 import { roleProcedure, router } from "../init";
 
 export const vehiclesRouter = router({
-	list: roleProcedure(["admin", "manager"])
+	list: roleProcedure(["admin", "manager", "finance", "executive", "auditor"])
 		.input(z.object({ branchId: z.number().optional() }))
 		.query(async ({ input, ctx }) => {
 			const branch = input.branchId || ctx.user?.branchId || 1;
 			if (!branch) throw new TRPCError({ code: "BAD_REQUEST" });
 			return await db.query.vehicles.findMany({
-				where: eq(vehicles.branch_id, branch),
+				where: or(eq(vehicles.branch_id, branch), isNull(vehicles.branch_id)),
 			});
 		}),
 

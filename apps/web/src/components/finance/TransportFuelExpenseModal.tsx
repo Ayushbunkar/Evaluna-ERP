@@ -13,15 +13,17 @@ import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { Textarea } from "@evaluna/ui/components/textarea";
 import {
+	CheckCircle2Icon,
 	FuelIcon,
 	GaugeIcon,
 	Loader2Icon,
+	PlusCircleIcon,
 	ReceiptIcon,
 	TruckIcon,
 	UserIcon,
 } from "lucide-react";
 import { useLocale } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -40,13 +42,84 @@ export function TransportFuelExpenseModal({
 	const utils = trpc.useUtils();
 	const locale = useLocale();
 
-	// Fetch vehicles list for convenient selection
-	const { data: metaData } = trpc.vanStock.getPlanningMetadata.useQuery(
-		undefined,
-		{ enabled: open },
-	);
+	// Fetch vehicles and drivers list from system
+	const { data: metaData, isLoading: loadingMeta } =
+		trpc.vanStock.getPlanningMetadata.useQuery(undefined, {
+			enabled: open,
+		});
 
+	const { data: vehiclesList, isLoading: loadingVehicles } =
+		trpc.vehicles.list.useQuery({}, { enabled: open });
+
+	// Consolidate vehicles list from metadata & vehicles table
+	const availableVehicles = useMemo(() => {
+		const list: Array<{
+			id: number | string;
+			name?: string;
+			registrationNumber: string;
+			type?: string;
+			status?: string;
+			capacityKg?: number | string;
+		}> = [];
+		const seen = new Set<string>();
+
+		if (metaData?.vehicles && Array.isArray(metaData.vehicles)) {
+			for (const v of metaData.vehicles) {
+				const reg = (
+					v.registrationNumber ||
+					(v as any).registration_number ||
+					""
+				)
+					.trim()
+					.toUpperCase();
+				if (reg && !seen.has(reg)) {
+					seen.add(reg);
+					list.push({
+						id: v.id,
+						name: v.name,
+						registrationNumber: reg,
+						type: v.type,
+						status: v.status,
+						capacityKg: v.capacityKg,
+					});
+				}
+			}
+		}
+
+		if (vehiclesList && Array.isArray(vehiclesList)) {
+			for (const v of vehiclesList as any[]) {
+				const reg = (v.registration_number || v.registrationNumber || "")
+					.trim()
+					.toUpperCase();
+				if (reg && !seen.has(reg)) {
+					seen.add(reg);
+					list.push({
+						id: v.id,
+						name: v.name,
+						registrationNumber: reg,
+						type: v.type,
+						status: v.status,
+						capacityKg: v.capacity_kg || v.capacityKg,
+					});
+				}
+			}
+		}
+
+		return list;
+	}, [metaData?.vehicles, vehiclesList]);
+
+	const availableDrivers = useMemo(() => {
+		return (metaData?.drivers || []) as Array<{
+			id: number | string;
+			name: string;
+			phone?: string | null;
+		}>;
+	}, [metaData?.drivers]);
+
+	const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+	const [isCustomVehicle, setIsCustomVehicle] = useState<boolean>(false);
 	const [vehicleRegistration, setVehicleRegistration] = useState("");
+	const [isCustomDriver, setIsCustomDriver] = useState<boolean>(false);
 	const [driverName, setDriverName] = useState("");
 	const [fuelType, setFuelType] = useState<
 		"Diesel" | "Petrol" | "CNG" | "Electric"
@@ -61,6 +134,33 @@ export function TransportFuelExpenseModal({
 	const [expenseDate, setExpenseDate] = useState<string>(
 		new Date().toISOString().split("T")[0],
 	);
+
+	// Currently selected vehicle object
+	const selectedVehicle = useMemo(() => {
+		if (!selectedVehicleId || selectedVehicleId === "custom") return null;
+		return (
+			availableVehicles.find(
+				(v) =>
+					String(v.id) === String(selectedVehicleId) ||
+					v.registrationNumber === vehicleRegistration,
+			) || null
+		);
+	}, [availableVehicles, selectedVehicleId, vehicleRegistration]);
+
+	// Auto-select first vehicle if available and none selected yet
+	useEffect(() => {
+		if (
+			open &&
+			availableVehicles.length > 0 &&
+			!selectedVehicleId &&
+			!vehicleRegistration &&
+			!isCustomVehicle
+		) {
+			const first = availableVehicles[0];
+			setSelectedVehicleId(String(first.id));
+			setVehicleRegistration(first.registrationNumber);
+		}
+	}, [open, availableVehicles, selectedVehicleId, vehicleRegistration, isCustomVehicle]);
 
 	// Auto-compute total amount when liters or rate changes
 	useEffect(() => {
@@ -82,8 +182,11 @@ export function TransportFuelExpenseModal({
 			utils.expenses.list.invalidate();
 			onOpenChange(false);
 			// Reset fields
+			setSelectedVehicleId("");
 			setVehicleRegistration("");
+			setIsCustomVehicle(false);
 			setDriverName("");
+			setIsCustomDriver(false);
 			setLiters("20");
 			setRatePerLiter("92.50");
 			setTotalAmount("1850");
@@ -104,11 +207,12 @@ export function TransportFuelExpenseModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!vehicleRegistration.trim()) {
+		const regToUse = vehicleRegistration.trim().toUpperCase();
+		if (!regToUse) {
 			toast.error(
 				locale === "hi"
-					? "कृपया गाड़ी / वाहन नंबर दर्ज करें।"
-					: "Please enter vehicle registration number.",
+					? "कृपया गाड़ी / वाहन नंबर चुनें या दर्ज करें।"
+					: "Please select or enter vehicle registration number.",
 			);
 			return;
 		}
@@ -125,7 +229,11 @@ export function TransportFuelExpenseModal({
 		}
 
 		recordMutation.mutate({
-			vehicleRegistration: vehicleRegistration.trim().toUpperCase(),
+			vehicleId:
+				selectedVehicleId && selectedVehicleId !== "custom"
+					? Number(selectedVehicleId)
+					: null,
+			vehicleRegistration: regToUse,
 			driverName: driverName.trim() || null,
 			fuelType,
 			liters: Number.isNaN(lit) || lit <= 0 ? 1 : lit,
@@ -151,8 +259,8 @@ export function TransportFuelExpenseModal({
 					</DialogTitle>
 					<DialogDescription className="text-xs">
 						{locale === "hi"
-							? "वाहन का पेट्रोल/डीजल/सीएनजी खर्च और मीटर रीडिंग सीधे फाइनेंस लेजर में जोड़ें।"
-							: "Record vehicle fuel refill, driver details, and odometer log directly into the ledger."}
+							? "मैनेजर डैशबोर्ड के वाहनों में से चुनें और वाहन का ईंधन खर्च सीधे लेजर में जोड़ें।"
+							: "Choose from existing fleet vehicles or enter custom vehicle and record fuel log directly into ledger."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -160,46 +268,243 @@ export function TransportFuelExpenseModal({
 					{/* Vehicle Registration & Driver */}
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div>
-							<Label className="flex items-center gap-1 font-semibold text-xs">
-								<TruckIcon className="h-3.5 w-3.5 text-muted-foreground" />
-								{locale === "hi" ? "वाहन नंबर (Vehicle No.) *" : "Vehicle Registration *"}
-							</Label>
-							<div className="mt-1 space-y-1">
-								<Input
-									placeholder="e.g. MP09-AB-1234"
-									value={vehicleRegistration}
-									onChange={(e) => setVehicleRegistration(e.target.value)}
-									className="h-8 font-mono font-bold text-xs uppercase"
-									required
-								/>
-								{metaData?.vehicles && metaData.vehicles.length > 0 && (
-									<div className="flex flex-wrap gap-1">
-										{metaData.vehicles.slice(0, 4).map((v: any) => (
-											<button
-												key={v.id}
-												type="button"
-												onClick={() => setVehicleRegistration(v.registrationNumber)}
-												className="rounded border bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-											>
-												{v.registrationNumber}
-											</button>
-										))}
+							<div className="flex items-center justify-between">
+								<Label className="flex items-center gap-1 font-semibold text-xs">
+									<TruckIcon className="h-3.5 w-3.5 text-amber-500" />
+									{locale === "hi"
+										? "वाहन चुनें / नंबर *"
+										: "Select Vehicle / Plate *"}
+								</Label>
+								<button
+									type="button"
+									onClick={() => {
+										const next = !isCustomVehicle;
+										setIsCustomVehicle(next);
+										if (next) {
+											setSelectedVehicleId("custom");
+											setVehicleRegistration("");
+										} else if (availableVehicles.length > 0) {
+											setSelectedVehicleId(String(availableVehicles[0].id));
+											setVehicleRegistration(
+												availableVehicles[0].registrationNumber,
+											);
+										}
+									}}
+									className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+								>
+									{isCustomVehicle
+										? locale === "hi"
+											? "गाड़ियों की सूची से चुनें"
+											: "Pick from fleet list"
+										: locale === "hi"
+											? "+ अन्य वाहन नंबर लिखें"
+											: "+ Type custom plate"}
+								</button>
+							</div>
+
+							<div className="mt-1 space-y-1.5">
+								{!isCustomVehicle ? (
+									<>
+										<select
+											value={selectedVehicleId}
+											onChange={(e) => {
+												const val = e.target.value;
+												if (val === "custom") {
+													setIsCustomVehicle(true);
+													setSelectedVehicleId("custom");
+													setVehicleRegistration("");
+												} else if (val) {
+													const found = availableVehicles.find(
+														(v) => String(v.id) === String(val),
+													);
+													if (found) {
+														setSelectedVehicleId(String(found.id));
+														setVehicleRegistration(found.registrationNumber);
+													}
+												} else {
+													setSelectedVehicleId("");
+													setVehicleRegistration("");
+												}
+											}}
+											disabled={loadingMeta && loadingVehicles}
+											className="h-9 w-full rounded-md border border-input bg-background px-2.5 font-medium text-xs shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+											required
+										>
+											<option value="">
+												{loadingMeta || loadingVehicles
+													? locale === "hi"
+														? "लोड हो रहा है..."
+														: "Loading vehicles..."
+													: locale === "hi"
+														? "-- वाहन चुनें (Select Vehicle) --"
+														: "-- Select Registered Vehicle --"}
+											</option>
+											{availableVehicles.map((v) => (
+												<option key={v.id} value={String(v.id)}>
+													{v.registrationNumber} — {v.name || "Delivery Van"}{" "}
+													{v.type ? `(${v.type})` : ""}
+												</option>
+											))}
+											<option value="custom">
+												{locale === "hi"
+													? "+ अन्य / नया वाहन नंबर दर्ज करें"
+													: "+ Enter Other / Custom Vehicle"}
+											</option>
+										</select>
+
+										{selectedVehicle && (
+											<div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50/70 px-2.5 py-1 text-[11px] dark:border-amber-900/40 dark:bg-amber-950/20">
+												<span className="font-semibold text-amber-950 dark:text-amber-200">
+													✓ {selectedVehicle.name || "Vehicle"} (
+													{selectedVehicle.registrationNumber})
+												</span>
+												<span className="rounded bg-amber-200/60 px-1.5 py-0.5 font-bold uppercase text-[10px] text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+													{selectedVehicle.type || "Van"}
+												</span>
+											</div>
+										)}
+									</>
+								) : (
+									<div className="space-y-1">
+										<Input
+											placeholder="e.g. MP09-AB-1234"
+											value={vehicleRegistration}
+											onChange={(e) =>
+												setVehicleRegistration(e.target.value.toUpperCase())
+											}
+											className="h-9 font-mono font-bold text-xs uppercase"
+											autoFocus
+											required
+										/>
+										<p className="text-[10px] text-muted-foreground">
+											{locale === "hi"
+												? "कस्टम या अस्थायी वाहन नंबर दर्ज करें।"
+												: "Enter custom or temporary vehicle registration plate."}
+										</p>
+									</div>
+								)}
+
+								{/* Quick clickable chips for fast 1-click select */}
+								{availableVehicles.length > 0 && (
+									<div className="flex flex-wrap items-center gap-1 pt-0.5">
+										<span className="text-[10px] text-muted-foreground">
+											{locale === "hi" ? "त्वरित:" : "Quick:"}
+										</span>
+										{availableVehicles.map((v) => {
+											const isSelected =
+												vehicleRegistration === v.registrationNumber;
+											return (
+												<button
+													key={v.id}
+													type="button"
+													onClick={() => {
+														setIsCustomVehicle(false);
+														setSelectedVehicleId(String(v.id));
+														setVehicleRegistration(v.registrationNumber);
+													}}
+													className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold transition-all ${
+														isSelected
+															? "border-amber-500 bg-amber-500 text-white shadow-sm"
+															: "border-border bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+													}`}
+												>
+													{v.registrationNumber}
+												</button>
+											);
+										})}
 									</div>
 								)}
 							</div>
 						</div>
 
 						<div>
-							<Label className="flex items-center gap-1 font-semibold text-xs">
-								<UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
-								{locale === "hi" ? "चालक / ड्राइवर (Driver)" : "Driver / Operator"}
-							</Label>
-							<Input
-								placeholder="e.g. Rajesh Kumar"
-								value={driverName}
-								onChange={(e) => setDriverName(e.target.value)}
-								className="mt-1 h-8 text-xs"
-							/>
+							<div className="flex items-center justify-between">
+								<Label className="flex items-center gap-1 font-semibold text-xs">
+									<UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
+									{locale === "hi"
+										? "चालक / ड्राइवर (Driver)"
+										: "Driver / Operator"}
+								</Label>
+								{availableDrivers.length > 0 && (
+									<button
+										type="button"
+										onClick={() => setIsCustomDriver(!isCustomDriver)}
+										className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+									>
+										{isCustomDriver
+											? locale === "hi"
+												? "सूची से चुनें"
+												: "Select from list"
+											: locale === "hi"
+												? "+ अन्य नाम लिखें"
+												: "+ Type custom"}
+									</button>
+								)}
+							</div>
+
+							<div className="mt-1 space-y-1">
+								{!isCustomDriver && availableDrivers.length > 0 ? (
+									<select
+										value={driverName}
+										onChange={(e) => {
+											const val = e.target.value;
+											if (val === "custom") {
+												setIsCustomDriver(true);
+												setDriverName("");
+											} else {
+												setDriverName(val);
+											}
+										}}
+										className="h-9 w-full rounded-md border border-input bg-background px-2.5 font-medium text-xs shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+									>
+										<option value="">
+											{locale === "hi"
+												? "-- ड्राइवर चुनें (Select Driver) --"
+												: "-- Select Driver / Operator --"}
+										</option>
+										{availableDrivers.map((d) => (
+											<option key={d.id} value={d.name}>
+												{d.name} {d.phone ? `(${d.phone})` : ""}
+											</option>
+										))}
+										<option value="custom">
+											{locale === "hi"
+												? "+ अन्य ड्राइवर का नाम लिखें"
+												: "+ Type other driver name"}
+										</option>
+									</select>
+								) : (
+									<Input
+										placeholder="e.g. Rajesh Kumar"
+										value={driverName}
+										onChange={(e) => setDriverName(e.target.value)}
+										className="h-9 text-xs"
+									/>
+								)}
+
+								{/* Driver suggestions chips */}
+								{availableDrivers.length > 0 && !isCustomDriver && (
+									<div className="flex flex-wrap items-center gap-1 pt-0.5">
+										<span className="text-[10px] text-muted-foreground">
+											{locale === "hi" ? "सुझाव:" : "Drivers:"}
+										</span>
+										{availableDrivers.slice(0, 3).map((d) => (
+											<button
+												key={d.id}
+												type="button"
+												onClick={() => setDriverName(d.name)}
+												className={`rounded border px-1.5 py-0.5 text-[10px] transition-all ${
+													driverName === d.name
+														? "border-amber-500 bg-amber-50 text-amber-900 font-semibold dark:bg-amber-950/40 dark:text-amber-300"
+														: "border-border bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300"
+												}`}
+											>
+												{d.name}
+											</button>
+										))}
+									</div>
+								)}
+							</div>
 						</div>
 					</div>
 
@@ -256,7 +561,9 @@ export function TransportFuelExpenseModal({
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5 dark:border-amber-900/50 dark:bg-amber-950/20">
 							<Label className="font-bold text-amber-900 text-xs dark:text-amber-200">
-								{locale === "hi" ? "कुल ईंधन खर्च राशि (Total ₹) *" : "Total Fuel Amount (₹) *"}
+								{locale === "hi"
+									? "कुल ईंधन खर्च राशि (Total ₹) *"
+									: "Total Fuel Amount (₹) *"}
 							</Label>
 							<Input
 								type="number"
@@ -271,7 +578,9 @@ export function TransportFuelExpenseModal({
 						<div>
 							<Label className="flex items-center gap-1 font-semibold text-xs">
 								<GaugeIcon className="h-3.5 w-3.5 text-muted-foreground" />
-								{locale === "hi" ? "ओडोमीटर रीडिंग (Odometer km)" : "Odometer Reading (km)"}
+								{locale === "hi"
+									? "ओडोमीटर रीडिंग (Odometer km)"
+									: "Odometer Reading (km)"}
 							</Label>
 							<Input
 								type="number"
@@ -359,7 +668,9 @@ export function TransportFuelExpenseModal({
 							) : (
 								<>
 									<FuelIcon className="mr-1.5 h-4 w-4" />
-									{locale === "hi" ? "ईंधन खर्च दर्ज करें" : "Record Fuel Expense"}
+									{locale === "hi"
+										? "ईंधन खर्च दर्ज करें"
+										: "Record Fuel Expense"}
 								</>
 							)}
 						</Button>
