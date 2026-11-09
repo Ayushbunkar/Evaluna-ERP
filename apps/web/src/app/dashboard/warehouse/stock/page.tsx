@@ -279,7 +279,11 @@ export default function StockPage() {
 			setCustomCategoryName("");
 		},
 		onError: (err) => {
-			toast.error(`Failed to add item: ${err.message}`);
+			toast.error(
+				err.message.includes("already exists")
+					? `⚠️ ${err.message}`
+					: `Failed to add item: ${err.message}`,
+			);
 		},
 	});
 
@@ -358,6 +362,44 @@ export default function StockPage() {
 		}
 		return Array.from(combined);
 	}, [categories]);
+
+	// Real-time duplicate item detection in Add New Product modal
+	const localDuplicateMatch = useMemo(() => {
+		const trimmedName = newItem.name.trim().toLowerCase();
+		const trimmedSku = newItem.sku.trim().toLowerCase();
+		if (!trimmedName && !trimmedSku) return null;
+
+		return rawItems.find((item: any) => {
+			const itemName = (item.product || item.name || "").trim().toLowerCase();
+			const itemSku = (item.sku || "").trim().toLowerCase();
+			const itemBarcode = (item.barcode || "").trim().toLowerCase();
+
+			const nameMatches = trimmedName.length >= 2 && itemName === trimmedName;
+			const skuMatches =
+				trimmedSku.length >= 2 &&
+				(itemSku === trimmedSku || itemBarcode === trimmedSku);
+
+			return nameMatches || skuMatches;
+		});
+	}, [newItem.name, newItem.sku, rawItems]);
+
+	const { data: serverDuplicateData } =
+		trpc.inventory.checkExistingProduct.useQuery(
+			{
+				name: newItem.name.trim(),
+				sku: newItem.sku.trim(),
+				branchId: 1,
+			},
+			{
+				enabled:
+					addItemOpen &&
+					(newItem.name.trim().length >= 2 || newItem.sku.trim().length >= 2),
+				staleTime: 4000,
+			},
+		);
+
+	const duplicateMatch =
+		localDuplicateMatch || serverDuplicateData?.product || null;
 
 	// Filtered Items (Client-side additional guard if needed)
 	const filteredItems = useMemo(() => {
@@ -2197,6 +2239,86 @@ export default function StockPage() {
 							</div>
 						</div>
 
+						{/* Duplicate Item Warning Banner */}
+						{duplicateMatch && (
+							<div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-3.5 text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-200 animate-in fade-in slide-in-from-top-1 duration-200 shadow-sm">
+								<div className="flex items-start gap-2.5">
+									<AlertTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+									<div className="space-y-1.5 flex-1 text-xs">
+										<div className="flex items-center justify-between gap-2">
+											<p className="font-bold text-sm text-amber-900 dark:text-amber-100 flex items-center gap-1.5">
+												<span>उत्पाद पहले से मौजूद है! (Item Already Exists)</span>
+											</p>
+											<Badge
+												variant="outline"
+												className="border-amber-500 bg-amber-100 text-amber-900 font-bold text-[10px] dark:bg-amber-900/60 dark:text-amber-200 shrink-0"
+											>
+												Already in Stock
+											</Badge>
+										</div>
+										<p className="text-amber-800 dark:text-amber-300 leading-tight">
+											वेयरहाउस में{" "}
+											<strong className="text-foreground font-semibold">
+												&ldquo;{duplicateMatch.product || duplicateMatch.name}&rdquo;
+											</strong>{" "}
+											पहले से दर्ज है। डबल एंट्री रोकने के लिए नया आइटम बनाने के बजाय पुराने आइटम का स्टॉक या रेट अपडेट करें।
+										</p>
+										<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded border border-amber-200 bg-amber-100/60 p-2 text-[11px] font-medium dark:border-amber-800 dark:bg-amber-900/30">
+											<div>
+												<span className="text-muted-foreground block text-[10px]">
+													SKU / Code:
+												</span>
+												<strong className="font-mono text-slate-800 dark:text-slate-200">
+													{duplicateMatch.sku || "N/A"}
+												</strong>
+											</div>
+											<div>
+												<span className="text-muted-foreground block text-[10px]">
+													Category:
+												</span>
+												<span className="text-slate-800 dark:text-slate-200">
+													{duplicateMatch.category || "General"}
+												</span>
+											</div>
+											<div>
+												<span className="text-muted-foreground block text-[10px]">
+													Current Stock:
+												</span>
+												<strong className="font-mono text-emerald-700 dark:text-emerald-400">
+													{duplicateMatch.qty_on_hand ?? duplicateMatch.stock ?? 0}{" "}
+													{duplicateMatch.unit || "Pcs"}
+												</strong>
+											</div>
+											<div>
+												<span className="text-muted-foreground block text-[10px]">
+													Selling Price:
+												</span>
+												<strong className="font-mono text-slate-800 dark:text-slate-200">
+													₹{duplicateMatch.price || 0}
+												</strong>
+											</div>
+										</div>
+										<div className="pt-1 flex flex-wrap items-center gap-2">
+											<Button
+												type="button"
+												size="sm"
+												className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold gap-1"
+												onClick={() => {
+													setAddItemOpen(false);
+													handleOpenEdit(duplicateMatch);
+												}}
+											>
+												<PencilIcon className="h-3 w-3" />
+												<span>
+													Edit Existing Item / Update Stock (पुराने आइटम का स्टॉक अपडेट करें)
+												</span>
+											</Button>
+										</div>
+									</div>
+								</div>
+							</div>
+						)}
+
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
 								<Label htmlFor="newItemSku" className="font-semibold text-sm">
@@ -2361,9 +2483,17 @@ export default function StockPage() {
 							disabled={
 								addItemMutation.isPending ||
 								!newItem.name.trim() ||
-								!newItem.price
+								!newItem.price ||
+								Boolean(duplicateMatch)
 							}
 							onClick={() => {
+								if (duplicateMatch) {
+									toast.error(
+										`Product "${duplicateMatch.product || duplicateMatch.name}" already exists in warehouse stock! Double entry is blocked.`,
+									);
+									return;
+								}
+
 								const parsedPrice = Number.parseFloat(newItem.price);
 								const parsedCost = newItem.costPrice
 									? Number.parseFloat(newItem.costPrice)
@@ -2396,9 +2526,18 @@ export default function StockPage() {
 									branchId: 1,
 								});
 							}}
-							className="gap-2 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+							className={`gap-2 font-semibold text-white ${
+								duplicateMatch
+									? "bg-amber-600 hover:bg-amber-700 cursor-not-allowed opacity-90"
+									: "bg-emerald-600 hover:bg-emerald-700"
+							}`}
 						>
-							{addItemMutation.isPending ? (
+							{duplicateMatch ? (
+								<>
+									<AlertTriangleIcon className="h-4 w-4" />
+									<span>Item Already Exists (Double Entry Blocked)</span>
+								</>
+							) : addItemMutation.isPending ? (
 								<>
 									<Loader2Icon className="h-4 w-4 animate-spin" />
 									Adding Item...

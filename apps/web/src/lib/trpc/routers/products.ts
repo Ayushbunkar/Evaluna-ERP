@@ -3,6 +3,7 @@ import {
 	priceChangeHistory,
 	products,
 } from "@evaluna/db/schema";
+import { TRPCError } from "@trpc/server";
 import { and, asc, count, eq, ilike, inArray, isNotNull, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -169,12 +170,43 @@ export const productsRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			const trimmedName = input.name.trim();
+			const trimmedSku = input.sku?.trim() || "";
+			const trimmedBarcode = input.barcode?.trim() || "";
+
+			// Check if active product already exists with identical name or sku/barcode
+			const duplicate = await db
+				.select({ id: products.id, name: products.name, sku: products.sku })
+				.from(products)
+				.where(
+					and(
+						eq(products.is_deleted, false),
+						or(
+							sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
+							trimmedSku.length > 0
+								? sql`LOWER(TRIM(${products.sku})) = LOWER(TRIM(${trimmedSku}))`
+								: sql`FALSE`,
+							trimmedBarcode.length > 0
+								? sql`LOWER(TRIM(${products.barcode})) = LOWER(TRIM(${trimmedBarcode}))`
+								: sql`FALSE`,
+						),
+					),
+				)
+				.limit(1);
+
+			if (duplicate.length > 0) {
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: `Product "${duplicate[0].name}" already exists (ID: #${duplicate[0].id}). Duplicate creation is blocked.`,
+				});
+			}
+
 			const costPriceVal =
 				input.cost_price ?? input.base_procurement_price ?? input.price;
 			const [product] = await db
 				.insert(products)
 				.values({
-					name: input.name,
+					name: trimmedName,
 					description: input.description,
 					price: input.price.toString(),
 					base_selling_price: input.price.toString(),

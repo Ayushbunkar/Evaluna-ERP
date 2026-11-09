@@ -8,6 +8,7 @@ import {
 	products,
 	stockAdjustments,
 } from "@evaluna/db/schema";
+import { TRPCError } from "@trpc/server";
 import {
 	and,
 	asc,
@@ -278,8 +279,26 @@ export const inventoryRouter = router({
 					price: priceStr,
 					base_selling_price: priceStr,
 				};
-				if (input.name !== undefined && input.name !== null) {
-					productUpdates.name = input.name.trim();
+				if (input.name !== undefined && input.name !== null && input.name.trim().length > 0) {
+					const trimmedNewName = input.name.trim();
+					const duplicateName = await tx
+						.select({ id: products.id, name: products.name })
+						.from(products)
+						.where(
+							and(
+								sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedNewName}))`,
+								sql`${products.id} != ${prodId}`
+							)
+						)
+						.limit(1);
+
+					if (duplicateName.length > 0) {
+						throw new TRPCError({
+							code: "CONFLICT",
+							message: `Another product with the name "${duplicateName[0].name}" already exists (ID: #${duplicateName[0].id}). Cannot rename to a duplicate name.`,
+						});
+					}
+					productUpdates.name = trimmedNewName;
 				}
 				if (input.description !== undefined && input.description !== null) {
 					productUpdates.description = input.description.trim();
@@ -970,6 +989,88 @@ export const inventoryRouter = router({
 			});
 		}),
 
+	// ── Check if Product/SKU Already Exists (Double Entry Prevention) ───────
+	checkExistingProduct: publicProcedure
+		.input(
+			z.object({
+				name: z.string().optional(),
+				sku: z.string().optional(),
+				barcode: z.string().optional(),
+				branchId: z.number().default(1),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			const trimmedName = input.name?.trim() || "";
+			const trimmedSku = input.sku?.trim() || "";
+			const trimmedBarcode = input.barcode?.trim() || "";
+
+			if (
+				trimmedName.length < 2 &&
+				trimmedSku.length < 2 &&
+				trimmedBarcode.length < 2
+			) {
+				return { exists: false, product: null };
+			}
+
+			const conditions: any[] = [];
+			if (trimmedName.length >= 2) {
+				conditions.push(
+					sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
+				);
+			}
+			if (trimmedSku.length >= 2) {
+				conditions.push(
+					sql`LOWER(TRIM(${products.sku})) = LOWER(TRIM(${trimmedSku}))`,
+				);
+			}
+			if (trimmedBarcode.length >= 2) {
+				conditions.push(
+					sql`LOWER(TRIM(${products.barcode})) = LOWER(TRIM(${trimmedBarcode}))`,
+				);
+			}
+
+			if (conditions.length === 0) {
+				return { exists: false, product: null };
+			}
+
+			const found = await ctx.db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+					barcode: products.barcode,
+					category: products.category,
+					price: products.price,
+					unit: products.unit,
+					stock: branchInventory.in_stock,
+					reorder_level: branchInventory.reorder_level,
+				})
+				.from(products)
+				.leftJoin(
+					branchInventory,
+					and(
+						eq(branchInventory.product_id, products.id),
+						eq(branchInventory.branch_id, input.branchId),
+					),
+				)
+				.where(and(eq(products.is_deleted, false), or(...conditions)))
+				.limit(1);
+
+			if (found.length > 0) {
+				return {
+					exists: true,
+					product: {
+						...found[0],
+						product: found[0].name,
+						productId: found[0].id,
+						qty_on_hand: found[0].stock ?? 0,
+					},
+				};
+			}
+
+			return { exists: false, product: null };
+		}),
+
 	// ── Add New Item to Warehouse Stock ───────────────────────────────────────
 	addItem: publicProcedure
 		.input(
@@ -994,9 +1095,46 @@ export const inventoryRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+			const trimmedName = input.name.trim();
+			const trimmedSku = input.sku?.trim() || "";
+
+			// 0. Double Entry Prevention Check across products
+			const existingProduct = await db
+				.select({
+					id: products.id,
+					name: products.name,
+					sku: products.sku,
+					category: products.category,
+					price: products.price,
+				})
+				.from(products)
+				.where(
+					and(
+						eq(products.is_deleted, false),
+						or(
+							sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
+							trimmedSku.length > 0
+								? sql`LOWER(TRIM(${products.sku})) = LOWER(TRIM(${trimmedSku}))`
+								: sql`FALSE`,
+							trimmedSku.length > 0
+								? sql`LOWER(TRIM(${products.barcode})) = LOWER(TRIM(${trimmedSku}))`
+								: sql`FALSE`,
+						),
+					),
+				)
+				.limit(1);
+
+			if (existingProduct.length > 0) {
+				const ex = existingProduct[0];
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: `Product "${ex.name}" already exists in warehouse stock (SKU: ${ex.sku || "N/A"}, ID: #${ex.id}). Double entry is prevented. Please edit the existing item to add or update stock.`,
+				});
+			}
+
 			const generatedSku =
-				input.sku && input.sku.trim().length > 0
-					? input.sku.trim()
+				trimmedSku.length > 0
+					? trimmedSku
 					: `SKU-${Date.now().toString().slice(-6)}`;
 
 			const costVal =
@@ -1009,7 +1147,7 @@ export const inventoryRouter = router({
 				const [newProd] = await tx
 					.insert(products)
 					.values({
-						name: input.name.trim(),
+						name: trimmedName,
 						sku: generatedSku,
 						price: input.price.toString(),
 						base_selling_price: input.price.toString(),
