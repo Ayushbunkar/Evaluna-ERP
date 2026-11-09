@@ -39,6 +39,7 @@ import {
 	CalendarIcon,
 	EyeIcon,
 	FilePenIcon,
+	PrinterIcon,
 	RotateCcwIcon,
 	ShoppingCartIcon,
 	TrashIcon,
@@ -512,6 +513,21 @@ export default function OrdersPage() {
 						icon={<FilePenIcon className="h-4 w-4" />}
 						label={tc("edit")}
 					/>
+					<Link
+						href={`/sales/pos?completedOrderId=${row.id}&returnUrl=/sales/orders`}
+						prefetch={false}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<Button
+							size="icon"
+							variant="ghost"
+							className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+							title={locale === "hi" ? "बिल प्रिंट करें (Print Bill)" : "Print Bill"}
+						>
+							<PrinterIcon className="h-4 w-4" />
+							<span className="sr-only">Print Bill</span>
+						</Button>
+					</Link>
 					<Link
 						href={`/sales/orders/${row.id}`}
 						prefetch={false}

@@ -374,6 +374,16 @@ function POSContent() {
 		? Number.parseInt(completedOrderIdParam, 10)
 		: null;
 	const resumeId = searchParams.get("resume");
+	const returnUrlParam = searchParams.get("returnUrl");
+	const [activeReturnUrl, setActiveReturnUrl] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (returnUrlParam) {
+			setActiveReturnUrl(returnUrlParam);
+		} else if (completedOrderIdParam) {
+			setActiveReturnUrl("/sales/orders");
+		}
+	}, [returnUrlParam, completedOrderIdParam]);
 
 	// Queries
 	const { data: fetchedCompletedOrder } = trpc.orders.get.useQuery(
@@ -1177,16 +1187,22 @@ function POSContent() {
 	}, [catalog, search, selectedCategory]);
 
 	if (lastCompletedOrder) {
+		const handleClose = () => {
+			setLastCompletedOrder(null);
+			const dest = activeReturnUrl || "/sales/pos";
+			setActiveReturnUrl(null);
+			if (typeof window !== "undefined") {
+				window.history.replaceState({}, "", dest);
+			}
+			router.replace(dest);
+		};
+
 		return (
 			<SaleCompletionScreen
 				order={lastCompletedOrder}
-				onNewSale={() => {
-					setLastCompletedOrder(null);
-					if (typeof window !== "undefined") {
-						window.history.replaceState({}, "", "/sales/pos");
-					}
-					router.replace("/sales/pos");
-				}}
+				returnUrl={activeReturnUrl || undefined}
+				onNewSale={handleClose}
+				onClose={handleClose}
 			/>
 		);
 	}

@@ -12,6 +12,7 @@ import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+	ArrowLeft,
 	ArrowLeftRight,
 	CheckCircle2,
 	Copy,
@@ -78,6 +79,8 @@ const getItemName = (item: any): string => {
 interface SaleCompletionScreenProps {
 	order: CompletedOrder;
 	onNewSale: () => void;
+	onClose?: () => void;
+	returnUrl?: string;
 }
 
 const STORE = {
@@ -191,6 +194,8 @@ const getPaymentStatusBadge = (order: CompletedOrder) => {
 export function SaleCompletionScreen({
 	order,
 	onNewSale,
+	onClose,
+	returnUrl,
 }: SaleCompletionScreenProps) {
 	const receiptRef = useRef<HTMLDivElement>(null);
 	const [pageSize, setPageSize] = useState<"80mm" | "A4">("80mm");
@@ -1151,7 +1156,7 @@ export function SaleCompletionScreen({
 			utils.products.invalidate();
 			utils.warehouse.invalidate();
 			setCancelDialogOpen(false);
-			onNewSale();
+			(onClose || onNewSale)();
 		},
 		onError: (err) => {
 			toast.error(`Failed to cancel invoice: ${err.message}`);
@@ -1343,7 +1348,8 @@ export function SaleCompletionScreen({
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-blue-200 hover:bg-blue-800 hover:text-white"
-								onClick={onNewSale}
+								onClick={onClose || onNewSale}
+								title={returnUrl ? "Back to Orders" : "Close"}
 							>
 								<X className="h-5 w-5" />
 							</Button>
@@ -1853,10 +1859,19 @@ export function SaleCompletionScreen({
 							<Button
 								size="lg"
 								className="h-12 w-full bg-blue-600 font-bold text-base text-white shadow-md hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
-								onClick={onNewSale}
+								onClick={onClose || onNewSale}
 							>
-								<ShoppingBag className="mr-2 h-5 w-5" />
-								New Sale
+								{returnUrl ? (
+									<>
+										<ArrowLeft className="mr-2 h-5 w-5" />
+										Back to Orders
+									</>
+								) : (
+									<>
+										<ShoppingBag className="mr-2 h-5 w-5" />
+										New Sale
+									</>
+								)}
 							</Button>
 
 							<hr className="my-1 border-slate-200 dark:border-slate-800" />

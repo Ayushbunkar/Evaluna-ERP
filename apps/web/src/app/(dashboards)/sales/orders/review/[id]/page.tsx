@@ -456,7 +456,9 @@ export default function CustomerOrderReviewPage() {
 									variant="outline"
 									className="border-emerald-500/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
 								>
-									<Link href={`/sales/pos?completedOrderId=${order.id}`}>
+									<Link
+										href={`/sales/pos?completedOrderId=${order.id}&returnUrl=/sales/orders`}
+									>
 										View Bill in POS / Print Invoice
 									</Link>
 								</Button>

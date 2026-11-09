@@ -465,7 +465,11 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 
 					<Button
 						size="sm"
-						onClick={() => router.push(`/sales/pos?completedOrderId=${order.id}`)}
+						onClick={() =>
+							router.push(
+								`/sales/pos?completedOrderId=${order.id}&returnUrl=/sales/orders`,
+							)
+						}
 						className={`gap-2 font-semibold text-white shadow-sm ${
 							hasHandover
 								? "bg-emerald-600 hover:bg-emerald-700"
