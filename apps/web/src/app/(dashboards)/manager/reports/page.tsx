@@ -1038,35 +1038,38 @@ export default function ReportsPage() {
 							<button
 								type="button"
 								onClick={() => setActiveTab("sales_strategy")}
-								className={`rounded-md px-3 py-1 font-semibold text-xs transition-colors ${
+								className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold text-xs transition-colors ${
 									activeTab === "sales_strategy"
 										? "bg-white text-blue-700 shadow-sm dark:bg-slate-900 dark:text-blue-400"
 										: "text-slate-600 hover:text-slate-900 dark:text-slate-400"
 								}`}
 							>
-								📊 Sales & Profit Strategy / बिक्री व लाभ रणनीति
+								<TrendingUpIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+								<span>Sales & Profit Strategy / बिक्री व लाभ रणनीति</span>
 							</button>
 							<button
 								type="button"
 								onClick={() => setActiveTab("live")}
-								className={`rounded-md px-3 py-1 font-semibold text-xs transition-colors ${
+								className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold text-xs transition-colors ${
 									activeTab === "live"
 										? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
 										: "text-slate-600 hover:text-slate-900 dark:text-slate-400"
 								}`}
 							>
-								Live Team Performance
+								<UsersIcon className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+								<span>Live Team Performance</span>
 							</button>
 							<button
 								type="button"
 								onClick={() => setActiveTab("archive")}
-								className={`rounded-md px-3 py-1 font-semibold text-xs transition-colors ${
+								className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold text-xs transition-colors ${
 									activeTab === "archive"
 										? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
 										: "text-slate-600 hover:text-slate-900 dark:text-slate-400"
 								}`}
 							>
-								Historical Archives ({savedArchives.length})
+								<ArchiveIcon className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+								<span>Historical Archives ({savedArchives.length})</span>
 							</button>
 						</div>
 					</div>
