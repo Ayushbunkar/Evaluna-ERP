@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,9 @@ import {
 	FileText,
 	Eye,
 	XCircle,
+	Calendar as CalendarIcon,
+	Filter as FilterIcon,
+	RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +45,33 @@ interface PickRowState {
 	additionalReason?: string;
 }
 
+function toDateKey(dateVal: string | Date | null | undefined): string {
+	if (!dateVal) return "";
+	const d = new Date(dateVal);
+	if (Number.isNaN(d.getTime())) return "";
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${m}-${day}`;
+}
+
+function getTodayLocalDateStr(): string {
+	const now = new Date();
+	const y = now.getFullYear();
+	const m = String(now.getMonth() + 1).padStart(2, "0");
+	const d = String(now.getDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
+}
+
+function getYesterdayLocalDateStr(): string {
+	const y = new Date();
+	y.setDate(y.getDate() - 1);
+	const yr = y.getFullYear();
+	const m = String(y.getMonth() + 1).padStart(2, "0");
+	const d = String(y.getDate()).padStart(2, "0");
+	return `${yr}-${m}-${d}`;
+}
+
 export default function PickerVanStockPage() {
 	const utils = trpc.useUtils();
 	const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -49,9 +79,30 @@ export default function PickerVanStockPage() {
 	const [activeItems, setActiveItems] = useState<PickRowState[]>([]);
 	const [pickerNotes, setPickerNotes] = useState("");
 
+	// Day-wise filter states
+	const todayKey = useMemo(() => getTodayLocalDateStr(), []);
+	const yesterdayKey = useMemo(() => getYesterdayLocalDateStr(), []);
+	const [datePreset, setDatePreset] = useState<"all" | "today" | "yesterday" | "custom">("all");
+	const [customDate, setCustomDate] = useState<string>(todayKey);
+
+	// Compute effective dispatchDate parameter for query
+	const effectiveDispatchDate = useMemo(() => {
+		if (datePreset === "all") return undefined;
+		if (datePreset === "today") return todayKey;
+		if (datePreset === "yesterday") return yesterdayKey;
+		if (datePreset === "custom") return customDate;
+		return undefined;
+	}, [datePreset, todayKey, yesterdayKey, customDate]);
+
 	// Queries
-	const { data: plansData, isLoading: loadingPlans } = trpc.vanStock.listPlans.useQuery({
-		limit: 50,
+	const {
+		data: plansData,
+		isLoading: loadingPlans,
+		isFetching: fetchingPlans,
+		refetch: refetchPlans,
+	} = trpc.vanStock.listPlans.useQuery({
+		limit: 100,
+		dispatchDate: effectiveDispatchDate,
 	});
 
 	const { data: planDetail, isLoading: loadingDetail } = trpc.vanStock.getPlanDetail.useQuery(
@@ -178,14 +229,40 @@ export default function PickerVanStockPage() {
 	};
 
 	// Safely normalize all plans
-	const allPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+	const rawPlans = Array.isArray(plansData) ? plansData : (plansData?.items || []);
+
+	// Client-side date filter safeguard
+	const dateFilteredPlans = useMemo(() => {
+		if (!rawPlans) return [];
+		return rawPlans.filter((p: any) => {
+			if (datePreset === "all") return true;
+			const planDate = p.dispatchDate || (p.createdAt ? toDateKey(p.createdAt) : "");
+			if (!planDate) return true;
+			if (datePreset === "today") return planDate === todayKey;
+			if (datePreset === "yesterday") return planDate === yesterdayKey;
+			if (datePreset === "custom") return planDate === customDate;
+			return true;
+		});
+	}, [rawPlans, datePreset, todayKey, yesterdayKey, customDate]);
+
+	// Search filter
+	const searchFilteredPlans = useMemo(() => {
+		const q = filterSearch.toLowerCase().trim();
+		if (!q) return dateFilteredPlans;
+		return dateFilteredPlans.filter((p: any) => {
+			const code = (p.planCode || p.planNumber || "").toLowerCase();
+			const vehicle = (p.vehicle?.registrationNumber || p.vehicle?.name || "").toLowerCase();
+			const driver = (p.driver?.name || p.driverName || "").toLowerCase();
+			return code.includes(q) || vehicle.includes(q) || driver.includes(q);
+		});
+	}, [dateFilteredPlans, filterSearch]);
 
 	// Filter active picking queue vs past
-	const pickingQueue = allPlans.filter(
+	const pickingQueue = searchFilteredPlans.filter(
 		(p: any) => p.status === "PENDING_PICKING" || p.status === "PICKING_IN_PROGRESS"
 	);
 
-	const otherPlans = allPlans.filter(
+	const otherPlans = searchFilteredPlans.filter(
 		(p: any) => p.status !== "PENDING_PICKING" && p.status !== "PICKING_IN_PROGRESS"
 	);
 
@@ -202,7 +279,113 @@ export default function PickerVanStockPage() {
 						Fulfill vehicle stock plans, record actual picked quantities, log shortages, and reserve inventory.
 					</p>
 				</div>
+				<div className="flex items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => refetchPlans()}
+						disabled={fetchingPlans}
+						className="gap-1.5 text-xs"
+					>
+						<RefreshCw className={`h-3.5 w-3.5 ${fetchingPlans ? "animate-spin" : ""}`} />
+						{fetchingPlans ? "Refreshing..." : "Refresh"}
+					</Button>
+				</div>
 			</div>
+
+			{/* Day-Wise Filter Bar */}
+			<Card className="border-border/60 bg-card/60 shadow-xs backdrop-blur-sm">
+				<CardContent className="p-4">
+					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mr-1">
+								<FilterIcon className="h-3.5 w-3.5 text-amber-600" />
+								Dispatch Day:
+							</span>
+							<Button
+								type="button"
+								size="sm"
+								variant={datePreset === "all" ? "default" : "outline"}
+								className={
+									datePreset === "all"
+										? "bg-amber-600 text-white hover:bg-amber-700 h-8 text-xs font-medium"
+										: "h-8 text-xs font-medium"
+								}
+								onClick={() => setDatePreset("all")}
+							>
+								All Dates
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={datePreset === "today" ? "default" : "outline"}
+								className={
+									datePreset === "today"
+										? "bg-amber-600 text-white hover:bg-amber-700 h-8 text-xs font-medium"
+										: "h-8 text-xs font-medium"
+								}
+								onClick={() => setDatePreset("today")}
+							>
+								<CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+								Today
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={datePreset === "yesterday" ? "default" : "outline"}
+								className={
+									datePreset === "yesterday"
+										? "bg-amber-600 text-white hover:bg-amber-700 h-8 text-xs font-medium"
+										: "h-8 text-xs font-medium"
+								}
+								onClick={() => setDatePreset("yesterday")}
+							>
+								Yesterday
+							</Button>
+
+							<div className="flex items-center gap-1.5 pl-1">
+								<span className="text-xs text-muted-foreground">Custom:</span>
+								<input
+									type="date"
+									value={customDate}
+									onChange={(e) => {
+										if (e.target.value) {
+											setCustomDate(e.target.value);
+											setDatePreset("custom");
+										}
+									}}
+									className="h-8 rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+								/>
+							</div>
+						</div>
+
+						{/* Active Filter Indicator & Search */}
+						<div className="flex flex-wrap items-center gap-3">
+							<Badge
+								variant="secondary"
+								className="text-xs font-normal border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 px-2.5 py-1"
+							>
+								<CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+								{datePreset === "all" && "Showing: All Dates"}
+								{datePreset === "today" && `Showing: Today (${todayKey})`}
+								{datePreset === "yesterday" && `Showing: Yesterday (${yesterdayKey})`}
+								{datePreset === "custom" && `Showing: Selected Date (${customDate})`}
+							</Badge>
+
+							<div className="relative w-48 sm:w-56">
+								<Search className="absolute top-2 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+								<Input
+									type="text"
+									placeholder="Search vehicle or code..."
+									value={filterSearch}
+									onChange={(e) => setFilterSearch(e.target.value)}
+									className="h-8 pl-8 text-xs"
+								/>
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			{/* Active Picking Queue */}
 			<Card className="border-amber-200 dark:border-amber-900/50">
@@ -214,7 +397,7 @@ export default function PickerVanStockPage() {
 								Active Picking Queue ({pickingQueue.length} Pending)
 							</CardTitle>
 							<CardDescription>
-								Van manifests released by Managers requiring warehouse picking.
+								Van manifests released by Managers requiring warehouse picking for the selected date.
 							</CardDescription>
 						</div>
 					</div>
@@ -225,8 +408,32 @@ export default function PickerVanStockPage() {
 					) : pickingQueue.length === 0 ? (
 						<div className="py-12 text-center text-muted-foreground">
 							<CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-2 opacity-80" />
-							<div className="font-semibold text-sm text-foreground">Picking queue is clear!</div>
-							<div className="text-xs">No pending van stock plans at this time.</div>
+							<div className="font-semibold text-sm text-foreground">
+								{searchFilteredPlans.length === 0
+									? `No van stock picking plans found for ${
+											datePreset === "all"
+												? "any date"
+												: datePreset === "today"
+													? `Today (${todayKey})`
+													: datePreset === "yesterday"
+														? `Yesterday (${yesterdayKey})`
+														: `Date (${customDate})`
+										}`
+									: "Picking queue is clear for the selected date!"}
+							</div>
+							<div className="text-xs mt-1">
+								{datePreset !== "all" ? (
+									<button
+										type="button"
+										onClick={() => setDatePreset("all")}
+										className="text-amber-600 hover:underline font-medium"
+									>
+										Click here to view All Dates
+									</button>
+								) : (
+									"No pending van stock plans at this time."
+								)}
+							</div>
 						</div>
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -259,17 +466,27 @@ export default function PickerVanStockPage() {
 										</div>
 										<CardTitle className="text-sm font-semibold flex items-center gap-1.5 mt-1">
 											<Truck className="h-3.5 w-3.5 text-muted-foreground" />
-											{plan.vehicle?.registrationNumber || "Van"}
+											{plan.vehicle?.registrationNumber || plan.vehicle?.name || "Van"}
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="p-4 pt-1 space-y-2 text-xs">
 										<div className="flex justify-between text-muted-foreground">
 											<span>Dispatch Date:</span>
-											<span className="font-medium text-foreground">{plan.dispatchDate}</span>
+											<span className="font-medium text-foreground">
+												{plan.dispatchDate || "N/A"}
+											</span>
+										</div>
+										<div className="flex justify-between text-muted-foreground">
+											<span>Driver:</span>
+											<span className="font-medium text-foreground">
+												{plan.driver?.name || plan.driverName || "Assigned Driver"}
+											</span>
 										</div>
 										<div className="flex justify-between text-muted-foreground">
 											<span>Total Items:</span>
-											<span className="font-medium text-foreground">{plan.itemCount ?? plan.items?.length ?? 0}</span>
+											<span className="font-medium text-foreground">
+												{plan.itemCount ?? plan.items?.length ?? 0} products
+											</span>
 										</div>
 										{plan.notes && (
 											<div className="text-[11px] bg-muted/60 p-2 rounded text-muted-foreground line-clamp-2">
@@ -301,6 +518,60 @@ export default function PickerVanStockPage() {
 				</CardContent>
 			</Card>
 
+			{/* Other Plans Section (Packed / Verified / Loaded for selected day) */}
+			{otherPlans.length > 0 && (
+				<Card className="border-border">
+					<CardHeader className="p-4 pb-2">
+						<CardTitle className="text-sm font-semibold flex items-center gap-2">
+							<PackageCheck className="h-4 w-4 text-muted-foreground" />
+							Other Van Stock Plans for Selected Date ({otherPlans.length})
+						</CardTitle>
+						<CardDescription className="text-xs">
+							Plans that have moved forward into Packing, Verification, or Loading.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="p-4 pt-2">
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+							{otherPlans.map((plan: any) => (
+								<div
+									key={plan.id}
+									className="border rounded-md p-3 text-xs flex flex-col justify-between gap-2 bg-muted/20"
+								>
+									<div className="flex items-center justify-between">
+										<span className="font-mono font-bold text-xs">
+											{plan.planCode || plan.planNumber}
+										</span>
+										<Badge variant="outline" className="text-[10px]">
+											{plan.status.replace(/_/g, " ")}
+										</Badge>
+									</div>
+									<div className="flex items-center gap-1.5 text-muted-foreground">
+										<Truck className="h-3.5 w-3.5" />
+										<span className="font-medium text-foreground">
+											{plan.vehicle?.registrationNumber || plan.vehicle?.name || "Van"}
+										</span>
+										<span className="mx-1">•</span>
+										<span>{plan.dispatchDate}</span>
+									</div>
+									<div className="flex justify-between items-center pt-1 border-t text-muted-foreground">
+										<span>Items: {plan.itemCount ?? plan.items?.length ?? 0}</span>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 text-[11px] gap-1"
+											onClick={() => handleOpenPlan(plan)}
+										>
+											<Eye className="h-3 w-3" />
+											View Details
+										</Button>
+									</div>
+								</div>
+							))}
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
 			{/* Picking Dialog Modal */}
 			<Dialog
 				open={!!selectedPlanId}
@@ -322,7 +593,7 @@ export default function PickerVanStockPage() {
 						<DialogDescription className="text-xs">
 							Vehicle:{" "}
 							<span className="font-semibold text-foreground">
-								{planDetail?.vehicle?.registrationNumber}
+								{planDetail?.vehicle?.registrationNumber || planDetail?.vehicle?.name || "Vehicle"}
 							</span>{" "}
 							| Dispatch Date:{" "}
 							<span className="font-semibold text-foreground">

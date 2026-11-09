@@ -120,11 +120,13 @@ export const pickerRouter = router({
 					pickAccuracy: 100,
 					recentTasks: (recent || []).map((r: any) => ({
 						id: `PL-${r.id}`,
+						numericId: r.id,
 						order: `ORD-${r.order_id}`,
 						customerName: r.customer_name || "N/A",
 						items: Number(r.items_count || 0),
 						area: "Warehouse",
 						status: r.status ?? "pending",
+						created_at: r.created_at,
 						time: r.created_at
 							? new Date(r.created_at).toLocaleTimeString()
 							: "",
@@ -446,14 +448,51 @@ export const pickerRouter = router({
 		}),
 
 	getPending: roleProcedure(["admin", "manager", "auditor", "picker"])
-		.input(z.object({ branch_id: z.number().optional() }))
-		.query(async ({ ctx }) => {
+		.input(
+			z
+				.object({
+					branch_id: z.number().optional(),
+					date: z.string().optional(),
+					datePreset: z
+						.enum(["all", "today", "yesterday", "custom"])
+						.optional()
+						.default("all"),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
 
+			const conditions: any[] = [
+				inArray(pickLists.status, ["pending", "assigned"]),
+			];
+
+			if (input?.datePreset && input.datePreset !== "all") {
+				const now = new Date();
+				if (input.datePreset === "today") {
+					const s = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+					const e = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+					conditions.push(gte(pickLists.created_at, s), lte(pickLists.created_at, e));
+				} else if (input.datePreset === "yesterday") {
+					const y = new Date(now);
+					y.setDate(y.getDate() - 1);
+					const s = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0);
+					const e = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999);
+					conditions.push(gte(pickLists.created_at, s), lte(pickLists.created_at, e));
+				} else if (input.datePreset === "custom" && input.date) {
+					const parts = input.date.split("-").map(Number);
+					if (parts.length === 3) {
+						const s = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0);
+						const e = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+						conditions.push(gte(pickLists.created_at, s), lte(pickLists.created_at, e));
+					}
+				}
+			}
+
 			const lists = await db.query.pickLists.findMany({
-				where: inArray(pickLists.status, ["pending", "assigned"]),
+				where: conditions.length > 1 ? and(...conditions) : conditions[0],
 				orderBy: [desc(pickLists.created_at)],
-				limit: 50,
+				limit: 100,
 				with: {
 					assignedTo: true,
 					pickListItems: true,
@@ -542,6 +581,7 @@ export const pickerRouter = router({
 					is_assigned: Boolean(r.assignedTo),
 					customerName,
 					routeName,
+					created_at: r.created_at,
 					waiting_since: r.created_at
 						? new Date(r.created_at).toLocaleTimeString("en-US", {
 								hour: "2-digit",
