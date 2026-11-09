@@ -49,6 +49,7 @@ import {
 	WalletIcon,
 } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
@@ -619,6 +620,18 @@ export default function DriverHistoryPage() {
 																		)}
 																		{st.status} {st.status === "Delivered" && st.deliveredAt ? `(${st.deliveredAt})` : "(Pending)"}
 																	</span>
+
+																	<Button
+																		size="sm"
+																		variant="outline"
+																		asChild
+																		className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 font-semibold gap-1"
+																	>
+																		<Link href={`/driver/delivery?editStopId=${st.stopId}`}>
+																			<FileTextIcon className="h-3 w-3 text-blue-600" />
+																			<span>Edit Handover / Bill</span>
+																		</Link>
+																	</Button>
 																</div>
 															</div>
 

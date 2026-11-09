@@ -911,20 +911,28 @@ export const driverRouter = router({
 						(matchingOrder as any)?.shipping_address ||
 						"N/A";
 
+					const isStopHandoverDone =
+						s.status === "delivered" ||
+						s.status === "completed" ||
+						s.resolved_at != null ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected",
+							));
+
 					return {
 						id: s.id,
 						trip_id: trip.id,
-						status:
-							s.status === "delivered" || s.status === "completed"
-								? "completed"
-								: s.id === nextStop?.id
-									? "next"
-									: "pending",
-						rawStatus: s.status,
-						time:
-							s.status === "delivered" || s.status === "completed"
-								? "Completed"
-								: "--:--",
+						status: isStopHandoverDone
+							? "completed"
+							: s.id === nextStop?.id
+								? "next"
+								: "pending",
+						rawStatus: isStopHandoverDone ? "delivered" : s.status,
+						time: isStopHandoverDone ? "Completed" : "--:--",
 						address: resolvedCustAddress,
 						customerName: resolvedCustName,
 						phone: resolvedCustPhone,
@@ -1534,20 +1542,29 @@ export const driverRouter = router({
 						? new Date(stopRawDate).toISOString().split("T")[0]
 						: new Date().toISOString().split("T")[0];
 
+					const isStopHandoverDone =
+						s.status === "delivered" ||
+						s.status === "completed" ||
+						s.resolved_at != null ||
+						Boolean(pod) ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected",
+							));
+
 					return {
 						id: s.id,
 						trip_id: s.trip_id,
-						status:
-							s.status === "delivered" || s.status === "completed"
-								? "completed"
-								: idx === 0
-									? "next"
-									: "pending",
-						rawStatus: s.status,
-						time:
-							s.status === "delivered" || s.status === "completed"
-								? "Completed"
-								: "--:--",
+						status: isStopHandoverDone
+							? "completed"
+							: idx === 0
+								? "next"
+								: "pending",
+						rawStatus: isStopHandoverDone ? "delivered" : s.status,
+						time: isStopHandoverDone ? "Completed" : "--:--",
 						date: stopDate,
 						created_at: stopRawDate ? String(stopRawDate) : undefined,
 						customerName: resolvedCustName,
@@ -1998,7 +2015,15 @@ export const driverRouter = router({
 					: input.deliveryNotes || "Delivered live at customer stop";
 
 				// Update trip stop status
+				let stopCustomerId: number | null = null;
 				if (input.stop_id) {
+					const stopObj = await db.query.tripStops?.findFirst({
+						where: eq(tripStops.id, input.stop_id),
+					});
+					if (stopObj?.customer_id) {
+						stopCustomerId = stopObj.customer_id;
+					}
+
 					await db
 						.update(tripStops)
 						.set({
@@ -2006,35 +2031,59 @@ export const driverRouter = router({
 							comments: formattedComments,
 							resolved_at: new Date(),
 						})
-						.where(eq(tripStops.id, input.stop_id));
+						.where(
+							or(
+								eq(tripStops.id, input.stop_id),
+								targetTripId && stopCustomerId
+									? and(
+											eq(tripStops.trip_id, targetTripId),
+											eq(tripStops.customer_id, stopCustomerId),
+										)
+									: undefined,
+							),
+						);
 				}
 
-				// Find associated order and sync its status & finance status
-				let orderIdToUpdate: number | null = input.order_id || null;
-				if (!orderIdToUpdate && input.stop_id) {
-					const stopObj = await db.query.tripStops?.findFirst({
-						where: eq(tripStops.id, input.stop_id),
+				// Find associated order(s) and sync status & finance status
+				const targetOrderIds: number[] = [];
+				if (input.order_id) {
+					targetOrderIds.push(Number(input.order_id));
+				}
+				if (stopCustomerId) {
+					const custOrders = await db.query.orders?.findMany({
+						where: and(
+							eq(orders.customer_id, stopCustomerId),
+							inArray(orders.status, [
+								"ready_for_dispatch",
+								"ready_for_loading",
+								"packed",
+								"loaded",
+								"out_for_delivery",
+								"in_transit",
+								"dispatched",
+								"assigned",
+							]),
+						),
 					});
-					if (stopObj?.customer_id) {
-						const matchingOrder = await db.query.orders?.findFirst({
-							where: eq(orders.customer_id, stopObj.customer_id),
-							orderBy: [desc(orders.created_at)],
-						});
-						if (matchingOrder) {
-							orderIdToUpdate = matchingOrder.id;
-						}
-					}
-					if (!orderIdToUpdate) {
-						const directOrder = await db.query.orders?.findFirst({
-							where: eq(orders.id, input.stop_id),
-						});
-						if (directOrder) {
-							orderIdToUpdate = directOrder.id;
+					if (custOrders && custOrders.length > 0) {
+						for (const co of custOrders) {
+							targetOrderIds.push(co.id);
 						}
 					}
 				}
+				if (targetOrderIds.length === 0 && input.stop_id) {
+					const directOrder = await db.query.orders?.findFirst({
+						where: eq(orders.id, input.stop_id),
+					});
+					if (directOrder) {
+						targetOrderIds.push(directOrder.id);
+					}
+				}
 
-				if (orderIdToUpdate) {
+				const uniqueOrderIds = Array.from(new Set(targetOrderIds));
+				let orderIdToUpdate: number | null = uniqueOrderIds[0] || input.order_id || null;
+
+				if (uniqueOrderIds.length > 0) {
 					await db
 						.update(orders)
 						.set({
@@ -2043,7 +2092,7 @@ export const driverRouter = router({
 							driver_collected_amount: String(input.cashAmount),
 							driver_collected_at: new Date(),
 						} as any)
-						.where(eq(orders.id, orderIdToUpdate));
+						.where(inArray(orders.id, uniqueOrderIds));
 				}
 
 				// Record proof of delivery with full returns, deliveredItems, and notes payload

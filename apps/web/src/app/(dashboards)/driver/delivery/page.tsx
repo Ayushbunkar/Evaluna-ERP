@@ -49,10 +49,12 @@ import {
 	CalendarDays,
 	Tag,
 	PlusCircle,
+	History,
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
 import {
@@ -215,8 +217,47 @@ export default function DriverLiveDeliveryPage() {
 		return vanStockData?.items || [];
 	}, [vanStockData]);
 
+	const searchParams = useSearchParams();
+	const editStopIdParam =
+		searchParams?.get("editStopId") || searchParams?.get("stopId");
+
 	const [stopDateFilter, setStopDateFilter] = useState<string>("all");
 	const [stopSearchQuery, setStopSearchQuery] = useState<string>("");
+	// Default to "pending" so already handed over stops are automatically removed from live view!
+	const [deliveryFilterTab, setDeliveryFilterTab] = useState<
+		"pending" | "delivered" | "all"
+	>("pending");
+
+	// Auto open stop if redirected from Delivery History with editStopId/stopId
+	useEffect(() => {
+		if (editStopIdParam) {
+			const targetId = Number(editStopIdParam);
+			if (!Number.isNaN(targetId) && targetId > 0) {
+				setDeliveryFilterTab("all");
+				setHandoverStopId(targetId);
+			}
+		}
+	}, [editStopIdParam]);
+
+	// Global pending vs delivered counts
+	const totalPendingStops = useMemo(
+		() =>
+			routeStops.filter(
+				(s) =>
+					s.status !== "delivered" &&
+					s.status !== "completed" &&
+					s.status !== "failed",
+			).length,
+		[routeStops],
+	);
+
+	const totalDeliveredStops = useMemo(
+		() =>
+			routeStops.filter(
+				(s) => s.status === "delivered" || s.status === "completed",
+			).length,
+		[routeStops],
+	);
 
 	// ── Date-wise Grouping of Delivery Stops ──────────────────────────────────
 	const groupedStopsByDate = useMemo(() => {
@@ -232,12 +273,33 @@ export default function DriverLiveDeliveryPage() {
 				const matchName = stop.customerName?.toLowerCase().includes(query);
 				const matchAddress = stop.address?.toLowerCase().includes(query);
 				const matchPhone = stop.phone?.toLowerCase().includes(query);
-				const matchOrderIdStr = typeof stop.orderId === "string" ? stop.orderId.toLowerCase().includes(query) : false;
-				const matchOrderIdsNum = stop.orderIds ? stop.orderIds.some((id) => String(id).includes(query) || `ord-${id}`.toLowerCase().includes(query)) : false;
-				const matchStopId = String(stop.id).includes(query) || `ord-${stop.id}`.toLowerCase().includes(query);
-				const matchItems = stop.orderItems ? stop.orderItems.some((it) => it.name?.toLowerCase().includes(query)) : false;
+				const matchOrderIdStr =
+					typeof stop.orderId === "string"
+						? stop.orderId.toLowerCase().includes(query)
+						: false;
+				const matchOrderIdsNum = stop.orderIds
+					? stop.orderIds.some(
+							(id) =>
+								String(id).includes(query) ||
+								`ord-${id}`.toLowerCase().includes(query),
+						)
+					: false;
+				const matchStopId =
+					String(stop.id).includes(query) ||
+					`ord-${stop.id}`.toLowerCase().includes(query);
+				const matchItems = stop.orderItems
+					? stop.orderItems.some((it) => it.name?.toLowerCase().includes(query))
+					: false;
 
-				if (!matchName && !matchAddress && !matchPhone && !matchOrderIdStr && !matchOrderIdsNum && !matchStopId && !matchItems) {
+				if (
+					!matchName &&
+					!matchAddress &&
+					!matchPhone &&
+					!matchOrderIdStr &&
+					!matchOrderIdsNum &&
+					!matchStopId &&
+					!matchItems
+				) {
 					continue;
 				}
 			}
@@ -257,7 +319,9 @@ export default function DriverLiveDeliveryPage() {
 			map.get(d)!.push(stop);
 		}
 
-		const sortedEntries = Array.from(map.entries()).sort(([dA], [dB]) => dB.localeCompare(dA));
+		const sortedEntries = Array.from(map.entries()).sort(([dA], [dB]) =>
+			dB.localeCompare(dA),
+		);
 
 		return sortedEntries
 			.map(([dateKey, stops]) => {
@@ -269,26 +333,55 @@ export default function DriverLiveDeliveryPage() {
 				let badgeLabel = dateKey;
 
 				if (isToday) {
-					title = locale === "hi" ? "आज के डिलीवरी ऑर्डर्स (Today)" : "Today's Delivery Stops";
+					title =
+						locale === "hi"
+							? "आज के डिलीवरी ऑर्डर्स (Today)"
+							: "Today's Delivery Stops";
 					badgeLabel = locale === "hi" ? "आज (Today)" : "Today";
 				} else if (isYesterday) {
-					title = locale === "hi" ? "कल के ऑर्डर्स (Yesterday)" : "Yesterday's Delivery Stops";
+					title =
+						locale === "hi"
+							? "कल के ऑर्डर्स (Yesterday)"
+							: "Yesterday's Delivery Stops";
 					badgeLabel = locale === "hi" ? "कल (Yesterday)" : "Yesterday";
 				} else if (isTomorrow) {
-					title = locale === "hi" ? "आने वाले कल के ऑर्डर्स (Tomorrow)" : "Tomorrow's Delivery Stops";
+					title =
+						locale === "hi"
+							? "आने वाले कल के ऑर्डर्स (Tomorrow)"
+							: "Tomorrow's Delivery Stops";
 					badgeLabel = locale === "hi" ? "कल (Tomorrow)" : "Tomorrow";
 				} else {
-					title = locale === "hi" ? `दिनांक: ${formatDateDisplay(dateKey)} के ऑर्डर्स` : `Delivery Stops - ${formatDateDisplay(dateKey)}`;
+					title =
+						locale === "hi"
+							? `दिनांक: ${formatDateDisplay(dateKey)} के ऑर्डर्स`
+							: `Delivery Stops - ${formatDateDisplay(dateKey)}`;
 					badgeLabel = formatDateDisplay(dateKey);
 				}
 
-				const pendingCount = stops.filter(
-					(s) => s.status !== "delivered" && s.status !== "completed" && s.status !== "failed",
-				).length;
-				const deliveredCount = stops.filter(
+				const pendingStops = stops.filter(
+					(s) =>
+						s.status !== "delivered" &&
+						s.status !== "completed" &&
+						s.status !== "failed",
+				);
+				const deliveredStops = stops.filter(
 					(s) => s.status === "delivered" || s.status === "completed",
-				).length;
-				const dateTotalAmount = stops.reduce(
+				);
+				const pendingCount = pendingStops.length;
+				const deliveredCount = deliveredStops.length;
+
+				// Filter stops by selected tab:
+				// "pending" (DEFAULT): Hides already handed over stops completely from Live Delivery & Bills!
+				// "delivered": Shows only handed over stops
+				// "all": Shows all stops
+				const visibleStops =
+					deliveryFilterTab === "pending"
+						? pendingStops
+						: deliveryFilterTab === "delivered"
+							? deliveredStops
+							: stops;
+
+				const dateTotalAmount = visibleStops.reduce(
 					(sum, s) => sum + (s.amountToCollect || 0),
 					0,
 				);
@@ -300,20 +393,37 @@ export default function DriverLiveDeliveryPage() {
 					isToday,
 					isYesterday,
 					isTomorrow,
-					stops,
+					stops: visibleStops,
+					allStops: stops,
 					pendingCount,
 					deliveredCount,
 					dateTotalAmount,
 				};
 			})
 			.filter((group) => {
+				// If viewing in pending mode, hide date group entirely if it has 0 pending stops
+				if (deliveryFilterTab === "pending" && group.pendingCount === 0) {
+					return false;
+				}
+				// If viewing in delivered mode, hide date group if it has 0 delivered stops
+				if (deliveryFilterTab === "delivered" && group.deliveredCount === 0) {
+					return false;
+				}
+
 				if (stopDateFilter === "all") return true;
 				if (stopDateFilter === "today") return group.isToday;
 				if (stopDateFilter === "yesterday") return group.isYesterday;
-				if (stopDateFilter === "earlier") return !group.isToday && !group.isYesterday && !group.isTomorrow;
+				if (stopDateFilter === "earlier")
+					return !group.isToday && !group.isYesterday && !group.isTomorrow;
 				return group.dateKey === stopDateFilter;
 			});
-	}, [routeStops, stopDateFilter, stopSearchQuery, locale]);
+	}, [
+		routeStops,
+		stopDateFilter,
+		stopSearchQuery,
+		deliveryFilterTab,
+		locale,
+	]);
 
 	// ── Active Stop Orders List ────────────────────────────────────────────────
 	const activeOrdersList = useMemo(() => {
@@ -1236,6 +1346,86 @@ export default function DriverLiveDeliveryPage() {
 										</div>
 									</div>
 
+									{/* Status Filter Tab Bar (Pending vs Handover Completed) */}
+									<div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-border/60">
+										<div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-border/60">
+											<Button
+												type="button"
+												variant={deliveryFilterTab === "pending" ? "default" : "ghost"}
+												size="sm"
+												className={`h-8 px-3 text-xs font-bold rounded-lg transition-all ${
+													deliveryFilterTab === "pending"
+														? "bg-blue-600 text-white shadow-xs"
+														: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+												}`}
+												onClick={() => setDeliveryFilterTab("pending")}
+											>
+												<Package className="mr-1.5 h-3.5 w-3.5" />
+												<span>
+													{locale === "hi" ? "बाकी डिलीवरी (Live Pending)" : "Live Pending Stops"}
+												</span>
+												{totalPendingStops > 0 && (
+													<Badge className="ml-1.5 bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100 text-[10px] px-1.5 py-0 font-mono font-bold">
+														{totalPendingStops}
+													</Badge>
+												)}
+											</Button>
+											<Button
+												type="button"
+												variant={deliveryFilterTab === "delivered" ? "default" : "ghost"}
+												size="sm"
+												className={`h-8 px-3 text-xs font-bold rounded-lg transition-all ${
+													deliveryFilterTab === "delivered"
+														? "bg-emerald-600 text-white shadow-xs"
+														: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+												}`}
+												onClick={() => setDeliveryFilterTab("delivered")}
+											>
+												<CheckCircle className="mr-1.5 h-3.5 w-3.5 text-emerald-500" />
+												<span>
+													{locale === "hi" ? "पूरे हुए हैंडओवर (Handover Done)" : "Handover Done"}
+												</span>
+												{totalDeliveredStops > 0 && (
+													<Badge className="ml-1.5 bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100 text-[10px] px-1.5 py-0 font-mono font-bold">
+														{totalDeliveredStops}
+													</Badge>
+												)}
+											</Button>
+											<Button
+												type="button"
+												variant={deliveryFilterTab === "all" ? "default" : "ghost"}
+												size="sm"
+												className={`h-8 px-3 text-xs font-bold rounded-lg transition-all ${
+													deliveryFilterTab === "all"
+														? "bg-slate-700 text-white shadow-xs"
+														: "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+												}`}
+												onClick={() => setDeliveryFilterTab("all")}
+											>
+												<span>{locale === "hi" ? "सभी (All Stops)" : "All Stops"}</span>
+												<span className="ml-1 font-mono text-[10px] opacity-70">
+													({routeStops.length})
+												</span>
+											</Button>
+										</div>
+
+										<Button
+											asChild
+											variant="outline"
+											size="sm"
+											className="h-8 gap-1.5 text-xs font-semibold border-indigo-200 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300"
+										>
+											<Link href="/driver/history">
+												<History className="h-3.5 w-3.5 text-indigo-600" />
+												<span>
+													{locale === "hi"
+														? "डिलीवरी हिस्ट्री (View & Edit Past Bills)"
+														: "Delivery History"}
+												</span>
+											</Link>
+										</Button>
+									</div>
+
 									{/* Quick Date Filter Tabs */}
 									<div className="flex flex-wrap items-center justify-between border-t border-border/50 pt-2.5 gap-2">
 										<span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -1293,7 +1483,61 @@ export default function DriverLiveDeliveryPage() {
 								</div>
 
 								{/* Date-wise Section Banners & Stop Cards */}
-								{groupedStopsByDate.map((dateGroup) => (
+								{groupedStopsByDate.length === 0 ? (
+									<div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/70 p-8 text-center text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100 shadow-xs">
+										<CheckCircle className="mx-auto h-12 w-12 text-emerald-600 mb-3" />
+										<h3 className="font-bold text-lg">
+											{deliveryFilterTab === "pending"
+												? locale === "hi"
+													? "सभी ऑर्डर्स सफलतापूर्वक हैंडओवर हो चुके हैं! 🎉"
+													: "All Orders Successfully Handed Over! 🎉"
+												: locale === "hi"
+													? "कोई डिलीवरी स्टॉप नहीं मिला"
+													: "No delivery stops found"}
+										</h3>
+										<p className="text-xs text-emerald-800 dark:text-emerald-300 max-w-md mx-auto mt-1 mb-5">
+											{deliveryFilterTab === "pending"
+												? locale === "hi"
+													? "इस समय कोई लंबित डिलीवरी बाकी नहीं है। हैंडओवर किए गए बिल देखने, रसीद प्रिंट करने या एडिट करने के लिए डिलीवरी हिस्ट्री पर जाएं।"
+													: "All active orders have been delivered and settled. To view settled receipts or edit completed handovers, visit Delivery History."
+												: locale === "hi"
+													? "कृपया सर्च या तारीख फिल्टर बदलकर पुनः देखें।"
+													: "Please adjust your search or date filter."}
+										</p>
+										<div className="flex flex-wrap items-center justify-center gap-3">
+											<Button
+												asChild
+												className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 shadow-sm"
+											>
+												<Link href="/driver/history">
+													<History className="h-4 w-4" />
+													<span>
+														{locale === "hi"
+															? "डिलीवरी हिस्ट्री देखें (Delivery History)"
+															: "View Delivery History"}
+													</span>
+												</Link>
+											</Button>
+											{totalDeliveredStops > 0 && deliveryFilterTab === "pending" && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => setDeliveryFilterTab("delivered")}
+													className="border-emerald-400 text-emerald-800 hover:bg-emerald-100 text-xs gap-1 font-semibold dark:border-emerald-700 dark:text-emerald-300"
+												>
+													<CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+													<span>
+														{locale === "hi"
+															? `पूरे हो चुके ${totalDeliveredStops} बिल देखें`
+															: `Show Completed Bills (${totalDeliveredStops})`}
+													</span>
+												</Button>
+											)}
+										</div>
+									</div>
+								) : (
+									groupedStopsByDate.map((dateGroup) => (
 									<div key={dateGroup.dateKey} className="space-y-3.5 pt-1">
 										{/* Date Section Header Card */}
 										<div className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-blue-200/90 bg-gradient-to-r from-blue-50/90 via-blue-50/40 to-card p-3.5 shadow-2xs dark:border-blue-900/50 dark:from-blue-950/40 dark:to-slate-900/40">
@@ -1517,7 +1761,8 @@ export default function DriverLiveDeliveryPage() {
 									})}
 								</div>
 							</div>
-						))}
+						))
+					)}
 					</div>
 				)}
 					</>
