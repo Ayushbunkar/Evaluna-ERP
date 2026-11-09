@@ -343,20 +343,26 @@ export default function DispatchApprovalPage() {
 								</tr>
 							</thead>
 							<tbody className="divide-y">
-								{planDetail?.items?.map((item: any) => (
+								{planDetail?.items?.map((item: any) => {
+									const planned = parseFloat(item.plannedQty ?? item.plannedQuantity) || 0;
+									const picked = parseFloat(item.pickedQty ?? item.pickedQuantity) || planned;
+									const packed = parseFloat(item.packedQty ?? item.packedQuantity) || picked;
+									const verified = parseFloat(item.verifiedQty ?? item.verifiedQuantity) || packed;
+									const loaded = parseFloat(item.loadedQty ?? item.loadedQuantity) || verified;
+									return (
 									<tr key={item.id} className="hover:bg-muted/30">
 										<td className="p-2.5">
-											<div className="font-semibold text-foreground">{item.product?.name}</div>
+											<div className="font-semibold text-foreground">{item.productName || item.product?.name || "Product"}</div>
 											<div className="text-[11px] font-mono text-muted-foreground">
-												{item.product?.sku}
+												{item.sku || item.product?.sku || ""}
 											</div>
 										</td>
-										<td className="p-2.5 text-center font-mono">{item.plannedQty}</td>
-										<td className="p-2.5 text-center font-mono">{item.pickedQty}</td>
-										<td className="p-2.5 text-center font-mono">{item.packedQty}</td>
-										<td className="p-2.5 text-center font-mono">{item.verifiedQty}</td>
+										<td className="p-2.5 text-center font-mono">{planned}</td>
+										<td className="p-2.5 text-center font-mono">{picked}</td>
+										<td className="p-2.5 text-center font-mono">{packed}</td>
+										<td className="p-2.5 text-center font-mono">{verified}</td>
 										<td className="p-2.5 text-center font-mono font-bold bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400">
-											{item.loadedQty}
+											{loaded}
 										</td>
 										<td className="p-2.5 text-center">
 											<Badge variant="outline" className="text-emerald-600 border-emerald-300">
@@ -364,7 +370,8 @@ export default function DispatchApprovalPage() {
 											</Badge>
 										</td>
 									</tr>
-								))}
+									);
+								})}
 							</tbody>
 						</table>
 					</div>

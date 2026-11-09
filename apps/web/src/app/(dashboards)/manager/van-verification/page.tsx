@@ -93,18 +93,13 @@ export default function VanVerificationPage() {
 	useEffect(() => {
 		if (planDetail?.items && planDetail.items.length > 0) {
 			const mapped: VerifyRowState[] = planDetail.items.map((it: any) => {
-				const packed =
-					it.packedQty !== null && it.packedQty !== undefined
-						? parseFloat(it.packedQty)
-						: it.packedQuantity !== null && it.packedQuantity !== undefined
-						? parseFloat(it.packedQuantity)
-						: parseFloat(it.pickedQty ?? it.pickedQuantity ?? it.plannedQty ?? it.plannedQuantity) || 0;
-				const verified =
-					it.verifiedQty !== null && it.verifiedQty !== undefined
-						? parseFloat(it.verifiedQty)
-						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
-						? parseFloat(it.verifiedQuantity)
-						: packed;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const packed = rawPacked > 0 ? rawPacked : picked;
+				const rawVerified = parseFloat(it.verifiedQty ?? it.verifiedQuantity) || 0;
+				const verified = rawVerified > 0 ? rawVerified : packed;
 				return {
 					id: it.id,
 					productName: it.productName || it.product?.name || "Product",
@@ -132,18 +127,13 @@ export default function VanVerificationPage() {
 
 		if (plan.items && plan.items.length > 0) {
 			const mapped: VerifyRowState[] = plan.items.map((it: any) => {
-				const packed =
-					it.packedQty !== null && it.packedQty !== undefined
-						? parseFloat(it.packedQty)
-						: it.packedQuantity !== null && it.packedQuantity !== undefined
-						? parseFloat(it.packedQuantity)
-						: parseFloat(it.pickedQty ?? it.pickedQuantity ?? it.plannedQty ?? it.plannedQuantity) || 0;
-				const verified =
-					it.verifiedQty !== null && it.verifiedQty !== undefined
-						? parseFloat(it.verifiedQty)
-						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
-						? parseFloat(it.verifiedQuantity)
-						: packed;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const packed = rawPacked > 0 ? rawPacked : picked;
+				const rawVerified = parseFloat(it.verifiedQty ?? it.verifiedQuantity) || 0;
+				const verified = rawVerified > 0 ? rawVerified : packed;
 				return {
 					id: it.id,
 					productName: it.productName || it.product?.name || "Product",

@@ -90,18 +90,11 @@ export default function PackerVanStockPage() {
 	useEffect(() => {
 		if (planDetail?.items && planDetail.items.length > 0) {
 			const mapped: PackRowState[] = planDetail.items.map((it: any) => {
-				const picked =
-					it.pickedQty !== null && it.pickedQty !== undefined
-						? parseFloat(it.pickedQty)
-						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
-						? parseFloat(it.pickedQuantity)
-						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
-				const packed =
-					it.packedQty !== null && it.packedQty !== undefined
-						? parseFloat(it.packedQty)
-						: it.packedQuantity !== null && it.packedQuantity !== undefined
-						? parseFloat(it.packedQuantity)
-						: picked;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const packed = rawPacked > 0 ? rawPacked : picked;
 				const damaged = parseFloat(it.damagedQty ?? it.packingDamaged) || 0;
 				return {
 					id: it.id,
@@ -128,18 +121,11 @@ export default function PackerVanStockPage() {
 		setPackerNotes(plan.packerNotes || plan.notes || "");
 		if (plan.items && plan.items.length > 0) {
 			const mapped: PackRowState[] = plan.items.map((it: any) => {
-				const picked =
-					it.pickedQty !== null && it.pickedQty !== undefined
-						? parseFloat(it.pickedQty)
-						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
-						? parseFloat(it.pickedQuantity)
-						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
-				const packed =
-					it.packedQty !== null && it.packedQty !== undefined
-						? parseFloat(it.packedQty)
-						: it.packedQuantity !== null && it.packedQuantity !== undefined
-						? parseFloat(it.packedQuantity)
-						: picked;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const packed = rawPacked > 0 ? rawPacked : picked;
 				const damaged = parseFloat(it.damagedQty ?? it.packingDamaged) || 0;
 				return {
 					id: it.id,

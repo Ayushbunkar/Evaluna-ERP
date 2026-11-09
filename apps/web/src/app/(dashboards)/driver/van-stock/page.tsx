@@ -64,13 +64,18 @@ export default function DriverVanStockPage() {
 	useEffect(() => {
 		if (planDetail?.items && planDetail.items.length > 0) {
 			const mapped: ReturnItemState[] = planDetail.items.map((it: any) => {
-				const loaded = parseFloat(it.loadedQty ?? it.loadedQuantity ?? it.verifiedQty ?? it.plannedQty) || 0;
+				const rawLoaded = parseFloat(it.loadedQty ?? it.loadedQuantity) || 0;
+				const rawVerified = parseFloat(it.verifiedQty ?? it.verifiedQuantity) || 0;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const loaded = rawLoaded > 0 ? rawLoaded : (rawVerified > 0 ? rawVerified : (rawPacked > 0 ? rawPacked : (rawPicked > 0 ? rawPicked : planned)));
 				const delivered =
 					it.deliveredQty !== null && it.deliveredQty !== undefined
 						? parseFloat(it.deliveredQty)
 						: it.deliveredQuantity !== null && it.deliveredQuantity !== undefined
 						? parseFloat(it.deliveredQuantity)
-						: loaded;
+						: 0;
 				const returned =
 					it.returnedQty !== null && it.returnedQty !== undefined
 						? parseFloat(it.returnedQty)
@@ -96,13 +101,18 @@ export default function DriverVanStockPage() {
 		setDriverReturnNotes(plan.driverReturnNotes || plan.notes || "");
 		if (plan.items && plan.items.length > 0) {
 			const mapped: ReturnItemState[] = plan.items.map((it: any) => {
-				const loaded = parseFloat(it.loadedQty ?? it.loadedQuantity ?? it.verifiedQty ?? it.plannedQty) || 0;
+				const rawLoaded = parseFloat(it.loadedQty ?? it.loadedQuantity) || 0;
+				const rawVerified = parseFloat(it.verifiedQty ?? it.verifiedQuantity) || 0;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const loaded = rawLoaded > 0 ? rawLoaded : (rawVerified > 0 ? rawVerified : (rawPacked > 0 ? rawPacked : (rawPicked > 0 ? rawPicked : planned)));
 				const delivered =
 					it.deliveredQty !== null && it.deliveredQty !== undefined
 						? parseFloat(it.deliveredQty)
 						: it.deliveredQuantity !== null && it.deliveredQuantity !== undefined
 						? parseFloat(it.deliveredQuantity)
-						: loaded;
+						: 0;
 				const returned =
 					it.returnedQty !== null && it.returnedQty !== undefined
 						? parseFloat(it.returnedQty)

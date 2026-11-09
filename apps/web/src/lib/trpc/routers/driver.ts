@@ -2588,12 +2588,12 @@ export const driverRouter = router({
 
 					for (const plan of activePlans) {
 						for (const item of plan.items) {
-							const loadedQty = Number(
-								item.loaded_quantity ||
-								item.verified_quantity ||
-								item.planned_quantity ||
-								0,
-							);
+							const loadedNum = Number(item.loaded_quantity || 0);
+							const verifiedNum = Number(item.verified_quantity || 0);
+							const packedNum = Number(item.packed_quantity || 0);
+							const pickedNum = Number(item.picked_quantity || 0);
+							const plannedNum = Number(item.planned_quantity || 0);
+							const loadedQty = loadedNum > 0 ? loadedNum : (verifiedNum > 0 ? verifiedNum : (packedNum > 0 ? packedNum : (pickedNum > 0 ? pickedNum : plannedNum)));
 							if (loadedQty > 0 && item.product) {
 								bufferStockItems.push({
 									id: `vsp-${item.id}`,

@@ -81,24 +81,24 @@ export default function PickerVanStockPage() {
 	// Sync items whenever planDetail changes
 	useEffect(() => {
 		if (planDetail?.items && planDetail.items.length > 0) {
-			const mapped: PickRowState[] = planDetail.items.map((it: any) => ({
-				id: it.id,
-				productId: it.productId,
-				productName: it.productName || it.product?.name || "Product",
-				sku: it.sku || it.product?.sku || "",
-				plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
-				pickedQty:
-					it.pickedQty !== null && it.pickedQty !== undefined
-						? parseFloat(it.pickedQty)
-						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
-						? parseFloat(it.pickedQuantity)
-						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
-				shortageQty: parseFloat(it.shortageQty ?? it.pickingShortage) || 0,
-				shortageReason: it.shortageReason || it.pickingNotes || "",
-				notes: it.notes || "",
-				isAdditional: !!it.isAdditional,
-				additionalReason: it.additionalReason,
-			}));
+			const mapped: PickRowState[] = planDetail.items.map((it: any) => {
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				return {
+					id: it.id,
+					productId: it.productId,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					plannedQty: planned,
+					pickedQty: picked,
+					shortageQty: parseFloat(it.shortageQty ?? it.pickingShortage) || 0,
+					shortageReason: it.shortageReason || it.pickingNotes || "",
+					notes: it.notes || "",
+					isAdditional: !!it.isAdditional,
+					additionalReason: it.additionalReason,
+				};
+			});
 			setActiveItems(mapped);
 		}
 	}, [planDetail]);
@@ -107,24 +107,24 @@ export default function PickerVanStockPage() {
 		setSelectedPlanId(plan.id);
 		setPickerNotes(plan.pickerNotes || plan.notes || "");
 		if (plan.items && plan.items.length > 0) {
-			const mapped: PickRowState[] = plan.items.map((it: any) => ({
-				id: it.id,
-				productId: it.productId,
-				productName: it.productName || it.product?.name || "Product",
-				sku: it.sku || it.product?.sku || "",
-				plannedQty: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
-				pickedQty:
-					it.pickedQty !== null && it.pickedQty !== undefined
-						? parseFloat(it.pickedQty)
-						: it.pickedQuantity !== null && it.pickedQuantity !== undefined
-						? parseFloat(it.pickedQuantity)
-						: parseFloat(it.plannedQty ?? it.plannedQuantity) || 0,
-				shortageQty: parseFloat(it.shortageQty ?? it.pickingShortage) || 0,
-				shortageReason: it.shortageReason || it.pickingNotes || "",
-				notes: it.notes || "",
-				isAdditional: !!it.isAdditional,
-				additionalReason: it.additionalReason,
-			}));
+			const mapped: PickRowState[] = plan.items.map((it: any) => {
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				return {
+					id: it.id,
+					productId: it.productId,
+					productName: it.productName || it.product?.name || "Product",
+					sku: it.sku || it.product?.sku || "",
+					plannedQty: planned,
+					pickedQty: picked,
+					shortageQty: parseFloat(it.shortageQty ?? it.pickingShortage) || 0,
+					shortageReason: it.shortageReason || it.pickingNotes || "",
+					notes: it.notes || "",
+					isAdditional: !!it.isAdditional,
+					additionalReason: it.additionalReason,
+				};
+			});
 			setActiveItems(mapped);
 		}
 	};

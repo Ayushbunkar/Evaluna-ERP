@@ -215,28 +215,77 @@ export const vanStockRouter = router({
 			});
 
 			const mapped = plans.map((p: any) => {
-				const totalPlanned = p.items.reduce(
-					(sum: number, it: any) => sum + Number(it.planned_quantity),
+				const mappedItems = p.items.map((it: any) => {
+					const plannedNum = Number(it.planned_quantity || 0);
+					const rawPickedNum = Number(it.picked_quantity || 0);
+					const rawPackedNum = Number(it.packed_quantity || 0);
+					const rawVerifiedNum = Number(it.verified_quantity || 0);
+					const rawLoadedNum = Number(it.loaded_quantity || 0);
+					const shortageNum = Number(it.picking_shortage || 0);
+
+					const pickedNum = rawPickedNum > 0 ? rawPickedNum : (shortageNum > 0 ? 0 : plannedNum);
+					const packedNum = rawPackedNum > 0 ? rawPackedNum : pickedNum;
+					const verifiedNum = rawVerifiedNum > 0 ? rawVerifiedNum : packedNum;
+					const loadedNum = rawLoadedNum > 0 ? rawLoadedNum : verifiedNum;
+
+					return {
+						id: it.id,
+						productId: it.product_id,
+						productName: it.product?.name || "Product",
+						sku: it.product?.sku || `SKU-${it.product_id}`,
+						product: it.product
+							? {
+									id: it.product.id,
+									name: it.product.name,
+									sku: it.product.sku,
+									unit: it.product.unit,
+							  }
+							: null,
+						isAdditional: Boolean(it.is_additional),
+						additionalReason: it.additional_reason,
+						plannedQty: plannedNum,
+						plannedQuantity: plannedNum,
+						pickedQty: pickedNum,
+						pickedQuantity: pickedNum,
+						shortageQty: shortageNum,
+						shortageReason: it.picking_notes || "",
+						packedQty: packedNum,
+						packedQuantity: packedNum,
+						damagedQty: it.packing_damaged !== null ? Number(it.packing_damaged) : 0,
+						verifiedQty: verifiedNum,
+						verifiedQuantity: verifiedNum,
+						loadedQty: loadedNum,
+						loadedQuantity: loadedNum,
+						deliveredQty: it.delivered_quantity !== null ? Number(it.delivered_quantity) : null,
+						deliveredQuantity: it.delivered_quantity !== null ? Number(it.delivered_quantity) : null,
+						returnedQty: it.returned_quantity !== null ? Number(it.returned_quantity) : null,
+						returnedQuantity: it.returned_quantity !== null ? Number(it.returned_quantity) : null,
+						notes: it.notes || "",
+					};
+				});
+
+				const totalPlanned = mappedItems.reduce(
+					(sum: number, it: any) => sum + it.plannedQty,
 					0,
 				);
-				const totalPicked = p.items.reduce(
-					(sum: number, it: any) => sum + Number(it.picked_quantity),
+				const totalPicked = mappedItems.reduce(
+					(sum: number, it: any) => sum + it.pickedQty,
 					0,
 				);
-				const totalPacked = p.items.reduce(
-					(sum: number, it: any) => sum + Number(it.packed_quantity),
+				const totalPacked = mappedItems.reduce(
+					(sum: number, it: any) => sum + it.packedQty,
 					0,
 				);
-				const totalVerified = p.items.reduce(
-					(sum: number, it: any) => sum + Number(it.verified_quantity),
+				const totalVerified = mappedItems.reduce(
+					(sum: number, it: any) => sum + it.verifiedQty,
 					0,
 				);
-				const totalLoaded = p.items.reduce(
-					(sum: number, it: any) => sum + Number(it.loaded_quantity),
+				const totalLoaded = mappedItems.reduce(
+					(sum: number, it: any) => sum + it.loadedQty,
 					0,
 				);
-				const totalReturned = p.items.reduce(
-					(sum: number, it: any) => sum + Number(it.returned_quantity),
+				const totalReturned = mappedItems.reduce(
+					(sum: number, it: any) => sum + Number(it.returnedQty || 0),
 					0,
 				);
 				const pendingExceptionsCount = p.exceptions.filter(
@@ -263,40 +312,7 @@ export const vanStockRouter = router({
 						: null,
 					driverId: p.driver_id,
 					vehicleId: p.vehicle_id,
-					items: p.items.map((it: any) => ({
-						id: it.id,
-						productId: it.product_id,
-						productName: it.product?.name || "Product",
-						sku: it.product?.sku || `SKU-${it.product_id}`,
-						product: it.product
-							? {
-									id: it.product.id,
-									name: it.product.name,
-									sku: it.product.sku,
-									unit: it.product.unit,
-							  }
-							: null,
-						isAdditional: Boolean(it.is_additional),
-						additionalReason: it.additional_reason,
-						plannedQty: Number(it.planned_quantity || 0),
-						plannedQuantity: Number(it.planned_quantity || 0),
-						pickedQty: it.picked_quantity !== null ? Number(it.picked_quantity) : null,
-						pickedQuantity: it.picked_quantity !== null ? Number(it.picked_quantity) : null,
-						shortageQty: it.picking_shortage !== null ? Number(it.picking_shortage) : 0,
-						shortageReason: it.picking_notes || "",
-						packedQty: it.packed_quantity !== null ? Number(it.packed_quantity) : null,
-						packedQuantity: it.packed_quantity !== null ? Number(it.packed_quantity) : null,
-						damagedQty: it.packing_damaged !== null ? Number(it.packing_damaged) : 0,
-						verifiedQty: it.verified_quantity !== null ? Number(it.verified_quantity) : null,
-						verifiedQuantity: it.verified_quantity !== null ? Number(it.verified_quantity) : null,
-						loadedQty: it.loaded_quantity !== null ? Number(it.loaded_quantity) : null,
-						loadedQuantity: it.loaded_quantity !== null ? Number(it.loaded_quantity) : null,
-						deliveredQty: it.delivered_quantity !== null ? Number(it.delivered_quantity) : null,
-						deliveredQuantity: it.delivered_quantity !== null ? Number(it.delivered_quantity) : null,
-						returnedQty: it.returned_quantity !== null ? Number(it.returned_quantity) : null,
-						returnedQuantity: it.returned_quantity !== null ? Number(it.returned_quantity) : null,
-						notes: it.notes || "",
-					})),
+					items: mappedItems,
 					itemCount: p.items.length,
 					totalPlanned: Number(totalPlanned.toFixed(3)),
 					totalPicked: Number(totalPicked.toFixed(3)),
@@ -391,6 +407,18 @@ export const vanStockRouter = router({
 				const reserved = Number(inv?.reserved_stock || 0);
 				const available = Math.max(0, inStock - reserved);
 
+				const plannedNum = Number(it.planned_quantity || 0);
+				const rawPickedNum = Number(it.picked_quantity || 0);
+				const rawPackedNum = Number(it.packed_quantity || 0);
+				const rawVerifiedNum = Number(it.verified_quantity || 0);
+				const rawLoadedNum = Number(it.loaded_quantity || 0);
+				const shortageNum = Number(it.picking_shortage || 0);
+
+				const pickedNum = rawPickedNum > 0 ? rawPickedNum : (shortageNum > 0 ? 0 : plannedNum);
+				const packedNum = rawPackedNum > 0 ? rawPackedNum : pickedNum;
+				const verifiedNum = rawVerifiedNum > 0 ? rawVerifiedNum : packedNum;
+				const loadedNum = rawLoadedNum > 0 ? rawLoadedNum : verifiedNum;
+
 				return {
 					id: it.id,
 					productId: it.product_id,
@@ -407,26 +435,26 @@ export const vanStockRouter = router({
 					availableStock: Number(available.toFixed(3)),
 					isAdditional: it.is_additional,
 					additionalReason: it.additional_reason,
-					plannedQuantity: Number(it.planned_quantity),
-					plannedQty: Number(it.planned_quantity),
-					pickedQuantity: Number(it.picked_quantity),
-					pickedQty: Number(it.picked_quantity),
-					pickingShortage: Number(it.picking_shortage),
-					shortageQty: Number(it.picking_shortage),
+					plannedQuantity: plannedNum,
+					plannedQty: plannedNum,
+					pickedQuantity: pickedNum,
+					pickedQty: pickedNum,
+					pickingShortage: shortageNum,
+					shortageQty: shortageNum,
 					pickingNotes: it.picking_notes,
 					shortageReason: it.picking_notes || "",
-					packedQuantity: Number(it.packed_quantity),
-					packedQty: Number(it.packed_quantity),
-					packingDamaged: Number(it.packing_damaged),
-					damagedQty: Number(it.packing_damaged),
+					packedQuantity: packedNum,
+					packedQty: packedNum,
+					packingDamaged: Number(it.packing_damaged || 0),
+					damagedQty: Number(it.packing_damaged || 0),
 					packingStatus: it.packing_status,
 					packingNotes: it.packing_notes,
 					discrepancyReason: it.packing_notes || "",
-					verifiedQuantity: Number(it.verified_quantity),
-					verifiedQty: Number(it.verified_quantity),
+					verifiedQuantity: verifiedNum,
+					verifiedQty: verifiedNum,
 					verificationNotes: it.verification_notes,
-					loadedQuantity: Number(it.loaded_quantity),
-					loadedQty: Number(it.loaded_quantity),
+					loadedQuantity: loadedNum,
+					loadedQty: loadedNum,
 					loadingStatus: it.loading_status,
 					loadingNotes: it.loading_notes,
 					deliveredQuantity: Number(it.delivered_quantity),
@@ -740,9 +768,18 @@ export const vanStockRouter = router({
 				// Update item actual picked quantities and record shortages
 				for (const itemInput of input.items) {
 					const targetItemId = itemInput.itemId ?? itemInput.planItemId ?? 0;
-					const picked = itemInput.pickedQuantity ?? itemInput.pickedQty ?? 0;
+					const planItem = (plan.items || []).find((i: any) => i.id === targetItemId);
+					const plannedQty = Number(planItem?.planned_quantity || 0);
+
+					let picked = itemInput.pickedQuantity ?? itemInput.pickedQty;
 					const shortage = itemInput.shortage ?? itemInput.shortageQty ?? 0;
 					const itemNote = itemInput.notes || itemInput.shortageReason || null;
+
+					if ((picked === undefined || picked === null || (picked === 0 && shortage === 0)) && plannedQty > 0) {
+						picked = plannedQty;
+					} else if (picked === undefined || picked === null) {
+						picked = 0;
+					}
 
 					await tx
 						.update(vanStockPlanItems)
@@ -755,7 +792,6 @@ export const vanStockRouter = router({
 
 					// Transactional Stock Reservation:
 					// Find item product to increase reserved_stock in branch_inventory
-					const planItem = plan.items.find((i: any) => i.id === targetItemId);
 					if (planItem && picked > 0) {
 						const [existingInv] = await tx
 							.select()
@@ -896,10 +932,21 @@ export const vanStockRouter = router({
 				// Update packed quantities and statuses
 				for (const itemInput of input.items) {
 					const targetItemId = itemInput.itemId ?? itemInput.planItemId ?? 0;
-					const packed = itemInput.packedQuantity ?? itemInput.packedQty ?? 0;
+					const planItem = (plan.items || []).find((i: any) => i.id === targetItemId);
+					const pickedQty = Number(planItem?.picked_quantity || 0);
+					const plannedQty = Number(planItem?.planned_quantity || 0);
+					const fallbackQty = pickedQty > 0 ? pickedQty : plannedQty;
+
+					let packed = itemInput.packedQuantity ?? itemInput.packedQty;
 					const damaged = itemInput.damagedQuantity ?? itemInput.damagedQty ?? 0;
 					const status = (itemInput.packingStatus || "packed").toLowerCase();
 					const note = itemInput.notes || itemInput.discrepancyReason || null;
+
+					if ((packed === undefined || packed === null || (packed === 0 && damaged === 0 && status === "packed")) && fallbackQty > 0) {
+						packed = fallbackQty;
+					} else if (packed === undefined || packed === null) {
+						packed = 0;
+					}
 
 					await tx
 						.update(vanStockPlanItems)
@@ -1055,7 +1102,19 @@ export const vanStockRouter = router({
 				if (itemsToVerify.length > 0) {
 					for (const vi of itemsToVerify) {
 						const targetItemId = vi.itemId ?? vi.planItemId ?? 0;
-						const vQty = vi.verifiedQuantity ?? vi.verifiedQty ?? 0;
+						let vQty = vi.verifiedQuantity ?? vi.verifiedQty;
+						const planItem = (plan.items || []).find((i: any) => i.id === targetItemId);
+						const packedNum = Number(planItem?.packed_quantity || 0);
+						const pickedNum = Number(planItem?.picked_quantity || 0);
+						const plannedNum = Number(planItem?.planned_quantity || 0);
+						const fallbackQty = packedNum > 0 ? packedNum : (pickedNum > 0 ? pickedNum : plannedNum);
+
+						if ((vQty === undefined || vQty === null || vQty === 0) && fallbackQty > 0) {
+							vQty = fallbackQty;
+						} else if (vQty === undefined || vQty === null) {
+							vQty = 0;
+						}
+
 						await tx
 							.update(vanStockPlanItems)
 							.set({
@@ -1065,12 +1124,16 @@ export const vanStockRouter = router({
 							.where(eq(vanStockPlanItems.id, targetItemId));
 					}
 				} else {
-					// Default verified quantities to packed quantities
+					// Default verified quantities to packed quantities (or picked/planned)
 					for (const item of plan.items) {
+						const packedNum = Number(item.packed_quantity || 0);
+						const pickedNum = Number(item.picked_quantity || 0);
+						const plannedNum = Number(item.planned_quantity || 0);
+						const vQty = packedNum > 0 ? packedNum : (pickedNum > 0 ? pickedNum : plannedNum);
 						await tx
 							.update(vanStockPlanItems)
 							.set({
-								verified_quantity: item.packed_quantity,
+								verified_quantity: vQty.toString(),
 							})
 							.where(eq(vanStockPlanItems.id, item.id));
 					}
@@ -1377,8 +1440,22 @@ export const vanStockRouter = router({
 				// Update item loaded quantities
 				for (const itemInput of input.items) {
 					const targetItemId = itemInput.itemId ?? itemInput.planItemId ?? 0;
-					const loaded = itemInput.loadedQuantity ?? itemInput.loadedQty ?? 0;
+					const planItem = (plan.items || []).find((i: any) => i.id === targetItemId);
+					const verifiedNum = Number(planItem?.verified_quantity || 0);
+					const packedNum = Number(planItem?.packed_quantity || 0);
+					const pickedNum = Number(planItem?.picked_quantity || 0);
+					const plannedNum = Number(planItem?.planned_quantity || 0);
+					const fallbackQty = verifiedNum > 0 ? verifiedNum : (packedNum > 0 ? packedNum : (pickedNum > 0 ? pickedNum : plannedNum));
+
+					let loaded = itemInput.loadedQuantity ?? itemInput.loadedQty;
 					const lStatus = (itemInput.loadingStatus || "loaded") as "loaded" | "damaged" | "missing" | "excess";
+
+					if ((loaded === undefined || loaded === null || (loaded === 0 && lStatus === "loaded")) && fallbackQty > 0) {
+						loaded = fallbackQty;
+					} else if (loaded === undefined || loaded === null) {
+						loaded = 0;
+					}
+
 					await tx
 						.update(vanStockPlanItems)
 						.set({
@@ -1507,7 +1584,26 @@ export const vanStockRouter = router({
 
 				// Deduct stock from warehouse branch inventory & clear reservations
 				for (const item of plan.items) {
-					const loadedQty = Number(item.loaded_quantity || 0);
+					const loadedNum = Number(item.loaded_quantity || 0);
+					const verifiedNum = Number(item.verified_quantity || 0);
+					const packedNum = Number(item.packed_quantity || 0);
+					const pickedNum = Number(item.picked_quantity || 0);
+					const plannedNum = Number(item.planned_quantity || 0);
+					const loadedQty = loadedNum > 0 
+						? loadedNum 
+						: (verifiedNum > 0 
+							? verifiedNum 
+							: (packedNum > 0 
+								? packedNum 
+								: (pickedNum > 0 ? pickedNum : plannedNum)));
+
+					if (loadedNum <= 0 && loadedQty > 0) {
+						await tx
+							.update(vanStockPlanItems)
+							.set({ loaded_quantity: loadedQty.toString() })
+							.where(eq(vanStockPlanItems.id, item.id));
+					}
+
 					if (loadedQty > 0) {
 						const [inv] = await tx
 							.select()

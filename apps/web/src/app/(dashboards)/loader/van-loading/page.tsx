@@ -103,18 +103,15 @@ export default function LoaderVanLoadingPage() {
 	useEffect(() => {
 		if (planDetail?.items && planDetail.items.length > 0) {
 			const mapped: LoadItemRow[] = planDetail.items.map((it: any) => {
-				const verified =
-					it.verifiedQty !== null && it.verifiedQty !== undefined
-						? parseFloat(it.verifiedQty)
-						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
-						? parseFloat(it.verifiedQuantity)
-						: parseFloat(it.packedQty ?? it.packedQuantity ?? it.pickedQty ?? it.plannedQty ?? it.plannedQuantity) || 0;
-				const loaded =
-					it.loadedQty !== null && it.loadedQty !== undefined
-						? parseFloat(it.loadedQty)
-						: it.loadedQuantity !== null && it.loadedQuantity !== undefined
-						? parseFloat(it.loadedQuantity)
-						: verified;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const packed = rawPacked > 0 ? rawPacked : picked;
+				const rawVerified = parseFloat(it.verifiedQty ?? it.verifiedQuantity) || 0;
+				const verified = rawVerified > 0 ? rawVerified : packed;
+				const rawLoaded = parseFloat(it.loadedQty ?? it.loadedQuantity) || 0;
+				const loaded = rawLoaded > 0 ? rawLoaded : verified;
 				return {
 					id: it.id,
 					productId: it.productId,
@@ -133,18 +130,15 @@ export default function LoaderVanLoadingPage() {
 		setLoaderNotes(plan.loaderNotes || plan.notes || "");
 		if (plan.items && plan.items.length > 0) {
 			const mapped: LoadItemRow[] = plan.items.map((it: any) => {
-				const verified =
-					it.verifiedQty !== null && it.verifiedQty !== undefined
-						? parseFloat(it.verifiedQty)
-						: it.verifiedQuantity !== null && it.verifiedQuantity !== undefined
-						? parseFloat(it.verifiedQuantity)
-						: parseFloat(it.packedQty ?? it.packedQuantity ?? it.pickedQty ?? it.plannedQty ?? it.plannedQuantity) || 0;
-				const loaded =
-					it.loadedQty !== null && it.loadedQty !== undefined
-						? parseFloat(it.loadedQty)
-						: it.loadedQuantity !== null && it.loadedQuantity !== undefined
-						? parseFloat(it.loadedQuantity)
-						: verified;
+				const planned = parseFloat(it.plannedQty ?? it.plannedQuantity) || 0;
+				const rawPicked = parseFloat(it.pickedQty ?? it.pickedQuantity) || 0;
+				const picked = rawPicked > 0 ? rawPicked : planned;
+				const rawPacked = parseFloat(it.packedQty ?? it.packedQuantity) || 0;
+				const packed = rawPacked > 0 ? rawPacked : picked;
+				const rawVerified = parseFloat(it.verifiedQty ?? it.verifiedQuantity) || 0;
+				const verified = rawVerified > 0 ? rawVerified : packed;
+				const rawLoaded = parseFloat(it.loadedQty ?? it.loadedQuantity) || 0;
+				const loaded = rawLoaded > 0 ? rawLoaded : verified;
 				return {
 					id: it.id,
 					productId: it.productId,
