@@ -673,6 +673,12 @@ export function SaleCompletionScreen({
 							</View>
 							<View style={styles.card}>
 								<Text style={styles.cardTitle}>Payment Details</Text>
+								<View style={[styles.row, { marginBottom: 2 }]}>
+									<Text style={styles.subtitle}>Bill Total:</Text>
+									<Text style={[styles.bold, { fontSize: 10, color: "#000" }]}>
+										₹{grandTotal.toFixed(2)}
+									</Text>
+								</View>
 								<View style={styles.row}>
 									<Text style={styles.subtitle}>Status:</Text>
 									<Text
@@ -1477,6 +1483,14 @@ export function SaleCompletionScreen({
 													<span className="font-bold text-blue-900 text-xs uppercase tracking-wider print:text-black">
 														Payment Status
 													</span>
+													<div className="my-1.5 flex flex-col items-end text-right">
+														<span className="font-semibold text-[10px] text-slate-500 uppercase tracking-wider print:text-slate-600">
+															Bill Total
+														</span>
+														<span className="font-black font-mono text-xl sm:text-2xl text-blue-950 tracking-tight print:text-black">
+															₹{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+														</span>
+													</div>
 													<span
 														className={`inline-flex items-center rounded-full border px-3 py-1 font-bold text-xs ${
 															status.label === "PAID"
