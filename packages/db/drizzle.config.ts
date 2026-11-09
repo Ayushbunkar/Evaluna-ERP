@@ -15,6 +15,7 @@ export default defineConfig({
 		"./src/schema/attendance-enhanced.ts",
 		"./src/schema/procurement.ts",
 		"./src/schema/van-stock.ts",
+		"./src/schema/putaway.ts",
 	],
 	dbCredentials: {
 		url: process.env.DATABASE_URL!,

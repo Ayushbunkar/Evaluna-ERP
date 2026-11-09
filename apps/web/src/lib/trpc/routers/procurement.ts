@@ -35,6 +35,7 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { createPutawayTaskForGRN } from "@/lib/putaway/putaway-service";
 import { protectedProcedure, router } from "../init";
 
 export const procurementRouter = router({
@@ -1547,6 +1548,19 @@ export const procurementRouter = router({
 						total_amount: updatedTotal,
 					})
 					.where(eq(purchases.id, input.purchaseId));
+
+				// 4. Generate Putaway Task for Putter Dashboard
+				try {
+					await createPutawayTaskForGRN(
+						tx,
+						grn,
+						input.items,
+						branchId,
+						ctx.user.name || ctx.user.email || ctx.user.id,
+					);
+				} catch (e) {
+					console.warn("[createGoodsReceipt] Putaway task creation notice:", e);
+				}
 
 				return grn;
 			});

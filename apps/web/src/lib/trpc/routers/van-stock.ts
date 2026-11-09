@@ -20,7 +20,7 @@ import { protectedProcedure, roleProcedure, router } from "../init";
 
 export const vanStockRouter = router({
 	// ── 1. Planning Metadata (Vehicles, Drivers, Products with live stock) ───
-	getPlanningMetadata: roleProcedure(["admin", "manager", "finance", "executive", "auditor"])
+	getPlanningMetadata: roleProcedure(["admin", "manager", "finance", "auditor"])
 		.input(z.object({ branchId: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const db: any = ctx.db || defaultDb;
@@ -1515,7 +1515,7 @@ export const vanStockRouter = router({
 			const action = rawAction.toUpperCase() === "REJECT" ? "REJECT" : "APPROVE";
 			const reason = input.reason || input.rejectionReason || input.notes || "";
 
-			return await db.transaction(async (tx: any) => {
+			const result = await db.transaction(async (tx: any) => {
 				const plan = await tx.query.vanStockPlans.findFirst({
 					where: eq(vanStockPlans.id, input.planId),
 					with: {
@@ -1743,7 +1743,7 @@ export const vanStockRouter = router({
 			const userId = ctx.user?.id;
 			const userEmail = ctx.user?.email;
 			const userName = ctx.user?.name;
-			const userRole = (ctx.user?.role || (ctx.user as any)?.primaryRole?.name || "").toLowerCase();
+			const userRole = ((ctx.user as any)?.role || (ctx.user as any)?.primaryRole?.name || "").toLowerCase();
 			const branchId = Number(ctx.user?.branchId || 1);
 
 			// Match driver by all possible identifiers (userId, email, name, staff id, staff code)
