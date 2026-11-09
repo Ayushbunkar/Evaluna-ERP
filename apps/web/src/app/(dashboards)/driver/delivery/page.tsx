@@ -184,6 +184,10 @@ export default function DriverLiveDeliveryPage() {
 	// Handover form state
 	const [cashAmount, setCashAmount] = useState<number>(0);
 	const [onlineAmount, setOnlineAmount] = useState<number>(0);
+	const [driverDiscount, setDriverDiscount] = useState<number>(0);
+	const [driverDiscountReason, setDriverDiscountReason] = useState<string>("");
+	const [driverExtraCharges, setDriverExtraCharges] = useState<number>(0);
+	const [driverExtraChargesReason, setDriverExtraChargesReason] = useState<string>("");
 	const [notes, setNotes] = useState("");
 	const [billModalOpen, setBillModalOpen] = useState(false);
 	const [extraModalOpen, setExtraModalOpen] = useState(false);
@@ -913,7 +917,7 @@ export default function DriverLiveDeliveryPage() {
 				: (Number(item.returnedQty) || 0) * Number(item.price || 0)),
 		0,
 	);
-	// Total discount configured on the bill
+	// Total discount configured on the order initially
 	const billDiscount = useMemo(() => {
 		if (!activeStop) return 0;
 		const ordersDiscount = (activeStop.orders || []).reduce(
@@ -943,29 +947,58 @@ export default function DriverLiveDeliveryPage() {
 		return "";
 	}, [activeStop]);
 
+	// Combined effective discount (order discount + driver doorstep discount)
+	const totalEffectiveDiscount = useMemo(() => {
+		return billDiscount + (Number(driverDiscount) || 0);
+	}, [billDiscount, driverDiscount]);
+
+	const effectiveDiscountReason = useMemo(() => {
+		const parts: string[] = [];
+		if (billDiscount > 0 && discountReasonText) {
+			parts.push(discountReasonText);
+		}
+		if (driverDiscount > 0 && driverDiscountReason.trim()) {
+			parts.push(`Doorstep: ${driverDiscountReason.trim()}`);
+		}
+		return parts.join("; ") || driverDiscountReason || discountReasonText || "";
+	}, [billDiscount, discountReasonText, driverDiscount, driverDiscountReason]);
+
+	const totalEffectiveExtraCharges = useMemo(() => {
+		return Number(driverExtraCharges) || 0;
+	}, [driverExtraCharges]);
+
+	const effectiveExtraChargesReason = useMemo(() => {
+		return driverExtraChargesReason.trim() || "";
+	}, [driverExtraChargesReason]);
+
 	const finalTotal = useMemo(() => {
-		// When all items delivered with no extra changes
+		let baseTotal = 0;
+		// When all items delivered with no returns or van stock additions
 		if (
 			totalReturnedValue === 0 &&
 			vanStockDeliveredTotal === 0 &&
 			activeStop?.amountToCollect !== undefined &&
 			activeStop.amountToCollect > 0
 		) {
-			// If activeStop.amountToCollect was stored pre-discount, subtract billDiscount
-			if (billDiscount > 0 && Math.abs(activeStop.amountToCollect - originalTotal) < 0.01) {
-				return Math.max(0, activeStop.amountToCollect - billDiscount);
+			baseTotal = activeStop.amountToCollect;
+			// If driver added extra discount beyond initial billDiscount
+			if (driverDiscount > 0) {
+				baseTotal = Math.max(0, baseTotal - Number(driverDiscount));
 			}
-			return activeStop.amountToCollect;
+		} else {
+			// If returns or truck additions occurred, calculate from delivered subtotal minus total discount
+			baseTotal = Math.max(0, subtotal - totalEffectiveDiscount);
 		}
-		// If partial returns or van stock additions occurred, preserve discount on delivered items
-		return Math.max(0, subtotal - billDiscount);
+		return Math.max(0, baseTotal + totalEffectiveExtraCharges);
 	}, [
 		activeStop,
 		totalReturnedValue,
 		vanStockDeliveredTotal,
 		subtotal,
 		billDiscount,
-		originalTotal,
+		driverDiscount,
+		totalEffectiveDiscount,
+		totalEffectiveExtraCharges,
 	]);
 	const remainingBalance = finalTotal - (cashAmount + onlineAmount);
 
@@ -988,6 +1021,24 @@ export default function DriverLiveDeliveryPage() {
 	// ── Submit handover ────────────────────────────────────────────────────────
 
 	const handleSubmitHandover = () => {
+		if (driverDiscount > 0 && !driverDiscountReason.trim()) {
+			toast.error(
+				locale === "hi"
+					? "छूट जोड़ने के लिए पहले छूट का कारण (Discount Reason) भरना अनिवार्य है!"
+					: "Please enter the reason for discount first before completing handover!",
+			);
+			return;
+		}
+
+		if (driverExtraCharges > 0 && !driverExtraChargesReason.trim()) {
+			toast.error(
+				locale === "hi"
+					? "अतिरिक्त शुल्क जोड़ने के लिए पहले शुल्क का कारण (Charge Reason) भरना अनिवार्य है!"
+					: "Please enter the reason for additional charge first before completing handover!",
+			);
+			return;
+		}
+
 		if (remainingBalance !== 0) {
 			toast.error(
 				locale === "hi"
@@ -1037,8 +1088,10 @@ export default function DriverLiveDeliveryPage() {
 					: undefined),
 			cashAmount: Number(cashAmount) || 0,
 			onlineAmount: Number(onlineAmount) || 0,
-			discountAmount: billDiscount,
-			discountReason: discountReasonText || undefined,
+			discountAmount: totalEffectiveDiscount,
+			discountReason: effectiveDiscountReason || undefined,
+			extraCharges: totalEffectiveExtraCharges,
+			extraChargesReason: effectiveExtraChargesReason || undefined,
 			deliveryNotes: notes,
 			damagedOrReturnedItems: returnsList,
 			deliveredItems: deliveredList,
@@ -1119,6 +1172,10 @@ export default function DriverLiveDeliveryPage() {
 	const handleOpenHandover = (stopId: number) => {
 		setCashAmount(0);
 		setOnlineAmount(0);
+		setDriverDiscount(0);
+		setDriverDiscountReason("");
+		setDriverExtraCharges(0);
+		setDriverExtraChargesReason("");
 		setNotes("");
 		setSelectedOrderFilter("all");
 		setSearchQuery("");
@@ -2362,7 +2419,7 @@ export default function DriverLiveDeliveryPage() {
 									)}
 
 									{/* Applied Discount Banner (exact match with Sales Order Invoice) */}
-									{billDiscount > 0 && (
+									{billDiscount > 0 && driverDiscount === 0 && (
 										<div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-950 dark:text-emerald-200 space-y-1.5">
 											<div className="flex items-center justify-between font-bold text-xs sm:text-sm">
 												<span className="flex items-center gap-1.5">
@@ -2384,24 +2441,149 @@ export default function DriverLiveDeliveryPage() {
 										</div>
 									)}
 
+									{/* Driver Doorstep Adjustments: Discount & Extra Charges */}
+									<div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-3 dark:border-slate-800 dark:bg-slate-900/50">
+										<div className="flex items-center justify-between font-bold text-xs text-slate-800 dark:text-slate-200">
+											<span className="flex items-center gap-1.5">
+												<Tag className="h-3.5 w-3.5 text-blue-600" />
+												{locale === "hi" ? "छूट एवं अतिरिक्त शुल्क (Doorstep Adjustments)" : "Doorstep Discount & Extra Charges"}
+											</span>
+										</div>
+
+										{/* Discount Row */}
+										<div className="space-y-1.5">
+											<div className="grid grid-cols-12 gap-2 items-center">
+												<div className="col-span-5">
+													<Label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+														{locale === "hi" ? "छूट (₹ Discount)" : "Discount (₹)"}
+													</Label>
+													<Input
+														type="number"
+														min="0"
+														step="any"
+														value={driverDiscount || ""}
+														onChange={(e) => setDriverDiscount(Math.max(0, Number(e.target.value)))}
+														placeholder="₹ 0"
+														className="font-mono text-xs h-8 bg-white dark:bg-slate-950"
+													/>
+												</div>
+												<div className="col-span-7">
+													<Label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between">
+														<span>{locale === "hi" ? "छूट का कारण (Reason)" : "Discount Reason"}</span>
+														{driverDiscount > 0 && (
+															<span className="text-[9px] text-rose-600 font-bold">*अनिवार्य (Required)</span>
+														)}
+													</Label>
+													<Input
+														type="text"
+														value={driverDiscountReason}
+														onChange={(e) => setDriverDiscountReason(e.target.value)}
+														placeholder={locale === "hi" ? "छूट का कारण दर्ज करें..." : "Enter reason for discount..."}
+														className={`text-xs h-8 bg-white dark:bg-slate-950 ${
+															driverDiscount > 0 && !driverDiscountReason.trim()
+																? "border-rose-500 focus-visible:ring-rose-500 bg-rose-50/30"
+																: ""
+														}`}
+													/>
+												</div>
+											</div>
+											{driverDiscount > 0 && !driverDiscountReason.trim() && (
+												<p className="text-[10px] text-rose-600 font-medium">
+													⚠️ {locale === "hi" ? "छूट लागू करने के लिए पहले कारण भरना अनिवार्य है!" : "Reason must be filled first to apply discount!"}
+												</p>
+											)}
+										</div>
+
+										{/* Additional Charge Row */}
+										<div className="space-y-1.5 pt-1 border-t border-slate-200/80 dark:border-slate-800">
+											<div className="grid grid-cols-12 gap-2 items-center">
+												<div className="col-span-5">
+													<Label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+														{locale === "hi" ? "अतिरिक्त शुल्क (₹ Extra)" : "Extra Charge (₹)"}
+													</Label>
+													<Input
+														type="number"
+														min="0"
+														step="any"
+														value={driverExtraCharges || ""}
+														onChange={(e) => setDriverExtraCharges(Math.max(0, Number(e.target.value)))}
+														placeholder="₹ 0"
+														className="font-mono text-xs h-8 bg-white dark:bg-slate-950"
+													/>
+												</div>
+												<div className="col-span-7">
+													<Label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between">
+														<span>{locale === "hi" ? "शुल्क का कारण (Reason)" : "Charge Reason"}</span>
+														{driverExtraCharges > 0 && (
+															<span className="text-[9px] text-rose-600 font-bold">*अनिवार्य (Required)</span>
+														)}
+													</Label>
+													<Input
+														type="text"
+														value={driverExtraChargesReason}
+														onChange={(e) => setDriverExtraChargesReason(e.target.value)}
+														placeholder={locale === "hi" ? "अतिरिक्त शुल्क का कारण..." : "Enter reason for extra charge..."}
+														className={`text-xs h-8 bg-white dark:bg-slate-950 ${
+															driverExtraCharges > 0 && !driverExtraChargesReason.trim()
+																? "border-rose-500 focus-visible:ring-rose-500 bg-rose-50/30"
+																: ""
+														}`}
+													/>
+												</div>
+											</div>
+											{driverExtraCharges > 0 && !driverExtraChargesReason.trim() && (
+												<p className="text-[10px] text-rose-600 font-medium">
+													⚠️ {locale === "hi" ? "अतिरिक्त शुल्क लगाने के लिए पहले कारण भरना अनिवार्य है!" : "Reason must be filled first to apply extra charge!"}
+												</p>
+											)}
+										</div>
+									</div>
+
 									{/* Total calculations */}
 									<div className="space-y-2 text-xs sm:text-sm">
 										<div className="flex justify-between text-muted-foreground">
 											<span>{locale === "hi" ? "सामान का कुल मूल्य / सबटोटल (Items Subtotal)" : "Items Subtotal"}</span>
 											<span className="font-mono font-semibold text-foreground">₹{originalTotal}</span>
 										</div>
-										{billDiscount > 0 && (
+										{totalEffectiveDiscount > 0 && (
 											<div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400">
 												<div className="flex flex-col">
-													<span>{locale === "hi" ? "लागू छूट (Discount Applied)" : "Discount Applied"}</span>
-													{discountReasonText && (
+													<span className="flex items-center gap-1">
+														{locale === "hi" ? "लागू छूट (Discount)" : "Discount Applied"}
+														{driverDiscount > 0 && (
+															<Badge variant="outline" className="text-[9px] py-0 px-1 border-emerald-500 text-emerald-700 bg-emerald-50">
+																{locale === "hi" ? "डोरस्टेप छूट" : "Driver Applied"}
+															</Badge>
+														)}
+													</span>
+													{effectiveDiscountReason && (
 														<span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 font-normal max-w-[220px] truncate">
-															{discountReasonText}
+															{effectiveDiscountReason}
 														</span>
 													)}
 												</div>
 												<span className="font-mono">
-													-₹{billDiscount}
+													-₹{totalEffectiveDiscount}
+												</span>
+											</div>
+										)}
+										{totalEffectiveExtraCharges > 0 && (
+											<div className="flex justify-between font-semibold text-blue-600 dark:text-blue-400">
+												<div className="flex flex-col">
+													<span className="flex items-center gap-1">
+														{locale === "hi" ? "अतिरिक्त शुल्क (Extra Charges)" : "Additional Charges"}
+														<Badge variant="outline" className="text-[9px] py-0 px-1 border-blue-500 text-blue-700 bg-blue-50">
+															{locale === "hi" ? "डोरस्टेप शुल्क" : "Driver Applied"}
+														</Badge>
+													</span>
+													{effectiveExtraChargesReason && (
+														<span className="text-[10px] text-blue-700/80 dark:text-blue-400/80 font-normal max-w-[220px] truncate">
+															{effectiveExtraChargesReason}
+														</span>
+													)}
+												</div>
+												<span className="font-mono">
+													+₹{totalEffectiveExtraCharges}
 												</span>
 											</div>
 										)}
@@ -2552,8 +2734,10 @@ export default function DriverLiveDeliveryPage() {
 							})),
 						total: finalTotal,
 						subtotal: originalTotal,
-						discount: billDiscount,
-						discountReason: discountReasonText || undefined,
+						discount: totalEffectiveDiscount,
+						discountReason: effectiveDiscountReason || undefined,
+						otherCharges: totalEffectiveExtraCharges,
+						otherChargesReason: effectiveExtraChargesReason || undefined,
 						payments: [
 							...(cashAmount > 0
 								? [{ methodId: 1, amount: String(cashAmount) }]

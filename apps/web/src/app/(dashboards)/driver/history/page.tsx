@@ -671,7 +671,7 @@ export default function DriverHistoryPage() {
 																				₹{stopFinalTotal.toLocaleString("en-IN")}
 																			</TableCell>
 																		</TableRow>
-																	) : stopDiscount > 0 ? (
+																	) : (
 																		<>
 																			<TableRow className="bg-slate-50/50 font-medium">
 																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-slate-500">
@@ -681,23 +681,30 @@ export default function DriverHistoryPage() {
 																					₹{stopGrossTotal.toLocaleString("en-IN")}
 																				</TableCell>
 																			</TableRow>
-																			<TableRow className="bg-emerald-50/40 font-medium text-emerald-700">
-																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
-																					Discount Applied (लागू छूट)
-																					{st.discountReason && (
-																						<span className="block text-[10px] font-normal text-slate-500">
-																							({st.discountReason})
-																						</span>
-																					)}
-																				</TableCell>
-																				<TableCell className="text-right text-emerald-700 text-xs font-semibold">
-																					- ₹{stopDiscount.toLocaleString("en-IN")}
-																				</TableCell>
-																			</TableRow>
+																			{stopDiscount > 0 && (
+																				<TableRow className="bg-emerald-50/40 font-medium text-emerald-700">
+																					<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
+																						Discount Applied (लागू छूट)
+																						{st.discountReason && (
+																							<span className="block text-[10px] font-normal text-slate-500">
+																								कारण / Reason: ({st.discountReason})
+																							</span>
+																						)}
+																					</TableCell>
+																					<TableCell className="text-right text-emerald-700 text-xs font-semibold">
+																						- ₹{stopDiscount.toLocaleString("en-IN")}
+																					</TableCell>
+																				</TableRow>
+																			)}
 																			{stopExtraCharges > 0 && (
 																				<TableRow className="bg-blue-50/40 font-medium text-blue-700">
 																					<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
 																						Other Charges (अतिरिक्त शुल्क)
+																						{st.extraChargesReason && (
+																							<span className="block text-[10px] font-normal text-slate-500">
+																								कारण / Reason: ({st.extraChargesReason})
+																							</span>
+																						)}
 																					</TableCell>
 																					<TableCell className="text-right text-blue-700 text-xs font-semibold">
 																						+ ₹{stopExtraCharges.toLocaleString("en-IN")}
@@ -713,15 +720,6 @@ export default function DriverHistoryPage() {
 																				</TableCell>
 																			</TableRow>
 																		</>
-																	) : (
-																		<TableRow className="bg-emerald-500/10 font-bold border-t border-emerald-500/20">
-																			<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-emerald-950">
-																				Customer Handover Settled Total (ग्राहक कुल भुगतान)
-																			</TableCell>
-																			<TableCell className="text-right text-emerald-700 text-sm font-extrabold">
-																				₹{stopFinalTotal.toLocaleString("en-IN")}
-																			</TableCell>
-																		</TableRow>
 																	)}
 																</TableBody>
 															</Table>

@@ -1773,6 +1773,10 @@ export const driverRouter = router({
 										stopDiscountAmount = Number(custOrder.discount_amount || 0);
 										stopDiscountReason = String(custOrder.discount_reason || "");
 									}
+									if (custOrder?.other_charges && stopExtraCharges === 0) {
+										stopExtraCharges = Number(custOrder.other_charges || 0);
+										stopExtraChargesReason = String(custOrder.other_charges_reason || "");
+									}
 									if (isDelivered && cash === 0 && online === 0 && custOrder?.driver_collected_amount) {
 										cash = Number(custOrder.driver_collected_amount || 0);
 									}
@@ -2084,14 +2088,28 @@ export const driverRouter = router({
 				let orderIdToUpdate: number | null = uniqueOrderIds[0] || input.order_id || null;
 
 				if (uniqueOrderIds.length > 0) {
+					const orderUpdatePayload: any = {
+						status: "completed",
+						finance_status: "driver_collected",
+						driver_collected_amount: String(input.cashAmount),
+						driver_collected_at: new Date(),
+						total_amount: String(input.cashAmount + input.onlineAmount),
+					};
+					if (input.discountAmount !== undefined && input.discountAmount > 0) {
+						orderUpdatePayload.discount_amount = String(input.discountAmount);
+						if (input.discountReason) {
+							orderUpdatePayload.discount_reason = input.discountReason;
+						}
+					}
+					if (input.extraCharges !== undefined && input.extraCharges > 0) {
+						orderUpdatePayload.other_charges = String(input.extraCharges);
+						if (input.extraChargesReason) {
+							orderUpdatePayload.other_charges_reason = input.extraChargesReason;
+						}
+					}
 					await db
 						.update(orders)
-						.set({
-							status: "completed",
-							finance_status: "driver_collected",
-							driver_collected_amount: String(input.cashAmount),
-							driver_collected_at: new Date(),
-						} as any)
+						.set(orderUpdatePayload)
 						.where(inArray(orders.id, uniqueOrderIds));
 				}
 

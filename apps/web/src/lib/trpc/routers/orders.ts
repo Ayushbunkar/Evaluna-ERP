@@ -306,6 +306,10 @@ export const ordersRouter = router({
 					let parsedDeliveredItems: any[] = [];
 					let cashAmount = 0;
 					let onlineAmount = 0;
+					let driverDiscountAmount = 0;
+					let driverDiscountReason = "";
+					let driverExtraCharges = 0;
+					let driverExtraChargesReason = "";
 
 					if (pod?.notes) {
 						try {
@@ -322,6 +326,10 @@ export const ordersRouter = router({
 							}
 							if (p.cashAmount) cashAmount = Number(p.cashAmount);
 							if (p.onlineAmount) onlineAmount = Number(p.onlineAmount);
+							if (p.discountAmount !== undefined) driverDiscountAmount = Number(p.discountAmount);
+							if (p.discountReason) driverDiscountReason = String(p.discountReason);
+							if (p.extraCharges !== undefined) driverExtraCharges = Number(p.extraCharges);
+							if (p.extraChargesReason) driverExtraChargesReason = String(p.extraChargesReason);
 						} catch {
 							parsedNotes = pod.notes;
 						}
@@ -416,6 +424,10 @@ export const ordersRouter = router({
 							cashAmount + onlineAmount > 0
 								? cashAmount + onlineAmount
 								: Number(result.total_amount || 0),
+						driverDiscountAmount,
+						driverDiscountReason,
+						driverExtraCharges,
+						driverExtraChargesReason,
 						transactions: txns.map((t) => ({
 							id: t.id,
 							amount: Number(t.amount || 0),

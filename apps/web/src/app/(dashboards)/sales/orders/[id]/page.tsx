@@ -240,6 +240,22 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 	const assignedDriverName =
 		order.driver?.name || deliveryHandover?.driverName || null;
 
+	const driverDiscountAmount = Number(
+		deliveryHandover?.driverDiscountAmount ?? order.discount_amount ?? 0
+	);
+	const driverDiscountReason =
+		deliveryHandover?.driverDiscountReason || order.discount_reason || "";
+	const driverExtraCharges = Number(
+		deliveryHandover?.driverExtraCharges ?? order.other_charges ?? 0
+	);
+	const driverExtraChargesReason =
+		deliveryHandover?.driverExtraChargesReason || order.other_charges_reason || "";
+	const hasDriverDoorstepAdjustments =
+		(deliveryHandover?.driverDiscountAmount !== undefined && deliveryHandover.driverDiscountAmount > 0) ||
+		(deliveryHandover?.driverExtraCharges !== undefined && deliveryHandover.driverExtraCharges > 0) ||
+		(driverDiscountAmount > 0 && driverDiscountAmount !== discountAmount) ||
+		(driverExtraCharges > 0 && driverExtraCharges !== otherCharges);
+
 	// Stage 4: Delivered Items Calculation & Extra Doorstep Addition Detection
 	let rawDeliveredList: any[] = [];
 	if (deliveryHandover?.deliveredItems && Array.isArray(deliveryHandover.deliveredItems) && deliveryHandover.deliveredItems.length > 0) {
@@ -314,7 +330,7 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 
 	const finalDeliveredNetTotal = hasHandover && deliveryHandover?.totalCollected
 		? Number(deliveryHandover.totalCollected)
-		: Math.max(0, finalDeliveredItemsSubtotal - discountAmount + otherCharges + cgstAmount + sgstAmount + igstAmount);
+		: Math.max(0, finalDeliveredItemsSubtotal - driverDiscountAmount + driverExtraCharges + cgstAmount + sgstAmount + igstAmount);
 
 	const finalDeliveredSum = finalDeliveredNetTotal;
 
@@ -1228,6 +1244,50 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										</div>
 									)}
 
+									{/* Driver Doorstep Adjustments Alert Banner */}
+									{(driverDiscountAmount > 0 || driverExtraCharges > 0) && (
+										<div className="rounded-lg border border-blue-500/30 bg-blue-50/60 p-3.5 text-xs text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 space-y-2 shadow-2xs">
+											<div className="flex items-center gap-2 font-bold text-sm text-blue-900 dark:text-blue-300">
+												<Tag className="h-4 w-4 text-blue-600" />
+												<span>Doorstep Driver Bill Adjustments (ड्राइवर द्वारा डोरस्टेप पर लागू छूट व शुल्क)</span>
+											</div>
+											<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+												{driverDiscountAmount > 0 && (
+													<div className="rounded bg-white/80 dark:bg-slate-900/60 p-2.5 border border-emerald-200 dark:border-emerald-900/50 space-y-1">
+														<div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center justify-between">
+															<span className="flex items-center gap-1">
+																Doorstep Discount:
+																<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0 px-1.5">
+																	Driver Applied
+																</Badge>
+															</span>
+															<span className="font-mono text-xs font-extrabold">- {formatCurrency(driverDiscountAmount, locale)}</span>
+														</div>
+														<div className="text-[11px] text-muted-foreground">
+															<span className="font-semibold text-slate-700 dark:text-slate-300">कारण / Reason:</span> {driverDiscountReason || "No reason specified"}
+														</div>
+													</div>
+												)}
+												{driverExtraCharges > 0 && (
+													<div className="rounded bg-white/80 dark:bg-slate-900/60 p-2.5 border border-blue-200 dark:border-blue-900/50 space-y-1">
+														<div className="text-[11px] font-bold text-blue-700 dark:text-blue-400 flex items-center justify-between">
+															<span className="flex items-center gap-1">
+																Additional Charges:
+																<Badge className="bg-blue-600 text-white font-bold text-[9px] py-0 px-1.5">
+																	Driver Applied
+																</Badge>
+															</span>
+															<span className="font-mono text-xs font-extrabold">+ {formatCurrency(driverExtraCharges, locale)}</span>
+														</div>
+														<div className="text-[11px] text-muted-foreground">
+															<span className="font-semibold text-slate-700 dark:text-slate-300">कारण / Reason:</span> {driverExtraChargesReason || "No reason specified"}
+														</div>
+													</div>
+												)}
+											</div>
+										</div>
+									)}
+
 									{/* Doorstep Delivered Items Table */}
 									<div>
 										<h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
@@ -1282,54 +1342,62 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 															</TableRow>
 														);
 													})}
-													{discountAmount > 0 ? (
-														<>
-															<TableRow className="bg-muted/10 font-medium border-t">
-																<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
-																	Delivered Items Subtotal (सामान का कुल मूल्य)
-																</TableCell>
-																<TableCell className="text-right text-foreground text-sm font-semibold">
-																	{formatCurrency(finalDeliveredItemsSubtotal, locale)}
-																</TableCell>
-															</TableRow>
-															<TableRow className="bg-emerald-500/5 font-medium text-emerald-700 dark:text-emerald-400">
-																<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
-																	Discount Applied (लागू छूट)
-																	{discountReason && <span className="block text-[10px] font-normal text-muted-foreground">({discountReason})</span>}
-																</TableCell>
-																<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm font-semibold">
-																	- {formatCurrency(discountAmount, locale)}
-																</TableCell>
-															</TableRow>
-															{otherCharges > 0 && (
-																<TableRow className="bg-blue-500/5 font-medium text-blue-700 dark:text-blue-400">
-																	<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
-																		Other Charges (अतिरिक्त शुल्क)
-																	</TableCell>
-																	<TableCell className="text-right text-blue-700 dark:text-blue-400 text-sm font-semibold">
-																		+ {formatCurrency(otherCharges, locale)}
-																	</TableCell>
-																</TableRow>
-															)}
-															<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
-																<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
-																	Total Settled Doorstep Bill (कुल अंतिम बिल)
-																</TableCell>
-																<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-base font-extrabold">
-																	{formatCurrency(finalDeliveredNetTotal, locale)}
-																</TableCell>
-															</TableRow>
-														</>
-													) : (
-														<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
-															<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
-																Total Settled Doorstep Bill (कुल अंतिम बिल)
+													<TableRow className="bg-muted/10 font-medium border-t">
+														<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
+															Delivered Items Subtotal (सामान का कुल मूल्य)
+														</TableCell>
+														<TableCell className="text-right text-foreground text-sm font-semibold">
+															{formatCurrency(finalDeliveredItemsSubtotal, locale)}
+														</TableCell>
+													</TableRow>
+													{driverDiscountAmount > 0 && (
+														<TableRow className="bg-emerald-500/5 font-medium text-emerald-700 dark:text-emerald-400">
+															<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
+																<div className="flex items-center justify-end gap-1.5 flex-wrap">
+																	<span>Doorstep Discount Applied (लागू छूट)</span>
+																	<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0.5 px-2">
+																		Driver Applied
+																	</Badge>
+																</div>
+																{driverDiscountReason && (
+																	<span className="block text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 mt-0.5">
+																		कारण / Reason: {driverDiscountReason}
+																	</span>
+																)}
 															</TableCell>
-															<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm">
-																{formatCurrency(finalDeliveredNetTotal, locale)}
+															<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm font-semibold">
+																- {formatCurrency(driverDiscountAmount, locale)}
 															</TableCell>
 														</TableRow>
 													)}
+													{driverExtraCharges > 0 && (
+														<TableRow className="bg-blue-500/5 font-medium text-blue-700 dark:text-blue-400">
+															<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
+																<div className="flex items-center justify-end gap-1.5 flex-wrap">
+																	<span>Doorstep Additional Charges (अतिरिक्त शुल्क)</span>
+																	<Badge className="bg-blue-600 text-white font-bold text-[9px] py-0.5 px-2">
+																		Driver Applied
+																	</Badge>
+																</div>
+																{driverExtraChargesReason && (
+																	<span className="block text-[11px] font-semibold text-blue-800 dark:text-blue-300 mt-0.5">
+																		कारण / Reason: {driverExtraChargesReason}
+																	</span>
+																)}
+															</TableCell>
+															<TableCell className="text-right text-blue-700 dark:text-blue-400 text-sm font-semibold">
+																+ {formatCurrency(driverExtraCharges, locale)}
+															</TableCell>
+														</TableRow>
+													)}
+													<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
+														<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
+															Total Settled Doorstep Bill (कुल अंतिम बिल)
+														</TableCell>
+														<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-base font-extrabold">
+															{formatCurrency(finalDeliveredNetTotal, locale)}
+														</TableCell>
+													</TableRow>
 												</TableBody>
 											</Table>
 										</div>
@@ -1553,6 +1621,78 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 									</div>
 								</div>
 							</div>
+
+							{/* Initial vs Final Doorstep Bill Audit Box */}
+							{hasHandover && (
+								<div className="p-4 bg-slate-50 dark:bg-slate-900/60 border-t border-border space-y-2 text-xs">
+									<div className="font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+										<Tag className="h-4 w-4 text-blue-600" />
+										<span>Initial Invoiced Bill vs Final Doorstep Settlement Audit (प्रारंभिक बनाम अंतिम बिल तुलना)</span>
+									</div>
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+										<div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-1.5 dark:border-amber-900/40 dark:bg-amber-950/20">
+											<div className="font-bold text-amber-900 dark:text-amber-300 text-xs">
+												Stage 3: Initial Commercial Invoice (प्रारंभिक चालान)
+											</div>
+											<div className="text-[11px] space-y-1 text-slate-700 dark:text-slate-300">
+												<div className="flex justify-between">
+													<span>Reviewed Subtotal:</span>
+													<span className="font-mono font-semibold">{formatCurrency(reviewedSubtotal, locale)}</span>
+												</div>
+												{discountAmount > 0 && (
+													<div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+														<span>Initial Discount: ({discountReason || "No reason"})</span>
+														<span className="font-mono">- {formatCurrency(discountAmount, locale)}</span>
+													</div>
+												)}
+												{otherCharges > 0 && (
+													<div className="flex justify-between text-blue-700 dark:text-blue-400">
+														<span>Initial Other Charges: ({otherChargesReason || "No reason"})</span>
+														<span className="font-mono">+ {formatCurrency(otherCharges, locale)}</span>
+													</div>
+												)}
+												<div className="flex justify-between font-bold border-t border-amber-200/60 pt-1 text-xs">
+													<span>Invoice Total:</span>
+													<span className="font-mono text-amber-800 dark:text-amber-300">{formatCurrency(invoicedTotal, locale)}</span>
+												</div>
+											</div>
+										</div>
+
+										<div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 space-y-1.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+											<div className="font-bold text-emerald-900 dark:text-emerald-300 text-xs flex items-center justify-between">
+												<span>Stage 4: Final Doorstep Bill (अंतिम संग्रह बिल)</span>
+												{(driverDiscountAmount > 0 || driverExtraCharges > 0) && (
+													<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0 px-1.5">
+														Driver Adjusted
+													</Badge>
+												)}
+											</div>
+											<div className="text-[11px] space-y-1 text-slate-700 dark:text-slate-300">
+												<div className="flex justify-between">
+													<span>Delivered Subtotal:</span>
+													<span className="font-mono font-semibold">{formatCurrency(finalDeliveredItemsSubtotal, locale)}</span>
+												</div>
+												{driverDiscountAmount > 0 && (
+													<div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+														<span>Doorstep Discount: ({driverDiscountReason || "No reason"})</span>
+														<span className="font-mono font-semibold">- {formatCurrency(driverDiscountAmount, locale)}</span>
+													</div>
+												)}
+												{driverExtraCharges > 0 && (
+													<div className="flex justify-between text-blue-700 dark:text-blue-400">
+														<span>Additional Charges: ({driverExtraChargesReason || "No reason"})</span>
+														<span className="font-mono font-semibold">+ {formatCurrency(driverExtraCharges, locale)}</span>
+													</div>
+												)}
+												<div className="flex justify-between font-bold border-t border-emerald-200/60 pt-1 text-xs">
+													<span>Final Settled Total:</span>
+													<span className="font-mono text-emerald-700 dark:text-emerald-400 text-sm">{formatCurrency(finalDeliveredNetTotal, locale)}</span>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							)}
 						</CardContent>
 					</Card>
 				</TabsContent>
