@@ -939,16 +939,17 @@ ERROR TABLE: ${err.table}
 			let items: any[] = [];
 
 			if (orderIds.length > 0) {
-				// Mocked aggregation for demonstration:
-				// Fetch products from these orders
-				// In reality we would query package_items mapped to these orders
-				items = [
-					{
-						product_id: 1,
-						product: { name: "Wireless Mouse M330" },
-						quantity: 5,
+				const orderItemsList = await db.query.orderItems.findMany({
+					where: inArray(orderItems.order_id, orderIds),
+					with: {
+						product: true,
 					},
-				];
+				});
+				items = orderItemsList.map((item: any) => ({
+					product_id: item.product_id,
+					product: { name: item.product?.name || `Product #${item.product_id}` },
+					quantity: Number(item.quantity) || 1,
+				}));
 			}
 
 			return {

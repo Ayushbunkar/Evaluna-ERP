@@ -327,17 +327,20 @@ export const financeRouter = router({
 
 			const rawRes: any = await ctx.db.execute(sql`
 				SELECT
-					(SELECT coalesce(sum(total_amount), 0) FROM orders ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}) AS revenue,
-					(SELECT coalesce(sum(outstanding_balance), 0) FROM suppliers) AS purchases,
+					(SELECT coalesce(sum(total_amount), 0) FROM orders WHERE status != 'cancelled' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS revenue,
+					(SELECT coalesce(sum(total_amount), 0) FROM purchases ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}) AS purchases,
 					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('in', 'credit') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_in,
 					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('out', 'debit') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_out,
 					(
 						SELECT coalesce(json_agg(t), '[]'::json)
 						FROM (
-							SELECT expense_category as category, COALESCE(SUM(amount), 0)::numeric as total
-							FROM expenses
-							${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
-							GROUP BY expense_category
+							SELECT coalesce(category, 'General') as category, sum(amt)::numeric as total
+							FROM (
+								SELECT expense_category as category, amount as amt FROM expenses ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
+								UNION ALL
+								SELECT category as category, amount as amt FROM transactions WHERE type IN ('out', 'debit') AND category IN ('expense', 'petty_cash', 'logistics') AND (reference_type IS NULL OR reference_type != 'expense') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+							) exp_combined
+							GROUP BY category
 						) t
 					) AS expense_breakdown
 			`);
@@ -408,13 +411,65 @@ export const financeRouter = router({
 			const rawRes: any = await ctx.db.execute(sql`
 				SELECT
 					(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('in', 'credit') AND created_at >= ${todayStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS todays_cash,
-					(SELECT coalesce(sum(total_amount), 0) FROM orders WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS monthly_revenue,
-					(SELECT coalesce(sum(amount), 0) FROM expenses WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS total_expenses,
-					(SELECT coalesce(sum(credit_used), 0) FROM customers) AS receivables,
+					(SELECT coalesce(sum(current_balance), 0) FROM bank_accounts WHERE is_deleted = false AND status = 'active' AND account_type IN ('cash', 'petty_cash') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS cash_balance,
+					(SELECT coalesce(sum(current_balance), 0) FROM bank_accounts WHERE is_deleted = false AND status = 'active' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS total_bank_and_cash,
+					(SELECT coalesce(sum(CASE WHEN type IN ('in', 'credit') THEN amount WHEN type IN ('out', 'debit') THEN -amount ELSE 0 END), 0) FROM transactions WHERE 1=1 ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS net_cash_transactions,
+					(SELECT coalesce(sum(total_amount), 0) FROM orders WHERE status != 'cancelled' AND created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS monthly_revenue,
+					(
+						SELECT coalesce(
+							(SELECT coalesce(sum(amount), 0) FROM expenses WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						) + coalesce(
+							(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('out', 'debit') AND category IN ('expense', 'petty_cash', 'logistics') AND (reference_type IS NULL OR reference_type != 'expense') AND created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						)
+					) AS total_expenses,
+					(
+						SELECT coalesce(
+							(SELECT coalesce(sum(total_amount), 0) FROM purchases WHERE created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						) + coalesce(
+							(SELECT coalesce(sum(amount), 0) FROM transactions WHERE type IN ('out', 'debit') AND category = 'purchase' AND created_at >= ${firstDayOfMonthStr}::timestamp ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						)
+					) AS monthly_purchases,
+					(
+						SELECT coalesce(
+							(SELECT coalesce(sum(credit_used), 0) FROM customers), 0
+						) + coalesce(
+							(SELECT coalesce(sum(total_amount - coalesce(driver_collected_amount, 0)), 0) FROM orders WHERE status NOT IN ('cancelled') AND (driver_collected_amount IS NULL OR driver_collected_amount < total_amount) ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}), 0
+						)
+					) AS receivables,
 					(SELECT coalesce(sum(outstanding_balance), 0) FROM suppliers) AS payables,
-					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS unpaid_invoices_count,
+					(SELECT coalesce(count(*), 0)::int FROM orders WHERE status NOT IN ('cancelled') AND (finance_verified_amount IS NULL OR finance_verified_amount < total_amount) ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS unpaid_invoices_count,
 					(SELECT coalesce(count(*), 0)::int FROM purchases WHERE status IN ('pending', 'pending_finance', 'pending_approval') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS pending_purchases_count,
-					(SELECT coalesce(sum(CASE WHEN created_at < NOW() - INTERVAL '30 days' THEN total_amount ELSE 0 END), 0) FROM orders WHERE status = 'pending' ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}) AS overdue_receivables,
+					(
+						SELECT coalesce(sum(total_amount - coalesce(driver_collected_amount, 0)), 0)
+						FROM orders
+						WHERE status NOT IN ('cancelled')
+						  AND created_at < NOW() - INTERVAL '30 days'
+						  AND (driver_collected_amount IS NULL OR driver_collected_amount < total_amount)
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS overdue_receivables,
+					(
+						SELECT coalesce(sum(total_amount - coalesce(amount_paid, 0)), 0)
+						FROM purchases
+						WHERE payment_status != 'paid'
+						  AND (
+						    (expected_delivery_date IS NOT NULL AND expected_delivery_date < NOW())
+						    OR (expected_delivery_date IS NULL AND created_at < NOW() - INTERVAL '30 days')
+						  )
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS overdue_payables,
+					(
+						SELECT coalesce(sum(coalesce(cgst_amount, 0) + coalesce(sgst_amount, 0) + coalesce(igst_amount, 0)), 0)
+						FROM orders
+						WHERE status NOT IN ('cancelled')
+						  AND created_at >= ${firstDayOfMonthStr}::timestamp
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS output_gst,
+					(
+						SELECT coalesce(sum(coalesce(cgst_amount, 0) + coalesce(sgst_amount, 0) + coalesce(igst_amount, 0)), 0)
+						FROM purchases
+						WHERE created_at >= ${firstDayOfMonthStr}::timestamp
+						  ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+					) AS input_gst,
 					(
 						SELECT coalesce(json_agg(t), '[]'::json)
 						FROM (
@@ -430,10 +485,13 @@ export const financeRouter = router({
 					(
 						SELECT coalesce(json_agg(t), '[]'::json)
 						FROM (
-							SELECT expense_category as category, COALESCE(SUM(amount), 0)::numeric as amount
-							FROM expenses
-							${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
-							GROUP BY expense_category
+							SELECT coalesce(category, 'General') as category, sum(amt)::numeric as amount
+							FROM (
+								SELECT expense_category as category, amount as amt FROM expenses ${branchId != null ? sql`WHERE branch_id = ${branchId}` : sql``}
+								UNION ALL
+								SELECT category as category, amount as amt FROM transactions WHERE type IN ('out', 'debit') AND category IN ('expense', 'petty_cash', 'logistics') AND (reference_type IS NULL OR reference_type != 'expense') ${branchId != null ? sql`AND branch_id = ${branchId}` : sql``}
+							) exp_combined
+							GROUP BY category
 						) t
 					) AS expense_breakdown,
 					(
@@ -483,11 +541,21 @@ export const financeRouter = router({
 			const scalarRes = Array.isArray(rawRes) ? rawRes[0] : rawRes?.rows?.[0];
 
 			const todaysCash = Number(scalarRes?.todays_cash || 0);
+			const dbCashBalance = Number(scalarRes?.cash_balance || 0);
+			const netCashTransactions = Number(scalarRes?.net_cash_transactions || 0);
+			const totalBankAndCash = Number(scalarRes?.total_bank_and_cash || 0);
+			const cashBalance = dbCashBalance > 0 ? dbCashBalance : (totalBankAndCash > 0 ? totalBankAndCash : (netCashTransactions > 0 ? netCashTransactions : todaysCash));
+
 			const monthlyRevenue = Number(scalarRes?.monthly_revenue || 0);
 			const totalExpenses = Number(scalarRes?.total_expenses || 0);
-			const netProfit = monthlyRevenue - totalExpenses;
-			const grossProfit = monthlyRevenue; // Simplified assuming COGS is not fully tracked
-			const gstLiability = monthlyRevenue * 0.18;
+			const monthlyPurchases = Number(scalarRes?.monthly_purchases || 0);
+			const grossProfit = monthlyRevenue - monthlyPurchases;
+			const netProfit = grossProfit - totalExpenses;
+
+			const outputGst = Number(scalarRes?.output_gst || 0);
+			const inputGst = Number(scalarRes?.input_gst || 0);
+			const gstLiability = Math.max(0, outputGst - inputGst);
+
 			const totalReceivables = Number(scalarRes?.receivables || 0);
 			const totalPayables = Number(scalarRes?.payables || 0);
 			const cashFlow = todaysCash - totalExpenses;
@@ -497,7 +565,7 @@ export const financeRouter = router({
 				scalarRes?.pending_purchases_count || 0,
 			);
 			const overdueReceivables = Number(scalarRes?.overdue_receivables || 0);
-			const overduePayables = totalPayables * 0.2; // Mocked portion since due date not explicit in schema
+			const overduePayables = Number(scalarRes?.overdue_payables || 0);
 
 			const recentTx = (scalarRes?.recent_transactions || []) as Array<{
 				id: number;
@@ -578,8 +646,11 @@ export const financeRouter = router({
 
 			return {
 				todaysCash,
+				cashBalance,
+				totalBankAndCash,
 				monthlyRevenue,
 				totalExpenses,
+				monthlyPurchases,
 				grossProfit,
 				netProfit,
 				gstLiability,
@@ -598,8 +669,8 @@ export const financeRouter = router({
 				cashFlowData,
 				bankBalances,
 				gstSummary: {
-					inputTax: 0,
-					outputTax: gstLiability,
+					inputTax: inputGst,
+					outputTax: outputGst,
 					netLiability: gstLiability,
 				},
 				outstandingPayments,

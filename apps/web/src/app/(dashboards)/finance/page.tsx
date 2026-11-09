@@ -149,7 +149,7 @@ export default function FinanceDashboard() {
 					},
 					{
 						title: "Cash Balance",
-						value: stats?.todaysCash, // Simplified
+						value: stats?.cashBalance ?? stats?.todaysCash,
 						icon: <CreditCardIcon className="h-6 w-6 text-yellow-500" />,
 						bg: "bg-yellow-500/10",
 					},
