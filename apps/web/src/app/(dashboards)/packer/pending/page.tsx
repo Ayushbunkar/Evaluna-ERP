@@ -431,8 +431,57 @@ export default function PackerPendingPage() {
 							<p>{t("noOrdersWaitingToPack")}</p>
 						</div>
 					) : (
-						<div className="overflow-x-auto">
-							<Table>
+						<>
+							{/* Mobile View: High-Contrast Packing Cards (Phone-First) */}
+							<div className="space-y-3 sm:hidden">
+								{filteredList.map((pl, idx) => (
+									<div
+										key={pl.id}
+										className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-all hover:border-blue-300 dark:hover:border-blue-700"
+									>
+										<div className="flex items-center justify-between gap-2 mb-2">
+											<div className="flex items-center gap-2">
+												<span className="font-mono font-bold text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md dark:bg-blue-950/60 dark:text-blue-300">
+													#{idx + 1}
+												</span>
+												<span className="font-bold text-sm text-foreground">
+													{pl.order_ref}
+												</span>
+											</div>
+											<span className="rounded-full bg-yellow-100 px-2 py-0.5 font-bold text-[10px] text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+												{t("readyToPack")}
+											</span>
+										</div>
+
+										<div className="text-xs text-muted-foreground font-mono mb-1.5">
+											Picklist: {pl.id}
+										</div>
+
+										<div className="flex items-center gap-1.5 text-xs text-foreground font-semibold mb-2">
+											<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+											<span>{pl.customerName || "Customer"}</span>
+										</div>
+
+										{pl.routeName && (
+											<div className="mb-3 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+												<MapPinIcon className="h-3 w-3" /> {pl.routeName}
+											</div>
+										)}
+
+										<Button
+											className="w-full min-h-[44px] bg-blue-600 text-white hover:bg-blue-700 font-semibold text-sm shadow-xs active:scale-[0.98]"
+											onClick={() => setSelectedPickList(pl)}
+										>
+											<BoxIcon className="mr-1.5 h-4 w-4" />
+											{t("packParcel")}
+										</Button>
+									</div>
+								))}
+							</div>
+
+							{/* Desktop/Tablet Table View */}
+							<div className="hidden sm:block overflow-x-auto">
+								<Table>
 								<TableHeader>
 									<TableRow>
 										<TableHead>Queue #</TableHead>
@@ -495,6 +544,7 @@ export default function PackerPendingPage() {
 								</TableBody>
 							</Table>
 						</div>
+						</>
 					)}
 				</CardContent>
 			</Card>
@@ -505,7 +555,7 @@ export default function PackerPendingPage() {
 					open={!!selectedPickList}
 					onOpenChange={(open) => !open && setSelectedPickList(null)}
 				>
-					<DialogContent className="sm:max-w-[480px]">
+					<DialogContent className="w-[95vw] max-w-[480px] max-h-[88dvh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								<BoxIcon className="h-5 w-5 text-blue-600" />

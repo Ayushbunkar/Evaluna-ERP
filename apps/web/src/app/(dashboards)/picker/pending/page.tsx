@@ -425,8 +425,79 @@ export default function PickerPendingPage() {
 							</p>
 						</div>
 					) : (
-						<div className="overflow-x-auto">
-							<Table>
+						<>
+							{/* Mobile View: Touch Cards (Phone-First) */}
+							<div className="space-y-3 sm:hidden">
+								{filteredPicks.map((pick) => (
+									<div
+										key={pick.queue_no}
+										className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-all hover:border-blue-300 dark:hover:border-blue-700"
+									>
+										<div className="flex items-center justify-between gap-2 mb-2">
+											<div className="flex items-center gap-2">
+												<span className="font-mono font-bold text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md dark:bg-blue-950/60 dark:text-blue-300">
+													#{pick.queue_no}
+												</span>
+												<span className="font-bold text-sm text-foreground">
+													{pick.order_id}
+												</span>
+											</div>
+											<span
+												className={`rounded-full px-2 py-0.5 font-bold text-[10px] ${
+													pick.priority === "High"
+														? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+														: pick.priority === "Urgent"
+															? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+															: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+												}`}
+											>
+												{pick.priority}
+											</span>
+										</div>
+
+										{pick.routeName && pick.routeName !== "N/A" && (
+											<div className="mb-2 inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+												<MapPinIcon className="h-3 w-3" /> {pick.routeName}
+											</div>
+										)}
+
+										<div className="flex items-center gap-1.5 text-xs text-foreground font-semibold mb-2">
+											<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+											<span>{pick.customerName && pick.customerName !== "N/A" ? pick.customerName : "Customer"}</span>
+										</div>
+
+										<div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg mb-3">
+											<div>
+												<span className="block text-[11px] text-muted-foreground/80">Items</span>
+												<span className="font-bold text-foreground">
+													{pick.products_count ?? pick.items} prods ({pick.items} units)
+												</span>
+											</div>
+											<div className="text-right">
+												<span className="block text-[11px] text-muted-foreground/80">Wait Time</span>
+												<span className="font-semibold text-foreground">
+													{pick.waiting_since || "Just now"}
+												</span>
+											</div>
+										</div>
+
+										<Button
+											className="w-full min-h-[44px] bg-blue-600 text-white hover:bg-blue-700 font-semibold text-sm shadow-xs active:scale-[0.98]"
+											onClick={() => handleStartPick(pick.id)}
+											disabled={startTaskMutation.isPending && activeStartingId === pick.id}
+										>
+											<PlaySquareIcon className="mr-1.5 h-4 w-4" />
+											{startTaskMutation.isPending && activeStartingId === pick.id
+												? t("starting")
+												: t("startPick")}
+										</Button>
+									</div>
+								))}
+							</div>
+
+							{/* Desktop/Tablet Table View */}
+							<div className="hidden sm:block overflow-x-auto">
+								<Table>
 								<TableHeader>
 									<TableRow>
 										<TableHead>{t("queueNo")}</TableHead>
@@ -513,6 +584,7 @@ export default function PickerPendingPage() {
 								</TableBody>
 							</Table>
 						</div>
+						</>
 					)}
 				</CardContent>
 			</Card>

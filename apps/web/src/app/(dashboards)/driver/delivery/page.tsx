@@ -28,6 +28,7 @@ import {
 	CheckCircle,
 	CheckSquare,
 	ChevronDown,
+	ChevronRight,
 	ChevronUp,
 	CreditCard,
 	FileText,
@@ -2594,7 +2595,7 @@ export default function DriverLiveDeliveryPage() {
 						</div>
 
 						{/* Right Column: Live Bill Summary & Payment Collection with Order Breakdown */}
-						<div className="space-y-4 md:col-span-5 md:sticky md:top-4 md:self-start max-h-[calc(100vh-2rem)] overflow-y-auto pr-0.5">
+						<div id="live-invoice-summary" className="space-y-4 md:col-span-5 md:sticky md:top-4 md:self-start max-h-[calc(100vh-2rem)] overflow-y-auto pr-0.5">
 							<Card className="border-2 border-blue-500 shadow-md">
 								<CardHeader className="rounded-t-lg bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4">
 									<CardTitle className="flex items-center justify-between text-base sm:text-lg font-bold">
@@ -2985,6 +2986,49 @@ export default function DriverLiveDeliveryPage() {
 									</Button>
 								</CardFooter>
 							</Card>
+						</div>
+
+						{/* Mobile Sticky Bottom Floating Bill Bar (Phone-First Handover Experience) */}
+						<div
+							className="fixed bottom-[max(3.8rem,env(safe-area-inset-bottom,0px))] left-0 right-0 z-30 border-t border-blue-200 bg-white/95 p-3 shadow-2xl backdrop-blur-md md:hidden dark:border-blue-900 dark:bg-gray-900/95"
+						>
+							<div className="flex items-center justify-between gap-3">
+								<div>
+									<div className="text-[11px] font-medium text-muted-foreground">
+										{locale === "hi" ? "कुल देय राशि" : "Total Payable"} (
+										{items.filter((i) => i.checked).length}/{items.length})
+									</div>
+									<div className="font-mono text-xl font-extrabold text-blue-600 dark:text-blue-400">
+										₹{finalTotal}
+									</div>
+								</div>
+
+								<div className="flex items-center gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										className="min-h-[44px] border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300 text-xs font-semibold px-3"
+										onClick={() => setExtraModalOpen(true)}
+									>
+										<Plus className="h-4 w-4 mr-0.5" />
+										{locale === "hi" ? "वैन स्टॉक" : "Van Stock"}
+									</Button>
+
+									<Button
+										type="button"
+										className="min-h-[44px] min-w-[110px] bg-blue-600 text-white hover:bg-blue-700 font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+										onClick={() => {
+											document
+												.getElementById("live-invoice-summary")
+												?.scrollIntoView({ behavior: "smooth" });
+										}}
+									>
+										<span>{locale === "hi" ? "बिल भरें" : "Collect"}</span>
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								</div>
+							</div>
 						</div>
 					</div>
 				)}

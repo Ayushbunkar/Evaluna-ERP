@@ -350,7 +350,116 @@ export default function PickerActivePage() {
 							<CardDescription>{t("locateItemsSub")}</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<div className="overflow-x-auto">
+							{/* Mobile View: High-Contrast Touch Cards (Phone-First) */}
+							<div className="space-y-3 sm:hidden">
+								{items.map((item) => {
+									const isPicked = item.qty_picked >= item.qty_required;
+									return (
+										<div
+											key={item.id}
+											className={`rounded-xl border p-3.5 shadow-xs transition-all ${
+												isPicked
+													? "border-green-300 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20"
+													: item.status === "missing"
+														? "border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20"
+														: "border-border bg-card hover:border-blue-300 dark:hover:border-blue-700"
+											}`}
+										>
+											<div className="flex items-center justify-between gap-2 mb-2">
+												<span className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 font-bold text-blue-800 text-xs dark:bg-blue-900/60 dark:text-blue-200">
+													<MapPinIcon className="h-3 w-3" />
+													{item.location}
+												</span>
+												<span
+													className={`rounded-full px-2 py-0.5 font-bold text-[11px] ${
+														item.status === "picked"
+															? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+															: item.status === "missing"
+																? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+																: item.status === "partial"
+																	? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300"
+																	: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+													}`}
+												>
+													{item.status === "picked"
+														? tCommon("picked")
+														: item.status === "missing"
+															? tCommon("missing")
+															: item.status === "partial"
+																? tCommon("partial")
+																: tCommon("pending")}
+												</span>
+											</div>
+
+											<div className="font-bold text-gray-900 text-base dark:text-gray-100">
+												{item.product}
+											</div>
+
+											<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-mono">
+												<span>SKU: {item.sku}</span>
+												{item.batch && item.batch !== "Any" && (
+													<>
+														<span>•</span>
+														<span>Batch: {item.batch}</span>
+													</>
+												)}
+											</div>
+
+											{/* Quantity Progress */}
+											<div className="mt-3 flex items-center justify-between rounded-lg bg-muted/40 p-2.5">
+												<span className="text-xs font-medium text-muted-foreground">
+													{t("pickedRequired")}:
+												</span>
+												<span
+													className={`font-mono text-base font-bold ${
+														isPicked ? "text-green-600 dark:text-green-400" : "text-blue-600 dark:text-blue-400"
+													}`}
+												>
+													{item.qty_picked} / {item.qty_required}
+												</span>
+											</div>
+
+											{/* Action Buttons (Touch Friendly 44px Targets) */}
+											<div className="mt-3 grid grid-cols-2 gap-2">
+												<Button
+													size="default"
+													className={`min-h-[44px] font-semibold text-xs transition-all ${
+														isPicked
+															? "bg-green-600 text-white hover:bg-green-700"
+															: "bg-blue-600 text-white hover:bg-blue-700"
+													}`}
+													onClick={() => {
+														setConfirmItem(item);
+														setConfirmQty(item.qty_required);
+													}}
+												>
+													<CheckCircle2Icon className="mr-1.5 h-4 w-4" />
+													{isPicked ? "Update Qty" : t("confirmQty")}
+												</Button>
+
+												{item.status !== "missing" ? (
+													<Button
+														size="default"
+														variant="outline"
+														className="min-h-[44px] border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30 text-xs font-semibold"
+														onClick={() => pnaMutation.mutate({ item_id: item.id })}
+													>
+														<AlertTriangleIcon className="mr-1.5 h-4 w-4 text-red-500" />
+														{t("missing")}
+													</Button>
+												) : (
+													<div className="flex items-center justify-center text-xs font-medium text-red-600">
+														Marked Missing
+													</div>
+												)}
+											</div>
+										</div>
+									);
+								})}
+							</div>
+
+							{/* Desktop/Tablet Table View */}
+							<div className="hidden sm:block overflow-x-auto">
 								<Table>
 									<TableHeader>
 										<TableRow>

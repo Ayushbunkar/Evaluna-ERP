@@ -733,7 +733,7 @@ export function AppLayout({
 				</motion.aside>
 
 				{/* Main Content Area */}
-				<main className="prevent-overflow relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20">
+				<main className="prevent-overflow relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20 pb-20 lg:pb-0">
 					<motion.div
 						key={pathname}
 						initial={{ opacity: 0, y: 15 }}
@@ -751,6 +751,69 @@ export function AppLayout({
 					</motion.div>
 				</main>
 			</div>
+
+			{/* Mobile Bottom Navigation Bar (Phone-First Ergonomics & Smooth Animations) */}
+			{navItems && navItems.length > 0 && (
+				<nav
+					aria-label="Mobile Navigation"
+					className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-md shadow-lg lg:hidden"
+					style={{
+						paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
+					}}
+				>
+					<div className="flex items-center justify-around px-2 py-1.5">
+						{navItems.slice(0, navItems.length > 4 ? 4 : 5).map((item) => {
+							const { href, labelKey, icon: Icon, badge } = item;
+							const isActive =
+								pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+							return (
+								<Link
+									key={href}
+									href={href}
+									className={`relative flex min-h-[44px] min-w-[56px] flex-1 flex-col items-center justify-center rounded-xl py-1 text-[11px] font-medium transition-all active:scale-95 ${
+										isActive
+											? "text-primary font-bold"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									{isActive && (
+										<motion.div
+											layoutId="mobile-bottom-nav-pill"
+											className="absolute inset-x-2 inset-y-1 -z-10 rounded-xl bg-primary/10 dark:bg-primary/20"
+											transition={{ type: "spring", stiffness: 500, damping: 35 }}
+										/>
+									)}
+									<div className="relative">
+										<Icon className={`h-5 w-5 transition-transform ${isActive ? "scale-110" : ""}`} />
+										{badge !== undefined && badge !== null && badge !== 0 && (
+											<span className="absolute -top-1 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+												{badge}
+											</span>
+										)}
+									</div>
+									<span className="mt-0.5 max-w-[68px] truncate text-center leading-tight">
+										{formatNavLabel(labelKey)}
+									</span>
+								</Link>
+							);
+						})}
+
+						{/* Menu trigger button if more than 4 items */}
+						{navItems.length > 4 && (
+							<button
+								type="button"
+								onClick={() => setMobileMenuOpen(true)}
+								className="relative flex min-h-[44px] min-w-[56px] flex-1 flex-col items-center justify-center rounded-xl py-1 text-[11px] font-medium text-muted-foreground transition-all hover:text-foreground active:scale-95"
+							>
+								<MenuIcon className="h-5 w-5" />
+								<span className="mt-0.5 truncate text-center leading-tight">
+									More
+								</span>
+							</button>
+						)}
+					</div>
+				</nav>
+			)}
 
 			{(pathname?.startsWith("/customer") || role === "customer") && <ChatWidget />}
 		</div>
