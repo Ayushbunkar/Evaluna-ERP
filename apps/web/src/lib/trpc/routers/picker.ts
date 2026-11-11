@@ -193,6 +193,11 @@ export const pickerRouter = router({
 					: eq(pickLists.status, "picking"),
 				orderBy: [desc(pickLists.created_at)],
 				with: {
+					order: {
+						with: {
+							customer: true,
+						},
+					},
 					pickListItems: {
 						with: {
 							product: true,
@@ -213,10 +218,55 @@ export const pickerRouter = router({
 			const task = validActive[0];
 			const items = task.pickListItems;
 
+			let customerName = (task as any).order?.customer?.name || "N/A";
+			let customerPhone = (task as any).order?.customer?.phone || "N/A";
+			let customerAddress = (task as any).order?.customer?.address || "N/A";
+			let routeName = "N/A";
+
+			if (task.order_id) {
+				try {
+					if (customerName === "N/A" || customerAddress === "N/A" || customerPhone === "N/A") {
+						const [ord] = await db
+							.select({
+								name: customers.name,
+								phone: customers.phone,
+								address: customers.address,
+							})
+							.from(orders)
+							.leftJoin(customers, eq(orders.customer_id, customers.id))
+							.where(eq(orders.id, task.order_id))
+							.limit(1);
+
+						if (ord) {
+							if (ord.name) customerName = ord.name;
+							if (ord.phone) customerPhone = ord.phone;
+							if (ord.address) customerAddress = ord.address;
+						}
+					}
+
+					const [rStop] = await db
+						.select({ routeName: deliveryRoutes.name })
+						.from(orders)
+						.innerJoin(routeStops, eq(routeStops.customer_id, orders.customer_id))
+						.innerJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+						.where(eq(orders.id, task.order_id))
+						.limit(1);
+					if (rStop?.routeName) {
+						routeName = rStop.routeName;
+					}
+				} catch (err) {
+					console.warn("[pickerRouter.getCurrentTask] Error fetching customer/route details:", err);
+				}
+			}
+
 			return {
 				task: {
 					id: `PL-${task.id}`,
 					order_id: `ORD-${task.order_id}`,
+					customer_name: customerName,
+					customer_phone: customerPhone,
+					customer_address: customerAddress,
+					route_name: routeName !== "N/A" ? routeName : undefined,
 					area: "Warehouse",
 					progress: Math.round(
 						(items.filter((i) => i.status === "picked").length /

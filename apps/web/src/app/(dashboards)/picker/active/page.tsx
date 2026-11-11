@@ -31,8 +31,11 @@ import {
 	CheckCircle2Icon,
 	Loader2Icon,
 	MapPinIcon,
+	NavigationIcon,
 	PackageIcon,
+	PhoneIcon,
 	PlaySquareIcon,
+	UserIcon,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -198,13 +201,55 @@ export default function PickerActivePage() {
 					{/* Progress & Task Card */}
 					<Card className="border-blue-200 bg-blue-50/50 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
 						<CardContent className="space-y-4 p-6">
-							<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-								<div>
-									<h2 className="flex items-center gap-2 font-bold text-blue-900 text-xl dark:text-blue-200">
-										<PackageIcon className="h-6 w-6 text-blue-600" />
-										{t("task")} {task.id} ({t("order")}: {task.order_id})
-									</h2>
-									<p className="mt-1 text-blue-700 text-xs dark:text-blue-400">
+							<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+								<div className="space-y-2.5">
+									<div className="flex flex-wrap items-center gap-2">
+										<h2 className="flex items-center gap-2 font-bold text-blue-900 text-xl dark:text-blue-200">
+											<PackageIcon className="h-6 w-6 text-blue-600" />
+											{t("task")} {task.id} ({t("order")}: {task.order_id})
+										</h2>
+										{task.route_name && (
+											<span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800 text-xs dark:bg-blue-900/60 dark:text-blue-200">
+												<NavigationIcon className="h-3 w-3" />
+												{task.route_name}
+											</span>
+										)}
+									</div>
+
+									{/* Customer Details: Name, Phone Number, Delivery Address */}
+									<div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-blue-200/90 bg-white/95 px-3 py-2 text-xs shadow-xs dark:border-blue-800/60 dark:bg-gray-850/90">
+										<div className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-gray-100">
+											<UserIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+											<span>{task.customer_name || "N/A"}</span>
+										</div>
+
+										<span className="text-gray-300 dark:text-gray-600">•</span>
+
+										<div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+											<PhoneIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+											{task.customer_phone && task.customer_phone !== "N/A" ? (
+												<a
+													href={`tel:${task.customer_phone}`}
+													className="font-mono hover:text-emerald-600 hover:underline"
+												>
+													{task.customer_phone}
+												</a>
+											) : (
+												<span className="font-mono text-gray-400">N/A</span>
+											)}
+										</div>
+
+										<span className="text-gray-300 dark:text-gray-600">•</span>
+
+										<div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+											<MapPinIcon className="h-3.5 w-3.5 text-rose-500 dark:text-rose-400 shrink-0" />
+											<span className="truncate max-w-[280px] sm:max-w-[360px]" title={task.customer_address || "N/A"}>
+												{task.customer_address || "N/A"}
+											</span>
+										</div>
+									</div>
+
+									<p className="text-blue-700 text-xs dark:text-blue-400">
 										{t("locationArea")}: {task.area} | {t("totalItemsToPick")}:{" "}
 										{task.total_items}
 									</p>
