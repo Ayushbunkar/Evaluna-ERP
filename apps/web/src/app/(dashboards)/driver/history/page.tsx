@@ -326,25 +326,25 @@ export default function DriverHistoryPage() {
 												</div>
 											</TableCell>
 											<TableCell className="text-xs">
-												<span className="font-bold text-slate-800">
+												<span className="font-bold text-slate-800 dark:text-slate-100">
 													{t.completedStops}
 												</span>{" "}
 												/ {t.totalStops} Stops
 											</TableCell>
-											<TableCell className="font-mono font-semibold text-emerald-700 text-xs">
+											<TableCell className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 text-xs">
 												₹{t.totalCashCollected.toFixed(2)}
 											</TableCell>
-											<TableCell className="font-mono font-semibold text-purple-700 text-xs">
+											<TableCell className="font-mono font-semibold text-purple-700 dark:text-purple-400 text-xs">
 												₹{t.totalOnlineCollected.toFixed(2)}
 											</TableCell>
-											<TableCell className="font-bold font-mono text-slate-900 text-xs">
+											<TableCell className="font-bold font-mono text-slate-900 dark:text-slate-100 text-xs">
 												₹{t.totalCollected.toFixed(2)}
 											</TableCell>
 											<TableCell className="text-right">
 												<Button
 													size="sm"
 													variant="outline"
-													className="h-8 border-blue-200 font-medium text-blue-700 text-xs hover:bg-blue-50"
+													className="h-8 border-blue-200 dark:border-blue-800 font-medium text-blue-700 dark:text-blue-300 text-xs hover:bg-blue-50 dark:hover:bg-blue-950/40"
 													onClick={() => setSelectedTrip(t)}
 												>
 													<EyeIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -366,18 +366,18 @@ export default function DriverHistoryPage() {
 					open={!!selectedTrip}
 					onOpenChange={(open) => !open && setSelectedTrip(null)}
 				>
-					<DialogContent className="sm:max-w-[700px]">
+					<DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto border-border bg-background text-foreground">
 						<DialogHeader>
-							<DialogTitle className="flex items-center justify-between font-bold text-slate-900 text-xl">
+							<DialogTitle className="flex items-center justify-between font-bold text-foreground text-xl">
 								<div className="flex items-center gap-2">
-									<TruckIcon className="h-6 w-6 text-blue-600" />
+									<TruckIcon className="h-6 w-6 text-blue-500" />
 									<span>
 										Trip Details & Financial Settlement (
 										{selectedTrip.tripNumber})
 									</span>
 								</div>
 							</DialogTitle>
-							<DialogDescription className="text-slate-500 text-xs">
+							<DialogDescription className="text-muted-foreground text-xs">
 								Complete breakdown of customer stops, Cash vs Online payment
 								collections, and delivery status.
 							</DialogDescription>
@@ -385,32 +385,32 @@ export default function DriverHistoryPage() {
 
 						<div className="space-y-4 py-2 text-sm">
 							{/* Summary Header Card */}
-							<div className="grid grid-cols-2 gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs sm:grid-cols-4">
+							<div className="grid grid-cols-2 gap-3 rounded-xl border border-blue-200/60 bg-blue-50/60 p-3.5 text-xs sm:grid-cols-4 dark:border-blue-900/40 dark:bg-blue-950/30">
 								<div>
-									<span className="block text-slate-500 font-medium">Route Name:</span>
-									<span className="font-bold text-slate-900 text-sm flex items-center gap-1 mt-0.5">
-										<MapPinIcon className="h-4 w-4 text-blue-600 shrink-0" />
+									<span className="block text-muted-foreground font-medium">Route Name:</span>
+									<span className="font-bold text-foreground text-sm flex items-center gap-1 mt-0.5">
+										<MapPinIcon className="h-4 w-4 text-blue-500 shrink-0" />
 										{selectedTrip.routeName}
 									</span>
 								</div>
 								<div>
-									<span className="block text-slate-500 font-medium">Assigned Driver:</span>
-									<span className="font-semibold text-slate-800 flex items-center gap-1 mt-0.5">
-										<UserIcon className="h-4 w-4 text-slate-600 shrink-0" />
+									<span className="block text-muted-foreground font-medium">Assigned Driver:</span>
+									<span className="font-semibold text-foreground flex items-center gap-1 mt-0.5">
+										<UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
 										{selectedTrip.driverName}
 									</span>
 								</div>
 								<div>
-									<span className="block text-slate-500 font-medium">Truck / Vehicle:</span>
-									<span className="font-semibold font-mono text-slate-800 flex items-center gap-1 mt-0.5">
-										<TruckIcon className="h-4 w-4 text-slate-600 shrink-0" />
+									<span className="block text-muted-foreground font-medium">Truck / Vehicle:</span>
+									<span className="font-semibold font-mono text-foreground flex items-center gap-1 mt-0.5">
+										<TruckIcon className="h-4 w-4 text-muted-foreground shrink-0" />
 										{selectedTrip.vehiclePlate}
 									</span>
 								</div>
 								<div>
-									<span className="block text-slate-500 font-medium">Date & Status:</span>
-									<span className="font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
-										<CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+									<span className="block text-muted-foreground font-medium">Date & Status:</span>
+									<span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+										<CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
 										{selectedTrip.date} ({selectedTrip.status})
 									</span>
 								</div>
@@ -418,30 +418,30 @@ export default function DriverHistoryPage() {
 
 							{/* Financial Ledger Summary Cards */}
 							<div className="grid grid-cols-3 gap-3">
-								<div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs">
-									<span className="font-semibold text-[10px] text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-										<Banknote className="h-3.5 w-3.5 text-emerald-600" />
+								<div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs dark:border-emerald-800/60 dark:bg-emerald-950/40">
+									<span className="font-semibold text-[10px] text-emerald-700 uppercase tracking-wider flex items-center gap-1 dark:text-emerald-400">
+										<Banknote className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
 										Cash Collected
 									</span>
-									<p className="mt-1 font-bold font-mono text-emerald-900 text-lg">
+									<p className="mt-1 font-bold font-mono text-emerald-900 text-lg dark:text-emerald-200">
 										₹{selectedTrip.totalCashCollected.toFixed(2)}
 									</p>
 								</div>
-								<div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 text-xs">
-									<span className="font-semibold text-[10px] text-purple-700 uppercase tracking-wider flex items-center gap-1">
-										<QrCode className="h-3.5 w-3.5 text-purple-600" />
+								<div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 text-xs dark:border-purple-800/60 dark:bg-purple-950/40">
+									<span className="font-semibold text-[10px] text-purple-700 uppercase tracking-wider flex items-center gap-1 dark:text-purple-400">
+										<QrCode className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
 										Online / UPI / QR
 									</span>
-									<p className="mt-1 font-bold font-mono text-lg text-purple-900">
+									<p className="mt-1 font-bold font-mono text-lg text-purple-900 dark:text-purple-200">
 										₹{selectedTrip.totalOnlineCollected.toFixed(2)}
 									</p>
 								</div>
-								<div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs">
-									<span className="font-semibold text-[10px] text-amber-700 uppercase tracking-wider flex items-center gap-1">
-										<WalletIcon className="h-3.5 w-3.5 text-amber-600" />
+								<div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs dark:border-amber-800/60 dark:bg-amber-950/40">
+									<span className="font-semibold text-[10px] text-amber-700 uppercase tracking-wider flex items-center gap-1 dark:text-amber-400">
+										<WalletIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
 										Total Handover
 									</span>
-									<p className="mt-1 font-bold font-mono text-amber-900 text-lg">
+									<p className="mt-1 font-bold font-mono text-amber-900 text-lg dark:text-amber-200">
 										₹{selectedTrip.totalCollected.toFixed(2)}
 									</p>
 								</div>
@@ -449,46 +449,46 @@ export default function DriverHistoryPage() {
 
 							{/* 2-BILL HANDOVER LIFECYCLE AUDIT VIEW FOR DRIVER */}
 							<div className="space-y-3 pt-2">
-								<h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-									<Layers className="h-4 w-4 text-indigo-600" />
+								<h4 className="font-bold text-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+									<Layers className="h-4 w-4 text-indigo-500" />
 									2-Bill Handover Lifecycle Audit (दोनों बिलों का तुलनात्मक विवरण)
 								</h4>
 
 								<Tabs defaultValue="bill2" className="w-full space-y-3">
-									<TabsList className="grid grid-cols-2 w-full bg-slate-100 p-1">
-										<TabsTrigger value="bill1" className="text-xs font-semibold py-1.5 flex items-center gap-1.5">
-											<ShoppingCart className="h-3.5 w-3.5 text-blue-600" />
+									<TabsList className="grid grid-cols-2 w-full bg-muted/60 p-1 border border-border/40">
+										<TabsTrigger value="bill1" className="text-xs font-semibold py-1.5 flex items-center gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs">
+											<ShoppingCart className="h-3.5 w-3.5 text-blue-500" />
 											Initial Dispatched Bill (जो मिला था)
 										</TabsTrigger>
-										<TabsTrigger value="bill2" className="text-xs font-semibold py-1.5 flex items-center gap-1.5">
-											<PackageCheck className="h-3.5 w-3.5 text-emerald-600" />
+										<TabsTrigger value="bill2" className="text-xs font-semibold py-1.5 flex items-center gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs">
+											<PackageCheck className="h-3.5 w-3.5 text-emerald-500" />
 											Final Doorstep Settled Bill (जो कलेक्ट किया)
 										</TabsTrigger>
 									</TabsList>
 
 									{/* BILL 1: INITIAL DISPATCHED ITEMS */}
 									<TabsContent value="bill1">
-										<div className="rounded-lg border border-blue-200 bg-blue-50/30 p-3 space-y-3">
+										<div className="rounded-lg border border-blue-200/80 bg-blue-50/40 p-3 space-y-3 dark:border-blue-900/50 dark:bg-blue-950/30">
 											<div className="flex items-center justify-between">
-												<div className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-													<ShoppingCart className="h-4 w-4 text-blue-600" />
+												<div className="text-xs font-bold text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+													<ShoppingCart className="h-4 w-4 text-blue-500" />
 													<span>Bill 1: Initial Loaded Vehicle Items (प्रारंभिक बिल)</span>
 												</div>
-												<span className="text-xs font-mono font-bold text-blue-700">
+												<span className="text-xs font-mono font-bold text-blue-700 dark:text-blue-300">
 													Dispatched Value: ₹{selectedTrip.totalCollected.toFixed(2)}
 												</span>
 											</div>
 
-											<div className="overflow-x-auto rounded border border-blue-100 bg-white">
+											<div className="overflow-x-auto rounded border border-border bg-card">
 												<Table className="w-full text-xs">
-													<TableHeader className="bg-blue-50">
-														<TableRow>
-															<TableHead className="font-semibold">Customer / Stop</TableHead>
-															<TableHead className="font-semibold">Order Ref</TableHead>
-															<TableHead className="font-semibold">Dispatched Product Name</TableHead>
-															<TableHead className="font-semibold text-center">Qty</TableHead>
-															<TableHead className="font-semibold text-right">Unit Price</TableHead>
-															<TableHead className="font-semibold text-right">Subtotal</TableHead>
+													<TableHeader className="bg-muted/50">
+														<TableRow className="border-border">
+															<TableHead className="font-semibold text-foreground">Customer / Stop</TableHead>
+															<TableHead className="font-semibold text-foreground">Order Ref</TableHead>
+															<TableHead className="font-semibold text-foreground">Dispatched Product Name</TableHead>
+															<TableHead className="font-semibold text-center text-foreground">Qty</TableHead>
+															<TableHead className="font-semibold text-right text-foreground">Unit Price</TableHead>
+															<TableHead className="font-semibold text-right text-foreground">Subtotal</TableHead>
 														</TableRow>
 													</TableHeader>
 													<TableBody>
@@ -499,39 +499,39 @@ export default function DriverHistoryPage() {
 																	: [{ name: "Dispatched Order Package", qty: 1, price: st.amountToCollect || st.cashCollected + st.onlineCollected || 0 }];
 																
 																return items.map((it: any, iIdx: number) => (
-																	<TableRow key={`${st.stopId}-${iIdx}`}>
+																	<TableRow key={`${st.stopId}-${iIdx}`} className="border-border">
 																		{iIdx === 0 && (
-																			<TableCell rowSpan={items.length} className="font-semibold text-slate-800 align-top border-r bg-slate-50/30">
+																			<TableCell rowSpan={items.length} className="font-semibold text-foreground align-top border-r border-border bg-muted/20">
 																				<div>{st.customerName}</div>
-																				<div className="font-normal text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+																				<div className="font-normal text-[10px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
 																					<MapPinIcon className="h-3 w-3 text-blue-500 inline shrink-0" />
 																					{st.address}
 																				</div>
 																			</TableCell>
 																		)}
 																		{iIdx === 0 && (
-																			<TableCell rowSpan={items.length} className="font-mono text-blue-600 font-semibold align-top border-r bg-slate-50/30">
+																			<TableCell rowSpan={items.length} className="font-mono text-blue-600 dark:text-blue-400 font-semibold align-top border-r border-border bg-muted/20">
 																				{st.orderRef}
 																			</TableCell>
 																		)}
-																		<TableCell className="font-medium text-slate-900">
+																		<TableCell className="font-medium text-foreground">
 																			{it.name}
 																		</TableCell>
-																		<TableCell className="text-center font-bold text-blue-700">
+																		<TableCell className="text-center font-bold text-blue-600 dark:text-blue-400">
 																			{it.qty}
 																		</TableCell>
-																		<TableCell className="text-right">
+																		<TableCell className="text-right text-muted-foreground">
 																			₹{Number(it.price || 0).toLocaleString("en-IN")}
 																		</TableCell>
-																		<TableCell className="text-right font-bold text-blue-900">
+																		<TableCell className="text-right font-bold text-foreground">
 																			₹{(Number(it.price || 0) * Number(it.qty || 1)).toLocaleString("en-IN")}
 																		</TableCell>
 																	</TableRow>
 																));
 															})
 														) : (
-															<TableRow>
-																<TableCell colSpan={6} className="py-3 text-center text-slate-400">
+															<TableRow className="border-border">
+																<TableCell colSpan={6} className="py-3 text-center text-muted-foreground">
 																	No initial dispatch item records found.
 																</TableCell>
 															</TableRow>
@@ -544,13 +544,13 @@ export default function DriverHistoryPage() {
 
 									{/* BILL 2: FINAL DOORSTEP SETTLED BILL */}
 									<TabsContent value="bill2">
-										<div className="rounded-lg border border-emerald-200 bg-emerald-50/30 p-3 space-y-3">
+										<div className="rounded-lg border border-emerald-200/80 bg-emerald-50/40 p-3 space-y-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
 											<div className="flex items-center justify-between">
-												<div className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-													<PackageCheck className="h-4 w-4 text-emerald-600" />
+												<div className="text-xs font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
+													<PackageCheck className="h-4 w-4 text-emerald-500" />
 													<span>Bill 2: Final Doorstep Delivered & Collected Bill (अंतिम संग्रह)</span>
 												</div>
-												<span className="text-xs font-mono font-bold text-emerald-700">
+												<span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300">
 													Handover Total: ₹{selectedTrip.totalCollected.toFixed(2)}
 												</span>
 											</div>
@@ -574,49 +574,49 @@ export default function DriverHistoryPage() {
 														: Math.max(0, stopGrossTotal - stopDiscount + stopExtraCharges);
 
 													return (
-														<div key={st.stopId} className="rounded-lg border border-emerald-200/80 bg-white overflow-hidden space-y-0">
+														<div key={st.stopId} className="rounded-lg border border-border bg-card overflow-hidden space-y-0 shadow-2xs">
 															{/* Stop Summary Header */}
-															<div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-50/70 p-2.5 border-b border-emerald-100 text-xs">
+															<div className="flex flex-wrap items-center justify-between gap-2 bg-muted/40 p-2.5 border-b border-border text-xs">
 																<div className="flex items-center gap-2">
 																	<span className="font-bold font-mono bg-emerald-600 text-white px-2 py-0.5 rounded text-[11px]">
 																		#{st.sequence}
 																	</span>
 																	<div>
-																		<span className="font-bold text-slate-900 text-xs">{st.customerName}</span>
-																		<span className="font-mono text-blue-600 font-semibold ml-2 text-[11px]">({st.orderRef})</span>
-																		<div className="text-[10px] text-slate-500 flex items-center gap-1">
-																			<MapPinIcon className="h-3 w-3 text-emerald-600 inline shrink-0" />
+																		<span className="font-bold text-foreground text-xs">{st.customerName}</span>
+																		<span className="font-mono text-blue-600 dark:text-blue-400 font-semibold ml-2 text-[11px]">({st.orderRef})</span>
+																		<div className="text-[10px] text-muted-foreground flex items-center gap-1">
+																			<MapPinIcon className="h-3 w-3 text-emerald-500 inline shrink-0" />
 																			{st.address}
 																		</div>
 																	</div>
 																</div>
 
-																<div className="flex items-center gap-3">
+																<div className="flex items-center gap-2">
 																	{st.cashCollected > 0 && (
-																		<span className="font-mono font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
-																			<Banknote className="h-3 w-3 text-emerald-600" />
+																		<span className="font-mono font-bold text-emerald-700 bg-emerald-100/90 dark:text-emerald-300 dark:bg-emerald-950/70 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
+																			<Banknote className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
 																			Cash: ₹{st.cashCollected.toFixed(2)}
 																		</span>
 																	)}
 																	{st.onlineCollected > 0 && (
-																		<span className="font-mono font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
-																			<QrCode className="h-3 w-3 text-purple-600" />
+																		<span className="font-mono font-bold text-purple-700 bg-purple-100/90 dark:text-purple-300 dark:bg-purple-950/70 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
+																			<QrCode className="h-3 w-3 text-purple-600 dark:text-purple-400" />
 																			Online: ₹{st.onlineCollected.toFixed(2)}
 																		</span>
 																	)}
 																	<span
 																		className={`rounded-full px-2 py-0.5 font-bold text-[10px] uppercase flex items-center gap-1 ${
 																			st.status === "Delivered"
-																				? "bg-emerald-100 text-emerald-800"
+																				? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
 																				: st.status === "Failed"
-																					? "bg-rose-100 text-rose-800"
-																					: "bg-amber-100 text-amber-800"
+																					? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+																					: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
 																		}`}
 																	>
 																		{st.status === "Delivered" ? (
-																			<CheckCircle2 className="h-3 w-3 text-emerald-600" />
+																			<CheckCircle2 className="h-3 w-3 text-emerald-500" />
 																		) : (
-																			<Clock className="h-3 w-3 text-amber-600" />
+																			<Clock className="h-3 w-3 text-amber-500" />
 																		)}
 																		{st.status} {st.status === "Delivered" && st.deliveredAt ? `(${st.deliveredAt})` : "(Pending)"}
 																	</span>
@@ -625,10 +625,10 @@ export default function DriverHistoryPage() {
 																		size="sm"
 																		variant="outline"
 																		asChild
-																		className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 font-semibold gap-1"
+																		className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-950/40 font-semibold gap-1"
 																	>
 																		<Link href={`/driver/delivery?editStopId=${st.stopId}`}>
-																			<FileTextIcon className="h-3 w-3 text-blue-600" />
+																			<FileTextIcon className="h-3 w-3 text-blue-500" />
 																			<span>Edit Handover / Bill</span>
 																		</Link>
 																	</Button>
@@ -637,85 +637,85 @@ export default function DriverHistoryPage() {
 
 															{/* Itemized Products Table */}
 															<Table className="w-full text-xs">
-																<TableHeader className="bg-slate-50/80">
-																	<TableRow>
-																		<TableHead className="font-semibold text-slate-700">Delivered Product Name</TableHead>
-																		<TableHead className="font-semibold text-center text-slate-700">Delivered Qty</TableHead>
-																		<TableHead className="font-semibold text-right text-slate-700">Unit Rate</TableHead>
-																		<TableHead className="font-semibold text-right text-slate-700">Accepted Net Total</TableHead>
+																<TableHeader className="bg-muted/30">
+																	<TableRow className="border-border">
+																		<TableHead className="font-semibold text-foreground">Delivered Product Name</TableHead>
+																		<TableHead className="font-semibold text-center text-foreground">Delivered Qty</TableHead>
+																		<TableHead className="font-semibold text-right text-foreground">Unit Rate</TableHead>
+																		<TableHead className="font-semibold text-right text-foreground">Accepted Net Total</TableHead>
 																	</TableRow>
 																</TableHeader>
 																<TableBody>
 																	{delItems.map((it: any, iIdx: number) => (
-																		<TableRow key={iIdx} className="hover:bg-slate-50/50">
-																			<TableCell className="font-medium text-slate-900">
+																		<TableRow key={iIdx} className="hover:bg-muted/30 border-border">
+																			<TableCell className="font-medium text-foreground">
 																				{it.name}
 																			</TableCell>
-																			<TableCell className="text-center font-bold text-emerald-700">
+																			<TableCell className="text-center font-bold text-emerald-600 dark:text-emerald-400">
 																				{it.qty}
 																			</TableCell>
-																			<TableCell className="text-right text-slate-600">
+																			<TableCell className="text-right text-muted-foreground">
 																				₹{Number(it.price || 0).toLocaleString("en-IN")}
 																			</TableCell>
-																			<TableCell className="text-right font-bold text-emerald-800">
+																			<TableCell className="text-right font-bold text-emerald-700 dark:text-emerald-300">
 																				₹{(Number(it.price || 0) * Number(it.qty || 1)).toLocaleString("en-IN")}
 																			</TableCell>
 																		</TableRow>
 																	))}
 																	{st.status !== "Delivered" ? (
-																		<TableRow className="bg-amber-500/10 font-bold border-t border-amber-500/20">
-																			<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-amber-950">
+																		<TableRow className="bg-amber-500/10 font-bold border-t border-amber-500/30">
+																			<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-amber-900 dark:text-amber-200">
 																				Pending Handover Expected Bill (अपेक्षित संग्रह बिल)
 																			</TableCell>
-																			<TableCell className="text-right text-amber-700 text-sm font-extrabold">
+																			<TableCell className="text-right text-amber-600 dark:text-amber-400 text-sm font-extrabold">
 																				₹{stopFinalTotal.toLocaleString("en-IN")}
 																			</TableCell>
 																		</TableRow>
 																	) : (
 																		<>
-																			<TableRow className="bg-slate-50/50 font-medium">
-																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-slate-500">
+																			<TableRow className="bg-muted/20 font-medium border-border">
+																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
 																					Delivered Items Subtotal (सामान का कुल मूल्य)
 																				</TableCell>
-																				<TableCell className="text-right text-slate-800 text-xs font-semibold">
+																				<TableCell className="text-right text-foreground text-xs font-semibold">
 																					₹{stopGrossTotal.toLocaleString("en-IN")}
 																				</TableCell>
 																			</TableRow>
 																			{stopDiscount > 0 && (
-																				<TableRow className="bg-emerald-50/40 font-medium text-emerald-700">
+																				<TableRow className="bg-emerald-500/10 font-medium text-emerald-700 dark:text-emerald-400 border-border">
 																					<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
 																						Discount Applied (लागू छूट)
 																						{st.discountReason && (
-																							<span className="block text-[10px] font-normal text-slate-500">
+																							<span className="block text-[10px] font-normal text-muted-foreground">
 																								कारण / Reason: ({st.discountReason})
 																							</span>
 																						)}
 																					</TableCell>
-																					<TableCell className="text-right text-emerald-700 text-xs font-semibold">
+																					<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
 																						- ₹{stopDiscount.toLocaleString("en-IN")}
 																					</TableCell>
 																				</TableRow>
 																			)}
 																			{stopExtraCharges > 0 && (
-																				<TableRow className="bg-blue-50/40 font-medium text-blue-700">
+																				<TableRow className="bg-blue-500/10 font-medium text-blue-700 dark:text-blue-400 border-border">
 																					<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
 																						Other Charges (अतिरिक्त शुल्क)
 																						{st.extraChargesReason && (
-																							<span className="block text-[10px] font-normal text-slate-500">
+																							<span className="block text-[10px] font-normal text-muted-foreground">
 																								कारण / Reason: ({st.extraChargesReason})
 																							</span>
 																						)}
 																					</TableCell>
-																					<TableCell className="text-right text-blue-700 text-xs font-semibold">
+																					<TableCell className="text-right text-blue-700 dark:text-blue-400 text-xs font-semibold">
 																						+ ₹{stopExtraCharges.toLocaleString("en-IN")}
 																					</TableCell>
 																				</TableRow>
 																			)}
-																			<TableRow className="bg-emerald-500/10 font-bold border-t border-emerald-500/20">
-																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-emerald-950">
+																			<TableRow className="bg-emerald-500/15 font-bold border-t border-emerald-500/30">
+																				<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
 																					Customer Handover Settled Total (ग्राहक कुल भुगतान)
 																				</TableCell>
-																				<TableCell className="text-right text-emerald-700 text-sm font-extrabold">
+																				<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm font-extrabold">
 																					₹{stopFinalTotal.toLocaleString("en-IN")}
 																				</TableCell>
 																			</TableRow>
@@ -727,7 +727,7 @@ export default function DriverHistoryPage() {
 													);
 												})
 											) : (
-												<div className="py-4 text-center text-slate-400 text-xs">
+												<div className="py-4 text-center text-muted-foreground text-xs">
 													No customer stops recorded for this trip.
 												</div>
 											)}
@@ -740,7 +740,7 @@ export default function DriverHistoryPage() {
 						<DialogFooter>
 							<Button
 								onClick={() => setSelectedTrip(null)}
-								className="w-full bg-slate-900 font-semibold text-white hover:bg-slate-800"
+								className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
 							>
 								Close Financial Settlement View
 							</Button>
