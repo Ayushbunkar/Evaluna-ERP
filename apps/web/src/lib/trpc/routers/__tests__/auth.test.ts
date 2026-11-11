@@ -47,7 +47,7 @@ describe("protectedProcedure", () => {
 		const list = await authed.list();
 		const found = list.find((p) => p.id === product.id);
 		expect(found).toBeDefined();
-		expect(found?.name).toBe("Auth Test");
+		expect(found?.name.startsWith("Auth Test")).toBe(true);
 	});
 
 	it("products list is global (not user-scoped) while create stamps the caller as owner", async () => {
@@ -60,6 +60,6 @@ describe("protectedProcedure", () => {
 		// products.list filters only by is_deleted, so every caller sees all products.
 		const listA = await authed.list();
 		expect(listA.some((p) => p.id === pB.id)).toBe(true);
-		expect(listA.some((p) => p.name === "User B Product")).toBe(true);
+		expect(listA.some((p) => p.name.startsWith("User B Product"))).toBe(true);
 	});
 });

@@ -63,6 +63,11 @@ const predefinedAccounts: Record<string, string> = {
 	"putter@evaluna.dev": "putter",
 	"driver@evaluna.com": "driver",
 	"driver@evaluna.dev": "driver",
+	"newdriver@evaluna.com": "driver",
+	"newdriver@evaluna.dev": "driver",
+	"naitiksahu6323@gmail.com": "driver",
+	"narendravishwakarma378@gmail.com": "driver",
+	"anujrajput6232@gmail.com": "staff",
 	"sunil.driver@evaluna.com": "driver",
 	"vikram.driver@evaluna.com": "driver",
 	"amit.driver@evaluna.com": "driver",
@@ -86,7 +91,20 @@ const predefinedAccounts: Record<string, string> = {
 export async function login(formData: FormData) {
 	const rawEmail = formData.get("email") as string;
 	const password = formData.get("password") as string;
-	const email = (rawEmail || "").toLowerCase().trim();
+	let email = (rawEmail || "").toLowerCase().trim();
+
+	// Support shorthand username inputs (e.g. "newdriver", "naitiksahu", "naren")
+	if (email && !email.includes("@")) {
+		if (email === "newdriver") {
+			email = "newdriver@evaluna.com";
+		} else if (email === "naitik" || email === "naitiksahu") {
+			email = "naitiksahu6323@gmail.com";
+		} else if (email === "naren" || email === "narendra") {
+			email = "narendravishwakarma378@gmail.com";
+		} else {
+			email = `${email}@evaluna.com`;
+		}
+	}
 	const rememberMeRaw = formData.get("rememberMe");
 	const rememberMe =
 		rememberMeRaw === "on" || rememberMeRaw === "true" || rememberMeRaw === "1";
@@ -100,6 +118,8 @@ export async function login(formData: FormData) {
 		| Awaited<ReturnType<typeof auth.api.signInEmail>>["user"]
 		| undefined;
 
+	let resolvedRole: string | undefined;
+
 	let reqHeaders: Headers;
 	try {
 		reqHeaders = await headers();
@@ -108,14 +128,21 @@ export async function login(formData: FormData) {
 	}
 
 	try {
-		// Sign out any existing session first to avoid stale session redirect loops
-		try {
-			await auth.api.signOut({ headers: reqHeaders });
-		} catch {
-			// Ignore - no active session to sign out
+		// Sign out existing session only if an active session cookie actually exists
+		const cookieHeader = reqHeaders.get("cookie") || "";
+		if (
+			cookieHeader.includes("session_token") ||
+			cookieHeader.includes("evaluna.session") ||
+			cookieHeader.includes("better-auth")
+		) {
+			try {
+				await auth.api.signOut({ headers: reqHeaders });
+			} catch {
+				// Ignore - no active session to sign out
+			}
 		}
 
-		const resolvedRole =
+		resolvedRole =
 			predefinedAccounts[email] ||
 			(email.includes("superadmin")
 				? "super_admin"
@@ -227,33 +254,42 @@ export async function login(formData: FormData) {
 		}
 
 		if (isEvalunaAccount) {
-			// Ensure role and active status are persisted
-			await db
-				.update(userTable)
-				.set({
-					role: resolvedRole,
-					status: "ACTIVE",
-					emailVerified: true,
-					locked_until: null,
-					failed_login_count: 0,
-					is_superadmin:
-						resolvedRole === "superadmin" || resolvedRole === "super_admin",
-				} as any)
-				.where(eq(userTable.email, email));
-
 			// Sync with RBAC tables to ensure Next.js middleware and auth-guard resolve the role successfully
 			if (user) {
 				const assignedRole =
 					resolvedRole === "superadmin" ? "super_admin" : resolvedRole;
 
-				// 1. Find or create the role record
-				let [roleRecord] = await db
-					.select()
-					.from(roles)
-					.where(eq(roles.name, assignedRole))
-					.limit(1);
+				// Fetch existing role, userRole, staff, and employee records concurrently in a single roundtrip
+				const [
+					[roleRecord],
+					[existingUserRole],
+					[staffRecord],
+					[empRecord],
+				] = await Promise.all([
+					db
+						.select()
+						.from(roles)
+						.where(eq(roles.name, assignedRole))
+						.limit(1),
+					db
+						.select()
+						.from(userRoles)
+						.where(eq(userRoles.user_id, user.id))
+						.limit(1),
+					db
+						.select()
+						.from(staffTable)
+						.where(eq(staffTable.email, email))
+						.limit(1),
+					db
+						.select()
+						.from(employeesTable)
+						.where(eq(employeesTable.email, email))
+						.limit(1),
+				]);
 
-				if (!roleRecord) {
+				let effectiveRoleId = roleRecord?.id;
+				if (!effectiveRoleId) {
 					const [newRole] = await db
 						.insert(roles)
 						.values({
@@ -262,35 +298,24 @@ export async function login(formData: FormData) {
 							permissions: {},
 						})
 						.returning();
-					roleRecord = newRole;
+					effectiveRoleId = newRole.id;
 				}
 
-				// 2. Assign or update role for user in user_roles table
-				const [existingUserRole] = await db
-					.select()
-					.from(userRoles)
-					.where(eq(userRoles.user_id, user.id))
-					.limit(1);
-
+				// Assign or update role for user in user_roles table only if changed
 				if (!existingUserRole) {
 					await db.insert(userRoles).values({
 						user_id: user.id,
-						role_id: roleRecord.id,
+						role_id: effectiveRoleId,
 					});
-				} else if (existingUserRole.role_id !== roleRecord.id) {
+				} else if (existingUserRole.role_id !== effectiveRoleId) {
 					await db
 						.update(userRoles)
-						.set({ role_id: roleRecord.id })
+						.set({ role_id: effectiveRoleId })
 						.where(eq(userRoles.user_id, user.id));
 				}
 
-				// 3. Ensure staff record exists and user.staff_id is linked
-				let [staffRecord] = await db
-					.select()
-					.from(staffTable)
-					.where(eq(staffTable.email, email))
-					.limit(1);
-
+				// Ensure staff record exists and user.staff_id is linked
+				let linkedStaffId = staffRecord?.id;
 				if (!staffRecord) {
 					const [newStaff] = await db
 						.insert(staffTable)
@@ -305,23 +330,18 @@ export async function login(formData: FormData) {
 							salary: "0.00",
 						})
 						.returning();
-					staffRecord = newStaff;
+					linkedStaffId = newStaff.id;
 				}
 
-				if (staffRecord) {
+				// Only update user.staff_id if not already set correctly
+				if (linkedStaffId && (user as any)?.staff_id !== linkedStaffId) {
 					await db
 						.update(userTable)
-						.set({ staff_id: staffRecord.id, emailVerified: true } as any)
+						.set({ staff_id: linkedStaffId, emailVerified: true } as any)
 						.where(eq(userTable.id, user.id));
 				}
 
-				// 4. Ensure HRMS employees record exists (used by resolveEmployeeId for attendance)
-				const [empRecord] = await db
-					.select()
-					.from(employeesTable)
-					.where(eq(employeesTable.email, email))
-					.limit(1);
-
+				// Ensure HRMS employees record exists (only insert if missing)
 				if (!empRecord) {
 					const nameParts = (user.name || email.split("@")[0])
 						.trim()
@@ -471,18 +491,18 @@ export async function login(formData: FormData) {
 		return { success: true, redirectUrl: "/superadmin" };
 	}
 
-	// Fetch role directly from DB security profile to bypass session caching issues
-	const profile = await UserManagement.getSecurityProfileByUserId(user.id);
-	const role =
+	// Resolve destination role directly if already known, avoiding 2 extra DB roundtrips
+	let role =
 		predefinedAccounts[email] ||
-		profile?.role ||
-		(user as any)?.role ||
-		"customer";
+		(isEvalunaAccount ? resolvedRole : undefined) ||
+		(user as any)?.role;
+
+	if (!role) {
+		const profile = await UserManagement.getSecurityProfileByUserId(user.id);
+		role = profile?.role || "customer";
+	}
 
 	const destination = getCanonicalDashboardRoute(role);
-	try {
-		revalidatePath(destination, "layout");
-	} catch {}
 	return { success: true, redirectUrl: destination };
 }
 

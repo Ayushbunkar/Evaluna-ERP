@@ -37,6 +37,7 @@ import {
 	CheckCircle2Icon,
 	ClockIcon,
 	CreditCardIcon,
+	Download,
 	FileTextIcon,
 	FilterIcon,
 	Loader2Icon,
@@ -79,6 +80,7 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [typeFilter, setTypeFilter] = useState<"all" | "in" | "out">("all");
 	const [categoryFilter, setCategoryFilter] = useState("all");
+	const [paymentModeFilter, setPaymentModeFilter] = useState("all");
 
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
@@ -114,8 +116,10 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 		thDate: locale === "hi" ? "तारीख और समय" : "Date & Time",
 		thType: locale === "hi" ? "प्रकार" : "Type",
 		thCategory: locale === "hi" ? "श्रेणी" : "Category",
-		thDesc: locale === "hi" ? "विवरण" : "Description / Reference",
-		thAmount: locale === "hi" ? "राशि" : "Amount",
+		thPaymentMode: locale === "hi" ? "भुगतान माध्यम" : "Payment Mode",
+		thDesc: locale === "hi" ? "विवरण / वाउचर संदर्भ" : "Description / Reference",
+		thAmount: locale === "hi" ? "राशि (Net Amount)" : "Amount",
+		exportCsv: locale === "hi" ? "CSV निर्यात" : "Export CSV",
 		noTx:
 			locale === "hi"
 				? "कोई कैश लेनदेन नहीं मिला।"
@@ -150,6 +154,7 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 			limit: 100,
 			type: typeFilter,
 			category: categoryFilter !== "all" ? categoryFilter : undefined,
+			paymentMode: paymentModeFilter !== "all" ? paymentModeFilter : undefined,
 			search: searchQuery || undefined,
 		},
 		{
@@ -157,6 +162,66 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 			refetchOnWindowFocus: true,
 		},
 	);
+
+	const handleExportCSV = () => {
+		if (!ledger?.items || ledger.items.length === 0) {
+			toast.error(
+				locale === "hi"
+					? "निर्यात के लिए कोई डेटा नहीं है"
+					: "No transactions to export",
+			);
+			return;
+		}
+
+		const headers = [
+			"Voucher ID",
+			"Date & Time",
+			"Type",
+			"Category",
+			"Payment Mode",
+			"Description",
+			"Order Ref",
+			"Recorded By",
+			"Original Amount (INR)",
+			"Adjustment (INR)",
+			"Final Amount (INR)",
+		];
+
+		const rows = ledger.items.map((tx) => [
+			`TXN-${tx.id}`,
+			format(new Date(tx.created_at || new Date()), "yyyy-MM-dd HH:mm:ss"),
+			tx.type === "in" ? "CASH IN" : "CASH OUT",
+			tx.category || "manual",
+			tx.payment_method_name || "Cash",
+			`"${(tx.description || "").replace(/"/g, '""')}"`,
+			tx.order_id ? `ORD-${tx.order_id}` : "-",
+			(tx as any).recorded_by || "System",
+			tx.original_amount
+				? Number(tx.original_amount).toFixed(2)
+				: Number(tx.amount).toFixed(2),
+			Number(tx.adjustment_amount || 0).toFixed(2),
+			Number(tx.amount).toFixed(2),
+		]);
+
+		const csvContent =
+			"data:text/csv;charset=utf-8," +
+			[headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+		const encodedUri = encodeURI(csvContent);
+		const link = document.createElement("a");
+		link.setAttribute("href", encodedUri);
+		link.setAttribute(
+			"download",
+			`Cashbook_Ledger_${format(new Date(), "yyyy-MM-dd")}.csv`,
+		);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		toast.success(
+			locale === "hi"
+				? "कैशबुक CSV सफलतापूर्वक डाउनलोड हो गई"
+				: "Cashbook CSV exported successfully",
+		);
+	};
 
 	const addEntry = trpc.cashbook.addEntry.useMutation({
 		onSuccess: () => {
@@ -521,7 +586,7 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 
 						{/* Search & Filter Controls */}
 						<div className="flex flex-wrap items-center gap-2">
-							<div className="relative w-full sm:w-56">
+							<div className="relative w-full sm:w-52">
 								<SearchIcon className="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 								<Input
 									placeholder="Search description, order #..."
@@ -553,6 +618,36 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 								<option value="manual">Manual Entries</option>
 								<option value="driver_cash">Logistics Collection</option>
 							</select>
+
+							<select
+								className="h-8 rounded-md border border-input bg-background px-2.5 font-semibold text-xs shadow-sm focus:outline-none"
+								value={paymentModeFilter}
+								onChange={(e) => setPaymentModeFilter(e.target.value)}
+							>
+								<option value="all">
+									{locale === "hi" ? "सभी माध्यम" : "All Modes"}
+								</option>
+								<option value="cash">
+									{locale === "hi" ? "💵 नकद (Cash)" : "💵 Cash"}
+								</option>
+								<option value="upi">
+									{locale === "hi" ? "📱 यूपीआई (UPI)" : "📱 UPI / Online"}
+								</option>
+								<option value="bank">
+									{locale === "hi" ? "🏦 बैंक (Bank)" : "🏦 Bank Transfer"}
+								</option>
+							</select>
+
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleExportCSV}
+								className="h-8 gap-1.5 px-2.5 font-medium text-slate-700 text-xs hover:text-slate-900 dark:text-slate-200"
+								title="Download ledger as CSV"
+							>
+								<Download className="h-3.5 w-3.5 text-slate-500" />
+								<span className="hidden sm:inline">{t.exportCsv}</span>
+							</Button>
 						</div>
 					</div>
 				</CardHeader>
@@ -573,11 +668,11 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 										<th className="py-3 px-4 font-semibold">{t.thDate}</th>
 										<th className="px-3 font-semibold">{t.thType}</th>
 										<th className="px-3 font-semibold">{t.thCategory}</th>
+										<th className="px-3 font-semibold">{t.thPaymentMode}</th>
 										<th className="px-3 font-semibold">{t.thDesc}</th>
 										<th className="px-3 text-right font-semibold">Original ₹</th>
 										<th className="px-3 text-right font-semibold">Adjustment</th>
 										<th className="px-4 text-right font-semibold">{t.thAmount}</th>
-										<th className="px-4 text-center font-semibold">Status</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -588,8 +683,6 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 										const finalAmt = Number(tx.amount);
 										const adjustment = Number(tx.adjustment_amount || 0);
 										const hasAdjustment = adjustment !== 0;
-										const isReconciled =
-											tx.reconciliation_status === "reconciled";
 										const isIncome = tx.type === "in";
 
 										return (
@@ -623,16 +716,68 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 														{tx.category || "manual"}
 													</Badge>
 												</td>
-												<td className="max-w-[240px] px-3 font-medium text-xs">
-													<div className="flex flex-col">
-														<span className="truncate text-slate-900 dark:text-slate-100">
+												<td className="px-3">
+													{(() => {
+														const mode = (
+															tx.payment_method_name || "Cash"
+														).toLowerCase();
+														if (mode.includes("cash")) {
+															return (
+																<span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-semibold text-[10px] text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-400">
+																	<Wallet className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
+																	Cash
+																</span>
+															);
+														}
+														if (
+															mode.includes("upi") ||
+															mode.includes("online")
+														) {
+															return (
+																<span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 font-semibold text-[10px] text-purple-700 dark:border-purple-800/40 dark:bg-purple-950/30 dark:text-purple-400">
+																	<CreditCardIcon className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400" />
+																	UPI
+																</span>
+															);
+														}
+														if (
+															mode.includes("bank") ||
+															mode.includes("transfer") ||
+															mode.includes("neft")
+														) {
+															return (
+																<span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-semibold text-[10px] text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/30 dark:text-blue-400">
+																	<ReceiptIcon className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400" />
+																	Bank
+																</span>
+															);
+														}
+														return (
+															<span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-[10px] text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+																<CreditCardIcon className="h-2.5 w-2.5 text-slate-500" />
+																{tx.payment_method_name || "Direct"}
+															</span>
+														);
+													})()}
+												</td>
+												<td className="max-w-[280px] px-3 font-medium text-xs">
+													<div className="flex flex-col gap-0.5">
+														<span className="truncate font-semibold text-slate-900 dark:text-slate-100">
 															{tx.description || `Transaction #${tx.id}`}
 														</span>
-														{tx.order_id && (
-															<span className="font-mono text-[10px] text-muted-foreground">
-																Ref: Order #{tx.order_id}
+														<div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
+															<span className="rounded bg-slate-100 px-1 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+																#TXN-{tx.id}
 															</span>
-														)}
+															{tx.order_id && (
+																<span>Ref: Order #{tx.order_id}</span>
+															)}
+															{(tx as any).recorded_by && (
+																<span className="text-slate-500">
+																	· By: {(tx as any).recorded_by}
+																</span>
+															)}
+														</div>
 													</div>
 												</td>
 												<td className="px-3 text-right text-muted-foreground text-xs">
@@ -650,13 +795,6 @@ export function CashBookView({ title, subtitle }: CashBookViewProps) {
 													className={`px-4 text-right font-bold text-xs ${isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
 												>
 													{isIncome ? "+" : "-"}₹{finalAmt.toFixed(2)}
-												</td>
-												<td className="px-4 text-center">
-													<span
-														className={`inline-flex items-center rounded-full px-2 py-0.5 font-semibold text-[10px] uppercase ${isReconciled ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"}`}
-													>
-														{isReconciled ? "Reconciled" : "Pending"}
-													</span>
 												</td>
 											</tr>
 										);

@@ -21,6 +21,7 @@ import {
 	orders,
 	paymentMethods,
 	transactions,
+	user,
 } from "@/lib/db/schema";
 import { protectedProcedure, router } from "../init";
 
@@ -32,6 +33,7 @@ export const cashbookRouter = router({
 				offset: z.number().default(0),
 				type: z.enum(["in", "out", "all"]).optional().default("all"),
 				category: z.string().optional(),
+				paymentMode: z.string().optional(),
 				search: z.string().optional(),
 				dateFrom: z.string().optional(),
 				dateTo: z.string().optional(),
@@ -85,6 +87,36 @@ export const cashbookRouter = router({
 				}
 			}
 
+			if (input.paymentMode && input.paymentMode !== "all") {
+				if (input.paymentMode === "cash") {
+					conditions.push(
+						or(
+							ilike(paymentMethods.name, "%cash%"),
+							isNull(transactions.payment_method_id),
+							ilike(transactions.description, "%cash%"),
+						),
+					);
+				} else if (input.paymentMode === "upi") {
+					conditions.push(
+						or(
+							ilike(paymentMethods.name, "%upi%"),
+							ilike(transactions.description, "%upi%"),
+							ilike(transactions.description, "%online%"),
+						),
+					);
+				} else if (input.paymentMode === "bank") {
+					conditions.push(
+						or(
+							ilike(paymentMethods.name, "%bank%"),
+							ilike(paymentMethods.name, "%transfer%"),
+							ilike(paymentMethods.name, "%neft%"),
+							ilike(paymentMethods.name, "%rtgs%"),
+							ilike(transactions.description, "%bank%"),
+						),
+					);
+				}
+			}
+
 			if (input.search && input.search.trim() !== "") {
 				const query = `%${input.search.trim()}%`;
 				conditions.push(
@@ -120,6 +152,7 @@ export const cashbookRouter = router({
 					original_amount: transactions.original_amount,
 					adjustment_amount: transactions.adjustment_amount,
 					user_uid: transactions.user_uid,
+					recorded_by: user.name,
 					type: transactions.type,
 					category: transactions.category,
 					status: transactions.status,
@@ -133,12 +166,13 @@ export const cashbookRouter = router({
 					paymentMethods,
 					eq(transactions.payment_method_id, paymentMethods.id),
 				)
+				.leftJoin(user, eq(transactions.user_uid, user.id))
 				.where(whereClause)
 				.orderBy(desc(transactions.created_at))
 				.limit(input.limit)
 				.offset(input.offset);
 
-			// Normalize type to "in" / "out" for consistency
+			// Normalize type and resolve effective payment mode
 			const items = rows.map((r) => {
 				const rawType = r.type?.toLowerCase() || "in";
 				const normalizedType: "in" | "out" =
@@ -146,9 +180,22 @@ export const cashbookRouter = router({
 						? "out"
 						: "in";
 
+				let effectivePaymentMode = r.payment_method_name;
+				if (!effectivePaymentMode) {
+					const descLower = (r.description || "").toLowerCase();
+					if (descLower.includes("upi") || descLower.includes("online")) {
+						effectivePaymentMode = "UPI";
+					} else if (descLower.includes("bank") || descLower.includes("neft")) {
+						effectivePaymentMode = "Bank Transfer";
+					} else {
+						effectivePaymentMode = "Cash";
+					}
+				}
+
 				return {
 					...r,
 					type: normalizedType,
+					payment_method_name: effectivePaymentMode,
 					amount: r.amount || "0.00",
 					original_amount: r.original_amount || r.amount || "0.00",
 					adjustment_amount: r.adjustment_amount || "0.00",

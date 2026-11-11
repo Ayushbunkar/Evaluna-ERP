@@ -9,6 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@evaluna/ui/components/dialog";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, LogOut } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -20,15 +21,33 @@ export interface LogoutModalProps {
 
 export function LogoutModal({ open, onOpenChange }: LogoutModalProps) {
 	const [isLoading, setIsLoading] = useState(false);
+	const queryClient = useQueryClient();
 
 	const handleConfirmLogout = async () => {
+		if (isLoading) return; // Prevent duplicate concurrent requests
 		setIsLoading(true);
+
 		try {
-			await fetch("/api/logout", { method: "POST" });
+			// 1. Immediately purge all cached TanStack/tRPC queries from memory to prevent data leakage
+			queryClient.clear();
+
+			// 2. Clear browser session and sensitive local storage
+			try {
+				sessionStorage.clear();
+				localStorage.removeItem("active_branch_id");
+				localStorage.removeItem("last_dashboard_route");
+			} catch {}
+
+			// 3. Call server-side logout
+			await fetch("/api/logout", {
+				method: "POST",
+				headers: { "Cache-Control": "no-cache" },
+			});
 			toast.success("Logged out successfully");
-			window.location.replace("/login");
 		} catch (_err) {
-			toast.error("Logout failed, redirecting...");
+			toast.error("Logout completed, redirecting...");
+		} finally {
+			// 4. Force browser navigation to login page with replace to prevent bfcache replay
 			window.location.replace("/login");
 		}
 	};

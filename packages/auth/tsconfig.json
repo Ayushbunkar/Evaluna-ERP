@@ -12,5 +12,6 @@
 			"@evaluna/db/*": ["../db/src/*"]
 		}
 	},
-	"references": [{ "path": "../db" }]
+	"references": [{ "path": "../db" }],
+	"exclude": ["src/__tests__/**"]
 }

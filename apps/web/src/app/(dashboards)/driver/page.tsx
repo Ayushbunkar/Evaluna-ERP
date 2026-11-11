@@ -22,6 +22,7 @@ import {
 	History,
 	MapPin,
 	MapPinIcon,
+	Package,
 	PackageCheck,
 	PackageIcon,
 	PhoneCall,

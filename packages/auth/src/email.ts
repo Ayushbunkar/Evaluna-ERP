@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 export interface SendVerificationEmailParams {
 	to: string;
@@ -28,9 +28,9 @@ export interface SendBrevoEmailParams {
 /**
  * Cached nodemailer transporter for Brevo SMTP.
  */
-let cachedTransporter: nodemailer.Transporter | null = null;
+let cachedTransporter: Transporter | null = null;
 
-function getSmtpTransporter(): nodemailer.Transporter | null {
+function getSmtpTransporter(): Transporter | null {
 	if (cachedTransporter) return cachedTransporter;
 
 	const host =

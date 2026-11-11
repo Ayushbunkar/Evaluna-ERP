@@ -98,9 +98,12 @@ export function DashboardHeader({
 	const sessionData = useSession();
 	const user = sessionData.session?.user;
 
-	// Profile query & mutation
+	// Profile query & mutation (cached to prevent blocking initial dashboard renders)
 	const { data: myProfile, refetch: refetchMyProfile } =
-		trpc.users.getMyProfile.useQuery(undefined);
+		trpc.users.getMyProfile.useQuery(undefined, {
+			staleTime: 5 * 60 * 1000,
+			refetchOnWindowFocus: false,
+		});
 
 	const effectiveAvatar = myProfile?.image || user?.image;
 
@@ -141,8 +144,11 @@ export function DashboardHeader({
 		}
 	};
 
-	// Queries
-	const { data: branches } = trpc.branches.list.useQuery(undefined);
+	// Queries (staleTime prevents duplicate fetches across header re-renders)
+	const { data: branches } = trpc.branches.list.useQuery(undefined, {
+		staleTime: 10 * 60 * 1000,
+		refetchOnWindowFocus: false,
+	});
 	const { data: todayAttendance, refetch: refetchToday } =
 		trpc.attendance.getToday.useQuery(undefined, { refetchInterval: 30000 });
 
