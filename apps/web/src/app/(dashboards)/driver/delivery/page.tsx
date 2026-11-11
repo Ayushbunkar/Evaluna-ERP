@@ -205,6 +205,11 @@ export default function DriverLiveDeliveryPage() {
 		{},
 	);
 
+	// Selective multi-order delivery: which orders are being handed over in this bill session
+	const [selectedDeliveryOrderIds, setSelectedDeliveryOrderIds] = useState<
+		Set<number>
+	>(new Set());
+
 	const routeStops =
 		directRouteStops && directRouteStops.length > 0
 			? directRouteStops
@@ -242,6 +247,25 @@ export default function DriverLiveDeliveryPage() {
 			}
 		}
 	}, [editStopIdParam]);
+
+	// Initialize selectedDeliveryOrderIds when an active stop is selected
+	useEffect(() => {
+		if (activeStop) {
+			const initialSelected = new Set<number>();
+			if (activeStop.orders && activeStop.orders.length > 0) {
+				for (const o of activeStop.orders) {
+					initialSelected.add(o.id);
+				}
+			} else if (activeStop.orderIds && activeStop.orderIds.length > 0) {
+				for (const oId of activeStop.orderIds) {
+					initialSelected.add(oId);
+				}
+			} else if (typeof activeStop.orderId === "number") {
+				initialSelected.add(activeStop.orderId);
+			}
+			setSelectedDeliveryOrderIds(initialSelected);
+		}
+	}, [activeStop?.id]);
 
 	// Global pending vs delivered counts
 	const totalPendingStops = useMemo(
@@ -436,12 +460,17 @@ export default function DriverLiveDeliveryPage() {
 		// If activeStop has an orders array from backend
 		if (activeStop.orders && activeStop.orders.length > 0) {
 			return activeStop.orders.map((ord: any) => {
+				const isDeliverySelected =
+					selectedDeliveryOrderIds.size === 0 ||
+					selectedDeliveryOrderIds.has(ord.id);
 				const ordItems = items.filter((it) => it.order_id === ord.id);
-				const ordDeliveredTotal = ordItems.reduce(
-					(sum, it) =>
-						sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
-					0,
-				);
+				const ordDeliveredTotal = isDeliverySelected
+					? ordItems.reduce(
+							(sum, it) =>
+								sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
+							0,
+						)
+					: 0;
 				const ordOriginalTotal = ordItems.reduce(
 					(sum, it) => sum + (Number(it.originalQty) || 0) * Number(it.price || 0),
 					0,
@@ -460,6 +489,7 @@ export default function DriverLiveDeliveryPage() {
 					discountReason: ord.discount_reason || null,
 					allChecked,
 					checkedCount,
+					isDeliverySelected,
 					items: ordItems,
 				};
 			});
@@ -478,11 +508,16 @@ export default function DriverLiveDeliveryPage() {
 
 		if (groupedMap.size > 0) {
 			return Array.from(groupedMap.entries()).map(([ordId, ordItems]) => {
-				const ordDeliveredTotal = ordItems.reduce(
-					(sum, it) =>
-						sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
-					0,
-				);
+				const isDeliverySelected =
+					selectedDeliveryOrderIds.size === 0 ||
+					selectedDeliveryOrderIds.has(ordId);
+				const ordDeliveredTotal = isDeliverySelected
+					? ordItems.reduce(
+							(sum, it) =>
+								sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
+							0,
+						)
+					: 0;
 				const ordOriginalTotal = ordItems.reduce(
 					(sum, it) => sum + (Number(it.originalQty) || 0) * Number(it.price || 0),
 					0,
@@ -497,6 +532,7 @@ export default function DriverLiveDeliveryPage() {
 					allChecked:
 						ordItems.length > 0 && ordItems.every((it) => it.checked),
 					checkedCount: ordItems.filter((it) => it.checked).length,
+					isDeliverySelected,
 					items: ordItems,
 				};
 			});
@@ -525,10 +561,20 @@ export default function DriverLiveDeliveryPage() {
 				originalTotal: ordOriginalTotal,
 				allChecked: items.length > 0 && items.every((it) => it.checked),
 				checkedCount: items.filter((it) => it.checked).length,
+				isDeliverySelected: true,
 				items: items,
 			},
 		];
-	}, [activeStop, items]);
+	}, [activeStop, items, selectedDeliveryOrderIds]);
+
+	// Filtered items that belong strictly to the active orders selected for delivery in this bill
+	const activeHandoverItems = useMemo(() => {
+		return items.filter((it) => {
+			if (it.isVanStock || !it.order_id) return true;
+			if (selectedDeliveryOrderIds.size === 0) return true;
+			return selectedDeliveryOrderIds.has(it.order_id);
+		});
+	}, [items, selectedDeliveryOrderIds]);
 
 	const vanStockItemsCount = useMemo(
 		() => items.filter((i) => i.isVanStock).length,
@@ -598,9 +644,18 @@ export default function DriverLiveDeliveryPage() {
 							? `ORD-${selectedOrderFilter}`
 							: selectedOrderFilter
 					}`;
+			const isOrderDeliverySelected =
+				typeof selectedOrderFilter === "number"
+					? selectedDeliveryOrderIds.size === 0 ||
+						selectedDeliveryOrderIds.has(selectedOrderFilter)
+					: true;
 			const total = filteredItems.reduce(
 				(sum, it) =>
 					sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
+				0,
+			);
+			const expectedTotal = filteredItems.reduce(
+				(sum, it) => sum + (Number(it.originalQty) || 0) * Number(it.price || 0),
 				0,
 			);
 			groups.push({
@@ -609,6 +664,8 @@ export default function DriverLiveDeliveryPage() {
 				orderTitle: title,
 				orderBadge: isVan ? "Van Stock" : `ORD-${selectedOrderFilter}`,
 				orderTotal: total,
+				expectedTotal,
+				isOrderDeliverySelected,
 				items: filteredItems,
 				allChecked:
 					filteredItems.length > 0 &&
@@ -637,9 +694,16 @@ export default function DriverLiveDeliveryPage() {
 		}
 
 		for (const [ordId, ordItems] of orderMap.entries()) {
+			const isOrderDeliverySelected =
+				selectedDeliveryOrderIds.size === 0 ||
+				selectedDeliveryOrderIds.has(ordId);
 			const total = ordItems.reduce(
 				(sum, it) =>
 					sum + (it.checked ? (Number(it.deliveredQty) || 0) * Number(it.price || 0) : 0),
+				0,
+			);
+			const expectedTotal = ordItems.reduce(
+				(sum, it) => sum + (Number(it.originalQty) || 0) * Number(it.price || 0),
 				0,
 			);
 			groups.push({
@@ -648,6 +712,8 @@ export default function DriverLiveDeliveryPage() {
 				orderTitle: `Order #ORD-${ordId}`,
 				orderBadge: `ORD-${ordId}`,
 				orderTotal: total,
+				expectedTotal,
+				isOrderDeliverySelected,
 				items: ordItems,
 				allChecked:
 					ordItems.length > 0 && ordItems.every((it) => it.checked),
@@ -669,6 +735,8 @@ export default function DriverLiveDeliveryPage() {
 						: "Van Stock Additions",
 				orderBadge: "Van Stock",
 				orderTotal: total,
+				expectedTotal: total,
+				isOrderDeliverySelected: true,
 				items: vanStockList,
 				allChecked:
 					vanStockList.length > 0 &&
@@ -688,6 +756,8 @@ export default function DriverLiveDeliveryPage() {
 				orderTitle: `${activeStop?.customerName || "Customer"} Items`,
 				orderBadge: "Items",
 				orderTotal: total,
+				expectedTotal: total,
+				isOrderDeliverySelected: true,
 				items: otherList,
 				allChecked:
 					otherList.length > 0 && otherList.every((it) => it.checked),
@@ -887,6 +957,49 @@ export default function DriverLiveDeliveryPage() {
 		);
 	};
 
+	const handleToggleOrderDelivery = (orderId: number) => {
+		setSelectedDeliveryOrderIds((prev) => {
+			const next = new Set(prev);
+			const willInclude = !next.has(orderId);
+			if (willInclude) {
+				next.add(orderId);
+				setItems((prevItems) =>
+					prevItems.map((it) =>
+						it.order_id === orderId
+							? {
+									...it,
+									checked: true,
+									deliveredQty: it.originalQty,
+									returnedQty: 0,
+									returnReason: "",
+								}
+							: it,
+					),
+				);
+				toast.success(
+					locale === "hi"
+						? `ऑर्डर #ORD-${orderId} इस डिलीवरी में शामिल किया गया!`
+						: `Order #ORD-${orderId} included in this delivery!`,
+				);
+			} else {
+				next.delete(orderId);
+				setItems((prevItems) =>
+					prevItems.map((it) =>
+						it.order_id === orderId
+							? { ...it, checked: false, returnReason: "" }
+							: it,
+					),
+				);
+				toast.info(
+					locale === "hi"
+						? `ऑर्डर #ORD-${orderId} बाद में डिलीवरी के लिए रखा गया है (लंबित रहेगा)`
+						: `Order #ORD-${orderId} deferred for later delivery (stays pending)`,
+				);
+			}
+			return next;
+		});
+	};
+
 	const toggleCollapseOrder = (groupKey: string) => {
 		setCollapsedOrders((prev) => ({
 			...prev,
@@ -896,56 +1009,81 @@ export default function DriverLiveDeliveryPage() {
 
 	// ── Bill calculations ──────────────────────────────────────────────────────
 
-	const originalTotal = items.reduce(
-		(acc, item) =>
-			acc + (Number(item.originalQty) || 0) * Number(item.price || 0),
-		0,
+	const originalTotal = useMemo(
+		() =>
+			activeHandoverItems.reduce(
+				(acc, item) =>
+					acc + (Number(item.originalQty) || 0) * Number(item.price || 0),
+				0,
+			),
+		[activeHandoverItems],
 	);
-	const subtotal = items.reduce(
-		(acc, item) =>
-			acc +
-			(item.checked
-				? (Number(item.deliveredQty) || 0) * Number(item.price || 0)
-				: 0),
-		0,
+
+	const subtotal = useMemo(
+		() =>
+			activeHandoverItems.reduce(
+				(acc, item) =>
+					acc +
+					(item.checked
+						? (Number(item.deliveredQty) || 0) * Number(item.price || 0)
+						: 0),
+				0,
+			),
+		[activeHandoverItems],
 	);
-	const totalReturnedValue = items.reduce(
-		(acc, item) =>
-			acc +
-			(!item.checked
-				? (Number(item.originalQty) || 0) * Number(item.price || 0)
-				: (Number(item.returnedQty) || 0) * Number(item.price || 0)),
-		0,
+
+	const totalReturnedValue = useMemo(
+		() =>
+			activeHandoverItems.reduce(
+				(acc, item) =>
+					acc +
+					(!item.checked
+						? (Number(item.originalQty) || 0) * Number(item.price || 0)
+						: (Number(item.returnedQty) || 0) * Number(item.price || 0)),
+				0,
+			),
+		[activeHandoverItems],
 	);
-	// Total discount configured on the order initially
+
+	// Total discount configured on the selected order(s) initially
 	const billDiscount = useMemo(() => {
 		if (!activeStop) return 0;
-		const ordersDiscount = (activeStop.orders || []).reduce(
+		const selectedOrders = (activeStop.orders || []).filter(
+			(o: any) =>
+				selectedDeliveryOrderIds.size === 0 ||
+				selectedDeliveryOrderIds.has(o.id),
+		);
+		const ordersDiscount = selectedOrders.reduce(
 			(sum: number, o: any) => sum + (Number(o.discount_amount) || 0),
 			0,
 		);
 		if (ordersDiscount > 0) return ordersDiscount;
-		if (activeStop.discountAmount && activeStop.discountAmount > 0) {
+		if (
+			activeStop.discountAmount &&
+			activeStop.discountAmount > 0 &&
+			selectedOrders.length === (activeStop.orders || []).length
+		) {
 			return activeStop.discountAmount;
 		}
-		if (
-			activeStop.amountToCollect !== undefined &&
-			originalTotal > activeStop.amountToCollect
-		) {
-			return originalTotal - activeStop.amountToCollect;
-		}
 		return 0;
-	}, [activeStop, originalTotal]);
+	}, [activeStop, selectedDeliveryOrderIds]);
 
 	const discountReasonText = useMemo(() => {
 		if (!activeStop) return "";
-		if (activeStop.discountReason) return activeStop.discountReason;
-		const reasons = (activeStop.orders || [])
+		const selectedOrders = (activeStop.orders || []).filter(
+			(o: any) =>
+				selectedDeliveryOrderIds.size === 0 ||
+				selectedDeliveryOrderIds.has(o.id),
+		);
+		const reasons = selectedOrders
 			.map((o: any) => o.discount_reason)
 			.filter(Boolean);
 		if (reasons.length > 0) return Array.from(new Set(reasons)).join("; ");
+		if (selectedOrders.length === (activeStop.orders || []).length) {
+			return activeStop.discountReason || "";
+		}
 		return "";
-	}, [activeStop]);
+	}, [activeStop, selectedDeliveryOrderIds]);
 
 	// Combined effective discount (order discount + driver doorstep discount)
 	const totalEffectiveDiscount = useMemo(() => {
@@ -974,19 +1112,24 @@ export default function DriverLiveDeliveryPage() {
 	const finalTotal = useMemo(() => {
 		let baseTotal = 0;
 		// When all items delivered with no returns or van stock additions
+		const isAllOrdersSelected =
+			!activeStop?.orders ||
+			activeStop.orders.length <= 1 ||
+			activeStop.orders.every((o: any) => selectedDeliveryOrderIds.has(o.id));
+
 		if (
 			totalReturnedValue === 0 &&
 			vanStockDeliveredTotal === 0 &&
+			isAllOrdersSelected &&
 			activeStop?.amountToCollect !== undefined &&
 			activeStop.amountToCollect > 0
 		) {
 			baseTotal = activeStop.amountToCollect;
-			// If driver added extra discount beyond initial billDiscount
 			if (driverDiscount > 0) {
 				baseTotal = Math.max(0, baseTotal - Number(driverDiscount));
 			}
 		} else {
-			// If returns or truck additions occurred, calculate from delivered subtotal minus total discount
+			// Calculate from delivered subtotal minus total discount
 			baseTotal = Math.max(0, subtotal - totalEffectiveDiscount);
 		}
 		return Math.max(0, baseTotal + totalEffectiveExtraCharges);
@@ -999,6 +1142,7 @@ export default function DriverLiveDeliveryPage() {
 		driverDiscount,
 		totalEffectiveDiscount,
 		totalEffectiveExtraCharges,
+		selectedDeliveryOrderIds,
 	]);
 	const remainingBalance = finalTotal - (cashAmount + onlineAmount);
 
@@ -1048,8 +1192,22 @@ export default function DriverLiveDeliveryPage() {
 			return;
 		}
 
-		// Items returned or unselected automatically go into driver's vehicle van stock
-		const returnsList = items
+		const activeSelectedOrderIds =
+			activeOrdersList.length > 0 && selectedDeliveryOrderIds.size > 0
+				? Array.from(selectedDeliveryOrderIds)
+				: activeStop?.orders?.map((o: any) => o.id) || [];
+
+		if (activeOrdersList.length > 0 && activeSelectedOrderIds.length === 0) {
+			toast.error(
+				locale === "hi"
+					? "कृपया कम से कम एक ऑर्डर डिलीवरी के लिए चुनें!"
+					: "Please select at least one order to deliver!",
+			);
+			return;
+		}
+
+		// Items returned or unselected from ACTIVE orders automatically go into driver's vehicle van stock
+		const returnsList = activeHandoverItems
 			.filter((i) => !i.checked || (Number(i.returnedQty) || 0) > 0)
 			.map((i) => ({
 				id: Number(i.id),
@@ -1066,8 +1224,8 @@ export default function DriverLiveDeliveryPage() {
 						: "Customer refused / unselected (stays in van stock)"),
 			}));
 
-		// Only checked and accepted items are billed to the customer
-		const deliveredList = items
+		// Only checked and accepted items from ACTIVE orders are billed to the customer
+		const deliveredList = activeHandoverItems
 			.filter((i) => Boolean(i.checked) && (Number(i.deliveredQty) || 0) > 0)
 			.map((i) => ({
 				id: Number(i.id),
@@ -1082,10 +1240,12 @@ export default function DriverLiveDeliveryPage() {
 			trip_id: activeStop?.trip_id || 1,
 			stop_id: activeStop?.id || 1,
 			order_id:
+				activeSelectedOrderIds[0] ||
 				activeStop?.orders?.[0]?.id ||
 				(typeof activeStop?.orderId === "number"
 					? activeStop.orderId
 					: undefined),
+			selected_order_ids: activeSelectedOrderIds,
 			cashAmount: Number(cashAmount) || 0,
 			onlineAmount: Number(onlineAmount) || 0,
 			discountAmount: totalEffectiveDiscount,
@@ -1180,6 +1340,21 @@ export default function DriverLiveDeliveryPage() {
 		setSelectedOrderFilter("all");
 		setSearchQuery("");
 		const targetStop = routeStops.find((s) => s.id === stopId);
+		if (targetStop) {
+			const initialSelected = new Set<number>();
+			if (targetStop.orders && targetStop.orders.length > 0) {
+				for (const o of targetStop.orders) {
+					initialSelected.add(o.id);
+				}
+			} else if (targetStop.orderIds && targetStop.orderIds.length > 0) {
+				for (const oId of targetStop.orderIds) {
+					initialSelected.add(oId);
+				}
+			} else if (typeof targetStop.orderId === "number") {
+				initialSelected.add(targetStop.orderId);
+			}
+			setSelectedDeliveryOrderIds(initialSelected);
+		}
 		if (targetStop && targetStop.orderItems && targetStop.orderItems.length > 0) {
 			setItems(
 				targetStop.orderItems.map((oi: any) => {
@@ -1929,6 +2104,7 @@ export default function DriverLiveDeliveryPage() {
 											{/* Individual Order Buttons */}
 											{activeOrdersList.map((ord) => {
 												const isSelected = selectedOrderFilter === ord.id;
+												const isSelectedForDelivery = ord.isDeliverySelected !== false;
 												return (
 													<button
 														key={ord.id}
@@ -1937,7 +2113,9 @@ export default function DriverLiveDeliveryPage() {
 														className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer border ${
 															isSelected
 																? "bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-500/20"
-																: "bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+																: !isSelectedForDelivery
+																	? "bg-amber-50/80 text-amber-900 border-amber-300 dark:bg-amber-950/30 dark:text-amber-300"
+																	: "bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
 														}`}
 													>
 														<span className="font-mono font-bold">
@@ -1947,10 +2125,12 @@ export default function DriverLiveDeliveryPage() {
 															className={`rounded px-1.5 py-0.2 font-mono text-[10px] ${
 																isSelected
 																	? "bg-indigo-700 text-white"
-																	: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+																	: !isSelectedForDelivery
+																		? "bg-amber-200/80 text-amber-900 dark:bg-amber-900 dark:text-amber-200"
+																		: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
 															}`}
 														>
-															₹{ord.deliveredTotal}
+															{isSelectedForDelivery ? `₹${ord.deliveredTotal}` : "⏳ Pending"}
 														</span>
 														<span
 															className={`text-[10px] font-normal ${
@@ -2066,8 +2246,8 @@ export default function DriverLiveDeliveryPage() {
 													className="rounded-xl border bg-card shadow-2xs overflow-hidden transition-all"
 												>
 													{/* Group Section Header */}
-													<div className="flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-muted/60 via-muted/40 to-muted/20 border-b">
-														<div className="flex items-center gap-2">
+													<div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-gradient-to-r from-muted/60 via-muted/40 to-muted/20 border-b">
+														<div className="flex items-center gap-2 flex-wrap">
 															<button
 																type="button"
 																onClick={() => toggleCollapseOrder(group.orderIdKey)}
@@ -2090,26 +2270,90 @@ export default function DriverLiveDeliveryPage() {
 															>
 																{group.items.length} {locale === "hi" ? "सामान" : "Items"}
 															</Badge>
+															{group.orderIdNumeric !== undefined && (
+																<Badge
+																	variant={group.isOrderDeliverySelected ? "default" : "outline"}
+																	className={`text-[10px] font-bold py-0.5 ${
+																		group.isOrderDeliverySelected
+																			? "bg-emerald-600 text-white hover:bg-emerald-700"
+																			: "border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+																	}`}
+																>
+																	{group.isOrderDeliverySelected
+																		? (locale === "hi" ? "✓ इस बिल में शामिल" : "✓ In Current Bill")
+																		: (locale === "hi" ? "⏳ बाद में डिलीवर होगा (लंबित)" : "⏳ Deliver Later (Pending)")}
+																</Badge>
+															)}
 														</div>
 
 														<div className="flex items-center gap-2">
 															<span className="font-mono font-bold text-xs text-foreground">
-																₹{group.orderTotal}
+																{group.isOrderDeliverySelected ? (
+																	`₹${group.orderTotal}`
+																) : (
+																	<span className="text-muted-foreground line-through text-[11px]" title="Excluded from this bill">
+																		₹{group.expectedTotal || group.orderTotal}
+																	</span>
+																)}
 															</span>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																onClick={() => handleToggleGroupChecks(group.orderIdKey)}
-																className="h-6 px-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950"
-															>
-																<CheckSquare className="mr-1 h-3 w-3 text-emerald-600" />
-																{group.allChecked
-																	? locale === "hi" ? "अनचेक" : "Uncheck"
-																	: locale === "hi" ? "पूरा टिक करें" : "Tick Order"}
-															</Button>
+															{group.orderIdNumeric !== undefined && (
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																	onClick={() => handleToggleOrderDelivery(group.orderIdNumeric!)}
+																	className={`h-6 px-2 text-[11px] font-semibold transition-all ${
+																		group.isOrderDeliverySelected
+																			? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+																			: "border-emerald-500 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+																	}`}
+																	title={group.isOrderDeliverySelected ? "Exclude this order and keep it pending for later" : "Include this order in current handover bill"}
+																>
+																	{group.isOrderDeliverySelected
+																		? (locale === "hi" ? "⏳ बाद में करें" : "Deliver Later")
+																		: (locale === "hi" ? "+ अभी डिलीवर करें" : "+ Deliver Now")}
+																</Button>
+															)}
+															{group.isOrderDeliverySelected && (
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() => handleToggleGroupChecks(group.orderIdKey)}
+																	className="h-6 px-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950"
+																>
+																	<CheckSquare className="mr-1 h-3 w-3 text-emerald-600" />
+																	{group.allChecked
+																		? locale === "hi" ? "अनचेक" : "Uncheck"
+																		: locale === "hi" ? "पूरा टिक करें" : "Tick Order"}
+																</Button>
+															)}
 														</div>
 													</div>
+
+													{/* Excluded order banner */}
+													{!group.isOrderDeliverySelected && !isCollapsed && (
+														<div className="p-2.5 bg-amber-50/80 border-b border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-300 text-xs flex items-center justify-between gap-2">
+															<span className="flex items-center gap-1.5 font-medium">
+																<span>⏳</span>
+																<span>
+																	{locale === "hi"
+																		? "यह ऑर्डर इस डिलीवरी बिल में शामिल नहीं है। यह ड्राइवर के पास लंबित (Pending) रहेगा ताकि आप इसे बाद में डिलीवर कर सकें।"
+																		: "This order is excluded from current bill and will remain pending in your dashboard for later delivery."}
+																</span>
+															</span>
+															{group.orderIdNumeric !== undefined && (
+																<Button
+																	type="button"
+																	size="sm"
+																	onClick={() => handleToggleOrderDelivery(group.orderIdNumeric!)}
+																	className="h-5 px-2 text-[10px] bg-emerald-600 text-white hover:bg-emerald-700 shrink-0"
+																>
+																	{locale === "hi" ? "शामिल करें" : "Include"}
+																</Button>
+															)}
+														</div>
+													)}
 
 													{/* Group Items */}
 													{!isCollapsed && (
@@ -2371,47 +2615,69 @@ export default function DriverLiveDeliveryPage() {
 												</span>
 											</div>
 
-											<div className="space-y-1.5 max-h-40 overflow-y-auto">
+											<div className="space-y-1.5 max-h-48 overflow-y-auto">
 												{activeOrdersList.map((ord) => {
 													const isFiltered = selectedOrderFilter === ord.id;
+													const isSelectedForDelivery = ord.isDeliverySelected !== false;
 													return (
-														<button
+														<div
 															key={ord.id}
-															type="button"
-															onClick={() =>
-																setSelectedOrderFilter((prev) =>
-																	prev === ord.id ? "all" : ord.id,
-																)
-															}
-															className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-all cursor-pointer border text-left ${
+															className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-all border text-left ${
 																isFiltered
 																	? "bg-indigo-50 border-indigo-300 text-indigo-950 font-bold dark:bg-indigo-950/50 dark:text-indigo-200"
-																	: "bg-background border-border/60 hover:bg-muted text-foreground"
+																	: !isSelectedForDelivery
+																		? "bg-amber-50/70 border-amber-300/80 text-amber-950 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-200"
+																		: "bg-background border-border/60 hover:bg-muted text-foreground"
 															}`}
-															title="Click to isolate this order's items"
 														>
-															<div className="flex items-center gap-1.5 flex-wrap">
+															<div
+																onClick={() =>
+																	setSelectedOrderFilter((prev) =>
+																		prev === ord.id ? "all" : ord.id,
+																	)
+																}
+																className="flex items-center gap-1.5 flex-wrap flex-1 cursor-pointer"
+																title="Click to isolate this order's items"
+															>
 																<span className="font-mono font-bold text-blue-700 dark:text-blue-300">
 																	{ord.orderIdStr}
 																</span>
 																<span className="text-[10px] text-muted-foreground">
 																	({ord.itemsCount} {locale === "hi" ? "सामान" : "items"})
 																</span>
-																{ord.discountAmount > 0 && (
-																	<span className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-																		🏷️ -₹{ord.discountAmount}
+																{isSelectedForDelivery ? (
+																	ord.discountAmount > 0 && (
+																		<span className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+																			🏷️ -₹{ord.discountAmount}
+																		</span>
+																	)
+																) : (
+																	<span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9px] font-bold border border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+																		⏳ {locale === "hi" ? "लंबित रहेगा" : "Pending Later"}
 																	</span>
 																)}
 															</div>
 															<div className="flex items-center gap-1.5">
-																<span className="font-mono font-semibold">
-																	₹{ord.deliveredTotal}
-																</span>
-																<span className="text-[10px] text-emerald-600 font-bold">
-																	{ord.checkedCount}/{ord.itemsCount} ✓
-																</span>
+																{isSelectedForDelivery ? (
+																	<>
+																		<span className="font-mono font-semibold">
+																			₹{ord.deliveredTotal}
+																		</span>
+																		<span className="text-[10px] text-emerald-600 font-bold">
+																			{ord.checkedCount}/{ord.itemsCount} ✓
+																		</span>
+																	</>
+																) : (
+																	<button
+																		type="button"
+																		onClick={() => handleToggleOrderDelivery(ord.id)}
+																		className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer bg-emerald-100/80 px-1.5 py-0.5 rounded"
+																	>
+																		+ {locale === "hi" ? "शामिल करें" : "Deliver Now"}
+																	</button>
+																)}
 															</div>
-														</button>
+														</div>
 													);
 												})}
 											</div>

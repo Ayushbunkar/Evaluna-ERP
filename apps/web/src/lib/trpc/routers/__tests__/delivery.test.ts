@@ -905,7 +905,7 @@ describe("delivery router core functionality", () => {
 			const [customer] = await db
 				.insert(schema.customers)
 				.values({
-					id: 991,
+					id: 9981,
 					name: "Pappu Ji Store",
 					phone: "9876543210",
 					address: "Bhopal MP",
@@ -916,7 +916,7 @@ describe("delivery router core functionality", () => {
 			const [trip] = await db
 				.insert(schema.deliveryTrips)
 				.values({
-					id: 991,
+					id: 9981,
 					driver_id: "driver-1",
 					vehicle_id: 1,
 					status: "active",
@@ -926,7 +926,7 @@ describe("delivery router core functionality", () => {
 			const [stop] = await db
 				.insert(schema.tripStops)
 				.values({
-					id: 991,
+					id: 9981,
 					trip_id: trip.id,
 					customer_id: customer.id,
 					sequence: 1,

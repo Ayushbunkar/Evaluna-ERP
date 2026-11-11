@@ -32,6 +32,7 @@ import {
 	gte,
 	ilike,
 	inArray,
+	notInArray,
 	lte,
 	or,
 	sql,
@@ -386,6 +387,8 @@ export const driverRouter = router({
 											"packed",
 											"loaded",
 										]),
+										sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+										sql`${orders.driver_collected_at} IS NULL`,
 									),
 									orderBy: [desc(orders.created_at)],
 									with: {
@@ -724,10 +727,31 @@ export const driverRouter = router({
 						(o) => o.customer_id === nextStop.customer_id,
 					);
 					const pendingOrders = allMatchingOrders.filter(
-						(o) => o.status !== "delivered" && o.status !== "completed",
+						(o) =>
+							o.status !== "delivered" &&
+							o.status !== "completed" &&
+							o.status !== "cancelled" &&
+							o.status !== "returned" &&
+							o.finance_status !== "driver_collected" &&
+							!o.driver_collected_at,
 					);
-					const activeOrders =
-						pendingOrders.length > 0 ? pendingOrders : allMatchingOrders;
+					const isStopHandoverDone =
+						nextStop.status === "delivered" ||
+						nextStop.status === "completed" ||
+						nextStop.resolved_at != null ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected" ||
+									o.driver_collected_at != null,
+							));
+					const activeOrders = isStopHandoverDone
+						? allMatchingOrders
+						: pendingOrders.length > 0
+							? pendingOrders
+							: allMatchingOrders;
 
 					const activeOrder = activeOrders[0];
 					const orderIdList = activeOrders.map((o) => o.id);
@@ -848,12 +872,31 @@ export const driverRouter = router({
 						(order) => order.customer_id === s.customer_id,
 					);
 					const pendingOrders = allMatchingOrders.filter(
-						(o) => o.status !== "delivered" && o.status !== "completed",
+						(o) =>
+							o.status !== "delivered" &&
+							o.status !== "completed" &&
+							o.status !== "cancelled" &&
+							o.status !== "returned" &&
+							o.finance_status !== "driver_collected" &&
+							!o.driver_collected_at,
 					);
-					const matchingOrders =
-						s.status === "delivered" || pendingOrders.length === 0
-							? allMatchingOrders
-							: pendingOrders;
+					const isStopHandoverDone =
+						s.status === "delivered" ||
+						s.status === "completed" ||
+						s.resolved_at != null ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected" ||
+									o.driver_collected_at != null,
+							));
+					const matchingOrders = isStopHandoverDone
+						? allMatchingOrders
+						: pendingOrders.length > 0
+							? pendingOrders
+							: allMatchingOrders;
 
 					const matchingOrder = matchingOrders[0];
 					const orderIdList = matchingOrders.map((o) => o.id);
@@ -910,18 +953,6 @@ export const driverRouter = router({
 						matchingOrder?.customer?.address ||
 						(matchingOrder as any)?.shipping_address ||
 						"N/A";
-
-					const isStopHandoverDone =
-						s.status === "delivered" ||
-						s.status === "completed" ||
-						s.resolved_at != null ||
-						(allMatchingOrders.length > 0 &&
-							allMatchingOrders.every(
-								(o) =>
-									o.status === "delivered" ||
-									o.status === "completed" ||
-									o.finance_status === "driver_collected",
-							));
 
 					return {
 						id: s.id,
@@ -1240,6 +1271,8 @@ export const driverRouter = router({
 										"packed",
 										"loaded",
 									]),
+									sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+									sql`${orders.driver_collected_at} IS NULL`,
 								),
 								orderBy: [desc(orders.created_at)],
 								with: {
@@ -1410,12 +1443,31 @@ export const driverRouter = router({
 						(order) => order.customer_id === s.customer_id,
 					);
 					const pendingOrders = allMatchingOrders.filter(
-						(o) => o.status !== "delivered" && o.status !== "completed",
+						(o) =>
+							o.status !== "delivered" &&
+							o.status !== "completed" &&
+							o.status !== "cancelled" &&
+							o.status !== "returned" &&
+							o.finance_status !== "driver_collected" &&
+							!o.driver_collected_at,
 					);
-					const matchingOrders =
-						s.status === "delivered" || pendingOrders.length === 0
-							? allMatchingOrders
-							: pendingOrders;
+					const isStopHandoverDone =
+						s.status === "delivered" ||
+						s.status === "completed" ||
+						s.resolved_at != null ||
+						(allMatchingOrders.length > 0 &&
+							allMatchingOrders.every(
+								(o) =>
+									o.status === "delivered" ||
+									o.status === "completed" ||
+									o.finance_status === "driver_collected" ||
+									o.driver_collected_at != null,
+							));
+					const matchingOrders = isStopHandoverDone
+						? allMatchingOrders
+						: pendingOrders.length > 0
+							? pendingOrders
+							: allMatchingOrders;
 
 					const matchingOrder = matchingOrders[0];
 					const orderIdList = matchingOrders.map((o) => o.id);
@@ -1541,19 +1593,6 @@ export const driverRouter = router({
 					const stopDate = stopRawDate
 						? new Date(stopRawDate).toISOString().split("T")[0]
 						: new Date().toISOString().split("T")[0];
-
-					const isStopHandoverDone =
-						s.status === "delivered" ||
-						s.status === "completed" ||
-						s.resolved_at != null ||
-						Boolean(pod) ||
-						(allMatchingOrders.length > 0 &&
-							allMatchingOrders.every(
-								(o) =>
-									o.status === "delivered" ||
-									o.status === "completed" ||
-									o.finance_status === "driver_collected",
-							));
 
 					return {
 						id: s.id,
@@ -1958,6 +1997,7 @@ export const driverRouter = router({
 					)
 					.optional(),
 				order_id: z.coerce.number().optional(),
+				selected_order_ids: z.array(z.coerce.number()).optional(),
 				discountAmount: z.coerce.number().optional(),
 				discountReason: z.string().optional(),
 				extraCharges: z.coerce.number().optional(),
@@ -2018,7 +2058,7 @@ export const driverRouter = router({
 					? `${input.deliveryNotes ? input.deliveryNotes + " | " : ""}Returned/Rejected: ${input.damagedOrReturnedItems?.map((i) => `${i.name} (x${i.qty} - ${i.reason || "Returned"})`).join(", ")}`
 					: input.deliveryNotes || "Delivered live at customer stop";
 
-				// Update trip stop status
+				// Resolve customer id if available from stop
 				let stopCustomerId: number | null = null;
 				if (input.stop_id) {
 					const stopObj = await db.query.tripStops?.findFirst({
@@ -2027,33 +2067,20 @@ export const driverRouter = router({
 					if (stopObj?.customer_id) {
 						stopCustomerId = stopObj.customer_id;
 					}
-
-					await db
-						.update(tripStops)
-						.set({
-							status: "delivered",
-							comments: formattedComments,
-							resolved_at: new Date(),
-						})
-						.where(
-							or(
-								eq(tripStops.id, input.stop_id),
-								targetTripId && stopCustomerId
-									? and(
-											eq(tripStops.trip_id, targetTripId),
-											eq(tripStops.customer_id, stopCustomerId),
-										)
-									: undefined,
-							),
-						);
 				}
 
 				// Find associated order(s) and sync status & finance status
 				const targetOrderIds: number[] = [];
-				if (input.order_id) {
+				if (input.selected_order_ids && input.selected_order_ids.length > 0) {
+					for (const id of input.selected_order_ids) {
+						const num = Number(id);
+						if (!Number.isNaN(num) && num > 0) {
+							targetOrderIds.push(num);
+						}
+					}
+				} else if (input.order_id) {
 					targetOrderIds.push(Number(input.order_id));
-				}
-				if (stopCustomerId) {
+				} else if (stopCustomerId) {
 					const custOrders = await db.query.orders?.findMany({
 						where: and(
 							eq(orders.customer_id, stopCustomerId),
@@ -2067,6 +2094,8 @@ export const driverRouter = router({
 								"dispatched",
 								"assigned",
 							]),
+							sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+							sql`${orders.driver_collected_at} IS NULL`,
 						),
 					});
 					if (custOrders && custOrders.length > 0) {
@@ -2093,6 +2122,7 @@ export const driverRouter = router({
 						finance_status: "driver_collected",
 						driver_collected_amount: String(input.cashAmount),
 						driver_collected_at: new Date(),
+						delivery_time: new Date(),
 						total_amount: String(input.cashAmount + input.onlineAmount),
 					};
 					if (input.discountAmount !== undefined && input.discountAmount > 0) {
@@ -2111,6 +2141,61 @@ export const driverRouter = router({
 						.update(orders)
 						.set(orderUpdatePayload)
 						.where(inArray(orders.id, uniqueOrderIds));
+				}
+
+				// Check if other orders for this customer / stop remain unsubmitted
+				let remainingPendingOrders: any[] = [];
+				if (stopCustomerId) {
+					remainingPendingOrders =
+						(await db.query.orders?.findMany({
+							where: and(
+								eq(orders.customer_id, stopCustomerId),
+								uniqueOrderIds.length > 0
+									? notInArray(orders.id, uniqueOrderIds)
+									: undefined,
+								inArray(orders.status, [
+									"ready_for_dispatch",
+									"ready_for_loading",
+									"packed",
+									"loaded",
+									"out_for_delivery",
+									"in_transit",
+									"dispatched",
+									"assigned",
+								]),
+								sql`${orders.finance_status} IS DISTINCT FROM 'driver_collected'`,
+								sql`${orders.driver_collected_at} IS NULL`,
+							),
+						})) || [];
+				}
+
+				// Update trip stop status: if partial orders remain unsubmitted, keep stop in_progress/pending
+				if (input.stop_id) {
+					const isFullyCompleted = remainingPendingOrders.length === 0;
+					const stopStatus = isFullyCompleted ? "delivered" : "in_progress";
+					const partialNote =
+						remainingPendingOrders.length > 0
+							? ` | Partial Handover: Delivered [${uniqueOrderIds.map((id) => `ORD-${id}`).join(", ")}] | Remaining Pending: [${remainingPendingOrders.map((o) => `ORD-${o.id}`).join(", ")}]`
+							: "";
+
+					await db
+						.update(tripStops)
+						.set({
+							status: stopStatus,
+							comments: `${formattedComments}${partialNote}`,
+							resolved_at: isFullyCompleted ? new Date() : null,
+						})
+						.where(
+							or(
+								eq(tripStops.id, input.stop_id),
+								targetTripId && stopCustomerId
+									? and(
+											eq(tripStops.trip_id, targetTripId),
+											eq(tripStops.customer_id, stopCustomerId),
+										)
+									: undefined,
+							),
+						);
 				}
 
 				// Record proof of delivery with full returns, deliveredItems, and notes payload
