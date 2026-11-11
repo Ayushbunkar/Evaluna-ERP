@@ -1728,7 +1728,7 @@ export const driverRouter = router({
 
 			return Promise.all(
 				trips.map(async (t: any) => {
-					const stops = await Promise.all(
+					const rawStops = await Promise.all(
 						(t.stops || []).map(async (s: any, idx: number) => {
 							const isDelivered =
 								s.status === "delivered" || s.status === "completed";
@@ -1888,6 +1888,26 @@ export const driverRouter = router({
 							};
 						}),
 					);
+
+					// Exclude ghost / 0-amount bills that have no collections, no order items, and are not delivered
+					const stops = rawStops
+						.filter((st: any) => {
+							const hasMoney =
+								(Number(st.cashCollected) || 0) > 0 ||
+								(Number(st.onlineCollected) || 0) > 0;
+							const hasItems =
+								Array.isArray(st.deliveredItems) &&
+								st.deliveredItems.some(
+									(it: any) =>
+										Number(it.price || 0) > 0 && Number(it.qty || 0) > 0,
+								);
+							const isDelivered = st.status === "Delivered";
+							return hasMoney || hasItems || isDelivered;
+						})
+						.map((st: any, idx: number) => ({
+							...st,
+							sequence: idx + 1,
+						}));
 
 					const deliveredStops = stops.filter(
 						(s: any) => s.status === "Delivered",

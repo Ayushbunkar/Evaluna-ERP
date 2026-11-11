@@ -448,6 +448,39 @@ export default function DriverHistoryPage() {
 							</div>
 
 							{/* 2-BILL HANDOVER LIFECYCLE AUDIT VIEW FOR DRIVER */}
+							{(() => {
+								const validTripStops = (selectedTrip.stops || []).filter((st: any) => {
+									const hasMoney =
+										(Number(st.cashCollected) || 0) > 0 ||
+										(Number(st.onlineCollected) || 0) > 0;
+									const hasDeliveredItems =
+										Array.isArray(st.deliveredItems) &&
+										st.deliveredItems.some(
+											(it: any) =>
+												Number(it.price || 0) > 0 && Number(it.qty || 0) > 0,
+										);
+									const hasItems =
+										Array.isArray(st.items) &&
+										st.items.some(
+											(it: any) =>
+												Number(it.price || 0) > 0 && Number(it.qty || 0) > 0,
+										);
+									const hasInitialItems =
+										Array.isArray(st.initialItems) &&
+										st.initialItems.some(
+											(it: any) =>
+												Number(it.price || 0) > 0 && Number(it.qty || 0) > 0,
+										);
+									return (
+										hasMoney ||
+										hasDeliveredItems ||
+										hasItems ||
+										hasInitialItems ||
+										st.status === "Delivered"
+									);
+								});
+
+								return (
 							<div className="space-y-3 pt-2">
 								<h4 className="font-bold text-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
 									<Layers className="h-4 w-4 text-indigo-500" />
@@ -492,11 +525,15 @@ export default function DriverHistoryPage() {
 														</TableRow>
 													</TableHeader>
 													<TableBody>
-														{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
-															selectedTrip.stops.flatMap((st: any) => {
-																const items = st.initialItems && st.initialItems.length > 0
+														{validTripStops && validTripStops.length > 0 ? (
+															validTripStops.flatMap((st: any) => {
+																const rawItems = st.initialItems && st.initialItems.length > 0
 																	? st.initialItems
-																	: [{ name: "Dispatched Order Package", qty: 1, price: st.amountToCollect || st.cashCollected + st.onlineCollected || 0 }];
+																	: (st.amountToCollect || st.cashCollected + st.onlineCollected > 0)
+																		? [{ name: "Dispatched Order Package", qty: 1, price: st.amountToCollect || st.cashCollected + st.onlineCollected || 0 }]
+																		: [];
+																const items = rawItems.filter((it: any) => Number(it.price || 0) > 0 || Number(it.qty || 0) > 0 || st.status === "Delivered");
+																if (items.length === 0) return [];
 																
 																return items.map((it: any, iIdx: number) => (
 																	<TableRow key={`${st.stopId}-${iIdx}`} className="border-border">
@@ -556,14 +593,21 @@ export default function DriverHistoryPage() {
 											</div>
 
 											{/* Itemized Customer Stops Ledger */}
-											{selectedTrip.stops && selectedTrip.stops.length > 0 ? (
-												selectedTrip.stops.map((st: any) => {
-													const delItems =
+											{validTripStops && validTripStops.length > 0 ? (
+												validTripStops.map((st: any, sIdx: number) => {
+													const rawDelItems =
 														(st.deliveredItems && st.deliveredItems.length > 0)
 															? st.deliveredItems
 															: (st.items && st.items.length > 0)
 																? st.items
-																: [{ name: "Doorstep Delivered Package", qty: 1, price: st.cashCollected + st.onlineCollected || st.amountToCollect || 0 }];
+																: (st.cashCollected + st.onlineCollected > 0 || Number(st.amountToCollect || 0) > 0)
+																	? [{ name: "Doorstep Delivered Package", qty: 1, price: st.cashCollected + st.onlineCollected || st.amountToCollect || 0 }]
+																	: [];
+													
+													const delItems = rawDelItems.filter((it: any) => Number(it.price || 0) > 0 || Number(it.qty || 0) > 0 || st.status === "Delivered");
+													if (delItems.length === 0 && Number(st.cashCollected || 0) === 0 && Number(st.onlineCollected || 0) === 0 && st.status !== "Delivered") {
+														return null;
+													}
 													
 													const stopGrossTotal = delItems.reduce((acc: number, it: any) => acc + (Number(it.price || 0) * Number(it.qty || 1)), 0);
 													const stopDiscount = Number(st.discountAmount || 0);
@@ -579,7 +623,7 @@ export default function DriverHistoryPage() {
 															<div className="flex flex-wrap items-center justify-between gap-2 bg-muted/40 p-2.5 border-b border-border text-xs">
 																<div className="flex items-center gap-2">
 																	<span className="font-bold font-mono bg-emerald-600 text-white px-2 py-0.5 rounded text-[11px]">
-																		#{st.sequence}
+																		#{sIdx + 1}
 																	</span>
 																	<div>
 																		<span className="font-bold text-foreground text-xs">{st.customerName}</span>
@@ -735,6 +779,8 @@ export default function DriverHistoryPage() {
 									</TabsContent>
 								</Tabs>
 							</div>
+								);
+							})()}
 						</div>
 
 						<DialogFooter>
