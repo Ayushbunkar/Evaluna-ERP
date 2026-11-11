@@ -379,6 +379,9 @@ export const driverRouter = router({
 									where: and(
 										or(...assignedOrdersConditions),
 										inArray(orders.status, [
+											"processing",
+											"confirmed",
+											"pending",
 											"ready_for_dispatch",
 											"out_for_delivery",
 											"dispatched",
@@ -651,6 +654,9 @@ export const driverRouter = router({
 								where: and(
 									inArray(orders.customer_id, customerIds),
 									inArray(orders.status, [
+										"processing",
+										"confirmed",
+										"pending",
 										"ready_for_dispatch",
 										"ready_for_loading",
 										"packed",
@@ -1007,6 +1013,14 @@ export const driverRouter = router({
 					};
 				});
 
+				// Filter out stops that have no sales orders / items (e.g. empty waypoints with ₹0)
+				const validRouteStops = routeStops.filter((s: any) => {
+					if (s.ordersCount > 0 || (s.orders && s.orders.length > 0)) return true;
+					if ((Number(s.amountToCollect) || 0) > 0 || (s.orderItems && s.orderItems.length > 0)) return true;
+					if (s.status === "completed" || s.rawStatus === "delivered") return true;
+					return false;
+				});
+
 				// Vehicle status for the active trip (if a vehicle is assigned)
 				const vehicleStatus: VehicleStatus | null = vehicle
 					? {
@@ -1038,7 +1052,7 @@ export const driverRouter = router({
 						: null,
 					rating: 4.9,
 					nextDelivery,
-					routeStops,
+					routeStops: validRouteStops,
 					deliveryHistory: [] as DeliveryHistoryEntry[],
 					returnHistory: [] as ReturnHistoryEntry[],
 					notifications: [] as DriverNotification[],
@@ -1263,6 +1277,9 @@ export const driverRouter = router({
 								where: and(
 									or(...assignedOrdersConditions),
 									inArray(orders.status, [
+										"processing",
+										"confirmed",
+										"pending",
 										"ready_for_dispatch",
 										"out_for_delivery",
 										"dispatched",
@@ -1412,6 +1429,9 @@ export const driverRouter = router({
 							where: and(
 								inArray(orders.customer_id, customerIds),
 								inArray(orders.status, [
+									"processing",
+									"confirmed",
+									"pending",
 									"ready_for_dispatch",
 									"ready_for_loading",
 									"packed",
@@ -1437,7 +1457,7 @@ export const driverRouter = router({
 						})
 					: [];
 
-			return Promise.all(
+			const routeStops = await Promise.all(
 				allStops.map(async (s: any, idx: number) => {
 					const allMatchingOrders = ordersForStops.filter(
 						(order) => order.customer_id === s.customer_id,
@@ -1642,6 +1662,14 @@ export const driverRouter = router({
 					};
 				}),
 			);
+
+			// Filter out empty waypoints with no orders from sales person (₹0 bills)
+			return routeStops.filter((s: any) => {
+				if (s.ordersCount > 0 || (s.orders && s.orders.length > 0)) return true;
+				if ((Number(s.amountToCollect) || 0) > 0 || (s.orderItems && s.orderItems.length > 0)) return true;
+				if (s.status === "completed" || s.rawStatus === "delivered") return true;
+				return false;
+			});
 		} catch (error) {
 			console.warn("[getRouteStops] Safe fallback on error:", error);
 			return [];
@@ -2085,6 +2113,9 @@ export const driverRouter = router({
 						where: and(
 							eq(orders.customer_id, stopCustomerId),
 							inArray(orders.status, [
+								"processing",
+								"confirmed",
+								"pending",
 								"ready_for_dispatch",
 								"ready_for_loading",
 								"packed",
@@ -2154,6 +2185,9 @@ export const driverRouter = router({
 									? notInArray(orders.id, uniqueOrderIds)
 									: undefined,
 								inArray(orders.status, [
+									"processing",
+									"confirmed",
+									"pending",
 									"ready_for_dispatch",
 									"ready_for_loading",
 									"packed",

@@ -210,10 +210,23 @@ export default function DriverLiveDeliveryPage() {
 		Set<number>
 	>(new Set());
 
-	const routeStops =
-		directRouteStops && directRouteStops.length > 0
-			? directRouteStops
-			: (dashboardData?.routeStops ?? []);
+	const routeStops = useMemo(() => {
+		const rawStops =
+			directRouteStops && directRouteStops.length > 0
+				? directRouteStops
+				: (dashboardData?.routeStops ?? []);
+		// Filter out empty waypoints with no sales orders (0 rupees bills)
+		return rawStops.filter((s: any) => {
+			if (s.ordersCount > 0 || (s.orders && s.orders.length > 0)) return true;
+			if (
+				(Number(s.amountToCollect) || 0) > 0 ||
+				(s.orderItems && s.orderItems.length > 0)
+			)
+				return true;
+			if (s.status === "completed" || s.rawStatus === "delivered") return true;
+			return false;
+		});
+	}, [directRouteStops, dashboardData?.routeStops]);
 	const activeStop = routeStops.find((s) => s.id === handoverStopId) ?? null;
 
 	const { data: vanStockData, refetch: refetchVanStock } =
