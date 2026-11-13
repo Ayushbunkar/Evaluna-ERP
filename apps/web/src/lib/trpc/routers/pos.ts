@@ -17,6 +17,7 @@ import {
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { deductStockForOrder } from "@/lib/inventory/inventory-service";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
 export const posRouter = router({
@@ -309,61 +310,17 @@ export const posRouter = router({
 
 
 
-				// Deduct stock and record in stock ledger for all billed items
-				const ledgerEntries = input.items.map((item) => ({
-					product_id: item.productId,
-					transaction_type: "out" as const,
-					quantity: -item.quantity,
-					unit_cost: item.price,
-					total_cost: (
-						Number.parseFloat(item.price) * item.quantity
-					).toString(),
-					reference_id: order.id,
-					reference_type: "sale",
-					branch_id: effectiveBranchId,
-				}));
-
-				if (ledgerEntries.length > 0) {
-					await tx.insert(stockLedger).values(ledgerEntries);
-				}
-
-				// Update branch inventory with accurate auto-provisioning
-				if (effectiveBranchId && input.items.length > 0) {
-					const productIds = input.items.map((item) => item.productId);
-					const existingStocks = await tx
-						.select()
-						.from(branchInventory)
-						.where(
-							and(
-								eq(branchInventory.branch_id, effectiveBranchId),
-								inArray(branchInventory.product_id, productIds),
-							),
-						);
-
-					const stockMap = new Map(
-						existingStocks.map((s) => [s.product_id, s]),
-					);
-
-					for (const item of input.items) {
-						const existing = stockMap.get(item.productId);
-						if (!existing) {
-							await tx.insert(branchInventory).values({
-								branch_id: effectiveBranchId,
-								product_id: item.productId,
-								in_stock: -item.quantity,
-								reserved_stock: 0,
-								reorder_level: 10,
-							});
-						} else {
-							await tx
-								.update(branchInventory)
-								.set({
-									in_stock: sql`${branchInventory.in_stock} - ${item.quantity}`,
-								})
-								.where(eq(branchInventory.id, existing.id));
-						}
-					}
-				}
+				// Deduct stock atomically and record stock ledger via centralized inventory service
+				await deductStockForOrder(tx, {
+					orderId: order.id,
+					branchId: effectiveBranchId,
+					items: input.items.map((item) => ({
+						productId: item.productId,
+						quantity: item.quantity,
+						price: item.price,
+					})),
+					referenceType: "sale",
+				});
 
 				// 3. Process Payments (Split Payments Supported, Safe Method ID Lookup)
 				const validMethods = await tx.select({ id: paymentMethods.id }).from(paymentMethods);

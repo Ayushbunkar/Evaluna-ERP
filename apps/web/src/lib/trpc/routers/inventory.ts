@@ -116,7 +116,7 @@ export const inventoryRouter = router({
 					baseProcurementPrice: products.base_procurement_price,
 					inventoryId: sql<number>`max(${branchInventory.id})`,
 					branchId: sql<number>`coalesce(max(${branchInventory.branch_id}), ${targetBranchId})`,
-					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::int`,
+					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
 					reorder_level: sql<number>`coalesce(max(${branchInventory.reorder_level}), 10)::int`,
 				})
 				.from(products)
@@ -212,8 +212,8 @@ export const inventoryRouter = router({
 					offerReason: activeDiscount?.reason || null,
 					branch: "Bhopal Main Warehouse",
 					branchId: d.branchId || targetBranchId,
-					qty_on_hand: d.qty_on_hand ?? 0,
-					reorder_level: d.reorder_level ?? 10,
+					qty_on_hand: Number(d.qty_on_hand ?? 0),
+					reorder_level: Number(d.reorder_level ?? 10),
 					status: itemStatus,
 				};
 			});

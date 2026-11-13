@@ -44,6 +44,11 @@ import {
 } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db } from "@/lib/db";
+import {
+	adjustStockForOrderQuantityChange,
+	deductStockForOrder,
+	restoreStockForOrder,
+} from "@/lib/inventory/inventory-service";
 import { notifyOrderCreated } from "@/lib/notification-service";
 import { protectedProcedure, roleProcedure, router } from "../init";
 
@@ -897,65 +902,14 @@ export const ordersRouter = router({
 					);
 				}
 
-				// Validate and Reserve stock in branch inventory (assuming branch_id = ctx.user.branchId or 1)
+				// Centralized stock deduction for finalized order
 				const branchId = ctx.user?.branchId || 1;
-				const productIds = input.products.map((p) => p.id);
-
-				const inventoryRecords = await tx
-					.select()
-					.from(branchInventory)
-					.where(
-						and(
-							eq(branchInventory.branch_id, branchId),
-							inArray(branchInventory.product_id, productIds),
-						),
-					);
-
-				const inventoryMap = new Map(
-					inventoryRecords.map((inv: any) => [inv.product_id, inv]),
-				);
-
-				for (const product of input.products) {
-					let inv: any = inventoryMap.get(product.id);
-
-					if (!inv) {
-						const [newInv] = await tx
-							.insert(branchInventory)
-							.values({
-								branch_id: branchId,
-								product_id: product.id,
-								in_stock: -product.quantity,
-								reserved_stock: product.quantity,
-								reorder_level: 10,
-							})
-							.returning();
-						inv = newInv;
-						inventoryMap.set(product.id, inv);
-					} else {
-						await tx
-							.update(branchInventory)
-							.set({
-								in_stock: sql`${branchInventory.in_stock} - ${product.quantity}`,
-								reserved_stock: (inv.reserved_stock || 0) + product.quantity,
-							})
-							.where(eq(branchInventory.id, inv.id));
-					}
-				}
-
-				// Stock ledger (out movement)
-				const ledgerEntries = input.products.map((p) => ({
-					product_id: p.id,
-					transaction_type: "out" as const,
-					quantity: -p.quantity,
-					unit_cost: p.price.toString(),
-					total_cost: (p.price * p.quantity).toString(),
-					reference_id: orderData.id,
-					reference_type: "sale",
-					branch_id: branchId,
-				}));
-				if (ledgerEntries.length > 0) {
-					await tx.insert(stockLedger).values(ledgerEntries);
-				}
+				await deductStockForOrder(tx, {
+					orderId: orderData.id,
+					branchId,
+					items: input.products,
+					referenceType: "sale",
+				});
 
 				// Audit Log
 				await tx.insert(auditLogs).values({
@@ -1108,77 +1062,12 @@ export const ordersRouter = router({
 					.set({ status: "cancelled" })
 					.where(eq(pickLists.order_id, updated.id));
 
-				let itemsToRestore = await db
-					.select()
-					.from(orderItems)
-					.where(eq(orderItems.order_id, updated.id));
-
-				if ((!itemsToRestore || itemsToRestore.length === 0) && updated.original_items) {
-					try {
-						const parsed =
-							typeof updated.original_items === "string"
-								? JSON.parse(updated.original_items)
-								: updated.original_items;
-						if (Array.isArray(parsed)) {
-							itemsToRestore = parsed.map((it: any) => ({
-								order_id: updated.id,
-								product_id: it.productId || it.product_id || it.id,
-								quantity: it.quantity || it.qty || 1,
-								price: String(it.price || 0),
-							}));
-						}
-					} catch (e) {
-						console.warn("[updateStatus:cancelled] Fallback parsing original_items:", e);
-					}
-				}
-
 				const targetBranchId = updated.branch_id || ctx.user?.branchId || 1;
-
-				for (const item of itemsToRestore) {
-					const pid = Number(item.product_id);
-					const qty = Number(item.quantity || 0);
-					if (pid && qty > 0) {
-						const [existingInv] = await db
-							.select()
-							.from(branchInventory)
-							.where(
-								and(
-									eq(branchInventory.product_id, pid),
-									eq(branchInventory.branch_id, targetBranchId),
-								),
-							)
-							.limit(1);
-
-						if (existingInv) {
-							await db
-								.update(branchInventory)
-								.set({
-									in_stock: sql`COALESCE(${branchInventory.in_stock}, 0) + ${qty}`,
-									reserved_stock: sql`GREATEST(0, COALESCE(${branchInventory.reserved_stock}, 0) - ${qty})`,
-								})
-								.where(eq(branchInventory.id, existingInv.id));
-						} else {
-							await db.insert(branchInventory).values({
-								branch_id: targetBranchId,
-								product_id: pid,
-								in_stock: qty,
-								reserved_stock: 0,
-								reorder_level: 10,
-							});
-						}
-
-						await db.insert(stockLedger).values({
-							branch_id: targetBranchId,
-							product_id: pid,
-							transaction_type: "in",
-							quantity: qty,
-							unit_cost: String(item.price || "0"),
-							total_cost: String(Number(item.price || 0) * qty),
-							reference_id: updated.id,
-							reference_type: "order_cancellation",
-						});
-					}
-				}
+				await restoreStockForOrder(db, {
+					orderId: updated.id,
+					branchId: targetBranchId,
+					reason: "Status changed to cancelled",
+				});
 
 				await db
 					.update(transactions)
@@ -1213,50 +1102,15 @@ export const ordersRouter = router({
 					where: eq(orders.id, input.id),
 				});
 
-				// If order was active/completed/confirmed (not already cancelled), restore stock to branch inventory
+				// If order had deducted stock and is being deleted, restore stock cleanly
 				if (existingOrder && existingOrder.status !== "cancelled") {
-					const items = await tx
-						.select()
-						.from(orderItems)
-						.where(eq(orderItems.order_id, input.id));
-
 					const targetBranchId =
 						existingOrder.branch_id || ctx.user?.branchId || 1;
-
-					for (const item of items) {
-						const pid = Number(item.product_id);
-						const qty = Number(item.quantity || 0);
-						if (pid && qty > 0) {
-							const [existingInv] = await tx
-								.select()
-								.from(branchInventory)
-								.where(
-									and(
-										eq(branchInventory.product_id, pid),
-										eq(branchInventory.branch_id, targetBranchId),
-									),
-								)
-								.limit(1);
-
-							if (existingInv) {
-								await tx
-									.update(branchInventory)
-									.set({
-										in_stock: sql`COALESCE(${branchInventory.in_stock}, 0) + ${qty}`,
-										reserved_stock: sql`GREATEST(0, COALESCE(${branchInventory.reserved_stock}, 0) - ${qty})`,
-									})
-									.where(eq(branchInventory.id, existingInv.id));
-							} else {
-								await tx.insert(branchInventory).values({
-									branch_id: targetBranchId,
-									product_id: pid,
-									in_stock: qty,
-									reserved_stock: 0,
-									reorder_level: 10,
-								});
-							}
-						}
-					}
+					await restoreStockForOrder(tx, {
+						orderId: input.id,
+						branchId: targetBranchId,
+						reason: "Order Deleted",
+					});
 				}
 
 				await tx
@@ -1677,6 +1531,82 @@ export const ordersRouter = router({
 			});
 		}),
 
+	// Update items on a confirmed order with accurate inventory delta adjustments
+	updateConfirmedOrderItems: roleProcedure(["admin", "manager", "sales_person"])
+		.input(
+			z.object({
+				id: z.number(),
+				items: z
+					.array(
+						z.object({
+							productId: z.number().int().positive(),
+							quantity: z.number().positive(),
+							price: z.number().nonnegative(),
+						}),
+					)
+					.min(1),
+				reason: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input }) => {
+			return await db.transaction(async (tx) => {
+				const existing = await tx.query.orders.findFirst({
+					where: eq(orders.id, input.id),
+				});
+				if (!existing) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Order not found",
+					});
+				}
+				if (existing.status === "cancelled") {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "Cannot edit items on a cancelled order.",
+					});
+				}
+
+				const branchId = existing.branch_id || 1;
+
+				// Adjust stock for item quantity changes (deltas)
+				await adjustStockForOrderQuantityChange(tx, {
+					orderId: existing.id,
+					branchId,
+					newItems: input.items,
+				});
+
+				// Update orderItems
+				await tx.delete(orderItems).where(eq(orderItems.order_id, input.id));
+				await tx.insert(orderItems).values(
+					input.items.map((it) => ({
+						order_id: input.id,
+						product_id: it.productId,
+						quantity: it.quantity.toString(),
+						price: it.price.toString(),
+					})),
+				);
+
+				// Recalculate total
+				const subtotal = input.items.reduce(
+					(sum, it) => sum + it.quantity * it.price,
+					0,
+				);
+				const discount = Number(existing.discount_amount ?? 0);
+				const extra = Number(existing.other_charges ?? 0);
+				const total = Math.max(0, subtotal - discount + extra);
+
+				const [updated] = await tx
+					.update(orders)
+					.set({
+						total_amount: total.toFixed(2),
+					})
+					.where(eq(orders.id, input.id))
+					.returning();
+
+				return { success: true, order: updated };
+			});
+		}),
+
 	// PLACEHOLDER_SALES_PROCS_4
 
 	// CONFIRM — the protected, transactional finalize. Sets final pricing, deducts
@@ -1749,7 +1679,7 @@ export const ordersRouter = router({
 					});
 				}
 
-				const branchId = existing.branch_id ?? ctx.user?.branchId ?? null;
+				const branchId = existing.branch_id || ctx.user?.branchId || 1;
 
 				// Resolve the final priced item set.
 				let finalItems: {
@@ -1831,75 +1761,13 @@ export const ordersRouter = router({
 					});
 				}
 
-				// ── Stock validation + deduction (branch inventory) ─────────────
-				if (branchId) {
-					const productIds = finalItems.map((i) => i.productId);
-					const stocks = await tx
-						.select()
-						.from(branchInventory)
-						.where(
-							and(
-								eq(branchInventory.branch_id, branchId),
-								inArray(branchInventory.product_id, productIds),
-							),
-						);
-					const stockMap = new Map(stocks.map((s) => [s.product_id, s]));
-					for (const it of finalItems) {
-						let inv = stockMap.get(it.productId);
-						if (!inv) {
-							const [newInv] = await tx
-								.insert(branchInventory)
-								.values({
-									branch_id: branchId,
-									product_id: it.productId,
-									in_stock: 10000,
-									reserved_stock: 0,
-								})
-								.returning();
-							inv = newInv;
-							stockMap.set(it.productId, newInv);
-						} else {
-							const available = (inv.in_stock ?? 0) - (inv.reserved_stock ?? 0);
-							if (available < it.quantity) {
-								const [updatedInv] = await tx
-									.update(branchInventory)
-									.set({
-										in_stock: sql`${branchInventory.in_stock} + ${Math.max(1000, it.quantity * 10)}`,
-									})
-									.where(eq(branchInventory.id, inv.id))
-									.returning();
-								inv = updatedInv;
-								stockMap.set(it.productId, updatedInv);
-							}
-						}
-					}
-					// All lines validated — deduct on-hand stock.
-					await Promise.all(
-						finalItems.map((it) => {
-							const inv = stockMap.get(it.productId)!;
-							return tx
-								.update(branchInventory)
-								.set({
-									in_stock: sql`${branchInventory.in_stock} - ${it.quantity}`,
-								})
-								.where(eq(branchInventory.id, inv.id));
-						}),
-					);
-
-					// Stock ledger (out movement), mirroring the POS checkout pattern.
-					await tx.insert(stockLedger).values(
-						finalItems.map((it) => ({
-							product_id: it.productId,
-							transaction_type: "out" as const,
-							quantity: -it.quantity,
-							unit_cost: it.price.toString(),
-							total_cost: (it.price * it.quantity).toString(),
-							reference_id: input.id,
-							reference_type: "sale",
-							branch_id: branchId,
-						})),
-					);
-				}
+				// ── Centralized stock deduction (branch inventory & stock ledger) ─────────────
+				await deductStockForOrder(tx, {
+					orderId: input.id,
+					branchId,
+					items: finalItems,
+					referenceType: "sale",
+				});
 
 				// ── Totals ────────────────────────────────────────────────────
 				const subtotal = finalItems.reduce(
@@ -2260,78 +2128,14 @@ export const ordersRouter = router({
 					})
 					.where(eq(orders.id, input.id));
 
-				// Restore branch inventory & stock ledger for all items in the cancelled order
-				let itemsToRestore = await tx
-					.select()
-					.from(orderItems)
-					.where(eq(orderItems.order_id, input.id));
-
-				if ((!itemsToRestore || itemsToRestore.length === 0) && existing.original_items) {
-					try {
-						const parsed =
-							typeof existing.original_items === "string"
-								? JSON.parse(existing.original_items)
-								: existing.original_items;
-						if (Array.isArray(parsed)) {
-							itemsToRestore = parsed.map((it: any) => ({
-								order_id: input.id,
-								product_id: it.productId || it.product_id || it.id,
-								quantity: it.quantity || it.qty || 1,
-								price: String(it.price || 0),
-							}));
-						}
-					} catch (e) {
-						console.warn("[cancelOrder] Fallback parsing original_items:", e);
-					}
-				}
-
+				// Centralized stock restoration (branch inventory & stock ledger)
 				const targetBranchId = existing.branch_id || ctx.user?.branchId || 1;
-
-				for (const item of itemsToRestore) {
-					const pid = Number(item.product_id);
-					const qty = Number(item.quantity || 0);
-					if (pid && qty > 0) {
-						const [existingInv] = await tx
-							.select()
-							.from(branchInventory)
-							.where(
-								and(
-									eq(branchInventory.product_id, pid),
-									eq(branchInventory.branch_id, targetBranchId),
-								),
-							)
-							.limit(1);
-
-						if (existingInv) {
-							await tx
-								.update(branchInventory)
-								.set({
-									in_stock: sql`COALESCE(${branchInventory.in_stock}, 0) + ${qty}`,
-									reserved_stock: sql`GREATEST(0, COALESCE(${branchInventory.reserved_stock}, 0) - ${qty})`,
-								})
-								.where(eq(branchInventory.id, existingInv.id));
-						} else {
-							await tx.insert(branchInventory).values({
-								branch_id: targetBranchId,
-								product_id: pid,
-								in_stock: qty,
-								reserved_stock: 0,
-								reorder_level: 10,
-							});
-						}
-
-						await tx.insert(stockLedger).values({
-							branch_id: targetBranchId,
-							product_id: pid,
-							transaction_type: "in",
-							quantity: qty,
-							unit_cost: String(item.price || "0"),
-							total_cost: String(Number(item.price || 0) * qty),
-							reference_id: input.id,
-							reference_type: "order_cancellation",
-						});
-					}
-				}
+				await restoreStockForOrder(tx, {
+					orderId: input.id,
+					branchId: targetBranchId,
+					reason: input.reason,
+					actorId: changedBy,
+				});
 
 				// If there is any associated pick list, mark it as cancelled
 				await tx
