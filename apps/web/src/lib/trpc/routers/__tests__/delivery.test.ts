@@ -997,6 +997,78 @@ describe("delivery router core functionality", () => {
 			expect(returnedInVeh?.source).toBe("customer_return");
 			expect(returnedInVeh?.loadedQty).toBe(1);
 		});
+
+		it("submits delivery handover with decimal / fractional quantity (e.g. 0.5 kg)", async () => {
+			const [customer] = await db
+				.insert(schema.customers)
+				.values({
+					id: 9982,
+					name: "Sharma Kirana Store",
+					phone: "9876543211",
+					address: "Indore MP",
+					user_uid: "customer-sharma-1",
+				})
+				.returning();
+
+			const [trip] = await db
+				.insert(schema.deliveryTrips)
+				.values({
+					id: 9982,
+					driver_id: "driver-1",
+					vehicle_id: 1,
+					status: "active",
+				})
+				.returning();
+
+			const [stop] = await db
+				.insert(schema.tripStops)
+				.values({
+					id: 9982,
+					trip_id: trip.id,
+					customer_id: customer.id,
+					sequence: 2,
+					status: "in_transit",
+				})
+				.returning();
+
+			const handoverRes = await driverAppCaller.submitDeliveryHandover({
+				trip_id: trip.id,
+				stop_id: stop.id,
+				cashAmount: 45,
+				onlineAmount: 0,
+				deliveryNotes: "Customer took 0.5 quantity, returned 0.5 to van stock",
+				damagedOrReturnedItems: [
+					{
+						id: 1,
+						product_id: 1,
+						name: "Basmati Rice Special 5kg",
+						qty: 0.5,
+						price: 90,
+						reason: "Customer only wanted half package",
+					},
+				],
+				deliveredItems: [
+					{
+						id: 1,
+						product_id: 1,
+						name: "Basmati Rice Special 5kg",
+						qty: 0.5,
+						price: 90,
+					},
+				],
+			});
+			expect(handoverRes.success).toBe(true);
+
+			const updatedStock = await driverAppCaller.getVanStock({
+				trip_id: trip.id,
+			});
+			const fractionalItem = updatedStock.items.find(
+				(i) => i.name === "Basmati Rice Special 5kg",
+			);
+			expect(fractionalItem).toBeDefined();
+			expect(Number(fractionalItem?.qty)).toBe(0.5);
+			expect(Number(fractionalItem?.availableQty)).toBe(0.5);
+		});
 	});
 
 	describe("lookupOrderByScan (Driver Package & Bill Scanner)", () => {

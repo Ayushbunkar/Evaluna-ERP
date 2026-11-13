@@ -561,7 +561,7 @@ export default function DriverHistoryPage() {
 																			₹{Number(it.price || 0).toLocaleString("en-IN")}
 																		</TableCell>
 																		<TableCell className="text-right font-bold text-foreground">
-																			₹{(Number(it.price || 0) * Number(it.qty || 1)).toLocaleString("en-IN")}
+																			₹{(Number(it.price || 0) * Number(it.qty ?? 1)).toFixed(2).replace(/\.00$/, "")}
 																		</TableCell>
 																	</TableRow>
 																));
@@ -609,7 +609,7 @@ export default function DriverHistoryPage() {
 														return null;
 													}
 													
-													const stopGrossTotal = delItems.reduce((acc: number, it: any) => acc + (Number(it.price || 0) * Number(it.qty || 1)), 0);
+													const stopGrossTotal = delItems.reduce((acc: number, it: any) => acc + (Number(it.price || 0) * Number(it.qty ?? 1)), 0);
 													const stopDiscount = Number(st.discountAmount || 0);
 													const stopExtraCharges = Number(st.extraCharges || 0);
 													const stopCollected = Number(st.cashCollected || 0) + Number(st.onlineCollected || 0);
@@ -702,7 +702,7 @@ export default function DriverHistoryPage() {
 																				₹{Number(it.price || 0).toLocaleString("en-IN")}
 																			</TableCell>
 																			<TableCell className="text-right font-bold text-emerald-700 dark:text-emerald-300">
-																				₹{(Number(it.price || 0) * Number(it.qty || 1)).toLocaleString("en-IN")}
+																				₹{(Number(it.price || 0) * Number(it.qty ?? 1)).toFixed(2).replace(/\.00$/, "")}
 																			</TableCell>
 																		</TableRow>
 																	))}
@@ -712,7 +712,7 @@ export default function DriverHistoryPage() {
 																				Pending Handover Expected Bill (अपेक्षित संग्रह बिल)
 																			</TableCell>
 																			<TableCell className="text-right text-amber-600 dark:text-amber-400 text-sm font-extrabold">
-																				₹{stopFinalTotal.toLocaleString("en-IN")}
+																				₹{stopFinalTotal.toFixed(2).replace(/\.00$/, "")}
 																			</TableCell>
 																		</TableRow>
 																	) : (
@@ -722,7 +722,7 @@ export default function DriverHistoryPage() {
 																					Delivered Items Subtotal (सामान का कुल मूल्य)
 																				</TableCell>
 																				<TableCell className="text-right text-foreground text-xs font-semibold">
-																					₹{stopGrossTotal.toLocaleString("en-IN")}
+																					₹{stopGrossTotal.toFixed(2).replace(/\.00$/, "")}
 																				</TableCell>
 																			</TableRow>
 																			{stopDiscount > 0 && (
@@ -736,7 +736,7 @@ export default function DriverHistoryPage() {
 																						)}
 																					</TableCell>
 																					<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-																						- ₹{stopDiscount.toLocaleString("en-IN")}
+																						- ₹{stopDiscount.toFixed(2).replace(/\.00$/, "")}
 																					</TableCell>
 																				</TableRow>
 																			)}
@@ -751,7 +751,7 @@ export default function DriverHistoryPage() {
 																						)}
 																					</TableCell>
 																					<TableCell className="text-right text-blue-700 dark:text-blue-400 text-xs font-semibold">
-																						+ ₹{stopExtraCharges.toLocaleString("en-IN")}
+																						+ ₹{stopExtraCharges.toFixed(2).replace(/\.00$/, "")}
 																					</TableCell>
 																				</TableRow>
 																			)}
@@ -760,7 +760,7 @@ export default function DriverHistoryPage() {
 																					Customer Handover Settled Total (ग्राहक कुल भुगतान)
 																				</TableCell>
 																				<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm font-extrabold">
-																					₹{stopFinalTotal.toLocaleString("en-IN")}
+																					₹{stopFinalTotal.toFixed(2).replace(/\.00$/, "")}
 																				</TableCell>
 																			</TableRow>
 																		</>

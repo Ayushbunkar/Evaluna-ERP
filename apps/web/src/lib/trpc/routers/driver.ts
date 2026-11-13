@@ -1560,7 +1560,7 @@ export const driverRouter = router({
 									id: it.id || Math.random(),
 									product_id: it.productId || it.id,
 									name: it.name || it.productName || "Delivered Item",
-									qty: Number(it.qty || it.quantity || 1),
+									qty: Number(it.qty ?? it.quantity ?? 1),
 									price: Number(it.price || it.unitPrice || 0),
 								}));
 							}
@@ -1787,7 +1787,7 @@ export const driverRouter = router({
 										deliveredItems = p.deliveredItems.map((it: any) => ({
 											id: it.id || Math.random(),
 											name: it.name || it.productName || "Delivered Item",
-											qty: Number(it.qty || it.quantity || 1),
+											qty: Number(it.qty ?? it.quantity ?? 1),
 											price: Number(it.price || it.unitPrice || 0),
 										}));
 									}
@@ -2389,7 +2389,7 @@ export const driverRouter = router({
 									order_id: orderIdToUpdate,
 									customer_id: orderRecord.customer_id,
 									branch_id: orderRecord.branch_id || ctx.user?.branchId || 1,
-									total_amount: String(returnTotal),
+									total_amount: returnTotal.toFixed(2),
 									status: "pending",
 									user_uid: ctx.user?.id || "driver-1",
 								})
@@ -2403,9 +2403,9 @@ export const driverRouter = router({
 											product_id: Number(item.product_id),
 											quantity: Number(item.qty),
 											price: String(item.price || 0),
-											refund_amount: String(
-												Number(item.price || 0) * Number(item.qty),
-											),
+											refund_amount: (
+												Number(item.price || 0) * Number(item.qty)
+											).toFixed(2),
 											condition: String(item.reason || "")
 												.toLowerCase()
 												.includes("damage")

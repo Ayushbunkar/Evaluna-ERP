@@ -111,6 +111,68 @@ function getStatusLabel(status: string): string {
 	return "Pending";
 }
 
+function DecimalQtyInput({
+	value,
+	max,
+	onChange,
+	className,
+	disabled,
+}: {
+	value: number;
+	max: number;
+	onChange: (val: number) => void;
+	className?: string;
+	disabled?: boolean;
+}) {
+	const [text, setText] = useState<string>(String(value));
+	const [isFocused, setIsFocused] = useState(false);
+
+	useEffect(() => {
+		if (!isFocused) {
+			setText(String(value));
+		}
+	}, [value, isFocused]);
+
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const raw = e.target.value;
+		setText(raw);
+		const parsed = parseFloat(raw);
+		if (!isNaN(parsed)) {
+			const clamped = Math.max(0, Math.min(max, parsed));
+			onChange(Math.round(clamped * 1000) / 1000);
+		} else if (raw === "" || raw === "0") {
+			onChange(0);
+		}
+	};
+
+	const handleBlur = () => {
+		setIsFocused(false);
+		const parsed = parseFloat(text);
+		const final = isNaN(parsed) ? 0 : Math.max(0, Math.min(max, parsed));
+		const rounded = Math.round(final * 1000) / 1000;
+		setText(String(rounded));
+		onChange(rounded);
+	};
+
+	return (
+		<input
+			type="number"
+			step="any"
+			min="0"
+			max={max}
+			disabled={disabled}
+			value={text}
+			onFocus={() => setIsFocused(true)}
+			onChange={handleChange}
+			onBlur={handleBlur}
+			className={
+				className ||
+				"w-12 sm:w-14 text-center font-bold font-mono text-xs text-foreground bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded py-0.5"
+			}
+		/>
+	);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DriverLiveDeliveryPage() {
@@ -803,7 +865,8 @@ export default function DriverLiveDeliveryPage() {
 			const current = prev[key] || 0;
 			const truckItem = availableVanItems.find((t) => String(t.id) === key);
 			const maxQty = truckItem?.availableQty || 999;
-			const next = Math.min(maxQty, Math.max(1, current + delta));
+			const raw = current + delta;
+			const next = Math.min(maxQty, Math.max(0.1, Math.round(raw * 1000) / 1000));
 			return { ...prev, [key]: next };
 		});
 	};
@@ -856,11 +919,60 @@ export default function DriverLiveDeliveryPage() {
 		setItems((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
+					const raw = item.deliveredQty + delta;
 					const newDelivered = Math.max(
 						0,
-						Math.min(item.originalQty, item.deliveredQty + delta),
+						Math.min(item.originalQty, Math.round(raw * 1000) / 1000),
 					);
-					const newReturned = item.originalQty - newDelivered;
+					const newReturned = Math.max(
+						0,
+						Math.round((item.originalQty - newDelivered) * 1000) / 1000,
+					);
+					const nextChecked = newDelivered > 0;
+					return {
+						...item,
+						checked: nextChecked,
+						deliveredQty: newDelivered,
+						returnedQty: newReturned,
+						returnReason:
+							newReturned > 0
+								? item.returnReason ||
+									(locale === "hi"
+										? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+										: "Customer refused / unselected (stays in van stock)")
+								: "",
+					};
+				}
+				return item;
+			}),
+		);
+	};
+
+	const handleDirectQtyChange = (id: number, rawVal: number | string) => {
+		setItems((prev) =>
+			prev.map((item) => {
+				if (item.id === id) {
+					const num = typeof rawVal === "number" ? rawVal : parseFloat(rawVal);
+					if (isNaN(num) || num <= 0) {
+						const newReturned = item.originalQty;
+						return {
+							...item,
+							checked: false,
+							deliveredQty: 0,
+							returnedQty: newReturned,
+							returnReason:
+								item.returnReason ||
+								(locale === "hi"
+									? "ग्राहक ने लेने से मना किया (वैन स्टॉक में रहेगा)"
+									: "Customer refused / unselected (stays in van stock)"),
+						};
+					}
+					const clamped = Math.min(item.originalQty, Math.max(0, num));
+					const newDelivered = Math.round(clamped * 1000) / 1000;
+					const newReturned = Math.max(
+						0,
+						Math.round((item.originalQty - newDelivered) * 1000) / 1000,
+					);
 					const nextChecked = newDelivered > 0;
 					return {
 						...item,
@@ -1146,7 +1258,8 @@ export default function DriverLiveDeliveryPage() {
 			// Calculate from delivered subtotal minus total discount
 			baseTotal = Math.max(0, subtotal - totalEffectiveDiscount);
 		}
-		return Math.max(0, baseTotal + totalEffectiveExtraCharges);
+		const raw = Math.max(0, baseTotal + totalEffectiveExtraCharges);
+		return Math.round(raw * 100) / 100;
 	}, [
 		activeStop,
 		totalReturnedValue,
@@ -2461,11 +2574,11 @@ export default function DriverLiveDeliveryPage() {
 																		<span className="font-bold font-mono text-xs sm:text-sm shrink-0">
 																			{item.checked ? (
 																				<span className="text-foreground">
-																					₹{(Number(item.deliveredQty) || 0) * Number(item.price || 0)}
+																					₹{((Number(item.deliveredQty) || 0) * Number(item.price || 0)).toFixed(2).replace(/\.00$/, "")}
 																				</span>
 																			) : (
 																				<span className="text-muted-foreground line-through text-xs font-normal">
-																					₹{(Number(item.originalQty) || 0) * Number(item.price || 0)}
+																					₹{((Number(item.originalQty) || 0) * Number(item.price || 0)).toFixed(2).replace(/\.00$/, "")}
 																				</span>
 																			)}
 																		</span>
@@ -2473,7 +2586,7 @@ export default function DriverLiveDeliveryPage() {
 
 																	{/* Quantity Stepper & Return status */}
 																	<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 p-2 text-xs">
-																		<div className="flex items-center space-x-2">
+																		<div className="flex items-center space-x-2 flex-wrap gap-y-1">
 																			<span className="font-semibold text-muted-foreground text-[11px]">
 																				{locale === "hi" ? "स्वीकृत मात्रा:" : "Accepted Qty:"}
 																			</span>
@@ -2483,32 +2596,58 @@ export default function DriverLiveDeliveryPage() {
 																					size="icon"
 																					className="h-6 w-6 rounded"
 																					onClick={() => handleQtyChange(item.id, -1)}
+																					title="Decrease"
 																				>
 																					<Minus className="h-3 w-3" />
 																				</Button>
-																				<span className="w-8 text-center font-bold font-mono text-xs text-foreground">
-																					{item.deliveredQty}
-																				</span>
+																				<DecimalQtyInput
+																					value={item.deliveredQty}
+																					max={item.originalQty}
+																					onChange={(val) => handleDirectQtyChange(item.id, val)}
+																				/>
 																				<Button
 																					variant="ghost"
 																					size="icon"
 																					className="h-6 w-6 rounded"
+																					disabled={item.deliveredQty >= item.originalQty}
 																					onClick={() => handleQtyChange(item.id, 1)}
+																					title="Increase"
 																				>
 																					<Plus className="h-3 w-3" />
 																				</Button>
 																			</div>
+
+																			{/* Quick fractional preset for point / half quantity (e.g. 0.5) */}
+																			{item.originalQty >= 1 && (
+																				<button
+																					type="button"
+																					onClick={() =>
+																						handleDirectQtyChange(
+																							item.id,
+																							item.deliveredQty === 0.5 ? item.originalQty : 0.5,
+																						)
+																					}
+																					className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold border transition-colors cursor-pointer ${
+																						item.deliveredQty === 0.5
+																							? "bg-blue-600 border-blue-600 text-white shadow-2xs"
+																							: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300"
+																					}`}
+																					title={locale === "hi" ? "मात्रा 0.5 (आधा) सेट करें" : "Set quantity to 0.5 (Half)"}
+																				>
+																					0.5 {locale === "hi" ? "आधा" : "Half"}
+																				</button>
+																			)}
 																		</div>
 
 																		{!item.checked || item.deliveredQty === 0 ? (
 																			<Badge variant="outline" className="gap-1 font-semibold text-[11px] border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
 																				<Truck className="h-3 w-3 text-amber-600" />
-																				{item.originalQty || item.returnedQty} {locale === "hi" ? "पीस वैन स्टॉक में जुड़ेंगे" : "pcs staying in Van Stock"}
+																				{Number(item.originalQty || item.returnedQty).toFixed(2).replace(/\.00$/, "")} {locale === "hi" ? "पीस वैन स्टॉक में जुड़ेंगे" : "pcs staying in Van Stock"}
 																			</Badge>
 																		) : item.returnedQty > 0 ? (
 																			<Badge variant="destructive" className="gap-1 font-semibold text-[11px]">
 																				<AlertTriangle className="h-3 w-3" />
-																				{item.returnedQty} {locale === "hi" ? "वापस / वैन स्टॉक" : "Returned to Van Stock"}
+																				{Number(item.returnedQty).toFixed(2).replace(/\.00$/, "")} {locale === "hi" ? "वापस / वैन स्टॉक" : "Returned to Van Stock"}
 																			</Badge>
 																		) : (
 																			<span className="text-[11px] text-emerald-600 font-medium">
@@ -3200,9 +3339,17 @@ export default function DriverLiveDeliveryPage() {
 															>
 																<Minus className="h-3 w-3" />
 															</Button>
-															<span className="w-7 text-center font-bold font-mono text-xs text-foreground">
-																{qty}
-															</span>
+															<DecimalQtyInput
+																value={qty}
+																max={truckItem.availableQty || 999}
+																onChange={(val) => {
+																	setSelectedTruckItems((prev) => ({
+																		...prev,
+																		[key]: Math.max(0.1, val),
+																	}));
+																}}
+																className="w-12 text-center font-bold font-mono text-xs text-foreground bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded py-0.5"
+															/>
 															<Button
 																type="button"
 																variant="outline"
