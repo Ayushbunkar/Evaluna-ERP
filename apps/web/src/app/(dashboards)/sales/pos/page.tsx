@@ -1208,7 +1208,7 @@ function POSContent() {
 	}
 
 	return (
-		<PageTransition className="flex h-[calc(100dvh-72px)] w-full flex-col overflow-hidden rounded-lg bg-muted/40 md:h-full md:flex-row">
+		<PageTransition className="flex h-[calc(100dvh-140px-env(safe-area-inset-bottom,0px))] w-full flex-col overflow-hidden rounded-lg bg-muted/40 sm:h-[calc(100dvh-136px)] md:h-full md:flex-row">
 			{/* Mobile View Mode Switcher */}
 			<div className="flex shrink-0 items-center justify-between border-b bg-background p-2 md:hidden">
 				<div className="flex w-full rounded-lg bg-muted p-1">
@@ -1709,7 +1709,13 @@ function POSContent() {
 
 				{/* Permanent Mobile Action Bar (Catalog View) */}
 				{activeMobileTab === "catalog" && (
-					<div className="z-20 shrink-0 border-t bg-background/95 p-2.5 shadow-lg backdrop-blur-md md:hidden">
+					<div
+						className={`z-20 shrink-0 border-t p-2.5 shadow-lg backdrop-blur-md md:hidden transition-all ${
+							cart.length > 0
+								? "border-primary/40 bg-background/98 ring-1 ring-primary/10 dark:bg-slate-900/98"
+								: "border-border/60 bg-background/95"
+						}`}
+					>
 						<div className="flex items-center justify-between gap-2">
 							{/* Cart total & item count preview with link to Cart tab */}
 							<button
@@ -1765,7 +1771,11 @@ function POSContent() {
 
 								<Button
 									size="sm"
-									className="h-9 bg-primary px-3.5 font-bold text-primary-foreground text-xs shadow-xs hover:bg-primary/90"
+									className={`h-9 px-3.5 font-bold text-xs shadow-xs transition-all ${
+										cart.length > 0
+											? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+											: "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+									}`}
 									onClick={handleCheckout}
 									disabled={cart.length === 0 || checkoutMutation.isPending}
 								>
