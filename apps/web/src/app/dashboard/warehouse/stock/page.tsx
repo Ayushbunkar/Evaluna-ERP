@@ -1428,8 +1428,8 @@ export default function StockPage() {
 				open={!!editItem}
 				onOpenChange={(open) => !open && setEditItem(null)}
 			>
-				<DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
+				<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+					<DialogHeader className="p-5 pb-3 border-b">
 						<DialogTitle className="flex items-center justify-between text-lg">
 							<span className="flex items-center gap-2">
 								<Edit3Icon className="h-5 w-5 text-blue-600" />
@@ -1445,7 +1445,7 @@ export default function StockPage() {
 					</DialogHeader>
 
 					{editItem && (
-						<div className="space-y-3.5 py-1">
+						<div className="space-y-3.5 p-5 overflow-y-auto flex-1">
 							{/* Product Name & Category */}
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1.5">
@@ -1709,7 +1709,7 @@ export default function StockPage() {
 						</div>
 					)}
 
-					<DialogFooter className="gap-2 sm:justify-between items-center pt-2 border-t">
+					<DialogFooter className="gap-2 sm:justify-between items-center p-4 border-t bg-muted/20">
 						<Button
 							type="button"
 							variant="destructive"

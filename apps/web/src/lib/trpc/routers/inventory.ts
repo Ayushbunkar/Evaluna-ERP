@@ -287,6 +287,7 @@ export const inventoryRouter = router({
 						.from(products)
 						.where(
 							and(
+								eq(products.is_deleted, false),
 								sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedNewName}))`,
 								sql`${products.id} != ${prodId}`
 							)
@@ -1002,6 +1003,7 @@ export const inventoryRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const trimmedName = input.name?.trim() || "";
+			const bilingualName = trimmedName.length >= 2 ? toBilingualProductName(trimmedName) : "";
 			const trimmedSku = input.sku?.trim() || "";
 			const trimmedBarcode = input.barcode?.trim() || "";
 
@@ -1018,6 +1020,11 @@ export const inventoryRouter = router({
 				conditions.push(
 					sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
 				);
+				if (bilingualName && bilingualName.toLowerCase() !== trimmedName.toLowerCase()) {
+					conditions.push(
+						sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${bilingualName}))`,
+					);
+				}
 			}
 			if (trimmedSku.length >= 2) {
 				conditions.push(

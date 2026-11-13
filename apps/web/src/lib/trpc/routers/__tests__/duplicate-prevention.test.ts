@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { eq } from "drizzle-orm";
 import * as schema from "@/lib/db/schema";
 import { buildDDL, createTestDb, makeFinanceUser, makeUser, SCHEMA_DDL } from "./helpers";
@@ -37,6 +37,7 @@ beforeAll(async () => {
 	await pg.exec(
 		buildDDL(
 			[
+				schema.user,
 				schema.branches,
 				schema.staff,
 				schema.products,
@@ -44,6 +45,7 @@ beforeAll(async () => {
 				schema.stockLedger,
 				schema.priceChangeHistory,
 				schema.auditLogs,
+				schema.dailyProductPricing,
 			],
 			false,
 		),
@@ -55,6 +57,24 @@ beforeAll(async () => {
 		name: "Main Central Warehouse",
 		code: "MAIN-01",
 	});
+
+	// Insert staff 1 for warehouseUser
+	await db.insert(schema.staff).values({
+		id: 1,
+		name: "Warehouse Supervisor",
+		staff_code: "STAFF-WH01",
+		email: "warehouse@test.com",
+		role: "warehouse_supervisor",
+		join_date: new Date(),
+		salary: "40000.00",
+		branch_id: 1,
+	});
+});
+
+beforeEach(async () => {
+	try {
+		await pg.exec("ROLLBACK;");
+	} catch (e) {}
 });
 
 afterAll(async () => {
@@ -76,7 +96,7 @@ describe("Warehouse Duplicate Item Prevention (Double Entry Guard)", () => {
 		});
 
 		expect(res.success).toBe(true);
-		expect(res.product.name).toBe("Amul Gold Milk 500ml");
+		expect(res.product.name).toContain("Amul Gold Milk 500ml");
 		expect(Number(res.inventory.in_stock)).toBe(25);
 	});
 
@@ -111,7 +131,7 @@ describe("Warehouse Duplicate Item Prevention (Double Entry Guard)", () => {
 
 		expect(checkByName.exists).toBe(true);
 		expect(checkByName.product).toBeDefined();
-		expect(checkByName.product.name).toBe("Amul Gold Milk 500ml");
+		expect(checkByName.product.name).toContain("Amul Gold Milk 500ml");
 		expect(Number(checkByName.product.qty_on_hand)).toBe(25);
 
 		const checkBySku = await invCaller.checkExistingProduct({
@@ -157,5 +177,38 @@ describe("Warehouse Duplicate Item Prevention (Double Entry Guard)", () => {
 				branchId: 1,
 			}),
 		).rejects.toThrow(/already exists/i);
+	});
+
+	it("updateStockAndPrice allows updating when another soft-deleted product has the same name", async () => {
+		const second = await invCaller.addItem({
+			name: "Sample Snack 50g",
+			sku: "SNACK-50G",
+			price: 20,
+			branchId: 1,
+		});
+
+		// Mark it deleted in DB
+		await db
+			.update(schema.products)
+			.set({ is_deleted: true })
+			.where(eq(schema.products.id, second.product.id));
+
+		const activeProduct = await invCaller.addItem({
+			name: "Active Snack 100g",
+			sku: "SNACK-ACTIVE-100G",
+			price: 40,
+			branchId: 1,
+		});
+
+		// Renaming activeProduct to the soft-deleted item's name should NOT throw conflict
+		const updated = await invCaller.updateStockAndPrice({
+			productId: activeProduct.product.id,
+			name: "Sample Snack 50g",
+			price: 25,
+			qtyOnHand: 50,
+			branchId: 1,
+		});
+
+		expect(updated).toBeDefined();
 	});
 });

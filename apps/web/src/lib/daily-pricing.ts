@@ -12,6 +12,7 @@ let tableEnsured = false;
  */
 export async function ensureDailyPricingTable(db: any): Promise<void> {
 	if (tableEnsured) return;
+	tableEnsured = true;
 	try {
 		await db.execute(sql`
 			CREATE TABLE IF NOT EXISTS daily_product_pricing (
@@ -27,11 +28,8 @@ export async function ensureDailyPricingTable(db: any): Promise<void> {
 				created_by_uid varchar(255),
 				created_at timestamp DEFAULT NOW(),
 				updated_at timestamp DEFAULT NOW()
-			);
-			CREATE INDEX IF NOT EXISTS idx_daily_pricing_prod_date 
-			ON daily_product_pricing (product_id, pricing_date, branch_id);
+			)
 		`);
-		tableEnsured = true;
 	} catch (err) {
 		console.warn("[ensureDailyPricingTable] Notice:", err);
 	}
