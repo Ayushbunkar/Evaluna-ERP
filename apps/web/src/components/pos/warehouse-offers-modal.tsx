@@ -264,7 +264,7 @@ export function WarehouseOffersModal({
 				</div>
 
 				{/* Scrollable Offers List */}
-				<div className="scrollbar-thin flex-1 space-y-2.5 overflow-y-auto p-3 sm:p-4">
+				<div className="scrollbar-thin flex-1 space-y-2.5 overflow-y-auto p-3 sm:p-4 touch-pan-y overscroll-contain">
 					{isLoading ? (
 						<div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
 							<Loader2 className="h-7 w-7 animate-spin text-amber-500" />

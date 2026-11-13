@@ -1247,18 +1247,36 @@ function POSContent() {
 					activeMobileTab === "catalog" ? "flex" : "hidden md:flex"
 				}`}
 			>
-				<div className="mb-3 flex shrink-0 items-center justify-between sm:mb-4">
-					<div className="flex items-center gap-2">
-						<h1 className="font-bold text-xl sm:text-2xl">{t.posTitle}</h1>
-						{displayCatalog && displayCatalog.length > 0 && (
-							<span className="rounded-md border bg-muted px-2 py-0.5 font-semibold text-muted-foreground text-xs">
-								{displayCatalog.length} Products
-							</span>
-						)}
+				<div className="mb-2.5 flex shrink-0 flex-col gap-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
+					<div className="flex items-center justify-between gap-2">
+						<div className="flex items-center gap-2">
+							<h1 className="font-bold text-xl sm:text-2xl">{t.posTitle}</h1>
+							{displayCatalog && displayCatalog.length > 0 && (
+								<span className="rounded-md border bg-muted px-2 py-0.5 font-semibold text-muted-foreground text-xs">
+									{displayCatalog.length} Products
+								</span>
+							)}
+						</div>
+						{/* Mobile Online / Offline indicator */}
+						<div className="flex items-center sm:hidden">
+							{isOffline ? (
+								<span className="flex items-center gap-1 font-semibold text-destructive text-xs">
+									<WifiOff className="h-3.5 w-3.5" />
+									<span className="text-[10px]">{t.offline}</span>
+								</span>
+							) : (
+								<span className="flex items-center gap-1 font-semibold text-emerald-600 text-xs dark:text-emerald-400">
+									<Wifi className="h-3.5 w-3.5" />
+									<span className="text-[10px]">{t.online}</span>
+								</span>
+							)}
+						</div>
 					</div>
-					<div className="flex items-center gap-2">
+
+					{/* Action controls row: Bill date, Today's Offers, Customer/Route with smooth horizontal scroll */}
+					<div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 touch-pan-x no-scrollbar shrink-0">
 						{/* Custom Bill Date Selector */}
-						<div className="flex items-center gap-1">
+						<div className="flex shrink-0 items-center gap-1">
 							<div className="relative flex items-center">
 								<Label htmlFor="pos-bill-date" className="sr-only">
 									Bill Date
@@ -1306,7 +1324,7 @@ function POSContent() {
 							type="button"
 							size="sm"
 							onClick={() => setWarehouseOffersOpen(true)}
-							className="h-8 gap-1.5 border border-amber-500 bg-amber-500/15 font-bold text-amber-900 text-xs shadow-2xs hover:bg-amber-500/25 dark:border-amber-600 dark:bg-amber-950/60 dark:text-amber-200"
+							className="h-8 shrink-0 gap-1.5 border border-amber-500 bg-amber-500/15 font-bold text-amber-900 text-xs shadow-2xs hover:bg-amber-500/25 dark:border-amber-600 dark:bg-amber-950/60 dark:text-amber-200"
 							title={
 								locale === "hi"
 									? "गोदाम द्वारा जोड़े गए आज के सभी उत्पाद ऑफ़र और छूट देखें"
@@ -1330,7 +1348,7 @@ function POSContent() {
 							variant="outline"
 							size="sm"
 							onClick={() => setPaymentModalOpen(true)}
-							className="h-8 gap-1.5 border-emerald-500/40 bg-emerald-50/60 font-semibold text-emerald-800 text-xs hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+							className="h-8 shrink-0 gap-1.5 border-emerald-500/40 bg-emerald-50/60 font-semibold text-emerald-800 text-xs hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
 						>
 							<User className="h-3.5 w-3.5 text-emerald-600" />
 							{customerDetails?.customerName ? (
@@ -1344,15 +1362,18 @@ function POSContent() {
 							)}
 						</Button>
 
-						{isOffline ? (
-							<span className="flex items-center gap-1.5 font-semibold text-destructive text-xs sm:text-sm">
-								<WifiOff className="h-4 w-4" /> {t.offline}
-							</span>
-						) : (
-							<span className="flex items-center gap-1.5 font-semibold text-primary text-xs sm:text-sm">
-								<Wifi className="h-4 w-4" /> {t.online}
-							</span>
-						)}
+						{/* Desktop Online / Offline status badge */}
+						<div className="hidden sm:flex items-center">
+							{isOffline ? (
+								<span className="flex items-center gap-1.5 font-semibold text-destructive text-xs sm:text-sm">
+									<WifiOff className="h-4 w-4" /> {t.offline}
+								</span>
+							) : (
+								<span className="flex items-center gap-1.5 font-semibold text-primary text-xs sm:text-sm">
+									<Wifi className="h-4 w-4" /> {t.online}
+								</span>
+							)}
+						</div>
 					</div>
 				</div>
 
