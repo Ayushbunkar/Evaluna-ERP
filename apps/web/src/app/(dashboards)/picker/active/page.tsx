@@ -217,33 +217,33 @@ export default function PickerActivePage() {
 									</div>
 
 									{/* Customer Details: Name, Phone Number, Delivery Address */}
-									<div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-blue-200/90 bg-white/95 px-3 py-2 text-xs shadow-xs dark:border-blue-800/60 dark:bg-gray-850/90">
+									<div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-blue-200/90 bg-white/95 px-3 py-2 text-xs shadow-xs dark:border-blue-900/80 dark:bg-slate-900/90">
 										<div className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-gray-100">
 											<UserIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
 											<span>{task.customer_name || "N/A"}</span>
 										</div>
 
-										<span className="text-gray-300 dark:text-gray-600">•</span>
+										<span className="text-gray-300 dark:text-slate-600">•</span>
 
-										<div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+										<div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
 											<PhoneIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
 											{task.customer_phone && task.customer_phone !== "N/A" ? (
 												<a
 													href={`tel:${task.customer_phone}`}
-													className="font-mono hover:text-emerald-600 hover:underline"
+													className="font-mono text-gray-800 hover:text-emerald-600 hover:underline dark:text-gray-200 dark:hover:text-emerald-400"
 												>
 													{task.customer_phone}
 												</a>
 											) : (
-												<span className="font-mono text-gray-400">N/A</span>
+												<span className="font-mono text-gray-400 dark:text-gray-500">N/A</span>
 											)}
 										</div>
 
-										<span className="text-gray-300 dark:text-gray-600">•</span>
+										<span className="text-gray-300 dark:text-slate-600">•</span>
 
-										<div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+										<div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
 											<MapPinIcon className="h-3.5 w-3.5 text-rose-500 dark:text-rose-400 shrink-0" />
-											<span className="truncate max-w-[280px] sm:max-w-[360px]" title={task.customer_address || "N/A"}>
+											<span className="truncate max-w-[280px] sm:max-w-[360px] dark:text-gray-200" title={task.customer_address || "N/A"}>
 												{task.customer_address || "N/A"}
 											</span>
 										</div>
