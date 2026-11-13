@@ -1085,7 +1085,7 @@ export const ordersRouter = router({
 			return { ...updated, customer: customer ?? null };
 		}),
 
-	delete: roleProcedure(["admin", "manager"])
+	delete: roleProcedure(["admin", "manager", "sales_person", "sales", "salesperson"])
 		.meta({
 			openapi: {
 				method: "DELETE",
@@ -1094,7 +1094,7 @@ export const ordersRouter = router({
 				summary: "Delete an order and its items",
 			},
 		})
-		.input(z.object({ id: z.number() }))
+		.input(z.object({ id: z.number(), reason: z.string().optional() }))
 		.output(z.object({ success: z.boolean() }))
 		.mutation(async ({ ctx, input }) => {
 			await db.transaction(async (tx: any) => {
@@ -1109,7 +1109,7 @@ export const ordersRouter = router({
 					await restoreStockForOrder(tx, {
 						orderId: input.id,
 						branchId: targetBranchId,
-						reason: "Order Deleted",
+						reason: input.reason || "Order Deleted",
 					});
 				}
 

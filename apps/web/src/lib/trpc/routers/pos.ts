@@ -17,7 +17,10 @@ import {
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { deductStockForOrder } from "@/lib/inventory/inventory-service";
+import {
+	deductStockForOrder,
+	adjustStockForOrderQuantityChange,
+} from "@/lib/inventory/inventory-service";
 import { protectedProcedure, router } from "@/lib/trpc/init";
 
 export const posRouter = router({
@@ -150,7 +153,9 @@ export const posRouter = router({
 					z.object({
 						productId: z.number(),
 						quantity: z.number(),
-						price: z.string(),
+						price: z
+							.union([z.string(), z.number()])
+							.transform((val) => String(val)),
 					}),
 				),
 				payments: z.array(
@@ -310,17 +315,29 @@ export const posRouter = router({
 
 
 
-				// Deduct stock atomically and record stock ledger via centralized inventory service
-				await deductStockForOrder(tx, {
-					orderId: order.id,
-					branchId: effectiveBranchId,
-					items: input.items.map((item) => ({
-						productId: item.productId,
-						quantity: item.quantity,
-						price: item.price,
-					})),
-					referenceType: "sale",
-				});
+				// Deduct or adjust stock atomically via centralized inventory service
+				if (input.existingOrderId) {
+					await adjustStockForOrderQuantityChange(tx, {
+						orderId: order.id,
+						branchId: effectiveBranchId,
+						newItems: input.items.map((item) => ({
+							productId: item.productId,
+							quantity: item.quantity,
+							price: item.price,
+						})),
+					});
+				} else {
+					await deductStockForOrder(tx, {
+						orderId: order.id,
+						branchId: effectiveBranchId,
+						items: input.items.map((item) => ({
+							productId: item.productId,
+							quantity: item.quantity,
+							price: item.price,
+						})),
+						referenceType: "sale",
+					});
+				}
 
 				// 3. Process Payments (Split Payments Supported, Safe Method ID Lookup)
 				const validMethods = await tx.select({ id: paymentMethods.id }).from(paymentMethods);
@@ -381,33 +398,65 @@ export const posRouter = router({
 				customerId: z.number().optional(),
 				items: z.any(), // cart state
 				total: z.string(),
+				discountAmount: z.string().optional(),
+				discountReason: z.string().optional(),
+				otherCharges: z.string().optional(),
+				otherChargesReason: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id || (ctx.user as any).userId;
-			// Creates a suspended order that can be retrieved later
-			const [order] = await ctx.db
-				.insert(orders)
-				.values({
-					customer_id: input.customerId,
-					total_amount: input.total,
-					status: "suspended",
-					user_uid: userId,
-					branch_id: ctx.user.branchId,
-				})
-				.returning();
+			const effectiveBranchId =
+				ctx.user.branchId || (ctx.user as any)?.branch_id || 1;
 
-			// Insert items
-			for (const item of input.items) {
-				await ctx.db.insert(orderItems).values({
-					order_id: order.id,
-					product_id: item.id || item.productId,
-					quantity: item.qty || item.quantity,
-					price: item.price.toString(),
-				});
-			}
+			return await ctx.db.transaction(async (tx) => {
+				// Creates a suspended order that can be retrieved later
+				const [order] = await tx
+					.insert(orders)
+					.values({
+						customer_id: input.customerId,
+						total_amount: input.total,
+						status: "suspended",
+						user_uid: userId,
+						branch_id: effectiveBranchId,
+						discount_amount: input.discountAmount || "0",
+						discount_reason: input.discountReason,
+						other_charges: input.otherCharges || "0",
+						other_charges_reason: input.otherChargesReason,
+					})
+					.returning();
 
-			return order;
+				// Insert items and collect items to deduct from stock
+				const itemsToDeduct: any[] = [];
+				for (const item of input.items) {
+					const pid = Number(item.id || item.productId);
+					const qty = Number(item.qty || item.quantity);
+					const prc = String(item.price || "0");
+					await tx.insert(orderItems).values({
+						order_id: order.id,
+						product_id: pid,
+						quantity: qty,
+						price: prc,
+					});
+					itemsToDeduct.push({
+						productId: pid,
+						quantity: qty,
+						price: prc,
+					});
+				}
+
+				// Deduct stock and record in stock ledger so products on hold are deducted from available warehouse stock
+				if (itemsToDeduct.length > 0) {
+					await deductStockForOrder(tx, {
+						orderId: order.id,
+						branchId: effectiveBranchId,
+						items: itemsToDeduct,
+						referenceType: "sale",
+					});
+				}
+
+				return order;
+			});
 		}),
 
 	editOrder: protectedProcedure

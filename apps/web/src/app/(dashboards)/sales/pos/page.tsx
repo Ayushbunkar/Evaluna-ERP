@@ -297,7 +297,9 @@ function POSContent() {
 	const [search, setSearch] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState<string>("all");
 	const [isOffline, setIsOffline] = useState(false);
-	const [customerModalOpen, setCustomerModalOpen] = useState(true);
+	const [customerModalOpen, setCustomerModalOpen] = useState(
+		() => typeof window !== "undefined" && !new URLSearchParams(window.location.search).get("resume"),
+	);
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 	const [lastCompletedOrder, setLastCompletedOrder] = useState<any>(null);
 	const [customerDetails, setCustomerDetails] = useState<{
@@ -314,6 +316,13 @@ function POSContent() {
 		"catalog",
 	);
 	const [customBillDate, setCustomBillDate] = useState<string>(""); // YYYY-MM-DD backdate or empty for real time
+	const [resumedOrderId, setResumedOrderId] = useState<number | null>(() => {
+		if (typeof window !== "undefined") {
+			const res = new URLSearchParams(window.location.search).get("resume");
+			return res ? Number(res) : null;
+		}
+		return null;
+	});
 
 	// Discount state
 	const [discountAmount, setDiscountAmount] = useState<number>(0);
@@ -617,10 +626,26 @@ function POSContent() {
 			const restoredCart = resumeOrder.orderItems.map((item: any) => ({
 				id: item.product?.id || item.product_id,
 				name: item.product?.name || `Item #${item.product_id}`,
-				price: Number(item.price) || 0,
+				price: String(item.price || 0),
 				qty: Number(item.quantity) || 1,
 			}));
 			setCart(restoredCart);
+
+			// Pre-populate customer details from resumed order so customer modal is not shown again
+			if (resumeOrder.customer || resumeOrder.customer_id) {
+				setCustomerDetails({
+					customerId: resumeOrder.customer_id || (resumeOrder.customer as any)?.id,
+					customerName: (resumeOrder.customer as any)?.name || undefined,
+					customerPhone: (resumeOrder.customer as any)?.phone || undefined,
+					customerAddress: (resumeOrder.customer as any)?.address || undefined,
+				});
+				setCustomerModalOpen(false);
+			}
+
+			if (resumeId) {
+				setResumedOrderId(Number(resumeId));
+			}
+
 			if (
 				resumeOrder.discount_amount &&
 				Number(resumeOrder.discount_amount) > 0
@@ -637,7 +662,7 @@ function POSContent() {
 				window.history.replaceState({}, "", window.location.pathname);
 			}
 		}
-	}, [resumeOrder, cart.length]);
+	}, [resumeOrder, cart.length, resumeId]);
 
 	useEffect(() => {
 		const handleOnline = () => setIsOffline(false);
@@ -1065,12 +1090,13 @@ function POSContent() {
 		checkingOutRef.current = true;
 		setLastPayments(payments);
 		checkoutMutation.mutate({
-			existingOrderId: resumeId ? Number(resumeId) : undefined,
-			customerId: customer?.customerId,
+			existingOrderId:
+				resumedOrderId ?? (resumeId ? Number(resumeId) : undefined),
+			customerId: customer?.customerId || customerDetails?.customerId,
 			items: cart.map((c) => ({
 				productId: c.id,
 				quantity: c.qty,
-				price: c.price,
+				price: String(c.price),
 			})),
 			payments: payments,
 			isOfflineSync: false,
@@ -1772,6 +1798,7 @@ function POSContent() {
 									className="h-9 border-amber-300 bg-amber-50/60 px-2.5 font-semibold text-amber-900 text-xs hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
 									onClick={() => {
 										suspendMutation.mutate({
+											customerId: customerDetails?.customerId,
 											items: cart,
 											total: total.toString(),
 											discountAmount:
@@ -2202,6 +2229,7 @@ function POSContent() {
 							className="w-full border border-amber-300/80 bg-amber-50 font-semibold text-amber-900 text-xs hover:bg-amber-100 sm:text-base dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
 							onClick={() => {
 								suspendMutation.mutate({
+									customerId: customerDetails?.customerId,
 									items: cart,
 									total: total.toString(),
 									discountAmount:
