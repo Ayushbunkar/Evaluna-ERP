@@ -605,19 +605,35 @@ export default function WarehouseDiscountsPage() {
 
 											<TableCell className="py-3">
 												{p.hasActiveOffer ? (
-													<div className="flex flex-col gap-0.5">
-														<div className="flex items-center gap-1.5">
-															<span className="line-through text-muted-foreground text-xs">
-																₹{p.originalPrice.toFixed(2)}
-															</span>
-															<span className="font-bold font-mono text-base text-rose-600 dark:text-rose-400">
-																₹{p.currentPrice.toFixed(2)}
-															</span>
+													p.offer ? (
+														<div className="flex flex-col gap-0.5">
+															<div className="flex items-center gap-1.5">
+																<span className="line-through text-muted-foreground text-xs">
+																	₹{p.originalPrice.toFixed(2)}
+																</span>
+																<span className="font-bold font-mono text-base text-rose-600 dark:text-rose-400">
+																	₹{p.currentPrice.toFixed(2)}
+																</span>
+															</div>
+															<Badge className="w-fit border-0 bg-rose-500 font-bold text-[10px] text-white shadow-xs">
+																{p.offer?.discountPercent ?? 0}% OFF
+															</Badge>
 														</div>
-														<Badge className="w-fit border-0 bg-rose-500 font-bold text-[10px] text-white shadow-xs">
-															{p.offer?.discountPercent ?? 0}% OFF
-														</Badge>
-													</div>
+													) : (p as any).hasSlabPricing ? (
+														<div className="flex flex-col gap-0.5">
+															<div className="font-bold font-mono text-sm text-purple-700 dark:text-purple-300">
+																₹{(p as any).minSlabPrice?.toFixed(2)} - ₹{(p as any).maxSlabPrice?.toFixed(2)}
+															</div>
+															<Badge className="w-fit border-0 bg-purple-600 font-bold text-[10px] text-white shadow-xs flex items-center gap-1">
+																<LayersIcon className="h-2.5 w-2.5" />
+																<span>{(p as any).slabsCount} Slabs Tier</span>
+															</Badge>
+														</div>
+													) : (
+														<span className="text-muted-foreground text-xs italic">
+															No active offer
+														</span>
+													)
 												) : (
 													<span className="text-muted-foreground text-xs italic">
 														No active offer
@@ -626,17 +642,32 @@ export default function WarehouseDiscountsPage() {
 											</TableCell>
 
 											<TableCell className="py-3">
-												{p.hasActiveOffer && p.offer?.reason ? (
-													<div className="max-w-[220px]">
-														<div className="truncate font-medium text-foreground text-xs" title={p.offer.reason}>
-															{p.offer.reason}
-														</div>
-														{p.offer.notes && (
-															<div className="truncate text-muted-foreground text-[11px]" title={p.offer.notes}>
-																{p.offer.notes}
+												{p.hasActiveOffer ? (
+													p.offer?.reason ? (
+														<div className="max-w-[220px]">
+															<div className="truncate font-medium text-foreground text-xs" title={p.offer.reason}>
+																{p.offer.reason}
 															</div>
-														)}
-													</div>
+															{p.offer.notes && (
+																<div className="truncate text-muted-foreground text-[11px]" title={p.offer.notes}>
+																	{p.offer.notes}
+																</div>
+															)}
+														</div>
+													) : (p as any).hasSlabPricing ? (
+														<div className="max-w-[220px]">
+															<div className="truncate font-semibold text-purple-700 dark:text-purple-300 text-xs">
+																Volume Wholesale Slabs ({(p as any).slabsCount} Tiers)
+															</div>
+															{(p as any).slabEndDate && (
+																<div className="text-muted-foreground text-[11px] font-mono">
+																	Valid till {(p as any).slabEndDate}
+																</div>
+															)}
+														</div>
+													) : (
+														<span className="text-muted-foreground text-xs">-</span>
+													)
 												) : (
 													<span className="text-muted-foreground text-xs">-</span>
 												)}

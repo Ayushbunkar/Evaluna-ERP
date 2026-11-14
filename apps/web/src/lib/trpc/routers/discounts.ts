@@ -3,11 +3,13 @@ import {
 	dailyProductDiscounts,
 	priceChangeHistory,
 	products,
+	productSlabPricing,
 } from "@evaluna/db/schema";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { protectedProcedure, router } from "@/lib/trpc/init";
+import { ensureSlabPricingTable } from "./slab-pricing";
 import { resolveStaffId } from "../util/audit";
 
 export const discountsRouter = router({
@@ -100,16 +102,59 @@ export const discountsRouter = router({
 				discountMap.set(disc.product_id, disc);
 			}
 
+			// Ensure slab pricing table exists and fetch active volume slabs
+			await ensureSlabPricingTable(db);
+			const productIds = productRows.map((p) => p.id);
+			let activeSlabs: any[] = [];
+			if (productIds.length > 0) {
+				try {
+					activeSlabs = await db
+						.select()
+						.from(productSlabPricing)
+						.where(
+							and(
+								inArray(productSlabPricing.product_id, productIds),
+								eq(productSlabPricing.is_active, true),
+							),
+						)
+						.orderBy(asc(productSlabPricing.min_quantity));
+				} catch (e) {
+					activeSlabs = [];
+				}
+			}
+
+			const slabsMap = new Map<number, any[]>();
+			for (const slab of activeSlabs) {
+				if (slab.start_date && slab.start_date > targetDate) continue;
+				if (slab.end_date && slab.end_date < targetDate) continue;
+				const list = slabsMap.get(slab.product_id) || [];
+				list.push({
+					id: slab.id,
+					productId: slab.product_id,
+					minQuantity: Number(slab.min_quantity),
+					maxQuantity:
+						slab.max_quantity !== null ? Number(slab.max_quantity) : null,
+					unitPrice: Number(slab.unit_price),
+					startDate: slab.start_date,
+					endDate: slab.end_date,
+					isActive: slab.is_active,
+				});
+				slabsMap.set(slab.product_id, list);
+			}
+
 			const mapped = productRows.map((p) => {
 				const originalPriceNum = Number.parseFloat(p.price || "0");
 				const activeDiscount = discountMap.get(p.id);
+				const slabs = slabsMap.get(p.id) || [];
+				const hasSlabPricing = slabs.length > 0;
+				const hasDailyDiscount = !!activeDiscount && activeDiscount.is_active;
+				const hasActiveOffer = hasDailyDiscount || hasSlabPricing;
 
-				const hasActiveOffer = !!activeDiscount && activeDiscount.is_active;
-				const offerPriceNum = hasActiveOffer
+				const offerPriceNum = hasDailyDiscount
 					? Number.parseFloat(activeDiscount.discounted_price || "0")
 					: originalPriceNum;
 				const discountPercent =
-					hasActiveOffer && originalPriceNum > 0
+					hasDailyDiscount && originalPriceNum > 0
 						? Number.parseFloat(
 								activeDiscount.discount_percent ||
 									(
@@ -119,17 +164,43 @@ export const discountsRouter = router({
 							)
 						: 0;
 
+				const minSlabPrice =
+					hasSlabPricing
+						? Math.min(...slabs.map((s: any) => s.unitPrice))
+						: null;
+				const maxSlabPrice =
+					hasSlabPricing
+						? Math.max(...slabs.map((s: any) => s.unitPrice))
+						: null;
+				const slabEndDate =
+					slabs.find((s: any) => s.endDate)?.endDate || null;
+
 				return {
 					id: p.id,
 					name: p.name,
 					sku: p.sku || "N/A",
 					category: p.category || "General",
 					originalPrice: originalPriceNum,
-					currentPrice: hasActiveOffer ? offerPriceNum : originalPriceNum,
+					currentPrice: hasDailyDiscount ? offerPriceNum : originalPriceNum,
 					unit: p.unit || "Pcs",
 					barcode: p.barcode || "",
 					stock: p.stock || 0,
 					hasActiveOffer,
+					hasDailyOffer: hasDailyDiscount,
+					hasSlabPricing,
+					slabs,
+					slabsCount: slabs.length,
+					minSlabPrice,
+					maxSlabPrice,
+					slabEndDate,
+					offerType:
+						hasDailyDiscount && hasSlabPricing
+							? "both"
+							: hasDailyDiscount
+								? "daily_discount"
+								: hasSlabPricing
+									? "slab_pricing"
+									: "none",
 					offer: activeDiscount
 						? {
 								id: activeDiscount.id,
@@ -175,6 +246,7 @@ export const discountsRouter = router({
 			const activeOffers = await db
 				.select({
 					id: dailyProductDiscounts.id,
+					productId: dailyProductDiscounts.product_id,
 					originalPrice: dailyProductDiscounts.original_price,
 					discountedPrice: dailyProductDiscounts.discounted_price,
 					discountPercent: dailyProductDiscounts.discount_percent,
@@ -187,7 +259,32 @@ export const discountsRouter = router({
 					),
 				);
 
-			const totalOffers = activeOffers.length;
+			await ensureSlabPricingTable(db);
+			let activeSlabs: any[] = [];
+			try {
+				activeSlabs = await db
+					.select()
+					.from(productSlabPricing)
+					.where(eq(productSlabPricing.is_active, true));
+			} catch (e) {
+				activeSlabs = [];
+			}
+
+			const validSlabs = activeSlabs.filter((s) => {
+				if (s.start_date && s.start_date > targetDate) return false;
+				if (s.end_date && s.end_date < targetDate) return false;
+				return true;
+			});
+
+			const uniqueProductIds = new Set<number>();
+			for (const off of activeOffers) {
+				uniqueProductIds.add(off.productId);
+			}
+			for (const s of validSlabs) {
+				uniqueProductIds.add(s.product_id);
+			}
+
+			const totalOffers = uniqueProductIds.size;
 			let totalSavingsPerUnit = 0;
 			let sumPercent = 0;
 
@@ -199,11 +296,13 @@ export const discountsRouter = router({
 			}
 
 			const avgDiscountPercent =
-				totalOffers > 0 ? (sumPercent / totalOffers).toFixed(1) : "0";
+				activeOffers.length > 0 ? (sumPercent / activeOffers.length).toFixed(1) : "0";
 
 			return {
 				date: targetDate,
 				totalActiveOffers: totalOffers,
+				totalDailyOffers: activeOffers.length,
+				totalSlabOffers: new Set(validSlabs.map((s) => s.product_id)).size,
 				avgDiscountPercent: Number.parseFloat(avgDiscountPercent),
 				totalSavingsPerUnit: Number.parseFloat(totalSavingsPerUnit.toFixed(2)),
 			};

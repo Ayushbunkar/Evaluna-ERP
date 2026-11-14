@@ -2,6 +2,7 @@
 
 import {
 	Calendar,
+	Layers,
 	Loader2,
 	Percent,
 	Search,
@@ -27,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc/client";
 
 export interface WarehouseOfferItem {
-	id: string;
+	id: string | number;
 	name: string;
 	originalPrice: number;
 	currentPrice: number;
@@ -37,8 +38,15 @@ export interface WarehouseOfferItem {
 	sku?: string | null;
 	category?: string | null;
 	hasOffer: boolean;
+	hasActiveOffer?: boolean;
+	hasSlabPricing?: boolean;
+	slabsCount?: number;
+	minSlabPrice?: number | null;
+	maxSlabPrice?: number | null;
+	slabEndDate?: string | null;
+	slabs?: any[];
 	offer?: {
-		id: string;
+		id: string | number;
 		discountPercent: number;
 		discountedPrice: number;
 		reason?: string | null;
@@ -306,7 +314,9 @@ export function WarehouseOffersModal({
 					) : (
 						<div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
 							{offersData.map((item) => {
-								const hasOffer = item.hasActiveOffer && item.offer;
+								const hasDailyDiscount = !!(item.hasActiveOffer && item.offer);
+								const hasSlabPricing = !!item.hasSlabPricing;
+								const hasAnyOffer = hasDailyDiscount || hasSlabPricing;
 								const originalPrice = item.originalPrice;
 								const currentPrice = item.currentPrice;
 								const discountPercent = item.offer?.discountPercent || 0;
@@ -317,8 +327,10 @@ export function WarehouseOffersModal({
 									<div
 										key={item.id}
 										className={`relative flex flex-col justify-between rounded-xl border p-3 transition-all ${
-											hasOffer
-												? "border-amber-400/60 bg-gradient-to-br from-amber-500/5 via-background to-amber-500/10 shadow-xs dark:border-amber-600/30 dark:bg-amber-950/20"
+											hasAnyOffer
+												? hasSlabPricing && !hasDailyDiscount
+													? "border-purple-400/60 bg-gradient-to-br from-purple-500/5 via-background to-purple-500/10 shadow-xs dark:border-purple-600/30 dark:bg-purple-950/20"
+													: "border-amber-400/60 bg-gradient-to-br from-amber-500/5 via-background to-amber-500/10 shadow-xs dark:border-amber-600/30 dark:bg-amber-950/20"
 												: "border-border/60 bg-muted/10 opacity-70"
 										}`}
 									>
@@ -330,9 +342,15 @@ export function WarehouseOffersModal({
 														<span className="truncate font-bold text-foreground text-sm leading-snug">
 															{getLocalizedProductName(item.name, locale)}
 														</span>
-														{hasOffer && (
+														{hasDailyDiscount && (
 															<Badge className="bg-amber-500 px-1.5 py-0 font-extrabold text-[10px] text-white uppercase hover:bg-amber-600">
 																✨ {discountPercent}% OFF
+															</Badge>
+														)}
+														{hasSlabPricing && (
+															<Badge className="bg-purple-600 px-1.5 py-0 font-extrabold text-[10px] text-white uppercase hover:bg-purple-700 flex items-center gap-0.5">
+																<Layers className="h-2.5 w-2.5 shrink-0" />
+																<span>{item.slabsCount || (item.slabs || []).length} Slabs</span>
 															</Badge>
 														)}
 													</div>
@@ -359,8 +377,8 @@ export function WarehouseOffersModal({
 												</div>
 											</div>
 
-											{/* Reason / Notes Banner */}
-											{hasOffer && item.offer?.reason && (
+											{/* Daily Offer Reason / Notes Banner */}
+											{hasDailyDiscount && item.offer?.reason && (
 												<div className="mt-2 flex items-center justify-between gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-900 dark:text-amber-200">
 													<div className="flex items-center gap-1 truncate">
 														<Tag className="h-3 w-3 shrink-0 text-amber-600" />
@@ -375,12 +393,31 @@ export function WarehouseOffersModal({
 													)}
 												</div>
 											)}
+
+											{/* Slab Pricing Banner if available */}
+											{hasSlabPricing && (
+												<div className="mt-2 flex items-center justify-between gap-1 rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-1 text-[11px] text-purple-900 dark:text-purple-200">
+													<div className="flex items-center gap-1 truncate">
+														<Layers className="h-3 w-3 shrink-0 text-purple-600" />
+														<span className="truncate font-semibold">
+															{locale === "hi"
+																? `मात्रा स्लैब छूट (${item.slabsCount || (item.slabs || []).length} स्तर)`
+																: `Volume Slab Discount (${item.slabsCount || (item.slabs || []).length} Tiers)`}
+														</span>
+													</div>
+													{item.slabEndDate && (
+														<span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap">
+															{locale === "hi" ? "अंतिम:" : "Till:"} {item.slabEndDate}
+														</span>
+													)}
+												</div>
+											)}
 										</div>
 
 										{/* Price & Action Bottom Row */}
 										<div className="mt-3 flex items-center justify-between gap-2 border-border/50 border-t pt-2">
 											<div className="flex items-baseline gap-2">
-												{hasOffer ? (
+												{hasDailyDiscount ? (
 													<>
 														<span className="font-bold text-muted-foreground text-sm line-through decoration-rose-500">
 															₹{originalPrice.toFixed(2)}
@@ -392,6 +429,21 @@ export function WarehouseOffersModal({
 															/{item.unit}
 														</span>
 													</>
+												) : hasSlabPricing ? (
+													<div className="flex flex-col">
+														<div className="flex items-baseline gap-1.5">
+															<span className="font-bold text-muted-foreground text-xs line-through">
+																₹{originalPrice.toFixed(2)}
+															</span>
+															<span className="font-black text-base text-purple-700 dark:text-purple-300">
+																₹{item.minSlabPrice !== null && item.minSlabPrice !== undefined ? item.minSlabPrice.toFixed(2) : originalPrice.toFixed(2)}
+																{item.maxSlabPrice && item.maxSlabPrice !== item.minSlabPrice ? ` - ₹${item.maxSlabPrice.toFixed(2)}` : ""}
+															</span>
+															<span className="text-[10px] text-muted-foreground">
+																/{item.unit}
+															</span>
+														</div>
+													</div>
 												) : (
 													<span className="font-bold text-foreground text-sm">
 														₹{originalPrice.toFixed(2)} /{item.unit}
@@ -407,8 +459,10 @@ export function WarehouseOffersModal({
 													disabled={isOut}
 													onClick={() => onAddToCart(item)}
 													className={`h-7 gap-1 px-2.5 font-bold text-xs shadow-2xs ${
-														hasOffer
-															? "bg-amber-500 text-white hover:bg-amber-600"
+														hasAnyOffer
+															? hasSlabPricing && !hasDailyDiscount
+																? "bg-purple-600 text-white hover:bg-purple-700"
+																: "bg-amber-500 text-white hover:bg-amber-600"
 															: "bg-primary text-primary-foreground hover:bg-primary/90"
 													}`}
 												>

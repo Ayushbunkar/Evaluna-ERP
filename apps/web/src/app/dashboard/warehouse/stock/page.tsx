@@ -636,7 +636,7 @@ export default function StockPage() {
 		} else if (statusFilter === "out_of_stock") {
 			items = items.filter((i) => (i.qty_on_hand || 0) <= 0);
 		} else if (statusFilter === "on_offer") {
-			items = items.filter((i) => i.hasActiveOffer);
+			items = items.filter((i) => i.hasActiveOffer || i.hasSlabPricing);
 		} else if (statusFilter === "with_slabs") {
 			items = items.filter((i) => i.hasSlabPricing);
 		} else if (statusFilter === "without_slabs") {
@@ -673,7 +673,9 @@ export default function StockPage() {
 	const outOfStockCount = rawItems.filter(
 		(i) => (i.qty_on_hand || 0) <= 0,
 	).length;
-	const activeOffersCount = rawItems.filter((i) => i.hasActiveOffer).length;
+	const activeOffersCount = rawItems.filter(
+		(i: any) => i.hasActiveOffer || i.hasSlabPricing,
+	).length;
 	const withSlabsCount = rawItems.filter((i: any) => i.hasSlabPricing).length;
 
 	const handleOpenEdit = (item: any) => {
@@ -1076,7 +1078,7 @@ export default function StockPage() {
 				>
 					<CardHeader className="pb-2">
 						<CardTitle className="flex items-center justify-between font-bold text-slate-500 text-xs uppercase tracking-wider">
-							<span>Daily Offers Active</span>
+							<span>Active Offers & Slabs</span>
 							<SparklesIcon className="h-3.5 w-3.5 text-blue-500" />
 						</CardTitle>
 					</CardHeader>
@@ -1085,7 +1087,7 @@ export default function StockPage() {
 							{activeOffersCount}
 						</div>
 						<p className="mt-1 text-muted-foreground text-xs">
-							Live discounts today
+							Live discounts & volume slabs
 						</p>
 					</CardContent>
 				</Card>
