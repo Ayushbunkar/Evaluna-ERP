@@ -217,9 +217,6 @@ export default function StockPage() {
 		isFetching,
 		refetch,
 	} = trpc.inventory.list.useQuery({
-		search: searchQuery || undefined,
-		category: selectedCategory !== "all" ? selectedCategory : undefined,
-		status: statusFilter !== "all" ? statusFilter : undefined,
 		limit: 1000,
 	});
 
@@ -231,8 +228,6 @@ export default function StockPage() {
 	} = trpc.inventory.getHistoricalStockSnapshot.useQuery(
 		{
 			date: historicalDate,
-			search: searchQuery || undefined,
-			category: selectedCategory !== "all" ? selectedCategory : undefined,
 		},
 		{
 			enabled: Boolean(historicalDate),
@@ -667,6 +662,9 @@ export default function StockPage() {
 		(acc, curr) => acc + (curr.qty_on_hand || 0),
 		0,
 	);
+	const inStockCount = rawItems.filter(
+		(i) => (i.qty_on_hand || 0) > (i.reorder_level ?? 10),
+	).length;
 	const lowStockCount = rawItems.filter(
 		(i) =>
 			(i.qty_on_hand || 0) <= (i.reorder_level ?? 10) &&
@@ -963,7 +961,15 @@ export default function StockPage() {
 			{/* Metric Cards */}
 			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
 				{/* Total Inventory Asset Cost */}
-				<Card className="border-border/60 bg-card/60 shadow-sm backdrop-blur-sm">
+				<Card
+					onClick={() => {
+						setStatusFilter("all");
+						setCurrentPage(1);
+					}}
+					className={`cursor-pointer border-border/60 bg-card/60 shadow-sm backdrop-blur-sm transition-all hover:bg-muted/40 ${
+						statusFilter === "all" ? "ring-2 ring-primary" : ""
+					}`}
+				>
 					<CardHeader className="pb-2">
 						<CardTitle className="font-bold text-slate-500 text-xs uppercase tracking-wider">
 							Total Inventory Value
@@ -984,7 +990,15 @@ export default function StockPage() {
 				</Card>
 
 				{/* Total Stored Units */}
-				<Card className="border-border/60 bg-card/60 shadow-sm backdrop-blur-sm">
+				<Card
+					onClick={() => {
+						setStatusFilter(statusFilter === "in_stock" ? "all" : "in_stock");
+						setCurrentPage(1);
+					}}
+					className={`cursor-pointer border-border/60 bg-card/60 shadow-sm backdrop-blur-sm transition-all hover:bg-muted/40 ${
+						statusFilter === "in_stock" ? "ring-2 ring-emerald-500" : ""
+					}`}
+				>
 					<CardHeader className="pb-2">
 						<CardTitle className="font-bold text-slate-500 text-xs uppercase tracking-wider">
 							Stored Quantity Units
@@ -1002,9 +1016,10 @@ export default function StockPage() {
 
 				{/* Low Stock Lines */}
 				<Card
-					onClick={() =>
-						setStatusFilter(statusFilter === "low_stock" ? "all" : "low_stock")
-					}
+					onClick={() => {
+						setStatusFilter(statusFilter === "low_stock" ? "all" : "low_stock");
+						setCurrentPage(1);
+					}}
 					className={`cursor-pointer border-l-4 border-l-amber-500 shadow-sm transition-all hover:bg-muted/40 ${
 						statusFilter === "low_stock" ? "ring-2 ring-amber-500" : ""
 					}`}
@@ -1026,11 +1041,12 @@ export default function StockPage() {
 
 				{/* Out of Stock Lines */}
 				<Card
-					onClick={() =>
+					onClick={() => {
 						setStatusFilter(
 							statusFilter === "out_of_stock" ? "all" : "out_of_stock",
-						)
-					}
+						);
+						setCurrentPage(1);
+					}}
 					className={`cursor-pointer border-l-4 border-l-red-500 shadow-sm transition-all hover:bg-muted/40 ${
 						statusFilter === "out_of_stock" ? "ring-2 ring-red-500" : ""
 					}`}
@@ -1050,9 +1066,10 @@ export default function StockPage() {
 
 				{/* Active Daily Discount Offers */}
 				<Card
-					onClick={() =>
-						setStatusFilter(statusFilter === "on_offer" ? "all" : "on_offer")
-					}
+					onClick={() => {
+						setStatusFilter(statusFilter === "on_offer" ? "all" : "on_offer");
+						setCurrentPage(1);
+					}}
 					className={`cursor-pointer border-l-4 border-l-blue-500 shadow-sm transition-all hover:bg-muted/40 ${
 						statusFilter === "on_offer" ? "ring-2 ring-blue-500" : ""
 					}`}
@@ -1255,8 +1272,7 @@ export default function StockPage() {
 										setCurrentPage(1);
 									}}
 								>
-									In Stock (
-									{rawItems.filter((i) => (i.qty_on_hand || 0) > 10).length})
+									In Stock ({inStockCount})
 								</Button>
 								<Button
 									variant={statusFilter === "low_stock" ? "default" : "ghost"}
