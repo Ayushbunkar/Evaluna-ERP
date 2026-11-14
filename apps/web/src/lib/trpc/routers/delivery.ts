@@ -185,6 +185,7 @@ async function resolveCustomerForStop(
 	},
 	branch: number,
 	userUid: string,
+	routeId?: number,
 ): Promise<number | null> {
 	if (stop.customerId) return stop.customerId;
 	if (!stop.name && !stop.address && !stop.phone) return null;
@@ -193,7 +194,7 @@ async function resolveCustomerForStop(
 	const addressClean = cleanStopText(stop.address);
 	const phoneClean = stop.phone?.trim() || "";
 
-	// 1. Match by phone if available
+	// 1. Match by phone if available (phone belongs to a unique real person)
 	if (phoneClean) {
 		const byPhone = await tx.query.customers.findFirst({
 			where: and(
@@ -204,26 +205,65 @@ async function resolveCustomerForStop(
 		if (byPhone) return byPhone.id;
 	}
 
-	// 2. Match by customer name (case-insensitive)
-	if (nameClean) {
-		const byName = await tx.query.customers.findFirst({
-			where: and(
-				sql`LOWER(TRIM(${customers.name})) = LOWER(TRIM(${nameClean}))`,
-				eq(customers.branch_id, branch),
-			),
-		});
-		if (byName) return byName.id;
+	// 2. If routeId is provided, first check if a stop customer already exists for THIS specific route
+	if (routeId) {
+		const conditions = [];
+		if (nameClean) {
+			conditions.push(sql`LOWER(TRIM(${customers.name})) = LOWER(TRIM(${nameClean}))`);
+		}
+		if (addressClean) {
+			conditions.push(sql`LOWER(TRIM(${customers.address})) = LOWER(TRIM(${addressClean}))`);
+		}
+		if (conditions.length > 0) {
+			const existingRouteStop = await tx
+				.select({ customerId: routeStops.customer_id })
+				.from(routeStops)
+				.innerJoin(customers, eq(customers.id, routeStops.customer_id))
+				.where(
+					and(
+						eq(routeStops.route_id, routeId),
+						eq(customers.branch_id, branch),
+						or(...conditions),
+					),
+				)
+				.limit(1);
+
+			if (existingRouteStop.length > 0 && existingRouteStop[0]?.customerId) {
+				return existingRouteStop[0].customerId;
+			}
+		}
 	}
 
-	// 3. Match by customer address
-	if (addressClean) {
-		const byAddress = await tx.query.customers.findFirst({
+	// 3. Match candidate customer by name/address ONLY if NOT assigned to any DIFFERENT route
+	// This ensures village stops with identical names across distinct routes never share customer IDs!
+	if (nameClean || addressClean) {
+		const nameOrAddrCondition = [];
+		if (nameClean) {
+			nameOrAddrCondition.push(sql`LOWER(TRIM(${customers.name})) = LOWER(TRIM(${nameClean}))`);
+		}
+		if (addressClean) {
+			nameOrAddrCondition.push(sql`LOWER(TRIM(${customers.address})) = LOWER(TRIM(${addressClean}))`);
+		}
+		const candidates = await tx.query.customers.findMany({
 			where: and(
-				sql`LOWER(TRIM(${customers.address})) = LOWER(TRIM(${addressClean}))`,
+				or(...nameOrAddrCondition),
 				eq(customers.branch_id, branch),
 			),
+			limit: 10,
 		});
-		if (byAddress) return byAddress.id;
+
+		for (const cand of candidates) {
+			const otherStops = await tx
+				.select({ routeId: routeStops.route_id })
+				.from(routeStops)
+				.where(eq(routeStops.customer_id, cand.id))
+				.limit(1);
+
+			// Only reuse this customer if it has no assigned route yet, or belongs to this exact route
+			if (otherStops.length === 0 || (routeId && otherStops[0].routeId === routeId)) {
+				return cand.id;
+			}
+		}
 	}
 
 	// 4. Create new customer with collision-proof unique customer_code
@@ -387,6 +427,7 @@ export const deliveryRouter = router({
 						stop,
 						branch,
 						ctx.user?.id || "manager",
+						route.id,
 					);
 
 					if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
@@ -497,6 +538,7 @@ export const deliveryRouter = router({
 								stop,
 								branch,
 								ctx.user?.id || "manager",
+								input.routeId,
 							);
 
 							if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {
@@ -1394,6 +1436,17 @@ ERROR TABLE: ${err.table}
 				// Fallback if packages table not yet migrated in current DB
 			}
 
+			// Build map of customer -> assigned route from route_stops
+			// This ensures strict route isolation: a customer assigned to Route A will NEVER appear under Route B
+			const customerAssignedRouteMap = new Map<number, number>();
+			for (const r of realRoutes) {
+				for (const s of r.stops) {
+					if (s.customer_id) {
+						customerAssignedRouteMap.set(s.customer_id, r.id);
+					}
+				}
+			}
+
 			return realRoutes.map((route) => {
 				const routeCustIds = new Set(
 					route.stops.map((s) => s.customer_id).filter(Boolean),
@@ -1436,27 +1489,32 @@ ERROR TABLE: ${err.table}
 				}
 
 				const routeOrders = allOrders.filter((order) => {
-					const isDirectRoute = (order as any).route_id === route.id;
-					const isStopCustomer = Boolean(
-						order.customer_id && routeCustIds.has(order.customer_id),
-					);
+					// 1. Strict Route Isolation:
+					// If the order or customer is assigned to a route, it MUST match THIS route exactly!
+					// Prevents orders from hopping to another route just because of matching village names.
+					const assignedRouteId =
+						(order as any).route_id ||
+						(order.customer_id ? customerAssignedRouteMap.get(order.customer_id) : null);
 
-					if (isDirectRoute || isStopCustomer) return true;
+					if (assignedRouteId) {
+						return assignedRouteId === route.id;
+					}
 
-					// Fallback: match by customer address or name against pre-configured route villages
+					// 2. Unassigned customer fallback: match only if the customer address contains a village stop of THIS route
 					const cust = order.customer;
 					const custAddress = (cust?.address || "").trim().toLowerCase();
 					const custName = (cust?.name || "").trim().toLowerCase();
 
 					if (!custAddress && !custName) return false;
 
+					const addressVillage = custAddress ? custAddress.split(",")[0].trim() : "";
 					return preConfiguredVillages.some((v) => {
 						const vLower = v.toLowerCase();
-						if (vLower.length < 3) return false;
 						return (
-							custAddress.includes(vLower) ||
-							vLower.includes(custAddress) ||
-							custName.includes(vLower)
+							(addressVillage && addressVillage === vLower) ||
+							custAddress === vLower ||
+							custName === vLower ||
+							custAddress.includes(vLower)
 						);
 					});
 				});
@@ -1487,22 +1545,30 @@ ERROR TABLE: ${err.table}
 					const cust = order.customer;
 					const custAddress = (cust?.address || "").trim().toLowerCase();
 					const custName = (cust?.name || "").trim().toLowerCase();
+					const addressVillage = custAddress ? custAddress.split(",")[0].trim() : "";
 					const isOrderReady =
 						order.status === "packed" ||
 						order.status === "ready_for_loading" ||
 						order.status === "ready_for_dispatch" ||
 						packedOrderIds.has(order.id);
 
-					// Find best matching pre-configured village stop
+					// Find best matching pre-configured village stop on THIS route
 					let targetVillage = preConfiguredVillages.find((v) => {
 						const vLower = v.toLowerCase();
-						if (vLower.length < 3) return false;
 						return (
-							custAddress.includes(vLower) ||
-							vLower.includes(custAddress) ||
-							custName.includes(vLower)
+							(addressVillage && addressVillage === vLower) ||
+							custAddress === vLower ||
+							custName === vLower
 						);
 					});
+
+					if (!targetVillage) {
+						targetVillage = preConfiguredVillages.find((v) => {
+							const vLower = v.toLowerCase();
+							if (vLower.length < 3) return false;
+							return custAddress.includes(vLower) || custName.includes(vLower);
+						});
+					}
 
 					if (!targetVillage) {
 						targetVillage = cust?.address
@@ -1516,6 +1582,7 @@ ERROR TABLE: ${err.table}
 
 					villageMap.get(targetVillage)?.push({
 						id: order.id,
+						customerId: order.customer_id,
 						orderNumber: order.order_number || `ORD-${order.id}`,
 						customerName: cust?.name || "Customer",
 						status: isOrderReady ? "packed" : order.status,
@@ -1750,6 +1817,7 @@ ERROR TABLE: ${err.table}
 						stop,
 						branch,
 						ctx.user?.id || "manager",
+						input.id,
 					);
 
 					if (resolvedCustId && !seenCustomers.has(resolvedCustId)) {

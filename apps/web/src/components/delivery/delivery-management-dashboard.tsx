@@ -711,13 +711,26 @@ export function DeliveryManagementDashboard({
 			return;
 		}
 
+		// Deduplicate stops to prevent multiple identical village entries on this route
+		const seenStopKeys = new Set<string>();
+		const uniqueStops: typeof allStops = [];
+		for (const s of allStops) {
+			const key = s.customerId
+				? `id:${s.customerId}`
+				: `name:${cleanVillageName(s.name || s.address || "").toLowerCase()}`;
+			if (!seenStopKeys.has(key)) {
+				seenStopKeys.add(key);
+				uniqueStops.push({ ...s, sequence: uniqueStops.length + 1 });
+			}
+		}
+
 		try {
 			const cleanedName = cleanVillageName(routeName);
 			const cleanedDesc = cleanRouteDescription(routeDesc);
 			await createRoute.mutateAsync({
 				name: cleanedName,
 				description: cleanedDesc,
-				stops: allStops.map((s) => ({
+				stops: uniqueStops.map((s) => ({
 					...s,
 					name: cleanVillageName(s.name),
 					address: cleanVillageName(s.address),
@@ -883,7 +896,16 @@ export function DeliveryManagementDashboard({
 			}
 		}
 
-		setEditVillageStops(villages);
+		// Deduplicate extracted villages to eliminate duplicate village stops on the same route
+		const seenVillages = new Set<string>();
+		const uniqueVillages = villages.filter((v: string) => {
+			const k = v.toLowerCase().trim();
+			if (seenVillages.has(k)) return false;
+			seenVillages.add(k);
+			return true;
+		});
+
+		setEditVillageStops(uniqueVillages);
 		setNewVillageInput("");
 		setIsEditRouteOpen(true);
 	};
@@ -891,6 +913,10 @@ export function DeliveryManagementDashboard({
 	const handleAddVillageToEdit = () => {
 		const cleaned = cleanVillageName(newVillageInput);
 		if (!cleaned) return;
+		if (editVillageStops.some((v) => v.toLowerCase().trim() === cleaned.toLowerCase().trim())) {
+			toast.error(`Village "${cleaned}" is already added to this route.`);
+			return;
+		}
 		const updated = [...editVillageStops, cleaned];
 		setEditVillageStops(updated);
 		setEditRouteDesc(updated.join(" -> "));

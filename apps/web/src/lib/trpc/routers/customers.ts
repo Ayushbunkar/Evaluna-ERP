@@ -296,29 +296,14 @@ export const customersRouter = router({
 
 				if (route_id !== undefined && id) {
 					try {
-						const existingStops = await db
-							.select()
-							.from(routeStops)
-							.where(eq(routeStops.customer_id, id))
-							.limit(1);
-
+						// Clean up any existing/duplicate route stops for this customer to ensure exclusive single-route assignment
+						await db.delete(routeStops).where(eq(routeStops.customer_id, id));
 						if (route_id) {
-							if (existingStops.length > 0) {
-								await db
-									.update(routeStops)
-									.set({ route_id: route_id })
-									.where(eq(routeStops.id, existingStops[0].id));
-							} else {
-								await db.insert(routeStops).values({
-									route_id: route_id,
-									customer_id: id,
-									sequence: 1,
-								});
-							}
-						} else if (existingStops.length > 0) {
-							await db
-								.delete(routeStops)
-								.where(eq(routeStops.id, existingStops[0].id));
+							await db.insert(routeStops).values({
+								route_id: route_id,
+								customer_id: id,
+								sequence: 1,
+							});
 						}
 					} catch (routeErr) {
 						console.warn("[customers.update] Failed to update route:", routeErr);

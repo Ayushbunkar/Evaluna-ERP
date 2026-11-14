@@ -2600,8 +2600,9 @@ export const ordersRouter = router({
 				rAgg.totalSalesAmount += orderAmount;
 				if (o.customer_id) rAgg.customerSet.add(o.customer_id);
 
-				// Update Village Aggregation
-				const vAgg = villageAggMap.get(villageName) || {
+				// Update Village Aggregation (scoped by route so duplicate village names across different routes are not collapsed)
+				const vKey = `${routeName}:::${villageName}`;
+				const vAgg = villageAggMap.get(vKey) || {
 					villageName,
 					routeName,
 					orderCount: 0,
@@ -2722,7 +2723,7 @@ export const ordersRouter = router({
 				}
 
 				routeAggMap.set(routeName, rAgg);
-				villageAggMap.set(villageName, vAgg);
+				villageAggMap.set(vKey, vAgg);
 				salespersonAggMap.set(spKey, spAgg);
 			}
 
