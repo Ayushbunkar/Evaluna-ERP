@@ -38,14 +38,22 @@ export function LogoutModal({ open, onOpenChange }: LogoutModalProps) {
 				localStorage.removeItem("last_dashboard_route");
 			} catch {}
 
-			// 3. Call server-side logout
-			await fetch("/api/logout", {
-				method: "POST",
-				headers: { "Cache-Control": "no-cache" },
-			});
-			toast.success("Logged out successfully");
+			// 3. Call server-side logout with a fast abort timeout to ensure instantaneous redirect
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 1200);
+
+			try {
+				await fetch("/api/logout", {
+					method: "POST",
+					headers: { "Cache-Control": "no-cache" },
+					signal: controller.signal,
+					keepalive: true,
+				});
+			} finally {
+				clearTimeout(timeoutId);
+			}
 		} catch (_err) {
-			toast.error("Logout completed, redirecting...");
+			// Ignore any network abort errors during fast teardown
 		} finally {
 			// 4. Force browser navigation to login page with replace to prevent bfcache replay
 			window.location.replace("/login");

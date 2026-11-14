@@ -109,7 +109,7 @@ function LoginForm() {
 			if (basePath && target.startsWith("/") && !target.startsWith(basePath)) {
 				target = basePath + target;
 			}
-			window.location.href = target;
+			window.location.replace(target);
 		}
 	}
 

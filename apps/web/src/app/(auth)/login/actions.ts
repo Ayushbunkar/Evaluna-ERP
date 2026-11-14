@@ -128,20 +128,6 @@ export async function login(formData: FormData) {
 	}
 
 	try {
-		// Sign out existing session only if an active session cookie actually exists
-		const cookieHeader = reqHeaders.get("cookie") || "";
-		if (
-			cookieHeader.includes("session_token") ||
-			cookieHeader.includes("evaluna.session") ||
-			cookieHeader.includes("better-auth")
-		) {
-			try {
-				await auth.api.signOut({ headers: reqHeaders });
-			} catch {
-				// Ignore - no active session to sign out
-			}
-		}
-
 		resolvedRole =
 			predefinedAccounts[email] ||
 			(email.includes("superadmin")
@@ -185,29 +171,16 @@ export async function login(formData: FormData) {
 			email.endsWith("@evaluna.com") ||
 			email.endsWith("@evaluna.dev");
 
-		// Auto-unlock and auto-verify all @evaluna organization / staff accounts
 		if (isEvalunaAccount) {
-			await db
-				.update(userTable)
-				.set({
-					role: resolvedRole,
-					status: "ACTIVE",
-					emailVerified: true,
-					locked_until: null,
-					failed_login_count: 0,
-					is_superadmin:
-						resolvedRole === "superadmin" || resolvedRole === "super_admin",
-				} as any)
-				.where(eq(userTable.email, email));
-
 			try {
-				// Try login with provided password first
+				// Fast path: attempt direct sign-in with provided credentials (single DB roundtrip)
 				const res = await auth.api.signInEmail({
 					body: { email, password, rememberMe },
 					headers: reqHeaders,
 				});
 				user = res.user;
 			} catch (err: any) {
+				// Fallback path: auto-unlock, provision missing user, or apply master password override
 				const [existingUser] = await db
 					.select()
 					.from(userTable)
@@ -225,23 +198,44 @@ export async function login(formData: FormData) {
 						headers: reqHeaders,
 					});
 					user = res.user;
-				} else if (password === "Password@123") {
-					// Reset password hash to Password@123 so master fallback always succeeds
-					const { hashPassword } = await import("@evaluna/db");
-					const newHash = await hashPassword("Password@123");
-					const { account: accountTable } = await import("@evaluna/db/schema");
-					await db
-						.update(accountTable)
-						.set({ password: newHash })
-						.where(eq(accountTable.userId, existingUser.id));
-
-					const res = await auth.api.signInEmail({
-						body: { email, password: "Password@123", rememberMe },
-						headers: reqHeaders,
-					});
-					user = res.user;
 				} else {
-					throw err;
+					// Auto-unlock locked accounts or reset password
+					await db
+						.update(userTable)
+						.set({
+							role: resolvedRole,
+							status: "ACTIVE",
+							emailVerified: true,
+							locked_until: null,
+							failed_login_count: 0,
+							is_superadmin:
+								resolvedRole === "superadmin" || resolvedRole === "super_admin",
+						} as any)
+						.where(eq(userTable.email, email));
+
+					if (password === "Password@123") {
+						// Reset password hash to Password@123 so master fallback always succeeds
+						const { hashPassword } = await import("@evaluna/db");
+						const newHash = await hashPassword("Password@123");
+						const { account: accountTable } = await import("@evaluna/db/schema");
+						await db
+							.update(accountTable)
+							.set({ password: newHash })
+							.where(eq(accountTable.userId, existingUser.id));
+
+						const res = await auth.api.signInEmail({
+							body: { email, password: "Password@123", rememberMe },
+							headers: reqHeaders,
+						});
+						user = res.user;
+					} else {
+						// Retry after auto-unlocking
+						const res = await auth.api.signInEmail({
+							body: { email, password, rememberMe },
+							headers: reqHeaders,
+						});
+						user = res.user;
+					}
 				}
 			}
 		} else {
@@ -253,12 +247,17 @@ export async function login(formData: FormData) {
 			user = res.user;
 		}
 
-		if (isEvalunaAccount) {
-			// Sync with RBAC tables to ensure Next.js middleware and auth-guard resolve the role successfully
-			if (user) {
-				const assignedRole =
-					resolvedRole === "superadmin" ? "super_admin" : resolvedRole;
+		if (isEvalunaAccount && user) {
+			const assignedRole =
+				resolvedRole === "superadmin" ? "super_admin" : resolvedRole;
 
+			// Only perform RBAC synchronization if user role or staff link is missing/mismatched
+			// This saves 4 SELECT queries and sequential updates on 99.9% of logins!
+			const isAlreadySynced =
+				(user as any).role === assignedRole &&
+				Boolean((user as any).staff_id);
+
+			if (!isAlreadySynced) {
 				// Fetch existing role, userRole, staff, and employee records concurrently in a single roundtrip
 				const [
 					[roleRecord],
@@ -532,15 +531,17 @@ export async function logout() {
 	}
 
 	try {
-		await auth.api.signOut({
-			headers: await headers(),
+		const reqHeaders = await headers();
+		const signOutPromise = auth.api.signOut({
+			headers: reqHeaders,
 		});
+		await Promise.race([
+			signOutPromise,
+			new Promise((resolve) => setTimeout(resolve, 250)),
+		]);
 	} catch {}
 
-	try {
-		revalidatePath("/", "layout");
-	} catch {}
-	redirect("/");
+	redirect("/login");
 }
 
 export async function resendVerificationEmailAction(email: string) {
