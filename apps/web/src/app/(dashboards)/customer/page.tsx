@@ -12,6 +12,7 @@ import {
 import {
 	ActivityIcon,
 	ArrowRightIcon,
+	CalendarIcon,
 	CheckCircle2Icon,
 	ClockIcon,
 	CoinsIcon,
@@ -302,10 +303,10 @@ export default function CustomerDashboard() {
 															{hasOffer ? <FlameIcon className="h-4 w-4 animate-bounce" /> : <PackageIcon className="h-4 w-4" />}
 														</span>
 														{hasOffer ? (
-															<Badge className="bg-gradient-to-r from-amber-500 to-red-600 text-white font-extrabold text-[9px] gap-0.5 shadow-sm">
+															<span className="inline-flex items-center gap-0.5 rounded-md bg-gradient-to-r from-amber-500 to-red-600 px-1.5 py-0.5 text-white font-extrabold text-[9px] shadow-sm transition-all hover:brightness-110">
 																<FlameIcon className="h-2.5 w-2.5" />
 																{prod.discountPercent}% OFF
-															</Badge>
+															</span>
 														) : (
 															<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
 																{locale === "hi" ? "उपलब्ध" : "Available"}
@@ -346,14 +347,24 @@ export default function CustomerDashboard() {
 																{prod.slabs.length} Tiers
 															</span>
 														</div>
-														{offerCountdown && (
+														{offerCountdown ? (
 															<div className="mb-1 flex items-center justify-between text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-300/70">
 																<span className="flex items-center gap-0.5">
-																	<ClockIcon className="h-2.5 w-2.5" />
+																	<ClockIcon className="h-2.5 w-2.5 animate-pulse" />
 																	<span>{offerCountdown.badgeText}</span>
 																</span>
-																<span className="font-mono text-[8px] opacity-85">
-																	{locale === "hi" ? "अंतिम:" : "Till:"} {offerCountdown.formattedDate}
+																<span className="font-mono text-[9px] font-bold text-amber-900 dark:text-amber-100">
+																	{locale === "hi" ? "अंतिम:" : "Till:"} {offerCountdown.formattedDate} ({offerCountdown.daysLeft}d)
+																</span>
+															</div>
+														) : (
+															<div className="mb-1 flex items-center justify-between text-[8.5px] font-medium text-purple-800 dark:text-purple-300 bg-white/70 dark:bg-slate-900/60 px-1.5 py-0.5 rounded border border-purple-200/60 dark:border-purple-800/60">
+																<span className="flex items-center gap-0.5">
+																	<CalendarIcon className="h-2.5 w-2.5 text-purple-600" />
+																	<span>{locale === "hi" ? "दर वैधता: नियमित थोक दर" : "Rate Validity: Regular Rate"}</span>
+																</span>
+																<span className="font-semibold text-emerald-600 dark:text-emerald-400">
+																	{locale === "hi" ? "सक्रिय" : "Active"}
 																</span>
 															</div>
 														)}

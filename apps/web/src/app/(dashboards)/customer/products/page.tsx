@@ -26,6 +26,7 @@ import {
 	SelectValue,
 } from "@evaluna/ui/components/select";
 import {
+	CalendarIcon,
 	CheckCircle2Icon,
 	FlameIcon,
 	LayersIcon,
@@ -656,30 +657,30 @@ export default function CustomerProductsPage() {
 										</div>
 										<div className="flex flex-col items-end gap-1">
 											{hasOffer && (
-												<Badge className="bg-gradient-to-r from-amber-500 to-red-600 text-white font-extrabold text-[10px] gap-1 shadow-sm">
+												<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-amber-500 to-red-600 px-2 py-0.5 text-white font-extrabold text-[10px] shadow-sm transition-all hover:brightness-110">
 													<FlameIcon className="h-3 w-3" />
 													{product.discountPercent}% OFF
-												</Badge>
+												</span>
 											)}
 											{(product as any).hasSlabs && (
-												<Badge className="bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 font-bold text-[10px] gap-1">
-													<LayersIcon className="h-3 w-3 text-purple-600" />
+												<span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-100 px-2 py-0.5 font-bold text-[10px] text-purple-900 shadow-2xs transition-colors hover:bg-purple-200 hover:text-purple-950 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-200 dark:hover:bg-purple-900">
+													<LayersIcon className="h-3 w-3 text-purple-600 dark:text-purple-400" />
 													<span>Bulk Discounts</span>
-												</Badge>
+												</span>
 											)}
 											{offerCountdown && (
 												<span
 													className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-extrabold text-[10px] shadow-2xs transition-all ${
 														offerCountdown.urgency === "urgent"
-															? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse"
+															? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse hover:bg-rose-500/25"
 															: offerCountdown.urgency === "warning"
-																? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800"
-																: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800"
+																? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800 hover:bg-amber-500/25"
+																: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800 hover:bg-purple-500/25"
 													}`}
 													title={`Valid until ${offerCountdown.formattedDate}`}
 												>
 													<ClockIcon className="h-3 w-3" />
-													<span>{offerCountdown.badgeText}</span>
+													<span>{offerCountdown.badgeText} ({offerCountdown.formattedDate})</span>
 												</span>
 											)}
 											<span
@@ -814,7 +815,7 @@ export default function CustomerProductsPage() {
 											</div>
 
 											{/* Offer validity window banner / Countdown */}
-											{offerCountdown && (
+											{offerCountdown ? (
 												<div className={`flex items-center justify-between rounded px-2 py-1 text-[10px] font-semibold border ${
 													offerCountdown.urgency === "urgent"
 														? "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900"
@@ -823,11 +824,21 @@ export default function CustomerProductsPage() {
 															: "bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900"
 												}`}>
 													<span className="flex items-center gap-1 font-bold">
-														<ClockIcon className="h-3 w-3 text-current" />
+														<ClockIcon className="h-3 w-3 text-current animate-pulse" />
 														<span>{offerCountdown.badgeText}</span>
 													</span>
-													<span className="text-[9px] opacity-85 font-mono">
-														{locale === "hi" ? "अंतिम तिथि:" : "Valid until:"} {offerCountdown.formattedDate}
+													<span className="text-[9px] font-mono font-bold">
+														{locale === "hi" ? "वैध:" : "Valid till:"} {offerCountdown.formattedDate} ({offerCountdown.daysLeft} {locale === "hi" ? "दिन" : "d"})
+													</span>
+												</div>
+											) : (
+												<div className="flex items-center justify-between rounded px-2 py-0.5 text-[9px] font-medium text-purple-800 dark:text-purple-300 bg-white/80 dark:bg-slate-900/60 border border-purple-200/60 dark:border-purple-800/60">
+													<span className="flex items-center gap-1">
+														<CalendarIcon className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400" />
+														<span>{locale === "hi" ? "दर वैधता: नियमित थोक दर (स्थाई)" : "Rate Validity: Regular Ongoing Rate"}</span>
+													</span>
+													<span className="font-semibold text-emerald-600 dark:text-emerald-400">
+														{locale === "hi" ? "सक्रिय" : "Active"}
 													</span>
 												</div>
 											)}
@@ -840,12 +851,17 @@ export default function CustomerProductsPage() {
 													const pct = baseP > 0 ? Math.round(((baseP - slabPrice) / baseP) * 100) : 0;
 
 													return (
-														<div
+														<button
+															type="button"
 															key={sIdx}
-															className={`flex flex-col items-center justify-center rounded p-1 text-center transition-all border ${
+															onClick={() => {
+																handleQtyChange(product.id, slab.minQuantity);
+															}}
+															title={locale === "hi" ? `${slab.minQuantity} यूनिट चुनें` : `Select ${slab.minQuantity} units`}
+															className={`flex flex-col items-center justify-center rounded p-1 text-center transition-all border cursor-pointer ${
 																isActive
-																	? "bg-purple-600 text-white font-bold ring-2 ring-purple-400 shadow-xs border-purple-600"
-																	: "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border-purple-200/70 dark:border-purple-800/70"
+																	? "bg-purple-600 text-white font-bold ring-2 ring-purple-400 shadow-xs border-purple-600 hover:bg-purple-700"
+																	: "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border-purple-200/70 hover:border-purple-400 hover:bg-purple-100/60 dark:border-purple-800/70 dark:hover:bg-purple-950/60"
 															}`}
 														>
 															<div className={`text-[9px] font-semibold truncate ${isActive ? "text-purple-100" : "text-muted-foreground"}`}>
@@ -860,7 +876,7 @@ export default function CustomerProductsPage() {
 																	{pct}% off
 																</div>
 															)}
-														</div>
+														</button>
 													);
 												})}
 											</div>
