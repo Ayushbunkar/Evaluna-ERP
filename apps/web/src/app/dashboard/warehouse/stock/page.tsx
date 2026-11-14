@@ -2037,18 +2037,18 @@ export default function StockPage() {
 								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 									{/* New Item to Add Box */}
 									<div className="space-y-1.5">
-										<Label
-											htmlFor="addStockQty"
-											className="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between"
-										>
-											<span className="flex items-center gap-1.5">
-												<PlusCircleIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-												<span>New Items to Add (+ नया स्टॉक जोड़ें)</span>
+										<div className="flex items-center justify-between gap-1 flex-wrap">
+											<Label
+												htmlFor="addStockQty"
+												className="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5"
+											>
+												<PlusCircleIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+												<span>New Items to Add (+ नया स्टॉक)</span>
+											</Label>
+											<span className="text-[10px] text-muted-foreground font-mono">
+												Current: {editInitialStockQty} {editUnit || "Units"}
 											</span>
-											<span className="text-[10px] text-muted-foreground font-normal">
-												वर्तमान: {editInitialStockQty} {editUnit || "Pcs"}
-											</span>
-										</Label>
+										</div>
 										<div className="relative">
 											<span className="absolute top-1/2 left-3 -translate-y-1/2 font-black text-emerald-600 dark:text-emerald-400 text-sm">
 												+
@@ -2061,27 +2061,30 @@ export default function StockPage() {
 												placeholder="e.g. 50 or 13.5"
 												value={addedStockQty}
 												onChange={(e) => handleAddedStockChange(e.target.value)}
-												className="pl-7 font-bold font-mono text-sm border-emerald-300 bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-200 focus:border-emerald-500 shadow-2xs"
+												className="pl-7 font-bold font-mono text-sm border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-200 focus:border-emerald-500 shadow-2xs"
 											/>
 										</div>
-										<p className="text-[10px] text-muted-foreground">
-											नए आए आइटम यहाँ लिखें, यह नीचे कुल स्टॉक में स्वतः जुड़ जाएगा।
+										<p className="text-[10px] text-muted-foreground leading-tight">
+											नए आए आइटम यहाँ लिखें, यह कुल स्टॉक में स्वतः जुड़ जाएगा।
 										</p>
 									</div>
 
 									{/* Total Physical Stock Quantity */}
 									<div className="space-y-1.5">
-										<Label
-											htmlFor="stockQty"
-											className="font-bold text-xs flex items-center justify-between"
-										>
-											<span>Total Physical Stock ({editUnit || "Units"}) *</span>
+										<div className="flex items-center justify-between gap-1 flex-wrap">
+											<Label
+												htmlFor="stockQty"
+												className="font-bold text-xs text-foreground flex items-center gap-1"
+											>
+												<span>Total Physical Stock ({editUnit || "Units"})</span>
+												<span className="text-rose-500 font-bold">*</span>
+											</Label>
 											{Number.parseFloat(addedStockQty || "0") > 0 && (
-												<Badge className="bg-emerald-600 text-white text-[10px] h-4 font-mono">
+												<span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 dark:bg-emerald-500 text-white dark:text-emerald-950 px-2 py-0.5 text-[10px] font-bold font-mono shadow-xs">
 													+{addedStockQty} added
-												</Badge>
+												</span>
 											)}
-										</Label>
+										</div>
 										<Input
 											id="stockQty"
 											type="number"
@@ -2090,14 +2093,14 @@ export default function StockPage() {
 											placeholder="e.g. 100 or 13.5"
 											value={editStockQty}
 											onChange={(e) => handleDirectStockChange(e.target.value)}
-											className="font-bold font-mono text-sm bg-white dark:bg-slate-900"
+											className="font-bold font-mono text-sm bg-white dark:bg-slate-900 border-border text-foreground focus:border-primary shadow-2xs"
 										/>
 										{Number.parseFloat(addedStockQty || "0") > 0 ? (
-											<p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-												✓ कुल: {editInitialStockQty} + {addedStockQty} = <strong>{editStockQty}</strong> {editUnit || "Pcs"}
+											<p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 leading-tight">
+												✓ कुल: {editInitialStockQty} + {addedStockQty} = <strong>{editStockQty}</strong> {editUnit || "Units"}
 											</p>
 										) : (
-											<p className="text-[10px] text-muted-foreground">
+											<p className="text-[10px] text-muted-foreground leading-tight">
 												Physical count on warehouse bins/shelves.
 											</p>
 										)}
