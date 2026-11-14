@@ -94,6 +94,7 @@ const STANDARD_CATEGORIES = [
 export default function StockPage() {
 	const t = useTranslations();
 	const trpc = useTRPC();
+	const utils = trpc.useUtils();
 	const locale = useLocale();
 
 	// Search, Category, and Status Filters
@@ -210,6 +211,9 @@ export default function StockPage() {
 			toast.success(
 				"Product specifications & stock updated successfully! Synced across POS & dashboards.",
 			);
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
 			refetch();
 			setEditItem(null);
 		},
@@ -225,6 +229,9 @@ export default function StockPage() {
 					? "उत्पाद डेटाबेस से सफलतापूर्वक हटा दिया गया!"
 					: "Product deleted successfully from inventory register!",
 			);
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
 			refetch();
 			setDeleteItem(null);
 			setEditItem(null);
@@ -239,6 +246,7 @@ export default function StockPage() {
 			toast.success(
 				`Daily discount offer saved for ${offerItem?.product || "product"}! Reflected across Sales POS.`,
 			);
+			utils.pos.invalidate();
 			refetch();
 			setOfferItem(null);
 		},
@@ -250,6 +258,7 @@ export default function StockPage() {
 	const removeOfferMutation = trpc.discounts.removeDailyOffer.useMutation({
 		onSuccess: () => {
 			toast.success("Daily discount offer removed.");
+			utils.pos.invalidate();
 			refetch();
 			setOfferItem(null);
 		},
@@ -263,6 +272,9 @@ export default function StockPage() {
 			toast.success(
 				"New item added to warehouse stock & synchronized across all dashboards!",
 			);
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.products.invalidate();
 			refetch();
 			setAddItemOpen(false);
 			setNewItem({
@@ -500,8 +512,8 @@ export default function StockPage() {
 			return;
 		}
 
-		const qty = Number.parseInt(editStockQty, 10);
-		const reorder = Number.parseInt(editReorderLevel, 10);
+		const qty = Number.parseFloat(editStockQty);
+		const reorder = Number.parseFloat(editReorderLevel);
 		const price = Number.parseFloat(editPrice);
 		const cost = Number.parseFloat(editCostPrice || "0");
 
@@ -1665,8 +1677,9 @@ export default function StockPage() {
 									<Input
 										id="stockQty"
 										type="number"
+										step="any"
 										min="0"
-										placeholder="e.g. 100"
+										placeholder="e.g. 100 or 13.5"
 										value={editStockQty}
 										onChange={(e) => setEditStockQty(e.target.value)}
 										className="font-bold font-mono text-sm"
@@ -1683,6 +1696,7 @@ export default function StockPage() {
 									<Input
 										id="editReorderLevel"
 										type="number"
+										step="any"
 										min="0"
 										placeholder="e.g. 10"
 										value={editReorderLevel}
@@ -2481,7 +2495,7 @@ export default function StockPage() {
 									type="number"
 									step="any"
 									min="0"
-									placeholder="e.g. 50"
+									placeholder="e.g. 50 or 13.5"
 									value={newItem.initialStock}
 									onChange={(e) =>
 										setNewItem({ ...newItem, initialStock: e.target.value })
@@ -2501,6 +2515,7 @@ export default function StockPage() {
 								<Input
 									id="newItemReorder"
 									type="number"
+									step="any"
 									min="0"
 									placeholder="e.g. 10"
 									value={newItem.reorderLevel}
@@ -2558,7 +2573,7 @@ export default function StockPage() {
 								const parsedStock =
 									Number.parseFloat(newItem.initialStock) || 0;
 								const parsedReorder =
-									Number.parseInt(newItem.reorderLevel, 10) || 10;
+									Number.parseFloat(newItem.reorderLevel) || 10;
 
 								if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
 									toast.error("Please enter a valid positive selling price.");

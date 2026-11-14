@@ -46,6 +46,7 @@ beforeAll(async () => {
 				schema.priceChangeHistory,
 				schema.auditLogs,
 				schema.dailyProductPricing,
+				schema.dailyProductDiscounts,
 			],
 			false,
 		),
@@ -210,5 +211,60 @@ describe("Warehouse Duplicate Item Prevention (Double Entry Guard)", () => {
 		});
 
 		expect(updated).toBeDefined();
+	});
+
+	it("supports decimal/fractional stock quantities (e.g. 13.5 kg) in addItem and updateStockAndPrice", async () => {
+		// 1. Add item with decimal initial stock: 13.5
+		const created = await invCaller.addItem({
+			name: "Chana Prasad Special",
+			sku: "CHANA-135",
+			price: 110,
+			costPrice: 98,
+			unit: "kg",
+			initialStock: 13.5,
+			branchId: 1,
+		});
+
+		expect(created.product.id).toBeDefined();
+
+		// Check branch inventory stock
+		const [inv] = await db
+			.select()
+			.from(schema.branchInventory)
+			.where(eq(schema.branchInventory.product_id, created.product.id));
+
+		expect(Number(inv.in_stock)).toBe(13.5);
+
+		// Check stock ledger quantity
+		const [ledger] = await db
+			.select()
+			.from(schema.stockLedger)
+			.where(eq(schema.stockLedger.product_id, created.product.id));
+
+		expect(Number(ledger.quantity)).toBe(13.5);
+
+		// 2. Update stock to another decimal: 25.75
+		await invCaller.updateStockAndPrice({
+			productId: created.product.id,
+			qtyOnHand: 25.75,
+			price: 115,
+			branchId: 1,
+		});
+
+		const [invUpdated] = await db
+			.select()
+			.from(schema.branchInventory)
+			.where(eq(schema.branchInventory.product_id, created.product.id));
+
+		expect(Number(invUpdated.in_stock)).toBe(25.75);
+
+		// 3. Verify inventory.list returns 25.75
+		const listRes = await invCaller.list({
+			search: "Chana Prasad Special",
+			branchId: 1,
+		});
+		const found = listRes.items.find((i) => i.productId === created.product.id);
+		expect(found).toBeDefined();
+		expect(found?.qty_on_hand).toBe(25.75);
 	});
 });

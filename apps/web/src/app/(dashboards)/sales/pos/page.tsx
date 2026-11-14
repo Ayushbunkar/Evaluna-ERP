@@ -406,7 +406,8 @@ function POSContent() {
 	);
 
 	const { data: catalog, isLoading } = trpc.pos.catalog.useQuery(undefined, {
-		staleTime: 1000 * 60 * 5, // 5 minutes
+		staleTime: 1000 * 30, // 30 seconds for live warehouse sync
+		refetchOnWindowFocus: true,
 	});
 
 	const [effectiveCatalog, setEffectiveCatalog] = useState<any[]>([]);
@@ -1595,14 +1596,14 @@ function POSContent() {
 																<AlertTriangle className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
 																<span>
 																	{locale === "hi"
-																		? `कम स्टॉक: ${product.qty_on_hand}`
-																		: `Low Stock: ${product.qty_on_hand}`}
+																		? `कम स्टॉक: ${product.qty_on_hand}${product.unit && product.unit.toLowerCase() !== "pcs" ? ` ${product.unit}` : ""}`
+																		: `Low Stock: ${product.qty_on_hand}${product.unit && product.unit.toLowerCase() !== "pcs" ? ` ${product.unit}` : ""}`}
 																</span>
 															</span>
 														) : (
 															<span className="text-muted-foreground font-mono text-[10px]">
 																{product.qty_on_hand !== undefined
-																	? `${product.qty_on_hand} in stock`
+																	? `${product.qty_on_hand}${product.unit && product.unit.toLowerCase() !== "pcs" ? ` ${product.unit}` : ""} in stock`
 																	: ""}
 															</span>
 														)}

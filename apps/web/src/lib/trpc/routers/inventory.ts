@@ -153,6 +153,16 @@ export const inventoryRouter = router({
 						eq(dailyProductDiscounts.effective_date, todayStr),
 						eq(dailyProductDiscounts.is_active, true),
 					),
+				)
+				.catch(
+					() =>
+						[] as {
+							product_id: number;
+							is_active: boolean;
+							discounted_price: string | null;
+							reason: string;
+							discount_percent: string | null;
+						}[],
 				);
 
 			const discountMap = new Map<number, (typeof activeDiscounts)[0]>();
@@ -345,10 +355,10 @@ export const inventoryRouter = router({
 							.limit(1);
 
 				const branchInvUpdates: any = {
-					in_stock: input.qtyOnHand,
+					in_stock: String(input.qtyOnHand),
 				};
 				if (input.reorderLevel !== undefined && input.reorderLevel !== null) {
-					branchInvUpdates.reorder_level = input.reorderLevel;
+					branchInvUpdates.reorder_level = Math.round(input.reorderLevel);
 				}
 
 				if (existing && existing.length > 0) {
@@ -360,8 +370,8 @@ export const inventoryRouter = router({
 					await tx.insert(branchInventory).values({
 						product_id: prodId,
 						branch_id: input.branchId,
-						in_stock: input.qtyOnHand,
-						reorder_level: input.reorderLevel ?? 10,
+						in_stock: String(input.qtyOnHand),
+						reorder_level: input.reorderLevel ? Math.round(input.reorderLevel) : 10,
 					});
 				}
 
@@ -370,7 +380,7 @@ export const inventoryRouter = router({
 					product_id: prodId,
 					branch_id: input.branchId,
 					transaction_type: "in",
-					quantity: input.qtyOnHand,
+					quantity: String(input.qtyOnHand),
 					reference_type: "warehouse_stock_update",
 					unit_cost: priceStr,
 					total_cost: (input.price * input.qtyOnHand).toFixed(2),
@@ -1176,8 +1186,8 @@ export const inventoryRouter = router({
 					.values({
 						branch_id: input.branchId,
 						product_id: newProd.id,
-						in_stock: input.initialStock,
-						reorder_level: input.reorderLevel,
+						in_stock: String(input.initialStock),
+						reorder_level: Math.round(input.reorderLevel),
 					})
 					.returning();
 
@@ -1186,7 +1196,7 @@ export const inventoryRouter = router({
 					await tx.insert(stockLedger).values({
 						product_id: newProd.id,
 						transaction_type: "in",
-						quantity: input.initialStock,
+						quantity: String(input.initialStock),
 						reference_type: "initial_stock",
 						branch_id: input.branchId,
 						unit_cost: costVal.toString(),
