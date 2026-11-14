@@ -327,7 +327,7 @@ export const discountsRouter = router({
 				notes: z.string().optional().nullable(),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ ctx, input }) => {
 			const {
 				productId,
 				branchId,
@@ -452,7 +452,7 @@ export const discountsRouter = router({
 				date: z.string().optional(),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ ctx, input }) => {
 			const { offerId, productId, date } = input;
 
 			if (offerId) {
