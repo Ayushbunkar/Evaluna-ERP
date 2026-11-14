@@ -786,18 +786,18 @@ export default function CustomerProductsPage() {
 
 									{/* Quantity Slab Pricing Tier Breakdown */}
 									{(product as any).slabs && (product as any).slabs.length > 0 && (
-										<div className="rounded-lg border border-purple-200/70 bg-purple-50/30 p-2 space-y-1.5 dark:border-purple-900/60 dark:bg-purple-950/20">
+										<div className="rounded-lg border border-purple-200/90 bg-purple-50/50 p-2 space-y-1.5 dark:border-purple-900/60 dark:bg-purple-950/20">
 											<div className="flex items-center justify-between text-[11px] font-bold text-purple-900 dark:text-purple-200">
 												<span className="flex items-center gap-1">
-													<LayersIcon className="h-3 w-3 text-purple-600" />
+													<LayersIcon className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
 													<span>Volume Slab Discounts (थोक दर)</span>
 												</span>
-												<span className="text-[10px] font-normal text-muted-foreground">
-													Buy more, save more
+												<span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">
+													{(product as any).slabs.length} Slabs Available
 												</span>
 											</div>
 
-											<div className="grid grid-cols-3 gap-1 text-center">
+											<div className={`grid gap-1.5 ${(product as any).slabs.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"} text-center`}>
 												{(product as any).slabs.map((slab: any, sIdx: number) => {
 													const isActive =
 														currentQty >= slab.minQuantity &&
@@ -809,21 +809,21 @@ export default function CustomerProductsPage() {
 													return (
 														<div
 															key={sIdx}
-															className={`rounded p-1 text-[10px] transition-all border ${
+															className={`flex flex-col items-center justify-center rounded p-1 text-center transition-all border ${
 																isActive
 																	? "bg-purple-600 text-white font-bold ring-2 ring-purple-400 shadow-xs border-purple-600"
-																	: "bg-white/80 dark:bg-slate-900/80 text-foreground border-purple-200/60 dark:border-purple-800/60"
+																	: "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border-purple-200/70 dark:border-purple-800/70"
 															}`}
 														>
-															<div className="font-semibold">
+															<div className={`text-[9px] font-semibold truncate ${isActive ? "text-purple-100" : "text-muted-foreground"}`}>
 																{slab.minQuantity}
-																{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {product.unit || "units"}
+																{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {product.unit && product.unit.toLowerCase() !== "pcs" ? product.unit : "qty"}
 															</div>
-															<div className="font-mono font-black text-xs">
+															<div className={`font-mono font-bold text-xs ${isActive ? "text-white" : "text-emerald-600 dark:text-emerald-400"}`}>
 																₹{slabPrice.toFixed(2)}
 															</div>
 															{pct > 0 && (
-																<div className={isActive ? "text-purple-100 text-[9px]" : "text-emerald-600 dark:text-emerald-400 text-[9px] font-bold"}>
+																<div className={isActive ? "text-purple-200 text-[8px] font-bold" : "text-purple-600 dark:text-purple-400 text-[8px] font-bold"}>
 																	{pct}% off
 																</div>
 															)}
@@ -845,7 +845,7 @@ export default function CustomerProductsPage() {
 													return (
 														<div className="flex items-center justify-between text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 rounded px-2 py-0.5 border border-emerald-200/70">
 															<span>
-																✓ Unlocked {activeSlab.minQuantity}{activeSlab.maxQuantity ? `–${activeSlab.maxQuantity}` : "+"} tier!
+																✓ Unlocked {activeSlab.minQuantity}{activeSlab.maxQuantity ? `–${activeSlab.maxQuantity}` : "+"} {product.unit || "qty"} tier!
 															</span>
 															{saved > 0 && <span>Save ₹{saved.toFixed(2)}/unit</span>}
 														</div>

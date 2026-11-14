@@ -1647,52 +1647,143 @@ function POSContent() {
 													</div>
 												</CardHeader>
 												<CardContent className="flex flex-col justify-end p-3 pt-0 sm:p-4 sm:pt-0">
-													{product.hasDailyOffer ? (
-														<div className="space-y-0.5">
-															<div className="flex items-center gap-1.5">
-																<span className="font-semibold text-muted-foreground text-xs line-through sm:text-sm">
-																	₹
-																	{Number.parseFloat(
-																		product.originalPrice || product.price,
-																	).toFixed(2)}
-																</span>
-																<span className="font-extrabold text-base text-rose-600 sm:text-lg dark:text-rose-400">
-																	₹
-																	{Number.parseFloat(
-																		product.offerPrice,
-																	).toFixed(2)}
-																</span>
-															</div>
-															<div className="flex items-center gap-1">
-																<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-1.5 py-0.5 font-bold text-[10px] text-rose-600 dark:text-rose-400">
-																	<Tag className="h-2.5 w-2.5" />
-																	{product.dailyOfferPercent}% OFF
-																</span>
-																{product.dailyOfferReason && (
-																	<span
-																		className="truncate text-[10px] text-muted-foreground"
-																		title={product.dailyOfferReason}
-																	>
-																		•{" "}
-																		{product.dailyOfferReason
-																			.split("(")[0]
-																			.trim()}
-																	</span>
-																)}
-															</div>
-														</div>
-													) : (
-														<div className="font-bold text-base text-primary sm:text-lg">
-															₹{Number.parseFloat(product.price).toFixed(2)}
-														</div>
-													)}
+													{/* Price & Slab Pricing Display */}
+													{(() => {
+														const activeSlab = product.slabs?.find(
+															(s: any) =>
+																cartQty >= s.minQuantity &&
+																(s.maxQuantity === null || cartQty <= s.maxQuantity),
+														);
 
-													{(product.hasSlabs || (product.slabs && product.slabs.length > 0)) && (
-														<div className="flex items-center gap-1 mt-0.5">
-															<span className="inline-flex items-center gap-0.5 rounded bg-purple-500/15 border border-purple-300 dark:border-purple-800 px-1.5 py-0.5 font-bold text-[10px] text-purple-700 dark:text-purple-300">
-																<Layers className="h-2.5 w-2.5" />
-																Volume Slabs Available
-															</span>
+														if (activeSlab) {
+															return (
+																<div className="space-y-0.5">
+																	<div className="flex items-baseline gap-1.5">
+																		<span className="font-extrabold text-base text-purple-700 sm:text-lg dark:text-purple-300">
+																			₹{Number(activeSlab.unitPrice).toFixed(2)}
+																		</span>
+																		<span className="text-muted-foreground text-xs line-through">
+																			₹{Number.parseFloat(product.originalPrice || product.price).toFixed(2)}
+																		</span>
+																	</div>
+																	<div className="flex items-center gap-1">
+																		<span className="inline-flex items-center gap-0.5 rounded bg-purple-500/15 border border-purple-300 dark:border-purple-800 px-1.5 py-0.5 font-bold text-[10px] text-purple-700 dark:text-purple-300">
+																			<Layers className="h-2.5 w-2.5" />
+																			{activeSlab.minQuantity}{activeSlab.maxQuantity ? `–${activeSlab.maxQuantity}` : "+"} {product.unit && product.unit.toLowerCase() !== "pcs" ? product.unit : "qty"} Tier Applied
+																		</span>
+																	</div>
+																</div>
+															);
+														}
+
+														if (product.hasDailyOffer) {
+															return (
+																<div className="space-y-0.5">
+																	<div className="flex items-center gap-1.5">
+																		<span className="font-semibold text-muted-foreground text-xs line-through sm:text-sm">
+																			₹
+																			{Number.parseFloat(
+																				product.originalPrice || product.price,
+																			).toFixed(2)}
+																		</span>
+																		<span className="font-extrabold text-base text-rose-600 sm:text-lg dark:text-rose-400">
+																			₹
+																			{Number.parseFloat(
+																				product.offerPrice,
+																			).toFixed(2)}
+																		</span>
+																	</div>
+																	<div className="flex items-center gap-1">
+																		<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-1.5 py-0.5 font-bold text-[10px] text-rose-600 dark:text-rose-400">
+																			<Tag className="h-2.5 w-2.5" />
+																			{product.dailyOfferPercent}% OFF
+																		</span>
+																		{product.dailyOfferReason && (
+																			<span
+																				className="truncate text-[10px] text-muted-foreground"
+																				title={product.dailyOfferReason}
+																			>
+																				•{" "}
+																				{product.dailyOfferReason
+																					.split("(")[0]
+																					.trim()}
+																			</span>
+																		)}
+																	</div>
+																</div>
+															);
+														}
+
+														return (
+															<div className="font-bold text-base text-primary sm:text-lg">
+																₹{Number.parseFloat(product.price).toFixed(2)}
+															</div>
+														);
+													})()}
+
+													{/* Quantity Slabs Visible Directly From Outside */}
+													{product.slabs && product.slabs.length > 0 && (
+														<div className="mt-1.5 rounded-lg border border-purple-200/90 bg-purple-50/50 p-2 dark:border-purple-900/60 dark:bg-purple-950/20">
+															<div className="mb-1.5 flex items-center justify-between text-[11px] font-bold text-purple-800 dark:text-purple-200">
+																<span className="flex items-center gap-1">
+																	<Layers className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+																	<span>{locale === "hi" ? "मात्रा छूट स्लैब (Volume Slabs)" : "Volume Slabs (थोक दर)"}</span>
+																</span>
+																<span className="font-semibold text-[10px] text-purple-600 dark:text-purple-400">
+																	{product.slabs.length} {locale === "hi" ? "स्लैब" : "Slabs"}
+																</span>
+															</div>
+															<div className={`grid gap-1.5 ${product.slabs.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+																{product.slabs.map((slab: any, idx: number) => {
+																	const isCurrentActive =
+																		cartQty >= slab.minQuantity &&
+																		(slab.maxQuantity === null || cartQty <= slab.maxQuantity);
+																	const slabPrice = Number(slab.unitPrice);
+																	const regPrice = Number.parseFloat(product.originalPrice || product.price || "0");
+																	const discountPct = regPrice > slabPrice ? Math.round(((regPrice - slabPrice) / regPrice) * 100) : 0;
+
+																	return (
+																		<div
+																			key={idx}
+																			className={`flex flex-col items-center justify-center rounded-md p-1 text-center transition-all border ${
+																				isCurrentActive
+																					? "bg-purple-600 text-white font-bold ring-2 ring-purple-400 shadow-xs border-purple-600"
+																					: "bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 border-purple-200/70 dark:border-purple-800/70"
+																			}`}
+																		>
+																			<span className={`text-[9px] font-semibold truncate ${isCurrentActive ? "text-purple-100" : "text-muted-foreground"}`}>
+																				{slab.minQuantity}{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {product.unit && product.unit.toLowerCase() !== "pcs" ? product.unit : "qty"}
+																			</span>
+																			<span className={`font-mono font-bold text-xs ${isCurrentActive ? "text-white" : "text-emerald-600 dark:text-emerald-400"}`}>
+																				₹{slabPrice.toFixed(2)}
+																			</span>
+																			{discountPct > 0 && (
+																				<span className={`text-[8px] font-bold ${isCurrentActive ? "text-purple-200" : "text-purple-600 dark:text-purple-400"}`}>
+																					{discountPct}% off
+																				</span>
+																			)}
+																		</div>
+																	);
+																})}
+															</div>
+															{(() => {
+																const activeSlab = product.slabs.find(
+																	(s: any) =>
+																		cartQty >= s.minQuantity &&
+																		(s.maxQuantity === null || cartQty <= s.maxQuantity),
+																);
+																if (activeSlab) {
+																	return (
+																		<div className="mt-1.5 flex items-center justify-between text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 rounded px-1.5 py-0.5 border border-emerald-200/70">
+																			<span>
+																				✓ {activeSlab.minQuantity}{activeSlab.maxQuantity ? `–${activeSlab.maxQuantity}` : "+"} {product.unit || "qty"} Tier Applied!
+																			</span>
+																			<span>₹{Number(activeSlab.unitPrice).toFixed(2)}/unit</span>
+																		</div>
+																	);
+																}
+																return null;
+															})()}
 														</div>
 													)}
 
@@ -2867,6 +2958,48 @@ function POSContent() {
 													{detailsProduct.dailyOfferReason}
 												</span>
 											)}
+										</div>
+									)}
+
+									{/* Volume Slab Pricing Table */}
+									{detailsProduct.slabs && detailsProduct.slabs.length > 0 && (
+										<div className="rounded-lg border border-purple-200/80 bg-purple-50/50 p-3 space-y-2 dark:border-purple-900/60 dark:bg-purple-950/20">
+											<div className="flex items-center justify-between text-xs font-bold text-purple-900 dark:text-purple-200">
+												<span className="flex items-center gap-1.5">
+													<Layers className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+													<span>{locale === "hi" ? "थोक दर स्लैब (Volume Slab Pricing)" : "Volume Slab Pricing (थोक दर स्लैब)"}</span>
+												</span>
+												<span className="text-[10px] text-muted-foreground font-normal">
+													{detailsProduct.slabs.length} Tiers Available
+												</span>
+											</div>
+											<div className="overflow-hidden rounded-md border border-purple-200 dark:border-purple-800 bg-white dark:bg-slate-900">
+												<table className="w-full text-left text-xs">
+													<thead className="bg-purple-100/70 dark:bg-purple-950 text-purple-900 dark:text-purple-200 text-[10px] uppercase font-bold">
+														<tr>
+															<th className="px-3 py-1.5">Min Qty</th>
+															<th className="px-3 py-1.5">Max Qty</th>
+															<th className="px-3 py-1.5">Rate / Unit</th>
+															<th className="px-3 py-1.5 text-right">Discount</th>
+														</tr>
+													</thead>
+													<tbody className="divide-y divide-purple-100 dark:divide-purple-900/60 font-mono text-[11px]">
+														{detailsProduct.slabs.map((slab: any, idx: number) => {
+															const regPrice = Number.parseFloat(detailsProduct.originalPrice || detailsProduct.price || "0");
+															const slabP = Number(slab.unitPrice);
+															const pct = regPrice > slabP ? Math.round(((regPrice - slabP) / regPrice) * 100) : 0;
+															return (
+																<tr key={idx} className="hover:bg-purple-50/50 dark:hover:bg-purple-950/40">
+																	<td className="px-3 py-1.5 font-bold">{slab.minQuantity} {detailsProduct.unit || "units"}</td>
+																	<td className="px-3 py-1.5">{slab.maxQuantity ? `${slab.maxQuantity} ${detailsProduct.unit || "units"}` : "Unlimited (+)"}</td>
+																	<td className="px-3 py-1.5 font-bold text-emerald-600 dark:text-emerald-400">₹{slabP.toFixed(2)}</td>
+																	<td className="px-3 py-1.5 text-right font-bold text-purple-600 dark:text-purple-400">{pct > 0 ? `${pct}% off` : "Standard"}</td>
+																</tr>
+															);
+														})}
+													</tbody>
+												</table>
+											</div>
 										</div>
 									)}
 								</div>

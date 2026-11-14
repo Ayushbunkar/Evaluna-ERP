@@ -314,6 +314,33 @@ export default function CustomerDashboard() {
 														SKU: {prod.sku}
 													</p>
 												)}
+
+												{/* Volume Slab Pricing Tiers Preview */}
+												{prod.slabs && prod.slabs.length > 0 && (
+													<div className="mt-2 rounded-md border border-purple-200/80 bg-purple-50/50 p-1.5 dark:border-purple-900/60 dark:bg-purple-950/20">
+														<div className="flex items-center justify-between text-[10px] font-bold text-purple-800 dark:text-purple-300 mb-1">
+															<span className="flex items-center gap-1">
+																<PackageIcon className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+																<span>{locale === "hi" ? "थोक दर स्लैब" : "Volume Slabs"}</span>
+															</span>
+															<span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400">
+																{prod.slabs.length} Tiers
+															</span>
+														</div>
+														<div className="grid grid-cols-2 gap-1 text-center">
+															{prod.slabs.slice(0, 2).map((slab: any, idx: number) => (
+																<div key={idx} className="rounded bg-white dark:bg-slate-900 p-1 text-[10px] border border-purple-200/60 dark:border-purple-800/60">
+																	<div className="text-[9px] text-muted-foreground truncate font-semibold">
+																		{slab.minQuantity}{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {prod.unit || "qty"}
+																	</div>
+																	<div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+																		₹{Number(slab.unitPrice).toFixed(2)}
+																	</div>
+																</div>
+															))}
+														</div>
+													</div>
+												)}
 											</div>
 											<div className="mt-3 flex items-baseline justify-between border-border/40 border-t pt-2">
 												<div className="flex flex-col">
