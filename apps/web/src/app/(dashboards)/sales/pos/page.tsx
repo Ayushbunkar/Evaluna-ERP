@@ -1707,11 +1707,17 @@ function POSContent() {
 																			).toFixed(2)}
 																		</span>
 																	</div>
-																	<div className="flex items-center gap-1">
+																	<div className="flex items-center gap-1 flex-wrap">
 																		<span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-1.5 py-0.5 font-bold text-[10px] text-rose-600 dark:text-rose-400">
 																			<Tag className="h-2.5 w-2.5" />
 																			{product.dailyOfferPercent}% OFF
 																		</span>
+																		{offerCountdown && (
+																			<span className="inline-flex items-center gap-0.5 rounded bg-amber-500/15 px-1.5 py-0.5 font-bold text-[9px] text-amber-800 dark:text-amber-200 border border-amber-300/80">
+																				<Clock className="h-2.5 w-2.5 shrink-0 animate-pulse text-amber-600" />
+																				<span>{locale === "hi" ? `${offerCountdown.formattedDate} तक (${offerCountdown.daysLeft} दिन शेष)` : `till ${offerCountdown.formattedDate} (${offerCountdown.daysLeft}d left)`}</span>
+																			</span>
+																		)}
 																		{product.dailyOfferReason && (
 																			<span
 																				className="truncate text-[10px] text-muted-foreground"
@@ -1738,6 +1744,28 @@ function POSContent() {
 													{/* Quantity Slabs Visible Directly From Outside — Compact & Clean (No headers, No wrap) */}
 													{product.slabs && product.slabs.length > 0 && (
 														<div className="mt-1 rounded-md border border-purple-200/80 bg-purple-50/40 p-1 dark:border-purple-800/70 dark:bg-purple-950/25">
+															{/* Offer validity date for salesperson on call */}
+															{offerCountdown ? (
+																<div className="mb-1 flex items-center justify-between rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 dark:text-amber-200 border border-amber-300/80 dark:border-amber-800/80">
+																	<span className="flex items-center gap-1">
+																		<Clock className="h-2.5 w-2.5 shrink-0 animate-pulse text-amber-600 dark:text-amber-400" />
+																		<span>{locale === "hi" ? `ऑफ़र: ${offerCountdown.formattedDate} तक` : `Offer till ${offerCountdown.formattedDate}`}</span>
+																	</span>
+																	<span className="font-mono text-amber-900 dark:text-amber-100 font-extrabold whitespace-nowrap">
+																		{locale === "hi" ? `(${offerCountdown.daysLeft} दिन शेष)` : `(${offerCountdown.daysLeft}d left)`}
+																	</span>
+																</div>
+															) : (
+																<div className="mb-0.5 flex items-center justify-between rounded bg-white/70 dark:bg-slate-900/60 px-1 py-0.5 text-[8.5px] font-medium text-muted-foreground border border-purple-100 dark:border-purple-900/40">
+																	<span className="flex items-center gap-0.5">
+																		<Calendar className="h-2.5 w-2.5 shrink-0 text-purple-500" />
+																		<span>{locale === "hi" ? "दर वैधता:" : "Rate Validity:"}</span>
+																	</span>
+																	<span className="font-semibold text-emerald-600 dark:text-emerald-400">
+																		{locale === "hi" ? "नियमित (स्थाई)" : "Standard (Regular)"}
+																	</span>
+																</div>
+															)}
 															<div className="space-y-0.5">
 																{product.slabs.map((slab: any, idx: number) => {
 																	const isCurrentActive =
@@ -2195,14 +2223,33 @@ function POSContent() {
 															</span>
 														)}
 														{item.isSlabApplied && (
-															<div className="flex items-center gap-1 mt-0.5">
-																<Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-bold dark:bg-purple-950 dark:text-purple-300">
+															<div className="flex flex-col gap-1 mt-0.5">
+																<Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-bold dark:bg-purple-950 dark:text-purple-300 w-fit">
 																	<Layers className="h-2.5 w-2.5 mr-0.5" />
 																	Tier ({item.appliedSlab?.minQuantity}
 																	{item.appliedSlab?.maxQuantity ? `–${item.appliedSlab.maxQuantity}` : "+"}): ₹
 																	{Number(item.price).toFixed(2)}/unit
 																	{item.slabSavings > 0 && ` (Save ₹${Number(item.slabSavings).toFixed(2)})`}
 																</Badge>
+																{(() => {
+																	const itemCd = getOfferCountdown(
+																		(item as any).slabEndDate || prod?.slabEndDate || (item as any).offerEndDate || prod?.offerEndDate,
+																		locale,
+																	);
+																	if (itemCd) {
+																		return (
+																			<span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1">
+																				<Clock className="h-2.5 w-2.5 animate-pulse text-amber-600 shrink-0" />
+																				<span>
+																					{locale === "hi"
+																						? `वैध: ${itemCd.formattedDate} तक (${itemCd.daysLeft} दिन शेष)`
+																						: `Valid: till ${itemCd.formattedDate} (${itemCd.daysLeft}d left)`}
+																				</span>
+																			</span>
+																		);
+																	}
+																	return null;
+																})()}
 															</div>
 														)}
 													</div>
@@ -2971,7 +3018,7 @@ function POSContent() {
 
 									{/* Volume Slab Pricing Table */}
 									{detailsProduct.slabs && detailsProduct.slabs.length > 0 && (
-										<div className="rounded-lg border border-purple-200/80 bg-purple-50/50 p-3 space-y-2 dark:border-purple-900/60 dark:bg-purple-950/20">
+										<div className="rounded-lg border border-purple-200/80 bg-purple-50/50 p-3 space-y-2.5 dark:border-purple-900/60 dark:bg-purple-950/20">
 											<div className="flex items-center justify-between text-xs font-bold text-purple-900 dark:text-purple-200">
 												<span className="flex items-center gap-1.5">
 													<Layers className="h-4 w-4 text-purple-600 dark:text-purple-400" />
@@ -2981,6 +3028,47 @@ function POSContent() {
 													{detailsProduct.slabs.length} Tiers Available
 												</span>
 											</div>
+
+											{/* Call Guidance & Validity Window */}
+											{(() => {
+												const cd = getOfferCountdown(
+													detailsProduct.slabEndDate || detailsProduct.offerEndDate,
+													locale,
+												);
+												if (cd) {
+													return (
+														<div className="flex items-center justify-between rounded-md bg-amber-500/15 p-2 text-xs font-semibold text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800">
+															<div className="flex items-center gap-1.5">
+																<Clock className="h-4 w-4 text-amber-600 animate-pulse shrink-0" />
+																<span>
+																	{locale === "hi"
+																		? `फ़ोन कॉल पर ग्राहक को बताएं: ऑफ़र केवल ${cd.formattedDate} तक मान्य है!`
+																		: `Sales Pitch on Call: Offer valid strictly until ${cd.formattedDate}!`}
+																</span>
+															</div>
+															<span className="font-extrabold font-mono bg-amber-200/80 dark:bg-amber-900/80 px-2 py-0.5 rounded text-amber-950 dark:text-amber-100 text-[11px] shrink-0">
+																{locale === "hi" ? `${cd.daysLeft} दिन शेष` : `${cd.daysLeft} days left`}
+															</span>
+														</div>
+													);
+												}
+												return (
+													<div className="flex items-center justify-between rounded-md bg-white/80 dark:bg-slate-900/80 p-2 text-xs text-muted-foreground border border-purple-100 dark:border-purple-900/50">
+														<div className="flex items-center gap-1.5">
+															<Calendar className="h-4 w-4 text-purple-600 shrink-0" />
+															<span>
+																{locale === "hi"
+																	? "नियमित थोक दर (कोई अंतिम तिथि निर्धारित नहीं)"
+																	: "Standard volume rate (Ongoing regular rate)"}
+															</span>
+														</div>
+														<span className="font-semibold text-emerald-600 dark:text-emerald-400 text-[11px]">
+															{locale === "hi" ? "स्थाई दर" : "Ongoing Rate"}
+														</span>
+													</div>
+												);
+											})()}
+
 											<div className="overflow-hidden rounded-md border border-purple-200 dark:border-purple-800 bg-white dark:bg-slate-900">
 												<table className="w-full text-left text-xs">
 													<thead className="bg-purple-100/70 dark:bg-purple-950 text-purple-900 dark:text-purple-200 text-[10px] uppercase font-bold">
