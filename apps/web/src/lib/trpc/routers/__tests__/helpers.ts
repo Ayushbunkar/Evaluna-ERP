@@ -7,6 +7,7 @@ import * as schema from "@/lib/db/schema";
 // FK-safe order: referenced tables before referencing tables
 const TABLES: PgTable[] = [
 	schema.products,
+	schema.productSlabPricing,
 	schema.customers,
 	schema.paymentMethods,
 	schema.orders,

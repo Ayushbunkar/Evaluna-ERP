@@ -4,13 +4,15 @@ import {
 	orders,
 	pendingSync,
 	products,
+	productSlabPricing,
 	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
 import { endOfDay, startOfDay } from "date-fns";
-import { and, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { notifyCustomerOrderPlaced } from "@/lib/notification-service";
+import { ensureSlabPricingTable } from "./slab-pricing";
 import { customerProcedure, roleProcedure, router } from "../init";
 
 // Order lifecycle for the customer-ordering workflow.
@@ -199,6 +201,42 @@ export const customerRouter = router({
 				discountMap.set(d.product_id, d);
 			}
 
+			await ensureSlabPricingTable(ctx.db);
+			const productIds = rows.map((p) => p.id);
+			let activeSlabs: any[] = [];
+			if (productIds.length > 0) {
+				try {
+					activeSlabs = await ctx.db
+						.select()
+						.from(productSlabPricing)
+						.where(
+							and(
+								inArray(productSlabPricing.product_id, productIds),
+								eq(productSlabPricing.is_active, true),
+							),
+						)
+						.orderBy(asc(productSlabPricing.min_quantity));
+				} catch (e) {
+					activeSlabs = [];
+				}
+			}
+
+			const slabsMap = new Map<number, any[]>();
+			for (const s of activeSlabs) {
+				const list = slabsMap.get(s.product_id) || [];
+				list.push({
+					id: s.id,
+					productId: s.product_id,
+					minQuantity: Number(s.min_quantity),
+					maxQuantity: s.max_quantity !== null ? Number(s.max_quantity) : null,
+					unitPrice: Number(s.unit_price),
+					startDate: s.start_date,
+					endDate: s.end_date,
+					isActive: s.is_active,
+				});
+				slabsMap.set(s.product_id, list);
+			}
+
 			const enriched = rows.map((p) => {
 				const originalPrice = Number(p.price || p.base_selling_price || 0);
 				const disc = discountMap.get(p.id);
@@ -220,6 +258,8 @@ export const customerRouter = router({
 					offerReason = disc.reason || "Today's Special Deal";
 				}
 
+				const itemSlabs = slabsMap.get(p.id) || [];
+
 				return {
 					id: p.id,
 					name: p.name,
@@ -230,6 +270,8 @@ export const customerRouter = router({
 					discountPercent,
 					hasActiveOffer,
 					offerReason,
+					hasSlabs: itemSlabs.length > 0,
+					slabs: itemSlabs,
 					unit: p.unit ?? null,
 					sku: p.sku ?? null,
 					image: (p as any).image_url ?? (p as any).image ?? null,

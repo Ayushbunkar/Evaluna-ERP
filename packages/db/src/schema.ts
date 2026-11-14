@@ -2897,3 +2897,44 @@ export * from "./schema/salary";
 export * from "./schema/procurement";
 export * from "./schema/van-stock";
 export * from "./schema/putaway";
+
+// ── Product Quantity Slab Pricing (Volume / Tiered Pricing) ───────────────
+export const productSlabPricing = pgTable(
+	"product_slab_pricing",
+	{
+		id: serial("id").primaryKey(),
+		product_id: integer("product_id")
+			.references(() => products.id, { onDelete: "cascade" })
+			.notNull(),
+		min_quantity: decimal("min_quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		max_quantity: decimal("max_quantity", { precision: 10, scale: 3 })
+			.$type<number | string | null>(),
+		unit_price: decimal("unit_price", { precision: 10, scale: 2 })
+			.$type<number | string>()
+			.notNull(),
+		start_date: varchar("start_date", { length: 20 }), // YYYY-MM-DD
+		end_date: varchar("end_date", { length: 20 }), // YYYY-MM-DD (valid until date in calendar)
+		is_active: boolean("is_active").default(true).notNull(),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(table) => ({
+		productIdIdx: index("idx_product_slab_product_id").on(table.product_id),
+		activeIdx: index("idx_product_slab_active").on(table.is_active),
+		endDateIdx: index("idx_product_slab_end_date").on(table.end_date),
+	}),
+);
+
+export const productSlabPricingRelations = relations(
+	productSlabPricing,
+	({ one }) => ({
+		product: one(products, {
+			fields: [productSlabPricing.product_id],
+			references: [products.id],
+		}),
+	}),
+);

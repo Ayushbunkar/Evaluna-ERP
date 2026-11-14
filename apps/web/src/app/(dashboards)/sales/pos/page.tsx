@@ -10,6 +10,7 @@ import {
 	Edit3,
 	IndianRupee,
 	Info,
+	Layers,
 	Loader2,
 	MapPin,
 	Minus,
@@ -42,6 +43,7 @@ import { toast } from "sonner";
 import { PaymentModal } from "@/components/pos/payment-modal";
 import { SaleCompletionScreen } from "@/components/pos/SaleCompletionScreen";
 import { WarehouseOffersModal } from "@/components/pos/warehouse-offers-modal";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -64,6 +66,57 @@ import {
 } from "@/lib/animations";
 import { offlineDb, queueOfflineOrder } from "@/lib/offline-db";
 import { trpc } from "@/lib/trpc/client";
+import { calculateEffectivePrice, type PricingSlab } from "@/lib/pricing/slab-pricing";
+
+export function getItemPriceForQty(
+	item: any,
+	qty: number,
+	customBillDate?: string,
+): {
+	price: string;
+	appliedSlab: any | null;
+	isSlabApplied: boolean;
+	slabSavings: number;
+} {
+	const rawBase = item.originalPrice ?? item.baseSellingPrice ?? item.price ?? 0;
+	const basePrice = Number(rawBase) || 0;
+	const slabs = item.slabs || [];
+
+	if (slabs.length > 0 && qty > 0) {
+		const result = calculateEffectivePrice({
+			regularPrice: basePrice,
+			slabs,
+			quantity: qty,
+			targetDate: customBillDate || undefined,
+		});
+
+		if (result.isSlabApplied) {
+			return {
+				price: result.unitPrice.toFixed(2),
+				appliedSlab: result.appliedSlab,
+				isSlabApplied: true,
+				slabSavings: result.savingsPerUnit,
+			};
+		}
+	}
+
+	// Daily discount offer takes precedence if no slab matched or if active
+	if (item.hasDailyOffer && item.offerPrice) {
+		return {
+			price: Number(item.offerPrice).toFixed(2),
+			appliedSlab: null,
+			isSlabApplied: false,
+			slabSavings: 0,
+		};
+	}
+
+	return {
+		price: Number(item.price || basePrice).toFixed(2),
+		appliedSlab: null,
+		isSlabApplied: false,
+		slabSavings: 0,
+	};
+}
 
 // Reusable Devanagari Parser to localize dynamic product content
 export function getLocalizedProductName(name: string, locale: string): string {
@@ -680,11 +733,6 @@ function POSContent() {
 	// Callbacks
 	const addToCart = useCallback(
 		(product: any, qty = 1) => {
-			const effectivePrice =
-				product.hasDailyOffer && product.offerPrice
-					? product.offerPrice
-					: product.price;
-
 			const catalogItem = displayCatalog?.find((p) => p.id === product.id);
 			const rawStock = catalogItem?.qty_on_hand ?? product.qty_on_hand;
 			const maxStock = rawStock !== undefined ? Number(rawStock) : 999999;
@@ -718,7 +766,20 @@ function POSContent() {
 								: `Quantity capped at available stock (${maxStock}).`,
 						);
 					}
-					const updatedItem = { ...existing, qty: newQty };
+					const pricing = getItemPriceForQty(
+						{ ...existing, slabs: catalogItem?.slabs ?? existing.slabs },
+						newQty,
+						customBillDate,
+					);
+					const updatedItem = {
+						...existing,
+						slabs: catalogItem?.slabs ?? existing.slabs,
+						qty: newQty,
+						price: pricing.price,
+						appliedSlab: pricing.appliedSlab,
+						isSlabApplied: pricing.isSlabApplied,
+						slabSavings: pricing.slabSavings,
+					};
 					return [updatedItem, ...prev.filter((item) => item.id !== product.id)];
 				}
 
@@ -730,10 +791,26 @@ function POSContent() {
 							: `Quantity capped at available stock (${maxStock}).`,
 					);
 				}
-				return [{ ...product, price: effectivePrice, qty: newQty }, ...prev];
+				const pricing = getItemPriceForQty(
+					{ ...product, slabs: catalogItem?.slabs ?? product.slabs },
+					newQty,
+					customBillDate,
+				);
+				return [
+					{
+						...product,
+						slabs: catalogItem?.slabs ?? product.slabs,
+						price: pricing.price,
+						qty: newQty,
+						appliedSlab: pricing.appliedSlab,
+						isSlabApplied: pricing.isSlabApplied,
+						slabSavings: pricing.slabSavings,
+					},
+					...prev,
+				];
 			});
 		},
-		[displayCatalog, locale],
+		[displayCatalog, locale, customBillDate],
 	);
 
 	const handleAddFromOfferModal = useCallback(
@@ -869,7 +946,20 @@ function POSContent() {
 							Number.parseFloat(calculated.toFixed(3)),
 						),
 					);
-					return { ...item, qty: newQty };
+					const pricing = getItemPriceForQty(
+						{ ...item, slabs: product?.slabs ?? item.slabs },
+						newQty,
+						customBillDate,
+					);
+					return {
+						...item,
+						slabs: product?.slabs ?? item.slabs,
+						qty: newQty,
+						price: pricing.price,
+						appliedSlab: pricing.appliedSlab,
+						isSlabApplied: pricing.isSlabApplied,
+						slabSavings: pricing.slabSavings,
+					};
 				}
 				return item;
 			}),
@@ -894,7 +984,20 @@ function POSContent() {
 		setCart((prev) =>
 			prev.map((item) => {
 				if (item.id === id) {
-					return { ...item, qty: val };
+					const pricing = getItemPriceForQty(
+						{ ...item, slabs: product?.slabs ?? item.slabs },
+						val,
+						customBillDate,
+					);
+					return {
+						...item,
+						slabs: product?.slabs ?? item.slabs,
+						qty: val,
+						price: pricing.price,
+						appliedSlab: pricing.appliedSlab,
+						isSlabApplied: pricing.isSlabApplied,
+						slabSavings: pricing.slabSavings,
+					};
 				}
 				return item;
 			}),
@@ -1584,6 +1687,15 @@ function POSContent() {
 														</div>
 													)}
 
+													{(product.hasSlabs || (product.slabs && product.slabs.length > 0)) && (
+														<div className="flex items-center gap-1 mt-0.5">
+															<span className="inline-flex items-center gap-0.5 rounded bg-purple-500/15 border border-purple-300 dark:border-purple-800 px-1.5 py-0.5 font-bold text-[10px] text-purple-700 dark:text-purple-300">
+																<Layers className="h-2.5 w-2.5" />
+																Volume Slabs Available
+															</span>
+														</div>
+													)}
+
 													{/* Stock Status & Low Stock Alert */}
 													<div className="mt-1 flex items-center justify-between gap-1 text-[10px]">
 														{product.isOutOfStock ? (
@@ -1982,6 +2094,17 @@ function POSContent() {
 															<span className="text-[10px] text-muted-foreground font-mono">
 																{locale === "hi" ? "स्टॉक" : "Stock"}: {prod.qty_on_hand}
 															</span>
+														)}
+														{item.isSlabApplied && (
+															<div className="flex items-center gap-1 mt-0.5">
+																<Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-bold dark:bg-purple-950 dark:text-purple-300">
+																	<Layers className="h-2.5 w-2.5 mr-0.5" />
+																	Tier ({item.appliedSlab?.minQuantity}
+																	{item.appliedSlab?.maxQuantity ? `–${item.appliedSlab.maxQuantity}` : "+"}): ₹
+																	{Number(item.price).toFixed(2)}/unit
+																	{item.slabSavings > 0 && ` (Save ₹${Number(item.slabSavings).toFixed(2)})`}
+																</Badge>
+															</div>
 														)}
 													</div>
 												</div>

@@ -28,6 +28,7 @@ import {
 import {
 	CheckCircle2Icon,
 	FlameIcon,
+	LayersIcon,
 	Loader2Icon,
 	MapPinIcon,
 	MinusIcon,
@@ -47,6 +48,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
+import { calculateEffectivePrice, type PricingSlab } from "@/lib/pricing/slab-pricing";
 
 type CartItem = {
 	productId: number;
@@ -271,14 +273,19 @@ export default function CustomerProductsPage() {
 		}
 	};
 
-	const handleAddToCart = (product: {
-		id: number;
-		name: string;
-		sku: string | null;
-		unit: string | null;
-		price: number;
-	}) => {
+	const handleAddToCart = (product: any) => {
 		const qtyToAdd = getCardQty(product.id);
+		let finalPrice = product.price || 0;
+		if (product.slabs && product.slabs.length > 0) {
+			const slabCalc = calculateEffectivePrice({
+				regularPrice: product.originalPrice || product.price,
+				slabs: product.slabs,
+				quantity: qtyToAdd,
+			});
+			if (slabCalc.isSlabApplied) {
+				finalPrice = slabCalc.unitPrice;
+			}
+		}
 		setCart((prev) => ({
 			...prev,
 			[product.id]: {
@@ -286,8 +293,10 @@ export default function CustomerProductsPage() {
 				name: product.name,
 				sku: product.sku,
 				unit: product.unit,
-				price: product.price || 0,
+				price: finalPrice,
 				quantity: qtyToAdd,
+				slabs: product.slabs,
+				originalPrice: product.originalPrice || product.price,
 			},
 		}));
 		toast.success(
@@ -307,10 +316,23 @@ export default function CustomerProductsPage() {
 			} else {
 				finalQty = Math.max(0.001, Number(val.toFixed(3)));
 			}
+			const item = prev[pid];
+			let effectivePrice = item.price;
+			if ((item as any).slabs && (item as any).slabs.length > 0) {
+				const slabCalc = calculateEffectivePrice({
+					regularPrice: (item as any).originalPrice || item.price,
+					slabs: (item as any).slabs,
+					quantity: finalQty,
+				});
+				if (slabCalc.isSlabApplied) {
+					effectivePrice = slabCalc.unitPrice;
+				}
+			}
 			return {
 				...prev,
 				[pid]: {
-					...prev[pid],
+					...item,
+					price: effectivePrice,
 					quantity: finalQty,
 				},
 			};
@@ -634,6 +656,12 @@ export default function CustomerProductsPage() {
 													{product.discountPercent}% OFF
 												</Badge>
 											)}
+											{(product as any).hasSlabs && (
+												<Badge className="bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 font-bold text-[10px] gap-1">
+													<LayersIcon className="h-3 w-3 text-purple-600" />
+													<span>Bulk Discounts</span>
+												</Badge>
+											)}
 											<span
 												className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
 													isAvailable
@@ -664,70 +692,169 @@ export default function CustomerProductsPage() {
 									<div className={`rounded-lg border p-2.5 transition-colors ${
 										hasOffer
 											? "border-amber-300/80 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30"
-											: "border-border/60 bg-muted/20"
+											: (product as any).hasSlabs
+												? "border-purple-200 bg-purple-50/30 dark:border-purple-900/60 dark:bg-purple-950/20"
+												: "border-border/60 bg-muted/20"
 									}`}>
-										{hasOffer && (
-											<div className="mb-1 flex items-center justify-between border-amber-200 border-b pb-1 text-[11px] dark:border-amber-800">
-												<span className="flex items-center gap-1 font-bold text-red-600 dark:text-red-400">
-													<FlameIcon className="h-3 w-3 text-red-500" />
-													{product.offerReason || (locale === "hi" ? "आज का विशेष ऑफर" : "Today's Deal")}
-												</span>
-												<span className="font-extrabold text-red-600 dark:text-red-400">
-													{product.discountPercent}% OFF
-												</span>
-											</div>
-										)}
-										<div className="flex items-baseline justify-between">
-											<div className="flex flex-col">
-												{hasOffer && product.originalPrice > product.price && (
-													<span className="line-through font-semibold text-muted-foreground text-xs">
-														₹{Number(product.originalPrice).toLocaleString(undefined, {
-															minimumFractionDigits: 2,
-															maximumFractionDigits: 2,
-														})}
-													</span>
-												)}
-												<div className="flex items-baseline gap-1">
-													<span className={`font-bold text-lg sm:text-xl ${
-														hasOffer ? "text-red-600 dark:text-red-400 font-extrabold" : "text-foreground"
-													}`}>
-														₹{Number(product.price || 0).toLocaleString(undefined, {
-															minimumFractionDigits: 2,
-															maximumFractionDigits: 2,
-														})}
-													</span>
-													{product.unit && (
-														<span className="font-medium text-muted-foreground text-xs">
-															/ {product.unit}
-														</span>
-													)}
-												</div>
-											</div>
-											<span className={`font-semibold text-[10px] ${
-												hasOffer ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
-											}`}>
-												{hasOffer
-													? (locale === "hi" ? "ऑफ़र मूल्य" : "Deal Price")
-													: (locale === "hi" ? "मानक मूल्य" : "Standard Price")}
-											</span>
-										</div>
+										{(() => {
+											const activeSlab = (product as any).slabs?.find(
+												(s: any) =>
+													currentQty >= s.minQuantity &&
+													(s.maxQuantity === null || currentQty <= s.maxQuantity),
+											);
+											const isSlabActive = Boolean(activeSlab);
+											const effectivePrice = isSlabActive
+												? Number(activeSlab.unitPrice)
+												: Number(product.price || 0);
+											const regularP = Number(product.originalPrice || product.price || 0);
 
-										{currentQty !== 1 && (
-											<div className="mt-1 flex items-center justify-between border-border/40 border-t pt-1 text-[11px]">
-												<span className="text-muted-foreground">
-													{locale === "hi" ? "उप-योग:" : "Subtotal:"}
+											return (
+												<>
+													{hasOffer && (
+														<div className="mb-1 flex items-center justify-between border-amber-200 border-b pb-1 text-[11px] dark:border-amber-800">
+															<span className="flex items-center gap-1 font-bold text-red-600 dark:text-red-400">
+																<FlameIcon className="h-3 w-3 text-red-500" />
+																{product.offerReason || (locale === "hi" ? "आज का विशेष ऑफर" : "Today's Deal")}
+															</span>
+															<span className="font-extrabold text-red-600 dark:text-red-400">
+																{product.discountPercent}% OFF
+															</span>
+														</div>
+													)}
+													<div className="flex items-baseline justify-between">
+														<div className="flex flex-col">
+															{(hasOffer || isSlabActive) && regularP > effectivePrice && (
+																<span className="line-through font-semibold text-muted-foreground text-xs">
+																	₹{regularP.toLocaleString(undefined, {
+																		minimumFractionDigits: 2,
+																		maximumFractionDigits: 2,
+																	})}
+																</span>
+															)}
+															<div className="flex items-baseline gap-1">
+																<span className={`font-bold text-lg sm:text-xl ${
+																	isSlabActive
+																		? "text-purple-700 dark:text-purple-300 font-extrabold"
+																		: hasOffer
+																			? "text-red-600 dark:text-red-400 font-extrabold"
+																			: "text-foreground"
+																}`}>
+																	₹{effectivePrice.toLocaleString(undefined, {
+																		minimumFractionDigits: 2,
+																		maximumFractionDigits: 2,
+																	})}
+																</span>
+																{product.unit && (
+																	<span className="font-medium text-muted-foreground text-xs">
+																		/ {product.unit}
+																	</span>
+																)}
+															</div>
+														</div>
+														<span className={`font-semibold text-[10px] ${
+															isSlabActive
+																? "text-purple-700 dark:text-purple-300"
+																: hasOffer
+																	? "text-red-600 dark:text-red-400"
+																	: "text-emerald-600 dark:text-emerald-400"
+														}`}>
+															{isSlabActive
+																? (locale === "hi" ? "थोक स्लैब मूल्य" : "Volume Tier Price")
+																: hasOffer
+																	? (locale === "hi" ? "ऑफ़र मूल्य" : "Deal Price")
+																	: (locale === "hi" ? "मानक मूल्य" : "Standard Price")}
+														</span>
+													</div>
+
+													{currentQty !== 1 && (
+														<div className="mt-1 flex items-center justify-between border-border/40 border-t pt-1 text-[11px]">
+															<span className="text-muted-foreground">
+																{locale === "hi" ? "उप-योग:" : "Subtotal:"}
+															</span>
+															<span className="font-bold text-emerald-600 dark:text-emerald-400">
+																₹{(effectivePrice * currentQty).toLocaleString(undefined, {
+																	minimumFractionDigits: 2,
+																	maximumFractionDigits: 2,
+																})}
+															</span>
+														</div>
+													)}
+												</>
+											);
+										})()}
+									</div>
+
+									{/* Quantity Slab Pricing Tier Breakdown */}
+									{(product as any).slabs && (product as any).slabs.length > 0 && (
+										<div className="rounded-lg border border-purple-200/70 bg-purple-50/30 p-2 space-y-1.5 dark:border-purple-900/60 dark:bg-purple-950/20">
+											<div className="flex items-center justify-between text-[11px] font-bold text-purple-900 dark:text-purple-200">
+												<span className="flex items-center gap-1">
+													<LayersIcon className="h-3 w-3 text-purple-600" />
+													<span>Volume Slab Discounts (थोक दर)</span>
 												</span>
-												<span className="font-bold text-emerald-600 dark:text-emerald-400">
-													₹{(
-														Number(product.price || 0) * currentQty
-													).toLocaleString(undefined, {
-														minimumFractionDigits: 2,
-														maximumFractionDigits: 2,
-													})}
+												<span className="text-[10px] font-normal text-muted-foreground">
+													Buy more, save more
 												</span>
 											</div>
-										)}
-									</div>
+
+											<div className="grid grid-cols-3 gap-1 text-center">
+												{(product as any).slabs.map((slab: any, sIdx: number) => {
+													const isActive =
+														currentQty >= slab.minQuantity &&
+														(slab.maxQuantity === null || currentQty <= slab.maxQuantity);
+													const slabPrice = Number(slab.unitPrice);
+													const baseP = Number(product.originalPrice || product.price || 0);
+													const pct = baseP > 0 ? Math.round(((baseP - slabPrice) / baseP) * 100) : 0;
+
+													return (
+														<div
+															key={sIdx}
+															className={`rounded p-1 text-[10px] transition-all border ${
+																isActive
+																	? "bg-purple-600 text-white font-bold ring-2 ring-purple-400 shadow-xs border-purple-600"
+																	: "bg-white/80 dark:bg-slate-900/80 text-foreground border-purple-200/60 dark:border-purple-800/60"
+															}`}
+														>
+															<div className="font-semibold">
+																{slab.minQuantity}
+																{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {product.unit || "units"}
+															</div>
+															<div className="font-mono font-black text-xs">
+																₹{slabPrice.toFixed(2)}
+															</div>
+															{pct > 0 && (
+																<div className={isActive ? "text-purple-100 text-[9px]" : "text-emerald-600 dark:text-emerald-400 text-[9px] font-bold"}>
+																	{pct}% off
+																</div>
+															)}
+														</div>
+													);
+												})}
+											</div>
+
+											{/* Active Tier Alert Banner */}
+											{(() => {
+												const activeSlab = (product as any).slabs.find(
+													(s: any) =>
+														currentQty >= s.minQuantity &&
+														(s.maxQuantity === null || currentQty <= s.maxQuantity),
+												);
+												if (activeSlab) {
+													const baseP = Number(product.originalPrice || product.price || 0);
+													const saved = Math.max(0, baseP - Number(activeSlab.unitPrice));
+													return (
+														<div className="flex items-center justify-between text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 rounded px-2 py-0.5 border border-emerald-200/70">
+															<span>
+																✓ Unlocked {activeSlab.minQuantity}{activeSlab.maxQuantity ? `–${activeSlab.maxQuantity}` : "+"} tier!
+															</span>
+															{saved > 0 && <span>Save ₹{saved.toFixed(2)}/unit</span>}
+														</div>
+													);
+												}
+												return null;
+											})()}
+										</div>
+									)}
 
 									{/* Quantity Control */}
 									<div className="flex items-center justify-between gap-2 pt-1">

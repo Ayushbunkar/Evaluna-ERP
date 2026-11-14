@@ -31,6 +31,7 @@ import {
 import {
 	AlertTriangleIcon,
 	CalendarDaysIcon,
+	CheckCircle2Icon,
 	HistoryIcon,
 	ArrowRightIcon,
 	BoxesIcon,
@@ -65,6 +66,11 @@ import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
+import {
+	calculateEffectivePrice,
+	validateSlabs,
+	type PricingSlab,
+} from "@/lib/pricing/slab-pricing";
 
 const PRESET_DISCOUNT_REASONS = [
 	"Excess Stock Clearance (अतिरिक्त स्टॉक निकासी)",
@@ -101,9 +107,33 @@ export default function StockPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState("all");
 	const [statusFilter, setStatusFilter] = useState<
-		"all" | "in_stock" | "low_stock" | "out_of_stock" | "on_offer"
+		"all" | "in_stock" | "low_stock" | "out_of_stock" | "on_offer" | "with_slabs" | "without_slabs"
 	>("all");
 	const [historicalDate, setHistoricalDate] = useState<string>("");
+
+	// Product-Wise Quantity Slab Pricing States
+	const [slabModalItem, setSlabModalItem] = useState<any>(null);
+	const [slabEnabled, setSlabEnabled] = useState(true);
+	const [slabStartDate, setSlabStartDate] = useState("");
+	const [slabEndDate, setSlabEndDate] = useState("");
+	const [slabList, setSlabList] = useState<
+		Array<{ minQuantity: number | string; maxQuantity: number | string; unitPrice: number | string }>
+	>([]);
+	const [slabError, setSlabError] = useState<string | null>(null);
+
+	// Bulk Slab Pricing States
+	const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+	const [bulkSlabModalOpen, setBulkSlabModalOpen] = useState(false);
+	const [bulkSlabList, setBulkSlabList] = useState<
+		Array<{ minQuantity: number | string; maxQuantity: number | string; unitPrice: number | string }>
+	>([
+		{ minQuantity: 1, maxQuantity: 3, unitPrice: "" },
+		{ minQuantity: 4, maxQuantity: 7, unitPrice: "" },
+		{ minQuantity: 8, maxQuantity: "", unitPrice: "" },
+	]);
+	const [bulkStartDate, setBulkStartDate] = useState("");
+	const [bulkEndDate, setBulkEndDate] = useState("");
+	const [bulkSlabError, setBulkSlabError] = useState<string | null>(null);
 
 	// Pagination
 	const [currentPage, setCurrentPage] = useState(1);
@@ -266,6 +296,171 @@ export default function StockPage() {
 			toast.error(`Failed to remove offer: ${err.message}`);
 		},
 	});
+
+	const saveSlabsMutation = trpc.slabPricing.saveProductSlabs.useMutation({
+		onSuccess: () => {
+			toast.success(
+				locale === "hi"
+					? "स्लैब मूल्य निर्धारण सफलतापूर्वक अपडेट किया गया! POS और ग्राहकों को सिंक हुआ।"
+					: "Slab pricing saved successfully! Synced across Warehouse, POS & Customer dashboards.",
+			);
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.customer.invalidate();
+			utils.slabPricing.invalidate();
+			refetch();
+			setSlabModalItem(null);
+		},
+		onError: (err) => {
+			toast.error(`Failed to save slab pricing: ${err.message}`);
+		},
+	});
+
+	const bulkSaveSlabsMutation = trpc.slabPricing.bulkSaveProductSlabs.useMutation({
+		onSuccess: (data) => {
+			toast.success(
+				locale === "hi"
+					? `${data.appliedCount} उत्पादों के लिए स्लैब दर लागू की गई!`
+					: `Slab pricing applied to ${data.appliedCount} products successfully!`,
+			);
+			utils.inventory.invalidate();
+			utils.pos.invalidate();
+			utils.customer.invalidate();
+			utils.slabPricing.invalidate();
+			refetch();
+			setBulkSlabModalOpen(false);
+			setSelectedProductIds(new Set());
+		},
+		onError: (err) => {
+			toast.error(`Bulk slab update failed: ${err.message}`);
+		},
+	});
+
+	const handleOpenSlabModal = (item: any) => {
+		setSlabModalItem(item);
+		setSlabError(null);
+		const existingSlabs = item.slabs || [];
+		if (existingSlabs.length > 0) {
+			setSlabEnabled(true);
+			setSlabStartDate(existingSlabs[0]?.startDate || "");
+			setSlabEndDate(item.slabEndDate || existingSlabs[0]?.endDate || "");
+			setSlabList(
+				existingSlabs.map((s: any) => ({
+					minQuantity: s.minQuantity,
+					maxQuantity: s.maxQuantity !== null && s.maxQuantity !== undefined ? s.maxQuantity : "",
+					unitPrice: s.unitPrice,
+				})),
+			);
+		} else {
+			setSlabEnabled(true);
+			setSlabStartDate("");
+			setSlabEndDate("");
+			const regPrice = Number(item.price || item.base_selling_price || 10);
+			setSlabList([
+				{ minQuantity: 1, maxQuantity: 3, unitPrice: (regPrice * 0.95).toFixed(2) },
+				{ minQuantity: 4, maxQuantity: 7, unitPrice: (regPrice * 0.90).toFixed(2) },
+				{ minQuantity: 8, maxQuantity: "", unitPrice: (regPrice * 0.85).toFixed(2) },
+			]);
+		}
+	};
+
+	const handleAddSlabRow = () => {
+		setSlabList((prev) => {
+			const last = prev[prev.length - 1];
+			const nextMin = last && last.maxQuantity !== "" ? Number(last.maxQuantity) + 1 : 1;
+			return [...prev, { minQuantity: nextMin, maxQuantity: "", unitPrice: "" }];
+		});
+	};
+
+	const handleRemoveSlabRow = (idx: number) => {
+		setSlabList((prev) => prev.filter((_, i) => i !== idx));
+	};
+
+	const handleSlabRowChange = (idx: number, field: "minQuantity" | "maxQuantity" | "unitPrice", val: string) => {
+		setSlabList((prev) =>
+			prev.map((row, i) => (i === idx ? { ...row, [field]: val } : row)),
+		);
+	};
+
+	const handleSaveSlabs = async () => {
+		if (!slabModalItem) return;
+
+		if (!slabEnabled) {
+			await saveSlabsMutation.mutateAsync({
+				productId: slabModalItem.productId ?? slabModalItem.id,
+				isEnabled: false,
+				slabs: [],
+			});
+			return;
+		}
+
+		if (slabList.length === 0) {
+			setSlabError("Please add at least one quantity slab or disable slab pricing.");
+			return;
+		}
+
+		const parsedSlabs = slabList.map((row) => ({
+			minQuantity: Number(row.minQuantity),
+			maxQuantity: row.maxQuantity !== "" && row.maxQuantity !== null && row.maxQuantity !== undefined ? Number(row.maxQuantity) : null,
+			unitPrice: Number(row.unitPrice),
+			startDate: slabStartDate.trim() || null,
+			endDate: slabEndDate.trim() || null,
+		}));
+
+		const validation = validateSlabs(parsedSlabs);
+		if (!validation.isValid) {
+			setSlabError(validation.errors[0] || "Invalid slab ranges or prices.");
+			return;
+		}
+
+		setSlabError(null);
+		await saveSlabsMutation.mutateAsync({
+			productId: slabModalItem.productId ?? slabModalItem.id,
+			isEnabled: true,
+			startDate: slabStartDate.trim() || undefined,
+			endDate: slabEndDate.trim() || undefined,
+			slabs: parsedSlabs,
+		});
+	};
+
+	const handleOpenBulkSlabModal = () => {
+		if (selectedProductIds.size === 0) {
+			toast.error("Please select at least one product to apply bulk slab pricing.");
+			return;
+		}
+		setBulkSlabError(null);
+		setBulkSlabModalOpen(true);
+	};
+
+	const handleSaveBulkSlabs = async () => {
+		if (selectedProductIds.size === 0) return;
+		if (bulkSlabList.length === 0) {
+			setBulkSlabError("Please add at least one slab tier.");
+			return;
+		}
+
+		const parsedSlabs = bulkSlabList.map((row) => ({
+			minQuantity: Number(row.minQuantity),
+			maxQuantity: row.maxQuantity !== "" && row.maxQuantity !== null && row.maxQuantity !== undefined ? Number(row.maxQuantity) : null,
+			unitPrice: Number(row.unitPrice),
+			startDate: bulkStartDate.trim() || null,
+			endDate: bulkEndDate.trim() || null,
+		}));
+
+		const validation = validateSlabs(parsedSlabs);
+		if (!validation.isValid) {
+			setBulkSlabError(validation.errors[0] || "Invalid slab ranges or prices.");
+			return;
+		}
+
+		setBulkSlabError(null);
+		await bulkSaveSlabsMutation.mutateAsync({
+			productIds: Array.from(selectedProductIds),
+			startDate: bulkStartDate.trim() || undefined,
+			endDate: bulkEndDate.trim() || undefined,
+			slabs: parsedSlabs,
+		});
+	};
 
 	const addItemMutation = trpc.inventory.addItem.useMutation({
 		onSuccess: () => {
@@ -444,6 +639,10 @@ export default function StockPage() {
 			items = items.filter((i) => (i.qty_on_hand || 0) <= 0);
 		} else if (statusFilter === "on_offer") {
 			items = items.filter((i) => i.hasActiveOffer);
+		} else if (statusFilter === "with_slabs") {
+			items = items.filter((i) => i.hasSlabPricing);
+		} else if (statusFilter === "without_slabs") {
+			items = items.filter((i) => !i.hasSlabPricing);
 		}
 		return items;
 	}, [rawItems, searchQuery, selectedCategory, statusFilter]);
@@ -474,6 +673,7 @@ export default function StockPage() {
 		(i) => (i.qty_on_hand || 0) <= 0,
 	).length;
 	const activeOffersCount = rawItems.filter((i) => i.hasActiveOffer).length;
+	const withSlabsCount = rawItems.filter((i: any) => i.hasSlabPricing).length;
 
 	const handleOpenEdit = (item: any) => {
 		setEditItem(item);
@@ -1062,6 +1262,18 @@ export default function StockPage() {
 									<SparklesIcon className="h-3 w-3" />
 									<span>On Offer ({activeOffersCount})</span>
 								</Button>
+								<Button
+									variant={statusFilter === "with_slabs" ? "default" : "ghost"}
+									size="sm"
+									className="h-7 gap-1 px-2.5 text-xs text-purple-700 dark:text-purple-300"
+									onClick={() => {
+										setStatusFilter("with_slabs");
+										setCurrentPage(1);
+									}}
+								>
+									<LayersIcon className="h-3 w-3" />
+									<span>Slabs ({withSlabsCount})</span>
+								</Button>
 							</div>
 						</div>
 					</div>
@@ -1108,6 +1320,38 @@ export default function StockPage() {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0">
+					{/* Bulk Selection Action Bar */}
+					{selectedProductIds.size > 0 && (
+						<div className="flex items-center justify-between bg-purple-50 dark:bg-purple-950/60 border-b border-purple-200 dark:border-purple-800 px-4 py-2.5 text-xs">
+							<div className="flex items-center gap-2">
+								<Badge className="bg-purple-600 text-white font-bold">
+									{selectedProductIds.size} Selected
+								</Badge>
+								<span className="font-medium text-purple-900 dark:text-purple-200">
+									Apply common volume pricing slab structure to selected items
+								</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<Button
+									size="sm"
+									onClick={handleOpenBulkSlabModal}
+									className="h-7 gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-xs"
+								>
+									<LayersIcon className="h-3.5 w-3.5" />
+									<span>Configure Bulk Slabs</span>
+								</Button>
+								<Button
+									size="sm"
+									variant="ghost"
+									onClick={() => setSelectedProductIds(new Set())}
+									className="h-7 text-xs text-muted-foreground hover:text-foreground"
+								>
+									Clear Selection
+								</Button>
+							</div>
+						</div>
+					)}
+
 					{invLoading ? (
 						<div className="flex flex-col items-center justify-center py-16">
 							<Loader2Icon className="h-8 w-8 animate-spin text-primary" />
@@ -1120,6 +1364,34 @@ export default function StockPage() {
 							<Table>
 								<TableHeader>
 									<TableRow className="bg-muted/30">
+										<TableHead className="w-8">
+											<input
+												type="checkbox"
+												checked={
+													paginatedItems.length > 0 &&
+													paginatedItems.every((it) =>
+														selectedProductIds.has(it.productId ?? it.id),
+													)
+												}
+												onChange={(e) => {
+													if (e.target.checked) {
+														const next = new Set(selectedProductIds);
+														paginatedItems.forEach((it) =>
+															next.add(it.productId ?? it.id),
+														);
+														setSelectedProductIds(next);
+													} else {
+														const next = new Set(selectedProductIds);
+														paginatedItems.forEach((it) =>
+															next.delete(it.productId ?? it.id),
+														);
+														setSelectedProductIds(next);
+													}
+												}}
+												className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+												title="Select all on this page"
+											/>
+										</TableHead>
 										<TableHead className="w-10">#</TableHead>
 										<TableHead>Product Name & Category</TableHead>
 										<TableHead>SKU / Barcode</TableHead>
@@ -1135,6 +1407,9 @@ export default function StockPage() {
 										<TableHead>Warehouse Stock (स्टॉक)</TableHead>
 										<TableHead>Lock Status</TableHead>
 										<TableHead>Daily Offer</TableHead>
+										<TableHead className="font-bold text-purple-700 dark:text-purple-400">
+											Slab Pricing (स्लैब दर)
+										</TableHead>
 										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
 								</TableHeader>
@@ -1156,6 +1431,23 @@ export default function StockPage() {
 												key={item.productId || item.id}
 												className="hover:bg-muted/40"
 											>
+												<TableCell className="w-8">
+													<input
+														type="checkbox"
+														checked={selectedProductIds.has(item.productId ?? item.id)}
+														onChange={(e) => {
+															const id = item.productId ?? item.id;
+															const next = new Set(selectedProductIds);
+															if (e.target.checked) {
+																next.add(id);
+															} else {
+																next.delete(id);
+															}
+															setSelectedProductIds(next);
+														}}
+														className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+													/>
+												</TableCell>
 												<TableCell className="font-mono text-muted-foreground text-xs">
 													{rowNum}
 												</TableCell>
@@ -1311,8 +1603,48 @@ export default function StockPage() {
 														</span>
 													)}
 												</TableCell>
+												<TableCell>
+													{item.hasSlabPricing ? (
+														<div className="space-y-0.5">
+															<Badge className="border-purple-200 bg-purple-100 font-bold text-purple-800 text-[11px] dark:bg-purple-950 dark:text-purple-300 gap-1">
+																<LayersIcon className="h-3 w-3 text-purple-600" />
+																<span>{item.slabsCount} Slabs</span>
+															</Badge>
+															{item.minSlabPrice !== null && (
+																<div className="font-mono text-[11px] font-semibold text-purple-900 dark:text-purple-200">
+																	₹{item.minSlabPrice?.toFixed(2)} - ₹{item.maxSlabPrice?.toFixed(2)}
+																</div>
+															)}
+															{item.slabEndDate && (
+																<div className="text-[10px] text-muted-foreground">
+																	Till {item.slabEndDate}
+																</div>
+															)}
+														</div>
+													) : (
+														<span className="text-muted-foreground text-xs">—</span>
+													)}
+												</TableCell>
 												<TableCell className="text-right">
 													<div className="flex items-center justify-end gap-1.5">
+														<Button
+															size="sm"
+															variant={
+																item.hasSlabPricing ? "secondary" : "outline"
+															}
+															className={`h-8 gap-1 text-xs ${
+																item.hasSlabPricing
+																	? "border-purple-300 bg-purple-50 font-bold text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300"
+																	: "border-slate-300 hover:bg-purple-50 hover:text-purple-700"
+															}`}
+															onClick={() => handleOpenSlabModal(item)}
+															title="Configure Product Quantity Slab Pricing"
+														>
+															<LayersIcon className="h-3.5 w-3.5 text-purple-600" />
+															<span>
+																{item.hasSlabPricing ? "Edit Slabs" : "Slabs"}
+															</span>
+														</Button>
 														<Button
 															size="sm"
 															variant="outline"
@@ -1360,7 +1692,7 @@ export default function StockPage() {
 									{paginatedItems.length === 0 && (
 										<TableRow>
 											<TableCell
-												colSpan={8}
+												colSpan={12}
 												className="py-16 text-center text-muted-foreground"
 											>
 												<BoxesIcon className="mx-auto mb-2 h-10 w-10 text-slate-300" />
@@ -2618,6 +2950,515 @@ export default function StockPage() {
 								<>
 									<PlusIcon className="h-4 w-4" />
 									Add Item to Stock
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Individual Product Quantity Slab Pricing Modal */}
+			<Dialog
+				open={!!slabModalItem}
+				onOpenChange={(open) => !open && setSlabModalItem(null)}
+			>
+				<DialogContent className="sm:max-w-2xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
+					<DialogHeader className="p-5 pb-3 border-b bg-muted/20">
+						<DialogTitle className="flex items-center justify-between text-lg">
+							<span className="flex items-center gap-2">
+								<LayersIcon className="h-5 w-5 text-purple-600" />
+								<span>Quantity Slab Pricing (मात्रा अनुसार स्लैब दर)</span>
+							</span>
+							<Badge
+								variant="outline"
+								className="text-xs font-mono border-purple-300 bg-purple-50 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
+							>
+								#{slabModalItem?.productId ?? slabModalItem?.id}
+							</Badge>
+						</DialogTitle>
+						<DialogDescription className="text-xs text-muted-foreground mt-1">
+							Configure tier-wise volume discounts for this product. Pricing automatically applies in Sales POS & Customer Store.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="flex-1 overflow-y-auto p-5 space-y-4">
+						{/* Product Info Summary Box */}
+						{slabModalItem && (
+							<div className="rounded-lg border bg-card p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+								<div>
+									<div className="font-bold text-sm text-foreground">
+										{slabModalItem.product || slabModalItem.name}
+									</div>
+									<div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+										<span className="font-mono">{slabModalItem.sku}</span>
+										<span>•</span>
+										<span>Unit: {slabModalItem.unit || "Pcs"}</span>
+										<span>•</span>
+										<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
+											{slabModalItem.category || "General"}
+										</span>
+									</div>
+								</div>
+								<div className="text-right">
+									<div className="text-xs text-muted-foreground font-medium">Regular Selling Price</div>
+									<div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">
+										₹{Number(slabModalItem.price || slabModalItem.base_selling_price || 0).toFixed(2)}
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Master Enable/Disable Toggle */}
+						<div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+							<div className="space-y-0.5">
+								<div className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+									<PercentIcon className="h-3.5 w-3.5 text-purple-600" />
+									<span>Enable Slab Pricing for this Product</span>
+								</div>
+								<div className="text-[11px] text-muted-foreground">
+									When enabled, customers ordering within these quantity ranges receive discounted per-unit rates.
+								</div>
+							</div>
+							<Button
+								type="button"
+								size="sm"
+								variant={slabEnabled ? "default" : "outline"}
+								onClick={() => setSlabEnabled(!slabEnabled)}
+								className={`h-7 px-3 text-xs font-semibold ${
+									slabEnabled
+										? "bg-purple-600 hover:bg-purple-700 text-white"
+										: "text-muted-foreground"
+								}`}
+							>
+								{slabEnabled ? "Enabled (सक्रिय)" : "Disabled (निष्क्रिय)"}
+							</Button>
+						</div>
+
+						{slabEnabled && (
+							<>
+								{/* Date Validity Window Calendar Picker */}
+								<div className="rounded-lg border p-3.5 space-y-2.5 bg-card">
+									<div className="flex items-center justify-between">
+										<Label className="font-semibold text-xs flex items-center gap-1.5">
+											<CalendarDaysIcon className="h-3.5 w-3.5 text-blue-600" />
+											<span>Offer Validity Window (दर लागू रहने की तारीखें)</span>
+										</Label>
+										<div className="flex items-center gap-1">
+											<button
+												type="button"
+												onClick={() => {
+													setSlabStartDate("");
+													setSlabEndDate("");
+												}}
+												className="text-[10px] text-muted-foreground hover:text-foreground underline px-1"
+											>
+												No Expiry
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													const now = new Date().toISOString().split("T")[0];
+													const end = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+													setSlabStartDate(now);
+													setSlabEndDate(end);
+												}}
+												className="text-[10px] text-purple-600 hover:text-purple-700 underline px-1"
+											>
+												Next 7 Days
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													const now = new Date().toISOString().split("T")[0];
+													const end = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+													setSlabStartDate(now);
+													setSlabEndDate(end);
+												}}
+												className="text-[10px] text-purple-600 hover:text-purple-700 underline px-1"
+											>
+												Next 30 Days
+											</button>
+										</div>
+									</div>
+
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+										<div className="space-y-1">
+											<span className="text-[11px] text-muted-foreground font-medium">Start Date (आरंभ तिथि)</span>
+											<input
+												type="date"
+												value={slabStartDate}
+												onChange={(e) => setSlabStartDate(e.target.value)}
+												className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+											/>
+										</div>
+										<div className="space-y-1">
+											<span className="text-[11px] text-muted-foreground font-medium">Valid Until / End Date (अंतिम तिथि)</span>
+											<input
+												type="date"
+												value={slabEndDate}
+												onChange={(e) => setSlabEndDate(e.target.value)}
+												className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+											/>
+										</div>
+									</div>
+								</div>
+
+								{/* Slabs Table */}
+								<div className="space-y-2">
+									<div className="flex items-center justify-between">
+										<div className="font-semibold text-xs flex items-center gap-1.5">
+											<LayersIcon className="h-3.5 w-3.5 text-purple-600" />
+											<span>Tiered Quantity Slabs (मात्रा एवं दर स्लैब)</span>
+										</div>
+										<Button
+											type="button"
+											size="sm"
+											variant="outline"
+											onClick={handleAddSlabRow}
+											className="h-7 px-2.5 text-xs gap-1 border-purple-200 text-purple-700 bg-purple-50/50 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300"
+										>
+											<PlusIcon className="h-3.5 w-3.5" />
+											<span>+ Add Slab Tier</span>
+										</Button>
+									</div>
+
+									<div className="rounded-lg border overflow-hidden">
+										<Table>
+											<TableHeader>
+												<TableRow className="bg-muted/40 text-[11px]">
+													<TableHead className="w-12 text-center">Tier</TableHead>
+													<TableHead className="w-28">Min Qty</TableHead>
+													<TableHead className="w-28">Max Qty</TableHead>
+													<TableHead className="w-32">Price / Unit (₹)</TableHead>
+													<TableHead>Savings vs Regular</TableHead>
+													<TableHead className="w-10 text-right"></TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
+												{slabList.map((row, idx) => {
+													const regPrice = Number(slabModalItem?.price || slabModalItem?.base_selling_price || 0);
+													const rowPrice = Number(row.unitPrice);
+													const hasPrice = !isNaN(rowPrice) && rowPrice > 0;
+													const savingsPerUnit = hasPrice && regPrice > 0 ? Math.max(0, regPrice - rowPrice) : 0;
+													const savingsPercent = hasPrice && regPrice > 0 ? ((savingsPerUnit / regPrice) * 100).toFixed(1) : "0";
+
+													return (
+														<TableRow key={idx} className="hover:bg-muted/20">
+															<TableCell className="text-center font-mono font-bold text-xs text-muted-foreground">
+																#{idx + 1}
+															</TableCell>
+															<TableCell>
+																<Input
+																	type="number"
+																	step="any"
+																	min="0.001"
+																	value={row.minQuantity}
+																	onChange={(e) =>
+																		handleSlabRowChange(idx, "minQuantity", e.target.value)
+																	}
+																	placeholder="1"
+																	className="h-8 font-mono font-bold text-xs"
+																/>
+															</TableCell>
+															<TableCell>
+																<Input
+																	type="number"
+																	step="any"
+																	min="0.001"
+																	value={row.maxQuantity}
+																	onChange={(e) =>
+																		handleSlabRowChange(idx, "maxQuantity", e.target.value)
+																	}
+																	placeholder="Unlimited (∞)"
+																	className="h-8 font-mono text-xs"
+																/>
+															</TableCell>
+															<TableCell>
+																<div className="relative">
+																	<span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
+																		₹
+																	</span>
+																	<Input
+																		type="number"
+																		step="0.01"
+																		min="0.01"
+																		value={row.unitPrice}
+																		onChange={(e) =>
+																			handleSlabRowChange(idx, "unitPrice", e.target.value)
+																		}
+																		placeholder="e.g. 9.10"
+																		className="h-8 pl-6 font-mono font-bold text-xs border-purple-200 focus:border-purple-500"
+																	/>
+																</div>
+															</TableCell>
+															<TableCell>
+																{hasPrice && savingsPerUnit > 0 ? (
+																	<div className="flex items-center gap-1.5">
+																		<Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 font-bold text-[10px] dark:bg-emerald-950 dark:text-emerald-300">
+																			Save ₹{savingsPerUnit.toFixed(2)} ({savingsPercent}%)
+																		</Badge>
+																	</div>
+																) : hasPrice && rowPrice > regPrice ? (
+																	<span className="text-[10px] text-amber-600 font-medium">
+																		Higher than regular (₹{regPrice})
+																	</span>
+																) : (
+																	<span className="text-muted-foreground text-xs">—</span>
+																)}
+															</TableCell>
+															<TableCell className="text-right">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="icon"
+																	onClick={() => handleRemoveSlabRow(idx)}
+																	className="h-7 w-7 text-muted-foreground hover:text-red-600"
+																	title="Remove this slab"
+																>
+																	<Trash2Icon className="h-3.5 w-3.5" />
+																</Button>
+															</TableCell>
+														</TableRow>
+													);
+												})}
+												{slabList.length === 0 && (
+													<TableRow>
+														<TableCell colSpan={6} className="text-center py-6 text-xs text-muted-foreground">
+															No slabs defined yet. Click "+ Add Slab Tier" above.
+														</TableCell>
+													</TableRow>
+												)}
+											</TableBody>
+										</Table>
+									</div>
+								</div>
+
+								{/* Live Validation Alert */}
+								{slabError && (
+									<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300 flex items-start gap-2">
+										<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+										<span>{slabError}</span>
+									</div>
+								)}
+							</>
+						)}
+					</div>
+
+					<DialogFooter className="p-4 border-t gap-2 bg-muted/10">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setSlabModalItem(null)}
+							disabled={saveSlabsMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							onClick={handleSaveSlabs}
+							disabled={saveSlabsMutation.isPending}
+							className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs gap-1.5"
+						>
+							{saveSlabsMutation.isPending ? (
+								<>
+									<Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+									<span>Saving Slabs...</span>
+								</>
+							) : (
+								<>
+									<SaveIcon className="h-3.5 w-3.5" />
+									<span>Save Slab Pricing</span>
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Bulk Slab Pricing Configuration Modal */}
+			<Dialog
+				open={bulkSlabModalOpen}
+				onOpenChange={(open) => !open && setBulkSlabModalOpen(false)}
+			>
+				<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+					<DialogHeader className="p-5 pb-3 border-b bg-purple-50/50 dark:bg-purple-950/30">
+						<DialogTitle className="flex items-center gap-2 text-lg">
+							<LayersIcon className="h-5 w-5 text-purple-600" />
+							<span>Bulk Configure Quantity Slabs ({selectedProductIds.size} Products)</span>
+						</DialogTitle>
+						<DialogDescription className="text-xs text-muted-foreground mt-1">
+							Apply a standardized quantity discount structure across all {selectedProductIds.size} selected products. Existing base prices are preserved.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="flex-1 overflow-y-auto p-5 space-y-4">
+						{/* Validity Dates */}
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div className="space-y-1">
+								<span className="text-[11px] text-muted-foreground font-medium">Start Date (Optional)</span>
+								<input
+									type="date"
+									value={bulkStartDate}
+									onChange={(e) => setBulkStartDate(e.target.value)}
+									className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+								/>
+							</div>
+							<div className="space-y-1">
+								<span className="text-[11px] text-muted-foreground font-medium">Valid Until Date (Optional)</span>
+								<input
+									type="date"
+									value={bulkEndDate}
+									onChange={(e) => setBulkEndDate(e.target.value)}
+									className="w-full h-8 rounded-md border border-input bg-background px-2.5 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+								/>
+							</div>
+						</div>
+
+						{/* Slabs Table */}
+						<div className="space-y-2">
+							<div className="flex items-center justify-between">
+								<Label className="font-semibold text-xs">Standard Quantity Slabs</Label>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={() =>
+										setBulkSlabList((prev) => [
+											...prev,
+											{ minQuantity: 1, maxQuantity: "", unitPrice: "" },
+										])
+									}
+									className="h-7 px-2 text-xs"
+								>
+									+ Add Row
+								</Button>
+							</div>
+
+							<div className="rounded-lg border overflow-hidden">
+								<Table>
+									<TableHeader>
+										<TableRow className="bg-muted/40 text-[11px]">
+											<TableHead className="w-12 text-center">Tier</TableHead>
+											<TableHead>Min Qty</TableHead>
+											<TableHead>Max Qty</TableHead>
+											<TableHead>Price / Unit (₹)</TableHead>
+											<TableHead className="w-10"></TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{bulkSlabList.map((row, idx) => (
+											<TableRow key={idx}>
+												<TableCell className="text-center font-mono font-bold text-xs text-muted-foreground">
+													#{idx + 1}
+												</TableCell>
+												<TableCell>
+													<Input
+														type="number"
+														step="any"
+														min="0.001"
+														value={row.minQuantity}
+														onChange={(e) =>
+															setBulkSlabList((prev) =>
+																prev.map((r, i) =>
+																	i === idx ? { ...r, minQuantity: e.target.value } : r,
+																),
+															)
+														}
+														placeholder="1"
+														className="h-8 font-mono text-xs"
+													/>
+												</TableCell>
+												<TableCell>
+													<Input
+														type="number"
+														step="any"
+														min="0.001"
+														value={row.maxQuantity}
+														onChange={(e) =>
+															setBulkSlabList((prev) =>
+																prev.map((r, i) =>
+																	i === idx ? { ...r, maxQuantity: e.target.value } : r,
+																),
+															)
+														}
+														placeholder="Unlimited (∞)"
+														className="h-8 font-mono text-xs"
+													/>
+												</TableCell>
+												<TableCell>
+													<div className="relative">
+														<span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
+															₹
+														</span>
+														<Input
+															type="number"
+															step="0.01"
+															min="0.01"
+															value={row.unitPrice}
+															onChange={(e) =>
+																setBulkSlabList((prev) =>
+																	prev.map((r, i) =>
+																		i === idx ? { ...r, unitPrice: e.target.value } : r,
+																	),
+																)
+															}
+															placeholder="e.g. 9.00"
+															className="h-8 pl-6 font-mono font-bold text-xs"
+														/>
+													</div>
+												</TableCell>
+												<TableCell className="text-right">
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														onClick={() =>
+															setBulkSlabList((prev) => prev.filter((_, i) => i !== idx))
+														}
+														className="h-7 w-7 text-muted-foreground hover:text-red-600"
+													>
+														<Trash2Icon className="h-3.5 w-3.5" />
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						</div>
+
+						{bulkSlabError && (
+							<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300 flex items-start gap-2">
+								<AlertTriangleIcon className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+								<span>{bulkSlabError}</span>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter className="p-4 border-t gap-2 bg-muted/10">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setBulkSlabModalOpen(false)}
+							disabled={bulkSaveSlabsMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							onClick={handleSaveBulkSlabs}
+							disabled={bulkSaveSlabsMutation.isPending}
+							className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs gap-1.5"
+						>
+							{bulkSaveSlabsMutation.isPending ? (
+								<>
+									<Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+									<span>Applying Slabs...</span>
+								</>
+							) : (
+								<>
+									<CheckCircle2Icon className="h-3.5 w-3.5" />
+									<span>Apply to {selectedProductIds.size} Products</span>
 								</>
 							)}
 						</Button>

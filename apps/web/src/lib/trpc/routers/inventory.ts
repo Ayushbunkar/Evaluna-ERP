@@ -6,6 +6,7 @@ import {
 	productBatches,
 	productConversions,
 	products,
+	productSlabPricing,
 	stockAdjustments,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
@@ -17,6 +18,7 @@ import {
 	eq,
 	gte,
 	ilike,
+	inArray,
 	lte,
 	or,
 	sql,
@@ -28,6 +30,7 @@ import {
 	getDailyPricingMapForDate,
 	lockOrUpdateDailyPrice,
 } from "@/lib/daily-pricing";
+import { ensureSlabPricingTable } from "./slab-pricing";
 import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { stockLedger } from "@/lib/db/schema";
 import {
@@ -170,6 +173,43 @@ export const inventoryRouter = router({
 				discountMap.set(disc.product_id, disc);
 			}
 
+			// Ensure slab pricing table exists and fetch active slabs
+			await ensureSlabPricingTable(db);
+			const productIds = productRows.map((p) => p.productId);
+			let activeSlabs: any[] = [];
+			if (productIds.length > 0) {
+				try {
+					activeSlabs = await db
+						.select()
+						.from(productSlabPricing)
+						.where(
+							and(
+								inArray(productSlabPricing.product_id, productIds),
+								eq(productSlabPricing.is_active, true),
+							),
+						)
+						.orderBy(asc(productSlabPricing.min_quantity));
+				} catch (e) {
+					activeSlabs = [];
+				}
+			}
+
+			const slabsMap = new Map<number, any[]>();
+			for (const slab of activeSlabs) {
+				const list = slabsMap.get(slab.product_id) || [];
+				list.push({
+					id: slab.id,
+					productId: slab.product_id,
+					minQuantity: Number(slab.min_quantity),
+					maxQuantity: slab.max_quantity !== null ? Number(slab.max_quantity) : null,
+					unitPrice: Number(slab.unit_price),
+					startDate: slab.start_date,
+					endDate: slab.end_date,
+					isActive: slab.is_active,
+				});
+				slabsMap.set(slab.product_id, list);
+			}
+
 			// Total matching count
 			const countResult = await db
 				.select({ val: count() })
@@ -220,6 +260,19 @@ export const inventoryRouter = router({
 					offerPrice,
 					discountPercent,
 					offerReason: activeDiscount?.reason || null,
+					hasSlabPricing: (slabsMap.get(d.productId) || []).length > 0,
+					slabsCount: (slabsMap.get(d.productId) || []).length,
+					minSlabPrice:
+						(slabsMap.get(d.productId) || []).length > 0
+							? Math.min(...(slabsMap.get(d.productId) || []).map((s: any) => s.unitPrice))
+							: null,
+					maxSlabPrice:
+						(slabsMap.get(d.productId) || []).length > 0
+							? Math.max(...(slabsMap.get(d.productId) || []).map((s: any) => s.unitPrice))
+							: null,
+					slabEndDate:
+						(slabsMap.get(d.productId) || []).find((s: any) => s.endDate)?.endDate || null,
+					slabs: slabsMap.get(d.productId) || [],
 					branch: "Bhopal Main Warehouse",
 					branchId: d.branchId || targetBranchId,
 					qty_on_hand: Number(d.qty_on_hand ?? 0),
@@ -232,6 +285,8 @@ export const inventoryRouter = router({
 				status && status !== "all"
 					? items.filter((i) => {
 							if (status === "on_offer") return i.hasActiveOffer;
+							if (status === "with_slabs") return i.hasSlabPricing;
+							if (status === "without_slabs") return !i.hasSlabPricing;
 							return i.status === status;
 						})
 					: items;

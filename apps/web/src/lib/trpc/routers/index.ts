@@ -68,6 +68,7 @@ import { salaryRouter } from "./salary";
 import { salesReturnsRouter } from "./sales-returns";
 import { schemesRouter } from "./schemes";
 import { settingsRouter } from "./settings";
+import { slabPricingRouter } from "./slab-pricing";
 import { staffRouter } from "./staff";
 import { superadminRouter } from "./superadmin";
 import { supplierRouter } from "./supplier";
@@ -151,6 +152,7 @@ export const appRouter = router({
 	salesReturns: salesReturnsRouter,
 	schemes: schemesRouter,
 	settings: settingsRouter,
+	slabPricing: slabPricingRouter,
 	staff: staffRouter,
 	superadmin: superadminRouter,
 	supplier: supplierRouter,
