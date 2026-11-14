@@ -1739,84 +1739,79 @@ function POSContent() {
 														);
 													})()}
 
-													{/* Quantity Slabs Visible Directly From Outside */}
+													{/* Quantity Slabs Visible Directly From Outside — Compact & Beautiful */}
 													{product.slabs && product.slabs.length > 0 && (
-														<div className="mt-1.5 rounded-lg border border-purple-200/90 bg-purple-50/50 p-2 dark:border-purple-900/60 dark:bg-purple-950/20">
-															<div className="mb-1.5 flex items-center justify-between text-[11px] font-bold text-purple-800 dark:text-purple-200">
+														<div className="mt-1.5 rounded-md border border-purple-200/90 bg-purple-50/60 p-1.5 dark:border-purple-800/80 dark:bg-purple-950/30">
+															<div className="mb-1 flex items-center justify-between text-[10px] font-bold text-purple-900 dark:text-purple-200 border-b border-purple-200/60 dark:border-purple-800/60 pb-1">
 																<span className="flex items-center gap-1">
-																	<Layers className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-																	<span>{locale === "hi" ? "मात्रा छूट स्लैब (Volume Slabs)" : "Volume Slabs (थोक दर)"}</span>
+																	<Layers className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
+																	<span>{locale === "hi" ? "मात्रा अनुसार थोक दर" : "Volume Slabs"}</span>
 																</span>
-																<span className="font-semibold text-[10px] text-purple-600 dark:text-purple-400">
-																	{product.slabs.length} {locale === "hi" ? "स्लैब" : "Slabs"}
-																</span>
+																{offerCountdown ? (
+																	<span className="font-mono text-[9px] font-extrabold text-amber-700 dark:text-amber-300">
+																		{offerCountdown.badgeText}
+																	</span>
+																) : (
+																	<span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400">
+																		{product.slabs.length} {locale === "hi" ? "स्लैब" : "Slabs"}
+																	</span>
+																)}
 															</div>
-															{offerCountdown && (
-																<div className={`mb-1.5 flex items-center justify-between rounded px-1.5 py-0.5 text-[9px] font-bold border ${
-																	offerCountdown.urgency === "urgent"
-																		? "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900"
-																		: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900"
-																}`}>
-																	<span className="flex items-center gap-1">
-																		<Clock className="h-2.5 w-2.5" />
-																		<span>{offerCountdown.badgeText}</span>
-																	</span>
-																	<span className="font-mono text-[8px] opacity-85">
-																		{locale === "hi" ? "अंतिम:" : "Till:"} {offerCountdown.formattedDate}
-																	</span>
-																</div>
-															)}
-															<div className={`grid gap-1.5 ${product.slabs.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+
+															<div className="space-y-0.5">
 																{product.slabs.map((slab: any, idx: number) => {
 																	const isCurrentActive =
 																		cartQty >= slab.minQuantity &&
 																		(slab.maxQuantity === null || cartQty <= slab.maxQuantity);
 																	const slabPrice = Number(slab.unitPrice);
 																	const regPrice = Number.parseFloat(product.originalPrice || product.price || "0");
-																	const discountPct = regPrice > slabPrice ? Math.round(((regPrice - slabPrice) / regPrice) * 100) : 0;
+																	const discountPct =
+																		regPrice > slabPrice
+																			? Math.round(((regPrice - slabPrice) / regPrice) * 100)
+																			: 0;
 
 																	return (
 																		<div
 																			key={idx}
-																			className={`flex flex-col items-center justify-center rounded-md p-1 text-center transition-all border ${
+																			className={`flex items-center justify-between rounded px-1.5 py-0.5 transition-all text-[11px] ${
 																				isCurrentActive
-																					? "bg-purple-600 text-white font-bold ring-2 ring-purple-400 shadow-xs border-purple-600"
-																					: "bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 border-purple-200/70 dark:border-purple-800/70"
+																					? "bg-purple-600 text-white font-bold shadow-xs ring-1 ring-purple-400"
+																					: "bg-white/95 dark:bg-slate-900/90 text-slate-800 dark:text-slate-100 border border-purple-200/50 dark:border-purple-800/50"
 																			}`}
 																		>
-																			<span className={`text-[9px] font-semibold truncate ${isCurrentActive ? "text-purple-100" : "text-muted-foreground"}`}>
-																				{slab.minQuantity}{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {product.unit && product.unit.toLowerCase() !== "pcs" ? product.unit : "qty"}
-																			</span>
-																			<span className={`font-mono font-bold text-xs ${isCurrentActive ? "text-white" : "text-emerald-600 dark:text-emerald-400"}`}>
-																				₹{slabPrice.toFixed(2)}
-																			</span>
-																			{discountPct > 0 && (
-																				<span className={`text-[8px] font-bold ${isCurrentActive ? "text-purple-200" : "text-purple-600 dark:text-purple-400"}`}>
-																					{discountPct}% off
+																			<span
+																				className={`text-[10px] font-semibold flex items-center gap-1 ${
+																					isCurrentActive ? "text-purple-100" : "text-muted-foreground"
+																				}`}
+																			>
+																				{isCurrentActive && <span className="text-[10px] font-black">✓</span>}
+																				<span>
+																					{slab.minQuantity}
+																					{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {product.unit && product.unit.toLowerCase() !== "pcs" ? product.unit : "qty"}
 																				</span>
-																			)}
+																			</span>
+																			<div className="flex items-center gap-1 shrink-0">
+																				<span
+																					className={`font-mono font-bold ${
+																						isCurrentActive ? "text-white" : "text-emerald-600 dark:text-emerald-400"
+																					}`}
+																				>
+																					₹{slabPrice.toFixed(2)}
+																				</span>
+																				{discountPct > 0 && (
+																					<span
+																						className={`text-[8px] font-bold ${
+																							isCurrentActive ? "text-purple-200" : "text-purple-600 dark:text-purple-400"
+																						}`}
+																					>
+																						({discountPct}%↓)
+																					</span>
+																				)}
+																			</div>
 																		</div>
 																	);
 																})}
 															</div>
-															{(() => {
-																const activeSlab = product.slabs.find(
-																	(s: any) =>
-																		cartQty >= s.minQuantity &&
-																		(s.maxQuantity === null || cartQty <= s.maxQuantity),
-																);
-																if (activeSlab) {
-																	return (
-																		<div className="mt-1.5 flex items-center justify-between text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 rounded px-1.5 py-0.5 border border-emerald-200/70">
-																			<span>
-																				✓ {activeSlab.minQuantity}{activeSlab.maxQuantity ? `–${activeSlab.maxQuantity}` : "+"} {product.unit || "qty"} Tier Applied!
-																			</span>
-																			<span>₹{Number(activeSlab.unitPrice).toFixed(2)}/unit</span>
-																		</div>
-																	);
-																}
-																return null;
-															})()}
 														</div>
 													)}
 
