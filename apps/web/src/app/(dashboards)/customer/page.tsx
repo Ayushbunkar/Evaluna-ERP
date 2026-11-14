@@ -27,6 +27,7 @@ import { useLocale } from "next-intl";
 import { motion, PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/utils";
+import { getOfferCountdown } from "@/lib/pricing/slab-pricing";
 
 export default function CustomerDashboard() {
 	const trpc = useTRPC();
@@ -279,6 +280,10 @@ export default function CustomerDashboard() {
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 								{products.slice(0, 4).map((prod) => {
 									const hasOffer = Boolean(prod.hasActiveOffer);
+									const offerCountdown = getOfferCountdown(
+										(prod as any).slabEndDate || (prod as any).offerEndDate,
+										locale,
+									);
 									return (
 										<div
 											key={prod.id}
@@ -289,20 +294,34 @@ export default function CustomerDashboard() {
 											}`}
 										>
 											<div>
-												<div className="flex items-center justify-between gap-2">
-													<span className={`rounded-full p-1.5 ${
-														hasOffer ? "bg-amber-500/20 text-red-500" : "bg-blue-500/10 text-blue-500"
-													}`}>
-														{hasOffer ? <FlameIcon className="h-4 w-4 animate-bounce" /> : <PackageIcon className="h-4 w-4" />}
-													</span>
-													{hasOffer ? (
-														<Badge className="bg-gradient-to-r from-amber-500 to-red-600 text-white font-extrabold text-[9px] gap-0.5 shadow-sm">
-															<FlameIcon className="h-2.5 w-2.5" />
-															{prod.discountPercent}% OFF
-														</Badge>
-													) : (
-														<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
-															{locale === "hi" ? "उपलब्ध" : "Available"}
+												<div className="flex items-center justify-between gap-1.5 flex-wrap">
+													<div className="flex items-center gap-1.5">
+														<span className={`rounded-full p-1.5 ${
+															hasOffer ? "bg-amber-500/20 text-red-500" : "bg-blue-500/10 text-blue-500"
+														}`}>
+															{hasOffer ? <FlameIcon className="h-4 w-4 animate-bounce" /> : <PackageIcon className="h-4 w-4" />}
+														</span>
+														{hasOffer ? (
+															<Badge className="bg-gradient-to-r from-amber-500 to-red-600 text-white font-extrabold text-[9px] gap-0.5 shadow-sm">
+																<FlameIcon className="h-2.5 w-2.5" />
+																{prod.discountPercent}% OFF
+															</Badge>
+														) : (
+															<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
+																{locale === "hi" ? "उपलब्ध" : "Available"}
+															</span>
+														)}
+													</div>
+													{offerCountdown && (
+														<span
+															className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-extrabold shadow-2xs ${
+																offerCountdown.urgency === "urgent"
+																	? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse"
+																	: "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80"
+															}`}
+														>
+															<ClockIcon className="h-2.5 w-2.5" />
+															<span>{offerCountdown.badgeText}</span>
 														</span>
 													)}
 												</div>
@@ -327,6 +346,17 @@ export default function CustomerDashboard() {
 																{prod.slabs.length} Tiers
 															</span>
 														</div>
+														{offerCountdown && (
+															<div className="mb-1 flex items-center justify-between text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-300/70">
+																<span className="flex items-center gap-0.5">
+																	<ClockIcon className="h-2.5 w-2.5" />
+																	<span>{offerCountdown.badgeText}</span>
+																</span>
+																<span className="font-mono text-[8px] opacity-85">
+																	{locale === "hi" ? "अंतिम:" : "Till:"} {offerCountdown.formattedDate}
+																</span>
+															</div>
+														)}
 														<div className="grid grid-cols-2 gap-1 text-center">
 															{prod.slabs.slice(0, 2).map((slab: any, idx: number) => (
 																<div key={idx} className="rounded bg-white dark:bg-slate-900 p-1 text-[10px] border border-purple-200/60 dark:border-purple-800/60">

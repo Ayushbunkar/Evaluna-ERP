@@ -259,6 +259,8 @@ export const customerRouter = router({
 				}
 
 				const itemSlabs = slabsMap.get(p.id) || [];
+				const slabEndDate = itemSlabs.find((s) => s.endDate)?.endDate || null;
+				const slabStartDate = itemSlabs.find((s) => s.startDate)?.startDate || null;
 
 				return {
 					id: p.id,
@@ -270,8 +272,11 @@ export const customerRouter = router({
 					discountPercent,
 					hasActiveOffer,
 					offerReason,
+					offerEndDate: disc?.end_date || null,
 					hasSlabs: itemSlabs.length > 0,
 					slabs: itemSlabs,
+					slabEndDate,
+					slabStartDate,
 					unit: p.unit ?? null,
 					sku: p.sku ?? null,
 					image: (p as any).image_url ?? (p as any).image ?? null,

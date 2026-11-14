@@ -41,6 +41,7 @@ import {
 	TagIcon,
 	Trash2Icon,
 	TruckIcon,
+	ClockIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -48,7 +49,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { calculateEffectivePrice, type PricingSlab } from "@/lib/pricing/slab-pricing";
+import { calculateEffectivePrice, getOfferCountdown, type PricingSlab } from "@/lib/pricing/slab-pricing";
 
 type CartItem = {
 	productId: number;
@@ -628,6 +629,10 @@ export default function CustomerProductsPage() {
 						const inCart = cart[product.id];
 						const currentQty = inCart ? inCart.quantity : getCardQty(product.id);
 						const hasOffer = Boolean(product.hasActiveOffer);
+						const offerCountdown = getOfferCountdown(
+							(product as any).slabEndDate || (product as any).offerEndDate,
+							locale,
+						);
 
 						return (
 							<Card
@@ -661,6 +666,21 @@ export default function CustomerProductsPage() {
 													<LayersIcon className="h-3 w-3 text-purple-600" />
 													<span>Bulk Discounts</span>
 												</Badge>
+											)}
+											{offerCountdown && (
+												<span
+													className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-extrabold text-[10px] shadow-2xs transition-all ${
+														offerCountdown.urgency === "urgent"
+															? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse"
+															: offerCountdown.urgency === "warning"
+																? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800"
+																: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800"
+													}`}
+													title={`Valid until ${offerCountdown.formattedDate}`}
+												>
+													<ClockIcon className="h-3 w-3" />
+													<span>{offerCountdown.badgeText}</span>
+												</span>
 											)}
 											<span
 												className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
@@ -796,6 +816,25 @@ export default function CustomerProductsPage() {
 													{(product as any).slabs.length} Slabs Available
 												</span>
 											</div>
+
+											{/* Offer validity window banner / Countdown */}
+											{offerCountdown && (
+												<div className={`flex items-center justify-between rounded px-2 py-1 text-[10px] font-semibold border ${
+													offerCountdown.urgency === "urgent"
+														? "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900"
+														: offerCountdown.urgency === "warning"
+															? "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900"
+															: "bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900"
+												}`}>
+													<span className="flex items-center gap-1 font-bold">
+														<ClockIcon className="h-3 w-3 text-current" />
+														<span>{offerCountdown.badgeText}</span>
+													</span>
+													<span className="text-[9px] opacity-85 font-mono">
+														{locale === "hi" ? "अंतिम तिथि:" : "Valid until:"} {offerCountdown.formattedDate}
+													</span>
+												</div>
+											)}
 
 											<div className={`grid gap-1.5 ${(product as any).slabs.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"} text-center`}>
 												{(product as any).slabs.map((slab: any, sIdx: number) => {

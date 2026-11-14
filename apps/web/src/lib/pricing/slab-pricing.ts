@@ -201,3 +201,103 @@ export function validateSlabs(
 
 	return { valid: true, isValid: true, errors: [] };
 }
+
+export interface OfferCountdownResult {
+	isExpired: boolean;
+	daysLeft: number;
+	hoursLeft: number;
+	badgeText: string;
+	urgency: "urgent" | "warning" | "normal";
+	formattedDate: string;
+}
+
+/**
+ * Calculates countdown / urgency details for an offer or quantity slab with an end date.
+ */
+export function getOfferCountdown(
+	endDateStr?: string | null,
+	locale: string = "en",
+): OfferCountdownResult | null {
+	if (!endDateStr) return null;
+	const trimmed = String(endDateStr).trim();
+	if (!trimmed) return null;
+
+	const parts = trimmed.split("T")[0].split("-");
+	let endTimestamp: number;
+	if (parts.length === 3) {
+		const year = Number.parseInt(parts[0], 10);
+		const month = Number.parseInt(parts[1], 10) - 1;
+		const day = Number.parseInt(parts[2], 10);
+		endTimestamp = new Date(year, month, day, 23, 59, 59, 999).getTime();
+	} else {
+		endTimestamp = new Date(trimmed).getTime();
+	}
+
+	if (Number.isNaN(endTimestamp)) return null;
+
+	const now = Date.now();
+	const diffMs = endTimestamp - now;
+
+	// Format display date: DD/MM/YYYY
+	let formattedDate = trimmed.split("T")[0];
+	if (parts.length === 3) {
+		formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+	}
+
+	if (diffMs <= 0) {
+		return {
+			isExpired: true,
+			daysLeft: 0,
+			hoursLeft: 0,
+			badgeText: locale === "hi" ? "⏳ आज अंतिम दिन!" : "⏳ Ends today!",
+			urgency: "urgent",
+			formattedDate,
+		};
+	}
+
+	const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+	const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+	if (diffDays <= 1) {
+		return {
+			isExpired: false,
+			daysLeft: 1,
+			hoursLeft: diffHours,
+			badgeText: locale === "hi" ? "⏳ आज अंतिम दिन!" : "⏳ Ends today!",
+			urgency: "urgent",
+			formattedDate,
+		};
+	}
+
+	if (diffDays <= 3) {
+		return {
+			isExpired: false,
+			daysLeft: diffDays,
+			hoursLeft: diffHours,
+			badgeText: locale === "hi" ? `⏳ केवल ${diffDays} दिन शेष!` : `⏳ Only ${diffDays} days left!`,
+			urgency: "urgent",
+			formattedDate,
+		};
+	}
+
+	if (diffDays <= 7) {
+		return {
+			isExpired: false,
+			daysLeft: diffDays,
+			hoursLeft: diffHours,
+			badgeText: locale === "hi" ? `⏳ ${diffDays} दिन शेष` : `⏳ ${diffDays} days left`,
+			urgency: "warning",
+			formattedDate,
+		};
+	}
+
+	return {
+		isExpired: false,
+		daysLeft: diffDays,
+		hoursLeft: diffHours,
+		badgeText: locale === "hi" ? `⏳ ${diffDays} दिन शेष` : `⏳ ${diffDays} days left`,
+		urgency: "normal",
+		formattedDate,
+	};
+}
+

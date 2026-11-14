@@ -7,6 +7,7 @@ import {
 	Calendar,
 	ChevronDown,
 	ChevronUp,
+	Clock,
 	Edit3,
 	IndianRupee,
 	Info,
@@ -66,7 +67,7 @@ import {
 } from "@/lib/animations";
 import { offlineDb, queueOfflineOrder } from "@/lib/offline-db";
 import { trpc } from "@/lib/trpc/client";
-import { calculateEffectivePrice, type PricingSlab } from "@/lib/pricing/slab-pricing";
+import { calculateEffectivePrice, getOfferCountdown, type PricingSlab } from "@/lib/pricing/slab-pricing";
 
 export function getItemPriceForQty(
 	item: any,
@@ -1581,6 +1582,10 @@ function POSContent() {
 								const cartItem = cart.find((item) => item.id === product.id);
 								const isInCart = Boolean(cartItem);
 								const cartQty = cartItem ? cartItem.qty : 0;
+								const offerCountdown = getOfferCountdown(
+									product.slabEndDate || product.offerEndDate,
+									locale,
+								);
 
 								return (
 									<StaggerItem key={product.id}>
@@ -1626,6 +1631,19 @@ function POSContent() {
 															>
 																#{product.id}
 															</span>
+															{offerCountdown && (
+																<span
+																	className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 font-extrabold text-[9px] shadow-2xs ${
+																		offerCountdown.urgency === "urgent"
+																			? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse"
+																			: "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80"
+																	}`}
+																	title={`Offer valid until ${offerCountdown.formattedDate}`}
+																>
+																	<Clock className="h-2.5 w-2.5" />
+																	<span>{offerCountdown.badgeText}</span>
+																</span>
+															)}
 															{isInCart && (
 																<button
 																	type="button"
@@ -1733,6 +1751,21 @@ function POSContent() {
 																	{product.slabs.length} {locale === "hi" ? "स्लैब" : "Slabs"}
 																</span>
 															</div>
+															{offerCountdown && (
+																<div className={`mb-1.5 flex items-center justify-between rounded px-1.5 py-0.5 text-[9px] font-bold border ${
+																	offerCountdown.urgency === "urgent"
+																		? "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900"
+																		: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900"
+																}`}>
+																	<span className="flex items-center gap-1">
+																		<Clock className="h-2.5 w-2.5" />
+																		<span>{offerCountdown.badgeText}</span>
+																	</span>
+																	<span className="font-mono text-[8px] opacity-85">
+																		{locale === "hi" ? "अंतिम:" : "Till:"} {offerCountdown.formattedDate}
+																	</span>
+																</div>
+															)}
 															<div className={`grid gap-1.5 ${product.slabs.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
 																{product.slabs.map((slab: any, idx: number) => {
 																	const isCurrentActive =

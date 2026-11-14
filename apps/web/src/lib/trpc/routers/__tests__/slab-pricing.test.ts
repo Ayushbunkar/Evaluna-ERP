@@ -5,6 +5,7 @@ import { products, productSlabPricing } from "@/lib/db/schema";
 import {
 	calculateEffectivePrice,
 	findMatchingSlab,
+	getOfferCountdown,
 	validateSlabs,
 	type PricingSlab,
 } from "@/lib/pricing/slab-pricing";
@@ -247,3 +248,54 @@ describe("Slab Pricing tRPC Router Integration", () => {
 		expect(p2.slabs[0].unitPrice).toBe(40.0);
 	});
 });
+
+describe("Offer Countdown & Urgency Indicator", () => {
+	it("returns null when no end date is provided", () => {
+		expect(getOfferCountdown(null)).toBeNull();
+		expect(getOfferCountdown(undefined)).toBeNull();
+		expect(getOfferCountdown("")).toBeNull();
+		expect(getOfferCountdown("   ")).toBeNull();
+	});
+
+	it("returns expired urgency when end date has passed", () => {
+		const result = getOfferCountdown("2020-01-01");
+		expect(result).not.toBeNull();
+		expect(result?.isExpired).toBe(true);
+		expect(result?.urgency).toBe("urgent");
+		expect(result?.badgeText).toContain("Ends today");
+	});
+
+	it("correctly handles Hindi locale for expired / ending today offers", () => {
+		const result = getOfferCountdown("2020-01-01", "hi");
+		expect(result).not.toBeNull();
+		expect(result?.isExpired).toBe(true);
+		expect(result?.badgeText).toContain("अंतिम दिन");
+	});
+
+	it("calculates urgency for future dates accurately", () => {
+		const now = new Date();
+
+		// 2 days in future
+		const twoDaysLater = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+		const twoDaysStr = twoDaysLater.toISOString().split("T")[0];
+		const res2 = getOfferCountdown(twoDaysStr);
+		expect(res2?.isExpired).toBe(false);
+		expect(res2?.urgency).toBe("urgent");
+		expect(res2?.badgeText).toMatch(/\d+\s+days?\s+left/i);
+
+		// 5 days in future
+		const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+		const fiveDaysStr = fiveDaysLater.toISOString().split("T")[0];
+		const res5 = getOfferCountdown(fiveDaysStr);
+		expect(res5?.isExpired).toBe(false);
+		expect(res5?.urgency).toBe("warning");
+
+		// 15 days in future
+		const fifteenDaysLater = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+		const fifteenDaysStr = fifteenDaysLater.toISOString().split("T")[0];
+		const res15 = getOfferCountdown(fifteenDaysStr);
+		expect(res15?.isExpired).toBe(false);
+		expect(res15?.urgency).toBe("normal");
+	});
+});
+
