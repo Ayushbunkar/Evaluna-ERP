@@ -53,7 +53,68 @@ export function isSlabValidForDate(
 }
 
 /**
+ * Checks whether a requested quantity falls into a specific slab.
+ * Respects tier transitions so that decimal quantities (e.g. 3.9 or 7.5) stay
+ * in their respective tier (1-3 and 4-7) until the exact start of the next tier (4 or 8).
+ */
+export function isQuantityInSlab(
+	slab: PricingSlab,
+	allSlabs: PricingSlab[] | undefined | null,
+	quantity: number,
+	targetDate?: string | Date,
+): boolean {
+	const qty = Number(quantity);
+	if (isNaN(qty) || qty <= 0) return false;
+
+	const min = Number(slab.minQuantity);
+	if (qty < min) return false;
+
+	// Active slabs sorted by minQuantity ASC
+	const activeSlabs = (allSlabs || [])
+		.filter((s) => isSlabValidForDate(s, targetDate))
+		.sort((a, b) => Number(a.minQuantity) - Number(b.minQuantity));
+
+	const currentIndex = activeSlabs.findIndex(
+		(s) =>
+			Number(s.minQuantity) === min &&
+			(s.id !== undefined && slab.id !== undefined
+				? s.id === slab.id
+				: Number(s.unitPrice) === Number(slab.unitPrice)),
+	);
+
+	const nextSlab =
+		currentIndex >= 0 && currentIndex < activeSlabs.length - 1
+			? activeSlabs[currentIndex + 1]
+			: null;
+
+	if (nextSlab) {
+		const nextMin = Number(nextSlab.minQuantity);
+		// Decimal quantities before the next tier starts belong to this tier:
+		// e.g. 3.9 < 4 (stays in 1-3 slab), 7.5 < 8 (stays in 4-7 slab)
+		return qty < nextMin;
+	}
+
+	// For the last tier or single tier
+	const max =
+		slab.maxQuantity !== null && slab.maxQuantity !== undefined
+			? Number(slab.maxQuantity)
+			: null;
+
+	if (max === null) {
+		return true; // Unlimited onwards (e.g. 8+)
+	}
+
+	if (Number.isInteger(max)) {
+		return qty < max + 1;
+	}
+
+	return qty <= max;
+}
+
+/**
  * Finds the applicable slab for a specific line quantity and date.
+ * Decimal quantities (e.g. 3.9 or 7.5) stay in their respective tier (1-3 and 4-7)
+ * until reaching the exact start of the subsequent tier (4 or 8).
  */
 export function findMatchingSlab(
 	slabs: PricingSlab[] | undefined | null,
@@ -71,16 +132,31 @@ export function findMatchingSlab(
 	}
 
 	// Sort slabs by minQuantity ASC
-	const sorted = [...activeSlabs].sort((a, b) => a.minQuantity - b.minQuantity);
+	const sorted = [...activeSlabs].sort((a, b) => Number(a.minQuantity) - Number(b.minQuantity));
 
-	for (const slab of sorted) {
+	for (let i = 0; i < sorted.length; i++) {
+		const slab = sorted[i];
 		const min = Number(slab.minQuantity);
-		const max = slab.maxQuantity !== null && slab.maxQuantity !== undefined
-			? Number(slab.maxQuantity)
-			: null;
+		if (quantity < min) continue;
 
-		if (quantity >= min && (max === null || quantity <= max)) {
-			return slab;
+		const nextSlab = i < sorted.length - 1 ? sorted[i + 1] : null;
+		if (nextSlab) {
+			const nextMin = Number(nextSlab.minQuantity);
+			if (quantity < nextMin) {
+				return slab;
+			}
+		} else {
+			// Last slab
+			const max =
+				slab.maxQuantity !== null && slab.maxQuantity !== undefined
+					? Number(slab.maxQuantity)
+					: null;
+			if (max === null) {
+				return slab;
+			}
+			if (Number.isInteger(max) ? quantity < max + 1 : quantity <= max) {
+				return slab;
+			}
 		}
 	}
 

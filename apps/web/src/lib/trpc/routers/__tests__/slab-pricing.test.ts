@@ -6,6 +6,7 @@ import {
 	calculateEffectivePrice,
 	findMatchingSlab,
 	getOfferCountdown,
+	isQuantityInSlab,
 	validateSlabs,
 	type PricingSlab,
 } from "@/lib/pricing/slab-pricing";
@@ -54,15 +55,35 @@ describe("Slab Pricing Engine", () => {
 		expect(calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 100 }).unitPrice).toBe(9.0);
 	});
 
-	it("supports decimal quantities accurately", () => {
+	it("supports decimal quantities accurately and preserves tier boundaries", () => {
 		// 2.5 kg falls into 1-3 tier
 		const res2_5 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 2.5 });
 		expect(res2_5.unitPrice).toBe(9.22);
 		expect(res2_5.totalPrice).toBeCloseTo(2.5 * 9.22, 2);
 
+		// 3.9 units stays in 1-3 tier (before next tier 4 starts)
+		const res3_9 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 3.9 });
+		expect(res3_9.unitPrice).toBe(9.22);
+
+		// Exactly 4 units starts 4-7 tier
+		const res4 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 4.0 });
+		expect(res4.unitPrice).toBe(9.10);
+
 		// 5.75 kg falls into 4-7 tier
 		const res5_75 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 5.75 });
 		expect(res5_75.unitPrice).toBe(9.10);
+
+		// 7.5 units stays in 4-7 tier (before next tier 8 starts)
+		const res7_5 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 7.5 });
+		expect(res7_5.unitPrice).toBe(9.10);
+
+		// 7.99 units stays in 4-7 tier
+		const res7_99 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 7.99 });
+		expect(res7_99.unitPrice).toBe(9.10);
+
+		// Exactly 8 units starts 8+ tier
+		const res8 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 8.0 });
+		expect(res8.unitPrice).toBe(9.0);
 
 		// 13.5 kg falls into 8+ tier
 		const res13_5 = calculateEffectivePrice({ regularPrice, slabs: standardSlabs, quantity: 13.5 });
@@ -76,6 +97,32 @@ describe("Slab Pricing Engine", () => {
 		expect(res.unitPrice).toBe(9.10);
 		expect(res.savingsPerUnit).toBeCloseTo(0.9, 2);
 		expect(res.discountPercent).toBe(9);
+	});
+
+	it("verifies isQuantityInSlab accurately determines tier activation", () => {
+		const slab1_3 = standardSlabs[0]; // 1-3
+		const slab4_7 = standardSlabs[1]; // 4-7
+		const slab8_plus = standardSlabs[2]; // 8+
+
+		// Test 3.9 -> belongs to 1-3
+		expect(isQuantityInSlab(slab1_3, standardSlabs, 3.9)).toBe(true);
+		expect(isQuantityInSlab(slab4_7, standardSlabs, 3.9)).toBe(false);
+		expect(isQuantityInSlab(slab8_plus, standardSlabs, 3.9)).toBe(false);
+
+		// Test 4.0 -> belongs to 4-7
+		expect(isQuantityInSlab(slab1_3, standardSlabs, 4.0)).toBe(false);
+		expect(isQuantityInSlab(slab4_7, standardSlabs, 4.0)).toBe(true);
+		expect(isQuantityInSlab(slab8_plus, standardSlabs, 4.0)).toBe(false);
+
+		// Test 7.5 -> belongs to 4-7
+		expect(isQuantityInSlab(slab1_3, standardSlabs, 7.5)).toBe(false);
+		expect(isQuantityInSlab(slab4_7, standardSlabs, 7.5)).toBe(true);
+		expect(isQuantityInSlab(slab8_plus, standardSlabs, 7.5)).toBe(false);
+
+		// Test 8.0 -> belongs to 8+
+		expect(isQuantityInSlab(slab1_3, standardSlabs, 8.0)).toBe(false);
+		expect(isQuantityInSlab(slab4_7, standardSlabs, 8.0)).toBe(false);
+		expect(isQuantityInSlab(slab8_plus, standardSlabs, 8.0)).toBe(true);
 	});
 
 	it("falls back to regular price when quantity is below minimum tier", () => {

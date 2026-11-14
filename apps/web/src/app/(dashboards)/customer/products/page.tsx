@@ -49,7 +49,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
-import { calculateEffectivePrice, getOfferCountdown, type PricingSlab } from "@/lib/pricing/slab-pricing";
+import { calculateEffectivePrice, findMatchingSlab, getOfferCountdown, isQuantityInSlab, type PricingSlab } from "@/lib/pricing/slab-pricing";
 
 type CartItem = {
 	productId: number;
@@ -717,11 +717,7 @@ export default function CustomerProductsPage() {
 												: "border-border/60 bg-muted/20"
 									}`}>
 										{(() => {
-											const activeSlab = (product as any).slabs?.find(
-												(s: any) =>
-													currentQty >= s.minQuantity &&
-													(s.maxQuantity === null || currentQty <= s.maxQuantity),
-											);
+											const activeSlab = findMatchingSlab((product as any).slabs, currentQty);
 											const isSlabActive = Boolean(activeSlab);
 											const effectivePrice = isSlabActive
 												? Number(activeSlab.unitPrice)
@@ -838,9 +834,7 @@ export default function CustomerProductsPage() {
 
 											<div className={`grid gap-1.5 ${(product as any).slabs.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"} text-center`}>
 												{(product as any).slabs.map((slab: any, sIdx: number) => {
-													const isActive =
-														currentQty >= slab.minQuantity &&
-														(slab.maxQuantity === null || currentQty <= slab.maxQuantity);
+													const isActive = isQuantityInSlab(slab, (product as any).slabs, currentQty);
 													const slabPrice = Number(slab.unitPrice);
 													const baseP = Number(product.originalPrice || product.price || 0);
 													const pct = baseP > 0 ? Math.round(((baseP - slabPrice) / baseP) * 100) : 0;
@@ -873,11 +867,7 @@ export default function CustomerProductsPage() {
 
 											{/* Active Tier Alert Banner */}
 											{(() => {
-												const activeSlab = (product as any).slabs.find(
-													(s: any) =>
-														currentQty >= s.minQuantity &&
-														(s.maxQuantity === null || currentQty <= s.maxQuantity),
-												);
+												const activeSlab = findMatchingSlab((product as any).slabs, currentQty);
 												if (activeSlab) {
 													const baseP = Number(product.originalPrice || product.price || 0);
 													const saved = Math.max(0, baseP - Number(activeSlab.unitPrice));

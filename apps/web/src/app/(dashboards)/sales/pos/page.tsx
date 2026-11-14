@@ -67,7 +67,7 @@ import {
 } from "@/lib/animations";
 import { offlineDb, queueOfflineOrder } from "@/lib/offline-db";
 import { trpc } from "@/lib/trpc/client";
-import { calculateEffectivePrice, getOfferCountdown, type PricingSlab } from "@/lib/pricing/slab-pricing";
+import { calculateEffectivePrice, findMatchingSlab, getOfferCountdown, isQuantityInSlab, type PricingSlab } from "@/lib/pricing/slab-pricing";
 
 export function getItemPriceForQty(
 	item: any,
@@ -1671,10 +1671,10 @@ function POSContent() {
 												<CardContent className="flex flex-col justify-end p-3 pt-0 sm:p-4 sm:pt-0">
 													{/* Price & Slab Pricing Display */}
 													{(() => {
-														const activeSlab = product.slabs?.find(
-															(s: any) =>
-																cartQty >= s.minQuantity &&
-																(s.maxQuantity === null || cartQty <= s.maxQuantity),
+														const activeSlab = findMatchingSlab(
+															product.slabs,
+															cartQty,
+															customBillDate,
 														);
 
 														if (activeSlab) {
@@ -1768,9 +1768,12 @@ function POSContent() {
 															)}
 															<div className="space-y-0.5">
 																{product.slabs.map((slab: any, idx: number) => {
-																	const isCurrentActive =
-																		cartQty >= slab.minQuantity &&
-																		(slab.maxQuantity === null || cartQty <= slab.maxQuantity);
+																	const isCurrentActive = isQuantityInSlab(
+																		slab,
+																		product.slabs,
+																		cartQty,
+																		customBillDate,
+																	);
 																	const slabPrice = Number(slab.unitPrice);
 																	const regPrice = Number.parseFloat(product.originalPrice || product.price || "0");
 																	const discountPct =
