@@ -50,6 +50,7 @@ import {
 	PencilIcon,
 	PercentIcon,
 	PlusIcon,
+	PlusCircleIcon,
 	RefreshCwIcon,
 	SaveIcon,
 	SearchIcon,
@@ -148,6 +149,8 @@ export default function StockPage() {
 	const [editSku, setEditSku] = useState<string>("");
 	const [editDescription, setEditDescription] = useState<string>("");
 	const [editStockQty, setEditStockQty] = useState<string>("");
+	const [editInitialStockQty, setEditInitialStockQty] = useState<number>(0);
+	const [addedStockQty, setAddedStockQty] = useState<string>("");
 	const [editReorderLevel, setEditReorderLevel] = useState<string>("10");
 	const [editPrice, setEditPrice] = useState<string>("");
 	const [editCostPrice, setEditCostPrice] = useState<string>("");
@@ -683,7 +686,10 @@ export default function StockPage() {
 		setEditBarcode(item.barcode || "");
 		setEditSku(item.sku || "");
 		setEditDescription(item.description || "");
-		setEditStockQty(String(item.qty_on_hand ?? 0));
+		const initialStock = Number(item.qty_on_hand ?? 0);
+		setEditInitialStockQty(initialStock);
+		setEditStockQty(String(initialStock));
+		setAddedStockQty("");
 		setEditReorderLevel(String(item.reorder_level ?? 10));
 		setEditPrice(String(item.price ?? 0));
 		const rawCost =
@@ -699,6 +705,32 @@ export default function StockPage() {
 		);
 		setEditPricingDate(item.historicalDate || historicalDate || todayDateStr);
 		setEditReason("Stock and product details updated by warehouse manager");
+	};
+
+	const handleAddedStockChange = (valStr: string) => {
+		setAddedStockQty(valStr);
+		const added = Number.parseFloat(valStr);
+		if (!Number.isNaN(added) && added >= 0) {
+			const total = Math.round((editInitialStockQty + added) * 1000) / 1000;
+			setEditStockQty(String(total));
+			setEditReason(
+				`+${added} ${editUnit || "Units"} stock added (Previous: ${editInitialStockQty} → New: ${total})`,
+			);
+		} else if (valStr.trim() === "") {
+			setEditStockQty(String(editInitialStockQty));
+			setEditReason("Stock and product details updated by warehouse manager");
+		}
+	};
+
+	const handleDirectStockChange = (valStr: string) => {
+		setEditStockQty(valStr);
+		const direct = Number.parseFloat(valStr);
+		if (!Number.isNaN(direct) && direct >= editInitialStockQty) {
+			const diff = Math.round((direct - editInitialStockQty) * 1000) / 1000;
+			setAddedStockQty(diff > 0 ? String(diff) : "");
+		} else {
+			setAddedStockQty("");
+		}
 	};
 
 	const handleSaveEdit = async () => {
@@ -2000,23 +2032,81 @@ export default function StockPage() {
 								</div>
 							</div>
 
-							{/* Stock Qty, Low Stock Threshold & Audit Reason */}
-							<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-								<div className="space-y-1.5">
-									<Label htmlFor="stockQty" className="font-semibold text-xs">
-										Physical Stock Quantity ({editUnit || "Units"}) *
-									</Label>
-									<Input
-										id="stockQty"
-										type="number"
-										step="any"
-										min="0"
-										placeholder="e.g. 100 or 13.5"
-										value={editStockQty}
-										onChange={(e) => setEditStockQty(e.target.value)}
-										className="font-bold font-mono text-sm"
-									/>
+							{/* Stock Management Box with Add Incoming Stock */}
+							<div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3.5 dark:border-emerald-900/60 dark:bg-emerald-950/25 space-y-2">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+									{/* New Item to Add Box */}
+									<div className="space-y-1.5">
+										<Label
+											htmlFor="addStockQty"
+											className="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between"
+										>
+											<span className="flex items-center gap-1.5">
+												<PlusCircleIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+												<span>New Items to Add (+ नया स्टॉक जोड़ें)</span>
+											</span>
+											<span className="text-[10px] text-muted-foreground font-normal">
+												वर्तमान: {editInitialStockQty} {editUnit || "Pcs"}
+											</span>
+										</Label>
+										<div className="relative">
+											<span className="absolute top-1/2 left-3 -translate-y-1/2 font-black text-emerald-600 dark:text-emerald-400 text-sm">
+												+
+											</span>
+											<Input
+												id="addStockQty"
+												type="number"
+												step="any"
+												min="0"
+												placeholder="e.g. 50 or 13.5"
+												value={addedStockQty}
+												onChange={(e) => handleAddedStockChange(e.target.value)}
+												className="pl-7 font-bold font-mono text-sm border-emerald-300 bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-200 focus:border-emerald-500 shadow-2xs"
+											/>
+										</div>
+										<p className="text-[10px] text-muted-foreground">
+											नए आए आइटम यहाँ लिखें, यह नीचे कुल स्टॉक में स्वतः जुड़ जाएगा।
+										</p>
+									</div>
+
+									{/* Total Physical Stock Quantity */}
+									<div className="space-y-1.5">
+										<Label
+											htmlFor="stockQty"
+											className="font-bold text-xs flex items-center justify-between"
+										>
+											<span>Total Physical Stock ({editUnit || "Units"}) *</span>
+											{Number.parseFloat(addedStockQty || "0") > 0 && (
+												<Badge className="bg-emerald-600 text-white text-[10px] h-4 font-mono">
+													+{addedStockQty} added
+												</Badge>
+											)}
+										</Label>
+										<Input
+											id="stockQty"
+											type="number"
+											step="any"
+											min="0"
+											placeholder="e.g. 100 or 13.5"
+											value={editStockQty}
+											onChange={(e) => handleDirectStockChange(e.target.value)}
+											className="font-bold font-mono text-sm bg-white dark:bg-slate-900"
+										/>
+										{Number.parseFloat(addedStockQty || "0") > 0 ? (
+											<p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+												✓ कुल: {editInitialStockQty} + {addedStockQty} = <strong>{editStockQty}</strong> {editUnit || "Pcs"}
+											</p>
+										) : (
+											<p className="text-[10px] text-muted-foreground">
+												Physical count on warehouse bins/shelves.
+											</p>
+										)}
+									</div>
 								</div>
+							</div>
+
+							{/* Low Stock Threshold & Audit Reason */}
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 								<div className="space-y-1.5">
 									<Label
 										htmlFor="editReorderLevel"
