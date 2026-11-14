@@ -348,13 +348,13 @@ export default function CustomerDashboard() {
 															</span>
 														</div>
 														{offerCountdown ? (
-															<div className="mb-1 flex items-center justify-between text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-300/70">
-																<span className="flex items-center gap-0.5">
-																	<ClockIcon className="h-2.5 w-2.5 animate-pulse" />
-																	<span>{offerCountdown.badgeText}</span>
+															<div className="mb-1 flex items-center justify-between gap-1 text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-300/70">
+																<span className="flex items-center gap-1 min-w-0 shrink-0">
+																	<ClockIcon className="h-2.5 w-2.5 animate-pulse text-amber-600 dark:text-amber-400" />
+																	<span className="whitespace-nowrap font-mono">{offerCountdown.formattedDate}</span>
 																</span>
-																<span className="font-mono text-[9px] font-bold text-amber-900 dark:text-amber-100">
-																	{locale === "hi" ? "अंतिम:" : "Till:"} {offerCountdown.formattedDate} ({offerCountdown.daysLeft}d)
+																<span className="font-mono text-[8.5px] font-extrabold bg-amber-200/80 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+																	{offerCountdown.badgeText}
 																</span>
 															</div>
 														) : (

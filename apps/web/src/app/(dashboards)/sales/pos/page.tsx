@@ -1746,22 +1746,24 @@ function POSContent() {
 														<div className="mt-1 rounded-md border border-purple-200/80 bg-purple-50/40 p-1 dark:border-purple-800/70 dark:bg-purple-950/25">
 															{/* Offer validity date for salesperson on call */}
 															{offerCountdown ? (
-																<div className="mb-1 flex items-center justify-between rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 dark:text-amber-200 border border-amber-300/80 dark:border-amber-800/80">
-																	<span className="flex items-center gap-1">
+																<div className="mb-1 flex items-center justify-between gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[8.5px] font-bold text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-800/80 leading-tight">
+																	<div className="flex items-center gap-1 min-w-0 shrink-0">
 																		<Clock className="h-2.5 w-2.5 shrink-0 animate-pulse text-amber-600 dark:text-amber-400" />
-																		<span>{locale === "hi" ? `ऑफ़र: ${offerCountdown.formattedDate} तक` : `Offer till ${offerCountdown.formattedDate}`}</span>
-																	</span>
-																	<span className="font-mono text-amber-900 dark:text-amber-100 font-extrabold whitespace-nowrap">
-																		{locale === "hi" ? `(${offerCountdown.daysLeft} दिन शेष)` : `(${offerCountdown.daysLeft}d left)`}
+																		<span className="whitespace-nowrap font-mono text-[8.5px] font-bold">
+																			{offerCountdown.formattedDate}
+																		</span>
+																	</div>
+																	<span className="shrink-0 whitespace-nowrap font-mono text-[8px] font-extrabold bg-amber-200/80 dark:bg-amber-950/80 text-amber-950 dark:text-amber-100 px-1 py-0.2 rounded">
+																		{locale === "hi" ? `${offerCountdown.daysLeft} दिन शेष` : `${offerCountdown.daysLeft}d left`}
 																	</span>
 																</div>
 															) : (
 																<div className="mb-0.5 flex items-center justify-between rounded bg-white/70 dark:bg-slate-900/60 px-1 py-0.5 text-[8.5px] font-medium text-muted-foreground border border-purple-100 dark:border-purple-900/40">
-																	<span className="flex items-center gap-0.5">
+																	<span className="flex items-center gap-0.5 whitespace-nowrap">
 																		<Calendar className="h-2.5 w-2.5 shrink-0 text-purple-500" />
 																		<span>{locale === "hi" ? "दर वैधता:" : "Rate Validity:"}</span>
 																	</span>
-																	<span className="font-semibold text-emerald-600 dark:text-emerald-400">
+																	<span className="font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
 																		{locale === "hi" ? "नियमित (स्थाई)" : "Standard (Regular)"}
 																	</span>
 																</div>

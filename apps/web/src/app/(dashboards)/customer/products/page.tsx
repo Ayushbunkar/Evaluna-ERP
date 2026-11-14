@@ -816,28 +816,30 @@ export default function CustomerProductsPage() {
 
 											{/* Offer validity window banner / Countdown */}
 											{offerCountdown ? (
-												<div className={`flex items-center justify-between rounded px-2 py-1 text-[10px] font-semibold border ${
+												<div className={`flex items-center justify-between gap-1.5 rounded px-2 py-1 text-[10px] font-semibold border ${
 													offerCountdown.urgency === "urgent"
 														? "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900"
 														: offerCountdown.urgency === "warning"
-															? "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900"
-															: "bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900"
+															? "bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-900"
+															: "bg-purple-50 text-purple-900 border-purple-200 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-900"
 												}`}>
-													<span className="flex items-center gap-1 font-bold">
-														<ClockIcon className="h-3 w-3 text-current animate-pulse" />
-														<span>{offerCountdown.badgeText}</span>
-													</span>
-													<span className="text-[9px] font-mono font-bold">
-														{locale === "hi" ? "वैध:" : "Valid till:"} {offerCountdown.formattedDate} ({offerCountdown.daysLeft} {locale === "hi" ? "दिन" : "d"})
+													<div className="flex items-center gap-1.5 min-w-0 shrink-0">
+														<ClockIcon className="h-3 w-3 text-current shrink-0 animate-pulse" />
+														<span className="font-bold whitespace-nowrap text-[10px]">
+															{locale === "hi" ? `वैध: ${offerCountdown.formattedDate}` : `Valid: ${offerCountdown.formattedDate}`}
+														</span>
+													</div>
+													<span className="shrink-0 whitespace-nowrap font-mono text-[9px] font-extrabold bg-white/90 dark:bg-slate-900/90 text-amber-950 dark:text-amber-100 px-1.5 py-0.5 rounded shadow-2xs border border-amber-200/60 dark:border-amber-800/60">
+														{offerCountdown.badgeText}
 													</span>
 												</div>
 											) : (
-												<div className="flex items-center justify-between rounded px-2 py-0.5 text-[9px] font-medium text-purple-800 dark:text-purple-300 bg-white/80 dark:bg-slate-900/60 border border-purple-200/60 dark:border-purple-800/60">
-													<span className="flex items-center gap-1">
-														<CalendarIcon className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400" />
+												<div className="flex items-center justify-between gap-1 rounded px-2 py-0.5 text-[9px] font-medium text-purple-800 dark:text-purple-300 bg-white/80 dark:bg-slate-900/60 border border-purple-200/60 dark:border-purple-800/60">
+													<span className="flex items-center gap-1 whitespace-nowrap">
+														<CalendarIcon className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
 														<span>{locale === "hi" ? "दर वैधता: नियमित थोक दर (स्थाई)" : "Rate Validity: Regular Ongoing Rate"}</span>
 													</span>
-													<span className="font-semibold text-emerald-600 dark:text-emerald-400">
+													<span className="font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 whitespace-nowrap">
 														{locale === "hi" ? "सक्रिय" : "Active"}
 													</span>
 												</div>

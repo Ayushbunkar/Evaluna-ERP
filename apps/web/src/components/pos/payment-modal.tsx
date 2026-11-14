@@ -878,16 +878,19 @@ export function PaymentModal({
 															{locale === "hi" ? "भुगतान विवरण (Breakdown):" : "Payment Breakdown:"}
 														</span>
 														{numReceived >= displayAmount ? (
-															<Badge className="bg-emerald-600 text-white font-bold text-[10px]">
-																✓ {locale === "hi" ? "पूर्ण भुगतान (Fully Paid)" : "Fully Paid"}
+															<Badge className="bg-emerald-600 text-white font-bold text-[10px] inline-flex items-center gap-1">
+																<CheckCircle2 className="h-3 w-3" />
+																<span>{locale === "hi" ? "पूर्ण भुगतान (Fully Paid)" : "Fully Paid"}</span>
 															</Badge>
 														) : numReceived > 0 ? (
-															<Badge className="bg-amber-500 text-white font-bold text-[10px]">
-																⌛ {locale === "hi" ? "अग्रिम / आंशिक भुगतान (Advance Received)" : "Advance / Partial Paid"}
+															<Badge className="bg-amber-500 text-white font-bold text-[10px] inline-flex items-center gap-1">
+																<Clock className="h-3 w-3" />
+																<span>{locale === "hi" ? "अग्रिम / आंशिक भुगतान (Advance Received)" : "Advance / Partial Paid"}</span>
 															</Badge>
 														) : (
-															<Badge variant="destructive" className="font-bold text-[10px]">
-																! {locale === "hi" ? "0 भुगतान (Unpaid Credit)" : "Zero Payment"}
+															<Badge variant="destructive" className="font-bold text-[10px] inline-flex items-center gap-1">
+																<AlertCircle className="h-3 w-3" />
+																<span>{locale === "hi" ? "0 भुगतान (Unpaid Credit)" : "Zero Payment"}</span>
 															</Badge>
 														)}
 													</div>

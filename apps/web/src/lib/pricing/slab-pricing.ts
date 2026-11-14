@@ -325,7 +325,7 @@ export function getOfferCountdown(
 			isExpired: true,
 			daysLeft: 0,
 			hoursLeft: 0,
-			badgeText: locale === "hi" ? "⏳ आज अंतिम दिन!" : "⏳ Ends today!",
+			badgeText: locale === "hi" ? "आज अंतिम दिन!" : "Ends today!",
 			urgency: "urgent",
 			formattedDate,
 		};
@@ -339,7 +339,7 @@ export function getOfferCountdown(
 			isExpired: false,
 			daysLeft: 1,
 			hoursLeft: diffHours,
-			badgeText: locale === "hi" ? "⏳ आज अंतिम दिन!" : "⏳ Ends today!",
+			badgeText: locale === "hi" ? "आज अंतिम दिन!" : "Ends today!",
 			urgency: "urgent",
 			formattedDate,
 		};
@@ -350,7 +350,7 @@ export function getOfferCountdown(
 			isExpired: false,
 			daysLeft: diffDays,
 			hoursLeft: diffHours,
-			badgeText: locale === "hi" ? `⏳ केवल ${diffDays} दिन शेष!` : `⏳ Only ${diffDays} days left!`,
+			badgeText: locale === "hi" ? `केवल ${diffDays} दिन शेष!` : `Only ${diffDays} days left!`,
 			urgency: "urgent",
 			formattedDate,
 		};
@@ -361,7 +361,7 @@ export function getOfferCountdown(
 			isExpired: false,
 			daysLeft: diffDays,
 			hoursLeft: diffHours,
-			badgeText: locale === "hi" ? `⏳ ${diffDays} दिन शेष` : `⏳ ${diffDays} days left`,
+			badgeText: locale === "hi" ? `${diffDays} दिन शेष` : `${diffDays} days left`,
 			urgency: "warning",
 			formattedDate,
 		};
@@ -371,7 +371,7 @@ export function getOfferCountdown(
 		isExpired: false,
 		daysLeft: diffDays,
 		hoursLeft: diffHours,
-		badgeText: locale === "hi" ? `⏳ ${diffDays} दिन शेष` : `⏳ ${diffDays} days left`,
+		badgeText: locale === "hi" ? `${diffDays} दिन शेष` : `${diffDays} days left`,
 		urgency: "normal",
 		formattedDate,
 	};

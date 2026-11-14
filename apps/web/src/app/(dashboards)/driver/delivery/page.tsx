@@ -48,6 +48,7 @@ import {
 	User,
 	X,
 	CalendarDays,
+	Clock,
 	Tag,
 	PlusCircle,
 	History,
@@ -2249,7 +2250,7 @@ export default function DriverLiveDeliveryPage() {
 															{ord.orderIdStr}
 														</span>
 														<span
-															className={`rounded px-1.5 py-0.2 font-mono text-[10px] ${
+															className={`rounded px-1.5 py-0.2 font-mono text-[10px] inline-flex items-center gap-1 ${
 																isSelected
 																	? "bg-indigo-700 text-white"
 																	: !isSelectedForDelivery
@@ -2257,7 +2258,14 @@ export default function DriverLiveDeliveryPage() {
 																		: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
 															}`}
 														>
-															{isSelectedForDelivery ? `₹${ord.deliveredTotal}` : "⏳ Pending"}
+															{isSelectedForDelivery ? (
+																`₹${ord.deliveredTotal}`
+															) : (
+																<>
+																	<Clock className="h-2.5 w-2.5 shrink-0" />
+																	<span>Pending</span>
+																</>
+															)}
 														</span>
 														<span
 															className={`text-[10px] font-normal ${
@@ -2406,9 +2414,17 @@ export default function DriverLiveDeliveryPage() {
 																			: "border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
 																	}`}
 																>
-																	{group.isOrderDeliverySelected
-																		? (locale === "hi" ? "✓ इस बिल में शामिल" : "✓ In Current Bill")
-																		: (locale === "hi" ? "⏳ बाद में डिलीवर होगा (लंबित)" : "⏳ Deliver Later (Pending)")}
+																	{group.isOrderDeliverySelected ? (
+																		<span className="inline-flex items-center gap-1">
+																			<Check className="h-3 w-3" />
+																			<span>{locale === "hi" ? "इस बिल में शामिल" : "In Current Bill"}</span>
+																		</span>
+																	) : (
+																		<span className="inline-flex items-center gap-1">
+																			<Clock className="h-3 w-3" />
+																			<span>{locale === "hi" ? "बाद में डिलीवर होगा (लंबित)" : "Deliver Later (Pending)"}</span>
+																		</span>
+																	)}
 																</Badge>
 															)}
 														</div>
@@ -2436,9 +2452,17 @@ export default function DriverLiveDeliveryPage() {
 																	}`}
 																	title={group.isOrderDeliverySelected ? "Exclude this order and keep it pending for later" : "Include this order in current handover bill"}
 																>
-																	{group.isOrderDeliverySelected
-																		? (locale === "hi" ? "⏳ बाद में करें" : "Deliver Later")
-																		: (locale === "hi" ? "+ अभी डिलीवर करें" : "+ Deliver Now")}
+																	{group.isOrderDeliverySelected ? (
+																		<span className="inline-flex items-center gap-1">
+																			<Clock className="h-3 w-3" />
+																			<span>{locale === "hi" ? "बाद में करें" : "Deliver Later"}</span>
+																		</span>
+																	) : (
+																		<span className="inline-flex items-center gap-1">
+																			<Plus className="h-3 w-3" />
+																			<span>{locale === "hi" ? "अभी डिलीवर करें" : "Deliver Now"}</span>
+																		</span>
+																	)}
 																</Button>
 															)}
 															{group.isOrderDeliverySelected && (
@@ -2462,7 +2486,7 @@ export default function DriverLiveDeliveryPage() {
 													{!group.isOrderDeliverySelected && !isCollapsed && (
 														<div className="p-2.5 bg-amber-50/80 border-b border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-300 text-xs flex items-center justify-between gap-2">
 															<span className="flex items-center gap-1.5 font-medium">
-																<span>⏳</span>
+																<Clock className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
 																<span>
 																	{locale === "hi"
 																		? "यह ऑर्डर इस डिलीवरी बिल में शामिल नहीं है। यह ड्राइवर के पास लंबित (Pending) रहेगा ताकि आप इसे बाद में डिलीवर कर सकें।"
@@ -2805,8 +2829,9 @@ export default function DriverLiveDeliveryPage() {
 																		</span>
 																	)
 																) : (
-																	<span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9px] font-bold border border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-																		⏳ {locale === "hi" ? "लंबित रहेगा" : "Pending Later"}
+																	<span className="inline-flex items-center gap-1 rounded px-1.5 py-0.2 text-[9px] font-bold border border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+																		<Clock className="h-2.5 w-2.5 shrink-0" />
+																		<span>{locale === "hi" ? "लंबित रहेगा" : "Pending Later"}</span>
 																	</span>
 																)}
 															</div>
