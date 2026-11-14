@@ -269,6 +269,10 @@ function ScrollableQtyInput({
 					const val = e.target.value;
 					if (/^\d*\.?\d*$/.test(val)) {
 						setTextValue(val);
+						const parsed = Number.parseFloat(val);
+						if (!isNaN(parsed) && parsed > 0) {
+							onChange(Math.round(parsed * 1000) / 1000);
+						}
 					}
 				}}
 				onBlur={commit}
@@ -1675,21 +1679,13 @@ function POSContent() {
 
 														if (activeSlab) {
 															return (
-																<div className="space-y-0.5">
-																	<div className="flex items-baseline gap-1.5">
-																		<span className="font-extrabold text-base text-purple-700 sm:text-lg dark:text-purple-300">
-																			₹{Number(activeSlab.unitPrice).toFixed(2)}
-																		</span>
-																		<span className="text-muted-foreground text-xs line-through">
-																			₹{Number.parseFloat(product.originalPrice || product.price).toFixed(2)}
-																		</span>
-																	</div>
-																	<div className="flex items-center gap-1">
-																		<span className="inline-flex items-center gap-0.5 rounded bg-purple-500/15 border border-purple-300 dark:border-purple-800 px-1.5 py-0.5 font-bold text-[10px] text-purple-700 dark:text-purple-300">
-																			<Layers className="h-2.5 w-2.5" />
-																			{activeSlab.minQuantity}{activeSlab.maxQuantity ? `–${activeSlab.maxQuantity}` : "+"} {product.unit && product.unit.toLowerCase() !== "pcs" ? product.unit : "qty"} Tier Applied
-																		</span>
-																	</div>
+																<div className="flex items-baseline gap-1.5">
+																	<span className="font-extrabold text-base text-purple-700 sm:text-lg dark:text-purple-300">
+																		₹{Number(activeSlab.unitPrice).toFixed(2)}
+																	</span>
+																	<span className="text-muted-foreground text-xs line-through">
+																		₹{Number.parseFloat(product.originalPrice || product.price).toFixed(2)}
+																	</span>
 																</div>
 															);
 														}
@@ -1739,25 +1735,9 @@ function POSContent() {
 														);
 													})()}
 
-													{/* Quantity Slabs Visible Directly From Outside — Compact & Beautiful */}
+													{/* Quantity Slabs Visible Directly From Outside — Compact & Clean (No headers, No wrap) */}
 													{product.slabs && product.slabs.length > 0 && (
-														<div className="mt-1.5 rounded-md border border-purple-200/90 bg-purple-50/60 p-1.5 dark:border-purple-800/80 dark:bg-purple-950/30">
-															<div className="mb-1 flex items-center justify-between text-[10px] font-bold text-purple-900 dark:text-purple-200 border-b border-purple-200/60 dark:border-purple-800/60 pb-1">
-																<span className="flex items-center gap-1">
-																	<Layers className="h-2.5 w-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
-																	<span>{locale === "hi" ? "मात्रा अनुसार थोक दर" : "Volume Slabs"}</span>
-																</span>
-																{offerCountdown ? (
-																	<span className="font-mono text-[9px] font-extrabold text-amber-700 dark:text-amber-300">
-																		{offerCountdown.badgeText}
-																	</span>
-																) : (
-																	<span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400">
-																		{product.slabs.length} {locale === "hi" ? "स्लैब" : "Slabs"}
-																	</span>
-																)}
-															</div>
-
+														<div className="mt-1 rounded-md border border-purple-200/80 bg-purple-50/40 p-1 dark:border-purple-800/70 dark:bg-purple-950/25">
 															<div className="space-y-0.5">
 																{product.slabs.map((slab: any, idx: number) => {
 																	const isCurrentActive =
@@ -1780,19 +1760,19 @@ function POSContent() {
 																			}`}
 																		>
 																			<span
-																				className={`text-[10px] font-semibold flex items-center gap-1 ${
+																				className={`text-[10px] font-semibold flex items-center gap-1 whitespace-nowrap shrink-0 ${
 																					isCurrentActive ? "text-purple-100" : "text-muted-foreground"
 																				}`}
 																			>
 																				{isCurrentActive && <span className="text-[10px] font-black">✓</span>}
-																				<span>
+																				<span className="whitespace-nowrap">
 																					{slab.minQuantity}
 																					{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {product.unit && product.unit.toLowerCase() !== "pcs" ? product.unit : "qty"}
 																				</span>
 																			</span>
-																			<div className="flex items-center gap-1 shrink-0">
+																			<div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
 																				<span
-																					className={`font-mono font-bold ${
+																					className={`font-mono font-bold whitespace-nowrap ${
 																						isCurrentActive ? "text-white" : "text-emerald-600 dark:text-emerald-400"
 																					}`}
 																				>
@@ -1800,7 +1780,7 @@ function POSContent() {
 																				</span>
 																				{discountPct > 0 && (
 																					<span
-																						className={`text-[8px] font-bold ${
+																						className={`text-[8px] font-bold whitespace-nowrap ${
 																							isCurrentActive ? "text-purple-200" : "text-purple-600 dark:text-purple-400"
 																						}`}
 																					>
