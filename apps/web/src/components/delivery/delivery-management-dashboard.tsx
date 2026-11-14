@@ -2577,6 +2577,15 @@ export function DeliveryManagementDashboard({
 											!trip.driver_id || !trip.vehicle_id;
 										const isLoading = trip.status === "loading";
 										const isLoaded = trip.status === "loaded";
+										const stopsCount = (trip.stops || []).length || 1;
+										const loadedCount = isLoaded
+											? stopsCount
+											: isLoading
+												? Math.min(stopsCount, Math.floor(stopsCount * 0.6))
+												: 0;
+										const percent = Math.round(
+											(loadedCount / stopsCount) * 100,
+										);
 
 										return (
 											<div
@@ -2608,7 +2617,7 @@ export function DeliveryManagementDashboard({
 														{isLoaded
 															? t("loaded")
 															: isLoading
-																? t("loading")
+																? `${percent}% ${t("loading")}`
 																: isMissingDriverOrVehicle
 																	? t("assignmentIncomplete")
 																	: trip.status === "ready_for_loading"
@@ -2671,11 +2680,43 @@ export function DeliveryManagementDashboard({
 													</div>
 												</div>
 
-												<div className="flex items-center justify-end gap-2 pt-1">
+												{/* Loading Progress Bar */}
+												{(isLoading || isLoaded || trip.status === "ready_for_loading") && (
+													<div className="space-y-1">
+														<div className="flex justify-between font-semibold text-slate-700 text-xs dark:text-slate-300">
+															<span>Loading Progress</span>
+															<span>
+																{loadedCount} / {stopsCount} Loaded
+															</span>
+														</div>
+														<div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+															<div
+																className={`h-full transition-all duration-300 ${
+																	isLoaded ? "bg-emerald-500" : "bg-sky-500"
+																}`}
+																style={{ width: `${percent}%` }}
+															/>
+														</div>
+													</div>
+												)}
+
+												<div className="flex items-center gap-2 pt-1">
+													<Button
+														variant="outline"
+														size="sm"
+														className="h-8 flex-1 font-semibold text-xs"
+														onClick={() => {
+															setSelectedDetailTrip(trip);
+															setIsTripDetailOpen(true);
+														}}
+													>
+														View Detail
+													</Button>
+
 													{isLoaded ? (
 														<Button
 															size="sm"
-															className="h-8 w-full bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
+															className="h-8 flex-1 bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
 															onClick={() => {
 																setDispatchConfirmTrip(trip);
 																setIsDispatchConfirmOpen(true);
@@ -2685,7 +2726,7 @@ export function DeliveryManagementDashboard({
 															{t("dispatchTrip")}
 														</Button>
 													) : isMissingDriverOrVehicle ? (
-														<div className="flex w-full gap-1.5">
+														<div className="flex flex-1 gap-1.5">
 															<Button
 																variant="outline"
 																size="sm"
@@ -2706,7 +2747,7 @@ export function DeliveryManagementDashboard({
 																	setIsAssignIncompleteTripOpen(true);
 																}}
 															>
-																Complete Assignment
+																Complete
 															</Button>
 															<Button
 																variant="outline"
@@ -2729,7 +2770,7 @@ export function DeliveryManagementDashboard({
 													) : trip.status === "pending" ? (
 														<Button
 															size="sm"
-															className="h-8 w-full bg-amber-600 font-semibold text-white text-xs hover:bg-amber-700"
+															className="h-8 flex-1 bg-amber-600 font-semibold text-white text-xs hover:bg-amber-700"
 															onClick={() =>
 																releaseToLoaderMutation.mutate({
 																	tripId: trip.id,
@@ -2744,7 +2785,7 @@ export function DeliveryManagementDashboard({
 														<Button
 															variant="outline"
 															size="sm"
-															className="h-8 w-full border-blue-200 font-semibold text-blue-600 text-xs hover:bg-blue-50"
+															className="h-8 flex-1 border-blue-200 font-semibold text-blue-600 text-xs hover:bg-blue-50"
 															onClick={() => {
 																setSelectedDetailTrip(trip);
 																setIsTripDetailOpen(true);
@@ -2753,13 +2794,13 @@ export function DeliveryManagementDashboard({
 															<ClockIcon className="mr-1.5 h-3.5 w-3.5" />
 															{locale === "hi"
 																? "लोडिंग की प्रतीक्षा..."
-																: "Awaiting Loader Verification..."}
+																: "Awaiting Loader..."}
 														</Button>
 													) : isLoading ? (
 														<Button
 															variant="outline"
 															size="sm"
-															className="h-8 w-full font-semibold text-xs"
+															className="h-8 flex-1 font-semibold text-sky-600 border-sky-200 text-xs hover:bg-sky-50"
 															onClick={() => {
 																setSelectedDetailTrip(trip);
 																setIsTripDetailOpen(true);
@@ -2777,127 +2818,7 @@ export function DeliveryManagementDashboard({
 						</CardContent>
 					</Card>
 
-					{/* SECTION C: LOADING & DISPATCH MONITOR */}
-					<Card className="border-border/60 bg-white shadow-sm dark:bg-slate-900">
-						<CardHeader className="flex flex-row items-center justify-between border-b pb-3">
-							<div>
-								<CardTitle className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-slate-100">
-									<PackageIcon className="h-5 w-5 text-sky-500" />
-									LOADING & DISPATCH MONITOR
-								</CardTitle>
-								<CardDescription className="text-xs">
-									Real-time vehicle loading progress confirmed by physical
-									loaders
-								</CardDescription>
-							</div>
-						</CardHeader>
-						<CardContent className="pt-4">
-							{(() => {
-								const activeLoadingTrips = (trips || []).filter(
-									(t: any) =>
-										t.status === "loading" ||
-										t.status === "ready_for_loading" ||
-										t.status === "loaded",
-								);
 
-								if (activeLoadingTrips.length === 0) {
-									return (
-										<div className="py-6 text-center font-medium text-slate-400 text-xs">
-											No active trip loading in progress.
-										</div>
-									);
-								}
-
-								return (
-									<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-										{activeLoadingTrips.map((trip: any) => {
-											const stopsCount = (trip.stops || []).length || 1;
-											const isLoaded = trip.status === "loaded";
-											const loadedCount = isLoaded
-												? stopsCount
-												: Math.min(stopsCount, Math.floor(stopsCount * 0.6));
-											const percent = Math.round(
-												(loadedCount / stopsCount) * 100,
-											);
-
-											return (
-												<div
-													key={trip.id}
-													className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-												>
-													<div className="flex items-start justify-between">
-														<div>
-															<span className="font-bold font-mono text-slate-500 text-xs">
-																Trip #{trip.id}
-															</span>
-															<h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
-																{trip.route?.name || "Direct Trip"}
-															</h4>
-														</div>
-														<span className="rounded-full bg-sky-100 px-2 py-0.5 font-bold text-[10px] text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-															{trip.status === "loaded"
-																? "Loaded 100%"
-																: `${percent}% Loaded`}
-														</span>
-													</div>
-
-													{/* Progress Bar */}
-													<div className="space-y-1">
-														<div className="flex justify-between font-semibold text-slate-700 text-xs dark:text-slate-300">
-															<span>Loading Progress</span>
-															<span>
-																{loadedCount} / {stopsCount} Loaded
-															</span>
-														</div>
-														<div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-															<div
-																className={`h-full transition-all duration-300 ${
-																	isLoaded ? "bg-emerald-500" : "bg-sky-500"
-																}`}
-																style={{ width: `${percent}%` }}
-															/>
-														</div>
-													</div>
-
-													<div className="flex items-center justify-between pt-1">
-														<Button
-															variant="outline"
-															size="sm"
-															className="h-8 font-semibold text-xs"
-															onClick={() => {
-																setSelectedDetailTrip(trip);
-																setIsTripDetailOpen(true);
-															}}
-														>
-															View Detail
-														</Button>
-
-														{isLoaded ? (
-															<Button
-																size="sm"
-																className="h-8 bg-emerald-600 font-semibold text-white text-xs hover:bg-emerald-700"
-																onClick={() => {
-																	setDispatchConfirmTrip(trip);
-																	setIsDispatchConfirmOpen(true);
-																}}
-															>
-																<TruckIcon className="mr-1.5 h-3.5 w-3.5" />
-																{t("dispatchTrip")}
-															</Button>
-														) : (
-															<span className="font-medium text-[11px] text-slate-500 italic">
-																Awaiting Loader Completion
-															</span>
-														)}
-													</div>
-												</div>
-											);
-										})}
-									</div>
-								);
-							})()}
-						</CardContent>
-					</Card>
 
 					{/* ATTENTION REQUIRED SECTION */}
 					<Card className="border-amber-200 bg-amber-50/30 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/10">
