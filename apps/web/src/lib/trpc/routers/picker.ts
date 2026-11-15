@@ -278,12 +278,14 @@ export const pickerRouter = router({
 				},
 				items: items.map((i) => ({
 					id: i.id,
-					qty_required: Number(
-						Number.parseFloat(String(i.quantity_ordered || "1")).toFixed(1),
-					),
-					qty_picked: Number(
-						Number.parseFloat(String(i.quantity_picked || "0")).toFixed(1),
-					),
+					qty_required:
+						Math.round(
+							(Number.parseFloat(String(i.quantity_ordered ?? "1")) || 1) * 1000,
+						) / 1000,
+					qty_picked:
+						Math.round(
+							(Number.parseFloat(String(i.quantity_picked ?? "0")) || 0) * 1000,
+						) / 1000,
 					status: i.status,
 					product: i.product?.name ?? "Unknown",
 					sku: i.product?.sku ?? i.product?.barcode ?? "N/A",
@@ -340,10 +342,11 @@ export const pickerRouter = router({
 
 			if (!item) throw new Error("Item not found");
 
-			const maxAllowed = item.quantity_ordered || 1;
+			const orderedQty = Number(item.quantity_ordered) || 0;
+			const maxAllowed = orderedQty > 0 ? orderedQty : 1;
 			const newQtyPicked = Math.min(Math.max(0, input.quantity), maxAllowed);
 			const newStatus =
-				newQtyPicked >= item.quantity_ordered
+				newQtyPicked >= orderedQty
 					? "picked"
 					: newQtyPicked > 0
 						? "partial"

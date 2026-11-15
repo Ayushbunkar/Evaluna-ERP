@@ -1369,7 +1369,7 @@ export const inventoryRouter = router({
 			return currentInventory.map((item) => {
 				const current = Number(item.currentStock || 0);
 				const deltaAfter = deltaMap.get(item.productId) || 0;
-				const historical = Math.max(0, current - deltaAfter);
+				const historical = Math.round(Math.max(0, current - deltaAfter) * 1000) / 1000;
 				const locked = lockedPricingMap.get(item.productId);
 
 				const effectiveSellingPrice = locked
@@ -1395,7 +1395,7 @@ export const inventoryRouter = router({
 					unit: item.unit,
 					currentStock: current,
 					historicalStock: historical,
-					changeSince: current - historical,
+					changeSince: Math.round((current - historical) * 1000) / 1000,
 					reorderLevel: item.reorderLevel,
 					sellingPrice: effectiveSellingPrice,
 					costPrice: effectiveCostPrice,

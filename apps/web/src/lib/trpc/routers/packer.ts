@@ -210,8 +210,8 @@ export const packerRouter = router({
 							productName: it.productName ?? "General Item",
 							quantity:
 								Math.round(
-									(Number.parseFloat(String(it.quantity || "1")) || 1) * 10,
-								) / 10,
+									(Number.parseFloat(String(it.quantity || "1")) || 1) * 1000,
+								) / 1000,
 						})) : [
 							{
 								id: 1,
@@ -345,8 +345,8 @@ export const packerRouter = router({
 						sku: it.sku ?? "N/A",
 						quantity:
 							Math.round(
-								(Number.parseFloat(String(it.quantity || "1")) || 1) * 10,
-							) / 10,
+								(Number.parseFloat(String(it.quantity || "1")) || 1) * 1000,
+							) / 1000,
 					})) : [
 						{
 							id: 1,

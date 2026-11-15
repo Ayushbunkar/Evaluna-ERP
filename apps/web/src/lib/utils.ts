@@ -54,8 +54,9 @@ export function formatShortDate(dateStr: string, locale?: string) {
 
 /**
  * Cleanly format product or order quantities.
- * - Strips unnecessary trailing zeroes (e.g. 1.000 -> 1, 45.000 -> 45)
- * - Limits fractional amounts to at most a single decimal digit (e.g. 1.5, 0.5)
+ * - Strips unnecessary trailing zeroes (e.g. 1.000 -> "1", 45.000 -> "45")
+ * - Preserves decimal fractions cleanly (e.g. 0.25 -> "0.25", 0.5 -> "0.5", 0.75 -> "0.75", 1.25 -> "1.25")
+ * - Does NOT force rounding to 1 decimal place.
  * - Resilient against old concatenated strings (e.g. "01.00045.000" -> sums & formats cleanly)
  */
 export function formatQty(val: number | string | null | undefined): string {
@@ -66,14 +67,14 @@ export function formatQty(val: number | string | null | undefined): string {
 			const parts = val.match(/\d+(\.\d+)?/g);
 			if (parts && parts.length > 0) {
 				const sum = parts.reduce((acc, p) => acc + (parseFloat(p) || 0), 0);
-				const rounded = Math.round(sum * 10) / 10;
-				return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+				const rounded = Math.round(sum * 1000) / 1000;
+				return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 			}
 		}
 	}
 	const num = Number(val);
 	if (isNaN(num)) return String(val);
-	const rounded = Math.round(num * 10) / 10;
-	return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+	const rounded = Math.round(num * 1000) / 1000;
+	return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
 

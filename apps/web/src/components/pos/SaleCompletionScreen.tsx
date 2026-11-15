@@ -64,7 +64,8 @@ interface CompletedOrder {
 
 const formatQty = (qty: number | string | undefined | null): string => {
 	const num = Number(qty) || 0;
-	return Number.isInteger(num) ? num.toString() : num.toFixed(3);
+	const rounded = Math.round(num * 1000) / 1000;
+	return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 };
 
 const getItemName = (item: any): string => {

@@ -128,10 +128,10 @@ export default function PickerActivePage() {
 
 	const handleConfirmSubmit = () => {
 		if (!confirmItem) return;
-		const maxAllowed = confirmItem.qty_required || 1;
+		const maxAllowed = confirmItem.qty_required ?? 1;
 		let qty = Number(confirmQty);
 		if (Number.isNaN(qty) || qty <= 0) {
-			qty = 1;
+			qty = maxAllowed;
 		}
 		if (qty > maxAllowed) {
 			toast.error(`Picked quantity cannot exceed required quantity (${maxAllowed})`);
@@ -592,6 +592,7 @@ export default function PickerActivePage() {
 								<input
 									type="number"
 									min="0"
+									step="any"
 									max={confirmItem.qty_required}
 									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500"
 									value={confirmQty}

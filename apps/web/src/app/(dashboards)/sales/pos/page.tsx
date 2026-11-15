@@ -2282,7 +2282,7 @@ function POSContent() {
 													</Button>
 													<Input
 														type="number"
-														min={1}
+														min={0}
 														max={maxStock}
 														step="any"
 														value={item.qty}
