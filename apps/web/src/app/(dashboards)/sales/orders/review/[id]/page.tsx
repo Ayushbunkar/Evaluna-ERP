@@ -301,6 +301,10 @@ export default function CustomerOrderReviewPage() {
 				address: order?.customer?.address || "",
 				subtotal: sub,
 				discount: discount,
+				discountReason:
+					(order as any)?.discount_reason ||
+					(order as any)?.discountReason ||
+					undefined,
 				total: tot,
 				items: lines.map((l: any) => ({
 					id: l.productId,

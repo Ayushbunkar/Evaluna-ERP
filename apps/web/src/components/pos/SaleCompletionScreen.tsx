@@ -192,19 +192,38 @@ const getPaymentStatusBadge = (order: CompletedOrder) => {
 	return { label: "UNPAID", color: "bg-red-100 text-red-700 border-red-300" };
 };
 
-export function SaleCompletionScreen({
-	order,
-	onNewSale,
-	onClose,
-	returnUrl,
-}: SaleCompletionScreenProps) {
-	const receiptRef = useRef<HTMLDivElement>(null);
-	const [pageSize, setPageSize] = useState<"80mm" | "A4">("80mm");
-
-	const orderTotal = Number(order.total) || 0;
-	const orderSubtotal = Number(order.subtotal) || 0;
+export function calculateBillTotals(order: Partial<CompletedOrder>) {
 	const orderDiscount = Number(order.discount) || 0;
 	const orderOtherCharges = Number(order.otherCharges) || 0;
+
+	// Calculate the actual gross items total from the items list
+	const itemsGrossTotal = (order.items || []).reduce(
+		(sum, it) =>
+			sum + (Number.parseFloat(it.price) || 0) * (Number(it.qty) || 0),
+		0,
+	);
+
+	const rawOrderSubtotal = Number(order.subtotal) || 0;
+	const rawOrderTotal = Number(order.total) || 0;
+
+	// Subtotal must always reflect the actual gross total of items before discounts & extra charges
+	const orderSubtotal =
+		itemsGrossTotal > 0
+			? itemsGrossTotal
+			: rawOrderSubtotal > 0 &&
+					(orderDiscount === 0 || rawOrderSubtotal > rawOrderTotal)
+				? rawOrderSubtotal
+				: Math.max(0, rawOrderTotal + orderDiscount - orderOtherCharges);
+
+	// Ensure net total is mathematically: Subtotal - Discount + OtherCharges
+	const calculatedNet = Math.max(
+		0,
+		orderSubtotal - orderDiscount + orderOtherCharges,
+	);
+	const orderTotal =
+		rawOrderTotal > 0 && Math.abs(rawOrderTotal - calculatedNet) < 0.01
+			? rawOrderTotal
+			: calculatedNet;
 
 	const totalPaid = (order.payments || []).reduce(
 		(a, p) => a + (Number.parseFloat(p.amount) || 0),
@@ -214,6 +233,41 @@ export function SaleCompletionScreen({
 	const balanceDue = Math.max(0, orderTotal - totalPaid);
 	const roundOff = Math.round(orderTotal) - orderTotal;
 	const grandTotal = Math.round(orderTotal);
+
+	return {
+		itemsGrossTotal,
+		orderSubtotal,
+		orderDiscount,
+		orderOtherCharges,
+		orderTotal,
+		totalPaid,
+		change,
+		balanceDue,
+		roundOff,
+		grandTotal,
+	};
+}
+
+export function SaleCompletionScreen({
+	order,
+	onNewSale,
+	onClose,
+	returnUrl,
+}: SaleCompletionScreenProps) {
+	const receiptRef = useRef<HTMLDivElement>(null);
+	const [pageSize, setPageSize] = useState<"80mm" | "A4">("80mm");
+
+	const {
+		orderSubtotal,
+		orderDiscount,
+		orderOtherCharges,
+		orderTotal,
+		totalPaid,
+		change,
+		balanceDue,
+		roundOff,
+		grandTotal,
+	} = calculateBillTotals(order);
 	const status = getPaymentStatusBadge(order);
 
 	const formattedDate = new Date(order.createdAt).toLocaleDateString("en-IN", {
@@ -951,6 +1005,14 @@ export function SaleCompletionScreen({
 										<Text style={styles.subtitle}>Discount:</Text>
 										<Text style={styles.subtitle}>
 											-Rs.{orderDiscount.toFixed(2)}
+										</Text>
+									</View>
+								) : null}
+								{orderOtherCharges > 0 ? (
+									<View style={styles.row}>
+										<Text style={styles.subtitle}>Extra Charges:</Text>
+										<Text style={styles.subtitle}>
+											+Rs.{orderOtherCharges.toFixed(2)}
 										</Text>
 									</View>
 								) : null}

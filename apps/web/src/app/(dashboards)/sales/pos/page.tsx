@@ -652,7 +652,17 @@ function POSContent() {
 						price: Number(item.price).toFixed(2),
 					})) || [],
 				total: Number(fetchedCompletedOrder.total_amount),
-				subtotal: Number(fetchedCompletedOrder.total_amount),
+				subtotal:
+					(fetchedCompletedOrder.orderItems || []).reduce(
+						(sum: number, it: any) =>
+							sum +
+							(Number.parseFloat(it.price) || 0) *
+								(Number(it.quantity) || 0),
+						0,
+					) ||
+					(Number(fetchedCompletedOrder.total_amount) || 0) +
+						Number(fetchedCompletedOrder.discount_amount || 0) -
+						Number(fetchedCompletedOrder.other_charges || 0),
 				discount: Number(fetchedCompletedOrder.discount_amount || 0),
 				discountReason: fetchedCompletedOrder.discount_reason || undefined,
 				otherCharges: Number(fetchedCompletedOrder.other_charges || 0),
