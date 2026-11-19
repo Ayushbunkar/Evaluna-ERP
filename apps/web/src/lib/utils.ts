@@ -79,28 +79,96 @@ export function formatQty(val: number | string | null | undefined): string {
 }
 
 /**
+ * Formats a given Date, ISO string, or timestamp into YYYY-MM-DD in Asia/Kolkata (IST) timezone.
+ */
+export function getISTDateString(d: Date | string | number): string {
+	try {
+		const date = new Date(d);
+		if (Number.isNaN(date.getTime())) return "";
+		return new Intl.DateTimeFormat("en-CA", {
+			timeZone: "Asia/Kolkata",
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+		}).format(date);
+	} catch {
+		return "";
+	}
+}
+
+/**
+ * Normalizes input date strings (YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY) into YYYY-MM-DD.
+ */
+export function normalizeDateInput(val?: string | Date | null): string {
+	if (!val) return "";
+	if (val instanceof Date) return getISTDateString(val);
+	const clean = val.split("T")[0].replace(/\//g, "-").trim();
+	const parts = clean.split("-").map(Number);
+	if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+		let [y, m, d] = parts;
+		if (parts[2] > 1900) {
+			// DD-MM-YYYY
+			d = parts[0];
+			m = parts[1];
+			y = parts[2];
+		}
+		return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+	}
+	return clean;
+}
+
+/**
+ * Checks whether a given timestamp falls within a date range (YYYY-MM-DD),
+ * evaluating against IST (Asia/Kolkata), UTC, and local representation.
+ */
+export function isDateInISTRange(
+	date?: Date | string | number | null,
+	startStr?: string | null,
+	endStr?: string | null,
+): boolean {
+	if (!date) return false;
+	const d = new Date(date);
+	if (Number.isNaN(d.getTime())) return false;
+
+	const normStart = normalizeDateInput(startStr);
+	const normEnd = normalizeDateInput(endStr);
+	if (!normStart && !normEnd) return true;
+
+	const istDate = getISTDateString(d);
+	const utcDate = d.toISOString().split("T")[0];
+	const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+	const inRange = (dt: string) => {
+		if (normStart && dt < normStart) return false;
+		if (normEnd && dt > normEnd) return false;
+		return true;
+	};
+
+	return inRange(istDate) || inRange(utcDate) || inRange(localDate);
+}
+
+/**
  * Safely parse a date range from UI filters (e.g. "YYYY-MM-DD" or Date objects)
- * into broad, timezone-safe UTC Date boundaries that cover the full 24-hour day
- * in both Indian Standard Time (IST, UTC+5:30) and local/UTC environments.
+ * into broad UTC Date boundaries that match the full 24-hour day across IST, UTC, and local.
  */
 export function parseDateFilterRange(
 	startDate?: string | Date | null,
 	endDate?: string | Date | null,
-): { fromDate: Date | null; toDate: Date | null } {
+): { fromDate: Date | null; toDate: Date | null; startIST: string; endIST: string } {
 	let fromDate: Date | null = null;
 	let toDate: Date | null = null;
+	const startIST = normalizeDateInput(startDate);
+	const endIST = normalizeDateInput(endDate);
 
 	const parseStart = (val: string | Date): Date => {
-		if (typeof val === "string") {
-			const dateStr = val.split("T")[0];
-			const parts = dateStr.split("-").map(Number);
-			if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
-				const [y, m, d] = parts;
-				// In IST (UTC+5:30), start of day 00:00:00 IST is previous day 18:30:00 UTC
-				const istStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - 5.5 * 3600 * 1000);
-				const localStart = new Date(y, m - 1, d, 0, 0, 0, 0);
-				return new Date(Math.min(istStart.getTime(), localStart.getTime()));
-			}
+		const norm = normalizeDateInput(val);
+		if (norm) {
+			const [y, m, d] = norm.split("-").map(Number);
+			// Start of day in IST is previous day 18:30:00.000 UTC
+			const istStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - 5.5 * 3600 * 1000);
+			const utcStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+			const localStart = new Date(y, m - 1, d, 0, 0, 0, 0);
+			return new Date(Math.min(istStart.getTime(), utcStart.getTime(), localStart.getTime()));
 		}
 		const d = new Date(val);
 		d.setHours(0, 0, 0, 0);
@@ -108,16 +176,14 @@ export function parseDateFilterRange(
 	};
 
 	const parseEnd = (val: string | Date): Date => {
-		if (typeof val === "string") {
-			const dateStr = val.split("T")[0];
-			const parts = dateStr.split("-").map(Number);
-			if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
-				const [y, m, d] = parts;
-				// In IST (UTC+5:30), end of day 23:59:59.999 IST is 18:29:59.999 UTC
-				const istEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) - 5.5 * 3600 * 1000);
-				const localEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
-				return new Date(Math.max(istEnd.getTime(), localEnd.getTime()));
-			}
+		const norm = normalizeDateInput(val);
+		if (norm) {
+			const [y, m, d] = norm.split("-").map(Number);
+			// End of day in IST is same day 18:29:59.999 UTC; in UTC is 23:59:59.999 UTC
+			const istEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) - 5.5 * 3600 * 1000);
+			const utcEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+			const localEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+			return new Date(Math.max(istEnd.getTime(), utcEnd.getTime(), localEnd.getTime()));
 		}
 		const d = new Date(val);
 		d.setHours(23, 59, 59, 999);
@@ -127,6 +193,6 @@ export function parseDateFilterRange(
 	if (startDate) fromDate = parseStart(startDate);
 	if (endDate) toDate = parseEnd(endDate);
 
-	return { fromDate, toDate };
+	return { fromDate, toDate, startIST, endIST };
 }
 

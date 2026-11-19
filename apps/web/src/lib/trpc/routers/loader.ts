@@ -19,7 +19,7 @@ import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, l
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
-import { parseDateFilterRange } from "@/lib/utils";
+import { isDateInISTRange, parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
 
 export const loaderRouter = router({
@@ -714,7 +714,7 @@ export const loaderRouter = router({
 				),
 			];
 
-			const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+			const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
 			const targetDateCol = sql`COALESCE(${deliveryTrips.loaded_at}, ${deliveryTrips.updated_at}, ${deliveryTrips.created_at})`;
 
 			if (fromDate) {
@@ -724,7 +724,7 @@ export const loaderRouter = router({
 				conditions.push(lte(targetDateCol, toDate));
 			}
 
-			const historyTrips = await db
+			const rawTrips = await db
 				.select({
 					tripId: deliveryTrips.id,
 					status: deliveryTrips.status,
@@ -743,6 +743,10 @@ export const loaderRouter = router({
 				.where(and(...conditions))
 				.orderBy(desc(targetDateCol), desc(deliveryTrips.id))
 				.limit(500);
+
+			const historyTrips = (startIST || endIST)
+				? rawTrips.filter((t) => isDateInISTRange(t.loadedAt || t.updatedAt || t.createdAt, startIST, endIST))
+				: rawTrips;
 
 			const enrichedHistory = await Promise.all(
 				historyTrips.map(async (t) => {
@@ -828,6 +832,8 @@ export const loaderRouter = router({
 					status: z
 						.enum(["all", "packed", "ready_for_loading", "loaded"])
 						.optional(),
+					startDate: z.union([z.string(), z.coerce.date()]).optional(),
+					endDate: z.union([z.string(), z.coerce.date()]).optional(),
 				})
 				.optional(),
 		)
@@ -853,6 +859,16 @@ export const loaderRouter = router({
 						"ready_for_dispatch",
 					]),
 				];
+			}
+
+			if (input?.startDate || input?.endDate) {
+				const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+				if (fromDate) statusConditions.push(gte(orders.created_at, fromDate));
+				if (toDate) statusConditions.push(lte(orders.created_at, toDate));
+			} else if (input?.status === "loaded") {
+				const todayStart = new Date();
+				todayStart.setHours(0, 0, 0, 0);
+				statusConditions.push(gte(orders.created_at, todayStart));
 			}
 
 			const packedOrdersList = await db

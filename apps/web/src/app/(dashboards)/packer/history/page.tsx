@@ -30,7 +30,7 @@ import {
 import { useTranslations } from "next-intl";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
-import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
+import { DateFilterBar, getTodayStr } from "@/components/shared/filters/date-filter-bar";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -38,9 +38,9 @@ export default function PackerHistoryPage() {
 	const t = useTranslations("packer");
 	const tCommon = useTranslations("common");
 	const trpc = useTRPC();
-	const [startDate, setStartDate] = useState("");
-	const [endDate, setEndDate] = useState("");
-	const [datePreset, setDatePreset] = useState("all");
+	const [startDate, setStartDate] = useState(getTodayStr());
+	const [endDate, setEndDate] = useState(getTodayStr());
+	const [datePreset, setDatePreset] = useState("today");
 
 	const {
 		data: historyList,

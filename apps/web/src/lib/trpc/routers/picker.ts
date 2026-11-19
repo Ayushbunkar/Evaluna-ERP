@@ -18,7 +18,7 @@ import { and, count, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "dri
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifyPickComplete } from "@/lib/notification-service";
-import { parseDateFilterRange } from "@/lib/utils";
+import { isDateInISTRange, parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
 import { logAudit, notify, resolveStaffId } from "../util/audit";
 
@@ -647,7 +647,7 @@ export const pickerRouter = router({
 					conditions.push(eq(orders.branch_id, input.branch_id));
 				}
 
-				const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+				const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
 				const targetDateCol = sql`COALESCE(${pickLists.completed_at}, ${pickLists.created_at})`;
 
 				if (fromDate) {
@@ -657,7 +657,7 @@ export const pickerRouter = router({
 					conditions.push(lte(targetDateCol, toDate));
 				}
 
-				const lists = await db
+				const rawLists = await db
 					.select({
 						id: pickLists.id,
 						order_id: pickLists.order_id,
@@ -673,6 +673,10 @@ export const pickerRouter = router({
 					.where(and(...conditions))
 					.orderBy(desc(targetDateCol))
 					.limit(500);
+
+				const lists = (startIST || endIST)
+					? rawLists.filter((r) => isDateInISTRange(r.completed_at || r.created_at, startIST, endIST))
+					: rawLists;
 
 				if (!lists || lists.length === 0) return [];
 
@@ -729,7 +733,7 @@ export const pickerRouter = router({
 				console.warn("[picker.getCompleted] Error querying completed picklists:", e);
 				// Fallback to db.query API
 				try {
-					const fallbackLists = await db.query.pickLists.findMany({
+					const rawFallbackLists = await db.query.pickLists.findMany({
 						where: or(
 							inArray(pickLists.status, ["completed", "packed"]),
 							isNotNull(pickLists.completed_at),
@@ -746,6 +750,11 @@ export const pickerRouter = router({
 							},
 						},
 					});
+
+					const { startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
+					const fallbackLists = (startIST || endIST)
+						? rawFallbackLists.filter((l: any) => isDateInISTRange(l.completed_at || l.created_at, startIST, endIST))
+						: rawFallbackLists;
 
 					return fallbackLists.map((l: any) => {
 						const itemsList = l.pickListItems || [];

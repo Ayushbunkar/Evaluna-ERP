@@ -30,15 +30,15 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { PageTransition } from "@/lib/animations";
-import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
+import { DateFilterBar, getTodayStr } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function LoadingHistoryPage() {
 	const trpc = useTRPC();
 	const [searchQuery, setSearchQuery] = useState("");
-	const [startDate, setStartDate] = useState("");
-	const [endDate, setEndDate] = useState("");
-	const [datePreset, setDatePreset] = useState("all");
+	const [startDate, setStartDate] = useState(getTodayStr());
+	const [endDate, setEndDate] = useState(getTodayStr());
+	const [datePreset, setDatePreset] = useState("today");
 
 	const {
 		data: history = [],

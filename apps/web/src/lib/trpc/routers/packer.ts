@@ -18,7 +18,7 @@ import {
 import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { dispatchNotification } from "@/lib/notification-service";
-import { parseDateFilterRange } from "@/lib/utils";
+import { isDateInISTRange, parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
 
 export const packerRouter = router({
@@ -567,7 +567,7 @@ export const packerRouter = router({
 				);
 			}
 
-			const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+			const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
 			const targetDateCol = sql`COALESCE(${packages.packed_at}, ${packages.created_at})`;
 
 			if (fromDate) {
@@ -579,7 +579,7 @@ export const packerRouter = router({
 
 			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-			const results = await ctx.db
+			const rawResults = await ctx.db
 				.select({
 					orderId: packages.order_id,
 					packedBy: staff.name,
@@ -597,6 +597,10 @@ export const packerRouter = router({
 				.where(whereClause)
 				.orderBy(desc(targetDateCol), desc(packages.id))
 				.limit(500);
+
+			const results = (startIST || endIST)
+				? rawResults.filter((item) => isDateInISTRange(item.packedAt || item.createdAt, startIST, endIST))
+				: rawResults;
 
 			const {
 				tripStops,

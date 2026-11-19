@@ -27,16 +27,16 @@ import {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
-import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
+import { DateFilterBar, getTodayStr } from "@/components/shared/filters/date-filter-bar";
 import { useTRPC } from "@/lib/trpc/client";
 import { formatQty } from "@/lib/utils";
 
 export default function PickerCompletedPage() {
 	const t = useTranslations();
 	const trpc = useTRPC();
-	const [startDate, setStartDate] = useState("");
-	const [endDate, setEndDate] = useState("");
-	const [datePreset, setDatePreset] = useState("all");
+	const [startDate, setStartDate] = useState(getTodayStr());
+	const [endDate, setEndDate] = useState(getTodayStr());
+	const [datePreset, setDatePreset] = useState("today");
 
 	const {
 		data: completedPicks,
