@@ -955,15 +955,16 @@ export const vanStockRouter = router({
 							packing_damaged: damaged.toString(),
 							packing_status: status,
 							packing_notes: note,
+							verified_quantity: packed.toString(),
 						})
 						.where(eq(vanStockPlanItems.id, targetItemId));
 				}
 
-				// Move to PENDING_MANAGER_VERIFICATION
+				// Move directly to PENDING_LOADING so loader can load without waiting for manager verification
 				await tx
 					.update(vanStockPlans)
 					.set({
-						status: "PENDING_MANAGER_VERIFICATION",
+						status: "PENDING_LOADING",
 						assigned_packer_id: ctx.user.id,
 						packed_at: new Date(),
 						notes: input.notes ? `${plan.notes || ""}\n[Packer]: ${input.notes}`.trim() : plan.notes,
@@ -978,12 +979,12 @@ export const vanStockRouter = router({
 					stage: "PACKING",
 					action: "PACKING_COMPLETED",
 					previous_status: plan.status,
-					new_status: "PENDING_MANAGER_VERIFICATION",
+					new_status: "PENDING_LOADING",
 					revision: plan.revision,
-					notes: input.notes || "Packing manifest finalized and submitted for Manager Verification",
+					notes: input.notes || "Packing manifest finalized and ready for physical van loading",
 				});
 
-				return { success: true, status: "PENDING_MANAGER_VERIFICATION" };
+				return { success: true, status: "PENDING_LOADING" };
 			});
 		}),
 

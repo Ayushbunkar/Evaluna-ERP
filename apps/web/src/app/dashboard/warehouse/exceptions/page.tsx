@@ -44,6 +44,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 type FilterTab =
 	| "all"
+	| "picker_exceptions"
 	| "active"
 	| "resolved"
 	| "damage"
@@ -98,6 +99,50 @@ export default function ExceptionsPage() {
 	});
 
 	const { data: productsList } = trpc.products.list.useQuery();
+	const { data: authorizedPickers } = trpc.warehouse.getAuthorizedPickers.useQuery();
+
+	// Picker Exceptions State & Mutation
+	const [selectedPickerEx, setSelectedPickerEx] = useState<any | null>(null);
+	const [pickerExAction, setPickerExAction] = useState<
+		| "APPROVE_PARTIAL"
+		| "ASSIGN_REPLACEMENT"
+		| "ARRANGE_REPLACEMENT"
+		| "MARK_DAMAGED"
+		| "REJECT"
+	>("APPROVE_PARTIAL");
+	const [pickerExNotes, setPickerExNotes] = useState("");
+	const [selectedNewPickerId, setSelectedNewPickerId] = useState<number | undefined>();
+	const [isPickerResolveModalOpen, setIsPickerResolveModalOpen] = useState(false);
+
+	const resolvePickerMutation = trpc.warehouse.resolvePickingException.useMutation({
+		onSuccess: () => {
+			toast.success("Picker exception successfully resolved & synchronized with inventory and billing!");
+			utils.warehouse.getExceptions.invalidate();
+			utils.warehouse.getOverviewStats.invalidate();
+			utils.orders.invalidate();
+			setIsPickerResolveModalOpen(false);
+			setSelectedPickerEx(null);
+			setPickerExNotes("");
+		},
+		onError: (err) => {
+			toast.error(`Resolution failed: ${err.message}`);
+		},
+	});
+
+	const handleExecutePickerResolve = () => {
+		if (!selectedPickerEx) return;
+		if (!pickerExNotes.trim()) {
+			toast.error("Please enter supervisor resolution notes.");
+			return;
+		}
+
+		resolvePickerMutation.mutate({
+			exceptionId: selectedPickerEx.id,
+			action: pickerExAction,
+			managerNotes: pickerExNotes.trim(),
+			newPickerId: selectedNewPickerId,
+		});
+	};
 
 	// Mutations
 	const logExceptionMutation = trpc.warehouse.logException.useMutation({
@@ -367,6 +412,11 @@ export default function ExceptionsPage() {
 		const activeCount = active.length;
 		const resolvedCount = resolved.length;
 
+		const pickerExceptions = exceptionsData?.pickerExceptions ?? [];
+		const pendingPickerCount = pickerExceptions.filter(
+			(pe: any) => pe.status === "PENDING_REVIEW",
+		).length;
+
 		return {
 			activeIncidents: active,
 			resolvedIncidents: resolved,
@@ -376,9 +426,36 @@ export default function ExceptionsPage() {
 				resolvedCount,
 				totalDamagedUnits,
 				totalMissingUnits,
+				pendingPickerCount,
 			},
 		};
 	}, [exceptionsData]);
+
+	const pickerExceptions = exceptionsData?.pickerExceptions ?? [];
+	const pendingPickerCount = useMemo(
+		() =>
+			pickerExceptions.filter((pe: any) => pe.status === "PENDING_REVIEW")
+				.length,
+		[pickerExceptions],
+	);
+
+	const filteredPickerExceptions = useMemo(() => {
+		return pickerExceptions.filter((pe: any) => {
+			if (searchQuery.trim()) {
+				const q = searchQuery.toLowerCase();
+				return (
+					(pe.product_name && pe.product_name.toLowerCase().includes(q)) ||
+					(pe.product_sku && pe.product_sku.toLowerCase().includes(q)) ||
+					(pe.customer_name && pe.customer_name.toLowerCase().includes(q)) ||
+					(pe.reporter_name && pe.reporter_name.toLowerCase().includes(q)) ||
+					(pe.order_id && `ord-${pe.order_id}`.includes(q)) ||
+					(pe.reason && pe.reason.toLowerCase().includes(q)) ||
+					(pe.status && pe.status.toLowerCase().includes(q))
+				);
+			}
+			return true;
+		});
+	}, [pickerExceptions, searchQuery]);
 
 	// Filtered Active Incidents
 	const filteredActive = useMemo(() => {
@@ -488,7 +565,7 @@ export default function ExceptionsPage() {
 			</div>
 
 			{/* Top KPI Metrics Bar */}
-			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
 				<Card
 					className={`cursor-pointer transition-all hover:shadow-md ${activeTab === "all" ? "border-primary ring-1 ring-primary" : ""}`}
 					onClick={() => setActiveTab("all")}
@@ -503,6 +580,25 @@ export default function ExceptionsPage() {
 							</p>
 							<p className="font-bold text-slate-900 text-xl dark:text-slate-100">
 								{stats.totalCount}
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card
+					className={`cursor-pointer transition-all hover:shadow-md ${activeTab === "picker_exceptions" ? "border-amber-500 ring-2 ring-amber-500 bg-amber-50/40 dark:bg-amber-950/20" : ""}`}
+					onClick={() => setActiveTab("picker_exceptions")}
+				>
+					<CardContent className="flex items-center gap-3 p-4">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
+							<AlertTriangleIcon className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="font-medium text-muted-foreground text-xs">
+								Picker Shortages
+							</p>
+							<p className="font-bold text-amber-600 text-xl dark:text-amber-400">
+								{pendingPickerCount}
 							</p>
 						</div>
 					</CardContent>
@@ -586,14 +682,26 @@ export default function ExceptionsPage() {
 			</div>
 
 			{/* Filter Tabs */}
-			<div className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/40 p-1">
+			<div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/40 p-1.5">
 				<Button
 					variant={activeTab === "all" ? "default" : "ghost"}
 					size="sm"
 					onClick={() => setActiveTab("all")}
 					className="h-7 text-xs"
 				>
-					All ({stats.totalCount})
+					All Incidents ({stats.totalCount})
+				</Button>
+				<Button
+					variant={activeTab === "picker_exceptions" ? "default" : "outline"}
+					size="sm"
+					onClick={() => setActiveTab("picker_exceptions")}
+					className={`h-7 text-xs font-semibold ${
+						activeTab === "picker_exceptions"
+							? "bg-amber-600 text-white hover:bg-amber-700"
+							: "border-amber-300 text-amber-900 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300"
+					}`}
+				>
+					⚠️ Picker Exceptions ({pendingPickerCount})
 				</Button>
 				<Button
 					variant={activeTab === "active" ? "default" : "ghost"}
@@ -628,6 +736,161 @@ export default function ExceptionsPage() {
 					Resolved Archive ({stats.resolvedCount})
 				</Button>
 			</div>
+
+			{/* DEDICATED SECTION: Picker-Side Missing Items / Picking Exceptions */}
+			{(activeTab === "all" || activeTab === "picker_exceptions") && (
+				<Card className="border-amber-300 bg-amber-50/15 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/10">
+					<CardHeader className="border-b pb-3">
+						<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+							<div>
+								<CardTitle className="flex items-center gap-2 text-base font-bold text-amber-950 dark:text-amber-200">
+									<AlertTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+									Picker-Side Missing Items / Picking Exceptions
+								</CardTitle>
+								<CardDescription className="text-xs">
+									Physical shortages, damaged goods, and shelf mismatches flagged by pickers during order fulfilment. Manager authorization required to adjust customer bills or allocate replacement stock.
+								</CardDescription>
+							</div>
+							<Badge
+								variant="outline"
+								className="border-amber-300 bg-amber-100 text-amber-900 font-semibold text-xs dark:bg-amber-900/40 dark:text-amber-200"
+							>
+								{pendingPickerCount} Pending Review
+							</Badge>
+						</div>
+					</CardHeader>
+					<CardContent className="p-0">
+						{filteredPickerExceptions.length === 0 ? (
+							<div className="py-8 text-center text-xs text-muted-foreground">
+								No picker exceptions found matching filter criteria. All pick lists verified.
+							</div>
+						) : (
+							<div className="overflow-x-auto">
+								<Table>
+									<TableHeader>
+										<TableRow className="bg-muted/40 text-xs">
+											<TableHead>Order & Customer</TableHead>
+											<TableHead>Product</TableHead>
+											<TableHead className="text-center">Ordered</TableHead>
+											<TableHead className="text-center">Picked</TableHead>
+											<TableHead className="text-center">Damaged</TableHead>
+											<TableHead className="text-center">Remaining</TableHead>
+											<TableHead>Reported By & Location</TableHead>
+											<TableHead>Reason & Remarks</TableHead>
+											<TableHead>Status</TableHead>
+											<TableHead className="text-right">Manager Action</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{filteredPickerExceptions.map((ex: any) => (
+											<TableRow key={ex.id} className="hover:bg-muted/30">
+												<TableCell>
+													<div className="font-bold text-xs text-blue-600 dark:text-blue-400">
+														#ORD-{ex.order_id}
+													</div>
+													<div className="text-xs font-medium text-foreground">
+														{ex.customer_name || "Customer"}
+													</div>
+												</TableCell>
+												<TableCell>
+													<div className="font-bold text-xs">
+														{ex.product_name || `Product #${ex.product_id}`}
+													</div>
+													<div className="text-[11px] font-mono text-muted-foreground">
+														{ex.product_sku || "N/A"}
+													</div>
+												</TableCell>
+												<TableCell className="text-center font-mono text-xs font-semibold">
+													{ex.quantity_ordered}
+												</TableCell>
+												<TableCell className="text-center font-mono text-xs font-bold text-green-600">
+													{ex.quantity_picked}
+												</TableCell>
+												<TableCell className="text-center font-mono text-xs font-bold text-rose-600">
+													{ex.quantity_damaged ?? 0}
+												</TableCell>
+												<TableCell className="text-center font-mono text-xs font-bold text-amber-600">
+													{ex.quantity_missing ?? 0}
+												</TableCell>
+												<TableCell className="text-xs">
+													<div className="font-medium text-foreground">
+														{ex.reporter_name || "Picker Staff"}
+													</div>
+													<div className="text-[11px] text-muted-foreground">
+														{ex.location_name || "Warehouse"}
+													</div>
+													<div className="text-[10px] text-muted-foreground">
+														{ex.created_at
+															? new Date(ex.created_at).toLocaleString()
+															: "—"}
+													</div>
+												</TableCell>
+												<TableCell className="text-xs max-w-[200px]">
+													<div className="font-semibold text-amber-700 dark:text-amber-400">
+														{ex.reason}
+													</div>
+													{ex.remarks && (
+														<div
+															className="text-[11px] text-muted-foreground italic truncate"
+															title={ex.remarks}
+														>
+															&quot;{ex.remarks}&quot;
+														</div>
+													)}
+													{ex.photo_url && (
+														<a
+															href={ex.photo_url}
+															target="_blank"
+															rel="noreferrer"
+															className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5 mt-0.5"
+														>
+															📷 View Photo Evidence
+														</a>
+													)}
+												</TableCell>
+												<TableCell>
+													<Badge
+														className={`text-[10px] font-semibold ${
+															ex.status === "PENDING_REVIEW"
+																? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200"
+																: ex.status === "APPROVED_PARTIAL"
+																	? "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200"
+																	: ex.status === "REASSIGNED"
+																		? "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200"
+																		: ex.status === "MARKED_DAMAGED"
+																			? "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200"
+																			: "bg-gray-100 text-gray-800 border-gray-300"
+														}`}
+													>
+														{ex.status.replace("_", " ")}
+													</Badge>
+												</TableCell>
+												<TableCell className="text-right">
+													<Button
+														size="sm"
+														variant="outline"
+														className="h-8 gap-1 border-amber-300 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/40 font-semibold text-xs"
+														onClick={() => {
+															setSelectedPickerEx(ex);
+															setPickerExAction("APPROVE_PARTIAL");
+															setPickerExNotes(ex.manager_notes || "");
+															setIsPickerResolveModalOpen(true);
+														}}
+													>
+														{ex.status === "PENDING_REVIEW"
+															? "Review & Action"
+															: "View / Update"}
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			)}
 
 			{/* Core Exception Columns (Active Incidents & Resolution Log Archive) */}
 			{exceptionsLoading ? (
@@ -1019,6 +1282,185 @@ export default function ExceptionsPage() {
 							{resolveExceptionMutation.isPending
 								? "Resolving..."
 								: "Confirm & Resolve Ticket"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* RESOLVE PICKER EXCEPTION MODAL */}
+			<Dialog
+				open={isPickerResolveModalOpen}
+				onOpenChange={setIsPickerResolveModalOpen}
+			>
+				<DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 font-bold text-lg text-slate-900 dark:text-slate-100">
+							<AlertTriangleIcon className="h-5 w-5 text-amber-600" />
+							Resolve Picker Shortage & Stock Exception
+						</DialogTitle>
+						<DialogDescription>
+							Investigate reported picking shortage, approve partial order fulfilment, or schedule replacement pick tasks.
+						</DialogDescription>
+					</DialogHeader>
+
+					{selectedPickerEx && (
+						<div className="space-y-4 py-2 text-xs">
+							{/* Exception Overview Summary */}
+							<div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/20">
+								<div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/60 pb-2 dark:border-amber-900/60">
+									<div>
+										<span className="font-bold text-sm text-blue-700 dark:text-blue-400">
+											Order #ORD-{selectedPickerEx.order_id}
+										</span>
+										<span className="text-muted-foreground ml-2">
+											({selectedPickerEx.customer_name || "Customer"})
+										</span>
+									</div>
+									<Badge variant="outline" className="font-mono text-[10px]">
+										PL-{selectedPickerEx.pick_list_id}
+									</Badge>
+								</div>
+
+								<div className="mt-2.5 grid grid-cols-2 gap-2">
+									<div>
+										<span className="text-muted-foreground">Product:</span>{" "}
+										<strong className="text-foreground">{selectedPickerEx.product_name}</strong>
+									</div>
+									<div>
+										<span className="text-muted-foreground">SKU:</span>{" "}
+										<span className="font-mono">{selectedPickerEx.product_sku || "N/A"}</span>
+									</div>
+									<div>
+										<span className="text-muted-foreground">Shelf Location:</span>{" "}
+										<span className="font-semibold text-blue-600">{selectedPickerEx.location_name || "Warehouse"}</span>
+									</div>
+									<div>
+										<span className="text-muted-foreground">Reported By:</span>{" "}
+										<span className="font-medium">{selectedPickerEx.reporter_name || "Picker Staff"}</span>
+									</div>
+								</div>
+
+								{/* Quantity Matrix */}
+								<div className="mt-3 grid grid-cols-4 gap-2 rounded-md bg-white p-2.5 text-center shadow-xs dark:bg-slate-800">
+									<div className="border-r border-border">
+										<p className="text-[10px] text-muted-foreground">Ordered</p>
+										<p className="font-mono font-bold text-sm text-foreground">{selectedPickerEx.quantity_ordered}</p>
+									</div>
+									<div className="border-r border-border">
+										<p className="text-[10px] text-muted-foreground">Picked Good</p>
+										<p className="font-mono font-bold text-sm text-green-600">{selectedPickerEx.quantity_picked}</p>
+									</div>
+									<div className="border-r border-border">
+										<p className="text-[10px] text-muted-foreground">Damaged</p>
+										<p className="font-mono font-bold text-sm text-rose-600">{selectedPickerEx.quantity_damaged ?? 0}</p>
+									</div>
+									<div>
+										<p className="text-[10px] text-muted-foreground">Missing / Short</p>
+										<p className="font-mono font-bold text-sm text-amber-600">{selectedPickerEx.quantity_missing ?? 0}</p>
+									</div>
+								</div>
+
+								<div className="mt-2.5 pt-2 border-t border-amber-200/60 dark:border-amber-900/60">
+									<p className="font-semibold text-amber-800 dark:text-amber-300">
+										Reason: {selectedPickerEx.reason}
+									</p>
+									{selectedPickerEx.remarks && (
+										<p className="mt-0.5 italic text-muted-foreground">
+											&quot;{selectedPickerEx.remarks}&quot;
+										</p>
+									)}
+									{selectedPickerEx.photo_url && (
+										<div className="mt-2">
+											<p className="text-[10px] font-semibold text-muted-foreground mb-1">Photo Evidence Attached:</p>
+											<img
+												src={selectedPickerEx.photo_url}
+												alt="Damage evidence"
+												className="h-24 w-24 object-cover rounded-md border"
+											/>
+										</div>
+									)}
+								</div>
+							</div>
+
+							{/* Manager Resolution Action Options */}
+							<div className="space-y-1.5">
+								<Label className="font-bold text-slate-800 text-xs dark:text-slate-200">
+									Manager Action / Resolution Workflow <span className="text-red-500">*</span>
+								</Label>
+								<select
+									className="w-full rounded-md border border-input bg-background p-2 font-medium text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+									value={pickerExAction}
+									onChange={(e) => setPickerExAction(e.target.value as any)}
+								>
+									<option value="APPROVE_PARTIAL">
+										1. Approve Partial Fulfilment (Adjust Order Bill to Picked Units & Sync Sales)
+									</option>
+									<option value="ASSIGN_REPLACEMENT">
+										2. Assign Another Picker to Search Another Shelf
+									</option>
+									<option value="ARRANGE_REPLACEMENT">
+										3. Arrange Replacement Stock (Create New Picking Task)
+									</option>
+									<option value="MARK_DAMAGED">
+										4. Mark Items as Damaged After Physical Verification (Quarantine Stock)
+									</option>
+									<option value="REJECT">
+										5. Reject Exception Report & Return to Picker for Verification
+									</option>
+								</select>
+							</div>
+
+							{/* Conditional Picker Assignment */}
+							{(pickerExAction === "ASSIGN_REPLACEMENT" || pickerExAction === "ARRANGE_REPLACEMENT") && (
+								<div className="space-y-1.5 rounded-md border bg-muted/30 p-2.5">
+									<Label className="font-semibold text-xs text-foreground">
+										Assign To Warehouse Picker:
+									</Label>
+									<select
+										className="w-full rounded-md border border-input bg-background p-2 text-xs"
+										value={selectedNewPickerId ?? ""}
+										onChange={(e) => setSelectedNewPickerId(Number(e.target.value) || undefined)}
+									>
+										<option value="">Select a picker...</option>
+										{authorizedPickers?.map((p: any) => (
+											<option key={p.id} value={p.id}>
+												{p.name} ({p.role})
+											</option>
+										))}
+									</select>
+								</div>
+							)}
+
+							{/* Supervisor Notes */}
+							<div className="space-y-1.5">
+								<Label className="font-bold text-slate-800 text-xs dark:text-slate-200">
+									Supervisor Investigation Notes & Authorization Remarks <span className="text-red-500">*</span>
+								</Label>
+								<Textarea
+									placeholder="Describe verification steps, rack bin checked, billing authorization notes, or rejection reason..."
+									value={pickerExNotes}
+									onChange={(e) => setPickerExNotes(e.target.value)}
+									className="h-20 text-xs"
+								/>
+							</div>
+						</div>
+					)}
+
+					<DialogFooter className="gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setIsPickerResolveModalOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							size="sm"
+							onClick={handleExecutePickerResolve}
+							disabled={resolvePickerMutation.isPending}
+							className="bg-amber-600 font-bold text-white hover:bg-amber-700"
+						>
+							{resolvePickerMutation.isPending ? "Executing..." : "Authorize & Execute Action"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -60,6 +60,7 @@ export interface DateFilterBarProps {
 	amountLabel?: string;
 	className?: string;
 	showPresetButtons?: boolean;
+	showTomorrow?: boolean;
 }
 
 export function DateFilterBar({
@@ -73,6 +74,7 @@ export function DateFilterBar({
 	amountLabel,
 	className = "",
 	showPresetButtons = true,
+	showTomorrow = false,
 }: DateFilterBarProps) {
 	let currentLocale = "en";
 	try {
@@ -126,7 +128,7 @@ export function DateFilterBar({
 		{ id: "all", label: isHindi ? "सभी" : "All" },
 		{ id: "today", label: isHindi ? "आज (Today)" : "Today" },
 		{ id: "yesterday", label: isHindi ? "कल (Yesterday)" : "Yesterday" },
-		{ id: "tomorrow", label: isHindi ? "कल (Tomorrow)" : "Tomorrow" },
+		...(showTomorrow ? [{ id: "tomorrow", label: isHindi ? "कल (Tomorrow)" : "Tomorrow" }] : []),
 		{ id: "7days", label: isHindi ? "7 दिन" : "Last 7 Days" },
 		{ id: "month", label: isHindi ? "इस माह" : "This Month" },
 	];

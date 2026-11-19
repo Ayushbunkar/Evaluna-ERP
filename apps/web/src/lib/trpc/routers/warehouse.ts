@@ -1,14 +1,18 @@
 import {
 	auditLogs,
 	batchStock,
+	branchDamage,
 	branchInventory,
 	branchLocations,
 	customers,
 	goodsReceiptItems,
 	goodsReceiptNotes,
+	orderAudits,
+	orderItems,
 	orders,
 	packageItems,
 	packages,
+	pickingExceptions,
 	pickListItems,
 	pickLists,
 	placementVerifications,
@@ -39,6 +43,7 @@ import {
 	sum,
 } from "drizzle-orm";
 import { z } from "zod";
+import { adjustStockForOrderQuantityChange } from "@/lib/inventory/inventory-service";
 import { EWayBillService } from "@/lib/services/eway-bill";
 import { protectedProcedure, router } from "../init";
 import { logAudit, notify, resolveStaffId } from "../util/audit";
@@ -1544,7 +1549,7 @@ export const warehouseRouter = router({
 					throw new Error("Picking task is already completed.");
 				}
 
-				// Check that ALL items/quantities are fully picked
+				// Check that ALL items/quantities are fully picked or covered by documented picking exceptions
 				const items = await tx
 					.select()
 					.from(pickListItems)
@@ -1554,17 +1559,31 @@ export const warehouseRouter = router({
 					throw new Error("Cannot complete picking for empty picklist.");
 				}
 
-				const unpicked = items.filter(
-					(i) => (i.quantity_picked ?? 0) < i.quantity_ordered,
-				);
+				const exceptions = await tx
+					.select()
+					.from(pickingExceptions)
+					.where(eq(pickingExceptions.pick_list_id, input.pickListId));
+
+				const unpicked = items.filter((i) => {
+					const picked = Number(i.quantity_picked ?? 0);
+					const ordered = Number(i.quantity_ordered ?? 0);
+					if (picked >= ordered) return false;
+					const ex = exceptions.find((e) => e.pick_list_item_id === i.id);
+					if (ex) {
+						const damaged = Number(ex.quantity_damaged ?? 0);
+						const missing = Number(ex.quantity_missing ?? 0);
+						if (picked + damaged + missing >= ordered) return false;
+					}
+					return true;
+				});
 
 				if (unpicked.length > 0) {
 					const totalPending = unpicked.reduce(
-						(acc, i) => acc + (i.quantity_ordered - (i.quantity_picked ?? 0)),
+						(acc, i) => acc + (Number(i.quantity_ordered) - Number(i.quantity_picked ?? 0)),
 						0,
 					);
 					throw new Error(
-						`Picking cannot be completed. ${unpicked.length} item(s) (${totalPending} units) are still pending.`,
+						`Picking cannot be completed. ${unpicked.length} item(s) (${totalPending} units) are still pending confirmation or exception reporting.`,
 					);
 				}
 
@@ -1587,6 +1606,18 @@ export const warehouseRouter = router({
 						created_at: new Date(),
 					})
 					.returning();
+
+				// Insert packageItems with only actually picked quantities (requirement #5)
+				for (const item of items) {
+					const picked = Number(item.quantity_picked ?? 0);
+					if (picked > 0) {
+						await tx.insert(packageItems).values({
+							package_id: pkg.id,
+							product_id: item.product_id,
+							quantity: picked.toString(),
+						});
+					}
+				}
 
 				if (pl.order_id) {
 					await tx
@@ -1756,12 +1787,470 @@ export const warehouseRouter = router({
 			)
 			.limit(20);
 
+		// 4. Picker-Side Missing Items / Picking Exceptions
+		const pickerExceptionsList = await db
+			.select({
+				id: pickingExceptions.id,
+				pick_list_id: pickingExceptions.pick_list_id,
+				pick_list_item_id: pickingExceptions.pick_list_item_id,
+				order_id: pickingExceptions.order_id,
+				product_id: pickingExceptions.product_id,
+				branch_id: pickingExceptions.branch_id,
+				location_id: pickingExceptions.location_id,
+				quantity_ordered: pickingExceptions.quantity_ordered,
+				quantity_picked: pickingExceptions.quantity_picked,
+				quantity_damaged: pickingExceptions.quantity_damaged,
+				quantity_missing: pickingExceptions.quantity_missing,
+				reason: pickingExceptions.reason,
+				remarks: pickingExceptions.remarks,
+				photo_url: pickingExceptions.photo_url,
+				reported_by: pickingExceptions.reported_by,
+				status: pickingExceptions.status,
+				manager_notes: pickingExceptions.manager_notes,
+				resolved_by: pickingExceptions.resolved_by,
+				resolved_at: pickingExceptions.resolved_at,
+				created_at: pickingExceptions.created_at,
+				updated_at: pickingExceptions.updated_at,
+				product_name: products.name,
+				product_sku: products.sku,
+				customer_name: customers.name,
+				reporter_name: staff.name,
+				location_name: branchLocations.name,
+			})
+			.from(pickingExceptions)
+			.leftJoin(products, eq(pickingExceptions.product_id, products.id))
+			.leftJoin(orders, eq(pickingExceptions.order_id, orders.id))
+			.leftJoin(customers, eq(orders.customer_id, customers.id))
+			.leftJoin(staff, eq(pickingExceptions.reported_by, staff.id))
+			.leftJoin(branchLocations, eq(pickingExceptions.location_id, branchLocations.id))
+			.where(
+				branchId ? eq(pickingExceptions.branch_id, branchId) : undefined,
+			)
+			.orderBy(desc(pickingExceptions.created_at))
+			.limit(100);
+
 		return {
 			adjustments,
 			inspections,
 			overduePicks,
+			pickerExceptions: pickerExceptionsList,
 		};
 	}),
+
+	getAuthorizedPickers: protectedProcedure.query(async ({ ctx }) => {
+		const db = ctx.db;
+		return await db
+			.select({
+				id: staff.id,
+				name: staff.name,
+				role: staff.role,
+			})
+			.from(staff)
+			.where(
+				and(
+					eq(staff.is_active, true),
+					sql`LOWER(${staff.role}) IN ('picker', 'warehouse', 'staff', 'manager', 'admin')`,
+				),
+			);
+	}),
+
+	getPickerExceptions: protectedProcedure
+		.input(z.object({ branchId: z.number().optional() }).optional())
+		.query(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const exceptions = await db
+				.select({
+					id: pickingExceptions.id,
+					pick_list_id: pickingExceptions.pick_list_id,
+					pick_list_item_id: pickingExceptions.pick_list_item_id,
+					order_id: pickingExceptions.order_id,
+					product_id: pickingExceptions.product_id,
+					branch_id: pickingExceptions.branch_id,
+					location_id: pickingExceptions.location_id,
+					quantity_ordered: pickingExceptions.quantity_ordered,
+					quantity_picked: pickingExceptions.quantity_picked,
+					quantity_damaged: pickingExceptions.quantity_damaged,
+					quantity_missing: pickingExceptions.quantity_missing,
+					reason: pickingExceptions.reason,
+					remarks: pickingExceptions.remarks,
+					photo_url: pickingExceptions.photo_url,
+					reported_by: pickingExceptions.reported_by,
+					status: pickingExceptions.status,
+					manager_notes: pickingExceptions.manager_notes,
+					resolved_by: pickingExceptions.resolved_by,
+					resolved_at: pickingExceptions.resolved_at,
+					created_at: pickingExceptions.created_at,
+					updated_at: pickingExceptions.updated_at,
+					product_name: products.name,
+					product_sku: products.sku,
+					customer_name: customers.name,
+					reporter_name: staff.name,
+					location_name: branchLocations.name,
+				})
+				.from(pickingExceptions)
+				.leftJoin(products, eq(pickingExceptions.product_id, products.id))
+				.leftJoin(orders, eq(pickingExceptions.order_id, orders.id))
+				.leftJoin(customers, eq(orders.customer_id, customers.id))
+				.leftJoin(staff, eq(pickingExceptions.reported_by, staff.id))
+				.leftJoin(branchLocations, eq(pickingExceptions.location_id, branchLocations.id))
+				.where(
+					input?.branchId ? eq(pickingExceptions.branch_id, input.branchId) : undefined,
+				)
+				.orderBy(desc(pickingExceptions.created_at));
+
+			return exceptions;
+		}),
+
+	resolvePickingException: protectedProcedure
+		.input(
+			z.object({
+				exceptionId: z.number(),
+				action: z.enum([
+					"APPROVE_PARTIAL",
+					"ASSIGN_REPLACEMENT",
+					"ARRANGE_REPLACEMENT",
+					"MARK_DAMAGED",
+					"REJECT",
+				]),
+				managerNotes: z.string().min(1, "Notes are required"),
+				newPickerId: z.number().optional(),
+				newLocationId: z.number().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+
+			return await db.transaction(async (tx) => {
+				const [ex] = await tx
+					.select()
+					.from(pickingExceptions)
+					.where(eq(pickingExceptions.id, input.exceptionId))
+					.limit(1);
+
+				if (!ex) throw new Error("Picking exception not found");
+
+				const orderedQty = Number(ex.quantity_ordered);
+				const pickedQty = Number(ex.quantity_picked);
+				const damagedQty = Number(ex.quantity_damaged ?? 0);
+				const missingQty = Number(ex.quantity_missing ?? 0);
+				const shortfall = Math.max(0, orderedQty - pickedQty);
+				const branchId = ex.branch_id || 1;
+				let replacementTaskId: number | null = null;
+
+				if (input.action === "APPROVE_PARTIAL") {
+					// 1. Update exception status
+					await tx
+						.update(pickingExceptions)
+						.set({
+							status: "APPROVED_PARTIAL",
+							manager_notes: input.managerNotes,
+							resolved_by: staffId,
+							resolved_at: new Date(),
+							updated_at: new Date(),
+						})
+						.where(eq(pickingExceptions.id, ex.id));
+
+					// 2. Synchronize order items and billable quantity if order_id exists
+					if (ex.order_id) {
+						const oItems = await tx
+							.select()
+							.from(orderItems)
+							.where(eq(orderItems.order_id, ex.order_id));
+
+						const matchingItem = oItems.find((oi) => oi.product_id === ex.product_id);
+						if (matchingItem) {
+							const origQty = matchingItem.original_quantity ?? matchingItem.quantity;
+							await tx
+								.update(orderItems)
+								.set({
+									original_quantity: origQty,
+									picked_quantity: pickedQty,
+									quantity: pickedQty,
+								})
+								.where(eq(orderItems.id, matchingItem.id));
+						}
+
+						// Recalculate whole order totals
+						const updatedItems = await tx
+							.select()
+							.from(orderItems)
+							.where(eq(orderItems.order_id, ex.order_id));
+
+						let newSubtotal = 0;
+						let newCgst = 0;
+						let newSgst = 0;
+						let newIgst = 0;
+
+						for (const it of updatedItems) {
+							const itQty = Number(it.quantity);
+							const itPrice = Number(it.price);
+							const itLineTotal = itQty * itPrice;
+							newSubtotal += itLineTotal;
+
+							const cgstRate = Number(it.cgst_rate ?? 0);
+							const sgstRate = Number(it.sgst_rate ?? 0);
+							const igstRate = Number(it.igst_rate ?? 0);
+
+							const itemCgst = (itLineTotal * cgstRate) / 100;
+							const itemSgst = (itLineTotal * sgstRate) / 100;
+							const itemIgst = (itLineTotal * igstRate) / 100;
+
+							newCgst += itemCgst;
+							newSgst += itemSgst;
+							newIgst += itemIgst;
+
+							await tx
+								.update(orderItems)
+								.set({
+									cgst_amount: itemCgst.toFixed(2),
+									sgst_amount: itemSgst.toFixed(2),
+									igst_amount: itemIgst.toFixed(2),
+								})
+								.where(eq(orderItems.id, it.id));
+						}
+
+						const [ord] = await tx
+							.select()
+							.from(orders)
+							.where(eq(orders.id, ex.order_id))
+							.limit(1);
+
+						const discount = Number(ord?.discount_amount ?? 0);
+						const otherCharges = Number(ord?.other_charges ?? 0);
+						const totalTax = newCgst + newSgst + newIgst;
+						const finalTotal = Math.max(0, newSubtotal + totalTax - discount + otherCharges);
+
+						await tx
+							.update(orders)
+							.set({
+								total_amount: finalTotal.toFixed(2),
+								cgst_amount: newCgst.toFixed(2),
+								sgst_amount: newSgst.toFixed(2),
+								igst_amount: newIgst.toFixed(2),
+							})
+							.where(eq(orders.id, ex.order_id));
+
+						// Release reserved stock / adjust inventory for shortfall
+						try {
+							await adjustStockForOrderQuantityChange(tx, {
+								orderId: ex.order_id,
+								branchId,
+								newItems: updatedItems.map((ui) => ({
+									productId: ui.product_id!,
+									quantity: Number(ui.quantity),
+									price: Number(ui.price),
+								})),
+							});
+						} catch (adjErr) {
+							console.warn("[resolvePickingException] adjustStockForOrderQuantityChange error:", adjErr);
+						}
+
+						// Release reserved stock for shortfall
+						if (shortfall > 0 && ex.product_id) {
+							await tx
+								.update(branchInventory)
+								.set({
+									reserved_stock: sql`GREATEST(0, CAST(${branchInventory.reserved_stock} AS numeric) - ${shortfall})`,
+								})
+								.where(
+									and(
+										eq(branchInventory.branch_id, branchId),
+										eq(branchInventory.product_id, ex.product_id),
+									),
+								);
+						}
+
+						// If damaged units reported, move them to damaged stock
+						if (damagedQty > 0) {
+							await tx.insert(branchDamage).values({
+								location_id: ex.location_id || 1,
+								product_id: ex.product_id,
+								quantity: damagedQty,
+								reason: `Picker exception on ORD-${ex.order_id}: ${ex.remarks || ex.reason}${input.managerNotes ? `. ${input.managerNotes}` : ""}`,
+								reported_by: ex.reported_by,
+								verified: true,
+								verified_by: staffId,
+								verified_at: new Date(),
+							});
+
+							const unitCost = Number(matchingItem?.price ?? 0);
+							await tx.insert(stockLedger).values({
+								branch_id: branchId,
+								product_id: ex.product_id,
+								transaction_type: "damage",
+								quantity: (-damagedQty).toString(),
+								unit_cost: unitCost.toFixed(2),
+								total_cost: (damagedQty * unitCost).toFixed(2),
+								reference_id: ex.id,
+								reference_type: "picking_exception",
+							});
+						}
+
+						// Log Order Audit
+						await tx.insert(orderAudits).values({
+							order_id: ex.order_id,
+							action: "partial_fulfillment",
+							changed_by: staffId,
+							reason: `Manager approved partial picking: ${pickedQty} of ${orderedQty} units fulfilled. Bill amount synchronized to ${finalTotal.toFixed(2)}. ${input.managerNotes}`,
+						});
+
+						// Notify Sales and Picker
+						try {
+							await notify(tx, {
+								branchId,
+								type: "sale",
+								priority: "high",
+								title: `✅ Partial Fulfilment Approved: Order #ORD-${ex.order_id}`,
+								message: `Warehouse Manager approved ${pickedQty} units (ordered ${orderedQty}). Bill revised to ₹${finalTotal.toFixed(2)}.`,
+								referenceType: "orders",
+								referenceId: ex.order_id,
+							});
+
+							await notify(tx, {
+								branchId,
+								type: "packing",
+								priority: "normal",
+								title: `✅ Exception Approved: Picklist #PL-${ex.pick_list_id}`,
+								message: `Partial fulfilment of ${pickedQty} units approved by manager.`,
+								referenceType: "pick_lists",
+								referenceId: ex.pick_list_id,
+							});
+						} catch (ne) {
+							console.warn("[resolvePickingException] Notification dispatch error:", ne);
+						}
+					}
+				} else if (input.action === "ASSIGN_REPLACEMENT" || input.action === "ARRANGE_REPLACEMENT") {
+					if (shortfall > 0 && ex.order_id) {
+						const [newPl] = await tx
+							.insert(pickLists)
+							.values({
+								order_id: ex.order_id,
+								reference_type: "sale",
+								reference_id: ex.order_id,
+								status: "assigned",
+								assigned_to: input.newPickerId || ex.reported_by,
+								priority: "urgent",
+								created_at: new Date(),
+							})
+							.returning();
+
+						await tx.insert(pickListItems).values({
+							pick_list_id: newPl.id,
+							product_id: ex.product_id,
+							location_id: input.newLocationId || ex.location_id,
+							quantity_ordered: shortfall,
+							quantity_picked: 0,
+							status: "pending",
+						});
+						replacementTaskId = newPl.id;
+
+						try {
+							await notify(tx, {
+								branchId,
+								type: "stock",
+								priority: "high",
+								title: `📦 Replacement Pick Task: PL-${newPl.id}`,
+								message: `Replacement task assigned to pick ${shortfall} units for Order ORD-${ex.order_id}.`,
+								referenceType: "pick_lists",
+								referenceId: newPl.id,
+							});
+						} catch (ne) {}
+					}
+
+					await tx
+						.update(pickingExceptions)
+						.set({
+							status: "REASSIGNED",
+							replacement_task_id: replacementTaskId,
+							manager_notes: input.managerNotes,
+							resolved_by: staffId,
+							resolved_at: new Date(),
+							updated_at: new Date(),
+						})
+						.where(eq(pickingExceptions.id, ex.id));
+				} else if (input.action === "MARK_DAMAGED") {
+					if (damagedQty > 0) {
+						await tx.insert(branchDamage).values({
+							location_id: ex.location_id || 1,
+							product_id: ex.product_id,
+							quantity: damagedQty,
+							reason: `Picker damage verified: ${ex.remarks || ex.reason}. ${input.managerNotes}`,
+							reported_by: ex.reported_by,
+							verified: true,
+							verified_by: staffId,
+							verified_at: new Date(),
+						});
+
+						const [prod] = await tx
+							.select({ price: products.price })
+							.from(products)
+							.where(eq(products.id, ex.product_id))
+							.limit(1);
+						const unitCost = Number(prod?.price ?? 0);
+
+						await tx.insert(stockLedger).values({
+							branch_id: branchId,
+							product_id: ex.product_id,
+							transaction_type: "damage",
+							quantity: (-damagedQty).toString(),
+							unit_cost: unitCost.toFixed(2),
+							total_cost: (damagedQty * unitCost).toFixed(2),
+							reference_id: ex.id,
+							reference_type: "picking_exception",
+						});
+					}
+
+					await tx
+						.update(pickingExceptions)
+						.set({
+							status: "MARKED_DAMAGED",
+							manager_notes: input.managerNotes,
+							resolved_by: staffId,
+							resolved_at: new Date(),
+							updated_at: new Date(),
+						})
+						.where(eq(pickingExceptions.id, ex.id));
+				} else if (input.action === "REJECT") {
+					await tx
+						.update(pickingExceptions)
+						.set({
+							status: "REJECTED",
+							manager_notes: input.managerNotes,
+							resolved_by: staffId,
+							resolved_at: new Date(),
+							updated_at: new Date(),
+						})
+						.where(eq(pickingExceptions.id, ex.id));
+
+					await tx
+						.update(pickListItems)
+						.set({
+							status: "pending",
+						})
+						.where(eq(pickListItems.id, ex.pick_list_item_id));
+
+					try {
+						await notify(tx, {
+							branchId,
+							type: "warning",
+							priority: "high",
+							title: `❌ Exception Rejected: PL-${ex.pick_list_id}`,
+							message: `Manager rejected exception report: ${input.managerNotes}. Please re-verify shelf stock.`,
+							referenceType: "pick_lists",
+							referenceId: ex.pick_list_id,
+						});
+					} catch (ne) {}
+				}
+
+				return {
+					success: true,
+					exceptionId: ex.id,
+					action: input.action,
+					replacementPickListId: replacementTaskId,
+				};
+			});
+		}),
 
 	resolveException: protectedProcedure
 		.input(

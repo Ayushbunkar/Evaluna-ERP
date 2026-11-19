@@ -2824,7 +2824,7 @@ export default function DriverLiveDeliveryPage() {
 																</span>
 																{isSelectedForDelivery ? (
 																	ord.discountAmount > 0 && (
-																		<span className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+																		<span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-extrabold border border-emerald-400 bg-emerald-100 text-emerald-950 shadow-2xs dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">
 																			🏷️ -₹{ord.discountAmount}
 																		</span>
 																	)
@@ -2864,22 +2864,22 @@ export default function DriverLiveDeliveryPage() {
 
 									{/* Applied Discount Banner (exact match with Sales Order Invoice) */}
 									{billDiscount > 0 && driverDiscount === 0 && (
-										<div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-950 dark:text-emerald-200 space-y-1.5">
-											<div className="flex items-center justify-between font-bold text-xs sm:text-sm">
-												<span className="flex items-center gap-1.5">
-													<Tag className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+										<div className="rounded-lg border-2 border-emerald-500/40 bg-emerald-500/15 p-3 text-emerald-950 dark:text-emerald-200 space-y-2 shadow-2xs">
+											<div className="flex items-center justify-between font-extrabold text-xs sm:text-sm">
+												<span className="flex items-center gap-1.5 font-bold">
+													<Tag className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
 													{locale === "hi" ? "बिल पर लागू छूट (Applied Discount):" : "Applied Discount:"}
 												</span>
-												<span className="font-extrabold font-mono text-emerald-700 dark:text-emerald-300 text-sm sm:text-base">
+												<span className="font-extrabold font-mono text-emerald-800 dark:text-emerald-200 text-base sm:text-lg">
 													-₹{billDiscount}
 												</span>
 											</div>
 											{discountReasonText && (
-												<div className="rounded border border-emerald-500/20 bg-white/70 p-2 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-													<span className="font-bold text-emerald-800 dark:text-emerald-300">
-														{locale === "hi" ? "छूट कारण / उत्पाद विवरण (Reason): " : "Discount Breakdown / Reason: "}
+												<div className="rounded border border-emerald-500/30 bg-white/90 p-2 text-xs text-emerald-950 dark:bg-emerald-950/60 dark:text-emerald-200">
+													<span className="font-bold text-emerald-900 dark:text-emerald-300">
+														{locale === "hi" ? "छूट कारण / विवरण (Reason): " : "Discount Breakdown / Reason: "}
 													</span>
-													<span>{discountReasonText}</span>
+													<span className="font-semibold">{discountReasonText}</span>
 												</div>
 											)}
 										</div>
@@ -2990,23 +2990,24 @@ export default function DriverLiveDeliveryPage() {
 											<span className="font-mono font-semibold text-foreground">₹{originalTotal}</span>
 										</div>
 										{totalEffectiveDiscount > 0 && (
-											<div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400">
+											<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 p-2.5 rounded-lg border border-emerald-300 dark:border-emerald-800 shadow-2xs">
 												<div className="flex flex-col">
-													<span className="flex items-center gap-1">
-														{locale === "hi" ? "लागू छूट (Discount)" : "Discount Applied"}
+													<span className="flex items-center gap-1.5 font-bold text-xs sm:text-sm">
+														<span>🏷️</span>
+														<span>{locale === "hi" ? "लागू छूट (Discount)" : "Discount Applied"}</span>
 														{driverDiscount > 0 && (
-															<Badge variant="outline" className="text-[9px] py-0 px-1 border-emerald-500 text-emerald-700 bg-emerald-50">
+															<Badge variant="outline" className="text-[10px] py-0.5 px-1.5 font-bold border-emerald-500 text-emerald-800 bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-200">
 																{locale === "hi" ? "डोरस्टेप छूट" : "Driver Applied"}
 															</Badge>
 														)}
 													</span>
 													{effectiveDiscountReason && (
-														<span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 font-normal max-w-[220px] truncate">
+														<span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold max-w-[260px] truncate mt-0.5">
 															{effectiveDiscountReason}
 														</span>
 													)}
 												</div>
-												<span className="font-mono">
+												<span className="font-mono font-extrabold text-emerald-700 dark:text-emerald-300 text-base sm:text-lg">
 													-₹{totalEffectiveDiscount}
 												</span>
 											</div>

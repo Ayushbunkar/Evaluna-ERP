@@ -1,6 +1,7 @@
 import {
 	customers,
 	deliveryRoutes,
+	deliveryStops,
 	deliveryTrips,
 	orderItems,
 	orders,
@@ -18,6 +19,7 @@ import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, l
 import { z } from "zod";
 import { db as defaultDb } from "@/lib/db";
 import { dispatchNotification } from "@/lib/notification-service";
+import { parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
 
 export const loaderRouter = router({
@@ -698,39 +700,28 @@ export const loaderRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db || defaultDb;
 
-			const conditions = [inArray(deliveryTrips.status, ["loaded", "active", "completed"])];
+			const conditions = [
+				or(
+					inArray(deliveryTrips.status, [
+						"loaded",
+						"loading",
+						"active",
+						"in_transit",
+						"dispatched",
+						"completed",
+					]),
+					isNotNull(deliveryTrips.loaded_at),
+				),
+			];
 
-			const fromDate = input?.startDate ? new Date(input.startDate) : null;
-			if (fromDate) fromDate.setHours(0, 0, 0, 0);
+			const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+			const targetDateCol = sql`COALESCE(${deliveryTrips.loaded_at}, ${deliveryTrips.updated_at}, ${deliveryTrips.created_at})`;
 
-			const toDate = input?.endDate ? new Date(input.endDate) : null;
-			if (toDate) toDate.setHours(23, 59, 59, 999);
-
-			if (fromDate && toDate) {
-				conditions.push(
-					or(
-						and(gte(deliveryTrips.loaded_at, fromDate), lte(deliveryTrips.loaded_at, toDate)),
-						and(
-							isNull(deliveryTrips.loaded_at),
-							gte(deliveryTrips.created_at, fromDate),
-							lte(deliveryTrips.created_at, toDate),
-						),
-					),
-				);
-			} else if (fromDate) {
-				conditions.push(
-					or(
-						gte(deliveryTrips.loaded_at, fromDate),
-						and(isNull(deliveryTrips.loaded_at), gte(deliveryTrips.created_at, fromDate)),
-					),
-				);
-			} else if (toDate) {
-				conditions.push(
-					or(
-						lte(deliveryTrips.loaded_at, toDate),
-						and(isNull(deliveryTrips.loaded_at), lte(deliveryTrips.created_at, toDate)),
-					),
-				);
+			if (fromDate) {
+				conditions.push(gte(targetDateCol, fromDate));
+			}
+			if (toDate) {
+				conditions.push(lte(targetDateCol, toDate));
 			}
 
 			const historyTrips = await db
@@ -750,44 +741,55 @@ export const loaderRouter = router({
 				.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 				.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
 				.where(and(...conditions))
-				.orderBy(desc(deliveryTrips.updated_at));
+				.orderBy(desc(targetDateCol), desc(deliveryTrips.id))
+				.limit(500);
 
 			const enrichedHistory = await Promise.all(
 				historyTrips.map(async (t) => {
-					const stops = await db
-						.select({ customerId: tripStops.customer_id })
-						.from(tripStops)
-						.where(eq(tripStops.trip_id, t.tripId));
+					// 1. Direct deliveryStops linked to this trip
+					const directStops = await db
+						.select({ orderId: deliveryStops.order_id })
+						.from(deliveryStops)
+						.where(
+							and(
+								eq(deliveryStops.trip_id, t.tripId),
+								isNotNull(deliveryStops.order_id),
+							),
+						);
 
-					const customerIds = stops.map((s) => s.customerId).filter(Boolean);
+					let ordersCount = directStops.length;
 
-					let ordersCount = 0;
-					if (customerIds.length > 0) {
-						const tripCreatedAtBuffer = t.createdAt
-							? new Date(new Date(t.createdAt).getTime() + 120_000)
-							: null;
-						const histConditions = [
-							inArray(orders.customer_id, customerIds),
-							inArray(orders.status, [
-								"ready_for_dispatch",
-								"ready_for_loading",
-								"packed",
-								"loaded",
-								"out_for_delivery",
-								"in_transit",
-								"dispatched",
-								"delivered",
-								"completed",
-							]),
-						];
-						if (tripCreatedAtBuffer) {
-							histConditions.push(lte(orders.created_at, tripCreatedAtBuffer));
+					if (ordersCount === 0) {
+						// 2. Fallback to tripStops customers
+						const stops = await db
+							.select({ customerId: tripStops.customer_id })
+							.from(tripStops)
+							.where(eq(tripStops.trip_id, t.tripId));
+
+						const customerIds = stops.map((s) => s.customerId).filter(Boolean);
+
+						if (customerIds.length > 0) {
+							const res = await db
+								.select({ count: count() })
+								.from(orders)
+								.where(
+									and(
+										inArray(orders.customer_id, customerIds),
+										inArray(orders.status, [
+											"ready_for_dispatch",
+											"ready_for_loading",
+											"packed",
+											"loaded",
+											"out_for_delivery",
+											"in_transit",
+											"dispatched",
+											"delivered",
+											"completed",
+										]),
+									),
+								);
+							ordersCount = res[0]?.count || 0;
 						}
-						const res = await db
-							.select({ count: count() })
-							.from(orders)
-							.where(and(...histConditions));
-						ordersCount = res[0]?.count || 0;
 					}
 
 					return {
@@ -798,7 +800,7 @@ export const loaderRouter = router({
 							? `${t.vehicleName} (${t.vehicleReg || ""})`
 							: t.vehicleReg || "N/A",
 						ordersCount,
-						loadedAt: t.updatedAt || t.createdAt,
+						loadedAt: t.loadedAt || t.updatedAt || t.createdAt,
 						status: t.status,
 					};
 				}),
@@ -843,12 +845,14 @@ export const loaderRouter = router({
 
 			if (input?.status === "loaded") {
 				statusConditions = [eq(orders.status, "loaded")];
-			} else if (input?.status === "packed") {
+			} else if (input?.status === "packed" || input?.status === "ready_for_loading") {
 				statusConditions = [
-					inArray(orders.status, ["packed", "ready_for_dispatch"]),
+					inArray(orders.status, [
+						"packed",
+						"ready_for_loading",
+						"ready_for_dispatch",
+					]),
 				];
-			} else if (input?.status === "ready_for_loading") {
-				statusConditions = [eq(orders.status, "ready_for_loading")];
 			}
 
 			const packedOrdersList = await db

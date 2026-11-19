@@ -54,6 +54,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { CustomerCartHeaderButton } from "@/components/layout/CustomerCartHeaderButton";
 import { LogoutModal } from "@/components/shared/logout-modal";
 import { ProfileModal } from "@/components/shared/profile-modal";
 import { Badge } from "@/components/ui/badge";
@@ -376,6 +377,8 @@ export function AppLayout({
 					)}
 
 					<NotificationBell role={role} />
+
+					{role === "customer" && <CustomerCartHeaderButton />}
 
 					{role !== "customer" && (
 						<Link href="/staff">

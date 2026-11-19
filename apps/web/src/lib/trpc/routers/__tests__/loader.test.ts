@@ -257,13 +257,17 @@ describe("loaderRouter", () => {
 			weight: "5.0",
 		});
 
-		// 1. Loader sees the packed order in direct queue immediately
+		// 1. Loader sees the packed order in direct queue immediately (both under 'all' and 'ready_for_loading')
 		const packedQueue = await callerAsLoader.getPackedOrdersQueue({ status: "all" });
 		const foundInQueue = packedQueue.find((o: any) => o.orderId === packedOrder.id);
 		expect(foundInQueue).toBeDefined();
 		expect(foundInQueue?.status).toBe("packed");
 		expect(foundInQueue?.packageCount).toBe(1);
 		expect(foundInQueue?.tripId).toBeNull();
+
+		const readyQueue = await callerAsLoader.getPackedOrdersQueue({ status: "ready_for_loading" });
+		const foundInReadyQueue = readyQueue.find((o: any) => o.orderId === packedOrder.id);
+		expect(foundInReadyQueue).toBeDefined();
 
 		// 2. Loader marks the direct order as loaded
 		const markRes = await callerAsLoader.markDirectOrderLoaded({

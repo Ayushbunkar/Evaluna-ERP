@@ -58,11 +58,13 @@ import {
 	TagIcon,
 	Trash2Icon,
 	TrendingDownIcon,
+	UploadCloudIcon,
+	ImageIcon,
 	XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition } from "@/lib/animations";
 import { useTRPC } from "@/lib/trpc/client";
@@ -156,6 +158,17 @@ export default function StockPage() {
 	const [editCostPrice, setEditCostPrice] = useState<string>("");
 	const [editReason, setEditReason] = useState<string>("");
 	const [editPricingDate, setEditPricingDate] = useState<string>("");
+
+	// Product Image Upload & Preview States
+	const [editImageUrl, setEditImageUrl] = useState<string>("");
+	const [editImageStoragePath, setEditImageStoragePath] = useState<string>("");
+	const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+	const [editImageFileName, setEditImageFileName] = useState<string>("");
+	const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+	const [imageUploadProgress, setImageUploadProgress] = useState<number>(0);
+	const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+	const [isDraggingImage, setIsDraggingImage] = useState<boolean>(false);
+	const imageFileInputRef = useRef<HTMLInputElement | null>(null);
 
 	// Manager Delete Product Modal States
 	const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -705,6 +718,99 @@ export default function StockPage() {
 		);
 		setEditPricingDate(item.historicalDate || historicalDate || todayDateStr);
 		setEditReason("Stock and product details updated by warehouse manager");
+
+		// Initialize Product Image states
+		const existingImg = item.imageUrl || item.image_url || "";
+		const existingPath = item.imageStoragePath || item.image_storage_path || "";
+		setEditImageUrl(existingImg);
+		setEditImageStoragePath(existingPath);
+		setEditImagePreview(existingImg || null);
+		setEditImageFileName(existingPath ? existingPath.split("/").pop() || "" : "");
+		setIsUploadingImage(false);
+		setImageUploadProgress(0);
+		setImageUploadError(null);
+		setIsDraggingImage(false);
+	};
+
+	const handleUploadImageFile = async (file: File) => {
+		const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+		if (!allowedMimes.includes(file.type.toLowerCase())) {
+			const msg = "Unsupported format. Supported formats: JPG, JPEG, PNG, WEBP.";
+			setImageUploadError(msg);
+			toast.error(msg);
+			return;
+		}
+
+		if (file.size > 5 * 1024 * 1024) {
+			const msg = `File is too large (${(file.size / (1024 * 1024)).toFixed(2)} MB). Maximum file size is 5 MB.`;
+			setImageUploadError(msg);
+			toast.error(msg);
+			return;
+		}
+
+		setImageUploadError(null);
+		setIsUploadingImage(true);
+		setImageUploadProgress(25);
+		setEditImageFileName(file.name);
+
+		// Instant local preview
+		const localUrl = URL.createObjectURL(file);
+		setEditImagePreview(localUrl);
+
+		try {
+			setImageUploadProgress(50);
+			const formData = new FormData();
+			formData.append("file", file);
+			const prodId = editItem?.productId ?? editItem?.id;
+			if (prodId) {
+				formData.append("productId", String(prodId));
+			}
+
+			const res = await fetch("/api/products/upload", {
+				method: "POST",
+				body: formData,
+			});
+
+			setImageUploadProgress(85);
+			const data = await res.json();
+
+			if (!res.ok) {
+				throw new Error(data.error || "Failed to upload product image");
+			}
+
+			setImageUploadProgress(100);
+			setEditImageUrl(data.imageUrl);
+			setEditImageStoragePath(data.storagePath);
+			setEditImagePreview(data.imageUrl);
+			setEditImageFileName(data.fileName || file.name);
+			toast.success(
+				locale === "hi"
+					? "उत्पाद की फोटो सफलतापूर्वक अपलोड की गई!"
+					: "Product photo uploaded successfully!",
+			);
+		} catch (err: any) {
+			console.error("[stock/page] Image upload error:", err);
+			setImageUploadError(err.message || "Failed to upload image");
+			toast.error(err.message || "Image upload failed");
+		} finally {
+			setIsUploadingImage(false);
+		}
+	};
+
+	const handleRemoveImage = () => {
+		setEditImageUrl("");
+		setEditImageStoragePath("");
+		setEditImagePreview(null);
+		setEditImageFileName("");
+		setImageUploadError(null);
+		if (imageFileInputRef.current) {
+			imageFileInputRef.current.value = "";
+		}
+		toast.info(
+			locale === "hi"
+				? "फोटो हटा दी गई। सहेजने के लिए 'Save Changes' पर क्लिक करें।"
+				: "Image removed. Click 'Save Changes' to update product.",
+		);
 	};
 
 	const handleAddedStockChange = (valStr: string) => {
@@ -780,6 +886,8 @@ export default function StockPage() {
 			costPrice: Number.isNaN(cost) ? 0 : cost,
 			reason: editReason || `Warehouse stock & rate lock for ${targetDate}`,
 			pricingDate: targetDate,
+			imageUrl: editImageUrl !== undefined ? (editImageUrl || null) : undefined,
+			imageStoragePath: editImageStoragePath !== undefined ? (editImageStoragePath || null) : undefined,
 		});
 	};
 
@@ -1942,6 +2050,182 @@ export default function StockPage() {
 									placeholder="Enter full specification, ingredients, net weight, or details..."
 									className="text-xs font-medium leading-relaxed"
 								/>
+							</div>
+
+							{/* Product Image Management (उत्पाद की फोटो) */}
+							<div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/40">
+								<div className="flex items-center justify-between">
+									<Label className="font-bold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+										<ImageIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+										<span>Product Image (उत्पाद की फोटो)</span>
+									</Label>
+									<span className="text-[10px] text-muted-foreground font-medium">
+										JPG, PNG, WEBP • Max 5 MB
+									</span>
+								</div>
+
+								{/* Hidden Native File Input */}
+								<input
+									type="file"
+									ref={imageFileInputRef}
+									className="hidden"
+									accept="image/jpeg,image/png,image/webp,image/jpg"
+									onChange={(e) => {
+										const file = e.target.files?.[0];
+										if (file) {
+											handleUploadImageFile(file);
+										}
+									}}
+								/>
+
+								{/* Image Preview or Dropzone */}
+								{editImagePreview ? (
+									<div className="relative rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
+										<div className="flex flex-col sm:flex-row items-center gap-4">
+											{/* Preview Box */}
+											<div className="relative h-44 w-44 sm:h-48 sm:w-48 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 flex items-center justify-center p-2 shadow-inner">
+												<img
+													src={editImagePreview}
+													alt={editName || "Product photo"}
+													className="h-full w-full object-contain transition-transform duration-200 hover:scale-105"
+													onError={() => {
+														toast.error("Failed to render product image preview.");
+													}}
+												/>
+												{isUploadingImage && (
+													<div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center gap-2 text-white">
+														<Loader2Icon className="h-6 w-6 animate-spin text-blue-400" />
+														<span className="text-[11px] font-bold">Uploading... {imageUploadProgress}%</span>
+													</div>
+												)}
+											</div>
+
+											{/* Image Info & Actions */}
+											<div className="flex flex-1 flex-col justify-between w-full space-y-3">
+												<div className="space-y-1">
+													<div className="flex items-center gap-2">
+														<Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+															<CheckCircle2Icon className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+															<span>{editImageUrl ? "Saved & Linked" : "Ready to Save"}</span>
+														</Badge>
+														{editImageFileName && (
+															<span className="truncate text-xs font-mono text-muted-foreground max-w-[200px]" title={editImageFileName}>
+																{editImageFileName}
+															</span>
+														)}
+													</div>
+													<p className="text-[11px] text-muted-foreground">
+														{locale === "hi"
+															? "यह फोटो कस्टमर कैटलॉग और POS दोनों जगह दिखाई देगी।"
+															: "This photo will appear in the Customer catalog and POS product cards."}
+													</p>
+												</div>
+
+												{/* Progress bar if uploading */}
+												{isUploadingImage && (
+													<div className="w-full space-y-1">
+														<div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+															<div
+																className="h-full bg-blue-600 transition-all duration-300"
+																style={{ width: `${imageUploadProgress}%` }}
+															/>
+														</div>
+														<span className="text-[10px] text-muted-foreground">
+															{imageUploadProgress}% uploaded...
+														</span>
+													</div>
+												)}
+
+												{/* Action Buttons */}
+												<div className="flex flex-wrap items-center gap-2 pt-1">
+													<Button
+														type="button"
+														size="sm"
+														variant="outline"
+														disabled={isUploadingImage}
+														onClick={() => imageFileInputRef.current?.click()}
+														className="h-8 gap-1.5 text-xs border-slate-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:hover:bg-blue-950/40"
+													>
+														<RefreshCwIcon className="h-3.5 w-3.5" />
+														<span>Replace Image (फोटो बदलें)</span>
+													</Button>
+
+													<Button
+														type="button"
+														size="sm"
+														variant="outline"
+														disabled={isUploadingImage}
+														onClick={handleRemoveImage}
+														className="h-8 gap-1.5 text-xs border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+													>
+														<Trash2Icon className="h-3.5 w-3.5" />
+														<span>Remove (फोटो हटाएं)</span>
+													</Button>
+												</div>
+											</div>
+										</div>
+									</div>
+								) : (
+									<div
+										onDragOver={(e) => {
+											e.preventDefault();
+											setIsDraggingImage(true);
+										}}
+										onDragLeave={(e) => {
+											e.preventDefault();
+											setIsDraggingImage(false);
+										}}
+										onDrop={(e) => {
+											e.preventDefault();
+											setIsDraggingImage(false);
+											const file = e.dataTransfer.files?.[0];
+											if (file) {
+												handleUploadImageFile(file);
+											}
+										}}
+										className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+											isDraggingImage
+												? "border-blue-500 bg-blue-50/80 dark:border-blue-400 dark:bg-blue-950/40"
+												: "border-slate-300 bg-white hover:border-slate-400 dark:border-slate-700 dark:bg-slate-950"
+										}`}
+									>
+										<div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 shadow-xs dark:bg-blue-950/60 dark:text-blue-400 mb-2">
+											<UploadCloudIcon className="h-6 w-6" />
+										</div>
+										<p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+											Drag and drop image here or{" "}
+											<button
+												type="button"
+												onClick={() => imageFileInputRef.current?.click()}
+												className="font-bold text-blue-600 underline hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+											>
+												Browse Files
+											</button>
+										</p>
+										<p className="mt-1 text-[11px] text-muted-foreground">
+											Supported formats: JPG, JPEG, PNG, WEBP (Max 5 MB)
+										</p>
+										<Button
+											type="button"
+											size="sm"
+											variant="secondary"
+											onClick={() => imageFileInputRef.current?.click()}
+											disabled={isUploadingImage}
+											className="mt-3 h-8 gap-1.5 text-xs font-semibold"
+										>
+											<UploadCloudIcon className="h-3.5 w-3.5" />
+											<span>Upload Product Photo</span>
+										</Button>
+									</div>
+								)}
+
+								{/* Error notice if upload failed */}
+								{imageUploadError && (
+									<div className="flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+										<AlertTriangleIcon className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+										<span>{imageUploadError}</span>
+									</div>
+								)}
 							</div>
 
 							{/* Day-Wise Pricing Lock Option */}

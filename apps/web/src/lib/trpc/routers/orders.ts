@@ -145,6 +145,8 @@ const orderDetailSchema = z.object({
 			id: z.coerce.number(),
 			product_id: z.coerce.number().nullable(),
 			quantity: z.coerce.number(),
+			original_quantity: z.coerce.number().nullable().optional(),
+			picked_quantity: z.coerce.number().nullable().optional(),
 			price: z.coerce.string(),
 			product: z
 				.object({
@@ -156,6 +158,7 @@ const orderDetailSchema = z.object({
 				.nullable(),
 		}),
 	),
+	pickingExceptions: z.array(z.any()).nullable().optional(),
 	deliveryHandover: z.any().nullable().optional(),
 	audits: z.any().nullable().optional(),
 });
@@ -202,6 +205,16 @@ export const ordersRouter = router({
 									category: true,
 									sku: true,
 									unit: true,
+								},
+							},
+						},
+					},
+					pickingExceptions: {
+						with: {
+							product: {
+								columns: {
+									name: true,
+									sku: true,
 								},
 							},
 						},

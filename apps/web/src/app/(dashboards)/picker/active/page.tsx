@@ -69,6 +69,22 @@ export default function PickerActivePage() {
 		onSuccess: () => refetch(),
 	});
 
+	const confirmExceptionMutation = trpc.picker.confirmQuantityWithException.useMutation({
+		onSuccess: () => {
+			toast.success("Pick quantity & exception report recorded successfully.");
+			refetch();
+			setConfirmItem(null);
+			setConfirmQty(1);
+			setDamagedQty(0);
+			setMissingQty(0);
+			setExceptionRemarks("");
+			setPhotoEvidence("");
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to confirm quantity.");
+		},
+	});
+
 	const confirmMutation = trpc.picker.manualConfirm.useMutation({
 		onSuccess: () => {
 			refetch();
@@ -102,12 +118,35 @@ export default function PickerActivePage() {
 	};
 
 	const [confirmItem, setConfirmItem] = useState<any | null>(null);
-	const [confirmQty, setConfirmQty] = useState<number>(1);
+	const [confirmQty, setConfirmQty] = useState<number | string>(1);
+	const [damagedQty, setDamagedQty] = useState<number | string>(0);
+	const [missingQty, setMissingQty] = useState<number | string>(0);
+	const [exceptionReason, setExceptionReason] = useState<string>("Damaged items");
+	const [exceptionRemarks, setExceptionRemarks] = useState<string>("");
+	const [photoEvidence, setPhotoEvidence] = useState<string>("");
 	const [scannedBarcode, setScannedBarcode] = useState<string>("");
 	const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
 
 	const task = currentTaskData?.task;
 	const items = currentTaskData?.items ?? [];
+
+	const openConfirmModal = (item: any) => {
+		setConfirmItem(item);
+		setConfirmQty(item.qty_picked > 0 ? item.qty_picked : item.qty_required);
+		if (item.exception) {
+			setDamagedQty(item.exception.quantity_damaged ?? 0);
+			setMissingQty(item.exception.quantity_missing ?? 0);
+			setExceptionReason(item.exception.reason ?? "Damaged items");
+			setExceptionRemarks(item.exception.remarks ?? "");
+			setPhotoEvidence(item.exception.photo_url ?? "");
+		} else {
+			setDamagedQty(0);
+			setMissingQty(0);
+			setExceptionReason("Damaged items");
+			setExceptionRemarks("");
+			setPhotoEvidence("");
+		}
+	};
 
 	const handleScanCode = (code: string) => {
 		const match = items.find((i) => i.sku === code || i.id.toString() === code);
@@ -128,19 +167,54 @@ export default function PickerActivePage() {
 
 	const handleConfirmSubmit = () => {
 		if (!confirmItem) return;
-		const maxAllowed = confirmItem.qty_required ?? 1;
-		let qty = Number(confirmQty);
-		if (Number.isNaN(qty) || qty <= 0) {
-			qty = maxAllowed;
+		const reqQty = Number(confirmItem.qty_required) || 1;
+		let picked = Number(confirmQty);
+		if (Number.isNaN(picked) || picked < 0) {
+			toast.error("Please enter a valid picked quantity.");
+			return;
 		}
-		if (qty > maxAllowed) {
-			toast.error(`Picked quantity cannot exceed required quantity (${maxAllowed})`);
-			qty = maxAllowed;
+		if (picked > reqQty) {
+			toast.error(`Picked quantity (${picked}) cannot exceed required quantity (${reqQty})`);
+			return;
 		}
-		confirmMutation.mutate({
-			item_id: confirmItem.id,
-			quantity: qty,
-		});
+
+		const shortfall = Math.round((reqQty - picked) * 1000) / 1000;
+
+		if (shortfall > 0) {
+			const dmg = Number(damagedQty) || 0;
+			const miss = Number(missingQty) || 0;
+			const totalReported = Math.round((dmg + miss) * 1000) / 1000;
+
+			if (totalReported === 0) {
+				toast.error(`Remaining ${shortfall} units must be accounted for as damaged or missing.`);
+				return;
+			}
+			if (totalReported !== shortfall) {
+				toast.error(`Damaged (${dmg}) + Missing (${miss}) must equal shortfall (${shortfall}).`);
+				return;
+			}
+			if (!exceptionRemarks.trim() && (dmg > 0 || miss > 0 || exceptionReason === "Damaged items")) {
+				toast.error("Remarks are required for damaged or missing items.");
+				return;
+			}
+
+			confirmExceptionMutation.mutate({
+				item_id: confirmItem.id,
+				quantity_picked: picked,
+				quantity_damaged: dmg,
+				quantity_missing: miss,
+				reason: exceptionReason as any,
+				remarks: exceptionRemarks,
+				photo_url: photoEvidence || undefined,
+			});
+		} else {
+			confirmExceptionMutation.mutate({
+				item_id: confirmItem.id,
+				quantity_picked: picked,
+				quantity_damaged: 0,
+				quantity_missing: 0,
+			});
+		}
 	};
 
 	const pickedCount = task?.picked_items ?? 0;
@@ -269,15 +343,15 @@ export default function PickerActivePage() {
 
 									<Button
 										className={`h-14 px-6 font-bold text-white shadow-md transition-all flex items-center gap-2 ${
-											pct === 100
+											task.all_accounted || pct === 100
 												? "animate-bounce bg-green-600 hover:bg-green-700"
 												: "bg-gray-400 cursor-not-allowed opacity-70"
 										}`}
 										onClick={() => {
-											if (pct < 100) {
+											if (!task.all_accounted && pct < 100) {
 												const pendingCount = totalCount - pickedCount;
 												toast.error(
-													`Picking cannot be completed. ${pendingCount} item(s) are still pending.`,
+													`Picking cannot be completed. ${pendingCount} item(s) are still pending confirmation or exception reporting.`,
 												);
 												return;
 											}
@@ -397,6 +471,12 @@ export default function PickerActivePage() {
 
 											<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-mono">
 												<span>SKU: {item.sku}</span>
+												{item.barcode && item.barcode !== item.sku && (
+													<>
+														<span>•</span>
+														<span>Barcode: {item.barcode}</span>
+													</>
+												)}
 												{item.batch && item.batch !== "Any" && (
 													<>
 														<span>•</span>
@@ -405,19 +485,48 @@ export default function PickerActivePage() {
 												)}
 											</div>
 
-											{/* Quantity Progress */}
-											<div className="mt-3 flex items-center justify-between rounded-lg bg-muted/40 p-2.5">
-												<span className="text-xs font-medium text-muted-foreground">
-													{t("pickedRequired")}:
-												</span>
-												<span
-													className={`font-mono text-base font-bold ${
-														isPicked ? "text-green-600 dark:text-green-400" : "text-blue-600 dark:text-blue-400"
-													}`}
-												>
-													{item.qty_picked} / {item.qty_required}
-												</span>
+											{/* Quantity Breakdown Grid */}
+											<div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2.5 text-xs">
+												<div>
+													<span className="text-muted-foreground">Required:</span>{" "}
+													<strong className="font-mono text-foreground">{item.qty_required}</strong>
+												</div>
+												<div>
+													<span className="text-muted-foreground">Avail Stock:</span>{" "}
+													<strong className="font-mono text-foreground">{item.available_stock ?? "—"}</strong>
+												</div>
+												<div>
+													<span className="text-muted-foreground">Picked:</span>{" "}
+													<strong
+														className={`font-mono font-bold ${
+															isPicked ? "text-green-600 dark:text-green-400" : "text-blue-600 dark:text-blue-400"
+														}`}
+													>
+														{item.qty_picked}
+													</strong>
+												</div>
+												<div>
+													<span className="text-muted-foreground">Remaining:</span>{" "}
+													<strong className={`font-mono ${item.remaining_qty > 0 ? "text-amber-600 font-bold" : "text-foreground"}`}>
+														{item.remaining_qty}
+													</strong>
+												</div>
 											</div>
+
+											{item.exception && (
+												<div className="mt-2 rounded-md bg-amber-50 p-2 text-[11px] text-amber-900 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800">
+													<div className="font-semibold flex items-center gap-1">
+														<AlertTriangleIcon className="h-3 w-3 text-amber-600" />
+														Exception: {item.exception.reason} ({item.exception.status})
+													</div>
+													<div className="text-muted-foreground mt-0.5">
+														Damaged: {item.exception.quantity_damaged} | Missing: {item.exception.quantity_missing}
+													</div>
+													{item.exception.remarks && (
+														<div className="italic mt-0.5">&quot;{item.exception.remarks}&quot;</div>
+													)}
+												</div>
+											)}
 
 											{/* Action Buttons (Touch Friendly 44px Targets) */}
 											<div className="mt-3 grid grid-cols-2 gap-2">
@@ -428,10 +537,7 @@ export default function PickerActivePage() {
 															? "bg-green-600 text-white hover:bg-green-700"
 															: "bg-blue-600 text-white hover:bg-blue-700"
 													}`}
-													onClick={() => {
-														setConfirmItem(item);
-														setConfirmQty(item.qty_required);
-													}}
+													onClick={() => openConfirmModal(item)}
 												>
 													<CheckCircle2Icon className="mr-1.5 h-4 w-4" />
 													{isPicked ? "Update Qty" : t("confirmQty")}
@@ -442,10 +548,10 @@ export default function PickerActivePage() {
 														size="default"
 														variant="outline"
 														className="min-h-[44px] border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30 text-xs font-semibold"
-														onClick={() => pnaMutation.mutate({ item_id: item.id })}
+														onClick={() => openConfirmModal({ ...item, qty_picked: 0 })}
 													>
 														<AlertTriangleIcon className="mr-1.5 h-4 w-4 text-red-500" />
-														{t("missing")}
+														Report Shortage
 													</Button>
 												) : (
 													<div className="flex items-center justify-center text-xs font-medium text-red-600">
@@ -466,8 +572,8 @@ export default function PickerActivePage() {
 											<TableHead>{t("location")}</TableHead>
 											<TableHead>{t("productName")}</TableHead>
 											<TableHead>{t("skuBarcode")}</TableHead>
-											<TableHead>{t("batch")}</TableHead>
-											<TableHead>{t("pickedRequired")}</TableHead>
+											<TableHead className="text-center">Req / Avail / Rem</TableHead>
+											<TableHead className="text-center">Picked</TableHead>
 											<TableHead>{tCommon("status")}</TableHead>
 											<TableHead className="text-right">
 												{tCommon("actions")}
@@ -481,23 +587,37 @@ export default function PickerActivePage() {
 													{item.location}
 												</TableCell>
 												<TableCell className="font-bold text-sm">
-													{item.product}
+													<div>{item.product}</div>
+													{item.exception && (
+														<span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 mt-1">
+															⚠️ {item.exception.reason}: Dmg {item.exception.quantity_damaged}, Miss {item.exception.quantity_missing}
+														</span>
+													)}
 												</TableCell>
 												<TableCell className="font-mono text-muted-foreground text-xs">
-													{item.sku}
+													<div>{item.sku}</div>
+													{item.barcode && item.barcode !== item.sku && (
+														<div className="text-[11px] text-gray-500">BC: {item.barcode}</div>
+													)}
 												</TableCell>
-												<TableCell className="text-muted-foreground text-xs">
-													{item.batch}
+												<TableCell className="text-center text-xs font-mono">
+													<div className="font-bold text-foreground">Req: {item.qty_required}</div>
+													<div className="text-muted-foreground">Avail: {item.available_stock ?? "—"}</div>
+													{item.remaining_qty > 0 && (
+														<div className="font-bold text-amber-600">Rem: {item.remaining_qty}</div>
+													)}
 												</TableCell>
-												<TableCell className="font-semibold text-sm">
+												<TableCell className="text-center font-semibold text-sm">
 													<span
 														className={
 															item.qty_picked >= item.qty_required
 																? "font-bold text-green-600"
-																: ""
+																: item.qty_picked > 0
+																	? "font-bold text-amber-600"
+																	: "text-muted-foreground"
 														}
 													>
-														{item.qty_picked} / {item.qty_required}
+														{item.qty_picked}
 													</span>
 												</TableCell>
 												<TableCell>
@@ -528,25 +648,20 @@ export default function PickerActivePage() {
 														size="sm"
 														variant="outline"
 														className="h-8 gap-1"
-														onClick={() => {
-															setConfirmItem(item);
-															setConfirmQty(item.qty_required);
-														}}
+														onClick={() => openConfirmModal(item)}
 													>
 														<CheckCircle2Icon className="h-3.5 w-3.5 text-green-600" />{" "}
-														{t("confirmQty")}
+														{item.qty_picked >= item.qty_required ? "Update Qty" : t("confirmQty")}
 													</Button>
 													{item.status !== "missing" && (
 														<Button
 															size="sm"
 															variant="outline"
 															className="h-8 gap-1 border-red-200 text-red-600 hover:bg-red-50"
-															onClick={() =>
-																pnaMutation.mutate({ item_id: item.id })
-															}
+															onClick={() => openConfirmModal({ ...item, qty_picked: 0 })}
 														>
 															<AlertTriangleIcon className="h-3.5 w-3.5 text-red-500" />{" "}
-															{t("missing")}
+															Report Shortage
 														</Button>
 													)}
 												</TableCell>
@@ -560,41 +675,63 @@ export default function PickerActivePage() {
 				</>
 			)}
 
-			{/* Manual Confirm Quantity Modal */}
+			{/* Partial Picking & Stock Exception Confirmation Modal */}
 			{confirmItem && (
 				<Dialog
 					open={!!confirmItem}
 					onOpenChange={(open) => !open && setConfirmItem(null)}
 				>
-					<DialogContent className="sm:max-w-[420px]">
+					<DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
 						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2">
+							<DialogTitle className="flex items-center gap-2 text-lg">
 								<CheckCircle2Icon className="h-5 w-5 text-green-600" />
-								{t("confirmPickedQuantity")}
+								Confirm Quantity & Verify Stock
 							</DialogTitle>
 							<DialogDescription>
-								{t("confirmPickedCountFor")} {confirmItem.product}
+								Confirm pick for <strong className="text-foreground">{confirmItem.product}</strong>
 							</DialogDescription>
 						</DialogHeader>
 
-						<div className="space-y-3 py-2 text-sm">
-							<p>
-								<strong>{t("sku")}:</strong> {confirmItem.sku}
-							</p>
-							<p>
-								<strong>{t("requiredQty")}</strong> {confirmItem.qty_required}
-							</p>
+						<div className="space-y-4 py-2 text-sm">
+							{/* Context Info Banner */}
+							<div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-3 text-xs">
+								<div>
+									<span className="text-muted-foreground">Order ID:</span>{" "}
+									<strong className="text-foreground">{task?.order_id || "N/A"}</strong>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Customer:</span>{" "}
+									<strong className="text-foreground">{task?.customer_name || "N/A"}</strong>
+								</div>
+								<div>
+									<span className="text-muted-foreground">SKU / Barcode:</span>{" "}
+									<span className="font-mono text-foreground">{confirmItem.sku}</span>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Shelf / Location:</span>{" "}
+									<span className="font-semibold text-blue-600 dark:text-blue-400">{confirmItem.location}</span>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Ordered Qty:</span>{" "}
+									<strong className="text-foreground font-mono">{confirmItem.qty_required}</strong>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Avail Stock:</span>{" "}
+									<strong className="text-foreground font-mono">{confirmItem.available_stock ?? "—"}</strong>
+								</div>
+							</div>
 
-							<div className="space-y-1">
-								<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-									{t("actualQuantityPicked")}
+							{/* Actual Picked Input */}
+							<div className="space-y-1.5">
+								<label className="font-semibold text-gray-800 text-xs dark:text-gray-200">
+									Successfully Picked Quantity (Good Units):
 								</label>
 								<input
 									type="number"
 									min="0"
 									step="any"
 									max={confirmItem.qty_required}
-									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500"
+									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 font-mono font-bold"
 									value={confirmQty}
 									onChange={(e) => {
 										const rawVal = e.target.value;
@@ -605,29 +742,166 @@ export default function PickerActivePage() {
 										const val = Number(rawVal);
 										const maxAllowed = confirmItem.qty_required || 1;
 										if (val > maxAllowed) {
-											toast.error(`Picked quantity cannot exceed required quantity (${maxAllowed})`);
+											toast.error(`Picked quantity cannot exceed ordered quantity (${maxAllowed})`);
 											setConfirmQty(maxAllowed);
 										} else {
-											setConfirmQty(val < 0 ? 0 : val);
+											const cleanVal = val < 0 ? 0 : val;
+											setConfirmQty(cleanVal);
+											const diff = Math.max(0, maxAllowed - cleanVal);
+											if (diff > 0 && Number(damagedQty) + Number(missingQty) === 0) {
+												setMissingQty(diff);
+											}
 										}
 									}}
 								/>
+								<div className="flex justify-between text-[11px] text-muted-foreground font-mono">
+									<span>Ordered: {confirmItem.qty_required}</span>
+									<span className={Number(confirmQty) < confirmItem.qty_required ? "text-amber-600 font-bold" : "text-green-600 font-bold"}>
+										Remaining Shortfall: {Math.max(0, Math.round(((confirmItem.qty_required || 0) - (Number(confirmQty) || 0)) * 1000) / 1000)}
+									</span>
+								</div>
 							</div>
+
+							{/* Partial Picking Shortfall Exception Section */}
+							{Number(confirmQty) < confirmItem.qty_required && (
+								<div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3.5 dark:border-amber-900/60 dark:bg-amber-950/20">
+									<div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
+										<AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+										<span>Shortage / Exception Details (Warehouse Manager Approval Required)</span>
+									</div>
+									<p className="text-[11px] text-amber-800 dark:text-amber-300">
+										You are confirming {Number(confirmQty) || 0} out of {confirmItem.qty_required} units.
+										Allocate the shortfall ({Math.max(0, Math.round(((confirmItem.qty_required || 0) - (Number(confirmQty) || 0)) * 1000) / 1000)} units) below:
+									</p>
+
+									<div className="grid grid-cols-2 gap-2">
+										<div className="space-y-1">
+											<label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+												Damaged Units:
+											</label>
+											<input
+												type="number"
+												min="0"
+												step="any"
+												className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs shadow-sm font-mono"
+												value={damagedQty}
+												onChange={(e) => {
+													const val = Number(e.target.value) || 0;
+													setDamagedQty(val);
+													const shortfall = Math.max(0, confirmItem.qty_required - Number(confirmQty));
+													setMissingQty(Math.max(0, shortfall - val));
+												}}
+											/>
+										</div>
+
+										<div className="space-y-1">
+											<label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+												Missing / Not Found:
+											</label>
+											<input
+												type="number"
+												min="0"
+												step="any"
+												className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs shadow-sm font-mono"
+												value={missingQty}
+												onChange={(e) => {
+													const val = Number(e.target.value) || 0;
+													setMissingQty(val);
+													const shortfall = Math.max(0, confirmItem.qty_required - Number(confirmQty));
+													setDamagedQty(Math.max(0, shortfall - val));
+												}}
+											/>
+										</div>
+									</div>
+
+									<div className="space-y-1">
+										<label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+											Reason for Shortage / Exception <span className="text-red-500">*</span>:
+										</label>
+										<select
+											className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs shadow-sm"
+											value={exceptionReason}
+											onChange={(e) => setExceptionReason(e.target.value)}
+										>
+											<option value="Damaged items">Damaged items</option>
+											<option value="Stock not found">Stock not found</option>
+											<option value="Wrong shelf location">Wrong shelf location</option>
+											<option value="Expired items">Expired items</option>
+											<option value="Inventory mismatch">Inventory mismatch</option>
+											<option value="Other">Other</option>
+										</select>
+									</div>
+
+									<div className="space-y-1">
+										<label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+											Remarks / Defect Details <span className="text-red-500">*</span>:
+										</label>
+										<textarea
+											rows={2}
+											placeholder="Describe damage, seal broken, shelf empty, etc."
+											className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs shadow-sm"
+											value={exceptionRemarks}
+											onChange={(e) => setExceptionRemarks(e.target.value)}
+										/>
+									</div>
+
+									<div className="space-y-1">
+										<label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+											Photo Evidence (Optional):
+										</label>
+										<div className="flex items-center gap-2">
+											<input
+												type="file"
+												accept="image/*"
+												className="text-xs file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-primary file:text-primary-foreground hover:file:cursor-pointer"
+												onChange={(e) => {
+													const file = e.target.files?.[0];
+													if (file) {
+														const reader = new FileReader();
+														reader.onload = () => {
+															setPhotoEvidence(reader.result as string);
+														};
+														reader.readAsDataURL(file);
+													}
+												}}
+											/>
+											{photoEvidence && (
+												<span className="text-xs text-green-600 font-semibold">✓ Attached</span>
+											)}
+										</div>
+										{photoEvidence && (
+											<div className="mt-1">
+												<img
+													src={photoEvidence}
+													alt="Evidence"
+													className="h-16 w-16 object-cover rounded border"
+												/>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
 						</div>
 
-						<DialogFooter>
+						<DialogFooter className="gap-2 sm:gap-0">
 							<Button variant="ghost" onClick={() => setConfirmItem(null)}>
 								{tCommon("cancel")}
 							</Button>
 							<Button
-								disabled={confirmMutation.isPending}
+								disabled={confirmExceptionMutation.isPending || confirmMutation.isPending}
 								onClick={handleConfirmSubmit}
-								className="bg-green-600 text-white hover:bg-green-700"
+								className={`${
+									Number(confirmQty) < confirmItem.qty_required
+										? "bg-amber-600 hover:bg-amber-700 text-white"
+										: "bg-green-600 hover:bg-green-700 text-white"
+								}`}
 							>
-								{confirmMutation.isPending && (
+								{(confirmExceptionMutation.isPending || confirmMutation.isPending) && (
 									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
 								)}
-								{t("savePickCount")}
+								{Number(confirmQty) < confirmItem.qty_required
+									? "Confirm Quantity & Submit Exception"
+									: t("savePickCount")}
 							</Button>
 						</DialogFooter>
 					</DialogContent>

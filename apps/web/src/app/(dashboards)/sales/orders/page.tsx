@@ -52,9 +52,10 @@ import { toast } from "sonner";
 import { z } from "zod/v4";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { DateFilterBar } from "@/components/shared/filters/date-filter-bar";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/router";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 type Order = RouterOutputs["orders"]["list"][number];
 type OrderStatus = "completed" | "pending" | "cancelled";
@@ -70,18 +71,26 @@ export default function OrdersPage() {
 	const [page, setPage] = useState(1);
 	const pageSize = 50;
 
+	const debouncedSearch = useDebounce(searchTerm, 300);
+
 	const {
 		data: orders = [],
 		isLoading,
+		isFetching,
 		error,
-	} = trpc.orders.list.useQuery({
-		page,
-		limit: pageSize,
-		search: searchTerm.trim() || undefined,
-		status: statusFilter !== "all" ? statusFilter : undefined,
-		startDate: startDate || undefined,
-		endDate: endDate || undefined,
-	});
+	} = trpc.orders.list.useQuery(
+		{
+			page,
+			limit: pageSize,
+			search: debouncedSearch.trim() || undefined,
+			status: statusFilter !== "all" ? statusFilter : undefined,
+			startDate: startDate || undefined,
+			endDate: endDate || undefined,
+		},
+		{
+			placeholderData: (previousData) => previousData,
+		},
+	);
 
 	const totalSalesAmount = useMemo(() => {
 		return orders.reduce((sum, order) => {
@@ -563,51 +572,6 @@ export default function OrdersPage() {
 		},
 	};
 
-	if (isLoading) {
-		return (
-			<Card className="flex flex-col gap-6 p-6">
-				<CardHeader className="p-0">
-					<div className="flex items-center justify-between">
-						<Skeleton className="h-10 w-48" />
-						<Skeleton className="h-9 w-32" />
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-3 p-0">
-					{Array.from({ length: 5 }).map((_, i) => (
-						<div key={i} className="flex items-center gap-4">
-							<Skeleton className="h-4 w-12" />
-							<Skeleton className="h-4 w-32" />
-							<Skeleton className="h-4 w-20" />
-							<Skeleton className="h-4 w-20" />
-							<Skeleton className="h-4 w-24" />
-							<Skeleton className="h-8 w-24" />
-						</div>
-					))}
-				</CardContent>
-			</Card>
-		);
-	}
-
-	if (error) {
-		return (
-			<Card className="border-border/60 border-dashed p-8">
-				<CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-					<div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-						<ShoppingCartIcon className="h-6 w-6" />
-					</div>
-					<div>
-						<p className="font-semibold text-base text-foreground">
-							No Customer Orders Available
-						</p>
-						<p className="text-muted-foreground text-sm">
-							There are currently no orders in the system.
-						</p>
-					</div>
-				</CardContent>
-			</Card>
-		);
-	}
-
 	return (
 		<Card className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
 			<CardHeader className="space-y-3 p-0">
@@ -663,15 +627,46 @@ export default function OrdersPage() {
 				/>
 			</CardHeader>
 			<CardContent className="space-y-4 p-0">
-				<DataTable
-					data={orders}
-					columns={[...tableColumns, actionsColumn]}
-					exportColumns={exportColumns}
-					exportFilename="orders"
-					emptyMessage={t("noOrders")}
-					emptyIcon={<ShoppingCartIcon className="h-8 w-8" />}
-					defaultSort={[{ id: "created_at", desc: true }]}
-				/>
+				{isLoading && orders.length === 0 ? (
+					<div className="space-y-3 p-4">
+						{Array.from({ length: 5 }).map((_, i) => (
+							<div key={i} className="flex items-center gap-4">
+								<Skeleton className="h-4 w-12" />
+								<Skeleton className="h-4 w-32" />
+								<Skeleton className="h-4 w-20" />
+								<Skeleton className="h-4 w-20" />
+								<Skeleton className="h-4 w-24" />
+								<Skeleton className="h-8 w-24" />
+							</div>
+						))}
+					</div>
+				) : error && orders.length === 0 ? (
+					<div className="flex flex-col items-center justify-center gap-3 py-12 text-center border-border/60 border-dashed rounded-lg border p-8">
+						<div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
+							<ShoppingCartIcon className="h-6 w-6" />
+						</div>
+						<div>
+							<p className="font-semibold text-base text-foreground">
+								Error Loading Customer Orders
+							</p>
+							<p className="text-muted-foreground text-sm">
+								{error.message || "Failed to load orders."}
+							</p>
+						</div>
+					</div>
+				) : (
+					<div className={cn("relative transition-opacity", isFetching && "opacity-75")}>
+						<DataTable
+							data={orders}
+							columns={[...tableColumns, actionsColumn]}
+							exportColumns={exportColumns}
+							exportFilename="orders"
+							emptyMessage={t("noOrders")}
+							emptyIcon={<ShoppingCartIcon className="h-8 w-8" />}
+							defaultSort={[{ id: "created_at", desc: true }]}
+						/>
+					</div>
+				)}
 				<div className="flex items-center justify-between border-t pt-4 text-muted-foreground text-xs">
 					<span>
 						{orders.length === pageSize

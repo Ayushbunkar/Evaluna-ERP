@@ -934,13 +934,13 @@ export function SaleCompletionScreen({
 									</Text>
 								</View>
 								{orderDiscount > 0 ? (
-									<View style={styles.row}>
-										<Text style={styles.tdText}>
+									<View style={[styles.row, { backgroundColor: "#f0fdf4", paddingVertical: 2, paddingHorizontal: 4, borderRadius: 2 }]}>
+										<Text style={[styles.tdText, styles.bold, { color: "#166534" }]}>
 											Discount
 											{order.discountReason ? ` (${order.discountReason})` : ""}
 											:
 										</Text>
-										<Text style={styles.tdText}>
+										<Text style={[styles.tdText, styles.bold, { color: "#166534" }]}>
 											-Rs.{orderDiscount.toFixed(2)}
 										</Text>
 									</View>
@@ -1656,16 +1656,21 @@ export function SaleCompletionScreen({
 														<span>₹{orderSubtotal.toFixed(2)}</span>
 													</div>
 													{orderDiscount > 0 && (
-														<div className="flex justify-between font-medium text-green-600 print:text-black">
-															<span>
-																Discount{" "}
-																{order.discountReason
-																	? `(${order.discountReason})`
-																	: order.couponCode
-																		? `(${order.couponCode})`
-																		: ""}
+														<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-md border border-emerald-300/80 dark:border-emerald-800 shadow-2xs print:bg-transparent print:border-none print:text-black print:px-0 text-xs sm:text-sm">
+															<span className="flex items-center gap-1.5 font-bold">
+																<span className="inline-block print:hidden">🏷️</span>
+																<span>
+																	Discount{" "}
+																	{order.discountReason
+																		? `(${order.discountReason})`
+																		: order.couponCode
+																			? `(${order.couponCode})`
+																			: ""}
+																</span>
 															</span>
-															<span>− ₹{orderDiscount.toFixed(2)}</span>
+															<span className="font-extrabold text-emerald-700 dark:text-emerald-300 font-mono text-sm sm:text-base print:text-black">
+																− ₹{orderDiscount.toFixed(2)}
+															</span>
 														</div>
 													)}
 													{orderOtherCharges > 0 && (
@@ -1846,15 +1851,15 @@ export function SaleCompletionScreen({
 													<span>Rs.{orderSubtotal.toFixed(2)}</span>
 												</div>
 												{orderDiscount > 0 && (
-													<div className="flex justify-between">
-														<span>
-															DISCOUNT
+													<div className="flex justify-between font-bold text-emerald-950 bg-emerald-50 px-1.5 py-1 rounded border border-emerald-300">
+														<span className="font-bold">
+															🏷️ DISCOUNT
 															{order.discountReason
 																? ` (${order.discountReason})`
 																: ""}
 															:
 														</span>
-														<span>-Rs.{orderDiscount.toFixed(2)}</span>
+														<span className="font-extrabold font-mono text-emerald-800">-Rs.{orderDiscount.toFixed(2)}</span>
 													</div>
 												)}
 												{orderOtherCharges > 0 && (

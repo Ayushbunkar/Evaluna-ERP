@@ -668,12 +668,15 @@ export default function DriverScannerPage() {
 									</div>
 
 									{result.order.discountAmount > 0 && (
-										<div className="flex justify-between border-border/50 border-b py-1 text-emerald-600 dark:text-emerald-400">
-											<span>
-												Discount Applied (
-												{result.order.discountReason || "Promo"}):
+										<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-md border border-emerald-300/80 dark:border-emerald-800 shadow-2xs">
+											<span className="flex items-center gap-1.5 font-bold">
+												<span>🏷️</span>
+												<span>
+													Discount Applied (
+													{result.order.discountReason || "Promo"}):
+												</span>
 											</span>
-											<span className="font-medium font-mono">
+											<span className="font-extrabold font-mono text-emerald-700 dark:text-emerald-300 text-sm sm:text-base">
 												-₹{result.order.discountAmount.toFixed(2)}
 											</span>
 										</div>

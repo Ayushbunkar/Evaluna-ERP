@@ -879,7 +879,12 @@ ERROR TABLE: ${err.table}
 							.where(
 								and(
 									inArray(orders.customer_id, custIds),
-									inArray(orders.status, ["out_for_delivery", "packed"]),
+									inArray(orders.status, [
+										"out_for_delivery",
+										"packed",
+										"ready_for_loading",
+										"loaded",
+									]),
 								),
 							);
 

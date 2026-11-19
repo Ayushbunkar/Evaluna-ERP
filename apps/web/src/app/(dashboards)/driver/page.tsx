@@ -509,8 +509,8 @@ export default function DriverDashboard() {
 												Amount to Collect
 											</p>
 											{dashboard.nextDelivery.discountAmount && dashboard.nextDelivery.discountAmount > 0 ? (
-												<span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200">
-													🏷️ -₹{dashboard.nextDelivery.discountAmount} Off
+												<span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-200 text-emerald-950 border border-emerald-400 shadow-2xs dark:bg-emerald-900 dark:text-emerald-100 dark:border-emerald-700">
+													🏷️ -₹{dashboard.nextDelivery.discountAmount} OFF
 												</span>
 											) : null}
 										</div>
@@ -521,7 +521,7 @@ export default function DriverDashboard() {
 											)}
 										</p>
 										{dashboard.nextDelivery.discountAmount && dashboard.nextDelivery.discountAmount > 0 ? (
-											<div className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
+											<div className="mt-1 text-[11px] font-bold text-emerald-900 dark:text-emerald-200 bg-emerald-100/70 dark:bg-emerald-950/60 p-1.5 rounded border border-emerald-300 dark:border-emerald-800">
 												<span className="line-through text-muted-foreground mr-1.5 font-mono">
 													{formatCurrency(
 														(dashboard.nextDelivery.subtotal || dashboard.nextDelivery.amountToCollect + dashboard.nextDelivery.discountAmount),
@@ -529,7 +529,7 @@ export default function DriverDashboard() {
 													)}
 												</span>
 												{dashboard.nextDelivery.discountReason ? (
-													<span className="truncate block font-medium mt-0.5 text-[10px]" title={dashboard.nextDelivery.discountReason}>
+													<span className="truncate block font-bold mt-0.5 text-[11px] text-emerald-800 dark:text-emerald-300" title={dashboard.nextDelivery.discountReason}>
 														Reason: {dashboard.nextDelivery.discountReason}
 													</span>
 												) : null}
@@ -633,8 +633,8 @@ export default function DriverDashboard() {
 														</span>
 													) : null}
 													{stop.discountAmount && stop.discountAmount > 0 ? (
-														<span className="text-[10px] px-1 rounded bg-emerald-100 text-emerald-800 font-semibold dark:bg-emerald-950 dark:text-emerald-300">
-															🏷️ -₹{stop.discountAmount}
+														<span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-950 font-extrabold border border-emerald-300 shadow-2xs dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
+															🏷️ -₹{stop.discountAmount} OFF
 														</span>
 													) : null}
 												</div>

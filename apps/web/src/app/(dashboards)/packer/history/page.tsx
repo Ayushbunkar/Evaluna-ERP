@@ -333,8 +333,8 @@ export default function PackerHistoryPage() {
 														: pkg.status}
 												</span>
 											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{pkg.packedAt}
+											<TableCell className="text-muted-foreground text-xs font-mono">
+												{(pkg as any).packedDateDisplay || pkg.packedAt}
 											</TableCell>
 											<TableCell className="text-right">
 												<Button

@@ -18,6 +18,7 @@ import {
 import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { dispatchNotification } from "@/lib/notification-service";
+import { parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
 
 export const packerRouter = router({
@@ -478,10 +479,10 @@ export const packerRouter = router({
 						.where(eq(pickLists.id, input.pick_list_id));
 				}
 
-				// Update parent order status to "packed"
+				// Update parent order status to "ready_for_loading" (directly available for loader queue)
 				await ctx.db
 					.update(orders)
-					.set({ status: "packed" })
+					.set({ status: "ready_for_loading" })
 					.where(eq(orders.id, validOrderId));
 
 				// Trigger In-App Notification for Manager
@@ -544,41 +545,36 @@ export const packerRouter = router({
 		.query(async ({ ctx, input }) => {
 			const conditions = [];
 
-			const fromDate = input?.startDate ? new Date(input.startDate) : null;
-			if (fromDate) fromDate.setHours(0, 0, 0, 0);
-
-			const toDate = input?.endDate ? new Date(input.endDate) : null;
-			if (toDate) toDate.setHours(23, 59, 59, 999);
-
-			if (fromDate && toDate) {
+			if (input?.status) {
+				conditions.push(eq(packages.status, input.status));
+			} else {
+				// History shows all packed / completed packages
 				conditions.push(
 					or(
-						and(gte(packages.packed_at, fromDate), lte(packages.packed_at, toDate)),
-						and(
-							isNull(packages.packed_at),
-							gte(packages.created_at, fromDate),
-							lte(packages.created_at, toDate),
-						),
-					),
-				);
-			} else if (fromDate) {
-				conditions.push(
-					or(
-						gte(packages.packed_at, fromDate),
-						and(isNull(packages.packed_at), gte(packages.created_at, fromDate)),
-					),
-				);
-			} else if (toDate) {
-				conditions.push(
-					or(
-						lte(packages.packed_at, toDate),
-						and(isNull(packages.packed_at), lte(packages.created_at, toDate)),
+						isNotNull(packages.packed_at),
+						inArray(packages.status, [
+							"packed",
+							"ready_for_dispatch",
+							"ready_for_loading",
+							"checked",
+							"loaded",
+							"dispatched",
+							"in_transit",
+							"delivered",
+							"completed",
+						]),
 					),
 				);
 			}
 
-			if (input?.status) {
-				conditions.push(eq(packages.status, input.status));
+			const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+			const targetDateCol = sql`COALESCE(${packages.packed_at}, ${packages.created_at})`;
+
+			if (fromDate) {
+				conditions.push(gte(targetDateCol, fromDate));
+			}
+			if (toDate) {
+				conditions.push(lte(targetDateCol, toDate));
 			}
 
 			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -599,7 +595,8 @@ export const packerRouter = router({
 				.leftJoin(orders, eq(packages.order_id, orders.id))
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
 				.where(whereClause)
-				.orderBy(desc(packages.id), desc(packages.packed_at));
+				.orderBy(desc(targetDateCol), desc(packages.id))
+				.limit(500);
 
 			const {
 				tripStops,
@@ -656,6 +653,7 @@ export const packerRouter = router({
 					}
 				}
 
+				const displayDate = item.packedAt || item.createdAt;
 				historyItems.push({
 					orderId: `ORD-${item.orderId}`,
 					packageNumber: item.packageNumber || `PKG-${item.orderId}`,
@@ -665,9 +663,16 @@ export const packerRouter = router({
 					routeName,
 					packedBy: item.packedBy || "Packer Staff",
 					status: item.status || "packed",
-					packedAt: item.packedAt
-						? new Date(item.packedAt).toISOString().split("T")[0]
+					packedAt: displayDate
+						? new Date(displayDate).toISOString().split("T")[0]
 						: new Date().toISOString().split("T")[0],
+					packedDateDisplay: displayDate
+						? new Date(displayDate).toLocaleDateString("en-GB", {
+								day: "2-digit",
+								month: "2-digit",
+								year: "numeric",
+						  })
+						: "Today",
 				});
 			}
 

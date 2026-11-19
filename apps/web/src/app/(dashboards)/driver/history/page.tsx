@@ -726,16 +726,19 @@ export default function DriverHistoryPage() {
 																				</TableCell>
 																			</TableRow>
 																			{stopDiscount > 0 && (
-																				<TableRow className="bg-emerald-500/10 font-medium text-emerald-700 dark:text-emerald-400 border-border">
-																					<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider">
-																						Discount Applied (लागू छूट)
+																				<TableRow className="bg-emerald-500/20 font-bold text-emerald-950 dark:text-emerald-100 border-y border-emerald-300 dark:border-emerald-800">
+																					<TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider font-bold">
+																						<div className="flex items-center justify-end gap-1.5 font-bold">
+																							<span>🏷️</span>
+																							<span>Discount Applied (लागू छूट)</span>
+																						</div>
 																						{st.discountReason && (
-																							<span className="block text-[10px] font-normal text-muted-foreground">
+																							<span className="block text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
 																								कारण / Reason: ({st.discountReason})
 																							</span>
 																						)}
 																					</TableCell>
-																					<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
+																					<TableCell className="text-right text-emerald-800 dark:text-emerald-200 text-sm font-extrabold font-mono">
 																						- ₹{stopDiscount.toFixed(2).replace(/\.00$/, "")}
 																					</TableCell>
 																				</TableRow>

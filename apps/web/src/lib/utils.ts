@@ -78,3 +78,55 @@ export function formatQty(val: number | string | null | undefined): string {
 	return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
 
+/**
+ * Safely parse a date range from UI filters (e.g. "YYYY-MM-DD" or Date objects)
+ * into broad, timezone-safe UTC Date boundaries that cover the full 24-hour day
+ * in both Indian Standard Time (IST, UTC+5:30) and local/UTC environments.
+ */
+export function parseDateFilterRange(
+	startDate?: string | Date | null,
+	endDate?: string | Date | null,
+): { fromDate: Date | null; toDate: Date | null } {
+	let fromDate: Date | null = null;
+	let toDate: Date | null = null;
+
+	const parseStart = (val: string | Date): Date => {
+		if (typeof val === "string") {
+			const dateStr = val.split("T")[0];
+			const parts = dateStr.split("-").map(Number);
+			if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+				const [y, m, d] = parts;
+				// In IST (UTC+5:30), start of day 00:00:00 IST is previous day 18:30:00 UTC
+				const istStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - 5.5 * 3600 * 1000);
+				const localStart = new Date(y, m - 1, d, 0, 0, 0, 0);
+				return new Date(Math.min(istStart.getTime(), localStart.getTime()));
+			}
+		}
+		const d = new Date(val);
+		d.setHours(0, 0, 0, 0);
+		return d;
+	};
+
+	const parseEnd = (val: string | Date): Date => {
+		if (typeof val === "string") {
+			const dateStr = val.split("T")[0];
+			const parts = dateStr.split("-").map(Number);
+			if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+				const [y, m, d] = parts;
+				// In IST (UTC+5:30), end of day 23:59:59.999 IST is 18:29:59.999 UTC
+				const istEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) - 5.5 * 3600 * 1000);
+				const localEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+				return new Date(Math.max(istEnd.getTime(), localEnd.getTime()));
+			}
+		}
+		const d = new Date(val);
+		d.setHours(23, 59, 59, 999);
+		return d;
+	};
+
+	if (startDate) fromDate = parseStart(startDate);
+	if (endDate) toDate = parseEnd(endDate);
+
+	return { fromDate, toDate };
+}
+

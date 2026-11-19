@@ -90,6 +90,12 @@ export const products = pgTable(
 		), // e.g., 'global', 'admin_only', 'warehouse_only', 'sales_exec'
 		is_hidden: boolean("is_hidden").default(false),
 
+		// Product Image
+		image_url: text("image_url"),
+		image_storage_path: text("image_storage_path"),
+		image_updated_at: timestamp("image_updated_at"),
+		image_updated_by: varchar("image_updated_by", { length: 255 }),
+
 		created_at: timestamp("created_at").defaultNow(),
 		updated_at: timestamp("updated_at")
 			.defaultNow()
@@ -242,6 +248,10 @@ export const orderItems = pgTable(
 		quantity: decimal("quantity", { precision: 10, scale: 3 })
 			.$type<number | string>()
 			.notNull(),
+		original_quantity: decimal("original_quantity", { precision: 10, scale: 3 })
+			.$type<number | string>(),
+		picked_quantity: decimal("picked_quantity", { precision: 10, scale: 3 })
+			.$type<number | string>(),
 		price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 		cgst_rate: decimal("cgst_rate", { precision: 5, scale: 2 }),
 		sgst_rate: decimal("sgst_rate", { precision: 5, scale: 2 }),
@@ -326,6 +336,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 		references: [coupons.id],
 	}),
 	orderAudits: many(orderAudits),
+	pickingExceptions: many(pickingExceptions),
 }));
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
@@ -352,6 +363,74 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 
 export const customersRelations = relations(customers, ({ many }) => ({
 	orders: many(orders),
+	carts: many(carts),
+}));
+
+// ── Customer Shopping Carts (Persistent) ──────────────────────────────────
+export const carts = pgTable(
+	"carts",
+	{
+		id: serial("id").primaryKey(),
+		customer_id: integer("customer_id")
+			.references(() => customers.id)
+			.notNull(),
+		status: varchar("status", { length: 50 }).notNull().default("active"), // active, converted, abandoned
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(table) => ({
+		customerIdIdx: index("idx_carts_customer_id").on(table.customer_id),
+		statusIdx: index("idx_carts_status").on(table.status),
+	}),
+);
+
+export const cartItems = pgTable(
+	"cart_items",
+	{
+		id: serial("id").primaryKey(),
+		cart_id: integer("cart_id")
+			.references(() => carts.id, { onDelete: "cascade" })
+			.notNull(),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		quantity: decimal("quantity", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdateFn(() => new Date()),
+	},
+	(table) => ({
+		cartIdIdx: index("idx_cart_items_cart_id").on(table.cart_id),
+		productIdIdx: index("idx_cart_items_product_id").on(table.product_id),
+		cartProductUnique: uniqueIndex("idx_cart_items_cart_product").on(
+			table.cart_id,
+			table.product_id,
+		),
+	}),
+);
+
+export const cartsRelations = relations(carts, ({ one, many }) => ({
+	customer: one(customers, {
+		fields: [carts.customer_id],
+		references: [customers.id],
+	}),
+	items: many(cartItems),
+}));
+
+export const cartItemsRelations = relations(cartItems, ({ one }) => ({
+	cart: one(carts, {
+		fields: [cartItems.cart_id],
+		references: [carts.id],
+	}),
+	product: one(products, {
+		fields: [cartItems.product_id],
+		references: [products.id],
+	}),
 }));
 
 export const branchInventory = pgTable(
@@ -1220,6 +1299,7 @@ export const pickListsRelations = relations(pickLists, ({ one, many }) => ({
 		references: [staff.id],
 	}),
 	pickListItems: many(pickListItems),
+	pickingExceptions: many(pickingExceptions),
 }));
 
 // ── Pick List Items (Phase 9) ────────────────────────────────────────────────
@@ -1245,7 +1325,7 @@ export const pickListItems = pgTable("pick_list_items", {
 	created_at: timestamp("created_at").defaultNow(),
 });
 
-export const pickListItemsRelations = relations(pickListItems, ({ one }) => ({
+export const pickListItemsRelations = relations(pickListItems, ({ one, many }) => ({
 	pickList: one(pickLists, {
 		fields: [pickListItems.pick_list_id],
 		references: [pickLists.id],
@@ -1265,6 +1345,95 @@ export const pickListItemsRelations = relations(pickListItems, ({ one }) => ({
 	pickedBy: one(staff, {
 		fields: [pickListItems.picked_by],
 		references: [staff.id],
+	}),
+	pickingExceptions: many(pickingExceptions),
+}));
+
+// ── Picking Exceptions (Partial Picking & Stock Shortage) ────────────────────
+export const pickingExceptions = pgTable(
+	"picking_exceptions",
+	{
+		id: serial("id").primaryKey(),
+		pick_list_id: integer("pick_list_id")
+			.references(() => pickLists.id)
+			.notNull(),
+		pick_list_item_id: integer("pick_list_item_id")
+			.references(() => pickListItems.id)
+			.notNull(),
+		order_id: integer("order_id").references(() => orders.id),
+		product_id: integer("product_id")
+			.references(() => products.id)
+			.notNull(),
+		branch_id: integer("branch_id").references(() => branches.id),
+		location_id: integer("location_id").references(() => branchLocations.id),
+		quantity_ordered: decimal("quantity_ordered", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		quantity_picked: decimal("quantity_picked", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.notNull(),
+		quantity_damaged: decimal("quantity_damaged", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.default("0"),
+		quantity_missing: decimal("quantity_missing", { precision: 10, scale: 3 })
+			.$type<number | string>()
+			.default("0"),
+		reason: varchar("reason", { length: 100 }).notNull(),
+		remarks: text("remarks"),
+		photo_url: text("photo_url"),
+		reported_by: integer("reported_by")
+			.references(() => staff.id)
+			.notNull(),
+		status: varchar("status", { length: 50 }).notNull().default("PENDING_REVIEW"), // PENDING_REVIEW, APPROVED_PARTIAL, REASSIGNED, MARKED_DAMAGED, REJECTED
+		manager_notes: text("manager_notes"),
+		resolved_by: integer("resolved_by").references(() => staff.id),
+		resolved_at: timestamp("resolved_at"),
+		replacement_task_id: integer("replacement_task_id"),
+		created_at: timestamp("created_at").defaultNow(),
+		updated_at: timestamp("updated_at").defaultNow(),
+	},
+	(table) => ({
+		pickListIdIdx: index("idx_picking_exceptions_pick_list_id").on(table.pick_list_id),
+		orderIdIdx: index("idx_picking_exceptions_order_id").on(table.order_id),
+		productIdIdx: index("idx_picking_exceptions_product_id").on(table.product_id),
+		statusIdx: index("idx_picking_exceptions_status").on(table.status),
+	}),
+);
+
+export const pickingExceptionsRelations = relations(pickingExceptions, ({ one }) => ({
+	pickList: one(pickLists, {
+		fields: [pickingExceptions.pick_list_id],
+		references: [pickLists.id],
+	}),
+	pickListItem: one(pickListItems, {
+		fields: [pickingExceptions.pick_list_item_id],
+		references: [pickListItems.id],
+	}),
+	order: one(orders, {
+		fields: [pickingExceptions.order_id],
+		references: [orders.id],
+	}),
+	product: one(products, {
+		fields: [pickingExceptions.product_id],
+		references: [products.id],
+	}),
+	branch: one(branches, {
+		fields: [pickingExceptions.branch_id],
+		references: [branches.id],
+	}),
+	location: one(branchLocations, {
+		fields: [pickingExceptions.location_id],
+		references: [branchLocations.id],
+	}),
+	reportedBy: one(staff, {
+		fields: [pickingExceptions.reported_by],
+		references: [staff.id],
+		relationName: "pickingExceptionReportedBy",
+	}),
+	resolvedBy: one(staff, {
+		fields: [pickingExceptions.resolved_by],
+		references: [staff.id],
+		relationName: "pickingExceptionResolvedBy",
 	}),
 }));
 

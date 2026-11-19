@@ -1,4 +1,7 @@
 import {
+	branchInventory,
+	cartItems,
+	carts,
 	customers,
 	orderItems,
 	orders,
@@ -12,8 +15,274 @@ import { endOfDay, startOfDay } from "date-fns";
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { notifyCustomerOrderPlaced } from "@/lib/notification-service";
+import { findMatchingSlab } from "@/lib/pricing/slab-pricing";
 import { ensureSlabPricingTable } from "./slab-pricing";
 import { customerProcedure, roleProcedure, router } from "../init";
+
+let hasEnsuredCartTables = false;
+export async function ensureCartTables(db: any) {
+	if (hasEnsuredCartTables) return;
+	try {
+		await db.execute(sql`
+			CREATE TABLE IF NOT EXISTS carts (
+				id SERIAL PRIMARY KEY,
+				customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+				status VARCHAR(50) NOT NULL DEFAULT 'active',
+				created_at TIMESTAMP DEFAULT NOW(),
+				updated_at TIMESTAMP DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_carts_customer_id ON carts (customer_id);
+			CREATE INDEX IF NOT EXISTS idx_carts_status ON carts (status);
+
+			CREATE TABLE IF NOT EXISTS cart_items (
+				id SERIAL PRIMARY KEY,
+				cart_id INTEGER NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
+				product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+				quantity NUMERIC(10, 3) NOT NULL,
+				created_at TIMESTAMP DEFAULT NOW(),
+				updated_at TIMESTAMP DEFAULT NOW(),
+				CONSTRAINT idx_cart_items_cart_product UNIQUE (cart_id, product_id)
+			);
+			CREATE INDEX IF NOT EXISTS idx_cart_items_cart_id ON cart_items (cart_id);
+			CREATE INDEX IF NOT EXISTS idx_cart_items_product_id ON cart_items (product_id);
+		`);
+		hasEnsuredCartTables = true;
+	} catch (e) {
+		// table already exists or DDL managed
+	}
+}
+
+async function getCartHelper(db: any, customerId: number, branchId: number | null) {
+	await ensureCartTables(db);
+	await ensureSlabPricingTable(db);
+
+	let [activeCart] = await db
+		.select()
+		.from(carts)
+		.where(and(eq(carts.customer_id, customerId), eq(carts.status, "active")))
+		.limit(1);
+
+	if (!activeCart) {
+		const [created] = await db
+			.insert(carts)
+			.values({ customer_id: customerId, status: "active" })
+			.returning();
+		activeCart = created;
+	}
+
+	if (!activeCart) {
+		return {
+			id: 0,
+			items: [],
+			itemCount: 0,
+			totalQuantity: 0,
+			subtotal: 0,
+			discountTotal: 0,
+			netAmount: 0,
+			estimatedGst: 0,
+			estimatedTotal: 0,
+		};
+	}
+
+	const cartItemRows = await db
+		.select({
+			id: cartItems.id,
+			cartId: cartItems.cart_id,
+			productId: cartItems.product_id,
+			quantity: cartItems.quantity,
+			createdAt: cartItems.created_at,
+			updatedAt: cartItems.updated_at,
+			productName: products.name,
+			productDescription: products.description,
+			sku: products.sku,
+			unit: products.unit,
+			price: products.price,
+			baseSellingPrice: products.base_selling_price,
+			imageUrl: products.image_url,
+			category: products.category,
+			isDeleted: products.is_deleted,
+			isHidden: products.is_hidden,
+			inStock: sql<number>`coalesce(max(${branchInventory.in_stock}), 0)::numeric`,
+		})
+		.from(cartItems)
+		.innerJoin(products, eq(cartItems.product_id, products.id))
+		.leftJoin(
+			branchInventory,
+			and(
+				eq(branchInventory.product_id, products.id),
+				branchId ? eq(branchInventory.branch_id, branchId) : sql`true`,
+			),
+		)
+		.where(eq(cartItems.cart_id, activeCart.id))
+		.groupBy(
+			cartItems.id,
+			cartItems.cart_id,
+			cartItems.product_id,
+			cartItems.quantity,
+			cartItems.created_at,
+			cartItems.updated_at,
+			products.id,
+			products.name,
+			products.description,
+			products.sku,
+			products.unit,
+			products.price,
+			products.base_selling_price,
+			products.image_url,
+			products.category,
+			products.is_deleted,
+			products.is_hidden,
+		)
+		.orderBy(asc(cartItems.created_at));
+
+	// Fetch active daily discounts for today
+	const todayDateStr = new Date().toISOString().split("T")[0];
+	let activeDiscounts: any[] = [];
+	try {
+		const { dailyProductDiscounts } = require("@evaluna/db/schema");
+		activeDiscounts = await db
+			.select()
+			.from(dailyProductDiscounts)
+			.where(
+				and(
+					eq(dailyProductDiscounts.effective_date, todayDateStr),
+					eq(dailyProductDiscounts.is_active, true),
+				),
+			);
+	} catch (e) {
+		activeDiscounts = [];
+	}
+
+	const discountMap = new Map<number, any>();
+	for (const d of activeDiscounts) {
+		discountMap.set(d.product_id, d);
+	}
+
+	// Fetch active slabs for cart items
+	const productIds = cartItemRows.map((r) => r.productId);
+	let activeSlabs: any[] = [];
+	if (productIds.length > 0) {
+		try {
+			activeSlabs = await db
+				.select()
+				.from(productSlabPricing)
+				.where(
+					and(
+						inArray(productSlabPricing.product_id, productIds),
+						eq(productSlabPricing.is_active, true),
+					),
+				)
+				.orderBy(asc(productSlabPricing.min_quantity));
+		} catch (e) {
+			activeSlabs = [];
+		}
+	}
+
+	const slabsMap = new Map<number, any[]>();
+	for (const s of activeSlabs) {
+		const list = slabsMap.get(s.product_id) || [];
+		list.push({
+			id: s.id,
+			productId: s.product_id,
+			minQuantity: Number(s.min_quantity),
+			maxQuantity: s.max_quantity !== null ? Number(s.max_quantity) : null,
+			unitPrice: Number(s.unit_price),
+			startDate: s.start_date,
+			endDate: s.end_date,
+			isActive: s.is_active,
+		});
+		slabsMap.set(s.product_id, list);
+	}
+
+	let totalSubtotal = 0;
+	let totalDiscount = 0;
+	let totalQuantity = 0;
+
+	const enrichedItems = cartItemRows.map((item) => {
+		const qty = Number(item.quantity) || 0;
+		totalQuantity += qty;
+		const originalPrice = Number(item.price || item.baseSellingPrice || 0);
+		const disc = discountMap.get(item.productId);
+		const itemSlabs = slabsMap.get(item.productId) || [];
+
+		let effectivePrice = originalPrice;
+		let discountPercent = 0;
+		let hasActiveOffer = false;
+		let offerReason = "";
+
+		// Check if slab applies for this quantity
+		const matchingSlab = findMatchingSlab(itemSlabs, qty);
+		if (matchingSlab) {
+			effectivePrice = Number(matchingSlab.unitPrice);
+			discountPercent =
+				originalPrice > 0
+					? Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
+					: 0;
+			hasActiveOffer = true;
+			offerReason = `Volume Slab (${matchingSlab.minQuantity}${matchingSlab.maxQuantity ? `–${matchingSlab.maxQuantity}` : "+"} ${item.unit || "units"})`;
+		} else if (disc && disc.is_active) {
+			effectivePrice = Number(disc.discounted_price || originalPrice);
+			discountPercent = Number(
+				disc.discount_percent ||
+					(originalPrice > 0
+						? Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
+						: 0),
+			);
+			hasActiveOffer = true;
+			offerReason = disc.reason || "Daily Deal";
+		}
+
+		const itemSubtotal = originalPrice * qty;
+		const itemNet = effectivePrice * qty;
+		const itemDiscount = Math.max(0, itemSubtotal - itemNet);
+
+		totalSubtotal += itemSubtotal;
+		totalDiscount += itemDiscount;
+
+		const inStockNum = Number(item.inStock || 0);
+		const isAvailable = !item.isDeleted && !item.isHidden && inStockNum > 0;
+		const isStockShortage = qty > inStockNum;
+
+		return {
+			id: item.id,
+			productId: item.productId,
+			productName: item.productName,
+			description: item.productDescription,
+			sku: item.sku,
+			unit: item.unit || "Pcs",
+			imageUrl: item.imageUrl,
+			category: item.category || "General",
+			quantity: qty,
+			originalPrice,
+			effectivePrice,
+			discountPercent,
+			hasActiveOffer,
+			offerReason,
+			itemSubtotal,
+			itemNet,
+			itemDiscount,
+			isAvailable,
+			isStockShortage,
+			inStock: inStockNum,
+		};
+	});
+
+	const netAmount = Math.max(0, totalSubtotal - totalDiscount);
+	const estimatedGst = Number((netAmount * 0.05).toFixed(2));
+	const estimatedTotal = Number(netAmount.toFixed(2));
+
+	return {
+		id: activeCart.id,
+		items: enrichedItems,
+		itemCount: enrichedItems.length,
+		totalQuantity: Number(totalQuantity.toFixed(3)),
+		subtotal: Number(totalSubtotal.toFixed(2)),
+		discountTotal: Number(totalDiscount.toFixed(2)),
+		netAmount: Number(netAmount.toFixed(2)),
+		estimatedGst,
+		estimatedTotal,
+	};
+}
 
 // Order lifecycle for the customer-ordering workflow.
 //   pending_review → customer submitted, awaiting salesperson (NO prices yet)
@@ -280,6 +549,7 @@ export const customerRouter = router({
 					unit: p.unit ?? null,
 					sku: p.sku ?? null,
 					image: (p as any).image_url ?? (p as any).image ?? null,
+					imageUrl: (p as any).image_url ?? (p as any).image ?? null,
 					available: !(p as any).is_out_of_stock && !p.is_deleted && !p.is_hidden,
 				};
 			});
@@ -289,6 +559,431 @@ export const customerRouter = router({
 				if (!a.hasActiveOffer && b.hasActiveOffer) return 1;
 				return a.name.localeCompare(b.name);
 			});
+		}),
+
+	// ── Persistent Customer Shopping Cart ─────────────────────────────────────
+	getCart: customerProcedure.query(async ({ ctx }) => {
+		return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+	}),
+
+	addToCart: customerProcedure
+		.input(
+			z.object({
+				productId: z.number().int().positive(),
+				quantity: z.number().positive().default(1),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ensureCartTables(ctx.db);
+			let [activeCart] = await ctx.db
+				.select()
+				.from(carts)
+				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.limit(1);
+
+			if (!activeCart) {
+				const [created] = await ctx.db
+					.insert(carts)
+					.values({ customer_id: ctx.customer.id, status: "active" })
+					.returning();
+				activeCart = created;
+			}
+
+			// Validate product exists and is active
+			const [prod] = await ctx.db
+				.select()
+				.from(products)
+				.where(and(eq(products.id, input.productId), eq(products.is_deleted, false)))
+				.limit(1);
+
+			if (!prod) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Product not found or unavailable.",
+				});
+			}
+
+			// Check if item already exists in cart -> merge quantities
+			const [existing] = await ctx.db
+				.select()
+				.from(cartItems)
+				.where(
+					and(
+						eq(cartItems.cart_id, activeCart.id),
+						eq(cartItems.product_id, input.productId),
+					),
+				)
+				.limit(1);
+
+			if (existing) {
+				const newQty = Number(
+					(Number(existing.quantity) + Number(input.quantity)).toFixed(3),
+				);
+				await ctx.db
+					.update(cartItems)
+					.set({ quantity: String(newQty), updated_at: new Date() })
+					.where(eq(cartItems.id, existing.id));
+			} else {
+				await ctx.db.insert(cartItems).values({
+					cart_id: activeCart.id,
+					product_id: input.productId,
+					quantity: String(Number(input.quantity.toFixed(3))),
+				});
+			}
+
+			return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+		}),
+
+	updateCartItemQuantity: customerProcedure
+		.input(
+			z.object({
+				productId: z.number().int().positive(),
+				quantity: z.number().min(0),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ensureCartTables(ctx.db);
+			const [activeCart] = await ctx.db
+				.select()
+				.from(carts)
+				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.limit(1);
+
+			if (!activeCart) {
+				return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+			}
+
+			if (input.quantity <= 0) {
+				await ctx.db
+					.delete(cartItems)
+					.where(
+						and(
+							eq(cartItems.cart_id, activeCart.id),
+							eq(cartItems.product_id, input.productId),
+						),
+					);
+			} else {
+				const [existing] = await ctx.db
+					.select()
+					.from(cartItems)
+					.where(
+						and(
+							eq(cartItems.cart_id, activeCart.id),
+							eq(cartItems.product_id, input.productId),
+						),
+					)
+					.limit(1);
+
+				if (existing) {
+					await ctx.db
+						.update(cartItems)
+						.set({
+							quantity: String(Number(input.quantity.toFixed(3))),
+							updated_at: new Date(),
+						})
+						.where(eq(cartItems.id, existing.id));
+				} else {
+					await ctx.db.insert(cartItems).values({
+						cart_id: activeCart.id,
+						product_id: input.productId,
+						quantity: String(Number(input.quantity.toFixed(3))),
+					});
+				}
+			}
+
+			return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+		}),
+
+	removeFromCart: customerProcedure
+		.input(z.object({ productId: z.number().int().positive() }))
+		.mutation(async ({ ctx, input }) => {
+			await ensureCartTables(ctx.db);
+			const [activeCart] = await ctx.db
+				.select()
+				.from(carts)
+				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.limit(1);
+
+			if (activeCart) {
+				await ctx.db
+					.delete(cartItems)
+					.where(
+						and(
+							eq(cartItems.cart_id, activeCart.id),
+							eq(cartItems.product_id, input.productId),
+						),
+					);
+			}
+
+			return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+		}),
+
+	clearCart: customerProcedure.mutation(async ({ ctx }) => {
+		await ensureCartTables(ctx.db);
+		const [activeCart] = await ctx.db
+			.select()
+			.from(carts)
+			.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+			.limit(1);
+
+		if (activeCart) {
+			await ctx.db.delete(cartItems).where(eq(cartItems.cart_id, activeCart.id));
+		}
+
+		return { success: true };
+	}),
+
+	checkoutCart: customerProcedure
+		.input(
+			z.object({
+				idempotencyKey: z.string().uuid(),
+				notes: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ensureCartTables(ctx.db);
+
+			// 1. Idempotency guard check (handles rapid retries/double-clicks)
+			const existingSync = await ctx.db.query.pendingSync.findFirst({
+				where: eq(pendingSync.id, input.idempotencyKey),
+			});
+			if (existingSync?.entity_id) {
+				const prior = await ctx.db.query.orders.findFirst({
+					where: and(
+						eq(orders.id, existingSync.entity_id),
+						eq(orders.customer_id, ctx.customer.id),
+					),
+				});
+				if (prior) {
+					return {
+						orderId: prior.id,
+						orderRef: `ORD-${prior.id}`,
+						totalAmount: Number(prior.total_amount),
+						duplicate: true,
+					};
+				}
+			}
+
+			// 2. Fetch active cart
+			const [activeCart] = await ctx.db
+				.select()
+				.from(carts)
+				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.limit(1);
+
+			if (!activeCart) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Your shopping cart is empty.",
+				});
+			}
+
+			const items = await ctx.db
+				.select({
+					id: cartItems.id,
+					productId: cartItems.product_id,
+					quantity: cartItems.quantity,
+					name: products.name,
+					sku: products.sku,
+					price: products.price,
+					baseSellingPrice: products.base_selling_price,
+					isDeleted: products.is_deleted,
+					isHidden: products.is_hidden,
+				})
+				.from(cartItems)
+				.innerJoin(products, eq(cartItems.product_id, products.id))
+				.where(eq(cartItems.cart_id, activeCart.id));
+
+			const validItems = items.filter(
+				(i: any) => !i.isDeleted && !i.isHidden && Number(i.quantity) > 0,
+			);
+
+			if (validItems.length === 0) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Your cart does not contain any available products.",
+				});
+			}
+
+			// 3. Authoritative price resolution (daily deals & volume slabs)
+			const todayDateStr = new Date().toISOString().split("T")[0];
+			let activeDiscounts: any[] = [];
+			try {
+				const { dailyProductDiscounts } = require("@evaluna/db/schema");
+				activeDiscounts = await ctx.db
+					.select()
+					.from(dailyProductDiscounts)
+					.where(
+						and(
+							eq(dailyProductDiscounts.effective_date, todayDateStr),
+							eq(dailyProductDiscounts.is_active, true),
+						),
+					);
+			} catch (e) {
+				activeDiscounts = [];
+			}
+			const discountMap = new Map<number, any>();
+			for (const d of activeDiscounts) {
+				discountMap.set(d.product_id, d);
+			}
+
+			const prodIds = validItems.map((i: any) => i.productId);
+			let activeSlabs: any[] = [];
+			if (prodIds.length > 0) {
+				try {
+					activeSlabs = await ctx.db
+						.select()
+						.from(productSlabPricing)
+						.where(
+							and(
+								inArray(productSlabPricing.product_id, prodIds),
+								eq(productSlabPricing.is_active, true),
+							),
+						)
+						.orderBy(asc(productSlabPricing.min_quantity));
+				} catch (e) {
+					activeSlabs = [];
+				}
+			}
+			const slabsMap = new Map<number, any[]>();
+			for (const s of activeSlabs) {
+				const list = slabsMap.get(s.product_id) || [];
+				list.push({
+					id: s.id,
+					productId: s.product_id,
+					minQuantity: Number(s.min_quantity),
+					maxQuantity: s.max_quantity !== null ? Number(s.max_quantity) : null,
+					unitPrice: Number(s.unit_price),
+					startDate: s.start_date,
+					endDate: s.end_date,
+					isActive: s.is_active,
+				});
+				slabsMap.set(s.product_id, list);
+			}
+
+			const cleanItems = validItems.map((it: any) => {
+				const qty = Number(Number(it.quantity).toFixed(3));
+				const originalPrice = Number(it.price || it.baseSellingPrice || 0);
+				const disc = discountMap.get(it.productId);
+				const itemSlabs = slabsMap.get(it.productId) || [];
+
+				let effectivePrice = originalPrice;
+				const matchingSlab = findMatchingSlab(itemSlabs, qty);
+				if (matchingSlab) {
+					effectivePrice = Number(matchingSlab.unitPrice);
+				} else if (disc && disc.is_active) {
+					effectivePrice = Number(disc.discounted_price || originalPrice);
+				}
+
+				return {
+					productId: it.productId,
+					quantity: qty,
+					name: it.name,
+					sku: it.sku,
+					price: effectivePrice,
+				};
+			});
+
+			const totalAmount = cleanItems.reduce(
+				(sum: number, it: any) => sum + it.price * it.quantity,
+				0,
+			);
+
+			// 4. Atomic Order Placement Transaction
+			const createdResult = await ctx.db.transaction(async (tx: any) => {
+				// Re-verify idempotency inside transaction
+				const existingSync = await tx.query.pendingSync.findFirst({
+					where: eq(pendingSync.id, input.idempotencyKey),
+				});
+				if (existingSync?.entity_id) {
+					const prior = await tx.query.orders.findFirst({
+						where: and(
+							eq(orders.id, existingSync.entity_id),
+							eq(orders.customer_id, ctx.customer.id),
+						),
+					});
+					if (prior) {
+						return {
+							orderId: prior.id,
+							orderRef: `ORD-${prior.id}`,
+							totalAmount: Number(prior.total_amount),
+							duplicate: true,
+						};
+					}
+				}
+
+				// Insert Order
+				const [order] = await tx
+					.insert(orders)
+					.values({
+						customer_id: ctx.customer.id,
+						branch_id: ctx.customer.branch_id ?? 1,
+						total_amount: totalAmount.toFixed(2),
+						user_uid: ctx.user.id,
+						status: "pending_review",
+						original_items: cleanItems,
+					})
+					.returning();
+
+				if (!order) {
+					throw new TRPCError({
+						code: "INTERNAL_SERVER_ERROR",
+						message: "Failed to create order record.",
+					});
+				}
+
+				// Insert Order Items
+				await tx.insert(orderItems).values(
+					cleanItems.map((i: any) => ({
+						order_id: order.id,
+						product_id: i.productId,
+						quantity: String(i.quantity),
+						original_quantity: String(i.quantity),
+						picked_quantity: "0",
+						price: i.price.toFixed(2),
+					})),
+				);
+
+				// Clear active cart items
+				await tx.delete(cartItems).where(eq(cartItems.cart_id, activeCart.id));
+
+				// Record Idempotency
+				await tx.insert(pendingSync).values({
+					id: input.idempotencyKey,
+					branch_id: ctx.customer.branch_id ?? null,
+					operation_type: "CHECKOUT_CUSTOMER_CART",
+					entity_type: "order",
+					entity_id: order.id,
+					payload: {
+						customerId: ctx.customer.id,
+						items: cleanItems,
+						notes: input.notes || null,
+					},
+				});
+
+				return {
+					orderId: order.id,
+					orderRef: `ORD-${order.id}`,
+					totalAmount,
+					duplicate: false,
+				};
+			});
+
+			// Fire notification to Sales & Managers about new customer order
+			if (!createdResult.duplicate && createdResult.orderId) {
+				try {
+					void notifyCustomerOrderPlaced({
+						orderId: createdResult.orderId,
+						customerName: ctx.customer.name || "Customer",
+						itemCount: createdResult.orderId ? 1 : 0,
+						branchId: ctx.customer.branch_id,
+					});
+				} catch (notifErr) {
+					console.warn("[checkoutCart] Notification error:", notifErr);
+				}
+			}
+
+			return createdResult;
 		}),
 
 	// ── My orders (list) ──────────────────────────────────────────────────────
@@ -755,6 +1450,20 @@ export const customerRouter = router({
 						price: i.price.toFixed(2),
 					})),
 				);
+
+				// Clear active persistent cart items upon successful submission
+				try {
+					const [activeCart] = await tx
+						.select()
+						.from(carts)
+						.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+						.limit(1);
+					if (activeCart) {
+						await tx.delete(cartItems).where(eq(cartItems.cart_id, activeCart.id));
+					}
+				} catch (_cartErr) {
+					// cart clear is best effort
+				}
 
 				await tx.insert(pendingSync).values({
 					id: input.idempotencyKey,

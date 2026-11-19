@@ -153,6 +153,7 @@ function DecimalQuantityInput({
 
 export default function CustomerProductsPage() {
 	const trpc = useTRPC();
+	const utils = trpc.useUtils();
 	const router = useRouter();
 	const locale = useLocale();
 
@@ -172,6 +173,67 @@ export default function CustomerProductsPage() {
 	} = trpc.customer.browseProducts.useQuery({
 		search: search.trim() || undefined,
 		category: category !== "all" ? category : undefined,
+	});
+
+	// Persistent server-side cart synchronization
+	const { data: serverCart } = trpc.customer.getCart.useQuery();
+
+	useEffect(() => {
+		if (serverCart?.items) {
+			const map: Record<number, CartItem> = {};
+			for (const item of serverCart.items) {
+				map[item.productId] = {
+					productId: item.productId,
+					name: item.productName,
+					sku: item.sku,
+					unit: item.unit,
+					price: item.effectivePrice,
+					quantity: item.quantity,
+					originalPrice: item.originalPrice,
+				};
+			}
+			setCart(map);
+		}
+	}, [serverCart]);
+
+	const addToCartMutation = trpc.customer.addToCart.useMutation({
+		onSuccess: () => {
+			utils.customer.getCart.invalidate();
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to add to cart");
+			utils.customer.getCart.invalidate();
+		},
+	});
+
+	const updateCartQtyMutation = trpc.customer.updateCartItemQuantity.useMutation({
+		onSuccess: () => {
+			utils.customer.getCart.invalidate();
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to update item quantity");
+			utils.customer.getCart.invalidate();
+		},
+	});
+
+	const removeFromCartMutation = trpc.customer.removeFromCart.useMutation({
+		onSuccess: () => {
+			utils.customer.getCart.invalidate();
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to remove item");
+			utils.customer.getCart.invalidate();
+		},
+	});
+
+	const clearCartMutation = trpc.customer.clearCart.useMutation({
+		onSuccess: () => {
+			utils.customer.getCart.invalidate();
+		},
+		onError: (err) => {
+			toast.error(err.message || "Failed to clear cart");
+			utils.customer.getCart.invalidate();
+		},
 	});
 
 	const categories = useMemo(() => {
@@ -301,23 +363,28 @@ export default function CustomerProductsPage() {
 				originalPrice: product.originalPrice || product.price,
 			},
 		}));
+		addToCartMutation.mutate({
+			productId: product.id,
+			quantity: qtyToAdd,
+		});
 		toast.success(
 			locale === "hi"
-				? `${product.name} (${qtyToAdd}) ऑर्डर में जोड़ा गया!`
-				: `Added ${product.name} (${qtyToAdd}) to order!`,
+				? `${product.name} (${qtyToAdd}) कार्ट में जोड़ा गया!`
+				: `Added ${product.name} (${qtyToAdd}) to cart!`,
 		);
 	};
 
 	const updateCartQty = (pid: number, val: number | string) => {
+		let finalQty: number;
+		if (typeof val === "string") {
+			const p = parseFloat(val);
+			finalQty = isNaN(p) || p <= 0 ? 0.001 : Number(p.toFixed(3));
+		} else {
+			finalQty = Math.max(0.001, Number(val.toFixed(3)));
+		}
+
 		setCart((prev) => {
 			if (!prev[pid]) return prev;
-			let finalQty: number;
-			if (typeof val === "string") {
-				const p = parseFloat(val);
-				finalQty = isNaN(p) || p <= 0 ? 0.001 : Number(p.toFixed(3));
-			} else {
-				finalQty = Math.max(0.001, Number(val.toFixed(3)));
-			}
 			const item = prev[pid];
 			let effectivePrice = item.price;
 			if ((item as any).slabs && (item as any).slabs.length > 0) {
@@ -338,6 +405,11 @@ export default function CustomerProductsPage() {
 					quantity: finalQty,
 				},
 			};
+		});
+
+		updateCartQtyMutation.mutate({
+			productId: pid,
+			quantity: finalQty,
 		});
 	};
 
@@ -361,6 +433,12 @@ export default function CustomerProductsPage() {
 			delete clone[pid];
 			return clone;
 		});
+		removeFromCartMutation.mutate({ productId: pid });
+	};
+
+	const handleClearCart = () => {
+		setCart({});
+		clearCartMutation.mutate();
 	};
 
 	const { data: profile } = trpc.customer.getMyProfile.useQuery();
@@ -388,6 +466,7 @@ export default function CustomerProductsPage() {
 	const submitOrderMutation = trpc.customer.submitOrder.useMutation({
 		onSuccess: () => {
 			setCart({});
+			utils.customer.getCart.invalidate();
 			setReviewOpen(false);
 			setIsSubmittingLocal(false);
 			submittingRef.current = false;
@@ -542,12 +621,22 @@ export default function CustomerProductsPage() {
 					</p>
 				</div>
 				{cartItemsList.length > 0 && (
-					<Button
-						onClick={() => setReviewOpen(true)}
-						className="bg-emerald-600 text-white hover:bg-emerald-700"
-					>
-						<ShoppingBagIcon className="mr-2 h-4 w-4" /> {t.reviewOrderBtn}
-					</Button>
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							onClick={() => router.push("/customer/cart")}
+							className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+						>
+							<ShoppingBagIcon className="mr-2 h-4 w-4" />
+							{locale === "hi" ? "कार्ट खोलें" : "Open Cart"} ({cartItemsList.length})
+						</Button>
+						<Button
+							onClick={() => setReviewOpen(true)}
+							className="bg-emerald-600 text-white hover:bg-emerald-700"
+						>
+							<CheckCircle2Icon className="mr-2 h-4 w-4" /> {t.reviewOrderBtn}
+						</Button>
+					</div>
 				)}
 			</div>
 
@@ -624,7 +713,7 @@ export default function CustomerProductsPage() {
 					</CardContent>
 				</Card>
 			) : (
-				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
 					{(products ?? []).map((product) => {
 						const isAvailable = product.available !== false;
 						const inCart = cart[product.id];
@@ -634,81 +723,108 @@ export default function CustomerProductsPage() {
 							(product as any).slabEndDate || (product as any).offerEndDate,
 							locale,
 						);
+						const productImgUrl = (product as any).imageUrl || (product as any).image;
 
 						return (
 							<Card
 								key={product.id}
-								className={`flex flex-col justify-between transition-all ${
+								className={`group flex flex-col justify-between overflow-hidden rounded-xl transition-all duration-200 hover:shadow-lg ${
 									hasOffer
-										? "border-amber-400/80 bg-gradient-to-b from-amber-50/60 via-card to-card shadow-md dark:border-amber-600/80 dark:from-amber-950/20"
-										: "border-border/50 bg-card shadow-sm hover:border-border"
+										? "border-amber-400/90 bg-gradient-to-b from-amber-50/40 via-card to-card shadow-md dark:border-amber-600/80 dark:from-amber-950/20"
+										: "border-border/70 bg-card shadow-xs hover:border-slate-300 dark:hover:border-slate-700"
 								}`}
 							>
-								<CardHeader className="p-4 pb-2">
-									<div className="flex items-start justify-between gap-2">
-										<div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-											hasOffer ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" : "bg-blue-500/10 text-blue-500"
-										}`}>
-											{hasOffer ? (
-												<FlameIcon className="h-5 w-5 animate-bounce text-red-500" />
-											) : (
-												<PackageIcon className="h-5 w-5" />
-											)}
-										</div>
-										<div className="flex flex-col items-end gap-1">
+								{/* Large Product Image Preview Box */}
+								<div className="relative w-full overflow-hidden border-b border-border/40 bg-gradient-to-b from-slate-100/90 to-slate-50/60 p-3 dark:from-slate-800/40 dark:to-slate-900/40">
+									{/* Top Badges & Status Overlay */}
+									<div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-start justify-between gap-1.5 pointer-events-none">
+										<div className="flex flex-col gap-1 items-start">
 											{hasOffer && (
-												<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-amber-500 to-red-600 px-2 py-0.5 text-white font-extrabold text-[10px] shadow-sm transition-all hover:brightness-110">
+												<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-amber-500 to-red-600 px-2 py-0.5 text-white font-extrabold text-[10px] shadow-sm">
 													<FlameIcon className="h-3 w-3" />
 													{product.discountPercent}% OFF
 												</span>
 											)}
 											{(product as any).hasSlabs && (
-												<span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-100 px-2 py-0.5 font-bold text-[10px] text-purple-900 shadow-2xs transition-colors hover:bg-purple-200 hover:text-purple-950 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-200 dark:hover:bg-purple-900">
+												<span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-100/95 px-2 py-0.5 font-bold text-[10px] text-purple-900 shadow-2xs dark:border-purple-800 dark:bg-purple-950/90 dark:text-purple-200">
 													<LayersIcon className="h-3 w-3 text-purple-600 dark:text-purple-400" />
 													<span>Bulk Discounts</span>
 												</span>
 											)}
-											{offerCountdown && (
-												<span
-													className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-extrabold text-[10px] shadow-2xs transition-all ${
-														offerCountdown.urgency === "urgent"
-															? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse hover:bg-rose-500/25"
-															: offerCountdown.urgency === "warning"
-																? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800 hover:bg-amber-500/25"
-																: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800 hover:bg-purple-500/25"
-													}`}
-													title={`Valid until ${offerCountdown.formattedDate}`}
-												>
-													<ClockIcon className="h-3 w-3" />
-													<span>{offerCountdown.badgeText} ({offerCountdown.formattedDate})</span>
-												</span>
-											)}
+										</div>
+
+										<div className="flex flex-col gap-1 items-end">
 											<span
-												className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
+												className={`rounded-full px-2 py-0.5 font-bold text-[10px] shadow-2xs backdrop-blur-xs ${
 													isAvailable
-														? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-														: "bg-red-500/10 text-red-600 dark:text-red-400"
+														? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800"
+														: "bg-red-500/15 text-red-700 dark:text-red-300 border border-red-300/60 dark:border-red-800"
 												}`}
 											>
 												{isAvailable ? t.available : t.unavailable}
 											</span>
+											{offerCountdown && (
+												<span
+													className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-extrabold text-[10px] shadow-2xs ${
+														offerCountdown.urgency === "urgent"
+															? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse"
+															: offerCountdown.urgency === "warning"
+																? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800"
+																: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800"
+													}`}
+													title={`Valid until ${offerCountdown.formattedDate}`}
+												>
+													<ClockIcon className="h-3 w-3" />
+													<span>{offerCountdown.badgeText}</span>
+												</span>
+											)}
 										</div>
 									</div>
-									<CardTitle className="mt-2 line-clamp-1 text-base">
+
+									{/* Centered Image with Object-Contain & Fallback */}
+									<div className="flex h-44 sm:h-52 w-full items-center justify-center pt-8">
+										{productImgUrl ? (
+											<img
+												src={productImgUrl}
+												alt={product.name}
+												className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-xs"
+												loading="lazy"
+											/>
+										) : (
+											<div className="flex flex-col items-center justify-center gap-2 select-none">
+												<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200/80 text-slate-400 dark:bg-slate-800/80 dark:text-slate-500 shadow-inner">
+													<PackageIcon className="h-8 w-8" />
+												</div>
+												<span className="text-[11px] font-medium text-muted-foreground/80">
+													{product.category || "General"}
+												</span>
+											</div>
+										)}
+									</div>
+								</div>
+
+								<CardHeader className="p-4 pb-2">
+									<div className="flex items-center justify-between gap-1">
+										<span className="inline-block rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+											{product.category || "General"}
+										</span>
+										{product.sku && (
+											<span className="font-mono text-[10px] text-muted-foreground">
+												SKU: {product.sku}
+											</span>
+										)}
+									</div>
+									<CardTitle className="mt-1.5 line-clamp-2 text-sm sm:text-base font-bold leading-snug">
 										{product.name}
 									</CardTitle>
-									<CardDescription className="line-clamp-2 text-xs">
-										{product.description}
-									</CardDescription>
+									{product.description && (
+										<CardDescription className="line-clamp-2 text-xs">
+											{product.description}
+										</CardDescription>
+									)}
 								</CardHeader>
 
 								<CardContent className="space-y-2.5 p-4 pt-0">
-									{product.sku && (
-										<p className="font-mono text-[11px] text-muted-foreground">
-											SKU: {product.sku}
-										</p>
-									)}
-
 									{/* Price & Unit Display */}
 									<div className={`rounded-lg border p-2.5 transition-colors ${
 										hasOffer
@@ -947,34 +1063,35 @@ export default function CustomerProductsPage() {
 												className="flex-1 border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 text-xs font-semibold hover:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
 												size="sm"
 												variant="outline"
-												onClick={() => setReviewOpen(true)}
+												onClick={() => router.push("/customer/cart")}
+												title={locale === "hi" ? "कार्ट में देखें" : "View in Cart"}
 											>
 												<CheckCircle2Icon className="mr-1.5 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
 												{locale === "hi"
-													? `ऑर्डर में (${inCart.quantity})`
-													: `In Order (${inCart.quantity})`}
+													? `कार्ट में (${inCart.quantity})`
+													: `In Cart (${inCart.quantity})`}
 											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
 												className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
 												onClick={() => handleRemoveFromCart(product.id)}
-												title={locale === "hi" ? "ऑर्डर से हटाएं" : "Remove from order"}
+												title={locale === "hi" ? "कार्ट से हटाएं" : "Remove from cart"}
 											>
 												<Trash2Icon className="h-4 w-4" />
 											</Button>
 										</div>
 									) : (
 										<Button
-											className="w-full text-xs"
+											className="w-full text-xs bg-emerald-600 text-white hover:bg-emerald-700"
 											size="sm"
 											onClick={() => handleAddToCart(product)}
 											disabled={!isAvailable}
 										>
-											<PlusIcon className="mr-1 h-3.5 w-3.5" />
+											<ShoppingBagIcon className="mr-1.5 h-3.5 w-3.5" />
 											{locale === "hi"
-												? `ऑर्डर में जोड़ें (${currentQty})`
-												: `Add to Order (${currentQty})`}
+												? `कार्ट में जोड़ें (${currentQty})`
+												: `Add to Cart (${currentQty})`}
 										</Button>
 									)}
 								</CardFooter>
@@ -1013,9 +1130,18 @@ export default function CustomerProductsPage() {
 									variant="outline"
 									size="sm"
 									className="text-xs"
-									onClick={() => setCart({})}
+									onClick={handleClearCart}
 								>
 									{t.clear}
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									className="border-emerald-600 text-emerald-700 text-xs hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+									onClick={() => router.push("/customer/cart")}
+								>
+									<ShoppingBagIcon className="mr-1.5 h-3.5 w-3.5" />
+									{locale === "hi" ? "कार्ट देखें" : "View Cart"}
 								</Button>
 								<Button
 									size="sm"

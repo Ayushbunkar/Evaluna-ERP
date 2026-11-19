@@ -1,19 +1,26 @@
 import {
+	branchDamage,
+	branchInventory,
+	branchLocations,
 	customers,
 	deliveryRoutes,
 	orderItems,
 	orders,
+	pickingExceptions,
 	pickListItems,
 	pickLists,
 	routeStops,
 	staff,
+	stockLedger,
 	user,
 } from "@evaluna/db/schema";
 import { and, count, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifyPickComplete } from "@/lib/notification-service";
+import { parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
+import { logAudit, notify, resolveStaffId } from "../util/audit";
 
 export const pickerRouter = router({
 	getDashboardStats: roleProcedure(["admin", "manager", "auditor", "picker"])
@@ -55,7 +62,10 @@ export const pickerRouter = router({
 						.from(pickLists)
 						.where(
 							and(
-								eq(pickLists.status, "completed"),
+								or(
+									inArray(pickLists.status, ["completed", "packed"]),
+									isNotNull(pickLists.completed_at),
+								),
 								or(
 									gte(pickLists.completed_at, todayStart),
 									gte(pickLists.created_at, todayStart),
@@ -259,40 +269,288 @@ export const pickerRouter = router({
 				}
 			}
 
+			const itemIds = items.map((i) => i.id);
+			let existingExceptions: any[] = [];
+			if (itemIds.length > 0) {
+				try {
+					existingExceptions = await db
+						.select()
+						.from(pickingExceptions)
+						.where(inArray(pickingExceptions.pick_list_item_id, itemIds));
+				} catch (exErr) {
+					console.warn("[pickerRouter.getCurrentTask] Error fetching picking exceptions:", exErr);
+				}
+			}
+
+			const productIds = items.map((i) => i.product_id).filter(Boolean);
+			const stockMap = new Map<number, number>();
+			if (productIds.length > 0) {
+				try {
+					const stocks = await db
+						.select({
+							productId: branchInventory.product_id,
+							quantity: branchInventory.quantity,
+						})
+						.from(branchInventory)
+						.where(inArray(branchInventory.product_id, productIds));
+					for (const s of stocks) {
+						if (s.productId) {
+							stockMap.set(s.productId, Number(s.quantity ?? 0));
+						}
+					}
+				} catch (stErr) {
+					console.warn("[pickerRouter.getCurrentTask] Error fetching branchInventory:", stErr);
+				}
+			}
+
+			const accountedCount = items.filter((i) => {
+				const picked = Number(i.quantity_picked ?? 0);
+				const ordered = Number(i.quantity_ordered ?? 0);
+				if (i.status === "picked" || picked >= ordered) return true;
+				return existingExceptions.some((e) => e.pick_list_item_id === i.id);
+			}).length;
+			const totalItemsCount = items.length;
+			const allAccounted = accountedCount === totalItemsCount && totalItemsCount > 0;
+
 			return {
 				task: {
 					id: `PL-${task.id}`,
+					raw_id: task.id,
 					order_id: `ORD-${task.order_id}`,
+					raw_order_id: task.order_id,
 					customer_name: customerName,
 					customer_phone: customerPhone,
 					customer_address: customerAddress,
 					route_name: routeName !== "N/A" ? routeName : undefined,
 					area: "Warehouse",
 					progress: Math.round(
-						(items.filter((i) => i.status === "picked").length /
-							(items.length || 1)) *
-							100,
+						(accountedCount / (totalItemsCount || 1)) * 100,
 					),
-					total_items: items.length,
-					picked_items: items.filter((i) => i.status === "picked").length,
+					total_items: totalItemsCount,
+					picked_items: accountedCount,
+					all_accounted: allAccounted,
 				},
-				items: items.map((i) => ({
-					id: i.id,
-					qty_required:
+				items: items.map((i) => {
+					const req =
 						Math.round(
 							(Number.parseFloat(String(i.quantity_ordered ?? "1")) || 1) * 1000,
-						) / 1000,
-					qty_picked:
+						) / 1000;
+					const picked =
 						Math.round(
 							(Number.parseFloat(String(i.quantity_picked ?? "0")) || 0) * 1000,
-						) / 1000,
-					status: i.status,
-					product: i.product?.name ?? "Unknown",
-					sku: i.product?.sku ?? i.product?.barcode ?? "N/A",
-					location: i.location?.name ?? "Warehouse",
-					batch: i.batch_id ? `B-${i.batch_id}` : "Any",
-				})),
+						) / 1000;
+					const remaining = Math.max(0, Math.round((req - picked) * 1000) / 1000);
+					const ex = existingExceptions.find((e) => e.pick_list_item_id === i.id);
+					const availStock = stockMap.get(i.product_id) ?? (req + 10);
+
+					return {
+						id: i.id,
+						product_id: i.product_id,
+						qty_required: req,
+						qty_picked: picked,
+						remaining_qty: remaining,
+						available_stock: availStock,
+						status: i.status,
+						product: i.product?.name ?? "Unknown",
+						sku: i.product?.sku ?? i.product?.barcode ?? "N/A",
+						barcode: i.product?.barcode ?? i.product?.sku ?? "N/A",
+						location: i.location?.name ?? (i.location?.shelf ? `Shelf: ${i.location.shelf}` : "Warehouse"),
+						shelf: i.location?.shelf ?? i.location?.name ?? "A-1",
+						batch: i.batch_id ? `B-${i.batch_id}` : "Any",
+						exception: ex
+							? {
+									id: ex.id,
+									quantity_damaged: Number(ex.quantity_damaged ?? 0),
+									quantity_missing: Number(ex.quantity_missing ?? 0),
+									reason: ex.reason,
+									remarks: ex.remarks,
+									photo_url: ex.photo_url,
+									status: ex.status,
+								}
+							: null,
+					};
+				}),
 			};
+		}),
+
+	confirmQuantityWithException: roleProcedure(["admin", "manager", "auditor", "picker"])
+		.input(
+			z.object({
+				item_id: z.number(),
+				quantity_picked: z.number().min(0),
+				quantity_damaged: z.number().min(0).default(0),
+				quantity_missing: z.number().min(0).default(0),
+				reason: z
+					.enum([
+						"Damaged items",
+						"Stock not found",
+						"Wrong shelf location",
+						"Expired items",
+						"Inventory mismatch",
+						"Other",
+					])
+					.optional(),
+				remarks: z.string().optional(),
+				photo_url: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const db = ctx.db;
+			const staffId = await resolveStaffId(db, ctx.user.email);
+
+			return await db.transaction(async (tx) => {
+				const item = await tx.query.pickListItems.findFirst({
+					where: eq(pickListItems.id, input.item_id),
+					with: {
+						pickList: true,
+						product: true,
+						location: true,
+					},
+				});
+
+				if (!item) throw new Error("Pick list item not found");
+				if (item.pickList.status === "completed" || item.pickList.status === "cancelled") {
+					throw new Error("Cannot modify an already completed or cancelled pick list.");
+				}
+
+				const orderedQty = Number(item.quantity_ordered) || 0;
+				const pickedQty = Number(input.quantity_picked) || 0;
+				const damagedQty = Number(input.quantity_damaged) || 0;
+				const missingQty = Number(input.quantity_missing) || 0;
+
+				if (pickedQty > orderedQty) {
+					throw new Error(`Picked quantity (${pickedQty}) cannot exceed ordered quantity (${orderedQty})`);
+				}
+
+				const shortfall = Math.max(0, orderedQty - pickedQty);
+
+				// If shortfall > 0 (partial picking), require reason and remarks
+				if (shortfall > 0) {
+					if (!input.reason) {
+						throw new Error("Reason is required when reporting partial picking or stock shortage.");
+					}
+					if (!input.remarks && (damagedQty > 0 || missingQty > 0 || input.reason === "Damaged items" || input.reason === "Stock not found")) {
+						throw new Error("Remarks are required for damaged or missing items.");
+					}
+				}
+
+				const newStatus =
+					pickedQty >= orderedQty
+						? "picked"
+						: pickedQty > 0
+							? "partial"
+							: "missing";
+
+				const [updatedItem] = await tx
+					.update(pickListItems)
+					.set({
+						quantity_picked: pickedQty,
+						status: newStatus,
+						picked_by: staffId,
+						picked_at: new Date(),
+					})
+					.where(eq(pickListItems.id, input.item_id))
+					.returning();
+
+				let exceptionRecord: any = null;
+
+				if (shortfall > 0) {
+					const [existingEx] = await tx
+						.select()
+						.from(pickingExceptions)
+						.where(eq(pickingExceptions.pick_list_item_id, input.item_id))
+						.limit(1);
+
+					const finalDamaged = damagedQty;
+					const finalMissing = missingQty || Math.max(0, shortfall - finalDamaged);
+
+					if (existingEx) {
+						const [updatedEx] = await tx
+							.update(pickingExceptions)
+							.set({
+								quantity_picked: pickedQty,
+								quantity_damaged: finalDamaged,
+								quantity_missing: finalMissing,
+								reason: input.reason!,
+								remarks: input.remarks || null,
+								photo_url: input.photo_url || null,
+								reported_by: staffId || existingEx.reported_by,
+								status: "PENDING_REVIEW",
+								updated_at: new Date(),
+							})
+							.where(eq(pickingExceptions.id, existingEx.id))
+							.returning();
+						exceptionRecord = updatedEx;
+					} else {
+						const [insertedEx] = await tx
+							.insert(pickingExceptions)
+							.values({
+								pick_list_id: item.pick_list_id,
+								pick_list_item_id: item.id,
+								order_id: item.pickList.order_id,
+								product_id: item.product_id,
+								branch_id: (item.pickList as any).branch_id ?? 1,
+								location_id: item.location_id,
+								quantity_ordered: orderedQty,
+								quantity_picked: pickedQty,
+								quantity_damaged: finalDamaged,
+								quantity_missing: finalMissing,
+								reason: input.reason!,
+								remarks: input.remarks || null,
+								photo_url: input.photo_url || null,
+								reported_by: staffId || 1,
+								status: "PENDING_REVIEW",
+							})
+							.returning();
+						exceptionRecord = insertedEx;
+					}
+
+					// Notify Warehouse Manager
+					try {
+						await notify(tx, {
+							branchId: (item.pickList as any).branch_id ?? 1,
+							type: "damage",
+							priority: "high",
+							title: `⚠️ Picker Stock Shortage: ${item.product?.name || "Product"}`,
+							message: `Order #ORD-${item.pickList.order_id}: Picker confirmed ${pickedQty} of ${orderedQty} units. Damaged: ${finalDamaged}, Missing: ${finalMissing}. Reason: ${input.reason}`,
+							referenceType: "picking_exceptions",
+							referenceId: exceptionRecord.id,
+						});
+					} catch (e) {
+						console.warn("[confirmQuantityWithException] manager notify error:", e);
+					}
+
+					// Notify Sales
+					try {
+						await notify(tx, {
+							branchId: (item.pickList as any).branch_id ?? 1,
+							type: "sale",
+							priority: "high",
+							title: `📋 Partial Picking Alert: Order #ORD-${item.pickList.order_id}`,
+							message: `Picking completed partially. ${pickedQty} of ${orderedQty} units picked. ${finalDamaged > 0 ? `${finalDamaged} units reported damaged by Picker. ` : ""}${finalMissing > 0 ? `${finalMissing} units reported missing. ` : ""}Warehouse Manager approval required.`,
+							referenceType: "orders",
+							referenceId: item.pickList.order_id ?? undefined,
+						});
+					} catch (e) {
+						console.warn("[confirmQuantityWithException] sales notify error:", e);
+					}
+				} else {
+					await tx
+						.delete(pickingExceptions)
+						.where(
+							and(
+								eq(pickingExceptions.pick_list_item_id, input.item_id),
+								eq(pickingExceptions.status, "PENDING_REVIEW"),
+							),
+						);
+				}
+
+				return {
+					success: true,
+					item: updatedItem,
+					exception: exceptionRecord,
+				};
+			});
 		}),
 
 	reportPNA: roleProcedure(["admin", "manager", "auditor", "picker"])
@@ -379,19 +637,24 @@ export const pickerRouter = router({
 			const db = ctx.db;
 
 			try {
-				const conditions = [eq(pickLists.status, "completed")];
+				const conditions = [
+					or(
+						inArray(pickLists.status, ["completed", "packed"]),
+						isNotNull(pickLists.completed_at),
+					),
+				];
 				if (input?.branch_id) {
 					conditions.push(eq(orders.branch_id, input.branch_id));
 				}
-				if (input?.startDate) {
-					const fromDate = new Date(input.startDate);
-					fromDate.setHours(0, 0, 0, 0);
-					conditions.push(gte(pickLists.created_at, fromDate));
+
+				const { fromDate, toDate } = parseDateFilterRange(input?.startDate, input?.endDate);
+				const targetDateCol = sql`COALESCE(${pickLists.completed_at}, ${pickLists.created_at})`;
+
+				if (fromDate) {
+					conditions.push(gte(targetDateCol, fromDate));
 				}
-				if (input?.endDate) {
-					const toDate = new Date(input.endDate);
-					toDate.setHours(23, 59, 59, 999);
-					conditions.push(lte(pickLists.created_at, toDate));
+				if (toDate) {
+					conditions.push(lte(targetDateCol, toDate));
 				}
 
 				const lists = await db
@@ -399,6 +662,7 @@ export const pickerRouter = router({
 						id: pickLists.id,
 						order_id: pickLists.order_id,
 						created_at: pickLists.created_at,
+						completed_at: pickLists.completed_at,
 						completed_by: staff.name,
 						customerName: customers.name,
 					})
@@ -407,8 +671,8 @@ export const pickerRouter = router({
 					.leftJoin(customers, eq(orders.customer_id, customers.id))
 					.leftJoin(staff, eq(pickLists.assigned_to, staff.id))
 					.where(and(...conditions))
-					.orderBy(desc(pickLists.created_at))
-					.limit(100);
+					.orderBy(desc(targetDateCol))
+					.limit(500);
 
 				if (!lists || lists.length === 0) return [];
 
@@ -440,6 +704,7 @@ export const pickerRouter = router({
 					const productCount = productCounts.get(r.id) || 1;
 					const rawQty = totalQuantities.get(r.id) || productCount;
 					const roundedQty = Math.round(rawQty * 10) / 10;
+					const effectiveDate = r.completed_at || r.created_at;
 
 					return {
 						id: `PL-${r.id}`,
@@ -449,7 +714,14 @@ export const pickerRouter = router({
 						time_taken: "N/A",
 						completed_by: r.completed_by || "Unknown",
 						customerName: r.customerName || "Customer",
-						date: r.created_at?.toLocaleDateString() || "Today",
+						date: effectiveDate
+							? new Date(effectiveDate).toLocaleDateString("en-GB", {
+									day: "2-digit",
+									month: "2-digit",
+									year: "numeric",
+							  })
+							: "Today",
+						completed_at: r.completed_at,
 						accuracy: 100,
 					};
 				});
@@ -458,8 +730,11 @@ export const pickerRouter = router({
 				// Fallback to db.query API
 				try {
 					const fallbackLists = await db.query.pickLists.findMany({
-						where: eq(pickLists.status, "completed"),
-						limit: 100,
+						where: or(
+							inArray(pickLists.status, ["completed", "packed"]),
+							isNotNull(pickLists.completed_at),
+						),
+						limit: 500,
 						orderBy: [desc(pickLists.created_at)],
 						with: {
 							assignedTo: true,
@@ -480,6 +755,7 @@ export const pickerRouter = router({
 							0,
 						);
 						const roundedQty = Math.round((rawTotalQty || itemsList.length || 1) * 10) / 10;
+						const effectiveDate = l.completed_at || l.created_at;
 
 						return {
 							id: `PL-${l.id}`,
@@ -489,7 +765,14 @@ export const pickerRouter = router({
 							time_taken: "N/A",
 							completed_by: l.assignedTo?.name || "Picker Staff",
 							customerName: l.order?.customer?.name || "Customer",
-							date: l.created_at ? new Date(l.created_at).toLocaleDateString() : "Today",
+							date: effectiveDate
+								? new Date(effectiveDate).toLocaleDateString("en-GB", {
+										day: "2-digit",
+										month: "2-digit",
+										year: "numeric",
+								  })
+								: "Today",
+							completed_at: l.completed_at,
 							accuracy: 100,
 						};
 					});
@@ -719,7 +1002,10 @@ export const pickerRouter = router({
 			const db = ctx.db;
 
 			const completedLists = await db.query.pickLists.findMany({
-				where: eq(pickLists.status, "completed"),
+				where: or(
+					inArray(pickLists.status, ["completed", "packed"]),
+					isNotNull(pickLists.completed_at),
+				),
 				limit: 50,
 				with: {
 					assignedTo: true,

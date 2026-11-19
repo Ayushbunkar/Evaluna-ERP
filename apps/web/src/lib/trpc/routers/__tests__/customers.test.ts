@@ -180,4 +180,44 @@ describe("customers.delete", () => {
 		const list = await caller.list();
 		expect(list.some((x) => x.id === c.id)).toBe(false);
 	});
+
+	it("supports customers with null email/phone and safe client search filtering", async () => {
+		const cNoEmail = await caller.create({ name: "Ramesh Sharma", email: "", phone: "9876543210" });
+		const cNulls = await caller.create({ name: "Suresh Patil" });
+
+		const list = await caller.list();
+		const ram = list.find((x) => x.id === cNoEmail.id);
+		const sur = list.find((x) => x.id === cNulls.id);
+		expect(ram).toBeDefined();
+		expect(sur).toBeDefined();
+
+		// Simulate the client-side search logic in Sales Customers page
+		const clientFilter = (customers: typeof list, searchTerm: string, statusFilter = "all") => {
+			const q = (searchTerm || "").trim().toLowerCase();
+			return customers.filter((c) => {
+				if (!c) return false;
+				if (statusFilter !== "all" && c.status !== statusFilter) return false;
+				if (!q) return true;
+
+				const name = (c.name || "").toLowerCase();
+				const email = (c.email || "").toLowerCase();
+				const phone = (c.phone || "").toLowerCase();
+				const code = (c.customer_code || "").toLowerCase();
+
+				return (
+					name.includes(q) ||
+					email.includes(q) ||
+					phone.includes(q) ||
+					code.includes(q)
+				);
+			});
+		};
+
+		// Must not throw "Cannot read properties of null (reading 'toLowerCase')" on empty or populated query
+		expect(() => clientFilter(list, "")).not.toThrow();
+		expect(() => clientFilter(list, "ramesh")).not.toThrow();
+		expect(() => clientFilter(list, "gmail")).not.toThrow();
+		expect(clientFilter(list, "ramesh").some((x) => x.name === "Ramesh Sharma")).toBe(true);
+		expect(clientFilter(list, "patil").some((x) => x.name === "Suresh Patil")).toBe(true);
+	});
 });

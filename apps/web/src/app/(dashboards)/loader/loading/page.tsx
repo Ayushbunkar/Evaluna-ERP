@@ -40,7 +40,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function LoadingQueuePage() {
 	const trpc = useTRPC();
-	const [viewMode, setViewMode] = useState<"trips" | "direct_orders">("trips");
+	const [viewMode, setViewMode] = useState<"trips" | "direct_orders">("direct_orders");
 	const [statusFilter, setStatusFilter] = useState<"all" | "ready_for_loading" | "loading" | "loaded">("all");
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -127,21 +127,21 @@ export default function LoadingQueuePage() {
 			<div className="flex flex-wrap items-center gap-2 border-b pb-3">
 				<Button
 					size="sm"
-					variant={viewMode === "trips" ? "default" : "outline"}
-					onClick={() => setViewMode("trips")}
-					className="font-bold text-xs gap-1.5 rounded-lg"
-				>
-					<TruckIcon className="h-4 w-4" />
-					Delivery Trips ({loadingQueue.length})
-				</Button>
-				<Button
-					size="sm"
 					variant={viewMode === "direct_orders" ? "default" : "outline"}
 					onClick={() => setViewMode("direct_orders")}
 					className="font-bold text-xs gap-1.5 rounded-lg"
 				>
 					<PackageCheckIcon className="h-4 w-4" />
 					Direct Packed Orders Queue ({packedOrders.length})
+				</Button>
+				<Button
+					size="sm"
+					variant={viewMode === "trips" ? "default" : "outline"}
+					onClick={() => setViewMode("trips")}
+					className="font-bold text-xs gap-1.5 rounded-lg"
+				>
+					<TruckIcon className="h-4 w-4" />
+					Delivery Trips ({loadingQueue.length})
 				</Button>
 			</div>
 
@@ -243,6 +243,24 @@ export default function LoadingQueuePage() {
 								<p className="text-xs text-muted-foreground mt-1">
 									Try resetting your search query or status filter.
 								</p>
+								{packedOrders.length > 0 && (
+									<div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl max-w-md mx-auto text-emerald-800 dark:text-emerald-300 shadow-xs">
+										<p className="font-bold text-sm">
+											📦 {packedOrders.length} Direct Packed Order{packedOrders.length > 1 ? "s" : ""} Ready for Loading!
+										</p>
+										<p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
+											पैकर द्वारा तैयार सामान सीधे कतार में मौजूद है। बिना ट्रिप बने भी लोड/सत्यापित कर सकते हैं।
+										</p>
+										<Button
+											size="sm"
+											className="mt-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg"
+											onClick={() => setViewMode("direct_orders")}
+										>
+											<PackageCheckIcon className="h-4 w-4" />
+											View Direct Packed Orders ({packedOrders.length})
+										</Button>
+									</div>
+								)}
 							</div>
 						) : (
 							<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

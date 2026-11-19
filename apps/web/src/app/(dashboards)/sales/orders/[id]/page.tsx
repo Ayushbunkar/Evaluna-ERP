@@ -362,9 +362,15 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 		const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
 		const revQty = Number(rev.quantity || 1);
 		const price = Number(rev.price || existing?.price || 0);
+		const origQty = rev.original_quantity ? Number(rev.original_quantity) : null;
+		const pickedQty = rev.picked_quantity !== null && rev.picked_quantity !== undefined ? Number(rev.picked_quantity) : null;
 
 		if (existing) {
-			existing.revQty = revQty;
+			if (origQty !== null && (!existing.origQty || existing.origQty === existing.revQty)) {
+				existing.origQty = origQty;
+			}
+			existing.pickedQty = pickedQty;
+			existing.revQty = origQty ?? revQty;
 			existing.invoiceQty = revQty;
 			existing.retQty = retQty;
 			if (price > 0) existing.price = price;
@@ -373,8 +379,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 				key,
 				name: rev.product?.name ?? `Product #${rev.product_id}`,
 				productId: rev.product_id || rev.id,
-				origQty: null,
-				revQty: revQty,
+				origQty: origQty ?? null,
+				pickedQty: pickedQty,
+				revQty: origQty ?? revQty,
 				invoiceQty: revQty,
 				finalQty: null,
 				price: price,
@@ -509,6 +516,82 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 					)}
 				</div>
 			</div>
+
+			{/* Picking Exception / Partial Picking Notification Banner */}
+			{order.pickingExceptions && order.pickingExceptions.length > 0 && (
+				(() => {
+					const exceptions = order.pickingExceptions;
+					const pending = exceptions.filter((e: any) => e.status === "PENDING_REVIEW");
+					const approved = exceptions.filter((e: any) => e.status === "APPROVED_PARTIAL");
+
+					if (pending.length > 0) {
+						return (
+							<div className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-900 dark:text-amber-200 flex items-start gap-3 shadow-xs">
+								<AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+								<div className="space-y-1.5 flex-1 text-xs">
+									<div className="flex items-center justify-between flex-wrap gap-2">
+										<div className="font-bold text-sm text-amber-950 dark:text-amber-200 flex items-center gap-2">
+											<span>Picking Completed Partially — Warehouse Manager Approval Required</span>
+										</div>
+										<Badge variant="outline" className="bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 font-semibold text-[11px]">
+											Pending Manager Review
+										</Badge>
+									</div>
+									<p className="text-amber-800 dark:text-amber-300">
+										The warehouse picker reported missing or damaged stock for {pending.length} item{pending.length > 1 ? "s" : ""}. Warehouse manager review is required before final billing:
+									</p>
+									<div className="space-y-1 pl-2 border-l-2 border-amber-500/40 mt-1">
+										{pending.map((exc: any, idx: number) => (
+											<div key={idx} className="font-medium text-slate-800 dark:text-slate-200">
+												• <span className="font-bold">{exc.product?.name ?? `Product #${exc.product_id}`}</span>: 
+												<span className="text-emerald-700 dark:text-emerald-400 font-bold ml-1">{exc.quantity_picked}</span> of {exc.quantity_requested} units picked 
+												({exc.quantity_damaged > 0 ? `${exc.quantity_damaged} damaged` : ""}{exc.quantity_damaged > 0 && exc.quantity_missing > 0 ? ", " : ""}{exc.quantity_missing > 0 ? `${exc.quantity_missing} missing` : ""})
+												{exc.reason && <span className="text-muted-foreground ml-1">[{exc.reason.replace(/_/g, " ")}]</span>}
+												{exc.remarks && <span className="text-muted-foreground italic ml-1">"{exc.remarks}"</span>}
+											</div>
+										))}
+									</div>
+									<p className="text-[11px] text-muted-foreground pt-1">
+										Note: Once approved by the Warehouse Manager, the billable quantities and invoice amount will automatically synchronize.
+									</p>
+								</div>
+							</div>
+						);
+					}
+
+					if (approved.length > 0) {
+						return (
+							<div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 flex items-start gap-3 shadow-xs">
+								<CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+								<div className="space-y-1 text-xs flex-1">
+									<div className="flex items-center justify-between flex-wrap gap-2">
+										<div className="font-bold text-sm text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
+											<span>Warehouse Manager Approved Partial Fulfilment</span>
+										</div>
+										<Badge className="bg-emerald-600 text-white font-semibold text-[11px]">
+											Synchronized with Sales & Billing
+										</Badge>
+									</div>
+									<p className="text-emerald-800 dark:text-emerald-300">
+										The customer's bill has been synchronized with the actual picked quantities. Unpicked or damaged units have been deducted from the billable invoice and quarantined in warehouse stock.
+									</p>
+									<div className="space-y-1 pl-2 border-l-2 border-emerald-500/40 mt-1">
+										{approved.map((exc: any, idx: number) => (
+											<div key={idx} className="font-medium text-slate-800 dark:text-slate-200">
+												• <span className="font-bold">{exc.product?.name ?? `Product #${exc.product_id}`}</span>: 
+												Fulfilled <span className="text-emerald-700 dark:text-emerald-400 font-bold">{exc.quantity_picked}</span> of {exc.quantity_requested} units 
+												({Number(exc.quantity_requested) - Number(exc.quantity_picked)} short removed from invoice)
+												{exc.manager_notes && <span className="text-muted-foreground ml-1 font-normal">— Manager note: "{exc.manager_notes}"</span>}
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+						);
+					}
+					return null;
+				})()
+			)}
 
 			{/* Customer & Order Summary Card */}
 			<Card className="border-border/60 shadow-sm">
@@ -951,7 +1034,21 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													</div>
 												</TableCell>
 												<TableCell className="text-center font-semibold">
-													{item.quantity}
+													<div className="flex flex-col items-center">
+														<span className="font-bold text-sm text-foreground">{item.quantity}</span>
+														{item.original_quantity && Number(item.original_quantity) !== Number(item.quantity) && (
+															<div className="flex flex-col items-center gap-0.5 mt-0.5">
+																<Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-amber-500/10 border-amber-400 text-amber-700 dark:text-amber-300">
+																	Picked: {item.picked_quantity ?? item.quantity} / Ordered: {item.original_quantity}
+																</Badge>
+																{Number(item.original_quantity) > Number(item.quantity) && (
+																	<span className="text-[10px] text-red-600 dark:text-red-400 font-medium">
+																		(-{Number(item.original_quantity) - Number(item.quantity)} shortfall excluded)
+																	</span>
+																)}
+															</div>
+														)}
+													</div>
 												</TableCell>
 												<TableCell className="text-right">
 													{formatCurrency(item.price, locale)}
@@ -993,9 +1090,14 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										<span className="font-medium">{formatCurrency(reviewedSubtotal, locale)}</span>
 									</div>
 									{discountAmount > 0 && (
-										<div className="flex justify-between text-emerald-600 font-medium">
-											<span>Discount Applied:</span>
-											<span>- {formatCurrency(discountAmount, locale)}</span>
+										<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-md border border-emerald-300/80 dark:border-emerald-800 shadow-2xs">
+											<span className="flex items-center gap-1.5 font-bold">
+												<span>🏷️</span>
+												<span>Discount Applied:</span>
+											</span>
+											<span className="font-extrabold font-mono text-emerald-700 dark:text-emerald-300 text-sm">
+												- {formatCurrency(discountAmount, locale)}
+											</span>
 										</div>
 									)}
 									{otherCharges > 0 && (
@@ -1115,12 +1217,15 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														</TableCell>
 													</TableRow>
 													{discountAmount > 0 && (
-														<TableRow className="bg-emerald-500/5 font-medium text-emerald-700 dark:text-emerald-400">
-															<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider">
-																Discount Applied (लागू छूट)
-																{discountReason && <span className="block text-[10px] font-normal text-muted-foreground">({discountReason})</span>}
+														<TableRow className="bg-emerald-500/15 font-bold text-emerald-900 dark:text-emerald-200 border-y border-emerald-300 dark:border-emerald-800">
+															<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider font-bold">
+																<div className="flex items-center justify-end gap-1.5">
+																	<span>🏷️</span>
+																	<span>Discount Applied (लागू छूट)</span>
+																</div>
+																{discountReason && <span className="block text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">({discountReason})</span>}
 															</TableCell>
-															<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-sm font-semibold">
+															<TableCell className="text-right text-emerald-800 dark:text-emerald-200 text-sm font-extrabold font-mono">
 																- {formatCurrency(discountAmount, locale)}
 															</TableCell>
 														</TableRow>
@@ -1560,7 +1665,14 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														</div>
 													</TableCell>
 													<TableCell className="text-center text-amber-700 dark:text-amber-400 font-medium">
-														{item.invoiceQty ?? "—"}
+														<div className="flex flex-col items-center">
+															<span>{item.invoiceQty ?? "—"}</span>
+															{item.pickedQty !== null && item.origQty !== null && item.invoiceQty !== item.origQty && (
+																<Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-400 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-normal">
+																	Picked {item.pickedQty}/{item.origQty}
+																</Badge>
+															)}
+														</div>
 													</TableCell>
 													<TableCell className="text-center text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/5">
 														{hasHandover ? (
@@ -1640,9 +1752,12 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<span className="font-mono font-semibold">{formatCurrency(reviewedSubtotal, locale)}</span>
 												</div>
 												{discountAmount > 0 && (
-													<div className="flex justify-between text-emerald-700 dark:text-emerald-400">
-														<span>Initial Discount: ({discountReason || "No reason"})</span>
-														<span className="font-mono">- {formatCurrency(discountAmount, locale)}</span>
+													<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-2 py-1 rounded border border-emerald-300 dark:border-emerald-800">
+														<span className="flex items-center gap-1 font-bold">
+															<span>🏷️</span>
+															<span>Initial Discount: ({discountReason || "No reason"})</span>
+														</span>
+														<span className="font-mono font-extrabold text-emerald-800 dark:text-emerald-200">- {formatCurrency(discountAmount, locale)}</span>
 													</div>
 												)}
 												{otherCharges > 0 && (

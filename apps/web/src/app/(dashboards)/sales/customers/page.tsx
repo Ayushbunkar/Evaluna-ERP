@@ -92,8 +92,18 @@ export default function CustomersPage() {
 			sortable: true,
 			className: "font-medium",
 		},
-		{ key: "email", header: tc("email"), sortable: true },
-		{ key: "phone", header: tc("phone"), hideOnMobile: true },
+		{
+			key: "email",
+			header: tc("email"),
+			sortable: true,
+			render: (row) => row.email || <span className="text-muted-foreground text-xs italic">—</span>,
+		},
+		{
+			key: "phone",
+			header: tc("phone"),
+			hideOnMobile: true,
+			render: (row) => row.phone || <span className="text-muted-foreground text-xs italic">—</span>,
+		},
 		{
 			key: "loyalty_tier",
 			header: "Tier",
@@ -140,8 +150,8 @@ export default function CustomersPage() {
 			header: "ID",
 			getValue: (c) => c.customer_code ?? "",
 		},
-		{ key: "name", header: tc("name"), getValue: (c) => c.name },
-		{ key: "email", header: tc("email"), getValue: (c) => c.email },
+		{ key: "name", header: tc("name"), getValue: (c) => c.name ?? "" },
+		{ key: "email", header: tc("email"), getValue: (c) => c.email ?? "" },
 		{ key: "phone", header: tc("phone"), getValue: (c) => c.phone ?? "" },
 		{
 			key: "loyalty_tier",
@@ -288,13 +298,23 @@ export default function CustomersPage() {
 	});
 
 	const filteredCustomers = useMemo(() => {
+		if (!Array.isArray(customers)) return [];
+		const q = (searchTerm || "").trim().toLowerCase();
 		return customers.filter((c) => {
+			if (!c) return false;
 			if (statusFilter !== "all" && c.status !== statusFilter) return false;
-			const q = searchTerm.toLowerCase();
+			if (!q) return true;
+
+			const name = (c.name || "").toLowerCase();
+			const email = (c.email || "").toLowerCase();
+			const phone = (c.phone || "").toLowerCase();
+			const code = (c.customer_code || "").toLowerCase();
+
 			return (
-				c.name.toLowerCase().includes(q) ||
-				c.email.toLowerCase().includes(q) ||
-				(c.phone ?? "").includes(searchTerm)
+				name.includes(q) ||
+				email.includes(q) ||
+				phone.includes(q) ||
+				code.includes(q)
 			);
 		});
 	}, [customers, statusFilter, searchTerm]);
@@ -308,8 +328,8 @@ export default function CustomersPage() {
 	const openEdit = (c: Customer) => {
 		setEditingId(c.id);
 		form.reset();
-		form.setFieldValue("name", c.name);
-		form.setFieldValue("email", c.email);
+		form.setFieldValue("name", c.name ?? "");
+		form.setFieldValue("email", c.email ?? "");
 		form.setFieldValue("phone", c.phone ?? "");
 		form.setFieldValue("address", c.address ?? "");
 		form.setFieldValue(

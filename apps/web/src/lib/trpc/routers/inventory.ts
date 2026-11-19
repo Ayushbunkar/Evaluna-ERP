@@ -117,6 +117,8 @@ export const inventoryRouter = router({
 					price: products.price,
 					baseSellingPrice: products.base_selling_price,
 					baseProcurementPrice: products.base_procurement_price,
+					imageUrl: products.image_url,
+					imageStoragePath: products.image_storage_path,
 					inventoryId: sql<number>`max(${branchInventory.id})`,
 					branchId: sql<number>`coalesce(max(${branchInventory.branch_id}), ${targetBranchId})`,
 					qty_on_hand: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
@@ -142,6 +144,8 @@ export const inventoryRouter = router({
 					products.price,
 					products.base_selling_price,
 					products.base_procurement_price,
+					products.image_url,
+					products.image_storage_path,
 				)
 				.orderBy(asc(products.name))
 				.limit(limit || 1000)
@@ -315,6 +319,8 @@ export const inventoryRouter = router({
 				reorderLevel: z.number().min(0).optional().nullable(),
 				reason: z.string().optional().nullable(),
 				pricingDate: z.string().optional().nullable(),
+				imageUrl: z.string().optional().nullable(),
+				imageStoragePath: z.string().optional().nullable(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -384,6 +390,12 @@ export const inventoryRouter = router({
 				}
 				if (input.costPrice !== undefined && input.costPrice !== null) {
 					productUpdates.base_procurement_price = input.costPrice.toFixed(2);
+				}
+				if (input.imageUrl !== undefined) {
+					productUpdates.image_url = input.imageUrl;
+					productUpdates.image_storage_path = input.imageStoragePath ?? null;
+					productUpdates.image_updated_at = new Date();
+					productUpdates.image_updated_by = ctx.user?.email || ctx.user?.name || "warehouse_manager";
 				}
 
 				await tx

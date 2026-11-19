@@ -32,6 +32,7 @@ const DDL = buildDDL(
 		schema.products,
 		schema.pickLists,
 		schema.pickListItems,
+		schema.pickingExceptions,
 		schema.packages,
 		schema.packageItems,
 		schema.deliveryRoutes,
