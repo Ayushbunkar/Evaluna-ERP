@@ -226,4 +226,72 @@ describe("loaderRouter", () => {
 		const foundHist = history.find((h) => h.tripId === testTripId);
 		expect(foundHist).toBeDefined();
 	});
+
+	it("returns direct packed orders queue before trip creation and allows marking loaded", async () => {
+		// Create a customer without any trip assigned
+		const [c2] = await db
+			.insert(schema.customers)
+			.values({
+				name: "Untripped Customer",
+				address: "Village B",
+				user_uid: "test-user-uid-2",
+			})
+			.returning();
+
+		// Create a direct packed order not assigned to any trip
+		const [packedOrder] = await db
+			.insert(schema.orders)
+			.values({
+				customer_id: c2.id,
+				total_amount: "1500.00",
+				status: "packed",
+				user_uid: "packer-1",
+			})
+			.returning();
+
+		await db.insert(schema.packages).values({
+			order_id: packedOrder.id,
+			package_number: `PKG-${packedOrder.id}-1`,
+			package_type: "box",
+			status: "packed",
+			weight: "5.0",
+		});
+
+		// 1. Loader sees the packed order in direct queue immediately
+		const packedQueue = await callerAsLoader.getPackedOrdersQueue({ status: "all" });
+		const foundInQueue = packedQueue.find((o: any) => o.orderId === packedOrder.id);
+		expect(foundInQueue).toBeDefined();
+		expect(foundInQueue?.status).toBe("packed");
+		expect(foundInQueue?.packageCount).toBe(1);
+		expect(foundInQueue?.tripId).toBeNull();
+
+		// 2. Loader marks the direct order as loaded
+		const markRes = await callerAsLoader.markDirectOrderLoaded({
+			orderId: packedOrder.id,
+			loaded: true,
+		});
+		expect(markRes.success).toBe(true);
+		expect(markRes.status).toBe("loaded");
+
+		// 3. Verify order & package statuses updated to loaded
+		const [updatedOrder] = await db
+			.select()
+			.from(schema.orders)
+			.where(eq(schema.orders.id, packedOrder.id));
+		expect(updatedOrder.status).toBe("loaded");
+
+		const [updatedPkg] = await db
+			.select()
+			.from(schema.packages)
+			.where(eq(schema.packages.order_id, packedOrder.id));
+		expect(updatedPkg.status).toBe("loaded");
+
+		// 4. Loader can unmark loaded if needed
+		const unmarkRes = await callerAsLoader.markDirectOrderLoaded({
+			orderId: packedOrder.id,
+			loaded: false,
+		});
+		expect(unmarkRes.success).toBe(true);
+		expect(unmarkRes.status).toBe("ready_for_loading");
+	});
 });

@@ -638,7 +638,7 @@ export const deliveryRouter = router({
 									...(driverStaffId !== null
 										? { driver_id: driverStaffId }
 										: {}),
-									status: "ready_for_dispatch",
+									status: "ready_for_loading",
 								})
 								.where(inArray(orders.id, input.orderIds));
 						} else if (resolvedStops.length > 0) {
@@ -649,7 +649,7 @@ export const deliveryRouter = router({
 									...(driverStaffId !== null
 										? { driver_id: driverStaffId }
 										: {}),
-									status: "ready_for_dispatch",
+									status: "ready_for_loading",
 								})
 								.where(
 									and(
@@ -657,7 +657,9 @@ export const deliveryRouter = router({
 										inArray(orders.status, [
 											"confirmed",
 											"processing",
+											"packed",
 											"ready_for_dispatch",
+											"ready_for_loading",
 										]),
 									),
 								);
@@ -2026,7 +2028,7 @@ ERROR TABLE: ${err.table}
 							driver_id: input.driverId,
 							vehicle_id: input.vehicleId || null,
 							loader_id: input.loaderId || null,
-							status: "pending",
+							status: input.driverId ? "ready_for_loading" : "pending",
 						})
 						.returning();
 
@@ -2096,7 +2098,7 @@ ERROR TABLE: ${err.table}
 									...(driverStaffId !== null
 										? { driver_id: driverStaffId }
 										: {}),
-									status: "ready_for_dispatch",
+									status: "ready_for_loading",
 								})
 								.where(inArray(orders.id, input.orderIds));
 						} else if (resolvedStops.length > 0) {
@@ -2107,7 +2109,7 @@ ERROR TABLE: ${err.table}
 									...(driverStaffId !== null
 										? { driver_id: driverStaffId }
 										: {}),
-									status: "ready_for_dispatch",
+									status: "ready_for_loading",
 								})
 								.where(
 									and(
@@ -2115,7 +2117,9 @@ ERROR TABLE: ${err.table}
 										inArray(orders.status, [
 											"confirmed",
 											"processing",
+											"packed",
 											"ready_for_dispatch",
+											"ready_for_loading",
 										]),
 									),
 								);

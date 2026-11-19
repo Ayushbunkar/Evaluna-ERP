@@ -172,8 +172,8 @@ export const vanStockRouter = router({
 				planning: ["DRAFT", "PENDING_PICKING"],
 				picking: ["PENDING_PICKING", "PICKING_IN_PROGRESS"],
 				packing: ["PENDING_PACKING", "PACKING_IN_PROGRESS"],
-				verification: ["PENDING_MANAGER_VERIFICATION", "MANAGER_VERIFICATION_REJECTED"],
-				loading: ["PENDING_LOADING", "LOADING_IN_PROGRESS"],
+				verification: ["PENDING_MANAGER_VERIFICATION", "PENDING_LOADING", "LOADING_IN_PROGRESS", "MANAGER_VERIFICATION_REJECTED"],
+				loading: ["PENDING_LOADING", "LOADING_IN_PROGRESS", "PENDING_MANAGER_VERIFICATION"],
 				dispatch: ["PENDING_FINAL_DISPATCH_APPROVAL", "DISPATCH_REJECTED", "DISPATCHED"],
 				return: ["DISPATCHED", "RETURN_IN_PROGRESS", "PENDING_RETURN_VERIFICATION", "RETURN_REJECTED", "RETURN_VERIFIED", "COMPLETED", "RECONCILED"],
 			};
@@ -1035,7 +1035,7 @@ export const vanStockRouter = router({
 				});
 				if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
 
-				if (plan.status !== "PENDING_MANAGER_VERIFICATION") {
+				if (plan.status !== "PENDING_MANAGER_VERIFICATION" && plan.status !== "PENDING_LOADING" && plan.status !== "LOADING_IN_PROGRESS") {
 					throw new TRPCError({
 						code: "BAD_REQUEST",
 						message: `Plan is in '${plan.status}' status, cannot perform manager verification.`,
@@ -1407,7 +1407,7 @@ export const vanStockRouter = router({
 				});
 				if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
 
-				if (plan.status !== "LOADING_IN_PROGRESS" && plan.status !== "PENDING_LOADING") {
+				if (plan.status !== "LOADING_IN_PROGRESS" && plan.status !== "PENDING_LOADING" && plan.status !== "PENDING_MANAGER_VERIFICATION") {
 					throw new TRPCError({
 						code: "BAD_REQUEST",
 						message: `Cannot submit loading. Current status is '${plan.status}'.`,

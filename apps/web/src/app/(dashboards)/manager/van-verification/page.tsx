@@ -65,7 +65,7 @@ export default function VanVerificationPage() {
 	// Queries
 	const { data: metadata } = trpc.vanStock.getPlanningMetadata.useQuery();
 	const { data: plansData, isLoading: loadingPlans } = trpc.vanStock.listPlans.useQuery({
-		status: "PENDING_MANAGER_VERIFICATION",
+		stage: "verification",
 		limit: 50,
 	});
 

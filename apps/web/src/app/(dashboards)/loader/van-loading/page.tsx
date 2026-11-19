@@ -61,6 +61,7 @@ export default function LoaderVanLoadingPage() {
 
 	// Queries
 	const { data: plansData, isLoading: loadingPlans } = trpc.vanStock.listPlans.useQuery({
+		stage: "loading",
 		limit: 50,
 	});
 
