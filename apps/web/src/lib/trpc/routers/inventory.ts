@@ -31,6 +31,7 @@ import {
 	lockOrUpdateDailyPrice,
 } from "@/lib/daily-pricing";
 import { ensureSlabPricingTable } from "./slab-pricing";
+import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
 import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { stockLedger } from "@/lib/db/schema";
 import {
@@ -84,6 +85,8 @@ export const inventoryRouter = router({
 			const db = ctx.db;
 			const targetBranchId = branchId || ctx.user?.branchId || 1;
 			const todayStr = new Date().toISOString().split("T")[0];
+
+			await ensureProductImageColumns(db);
 
 			const conditions: any[] = [
 				or(eq(products.is_deleted, false), sql`${products.is_deleted} IS NULL`),
@@ -343,6 +346,8 @@ export const inventoryRouter = router({
 				if (!prodId) {
 					throw new Error("Product ID could not be determined for this item.");
 				}
+
+				await ensureProductImageColumns(tx);
 
 				const priceStr = input.price.toFixed(2);
 
@@ -932,6 +937,15 @@ export const inventoryRouter = router({
 			const db = ctx.db;
 			return await db.query.products.findMany({
 				where: eq(products.is_pack, true),
+				columns: {
+					id: true,
+					name: true,
+					sku: true,
+					unit: true,
+					is_pack: true,
+					units_per_pack: true,
+					loose_product_id: true,
+				},
 			});
 		}),
 

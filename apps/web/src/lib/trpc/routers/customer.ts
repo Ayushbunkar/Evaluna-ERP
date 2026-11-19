@@ -17,10 +17,14 @@ import { z } from "zod";
 import { notifyCustomerOrderPlaced } from "@/lib/notification-service";
 import { findMatchingSlab } from "@/lib/pricing/slab-pricing";
 import { ensureSlabPricingTable } from "./slab-pricing";
+import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
 import { customerProcedure, roleProcedure, router } from "../init";
+
+export { ensureProductImageColumns };
 
 let hasEnsuredCartTables = false;
 export async function ensureCartTables(db: any) {
+	await ensureProductImageColumns(db);
 	if (hasEnsuredCartTables) return;
 	try {
 		await db.execute(sql`
@@ -435,18 +439,89 @@ export const customerRouter = router({
 				.optional(),
 		)
 		.query(async ({ ctx, input }) => {
-			const rows = await ctx.db.query.products.findMany({
-				where: (p, { and, eq, ilike }) =>
-					and(
-						eq(p.is_deleted, false),
-						eq(p.is_hidden, false),
-						eq(p.visibility_level, "global"),
-						input?.search ? ilike(p.name, `%${input.search}%`) : undefined,
-						input?.category ? eq(p.category, input.category) : undefined,
-					),
-				orderBy: (p, { asc }) => [asc(p.name)],
-				limit: 200,
-			});
+			await ensureProductImageColumns(ctx.db);
+			await ensureSlabPricingTable(ctx.db);
+
+			let rows: any[] = [];
+			try {
+				rows = await ctx.db.query.products.findMany({
+					where: (p, { and, eq, ilike }) =>
+						and(
+							eq(p.is_deleted, false),
+							eq(p.is_hidden, false),
+							eq(p.visibility_level, "global"),
+							input?.search ? ilike(p.name, `%${input.search}%`) : undefined,
+							input?.category ? eq(p.category, input.category) : undefined,
+						),
+					columns: {
+						id: true,
+						name: true,
+						description: true,
+						category: true,
+						price: true,
+						base_selling_price: true,
+						unit: true,
+						sku: true,
+						image_url: true,
+						is_deleted: true,
+						is_hidden: true,
+						visibility_level: true,
+					},
+					orderBy: (p, { asc }) => [asc(p.name)],
+					limit: 200,
+				});
+			} catch (findErr) {
+				console.warn("[browseProducts] findMany failed, attempting resilient SQL query:", findErr);
+				try {
+					const searchCondition = input?.search?.trim()
+						? sql`AND p.name ILIKE ${"%" + input.search.trim() + "%"}`
+						: sql``;
+					const categoryCondition =
+						input?.category && input.category !== "all"
+							? sql`AND p.category = ${input.category}`
+							: sql``;
+
+					const rawResult = await ctx.db.execute(sql`
+						SELECT 
+							p.id, 
+							p.name, 
+							p.description, 
+							p.price, 
+							p.base_selling_price, 
+							p.category, 
+							p.unit, 
+							p.sku, 
+							p.is_deleted, 
+							p.is_hidden
+						FROM products p
+						WHERE (p.is_deleted = false OR p.is_deleted IS NULL)
+						  AND (p.is_hidden = false OR p.is_hidden IS NULL)
+						  AND (p.visibility_level = 'global' OR p.visibility_level IS NULL)
+						  ${searchCondition}
+						  ${categoryCondition}
+						ORDER BY p.name ASC 
+						LIMIT 200
+					`);
+
+					const rawRows = (rawResult as any)?.rows || (Array.isArray(rawResult) ? rawResult : []);
+					rows = rawRows.map((r: any) => ({
+						id: Number(r.id),
+						name: String(r.name || ""),
+						description: r.description || null,
+						price: r.price !== null ? String(r.price) : null,
+						base_selling_price: r.base_selling_price !== null ? String(r.base_selling_price) : null,
+						category: r.category || "General",
+						unit: r.unit || "Pcs",
+						sku: r.sku || null,
+						is_deleted: Boolean(r.is_deleted),
+						is_hidden: Boolean(r.is_hidden),
+						image_url: null,
+					}));
+				} catch (fallbackErr) {
+					console.error("[browseProducts] Both findMany and fallback query failed:", fallbackErr);
+					throw findErr;
+				}
+			}
 
 			const todayDateStr = new Date().toISOString().split("T")[0];
 			let activeDiscounts: any[] = [];
@@ -1331,6 +1406,7 @@ export const customerRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			await ensureCartTables(ctx.db);
 			const createdResult = await ctx.db.transaction(async (tx) => {
 				// Idempotency guard — same key already processed → return that order.
 				const existing = await tx.query.pendingSync.findFirst({
@@ -1451,20 +1527,6 @@ export const customerRouter = router({
 					})),
 				);
 
-				// Clear active persistent cart items upon successful submission
-				try {
-					const [activeCart] = await tx
-						.select()
-						.from(carts)
-						.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
-						.limit(1);
-					if (activeCart) {
-						await tx.delete(cartItems).where(eq(cartItems.cart_id, activeCart.id));
-					}
-				} catch (_cartErr) {
-					// cart clear is best effort
-				}
-
 				await tx.insert(pendingSync).values({
 					id: input.idempotencyKey,
 					branch_id: ctx.customer.branch_id ?? null,
@@ -1485,6 +1547,21 @@ export const customerRouter = router({
 
 				return result;
 			});
+
+			// Clear active persistent cart items upon successful submission (best-effort)
+			try {
+				await ensureCartTables(ctx.db);
+				const [activeCart] = await ctx.db
+					.select()
+					.from(carts)
+					.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+					.limit(1);
+				if (activeCart) {
+					await ctx.db.delete(cartItems).where(eq(cartItems.cart_id, activeCart.id));
+				}
+			} catch (_cartErr) {
+				// cart clear is best effort
+			}
 
 			// Fire notification to Sales & Managers about new customer order
 			if (!createdResult.duplicate && createdResult.orderId) {

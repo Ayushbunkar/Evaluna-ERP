@@ -1041,6 +1041,7 @@ ERROR TABLE: ${err.table}
 			const productIds = input.returnedItems.map((i) => i.productId);
 			const productsData = await db.query.products.findMany({
 				where: inArray(products.id, productIds.length ? productIds : [0]),
+				columns: { id: true, price: true },
 			});
 
 			const productPriceMap = new Map(

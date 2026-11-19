@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
+import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -140,6 +141,7 @@ export async function POST(req: Request) {
 
 		// If a valid productId was provided, update the products table directly
 		if (productId && !Number.isNaN(productId) && productId > 0) {
+			await ensureProductImageColumns(db);
 			await db
 				.update(products)
 				.set({

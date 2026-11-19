@@ -605,6 +605,7 @@ export const vanStockRouter = router({
 			const productIds = input.items.map((i) => i.productId);
 			const validProducts = await db.query.products.findMany({
 				where: and(inArray(products.id, productIds), eq(products.is_deleted, false)),
+				columns: { id: true },
 			});
 			if (validProducts.length !== productIds.length) {
 				throw new TRPCError({
