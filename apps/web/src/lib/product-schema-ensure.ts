@@ -59,7 +59,7 @@ let hasEnsuredPickingExceptions = false;
 
 /**
  * Idempotently ensures that the picking_exceptions table and its indices exist.
- * This prevents relational queries in orders.get from failing on databases where
+ * This prevents relational queries in orders.get and picker operations from failing on databases where
  * migrations have not been applied.
  */
 export async function ensurePickingExceptionsTable(db: any): Promise<void> {
@@ -70,10 +70,10 @@ export async function ensurePickingExceptionsTable(db: any): Promise<void> {
 				id SERIAL PRIMARY KEY,
 				pick_list_id INTEGER,
 				pick_list_item_id INTEGER,
-				order_id INTEGER REFERENCES orders(id),
-				product_id INTEGER REFERENCES products(id),
-				branch_id INTEGER REFERENCES branches(id),
-				location_id INTEGER REFERENCES branch_locations(id),
+				order_id INTEGER,
+				product_id INTEGER,
+				branch_id INTEGER,
+				location_id INTEGER,
 				quantity_ordered NUMERIC(10, 3) NOT NULL DEFAULT 0,
 				quantity_picked NUMERIC(10, 3) NOT NULL DEFAULT 0,
 				quantity_damaged NUMERIC(10, 3) DEFAULT 0,
@@ -81,20 +81,36 @@ export async function ensurePickingExceptionsTable(db: any): Promise<void> {
 				reason VARCHAR(100) NOT NULL DEFAULT 'SHORTAGE',
 				remarks TEXT,
 				photo_url TEXT,
-				reported_by INTEGER REFERENCES staff(id),
+				reported_by INTEGER,
 				status VARCHAR(50) NOT NULL DEFAULT 'PENDING_REVIEW',
 				manager_notes TEXT,
-				resolved_by INTEGER REFERENCES staff(id),
+				resolved_by INTEGER,
 				resolved_at TIMESTAMP,
 				replacement_task_id INTEGER,
 				created_at TIMESTAMP DEFAULT NOW(),
 				updated_at TIMESTAMP DEFAULT NOW()
-			);
-			CREATE INDEX IF NOT EXISTS idx_picking_exceptions_pick_list_id ON picking_exceptions(pick_list_id);
-			CREATE INDEX IF NOT EXISTS idx_picking_exceptions_order_id ON picking_exceptions(order_id);
-			CREATE INDEX IF NOT EXISTS idx_picking_exceptions_product_id ON picking_exceptions(product_id);
-			CREATE INDEX IF NOT EXISTS idx_picking_exceptions_status ON picking_exceptions(status);
+			)
 		`);
+		try {
+			await db.execute(
+				sql`CREATE INDEX IF NOT EXISTS idx_picking_exceptions_pick_list_id ON picking_exceptions(pick_list_id)`,
+			);
+		} catch (_) {}
+		try {
+			await db.execute(
+				sql`CREATE INDEX IF NOT EXISTS idx_picking_exceptions_order_id ON picking_exceptions(order_id)`,
+			);
+		} catch (_) {}
+		try {
+			await db.execute(
+				sql`CREATE INDEX IF NOT EXISTS idx_picking_exceptions_product_id ON picking_exceptions(product_id)`,
+			);
+		} catch (_) {}
+		try {
+			await db.execute(
+				sql`CREATE INDEX IF NOT EXISTS idx_picking_exceptions_status ON picking_exceptions(status)`,
+			);
+		} catch (_) {}
 		hasEnsuredPickingExceptions = true;
 	} catch (e) {
 		console.warn("[ensurePickingExceptionsTable] Notice:", e);

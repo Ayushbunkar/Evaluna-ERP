@@ -44,6 +44,7 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import { adjustStockForOrderQuantityChange } from "@/lib/inventory/inventory-service";
+import { ensurePickingExceptionsTable } from "@/lib/product-schema-ensure";
 import { EWayBillService } from "@/lib/services/eway-bill";
 import { protectedProcedure, router } from "../init";
 import { logAudit, notify, resolveStaffId } from "../util/audit";
@@ -568,7 +569,11 @@ export const warehouseRouter = router({
 						ordersWaiting: sql<number>`count(*) filter (where ${orders.status} in ('confirmed', 'pending', 'processing', 'awaiting_picking', 'under_review'))`,
 					})
 					.from(orders)
-					.where(branchId ? sql`(${orders.branch_id} = ${branchId} OR ${orders.branch_id} IS NULL)` : undefined),
+					.where(
+						branchId
+							? sql`(${orders.branch_id} = ${branchId} OR ${orders.branch_id} IS NULL)`
+							: undefined,
+					),
 
 				// 3. Purchases aggregations (Expected inbound POs awaiting receipt / inspection)
 				db
@@ -577,7 +582,11 @@ export const warehouseRouter = router({
 						delayed: sql<number>`count(*) filter (where LOWER(${purchases.status}) not in ('completed', 'cancelled') and ${purchases.created_at} <= NOW() - INTERVAL '2 hours')`,
 					})
 					.from(purchases)
-					.where(branchId ? sql`(${purchases.branch_id} = ${branchId} OR ${purchases.branch_id} IS NULL)` : undefined),
+					.where(
+						branchId
+							? sql`(${purchases.branch_id} = ${branchId} OR ${purchases.branch_id} IS NULL)`
+							: undefined,
+					),
 
 				// 4. Placement verifications aggregations (Put-away tasks)
 				db
@@ -586,7 +595,11 @@ export const warehouseRouter = router({
 						tasksInProgress: sql<number>`count(*) filter (where UPPER(${placementVerifications.status}) in ('VERIFICATION_REQUIRED', 'PLACED', 'IN_PROGRESS'))`,
 					})
 					.from(placementVerifications)
-					.where(branchId ? sql`(${placementVerifications.branch_id} = ${branchId} OR ${placementVerifications.branch_id} IS NULL)` : undefined),
+					.where(
+						branchId
+							? sql`(${placementVerifications.branch_id} = ${branchId} OR ${placementVerifications.branch_id} IS NULL)`
+							: undefined,
+					),
 
 				// 5. Packages aggregations
 				db
@@ -604,7 +617,11 @@ export const warehouseRouter = router({
 						used: sum(branchLocations.current_stock),
 					})
 					.from(branchLocations)
-					.where(branchId ? sql`(${branchLocations.branch_id} = ${branchId} OR ${branchLocations.branch_id} IS NULL)` : undefined),
+					.where(
+						branchId
+							? sql`(${branchLocations.branch_id} = ${branchId} OR ${branchLocations.branch_id} IS NULL)`
+							: undefined,
+					),
 
 				// 7. Packages already packed for packing queue exclusion
 				db
@@ -633,14 +650,21 @@ export const warehouseRouter = router({
 			]);
 
 			// Calculate pending to pack picklists (items picked but not yet packed)
-			const packedOrderIds = new Set(packedPackagesRows.map((p) => p.order_id).filter(Boolean));
-			const packedPickListIds = new Set(packedPackagesRows.map((p) => p.pick_list_id).filter(Boolean));
+			const packedOrderIds = new Set(
+				packedPackagesRows.map((p) => p.order_id).filter(Boolean),
+			);
+			const packedPickListIds = new Set(
+				packedPackagesRows.map((p) => p.pick_list_id).filter(Boolean),
+			);
 
 			const pendingPickListsCount = completedPickListRows.filter(
-				(p) => !packedPickListIds.has(p.id) && (!p.order_id || !packedOrderIds.has(p.order_id)),
+				(p) =>
+					!packedPickListIds.has(p.id) &&
+					(!p.order_id || !packedOrderIds.has(p.order_id)),
 			).length;
 
-			const packingQueueTotal = pendingPickListsCount + (Number(packagesStats?.activePacking) || 0);
+			const packingQueueTotal =
+				pendingPickListsCount + (Number(packagesStats?.activePacking) || 0);
 
 			// Real orders waiting count
 			const ordersWaitingTotal = Math.max(
@@ -717,7 +741,11 @@ export const warehouseRouter = router({
 						totalOrders: sql<number>`count(*)`,
 					})
 					.from(orders)
-					.where(branchId ? sql`(${orders.branch_id} = ${branchId} OR ${orders.branch_id} IS NULL)` : undefined),
+					.where(
+						branchId
+							? sql`(${orders.branch_id} = ${branchId} OR ${orders.branch_id} IS NULL)`
+							: undefined,
+					),
 
 				// 3. Purchases (Receiving queue)
 				db
@@ -727,7 +755,11 @@ export const warehouseRouter = router({
 						delayedReceiving: sql<number>`count(*) filter (where LOWER(${purchases.status}) not in ('completed', 'received', 'cancelled') and ${purchases.created_at} <= NOW() - INTERVAL '2 hours')`,
 					})
 					.from(purchases)
-					.where(branchId ? sql`(${purchases.branch_id} = ${branchId} OR ${purchases.branch_id} IS NULL)` : undefined),
+					.where(
+						branchId
+							? sql`(${purchases.branch_id} = ${branchId} OR ${purchases.branch_id} IS NULL)`
+							: undefined,
+					),
 
 				// 4. Placements (Put-away queue)
 				db
@@ -737,7 +769,11 @@ export const warehouseRouter = router({
 						delayedPlacement: sql<number>`count(*) filter (where UPPER(${placementVerifications.status}) not in ('PLACED', 'VERIFIED', 'COMPLETED') and ${placementVerifications.created_at} <= NOW() - INTERVAL '2 hours')`,
 					})
 					.from(placementVerifications)
-					.where(branchId ? sql`(${placementVerifications.branch_id} = ${branchId} OR ${placementVerifications.branch_id} IS NULL)` : undefined),
+					.where(
+						branchId
+							? sql`(${placementVerifications.branch_id} = ${branchId} OR ${placementVerifications.branch_id} IS NULL)`
+							: undefined,
+					),
 
 				// 5. Packages (Packing queue)
 				db
@@ -756,9 +792,13 @@ export const warehouseRouter = router({
 
 				// 7. Staff currently actively assigned to open tasks
 				db
-					.select({ count: sql<number>`count(distinct ${pickLists.assigned_to})` })
+					.select({
+						count: sql<number>`count(distinct ${pickLists.assigned_to})`,
+					})
 					.from(pickLists)
-					.where(sql`${pickLists.status} in ('assigned', 'picking', 'in_progress') and ${pickLists.assigned_to} is not null`),
+					.where(
+						sql`${pickLists.status} in ('assigned', 'picking', 'in_progress') and ${pickLists.assigned_to} is not null`,
+					),
 
 				// 8. Hourly picks activity
 				db
@@ -792,7 +832,9 @@ export const warehouseRouter = router({
 					.from(pickListItems)
 					.leftJoin(products, eq(pickListItems.product_id, products.id))
 					.groupBy(pickListItems.product_id, products.name, products.sku)
-					.orderBy(desc(sql`COALESCE(sum(${pickListItems.quantity_picked}), 0)`))
+					.orderBy(
+						desc(sql`COALESCE(sum(${pickListItems.quantity_picked}), 0)`),
+					)
 					.limit(5),
 
 				// 11. Operator Productivity Summary
@@ -807,15 +849,38 @@ export const warehouseRouter = router({
 					.leftJoin(pickLists, eq(staff.id, pickLists.assigned_to))
 					.where(and(eq(staff.is_deleted, false), eq(staff.status, "active")))
 					.groupBy(staff.id, staff.name, staff.role)
-					.orderBy(desc(sql`count(distinct ${pickLists.id}) filter (where ${pickLists.status} = 'completed')`))
+					.orderBy(
+						desc(
+							sql`count(distinct ${pickLists.id}) filter (where ${pickLists.status} = 'completed')`,
+						),
+					)
 					.limit(5),
 			]);
 
-			const pCounts = pickCounts[0] || { total: 0, pending: 0, active: 0, completedToday: 0, completedTotal: 0, delayed: 0 };
+			const pCounts = pickCounts[0] || {
+				total: 0,
+				pending: 0,
+				active: 0,
+				completedToday: 0,
+				completedTotal: 0,
+				delayed: 0,
+			};
 			const oCounts = orderCounts[0] || { ordersWaiting: 0, totalOrders: 0 };
-			const rCounts = purchaseCounts[0] || { receivingQueue: 0, receivedToday: 0, delayedReceiving: 0 };
-			const pvCounts = placementCounts[0] || { putAwayQueue: 0, placedToday: 0, delayedPlacement: 0 };
-			const pkgCounts = packageCounts[0] || { activePacking: 0, packedToday: 0, dispatchReady: 0 };
+			const rCounts = purchaseCounts[0] || {
+				receivingQueue: 0,
+				receivedToday: 0,
+				delayedReceiving: 0,
+			};
+			const pvCounts = placementCounts[0] || {
+				putAwayQueue: 0,
+				placedToday: 0,
+				delayedPlacement: 0,
+			};
+			const pkgCounts = packageCounts[0] || {
+				activePacking: 0,
+				packedToday: 0,
+				dispatchReady: 0,
+			};
 
 			const totalBacklogUnits =
 				Number(oCounts.ordersWaiting || 0) +
@@ -837,14 +902,27 @@ export const warehouseRouter = router({
 			const totalEvaluatedTasks = totalCompletedTasks + totalDelayedTasks;
 			const slaCompliancePercent =
 				totalEvaluatedTasks > 0
-					? Math.max(0, Math.min(100, Math.round(((totalEvaluatedTasks - totalDelayedTasks) / totalEvaluatedTasks) * 1000) / 10))
+					? Math.max(
+							0,
+							Math.min(
+								100,
+								Math.round(
+									((totalEvaluatedTasks - totalDelayedTasks) /
+										totalEvaluatedTasks) *
+										1000,
+								) / 10,
+							),
+						)
 					: 100.0;
 
 			const totalStaffNumber = Number(staffCounts[0]?.count || 0);
 			const assignedStaffNumber = Number(assignedStaffCounts[0]?.count || 0);
 			const operatorUtilizationPercent =
 				totalStaffNumber > 0
-					? Math.min(100, Math.round((assignedStaffNumber / totalStaffNumber) * 1000) / 10)
+					? Math.min(
+							100,
+							Math.round((assignedStaffNumber / totalStaffNumber) * 1000) / 10,
+						)
 					: 0.0;
 
 			// Construct Real 2-Hour Time Buckets (00:00 to 22:00)
@@ -893,7 +971,8 @@ export const warehouseRouter = router({
 				delayedTasks: totalDelayedTasks,
 				receivingQueue: Number(rCounts.receivingQueue || 0),
 				putAwayQueue: Number(pvCounts.putAwayQueue || 0),
-				pickingQueue: Number(pCounts.pending || 0) + Number(pCounts.active || 0),
+				pickingQueue:
+					Number(pCounts.pending || 0) + Number(pCounts.active || 0),
 				packingQueue: Number(pkgCounts.activePacking || 0),
 				completedToday: totalCompletedTasks,
 				hourlyChart,
@@ -1014,7 +1093,9 @@ export const warehouseRouter = router({
 				.leftJoin(purchases, eq(receivingInspections.purchase_id, purchases.id))
 				.leftJoin(suppliers, eq(purchases.supplier_id, suppliers.id))
 				.leftJoin(staff, eq(receivingInspections.inspected_by, staff.id))
-				.where(branchId ? eq(receivingInspections.branch_id, branchId) : undefined)
+				.where(
+					branchId ? eq(receivingInspections.branch_id, branchId) : undefined,
+				)
 				.orderBy(desc(receivingInspections.created_at))
 				.limit(100);
 		}),
@@ -1047,7 +1128,12 @@ export const warehouseRouter = router({
 				grnItems = await db
 					.select()
 					.from(goodsReceiptItems)
-					.where(inArray(goodsReceiptItems.grn_id, grns.map((g: any) => g.id)));
+					.where(
+						inArray(
+							goodsReceiptItems.grn_id,
+							grns.map((g: any) => g.id),
+						),
+					);
 			}
 
 			return pItems.map((item: any) => {
@@ -1114,7 +1200,9 @@ export const warehouseRouter = router({
 						grn_number: grnGenerated,
 						purchase_id: input.purchaseId,
 						branch_id: ctx.user.branchId ?? 1,
-						received_by: staffId ? staffId.toString() : (ctx.user.name || ctx.user.email || ctx.user.id),
+						received_by: staffId
+							? staffId.toString()
+							: ctx.user.name || ctx.user.email || ctx.user.id,
 						status: input.items.some((i) => i.condition !== "good")
 							? "partially_accepted"
 							: "accepted",
@@ -1559,10 +1647,15 @@ export const warehouseRouter = router({
 					throw new Error("Cannot complete picking for empty picklist.");
 				}
 
-				const exceptions = await tx
-					.select()
-					.from(pickingExceptions)
-					.where(eq(pickingExceptions.pick_list_id, input.pickListId));
+				let exceptions: any[] = [];
+				try {
+					exceptions = await tx
+						.select()
+						.from(pickingExceptions)
+						.where(eq(pickingExceptions.pick_list_id, input.pickListId));
+				} catch (exErr) {
+					exceptions = [];
+				}
 
 				const unpicked = items.filter((i) => {
 					const picked = Number(i.quantity_picked ?? 0);
@@ -1579,7 +1672,9 @@ export const warehouseRouter = router({
 
 				if (unpicked.length > 0) {
 					const totalPending = unpicked.reduce(
-						(acc, i) => acc + (Number(i.quantity_ordered) - Number(i.quantity_picked ?? 0)),
+						(acc, i) =>
+							acc +
+							(Number(i.quantity_ordered) - Number(i.quantity_picked ?? 0)),
 						0,
 					);
 					throw new Error(
@@ -1637,7 +1732,10 @@ export const warehouseRouter = router({
 						referenceId: pkg.id,
 					});
 				} catch (notifErr) {
-					console.warn("[completePickingTask] Notification dispatch error:", notifErr);
+					console.warn(
+						"[completePickingTask] Notification dispatch error:",
+						notifErr,
+					);
 				}
 
 				await logAudit(tx, {
@@ -1822,10 +1920,11 @@ export const warehouseRouter = router({
 			.leftJoin(orders, eq(pickingExceptions.order_id, orders.id))
 			.leftJoin(customers, eq(orders.customer_id, customers.id))
 			.leftJoin(staff, eq(pickingExceptions.reported_by, staff.id))
-			.leftJoin(branchLocations, eq(pickingExceptions.location_id, branchLocations.id))
-			.where(
-				branchId ? eq(pickingExceptions.branch_id, branchId) : undefined,
+			.leftJoin(
+				branchLocations,
+				eq(pickingExceptions.location_id, branchLocations.id),
 			)
+			.where(branchId ? eq(pickingExceptions.branch_id, branchId) : undefined)
 			.orderBy(desc(pickingExceptions.created_at))
 			.limit(100);
 
@@ -1858,47 +1957,58 @@ export const warehouseRouter = router({
 		.input(z.object({ branchId: z.number().optional() }).optional())
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db;
-			const exceptions = await db
-				.select({
-					id: pickingExceptions.id,
-					pick_list_id: pickingExceptions.pick_list_id,
-					pick_list_item_id: pickingExceptions.pick_list_item_id,
-					order_id: pickingExceptions.order_id,
-					product_id: pickingExceptions.product_id,
-					branch_id: pickingExceptions.branch_id,
-					location_id: pickingExceptions.location_id,
-					quantity_ordered: pickingExceptions.quantity_ordered,
-					quantity_picked: pickingExceptions.quantity_picked,
-					quantity_damaged: pickingExceptions.quantity_damaged,
-					quantity_missing: pickingExceptions.quantity_missing,
-					reason: pickingExceptions.reason,
-					remarks: pickingExceptions.remarks,
-					photo_url: pickingExceptions.photo_url,
-					reported_by: pickingExceptions.reported_by,
-					status: pickingExceptions.status,
-					manager_notes: pickingExceptions.manager_notes,
-					resolved_by: pickingExceptions.resolved_by,
-					resolved_at: pickingExceptions.resolved_at,
-					created_at: pickingExceptions.created_at,
-					updated_at: pickingExceptions.updated_at,
-					product_name: products.name,
-					product_sku: products.sku,
-					customer_name: customers.name,
-					reporter_name: staff.name,
-					location_name: branchLocations.name,
-				})
-				.from(pickingExceptions)
-				.leftJoin(products, eq(pickingExceptions.product_id, products.id))
-				.leftJoin(orders, eq(pickingExceptions.order_id, orders.id))
-				.leftJoin(customers, eq(orders.customer_id, customers.id))
-				.leftJoin(staff, eq(pickingExceptions.reported_by, staff.id))
-				.leftJoin(branchLocations, eq(pickingExceptions.location_id, branchLocations.id))
-				.where(
-					input?.branchId ? eq(pickingExceptions.branch_id, input.branchId) : undefined,
-				)
-				.orderBy(desc(pickingExceptions.created_at));
+			await ensurePickingExceptionsTable(db);
+			try {
+				const exceptions = await db
+					.select({
+						id: pickingExceptions.id,
+						pick_list_id: pickingExceptions.pick_list_id,
+						pick_list_item_id: pickingExceptions.pick_list_item_id,
+						order_id: pickingExceptions.order_id,
+						product_id: pickingExceptions.product_id,
+						branch_id: pickingExceptions.branch_id,
+						location_id: pickingExceptions.location_id,
+						quantity_ordered: pickingExceptions.quantity_ordered,
+						quantity_picked: pickingExceptions.quantity_picked,
+						quantity_damaged: pickingExceptions.quantity_damaged,
+						quantity_missing: pickingExceptions.quantity_missing,
+						reason: pickingExceptions.reason,
+						remarks: pickingExceptions.remarks,
+						photo_url: pickingExceptions.photo_url,
+						reported_by: pickingExceptions.reported_by,
+						status: pickingExceptions.status,
+						manager_notes: pickingExceptions.manager_notes,
+						resolved_by: pickingExceptions.resolved_by,
+						resolved_at: pickingExceptions.resolved_at,
+						created_at: pickingExceptions.created_at,
+						updated_at: pickingExceptions.updated_at,
+						product_name: products.name,
+						product_sku: products.sku,
+						customer_name: customers.name,
+						reporter_name: staff.name,
+						location_name: branchLocations.name,
+					})
+					.from(pickingExceptions)
+					.leftJoin(products, eq(pickingExceptions.product_id, products.id))
+					.leftJoin(orders, eq(pickingExceptions.order_id, orders.id))
+					.leftJoin(customers, eq(orders.customer_id, customers.id))
+					.leftJoin(staff, eq(pickingExceptions.reported_by, staff.id))
+					.leftJoin(
+						branchLocations,
+						eq(pickingExceptions.location_id, branchLocations.id),
+					)
+					.where(
+						input?.branchId
+							? eq(pickingExceptions.branch_id, input.branchId)
+							: undefined,
+					)
+					.orderBy(desc(pickingExceptions.created_at));
 
-			return exceptions;
+				return exceptions;
+			} catch (e) {
+				console.warn("[getPickerExceptions] Error:", e);
+				return [];
+			}
 		}),
 
 	resolvePickingException: protectedProcedure
@@ -1958,9 +2068,12 @@ export const warehouseRouter = router({
 							.from(orderItems)
 							.where(eq(orderItems.order_id, ex.order_id));
 
-						const matchingItem = oItems.find((oi) => oi.product_id === ex.product_id);
+						const matchingItem = oItems.find(
+							(oi) => oi.product_id === ex.product_id,
+						);
 						if (matchingItem) {
-							const origQty = matchingItem.original_quantity ?? matchingItem.quantity;
+							const origQty =
+								matchingItem.original_quantity ?? matchingItem.quantity;
 							await tx
 								.update(orderItems)
 								.set({
@@ -2019,7 +2132,10 @@ export const warehouseRouter = router({
 						const discount = Number(ord?.discount_amount ?? 0);
 						const otherCharges = Number(ord?.other_charges ?? 0);
 						const totalTax = newCgst + newSgst + newIgst;
-						const finalTotal = Math.max(0, newSubtotal + totalTax - discount + otherCharges);
+						const finalTotal = Math.max(
+							0,
+							newSubtotal + totalTax - discount + otherCharges,
+						);
 
 						await tx
 							.update(orders)
@@ -2043,7 +2159,10 @@ export const warehouseRouter = router({
 								})),
 							});
 						} catch (adjErr) {
-							console.warn("[resolvePickingException] adjustStockForOrderQuantityChange error:", adjErr);
+							console.warn(
+								"[resolvePickingException] adjustStockForOrderQuantityChange error:",
+								adjErr,
+							);
 						}
 
 						// Release reserved stock for shortfall
@@ -2117,10 +2236,16 @@ export const warehouseRouter = router({
 								referenceId: ex.pick_list_id,
 							});
 						} catch (ne) {
-							console.warn("[resolvePickingException] Notification dispatch error:", ne);
+							console.warn(
+								"[resolvePickingException] Notification dispatch error:",
+								ne,
+							);
 						}
 					}
-				} else if (input.action === "ASSIGN_REPLACEMENT" || input.action === "ARRANGE_REPLACEMENT") {
+				} else if (
+					input.action === "ASSIGN_REPLACEMENT" ||
+					input.action === "ARRANGE_REPLACEMENT"
+				) {
 					if (shortfall > 0 && ex.order_id) {
 						const [newPl] = await tx
 							.insert(pickLists)
@@ -2401,7 +2526,9 @@ export const warehouseRouter = router({
 				);
 
 			if (pickers.length === 0) {
-				throw new Error("No active staff with 'picker' role available in the warehouse.");
+				throw new Error(
+					"No active staff with 'picker' role available in the warehouse.",
+				);
 			}
 
 			// 2. Count current active load per picker
@@ -2551,7 +2678,9 @@ export const warehouseRouter = router({
 				);
 
 			if (packers.length === 0) {
-				throw new Error("No active staff with 'packer' role available in the warehouse.");
+				throw new Error(
+					"No active staff with 'packer' role available in the warehouse.",
+				);
 			}
 
 			const unassignedPackages = await db
@@ -2651,7 +2780,9 @@ export const warehouseRouter = router({
 			db
 				.select({ count: count() })
 				.from(pickLists)
-				.where(inArray(pickLists.status, ["assigned", "picking", "in_progress"])),
+				.where(
+					inArray(pickLists.status, ["assigned", "picking", "in_progress"]),
+				),
 			db
 				.select({ count: count() })
 				.from(packages)
@@ -2731,7 +2862,11 @@ export const warehouseRouter = router({
 
 		const bottlenecks: Array<{
 			id: string;
-			type: "delayed_picking" | "unassigned_backlog" | "missing_item" | "no_active_pickers";
+			type:
+				| "delayed_picking"
+				| "unassigned_backlog"
+				| "missing_item"
+				| "no_active_pickers";
 			title: string;
 			description: string;
 			severity: "warning" | "critical";
@@ -2743,7 +2878,8 @@ export const warehouseRouter = router({
 				id: "unassigned_picks",
 				type: "unassigned_backlog",
 				title: `${unassignedPicks} Picklist(s) Awaiting Picker Assignment`,
-				description: "Orders are pending picker allocation. Run auto-assign pipeline to distribute tasks immediately.",
+				description:
+					"Orders are pending picker allocation. Run auto-assign pipeline to distribute tasks immediately.",
 				severity: unassignedPicks > 10 ? "critical" : "warning",
 				count: unassignedPicks,
 			});
@@ -2754,7 +2890,8 @@ export const warehouseRouter = router({
 				id: "delayed_picks",
 				type: "delayed_picking",
 				title: `${delayedCount} Stalled / Delayed Pick Task(s)`,
-				description: "Picking tasks exceeding SLA (>30m). Trigger self-healing pipeline to re-balance or re-assign to active pickers.",
+				description:
+					"Picking tasks exceeding SLA (>30m). Trigger self-healing pipeline to re-balance or re-assign to active pickers.",
 				severity: "critical",
 				count: delayedCount,
 			});
@@ -2765,7 +2902,8 @@ export const warehouseRouter = router({
 				id: "unassigned_packs",
 				type: "unassigned_backlog",
 				title: `${unassignedPacks} Package(s) Awaiting Packer Allocation`,
-				description: "Picked orders are ready for sealing & packaging. Run auto-assign to route to available packers.",
+				description:
+					"Picked orders are ready for sealing & packaging. Run auto-assign to route to available packers.",
 				severity: "warning",
 				count: unassignedPacks,
 			});
@@ -2776,7 +2914,8 @@ export const warehouseRouter = router({
 				id: "missing_items",
 				type: "missing_item",
 				title: `${missingItems.length} Item(s) Reported Missing / Stockout`,
-				description: "Pickers reported stock unavailable on shelf. Review exceptions or adjust inventory to clear orders.",
+				description:
+					"Pickers reported stock unavailable on shelf. Review exceptions or adjust inventory to clear orders.",
 				severity: "critical",
 				count: missingItems.length,
 			});
@@ -2969,7 +3108,9 @@ export const warehouseRouter = router({
 						.update(pickLists)
 						.set({
 							priority: "urgent",
-							assigned_to: alternatePicker ? alternatePicker.id : currentPl?.assigned_to,
+							assigned_to: alternatePicker
+								? alternatePicker.id
+								: currentPl?.assigned_to,
 						})
 						.where(eq(pickLists.id, input.referenceId));
 				} else {

@@ -14,10 +14,22 @@ import {
 	stockLedger,
 	user,
 } from "@evaluna/db/schema";
-import { and, count, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
+import {
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	lte,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifyPickComplete } from "@/lib/notification-service";
+import { ensurePickingExceptionsTable } from "@/lib/product-schema-ensure";
 import { isDateInISTRange, parseDateFilterRange } from "@/lib/utils";
 import { roleProcedure, router } from "../init";
 import { logAudit, notify, resolveStaffId } from "../util/audit";
@@ -43,7 +55,11 @@ export const pickerRouter = router({
 						.from(pickLists)
 						.where(
 							or(
-								inArray(pickLists.status, ["assigned", "picking", "in_progress"]),
+								inArray(pickLists.status, [
+									"assigned",
+									"picking",
+									"in_progress",
+								]),
 								and(
 									isNotNull(pickLists.assigned_to),
 									or(
@@ -143,7 +159,10 @@ export const pickerRouter = router({
 					})),
 				};
 			} catch (err) {
-				console.warn("[pickerRouter.getDashboardStats] Error fetching stats:", err);
+				console.warn(
+					"[pickerRouter.getDashboardStats] Error fetching stats:",
+					err,
+				);
 				return {
 					assignedToday: 0,
 					completed: 0,
@@ -235,7 +254,11 @@ export const pickerRouter = router({
 
 			if (task.order_id) {
 				try {
-					if (customerName === "N/A" || customerAddress === "N/A" || customerPhone === "N/A") {
+					if (
+						customerName === "N/A" ||
+						customerAddress === "N/A" ||
+						customerPhone === "N/A"
+					) {
 						const [ord] = await db
 							.select({
 								name: customers.name,
@@ -257,15 +280,24 @@ export const pickerRouter = router({
 					const [rStop] = await db
 						.select({ routeName: deliveryRoutes.name })
 						.from(orders)
-						.innerJoin(routeStops, eq(routeStops.customer_id, orders.customer_id))
-						.innerJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+						.innerJoin(
+							routeStops,
+							eq(routeStops.customer_id, orders.customer_id),
+						)
+						.innerJoin(
+							deliveryRoutes,
+							eq(deliveryRoutes.id, routeStops.route_id),
+						)
 						.where(eq(orders.id, task.order_id))
 						.limit(1);
 					if (rStop?.routeName) {
 						routeName = rStop.routeName;
 					}
 				} catch (err) {
-					console.warn("[pickerRouter.getCurrentTask] Error fetching customer/route details:", err);
+					console.warn(
+						"[pickerRouter.getCurrentTask] Error fetching customer/route details:",
+						err,
+					);
 				}
 			}
 
@@ -278,7 +310,10 @@ export const pickerRouter = router({
 						.from(pickingExceptions)
 						.where(inArray(pickingExceptions.pick_list_item_id, itemIds));
 				} catch (exErr) {
-					console.warn("[pickerRouter.getCurrentTask] Error fetching picking exceptions:", exErr);
+					console.warn(
+						"[pickerRouter.getCurrentTask] Error fetching picking exceptions:",
+						exErr,
+					);
 				}
 			}
 
@@ -299,7 +334,10 @@ export const pickerRouter = router({
 						}
 					}
 				} catch (stErr) {
-					console.warn("[pickerRouter.getCurrentTask] Error fetching branchInventory:", stErr);
+					console.warn(
+						"[pickerRouter.getCurrentTask] Error fetching branchInventory:",
+						stErr,
+					);
 				}
 			}
 
@@ -310,7 +348,8 @@ export const pickerRouter = router({
 				return existingExceptions.some((e) => e.pick_list_item_id === i.id);
 			}).length;
 			const totalItemsCount = items.length;
-			const allAccounted = accountedCount === totalItemsCount && totalItemsCount > 0;
+			const allAccounted =
+				accountedCount === totalItemsCount && totalItemsCount > 0;
 
 			return {
 				task: {
@@ -323,9 +362,7 @@ export const pickerRouter = router({
 					customer_address: customerAddress,
 					route_name: routeName !== "N/A" ? routeName : undefined,
 					area: "Warehouse",
-					progress: Math.round(
-						(accountedCount / (totalItemsCount || 1)) * 100,
-					),
+					progress: Math.round((accountedCount / (totalItemsCount || 1)) * 100),
 					total_items: totalItemsCount,
 					picked_items: accountedCount,
 					all_accounted: allAccounted,
@@ -333,15 +370,21 @@ export const pickerRouter = router({
 				items: items.map((i) => {
 					const req =
 						Math.round(
-							(Number.parseFloat(String(i.quantity_ordered ?? "1")) || 1) * 1000,
+							(Number.parseFloat(String(i.quantity_ordered ?? "1")) || 1) *
+								1000,
 						) / 1000;
 					const picked =
 						Math.round(
 							(Number.parseFloat(String(i.quantity_picked ?? "0")) || 0) * 1000,
 						) / 1000;
-					const remaining = Math.max(0, Math.round((req - picked) * 1000) / 1000);
-					const ex = existingExceptions.find((e) => e.pick_list_item_id === i.id);
-					const availStock = stockMap.get(i.product_id) ?? (req + 10);
+					const remaining = Math.max(
+						0,
+						Math.round((req - picked) * 1000) / 1000,
+					);
+					const ex = existingExceptions.find(
+						(e) => e.pick_list_item_id === i.id,
+					);
+					const availStock = stockMap.get(i.product_id) ?? req + 10;
 
 					return {
 						id: i.id,
@@ -354,7 +397,9 @@ export const pickerRouter = router({
 						product: i.product?.name ?? "Unknown",
 						sku: i.product?.sku ?? i.product?.barcode ?? "N/A",
 						barcode: i.product?.barcode ?? i.product?.sku ?? "N/A",
-						location: i.location?.name ?? (i.location?.shelf ? `Shelf: ${i.location.shelf}` : "Warehouse"),
+						location:
+							i.location?.name ??
+							(i.location?.shelf ? `Shelf: ${i.location.shelf}` : "Warehouse"),
 						shelf: i.location?.shelf ?? i.location?.name ?? "A-1",
 						batch: i.batch_id ? `B-${i.batch_id}` : "Any",
 						exception: ex
@@ -373,7 +418,12 @@ export const pickerRouter = router({
 			};
 		}),
 
-	confirmQuantityWithException: roleProcedure(["admin", "manager", "auditor", "picker"])
+	confirmQuantityWithException: roleProcedure([
+		"admin",
+		"manager",
+		"auditor",
+		"picker",
+	])
 		.input(
 			z.object({
 				item_id: z.number(),
@@ -396,6 +446,7 @@ export const pickerRouter = router({
 		)
 		.mutation(async ({ ctx, input }) => {
 			const db = ctx.db;
+			await ensurePickingExceptionsTable(db);
 			const staffId = await resolveStaffId(db, ctx.user.email);
 
 			return await db.transaction(async (tx) => {
@@ -409,8 +460,13 @@ export const pickerRouter = router({
 				});
 
 				if (!item) throw new Error("Pick list item not found");
-				if (item.pickList.status === "completed" || item.pickList.status === "cancelled") {
-					throw new Error("Cannot modify an already completed or cancelled pick list.");
+				if (
+					item.pickList.status === "completed" ||
+					item.pickList.status === "cancelled"
+				) {
+					throw new Error(
+						"Cannot modify an already completed or cancelled pick list.",
+					);
 				}
 
 				const orderedQty = Number(item.quantity_ordered) || 0;
@@ -419,7 +475,9 @@ export const pickerRouter = router({
 				const missingQty = Number(input.quantity_missing) || 0;
 
 				if (pickedQty > orderedQty) {
-					throw new Error(`Picked quantity (${pickedQty}) cannot exceed ordered quantity (${orderedQty})`);
+					throw new Error(
+						`Picked quantity (${pickedQty}) cannot exceed ordered quantity (${orderedQty})`,
+					);
 				}
 
 				const shortfall = Math.max(0, orderedQty - pickedQty);
@@ -427,10 +485,20 @@ export const pickerRouter = router({
 				// If shortfall > 0 (partial picking), require reason and remarks
 				if (shortfall > 0) {
 					if (!input.reason) {
-						throw new Error("Reason is required when reporting partial picking or stock shortage.");
+						throw new Error(
+							"Reason is required when reporting partial picking or stock shortage.",
+						);
 					}
-					if (!input.remarks && (damagedQty > 0 || missingQty > 0 || input.reason === "Damaged items" || input.reason === "Stock not found")) {
-						throw new Error("Remarks are required for damaged or missing items.");
+					if (
+						!input.remarks &&
+						(damagedQty > 0 ||
+							missingQty > 0 ||
+							input.reason === "Damaged items" ||
+							input.reason === "Stock not found")
+					) {
+						throw new Error(
+							"Remarks are required for damaged or missing items.",
+						);
 					}
 				}
 
@@ -455,69 +523,82 @@ export const pickerRouter = router({
 				let exceptionRecord: any = null;
 
 				if (shortfall > 0) {
-					const [existingEx] = await tx
-						.select()
-						.from(pickingExceptions)
-						.where(eq(pickingExceptions.pick_list_item_id, input.item_id))
-						.limit(1);
-
 					const finalDamaged = damagedQty;
-					const finalMissing = missingQty || Math.max(0, shortfall - finalDamaged);
+					const finalMissing =
+						missingQty || Math.max(0, shortfall - finalDamaged);
 
-					if (existingEx) {
-						const [updatedEx] = await tx
-							.update(pickingExceptions)
-							.set({
-								quantity_picked: pickedQty,
-								quantity_damaged: finalDamaged,
-								quantity_missing: finalMissing,
-								reason: input.reason!,
-								remarks: input.remarks || null,
-								photo_url: input.photo_url || null,
-								reported_by: staffId || existingEx.reported_by,
-								status: "PENDING_REVIEW",
-								updated_at: new Date(),
-							})
-							.where(eq(pickingExceptions.id, existingEx.id))
-							.returning();
-						exceptionRecord = updatedEx;
-					} else {
-						const [insertedEx] = await tx
-							.insert(pickingExceptions)
-							.values({
-								pick_list_id: item.pick_list_id,
-								pick_list_item_id: item.id,
-								order_id: item.pickList.order_id,
-								product_id: item.product_id,
-								branch_id: (item.pickList as any).branch_id ?? 1,
-								location_id: item.location_id,
-								quantity_ordered: orderedQty,
-								quantity_picked: pickedQty,
-								quantity_damaged: finalDamaged,
-								quantity_missing: finalMissing,
-								reason: input.reason!,
-								remarks: input.remarks || null,
-								photo_url: input.photo_url || null,
-								reported_by: staffId || 1,
-								status: "PENDING_REVIEW",
-							})
-							.returning();
-						exceptionRecord = insertedEx;
-					}
-
-					// Notify Warehouse Manager
 					try {
-						await notify(tx, {
-							branchId: (item.pickList as any).branch_id ?? 1,
-							type: "damage",
-							priority: "high",
-							title: `⚠️ Picker Stock Shortage: ${item.product?.name || "Product"}`,
-							message: `Order #ORD-${item.pickList.order_id}: Picker confirmed ${pickedQty} of ${orderedQty} units. Damaged: ${finalDamaged}, Missing: ${finalMissing}. Reason: ${input.reason}`,
-							referenceType: "picking_exceptions",
-							referenceId: exceptionRecord.id,
-						});
-					} catch (e) {
-						console.warn("[confirmQuantityWithException] manager notify error:", e);
+						const [existingEx] = await tx
+							.select()
+							.from(pickingExceptions)
+							.where(eq(pickingExceptions.pick_list_item_id, input.item_id))
+							.limit(1);
+
+						if (existingEx) {
+							const [updatedEx] = await tx
+								.update(pickingExceptions)
+								.set({
+									quantity_picked: pickedQty,
+									quantity_damaged: finalDamaged,
+									quantity_missing: finalMissing,
+									reason: input.reason!,
+									remarks: input.remarks || null,
+									photo_url: input.photo_url || null,
+									reported_by: staffId || existingEx.reported_by,
+									status: "PENDING_REVIEW",
+									updated_at: new Date(),
+								})
+								.where(eq(pickingExceptions.id, existingEx.id))
+								.returning();
+							exceptionRecord = updatedEx;
+						} else {
+							const [insertedEx] = await tx
+								.insert(pickingExceptions)
+								.values({
+									pick_list_id: item.pick_list_id,
+									pick_list_item_id: item.id,
+									order_id: item.pickList.order_id,
+									product_id: item.product_id,
+									branch_id: (item.pickList as any).branch_id ?? 1,
+									location_id: item.location_id,
+									quantity_ordered: orderedQty,
+									quantity_picked: pickedQty,
+									quantity_damaged: finalDamaged,
+									quantity_missing: finalMissing,
+									reason: input.reason!,
+									remarks: input.remarks || null,
+									photo_url: input.photo_url || null,
+									reported_by: staffId || 1,
+									status: "PENDING_REVIEW",
+								})
+								.returning();
+							exceptionRecord = insertedEx;
+						}
+
+						// Notify Warehouse Manager
+						if (exceptionRecord?.id) {
+							try {
+								await notify(tx, {
+									branchId: (item.pickList as any).branch_id ?? 1,
+									type: "damage",
+									priority: "high",
+									title: `⚠️ Picker Stock Shortage: ${item.product?.name || "Product"}`,
+									message: `Order #ORD-${item.pickList.order_id}: Picker confirmed ${pickedQty} of ${orderedQty} units. Damaged: ${finalDamaged}, Missing: ${finalMissing}. Reason: ${input.reason}`,
+									referenceType: "picking_exceptions",
+									referenceId: exceptionRecord.id,
+								});
+							} catch (e) {
+								console.warn(
+									"[confirmQuantityWithException] manager notify error:",
+									e,
+								);
+							}
+						}
+					} catch (exErr) {
+						console.warn(
+							"[confirmQuantityWithException] exception record error:",
+							exErr,
+						);
 					}
 
 					// Notify Sales
@@ -532,17 +613,27 @@ export const pickerRouter = router({
 							referenceId: item.pickList.order_id ?? undefined,
 						});
 					} catch (e) {
-						console.warn("[confirmQuantityWithException] sales notify error:", e);
+						console.warn(
+							"[confirmQuantityWithException] sales notify error:",
+							e,
+						);
 					}
 				} else {
-					await tx
-						.delete(pickingExceptions)
-						.where(
-							and(
-								eq(pickingExceptions.pick_list_item_id, input.item_id),
-								eq(pickingExceptions.status, "PENDING_REVIEW"),
-							),
+					try {
+						await tx
+							.delete(pickingExceptions)
+							.where(
+								and(
+									eq(pickingExceptions.pick_list_item_id, input.item_id),
+									eq(pickingExceptions.status, "PENDING_REVIEW"),
+								),
+							);
+					} catch (delErr) {
+						console.warn(
+							"[confirmQuantityWithException] delete exception notice:",
+							delErr,
 						);
+					}
 				}
 
 				return {
@@ -574,7 +665,10 @@ export const pickerRouter = router({
 			if (!item) throw new Error("Item not found");
 
 			const maxAllowed = item.quantity_ordered || 1;
-			const newQtyPicked = Math.min((item.quantity_picked ?? 0) + 1, maxAllowed);
+			const newQtyPicked = Math.min(
+				(item.quantity_picked ?? 0) + 1,
+				maxAllowed,
+			);
 			const newStatus =
 				newQtyPicked >= item.quantity_ordered ? "picked" : "partial";
 
@@ -647,7 +741,10 @@ export const pickerRouter = router({
 					conditions.push(eq(orders.branch_id, input.branch_id));
 				}
 
-				const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
+				const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(
+					input?.startDate,
+					input?.endDate,
+				);
 				const targetDateCol = sql`COALESCE(${pickLists.completed_at}, ${pickLists.created_at})`;
 
 				if (fromDate) {
@@ -674,9 +771,16 @@ export const pickerRouter = router({
 					.orderBy(desc(targetDateCol))
 					.limit(500);
 
-				const lists = (startIST || endIST)
-					? rawLists.filter((r) => isDateInISTRange(r.completed_at || r.created_at, startIST, endIST))
-					: rawLists;
+				const lists =
+					startIST || endIST
+						? rawLists.filter((r) =>
+								isDateInISTRange(
+									r.completed_at || r.created_at,
+									startIST,
+									endIST,
+								),
+							)
+						: rawLists;
 
 				if (!lists || lists.length === 0) return [];
 
@@ -723,14 +827,17 @@ export const pickerRouter = router({
 									day: "2-digit",
 									month: "2-digit",
 									year: "numeric",
-							  })
+								})
 							: "Today",
 						completed_at: r.completed_at,
 						accuracy: 100,
 					};
 				});
 			} catch (e) {
-				console.warn("[picker.getCompleted] Error querying completed picklists:", e);
+				console.warn(
+					"[picker.getCompleted] Error querying completed picklists:",
+					e,
+				);
 				// Fallback to db.query API
 				try {
 					const rawFallbackLists = await db.query.pickLists.findMany({
@@ -751,19 +858,31 @@ export const pickerRouter = router({
 						},
 					});
 
-					const { startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
-					const fallbackLists = (startIST || endIST)
-						? rawFallbackLists.filter((l: any) => isDateInISTRange(l.completed_at || l.created_at, startIST, endIST))
-						: rawFallbackLists;
+					const { startIST, endIST } = parseDateFilterRange(
+						input?.startDate,
+						input?.endDate,
+					);
+					const fallbackLists =
+						startIST || endIST
+							? rawFallbackLists.filter((l: any) =>
+									isDateInISTRange(
+										l.completed_at || l.created_at,
+										startIST,
+										endIST,
+									),
+								)
+							: rawFallbackLists;
 
 					return fallbackLists.map((l: any) => {
 						const itemsList = l.pickListItems || [];
 						const rawTotalQty = itemsList.reduce(
 							(acc: number, item: any) =>
-								acc + (Number.parseFloat(String(item.quantity_ordered || "0")) || 0),
+								acc +
+								(Number.parseFloat(String(item.quantity_ordered || "0")) || 0),
 							0,
 						);
-						const roundedQty = Math.round((rawTotalQty || itemsList.length || 1) * 10) / 10;
+						const roundedQty =
+							Math.round((rawTotalQty || itemsList.length || 1) * 10) / 10;
 						const effectiveDate = l.completed_at || l.created_at;
 
 						return {
@@ -779,14 +898,17 @@ export const pickerRouter = router({
 										day: "2-digit",
 										month: "2-digit",
 										year: "numeric",
-								  })
+									})
 								: "Today",
 							completed_at: l.completed_at,
 							accuracy: 100,
 						};
 					});
 				} catch (fallbackErr) {
-					console.warn("[picker.getCompleted] Fallback query failed:", fallbackErr);
+					console.warn(
+						"[picker.getCompleted] Fallback query failed:",
+						fallbackErr,
+					);
 					return [];
 				}
 			}
@@ -815,21 +937,68 @@ export const pickerRouter = router({
 			if (input?.datePreset && input.datePreset !== "all") {
 				const now = new Date();
 				if (input.datePreset === "today") {
-					const s = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-					const e = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-					conditions.push(gte(pickLists.created_at, s), lte(pickLists.created_at, e));
+					const s = new Date(
+						now.getFullYear(),
+						now.getMonth(),
+						now.getDate(),
+						0,
+						0,
+						0,
+					);
+					const e = new Date(
+						now.getFullYear(),
+						now.getMonth(),
+						now.getDate(),
+						23,
+						59,
+						59,
+						999,
+					);
+					conditions.push(
+						gte(pickLists.created_at, s),
+						lte(pickLists.created_at, e),
+					);
 				} else if (input.datePreset === "yesterday") {
 					const y = new Date(now);
 					y.setDate(y.getDate() - 1);
-					const s = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0);
-					const e = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999);
-					conditions.push(gte(pickLists.created_at, s), lte(pickLists.created_at, e));
+					const s = new Date(
+						y.getFullYear(),
+						y.getMonth(),
+						y.getDate(),
+						0,
+						0,
+						0,
+					);
+					const e = new Date(
+						y.getFullYear(),
+						y.getMonth(),
+						y.getDate(),
+						23,
+						59,
+						59,
+						999,
+					);
+					conditions.push(
+						gte(pickLists.created_at, s),
+						lte(pickLists.created_at, e),
+					);
 				} else if (input.datePreset === "custom" && input.date) {
 					const parts = input.date.split("-").map(Number);
 					if (parts.length === 3) {
 						const s = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0);
-						const e = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
-						conditions.push(gte(pickLists.created_at, s), lte(pickLists.created_at, e));
+						const e = new Date(
+							parts[0],
+							parts[1] - 1,
+							parts[2],
+							23,
+							59,
+							59,
+							999,
+						);
+						conditions.push(
+							gte(pickLists.created_at, s),
+							lte(pickLists.created_at, e),
+						);
 					}
 				}
 			}
@@ -904,7 +1073,10 @@ export const pickerRouter = router({
 							const [rStop] = await db
 								.select({ routeName: deliveryRoutes.name })
 								.from(routeStops)
-								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+								.leftJoin(
+									deliveryRoutes,
+									eq(deliveryRoutes.id, routeStops.route_id),
+								)
 								.where(eq(routeStops.customer_id, ord.customer_id))
 								.limit(1);
 							if (rStop?.routeName) {
