@@ -45,6 +45,10 @@ import {
 import { z } from "zod/v4";
 import { db } from "@/lib/db";
 import {
+	ensurePickingExceptionsTable,
+	ensureProductImageColumns,
+} from "@/lib/product-schema-ensure";
+import {
 	adjustStockForOrderQuantityChange,
 	deductStockForOrder,
 	restoreStockForOrder,
@@ -97,71 +101,75 @@ const salesDashboardSummarySchema = z.object({
 	),
 });
 
-const orderDetailSchema = z.object({
-	id: z.coerce.number(),
-	customer_id: z.coerce.number().nullable().optional(),
-	total_amount: z.coerce.string(),
-	status: z.string().nullable().optional(),
-	finance_status: z.string().nullable().optional(),
-	discount_amount: z.coerce.string().nullable().optional(),
-	discount_reason: z.string().nullable().optional(),
-	other_charges: z.coerce.string().nullable().optional(),
-	other_charges_reason: z.string().nullable().optional(),
-	cgst_amount: z.coerce.string().nullable().optional(),
-	sgst_amount: z.coerce.string().nullable().optional(),
-	igst_amount: z.coerce.string().nullable().optional(),
-	notes: z.string().nullable().optional(),
-	user_uid: z.string().nullable().optional(),
-	created_at: z.coerce.date().nullable().optional(),
-	original_items: z.any().nullable().optional(),
-	customer: z
-		.object({
-			id: z.coerce.number().optional(),
-			name: z.string(),
-			phone: z.string().nullable().optional(),
-			address: z.string().nullable().optional(),
-			customer_code: z.string().nullable().optional(),
-		})
-		.nullable(),
-	driver: z
-		.object({
-			id: z.number().optional(),
-			name: z.string().optional(),
-			phone: z.string().nullable().optional(),
-			email: z.string().nullable().optional(),
-		})
-		.nullable()
-		.optional(),
-	route: z
-		.object({
-			id: z.number(),
-			name: z.string(),
-			code: z.string().nullable().optional(),
-		})
-		.nullable()
-		.optional(),
-	orderItems: z.array(
-		z.object({
-			id: z.coerce.number(),
-			product_id: z.coerce.number().nullable(),
-			quantity: z.coerce.number(),
-			original_quantity: z.coerce.number().nullable().optional(),
-			picked_quantity: z.coerce.number().nullable().optional(),
-			price: z.coerce.string(),
-			product: z
-				.object({
-					name: z.string(),
-					category: z.string().nullable().optional(),
-					sku: z.string().nullable().optional(),
-					unit: z.string().nullable().optional(),
-				})
-				.nullable(),
-		}),
-	),
-	pickingExceptions: z.array(z.any()).nullable().optional(),
-	deliveryHandover: z.any().nullable().optional(),
-	audits: z.any().nullable().optional(),
-});
+const orderDetailSchema = z
+	.object({
+		id: z.coerce.number(),
+		customer_id: z.coerce.number().nullable().optional(),
+		total_amount: z.coerce.string(),
+		status: z.string().nullable().optional(),
+		finance_status: z.string().nullable().optional(),
+		discount_amount: z.coerce.string().nullable().optional(),
+		discount_reason: z.string().nullable().optional(),
+		other_charges: z.coerce.string().nullable().optional(),
+		other_charges_reason: z.string().nullable().optional(),
+		cgst_amount: z.coerce.string().nullable().optional(),
+		sgst_amount: z.coerce.string().nullable().optional(),
+		igst_amount: z.coerce.string().nullable().optional(),
+		notes: z.string().nullable().optional(),
+		user_uid: z.string().nullable().optional(),
+		created_at: z.coerce.date().nullable().optional(),
+		original_items: z.any().nullable().optional(),
+		customer: z
+			.object({
+				id: z.coerce.number().optional(),
+				name: z.string().nullable().optional(),
+				phone: z.string().nullable().optional(),
+				address: z.string().nullable().optional(),
+				customer_code: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+		driver: z
+			.object({
+				id: z.number().optional(),
+				name: z.string().optional(),
+				phone: z.string().nullable().optional(),
+				email: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+		route: z
+			.object({
+				id: z.number(),
+				name: z.string(),
+				code: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+		orderItems: z.array(
+			z.object({
+				id: z.coerce.number(),
+				product_id: z.coerce.number().nullable(),
+				quantity: z.coerce.number(),
+				original_quantity: z.coerce.number().nullable().optional(),
+				picked_quantity: z.coerce.number().nullable().optional(),
+				price: z.coerce.string(),
+				product: z
+					.object({
+						name: z.string().nullable().optional(),
+						category: z.string().nullable().optional(),
+						sku: z.string().nullable().optional(),
+						unit: z.string().nullable().optional(),
+					})
+					.nullable()
+					.optional(),
+			}),
+		),
+		pickingExceptions: z.array(z.any()).nullable().optional(),
+		deliveryHandover: z.any().nullable().optional(),
+		audits: z.any().nullable().optional(),
+	})
+	.passthrough();
 
 export const ordersRouter = router({
 	get: roleProcedure([
@@ -185,6 +193,9 @@ export const ordersRouter = router({
 		.input(z.object({ id: z.number() }))
 		.output(orderDetailSchema.nullable())
 		.query(async ({ ctx, input }) => {
+			await ensureProductImageColumns(db);
+			await ensurePickingExceptionsTable(db);
+
 			const result = await db.query.orders.findFirst({
 				where: eq(orders.id, input.id),
 				with: {
@@ -209,20 +220,29 @@ export const ordersRouter = router({
 							},
 						},
 					},
-					pickingExceptions: {
-						with: {
-							product: {
-								columns: {
-									name: true,
-									sku: true,
-								},
-							},
-						},
-					},
 				},
 			});
 
 			if (!result) return null;
+
+			// Fetch picking exceptions safely so missing table never crashes orders.get
+			let pickingExceptionsList: any[] = [];
+			try {
+				const { pickingExceptions } = require("@evaluna/db/schema");
+				pickingExceptionsList = await db.query.pickingExceptions.findMany({
+					where: eq(pickingExceptions.order_id, input.id),
+					with: {
+						product: {
+							columns: {
+								name: true,
+								sku: true,
+							},
+						},
+					},
+				});
+			} catch (e) {
+				pickingExceptionsList = [];
+			}
 
 			let route: any = null;
 			let assignedDriver: any = null;
@@ -344,10 +364,14 @@ export const ordersRouter = router({
 							}
 							if (p.cashAmount) cashAmount = Number(p.cashAmount);
 							if (p.onlineAmount) onlineAmount = Number(p.onlineAmount);
-							if (p.discountAmount !== undefined) driverDiscountAmount = Number(p.discountAmount);
-							if (p.discountReason) driverDiscountReason = String(p.discountReason);
-							if (p.extraCharges !== undefined) driverExtraCharges = Number(p.extraCharges);
-							if (p.extraChargesReason) driverExtraChargesReason = String(p.extraChargesReason);
+							if (p.discountAmount !== undefined)
+								driverDiscountAmount = Number(p.discountAmount);
+							if (p.discountReason)
+								driverDiscountReason = String(p.discountReason);
+							if (p.extraCharges !== undefined)
+								driverExtraCharges = Number(p.extraCharges);
+							if (p.extraChargesReason)
+								driverExtraChargesReason = String(p.extraChargesReason);
 						} catch {
 							parsedNotes = pod.notes;
 						}
@@ -481,6 +505,7 @@ export const ordersRouter = router({
 						}
 					: null,
 				route,
+				pickingExceptions: pickingExceptionsList,
 				deliveryHandover,
 				audits,
 			};
@@ -1098,7 +1123,13 @@ export const ordersRouter = router({
 			return { ...updated, customer: customer ?? null };
 		}),
 
-	delete: roleProcedure(["admin", "manager", "sales_person", "sales", "salesperson"])
+	delete: roleProcedure([
+		"admin",
+		"manager",
+		"sales_person",
+		"sales",
+		"salesperson",
+	])
 		.meta({
 			openapi: {
 				method: "DELETE",

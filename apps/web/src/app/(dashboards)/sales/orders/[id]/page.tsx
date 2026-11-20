@@ -11,7 +11,14 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import { Skeleton } from "@evaluna/ui/components/skeleton";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@evaluna/ui/components/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@evaluna/ui/components/dialog";
 import { Input } from "@evaluna/ui/components/input";
 import { Label } from "@evaluna/ui/components/label";
 import {
@@ -76,22 +83,28 @@ export default function OrderDetailPage({
 	const orderId = Number.parseInt(String(rawId || ""), 10);
 	const router = useRouter();
 
-	const { data: order, isLoading } = trpc.orders.get.useQuery(
+	const {
+		data: order,
+		isLoading,
+		error,
+	} = trpc.orders.get.useQuery(
 		{ id: orderId },
 		{ enabled: Number.isFinite(orderId) && orderId > 0 },
-	) as { data: any; isLoading: boolean };
+	) as { data: any; isLoading: boolean; error: any };
 
 	const hasHandover =
 		!!order?.deliveryHandover &&
 		(order.status === "completed" ||
 			order.deliveryHandover?.deliveryStatus === "delivered");
 
-		const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 	const [cancelReason, setCancelReason] = useState("");
 	const utils = trpc.useUtils();
 	const cancelMutation = trpc.orders.cancelOrder.useMutation({
 		onSuccess: () => {
-			toast.success(`Order ORD-${orderId} cancelled. Stock restored to inventory.`);
+			toast.success(
+				`Order ORD-${orderId} cancelled. Stock restored to inventory.`,
+			);
 			utils.orders.invalidate();
 			utils.inventory.invalidate();
 			utils.pos.invalidate();
@@ -104,7 +117,7 @@ export default function OrderDetailPage({
 		},
 	});
 
-const [activeTab, setActiveTab] = useState<string>("stage3");
+	const [activeTab, setActiveTab] = useState<string>("stage3");
 
 	useEffect(() => {
 		if (order) {
@@ -129,7 +142,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 		cancelled: { en: "Cancelled", hi: "निरस्त" },
 		total: { en: "Total Amount", hi: "कुल राशि" },
 		category: { en: "Category", hi: "श्रेणी" },
-		orderDetails: { en: "Order Bill Lifecycle (4 Stages)", hi: "ऑर्डर बिल के 4 चरण" },
+		orderDetails: {
+			en: "Order Bill Lifecycle (4 Stages)",
+			hi: "ऑर्डर बिल के 4 चरण",
+		},
 		orderNotFound: { en: "Order not found", hi: "ऑर्डर नहीं मिला" },
 	};
 
@@ -186,8 +202,41 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 		);
 	}
 
+	if (error) {
+		return (
+			<div className="max-w-5xl mx-auto p-6 space-y-4">
+				<div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20 flex items-center justify-between">
+					<span>
+						{locale === "hi"
+							? "ऑर्डर लोड करने में समस्या आई:"
+							: "Failed to load order:"}{" "}
+						{error.message}
+					</span>
+					<Button variant="outline" size="sm" onClick={() => router.back()}>
+						{locale === "hi" ? "वापस जाएं" : "Go Back"}
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
 	if (!order) {
-		return <div className="text-muted-foreground p-6">{t("orderNotFound")}</div>;
+		return (
+			<div className="max-w-5xl mx-auto p-6 space-y-4">
+				<div className="p-4 rounded-xl bg-muted text-muted-foreground text-sm font-medium border border-border flex items-center justify-between">
+					<span>
+						{t("orderNotFound")} (Order #{orderId})
+					</span>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => router.push("/sales/orders")}
+					>
+						{locale === "hi" ? "ऑर्डर सूची पर जाएं" : "Back to Orders"}
+					</Button>
+				</div>
+			</div>
+		);
 	}
 
 	// Prepare data for 4 bill stages
@@ -199,18 +248,18 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 				quantity: i.quantity,
 				price: i.price,
 				category: i.product?.category,
-		  })) || [];
+			})) || [];
 
 	const originalSubtotal = originalItems.reduce(
-		(sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)),
-		0
+		(sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+		0,
 	);
 
 	// Stage 2: Salesperson reviewed items
 	const reviewedItems: any[] = order.orderItems || [];
 	const reviewedSubtotal = reviewedItems.reduce(
-		(sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)),
-		0
+		(sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+		0,
 	);
 
 	// Stage 3: Invoiced details
@@ -229,36 +278,49 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 	const cashCollected = Number(deliveryHandover?.cashCollected || 0);
 	const onlineCollected = Number(deliveryHandover?.onlineCollected || 0);
 	const totalCollected = Number(
-		deliveryHandover?.totalCollected || (cashCollected + onlineCollected) || invoicedTotal
+		deliveryHandover?.totalCollected ||
+			cashCollected + onlineCollected ||
+			invoicedTotal,
 	);
 	const hasReturns = returnedItems.length > 0;
 	const returnedTotal = returnedItems.reduce(
-		(sum, item) => sum + (Number(item.price || item.unitPrice || 0) * Number(item.quantity || item.qty || 1)),
-		0
+		(sum, item) =>
+			sum +
+			Number(item.price || item.unitPrice || 0) *
+				Number(item.quantity || item.qty || 1),
+		0,
 	);
 
 	const assignedDriverName =
 		order.driver?.name || deliveryHandover?.driverName || null;
 
 	const driverDiscountAmount = Number(
-		deliveryHandover?.driverDiscountAmount ?? order.discount_amount ?? 0
+		deliveryHandover?.driverDiscountAmount ?? order.discount_amount ?? 0,
 	);
 	const driverDiscountReason =
 		deliveryHandover?.driverDiscountReason || order.discount_reason || "";
 	const driverExtraCharges = Number(
-		deliveryHandover?.driverExtraCharges ?? order.other_charges ?? 0
+		deliveryHandover?.driverExtraCharges ?? order.other_charges ?? 0,
 	);
 	const driverExtraChargesReason =
-		deliveryHandover?.driverExtraChargesReason || order.other_charges_reason || "";
+		deliveryHandover?.driverExtraChargesReason ||
+		order.other_charges_reason ||
+		"";
 	const hasDriverDoorstepAdjustments =
-		(deliveryHandover?.driverDiscountAmount !== undefined && deliveryHandover.driverDiscountAmount > 0) ||
-		(deliveryHandover?.driverExtraCharges !== undefined && deliveryHandover.driverExtraCharges > 0) ||
+		(deliveryHandover?.driverDiscountAmount !== undefined &&
+			deliveryHandover.driverDiscountAmount > 0) ||
+		(deliveryHandover?.driverExtraCharges !== undefined &&
+			deliveryHandover.driverExtraCharges > 0) ||
 		(driverDiscountAmount > 0 && driverDiscountAmount !== discountAmount) ||
 		(driverExtraCharges > 0 && driverExtraCharges !== otherCharges);
 
 	// Stage 4: Delivered Items Calculation & Extra Doorstep Addition Detection
 	let rawDeliveredList: any[] = [];
-	if (deliveryHandover?.deliveredItems && Array.isArray(deliveryHandover.deliveredItems) && deliveryHandover.deliveredItems.length > 0) {
+	if (
+		deliveryHandover?.deliveredItems &&
+		Array.isArray(deliveryHandover.deliveredItems) &&
+		deliveryHandover.deliveredItems.length > 0
+	) {
 		rawDeliveredList = deliveryHandover.deliveredItems.map((it: any) => ({
 			name: it.name || it.productName || `Item #${it.id || it.product_id}`,
 			quantity: Number(it.qty || it.quantity || 1),
@@ -287,20 +349,29 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 	}
 
 	const currentDeliveredSum = rawDeliveredList.reduce(
-		(sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)),
-		0
+		(sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+		0,
 	);
 
 	const deliveredItemsList = rawDeliveredList.map((item: any) => {
-		const origMatch = (originalItems || []).find((orig: any) =>
-			(item.productId && (orig.product_id === item.productId || orig.id === item.productId)) ||
-			(orig.name && item.name && orig.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+		const origMatch = (originalItems || []).find(
+			(orig: any) =>
+				(item.productId &&
+					(orig.product_id === item.productId || orig.id === item.productId)) ||
+				(orig.name &&
+					item.name &&
+					orig.name.trim().toLowerCase() === item.name.trim().toLowerCase()),
 		);
-		const revMatch = (reviewedItems || []).find((rev: any) =>
-			(item.productId && (rev.product_id === item.productId || rev.id === item.productId)) ||
-			(rev.product?.name && item.name && rev.product.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+		const revMatch = (reviewedItems || []).find(
+			(rev: any) =>
+				(item.productId &&
+					(rev.product_id === item.productId || rev.id === item.productId)) ||
+				(rev.product?.name &&
+					item.name &&
+					rev.product.name.trim().toLowerCase() ===
+						item.name.trim().toLowerCase()),
 		);
-		
+
 		const isNewItem = !origMatch && !revMatch;
 		const initialQty = Number(revMatch?.quantity || origMatch?.quantity || 0);
 		const isExtraQty = !isNewItem && item.quantity > initialQty;
@@ -324,13 +395,22 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 	}
 
 	const finalDeliveredItemsSubtotal = deliveredItemsList.reduce(
-		(sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)),
-		0
+		(sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+		0,
 	);
 
-	const finalDeliveredNetTotal = hasHandover && deliveryHandover?.totalCollected
-		? Number(deliveryHandover.totalCollected)
-		: Math.max(0, finalDeliveredItemsSubtotal - driverDiscountAmount + driverExtraCharges + cgstAmount + sgstAmount + igstAmount);
+	const finalDeliveredNetTotal =
+		hasHandover && deliveryHandover?.totalCollected
+			? Number(deliveryHandover.totalCollected)
+			: Math.max(
+					0,
+					finalDeliveredItemsSubtotal -
+						driverDiscountAmount +
+						driverExtraCharges +
+						cgstAmount +
+						sgstAmount +
+						igstAmount,
+				);
 
 	const finalDeliveredSum = finalDeliveredNetTotal;
 
@@ -338,10 +418,15 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 	const compMap = new Map<string, any>();
 
 	originalItems.forEach((orig: any, oIdx: number) => {
-		const key = orig.product_id ? `pid_${orig.product_id}` : (orig.name || `orig_${oIdx}`);
+		const key = orig.product_id
+			? `pid_${orig.product_id}`
+			: orig.name || `orig_${oIdx}`;
 		compMap.set(key, {
 			key,
-			name: orig.name || orig.product?.name || `Product #${orig.id || orig.product_id}`,
+			name:
+				orig.name ||
+				orig.product?.name ||
+				`Product #${orig.id || orig.product_id}`,
 			productId: orig.product_id || orig.id,
 			origQty: Number(orig.quantity || 1),
 			revQty: null,
@@ -354,19 +439,32 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 	});
 
 	reviewedItems.forEach((rev: any, rIdx: number) => {
-		const key = rev.product_id ? `pid_${rev.product_id}` : (rev.product?.name || `rev_${rIdx}`);
+		const key = rev.product_id
+			? `pid_${rev.product_id}`
+			: rev.product?.name || `rev_${rIdx}`;
 		const existing = compMap.get(key);
 		const ret = returnedItems.find(
-			(r: any) => r.id === rev.id || r.productId === rev.product_id || r.name === rev.product?.name,
+			(r: any) =>
+				r.id === rev.id ||
+				r.productId === rev.product_id ||
+				r.name === rev.product?.name,
 		);
 		const retQty = ret ? Number(ret.quantity || ret.qty || 0) : 0;
 		const revQty = Number(rev.quantity || 1);
 		const price = Number(rev.price || existing?.price || 0);
-		const origQty = rev.original_quantity ? Number(rev.original_quantity) : null;
-		const pickedQty = rev.picked_quantity !== null && rev.picked_quantity !== undefined ? Number(rev.picked_quantity) : null;
+		const origQty = rev.original_quantity
+			? Number(rev.original_quantity)
+			: null;
+		const pickedQty =
+			rev.picked_quantity !== null && rev.picked_quantity !== undefined
+				? Number(rev.picked_quantity)
+				: null;
 
 		if (existing) {
-			if (origQty !== null && (!existing.origQty || existing.origQty === existing.revQty)) {
+			if (
+				origQty !== null &&
+				(!existing.origQty || existing.origQty === existing.revQty)
+			) {
 				existing.origQty = origQty;
 			}
 			existing.pickedQty = pickedQty;
@@ -393,7 +491,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 	});
 
 	deliveredItemsList.forEach((del: any, dIdx: number) => {
-		const key = del.productId ? `pid_${del.productId}` : (del.name || `del_${dIdx}`);
+		const key = del.productId
+			? `pid_${del.productId}`
+			: del.name || `del_${dIdx}`;
 		const existing = compMap.get(key);
 		const delQty = Number(del.quantity || 0);
 
@@ -442,7 +542,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 							<h1 className="font-bold text-2xl tracking-tight">
 								Order #{order.id}
 							</h1>
-							<Badge variant="outline" className={`font-semibold ${statusColor}`}>
+							<Badge
+								variant="outline"
+								className={`font-semibold ${statusColor}`}
+							>
 								{order.status === "completed"
 									? "Delivered & Settled"
 									: order.status === "cancelled"
@@ -466,7 +569,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 							href={generateOrderWhatsAppLink(
 								{
 									id: order.id,
-									totalAmount: hasHandover ? finalDeliveredNetTotal : invoicedTotal,
+									totalAmount: hasHandover
+										? finalDeliveredNetTotal
+										: invoicedTotal,
 									items: order.orderItems?.map((item: any) => ({
 										name: item.product?.name,
 										quantity: item.quantity,
@@ -500,7 +605,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						}`}
 					>
 						<Printer className="h-4 w-4" />
-						{hasHandover ? "Print Final Settled Bill" : "Print Commercial Invoice"}
+						{hasHandover
+							? "Print Final Settled Bill"
+							: "Print Commercial Invoice"}
 					</Button>
 
 					{order.status !== "cancelled" && (
@@ -518,11 +625,16 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 			</div>
 
 			{/* Picking Exception / Partial Picking Notification Banner */}
-			{order.pickingExceptions && order.pickingExceptions.length > 0 && (
+			{order.pickingExceptions &&
+				order.pickingExceptions.length > 0 &&
 				(() => {
 					const exceptions = order.pickingExceptions;
-					const pending = exceptions.filter((e: any) => e.status === "PENDING_REVIEW");
-					const approved = exceptions.filter((e: any) => e.status === "APPROVED_PARTIAL");
+					const pending = exceptions.filter(
+						(e: any) => e.status === "PENDING_REVIEW",
+					);
+					const approved = exceptions.filter(
+						(e: any) => e.status === "APPROVED_PARTIAL",
+					);
 
 					if (pending.length > 0) {
 						return (
@@ -531,28 +643,65 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<div className="space-y-1.5 flex-1 text-xs">
 									<div className="flex items-center justify-between flex-wrap gap-2">
 										<div className="font-bold text-sm text-amber-950 dark:text-amber-200 flex items-center gap-2">
-											<span>Picking Completed Partially — Warehouse Manager Approval Required</span>
+											<span>
+												Picking Completed Partially — Warehouse Manager Approval
+												Required
+											</span>
 										</div>
-										<Badge variant="outline" className="bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 font-semibold text-[11px]">
+										<Badge
+											variant="outline"
+											className="bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 font-semibold text-[11px]"
+										>
 											Pending Manager Review
 										</Badge>
 									</div>
 									<p className="text-amber-800 dark:text-amber-300">
-										The warehouse picker reported missing or damaged stock for {pending.length} item{pending.length > 1 ? "s" : ""}. Warehouse manager review is required before final billing:
+										The warehouse picker reported missing or damaged stock for{" "}
+										{pending.length} item{pending.length > 1 ? "s" : ""}.
+										Warehouse manager review is required before final billing:
 									</p>
 									<div className="space-y-1 pl-2 border-l-2 border-amber-500/40 mt-1">
 										{pending.map((exc: any, idx: number) => (
-											<div key={idx} className="font-medium text-slate-800 dark:text-slate-200">
-												• <span className="font-bold">{exc.product?.name ?? `Product #${exc.product_id}`}</span>: 
-												<span className="text-emerald-700 dark:text-emerald-400 font-bold ml-1">{exc.quantity_picked}</span> of {exc.quantity_requested} units picked 
-												({exc.quantity_damaged > 0 ? `${exc.quantity_damaged} damaged` : ""}{exc.quantity_damaged > 0 && exc.quantity_missing > 0 ? ", " : ""}{exc.quantity_missing > 0 ? `${exc.quantity_missing} missing` : ""})
-												{exc.reason && <span className="text-muted-foreground ml-1">[{exc.reason.replace(/_/g, " ")}]</span>}
-												{exc.remarks && <span className="text-muted-foreground italic ml-1">"{exc.remarks}"</span>}
+											<div
+												key={idx}
+												className="font-medium text-slate-800 dark:text-slate-200"
+											>
+												•{" "}
+												<span className="font-bold">
+													{exc.product?.name ?? `Product #${exc.product_id}`}
+												</span>
+												:
+												<span className="text-emerald-700 dark:text-emerald-400 font-bold ml-1">
+													{exc.quantity_picked}
+												</span>{" "}
+												of {exc.quantity_requested} units picked (
+												{exc.quantity_damaged > 0
+													? `${exc.quantity_damaged} damaged`
+													: ""}
+												{exc.quantity_damaged > 0 && exc.quantity_missing > 0
+													? ", "
+													: ""}
+												{exc.quantity_missing > 0
+													? `${exc.quantity_missing} missing`
+													: ""}
+												)
+												{exc.reason && (
+													<span className="text-muted-foreground ml-1">
+														[{exc.reason.replace(/_/g, " ")}]
+													</span>
+												)}
+												{exc.remarks && (
+													<span className="text-muted-foreground italic ml-1">
+														"{exc.remarks}"
+													</span>
+												)}
 											</div>
 										))}
 									</div>
 									<p className="text-[11px] text-muted-foreground pt-1">
-										Note: Once approved by the Warehouse Manager, the billable quantities and invoice amount will automatically synchronize.
+										Note: Once approved by the Warehouse Manager, the billable
+										quantities and invoice amount will automatically
+										synchronize.
 									</p>
 								</div>
 							</div>
@@ -573,15 +722,34 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										</Badge>
 									</div>
 									<p className="text-emerald-800 dark:text-emerald-300">
-										The customer's bill has been synchronized with the actual picked quantities. Unpicked or damaged units have been deducted from the billable invoice and quarantined in warehouse stock.
+										The customer's bill has been synchronized with the actual
+										picked quantities. Unpicked or damaged units have been
+										deducted from the billable invoice and quarantined in
+										warehouse stock.
 									</p>
 									<div className="space-y-1 pl-2 border-l-2 border-emerald-500/40 mt-1">
 										{approved.map((exc: any, idx: number) => (
-											<div key={idx} className="font-medium text-slate-800 dark:text-slate-200">
-												• <span className="font-bold">{exc.product?.name ?? `Product #${exc.product_id}`}</span>: 
-												Fulfilled <span className="text-emerald-700 dark:text-emerald-400 font-bold">{exc.quantity_picked}</span> of {exc.quantity_requested} units 
-												({Number(exc.quantity_requested) - Number(exc.quantity_picked)} short removed from invoice)
-												{exc.manager_notes && <span className="text-muted-foreground ml-1 font-normal">— Manager note: "{exc.manager_notes}"</span>}
+											<div
+												key={idx}
+												className="font-medium text-slate-800 dark:text-slate-200"
+											>
+												•{" "}
+												<span className="font-bold">
+													{exc.product?.name ?? `Product #${exc.product_id}`}
+												</span>
+												: Fulfilled{" "}
+												<span className="text-emerald-700 dark:text-emerald-400 font-bold">
+													{exc.quantity_picked}
+												</span>{" "}
+												of {exc.quantity_requested} units (
+												{Number(exc.quantity_requested) -
+													Number(exc.quantity_picked)}{" "}
+												short removed from invoice)
+												{exc.manager_notes && (
+													<span className="text-muted-foreground ml-1 font-normal">
+														— Manager note: "{exc.manager_notes}"
+													</span>
+												)}
 											</div>
 										))}
 									</div>
@@ -590,8 +758,7 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						);
 					}
 					return null;
-				})()
-			)}
+				})()}
 
 			{/* Customer & Order Summary Card */}
 			<Card className="border-border/60 shadow-sm">
@@ -600,7 +767,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						{/* Customer Column */}
 						<div>
 							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-								<User className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Customer Details
+								<User className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />{" "}
+								Customer Details
 							</div>
 							<div className="font-bold text-sm text-foreground mt-1 flex items-center gap-1.5">
 								<span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
@@ -608,7 +776,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 							</div>
 							{order.customer?.phone && (
 								<p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono">
-									<Phone className="h-3 w-3 text-emerald-600 shrink-0" /> {order.customer.phone}
+									<Phone className="h-3 w-3 text-emerald-600 shrink-0" />{" "}
+									{order.customer.phone}
 								</p>
 							)}
 							{order.customer?.address && (
@@ -622,24 +791,36 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						{/* Delivery Route & Assigned Driver */}
 						<div>
 							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-								<Truck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Assigned Route & Driver
+								<Truck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />{" "}
+								Assigned Route & Driver
 							</div>
 							{order.route ? (
 								<div className="mt-1">
-									<Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 font-semibold text-xs gap-1">
-										<Truck className="h-3 w-3 text-amber-600" /> {order.route.name} {order.route.code ? `(${order.route.code})` : ""}
+									<Badge
+										variant="outline"
+										className="bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 font-semibold text-xs gap-1"
+									>
+										<Truck className="h-3 w-3 text-amber-600" />{" "}
+										{order.route.name}{" "}
+										{order.route.code ? `(${order.route.code})` : ""}
 									</Badge>
 								</div>
 							) : (
-								<p className="text-xs text-muted-foreground mt-1 italic">No route assigned</p>
+								<p className="text-xs text-muted-foreground mt-1 italic">
+									No route assigned
+								</p>
 							)}
 							<p className="text-xs font-medium text-foreground mt-1.5 flex items-center gap-1.5">
 								<User className="h-3 w-3 text-indigo-500 shrink-0" />
 								<span className="text-muted-foreground">Driver:</span>{" "}
 								{assignedDriverName ? (
-									<span className="font-semibold text-foreground">{assignedDriverName}</span>
+									<span className="font-semibold text-foreground">
+										{assignedDriverName}
+									</span>
 								) : (
-									<span className="text-muted-foreground italic">Not assigned yet</span>
+									<span className="text-muted-foreground italic">
+										Not assigned yet
+									</span>
 								)}
 							</p>
 						</div>
@@ -651,7 +832,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 							</div>
 							<p className="text-xs text-foreground mt-1">
 								<span className="text-muted-foreground">Placed:</span>{" "}
-								{order.created_at ? new Date(order.created_at).toLocaleString() : "—"}
+								{order.created_at
+									? new Date(order.created_at).toLocaleString()
+									: "—"}
 							</p>
 							{deliveryHandover?.deliveredAt && (
 								<p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
@@ -664,15 +847,29 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						{/* Current Active Total / Settled Amount Box */}
 						<div className="bg-muted/40 p-3 rounded-lg border border-border/40">
 							<div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-								<span>{hasHandover ? "Final Settled Bill" : "Active Commercial Total"}</span>
+								<span>
+									{hasHandover
+										? "Final Settled Bill"
+										: "Active Commercial Total"}
+								</span>
 								{!hasHandover && (
-									<Badge variant="outline" className="text-[9px] py-0 px-1 bg-amber-500/10 text-amber-600 border-amber-500/20">
-										{order.status === "out_for_delivery" ? "In Transit" : "Invoice"}
+									<Badge
+										variant="outline"
+										className="text-[9px] py-0 px-1 bg-amber-500/10 text-amber-600 border-amber-500/20"
+									>
+										{order.status === "out_for_delivery"
+											? "In Transit"
+											: "Invoice"}
 									</Badge>
 								)}
 							</div>
-							<div className={`font-extrabold text-xl mt-0.5 ${hasHandover ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-								{formatCurrency(hasHandover ? finalDeliveredNetTotal : invoicedTotal, locale)}
+							<div
+								className={`font-extrabold text-xl mt-0.5 ${hasHandover ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}
+							>
+								{formatCurrency(
+									hasHandover ? finalDeliveredNetTotal : invoicedTotal,
+									locale,
+								)}
 							</div>
 							{hasHandover ? (
 								<div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
@@ -713,7 +910,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						1. Customer Placed
 					</div>
 					<div className="text-[11px] text-muted-foreground mt-0.5">
-						{originalItems.length} items • {formatCurrency(originalSubtotal, locale)}
+						{originalItems.length} items •{" "}
+						{formatCurrency(originalSubtotal, locale)}
 					</div>
 				</button>
 
@@ -731,7 +929,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						2. Salesperson Review
 					</div>
 					<div className="text-[11px] text-muted-foreground mt-0.5">
-						{reviewedItems.length} items • {formatCurrency(reviewedSubtotal, locale)}
+						{reviewedItems.length} items •{" "}
+						{formatCurrency(reviewedSubtotal, locale)}
 					</div>
 				</button>
 
@@ -749,7 +948,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 						3. Confirmed Invoice
 					</div>
 					<div className="text-[11px] text-muted-foreground mt-0.5">
-						Net: {formatCurrency(invoicedTotal, locale)} (Disc: ₹{discountAmount})
+						Net: {formatCurrency(invoicedTotal, locale)} (Disc: ₹
+						{discountAmount})
 					</div>
 				</button>
 
@@ -775,29 +975,56 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 			</div>
 
 			{/* Main 4-Stage Bill Tabs */}
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
+			<Tabs
+				value={activeTab}
+				onValueChange={setActiveTab}
+				className="w-full space-y-4"
+			>
 				<TabsList className="grid grid-cols-2 md:grid-cols-5 w-full h-auto p-1 bg-muted/70 gap-1">
-					<TabsTrigger value="stage1" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
-						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-[10px] font-bold text-blue-600 dark:text-blue-400">1</span>
+					<TabsTrigger
+						value="stage1"
+						className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold"
+					>
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+							1
+						</span>
 						<ShoppingCart className="h-3.5 w-3.5 text-blue-500" />
 						Customer Placed
 					</TabsTrigger>
-					<TabsTrigger value="stage2" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
-						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-purple-500/15 text-[10px] font-bold text-purple-600 dark:text-purple-400">2</span>
+					<TabsTrigger
+						value="stage2"
+						className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold"
+					>
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-purple-500/15 text-[10px] font-bold text-purple-600 dark:text-purple-400">
+							2
+						</span>
 						<FileEdit className="h-3.5 w-3.5 text-purple-500" />
 						Sales Review
 					</TabsTrigger>
-					<TabsTrigger value="stage3" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
-						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-[10px] font-bold text-amber-600 dark:text-amber-400">3</span>
+					<TabsTrigger
+						value="stage3"
+						className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold"
+					>
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+							3
+						</span>
 						<FileText className="h-3.5 w-3.5 text-amber-500" />
 						Invoiced Bill
 					</TabsTrigger>
-					<TabsTrigger value="stage4" className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
-						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">4</span>
+					<TabsTrigger
+						value="stage4"
+						className="text-xs py-2 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold"
+					>
+						<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+							4
+						</span>
 						<PackageCheck className="h-3.5 w-3.5 text-emerald-500" />
 						Final Doorstep Bill
 					</TabsTrigger>
-					<TabsTrigger value="comparison" className="text-xs py-2 col-span-2 md:col-span-1 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold">
+					<TabsTrigger
+						value="comparison"
+						className="text-xs py-2 col-span-2 md:col-span-1 flex items-center justify-center gap-1.5 font-medium data-[state=active]:font-bold"
+					>
 						<BarChart3 className="h-3.5 w-3.5 text-indigo-500" />
 						All 4 Comparison
 					</TabsTrigger>
@@ -816,10 +1043,13 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										Stage 1: Initial Customer Placed Order (आरंभिक ग्राहक ऑर्डर)
 									</CardTitle>
 									<CardDescription className="text-xs">
-										The raw items, quantities, and request submitted by the customer before any salesperson adjustments.
+										The raw items, quantities, and request submitted by the
+										customer before any salesperson adjustments.
 									</CardDescription>
 								</div>
-								<Badge className="bg-blue-600 text-white font-medium">Stage 1</Badge>
+								<Badge className="bg-blue-600 text-white font-medium">
+									Stage 1
+								</Badge>
 							</div>
 						</CardHeader>
 						<CardContent className="p-0">
@@ -839,9 +1069,13 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										const itemQty = Number(item.quantity || 1);
 										return (
 											<TableRow key={idx}>
-												<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+												<TableCell className="text-muted-foreground">
+													{idx + 1}
+												</TableCell>
 												<TableCell className="font-medium">
-													{item.name || item.product?.name || `Item #${item.id || item.product_id}`}
+													{item.name ||
+														item.product?.name ||
+														`Item #${item.id || item.product_id}`}
 												</TableCell>
 												<TableCell className="text-center font-semibold">
 													{itemQty}
@@ -860,10 +1094,15 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 
 							<div className="p-4 bg-muted/20 border-t border-border flex justify-between items-center">
 								<div className="text-xs text-muted-foreground">
-									Initial Customer Total Requested Items: <span className="font-semibold text-foreground">{originalItems.length}</span>
+									Initial Customer Total Requested Items:{" "}
+									<span className="font-semibold text-foreground">
+										{originalItems.length}
+									</span>
 								</div>
 								<div className="text-right">
-									<div className="text-xs text-muted-foreground">Estimated Order Value</div>
+									<div className="text-xs text-muted-foreground">
+										Estimated Order Value
+									</div>
 									<div className="text-lg font-bold text-blue-600 dark:text-blue-400">
 										{formatCurrency(originalSubtotal, locale)}
 									</div>
@@ -883,13 +1122,17 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<div>
 									<CardTitle className="text-base font-bold text-purple-950 dark:text-purple-200 flex items-center gap-2">
 										<FileEdit className="h-4 w-4 text-purple-600" />
-										Stage 2: Salesperson Review & Pricing (सेल्सपर्सन समीक्षा व दर निर्धारण)
+										Stage 2: Salesperson Review & Pricing (सेल्सपर्सन समीक्षा व दर
+										निर्धारण)
 									</CardTitle>
 									<CardDescription className="text-xs">
-										The verified wholesale quantities and custom ERP rates set during salesperson review.
+										The verified wholesale quantities and custom ERP rates set
+										during salesperson review.
 									</CardDescription>
 								</div>
-								<Badge className="bg-purple-600 text-white font-medium">Stage 2</Badge>
+								<Badge className="bg-purple-600 text-white font-medium">
+									Stage 2
+								</Badge>
 							</div>
 						</CardHeader>
 						<CardContent className="p-0">
@@ -898,7 +1141,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 									<TableRow>
 										<TableHead className="w-12">#</TableHead>
 										<TableHead>Product Name</TableHead>
-										<TableHead className="hidden sm:table-cell">Category</TableHead>
+										<TableHead className="hidden sm:table-cell">
+											Category
+										</TableHead>
 										<TableHead className="text-center">Reviewed Qty</TableHead>
 										<TableHead className="text-right">Wholesale Rate</TableHead>
 										<TableHead className="text-right">Amount</TableHead>
@@ -910,23 +1155,42 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										const itemQty = Number(item.quantity || 1);
 										const original = originalItems.find(
 											(o) =>
-												(o.id && (o.id === item.product_id || o.product_id === item.product_id)) ||
-												(o.name && item.product?.name && o.name.trim().toLowerCase() === item.product.name.trim().toLowerCase())
+												(o.id &&
+													(o.id === item.product_id ||
+														o.product_id === item.product_id)) ||
+												(o.name &&
+													item.product?.name &&
+													o.name.trim().toLowerCase() ===
+														item.product.name.trim().toLowerCase()),
 										);
 										const isNewItem = !original;
-										const origQty = original ? Number(original.quantity || 1) : null;
-										const isQtyModified = origQty !== null && origQty !== itemQty;
+										const origQty = original
+											? Number(original.quantity || 1)
+											: null;
+										const isQtyModified =
+											origQty !== null && origQty !== itemQty;
 
 										return (
-											<TableRow key={item.id || idx} className={isNewItem ? "bg-emerald-500/10 dark:bg-emerald-950/30" : ""}>
-												<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+											<TableRow
+												key={item.id || idx}
+												className={
+													isNewItem
+														? "bg-emerald-500/10 dark:bg-emerald-950/30"
+														: ""
+												}
+											>
+												<TableCell className="text-muted-foreground">
+													{idx + 1}
+												</TableCell>
 												<TableCell className="font-medium">
 													<div className="flex items-center gap-2 flex-wrap">
-														<span>{item.product?.name ?? `#${item.product_id}`}</span>
+														<span>
+															{item.product?.name ?? `#${item.product_id}`}
+														</span>
 														{isNewItem && (
 															<Badge className="bg-emerald-600 text-white font-bold text-[10px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
-																<PlusCircle className="h-3 w-3" />
-																➕ Added by Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
+																<PlusCircle className="h-3 w-3" />➕ Added by
+																Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
 															</Badge>
 														)}
 													</div>
@@ -967,10 +1231,15 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 
 							<div className="p-4 bg-muted/20 border-t border-border flex justify-between items-center">
 								<div className="text-xs text-muted-foreground">
-									Reviewed Items Count: <span className="font-semibold text-foreground">{reviewedItems.length}</span>
+									Reviewed Items Count:{" "}
+									<span className="font-semibold text-foreground">
+										{reviewedItems.length}
+									</span>
 								</div>
 								<div className="text-right">
-									<div className="text-xs text-muted-foreground">Review Subtotal</div>
+									<div className="text-xs text-muted-foreground">
+										Review Subtotal
+									</div>
 									<div className="text-lg font-bold text-purple-600 dark:text-purple-400">
 										{formatCurrency(reviewedSubtotal, locale)}
 									</div>
@@ -990,13 +1259,17 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<div>
 									<CardTitle className="text-base font-bold text-amber-950 dark:text-amber-200 flex items-center gap-2">
 										<FileText className="h-4 w-4 text-amber-600" />
-										Stage 3: Confirmed & Invoiced Commercial Bill (पुष्टीकृत इनवॉइस बिल)
+										Stage 3: Confirmed & Invoiced Commercial Bill (पुष्टीकृत इनवॉइस
+										बिल)
 									</CardTitle>
 									<CardDescription className="text-xs">
-										Final commercial invoice with discounts, taxes, delivery route, and extra charges applied.
+										Final commercial invoice with discounts, taxes, delivery
+										route, and extra charges applied.
 									</CardDescription>
 								</div>
-								<Badge className="bg-amber-600 text-white font-medium">Stage 3</Badge>
+								<Badge className="bg-amber-600 text-white font-medium">
+									Stage 3
+								</Badge>
 							</div>
 						</CardHeader>
 						<CardContent className="p-0">
@@ -1014,40 +1287,69 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 									{reviewedItems.map((item: any, idx: number) => {
 										const original = originalItems.find(
 											(o) =>
-												(o.id && (o.id === item.product_id || o.product_id === item.product_id)) ||
-												(o.name && item.product?.name && o.name.trim().toLowerCase() === item.product.name.trim().toLowerCase())
+												(o.id &&
+													(o.id === item.product_id ||
+														o.product_id === item.product_id)) ||
+												(o.name &&
+													item.product?.name &&
+													o.name.trim().toLowerCase() ===
+														item.product.name.trim().toLowerCase()),
 										);
 										const isNewItem = !original;
 
 										return (
-											<TableRow key={item.id || idx} className={isNewItem ? "bg-emerald-500/10 dark:bg-emerald-950/30" : ""}>
-												<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+											<TableRow
+												key={item.id || idx}
+												className={
+													isNewItem
+														? "bg-emerald-500/10 dark:bg-emerald-950/30"
+														: ""
+												}
+											>
+												<TableCell className="text-muted-foreground">
+													{idx + 1}
+												</TableCell>
 												<TableCell className="font-medium">
 													<div className="flex items-center gap-2 flex-wrap">
-														<span>{item.product?.name ?? `#${item.product_id}`}</span>
+														<span>
+															{item.product?.name ?? `#${item.product_id}`}
+														</span>
 														{isNewItem && (
 															<Badge className="bg-emerald-600 text-white font-bold text-[10px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
-																<PlusCircle className="h-3 w-3" />
-																➕ Added by Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
+																<PlusCircle className="h-3 w-3" />➕ Added by
+																Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
 															</Badge>
 														)}
 													</div>
 												</TableCell>
 												<TableCell className="text-center font-semibold">
 													<div className="flex flex-col items-center">
-														<span className="font-bold text-sm text-foreground">{item.quantity}</span>
-														{item.original_quantity && Number(item.original_quantity) !== Number(item.quantity) && (
-															<div className="flex flex-col items-center gap-0.5 mt-0.5">
-																<Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-amber-500/10 border-amber-400 text-amber-700 dark:text-amber-300">
-																	Picked: {item.picked_quantity ?? item.quantity} / Ordered: {item.original_quantity}
-																</Badge>
-																{Number(item.original_quantity) > Number(item.quantity) && (
-																	<span className="text-[10px] text-red-600 dark:text-red-400 font-medium">
-																		(-{Number(item.original_quantity) - Number(item.quantity)} shortfall excluded)
-																	</span>
-																)}
-															</div>
-														)}
+														<span className="font-bold text-sm text-foreground">
+															{item.quantity}
+														</span>
+														{item.original_quantity &&
+															Number(item.original_quantity) !==
+																Number(item.quantity) && (
+																<div className="flex flex-col items-center gap-0.5 mt-0.5">
+																	<Badge
+																		variant="outline"
+																		className="text-[10px] py-0 px-1.5 bg-amber-500/10 border-amber-400 text-amber-700 dark:text-amber-300"
+																	>
+																		Picked:{" "}
+																		{item.picked_quantity ?? item.quantity} /
+																		Ordered: {item.original_quantity}
+																	</Badge>
+																	{Number(item.original_quantity) >
+																		Number(item.quantity) && (
+																		<span className="text-[10px] text-red-600 dark:text-red-400 font-medium">
+																			(-
+																			{Number(item.original_quantity) -
+																				Number(item.quantity)}{" "}
+																			shortfall excluded)
+																		</span>
+																	)}
+																</div>
+															)}
 													</div>
 												</TableCell>
 												<TableCell className="text-right">
@@ -1067,27 +1369,46 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<div className="space-y-2 text-xs">
 									{discountAmount > 0 && (
 										<div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300">
-											<span className="font-semibold">Applied Discount:</span> ₹{discountAmount}
-											{discountReason && <span className="block text-[11px] text-muted-foreground mt-0.5">Reason: {discountReason}</span>}
+											<span className="font-semibold">Applied Discount:</span> ₹
+											{discountAmount}
+											{discountReason && (
+												<span className="block text-[11px] text-muted-foreground mt-0.5">
+													Reason: {discountReason}
+												</span>
+											)}
 										</div>
 									)}
 									{otherCharges > 0 && (
 										<div className="p-2.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-800 dark:text-blue-300">
-											<span className="font-semibold">Other Charges / Handling:</span> ₹{otherCharges}
-											{otherChargesReason && <span className="block text-[11px] text-muted-foreground mt-0.5">Reason: {otherChargesReason}</span>}
+											<span className="font-semibold">
+												Other Charges / Handling:
+											</span>{" "}
+											₹{otherCharges}
+											{otherChargesReason && (
+												<span className="block text-[11px] text-muted-foreground mt-0.5">
+													Reason: {otherChargesReason}
+												</span>
+											)}
 										</div>
 									)}
 									{order.notes && (
 										<div className="text-muted-foreground">
-											<span className="font-medium text-foreground">Order Notes:</span> {order.notes}
+											<span className="font-medium text-foreground">
+												Order Notes:
+											</span>{" "}
+											{order.notes}
 										</div>
 									)}
 								</div>
 
 								<div className="space-y-1.5 text-xs text-right">
 									<div className="flex justify-between">
-										<span className="text-muted-foreground">Items Subtotal:</span>
-										<span className="font-medium">{formatCurrency(reviewedSubtotal, locale)}</span>
+										<span className="text-muted-foreground">
+											Items Subtotal:
+										</span>
+										<span className="font-medium">
+											{formatCurrency(reviewedSubtotal, locale)}
+										</span>
 									</div>
 									{discountAmount > 0 && (
 										<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-md border border-emerald-300/80 dark:border-emerald-800 shadow-2xs">
@@ -1109,7 +1430,12 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 									{(cgstAmount > 0 || sgstAmount > 0 || igstAmount > 0) && (
 										<div className="flex justify-between text-muted-foreground">
 											<span>Tax (CGST + SGST):</span>
-											<span>{formatCurrency(cgstAmount + sgstAmount + igstAmount, locale)}</span>
+											<span>
+												{formatCurrency(
+													cgstAmount + sgstAmount + igstAmount,
+													locale,
+												)}
+											</span>
 										</div>
 									)}
 									<div className="border-t border-border/80 pt-2 flex justify-between items-center text-sm font-bold text-foreground">
@@ -1134,7 +1460,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<div>
 									<CardTitle className="text-base font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
 										<PackageCheck className="h-4 w-4 text-emerald-600" />
-										Stage 4: Doorstep Delivery & Final Settlement Bill (अंतिम डिलीवरी व संग्रह बिल)
+										Stage 4: Doorstep Delivery & Final Settlement Bill (अंतिम
+										डिलीवरी व संग्रह बिल)
 									</CardTitle>
 									<CardDescription className="text-xs">
 										{hasHandover
@@ -1142,7 +1469,13 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 											: "This stage is unlocked when the driver completes physical delivery handover and payment collection."}
 									</CardDescription>
 								</div>
-								<Badge className={hasHandover ? "bg-emerald-600 text-white font-medium" : "bg-amber-600 text-white font-medium"}>
+								<Badge
+									className={
+										hasHandover
+											? "bg-emerald-600 text-white font-medium"
+											: "bg-amber-600 text-white font-medium"
+									}
+								>
 									{hasHandover ? "Stage 4 Final" : "Awaiting Handover"}
 								</Badge>
 							</div>
@@ -1155,11 +1488,16 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										<Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
 										<div className="space-y-1 text-xs">
 											<p className="font-bold text-sm">
-												Awaiting Physical Dispatch & Doorstep Handover (डिलीवरी व अंतिम बिल लंबित)
+												Awaiting Physical Dispatch & Doorstep Handover (डिलीवरी
+												व अंतिम बिल लंबित)
 											</p>
 											<p className="text-amber-800 dark:text-amber-300 leading-relaxed">
-												This order has not reached the final delivery handover stage yet. 
-												Once the driver completes delivery at the customer doorstep (recording any returned or rejected items, POD confirmation, and collecting cash/UPI payments), the final settled bill and audit will be generated and displayed here.
+												This order has not reached the final delivery handover
+												stage yet. Once the driver completes delivery at the
+												customer doorstep (recording any returned or rejected
+												items, POD confirmation, and collecting cash/UPI
+												payments), the final settled bill and audit will be
+												generated and displayed here.
 											</p>
 										</div>
 									</div>
@@ -1175,10 +1513,18 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<TableRow>
 														<TableHead className="w-12">#</TableHead>
 														<TableHead>Product Name</TableHead>
-														<TableHead className="text-center">Dispatched Qty</TableHead>
-														<TableHead className="text-center">Delivery Status</TableHead>
-														<TableHead className="text-right">Unit Rate</TableHead>
-														<TableHead className="text-right">Invoiced Amount</TableHead>
+														<TableHead className="text-center">
+															Dispatched Qty
+														</TableHead>
+														<TableHead className="text-center">
+															Delivery Status
+														</TableHead>
+														<TableHead className="text-right">
+															Unit Rate
+														</TableHead>
+														<TableHead className="text-right">
+															Invoiced Amount
+														</TableHead>
 													</TableRow>
 												</TableHeader>
 												<TableBody>
@@ -1187,7 +1533,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														const itemQty = Number(item.quantity || 1);
 														return (
 															<TableRow key={item.id || idx}>
-																<TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+																<TableCell className="text-muted-foreground">
+																	{idx + 1}
+																</TableCell>
 																<TableCell className="font-medium">
 																	{item.product?.name ?? `#${item.product_id}`}
 																</TableCell>
@@ -1195,7 +1543,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 																	{itemQty}
 																</TableCell>
 																<TableCell className="text-center">
-																	<Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
+																	<Badge
+																		variant="outline"
+																		className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+																	>
 																		Pending Handover
 																	</Badge>
 																</TableCell>
@@ -1209,7 +1560,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														);
 													})}
 													<TableRow className="bg-muted/10 font-medium border-t">
-														<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
+														<TableCell
+															colSpan={5}
+															className="text-right text-xs uppercase tracking-wider text-muted-foreground"
+														>
 															Items Subtotal (सामान का कुल मूल्य)
 														</TableCell>
 														<TableCell className="text-right text-foreground text-sm font-semibold">
@@ -1218,12 +1572,19 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													</TableRow>
 													{discountAmount > 0 && (
 														<TableRow className="bg-emerald-500/15 font-bold text-emerald-900 dark:text-emerald-200 border-y border-emerald-300 dark:border-emerald-800">
-															<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider font-bold">
+															<TableCell
+																colSpan={5}
+																className="text-right text-xs uppercase tracking-wider font-bold"
+															>
 																<div className="flex items-center justify-end gap-1.5">
 																	<span>🏷️</span>
 																	<span>Discount Applied (लागू छूट)</span>
 																</div>
-																{discountReason && <span className="block text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">({discountReason})</span>}
+																{discountReason && (
+																	<span className="block text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+																		({discountReason})
+																	</span>
+																)}
 															</TableCell>
 															<TableCell className="text-right text-emerald-800 dark:text-emerald-200 text-sm font-extrabold font-mono">
 																- {formatCurrency(discountAmount, locale)}
@@ -1232,7 +1593,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													)}
 													{otherCharges > 0 && (
 														<TableRow className="bg-blue-500/5 font-medium text-blue-700 dark:text-blue-400">
-															<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider">
+															<TableCell
+																colSpan={5}
+																className="text-right text-xs uppercase tracking-wider"
+															>
 																Other Charges (अतिरिक्त शुल्क)
 															</TableCell>
 															<TableCell className="text-right text-blue-700 dark:text-blue-400 text-sm font-semibold">
@@ -1241,7 +1605,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														</TableRow>
 													)}
 													<TableRow className="bg-amber-500/10 font-bold border-t-2 border-amber-500/30">
-														<TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider text-amber-950 dark:text-amber-200">
+														<TableCell
+															colSpan={5}
+															className="text-right text-xs uppercase tracking-wider text-amber-950 dark:text-amber-200"
+														>
 															Expected Doorstep Handover Total (अपेक्षित कुल संग्रह)
 														</TableCell>
 														<TableCell className="text-right text-amber-700 dark:text-amber-400 text-base font-extrabold">
@@ -1264,7 +1631,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<Banknote className="h-5 w-5" />
 												</div>
 												<div>
-													<div className="text-xs text-muted-foreground">Cash (Pending)</div>
+													<div className="text-xs text-muted-foreground">
+														Cash (Pending)
+													</div>
 													<div className="text-base font-semibold text-muted-foreground">
 														—
 													</div>
@@ -1276,7 +1645,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<QrCode className="h-5 w-5" />
 												</div>
 												<div>
-													<div className="text-xs text-muted-foreground">Online / UPI (Pending)</div>
+													<div className="text-xs text-muted-foreground">
+														Online / UPI (Pending)
+													</div>
 													<div className="text-base font-semibold text-muted-foreground">
 														—
 													</div>
@@ -1288,7 +1659,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<Clock className="h-5 w-5" />
 												</div>
 												<div>
-													<div className="text-xs text-amber-700 dark:text-amber-300 font-medium">Expected Handover Total</div>
+													<div className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+														Expected Handover Total
+													</div>
 													<div className="text-lg font-bold text-amber-800 dark:text-amber-200">
 														{formatCurrency(invoicedTotal, locale)}
 													</div>
@@ -1305,35 +1678,57 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										<div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
 											<div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-sm">
 												<AlertTriangle className="h-4 w-4" />
-												<span>Doorstep Returns & Damaged Items Deducted ({returnedItems.length})</span>
+												<span>
+													Doorstep Returns & Damaged Items Deducted (
+													{returnedItems.length})
+												</span>
 											</div>
 											<div className="overflow-x-auto">
 												<table className="w-full text-xs">
 													<thead>
 														<tr className="border-b border-red-500/20 text-muted-foreground">
-															<th className="text-left pb-1 font-medium">Item Name</th>
-															<th className="text-center pb-1 font-medium">Returned Qty</th>
-															<th className="text-left pb-1 font-medium">Reason for Return / Damage</th>
-															<th className="text-right pb-1 font-medium">Deduction</th>
+															<th className="text-left pb-1 font-medium">
+																Item Name
+															</th>
+															<th className="text-center pb-1 font-medium">
+																Returned Qty
+															</th>
+															<th className="text-left pb-1 font-medium">
+																Reason for Return / Damage
+															</th>
+															<th className="text-right pb-1 font-medium">
+																Deduction
+															</th>
 														</tr>
 													</thead>
 													<tbody>
 														{returnedItems.map((ret: any, idx: number) => {
-															const retQty = Number(ret.quantity || ret.qty || 1);
-															const retPrice = Number(ret.price || ret.unitPrice || 0);
+															const retQty = Number(
+																ret.quantity || ret.qty || 1,
+															);
+															const retPrice = Number(
+																ret.price || ret.unitPrice || 0,
+															);
 															return (
-																<tr key={idx} className="border-b border-red-500/10">
+																<tr
+																	key={idx}
+																	className="border-b border-red-500/10"
+																>
 																	<td className="py-1.5 font-medium text-foreground">
-																		{ret.name || ret.productName || `Item #${ret.productId || idx + 1}`}
+																		{ret.name ||
+																			ret.productName ||
+																			`Item #${ret.productId || idx + 1}`}
 																	</td>
 																	<td className="py-1.5 text-center font-bold text-red-600">
 																		{retQty}
 																	</td>
 																	<td className="py-1.5 text-muted-foreground">
-																		{ret.reason || "Damaged at delivery / Customer rejected"}
+																		{ret.reason ||
+																			"Damaged at delivery / Customer rejected"}
 																	</td>
 																	<td className="py-1.5 text-right font-medium text-red-600">
-																		- {formatCurrency(retPrice * retQty, locale)}
+																		-{" "}
+																		{formatCurrency(retPrice * retQty, locale)}
 																	</td>
 																</tr>
 															);
@@ -1345,7 +1740,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 									) : (
 										<div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
 											<CheckCircle2 className="h-4 w-4 text-emerald-600" />
-											<span>All items accepted in full at doorstep without returns or damage.</span>
+											<span>
+												All items accepted in full at doorstep without returns
+												or damage.
+											</span>
 										</div>
 									)}
 
@@ -1354,7 +1752,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 										<div className="rounded-lg border border-blue-500/30 bg-blue-50/60 p-3.5 text-xs text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 space-y-2 shadow-2xs">
 											<div className="flex items-center gap-2 font-bold text-sm text-blue-900 dark:text-blue-300">
 												<Tag className="h-4 w-4 text-blue-600" />
-												<span>Doorstep Driver Bill Adjustments (ड्राइवर द्वारा डोरस्टेप पर लागू छूट व शुल्क)</span>
+												<span>
+													Doorstep Driver Bill Adjustments (ड्राइवर द्वारा डोरस्टेप
+													पर लागू छूट व शुल्क)
+												</span>
 											</div>
 											<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
 												{driverDiscountAmount > 0 && (
@@ -1366,10 +1767,15 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 																	Driver Applied
 																</Badge>
 															</span>
-															<span className="font-mono text-xs font-extrabold">- {formatCurrency(driverDiscountAmount, locale)}</span>
+															<span className="font-mono text-xs font-extrabold">
+																- {formatCurrency(driverDiscountAmount, locale)}
+															</span>
 														</div>
 														<div className="text-[11px] text-muted-foreground">
-															<span className="font-semibold text-slate-700 dark:text-slate-300">कारण / Reason:</span> {driverDiscountReason || "No reason specified"}
+															<span className="font-semibold text-slate-700 dark:text-slate-300">
+																कारण / Reason:
+															</span>{" "}
+															{driverDiscountReason || "No reason specified"}
 														</div>
 													</div>
 												)}
@@ -1382,10 +1788,16 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 																	Driver Applied
 																</Badge>
 															</span>
-															<span className="font-mono text-xs font-extrabold">+ {formatCurrency(driverExtraCharges, locale)}</span>
+															<span className="font-mono text-xs font-extrabold">
+																+ {formatCurrency(driverExtraCharges, locale)}
+															</span>
 														</div>
 														<div className="text-[11px] text-muted-foreground">
-															<span className="font-semibold text-slate-700 dark:text-slate-300">कारण / Reason:</span> {driverExtraChargesReason || "No reason specified"}
+															<span className="font-semibold text-slate-700 dark:text-slate-300">
+																कारण / Reason:
+															</span>{" "}
+															{driverExtraChargesReason ||
+																"No reason specified"}
 														</div>
 													</div>
 												)}
@@ -1404,9 +1816,15 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<TableRow>
 														<TableHead className="w-12">#</TableHead>
 														<TableHead>Product Name</TableHead>
-														<TableHead className="text-center">Delivered Qty</TableHead>
-														<TableHead className="text-right">Unit Rate</TableHead>
-														<TableHead className="text-right">Net Accepted Total</TableHead>
+														<TableHead className="text-center">
+															Delivered Qty
+														</TableHead>
+														<TableHead className="text-right">
+															Unit Rate
+														</TableHead>
+														<TableHead className="text-right">
+															Net Accepted Total
+														</TableHead>
 													</TableRow>
 												</TableHeader>
 												<TableBody>
@@ -1415,7 +1833,14 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														const itemPrice = Number(item.price || 0);
 
 														return (
-															<TableRow key={idx} className={item.isAddedAtDoorstep ? "bg-emerald-500/10 dark:bg-emerald-950/30" : ""}>
+															<TableRow
+																key={idx}
+																className={
+																	item.isAddedAtDoorstep
+																		? "bg-emerald-500/10 dark:bg-emerald-950/30"
+																		: ""
+																}
+															>
 																<TableCell className="text-muted-foreground">
 																	{idx + 1}
 																</TableCell>
@@ -1424,8 +1849,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 																		<span>{item.name}</span>
 																		{item.isAddedAtDoorstep && (
 																			<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
-																				<PlusCircle className="h-3 w-3" />
-																				➕ Added at Doorstep (डोरस्टेप पर जोड़ा गया)
+																				<PlusCircle className="h-3 w-3" />➕
+																				Added at Doorstep (डोरस्टेप पर जोड़ा गया)
 																			</Badge>
 																		)}
 																		{item.returnedQty > 0 && (
@@ -1448,18 +1873,29 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														);
 													})}
 													<TableRow className="bg-muted/10 font-medium border-t">
-														<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
+														<TableCell
+															colSpan={4}
+															className="text-right text-xs uppercase tracking-wider text-muted-foreground"
+														>
 															Delivered Items Subtotal (सामान का कुल मूल्य)
 														</TableCell>
 														<TableCell className="text-right text-foreground text-sm font-semibold">
-															{formatCurrency(finalDeliveredItemsSubtotal, locale)}
+															{formatCurrency(
+																finalDeliveredItemsSubtotal,
+																locale,
+															)}
 														</TableCell>
 													</TableRow>
 													{driverDiscountAmount > 0 && (
 														<TableRow className="bg-emerald-500/5 font-medium text-emerald-700 dark:text-emerald-400">
-															<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
+															<TableCell
+																colSpan={4}
+																className="text-right text-xs uppercase tracking-wider"
+															>
 																<div className="flex items-center justify-end gap-1.5 flex-wrap">
-																	<span>Doorstep Discount Applied (लागू छूट)</span>
+																	<span>
+																		Doorstep Discount Applied (लागू छूट)
+																	</span>
 																	<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0.5 px-2">
 																		Driver Applied
 																	</Badge>
@@ -1477,9 +1913,14 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													)}
 													{driverExtraCharges > 0 && (
 														<TableRow className="bg-blue-500/5 font-medium text-blue-700 dark:text-blue-400">
-															<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider">
+															<TableCell
+																colSpan={4}
+																className="text-right text-xs uppercase tracking-wider"
+															>
 																<div className="flex items-center justify-end gap-1.5 flex-wrap">
-																	<span>Doorstep Additional Charges (अतिरिक्त शुल्क)</span>
+																	<span>
+																		Doorstep Additional Charges (अतिरिक्त शुल्क)
+																	</span>
 																	<Badge className="bg-blue-600 text-white font-bold text-[9px] py-0.5 px-2">
 																		Driver Applied
 																	</Badge>
@@ -1496,7 +1937,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 														</TableRow>
 													)}
 													<TableRow className="bg-emerald-500/10 font-bold border-t-2 border-emerald-500/30">
-														<TableCell colSpan={4} className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200">
+														<TableCell
+															colSpan={4}
+															className="text-right text-xs uppercase tracking-wider text-emerald-950 dark:text-emerald-200"
+														>
 															Total Settled Doorstep Bill (कुल अंतिम बिल)
 														</TableCell>
 														<TableCell className="text-right text-emerald-700 dark:text-emerald-400 text-base font-extrabold">
@@ -1519,7 +1963,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<Banknote className="h-5 w-5" />
 												</div>
 												<div>
-													<div className="text-xs text-muted-foreground">Cash Collected</div>
+													<div className="text-xs text-muted-foreground">
+														Cash Collected
+													</div>
 													<div className="text-lg font-bold text-emerald-600">
 														{formatCurrency(cashCollected, locale)}
 													</div>
@@ -1531,7 +1977,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<QrCode className="h-5 w-5" />
 												</div>
 												<div>
-													<div className="text-xs text-muted-foreground">Online / UPI Collected</div>
+													<div className="text-xs text-muted-foreground">
+														Online / UPI Collected
+													</div>
 													<div className="text-lg font-bold text-blue-600">
 														{formatCurrency(onlineCollected, locale)}
 													</div>
@@ -1543,7 +1991,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<CheckCircle2 className="h-5 w-5" />
 												</div>
 												<div>
-													<div className="text-xs text-white/80">Total Bill Settled</div>
+													<div className="text-xs text-white/80">
+														Total Bill Settled
+													</div>
 													<div className="text-lg font-black">
 														{formatCurrency(totalCollected, locale)}
 													</div>
@@ -1562,8 +2012,11 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 											<p className="text-emerald-900 dark:text-emerald-300 font-medium pl-5">
 												{(() => {
 													try {
-														const parsed = JSON.parse(deliveryHandover.deliveryNotes);
-														return parsed.deliveryNotes && parsed.deliveryNotes.trim() !== ""
+														const parsed = JSON.parse(
+															deliveryHandover.deliveryNotes,
+														);
+														return parsed.deliveryNotes &&
+															parsed.deliveryNotes.trim() !== ""
 															? parsed.deliveryNotes
 															: "Handover completed cleanly at customer doorstep without special remarks.";
 													} catch {
@@ -1589,10 +2042,12 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<div>
 									<CardTitle className="text-base font-bold flex items-center gap-2">
 										<Layers className="h-4 w-4 text-indigo-600" />
-										Complete 4-Stage Bill Progression Audit (चारों बिलों का तुलनात्मक विवरण)
+										Complete 4-Stage Bill Progression Audit (चारों बिलों का
+										तुलनात्मक विवरण)
 									</CardTitle>
 									<CardDescription className="text-xs">
-										Side-by-side progression from Customer Request → Sales Review → Invoiced Bill → Final Delivered Settlement.
+										Side-by-side progression from Customer Request → Sales
+										Review → Invoiced Bill → Final Delivered Settlement.
 									</CardDescription>
 								</div>
 								<Badge variant="outline">Full Audit</Badge>
@@ -1603,7 +2058,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<Table>
 									<TableHeader>
 										<TableRow className="bg-muted/30">
-											<TableHead className="font-bold">Item Description</TableHead>
+											<TableHead className="font-bold">
+												Item Description
+											</TableHead>
 											<TableHead className="text-center font-bold text-blue-600">
 												1. Placed Qty
 											</TableHead>
@@ -1616,36 +2073,58 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 											<TableHead className="text-center font-bold text-emerald-600">
 												4. Final Settled Qty
 											</TableHead>
-											<TableHead className="text-right font-bold">Unit Rate</TableHead>
-											<TableHead className="text-right font-bold">Settled Amount</TableHead>
+											<TableHead className="text-right font-bold">
+												Unit Rate
+											</TableHead>
+											<TableHead className="text-right font-bold">
+												Settled Amount
+											</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
 										{comparisonList.map((item: any, idx: number) => {
-											const finalQty = item.finalQty ?? (hasHandover ? Math.max(0, (item.revQty || 0) - (item.retQty || 0)) : null);
+											const finalQty =
+												item.finalQty ??
+												(hasHandover
+													? Math.max(0, (item.revQty || 0) - (item.retQty || 0))
+													: null);
 											const itemPrice = Number(item.price || 0);
 
-											const isAddedBySalesperson = item.isAddedBySalesperson || (item.origQty === null && item.revQty !== null);
+											const isAddedBySalesperson =
+												item.isAddedBySalesperson ||
+												(item.origQty === null && item.revQty !== null);
 
 											return (
-												<TableRow key={item.key || idx} className={item.isAddedAtDoorstep ? "bg-emerald-500/10 dark:bg-emerald-950/30" : isAddedBySalesperson ? "bg-purple-500/10 dark:bg-purple-950/30" : ""}>
+												<TableRow
+													key={item.key || idx}
+													className={
+														item.isAddedAtDoorstep
+															? "bg-emerald-500/10 dark:bg-emerald-950/30"
+															: isAddedBySalesperson
+																? "bg-purple-500/10 dark:bg-purple-950/30"
+																: ""
+													}
+												>
 													<TableCell className="font-medium">
 														<div className="flex items-center gap-2 flex-wrap">
 															<span>{item.name}</span>
 															{isAddedBySalesperson && (
 																<Badge className="bg-purple-600 text-white font-bold text-[9px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
-																	<PlusCircle className="h-3 w-3" />
-																	➕ Added by Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
+																	<PlusCircle className="h-3 w-3" />➕ Added by
+																	Salesperson (सेल्सपर्सन द्वारा जोड़ा गया)
 																</Badge>
 															)}
 															{item.isAddedAtDoorstep && (
 																<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0.5 px-2 flex items-center gap-1 shadow-2xs">
-																	<PlusCircle className="h-3 w-3" />
-																	➕ Added at Doorstep (डोरस्टेप पर जोड़ा गया)
+																	<PlusCircle className="h-3 w-3" />➕ Added at
+																	Doorstep (डोरस्टेप पर जोड़ा गया)
 																</Badge>
 															)}
 															{item.retQty > 0 && (
-																<Badge variant="destructive" className="text-[9px] py-0 px-1">
+																<Badge
+																	variant="destructive"
+																	className="text-[9px] py-0 px-1"
+																>
 																	{item.retQty} returned
 																</Badge>
 															)}
@@ -1657,26 +2136,36 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													<TableCell className="text-center text-purple-700 dark:text-purple-400 font-medium">
 														<div className="flex items-center justify-center gap-1">
 															<span>{item.revQty ?? "—"}</span>
-															{item.origQty !== null && item.revQty !== null && item.origQty !== item.revQty && (
-																<Badge variant="outline" className="text-[9px] py-0 px-1 border-purple-400 bg-purple-500/10 text-purple-700 font-normal">
-																	Edited
-																</Badge>
-															)}
+															{item.origQty !== null &&
+																item.revQty !== null &&
+																item.origQty !== item.revQty && (
+																	<Badge
+																		variant="outline"
+																		className="text-[9px] py-0 px-1 border-purple-400 bg-purple-500/10 text-purple-700 font-normal"
+																	>
+																		Edited
+																	</Badge>
+																)}
 														</div>
 													</TableCell>
 													<TableCell className="text-center text-amber-700 dark:text-amber-400 font-medium">
 														<div className="flex flex-col items-center">
 															<span>{item.invoiceQty ?? "—"}</span>
-															{item.pickedQty !== null && item.origQty !== null && item.invoiceQty !== item.origQty && (
-																<Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-400 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-normal">
-																	Picked {item.pickedQty}/{item.origQty}
-																</Badge>
-															)}
+															{item.pickedQty !== null &&
+																item.origQty !== null &&
+																item.invoiceQty !== item.origQty && (
+																	<Badge
+																		variant="outline"
+																		className="text-[9px] py-0 px-1 border-amber-400 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-normal"
+																	>
+																		Picked {item.pickedQty}/{item.origQty}
+																	</Badge>
+																)}
 														</div>
 													</TableCell>
 													<TableCell className="text-center text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/5">
 														{hasHandover ? (
-															finalQty ?? "—"
+															(finalQty ?? "—")
 														) : (
 															<span className="text-xs text-muted-foreground font-normal italic">
 																— (Pending)
@@ -1688,10 +2177,18 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 													</TableCell>
 													<TableCell className="text-right font-bold text-emerald-600">
 														{hasHandover ? (
-															formatCurrency(itemPrice * (finalQty || 0), locale)
+															formatCurrency(
+																itemPrice * (finalQty || 0),
+																locale,
+															)
 														) : (
 															<span className="text-xs text-muted-foreground font-normal italic">
-																— (Est. {formatCurrency(itemPrice * (item.revQty || 0), locale)})
+																— (Est.{" "}
+																{formatCurrency(
+																	itemPrice * (item.revQty || 0),
+																	locale,
+																)}
+																)
 															</span>
 														)}
 													</TableCell>
@@ -1705,26 +2202,34 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 							{/* Summary Progression Bar */}
 							<div className="p-4 bg-muted/20 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
 								<div className="p-2.5 rounded bg-blue-500/10 border border-blue-500/20">
-									<div className="text-[11px] text-blue-700 dark:text-blue-300 font-semibold">1. Customer Placed</div>
+									<div className="text-[11px] text-blue-700 dark:text-blue-300 font-semibold">
+										1. Customer Placed
+									</div>
 									<div className="text-sm font-bold text-blue-700 dark:text-blue-300 mt-0.5">
 										{formatCurrency(originalSubtotal, locale)}
 									</div>
 								</div>
 								<div className="p-2.5 rounded bg-purple-500/10 border border-purple-500/20">
-									<div className="text-[11px] text-purple-700 dark:text-purple-300 font-semibold">2. Salesperson Reviewed</div>
+									<div className="text-[11px] text-purple-700 dark:text-purple-300 font-semibold">
+										2. Salesperson Reviewed
+									</div>
 									<div className="text-sm font-bold text-purple-700 dark:text-purple-300 mt-0.5">
 										{formatCurrency(reviewedSubtotal, locale)}
 									</div>
 								</div>
 								<div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20">
-									<div className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold">3. Commercial Invoice</div>
+									<div className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold">
+										3. Commercial Invoice
+									</div>
 									<div className="text-sm font-bold text-amber-700 dark:text-amber-300 mt-0.5">
 										{formatCurrency(invoicedTotal, locale)}
 									</div>
 								</div>
 								<div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20">
 									<div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
-										{hasHandover ? "4. Final Settled" : "4. Final Settled (Pending)"}
+										{hasHandover
+											? "4. Final Settled"
+											: "4. Final Settled (Pending)"}
 									</div>
 									<div className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
 										{hasHandover
@@ -1739,7 +2244,10 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 								<div className="p-4 bg-slate-50 dark:bg-slate-900/60 border-t border-border space-y-2 text-xs">
 									<div className="font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
 										<Tag className="h-4 w-4 text-blue-600" />
-										<span>Initial Invoiced Bill vs Final Doorstep Settlement Audit (प्रारंभिक बनाम अंतिम बिल तुलना)</span>
+										<span>
+											Initial Invoiced Bill vs Final Doorstep Settlement Audit
+											(प्रारंभिक बनाम अंतिम बिल तुलना)
+										</span>
 									</div>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
 										<div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-1.5 dark:border-amber-900/40 dark:bg-amber-950/20">
@@ -1749,34 +2257,51 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 											<div className="text-[11px] space-y-1 text-slate-700 dark:text-slate-300">
 												<div className="flex justify-between">
 													<span>Reviewed Subtotal:</span>
-													<span className="font-mono font-semibold">{formatCurrency(reviewedSubtotal, locale)}</span>
+													<span className="font-mono font-semibold">
+														{formatCurrency(reviewedSubtotal, locale)}
+													</span>
 												</div>
 												{discountAmount > 0 && (
 													<div className="flex justify-between items-center font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-2 py-1 rounded border border-emerald-300 dark:border-emerald-800">
 														<span className="flex items-center gap-1 font-bold">
 															<span>🏷️</span>
-															<span>Initial Discount: ({discountReason || "No reason"})</span>
+															<span>
+																Initial Discount: (
+																{discountReason || "No reason"})
+															</span>
 														</span>
-														<span className="font-mono font-extrabold text-emerald-800 dark:text-emerald-200">- {formatCurrency(discountAmount, locale)}</span>
+														<span className="font-mono font-extrabold text-emerald-800 dark:text-emerald-200">
+															- {formatCurrency(discountAmount, locale)}
+														</span>
 													</div>
 												)}
 												{otherCharges > 0 && (
 													<div className="flex justify-between text-blue-700 dark:text-blue-400">
-														<span>Initial Other Charges: ({otherChargesReason || "No reason"})</span>
-														<span className="font-mono">+ {formatCurrency(otherCharges, locale)}</span>
+														<span>
+															Initial Other Charges: (
+															{otherChargesReason || "No reason"})
+														</span>
+														<span className="font-mono">
+															+ {formatCurrency(otherCharges, locale)}
+														</span>
 													</div>
 												)}
 												<div className="flex justify-between font-bold border-t border-amber-200/60 pt-1 text-xs">
 													<span>Invoice Total:</span>
-													<span className="font-mono text-amber-800 dark:text-amber-300">{formatCurrency(invoicedTotal, locale)}</span>
+													<span className="font-mono text-amber-800 dark:text-amber-300">
+														{formatCurrency(invoicedTotal, locale)}
+													</span>
 												</div>
 											</div>
 										</div>
 
 										<div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 space-y-1.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
 											<div className="font-bold text-emerald-900 dark:text-emerald-300 text-xs flex items-center justify-between">
-												<span>Stage 4: Final Doorstep Bill (अंतिम संग्रह बिल)</span>
-												{(driverDiscountAmount > 0 || driverExtraCharges > 0) && (
+												<span>
+													Stage 4: Final Doorstep Bill (अंतिम संग्रह बिल)
+												</span>
+												{(driverDiscountAmount > 0 ||
+													driverExtraCharges > 0) && (
 													<Badge className="bg-emerald-600 text-white font-bold text-[9px] py-0 px-1.5">
 														Driver Adjusted
 													</Badge>
@@ -1785,23 +2310,40 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 											<div className="text-[11px] space-y-1 text-slate-700 dark:text-slate-300">
 												<div className="flex justify-between">
 													<span>Delivered Subtotal:</span>
-													<span className="font-mono font-semibold">{formatCurrency(finalDeliveredItemsSubtotal, locale)}</span>
+													<span className="font-mono font-semibold">
+														{formatCurrency(
+															finalDeliveredItemsSubtotal,
+															locale,
+														)}
+													</span>
 												</div>
 												{driverDiscountAmount > 0 && (
 													<div className="flex justify-between text-emerald-700 dark:text-emerald-400">
-														<span>Doorstep Discount: ({driverDiscountReason || "No reason"})</span>
-														<span className="font-mono font-semibold">- {formatCurrency(driverDiscountAmount, locale)}</span>
+														<span>
+															Doorstep Discount: (
+															{driverDiscountReason || "No reason"})
+														</span>
+														<span className="font-mono font-semibold">
+															- {formatCurrency(driverDiscountAmount, locale)}
+														</span>
 													</div>
 												)}
 												{driverExtraCharges > 0 && (
 													<div className="flex justify-between text-blue-700 dark:text-blue-400">
-														<span>Additional Charges: ({driverExtraChargesReason || "No reason"})</span>
-														<span className="font-mono font-semibold">+ {formatCurrency(driverExtraCharges, locale)}</span>
+														<span>
+															Additional Charges: (
+															{driverExtraChargesReason || "No reason"})
+														</span>
+														<span className="font-mono font-semibold">
+															+ {formatCurrency(driverExtraCharges, locale)}
+														</span>
 													</div>
 												)}
 												<div className="flex justify-between font-bold border-t border-emerald-200/60 pt-1 text-xs">
 													<span>Final Settled Total:</span>
-													<span className="font-mono text-emerald-700 dark:text-emerald-400 text-sm">{formatCurrency(finalDeliveredNetTotal, locale)}</span>
+													<span className="font-mono text-emerald-700 dark:text-emerald-400 text-sm">
+														{formatCurrency(finalDeliveredNetTotal, locale)}
+													</span>
 												</div>
 											</div>
 										</div>
@@ -1812,7 +2354,7 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 					</Card>
 				</TabsContent>
 			</Tabs>
-		
+
 			<Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
@@ -1820,7 +2362,8 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 							<XCircle className="h-5 w-5" /> Cancel Order ORD-{orderId}
 						</DialogTitle>
 						<DialogDescription>
-							Cancelling this bill will immediately restore all items back to branch inventory stock and cancel any linked picklists.
+							Cancelling this bill will immediately restore all items back to
+							branch inventory stock and cancel any linked picklists.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4 py-2">
@@ -1857,7 +2400,9 @@ const [activeTab, setActiveTab] = useState<string>("stage3");
 							}}
 							disabled={cancelMutation.isPending}
 						>
-							{cancelMutation.isPending ? "Cancelling..." : "Confirm Cancellation"}
+							{cancelMutation.isPending
+								? "Cancelling..."
+								: "Confirm Cancellation"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

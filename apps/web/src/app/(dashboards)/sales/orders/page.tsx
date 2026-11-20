@@ -46,6 +46,7 @@ import {
 	XIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ type Order = RouterOutputs["orders"]["list"][number];
 type OrderStatus = "completed" | "pending" | "cancelled";
 
 export default function OrdersPage() {
+	const router = useRouter();
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
@@ -522,31 +524,33 @@ export default function OrdersPage() {
 						icon={<FilePenIcon className="h-4 w-4" />}
 						label={tc("edit")}
 					/>
-					<Link
-						href={`/sales/pos?completedOrderId=${row.id}&returnUrl=/sales/orders`}
-						prefetch={false}
-						onClick={(e) => e.stopPropagation()}
+					<Button
+						size="icon"
+						variant="ghost"
+						className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+						title={locale === "hi" ? "बिल प्रिंट करें (Print Bill)" : "Print Bill"}
+						onClick={(e) => {
+							e.stopPropagation();
+							router.push(
+								`/sales/pos?completedOrderId=${row.id}&returnUrl=/sales/orders`,
+							);
+						}}
 					>
-						<Button
-							size="icon"
-							variant="ghost"
-							className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-							title={locale === "hi" ? "बिल प्रिंट करें (Print Bill)" : "Print Bill"}
-						>
-							<PrinterIcon className="h-4 w-4" />
-							<span className="sr-only">Print Bill</span>
-						</Button>
-					</Link>
-					<Link
-						href={`/sales/orders/${row.id}`}
-						prefetch={false}
-						onClick={(e) => e.stopPropagation()}
+						<PrinterIcon className="h-4 w-4" />
+						<span className="sr-only">Print Bill</span>
+					</Button>
+					<Button
+						size="icon"
+						variant="ghost"
+						title={tc("view")}
+						onClick={(e) => {
+							e.stopPropagation();
+							router.push(`/sales/orders/${row.id}`);
+						}}
 					>
-						<Button size="icon" variant="ghost">
-							<EyeIcon className="h-4 w-4 text-slate-600" />
-							<span className="sr-only">{tc("view")}</span>
-						</Button>
-					</Link>
+						<EyeIcon className="h-4 w-4 text-slate-600" />
+						<span className="sr-only">{tc("view")}</span>
+					</Button>
 					{!isCollectedOrSettled && (
 						<Button
 							size="icon"
@@ -655,7 +659,12 @@ export default function OrdersPage() {
 						</div>
 					</div>
 				) : (
-					<div className={cn("relative transition-opacity", isFetching && "opacity-75")}>
+					<div
+						className={cn(
+							"relative transition-opacity",
+							isFetching && "opacity-75",
+						)}
+					>
 						<DataTable
 							data={orders}
 							columns={[...tableColumns, actionsColumn]}
