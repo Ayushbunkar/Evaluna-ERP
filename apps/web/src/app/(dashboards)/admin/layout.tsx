@@ -1,22 +1,21 @@
 "use client";
 
+import { Button } from "@evaluna/ui/components/button";
 import {
-	Building2,
+	ImageIcon,
 	IndianRupee,
 	LayoutDashboard,
 	MapPin,
 	Settings,
-	ShieldAlert,
 	Truck,
 	Users,
 	X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { Button } from "@evaluna/ui/components/button";
 
 export default function AdminLayout({
 	children,
@@ -24,12 +23,18 @@ export default function AdminLayout({
 	children: React.ReactNode;
 }) {
 	const t = useTranslations("nav");
+	const locale = useLocale();
 	const pathname = usePathname();
 	const router = useRouter();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	const navItems = [
 		{ href: "/admin/dashboard", label: t("dashboard"), icon: LayoutDashboard },
+		{
+			href: "/admin/products",
+			label: locale === "hi" ? "उत्पाद फोटो" : "Product Images",
+			icon: ImageIcon,
+		},
 		{ href: "/admin/employees", label: t("employees"), icon: Users },
 		{ href: "/admin/users", label: t("users"), icon: Users },
 		{ href: "/admin/suppliers", label: t("suppliers"), icon: Truck },
@@ -73,16 +78,19 @@ export default function AdminLayout({
 				<ul className="space-y-1">
 					{navItems.map((item) => {
 						const Icon = item.icon;
-						const isActive = pathname === item.href || (item.href !== "/admin/dashboard" && pathname.startsWith(item.href));
+						const isActive =
+							pathname === item.href ||
+							(item.href !== "/admin/dashboard" &&
+								pathname.startsWith(item.href));
 						return (
 							<li key={item.href}>
 								<Link
 									href={item.href}
-									onClick={(e) => {
+									onClick={() => {
 										setMobileMenuOpen(false);
 										router.push(item.href);
 									}}
-									className={`flex w-full items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors cursor-pointer select-none active:scale-[0.98] ${
+									className={`flex w-full cursor-pointer select-none items-center rounded-lg px-3 py-2.5 font-medium text-sm transition-colors active:scale-[0.98] ${
 										isActive
 											? "bg-blue-50 font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
 											: "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -90,7 +98,9 @@ export default function AdminLayout({
 								>
 									<Icon
 										className={`h-5 w-5 shrink-0 ${
-											isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-400"
+											isActive
+												? "text-blue-600 dark:text-blue-400"
+												: "text-gray-400"
 										}`}
 									/>
 									<span className="ml-3 truncate">{item.label}</span>
@@ -130,9 +140,7 @@ export default function AdminLayout({
 
 				{/* Scrollable Content Container */}
 				<main className="flex-1 overflow-y-auto p-3 sm:p-6">
-					<div className="mx-auto w-full max-w-7xl min-w-0">
-						{children}
-					</div>
+					<div className="mx-auto w-full min-w-0 max-w-7xl">{children}</div>
 				</main>
 			</div>
 		</div>

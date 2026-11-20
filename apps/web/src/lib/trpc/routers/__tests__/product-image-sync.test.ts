@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { ALLOWED_PRODUCT_IMAGE_MIMES, MAX_PRODUCT_IMAGE_BYTES } from "@/app/api/products/upload/route";
+import {
+	ALLOWED_PRODUCT_IMAGE_MIMES,
+	MAX_PRODUCT_IMAGE_BYTES,
+} from "@/app/api/products/upload/route";
 
 describe("Product Image Management & Customer Catalog Synchronization", () => {
 	it("enforces allowed product image MIME types (JPG, JPEG, PNG, WEBP)", () => {
@@ -43,7 +46,8 @@ describe("Product Image Management & Customer Catalog Synchronization", () => {
 			price: Number(sampleProductFromDb.price),
 			imageUrl: sampleProductFromDb.image_url,
 			image: sampleProductFromDb.image_url,
-			available: !sampleProductFromDb.is_deleted && !sampleProductFromDb.is_hidden,
+			available:
+				!sampleProductFromDb.is_deleted && !sampleProductFromDb.is_hidden,
 		};
 
 		expect(customerProduct.imageUrl).toBe("/api/products/images/42");
@@ -77,8 +81,23 @@ describe("Product Image Management & Customer Catalog Synchronization", () => {
 	});
 
 	it("role permission whitelist validates warehouse manager and admin roles", () => {
-		const allowedRoles = ["admin", "superadmin", "warehouse_manager", "warehouse", "manager"];
-		const unauthorizedRoles = ["picker", "packer", "loader", "driver", "customer", "salesperson"];
+		const allowedRoles = [
+			"admin",
+			"superadmin",
+			"super_admin",
+			"warehouse_manager",
+			"warehouse_supervisor",
+			"warehouse",
+			"manager",
+		];
+		const unauthorizedRoles = [
+			"picker",
+			"packer",
+			"loader",
+			"driver",
+			"customer",
+			"salesperson",
+		];
 
 		for (const role of allowedRoles) {
 			expect(allowedRoles.includes(role)).toBe(true);

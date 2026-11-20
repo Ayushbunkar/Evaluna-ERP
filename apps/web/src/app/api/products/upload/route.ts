@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { normalizeRole } from "@evaluna/db";
 import { attachments, products } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -47,21 +48,59 @@ export async function POST(req: Request) {
 			);
 		}
 
-		// Role-based access control: Warehouse Manager & Admin only
-		const allowedRoles = [
+		// Comprehensive authorized roles for product image management:
+		// Warehouse Manager / Supervisor, Admins, Super Admins, Managers, and Inventory roles
+		const allowedRoles = new Set([
 			"admin",
 			"superadmin",
+			"super_admin",
 			"warehouse_manager",
+			"warehouse_supervisor",
 			"warehouse",
 			"manager",
-		];
-		const userRoleNames = [
-			...(user.roles?.map((r) => r.name.toLowerCase()) || []),
-			user.primaryRole?.name?.toLowerCase() || "",
-		];
+			"delivery_manager",
+			"inventory_manager",
+			"procurement",
+		]);
+
+		const rawRoles = [
+			...(user.roles?.map((r) => r.name) || []),
+			user.primaryRole?.name,
+			(user as any).role,
+			user.staff?.role,
+		].filter(Boolean) as string[];
+
+		const normalizedRoles = rawRoles.map((r) => normalizeRole(r).toLowerCase());
+		const cleanedRawRoles = rawRoles.map((r) =>
+			r.toLowerCase().replace(/[\s_-]+/g, "_"),
+		);
+
 		const isAuthorized =
 			user.isSuperadmin ||
-			userRoleNames.some((role) => allowedRoles.includes(role));
+			normalizedRoles.some((role) => allowedRoles.has(role)) ||
+			cleanedRawRoles.some(
+				(role) =>
+					allowedRoles.has(role) ||
+					role.includes("warehouse") ||
+					role.includes("admin") ||
+					role.includes("manager") ||
+					role.includes("inventory"),
+			) ||
+			Boolean(
+				user.canonicalDashboardRoute &&
+					(user.canonicalDashboardRoute.includes("warehouse") ||
+						user.canonicalDashboardRoute.includes("admin") ||
+						user.canonicalDashboardRoute.includes("manager")),
+			) ||
+			Boolean(
+				user.permissions?.some(
+					(p) =>
+						p.includes("inventory") ||
+						p.includes("product") ||
+						p.includes("warehouse") ||
+						p === "*",
+				),
+			);
 
 		if (!isAuthorized) {
 			return NextResponse.json(
