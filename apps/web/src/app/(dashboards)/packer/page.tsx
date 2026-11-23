@@ -9,14 +9,6 @@ import {
 	CardTitle,
 } from "@evaluna/ui/components/card";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@evaluna/ui/components/dialog";
-import {
 	Table,
 	TableBody,
 	TableCell,
@@ -26,7 +18,6 @@ import {
 } from "@evaluna/ui/components/table";
 import JsBarcode from "jsbarcode";
 import {
-	ActivityIcon,
 	ArchiveIcon,
 	ArrowRightIcon,
 	BoxIcon,
@@ -50,6 +41,10 @@ import {
 	StaggerItem,
 	StaggerList,
 } from "@/lib/animations";
+import {
+	PackVerificationModal,
+	type PackVerificationParcel,
+} from "@/components/packer/PackVerificationModal";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerDashboard() {
@@ -72,8 +67,6 @@ export default function PackerDashboard() {
 		onSuccess: () => {
 			refetchPending();
 			setSelectedPickList(null);
-			setWeight("1.5");
-			setDimensions("30x20x10 cm");
 			utils.warehouse.getOverviewStats.invalidate();
 			utils.warehouse.getPackingQueue.invalidate();
 			utils.warehouse.getPipelineHealth.invalidate();
@@ -82,9 +75,8 @@ export default function PackerDashboard() {
 	});
 
 	// State for Pack Modal
-	const [selectedPickList, setSelectedPickList] = useState<any | null>(null);
-	const [weight, setWeight] = useState("1.5");
-	const [dimensions, setDimensions] = useState("30x20x10 cm");
+	const [selectedPickList, setSelectedPickList] =
+		useState<PackVerificationParcel | null>(null);
 
 	// Print Shipping Tag State
 	const [printPackage, setPrintPackage] = useState<{
@@ -122,15 +114,21 @@ export default function PackerDashboard() {
 		}
 	}, [printPackage]);
 
-	const handlePackSubmit = () => {
-		if (!selectedPickList) return;
+	const handleConfirmPack = (data: {
+		order_id: number;
+		pick_list_id?: number;
+		weight: number;
+		dimensions: string;
+		package_type?: string;
+		notes?: string;
+	}) => {
 		packMutation.mutate({
-			pick_list_id: selectedPickList.pick_list_id,
-			order_id: selectedPickList.id
-				? Number.parseInt(selectedPickList.id.replace(/\D/g, "") || "1", 10)
-				: 1,
-			weight: Number.parseFloat(weight) || 1.0,
-			dimensions: dimensions || "Standard Box",
+			pick_list_id: data.pick_list_id,
+			order_id: data.order_id,
+			weight: data.weight,
+			dimensions: data.dimensions,
+			package_type: data.package_type,
+			packing_notes: data.notes,
 		});
 	};
 
@@ -489,81 +487,14 @@ export default function PackerDashboard() {
 				</Card>
 			</motion.div>
 
-			{/* Pack Order Modal */}
-			{selectedPickList && (
-				<Dialog
-					open={!!selectedPickList}
-					onOpenChange={(open) => !open && setSelectedPickList(null)}
-				>
-					<DialogContent className="sm:max-w-[480px]">
-						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2">
-								<BoxIcon className="h-5 w-5 text-blue-600" />
-								{t("packParcel")} {selectedPickList.order_ref}
-							</DialogTitle>
-							<DialogDescription>{t("recordParcelWeight")}</DialogDescription>
-						</DialogHeader>
-
-						<div className="space-y-4 py-2 text-sm">
-							<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-900 text-xs dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
-								<p>
-									<strong>Picklist:</strong> {selectedPickList.id}
-								</p>
-								<p>
-									<strong>{t("orderRef")}:</strong> {selectedPickList.order_ref}
-								</p>
-								<p>
-									<strong>{tCommon("status")}:</strong> {t("pendingPacking")}
-								</p>
-							</div>
-
-							<div className="grid grid-cols-2 gap-3">
-								<div className="space-y-1">
-									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										{t("parcelWeight")}
-									</label>
-									<input
-										type="number"
-										step="0.1"
-										className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-										value={weight}
-										onChange={(e) => setWeight(e.target.value)}
-									/>
-								</div>
-
-								<div className="space-y-1">
-									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										{t("boxDimensions")}
-									</label>
-									<input
-										type="text"
-										placeholder="e.g. 30x20x10 cm"
-										className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-										value={dimensions}
-										onChange={(e) => setDimensions(e.target.value)}
-									/>
-								</div>
-							</div>
-						</div>
-
-						<DialogFooter className="flex justify-end gap-2">
-							<Button variant="ghost" onClick={() => setSelectedPickList(null)}>
-								{tCommon("cancel")}
-							</Button>
-							<Button
-								disabled={packMutation.isPending}
-								onClick={handlePackSubmit}
-								className="bg-blue-600 text-white hover:bg-blue-700"
-							>
-								{packMutation.isPending && (
-									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-								)}
-								{t("completePackingAndSave")}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-			)}
+			{/* Double Verification Item Checklist & Pack Order Modal */}
+			<PackVerificationModal
+				open={!!selectedPickList}
+				onOpenChange={(open) => !open && setSelectedPickList(null)}
+				parcel={selectedPickList}
+				isSubmitting={packMutation.isPending}
+				onConfirmPack={handleConfirmPack}
+			/>
 		</PageTransition>
 	);
 }

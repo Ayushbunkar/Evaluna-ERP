@@ -15,7 +15,21 @@ import {
 	user,
 	vehicles,
 } from "@evaluna/db/schema";
-import { and, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, lte, notInArray, or, sql } from "drizzle-orm";
+import {
+	and,
+	count,
+	countDistinct,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	isNull,
+	lte,
+	notInArray,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { dispatchNotification } from "@/lib/notification-service";
 import { isDateInISTRange, parseDateFilterRange } from "@/lib/utils";
@@ -53,7 +67,9 @@ export const packerRouter = router({
 				.where(eq(pickLists.status, "completed"));
 
 			const pendingPickListCount = pickListRows.filter(
-				(p) => !packedPickListIds.has(p.id) && (!p.order_id || !packedOrderIds.has(p.order_id)),
+				(p) =>
+					!packedPickListIds.has(p.id) &&
+					(!p.order_id || !packedOrderIds.has(p.order_id)),
 			).length;
 
 			const [packedTodayResult] = await Promise.all([
@@ -127,9 +143,15 @@ export const packerRouter = router({
 					.select({
 						id: pickListItems.id,
 						pick_list_id: pickListItems.pick_list_id,
+						product_id: pickListItems.product_id,
 						productName: products.name,
 						sku: products.sku,
-						quantity: pickListItems.quantity_ordered,
+						unit: products.unit,
+						barcode: products.barcode,
+						imageUrl: products.image_url,
+						quantity_ordered: pickListItems.quantity_ordered,
+						quantity_picked: pickListItems.quantity_picked,
+						status: pickListItems.status,
 					})
 					.from(pickListItems)
 					.leftJoin(products, eq(pickListItems.product_id, products.id))
@@ -152,8 +174,14 @@ export const packerRouter = router({
 									vehiclePlate: vehicles.registration_number,
 								})
 								.from(tripStops)
-								.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
+								.innerJoin(
+									deliveryTrips,
+									eq(deliveryTrips.id, tripStops.trip_id),
+								)
+								.leftJoin(
+									deliveryRoutes,
+									eq(deliveryRoutes.id, deliveryTrips.route_id),
+								)
 								.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 								.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
 								.where(
@@ -175,7 +203,10 @@ export const packerRouter = router({
 								const [rStop] = await ctx.db
 									.select({ routeName: deliveryRoutes.name })
 									.from(routeStops)
-									.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+									.leftJoin(
+										deliveryRoutes,
+										eq(deliveryRoutes.id, routeStops.route_id),
+									)
 									.where(eq(routeStops.customer_id, r.customer_id))
 									.limit(1);
 								if (rStop?.routeName) {
@@ -206,21 +237,51 @@ export const packerRouter = router({
 						driverName,
 						routeName,
 						vehiclePlate,
-						items: items.length > 0 ? items.map((it) => ({
-							id: it.id,
-							productName: it.productName ?? "General Item",
-							quantity:
-								Math.round(
-									(Number.parseFloat(String(it.quantity || "1")) || 1) * 1000,
-								) / 1000,
-						})) : [
-							{
-								id: 1,
-								productName: "Order Items Package",
-								sku: `ORD-${r.order_id}`,
-								quantity: 1,
-							},
-						],
+						items:
+							items.length > 0
+								? items.map((it) => {
+										const ordered =
+											Math.round(
+												(Number.parseFloat(
+													String(it.quantity_ordered || "1"),
+												) || 1) * 1000,
+											) / 1000;
+										const picked =
+											it.quantity_picked != null
+												? Math.round(
+														(Number.parseFloat(String(it.quantity_picked)) ||
+															0) * 1000,
+													) / 1000
+												: ordered;
+										return {
+											id: it.id,
+											product_id: it.product_id,
+											productName: it.productName ?? "General Item",
+											sku: it.sku ?? "N/A",
+											barcode: it.barcode ?? "",
+											unit: it.unit ?? "Pcs",
+											imageUrl: it.imageUrl ?? null,
+											quantity: ordered,
+											quantity_ordered: ordered,
+											quantity_picked: picked,
+											status: it.status ?? "completed",
+										};
+									})
+								: [
+										{
+											id: 1,
+											product_id: null,
+											productName: "Order Items Package",
+											sku: `ORD-${r.order_id}`,
+											barcode: "",
+											unit: "Pcs",
+											imageUrl: null,
+											quantity: 1,
+											quantity_ordered: 1,
+											quantity_picked: 1,
+											status: "completed",
+										},
+									],
 					});
 				}
 			}
@@ -239,14 +300,7 @@ export const packerRouter = router({
 				})
 				.from(orders)
 				.leftJoin(customers, eq(orders.customer_id, customers.id))
-				.where(
-					and(
-						inArray(orders.status, [
-							"processing",
-							"packing",
-						]),
-					),
-				)
+				.where(and(inArray(orders.status, ["processing", "packing"])))
 				.orderBy(desc(orders.created_at))
 				.limit(100);
 
@@ -258,8 +312,12 @@ export const packerRouter = router({
 				const orderItemsList = await ctx.db
 					.select({
 						id: orderItems.id,
+						product_id: orderItems.product_id,
 						productName: products.name,
 						sku: products.sku,
+						unit: products.unit,
+						barcode: products.barcode,
+						imageUrl: products.image_url,
 						quantity: orderItems.quantity,
 					})
 					.from(orderItems)
@@ -280,7 +338,10 @@ export const packerRouter = router({
 							})
 							.from(tripStops)
 							.innerJoin(deliveryTrips, eq(deliveryTrips.id, tripStops.trip_id))
-							.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, deliveryTrips.route_id))
+							.leftJoin(
+								deliveryRoutes,
+								eq(deliveryRoutes.id, deliveryTrips.route_id),
+							)
 							.leftJoin(user, eq(user.id, deliveryTrips.driver_id))
 							.leftJoin(vehicles, eq(vehicles.id, deliveryTrips.vehicle_id))
 							.where(
@@ -302,7 +363,10 @@ export const packerRouter = router({
 							const [rStop] = await ctx.db
 								.select({ routeName: deliveryRoutes.name })
 								.from(routeStops)
-								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+								.leftJoin(
+									deliveryRoutes,
+									eq(deliveryRoutes.id, routeStops.route_id),
+								)
 								.where(eq(routeStops.customer_id, ord.customer_id))
 								.limit(1);
 							if (rStop?.routeName) {
@@ -333,29 +397,52 @@ export const packerRouter = router({
 					order_id: ord.id,
 					order_ref: `ORD-${ord.id}`,
 					status: "pending_packing",
-					completed_at: ord.created_at ? new Date(ord.created_at).toLocaleDateString() : "Today",
+					completed_at: ord.created_at
+						? new Date(ord.created_at).toLocaleDateString()
+						: "Today",
 					customerName: ord.customerName ?? "Customer",
 					customerPhone: ord.customerPhone ?? "N/A",
 					customerAddress: ord.customerAddress ?? "N/A",
 					driverName,
 					routeName,
 					vehiclePlate,
-					items: orderItemsList.length > 0 ? orderItemsList.map((it) => ({
-						id: it.id,
-						productName: it.productName ?? "Order Item",
-						sku: it.sku ?? "N/A",
-						quantity:
-							Math.round(
-								(Number.parseFloat(String(it.quantity || "1")) || 1) * 1000,
-							) / 1000,
-					})) : [
-						{
-							id: 1,
-							productName: `Order Package (ORD-${ord.id})`,
-							sku: `ORD-${ord.id}`,
-							quantity: 1,
-						},
-					],
+					items:
+						orderItemsList.length > 0
+							? orderItemsList.map((it) => {
+									const qty =
+										Math.round(
+											(Number.parseFloat(String(it.quantity || "1")) || 1) *
+												1000,
+										) / 1000;
+									return {
+										id: it.id,
+										product_id: it.product_id,
+										productName: it.productName ?? "Order Item",
+										sku: it.sku ?? "N/A",
+										barcode: it.barcode ?? "",
+										unit: it.unit ?? "Pcs",
+										imageUrl: it.imageUrl ?? null,
+										quantity: qty,
+										quantity_ordered: qty,
+										quantity_picked: qty,
+										status: "completed",
+									};
+								})
+							: [
+									{
+										id: 1,
+										product_id: null,
+										productName: `Order Package (ORD-${ord.id})`,
+										sku: `ORD-${ord.id}`,
+										barcode: "",
+										unit: "Pcs",
+										imageUrl: null,
+										quantity: 1,
+										quantity_ordered: 1,
+										quantity_picked: 1,
+										status: "completed",
+									},
+								],
 				});
 			}
 
@@ -365,7 +452,9 @@ export const packerRouter = router({
 
 	getPendingOrders: roleProcedure(["admin", "manager", "packer"]).query(
 		async ({ ctx }) => {
-			const pendingList = await packerRouter.createCaller(ctx).getPendingToPack();
+			const pendingList = await packerRouter
+				.createCaller(ctx)
+				.getPendingToPack();
 			return pendingList.map((pl) => ({
 				id: pl.id,
 				customerName: pl.customerName,
@@ -387,6 +476,10 @@ export const packerRouter = router({
 				order_id: z.number(),
 				weight: z.number().optional(),
 				dimensions: z.string().optional(),
+				package_type: z.string().optional(),
+				verified_items_count: z.number().optional(),
+				total_items_count: z.number().optional(),
+				packing_notes: z.string().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -520,7 +613,9 @@ export const packerRouter = router({
 
 	claimNextPackTask: roleProcedure(["admin", "manager", "packer"]).mutation(
 		async ({ ctx }) => {
-			const pendingList = await packerRouter.createCaller(ctx).getPendingToPack();
+			const pendingList = await packerRouter
+				.createCaller(ctx)
+				.getPendingToPack();
 
 			if (pendingList.length === 0) {
 				throw new Error("No pending packages available in the packing queue.");
@@ -567,7 +662,10 @@ export const packerRouter = router({
 				);
 			}
 
-			const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(input?.startDate, input?.endDate);
+			const { fromDate, toDate, startIST, endIST } = parseDateFilterRange(
+				input?.startDate,
+				input?.endDate,
+			);
 			const targetDateCol = sql`COALESCE(${packages.packed_at}, ${packages.created_at})`;
 
 			if (fromDate) {
@@ -577,7 +675,8 @@ export const packerRouter = router({
 				conditions.push(lte(targetDateCol, toDate));
 			}
 
-			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+			const whereClause =
+				conditions.length > 0 ? and(...conditions) : undefined;
 
 			const rawResults = await ctx.db
 				.select({
@@ -598,9 +697,16 @@ export const packerRouter = router({
 				.orderBy(desc(targetDateCol), desc(packages.id))
 				.limit(500);
 
-			const results = (startIST || endIST)
-				? rawResults.filter((item) => isDateInISTRange(item.packedAt || item.createdAt, startIST, endIST))
-				: rawResults;
+			const results =
+				startIST || endIST
+					? rawResults.filter((item) =>
+							isDateInISTRange(
+								item.packedAt || item.createdAt,
+								startIST,
+								endIST,
+							),
+						)
+					: rawResults;
 
 			const {
 				tripStops,
@@ -645,7 +751,10 @@ export const packerRouter = router({
 							const [rStop] = await ctx.db
 								.select({ routeName: deliveryRoutes.name })
 								.from(routeStops)
-								.leftJoin(deliveryRoutes, eq(deliveryRoutes.id, routeStops.route_id))
+								.leftJoin(
+									deliveryRoutes,
+									eq(deliveryRoutes.id, routeStops.route_id),
+								)
 								.where(eq(routeStops.customer_id, item.customerId))
 								.limit(1);
 							if (rStop?.routeName) {
@@ -675,7 +784,7 @@ export const packerRouter = router({
 								day: "2-digit",
 								month: "2-digit",
 								year: "numeric",
-						  })
+							})
 						: "Today",
 				});
 			}

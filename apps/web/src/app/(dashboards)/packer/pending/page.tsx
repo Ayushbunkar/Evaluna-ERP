@@ -51,6 +51,10 @@ import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageTransition, StaggerItem, StaggerList } from "@/lib/animations";
+import {
+	PackVerificationModal,
+	type PackVerificationParcel,
+} from "@/components/packer/PackVerificationModal";
 import { useTRPC } from "@/lib/trpc/client";
 
 export default function PackerPendingPage() {
@@ -95,6 +99,10 @@ export default function PackerPendingPage() {
 	const printSvgRef = useRef<SVGSVGElement | null>(null);
 	const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
 
+	const [lastPackedWeight, setLastPackedWeight] = useState("1.5");
+	const [lastPackedDimensions, setLastPackedDimensions] =
+		useState("30x20x10 cm");
+
 	const packMutation = trpc.packer.packOrder.useMutation({
 		onSuccess: (data) => {
 			refetch();
@@ -108,14 +116,12 @@ export default function PackerPendingPage() {
 					driverName: selectedPickList.driverName,
 					routeName: selectedPickList.routeName,
 					vehiclePlate: selectedPickList.vehiclePlate,
-					weight: weight,
-					dimensions: dimensions,
+					weight: lastPackedWeight,
+					dimensions: lastPackedDimensions,
 					items: selectedPickList.items,
 				});
 			}
 			setSelectedPickList(null);
-			setWeight("1.5");
-			setDimensions("30x20x10 cm");
 
 			// Trigger print window after label renders
 			setTimeout(() => {
@@ -152,22 +158,27 @@ export default function PackerPendingPage() {
 		}
 	}, [printPackage]);
 
-	const [selectedPickList, setSelectedPickList] = useState<any | null>(null);
-	const [weight, setWeight] = useState("1.5");
-	const [dimensions, setDimensions] = useState("30x20x10 cm");
+	const [selectedPickList, setSelectedPickList] =
+		useState<PackVerificationParcel | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 
-	const handlePackSubmit = () => {
-		if (!selectedPickList) return;
+	const handleConfirmPack = (data: {
+		order_id: number;
+		pick_list_id?: number;
+		weight: number;
+		dimensions: string;
+		package_type?: string;
+		notes?: string;
+	}) => {
+		setLastPackedWeight(String(data.weight));
+		setLastPackedDimensions(data.dimensions);
 		packMutation.mutate({
-			pick_list_id: selectedPickList.pick_list_id,
-			order_id:
-				selectedPickList.order_id ||
-				(selectedPickList.id
-					? Number.parseInt(selectedPickList.id.replace(/\D/g, "") || "1", 10)
-					: 1),
-			weight: Number.parseFloat(weight) || 1.0,
-			dimensions: dimensions || "Standard Box",
+			pick_list_id: data.pick_list_id,
+			order_id: data.order_id,
+			weight: data.weight,
+			dimensions: data.dimensions,
+			package_type: data.package_type,
+			packing_notes: data.notes,
 		});
 	};
 
@@ -260,7 +271,9 @@ export default function PackerPendingPage() {
 							<div className="space-y-1 rounded border border-black/80 bg-gray-50/50 p-2 text-[11px]">
 								<div className="flex items-center justify-between font-mono">
 									<span className="text-gray-700">Pkg #:</span>
-									<span className="font-bold text-black">{printPackage.number}</span>
+									<span className="font-bold text-black">
+										{printPackage.number}
+									</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="text-gray-700">Weight & Size:</span>
@@ -482,155 +495,81 @@ export default function PackerPendingPage() {
 							{/* Desktop/Tablet Table View */}
 							<div className="hidden sm:block overflow-x-auto">
 								<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Queue #</TableHead>
-										<TableHead>Picklist Ref</TableHead>
-										<TableHead>{t("orderRef")}</TableHead>
-										<TableHead>Customer Name</TableHead>
-										<TableHead>{t("assignedRoute")}</TableHead>
-										<TableHead>{t("pickingCompletionTime")}</TableHead>
-										<TableHead>{tCommon("status")}</TableHead>
-										<TableHead className="text-right">
-											{tCommon("actions")}
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{filteredList.map((pl, idx) => (
-										<TableRow key={pl.id} className="hover:bg-muted/50">
-											<TableCell className="font-bold font-mono text-blue-600 text-xs dark:text-blue-400">
-												#{idx + 1}
-											</TableCell>
-											<TableCell className="font-mono font-semibold text-xs">
-												{pl.id}
-											</TableCell>
-											<TableCell className="font-semibold text-sm">
-												{pl.order_ref}
-											</TableCell>
-											<TableCell className="font-medium text-foreground text-xs">
-												<div className="flex items-center gap-1.5">
-													<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-													<span className="font-semibold text-gray-900 dark:text-gray-100">
-														{pl.customerName || "Customer"}
-													</span>
-												</div>
-											</TableCell>
-											<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
-												<div className="flex items-center gap-1">
-													<MapPinIcon className="h-3 w-3" /> {pl.routeName}
-												</div>
-											</TableCell>
-											<TableCell className="text-muted-foreground text-xs">
-												{pl.completed_at}
-											</TableCell>
-											<TableCell>
-												<span className="rounded-full bg-yellow-100 px-2.5 py-0.5 font-bold text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-													{t("readyToPack")}
-												</span>
-											</TableCell>
-											<TableCell className="text-right">
-												<Button
-													size="sm"
-													className="h-8 bg-blue-600 text-white hover:bg-blue-700"
-													onClick={() => setSelectedPickList(pl)}
-												>
-													<BoxIcon className="mr-1 h-3.5 w-3.5" />{" "}
-													{t("packParcel")}
-												</Button>
-											</TableCell>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Queue #</TableHead>
+											<TableHead>Picklist Ref</TableHead>
+											<TableHead>{t("orderRef")}</TableHead>
+											<TableHead>Customer Name</TableHead>
+											<TableHead>{t("assignedRoute")}</TableHead>
+											<TableHead>{t("pickingCompletionTime")}</TableHead>
+											<TableHead>{tCommon("status")}</TableHead>
+											<TableHead className="text-right">
+												{tCommon("actions")}
+											</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
+									</TableHeader>
+									<TableBody>
+										{filteredList.map((pl, idx) => (
+											<TableRow key={pl.id} className="hover:bg-muted/50">
+												<TableCell className="font-bold font-mono text-blue-600 text-xs dark:text-blue-400">
+													#{idx + 1}
+												</TableCell>
+												<TableCell className="font-mono font-semibold text-xs">
+													{pl.id}
+												</TableCell>
+												<TableCell className="font-semibold text-sm">
+													{pl.order_ref}
+												</TableCell>
+												<TableCell className="font-medium text-foreground text-xs">
+													<div className="flex items-center gap-1.5">
+														<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+														<span className="font-semibold text-gray-900 dark:text-gray-100">
+															{pl.customerName || "Customer"}
+														</span>
+													</div>
+												</TableCell>
+												<TableCell className="font-semibold text-blue-600 text-xs dark:text-blue-400">
+													<div className="flex items-center gap-1">
+														<MapPinIcon className="h-3 w-3" /> {pl.routeName}
+													</div>
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{pl.completed_at}
+												</TableCell>
+												<TableCell>
+													<span className="rounded-full bg-yellow-100 px-2.5 py-0.5 font-bold text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+														{t("readyToPack")}
+													</span>
+												</TableCell>
+												<TableCell className="text-right">
+													<Button
+														size="sm"
+														className="h-8 bg-blue-600 text-white hover:bg-blue-700"
+														onClick={() => setSelectedPickList(pl)}
+													>
+														<BoxIcon className="mr-1 h-3.5 w-3.5" />{" "}
+														{t("packParcel")}
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
 						</>
 					)}
 				</CardContent>
 			</Card>
 
-			{/* Pack Order Modal */}
-			{selectedPickList && (
-				<Dialog
-					open={!!selectedPickList}
-					onOpenChange={(open) => !open && setSelectedPickList(null)}
-				>
-					<DialogContent className="w-[95vw] max-w-[480px] max-h-[88dvh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
-						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2">
-								<BoxIcon className="h-5 w-5 text-blue-600" />
-								{t("packParcel")} {selectedPickList.order_ref}
-							</DialogTitle>
-							<DialogDescription>{t("recordParcelWeight")}</DialogDescription>
-						</DialogHeader>
-
-						<div className="space-y-4 py-2 text-sm">
-							<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-900 text-xs dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
-								<p>
-									<strong>Picklist:</strong> {selectedPickList.id}
-								</p>
-								<p>
-									<strong>{t("orderRef")}:</strong> {selectedPickList.order_ref}
-								</p>
-								<p className="flex items-center gap-1">
-									<UserIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-									<strong>Customer:</strong>{" "}
-									{selectedPickList.customerName || "Customer"}
-								</p>
-								<p className="mt-1.5 flex items-center gap-1 border-blue-200/30 border-t pt-1.5">
-									<MapPinIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-									<strong>{t("assignedRoute")}:</strong>{" "}
-									{selectedPickList.routeName}
-								</p>
-							</div>
-
-							<div className="grid grid-cols-2 gap-3">
-								<div className="space-y-1">
-									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										{t("parcelWeight")}
-									</label>
-									<input
-										type="number"
-										step="0.1"
-										className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-										value={weight}
-										onChange={(e) => setWeight(e.target.value)}
-									/>
-								</div>
-
-								<div className="space-y-1">
-									<label className="font-semibold text-gray-700 text-xs dark:text-gray-300">
-										{t("boxDimensions")}
-									</label>
-									<input
-										type="text"
-										placeholder="e.g. 30x20x10 cm"
-										className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-										value={dimensions}
-										onChange={(e) => setDimensions(e.target.value)}
-									/>
-								</div>
-							</div>
-						</div>
-
-						<DialogFooter className="flex justify-end gap-2">
-							<Button variant="ghost" onClick={() => setSelectedPickList(null)}>
-								{tCommon("cancel")}
-							</Button>
-							<Button
-								disabled={packMutation.isPending}
-								onClick={handlePackSubmit}
-								className="bg-blue-600 text-white hover:bg-blue-700"
-							>
-								{packMutation.isPending && (
-									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-								)}
-								{t("completePackingAndSave")}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-			)}
+			{/* Double Verification Item Checklist & Pack Order Modal */}
+			<PackVerificationModal
+				open={!!selectedPickList}
+				onOpenChange={(open) => !open && setSelectedPickList(null)}
+				parcel={selectedPickList}
+				isSubmitting={packMutation.isPending}
+				onConfirmPack={handleConfirmPack}
+			/>
 
 			{/* Post-Print Handover & Completion Confirmation Modal */}
 			{printPackage && (
