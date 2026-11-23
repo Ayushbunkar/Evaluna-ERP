@@ -41,14 +41,18 @@ export default function LoaderDashboard() {
 	const trpc = useTRPC();
 	const { data: stats, isLoading: isLoadingStats } =
 		trpc.loader.getDashboardStats.useQuery(undefined, {
-			refetchInterval: 15000,
+			refetchInterval: 30000,
+			refetchIntervalInBackground: false,
+			refetchOnWindowFocus: true,
 		});
 
 	const {
 		data: loadingQueue = [],
 		isLoading: isLoadingQueue,
 	} = trpc.loader.getLoadingQueue.useQuery(undefined, {
-		refetchInterval: 10000,
+		refetchInterval: 30000,
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
 	});
 
 	return (

@@ -165,8 +165,8 @@ export default async function middleware(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
-	// Enrich role from security profile if not explicitly populated by session getter
-	if (sessionData.user?.id) {
+	// Enrich role from security profile only if not already populated by session getter
+	if (sessionData.user?.id && !sessionData.role) {
 		try {
 			const profile = await UserManagement.getSecurityProfileByUserId(sessionData.user.id);
 			if (profile?.role) {
@@ -324,7 +324,10 @@ export const config = {
 		 * - _next/image (image optimization files)
 		 * - favicon.ico (favicon file)
 		 * - public folder
+		 * - api/trpc (tRPC handles its own auth via router context - bypasses middleware CPU)
+		 * - api/auth (Better Auth handles its own endpoints)
+		 * - manifest.json, sw.js
 		 */
-		"/((?!_next/static|_next/image|favicon.ico|public/).*)",
+		"/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|public/|api/trpc|api/auth).*)",
 	],
 };

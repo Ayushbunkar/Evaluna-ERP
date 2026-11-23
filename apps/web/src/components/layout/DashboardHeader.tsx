@@ -77,11 +77,15 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void } = 
 	const { data: branches } = trpc.branches.list.useQuery(undefined);
 	const { data: unreadCountData } = trpc.notifications.unreadCount.useQuery(
 		{},
-		{ refetchInterval: 10000 },
+		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: true },
 	);
 	const unreadCount = unreadCountData?.count || 0;
 	const { data: todayAttendance, refetch: refetchToday } =
-		trpc.attendance.getToday.useQuery(undefined, { refetchInterval: 30000 });
+		trpc.attendance.getToday.useQuery(undefined, {
+			refetchInterval: 90000,
+			refetchIntervalInBackground: false,
+			refetchOnWindowFocus: true,
+		});
 
 	// Camera & GPS State for Production Attendance
 	const videoRef = useRef<HTMLVideoElement | null>(null);

@@ -113,6 +113,8 @@ export default function MyAttendancePage() {
 		undefined,
 		{
 			refetchInterval: 60000,
+			refetchIntervalInBackground: false,
+			refetchOnWindowFocus: true,
 		},
 	);
 

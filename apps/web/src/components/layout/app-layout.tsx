@@ -196,7 +196,7 @@ function BranchSwitcher({ isSuperadmin }: { isSuperadmin: boolean }) {
 function NotificationBell({ role }: { role?: string }) {
 	const { data: notifications } = trpc.notifications.list.useQuery(
 		{ is_read: false },
-		{ refetchInterval: 30000, refetchOnWindowFocus: true },
+		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: true },
 	);
 
 	const unreadCount = notifications?.length || 0;

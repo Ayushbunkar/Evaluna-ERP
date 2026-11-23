@@ -53,7 +53,9 @@ export default function FinanceDriverCollectionsPage() {
 		isFetching,
 		refetch,
 	} = trpc.finance.getDriverCollections.useQuery(undefined, {
-		refetchInterval: 15000,
+		refetchInterval: 30000,
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
 	});
 
 	const [searchQuery, setSearchQuery] = useState("");

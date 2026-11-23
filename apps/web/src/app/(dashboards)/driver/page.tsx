@@ -32,7 +32,11 @@ export default function DriverDashboard() {
 	const locale = useLocale();
 	const { data: dashboard } = trpc.driver.getMobileDashboard.useQuery(
 		{},
-		{ refetchInterval: 15000 },
+		{
+			refetchInterval: 30000,
+			refetchIntervalInBackground: false,
+			refetchOnWindowFocus: true,
+		},
 	);
 
 	return (

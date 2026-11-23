@@ -60,6 +60,7 @@ export default function AuditorDashboard() {
 		{ branchId: selectedBranchId },
 		{
 			refetchInterval: 30000,
+			refetchIntervalInBackground: false,
 			refetchOnWindowFocus: false,
 		},
 	);

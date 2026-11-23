@@ -37,7 +37,9 @@ export default function CustomerDashboard() {
 		error,
 	} = trpc.customer.getPortalStats.useQuery(undefined, {
 		suspense: false,
-		refetchInterval: 10000,
+		refetchInterval: 30000,
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
 	});
 
 	// Fetch top products for quick catalog pricing preview

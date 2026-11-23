@@ -94,7 +94,9 @@ export default function CustomerOrdersPage() {
 		isLoading,
 		error,
 	} = trpc.customer.getMyOrders.useQuery(undefined, {
-		refetchInterval: 10000, // Poll every 10s for status updates from Sales
+		refetchInterval: 30000, // Poll every 30s when tab is active
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
 	});
 
 	const { data: orderDetail, isLoading: detailLoading } =

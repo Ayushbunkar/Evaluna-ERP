@@ -64,7 +64,9 @@ export default function DriverRoutePage() {
 		error,
 		refetch,
 	} = trpc.driver.getRouteStops.useQuery(undefined, {
-		refetchInterval: 15000,
+		refetchInterval: 30000,
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
 	});
 
 	// Modal States

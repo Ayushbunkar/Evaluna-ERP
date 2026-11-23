@@ -54,6 +54,8 @@ export default function WarehouseWMSLayout({
 			{},
 			{
 				refetchInterval: 30000, // poll every 30s
+				refetchIntervalInBackground: false,
+				refetchOnWindowFocus: true,
 			},
 		);
 

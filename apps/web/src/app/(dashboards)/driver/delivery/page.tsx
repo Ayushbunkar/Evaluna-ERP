@@ -121,14 +121,20 @@ export default function DriverLiveDeliveryPage() {
 		data: dashboardData,
 		isLoading: isDashboardLoading,
 		refetch: refetchDashboard,
-	} = trpc.driver.getMobileDashboard.useQuery({}, { refetchInterval: 15000 });
+	} = trpc.driver.getMobileDashboard.useQuery({}, {
+		refetchInterval: 30000,
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
+	});
 
 	const {
 		data: directRouteStops,
 		isLoading: isRouteLoading,
 		refetch: refetchStops,
 	} = trpc.driver.getRouteStops.useQuery(undefined, {
-		refetchInterval: 15000,
+		refetchInterval: 30000,
+		refetchIntervalInBackground: false,
+		refetchOnWindowFocus: true,
 	});
 
 	const isLoading = isDashboardLoading || isRouteLoading;

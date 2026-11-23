@@ -52,7 +52,11 @@ export default function TripLoadingDetailsPage({
 		refetch,
 	} = trpc.loader.getTripLoadingDetails.useQuery(
 		{ tripId: numericTripId },
-		{ refetchInterval: 5000 },
+		{
+			refetchInterval: 25000,
+			refetchIntervalInBackground: false,
+			refetchOnWindowFocus: true,
+		},
 	);
 
 	const startLoadingMutation = trpc.loader.startLoadingTrip.useMutation({

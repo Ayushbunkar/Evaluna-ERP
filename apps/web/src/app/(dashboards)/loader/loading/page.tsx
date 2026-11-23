@@ -36,7 +36,11 @@ export default function LoadingQueuePage() {
 		refetch,
 	} = trpc.loader.getLoadingQueue.useQuery(
 		{ status: statusFilter, search: searchQuery },
-		{ refetchInterval: 10000 },
+		{
+			refetchInterval: 30000,
+			refetchIntervalInBackground: false,
+			refetchOnWindowFocus: true,
+		},
 	);
 
 	return (

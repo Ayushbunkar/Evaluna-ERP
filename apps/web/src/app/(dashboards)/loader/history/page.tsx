@@ -41,7 +41,11 @@ export default function LoadingHistoryPage() {
 		isLoading,
 	} = trpc.loader.getLoadingHistory.useQuery(
 		{ search: searchQuery },
-		{ refetchInterval: 15000 },
+		{
+			refetchInterval: 35000,
+			refetchIntervalInBackground: false,
+			refetchOnWindowFocus: true,
+		},
 	);
 
 	return (
