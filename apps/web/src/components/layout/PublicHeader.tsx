@@ -67,22 +67,28 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 				{/* Desktop Navigation Links */}
 				<nav className="hidden items-center space-x-6 font-mono text-[#666666] text-[11px] uppercase tracking-widest md:flex lg:space-x-8 dark:text-[#A3A3A0]">
 					<Link
-						href="/features"
+						href="/#categories"
 						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 					>
-						Features
+						Categories
 					</Link>
 					<Link
-						href="/solutions"
+						href="/#why-choose"
 						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 					>
-						Solutions
+						Why Evaluna
 					</Link>
 					<Link
-						href="/about"
+						href="/#how-it-works"
 						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
 					>
-						Company
+						How It Works
+					</Link>
+					<Link
+						href="/#trust"
+						className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
+					>
+						Trust & Compliance
 					</Link>
 					<Link
 						href="/contact"
@@ -102,10 +108,10 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 						Sign-In
 					</Link>
 					<Link
-						href="/#dialogue"
+						href="/signup"
 						className="border border-[#111111] px-3.5 py-1.5 font-mono text-[#111111] text-xs uppercase tracking-wider transition-all duration-200 hover:bg-[#111111] hover:text-[#F7F7F4] dark:border-[#F5F5F2] dark:text-[#F5F5F2] dark:hover:bg-[#F5F5F2] dark:hover:text-[#080808]"
 					>
-						Inquire
+						Register
 					</Link>
 				</div>
 
@@ -194,11 +200,11 @@ export function PublicHeader({ className }: PublicHeaderProps) {
 								{/* Sidebar Navigation Links */}
 								<nav className="flex flex-col space-y-2 font-mono text-xs uppercase tracking-widest">
 									{[
-										{ href: "/features", num: "01", label: "Features" },
-										{ href: "/solutions", num: "02", label: "Solutions" },
-										{ href: "/about", num: "03", label: "Company" },
-										{ href: "/contact", num: "04", label: "Contact & Inquiries" },
-										{ href: "/pricing", num: "05", label: "Pricing" },
+										{ href: "/#categories", num: "01", label: "Core Categories" },
+										{ href: "/#why-choose", num: "02", label: "Why Choose Us" },
+										{ href: "/#how-it-works", num: "03", label: "How It Works" },
+										{ href: "/#trust", num: "04", label: "Trust & Support" },
+										{ href: "/contact", num: "05", label: "Bulk Inquiry" },
 									].map((item) => (
 										<Link
 											key={item.href}

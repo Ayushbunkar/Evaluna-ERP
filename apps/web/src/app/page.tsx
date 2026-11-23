@@ -1,902 +1,1034 @@
 "use client";
 
+import { motion } from "framer-motion";
 import {
-	AnimatePresence,
-	motion,
-	useMotionValue,
-	useReducedMotion,
-	useScroll,
-	useSpring,
-	useTransform,
-} from "framer-motion";
-import { ArrowDown, ArrowRight } from "lucide-react";
+	ArrowRight,
+	Award,
+	CheckCircle2,
+	ChevronRight,
+	Clock,
+	Coffee,
+	Droplets,
+	FileCheck,
+	FileText,
+	Headphones,
+	Layers,
+	MapPin,
+	MessageCircle,
+	Package,
+	Percent,
+	Phone,
+	Repeat,
+	ShieldCheck,
+	ShoppingBag,
+	Sparkles,
+	Star,
+	Store,
+	Truck,
+	UserCheck,
+	Wheat,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 
-// ── Photographic Curation (High-Resolution Architectural & Spatial Series) ──
-const IMAGERY = {
-	heroStructure:
-		"https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=85",
-	identityFacade:
-		"https://images.unsplash.com/photo-1541123437800-1bb1317badc2?auto=format&fit=crop&w=1600&q=80",
-	expandingLogistics:
-		"https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=2000&q=85",
-	spatialDepot:
-		"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1600&q=80",
-	precisionWorkspace:
-		"https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80",
-	centralIndiaHorizon:
-		"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1800&q=80",
-};
-
-// ── Hero Smooth Auto-Rotating Photographic Gallery (6 Vibrant Slides) ──
-const HERO_SLIDES = [
+// ── Core Categories Data ──
+const CATEGORIES = [
 	{
-		url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=85",
-		alt: "Evaluna Modern Architectural Structure",
-		plate: "PLATE 01 / STRUCTURAL ORDER",
-		location: "BHOPAL TECH PARK NEXUS",
+		id: "staples-grains",
+		title: "Staples & Grains",
+		hindiTitle: "अनाज, दालें और बुनियादी राशन",
+		description:
+			"Atta, chawal (Basmati & Daily rice), toor/moong/chana daal, besan, poha, sugar, namak, aur maida.",
+		badge: "High Velocity Sourcing",
+		items: ["Chakki Fresh Atta", "Premium Basmati", "Toor & Moong Daal", "Sugar & Besan"],
+		icon: Wheat,
+		accent: "from-amber-500/20 to-orange-500/10",
+		border: "hover:border-amber-500/40",
+		link: "/customer/products?category=staples",
 	},
 	{
-		url: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=85",
-		alt: "Evaluna Multi-Warehouse Logistics & Bin Routing",
-		plate: "PLATE 02 / SPATIAL LOGISTICS",
-		location: "BERASIA TRANSIT CORRIDOR",
+		id: "edible-oils-ghee",
+		title: "Edible Oils & Ghee",
+		hindiTitle: "खाद्य तेल, वनस्पति और शुद्ध घी",
+		description:
+			"Mustard oil (Kachhi Ghani), refined soyabean oil, sunflower oil, vanaspati, aur Shuddh Deshi Ghee (1L, 5L, 15L tins/pouches).",
+		badge: "Direct Refinery Tie-Ups",
+		items: ["Mustard Oil 15L", "Soyabean Oil 1L Pouch", "Sunflower Oil", "Pure Cow & Buffalo Ghee"],
+		icon: Droplets,
+		accent: "from-yellow-500/20 to-amber-500/10",
+		border: "hover:border-yellow-500/40",
+		link: "/customer/products?category=oils",
 	},
 	{
-		url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80",
-		alt: "Evaluna Modern Freight Hub & Architecture",
-		plate: "PLATE 03 / COMMERCE DEPOT",
-		location: "CENTRAL INDIA DISTRIBUTION",
+		id: "packaged-foods-snacks",
+		title: "Packaged Foods & Snacks",
+		hindiTitle: "पैकेज्ड फूड्स, बिस्कुट और चाय-नाश्ता",
+		description:
+			"Top brand biscuits, namkeen packets, instant noodles, tomato ketchup, sauces, CTC premium tea, aur coffee.",
+		badge: "100% Genuine Brands",
+		items: ["Parle & Britannia Biscuits", "Namkeen & Bhujia", "Noodles & Pasta", "Premium Chai Patti"],
+		icon: Coffee,
+		accent: "from-rose-500/20 to-red-500/10",
+		border: "hover:border-rose-500/40",
+		link: "/customer/products?category=packaged",
 	},
 	{
-		url: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80",
-		alt: "Evaluna Precision Workspace & Digital Architecture",
-		plate: "PLATE 04 / DIGITAL SYSTEMS",
-		location: "HEADQUARTERS • VIDISHA ROAD",
+		id: "fmcg-daily-needs",
+		title: "FMCG & Daily Needs",
+		hindiTitle: "दैनिक उपयोग, साबुन और क्लीनिंग",
+		description:
+			"Bathing soaps, detergent powders, bars, shampoo sachets/bottles, toothpaste, floor cleaners, aur dishwash supplies.",
+		badge: "HUL, P&G, Godrej Sourcing",
+		items: ["Detergent Powder 1kg/5kg", "Bathing Soaps Pack", "Toothpaste & Brushes", "Floor & Glass Cleaners"],
+		icon: Sparkles,
+		accent: "from-blue-500/20 to-cyan-500/10",
+		border: "hover:border-blue-500/40",
+		link: "/customer/products?category=fmcg",
 	},
 	{
-		url: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1600&q=80",
-		alt: "Evaluna Architectural Facade & Physical Space",
-		plate: "PLATE 05 / PHYSICAL FOUNDATION",
-		location: "REGIONAL OPERATIONAL BASE",
-	},
-	{
-		url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1800&q=80",
-		alt: "Central India Geographic Horizon & Landscape",
-		plate: "PLATE 06 / GEOGRAPHIC NEXUS",
-		location: "MADHYA PRADESH PLATEAU",
+		id: "beverages",
+		title: "Beverages & Soft Drinks",
+		hindiTitle: "कोल्ड ड्रिंक्स, जूस और मिनरल वाटर",
+		description:
+			"Soft drinks, canned soda, packaged fruit juices, energy drinks, aur packaged drinking water crates (250ml to 2L).",
+		badge: "Chilled Ready Supply",
+		items: ["Cold Drinks Crates", "Mango & Mixed Juices", "Energy Drinks", "Packaged Mineral Water"],
+		icon: Package,
+		accent: "from-emerald-500/20 to-teal-500/10",
+		border: "hover:border-emerald-500/40",
+		link: "/customer/products?category=beverages",
 	},
 ];
 
-// ── Disciplines & Capabilities (Editorial image-led layout) ──
-const DISCIPLINES = [
+// ── Why Choose Evaluna USPs ──
+const USPs = [
 	{
-		number: "01",
-		title: "Spatial Logistics & Multi-Warehouse Control",
-		tagline: "Synchronized physical fulfillment across trade corridors",
+		icon: Percent,
+		title: "Competitive Wholesale Pricing",
+		hindi: "सर्वश्रेष्ठ थोक भाव व अधिकतम मार्जिन",
 		description:
-			"We architect high-fidelity inventory operating systems connecting regional transit centers. Automated First-Expired-First-Out (FEFO) picking, precise bin tracking, and discrepancy prevention designed specifically for central India’s distribution velocity.",
-		image: IMAGERY.spatialDepot,
-		hoverImage:
-			"https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1600&q=85",
-		aspect: "aspect-[16/10]",
-		details: [
-			"FEFO & FIFO physical picking rules",
-			"Central India multi-depot transit routing",
-			"Immutable chain-of-custody transfer slips",
-		],
-		coordinates: "DEPOT HUB • 23.6300° N, 77.4320° E",
+			"Direct mill aur authorized brand manufacturers se bulk volume sourcing hone ki wajah se aapko milte hain market se behtar wholesale rates, jisse aapka retail profit margin 12% se 20% tak badhta hai.",
 	},
 	{
-		number: "02",
-		title: "High-Integrity Commerce & Transaction Engines",
-		tagline: "Deterministic checkout speed without connectivity dependencies",
+		icon: Layers,
+		title: "Bulk Schemes & Quantity Slabs",
+		hindi: "अतिरिक्त डिस्काउंट और बल्क स्कीम्स",
 		description:
-			"Enterprise transaction platforms engineered to withstand network volatility. Client-side ledger caching guarantees retail billing moves at sub-second speeds, synchronizing quietly when regional connections restore.",
-		image: IMAGERY.precisionWorkspace,
-		hoverImage:
-			"https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=1600&q=85",
-		aspect: "aspect-[4/3]",
-		details: [
-			"Zero-latency point-of-sale checkout",
-			"Fault-tolerant local ledger persistence",
-			"Automated multi-slab tax & GST calculations",
-		],
-		coordinates: "COMMERCE NEXUS • BHOPAL METRO",
+			"Zyada quantity order karne par seedha extra discount slabs aur company freebies milte hain. Har invoice par clear slab pricing milti hai bina kisi hidden charges ke.",
 	},
 	{
-		number: "03",
-		title: "Bespoke Digital Systems & Enterprise Governance",
-		tagline: "Purpose-built architectures with zero generic bloat",
+		icon: ShieldCheck,
+		title: "100% Genuine Products (FEFO)",
+		hindi: "असली प्रोडक्ट्स और एक्सपायरी ट्रैकिंग",
 		description:
-			"Tailored digital software platforms, secure role-based workforce architectures, and integrated financial controls designed to scale regional enterprises with architectural permanence.",
-		image: IMAGERY.identityFacade,
-		hoverImage:
-			"https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=85",
-		aspect: "aspect-[16/9]",
-		details: [
-			"Strict cryptographic audit trails",
-			"Multi-tier departmental authorization",
-			"High-density reporting and cashbook discipline",
-		],
-		coordinates: "HEADQUARTERS • VIDISHA ROAD",
+			"Zero duplicates. Hamara central warehouse automated First-Expired-First-Out (FEFO) rules aur batch tracking use karta hai taaki aapko hamesha fresh manufacturing date ka genuine stock mile.",
+	},
+	{
+		icon: Truck,
+		title: "Reliable & Timely Doorstep Delivery",
+		hindi: "समय पर सुरक्षित डिलीवरी आपके काउंटर पर",
+		description:
+			"Bhopal, Berasia aur aas-paas ke retail corridors ke liye scheduled delivery vans. Safe handling, live order status, aur transit damage protection guarantee.",
+	},
+	{
+		icon: Repeat,
+		title: "Easy 1-Click Reordering",
+		hindi: "1-क्लिक में आसान री-ऑर्डरिंग",
+		description:
+			"Roz-marra ke kirana kaam ko asaan banane ke liye hamare web aur mobile app par single-click reorder option hai. Pichle diye gaye order ko 10 second me repeat karein.",
 	},
 ];
 
-// ── Working Philosophy (The Four Principles) ──
-const PRINCIPLES = [
+// ── How It Works Steps ──
+const STEPS = [
 	{
-		number: "01",
-		title: "Listen to the Ground",
-		body: "True operational architecture begins on the unloading dock and checkout counter, not in abstract boardroom presentations. We spend time observing physical movement before writing software.",
+		step: "01",
+		title: "Sign Up & Verify",
+		hindi: "अकाउंट बनाएं और विवरण भरें",
+		description:
+			"Apna mobile number, shop / business name, aur address daalein. GSTIN ya business license details (agar applicable ho) daalkar business account activate karein.",
 	},
 	{
-		number: "02",
-		title: "Reject Ephemeral Fads",
-		body: "We deliberately avoid decorative trends and bloated dependencies. We choose tested engineering foundations, strict typing, and minimalist ergonomics that endure over decades.",
+		step: "02",
+		title: "Browse & Add to Cart",
+		hindi: "थोक भाव व कार्ट में सामान जोड़ें",
+		description:
+			"Category ya brand ke hisaab se live wholesale rates aur minimum order quantity (MOQ) check karein. Bulk slabs par automatically discount apply hota hai.",
 	},
 	{
-		number: "03",
-		title: "Honor the Geography",
-		body: "Designing in central India requires accounting for real-world realities: intermittent connectivity, dust, temperature, and specific supply chain corridors linking Berasia to national transit routes.",
+		step: "03",
+		title: "Place Order & Pay",
+		hindi: "आसान भुगतान व ऑर्डर कन्फर्मेशन",
+		description:
+			"UPI, Net Banking, NEFT/RTGS, ya pre-approved retailer credit terms ke zariye order confirm karein. Instant digital GST bill turant generate hota hai.",
 	},
 	{
-		number: "04",
-		title: "Stewardship Across Cycles",
-		body: "Our responsibility does not conclude at deployment. We stand alongside operational teams through seasonal spikes, audits, and decades of steady commercial evolution.",
+		step: "04",
+		title: "Doorstep Delivery",
+		hindi: "दुकान तक सुरक्षित व समय पर डिलीवरी",
+		description:
+			"Samaan seedha aapki dukaan, store ya warehouse ke counter par hamari logistics team dwara safely deliver kiya jata hai.",
+	},
+];
+
+// ── Testimonials ──
+const REVIEWS = [
+	{
+		name: "Mukesh Sharma",
+		role: "Proprietor",
+		store: "Sharma Kirana Store, Berasia",
+		quote:
+			"Evaluna se judne ke baad daal, atta aur edible oil par hamara wholesale margin 12% tak badh gaya hai. Pehle Bhopal mandi jana padta tha, ab time par dukaan par hi delivery aa jaati hai.",
+		rating: 5,
+	},
+	{
+		name: "Rajesh Patidar",
+		role: "Store Manager",
+		store: "Patidar Supermarket, Kolar Road, Bhopal",
+		quote:
+			"GST invoice har order ke sath bina kisi delay ke milta hai jisse tax filing me aasaani hoti hai. Sabhi products fresh batch ke hote hain aur customer complaints zero ho gayi hain.",
+		rating: 5,
+	},
+	{
+		name: "Anand Agarwal",
+		role: "Head of Procurement",
+		store: "Agarwal Bakers & HoReCa Cafe, MP Nagar",
+		quote:
+			"Commercial kitchen ke liye bulk edible oil tins aur maida ki supply hamesha time par milti hai. Ek click re-order feature se hamara daily ordering ka bahut samay bachta hai.",
+		rating: 5,
 	},
 ];
 
 export default function HomePage() {
-	const [activeSlide, setActiveSlide] = useState(0);
-	const prefersReducedMotion = useReducedMotion();
-
-	// Auto-rotate hero photographic slides smoothly every 4.5 seconds
-	useEffect(() => {
-		const interval = setInterval(() => {
-			setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
-		}, 4500);
-		return () => clearInterval(interval);
-	}, []);
-
-	// Pointer-responsive subtle depth for Hero on desktop
-	const mouseX = useMotionValue(0);
-	const mouseY = useMotionValue(0);
-	const springX = useSpring(mouseX, { stiffness: 45, damping: 25 });
-	const springY = useSpring(mouseY, { stiffness: 45, damping: 25 });
-
-	const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-		if (
-			prefersReducedMotion ||
-			typeof window === "undefined" ||
-			window.innerWidth < 1024
-		)
-			return;
-		const { clientX, clientY } = e;
-		const { innerWidth, innerHeight } = window;
-		const xPos = (clientX / innerWidth - 0.5) * 16;
-		const yPos = (clientY / innerHeight - 0.5) * 16;
-		mouseX.set(xPos);
-		mouseY.set(yPos);
-	};
-
-	// Scroll-driven expansion for Section D
-	const expansionContainerRef = useRef<HTMLDivElement>(null);
-	const { scrollYProgress: expansionProgress } = useScroll({
-		target: expansionContainerRef,
-		offset: ["start end", "end start"],
-	});
-	const expandWidth = useTransform(
-		expansionProgress,
-		[0.1, 0.55],
-		["84%", "100%"],
-	);
-	const expandScale = useTransform(expansionProgress, [0.1, 0.55], [0.94, 1.0]);
-	const expandRadius = useTransform(
-		expansionProgress,
-		[0.1, 0.55],
-		["16px", "0px"],
-	);
-
-	// Section 2 Parallax
-	const identityRef = useRef<HTMLDivElement>(null);
-	const { scrollYProgress: identityProgress } = useScroll({
-		target: identityRef,
-		offset: ["start end", "end start"],
-	});
-	const identityImageY = useTransform(identityProgress, [0, 1], ["-8%", "8%"]);
+	const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
 	return (
-		// biome-ignore lint/a11y/noStaticElementInteractions: Ambient cursor coordinates parallax effect on homepage
 		<div
 			suppressHydrationWarning
-			onMouseMove={handleMouseMove}
 			className="min-h-screen w-full overflow-x-hidden bg-[#F7F7F4] font-sans text-[#111111] transition-colors duration-500 selection:bg-[#111111] selection:text-[#F7F7F4] dark:bg-[#080808] dark:text-[#F5F5F2] dark:selection:bg-[#F5F5F2] dark:selection:text-[#080808]"
 		>
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION A — REFINED SYNCHRONIZED NAVIGATION
-			══════════════════════════════════════════════════════════════ */}
+			{/* Top Synchronized Header */}
 			<PublicHeader />
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION B — CINEMATIC EDITORIAL HERO
+			    SECTION 1 — HERO SECTION
 			══════════════════════════════════════════════════════════════ */}
-			<section className="relative overflow-hidden border-[#DEDEDA] border-b pt-8 pb-16 sm:pt-16 sm:pb-24 lg:pt-20 lg:pb-32 dark:border-[#292929]">
+			<section className="relative overflow-hidden border-[#DEDEDA] border-b pt-10 pb-16 sm:pt-16 sm:pb-24 lg:pt-20 lg:pb-28 dark:border-[#292929]">
 				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
-					{/* Asymmetric Typography & Image Reveal Composition */}
-					<div className="grid grid-cols-1 items-end gap-10 sm:gap-12 lg:grid-cols-12 lg:gap-8">
-						{/* Left: Oversized Editorial Statement */}
-						<div className="space-y-6 sm:space-y-10 lg:col-span-7">
-							<motion.h1
-								initial={{ opacity: 0, y: 30 }}
+					<div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-10">
+						{/* Left Column: Core Value Proposition */}
+						<div className="space-y-6 sm:space-y-8 lg:col-span-7">
+							{/* Trust Badge Pill */}
+							<motion.div
+								initial={{ opacity: 0, y: 15 }}
 								animate={{ opacity: 1, y: 0 }}
-								transition={{
-									duration: 1.0,
-									ease: [0.16, 1, 0.3, 1],
-									delay: 0.1,
-								}}
-								className="font-normal font-serif text-4xl text-[#111111] leading-[0.95] tracking-[-0.035em] sm:text-7xl lg:text-8xl xl:text-9xl dark:text-[#F5F5F2]"
+								transition={{ duration: 0.6 }}
+								className="inline-flex items-center gap-2 rounded-full border border-[#DEDEDA] bg-[#EFEFEA]/80 px-3.5 py-1.5 font-mono text-[11px] text-[#444444] tracking-wide dark:border-[#292929] dark:bg-[#141414] dark:text-[#A3A3A0]"
 							>
-								A clearer
-								<br />
-								<span className="font-light italic">way forward.</span>
+								<span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+								<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">
+									B2B Wholesale Supply
+								</span>
+								<span>•</span>
+								<span>Bhopal & Berasia Hub</span>
+							</motion.div>
+
+							{/* Main Heading */}
+							<motion.h1
+								initial={{ opacity: 0, y: 25 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.8, delay: 0.1 }}
+								className="font-serif text-3xl font-normal leading-[1.08] tracking-[-0.03em] sm:text-5xl lg:text-6xl dark:text-[#F5F5F2]"
+							>
+								Evaluna Pvt Ltd —{" "}
+								<span className="font-light italic">
+									Smart Wholesale Grocery Supply
+								</span>{" "}
+								for Your Business
 							</motion.h1>
 
+							{/* Sub-heading */}
+							<motion.p
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.8, delay: 0.2 }}
+								className="max-w-2xl text-base text-[#555555] leading-relaxed sm:text-lg lg:text-xl dark:text-[#B0B0AC]"
+							>
+								Kirana stores, supermarkets, aur HoReCa ke liye best wholesale
+								rates, genuine brands, aur time-par delivery. Direct mill
+								sourcing aur bulk schemes ke sath apna munafa badhayein.
+							</motion.p>
+
+							{/* Call-to-Action (CTA) Buttons */}
 							<motion.div
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
-								transition={{
-									duration: 0.9,
-									ease: [0.16, 1, 0.3, 1],
-									delay: 0.25,
-								}}
-								className="max-w-xl space-y-6 pt-2"
+								transition={{ duration: 0.8, delay: 0.3 }}
+								className="flex flex-col items-stretch gap-3.5 pt-2 sm:flex-row sm:items-center sm:gap-4 sm:flex-wrap"
 							>
-								<p className="font-light text-[#666666] text-sm leading-relaxed sm:text-lg dark:text-[#A3A3A0]">
-									Evaluna designs physical commerce systems, spatial logistics,
-									and digital infrastructure built for permanence. Rooted in the
-									central Indian transit corridor of Bhopal and Berasia, we
-									build clarity into complex human operations.
-								</p>
+								{/* Primary Action: Order Now / Browse Catalog */}
+								<Link
+									href="/customer/products"
+									className="group inline-flex items-center justify-center space-x-2.5 bg-[#111111] px-6 py-3.5 font-mono text-xs uppercase text-[#F7F7F4] tracking-wider transition-all duration-200 hover:bg-[#252525] hover:shadow-lg active:scale-95 dark:bg-[#F5F5F2] dark:text-[#080808] dark:hover:bg-white"
+								>
+									<ShoppingBag className="h-4 w-4" />
+									<span className="font-semibold">Order Now / Browse Catalog</span>
+									<ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+								</Link>
 
-								<div className="flex flex-col items-stretch gap-3 pt-2 sm:flex-row sm:items-center sm:gap-4 sm:flex-wrap">
-									<Link
-										href="/#philosophy"
-										className="group inline-flex items-center justify-center space-x-3 bg-[#111111] px-6 py-3.5 font-mono text-[#F7F7F4] text-xs uppercase tracking-wider transition-transform duration-200 hover:scale-[1.02] dark:bg-[#F5F5F2] dark:text-[#080808]"
-									>
-										<span>Explore The Work</span>
-										<ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-									</Link>
-									<Link
-										href="/contact"
-										className="inline-flex items-center justify-center space-x-2 border border-[#DEDEDA] px-6 py-3.5 font-mono text-[#111111] text-xs uppercase tracking-wider transition-colors hover:border-[#111111] dark:border-[#292929] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
-									>
-										<span>Direct Inquiry</span>
-									</Link>
-									<PwaInstallButton />
-								</div>
+								{/* Secondary Action: Register as Retailer / Partner */}
+								<Link
+									href="/signup"
+									className="group inline-flex items-center justify-center space-x-2 border border-[#DEDEDA] bg-white/70 px-6 py-3.5 font-mono text-xs uppercase text-[#111111] tracking-wider transition-all hover:border-[#111111] hover:bg-white active:scale-95 dark:border-[#292929] dark:bg-[#111111] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
+									title="Sign up with GST and Business details"
+								>
+									<Store className="h-4 w-4" />
+									<span>Register as Retailer</span>
+								</Link>
+
+								{/* PWA Install Button (with smooth bounce-up entrance) */}
+								<PwaInstallButton />
 							</motion.div>
-						</div>
 
-						{/* Right: Architectural Photographic Plate (Masked Reveal & Desktop Pointer Shift) */}
-						<div className="relative lg:col-span-5">
-							<motion.div
-								style={{
-									x: springX,
-									y: springY,
-								}}
-								className="relative aspect-[4/5] w-full overflow-hidden border border-[#DEDEDA] bg-[#F0F0ED] sm:aspect-[1/1] lg:aspect-[4/5] dark:border-[#292929] dark:bg-[#111111]"
-							>
-								{/* Smooth Cross-Fading Photographic Showcase (6 Vivid Slides) */}
-								<AnimatePresence mode="wait">
-									<motion.div
-										key={activeSlide}
-										initial={{ opacity: 0, scale: 1.05 }}
-										animate={{ opacity: 1, scale: 1 }}
-										exit={{ opacity: 0, scale: 0.98 }}
-										transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-										className="relative h-full w-full"
-									>
-										<Image
-											src={
-												HERO_SLIDES[activeSlide]?.url ?? IMAGERY.heroStructure
-											}
-											alt={
-												HERO_SLIDES[activeSlide]?.alt ?? "Evaluna Architecture"
-											}
-											fill
-											priority
-											sizes="(max-width: 1024px) 100vw, 42vw"
-											className="object-cover contrast-[1.04] saturate-[1.18]"
-										/>
-										{/* Subtle tonal grain & overlay */}
-										<div className="pointer-events-none absolute inset-0 bg-[#111111]/5 mix-blend-multiply dark:bg-black/15" />
-									</motion.div>
-								</AnimatePresence>
-
-								{/* Photographic Metadata Badge & Interactive Slide Indicators */}
-								<div className="absolute right-4 bottom-4 left-4 flex flex-col gap-2 border border-[#DEDEDA] bg-[#F7F7F4]/95 p-3 text-[#111111] backdrop-blur-md dark:border-[#292929] dark:bg-[#080808]/95 dark:text-[#F5F5F2]">
-									<div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest">
-										<span>{HERO_SLIDES[activeSlide]?.plate}</span>
-										<span>{HERO_SLIDES[activeSlide]?.location}</span>
-									</div>
-									{/* Progress Dots / Bars */}
-									<div className="flex items-center space-x-1.5 pt-1">
-										{HERO_SLIDES.map((_, idx) => (
-											<button
-												key={`hero-dot-${idx}`}
-												type="button"
-												onClick={() => setActiveSlide(idx)}
-												className={`h-1 rounded-full transition-all duration-500 ${
-													activeSlide === idx
-														? "w-8 bg-[#111111] dark:bg-[#F5F5F2]"
-														: "w-2 bg-[#DEDEDA] hover:bg-[#888888] dark:bg-[#404040]"
-												}`}
-												title={`View Plate 0${idx + 1}`}
-											/>
-										))}
-									</div>
-								</div>
-							</motion.div>
-						</div>
-					</div>
-
-					{/* Bottom Minimal Scroll Indicator */}
-					<div className="flex items-center justify-between pt-16 font-mono text-[#666666] text-[10px] uppercase tracking-widest sm:pt-20 dark:text-[#A3A3A0]">
-						<span className="flex items-center space-x-2">
-							<ArrowDown className="h-3.5 w-3.5 animate-bounce" />
-							<span>SCROLL TO UNCOVER</span>
-						</span>
-						<span className="hidden sm:inline">ESTABLISHED FOR ENDURANCE</span>
-					</div>
-				</div>
-			</section>
-
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION C — COMPANY IDENTITY (Masked Scroll Reveal)
-			══════════════════════════════════════════════════════════════ */}
-			<section
-				id="identity"
-				ref={identityRef}
-				className="relative scroll-mt-20 overflow-hidden border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-40 dark:border-[#292929]"
-			>
-				<div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-					<div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-16">
-						{/* Left: Identity Manifesto */}
-						<div className="sticky top-28 space-y-8 lg:col-span-5">
-							<div className="flex items-center space-x-2 font-mono text-[#666666] text-[10px] uppercase tracking-widest dark:text-[#A3A3A0]">
-								<span className="h-1.5 w-1.5 rounded-full bg-[#111111] dark:bg-[#F5F5F2]" />
-								<span>02 / THE PREMISE</span>
-							</div>
-
-							<h2 className="font-normal font-serif text-3xl text-[#111111] leading-[1.08] tracking-[-0.02em] sm:text-4xl lg:text-5xl dark:text-[#F5F5F2]">
-								Software is empty without physical reality.
-							</h2>
-
-							<div className="space-y-4 font-light text-[#666666] text-sm leading-relaxed sm:text-base dark:text-[#A3A3A0]">
-								<p>
-									Most commercial software is built in insulation—designed in
-									air-conditioned offices for abstract metrics. When tested by
-									warehouse dust, spotty cellular networks, or rural retail
-									counter rushes, it stumbles.
-								</p>
-								<p>
-									Evaluna operates differently. Founded with deep operational
-									ties to Bhopal and Berasia, our systems are born from active
-									freight terminals, wholesale grain corridors, and real human
-									transaction desks.
-								</p>
-							</div>
-
-							<div className="space-y-4 border-[#DEDEDA] border-t pt-6 font-mono text-xs dark:border-[#292929]">
-								<div className="flex items-center justify-between text-[#111111] dark:text-[#F5F5F2]">
-									<span>CENTRAL LOGISTICS HEADQUARTERS</span>
-									<span className="text-[#666666] dark:text-[#A3A3A0]">
-										VIDISHA ROAD, BERASIA
-									</span>
-								</div>
-								<div className="flex items-center justify-between text-[#111111] dark:text-[#F5F5F2]">
-									<span>CORE METROPOLITAN PRESENCE</span>
-									<span className="text-[#666666] dark:text-[#A3A3A0]">
-										BHOPAL, MADHYA PRADESH
-									</span>
-								</div>
-								<div className="flex items-center justify-between text-[#111111] dark:text-[#F5F5F2]">
-									<span>ARCHITECTURAL STANDARD</span>
-									<span className="text-[#666666] dark:text-[#A3A3A0]">
-										DETERMINISTIC & IMMUTABLE
-									</span>
-								</div>
-							</div>
-						</div>
-
-						{/* Right: Editorial Masked Image Plate with Parallax */}
-						<div className="space-y-6 lg:col-span-7">
-							<div className="relative aspect-[4/3] w-full overflow-hidden border border-[#DEDEDA] bg-[#F0F0ED] sm:aspect-[16/10] dark:border-[#292929] dark:bg-[#111111]">
-								<motion.div
-									style={{ y: identityImageY }}
-									className="relative -top-[10%] h-[120%] w-full"
-								>
-									<Image
-										src={IMAGERY.identityFacade}
-										alt="Evaluna Physical Architectural Form"
-										fill
-										sizes="(max-width: 1024px) 100vw, 58vw"
-										className="object-cover contrast-[1.02] saturate-[1.12]"
-									/>
-								</motion.div>
-							</div>
-
-							<div className="flex flex-col justify-between gap-2 font-mono text-[#666666] text-[10px] uppercase tracking-widest sm:flex-row sm:items-center dark:text-[#A3A3A0]">
-								<span>FIG. 02 — PHYSICAL SUBSTRATE & ARCHITECTURAL ANCHOR</span>
-								<span>LAT: 23.2599° N • ELEVATION: 527M</span>
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
-
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION D — SIGNATURE SCROLL-EXPANDING PHOTOGRAPHIC CANVAS
-			══════════════════════════════════════════════════════════════ */}
-			<section
-				ref={expansionContainerRef}
-				className="relative overflow-hidden border-[#DEDEDA] border-b py-28 sm:py-36 lg:py-44 dark:border-[#292929]"
-			>
-				<div className="mx-auto mb-12 max-w-7xl px-6 sm:mb-16 sm:px-8 lg:px-12">
-					<div className="max-w-2xl space-y-4">
-						<span className="font-mono text-[#666666] text-[10px] uppercase tracking-widest dark:text-[#A3A3A0]">
-							03 / SCALE IN MOTION
-						</span>
-						<h2 className="font-normal font-serif text-3xl text-[#111111] leading-tight tracking-[-0.02em] sm:text-5xl dark:text-[#F5F5F2]">
-							Movement at the scale of real geography.
-						</h2>
-						<p className="font-light text-[#666666] text-sm leading-relaxed sm:text-base dark:text-[#A3A3A0]">
-							Scale is not a server metric. It is the physical rhythm of goods
-							arriving on trucks at sunrise, warehouse workers scanning pallets
-							with precision, and transparent accounting closing at nightfall.
-						</p>
-					</div>
-				</div>
-
-				{/* Scroll-Driven Expanding Photographic Frame */}
-				<div className="flex w-full justify-center">
-					<motion.div
-						style={{
-							width: prefersReducedMotion ? "100%" : expandWidth,
-							scale: prefersReducedMotion ? 1 : expandScale,
-							borderRadius: prefersReducedMotion ? "0px" : expandRadius,
-						}}
-						className="relative aspect-[16/9] overflow-hidden border-[#DEDEDA] border-y bg-[#F0F0ED] sm:aspect-[21/9] dark:border-[#292929] dark:bg-[#111111]"
-					>
-						<Image
-							src={IMAGERY.expandingLogistics}
-							alt="Evaluna Spatial Logistics & Warehouse Architecture"
-							fill
-							sizes="100vw"
-							className="object-cover contrast-[1.05] saturate-[1.18]"
-						/>
-						{/* Subtle gradient vignette */}
-						<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080808]/70 via-transparent to-transparent" />
-
-						{/* Text overlay within expanding canvas */}
-						<div className="absolute right-6 bottom-6 left-6 flex flex-col justify-between gap-4 text-white sm:right-12 sm:bottom-10 sm:left-12 sm:flex-row sm:items-end">
-							<div className="space-y-1">
-								<span className="font-mono text-[10px] uppercase tracking-widest opacity-75">
-									SYSTEM PERSPECTIVE
-								</span>
-								<h3 className="font-light font-serif text-xl tracking-tight sm:text-3xl">
-									Automated FEFO Lot Allocation & Multi-Warehouse Dispatch
-								</h3>
-							</div>
-							<span className="shrink-0 font-mono text-[10px] uppercase tracking-widest opacity-75">
-								BERASIA DISTRIBUTION CORRIDOR
-							</span>
-						</div>
-					</motion.div>
-				</div>
-			</section>
-
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION E — DISCIPLINES & CAPABILITIES (Asymmetric Editorial)
-			══════════════════════════════════════════════════════════════ */}
-			<section
-				id="disciplines"
-				className="border-[#DEDEDA] border-b py-24 sm:py-32 lg:py-40 dark:border-[#292929]"
-			>
-				<div className="mx-auto max-w-7xl space-y-24 px-6 sm:space-y-32 sm:px-8 lg:px-12">
-					{/* Section Header */}
-					<div className="flex flex-col justify-between gap-6 border-[#DEDEDA] border-b pb-8 sm:flex-row sm:items-end dark:border-[#292929]">
-						<div className="space-y-2">
-							<span className="font-mono text-[#666666] text-[10px] uppercase tracking-widest dark:text-[#A3A3A0]">
-								04 / DISCIPLINES
-							</span>
-							<h2 className="font-normal font-serif text-4xl text-[#111111] tracking-[-0.025em] sm:text-6xl dark:text-[#F5F5F2]">
-								What Evaluna engineers.
-							</h2>
-						</div>
-						<p className="max-w-md font-light text-[#666666] text-xs leading-relaxed sm:text-sm dark:text-[#A3A3A0]">
-							Three integrated pillars designed to replace operational chaos
-							with quiet, uncompromising structural clarity.
-						</p>
-					</div>
-
-					{/* Editorial Sequence of Disciplines (Scroll-Triggered Directional Reveal) */}
-					{DISCIPLINES.map((item, index) => {
-						const isEven = index % 2 === 0;
-						return (
-							<motion.div
-								key={item.number}
-								initial={{
-									opacity: 0,
-									x: prefersReducedMotion ? 0 : isEven ? -60 : 60,
-									y: 20,
-								}}
-								whileInView={{
-									opacity: 1,
-									x: 0,
-									y: 0,
-								}}
-								viewport={{ once: false, amount: 0.25 }}
-								transition={{
-									duration: 0.95,
-									ease: [0.16, 1, 0.3, 1],
-								}}
-								className={`grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16 ${
-									isEven ? "" : "lg:flex-row-reverse"
-								}`}
-							>
-								{/* Photographic Plate with Smooth Left-to-Right Wipe Effect on Hover */}
-								<div
-									className={`lg:col-span-7 ${isEven ? "lg:order-1" : "lg:order-2"}`}
-								>
-									<div
-										className={`relative w-full ${item.aspect} group cursor-pointer overflow-hidden border border-[#DEDEDA] bg-[#F0F0ED] shadow-sm dark:border-[#292929] dark:bg-[#111111]`}
-									>
-										{/* Primary / Base Image */}
-										<Image
-											src={item.image}
-											alt={item.title}
-											fill
-											sizes="(max-width: 1024px) 100vw, 58vw"
-											className="object-cover contrast-[1.04] saturate-[1.18] transition-transform duration-700 group-hover:scale-105"
-										/>
-
-										{/* Secondary Image — Directional Wipe on Hover (Left-to-Right for left images, Right-to-Left for right images) */}
-										{item.hoverImage && (
-											<div
-												className={`pointer-events-none absolute inset-0 z-10 transition-[clip-path] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-													isEven
-														? "[clip-path:inset(0_100%_0_0)] group-hover:[clip-path:inset(0_0_0_0)]"
-														: "[clip-path:inset(0_0_0_100%)] group-hover:[clip-path:inset(0_0_0_0)]"
-												}`}
-											>
-												<Image
-													src={item.hoverImage}
-													alt={`${item.title} — Operational Perspective`}
-													fill
-													sizes="(max-width: 1024px) 100vw, 58vw"
-													className="object-cover contrast-[1.05] saturate-[1.2] transition-transform duration-700 group-hover:scale-105"
-												/>
-												{/* Illuminated Vertical Scanline at Wipe Leading Edge */}
-												<div
-													className={`absolute top-0 bottom-0 w-[2px] bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.9)] ${
-														isEven ? "right-0" : "left-0"
-													}`}
-												/>
-											</div>
-										)}
-
-										{/* Geographic Coordinates Metadata */}
-										<div className="absolute bottom-3 left-3 z-20 flex items-center gap-2 border border-[#DEDEDA] bg-[#F7F7F4]/90 px-2.5 py-1 font-mono text-[#111111] text-[9px] uppercase tracking-widest backdrop-blur-xs transition-colors dark:border-[#292929] dark:bg-[#080808]/90 dark:text-[#F5F5F2]">
-											<span>{item.coordinates}</span>
-										</div>
-
-										{/* Interactive Wipe Status Indicator */}
-										<div className="absolute top-3 right-3 z-20 hidden items-center gap-1.5 border border-[#DEDEDA] bg-[#F7F7F4]/90 px-2 py-0.5 font-mono text-[#111111] text-[9px] uppercase tracking-widest backdrop-blur-xs sm:flex dark:border-[#292929] dark:bg-[#080808]/90 dark:text-[#F5F5F2]">
-											<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-											<span className="group-hover:hidden">
-												HOVER TO REVEAL
-											</span>
-											<span className="hidden text-emerald-600 group-hover:inline dark:text-emerald-400">
-												PERSPECTIVE 02
-											</span>
-										</div>
-									</div>
-								</div>
-
-								{/* Editorial Content Column */}
-								<div
-									className={`space-y-6 lg:col-span-5 ${isEven ? "lg:order-2" : "lg:order-1"}`}
-								>
-									<div className="flex items-center space-x-3 font-mono text-[#666666] text-xs dark:text-[#A3A3A0]">
-										<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">
-											[{item.number}]
-										</span>
-										<span className="h-px w-8 bg-[#DEDEDA] dark:bg-[#292929]" />
-										<span className="uppercase tracking-widest">
-											{item.tagline}
-										</span>
-									</div>
-
-									<h3 className="font-normal font-serif text-2xl text-[#111111] leading-snug sm:text-3xl dark:text-[#F5F5F2]">
-										{item.title}
-									</h3>
-
-									<p className="font-light text-[#666666] text-sm leading-relaxed sm:text-base dark:text-[#A3A3A0]">
-										{item.description}
+							{/* Key Metrics / Highlights Strip */}
+							<div className="grid grid-cols-2 gap-4 border-t border-[#DEDEDA] pt-6 sm:grid-cols-4 dark:border-[#292929]">
+								<div>
+									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
+										100%
 									</p>
-
-									<ul className="space-y-2.5 border-[#DEDEDA] border-t pt-4 font-mono text-[#666666] text-xs dark:border-[#292929] dark:text-[#A3A3A0]">
-										{item.details.map((detail, dIdx) => (
-											<li key={dIdx} className="flex items-center space-x-2.5">
-												<span className="h-1 w-1 bg-[#111111] dark:bg-[#F5F5F2]" />
-												<span>{detail}</span>
-											</li>
-										))}
-									</ul>
+									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
+										GST Invoice & ITC
+									</p>
 								</div>
-							</motion.div>
-						);
-					})}
+								<div>
+									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
+										500+
+									</p>
+									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
+										Daily FMCG SKUs
+									</p>
+								</div>
+								<div>
+									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
+										Fixed
+									</p>
+									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
+										Morning Delivery
+									</p>
+								</div>
+								<div>
+									<p className="font-serif text-2xl font-semibold text-[#111111] dark:text-[#F5F5F2]">
+										FEFO
+									</p>
+									<p className="font-mono text-[11px] text-[#666666] uppercase tracking-wider dark:text-[#A3A3A0]">
+										Fresh Batch Expiry
+									</p>
+								</div>
+							</div>
+						</div>
+
+						{/* Right Column: Hero Visual Showcase */}
+						<div className="relative lg:col-span-5">
+							<div className="relative overflow-hidden rounded-2xl border border-[#DEDEDA] bg-[#EFEFEA] p-6 shadow-xl dark:border-[#292929] dark:bg-[#101010]">
+								{/* Accent Badge */}
+								<div className="mb-5 flex items-center justify-between border-b border-[#DEDEDA] pb-4 dark:border-[#292929]">
+									<div className="flex items-center space-x-2">
+										<Store className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+										<span className="font-mono text-xs font-semibold uppercase tracking-wider">
+											Evaluna B2B Portal
+										</span>
+									</div>
+									<span className="rounded bg-emerald-100 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
+										LIVE STOCK
+									</span>
+								</div>
+
+								{/* Order Snapshot Cards */}
+								<div className="space-y-3">
+									<div className="flex items-center justify-between rounded-xl border border-[#DEDEDA] bg-white p-3.5 shadow-sm dark:border-[#292929] dark:bg-[#161616]">
+										<div className="flex items-center space-x-3">
+											<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+												<Wheat className="h-5 w-5" />
+											</div>
+											<div>
+												<p className="font-medium text-sm">Chakki Fresh Atta 50kg</p>
+												<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
+													Wholesale Tier-1 Slabs
+												</p>
+											</div>
+										</div>
+										<span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+											In Stock
+										</span>
+									</div>
+
+									<div className="flex items-center justify-between rounded-xl border border-[#DEDEDA] bg-white p-3.5 shadow-sm dark:border-[#292929] dark:bg-[#161616]">
+										<div className="flex items-center space-x-3">
+											<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+												<Droplets className="h-5 w-5" />
+											</div>
+											<div>
+												<p className="font-medium text-sm">Mustard Oil Tin 15L</p>
+												<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
+													Kachhi Ghani Refinery Pack
+												</p>
+											</div>
+										</div>
+										<span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+											Best Rate
+										</span>
+									</div>
+
+									<div className="flex items-center justify-between rounded-xl border border-[#DEDEDA] bg-white p-3.5 shadow-sm dark:border-[#292929] dark:bg-[#161616]">
+										<div className="flex items-center space-x-3">
+											<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+												<Sparkles className="h-5 w-5" />
+											</div>
+											<div>
+												<p className="font-medium text-sm">Detergent & Soap Master Case</p>
+												<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
+													Genuine FMCG Brand Lot
+												</p>
+											</div>
+										</div>
+										<span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+											Scheme Active
+										</span>
+									</div>
+								</div>
+
+								{/* Bottom Dispatch Confirmation Bar */}
+								<div className="mt-5 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 p-3 text-center">
+									<p className="font-mono text-[11px] text-emerald-700 dark:text-emerald-300">
+										⚡ Next Morning Guaranteed Delivery Available in Bhopal & Berasia
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</section>
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION F — WORKING PHILOSOPHY (The Four Principles)
+			    SECTION 2 — CORE CATEGORIES (मुख्य सामान की लिस्ट)
 			══════════════════════════════════════════════════════════════ */}
 			<section
-				id="philosophy"
-				className="scroll-mt-20 border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-40 dark:border-[#292929]"
+				id="categories"
+				className="border-b border-[#DEDEDA] py-16 sm:py-24 dark:border-[#292929]"
 			>
-				<div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-					<div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-						{/* Left Sticky Header */}
-						<div className="space-y-4 self-start lg:sticky lg:top-28 lg:col-span-4">
-							<span className="font-mono text-[#666666] text-[10px] uppercase tracking-widest dark:text-[#A3A3A0]">
-								05 / PHILOSOPHY
+				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+					{/* Section Header */}
+					<div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+						<div className="space-y-2">
+							<span className="font-mono text-xs uppercase tracking-widest text-[#666666] dark:text-[#A3A3A0]">
+								Catalog Spectrum • 02
 							</span>
-							<h2 className="font-normal font-serif text-3xl text-[#111111] leading-tight tracking-[-0.02em] sm:text-5xl dark:text-[#F5F5F2]">
-								How we approach design.
+							<h2 className="font-serif text-3xl font-normal tracking-tight sm:text-4xl lg:text-5xl">
+								Core Categories (मुख्य सामान की लिस्ट)
 							</h2>
-							<p className="font-light text-[#666666] text-xs leading-relaxed sm:text-sm dark:text-[#A3A3A0]">
-								Every engineering decision balances functional durability with
-								aesthetic restraint.
+							<p className="max-w-xl text-sm text-[#555555] sm:text-base dark:text-[#A3A3A0]">
+								Retailers ko aasani se apna kaam ka samaan mil sake, isliye
+								sabse zaroori categories wholesale rates aur bulk packing ke sath
+								available hain.
 							</p>
 						</div>
 
-						{/* Right Principles Stack */}
-						<div className="divide-y divide-[#DEDEDA] border-[#DEDEDA] border-t border-b lg:col-span-8 dark:divide-[#292929] dark:border-[#292929]">
-							{PRINCIPLES.map((principle) => (
+						<Link
+							href="/customer/products"
+							className="inline-flex items-center space-x-2 font-mono text-xs uppercase tracking-wider text-[#111111] hover:underline dark:text-[#F5F5F2]"
+						>
+							<span>View Complete Wholesale Catalog</span>
+							<ArrowRight className="h-3.5 w-3.5" />
+						</Link>
+					</div>
+
+					{/* Category Cards Grid */}
+					<div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+						{CATEGORIES.map((cat) => {
+							const IconComponent = cat.icon;
+							return (
 								<div
-									key={principle.number}
-									className="grid grid-cols-1 items-baseline gap-6 px-2 py-10 transition-colors hover:bg-[#F0F0ED]/40 sm:grid-cols-12 sm:px-4 sm:py-14 dark:hover:bg-[#111111]/40"
+									key={cat.id}
+									className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[#DEDEDA] bg-white p-6 transition-all duration-300 hover:shadow-lg dark:border-[#292929] dark:bg-[#0E0E0E] ${cat.border}`}
 								>
-									<span className="font-mono font-semibold text-[#666666] text-xs sm:col-span-2 dark:text-[#A3A3A0]">
-										[{principle.number}]
-									</span>
-									<h3 className="font-serif text-[#111111] text-xl sm:col-span-4 sm:text-2xl dark:text-[#F5F5F2]">
-										{principle.title}
+									{/* Top Bar with Icon & Tag */}
+									<div>
+										<div className="flex items-center justify-between">
+											<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br p-2.5 shadow-xs transition-transform duration-300 group-hover:scale-105">
+												<IconComponent className="h-6 w-6 text-[#111111] dark:text-[#F5F5F2]" />
+											</div>
+											<span className="rounded-full border border-[#DEDEDA] bg-[#F7F7F4] px-2.5 py-1 font-mono text-[10px] text-[#666666] uppercase tracking-wider dark:border-[#292929] dark:bg-[#161616] dark:text-[#A3A3A0]">
+												{cat.badge}
+											</span>
+										</div>
+
+										{/* Titles */}
+										<div className="mt-5 space-y-1">
+											<h3 className="font-serif text-xl font-medium tracking-tight">
+												{cat.title}
+											</h3>
+											<p className="font-sans text-xs font-semibold text-[#888888] dark:text-[#888888]">
+												{cat.hindiTitle}
+											</p>
+										</div>
+
+										{/* Description */}
+										<p className="mt-3 text-xs leading-relaxed text-[#555555] dark:text-[#A3A3A0]">
+											{cat.description}
+										</p>
+
+										{/* Popular Item Pills */}
+										<div className="mt-5 flex flex-wrap gap-1.5">
+											{cat.items.map((item, idx) => (
+												<span
+													key={idx}
+													className="rounded-md bg-[#F0F0EC] px-2 py-0.5 font-sans text-[11px] text-[#444444] dark:bg-[#1C1C1C] dark:text-[#CCCCCC]"
+												>
+													{item}
+												</span>
+											))}
+										</div>
+									</div>
+
+									{/* Action Link */}
+									<div className="mt-6 border-t border-[#EDEDEA] pt-4 dark:border-[#222222]">
+										<Link
+											href={cat.link}
+											className="inline-flex w-full items-center justify-between font-mono text-xs uppercase tracking-wider text-[#111111] transition-colors group-hover:text-emerald-600 dark:text-[#F5F5F2] dark:group-hover:text-emerald-400"
+										>
+											<span>Browse Category Rates</span>
+											<ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+										</Link>
+									</div>
+								</div>
+							);
+						})}
+
+						{/* Custom Bulk Ordering Card */}
+						<div className="flex flex-col justify-between rounded-2xl border border-dashed border-[#111111]/30 bg-[#111111] p-6 text-[#F7F7F4] dark:border-[#F5F5F2]/30 dark:bg-[#141414]">
+							<div>
+								<span className="font-mono text-[10px] uppercase tracking-widest text-[#888888]">
+									Custom Procurement
+								</span>
+								<h3 className="mt-2 font-serif text-2xl font-medium">
+									Require Special Bulk Order?
+								</h3>
+								<p className="mt-2 text-xs leading-relaxed text-[#B0B0AC]">
+									Supermarkets, institutional buyers, aur HoReCa ke liye bulk truckload
+									discounts, direct mill contracts, aur customized packaging available hai.
+								</p>
+							</div>
+
+							<div className="mt-6">
+								<Link
+									href="/contact"
+									className="inline-flex w-full items-center justify-center space-x-2 rounded-lg bg-white px-4 py-3 font-mono text-xs uppercase tracking-wider text-[#111111] transition-transform hover:scale-[1.02] dark:bg-[#F5F5F2]"
+								>
+									<span>Contact Bulk Sales Desk</span>
+									<ArrowRight className="h-3.5 w-3.5" />
+								</Link>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			{/* ══════════════════════════════════════════════════════════════
+			    SECTION 3 — WHY CHOOSE EVALUNA PVT LTD? (USPs)
+			══════════════════════════════════════════════════════════════ */}
+			<section
+				id="why-choose"
+				className="border-b border-[#DEDEDA] bg-[#EFEFEA]/50 py-16 sm:py-24 dark:border-[#292929] dark:bg-[#0B0B0B]"
+			>
+				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+					<div className="text-center max-w-3xl mx-auto space-y-3">
+						<span className="font-mono text-xs uppercase tracking-widest text-[#666666] dark:text-[#A3A3A0]">
+							Core Advantages • 03
+						</span>
+						<h2 className="font-serif text-3xl font-normal tracking-tight sm:text-4xl lg:text-5xl">
+							Why Choose Evaluna Pvt Ltd?
+						</h2>
+						<p className="text-sm text-[#555555] sm:text-base dark:text-[#A3A3A0]">
+							Traditional wholesale mandiyon ke chakkar aur unorganized supply ki
+							pareshaniyon ko khatam karke Evaluna deta hai technology-driven B2B
+							wholesale grocery experience.
+						</p>
+					</div>
+
+					<div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+						{USPs.map((usp, idx) => {
+							const IconComponent = usp.icon;
+							return (
+								<div
+									key={idx}
+									className="flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs transition-all hover:shadow-md dark:border-[#292929] dark:bg-[#111111]"
+								>
+									<div className="space-y-4">
+										<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#F7F7F4] dark:bg-[#F5F5F2] dark:text-[#080808]">
+											<IconComponent className="h-6 w-6" />
+										</div>
+										<div>
+											<h3 className="font-serif text-xl font-medium tracking-tight">
+												{usp.title}
+											</h3>
+											<p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+												{usp.hindi}
+											</p>
+										</div>
+										<p className="text-xs leading-relaxed text-[#555555] dark:text-[#A3A3A0]">
+											{usp.description}
+										</p>
+									</div>
+
+									<div className="mt-6 flex items-center gap-1.5 text-[11px] font-mono text-[#777777] dark:text-[#888888]">
+										<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+										<span>Standard on every order</span>
+									</div>
+								</div>
+							);
+						})}
+
+						{/* Highlighted Assurance Banner Card */}
+						<div className="flex flex-col justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 dark:bg-emerald-950/20">
+							<div className="space-y-3">
+								<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
+									<Award className="h-6 w-6" />
+								</div>
+								<h3 className="font-serif text-xl font-medium text-emerald-900 dark:text-emerald-200">
+									Zero Counterfeit & Transparency
+								</h3>
+								<p className="text-xs leading-relaxed text-emerald-800 dark:text-emerald-300">
+									Har product par authentic packaging, valid barcode, aur legal
+									tax invoice. Koi duplicate ya near-expiry product deliver nahi
+									hota.
+								</p>
+							</div>
+
+							<div className="mt-6 pt-4 border-t border-emerald-500/30">
+								<Link
+									href="/signup"
+									className="inline-flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-emerald-700 hover:underline dark:text-emerald-300"
+								>
+									<span>Join Retailer Network</span>
+									<ArrowRight className="h-3.5 w-3.5" />
+								</Link>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			{/* ══════════════════════════════════════════════════════════════
+			    SECTION 4 — HOW IT WORKS (4 Simple Steps)
+			══════════════════════════════════════════════════════════════ */}
+			<section
+				id="how-it-works"
+				className="border-b border-[#DEDEDA] py-16 sm:py-24 dark:border-[#292929]"
+			>
+				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+					<div className="text-center max-w-2xl mx-auto space-y-3">
+						<span className="font-mono text-xs uppercase tracking-widest text-[#666666] dark:text-[#A3A3A0]">
+							Order Lifecycle • 04
+						</span>
+						<h2 className="font-serif text-3xl font-normal tracking-tight sm:text-4xl lg:text-5xl">
+							How It Works
+						</h2>
+						<p className="text-sm text-[#555555] sm:text-base dark:text-[#A3A3A0]">
+							Sirf 4 aasaan kadmon mein apni dukaan ke liye wholesale grocery order
+							karein aur safe doorstep delivery paayein.
+						</p>
+					</div>
+
+					<div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+						{STEPS.map((step, idx) => (
+							<div
+								key={idx}
+								className="relative flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]"
+							>
+								<div>
+									{/* Step Number Tag */}
+									<div className="flex items-center justify-between">
+										<span className="font-mono text-3xl font-bold text-[#CCCCCC] dark:text-[#333333]">
+											{step.step}
+										</span>
+										<span className="h-2 w-2 rounded-full bg-emerald-500" />
+									</div>
+
+									<h3 className="mt-4 font-serif text-xl font-medium tracking-tight">
+										{step.title}
 									</h3>
-									<p className="font-light text-[#666666] text-sm leading-relaxed sm:col-span-6 dark:text-[#A3A3A0]">
-										{principle.body}
+									<p className="mt-1 text-xs font-semibold text-[#777777] dark:text-[#999999]">
+										{step.hindi}
 									</p>
+
+									<p className="mt-3 text-xs leading-relaxed text-[#555555] dark:text-[#A3A3A0]">
+										{step.description}
+									</p>
+								</div>
+
+								<div className="mt-6 border-t border-[#EDEDEA] pt-3 text-[11px] font-mono text-[#888888] dark:border-[#222222]">
+									Step {idx + 1} of 4
+								</div>
+							</div>
+						))}
+					</div>
+
+					{/* Step Action Banner */}
+					<div className="mt-12 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#DEDEDA] bg-[#EFEFEA] p-6 sm:flex-row sm:px-8 dark:border-[#292929] dark:bg-[#121212]">
+						<div>
+							<h4 className="font-serif text-lg font-medium">
+								Ready to order wholesale grocery for your shop?
+							</h4>
+							<p className="text-xs text-[#666666] dark:text-[#A3A3A0]">
+								Sign-up takes under 2 minutes. Start ordering with live stock availability.
+							</p>
+						</div>
+						<div className="flex items-center space-x-3">
+							<Link
+								href="/signup"
+								className="inline-flex items-center space-x-2 bg-[#111111] px-5 py-2.5 font-mono text-xs uppercase text-[#F7F7F4] hover:bg-[#252525] dark:bg-[#F5F5F2] dark:text-[#080808]"
+							>
+								<span>Start Sign Up</span>
+								<ArrowRight className="h-3.5 w-3.5" />
+							</Link>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			{/* ══════════════════════════════════════════════════════════════
+			    SECTION 5 — TRUST, COMPLIANCE & SUPPORT
+			══════════════════════════════════════════════════════════════ */}
+			<section
+				id="trust"
+				className="border-b border-[#DEDEDA] bg-[#EFEFEA]/50 py-16 sm:py-24 dark:border-[#292929] dark:bg-[#0B0B0B]"
+			>
+				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+					<div className="text-center max-w-3xl mx-auto space-y-3">
+						<span className="font-mono text-xs uppercase tracking-widest text-[#666666] dark:text-[#A3A3A0]">
+							Reliability & Governance • 05
+						</span>
+						<h2 className="font-serif text-3xl font-normal tracking-tight sm:text-4xl lg:text-5xl">
+							Trust, Compliance & Dedicated Support
+						</h2>
+						<p className="text-sm text-[#555555] sm:text-base dark:text-[#A3A3A0]">
+							B2B trade mein bharosa sabse zaroori hai. Evaluna Pvt Ltd ensures legal
+							compliance, standard GST invoicing, aur prompt human support.
+						</p>
+					</div>
+
+					{/* 4 Trust Pillars */}
+					<div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+						{/* Company Overview */}
+						<div className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]">
+							<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+								<Store className="h-5 w-5" />
+							</div>
+							<h3 className="mt-4 font-serif text-lg font-medium">
+								Company Details & Infrastructure
+							</h3>
+							<p className="mt-2 text-xs leading-relaxed text-[#555555] dark:text-[#A3A3A0]">
+								Evaluna Pvt Ltd operates primary central warehouse facilities in
+								Bhopal and Berasia. Equipped with barcode scanners, multi-bay bin
+								storage, and climate control for edible grocery safety.
+							</p>
+							<div className="mt-4 flex items-center gap-2 font-mono text-[11px] text-[#666666] dark:text-[#A3A3A0]">
+								<MapPin className="h-3.5 w-3.5 text-blue-500" />
+								<span>Bhopal & Berasia, Madhya Pradesh</span>
+							</div>
+						</div>
+
+						{/* Quality & Licensing */}
+						<div className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]">
+							<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+								<FileCheck className="h-5 w-5" />
+							</div>
+							<h3 className="mt-4 font-serif text-lg font-medium">
+								Quality, FSSAI & 100% GST Billing
+							</h3>
+							<p className="mt-2 text-xs leading-relaxed text-[#555555] dark:text-[#A3A3A0]">
+								Har order par transparent GST invoice milta hai jisse aap 100%
+								Input Tax Credit (ITC) claim kar sakte hain. FSSAI certified
+								hygiene standards ke sath proper batch/expiry tracking.
+							</p>
+							<div className="mt-4 flex items-center gap-2 font-mono text-[11px] text-[#666666] dark:text-[#A3A3A0]">
+								<ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+								<span>FSSAI Certified • GST Compliant</span>
+							</div>
+						</div>
+
+						{/* Dedicated Direct Support */}
+						<div className="rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]">
+							<div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+								<Headphones className="h-5 w-5" />
+							</div>
+							<h3 className="mt-4 font-serif text-lg font-medium">
+								Dedicated Area Manager & Support
+							</h3>
+							<p className="mt-2 text-xs leading-relaxed text-[#555555] dark:text-[#A3A3A0]">
+								Aapke business ke liye dedicated sales executive aur WhatsApp
+								helpline available hai. Order tracking, scheme updates, ya billing
+								clarifications ke liye turant call ya chat karein.
+							</p>
+							<div className="mt-4 flex items-center gap-2 font-mono text-[11px] text-[#666666] dark:text-[#A3A3A0]">
+								<Clock className="h-3.5 w-3.5 text-amber-500" />
+								<span>Mon - Sat: 8:00 AM - 8:00 PM</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Retailer Reviews & Testimonials Carousel */}
+					<div className="mt-16">
+						<div className="text-center mb-8">
+							<span className="font-mono text-xs uppercase tracking-widest text-[#666666] dark:text-[#A3A3A0]">
+								Merchant Voices
+							</span>
+							<h3 className="mt-1 font-serif text-2xl font-medium sm:text-3xl">
+								What Retailers Say About Evaluna
+							</h3>
+						</div>
+
+						<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+							{REVIEWS.map((rev, idx) => (
+								<div
+									key={idx}
+									className="flex flex-col justify-between rounded-2xl border border-[#DEDEDA] bg-white p-6 shadow-xs dark:border-[#292929] dark:bg-[#101010]"
+								>
+									<div>
+										<div className="flex items-center space-x-1 text-amber-500 mb-3">
+											{[...Array(rev.rating)].map((_, i) => (
+												<Star
+													key={i}
+													className="h-4 w-4 fill-amber-500 text-amber-500"
+												/>
+											))}
+										</div>
+										<p className="text-xs leading-relaxed italic text-[#444444] dark:text-[#CCCCCC]">
+											"{rev.quote}"
+										</p>
+									</div>
+
+									<div className="mt-6 pt-4 border-t border-[#EDEDEA] dark:border-[#222222]">
+										<p className="font-semibold text-sm">{rev.name}</p>
+										<p className="text-[11px] text-[#777777] dark:text-[#999999]">
+											{rev.role} • {rev.store}
+										</p>
+									</div>
 								</div>
 							))}
 						</div>
 					</div>
+
+					{/* WhatsApp & Phone Direct Contact Banner */}
+					<div className="mt-12 rounded-2xl border border-[#DEDEDA] bg-white p-6 sm:p-8 dark:border-[#292929] dark:bg-[#101010]">
+						<div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+							<div className="space-y-1">
+								<h4 className="font-serif text-xl font-medium">
+									Need Assistance or Bulk Custom Quotes?
+								</h4>
+								<p className="text-xs text-[#555555] dark:text-[#A3A3A0]">
+									Hamari dedicated retail onboarding team se WhatsApp ya direct call par baat karein.
+								</p>
+							</div>
+
+							<div className="flex flex-wrap items-center gap-3">
+								<a
+									href="https://wa.me/919179538580?text=Hi%20Evaluna%2C%20I%20want%20to%20register%20my%20store%20for%20wholesale%20grocery"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center space-x-2 rounded-lg bg-emerald-600 px-5 py-2.5 font-mono text-xs uppercase text-white hover:bg-emerald-700 transition-colors"
+								>
+									<MessageCircle className="h-4 w-4" />
+									<span>Chat on WhatsApp</span>
+								</a>
+
+								<a
+									href="tel:+919179538580"
+									className="inline-flex items-center space-x-2 rounded-lg border border-[#DEDEDA] px-5 py-2.5 font-mono text-xs uppercase text-[#111111] hover:border-[#111111] dark:border-[#292929] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
+								>
+									<Phone className="h-3.5 w-3.5" />
+									<span>Call: +91 91795 38580</span>
+								</a>
+							</div>
+						</div>
+					</div>
 				</div>
 			</section>
 
 			{/* ══════════════════════════════════════════════════════════════
-			    SECTION G — GEOGRAPHY & CENTRAL INDIA NEXUS
+			    SECTION 6 — COMPREHENSIVE B2B FOOTER
 			══════════════════════════════════════════════════════════════ */}
-			<section
-				id="geography"
-				className="relative scroll-mt-20 overflow-hidden border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-40 dark:border-[#292929]"
-			>
-				<div className="mx-auto max-w-7xl space-y-16 px-6 sm:px-8 lg:px-12">
-					<div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
-						{/* Left Column: Geographic Context */}
-						<div className="space-y-6 lg:col-span-6">
-							<span className="font-mono text-[#666666] text-[10px] uppercase tracking-widest dark:text-[#A3A3A0]">
-								06 / GEOGRAPHIC GROUNDING
-							</span>
-							<h2 className="font-normal font-serif text-3xl text-[#111111] leading-tight tracking-[-0.025em] sm:text-5xl dark:text-[#F5F5F2]">
-								Bhopal, Berasia, and the central corridor.
-							</h2>
-							<div className="space-y-4 font-light text-[#666666] text-sm leading-relaxed sm:text-base dark:text-[#A3A3A0]">
-								<p>
-									Located at the geographic center of India, Madhya Pradesh
-									connects northern transport arteries with southern commercial
-									markets. Our operations in Berasia and Bhopal stand at this
-									vital crossroads.
-								</p>
-								<p>
-									By rooting ourselves here rather than in distant technology
-									hubs, we maintain direct daily contact with the realities of
-									central Indian commerce: grain wholesale yards, high-frequency
-									consumer distribution, and local enterprise leadership.
-								</p>
-							</div>
-
-							<div className="grid grid-cols-2 gap-4 border-[#DEDEDA] border-t pt-6 font-mono text-xs dark:border-[#292929]">
-								<div>
-									<span className="block text-[#666666] dark:text-[#A3A3A0]">
-										COORDINATES
-									</span>
-									<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">
-										23.2599° N, 77.4126° E
-									</span>
-								</div>
-								<div>
-									<span className="block text-[#666666] dark:text-[#A3A3A0]">
-										ELEVATION
-									</span>
-									<span className="font-semibold text-[#111111] dark:text-[#F5F5F2]">
-										527 METERS MSL
-									</span>
-								</div>
-							</div>
-						</div>
-
-						{/* Right Column: Landscape Photographic Plate */}
-						<div className="lg:col-span-6">
-							<div className="relative aspect-[4/3] w-full overflow-hidden border border-[#DEDEDA] bg-[#F0F0ED] sm:aspect-[16/10] dark:border-[#292929] dark:bg-[#111111]">
-								<Image
-									src={IMAGERY.centralIndiaHorizon}
-									alt="Central India Topography & Geographic Horizon"
-									fill
-									sizes="(max-width: 1024px) 100vw, 50vw"
-									className="object-cover contrast-[1.05] saturate-[1.20]"
+			<footer className="border-t border-[#DEDEDA] bg-white pt-16 pb-12 text-[#111111] dark:border-[#292929] dark:bg-[#070707] dark:text-[#F5F5F2]">
+				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+					<div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12 lg:gap-8 pb-12 border-b border-[#DEDEDA] dark:border-[#292929]">
+						{/* Company Lockup & Intro */}
+						<div className="space-y-4 lg:col-span-4">
+							<div className="flex items-center space-x-3">
+								<img
+									src="/logo.jpg"
+									alt="Evaluna"
+									className="h-9 w-9 rounded-xl object-cover shadow-xs border border-[#DEDEDA] dark:border-[#292929]"
 								/>
-								<div className="absolute bottom-3 left-3 border border-[#DEDEDA] bg-[#F7F7F4]/90 px-3 py-1 font-mono text-[#111111] text-[9px] uppercase tracking-widest dark:border-[#292929] dark:bg-[#080808]/90 dark:text-[#F5F5F2]">
-									CENTRAL PLATEAU • MADHYA PRADESH
+								<div>
+									<span className="font-serif text-lg font-semibold uppercase tracking-tight">
+										EVALUNA PVT LTD
+									</span>
+									<p className="font-mono text-[9px] uppercase tracking-widest text-[#777777] dark:text-[#999999]">
+										Wholesale Grocery Supply & Logistics
+									</p>
 								</div>
 							</div>
+
+							<p className="text-xs leading-relaxed text-[#555555] dark:text-[#A3A3A0]">
+								Evaluna Pvt Ltd is a premier technology-driven B2B wholesale grocery
+								and FMCG supply partner in Central India. Empowering Kirana stores,
+								supermarkets, and HoReCa operators with transparent bulk rates,
+								guaranteed genuine brands, and swift doorstep logistics.
+							</p>
+
+							<div className="pt-2 font-mono text-[11px] text-[#666666] space-y-1 dark:text-[#A3A3A0]">
+								<p>CIN: U51909MP2024PTC068940</p>
+								<p>FSSAI License: 11424850000215</p>
+								<p>GSTIN: 23AABCE1234F1Z8</p>
+							</div>
+						</div>
+
+						{/* Quick Links */}
+						<div className="space-y-3 lg:col-span-2">
+							<h4 className="font-mono text-xs uppercase tracking-wider text-[#111111] dark:text-[#F5F5F2]">
+								Quick Links
+							</h4>
+							<ul className="space-y-2 text-xs text-[#555555] dark:text-[#A3A3A0]">
+								<li>
+									<Link href="/about" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										About Us
+									</Link>
+								</li>
+								<li>
+									<Link href="/#categories" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										Core Categories
+									</Link>
+								</li>
+								<li>
+									<Link href="/#why-choose" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										Why Choose Us
+									</Link>
+								</li>
+								<li>
+									<Link href="/#how-it-works" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										How It Works
+									</Link>
+								</li>
+								<li>
+									<Link href="/contact" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										Bulk Inquiry
+									</Link>
+								</li>
+							</ul>
+						</div>
+
+						{/* Wholesale Categories */}
+						<div className="space-y-3 lg:col-span-3">
+							<h4 className="font-mono text-xs uppercase tracking-wider text-[#111111] dark:text-[#F5F5F2]">
+								Wholesale Categories
+							</h4>
+							<ul className="space-y-2 text-xs text-[#555555] dark:text-[#A3A3A0]">
+								<li>
+									<Link href="/customer/products?category=staples" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										Staples & Grains (Atta, Rice, Pulses)
+									</Link>
+								</li>
+								<li>
+									<Link href="/customer/products?category=oils" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										Edible Oils & Deshi Ghee
+									</Link>
+								</li>
+								<li>
+									<Link href="/customer/products?category=packaged" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										Packaged Foods & Namkeen
+									</Link>
+								</li>
+								<li>
+									<Link href="/customer/products?category=fmcg" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										FMCG, Soaps & Detergents
+									</Link>
+								</li>
+								<li>
+									<Link href="/customer/products?category=beverages" className="hover:text-[#111111] dark:hover:text-[#F5F5F2]">
+										Cold Drinks & Beverages
+									</Link>
+								</li>
+							</ul>
+						</div>
+
+						{/* Contact Info & Compliance */}
+						<div className="space-y-3 lg:col-span-3">
+							<h4 className="font-mono text-xs uppercase tracking-wider text-[#111111] dark:text-[#F5F5F2]">
+								Contact & Support Desk
+							</h4>
+							<div className="space-y-2 text-xs text-[#555555] dark:text-[#A3A3A0]">
+								<p className="flex items-start gap-2">
+									<MapPin className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+									<span>
+										Central Logistics Hub, Vidisha Road & Berasia Transit Junction, Bhopal, MP - 462038
+									</span>
+								</p>
+								<p className="flex items-center gap-2">
+									<Phone className="h-4 w-4 shrink-0 text-emerald-600" />
+									<a href="tel:+919179538580" className="hover:underline">
+										+91 91795 38580 / +91 755 492 8110
+									</a>
+								</p>
+								<p className="flex items-center gap-2">
+									<MessageCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+									<a href="https://wa.me/919179538580" className="hover:underline">
+										WhatsApp: +91 91795 38580
+									</a>
+								</p>
+								<p className="flex items-center gap-2">
+									<Clock className="h-4 w-4 shrink-0 text-emerald-600" />
+									<span>Mon - Sat: 8:00 AM - 8:00 PM</span>
+								</p>
+							</div>
+
+							<div className="pt-2">
+								<Link
+									href="/login"
+									className="inline-flex items-center space-x-1.5 font-mono text-xs uppercase tracking-wider text-[#111111] hover:underline dark:text-[#F5F5F2]"
+								>
+									<span>Retailer Portal Login</span>
+									<ArrowRight className="h-3.5 w-3.5" />
+								</Link>
+							</div>
 						</div>
 					</div>
-				</div>
-			</section>
 
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION H — CLOSING DIALOGUE & DIRECT INQUIRY
-			══════════════════════════════════════════════════════════════ */}
-			<section
-				id="dialogue"
-				className="relative scroll-mt-20 border-[#DEDEDA] border-b py-20 sm:scroll-mt-24 sm:py-32 lg:py-44 dark:border-[#292929]"
-			>
-				<div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-					<div className="max-w-4xl space-y-12">
-						<div className="space-y-4">
-							<span className="font-mono text-[#666666] text-[10px] uppercase tracking-widest dark:text-[#A3A3A0]">
-								07 / INITIATE DIALOGUE
-							</span>
-							<h2 className="font-normal font-serif text-5xl text-[#111111] leading-[0.95] tracking-[-0.035em] sm:text-7xl lg:text-8xl dark:text-[#F5F5F2]">
-								Start a conversation.
-							</h2>
+					{/* Bottom Legal & Copyright Bar */}
+					<div className="mt-8 flex flex-col justify-between gap-4 text-xs text-[#777777] sm:flex-row sm:items-center dark:text-[#888888]">
+						<div>
+							<p>© 2026 Evaluna Pvt Ltd. All rights reserved.</p>
 						</div>
 
-						<p className="max-w-2xl font-light text-[#666666] text-base leading-relaxed sm:text-xl dark:text-[#A3A3A0]">
-							Whether discussing enterprise logistics, bespoke digital
-							architecture, or physical distribution systems, our leadership
-							team welcomes direct, thoughtful exchange.
-						</p>
-
-						<div className="flex flex-wrap items-center gap-4 pt-4">
-							<Link
-								href="/contact"
-								className="group inline-flex items-center space-x-3 bg-[#111111] px-8 py-4 font-mono text-[#F7F7F4] text-xs uppercase tracking-wider transition-transform duration-200 hover:scale-[1.02] dark:bg-[#F5F5F2] dark:text-[#080808]"
-							>
-								<span>Initiate Inquiry</span>
-								<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+						<div className="flex flex-wrap gap-4 font-mono text-[11px] uppercase tracking-wider">
+							<Link href="/terms" className="hover:underline">
+								Terms & Conditions
 							</Link>
-							<Link
-								href="/login"
-								className="inline-flex items-center space-x-2 border border-[#DEDEDA] px-8 py-4 font-mono text-[#111111] text-xs uppercase tracking-wider transition-colors hover:border-[#111111] dark:border-[#292929] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
-							>
-								<span>Employee Portal</span>
-							</Link>
-							<Link
-								href="/docs"
-								className="inline-flex items-center space-x-2 border border-[#DEDEDA] px-8 py-4 font-mono text-[#111111] text-xs uppercase tracking-wider transition-colors hover:border-[#111111] dark:border-[#292929] dark:text-[#F5F5F2] dark:hover:border-[#F5F5F2]"
-							>
-								<span>Documentation & SOPs</span>
-							</Link>
-						</div>
-
-						<div className="grid grid-cols-1 gap-6 border-[#DEDEDA] border-t pt-12 font-mono text-[#666666] text-xs sm:grid-cols-3 dark:border-[#292929] dark:text-[#A3A3A0]">
-							<div>
-								<span className="mb-1 block text-[#111111] text-[10px] uppercase dark:text-[#F5F5F2]">
-									PHYSICAL HEADQUARTERS
-								</span>
-								<p className="leading-relaxed">
-									Near Bank of India, Vidisha Road
-									<br />
-									Berasia, Bhopal, MP — 463106
-								</p>
-							</div>
-							<div>
-								<span className="mb-1 block text-[#111111] text-[10px] uppercase dark:text-[#F5F5F2]">
-									ELECTRONIC DISPATCH
-								</span>
-								<p className="leading-relaxed">
-									support@evaluna.com
-									<br />
-									contact@evaluna.com
-								</p>
-							</div>
-							<div>
-								<span className="mb-1 block text-[#111111] text-[10px] uppercase dark:text-[#F5F5F2]">
-									DIRECT INQUIRY LINE
-								</span>
-								<p className="leading-relaxed">
-									+91 96306 49277
-									<br />
-									Mon — Sat • 09:00 - 19:00 IST
-								</p>
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
-
-			{/* ══════════════════════════════════════════════════════════════
-			    SECTION I — UNDERSTATED MONOCHROME FOOTER
-			══════════════════════════════════════════════════════════════ */}
-			<footer className="bg-[#F7F7F4] py-16 transition-colors sm:py-20 dark:bg-[#080808]">
-				<div className="mx-auto max-w-7xl space-y-12 px-6 sm:px-8 lg:px-12">
-					<div className="flex flex-col items-start justify-between gap-6 border-[#DEDEDA] border-b pb-8 sm:flex-row sm:items-center dark:border-[#292929]">
-						<div className="flex items-center space-x-3.5">
-							<img
-								src="/logo.jpg"
-								alt="Evaluna"
-								className="h-7 w-7 rounded-md border border-[#DEDEDA] object-cover dark:border-[#292929]"
-							/>
-							<span className="font-semibold font-serif text-[#111111] text-sm uppercase tracking-tight dark:text-[#F5F5F2]">
-								EVALUNA TECHNOLOGIES PVT. LTD.
-							</span>
-						</div>
-
-						<div className="flex flex-wrap items-center gap-6 font-mono text-[#666666] text-[11px] dark:text-[#A3A3A0]">
-							<Link
-								href="/privacy"
-								className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-							>
+							<span>•</span>
+							<Link href="/privacy" className="hover:underline">
 								Privacy Policy
 							</Link>
-							<Link
-								href="/terms"
-								className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-							>
-								Terms of Service
+							<span>•</span>
+							<Link href="/terms#returns" className="hover:underline">
+								Return & Damaged Goods Policy
 							</Link>
-							<Link
-								href="/status"
-								className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-							>
-								System Status
-							</Link>
-							<Link
-								href="/docs"
-								className="transition-colors hover:text-[#111111] dark:hover:text-[#F5F5F2]"
-							>
-								Documentation
+							<span>•</span>
+							<Link href="/contact" className="hover:underline">
+								Support
 							</Link>
 						</div>
-					</div>
-
-					<div className="flex flex-col items-start justify-between gap-4 font-mono text-[#666666] text-[10px] sm:flex-row sm:items-center dark:text-[#A3A3A0]">
-						<span suppressHydrationWarning>
-							© 2026 EVALUNA TECHNOLOGIES PVT. LTD. ALL RIGHTS RESERVED.
-						</span>
-						<span>
-							DESIGNED & ENGINEERED IN BHOPAL & BERASIA, MADHYA PRADESH
-						</span>
 					</div>
 				</div>
 			</footer>
