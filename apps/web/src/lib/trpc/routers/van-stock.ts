@@ -172,8 +172,8 @@ export const vanStockRouter = router({
 				planning: ["DRAFT", "PENDING_PICKING"],
 				picking: ["PENDING_PICKING", "PICKING_IN_PROGRESS"],
 				packing: ["PENDING_PACKING", "PACKING_IN_PROGRESS"],
-				verification: ["PENDING_MANAGER_VERIFICATION", "PENDING_LOADING", "LOADING_IN_PROGRESS", "MANAGER_VERIFICATION_REJECTED"],
-				loading: ["PENDING_LOADING", "LOADING_IN_PROGRESS", "PENDING_MANAGER_VERIFICATION"],
+				verification: ["PENDING_MANAGER_VERIFICATION", "MANAGER_VERIFICATION_REJECTED"],
+				loading: ["PENDING_LOADING", "LOADING_IN_PROGRESS"],
 				dispatch: ["PENDING_FINAL_DISPATCH_APPROVAL", "DISPATCH_REJECTED", "DISPATCHED"],
 				return: ["DISPATCHED", "RETURN_IN_PROGRESS", "PENDING_RETURN_VERIFICATION", "RETURN_REJECTED", "RETURN_VERIFIED", "COMPLETED", "RECONCILED"],
 			};
@@ -961,11 +961,11 @@ export const vanStockRouter = router({
 						.where(eq(vanStockPlanItems.id, targetItemId));
 				}
 
-				// Move directly to PENDING_LOADING so loader can load without waiting for manager verification
+				// Move to PENDING_MANAGER_VERIFICATION so warehouse manager verifies before loader loads
 				await tx
 					.update(vanStockPlans)
 					.set({
-						status: "PENDING_LOADING",
+						status: "PENDING_MANAGER_VERIFICATION",
 						assigned_packer_id: ctx.user.id,
 						packed_at: new Date(),
 						notes: input.notes ? `${plan.notes || ""}\n[Packer]: ${input.notes}`.trim() : plan.notes,
@@ -980,12 +980,12 @@ export const vanStockRouter = router({
 					stage: "PACKING",
 					action: "PACKING_COMPLETED",
 					previous_status: plan.status,
-					new_status: "PENDING_LOADING",
+					new_status: "PENDING_MANAGER_VERIFICATION",
 					revision: plan.revision,
-					notes: input.notes || "Packing manifest finalized and ready for physical van loading",
+					notes: input.notes || "Packing manifest finalized and ready for Manager verification & vehicle assignment",
 				});
 
-				return { success: true, status: "PENDING_LOADING" };
+				return { success: true, status: "PENDING_MANAGER_VERIFICATION" };
 			});
 		}),
 
@@ -1037,7 +1037,7 @@ export const vanStockRouter = router({
 				});
 				if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
 
-				if (plan.status !== "PENDING_MANAGER_VERIFICATION" && plan.status !== "PENDING_LOADING" && plan.status !== "LOADING_IN_PROGRESS") {
+				if (plan.status !== "PENDING_MANAGER_VERIFICATION") {
 					throw new TRPCError({
 						code: "BAD_REQUEST",
 						message: `Plan is in '${plan.status}' status, cannot perform manager verification.`,
@@ -1409,7 +1409,7 @@ export const vanStockRouter = router({
 				});
 				if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
 
-				if (plan.status !== "LOADING_IN_PROGRESS" && plan.status !== "PENDING_LOADING" && plan.status !== "PENDING_MANAGER_VERIFICATION") {
+				if (plan.status !== "LOADING_IN_PROGRESS" && plan.status !== "PENDING_LOADING") {
 					throw new TRPCError({
 						code: "BAD_REQUEST",
 						message: `Cannot submit loading. Current status is '${plan.status}'.`,

@@ -40,7 +40,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 export default function LoadingQueuePage() {
 	const trpc = useTRPC();
-	const [viewMode, setViewMode] = useState<"trips" | "direct_orders">("direct_orders");
+	const [viewMode, setViewMode] = useState<"trips" | "direct_orders">("trips");
 	const [statusFilter, setStatusFilter] = useState<"all" | "ready_for_loading" | "loading" | "loaded">("all");
 	const [searchQuery, setSearchQuery] = useState("");
 

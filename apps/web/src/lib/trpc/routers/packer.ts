@@ -572,10 +572,10 @@ export const packerRouter = router({
 						.where(eq(pickLists.id, input.pick_list_id));
 				}
 
-				// Update parent order status to "ready_for_loading" (directly available for loader queue)
+				// Update parent order status to "packed" (awaits manager review/verification & dispatch assignment)
 				await ctx.db
 					.update(orders)
-					.set({ status: "ready_for_loading" })
+					.set({ status: "packed" })
 					.where(eq(orders.id, validOrderId));
 
 				// Trigger In-App Notification for Manager
@@ -584,7 +584,7 @@ export const packerRouter = router({
 						type: "info",
 						priority: "high",
 						title: `Order ORD-${validOrderId} Packed`,
-						message: `Order ORD-${validOrderId} (${custName}) has been packed by ${packerName}. Ready for final manager dispatch to driver.`,
+						message: `Order ORD-${validOrderId} (${custName}) has been packed by ${packerName}. Ready for Manager review, route verification, and dispatch assignment.`,
 						branchId: branch,
 						channels: ["in_app"],
 						referenceType: "orders",

@@ -101,7 +101,7 @@ export const loaderRouter = router({
 				const [vsRes] = await db
 					.select({ count: count() })
 					.from(vanStockPlans)
-					.where(inArray(vanStockPlans.status, ["PENDING_LOADING", "LOADING_IN_PROGRESS", "PENDING_MANAGER_VERIFICATION"]));
+					.where(inArray(vanStockPlans.status, ["PENDING_LOADING", "LOADING_IN_PROGRESS"]));
 				vanStockReadyCount = vsRes?.count || 0;
 			} catch {
 				// Fallback
@@ -840,9 +840,9 @@ export const loaderRouter = router({
 		.query(async ({ ctx, input }) => {
 			const db = ctx.db || defaultDb;
 
+			// Loaders only load orders that have been verified & approved by manager for loading
 			let statusConditions = [
 				inArray(orders.status, [
-					"packed",
 					"ready_for_loading",
 					"ready_for_dispatch",
 					"loaded",
@@ -854,7 +854,6 @@ export const loaderRouter = router({
 			} else if (input?.status === "packed" || input?.status === "ready_for_loading") {
 				statusConditions = [
 					inArray(orders.status, [
-						"packed",
 						"ready_for_loading",
 						"ready_for_dispatch",
 					]),

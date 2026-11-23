@@ -49,7 +49,7 @@ import { LoaderProfileModal } from "./loader-profile-modal";
 export default function LoaderDashboard() {
 	const trpc = useTRPC();
 	const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"orders" | "trips">("orders");
+	const [activeTab, setActiveTab] = useState<"trips" | "orders">("trips");
 	const [orderSearch, setOrderSearch] = useState("");
 	const [orderStatusFilter, setOrderStatusFilter] = useState<
 		"all" | "packed" | "ready_for_loading" | "loaded"
@@ -105,7 +105,7 @@ export default function LoaderDashboard() {
 						Loader Dashboard (लोडर डैशबोर्ड)
 					</h1>
 					<p className="text-muted-foreground text-sm">
-						पैकर द्वारा तैयार ऑर्डर्स को तुरंत लोड करें और मैनेजर द्वारा बनाई गई डिलीवरी ट्रिप्स को कन्फर्म करें।
+						पैकर से मैनेजर द्वारा सत्यापित ट्रिप्स एवं ऑर्डर्स को वाहनों में लोड करें और कन्फर्म करें।
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
@@ -222,15 +222,6 @@ export default function LoaderDashboard() {
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
 				<div className="flex items-center gap-2">
 					<Button
-						variant={activeTab === "orders" ? "default" : "outline"}
-						size="sm"
-						onClick={() => setActiveTab("orders")}
-						className="font-bold text-xs gap-1.5 rounded-lg"
-					>
-						<PackageCheckIcon className="h-4 w-4" />
-						Direct Packed Orders (पैकर से प्राप्त - {packedOrders.length})
-					</Button>
-					<Button
 						variant={activeTab === "trips" ? "default" : "outline"}
 						size="sm"
 						onClick={() => setActiveTab("trips")}
@@ -238,6 +229,15 @@ export default function LoaderDashboard() {
 					>
 						<TruckIcon className="h-4 w-4" />
 						Trips Ready for Loading ({loadingQueue.length})
+					</Button>
+					<Button
+						variant={activeTab === "orders" ? "default" : "outline"}
+						size="sm"
+						onClick={() => setActiveTab("orders")}
+						className="font-bold text-xs gap-1.5 rounded-lg"
+					>
+						<PackageCheckIcon className="h-4 w-4" />
+						Verified Staged Orders ({packedOrders.length})
 					</Button>
 				</div>
 				<div className="flex items-center gap-2">
