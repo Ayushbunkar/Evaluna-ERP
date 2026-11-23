@@ -227,25 +227,8 @@ export default function HomePage() {
 			══════════════════════════════════════════════════════════════ */}
 			<section className="relative overflow-hidden border-[#DEDEDA] border-b pt-8 pb-16 sm:pt-16 sm:pb-24 lg:pt-20 lg:pb-32 dark:border-[#292929]">
 				<div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
-					{/* Editorial Header Metadata */}
-					<motion.div
-						initial={{ opacity: 0, y: 15 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-						className="flex flex-col justify-between gap-3 border-[#DEDEDA] border-b pb-6 font-mono text-[#666666] text-[10px] uppercase tracking-widest sm:flex-row sm:items-center sm:text-[11px] dark:border-[#292929] dark:text-[#A3A3A0]"
-					>
-						<span className="flex items-center space-x-2">
-							<span className="h-1.5 w-1.5 rounded-full bg-[#111111] dark:bg-[#F5F5F2]" />
-							<span>INDEX 01 / ARCHITECTURAL IDENTITY</span>
-						</span>
-						<span>CENTRAL INDIA REGIONAL HUB • BHOPAL & BERASIA</span>
-						<span className="hidden lg:inline">
-							COORDINATES: 23.2599° N, 77.4126° E
-						</span>
-					</motion.div>
-
 					{/* Asymmetric Typography & Image Reveal Composition */}
-					<div className="grid grid-cols-1 items-end gap-10 pt-8 sm:gap-12 lg:grid-cols-12 lg:gap-8 lg:pt-14">
+					<div className="grid grid-cols-1 items-end gap-10 sm:gap-12 lg:grid-cols-12 lg:gap-8">
 						{/* Left: Oversized Editorial Statement */}
 						<div className="space-y-6 sm:space-y-10 lg:col-span-7">
 							<motion.h1
