@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as authSchema from "./auth-schema";
+import { ensureHeavyTableIndexes } from "./ensure-indexes";
 import * as schema from "./schema";
 
 function customLookup(host: string, opt: any, cb: any) {
@@ -83,3 +84,6 @@ const pool =
 globalThis._evalunaPgPool = pool;
 
 export const db = drizzle(pool, { schema: { ...schema, ...authSchema } });
+
+// Idempotently create composite indexes in background to keep queries under 2ms
+ensureHeavyTableIndexes(db).catch(() => {});

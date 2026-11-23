@@ -122,6 +122,24 @@ const nextConfig = {
 	async headers() {
 		return [
 			{
+				// Cache product images on Vercel Edge CDN for 1 year (immutable)
+				source: "/api/products/images/:path*",
+				headers: [
+					{
+						key: "Cache-Control",
+						value: "public, max-age=31536000, immutable",
+					},
+					{
+						key: "CDN-Cache-Control",
+						value: "public, max-age=31536000, immutable",
+					},
+					{
+						key: "Vercel-CDN-Cache-Control",
+						value: "public, max-age=31536000, immutable",
+					},
+				],
+			},
+			{
 				// Cache our custom fonts for 1 year (immutable)
 				source: "/fonts/(.*)",
 				headers: [
