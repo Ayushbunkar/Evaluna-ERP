@@ -31,6 +31,7 @@ import {
 	lockOrUpdateDailyPrice,
 } from "@/lib/daily-pricing";
 import { stockLedger } from "@/lib/db/schema";
+import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
 import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
 import {
 	protectedProcedure,
@@ -504,6 +505,15 @@ export const inventoryRouter = router({
 					staffId,
 					source: "warehouse_stock_update",
 				});
+
+				try {
+					notifyStockChanged(prodId, input.branchId);
+				} catch (notifErr) {
+					console.warn(
+						"[inventory.updateStockAndPrice] Error notifying stock change:",
+						notifErr,
+					);
+				}
 
 				return { success: true };
 			});

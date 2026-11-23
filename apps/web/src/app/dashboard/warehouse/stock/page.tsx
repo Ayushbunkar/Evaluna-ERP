@@ -276,6 +276,7 @@ export default function StockPage() {
 			utils.inventory.invalidate();
 			utils.pos.invalidate();
 			utils.products.invalidate();
+			utils.customer.invalidate();
 			refetch();
 			setEditItem(null);
 		},
@@ -294,6 +295,7 @@ export default function StockPage() {
 			utils.inventory.invalidate();
 			utils.pos.invalidate();
 			utils.products.invalidate();
+			utils.customer.invalidate();
 			refetch();
 			setDeleteItem(null);
 			setEditItem(null);
@@ -542,6 +544,7 @@ export default function StockPage() {
 			utils.inventory.invalidate();
 			utils.pos.invalidate();
 			utils.products.invalidate();
+			utils.customer.invalidate();
 			refetch();
 			setAddItemOpen(false);
 			setNewItem({

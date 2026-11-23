@@ -14,6 +14,7 @@ import { TRPCError } from "@trpc/server";
 import { endOfDay, startOfDay } from "date-fns";
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
+import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
 import { notifyCustomerOrderPlaced } from "@/lib/notification-service";
 import { findMatchingSlab } from "@/lib/pricing/slab-pricing";
 import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
@@ -21,6 +22,70 @@ import { customerProcedure, roleProcedure, router } from "../init";
 import { ensureSlabPricingTable } from "./slab-pricing";
 
 export { ensureProductImageColumns };
+
+export type StockStatusTier =
+	| "in_stock"
+	| "few_left"
+	| "selling_fast"
+	| "almost_sold_out"
+	| "out_of_stock";
+
+export function calculateStockTier(availableStock: number) {
+	if (availableStock <= 0) {
+		return {
+			stockStatus: "out_of_stock" as const,
+			stockBadgeText: "OUT OF STOCK",
+			stockBadgeTextHi: "आउट ऑफ स्टॉक",
+			stockBadgeColor: "red" as const,
+			stockWarningText:
+				"Currently unavailable. This product will be available once stock is replenished.",
+			stockWarningTextHi: "वर्तमान में अनुपलब्ध। स्टॉक आने पर यह उत्पाद उपलब्ध होगा।",
+			isAvailable: false,
+		};
+	}
+	if (availableStock <= 10) {
+		return {
+			stockStatus: "almost_sold_out" as const,
+			stockBadgeText: "ALMOST SOLD OUT",
+			stockBadgeTextHi: "लगभग समाप्त",
+			stockBadgeColor: "red" as const,
+			stockWarningText: `Almost Sold Out! Only ${availableStock} units left. Order Now!`,
+			stockWarningTextHi: `लगभग समाप्त! केवल ${availableStock} यूनिट बची हैं। अभी ऑर्डर करें!`,
+			isAvailable: true,
+		};
+	}
+	if (availableStock <= 20) {
+		return {
+			stockStatus: "selling_fast" as const,
+			stockBadgeText: "SELLING FAST",
+			stockBadgeTextHi: "तेज़ी से बिक रहा",
+			stockBadgeColor: "orange" as const,
+			stockWarningText: "Selling fast! Limited stock remaining.",
+			stockWarningTextHi: "तेज़ी से बिक रहा है! सीमित स्टॉक शेष है।",
+			isAvailable: true,
+		};
+	}
+	if (availableStock <= 29) {
+		return {
+			stockStatus: "few_left" as const,
+			stockBadgeText: "FEW LEFT",
+			stockBadgeTextHi: "कुछ ही शेष",
+			stockBadgeColor: "orange" as const,
+			stockWarningText: `Hurry! Only ${availableStock} units left. Order soon!`,
+			stockWarningTextHi: `जल्दी करें! केवल ${availableStock} यूनिट बची हैं। जल्द ऑर्डर करें!`,
+			isAvailable: true,
+		};
+	}
+	return {
+		stockStatus: "in_stock" as const,
+		stockBadgeText: "IN STOCK",
+		stockBadgeTextHi: "स्टॉक में उपलब्ध",
+		stockBadgeColor: "green" as const,
+		stockWarningText: "",
+		stockWarningTextHi: "",
+		isAvailable: true,
+	};
+}
 
 let hasEnsuredCartTables = false;
 export async function ensureCartTables(db: any) {
@@ -111,6 +176,7 @@ async function getCartHelper(
 			isDeleted: products.is_deleted,
 			isHidden: products.is_hidden,
 			inStock: sql<number>`coalesce(max(${branchInventory.in_stock}), 0)::numeric`,
+			reservedStock: sql<number>`coalesce(max(${branchInventory.reserved_stock}), 0)::numeric`,
 		})
 		.from(cartItems)
 		.innerJoin(products, eq(cartItems.product_id, products.id))
@@ -250,8 +316,15 @@ async function getCartHelper(
 		totalDiscount += itemDiscount;
 
 		const inStockNum = Number(item.inStock || 0);
-		const isAvailable = !item.isDeleted && !item.isHidden && inStockNum > 0;
-		const isStockShortage = qty > inStockNum;
+		const reservedStockNum = Number((item as any).reservedStock || 0);
+		const availableStock = Math.max(
+			0,
+			Number((inStockNum - reservedStockNum).toFixed(3)),
+		);
+		const isOutOfStock = availableStock <= 0;
+		const isStockShortage = qty > availableStock;
+		const isAvailable = !item.isDeleted && !item.isHidden && !isOutOfStock;
+		const tier = calculateStockTier(availableStock);
 
 		return {
 			id: item.id,
@@ -272,8 +345,17 @@ async function getCartHelper(
 			itemNet,
 			itemDiscount,
 			isAvailable,
+			isOutOfStock,
 			isStockShortage,
 			inStock: inStockNum,
+			reservedStock: reservedStockNum,
+			availableStock,
+			stockStatus: tier.stockStatus,
+			stockBadgeText: tier.stockBadgeText,
+			stockBadgeTextHi: tier.stockBadgeTextHi,
+			stockBadgeColor: tier.stockBadgeColor,
+			stockWarningText: tier.stockWarningText,
+			stockWarningTextHi: tier.stockWarningTextHi,
 		};
 	});
 
@@ -291,6 +373,8 @@ async function getCartHelper(
 		netAmount: Number(netAmount.toFixed(2)),
 		estimatedGst,
 		estimatedTotal,
+		hasOutOfStockItems: enrichedItems.some((i) => i.isOutOfStock),
+		hasStockShortage: enrichedItems.some((i) => i.isStockShortage),
 	};
 }
 
@@ -611,6 +695,38 @@ export const customerRouter = router({
 				slabsMap.set(s.product_id, list);
 			}
 
+			// Fetch branch inventory for customer's branch
+			const customerBranchId = ctx.customer.branch_id || 1;
+			const branchInvMap = new Map<
+				number,
+				{ inStock: number; reservedStock: number }
+			>();
+			if (productIds.length > 0) {
+				try {
+					const invRows = await ctx.db
+						.select({
+							productId: branchInventory.product_id,
+							inStock: branchInventory.in_stock,
+							reservedStock: branchInventory.reserved_stock,
+						})
+						.from(branchInventory)
+						.where(
+							and(
+								inArray(branchInventory.product_id, productIds),
+								eq(branchInventory.branch_id, customerBranchId),
+							),
+						);
+					for (const r of invRows) {
+						branchInvMap.set(r.productId, {
+							inStock: Number(r.inStock ?? 0),
+							reservedStock: Number(r.reservedStock ?? 0),
+						});
+					}
+				} catch (e) {
+					console.warn("[browseProducts] Error fetching branch inventory:", e);
+				}
+			}
+
 			const enriched = rows.map((p) => {
 				const originalPrice = Number(p.price || p.base_selling_price || 0);
 				const disc = discountMap.get(p.id);
@@ -639,6 +755,15 @@ export const customerRouter = router({
 				const slabStartDate =
 					itemSlabs.find((s) => s.startDate)?.startDate || null;
 
+				const inv = branchInvMap.get(p.id);
+				const physicalStock = inv ? inv.inStock : 0;
+				const reservedStock = inv ? inv.reservedStock : 0;
+				const availableStock = Math.max(
+					0,
+					Number((physicalStock - reservedStock).toFixed(3)),
+				);
+				const tier = calculateStockTier(availableStock);
+
 				return {
 					id: p.id,
 					name: p.name,
@@ -658,8 +783,20 @@ export const customerRouter = router({
 					sku: p.sku ?? null,
 					image: (p as any).image_url ?? (p as any).image ?? null,
 					imageUrl: (p as any).image_url ?? (p as any).image ?? null,
+					inStock: physicalStock,
+					reservedStock,
+					availableStock,
+					stockStatus: tier.stockStatus,
+					stockBadgeText: tier.stockBadgeText,
+					stockBadgeTextHi: tier.stockBadgeTextHi,
+					stockBadgeColor: tier.stockBadgeColor,
+					stockWarningText: tier.stockWarningText,
+					stockWarningTextHi: tier.stockWarningTextHi,
 					available:
-						!(p as any).is_out_of_stock && !p.is_deleted && !p.is_hidden,
+						tier.isAvailable &&
+						!(p as any).is_out_of_stock &&
+						!p.is_deleted &&
+						!p.is_hidden,
 				};
 			});
 
@@ -719,6 +856,37 @@ export const customerRouter = router({
 				});
 			}
 
+			// Validate real-time available stock
+			const branchId = ctx.customer.branch_id || 1;
+			const [inv] = await ctx.db
+				.select({
+					in_stock: branchInventory.in_stock,
+					reserved_stock: branchInventory.reserved_stock,
+				})
+				.from(branchInventory)
+				.where(
+					and(
+						eq(branchInventory.product_id, input.productId),
+						eq(branchInventory.branch_id, branchId),
+					),
+				)
+				.limit(1);
+
+			const physicalStock = Number(inv?.in_stock ?? 0);
+			const reservedStock = Number(inv?.reserved_stock ?? 0);
+			const availableStock = Math.max(
+				0,
+				Number((physicalStock - reservedStock).toFixed(3)),
+			);
+
+			if (availableStock <= 0) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message:
+						"Currently unavailable. This product will be available once stock is replenished.",
+				});
+			}
+
 			// Check if item already exists in cart -> merge quantities
 			const [existing] = await ctx.db
 				.select()
@@ -731,13 +899,19 @@ export const customerRouter = router({
 				)
 				.limit(1);
 
+			const currentQty = existing ? Number(existing.quantity) : 0;
+			const targetTotal = Number((currentQty + input.quantity).toFixed(3));
+			if (targetTotal > availableStock) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: `Only ${availableStock} units are currently available. You already have ${currentQty} in your cart.`,
+				});
+			}
+
 			if (existing) {
-				const newQty = Number(
-					(Number(existing.quantity) + Number(input.quantity)).toFixed(3),
-				);
 				await ctx.db
 					.update(cartItems)
-					.set({ quantity: String(newQty), updated_at: new Date() })
+					.set({ quantity: String(targetTotal), updated_at: new Date() })
 					.where(eq(cartItems.id, existing.id));
 			} else {
 				await ctx.db.insert(cartItems).values({
@@ -792,6 +966,44 @@ export const customerRouter = router({
 						),
 					);
 			} else {
+				// Validate real-time available stock
+				const branchId = ctx.customer.branch_id || 1;
+				const [inv] = await ctx.db
+					.select({
+						in_stock: branchInventory.in_stock,
+						reserved_stock: branchInventory.reserved_stock,
+					})
+					.from(branchInventory)
+					.where(
+						and(
+							eq(branchInventory.product_id, input.productId),
+							eq(branchInventory.branch_id, branchId),
+						),
+					)
+					.limit(1);
+
+				const physicalStock = Number(inv?.in_stock ?? 0);
+				const reservedStock = Number(inv?.reserved_stock ?? 0);
+				const availableStock = Math.max(
+					0,
+					Number((physicalStock - reservedStock).toFixed(3)),
+				);
+
+				if (availableStock <= 0) {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message:
+							"This product is currently out of stock. Please update your cart.",
+					});
+				}
+
+				if (input.quantity > availableStock) {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: `Cannot order more than available stock (${availableStock} units).`,
+					});
+				}
+
 				const [existing] = await ctx.db
 					.select()
 					.from(cartItems)
@@ -1586,6 +1798,45 @@ export const customerRouter = router({
 					});
 				}
 
+				// Revalidate stock in transaction with locking & atomic reservations
+				const branchId = ctx.customer.branch_id || 1;
+				const invRecords = await tx
+					.select()
+					.from(branchInventory)
+					.where(
+						and(
+							inArray(branchInventory.product_id, productIds),
+							eq(branchInventory.branch_id, branchId),
+						),
+					);
+
+				const invMap = new Map(invRecords.map((r: any) => [r.product_id, r]));
+
+				for (const item of cleanItems) {
+					const inv = invMap.get(item.productId);
+					const inStock = Number(inv?.in_stock ?? 0);
+					const reserved = Number(inv?.reserved_stock ?? 0);
+					const available = Math.max(
+						0,
+						Number((inStock - reserved).toFixed(3)),
+					);
+
+					if (available <= 0) {
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message:
+								"This product is currently out of stock. Please update your cart.",
+						});
+					}
+
+					if (item.quantity > available) {
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message: `Requested quantity for "${item.name}" (${item.quantity}) exceeds available stock (${available} units). Please update your cart.`,
+						});
+					}
+				}
+
 				// Deduplication guard — check for rapid identical order submitted within last 15 seconds
 				const fifteenSecondsAgo = new Date(Date.now() - 15 * 1000);
 				const recentOrders = await tx.query.orders.findMany({
@@ -1655,6 +1906,27 @@ export const customerRouter = router({
 					})),
 				);
 
+				// Atomically reserve inventory for ordered items
+				for (const item of cleanItems) {
+					const inv = invMap.get(item.productId);
+					if (inv) {
+						await tx
+							.update(branchInventory)
+							.set({
+								reserved_stock: sql`${branchInventory.reserved_stock} + ${item.quantity}`,
+							})
+							.where(eq(branchInventory.id, inv.id));
+					} else {
+						await tx.insert(branchInventory).values({
+							product_id: item.productId,
+							branch_id: branchId,
+							in_stock: "0",
+							reserved_stock: String(item.quantity),
+							reorder_level: 10,
+						});
+					}
+				}
+
 				await tx.insert(pendingSync).values({
 					id: input.idempotencyKey,
 					branch_id: ctx.customer.branch_id ?? null,
@@ -1698,8 +1970,13 @@ export const customerRouter = router({
 				// cart clear is best effort
 			}
 
-			// Fire notification to Sales & Managers about new customer order
+			// Fire notification to Sales & Managers about new customer order and broadcast stock update
 			if (!createdResult.duplicate && createdResult.orderId) {
+				try {
+					notifyStockChanged(undefined, ctx.customer.branch_id || 1);
+				} catch (e) {
+					console.warn("[submitOrder] Stock update broadcast error:", e);
+				}
 				try {
 					void notifyCustomerOrderPlaced({
 						orderId: createdResult.orderId,

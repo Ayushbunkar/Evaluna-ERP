@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@evaluna/ui/components/badge";
 import { Button } from "@evaluna/ui/components/button";
 import {
 	Card,
@@ -15,9 +14,7 @@ import {
 	CalendarIcon,
 	CheckCircle2Icon,
 	ClockIcon,
-	CoinsIcon,
 	FlameIcon,
-	IndianRupeeIcon,
 	LayoutDashboardIcon,
 	PackageIcon,
 	ShoppingBagIcon,
@@ -25,12 +22,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import { useRealtimeStock } from "@/hooks/use-realtime-stock";
 import { motion, PageTransition } from "@/lib/animations";
-import { useTRPC } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
 import { getOfferCountdown } from "@/lib/pricing/slab-pricing";
+import { useTRPC } from "@/lib/trpc/client";
 
 export default function CustomerDashboard() {
+	useRealtimeStock();
 	const trpc = useTRPC();
 	const locale = useLocale();
 
@@ -49,6 +47,7 @@ export default function CustomerDashboard() {
 		{},
 		{
 			suspense: false,
+			refetchInterval: 5000,
 		},
 	);
 
@@ -129,8 +128,7 @@ export default function CustomerDashboard() {
 			locale === "hi"
 				? "वेयरहाउस द्वारा प्रबंधित नवीनतम उत्पाद और उनकी कीमतें।"
 				: "Latest warehouse-managed products and their current prices.",
-		viewFullCatalog:
-			locale === "hi" ? "पूर्ण कैटलॉग देखें" : "View Full Catalog",
+		viewFullCatalog: locale === "hi" ? "पूर्ण कैटलॉग देखें" : "View Full Catalog",
 	};
 
 	if (isLoading) {
@@ -273,7 +271,8 @@ export default function CustomerDashboard() {
 							</div>
 							<Button asChild variant="outline" size="sm" className="text-xs">
 								<Link href="/customer/products">
-									{t.viewFullCatalog} <ArrowRightIcon className="ml-1.5 h-3.5 w-3.5" />
+									{t.viewFullCatalog}{" "}
+									<ArrowRightIcon className="ml-1.5 h-3.5 w-3.5" />
 								</Link>
 							</Button>
 						</CardHeader>
@@ -295,30 +294,61 @@ export default function CustomerDashboard() {
 											}`}
 										>
 											<div>
-												<div className="flex items-center justify-between gap-1.5 flex-wrap">
+												<div className="flex flex-wrap items-center justify-between gap-1.5">
 													<div className="flex items-center gap-1.5">
-														<span className={`rounded-full p-1.5 ${
-															hasOffer ? "bg-amber-500/20 text-red-500" : "bg-blue-500/10 text-blue-500"
-														}`}>
-															{hasOffer ? <FlameIcon className="h-4 w-4 animate-bounce" /> : <PackageIcon className="h-4 w-4" />}
+														<span
+															className={`rounded-full p-1.5 ${
+																hasOffer
+																	? "bg-amber-500/20 text-red-500"
+																	: "bg-blue-500/10 text-blue-500"
+															}`}
+														>
+															{hasOffer ? (
+																<FlameIcon className="h-4 w-4 animate-bounce" />
+															) : (
+																<PackageIcon className="h-4 w-4" />
+															)}
 														</span>
 														{hasOffer ? (
-															<span className="inline-flex items-center gap-0.5 rounded-md bg-gradient-to-r from-amber-500 to-red-600 px-1.5 py-0.5 text-white font-extrabold text-[9px] shadow-sm transition-all hover:brightness-110">
+															<span className="inline-flex items-center gap-0.5 rounded-md bg-gradient-to-r from-amber-500 to-red-600 px-1.5 py-0.5 font-extrabold text-[9px] text-white shadow-sm transition-all hover:brightness-110">
 																<FlameIcon className="h-2.5 w-2.5" />
 																{prod.discountPercent}% OFF
 															</span>
+														) : (prod as any).stockStatus === "out_of_stock" ? (
+															<span className="rounded-full border border-red-300/60 bg-red-500/15 px-2 py-0.5 font-bold text-[10px] text-red-600 dark:border-red-800 dark:text-red-400">
+																{locale === "hi"
+																	? "आउट ऑफ स्टॉक"
+																	: "OUT OF STOCK"}
+															</span>
+														) : (prod as any).stockStatus ===
+															"almost_sold_out" ? (
+															<span className="rounded-full border border-red-300/60 bg-red-500/15 px-2 py-0.5 font-bold text-[10px] text-red-600 dark:border-red-800 dark:text-red-400">
+																{locale === "hi"
+																	? "लगभग समाप्त"
+																	: "ALMOST SOLD OUT"}
+															</span>
+														) : (prod as any).stockStatus === "selling_fast" ? (
+															<span className="rounded-full border border-amber-300/60 bg-amber-500/15 px-2 py-0.5 font-bold text-[10px] text-amber-700 dark:border-amber-800 dark:text-amber-400">
+																{locale === "hi"
+																	? "तेज़ी से बिक रहा"
+																	: "SELLING FAST"}
+															</span>
+														) : (prod as any).stockStatus === "few_left" ? (
+															<span className="rounded-full border border-amber-300/60 bg-amber-500/15 px-2 py-0.5 font-bold text-[10px] text-amber-700 dark:border-amber-800 dark:text-amber-400">
+																{locale === "hi" ? "कुछ ही शेष" : "FEW LEFT"}
+															</span>
 														) : (
-															<span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
-																{locale === "hi" ? "उपलब्ध" : "Available"}
+															<span className="rounded-full border border-emerald-300/60 bg-emerald-500/15 px-2 py-0.5 font-bold text-[10px] text-emerald-600 dark:border-emerald-800 dark:text-emerald-400">
+																{locale === "hi" ? "स्टॉक में उपलब्ध" : "IN STOCK"}
 															</span>
 														)}
 													</div>
 													{offerCountdown && (
 														<span
-															className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-extrabold shadow-2xs ${
+															className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-extrabold text-[9px] shadow-2xs ${
 																offerCountdown.urgency === "urgent"
-																	? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse"
-																	: "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-300/80"
+																	? "animate-pulse border border-rose-300/80 bg-rose-500/15 text-rose-700 dark:border-rose-800 dark:text-rose-300"
+																	: "border border-amber-300/80 bg-amber-500/15 text-amber-800 dark:text-amber-300"
 															}`}
 														>
 															<ClockIcon className="h-2.5 w-2.5" />
@@ -334,34 +364,58 @@ export default function CustomerDashboard() {
 														SKU: {prod.sku}
 													</p>
 												)}
+												{(prod as any).stockWarningText && (
+													<p
+														className={`mt-1 font-medium text-[10px] leading-tight ${
+															(prod as any).stockStatus === "out_of_stock" ||
+															(prod as any).stockStatus === "almost_sold_out"
+																? "font-semibold text-red-600 dark:text-red-400"
+																: "text-amber-700 dark:text-amber-400"
+														}`}
+													>
+														{locale === "hi"
+															? (prod as any).stockWarningTextHi
+															: (prod as any).stockWarningText}
+													</p>
+												)}
 
 												{/* Volume Slab Pricing Tiers Preview */}
 												{prod.slabs && prod.slabs.length > 0 && (
 													<div className="mt-2 rounded-md border border-purple-200/80 bg-purple-50/50 p-1.5 dark:border-purple-900/60 dark:bg-purple-950/20">
-														<div className="flex items-center justify-between text-[10px] font-bold text-purple-800 dark:text-purple-300 mb-1">
+														<div className="mb-1 flex items-center justify-between font-bold text-[10px] text-purple-800 dark:text-purple-300">
 															<span className="flex items-center gap-1">
 																<PackageIcon className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-																<span>{locale === "hi" ? "थोक दर स्लैब" : "Volume Slabs"}</span>
+																<span>
+																	{locale === "hi"
+																		? "थोक दर स्लैब"
+																		: "Volume Slabs"}
+																</span>
 															</span>
-															<span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400">
+															<span className="font-semibold text-[9px] text-purple-600 dark:text-purple-400">
 																{prod.slabs.length} Tiers
 															</span>
 														</div>
 														{offerCountdown ? (
-															<div className="mb-1 flex items-center justify-between gap-1 text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-300/70">
-																<span className="flex items-center gap-1 min-w-0 shrink-0">
+															<div className="mb-1 flex items-center justify-between gap-1 rounded border border-amber-300/70 bg-amber-100/70 px-1.5 py-0.5 font-bold text-[9px] text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+																<span className="flex min-w-0 shrink-0 items-center gap-1">
 																	<ClockIcon className="h-2.5 w-2.5 animate-pulse text-amber-600 dark:text-amber-400" />
-																	<span className="whitespace-nowrap font-mono">{offerCountdown.formattedDate}</span>
+																	<span className="whitespace-nowrap font-mono">
+																		{offerCountdown.formattedDate}
+																	</span>
 																</span>
-																<span className="font-mono text-[8.5px] font-extrabold bg-amber-200/80 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+																<span className="shrink-0 whitespace-nowrap rounded bg-amber-200/80 px-1.5 py-0.5 font-extrabold font-mono text-[8.5px] text-amber-950 dark:bg-amber-900/80 dark:text-amber-100">
 																	{offerCountdown.badgeText}
 																</span>
 															</div>
 														) : (
-															<div className="mb-1 flex items-center justify-between text-[8.5px] font-medium text-purple-800 dark:text-purple-300 bg-white/70 dark:bg-slate-900/60 px-1.5 py-0.5 rounded border border-purple-200/60 dark:border-purple-800/60">
+															<div className="mb-1 flex items-center justify-between rounded border border-purple-200/60 bg-white/70 px-1.5 py-0.5 font-medium text-[8.5px] text-purple-800 dark:border-purple-800/60 dark:bg-slate-900/60 dark:text-purple-300">
 																<span className="flex items-center gap-0.5">
 																	<CalendarIcon className="h-2.5 w-2.5 text-purple-600" />
-																	<span>{locale === "hi" ? "दर वैधता: नियमित थोक दर" : "Rate Validity: Regular Rate"}</span>
+																	<span>
+																		{locale === "hi"
+																			? "दर वैधता: नियमित थोक दर"
+																			: "Rate Validity: Regular Rate"}
+																	</span>
 																</span>
 																<span className="font-semibold text-emerald-600 dark:text-emerald-400">
 																	{locale === "hi" ? "सक्रिय" : "Active"}
@@ -369,16 +423,25 @@ export default function CustomerDashboard() {
 															</div>
 														)}
 														<div className="grid grid-cols-2 gap-1 text-center">
-															{prod.slabs.slice(0, 2).map((slab: any, idx: number) => (
-																<div key={idx} className="rounded bg-white dark:bg-slate-900 p-1 text-[10px] border border-purple-200/60 dark:border-purple-800/60">
-																	<div className="text-[9px] text-muted-foreground truncate font-semibold">
-																		{slab.minQuantity}{slab.maxQuantity ? `–${slab.maxQuantity}` : "+"} {prod.unit || "qty"}
+															{prod.slabs
+																.slice(0, 2)
+																.map((slab: any, idx: number) => (
+																	<div
+																		key={idx}
+																		className="rounded border border-purple-200/60 bg-white p-1 text-[10px] dark:border-purple-800/60 dark:bg-slate-900"
+																	>
+																		<div className="truncate font-semibold text-[9px] text-muted-foreground">
+																			{slab.minQuantity}
+																			{slab.maxQuantity
+																				? `–${slab.maxQuantity}`
+																				: "+"}{" "}
+																			{prod.unit || "qty"}
+																		</div>
+																		<div className="font-bold font-mono text-emerald-600 text-xs dark:text-emerald-400">
+																			₹{Number(slab.unitPrice).toFixed(2)}
+																		</div>
 																	</div>
-																	<div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-																		₹{Number(slab.unitPrice).toFixed(2)}
-																	</div>
-																</div>
-															))}
+																))}
 														</div>
 													</div>
 												)}
@@ -386,17 +449,26 @@ export default function CustomerDashboard() {
 											<div className="mt-3 flex items-baseline justify-between border-border/40 border-t pt-2">
 												<div className="flex flex-col">
 													{hasOffer && prod.originalPrice > prod.price && (
-														<span className="line-through font-semibold text-muted-foreground text-[11px]">
-															₹{Number(prod.originalPrice).toLocaleString(undefined, {
-																minimumFractionDigits: 2,
-																maximumFractionDigits: 2,
-															})}
+														<span className="font-semibold text-[11px] text-muted-foreground line-through">
+															₹
+															{Number(prod.originalPrice).toLocaleString(
+																undefined,
+																{
+																	minimumFractionDigits: 2,
+																	maximumFractionDigits: 2,
+																},
+															)}
 														</span>
 													)}
-													<span className={`font-bold text-base ${
-														hasOffer ? "text-red-600 dark:text-red-400 font-extrabold" : "text-emerald-600 dark:text-emerald-400"
-													}`}>
-														₹{Number(prod.price || 0).toLocaleString(undefined, {
+													<span
+														className={`font-bold text-base ${
+															hasOffer
+																? "font-extrabold text-red-600 dark:text-red-400"
+																: "text-emerald-600 dark:text-emerald-400"
+														}`}
+													>
+														₹
+														{Number(prod.price || 0).toLocaleString(undefined, {
 															minimumFractionDigits: 2,
 															maximumFractionDigits: 2,
 														})}
