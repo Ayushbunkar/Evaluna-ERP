@@ -1369,6 +1369,12 @@ export const customerRouter = router({
 			const offset = (page - 1) * limit;
 
 			const rows = await ctx.db.query.orders.findMany({
+				columns: {
+					id: true,
+					status: true,
+					total_amount: true,
+					created_at: true,
+				},
 				where: eq(orders.customer_id, ctx.customer.id),
 				orderBy: [desc(orders.created_at)],
 				limit,
@@ -1488,6 +1494,12 @@ export const customerRouter = router({
 			const offset = (page - 1) * limit;
 
 			const rows = await ctx.db.query.orders.findMany({
+				columns: {
+					id: true,
+					status: true,
+					total_amount: true,
+					created_at: true,
+				},
 				where: eq(orders.customer_id, ctx.customer.id),
 				orderBy: [desc(orders.created_at)],
 				limit,

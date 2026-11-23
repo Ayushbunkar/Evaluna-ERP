@@ -1,6 +1,7 @@
 export * from "../utils/password-hasher";
 export * from "./auth-schema";
 export * from "./db";
+export * from "./ensure-indexes";
 export * from "./permissions";
 export * from "./schema";
 export * from "./user-management.repository";

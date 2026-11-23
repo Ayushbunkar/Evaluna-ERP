@@ -79,8 +79,7 @@ const pool =
 		...({ lookup: customLookup } as any),
 	});
 
-if (process.env.NODE_ENV !== "production") {
-	globalThis._evalunaPgPool = pool;
-}
+// Preserve connection pool across warm serverless Lambdas and dev restarts
+globalThis._evalunaPgPool = pool;
 
 export const db = drizzle(pool, { schema: { ...schema, ...authSchema } });

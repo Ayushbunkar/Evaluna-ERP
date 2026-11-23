@@ -1261,6 +1261,12 @@ export const ordersRouter = router({
 			const branchId = ctx.user?.branchId ?? null;
 
 			const rows = await db.query.orders.findMany({
+				columns: {
+					id: true,
+					status: true,
+					notes: true,
+					created_at: true,
+				},
 				where: and(
 					inArray(orders.status, ["pending_review", "under_review"]),
 					branchId

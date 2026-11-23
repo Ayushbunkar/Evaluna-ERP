@@ -183,6 +183,10 @@ export const attendance = pgTable("attendance", {
 }, (table) => ({
 	dateIdx: index("idx_attendance_date").on(table.date),
 	employeeIdIdx: index("idx_attendance_employee_id").on(table.employeeId),
+	employeeDateIdx: index("idx_attendance_employee_date").on(
+		table.employeeId,
+		table.date,
+	),
 	statusCreatedAtIdx: index("idx_attendance_status_created_at").on(table.status, table.createdAt),
 }));
 

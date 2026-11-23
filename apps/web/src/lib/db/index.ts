@@ -12,10 +12,28 @@ if (DATABASE_URL.startsWith('"') && DATABASE_URL.endsWith('"')) {
 	console.warn("DATABASE_URL has quotes, stripping them");
 }
 
-const cleanUrl = DATABASE_URL.replace(/^"|"$/g, "").replace(
+let cleanUrl = DATABASE_URL.replace(/^"|"$/g, "").replace(
 	/sslmode=(require|prefer|verify-ca)/g,
 	"sslmode=verify-full",
 );
+
+// Automatic Neon Connection Pooler Upgrade:
+// In serverless environments (Vercel), routing through Neon's PgBouncer pooler (-pooler)
+// reuses connections, drastically reducing database CPU load and handshake latency.
+try {
+	const dbUrlParsed = new URL(cleanUrl);
+	if (
+		dbUrlParsed.hostname.endsWith(".neon.tech") &&
+		!dbUrlParsed.hostname.includes("-pooler")
+	) {
+		const hostParts = dbUrlParsed.hostname.split(".");
+		hostParts[0] = `${hostParts[0]}-pooler`;
+		dbUrlParsed.hostname = hostParts.join(".");
+		cleanUrl = dbUrlParsed.toString();
+	}
+} catch {
+	// Fall back to cleanUrl if URL parsing fails
+}
 
 // DNS lookup fallback helper to bypass ISP/router DNS blocking (e.g. JioFiber query refused)
 function customLookup(host: string, opt: any, cb: any) {
@@ -52,9 +70,28 @@ function customLookup(host: string, opt: any, cb: any) {
 	return cb(null, host);
 }
 
-// Use postgres.js for full transaction support (better than neon-http for full ERPs)
-const sql = postgres(cleanUrl, { prepare: false, lookup: customLookup });
-export const db = drizzle(sql, { schema });
+// Global singleton to reuse postgres connection pool across warm serverless functions
+declare global {
+	var _evalunaWebSql: ReturnType<typeof postgres> | undefined;
+	var _evalunaWebDb: ReturnType<typeof drizzle> | undefined;
+}
+
+const sql =
+	globalThis._evalunaWebSql ??
+	postgres(cleanUrl, {
+		prepare: false,
+		max: 3, // Keep pool small for serverless instances
+		idle_timeout: 30,
+		connect_timeout: 5,
+		lookup: customLookup,
+	});
+
+globalThis._evalunaWebSql = sql;
+
+export const db =
+	globalThis._evalunaWebDb ?? drizzle(sql, { schema });
+
+globalThis._evalunaWebDb = db;
 
 // re-export pglite instance for any code that needs direct access (null for postgres mode)
 export const pglite = null;

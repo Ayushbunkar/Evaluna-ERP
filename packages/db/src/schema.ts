@@ -231,6 +231,14 @@ export const orders = pgTable(
 		customerIdIdx: index("idx_orders_customer_id").on(table.customer_id),
 		branchIdIdx: index("idx_orders_branch_id").on(table.branch_id),
 		statusIdx: index("idx_orders_status").on(table.status),
+		branchStatusIdx: index("idx_orders_branch_status").on(
+			table.branch_id,
+			table.status,
+		),
+		branchCreatedAtIdx: index("idx_orders_branch_created_at").on(
+			table.branch_id,
+			table.created_at,
+		),
 		paymentMethodIdIdx: index("idx_orders_payment_method_id").on(
 			table.payment_method_id,
 		),
@@ -840,7 +848,14 @@ export const notifications = pgTable("notifications", {
 	reference_type: varchar("reference_type", { length: 50 }),
 	reference_id: integer("reference_id"),
 	created_at: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+	userReadIdx: index("idx_notifications_user_read").on(
+		table.user_id,
+		table.is_read,
+	),
+	branchIdIdx: index("idx_notifications_branch_id").on(table.branch_id),
+	createdAtIdx: index("idx_notifications_created_at").on(table.created_at),
+}));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
 	user: one(staff, {
@@ -2181,7 +2196,16 @@ export const staffAttendance = pgTable("staff_attendance", {
 	notes: text("notes"),
 	created_at: timestamp("created_at").defaultNow(),
 	updated_at: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+	staffDateIdx: index("idx_staff_attendance_staff_date").on(
+		table.staff_id,
+		table.date,
+	),
+	branchDateIdx: index("idx_staff_attendance_branch_date").on(
+		table.branch_id,
+		table.date,
+	),
+}));
 
 export const staffAttendanceRelations = relations(
 	staffAttendance,

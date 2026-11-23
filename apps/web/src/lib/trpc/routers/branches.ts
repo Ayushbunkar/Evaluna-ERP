@@ -1,12 +1,27 @@
 import { branches, branchInventory, products } from "@evaluna/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { db } from "@/lib/db";
 import { protectedProcedure, router } from "../init";
+import { unstable_cache, revalidateTag } from "next/cache";
+
+/**
+ * Server Cache: Branches List
+ * Cached for 1 hour (3600s) on Vercel RAM.
+ * Drops DB roundtrips to 0 for branch switchers, header badges, and dropdowns.
+ */
+export const getCachedBranches = unstable_cache(
+	async () => {
+		return db.select().from(branches);
+	},
+	["branches-list-cache"],
+	{ revalidate: 3600, tags: ["branches"] },
+);
 
 export const branchesRouter = router({
 	/** List all branches */
-	list: protectedProcedure.input(z.void()).query(async ({ ctx }) => {
-		return ctx.db.select().from(branches);
+	list: protectedProcedure.input(z.void()).query(async () => {
+		return getCachedBranches();
 	}),
 
 	/** Create a new branch */
@@ -38,6 +53,10 @@ export const branchesRouter = router({
 					is_headquarters: input.is_headquarters ?? false,
 				})
 				.returning();
+
+			try {
+				revalidateTag("branches");
+			} catch {}
 
 			return result[0];
 		}),
@@ -94,6 +113,10 @@ export const branchesRouter = router({
 				throw new Error("Branch not found");
 			}
 
+			try {
+				revalidateTag("branches");
+			} catch {}
+
 			return result[0];
 		}),
 
@@ -109,6 +132,10 @@ export const branchesRouter = router({
 			if (!result[0]) {
 				throw new Error("Branch not found");
 			}
+
+			try {
+				revalidateTag("branches");
+			} catch {}
 
 			return result[0];
 		}),
