@@ -17,7 +17,10 @@ import { z } from "zod";
 import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
 import { notifyCustomerOrderPlaced } from "@/lib/notification-service";
 import { findMatchingSlab } from "@/lib/pricing/slab-pricing";
-import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
+import {
+	autoRecoverMissingProductImages,
+	ensureProductImageColumns,
+} from "@/lib/product-schema-ensure";
 import { customerProcedure, roleProcedure, router } from "../init";
 import { ensureSlabPricingTable } from "./slab-pricing";
 
@@ -542,6 +545,7 @@ export const customerRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			await ensureProductImageColumns(ctx.db);
+			await autoRecoverMissingProductImages(ctx.db);
 			await ensureSlabPricingTable(ctx.db);
 
 			let rows: any[] = [];

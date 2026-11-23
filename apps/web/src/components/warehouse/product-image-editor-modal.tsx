@@ -17,6 +17,7 @@ import {
 	RotateCcwIcon,
 	RotateCwIcon,
 	Undo2Icon,
+	Wand2Icon,
 	ZoomInIcon,
 	ZoomOutIcon,
 } from "lucide-react";
@@ -48,6 +49,8 @@ export function ProductImageEditorModal({
 	const [rotation, setRotation] = useState<number>(0);
 	const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 	const [showGrid, setShowGrid] = useState<boolean>(true);
+	const [bgMode, setBgMode] = useState<"transparent" | "dark" | "white">("transparent");
+	const [removeWhiteBg, setRemoveWhiteBg] = useState<boolean>(false);
 	const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
 	// Dragging state
@@ -67,6 +70,8 @@ export function ProductImageEditorModal({
 			setPan({ x: 0, y: 0 });
 			currentPanRef.current = { x: 0, y: 0 };
 			setShowGrid(true);
+			setBgMode("transparent");
+			setRemoveWhiteBg(false);
 		}
 	}, [isOpen, imageUrl]);
 
@@ -89,6 +94,8 @@ export function ProductImageEditorModal({
 		setRotation(0);
 		setPan({ x: 0, y: 0 });
 		currentPanRef.current = { x: 0, y: 0 };
+		setBgMode("transparent");
+		setRemoveWhiteBg(false);
 	};
 
 	// Rotation handlers
@@ -151,16 +158,22 @@ export function ProductImageEditorModal({
 			canvas.width = outputSize;
 			canvas.height = outputSize;
 
-			const ctx = canvas.getContext("2d");
+			const ctx = canvas.getContext("2d", { willReadFrequently: true });
 			if (!ctx) throw new Error("Could not initialize image editing canvas.");
 
 			// Enable smooth rendering
 			ctx.imageSmoothingEnabled = true;
 			ctx.imageSmoothingQuality = "high";
 
-			// Fill white background for products (clean catalog look)
-			ctx.fillStyle = "#ffffff";
-			ctx.fillRect(0, 0, outputSize, outputSize);
+			// Apply chosen background mode (Default is transparent: clearRect)
+			ctx.clearRect(0, 0, outputSize, outputSize);
+			if (bgMode === "dark") {
+				ctx.fillStyle = "#0f172a";
+				ctx.fillRect(0, 0, outputSize, outputSize);
+			} else if (bgMode === "white") {
+				ctx.fillStyle = "#ffffff";
+				ctx.fillRect(0, 0, outputSize, outputSize);
+			}
 
 			// Viewport dimension ratio
 			const viewportSize = viewportRef.current?.clientWidth || 320;
@@ -188,15 +201,91 @@ export function ProductImageEditorModal({
 			ctx.drawImage(img, -renderW / 2, -renderH / 2, renderW, renderH);
 			ctx.restore();
 
-			// Export to Blob
+			// Smart Remove White Background: BFS flood-fill from all 4 borders to remove border-connected near-white background
+			if (removeWhiteBg) {
+				const imgData = ctx.getImageData(0, 0, outputSize, outputSize);
+				const data = imgData.data;
+				const w = outputSize;
+				const h = outputSize;
+
+				const visited = new Uint8Array(w * h);
+				const queue: number[] = [];
+
+				const isNearWhite = (idx: number) => {
+					const r = data[idx * 4];
+					const g = data[idx * 4 + 1];
+					const b = data[idx * 4 + 2];
+					const a = data[idx * 4 + 3];
+					return a > 0 && r >= 235 && g >= 235 && b >= 235;
+				};
+
+				// Enqueue border pixels that are near-white
+				for (let x = 0; x < w; x++) {
+					const topIdx = x;
+					if (isNearWhite(topIdx)) {
+						visited[topIdx] = 1;
+						queue.push(topIdx);
+					}
+					const botIdx = (h - 1) * w + x;
+					if (isNearWhite(botIdx)) {
+						visited[botIdx] = 1;
+						queue.push(botIdx);
+					}
+				}
+				for (let y = 0; y < h; y++) {
+					const leftIdx = y * w;
+					if (isNearWhite(leftIdx) && !visited[leftIdx]) {
+						visited[leftIdx] = 1;
+						queue.push(leftIdx);
+					}
+					const rightIdx = y * w + (w - 1);
+					if (isNearWhite(rightIdx) && !visited[rightIdx]) {
+						visited[rightIdx] = 1;
+						queue.push(rightIdx);
+					}
+				}
+
+				// BFS flood fill to erase white background connected to borders
+				let head = 0;
+				while (head < queue.length) {
+					const curr = queue[head++];
+					data[curr * 4 + 3] = 0; // Alpha to 0
+
+					const cx = curr % w;
+					const cy = Math.floor(curr / w);
+
+					const neighbors = [
+						cy > 0 ? (cy - 1) * w + cx : -1,
+						cy < h - 1 ? (cy + 1) * w + cx : -1,
+						cx > 0 ? cy * w + (cx - 1) : -1,
+						cx < w - 1 ? cy * w + (cx + 1) : -1,
+					];
+
+					for (const n of neighbors) {
+						if (n >= 0 && !visited[n] && isNearWhite(n)) {
+							visited[n] = 1;
+							queue.push(n);
+						}
+					}
+				}
+
+				ctx.putImageData(imgData, 0, 0);
+			}
+
+			// Export to PNG (Preserves transparency and prevents white backgrounds)
+			const isPng = bgMode === "transparent" || removeWhiteBg;
+			const mimeType = isPng ? "image/png" : "image/jpeg";
+			const ext = isPng ? ".png" : ".jpg";
+
 			const blob = await new Promise<Blob | null>((resolve) => {
-				canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92);
+				canvas.toBlob((b) => resolve(b), mimeType, 0.95);
 			});
 
 			if (!blob) throw new Error("Failed to process edited image blob.");
 
-			const cleanName = `${fileName.replace(/\.[^/.]+$/, "")}-edited.jpg`;
-			const editedFile = new File([blob], cleanName, { type: "image/jpeg" });
+			const baseName = fileName.replace(/\.[^/.]+$/, "");
+			const cleanName = `${baseName}-edited${ext}`;
+			const editedFile = new File([blob], cleanName, { type: mimeType });
 
 			await onSave(editedFile);
 			toast.success(
@@ -242,22 +331,30 @@ export function ProductImageEditorModal({
 							onPointerDown={handlePointerDown}
 							onPointerMove={handlePointerMove}
 							onPointerUp={handlePointerUp}
-							className="relative h-72 w-72 cursor-grab touch-none select-none overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-900 shadow-inner active:cursor-grabbing sm:h-80 sm:w-80 dark:border-slate-700"
+							className={`relative h-72 w-72 cursor-grab touch-none select-none overflow-hidden rounded-xl border-2 shadow-inner active:cursor-grabbing sm:h-80 sm:w-80 transition-colors ${
+								bgMode === "white"
+									? "border-slate-300 bg-white"
+									: bgMode === "dark"
+										? "border-slate-700 bg-slate-950"
+										: "border-slate-700 bg-slate-900"
+							}`}
 							title={
 								locale === "hi"
 									? "फोटो को खिसकाने के लिए ड्रैग करें"
 									: "Click and drag to reposition image"
 							}
 						>
-							{/* Background transparency checkerboard */}
-							<div
-								className="absolute inset-0 opacity-15"
-								style={{
-									backgroundImage:
-										"radial-gradient(#ffffff 1px, transparent 1px)",
-									backgroundSize: "16px 16px",
-								}}
-							/>
+							{/* Background transparency checkerboard pattern */}
+							{bgMode === "transparent" && (
+								<div
+									className="pointer-events-none absolute inset-0 opacity-20"
+									style={{
+										backgroundImage:
+											"radial-gradient(#94a3b8 1.5px, transparent 1.5px)",
+										backgroundSize: "16px 16px",
+									}}
+								/>
+							)}
 
 							{/* Transformed Image */}
 							<div
@@ -313,8 +410,79 @@ export function ProductImageEditorModal({
 
 					{/* Control Toolbar */}
 					<div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-900/60">
+						{/* Background Options */}
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<span className="font-semibold text-muted-foreground text-xs">
+								{locale === "hi" ? "बैकग्राउंड (Background):" : "Background Style:"}
+							</span>
+							<div className="flex flex-wrap items-center gap-1.5">
+								<Button
+									type="button"
+									size="sm"
+									variant={bgMode === "transparent" ? "default" : "outline"}
+									onClick={() => setBgMode("transparent")}
+									className={`h-7 px-2 text-xs ${
+										bgMode === "transparent"
+											? "bg-emerald-600 text-white hover:bg-emerald-700"
+											: "text-slate-700 dark:text-slate-300"
+									}`}
+								>
+									{locale === "hi" ? "पारदर्शी (No White BG)" : "Transparent (No White BG)"}
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant={bgMode === "dark" ? "default" : "outline"}
+									onClick={() => setBgMode("dark")}
+									className={`h-7 px-2 text-xs ${
+										bgMode === "dark"
+											? "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-800"
+											: "text-slate-700 dark:text-slate-300"
+									}`}
+								>
+									{locale === "hi" ? "डार्क (Dark)" : "Dark Theme"}
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant={bgMode === "white" ? "default" : "outline"}
+									onClick={() => setBgMode("white")}
+									className={`h-7 px-2 text-xs ${
+										bgMode === "white"
+											? "bg-slate-200 text-slate-900 hover:bg-slate-300"
+											: "text-slate-700 dark:text-slate-300"
+									}`}
+								>
+									{locale === "hi" ? "सफेद (White)" : "White"}
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant={removeWhiteBg ? "default" : "outline"}
+									onClick={() => {
+										const next = !removeWhiteBg;
+										setRemoveWhiteBg(next);
+										if (next) setBgMode("transparent");
+									}}
+									className={`h-7 gap-1 px-2 text-xs ${
+										removeWhiteBg
+											? "bg-purple-600 text-white hover:bg-purple-700 shadow-xs"
+											: "border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-300 dark:hover:bg-purple-950/50"
+									}`}
+									title={
+										locale === "hi"
+											? "फोटो के चारों ओर मौजूद सफेद रंग को स्वचालित रूप से हटाएँ"
+											: "Auto-detect and erase solid white outer box around product"
+									}
+								>
+									<Wand2Icon className="h-3 w-3" />
+									<span>{locale === "hi" ? "सफेद बॉक्स हटाएं" : "Remove White Border"}</span>
+								</Button>
+							</div>
+						</div>
+
 						{/* 1. Zoom in and Zoom back Controls */}
-						<div className="space-y-1.5">
+						<div className="space-y-1.5 border-slate-200/80 border-t pt-2 dark:border-slate-800/80">
 							<div className="flex items-center justify-between font-semibold text-xs">
 								<span className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
 									<ZoomInIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />

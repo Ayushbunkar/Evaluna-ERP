@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
+import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
 import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -190,6 +191,10 @@ export async function POST(req: Request) {
 					image_updated_by: user.name || user.email || "manager",
 				})
 				.where(eq(products.id, productId));
+
+			try {
+				notifyStockChanged(productId, user.branchId || 1);
+			} catch (_) {}
 		}
 
 		return NextResponse.json({

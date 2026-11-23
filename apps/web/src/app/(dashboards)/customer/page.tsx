@@ -284,6 +284,7 @@ export default function CustomerDashboard() {
 										(prod as any).slabEndDate || (prod as any).offerEndDate,
 										locale,
 									);
+									const prodImg = (prod as any).imageUrl || (prod as any).image;
 									return (
 										<div
 											key={prod.id}
@@ -356,6 +357,26 @@ export default function CustomerDashboard() {
 														</span>
 													)}
 												</div>
+
+												{/* Product Image Thumbnail */}
+												<div className="relative my-2.5 flex h-32 w-full items-center justify-center overflow-hidden rounded-lg border border-border/40 bg-gradient-to-b from-slate-100/60 to-slate-50/40 p-2 dark:from-slate-800/40 dark:to-slate-900/40">
+													{prodImg ? (
+														<img
+															src={prodImg}
+															alt={prod.name}
+															className="max-h-full max-w-full object-contain drop-shadow-xs transition-transform duration-200 hover:scale-105"
+															loading="lazy"
+														/>
+													) : (
+														<div className="flex select-none flex-col items-center justify-center gap-1 text-muted-foreground/60">
+															<PackageIcon className="h-8 w-8 stroke-[1.5]" />
+															<span className="font-medium text-[10px]">
+																{prod.category || "General"}
+															</span>
+														</div>
+													)}
+												</div>
+
 												<h4 className="mt-2 line-clamp-1 font-semibold text-foreground text-sm">
 													{prod.name}
 												</h4>
