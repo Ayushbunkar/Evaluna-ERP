@@ -100,7 +100,7 @@ export async function GET(
 				"Content-Type": row.mime_type || "image/jpeg",
 				"Content-Disposition": `inline; filename="${encodeURIComponent(row.file_name)}"`,
 				"Content-Length": String(data.length),
-				"Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+				"Cache-Control": "public, max-age=31536000, immutable",
 			},
 		});
 	} catch (error: any) {

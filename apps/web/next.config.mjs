@@ -15,7 +15,7 @@ const withPWA = withPWAInit({
 	workboxOptions: {
 		navigateFallback: "/offline.html",
 		navigateFallbackDenylist: [/^\/api\//],
-		exclude: [/\/api\//],
+		exclude: [/\/api\/(?!products\/images\/)/],
 		runtimeCaching: [
 			{
 				// Cache fonts with a long TTL - fonts never change
@@ -26,6 +26,19 @@ const withPWA = withPWAInit({
 					expiration: {
 						maxEntries: 30,
 						maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+					},
+				},
+			},
+			{
+				// Cache product catalog images in client disk CacheStorage for 30 days
+				// Prevents re-downloading images and saves 100% bandwidth & DB read units on repeat loads
+				urlPattern: /\/api\/products\/images\//i,
+				handler: "StaleWhileRevalidate",
+				options: {
+					cacheName: "product-images-cache",
+					expiration: {
+						maxEntries: 500,
+						maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
 					},
 				},
 			},
