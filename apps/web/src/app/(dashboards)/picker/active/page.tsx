@@ -69,21 +69,24 @@ export default function PickerActivePage() {
 		onSuccess: () => refetch(),
 	});
 
-	const confirmExceptionMutation = trpc.picker.confirmQuantityWithException.useMutation({
-		onSuccess: () => {
-			toast.success("Pick quantity & exception report recorded successfully.");
-			refetch();
-			setConfirmItem(null);
-			setConfirmQty(1);
-			setDamagedQty(0);
-			setMissingQty(0);
-			setExceptionRemarks("");
-			setPhotoEvidence("");
-		},
-		onError: (err) => {
-			toast.error(err.message || "Failed to confirm quantity.");
-		},
-	});
+	const confirmExceptionMutation =
+		trpc.picker.confirmQuantityWithException.useMutation({
+			onSuccess: () => {
+				toast.success(
+					"Pick quantity & exception report recorded successfully.",
+				);
+				refetch();
+				setConfirmItem(null);
+				setConfirmQty(1);
+				setDamagedQty(0);
+				setMissingQty(0);
+				setExceptionRemarks("");
+				setPhotoEvidence("");
+			},
+			onError: (err) => {
+				toast.error(err.message || "Failed to confirm quantity.");
+			},
+		});
 
 	const confirmMutation = trpc.picker.manualConfirm.useMutation({
 		onSuccess: () => {
@@ -121,7 +124,8 @@ export default function PickerActivePage() {
 	const [confirmQty, setConfirmQty] = useState<number | string>(1);
 	const [damagedQty, setDamagedQty] = useState<number | string>(0);
 	const [missingQty, setMissingQty] = useState<number | string>(0);
-	const [exceptionReason, setExceptionReason] = useState<string>("Damaged items");
+	const [exceptionReason, setExceptionReason] =
+		useState<string>("Damaged items");
 	const [exceptionRemarks, setExceptionRemarks] = useState<string>("");
 	const [photoEvidence, setPhotoEvidence] = useState<string>("");
 	const [scannedBarcode, setScannedBarcode] = useState<string>("");
@@ -174,7 +178,9 @@ export default function PickerActivePage() {
 			return;
 		}
 		if (picked > reqQty) {
-			toast.error(`Picked quantity (${picked}) cannot exceed required quantity (${reqQty})`);
+			toast.error(
+				`Picked quantity (${picked}) cannot exceed required quantity (${reqQty})`,
+			);
 			return;
 		}
 
@@ -186,14 +192,21 @@ export default function PickerActivePage() {
 			const totalReported = Math.round((dmg + miss) * 1000) / 1000;
 
 			if (totalReported === 0) {
-				toast.error(`Remaining ${shortfall} units must be accounted for as damaged or missing.`);
+				toast.error(
+					`Remaining ${shortfall} units must be accounted for as damaged or missing.`,
+				);
 				return;
 			}
 			if (totalReported !== shortfall) {
-				toast.error(`Damaged (${dmg}) + Missing (${miss}) must equal shortfall (${shortfall}).`);
+				toast.error(
+					`Damaged (${dmg}) + Missing (${miss}) must equal shortfall (${shortfall}).`,
+				);
 				return;
 			}
-			if (!exceptionRemarks.trim() && (dmg > 0 || miss > 0 || exceptionReason === "Damaged items")) {
+			if (
+				!exceptionRemarks.trim() &&
+				(dmg > 0 || miss > 0 || exceptionReason === "Damaged items")
+			) {
 				toast.error("Remarks are required for damaged or missing items.");
 				return;
 			}
@@ -297,7 +310,9 @@ export default function PickerActivePage() {
 											<span>{task.customer_name || "N/A"}</span>
 										</div>
 
-										<span className="text-slate-400 dark:text-slate-500">•</span>
+										<span className="text-slate-400 dark:text-slate-500">
+											•
+										</span>
 
 										<div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
 											<PhoneIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -309,15 +324,22 @@ export default function PickerActivePage() {
 													{task.customer_phone}
 												</a>
 											) : (
-												<span className="font-mono text-slate-400 dark:text-slate-500">N/A</span>
+												<span className="font-mono text-slate-400 dark:text-slate-500">
+													N/A
+												</span>
 											)}
 										</div>
 
-										<span className="text-slate-400 dark:text-slate-500">•</span>
+										<span className="text-slate-400 dark:text-slate-500">
+											•
+										</span>
 
 										<div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
 											<MapPinIcon className="h-3.5 w-3.5 text-rose-500 dark:text-rose-400 shrink-0" />
-											<span className="truncate max-w-[280px] sm:max-w-[360px] dark:text-slate-200" title={task.customer_address || "N/A"}>
+											<span
+												className="truncate max-w-[280px] sm:max-w-[360px] dark:text-slate-200"
+												title={task.customer_address || "N/A"}
+											>
 												{task.customer_address || "N/A"}
 											</span>
 										</div>
@@ -425,7 +447,7 @@ export default function PickerActivePage() {
 						</CardHeader>
 						<CardContent>
 							{/* Mobile View: High-Contrast Touch Cards (Phone-First) */}
-							<div className="space-y-3 sm:hidden">
+							<div className="space-y-3 pb-12 sm:hidden sm:pb-0">
 								{items.map((item) => {
 									const isPicked = item.qty_picked >= item.qty_required;
 									return (
@@ -488,26 +510,40 @@ export default function PickerActivePage() {
 											{/* Quantity Breakdown Grid */}
 											<div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2.5 text-xs">
 												<div>
-													<span className="text-muted-foreground">Required:</span>{" "}
-													<strong className="font-mono text-foreground">{item.qty_required}</strong>
+													<span className="text-muted-foreground">
+														Required:
+													</span>{" "}
+													<strong className="font-mono text-foreground">
+														{item.qty_required}
+													</strong>
 												</div>
 												<div>
-													<span className="text-muted-foreground">Avail Stock:</span>{" "}
-													<strong className="font-mono text-foreground">{item.available_stock ?? "—"}</strong>
+													<span className="text-muted-foreground">
+														Avail Stock:
+													</span>{" "}
+													<strong className="font-mono text-foreground">
+														{item.available_stock ?? "—"}
+													</strong>
 												</div>
 												<div>
 													<span className="text-muted-foreground">Picked:</span>{" "}
 													<strong
 														className={`font-mono font-bold ${
-															isPicked ? "text-green-600 dark:text-green-400" : "text-blue-600 dark:text-blue-400"
+															isPicked
+																? "text-green-600 dark:text-green-400"
+																: "text-blue-600 dark:text-blue-400"
 														}`}
 													>
 														{item.qty_picked}
 													</strong>
 												</div>
 												<div>
-													<span className="text-muted-foreground">Remaining:</span>{" "}
-													<strong className={`font-mono ${item.remaining_qty > 0 ? "text-amber-600 font-bold" : "text-foreground"}`}>
+													<span className="text-muted-foreground">
+														Remaining:
+													</span>{" "}
+													<strong
+														className={`font-mono ${item.remaining_qty > 0 ? "text-amber-600 font-bold" : "text-foreground"}`}
+													>
 														{item.remaining_qty}
 													</strong>
 												</div>
@@ -517,13 +553,17 @@ export default function PickerActivePage() {
 												<div className="mt-2 rounded-md bg-amber-50 p-2 text-[11px] text-amber-900 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800">
 													<div className="font-semibold flex items-center gap-1">
 														<AlertTriangleIcon className="h-3 w-3 text-amber-600" />
-														Exception: {item.exception.reason} ({item.exception.status})
+														Exception: {item.exception.reason} (
+														{item.exception.status})
 													</div>
 													<div className="text-muted-foreground mt-0.5">
-														Damaged: {item.exception.quantity_damaged} | Missing: {item.exception.quantity_missing}
+														Damaged: {item.exception.quantity_damaged} |
+														Missing: {item.exception.quantity_missing}
 													</div>
 													{item.exception.remarks && (
-														<div className="italic mt-0.5">&quot;{item.exception.remarks}&quot;</div>
+														<div className="italic mt-0.5">
+															&quot;{item.exception.remarks}&quot;
+														</div>
 													)}
 												</div>
 											)}
@@ -548,7 +588,9 @@ export default function PickerActivePage() {
 														size="default"
 														variant="outline"
 														className="min-h-[44px] border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30 text-xs font-semibold"
-														onClick={() => openConfirmModal({ ...item, qty_picked: 0 })}
+														onClick={() =>
+															openConfirmModal({ ...item, qty_picked: 0 })
+														}
 													>
 														<AlertTriangleIcon className="mr-1.5 h-4 w-4 text-red-500" />
 														Report Shortage
@@ -572,7 +614,9 @@ export default function PickerActivePage() {
 											<TableHead>{t("location")}</TableHead>
 											<TableHead>{t("productName")}</TableHead>
 											<TableHead>{t("skuBarcode")}</TableHead>
-											<TableHead className="text-center">Req / Avail / Rem</TableHead>
+											<TableHead className="text-center">
+												Req / Avail / Rem
+											</TableHead>
 											<TableHead className="text-center">Picked</TableHead>
 											<TableHead>{tCommon("status")}</TableHead>
 											<TableHead className="text-right">
@@ -590,21 +634,31 @@ export default function PickerActivePage() {
 													<div>{item.product}</div>
 													{item.exception && (
 														<span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 mt-1">
-															⚠️ {item.exception.reason}: Dmg {item.exception.quantity_damaged}, Miss {item.exception.quantity_missing}
+															⚠️ {item.exception.reason}: Dmg{" "}
+															{item.exception.quantity_damaged}, Miss{" "}
+															{item.exception.quantity_missing}
 														</span>
 													)}
 												</TableCell>
 												<TableCell className="font-mono text-muted-foreground text-xs">
 													<div>{item.sku}</div>
 													{item.barcode && item.barcode !== item.sku && (
-														<div className="text-[11px] text-gray-500">BC: {item.barcode}</div>
+														<div className="text-[11px] text-gray-500">
+															BC: {item.barcode}
+														</div>
 													)}
 												</TableCell>
 												<TableCell className="text-center text-xs font-mono">
-													<div className="font-bold text-foreground">Req: {item.qty_required}</div>
-													<div className="text-muted-foreground">Avail: {item.available_stock ?? "—"}</div>
+													<div className="font-bold text-foreground">
+														Req: {item.qty_required}
+													</div>
+													<div className="text-muted-foreground">
+														Avail: {item.available_stock ?? "—"}
+													</div>
 													{item.remaining_qty > 0 && (
-														<div className="font-bold text-amber-600">Rem: {item.remaining_qty}</div>
+														<div className="font-bold text-amber-600">
+															Rem: {item.remaining_qty}
+														</div>
 													)}
 												</TableCell>
 												<TableCell className="text-center font-semibold text-sm">
@@ -651,14 +705,18 @@ export default function PickerActivePage() {
 														onClick={() => openConfirmModal(item)}
 													>
 														<CheckCircle2Icon className="h-3.5 w-3.5 text-green-600" />{" "}
-														{item.qty_picked >= item.qty_required ? "Update Qty" : t("confirmQty")}
+														{item.qty_picked >= item.qty_required
+															? "Update Qty"
+															: t("confirmQty")}
 													</Button>
 													{item.status !== "missing" && (
 														<Button
 															size="sm"
 															variant="outline"
 															className="h-8 gap-1 border-red-200 text-red-600 hover:bg-red-50"
-															onClick={() => openConfirmModal({ ...item, qty_picked: 0 })}
+															onClick={() =>
+																openConfirmModal({ ...item, qty_picked: 0 })
+															}
 														>
 															<AlertTriangleIcon className="h-3.5 w-3.5 text-red-500" />{" "}
 															Report Shortage
@@ -688,7 +746,10 @@ export default function PickerActivePage() {
 								Confirm Quantity & Verify Stock
 							</DialogTitle>
 							<DialogDescription>
-								Confirm pick for <strong className="text-foreground">{confirmItem.product}</strong>
+								Confirm pick for{" "}
+								<strong className="text-foreground">
+									{confirmItem.product}
+								</strong>
 							</DialogDescription>
 						</DialogHeader>
 
@@ -697,27 +758,41 @@ export default function PickerActivePage() {
 							<div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-3 text-xs">
 								<div>
 									<span className="text-muted-foreground">Order ID:</span>{" "}
-									<strong className="text-foreground">{task?.order_id || "N/A"}</strong>
+									<strong className="text-foreground">
+										{task?.order_id || "N/A"}
+									</strong>
 								</div>
 								<div>
 									<span className="text-muted-foreground">Customer:</span>{" "}
-									<strong className="text-foreground">{task?.customer_name || "N/A"}</strong>
+									<strong className="text-foreground">
+										{task?.customer_name || "N/A"}
+									</strong>
 								</div>
 								<div>
 									<span className="text-muted-foreground">SKU / Barcode:</span>{" "}
-									<span className="font-mono text-foreground">{confirmItem.sku}</span>
+									<span className="font-mono text-foreground">
+										{confirmItem.sku}
+									</span>
 								</div>
 								<div>
-									<span className="text-muted-foreground">Shelf / Location:</span>{" "}
-									<span className="font-semibold text-blue-600 dark:text-blue-400">{confirmItem.location}</span>
+									<span className="text-muted-foreground">
+										Shelf / Location:
+									</span>{" "}
+									<span className="font-semibold text-blue-600 dark:text-blue-400">
+										{confirmItem.location}
+									</span>
 								</div>
 								<div>
 									<span className="text-muted-foreground">Ordered Qty:</span>{" "}
-									<strong className="text-foreground font-mono">{confirmItem.qty_required}</strong>
+									<strong className="text-foreground font-mono">
+										{confirmItem.qty_required}
+									</strong>
 								</div>
 								<div>
 									<span className="text-muted-foreground">Avail Stock:</span>{" "}
-									<strong className="text-foreground font-mono">{confirmItem.available_stock ?? "—"}</strong>
+									<strong className="text-foreground font-mono">
+										{confirmItem.available_stock ?? "—"}
+									</strong>
 								</div>
 							</div>
 
@@ -742,13 +817,18 @@ export default function PickerActivePage() {
 										const val = Number(rawVal);
 										const maxAllowed = confirmItem.qty_required || 1;
 										if (val > maxAllowed) {
-											toast.error(`Picked quantity cannot exceed ordered quantity (${maxAllowed})`);
+											toast.error(
+												`Picked quantity cannot exceed ordered quantity (${maxAllowed})`,
+											);
 											setConfirmQty(maxAllowed);
 										} else {
 											const cleanVal = val < 0 ? 0 : val;
 											setConfirmQty(cleanVal);
 											const diff = Math.max(0, maxAllowed - cleanVal);
-											if (diff > 0 && Number(damagedQty) + Number(missingQty) === 0) {
+											if (
+												diff > 0 &&
+												Number(damagedQty) + Number(missingQty) === 0
+											) {
 												setMissingQty(diff);
 											}
 										}
@@ -756,8 +836,22 @@ export default function PickerActivePage() {
 								/>
 								<div className="flex justify-between text-[11px] text-muted-foreground font-mono">
 									<span>Ordered: {confirmItem.qty_required}</span>
-									<span className={Number(confirmQty) < confirmItem.qty_required ? "text-amber-600 font-bold" : "text-green-600 font-bold"}>
-										Remaining Shortfall: {Math.max(0, Math.round(((confirmItem.qty_required || 0) - (Number(confirmQty) || 0)) * 1000) / 1000)}
+									<span
+										className={
+											Number(confirmQty) < confirmItem.qty_required
+												? "text-amber-600 font-bold"
+												: "text-green-600 font-bold"
+										}
+									>
+										Remaining Shortfall:{" "}
+										{Math.max(
+											0,
+											Math.round(
+												((confirmItem.qty_required || 0) -
+													(Number(confirmQty) || 0)) *
+													1000,
+											) / 1000,
+										)}
 									</span>
 								</div>
 							</div>
@@ -767,11 +861,23 @@ export default function PickerActivePage() {
 								<div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3.5 dark:border-amber-900/60 dark:bg-amber-950/20">
 									<div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
 										<AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-										<span>Shortage / Exception Details (Warehouse Manager Approval Required)</span>
+										<span>
+											Shortage / Exception Details (Warehouse Manager Approval
+											Required)
+										</span>
 									</div>
 									<p className="text-[11px] text-amber-800 dark:text-amber-300">
-										You are confirming {Number(confirmQty) || 0} out of {confirmItem.qty_required} units.
-										Allocate the shortfall ({Math.max(0, Math.round(((confirmItem.qty_required || 0) - (Number(confirmQty) || 0)) * 1000) / 1000)} units) below:
+										You are confirming {Number(confirmQty) || 0} out of{" "}
+										{confirmItem.qty_required} units. Allocate the shortfall (
+										{Math.max(
+											0,
+											Math.round(
+												((confirmItem.qty_required || 0) -
+													(Number(confirmQty) || 0)) *
+													1000,
+											) / 1000,
+										)}{" "}
+										units) below:
 									</p>
 
 									<div className="grid grid-cols-2 gap-2">
@@ -788,7 +894,10 @@ export default function PickerActivePage() {
 												onChange={(e) => {
 													const val = Number(e.target.value) || 0;
 													setDamagedQty(val);
-													const shortfall = Math.max(0, confirmItem.qty_required - Number(confirmQty));
+													const shortfall = Math.max(
+														0,
+														confirmItem.qty_required - Number(confirmQty),
+													);
 													setMissingQty(Math.max(0, shortfall - val));
 												}}
 											/>
@@ -807,7 +916,10 @@ export default function PickerActivePage() {
 												onChange={(e) => {
 													const val = Number(e.target.value) || 0;
 													setMissingQty(val);
-													const shortfall = Math.max(0, confirmItem.qty_required - Number(confirmQty));
+													const shortfall = Math.max(
+														0,
+														confirmItem.qty_required - Number(confirmQty),
+													);
 													setDamagedQty(Math.max(0, shortfall - val));
 												}}
 											/>
@@ -816,7 +928,8 @@ export default function PickerActivePage() {
 
 									<div className="space-y-1">
 										<label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
-											Reason for Shortage / Exception <span className="text-red-500">*</span>:
+											Reason for Shortage / Exception{" "}
+											<span className="text-red-500">*</span>:
 										</label>
 										<select
 											className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs shadow-sm"
@@ -825,16 +938,21 @@ export default function PickerActivePage() {
 										>
 											<option value="Damaged items">Damaged items</option>
 											<option value="Stock not found">Stock not found</option>
-											<option value="Wrong shelf location">Wrong shelf location</option>
+											<option value="Wrong shelf location">
+												Wrong shelf location
+											</option>
 											<option value="Expired items">Expired items</option>
-											<option value="Inventory mismatch">Inventory mismatch</option>
+											<option value="Inventory mismatch">
+												Inventory mismatch
+											</option>
 											<option value="Other">Other</option>
 										</select>
 									</div>
 
 									<div className="space-y-1">
 										<label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
-											Remarks / Defect Details <span className="text-red-500">*</span>:
+											Remarks / Defect Details{" "}
+											<span className="text-red-500">*</span>:
 										</label>
 										<textarea
 											rows={2}
@@ -866,7 +984,9 @@ export default function PickerActivePage() {
 												}}
 											/>
 											{photoEvidence && (
-												<span className="text-xs text-green-600 font-semibold">✓ Attached</span>
+												<span className="text-xs text-green-600 font-semibold">
+													✓ Attached
+												</span>
 											)}
 										</div>
 										{photoEvidence && (
@@ -888,7 +1008,10 @@ export default function PickerActivePage() {
 								{tCommon("cancel")}
 							</Button>
 							<Button
-								disabled={confirmExceptionMutation.isPending || confirmMutation.isPending}
+								disabled={
+									confirmExceptionMutation.isPending ||
+									confirmMutation.isPending
+								}
 								onClick={handleConfirmSubmit}
 								className={`${
 									Number(confirmQty) < confirmItem.qty_required
@@ -896,7 +1019,8 @@ export default function PickerActivePage() {
 										: "bg-green-600 hover:bg-green-700 text-white"
 								}`}
 							>
-								{(confirmExceptionMutation.isPending || confirmMutation.isPending) && (
+								{(confirmExceptionMutation.isPending ||
+									confirmMutation.isPending) && (
 									<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
 								)}
 								{Number(confirmQty) < confirmItem.qty_required

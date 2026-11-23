@@ -22,14 +22,29 @@ import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 
 const QUICK_ACTIONS = [
-	{ label: "Check product rates", query: "Products ka rate list aur prices check karna hai" },
-	{ label: "Track my order", query: "Where is my order and what is its status?" },
+	{
+		label: "Check product rates",
+		query: "Products ka rate list aur prices check karna hai",
+	},
+	{
+		label: "Track my order",
+		query: "Where is my order and what is its status?",
+	},
 	{ label: "Show recent orders", query: "Show my recent orders" },
 	{ label: "When will order arrive?", query: "When will my order arrive?" },
-	{ label: "Check payment status", query: "Check my payment and credit status" },
-	{ label: "How to place an order?", query: "How do I place a new order in the dashboard?" },
+	{
+		label: "Check payment status",
+		query: "Check my payment and credit status",
+	},
+	{
+		label: "How to place an order?",
+		query: "How do I place a new order in the dashboard?",
+	},
 	{ label: "Help navigate dashboard", query: "Help me navigate my dashboard" },
-	{ label: "Contact customer support", query: "What is your official customer support contact information?" },
+	{
+		label: "Contact customer support",
+		query: "What is your official customer support contact information?",
+	},
 ];
 
 function formatTime(dateStr?: string | Date | null) {
@@ -60,7 +75,10 @@ function renderMessageContent(content: string) {
 
 		if (isBullet) {
 			return (
-				<li key={idx} className="ml-4 list-disc text-xs leading-relaxed sm:text-sm">
+				<li
+					key={idx}
+					className="ml-4 list-disc text-xs leading-relaxed sm:text-sm"
+				>
 					{formattedParts}
 				</li>
 			);
@@ -95,7 +113,10 @@ export function ChatWidget() {
 
 	const { data: history, refetch } = trpc.chatbot.getHistory.useQuery(
 		{ sessionId: sessionId! },
-		{ enabled: !!sessionId && isCustomerDashboard, refetchInterval: isOpen ? 8000 : false },
+		{
+			enabled: !!sessionId && isCustomerDashboard,
+			refetchInterval: isOpen ? 8000 : false,
+		},
 	);
 
 	const sendMessage = trpc.chatbot.sendMessage.useMutation({
@@ -115,7 +136,12 @@ export function ChatWidget() {
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
-		if (isCustomerDashboard && isOpen && !sessionId && !createSession.isPending) {
+		if (
+			isCustomerDashboard &&
+			isOpen &&
+			!sessionId &&
+			!createSession.isPending
+		) {
 			createSession.mutate({});
 		}
 	}, [isCustomerDashboard, isOpen, sessionId, createSession]);
@@ -136,7 +162,11 @@ export function ChatWidget() {
 	const handleSend = (text?: string) => {
 		const now = Date.now();
 		// Throttle / Debounce rapid double clicks: at least 1200ms cooldown
-		if (now - lastSentTimeRef.current < 1200 || isSubmittingRef.current || sendMessage.isPending) {
+		if (
+			now - lastSentTimeRef.current < 1200 ||
+			isSubmittingRef.current ||
+			sendMessage.isPending
+		) {
 			return;
 		}
 
@@ -171,7 +201,7 @@ export function ChatWidget() {
 	};
 
 	return (
-		<div className="fixed right-4 bottom-4 z-50">
+		<div className="fixed right-4 bottom-20 z-50 lg:bottom-4">
 			<AnimatePresence>
 				{isOpen && (
 					<motion.div
@@ -224,7 +254,8 @@ export function ChatWidget() {
 						{/* Sub-banner disclaimer */}
 						<div className="flex items-center justify-between border-b bg-muted/60 px-3 py-1.5 text-[11px] text-muted-foreground">
 							<span className="flex items-center gap-1.5">
-								<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> 24/7 Verified Support
+								<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{" "}
+								24/7 Verified Support
 							</span>
 							<button
 								onClick={handleEscalate}
@@ -245,7 +276,9 @@ export function ChatWidget() {
 								<div className="max-w-[85%] rounded-2xl rounded-tl-none border border-border/60 bg-muted/70 px-3.5 py-2.5 text-xs text-foreground sm:text-sm shadow-xs">
 									<p className="font-medium text-foreground">Hello! 👋</p>
 									<p className="mt-1 text-muted-foreground">
-										I&apos;m your <strong>Evaluna Support Assistant</strong>. I can help you track orders, check delivery stages, review payment balances, and navigate your dashboard.
+										I&apos;m your <strong>Evaluna Support Assistant</strong>. I
+										can help you track orders, check delivery stages, review
+										payment balances, and navigate your dashboard.
 									</p>
 								</div>
 							</div>
@@ -296,7 +329,9 @@ export function ChatWidget() {
 											)}
 										</div>
 
-										<div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[82%]`}>
+										<div
+											className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[82%]`}
+										>
 											<div
 												className={`relative rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm shadow-xs ${
 													isUser
@@ -322,7 +357,9 @@ export function ChatWidget() {
 													{!isUser && (
 														<button
 															type="button"
-															onClick={() => handleCopy(msg.id || idx, msg.content)}
+															onClick={() =>
+																handleCopy(msg.id || idx, msg.content)
+															}
 															className="flex items-center gap-1 hover:text-foreground"
 															title="Copy message"
 														>
@@ -357,7 +394,9 @@ export function ChatWidget() {
 												className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary"
 												style={{ animationDelay: "300ms" }}
 											/>
-											<span className="ml-1 text-[11px]">Assistant is retrieving live data...</span>
+											<span className="ml-1 text-[11px]">
+												Assistant is retrieving live data...
+											</span>
 										</div>
 									</div>
 								</div>

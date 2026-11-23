@@ -303,7 +303,7 @@ export function AppLayout({
 	);
 
 	return (
-		<div className="prevent-overflow flex h-screen w-full flex-col overflow-hidden bg-background selection:bg-primary/20">
+		<div className="prevent-overflow flex h-screen h-[100dvh] w-full flex-col overflow-hidden bg-background selection:bg-primary/20">
 			<NetworkStatusBanner />
 
 			{/* Top Navbar */}
@@ -736,7 +736,15 @@ export function AppLayout({
 				</motion.aside>
 
 				{/* Main Content Area */}
-				<main className="prevent-overflow relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20 pb-20 lg:pb-0">
+				<main
+					className="prevent-overflow relative flex-1 overflow-y-auto overflow-x-hidden bg-muted/20 pb-32 sm:pb-36 lg:pb-8"
+					style={{
+						paddingBottom:
+							navItems && navItems.length > 0
+								? "calc(max(5.5rem, 4.5rem + env(safe-area-inset-bottom, 0px)) + 2.5rem)"
+								: undefined,
+					}}
+				>
 					<motion.div
 						key={pathname}
 						initial={{ opacity: 0, y: 15 }}
@@ -748,7 +756,7 @@ export function AppLayout({
 							damping: 40,
 							mass: 0.8,
 						}}
-						className="mx-auto h-full w-full max-w-7xl p-2 sm:p-4 md:p-6"
+						className="mx-auto min-h-full w-full max-w-7xl p-2 pb-12 sm:p-4 sm:pb-16 md:p-6 md:pb-8"
 					>
 						{children}
 					</motion.div>
@@ -768,7 +776,8 @@ export function AppLayout({
 						{navItems.slice(0, navItems.length > 4 ? 4 : 5).map((item) => {
 							const { href, labelKey, icon: Icon, badge } = item;
 							const isActive =
-								pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+								pathname === href ||
+								(href !== "/" && pathname.startsWith(`${href}/`));
 							return (
 								<Link
 									key={href}
@@ -783,18 +792,24 @@ export function AppLayout({
 										<motion.div
 											layoutId="mobile-bottom-nav-pill"
 											className="absolute inset-x-2 inset-y-1 -z-10 rounded-xl bg-primary/10 dark:bg-primary/20"
-											transition={{ type: "spring", stiffness: 500, damping: 35 }}
+											transition={{
+												type: "spring",
+												stiffness: 500,
+												damping: 35,
+											}}
 										/>
 									)}
 									<div className="relative">
-										<Icon className={`h-5 w-5 transition-transform ${isActive ? "scale-110" : ""}`} />
+										<Icon
+											className={`h-5 w-5 transition-transform ${isActive ? "scale-110" : ""}`}
+										/>
 										{badge !== undefined && badge !== null && badge !== 0 && (
 											<span className="absolute -top-1 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
 												{badge}
 											</span>
 										)}
 									</div>
-									<span className="mt-0.5 max-w-[68px] truncate text-center leading-tight">
+									<span className="mt-0.5 w-full max-w-[72px] truncate text-center leading-tight text-[10px] sm:text-[11px]">
 										{formatNavLabel(labelKey)}
 									</span>
 								</Link>
@@ -818,7 +833,9 @@ export function AppLayout({
 				</nav>
 			)}
 
-			{(pathname?.startsWith("/customer") || role === "customer") && <ChatWidget />}
+			{(pathname?.startsWith("/customer") || role === "customer") && (
+				<ChatWidget />
+			)}
 		</div>
 	);
 }
