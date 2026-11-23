@@ -38,6 +38,7 @@ import {
 	ChevronRightIcon,
 	ChevronsLeftIcon,
 	ChevronsRightIcon,
+	CropIcon,
 	Edit3Icon,
 	FilterIcon,
 	HistoryIcon,
@@ -66,6 +67,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ProductImageEditorModal } from "@/components/warehouse/product-image-editor-modal";
 import { PageTransition } from "@/lib/animations";
 import {
 	calculateEffectivePrice,
@@ -189,6 +191,7 @@ export default function StockPage() {
 	const [imageUploadProgress, setImageUploadProgress] = useState<number>(0);
 	const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 	const [isDraggingImage, setIsDraggingImage] = useState<boolean>(false);
+	const [cropEditorOpen, setCropEditorOpen] = useState<boolean>(false);
 	const imageFileInputRef = useRef<HTMLInputElement | null>(null);
 
 	// Manager Delete Product Modal States
@@ -688,11 +691,11 @@ export default function StockPage() {
 
 	// Filtered Items (Client-side additional guard if needed)
 	const filteredItems = useMemo(() => {
-		let items = rawItems;
+		let items: any[] = rawItems;
 		if (searchQuery.trim()) {
 			const q = searchQuery.toLowerCase().trim();
 			items = items.filter(
-				(item) =>
+				(item: any) =>
 					item.product?.toLowerCase().includes(q) ||
 					item.sku?.toLowerCase().includes(q) ||
 					item.barcode?.toLowerCase().includes(q) ||
@@ -700,26 +703,26 @@ export default function StockPage() {
 			);
 		}
 		if (selectedCategory !== "all") {
-			items = items.filter((i) => i.category === selectedCategory);
+			items = items.filter((i: any) => i.category === selectedCategory);
 		}
 		if (statusFilter === "in_stock") {
 			items = items.filter(
-				(i) => (i.qty_on_hand || 0) > (i.reorder_level ?? 10),
+				(i: any) => (i.qty_on_hand || 0) > (i.reorder_level ?? 10),
 			);
 		} else if (statusFilter === "low_stock") {
 			items = items.filter(
-				(i) =>
+				(i: any) =>
 					(i.qty_on_hand || 0) <= (i.reorder_level ?? 10) &&
 					(i.qty_on_hand || 0) > 0,
 			);
 		} else if (statusFilter === "out_of_stock") {
-			items = items.filter((i) => (i.qty_on_hand || 0) <= 0);
+			items = items.filter((i: any) => (i.qty_on_hand || 0) <= 0);
 		} else if (statusFilter === "on_offer") {
-			items = items.filter((i) => i.hasActiveOffer || i.hasSlabPricing);
+			items = items.filter((i: any) => i.hasActiveOffer || i.hasSlabPricing);
 		} else if (statusFilter === "with_slabs") {
-			items = items.filter((i) => i.hasSlabPricing);
+			items = items.filter((i: any) => i.hasSlabPricing);
 		} else if (statusFilter === "without_slabs") {
-			items = items.filter((i) => !i.hasSlabPricing);
+			items = items.filter((i: any) => !i.hasSlabPricing);
 		}
 		return items;
 	}, [rawItems, searchQuery, selectedCategory, statusFilter]);
@@ -734,23 +737,23 @@ export default function StockPage() {
 
 	// Global Metrics across all items
 	const totalValuation = rawItems.reduce(
-		(acc, curr) => acc + (curr.qty_on_hand || 0) * (curr.price || 0),
+		(acc: number, curr: any) => acc + (curr.qty_on_hand || 0) * (curr.price || 0),
 		0,
 	);
 	const totalUnits = rawItems.reduce(
-		(acc, curr) => acc + (curr.qty_on_hand || 0),
+		(acc: number, curr: any) => acc + (curr.qty_on_hand || 0),
 		0,
 	);
 	const inStockCount = rawItems.filter(
-		(i) => (i.qty_on_hand || 0) > (i.reorder_level ?? 10),
+		(i: any) => (i.qty_on_hand || 0) > (i.reorder_level ?? 10),
 	).length;
 	const lowStockCount = rawItems.filter(
-		(i) =>
+		(i: any) =>
 			(i.qty_on_hand || 0) <= (i.reorder_level ?? 10) &&
 			(i.qty_on_hand || 0) > 0,
 	).length;
 	const outOfStockCount = rawItems.filter(
-		(i) => (i.qty_on_hand || 0) <= 0,
+		(i: any) => (i.qty_on_hand || 0) <= 0,
 	).length;
 	const activeOffersCount = rawItems.filter(
 		(i: any) => i.hasActiveOffer || i.hasSlabPricing,
@@ -860,6 +863,15 @@ export default function StockPage() {
 				locale === "hi"
 					? "उत्पाद की फोटो सफलतापूर्वक अपलोड की गई!"
 					: "Product photo uploaded successfully!",
+				{
+					action: {
+						label:
+							locale === "hi"
+								? "फोटो एडिट व ज़ूम करें"
+								: "Edit, Zoom & Rotate",
+						onClick: () => setCropEditorOpen(true),
+					},
+				},
 			);
 		} catch (err: any) {
 			console.error("[stock/page] Image upload error:", err);
@@ -1422,7 +1434,7 @@ export default function StockPage() {
 									</option>
 									{categories.map((c) => (
 										<option key={c} value={c}>
-											{c} ({rawItems.filter((i) => i.category === c).length})
+											{c} ({rawItems.filter((i: any) => i.category === c).length})
 										</option>
 									))}
 									<option
@@ -1612,20 +1624,20 @@ export default function StockPage() {
 												type="checkbox"
 												checked={
 													paginatedItems.length > 0 &&
-													paginatedItems.every((it) =>
+													paginatedItems.every((it: any) =>
 														selectedProductIds.has(it.productId ?? it.id),
 													)
 												}
 												onChange={(e) => {
 													if (e.target.checked) {
 														const next = new Set(selectedProductIds);
-														paginatedItems.forEach((it) =>
+														paginatedItems.forEach((it: any) =>
 															next.add(it.productId ?? it.id),
 														);
 														setSelectedProductIds(next);
 													} else {
 														const next = new Set(selectedProductIds);
-														paginatedItems.forEach((it) =>
+														paginatedItems.forEach((it: any) =>
 															next.delete(it.productId ?? it.id),
 														);
 														setSelectedProductIds(next);
@@ -1657,7 +1669,7 @@ export default function StockPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{paginatedItems.map((item, idx) => {
+									{paginatedItems.map((item: any, idx: number) => {
 										const rowNum = (currentPage - 1) * pageSize + idx + 1;
 										const sp = Number(item.price || 0);
 										const cp = Number(
@@ -2234,7 +2246,7 @@ export default function StockPage() {
 									<div className="relative rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
 										<div className="flex flex-col items-center gap-4 sm:flex-row">
 											{/* Preview Box */}
-											<div className="relative flex h-44 w-44 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-inner sm:h-48 sm:w-48 dark:border-slate-800 dark:bg-slate-900">
+											<div className="group relative flex h-44 w-44 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-inner sm:h-48 sm:w-48 dark:border-slate-800 dark:bg-slate-900">
 												<img
 													src={editImagePreview}
 													alt={editName || "Product photo"}
@@ -2245,6 +2257,21 @@ export default function StockPage() {
 														);
 													}}
 												/>
+												{/* Quick Edit Overlay Button on preview */}
+												<button
+													type="button"
+													disabled={isUploadingImage}
+													onClick={() => setCropEditorOpen(true)}
+													className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 text-[11px] font-semibold text-white shadow-xs backdrop-blur-xs transition hover:bg-black/90 hover:scale-105 active:scale-95 disabled:opacity-50"
+													title={
+														locale === "hi"
+															? "फोटो एडिट, ज़ूम या रोटेट करें"
+															: "Edit, zoom & rotate photo"
+													}
+												>
+													<CropIcon className="h-3 w-3 text-blue-300" />
+													<span>{locale === "hi" ? "एडिट" : "Edit"}</span>
+												</button>
 												{isUploadingImage && (
 													<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-white backdrop-blur-xs">
 														<Loader2Icon className="h-6 w-6 animate-spin text-blue-400" />
@@ -2303,6 +2330,22 @@ export default function StockPage() {
 
 												{/* Action Buttons */}
 												<div className="flex flex-wrap items-center gap-2 pt-1">
+													<Button
+														type="button"
+														size="sm"
+														variant="outline"
+														disabled={isUploadingImage || !editImagePreview}
+														onClick={() => setCropEditorOpen(true)}
+														className="h-8 gap-1.5 border-blue-300 bg-blue-50/70 font-semibold text-blue-700 text-xs hover:bg-blue-100 hover:text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60"
+													>
+														<CropIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+														<span>
+															{locale === "hi"
+																? "फोटो एडिट व ज़ूम (Edit & Zoom)"
+																: "Edit, Zoom & Rotate (फोटो एडिट)"}
+														</span>
+													</Button>
+
 													<Button
 														type="button"
 														size="sm"
@@ -2683,6 +2726,20 @@ export default function StockPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Product Image Editor Modal (Zoom, Pan, Rotate & Grid) */}
+			{cropEditorOpen && editImagePreview && (
+				<ProductImageEditorModal
+					isOpen={cropEditorOpen}
+					onClose={() => setCropEditorOpen(false)}
+					imageUrl={editImagePreview}
+					fileName={editImageFileName || "product-image.jpg"}
+					onSave={async (editedFile) => {
+						await handleUploadImageFile(editedFile);
+					}}
+					isSaving={isUploadingImage}
+				/>
+			)}
 
 			{/* Manager Delete Product Dialog */}
 			<Dialog
