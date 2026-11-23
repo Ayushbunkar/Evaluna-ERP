@@ -3107,3 +3107,5 @@ export const productSlabPricingRelations = relations(
 		}),
 	}),
 );
+
+export * from "./schema/instagram-marketing";
