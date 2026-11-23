@@ -53,7 +53,6 @@ export const categoriesRouter = router({
 			}
 
 			const db = ctx.db;
-			const { search, limit, offset } = input || {};
 			let query = db.select().from(productCategories);
 
 			if (search) {

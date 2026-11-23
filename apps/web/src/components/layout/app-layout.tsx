@@ -248,50 +248,6 @@ function BranchSwitcher({ isSuperadmin }: { isSuperadmin: boolean }) {
 	);
 }
 
-function NotificationBell({ role }: { role?: string }) {
-	const { data: notifications } = trpc.notifications.list.useQuery(
-		{ is_read: false },
-		{ refetchInterval: 45000, refetchIntervalInBackground: false, refetchOnWindowFocus: true },
-	);
-
-	const unreadCount = notifications?.length || 0;
-	const notificationPath = "/notifications";
-
-	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Link href={notificationPath}>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="relative h-9 w-9 rounded-full transition-colors hover:bg-accent/50"
-						>
-							<motion.div
-								animate={
-									unreadCount > 0 ? { rotate: [0, -15, 15, -15, 15, 0] } : {}
-								}
-								transition={{
-									repeat: Number.POSITIVE_INFINITY,
-									repeatDelay: 3,
-									duration: 0.5,
-								}}
-							>
-								<BellIcon className="h-5 w-5 text-muted-foreground" />
-							</motion.div>
-							{unreadCount > 0 && (
-								<span className="absolute top-1 right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-background" />
-							)}
-						</Button>
-					</Link>
-				</TooltipTrigger>
-				<TooltipContent className="rounded-lg font-medium text-xs">
-					Notifications
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
-	);
-}
 export function AppLayout({
 	children,
 	navItems,
