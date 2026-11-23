@@ -972,10 +972,16 @@ export default function StockPage() {
 			costPrice: Number.isNaN(cost) ? 0 : cost,
 			reason: editReason || `Warehouse stock & rate lock for ${targetDate}`,
 			pricingDate: targetDate,
-			imageUrl: imageWasModified ? editImageUrl || null : undefined,
-			imageStoragePath: imageWasModified
-				? editImageStoragePath || null
-				: undefined,
+			imageUrl: editImageUrl
+				? editImageUrl
+				: imageWasModified
+					? null
+					: undefined,
+			imageStoragePath: editImageStoragePath
+				? editImageStoragePath
+				: imageWasModified
+					? null
+					: undefined,
 		});
 	};
 

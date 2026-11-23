@@ -32,7 +32,10 @@ import {
 } from "@/lib/daily-pricing";
 import { stockLedger } from "@/lib/db/schema";
 import { notifyStockChanged } from "@/lib/inventory/stock-event-bus";
-import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
+import {
+	autoRecoverMissingProductImages,
+	ensureProductImageColumns,
+} from "@/lib/product-schema-ensure";
 import {
 	protectedProcedure,
 	publicProcedure,
@@ -88,6 +91,7 @@ export const inventoryRouter = router({
 			const todayStr = new Date().toISOString().split("T")[0];
 
 			await ensureProductImageColumns(db);
+			await autoRecoverMissingProductImages(db);
 
 			const conditions: any[] = [
 				or(eq(products.is_deleted, false), sql`${products.is_deleted} IS NULL`),
@@ -344,6 +348,7 @@ export const inventoryRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			await ensureProductImageColumns(ctx.db);
 			return await ctx.db.transaction(async (tx) => {
 				let prodId = input.productId;
 
@@ -363,8 +368,6 @@ export const inventoryRouter = router({
 				if (!prodId) {
 					throw new Error("Product ID could not be determined for this item.");
 				}
-
-				await ensureProductImageColumns(tx);
 
 				const priceStr = input.price.toFixed(2);
 

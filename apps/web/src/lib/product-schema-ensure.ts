@@ -55,6 +55,39 @@ export async function ensureProductImageColumns(db: any): Promise<void> {
 	}
 }
 
+let hasAutoRecoveredImages = false;
+
+// Self-healing: Automatically link any products whose image_url is missing but have a product_image attachment
+export async function autoRecoverMissingProductImages(db: any): Promise<void> {
+	if (hasAutoRecoveredImages) return;
+	try {
+		await db.execute(sql`
+			DO $$
+			BEGIN
+				IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'attachments') THEN
+					UPDATE products
+					SET 
+						image_url = '/api/products/images/' || a.id,
+						image_storage_path = a.stored_name,
+						image_updated_at = COALESCE(a.created_at, NOW()),
+						image_updated_by = 'auto_recovery'
+					FROM (
+						SELECT DISTINCT ON (entity_id) id, entity_id, stored_name, created_at
+						FROM attachments
+						WHERE entity_type = 'product_image' AND entity_id IS NOT NULL
+						ORDER BY entity_id, id DESC
+					) a
+					WHERE products.id = a.entity_id
+						AND (products.image_url IS NULL OR products.image_url = '');
+				END IF;
+			END $$;
+		`);
+		hasAutoRecoveredImages = true;
+	} catch (_) {
+		// Non-fatal if serverless environment doesn't support DO block or attachments doesn't exist
+	}
+}
+
 let hasEnsuredPickingExceptions = false;
 
 /**
