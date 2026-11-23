@@ -30,27 +30,27 @@ export default function PackerReportsPage() {
 	} = trpc.packer.getReports.useQuery({});
 
 	return (
-		<PageTransition className="container mx-auto space-y-6">
+		<PageTransition className="flex w-full min-w-0 max-w-full flex-col gap-4 sm:gap-6">
 			{/* Page Header */}
-			<div className="flex flex-col gap-1">
-				<h1 className="flex items-center gap-2 font-bold text-2xl text-foreground tracking-tight">
-					<FileBarChart className="h-7 w-7 text-blue-600" />
-					{t("reportsTitle")}
+			<div className="flex w-full min-w-0 max-w-full flex-col gap-1">
+				<h1 className="flex items-center gap-2 truncate font-bold text-xl sm:text-2xl text-foreground tracking-tight">
+					<FileBarChart className="h-6 w-6 sm:h-7 sm:w-7 shrink-0 text-blue-600" />
+					<span className="truncate">{t("reportsTitle")}</span>
 				</h1>
-				<p className="text-muted-foreground text-sm">{t("reportsSub")}</p>
+				<p className="line-clamp-2 sm:line-clamp-none text-muted-foreground text-xs sm:text-sm">{t("reportsSub")}</p>
 			</div>
 
 			{/* Summary Stat Cards */}
-			<StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" slow>
-				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+			<StaggerList className="grid w-full min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4" slow>
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
 										{t("totalPackedOrders")}
 									</p>
-									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+									<p className="font-bold text-2xl sm:text-3xl text-blue-800 dark:text-blue-300">
 										{reports?.totalOrders ?? 0}
 									</p>
 								</div>
@@ -59,15 +59,15 @@ export default function PackerReportsPage() {
 						</CardContent>
 					</Card>
 				</StaggerItem>
-				<StaggerItem>
-					<Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-blue-700 text-sm dark:text-blue-400">
 										{t("avgPackingSpeed")}
 									</p>
-									<p className="font-bold text-3xl text-blue-800 dark:text-blue-300">
+									<p className="font-bold text-2xl sm:text-3xl text-blue-800 dark:text-blue-300">
 										{reports?.avgPackingTime ?? 4.2}m
 									</p>
 								</div>
@@ -76,15 +76,15 @@ export default function PackerReportsPage() {
 						</CardContent>
 					</Card>
 				</StaggerItem>
-				<StaggerItem>
-					<Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-green-700 text-sm dark:text-green-400">
 										{t("stationAccuracy")}
 									</p>
-									<p className="font-bold text-3xl text-green-800 dark:text-green-300">
+									<p className="font-bold text-2xl sm:text-3xl text-green-800 dark:text-green-300">
 										{reports?.accuracy ?? 99.8}%
 									</p>
 								</div>
@@ -93,15 +93,15 @@ export default function PackerReportsPage() {
 						</CardContent>
 					</Card>
 				</StaggerItem>
-				<StaggerItem>
-					<Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20">
+				<StaggerItem className="w-full min-w-0">
+					<Card className="w-full min-w-0 border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20">
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium text-sm text-yellow-700 dark:text-yellow-400">
 										{t("packagingErrors")}
 									</p>
-									<p className="font-bold text-3xl text-yellow-800 dark:text-yellow-300">
+									<p className="font-bold text-2xl sm:text-3xl text-yellow-800 dark:text-yellow-300">
 										{reports?.totalErrors ?? 0}
 									</p>
 								</div>
@@ -113,8 +113,8 @@ export default function PackerReportsPage() {
 			</StaggerList>
 
 			{/* Details Section */}
-			<div className="grid gap-6 lg:grid-cols-2">
-				<Card className="border-border/50 shadow-sm">
+			<div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+				<Card className="w-full min-w-0 border-border/50 shadow-sm">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 text-base">
 							<TrendingUpIcon className="h-4 w-4 text-blue-600" />
