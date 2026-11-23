@@ -6,8 +6,8 @@ import {
 	orderItems,
 	orders,
 	pendingSync,
-	products,
 	productSlabPricing,
+	products,
 	user,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
@@ -16,9 +16,9 @@ import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { notifyCustomerOrderPlaced } from "@/lib/notification-service";
 import { findMatchingSlab } from "@/lib/pricing/slab-pricing";
-import { ensureSlabPricingTable } from "./slab-pricing";
 import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
 import { customerProcedure, roleProcedure, router } from "../init";
+import { ensureSlabPricingTable } from "./slab-pricing";
 
 export { ensureProductImageColumns };
 
@@ -56,7 +56,11 @@ export async function ensureCartTables(db: any) {
 	}
 }
 
-async function getCartHelper(db: any, customerId: number, branchId: number | null) {
+async function getCartHelper(
+	db: any,
+	customerId: number,
+	branchId: number | null,
+) {
 	await ensureCartTables(db);
 	await ensureSlabPricingTable(db);
 
@@ -229,7 +233,9 @@ async function getCartHelper(db: any, customerId: number, branchId: number | nul
 			discountPercent = Number(
 				disc.discount_percent ||
 					(originalPrice > 0
-						? Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
+						? Math.round(
+								((originalPrice - effectivePrice) / originalPrice) * 100,
+							)
 						: 0),
 			);
 			hasActiveOffer = true;
@@ -401,10 +407,22 @@ export const customerRouter = router({
 		const [statsRow] = await ctx.db
 			.select({
 				totalCount: count(),
-				pendingCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(pendingStatuses.map(s => sql`${s}`), sql`, `)})), 0)`,
-				confirmedCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(confirmedStatuses.map(s => sql`${s}`), sql`, `)})), 0)`,
-				completedCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(completedStatuses.map(s => sql`${s}`), sql`, `)})), 0)`,
-				totalSpent: sql<number>`COALESCE(SUM(CASE WHEN LOWER(${orders.status}) IN (${sql.join(paidStatuses.map(s => sql`${s}`), sql`, `)}) THEN CAST(${orders.total_amount} AS NUMERIC) ELSE 0 END), 0)`,
+				pendingCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(
+					pendingStatuses.map((s) => sql`${s}`),
+					sql`, `,
+				)})), 0)`,
+				confirmedCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(
+					confirmedStatuses.map((s) => sql`${s}`),
+					sql`, `,
+				)})), 0)`,
+				completedCount: sql<number>`COALESCE(COUNT(*) FILTER (WHERE LOWER(${orders.status}) IN (${sql.join(
+					completedStatuses.map((s) => sql`${s}`),
+					sql`, `,
+				)})), 0)`,
+				totalSpent: sql<number>`COALESCE(SUM(CASE WHEN LOWER(${orders.status}) IN (${sql.join(
+					paidStatuses.map((s) => sql`${s}`),
+					sql`, `,
+				)}) THEN CAST(${orders.total_amount} AS NUMERIC) ELSE 0 END), 0)`,
 			})
 			.from(orders)
 			.where(eq(orders.customer_id, cid));
@@ -471,7 +489,10 @@ export const customerRouter = router({
 					limit: 200,
 				});
 			} catch (findErr) {
-				console.warn("[browseProducts] findMany failed, attempting resilient SQL query:", findErr);
+				console.warn(
+					"[browseProducts] findMany failed, attempting resilient SQL query:",
+					findErr,
+				);
 				try {
 					const searchCondition = input?.search?.trim()
 						? sql`AND p.name ILIKE ${"%" + input.search.trim() + "%"}`
@@ -491,6 +512,7 @@ export const customerRouter = router({
 							p.category, 
 							p.unit, 
 							p.sku, 
+							p.image_url,
 							p.is_deleted, 
 							p.is_hidden
 						FROM products p
@@ -503,22 +525,30 @@ export const customerRouter = router({
 						LIMIT 200
 					`);
 
-					const rawRows = (rawResult as any)?.rows || (Array.isArray(rawResult) ? rawResult : []);
+					const rawRows =
+						(rawResult as any)?.rows ||
+						(Array.isArray(rawResult) ? rawResult : []);
 					rows = rawRows.map((r: any) => ({
 						id: Number(r.id),
 						name: String(r.name || ""),
 						description: r.description || null,
 						price: r.price !== null ? String(r.price) : null,
-						base_selling_price: r.base_selling_price !== null ? String(r.base_selling_price) : null,
+						base_selling_price:
+							r.base_selling_price !== null
+								? String(r.base_selling_price)
+								: null,
 						category: r.category || "General",
 						unit: r.unit || "Pcs",
 						sku: r.sku || null,
 						is_deleted: Boolean(r.is_deleted),
 						is_hidden: Boolean(r.is_hidden),
-						image_url: null,
+						image_url: r.image_url || null,
 					}));
 				} catch (fallbackErr) {
-					console.error("[browseProducts] Both findMany and fallback query failed:", fallbackErr);
+					console.error(
+						"[browseProducts] Both findMany and fallback query failed:",
+						fallbackErr,
+					);
 					throw findErr;
 				}
 			}
@@ -596,7 +626,9 @@ export const customerRouter = router({
 					discountPercent = Number(
 						disc.discount_percent ||
 							(originalPrice > 0
-								? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+								? Math.round(
+										((originalPrice - finalPrice) / originalPrice) * 100,
+									)
 								: 0),
 					);
 					offerReason = disc.reason || "Today's Special Deal";
@@ -604,7 +636,8 @@ export const customerRouter = router({
 
 				const itemSlabs = slabsMap.get(p.id) || [];
 				const slabEndDate = itemSlabs.find((s) => s.endDate)?.endDate || null;
-				const slabStartDate = itemSlabs.find((s) => s.startDate)?.startDate || null;
+				const slabStartDate =
+					itemSlabs.find((s) => s.startDate)?.startDate || null;
 
 				return {
 					id: p.id,
@@ -625,7 +658,8 @@ export const customerRouter = router({
 					sku: p.sku ?? null,
 					image: (p as any).image_url ?? (p as any).image ?? null,
 					imageUrl: (p as any).image_url ?? (p as any).image ?? null,
-					available: !(p as any).is_out_of_stock && !p.is_deleted && !p.is_hidden,
+					available:
+						!(p as any).is_out_of_stock && !p.is_deleted && !p.is_hidden,
 				};
 			});
 
@@ -653,7 +687,12 @@ export const customerRouter = router({
 			let [activeCart] = await ctx.db
 				.select()
 				.from(carts)
-				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.where(
+					and(
+						eq(carts.customer_id, ctx.customer.id),
+						eq(carts.status, "active"),
+					),
+				)
 				.limit(1);
 
 			if (!activeCart) {
@@ -668,7 +707,9 @@ export const customerRouter = router({
 			const [prod] = await ctx.db
 				.select()
 				.from(products)
-				.where(and(eq(products.id, input.productId), eq(products.is_deleted, false)))
+				.where(
+					and(eq(products.id, input.productId), eq(products.is_deleted, false)),
+				)
 				.limit(1);
 
 			if (!prod) {
@@ -706,7 +747,11 @@ export const customerRouter = router({
 				});
 			}
 
-			return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+			return await getCartHelper(
+				ctx.db,
+				ctx.customer.id,
+				ctx.customer.branch_id,
+			);
 		}),
 
 	updateCartItemQuantity: customerProcedure
@@ -721,11 +766,20 @@ export const customerRouter = router({
 			const [activeCart] = await ctx.db
 				.select()
 				.from(carts)
-				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.where(
+					and(
+						eq(carts.customer_id, ctx.customer.id),
+						eq(carts.status, "active"),
+					),
+				)
 				.limit(1);
 
 			if (!activeCart) {
-				return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+				return await getCartHelper(
+					ctx.db,
+					ctx.customer.id,
+					ctx.customer.branch_id,
+				);
 			}
 
 			if (input.quantity <= 0) {
@@ -766,7 +820,11 @@ export const customerRouter = router({
 				}
 			}
 
-			return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+			return await getCartHelper(
+				ctx.db,
+				ctx.customer.id,
+				ctx.customer.branch_id,
+			);
 		}),
 
 	removeFromCart: customerProcedure
@@ -776,7 +834,12 @@ export const customerRouter = router({
 			const [activeCart] = await ctx.db
 				.select()
 				.from(carts)
-				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.where(
+					and(
+						eq(carts.customer_id, ctx.customer.id),
+						eq(carts.status, "active"),
+					),
+				)
 				.limit(1);
 
 			if (activeCart) {
@@ -790,7 +853,11 @@ export const customerRouter = router({
 					);
 			}
 
-			return await getCartHelper(ctx.db, ctx.customer.id, ctx.customer.branch_id);
+			return await getCartHelper(
+				ctx.db,
+				ctx.customer.id,
+				ctx.customer.branch_id,
+			);
 		}),
 
 	clearCart: customerProcedure.mutation(async ({ ctx }) => {
@@ -798,11 +865,15 @@ export const customerRouter = router({
 		const [activeCart] = await ctx.db
 			.select()
 			.from(carts)
-			.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+			.where(
+				and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")),
+			)
 			.limit(1);
 
 		if (activeCart) {
-			await ctx.db.delete(cartItems).where(eq(cartItems.cart_id, activeCart.id));
+			await ctx.db
+				.delete(cartItems)
+				.where(eq(cartItems.cart_id, activeCart.id));
 		}
 
 		return { success: true };
@@ -843,7 +914,12 @@ export const customerRouter = router({
 			const [activeCart] = await ctx.db
 				.select()
 				.from(carts)
-				.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+				.where(
+					and(
+						eq(carts.customer_id, ctx.customer.id),
+						eq(carts.status, "active"),
+					),
+				)
 				.limit(1);
 
 			if (!activeCart) {
@@ -1093,11 +1169,19 @@ export const customerRouter = router({
 			// Query active packages and delivery stops for this customer to determine granular status
 			const orderIds = rows.map((r) => r.id);
 			let packagesList: { order_id: number; status: string | null }[] = [];
-			let tripStopsList: { customer_id: number; status: string | null; trip_status?: string | null }[] = [];
+			let tripStopsList: {
+				customer_id: number;
+				status: string | null;
+				trip_status?: string | null;
+			}[] = [];
 
 			if (orderIds.length > 0) {
 				try {
-					const { packages, tripStops, deliveryTrips } = require("@evaluna/db/schema");
+					const {
+						packages,
+						tripStops,
+						deliveryTrips,
+					} = require("@evaluna/db/schema");
 					packagesList = await ctx.db
 						.select({
 							order_id: packages.order_id,
@@ -1120,9 +1204,14 @@ export const customerRouter = router({
 				}
 			}
 
-			const packageStatusMap = new Map(packagesList.map((p) => [p.order_id, p.status]));
+			const packageStatusMap = new Map(
+				packagesList.map((p) => [p.order_id, p.status]),
+			);
 			const activeTripStop = tripStopsList.find(
-				(ts) => ts.trip_status === "active" || ts.trip_status === "pending" || ts.status === "delivered",
+				(ts) =>
+					ts.trip_status === "active" ||
+					ts.trip_status === "pending" ||
+					ts.status === "delivered",
 			);
 
 			return rows.map((o) => {
@@ -1132,11 +1221,23 @@ export const customerRouter = router({
 				// Calculate workflow progression status
 				if (o.status === "completed") {
 					effectiveStatus = "completed";
-				} else if (activeTripStop?.status === "delivered" && (o.status === "ready_for_dispatch" || o.status === "confirmed" || o.status === "dispatched")) {
+				} else if (
+					activeTripStop?.status === "delivered" &&
+					(o.status === "ready_for_dispatch" ||
+						o.status === "confirmed" ||
+						o.status === "dispatched")
+				) {
 					effectiveStatus = "completed";
-				} else if (o.status === "dispatched" || activeTripStop?.trip_status === "active") {
+				} else if (
+					o.status === "dispatched" ||
+					activeTripStop?.trip_status === "active"
+				) {
 					effectiveStatus = "out_for_delivery";
-				} else if (o.status === "ready_for_dispatch" || pkgStatus === "packed" || pkgStatus === "ready_for_dispatch") {
+				} else if (
+					o.status === "ready_for_dispatch" ||
+					pkgStatus === "packed" ||
+					pkgStatus === "ready_for_dispatch"
+				) {
 					effectiveStatus = "ready_for_dispatch";
 				} else if (pkgStatus === "packing") {
 					effectiveStatus = "packing";
@@ -1261,7 +1362,11 @@ export const customerRouter = router({
 			// Check package and trip stop status for this order
 			let effectiveStatus = order.status ?? "pending_review";
 			try {
-				const { packages, tripStops, deliveryTrips } = require("@evaluna/db/schema");
+				const {
+					packages,
+					tripStops,
+					deliveryTrips,
+				} = require("@evaluna/db/schema");
 				const [pkg] = await ctx.db
 					.select({ status: packages.status })
 					.from(packages)
@@ -1281,11 +1386,23 @@ export const customerRouter = router({
 
 				if (order.status === "completed") {
 					effectiveStatus = "completed";
-				} else if (stop?.status === "delivered" && (order.status === "ready_for_dispatch" || order.status === "confirmed" || order.status === "dispatched")) {
+				} else if (
+					stop?.status === "delivered" &&
+					(order.status === "ready_for_dispatch" ||
+						order.status === "confirmed" ||
+						order.status === "dispatched")
+				) {
 					effectiveStatus = "completed";
-				} else if (order.status === "dispatched" || stop?.trip_status === "active") {
+				} else if (
+					order.status === "dispatched" ||
+					stop?.trip_status === "active"
+				) {
 					effectiveStatus = "out_for_delivery";
-				} else if (order.status === "ready_for_dispatch" || pkg?.status === "packed" || pkg?.status === "ready_for_dispatch") {
+				} else if (
+					order.status === "ready_for_dispatch" ||
+					pkg?.status === "packed" ||
+					pkg?.status === "ready_for_dispatch"
+				) {
 					effectiveStatus = "ready_for_dispatch";
 				} else if (pkg?.status === "packing") {
 					effectiveStatus = "packing";
@@ -1439,7 +1556,13 @@ export const customerRouter = router({
 						eq(products.is_deleted, false),
 						eq(products.is_hidden, false),
 					),
-					columns: { id: true, name: true, sku: true, price: true, base_selling_price: true },
+					columns: {
+						id: true,
+						name: true,
+						sku: true,
+						price: true,
+						base_selling_price: true,
+					},
 				});
 				const productMap = new Map(valid.map((p) => [p.id, p]));
 				const cleanItems = input.items
@@ -1477,12 +1600,17 @@ export const customerRouter = router({
 				});
 
 				for (const recent of recentOrders) {
-					if (!recent.orderItems || recent.orderItems.length !== cleanItems.length) continue;
+					if (
+						!recent.orderItems ||
+						recent.orderItems.length !== cleanItems.length
+					)
+						continue;
 					const recentItemMap = new Map(
 						recent.orderItems.map((oi: any) => [oi.product_id, oi.quantity]),
 					);
 					const isExactDuplicate = cleanItems.every(
-						(it) => Number(recentItemMap.get(it.productId)) === Number(it.quantity),
+						(it) =>
+							Number(recentItemMap.get(it.productId)) === Number(it.quantity),
 					);
 					if (isExactDuplicate) {
 						return {
@@ -1554,10 +1682,17 @@ export const customerRouter = router({
 				const [activeCart] = await ctx.db
 					.select()
 					.from(carts)
-					.where(and(eq(carts.customer_id, ctx.customer.id), eq(carts.status, "active")))
+					.where(
+						and(
+							eq(carts.customer_id, ctx.customer.id),
+							eq(carts.status, "active"),
+						),
+					)
 					.limit(1);
 				if (activeCart) {
-					await ctx.db.delete(cartItems).where(eq(cartItems.cart_id, activeCart.id));
+					await ctx.db
+						.delete(cartItems)
+						.where(eq(cartItems.cart_id, activeCart.id));
 				}
 			} catch (_cartErr) {
 				// cart clear is best effort

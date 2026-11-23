@@ -4,11 +4,22 @@ import {
 	products,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, eq, ilike, inArray, isNotNull, or, sql, sum } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	eq,
+	ilike,
+	inArray,
+	isNotNull,
+	or,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { protectedProcedure, router } from "@/lib/trpc/init";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { logAudit, resolveStaffId } from "../util/audit";
 import { permProcedure } from "../util/auditor-procedures";
 
@@ -36,7 +47,10 @@ export const productsRouter = router({
 							totalStock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)`,
 						})
 						.from(products)
-						.leftJoin(branchInventory, eq(products.id, branchInventory.product_id))
+						.leftJoin(
+							branchInventory,
+							eq(products.id, branchInventory.product_id),
+						)
 						.where(eq(products.is_deleted, false))
 						.groupBy(products.id)
 						.having(sql`coalesce(sum(${branchInventory.in_stock}), 0) <= 10`)
@@ -108,6 +122,8 @@ export const productsRouter = router({
 					baseSellingPrice: products.base_selling_price,
 					visibilityLevel: products.visibility_level,
 					isHidden: products.is_hidden,
+					imageUrl: products.image_url,
+					imageStoragePath: products.image_storage_path,
 					stock: sql<number>`coalesce(sum(${branchInventory.in_stock}), 0)::numeric`,
 				})
 				.from(products)
@@ -122,6 +138,8 @@ export const productsRouter = router({
 					products.base_selling_price,
 					products.visibility_level,
 					products.is_hidden,
+					products.image_url,
+					products.image_storage_path,
 				)
 				.orderBy(asc(products.name));
 
@@ -147,6 +165,8 @@ export const productsRouter = router({
 					margin: bp && sp ? Math.round(((sp - bp) / sp) * 100) : 0,
 					visibilityLevel: p.visibilityLevel || "global",
 					status: p.isHidden ? "inactive" : "active",
+					imageUrl: p.imageUrl || null,
+					imageStoragePath: p.imageStoragePath || null,
 					stock: Number(p.stock) || 0,
 				};
 			});

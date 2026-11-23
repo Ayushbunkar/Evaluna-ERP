@@ -5,8 +5,8 @@ import {
 	productBarcodes,
 	productBatches,
 	productConversions,
-	products,
 	productSlabPricing,
+	products,
 	stockAdjustments,
 } from "@evaluna/db/schema";
 import { TRPCError } from "@trpc/server";
@@ -30,17 +30,17 @@ import {
 	getDailyPricingMapForDate,
 	lockOrUpdateDailyPrice,
 } from "@/lib/daily-pricing";
-import { ensureSlabPricingTable } from "./slab-pricing";
-import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
-import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { stockLedger } from "@/lib/db/schema";
+import { ensureProductImageColumns } from "@/lib/product-schema-ensure";
 import {
 	protectedProcedure,
 	publicProcedure,
 	roleProcedure,
 	router,
 } from "@/lib/trpc/init";
+import { toBilingualProductName } from "@/lib/utils/hindi-transliteration";
 import { resolveStaffId } from "../util/audit";
+import { ensureSlabPricingTable } from "./slab-pricing";
 
 export const inventoryRouter = router({
 	listByProduct: publicProcedure
@@ -208,7 +208,8 @@ export const inventoryRouter = router({
 					id: slab.id,
 					productId: slab.product_id,
 					minQuantity: Number(slab.min_quantity),
-					maxQuantity: slab.max_quantity !== null ? Number(slab.max_quantity) : null,
+					maxQuantity:
+						slab.max_quantity !== null ? Number(slab.max_quantity) : null,
 					unitPrice: Number(slab.unit_price),
 					startDate: slab.start_date,
 					endDate: slab.end_date,
@@ -258,10 +259,16 @@ export const inventoryRouter = router({
 					unit: d.unit || "Pcs",
 					barcode: d.barcode || "",
 					price: originalPrice,
+					imageUrl: d.imageUrl || null,
+					imageStoragePath: d.imageStoragePath || null,
 					costPrice: Number.parseFloat(d.baseProcurementPrice || "0"),
 					cost_price: Number.parseFloat(d.baseProcurementPrice || "0"),
-					baseProcurementPrice: Number.parseFloat(d.baseProcurementPrice || "0"),
-					base_procurement_price: Number.parseFloat(d.baseProcurementPrice || "0"),
+					baseProcurementPrice: Number.parseFloat(
+						d.baseProcurementPrice || "0",
+					),
+					base_procurement_price: Number.parseFloat(
+						d.baseProcurementPrice || "0",
+					),
 					currentPrice: hasActiveOffer ? offerPrice : originalPrice,
 					hasActiveOffer,
 					offerPrice,
@@ -271,14 +278,23 @@ export const inventoryRouter = router({
 					slabsCount: (slabsMap.get(d.productId) || []).length,
 					minSlabPrice:
 						(slabsMap.get(d.productId) || []).length > 0
-							? Math.min(...(slabsMap.get(d.productId) || []).map((s: any) => s.unitPrice))
+							? Math.min(
+									...(slabsMap.get(d.productId) || []).map(
+										(s: any) => s.unitPrice,
+									),
+								)
 							: null,
 					maxSlabPrice:
 						(slabsMap.get(d.productId) || []).length > 0
-							? Math.max(...(slabsMap.get(d.productId) || []).map((s: any) => s.unitPrice))
+							? Math.max(
+									...(slabsMap.get(d.productId) || []).map(
+										(s: any) => s.unitPrice,
+									),
+								)
 							: null,
 					slabEndDate:
-						(slabsMap.get(d.productId) || []).find((s: any) => s.endDate)?.endDate || null,
+						(slabsMap.get(d.productId) || []).find((s: any) => s.endDate)
+							?.endDate || null,
 					slabs: slabsMap.get(d.productId) || [],
 					branch: "Bhopal Main Warehouse",
 					branchId: d.branchId || targetBranchId,
@@ -356,7 +372,11 @@ export const inventoryRouter = router({
 					price: priceStr,
 					base_selling_price: priceStr,
 				};
-				if (input.name !== undefined && input.name !== null && input.name.trim().length > 0) {
+				if (
+					input.name !== undefined &&
+					input.name !== null &&
+					input.name.trim().length > 0
+				) {
 					const trimmedNewName = toBilingualProductName(input.name.trim());
 					const duplicateName = await tx
 						.select({ id: products.id, name: products.name })
@@ -365,8 +385,8 @@ export const inventoryRouter = router({
 							and(
 								eq(products.is_deleted, false),
 								sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedNewName}))`,
-								sql`${products.id} != ${prodId}`
-							)
+								sql`${products.id} != ${prodId}`,
+							),
 						)
 						.limit(1);
 
@@ -400,7 +420,8 @@ export const inventoryRouter = router({
 					productUpdates.image_url = input.imageUrl;
 					productUpdates.image_storage_path = input.imageStoragePath ?? null;
 					productUpdates.image_updated_at = new Date();
-					productUpdates.image_updated_by = ctx.user?.email || ctx.user?.name || "warehouse_manager";
+					productUpdates.image_updated_by =
+						ctx.user?.email || ctx.user?.name || "warehouse_manager";
 				}
 
 				await tx
@@ -443,7 +464,9 @@ export const inventoryRouter = router({
 						product_id: prodId,
 						branch_id: input.branchId,
 						in_stock: String(input.qtyOnHand),
-						reorder_level: input.reorderLevel ? Math.round(input.reorderLevel) : 10,
+						reorder_level: input.reorderLevel
+							? Math.round(input.reorderLevel)
+							: 10,
 					});
 				}
 
@@ -476,8 +499,7 @@ export const inventoryRouter = router({
 					sellingPrice: input.price,
 					branchId: input.branchId,
 					notes:
-						input.reason ??
-						`Warehouse stock & rate lock for ${effectiveDate}`,
+						input.reason ?? `Warehouse stock & rate lock for ${effectiveDate}`,
 					userUid: ctx.user?.id,
 					staffId,
 					source: "warehouse_stock_update",
@@ -1094,7 +1116,8 @@ export const inventoryRouter = router({
 		)
 		.query(async ({ ctx, input }) => {
 			const trimmedName = input.name?.trim() || "";
-			const bilingualName = trimmedName.length >= 2 ? toBilingualProductName(trimmedName) : "";
+			const bilingualName =
+				trimmedName.length >= 2 ? toBilingualProductName(trimmedName) : "";
 			const trimmedSku = input.sku?.trim() || "";
 			const trimmedBarcode = input.barcode?.trim() || "";
 
@@ -1111,7 +1134,10 @@ export const inventoryRouter = router({
 				conditions.push(
 					sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${trimmedName}))`,
 				);
-				if (bilingualName && bilingualName.toLowerCase() !== trimmedName.toLowerCase()) {
+				if (
+					bilingualName &&
+					bilingualName.toLowerCase() !== trimmedName.toLowerCase()
+				) {
 					conditions.push(
 						sql`LOWER(TRIM(${products.name})) = LOWER(TRIM(${bilingualName}))`,
 					);
@@ -1331,6 +1357,8 @@ export const inventoryRouter = router({
 					reorderLevel: branchInventory.reorder_level,
 					sellingPrice: products.selling_price,
 					costPrice: products.base_procurement_price,
+					imageUrl: products.image_url,
+					imageStoragePath: products.image_storage_path,
 				})
 				.from(products)
 				.leftJoin(
@@ -1395,7 +1423,8 @@ export const inventoryRouter = router({
 			return currentInventory.map((item) => {
 				const current = Number(item.currentStock || 0);
 				const deltaAfter = deltaMap.get(item.productId) || 0;
-				const historical = Math.round(Math.max(0, current - deltaAfter) * 1000) / 1000;
+				const historical =
+					Math.round(Math.max(0, current - deltaAfter) * 1000) / 1000;
 				const locked = lockedPricingMap.get(item.productId);
 
 				const effectiveSellingPrice = locked
@@ -1430,6 +1459,8 @@ export const inventoryRouter = router({
 					lockedAt: locked?.lockedAt ?? null,
 					pricingNotes: locked?.notes ?? null,
 					date: input.date,
+					imageUrl: item.imageUrl || null,
+					imageStoragePath: item.imageStoragePath || null,
 				};
 			});
 		}),

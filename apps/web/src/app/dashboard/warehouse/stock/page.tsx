@@ -184,6 +184,7 @@ export default function StockPage() {
 	const [editImageStoragePath, setEditImageStoragePath] = useState<string>("");
 	const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
 	const [editImageFileName, setEditImageFileName] = useState<string>("");
+	const [imageWasModified, setImageWasModified] = useState<boolean>(false);
 	const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
 	const [imageUploadProgress, setImageUploadProgress] = useState<number>(0);
 	const [imageUploadError, setImageUploadError] = useState<string | null>(null);
@@ -609,6 +610,8 @@ export default function StockPage() {
 				discount_offer_price: null,
 				isHistorical: true,
 				historicalDate: h.date,
+				imageUrl: h.imageUrl || null,
+				imageStoragePath: h.imageStoragePath || null,
 			}));
 		}
 		return invData?.items || [];
@@ -794,6 +797,7 @@ export default function StockPage() {
 		setImageUploadProgress(0);
 		setImageUploadError(null);
 		setIsDraggingImage(false);
+		setImageWasModified(false);
 	};
 
 	const handleUploadImageFile = async (file: File) => {
@@ -848,6 +852,7 @@ export default function StockPage() {
 			setEditImageStoragePath(data.storagePath);
 			setEditImagePreview(data.imageUrl);
 			setEditImageFileName(data.fileName || file.name);
+			setImageWasModified(true);
 			toast.success(
 				locale === "hi"
 					? "उत्पाद की फोटो सफलतापूर्वक अपलोड की गई!"
@@ -868,6 +873,7 @@ export default function StockPage() {
 		setEditImagePreview(null);
 		setEditImageFileName("");
 		setImageUploadError(null);
+		setImageWasModified(true);
 		if (imageFileInputRef.current) {
 			imageFileInputRef.current.value = "";
 		}
@@ -951,11 +957,10 @@ export default function StockPage() {
 			costPrice: Number.isNaN(cost) ? 0 : cost,
 			reason: editReason || `Warehouse stock & rate lock for ${targetDate}`,
 			pricingDate: targetDate,
-			imageUrl: editImageUrl !== undefined ? editImageUrl || null : undefined,
-			imageStoragePath:
-				editImageStoragePath !== undefined
-					? editImageStoragePath || null
-					: undefined,
+			imageUrl: imageWasModified ? editImageUrl || null : undefined,
+			imageStoragePath: imageWasModified
+				? editImageStoragePath || null
+				: undefined,
 		});
 	};
 
